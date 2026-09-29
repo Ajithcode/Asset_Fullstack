@@ -29,6 +29,9 @@ public sealed class EventLogRepository : MongoRepository<EventLog>, IEventLogRep
                 Builders<EventLog>.IndexKeys.Ascending(eventLog => eventLog.Action),
                 new CreateIndexOptions { Name = "ix_event_logs_action" }),
             new CreateIndexModel<EventLog>(
+                Builders<EventLog>.IndexKeys.Ascending(eventLog => eventLog.PerformedBy),
+                new CreateIndexOptions { Name = "ix_event_logs_performed_by" }),
+            new CreateIndexModel<EventLog>(
                 Builders<EventLog>.IndexKeys.Descending(eventLog => eventLog.CreatedAt),
                 new CreateIndexOptions { Name = "ix_event_logs_created_at_desc" })
         };
@@ -53,6 +56,11 @@ public sealed class EventLogRepository : MongoRepository<EventLog>, IEventLogRep
         if (!string.IsNullOrWhiteSpace(query.EntityId))
         {
             filters.Add(Builders<EventLog>.Filter.Eq(eventLog => eventLog.EntityId, query.EntityId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.PerformedBy))
+        {
+            filters.Add(Builders<EventLog>.Filter.Eq(eventLog => eventLog.PerformedBy, query.PerformedBy));
         }
 
         if (!string.IsNullOrWhiteSpace(query.Action))

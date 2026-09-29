@@ -3,6 +3,7 @@ using A360.Media.Api.Services;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
 using A360.Repository.Settings;
+using A360.Security;
 
 namespace A360.Media.Api.IoC;
 
@@ -31,7 +32,11 @@ public static class MediaServiceCollectionExtensions
         services.AddScoped<EventLogRepository>();
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
-        services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(serviceProvider.GetRequiredService<IEventLogRepository>(), "Media"));
+        services.AddA360JwtAuthentication(configuration);
+        services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
+            serviceProvider.GetRequiredService<IEventLogRepository>(),
+            "Media",
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
 
         services.AddHostedService<MongoIndexHostedService>();
 

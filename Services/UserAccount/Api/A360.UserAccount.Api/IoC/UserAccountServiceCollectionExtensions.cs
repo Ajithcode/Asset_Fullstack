@@ -43,7 +43,10 @@ public static class UserAccountServiceCollectionExtensions
         services.AddScoped<EventLogRepository>();
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
-        services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(serviceProvider.GetRequiredService<IEventLogRepository>(), "UserAccount"));
+        services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
+            serviceProvider.GetRequiredService<IEventLogRepository>(),
+            "UserAccount",
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
 
         services.AddScoped<UserRepository>();
         services.AddScoped<IUserRepository>(serviceProvider => serviceProvider.GetRequiredService<UserRepository>());

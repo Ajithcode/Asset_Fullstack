@@ -15,6 +15,7 @@ public sealed record EventLogQuery(
     DateTime? From,
     DateTime? To,
     int Page,
-    int PageSize);
+    int PageSize,
+    string? PerformedBy = null);
 
 public sealed record EventLogQueryResult(IReadOnlyCollection<EventLog> Items, long TotalCount);

@@ -8,6 +8,9 @@ public static class MediaApplicationBuilderExtensions
     public static WebApplication UseMediaApiMiddlewares(
         this WebApplication app)
     {
+        // Reads the bearer token forwarded by the gateway so event logs know who made each change.
+        app.UseAuthentication();
+
         var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
         Directory.CreateDirectory(uploadsFolder);
 

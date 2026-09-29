@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using EventLogEntity = A360.Domain.Entities.EventLog;
 
 namespace A360.EventLog.Api.Contracts;
@@ -9,6 +10,7 @@ public sealed record EventLogResponse(
     string EntityId,
     string EntityName,
     string Action,
+    string? PerformedBy,
     DateTime? CreatedAt,
     string Message)
 {
@@ -21,6 +23,7 @@ public sealed record EventLogResponse(
             eventLog.EntityId,
             eventLog.EntityName,
             eventLog.Action,
+            eventLog.PerformedBy,
             eventLog.CreatedAt,
             BuildMessage(eventLog));
     }
@@ -29,9 +32,10 @@ public sealed record EventLogResponse(
     {
         var action = string.IsNullOrWhiteSpace(eventLog.Action)
             ? eventLog.Action
-            : eventLog.Action.ToLowerInvariant();
+            : Regex.Replace(eventLog.Action, "(?<=[a-z])(?=[A-Z])", " ").ToLowerInvariant();
 
-        return $"{eventLog.EntityName} is {action} with id {eventLog.EntityId}";
+        var message = $"{eventLog.EntityName} is {action} with id {eventLog.EntityId}";
+        return string.IsNullOrWhiteSpace(eventLog.PerformedBy) ? message : $"{message} by {eventLog.PerformedBy}";
     }
 }
 

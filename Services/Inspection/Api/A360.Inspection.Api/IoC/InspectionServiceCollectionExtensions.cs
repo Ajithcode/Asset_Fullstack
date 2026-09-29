@@ -4,6 +4,7 @@ using A360.Repository.Activity;
 using A360.Repository.Repositories;
 using A360.Repository.Sequences;
 using A360.Repository.Settings;
+using A360.Security;
 
 namespace A360.Inspection.Api.IoC;
 
@@ -34,7 +35,11 @@ public static class InspectionServiceCollectionExtensions
         services.AddScoped<EventLogRepository>();
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
-        services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(serviceProvider.GetRequiredService<IEventLogRepository>(), "Inspection"));
+        services.AddA360JwtAuthentication(configuration);
+        services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
+            serviceProvider.GetRequiredService<IEventLogRepository>(),
+            "Inspection",
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
 
         services.AddScoped<InspectionTypeRepository>();
         services.AddScoped<IInspectionTypeRepository>(serviceProvider => serviceProvider.GetRequiredService<InspectionTypeRepository>());

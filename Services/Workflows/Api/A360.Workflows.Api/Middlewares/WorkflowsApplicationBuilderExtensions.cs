@@ -8,6 +8,9 @@ public static class WorkflowsApplicationBuilderExtensions
     public static WebApplication UseWorkflowsApiMiddlewares(
         this WebApplication app)
     {
+        // Reads the bearer token forwarded by the gateway so event logs know who made each change.
+        app.UseAuthentication();
+
         if (app.Environment.IsDevelopment() ||
             app.Configuration.GetValue<bool>("Swagger:Enabled"))
         {

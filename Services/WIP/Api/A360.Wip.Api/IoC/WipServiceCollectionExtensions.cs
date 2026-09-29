@@ -4,6 +4,7 @@ using A360.Wip.Repository.Repositories;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
 using A360.Repository.Settings;
+using A360.Security;
 
 namespace A360.Wip.Api.IoC;
 
@@ -45,7 +46,11 @@ public static class WipServiceCollectionExtensions
         services.AddScoped<EventLogRepository>();
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
-        services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(serviceProvider.GetRequiredService<IEventLogRepository>(), "Wip"));
+        services.AddA360JwtAuthentication(configuration);
+        services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
+            serviceProvider.GetRequiredService<IEventLogRepository>(),
+            "Wip",
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
 
         // Job Master Repository Registration
 

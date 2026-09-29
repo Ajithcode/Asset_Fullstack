@@ -25,10 +25,11 @@ public static class EventLogEndpoints
         DateTime? from = null,
         DateTime? to = null,
         int page = 1,
-        int pageSize = 50)
+        int pageSize = 50,
+        string? performedBy = null)
     {
         var result = await repository.QueryAsync(
-            new EventLogQuery(serviceName, entityType, entityId, action, from, to, page, pageSize),
+            new EventLogQuery(serviceName, entityType, entityId, action, from, to, page, pageSize, performedBy),
             cancellationToken);
 
         var response = new EventLogListResponse(
