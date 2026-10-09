@@ -62,12 +62,18 @@ export class Sidebar {
       children: [
         { label: 'Asset Registration', path: '/assets/registration' },
         { label: 'Asset List', path: '/assets/list' },
+        { label: 'Asset Categories', path: '/assets/categories' },
+        { label: 'Asset Types & Models', path: '/assets/types-models' },
+        { label: 'Asset Hierarchy', path: '/assets/hierarchy' },
+        { label: 'Asset Components', path: '/assets/components' },
         { label: 'Location History', path: '/assets/location-history' },
         { label: 'Assignment', path: '/assets/assignment' },
         { label: 'Maintenance', path: '/assets/maintenance' },
         { label: 'Service Requests', path: '/assets/service-requests' },
         { label: 'Asset Audit', path: '/assets/audit' },
-        { label: 'Disposal', path: '/assets/disposal' }
+        { label: 'Disposal', path: '/assets/disposal' },
+        { label: 'Custom Fields', path: '/assets/custom-fields' },
+        { label: 'Asset Lifecycle', path: '/assets/lifecycle' }
       ]
     },
     {

@@ -1,0 +1,65 @@
+<div class="viewer">
+  <div class="viewer-bar" *ngIf="!usesOwnViewer">
+    <span class="pager-mini">
+      <input
+        class="page-input"
+        type="number"
+        min="1"
+        [max]="pages"
+        [ngModel]="page"
+        (ngModelChange)="setPage($event)"
+        [disabled]="pages <= 1"
+        aria-label="Page number"
+      />
+      / {{ pages }}
+    </span>
+    <span class="bar-sep"></span>
+    <button type="button" class="bar-btn" (click)="zoomBy(-10)" [disabled]="zoom <= 50" aria-label="Zoom out"><lucide-icon [img]="icons.Minus" [size]="16"></lucide-icon></button>
+    <span class="zoom-label">{{ zoom }}%</span>
+    <button type="button" class="bar-btn" (click)="zoomBy(10)" [disabled]="zoom >= 200" aria-label="Zoom in"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon></button>
+    <span class="bar-sep"></span>
+    <button type="button" class="bar-btn" (click)="fitWidth()" title="Fit to width" aria-label="Fit to width"><lucide-icon [img]="icons.Maximize" [size]="15"></lucide-icon></button>
+    <button type="button" class="bar-btn" (click)="rotate()" title="Rotate" aria-label="Rotate"><lucide-icon [img]="icons.RotateCw" [size]="15"></lucide-icon></button>
+  </div>
+
+  <div class="viewer-stage" [class.viewer-stage--frame]="usesOwnViewer">
+    <!-- Uploaded PDF -->
+    <iframe *ngIf="usesOwnViewer" class="pdf-frame" [src]="safeUrl" [title]="title || fileName"></iframe>
+
+    <!-- Uploaded image -->
+    <img *ngIf="url && format === 'image'" class="sheet sheet--image" [src]="url" [alt]="title || fileName" [style.transform]="transform" />
+
+    <!-- Uploaded file the browser can't render -->
+    <div *ngIf="url && format !== 'pdf' && format !== 'image'" class="no-preview">
+      <lucide-icon [img]="formatIcons[format]" [size]="36"></lucide-icon>
+      <p>Preview isn't available for this file type.</p>
+      <button type="button" class="btn-dl" (click)="download.emit()">Download to view</button>
+    </div>
+
+    <!-- Sample entry: generated title page + placeholder pages -->
+    <div *ngIf="!url" class="sheet" [style.transform]="transform">
+      <ng-container *ngIf="page === 1; else innerPage">
+        <div class="cover-brand">{{ (component.manufacturer || manufacturer) | uppercase }}</div>
+        <div class="cover-band">{{ component.model || component.tag }}</div>
+        <div class="cover-title">{{ component.name | uppercase }}</div>
+        <div class="cover-sub">{{ title | uppercase }}</div>
+        <div class="cover-art"><lucide-icon [img]="formatIcons[format]" [size]="64" [strokeWidth]="1.2"></lucide-icon></div>
+        <div class="cover-foot">
+          <span>{{ component.tag }}{{ version ? '-' + (version | uppercase) : '' }}</span>
+          <span *ngIf="date">Edition: {{ date | date: 'MMMM yyyy' }}</span>
+          <span>Language: English</span>
+          <lucide-icon class="cover-book" [img]="icons.BookOpen" [size]="26"></lucide-icon>
+        </div>
+      </ng-container>
+      <ng-template #innerPage>
+        <div class="inner-head">{{ title }} &middot; {{ component.model || component.tag }}</div>
+        <div class="inner-title">Section {{ page - 1 }}</div>
+        <div class="skeleton" *ngFor="let w of [96, 88, 92, 70, 95, 84, 60]" [style.width.%]="w"></div>
+        <div class="skeleton-box"></div>
+        <div class="skeleton" *ngFor="let w of [90, 94, 76, 88]" [style.width.%]="w"></div>
+        <div class="inner-foot">Page {{ page }} of {{ pages }}</div>
+      </ng-template>
+    </div>
+  </div>
+  <p *ngIf="!url" class="sample-note">Sample file – upload a real file to see its contents.</p>
+</div>

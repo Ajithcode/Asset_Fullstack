@@ -1,0 +1,437 @@
+<div class="sh-grid">
+  <!-- ===== Left: service log ===== -->
+  <div class="card panel">
+    <div class="card-head">
+      <span class="icon-tile"><lucide-icon [img]="icons.History" [size]="18"></lucide-icon></span>
+      <h3 class="grow">Service History ({{ records.length }})</h3>
+      <button type="button" class="btn btn-primary" (click)="openForm()">
+        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
+        Add Service Record
+      </button>
+    </div>
+
+    <div class="filters">
+      <div class="search-box">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input type="search" placeholder="Search service records..." [(ngModel)]="search" (ngModelChange)="onFilterChange()" aria-label="Search service records" />
+      </div>
+      <select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by service type">
+        <option value="">All Service Types</option>
+        <option *ngFor="let t of serviceTypes" [value]="t">{{ t }}</option>
+      </select>
+      <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by status">
+        <option value="">All Status</option>
+        <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+      </select>
+      <div class="date-range" [class.is-invalid]="dateRangeInvalid" [title]="dateRangeInvalid ? 'From date is after To date' : ''">
+        <lucide-icon [img]="icons.CalendarDays" [size]="16"></lucide-icon>
+        <input type="date" [(ngModel)]="fromDate" (ngModelChange)="onFilterChange()" aria-label="From date" />
+        <span>–</span>
+        <input type="date" [(ngModel)]="toDate" (ngModelChange)="onFilterChange()" aria-label="To date" />
+        <button *ngIf="fromDate || toDate" type="button" class="search-clear" (click)="clearDates()" aria-label="Clear dates">
+          <lucide-icon [img]="icons.X" [size]="12"></lucide-icon>
+        </button>
+      </div>
+    </div>
+    <p *ngIf="dateRangeInvalid" class="error range-error">"From" is after "To", so the date filter is ignored.</p>
+
+    <div *ngIf="checked.size" class="bulk">
+      <span><strong>{{ checked.size }}</strong> selected</span>
+      <button type="button" class="link-btn" (click)="exportChecked()">Export CSV</button>
+      <button type="button" class="link-btn link-btn--muted" (click)="checked.clear()">Clear</button>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="col-check">
+              <input type="checkbox" [checked]="allChecked" [indeterminate]="someChecked" (change)="toggleAll()" aria-label="Select all on this page" />
+            </th>
+            <th class="col-num">#</th>
+            <th>Service Date</th>
+            <th>Service Type</th>
+            <th>Description</th>
+            <th>Performed By</th>
+            <th>Next Due Date</th>
+            <th>Status</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let r of pageRows; let i = index; trackBy: trackById"
+            class="clickable"
+            [class.is-current]="r.id === selectedId"
+            (click)="select(r)"
+          >
+            <td class="col-check" (click)="$event.stopPropagation()">
+              <input type="checkbox" [checked]="checked.has(r.id)" (change)="toggleRow(r.id)" [attr.aria-label]="'Select ' + r.reference" />
+            </td>
+            <td class="col-num">{{ rangeStart + i }}</td>
+            <td>{{ r.date | date: 'dd MMM yyyy' }}</td>
+            <td>
+              <span class="type" [ngClass]="'type--' + r.type.toLowerCase()">
+                <lucide-icon [img]="typeIcons[r.type]" [size]="15"></lucide-icon>{{ r.type }}
+              </span>
+            </td>
+            <td>{{ r.description }}</td>
+            <td>{{ r.performedBy }}</td>
+            <td>{{ r.nextDue ? (r.nextDue | date: 'dd MMM yyyy') : '–' }}</td>
+            <td><span class="pill" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
+            <td class="col-actions" (click)="$event.stopPropagation()">
+              <div class="menu-wrap">
+                <button type="button" class="icon-btn" (click)="toggleMenu(r.id, $event)" [attr.aria-expanded]="openMenu === r.id" aria-label="Actions">
+                  <lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon>
+                </button>
+                <div *ngIf="openMenu === r.id" class="menu" role="menu">
+                  <button type="button" role="menuitem" (click)="openMenu = null; select(r)"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>View</button>
+                  <button type="button" role="menuitem" (click)="openForm(r)"><lucide-icon [img]="icons.SquarePen" [size]="15"></lucide-icon>Edit</button>
+                  <button type="button" role="menuitem" (click)="openForm(r, true)"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon>Duplicate as New</button>
+                  <hr />
+                  <button type="button" role="menuitem" class="danger" (click)="askDelete(r)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete</button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div *ngIf="!pageRows.length" class="empty">
+        <lucide-icon [img]="icons.Inbox" [size]="30"></lucide-icon>
+        <h4>{{ records.length ? 'No records match' : 'No service history yet' }}</h4>
+        <p>{{ records.length ? 'Try different filters or dates.' : 'Add the first service record for ' + component.name + '.' }}</p>
+      </div>
+    </div>
+
+    <div class="pager">
+      <label class="page-size">
+        Show
+        <select class="control" [(ngModel)]="pageSize" (ngModelChange)="onFilterChange()">
+          <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+        </select>
+        per page
+      </label>
+      <div class="pager-right">
+        <span class="range">Showing {{ rangeStart }} - {{ rangeEnd }} of {{ filtered.length }} records</span>
+        <nav class="pages" aria-label="Pagination">
+          <button type="button" class="page-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)" aria-label="Previous page">
+            <lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon>
+          </button>
+          <button
+            *ngFor="let p of pageList"
+            type="button"
+            class="page-btn"
+            [class.is-active]="p === currentPage"
+            [attr.aria-current]="p === currentPage ? 'page' : null"
+            (click)="goToPage(p)"
+          >{{ p }}</button>
+          <button type="button" class="page-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)" aria-label="Next page">
+            <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Right: selected record ===== -->
+  <div class="card panel detail-panel">
+    <div class="card-head">
+      <span class="icon-tile"><lucide-icon [img]="icons.Settings" [size]="18"></lucide-icon></span>
+      <h3 class="grow">Service Record Details</h3>
+      <button *ngIf="selected" type="button" class="btn btn-soft btn-sm" (click)="openForm(selected)">
+        <lucide-icon [img]="icons.SquarePen" [size]="15"></lucide-icon>
+        Edit
+      </button>
+    </div>
+
+    <ng-container *ngIf="selected as r; else noSelection">
+      <div class="record-title">
+        <span class="pill" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span>
+        <h4>{{ r.description }}</h4>
+      </div>
+      <dl class="record-facts">
+        <div><dt>Service Date</dt><dd>{{ r.date | date: 'dd MMM yyyy' }}</dd></div>
+        <div><dt>Service Type</dt><dd>{{ typeLabels[r.type] }}</dd></div>
+        <div><dt>Reference No.</dt><dd class="mono">{{ r.reference }}</dd></div>
+      </dl>
+
+      <div class="sub-tabs" role="tablist">
+        <button
+          *ngFor="let t of detailTabs"
+          type="button"
+          role="tab"
+          [class.is-active]="detailTab === t.key"
+          [attr.aria-selected]="detailTab === t.key"
+          (click)="detailTab = t.key"
+        >
+          <lucide-icon *ngIf="t.key === 'documents'" [img]="icons.FileText" [size]="14"></lucide-icon>
+          {{ t.label }}<ng-container *ngIf="tabCount(r, t.key) !== null && t.key !== 'work'"> ({{ tabCount(r, t.key) }})</ng-container>
+        </button>
+      </div>
+
+      <!-- Details -->
+      <div *ngIf="detailTab === 'details'" class="sub-body">
+        <dl class="kv">
+          <div><dt>Performed By</dt><dd>{{ r.performedBy }}</dd></div>
+          <div><dt>Technician</dt><dd>{{ r.technician || '–' }}</dd></div>
+          <div><dt>Service Location</dt><dd>{{ r.location || location || '–' }}</dd></div>
+          <div><dt>Start Time</dt><dd>{{ formatTime(r.startTime) }}</dd></div>
+          <div><dt>End Time</dt><dd>{{ formatTime(r.endTime) }}</dd></div>
+          <div><dt>Running Hours</dt><dd>{{ r.runningHours === null ? '–' : (r.runningHours | number) + ' hrs' }}</dd></div>
+          <div><dt>Next Due Date</dt><dd>{{ r.nextDue ? (r.nextDue | date: 'dd MMM yyyy') : '–' }}</dd></div>
+          <div class="kv-block"><dt>Remarks</dt><dd><p class="remarks">{{ r.remarks || 'No remarks.' }}</p></dd></div>
+        </dl>
+      </div>
+
+      <!-- Work performed -->
+      <div *ngIf="detailTab === 'work'" class="sub-body">
+        <ul class="checklist">
+          <li *ngFor="let w of r.workPerformed; let i = index">
+            <lucide-icon [img]="icons.Check" [size]="15"></lucide-icon>
+            <span class="grow">{{ w }}</span>
+            <button type="button" class="icon-btn icon-btn--sm" (click)="removeWorkItem(r, i)" [attr.aria-label]="'Remove ' + w"><lucide-icon [img]="icons.X" [size]="14"></lucide-icon></button>
+          </li>
+          <li *ngIf="!r.workPerformed.length" class="muted">No work items recorded.</li>
+        </ul>
+        <div class="inline-add">
+          <input class="control" placeholder="Add a work item" [(ngModel)]="newWorkItem" (keydown.enter)="addWorkItem(r)" maxlength="120" />
+          <button type="button" class="btn btn-soft btn-sm" [disabled]="!newWorkItem.trim()" (click)="addWorkItem(r)">Add</button>
+        </div>
+      </div>
+
+      <!-- Parts used -->
+      <div *ngIf="detailTab === 'parts'" class="sub-body">
+        <div class="table-wrap">
+          <table class="data-table mini-table">
+            <thead><tr><th>Part</th><th>Part No.</th><th class="num">Qty</th><th class="num">Unit (AED)</th><th class="num">Total (AED)</th><th></th></tr></thead>
+            <tbody>
+              <tr *ngFor="let p of r.parts">
+                <td>{{ p.name }}</td>
+                <td class="mono">{{ p.partNumber || '–' }}</td>
+                <td class="num">{{ p.quantity }}</td>
+                <td class="num">{{ p.unitCost | number: '1.2-2' }}</td>
+                <td class="num">{{ p.quantity * p.unitCost | number: '1.2-2' }}</td>
+                <td class="col-actions"><button type="button" class="icon-btn icon-btn--sm icon-btn--danger" (click)="removePart(r, p)" [attr.aria-label]="'Remove ' + p.name"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon></button></td>
+              </tr>
+              <tr *ngIf="!r.parts.length"><td colspan="6" class="muted">No parts used.</td></tr>
+              <tr class="add-row">
+                <td><input class="control" placeholder="Part name" [(ngModel)]="newPart.name" /></td>
+                <td><input class="control" placeholder="Part no." [(ngModel)]="newPart.partNumber" /></td>
+                <td><input class="control num-input" type="number" min="1" [(ngModel)]="newPart.quantity" /></td>
+                <td><input class="control num-input" type="number" min="0" step="0.01" [(ngModel)]="newPart.unitCost" /></td>
+                <td class="num">{{ (newPart.quantity || 0) * (newPart.unitCost || 0) | number: '1.2-2' }}</td>
+                <td class="col-actions"><button type="button" class="btn btn-primary btn-sm" [disabled]="!newPartValid" (click)="addPart(r)">Add</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Cost -->
+      <div *ngIf="detailTab === 'cost'" class="sub-body">
+        <dl class="cost">
+          <div><dt>Parts ({{ r.parts.length }})</dt><dd>AED {{ partsTotal(r) | number: '1.2-2' }}</dd></div>
+          <div><dt>Labour</dt><dd>AED {{ r.labourCost | number: '1.2-2' }}</dd></div>
+          <div><dt>Other</dt><dd>AED {{ r.otherCost | number: '1.2-2' }}</dd></div>
+          <div class="cost-total"><dt>Total</dt><dd>AED {{ totalCost(r) | number: '1.2-2' }}</dd></div>
+        </dl>
+        <p class="hint">Edit the record to change labour or other costs; parts are managed on the Parts Used tab.</p>
+      </div>
+
+      <!-- Documents -->
+      <div *ngIf="detailTab === 'documents'" class="sub-body">
+        <ul class="docs">
+          <li *ngFor="let d of r.documents">
+            <lucide-icon [img]="icons.FileText" [size]="16"></lucide-icon>
+            <span class="grow">{{ d.name }}</span>
+            <span class="muted">{{ formatSize(d.size) }}</span>
+            <button type="button" class="icon-btn icon-btn--sm icon-btn--danger" (click)="removeDocument(r, d)" [attr.aria-label]="'Remove ' + d.name"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon></button>
+          </li>
+          <li *ngIf="!r.documents.length" class="muted">No documents attached.</li>
+        </ul>
+        <label class="btn btn-soft btn-sm attach-btn">
+          <lucide-icon [img]="icons.Paperclip" [size]="14"></lucide-icon>
+          Attach Files
+          <input type="file" multiple hidden (change)="onDocumentsSelected(r, $event)" />
+        </label>
+        <p class="hint">Up to 10 MB each. Only the file name and size are kept in this preview.</p>
+      </div>
+
+      <!-- Health + reminder -->
+      <div class="mini-cards">
+        <div class="mini-card">
+          <div class="mini-head">
+            <span class="mini-icon mini-icon--green"><lucide-icon [img]="icons.HeartPulse" [size]="17"></lucide-icon></span>
+            <strong>Component Health After Service</strong>
+          </div>
+          <dl class="kv kv--tight">
+            <div><dt>Status</dt><dd><span class="pill" [ngClass]="'health--' + r.health.toLowerCase()"><span class="dot"></span>{{ r.health }}</span></dd></div>
+            <div>
+              <dt>Health Score</dt>
+              <dd>
+                {{ r.healthScore }}%
+                <span class="score-bar" [ngClass]="'score-bar--' + r.health.toLowerCase()"><span [style.width.%]="r.healthScore"></span></span>
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="mini-card">
+          <div class="mini-head">
+            <span class="mini-icon"><lucide-icon [img]="icons.CalendarDays" [size]="17"></lucide-icon></span>
+            <strong>Next Service Reminder</strong>
+          </div>
+          <dl class="kv kv--tight">
+            <div>
+              <dt>Due Date</dt>
+              <dd><input class="control control--date" type="date" [ngModel]="reminderDate(r)" (ngModelChange)="reminderDraft = $event" aria-label="Reminder due date" /></dd>
+            </div>
+            <div>
+              <dt>Due In</dt>
+              <dd *ngIf="reminderDate(r) as due; else noDue" [class.is-bad]="daysUntil(due) < 0">
+                {{ daysUntil(due) < 0 ? 'Passed ' + -daysUntil(due) + ' days ago' : daysUntil(due) === 0 ? 'Today' : daysUntil(due) + ' days' }}
+              </dd>
+              <ng-template #noDue><dd class="muted">–</dd></ng-template>
+            </div>
+          </dl>
+          <div class="reminder-actions">
+            <span *ngIf="r.reminder" class="reminder-set"><lucide-icon [img]="icons.BellRing" [size]="14"></lucide-icon>Set for {{ r.reminder | date: 'dd MMM yyyy' }}</span>
+            <button *ngIf="r.reminder" type="button" class="link-btn link-btn--muted" (click)="clearReminder(r)">Remove</button>
+            <button type="button" class="btn btn-primary btn-sm" (click)="saveReminder(r)">
+              <lucide-icon [img]="icons.Bell" [size]="14"></lucide-icon>
+              {{ r.reminder ? 'Update Reminder' : 'Create Reminder' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+    <ng-template #noSelection>
+      <div class="empty">
+        <lucide-icon [img]="icons.ClipboardCheck" [size]="32"></lucide-icon>
+        <h4>No record selected</h4>
+        <p>Pick a service record to see its details.</p>
+      </div>
+    </ng-template>
+  </div>
+</div>
+
+<!-- ===== Add / edit modal ===== -->
+<div *ngIf="formOpen" class="overlay" (click)="formOpen = false">
+  <form class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="svc-form-title" (click)="$event.stopPropagation()" (ngSubmit)="saveForm()">
+    <div class="modal-head">
+      <h2 id="svc-form-title">{{ editing ? 'Edit ' + editing.reference : 'Add Service Record' }} &middot; <span class="muted">{{ component.name }}</span></h2>
+      <button type="button" class="icon-btn" (click)="formOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <div class="grid-3">
+        <label class="field">
+          <span class="field-label">Service Date <em>*</em></span>
+          <input class="control" type="date" name="date" [(ngModel)]="form.date" [class.is-invalid]="(formSubmitted && !form.date) || completedInFuture" />
+          <span *ngIf="completedInFuture" class="error">A completed service can't be in the future.</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Service Type</span>
+          <select class="control" name="type" [(ngModel)]="form.type">
+            <option *ngFor="let t of serviceTypes" [value]="t">{{ t }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Status</span>
+          <select class="control" name="status" [(ngModel)]="form.status">
+            <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+          </select>
+        </label>
+      </div>
+      <label class="field">
+        <span class="field-label">Description <em>*</em></span>
+        <input class="control" name="description" [(ngModel)]="form.description" [class.is-invalid]="formSubmitted && !form.description.trim()" maxlength="100" placeholder="e.g. 500 Hours Service" />
+        <span *ngIf="formSubmitted && !form.description.trim()" class="error">Description is required.</span>
+      </label>
+      <div class="grid-3">
+        <label class="field">
+          <span class="field-label">Performed By <em>*</em></span>
+          <input class="control" name="performedBy" list="vendor-options" [(ngModel)]="form.performedBy" [class.is-invalid]="formSubmitted && !form.performedBy.trim()" maxlength="60" />
+          <span *ngIf="formSubmitted && !form.performedBy.trim()" class="error">Required.</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Technician</span>
+          <input class="control" name="technician" list="tech-options" [(ngModel)]="form.technician" maxlength="60" />
+        </label>
+        <label class="field">
+          <span class="field-label">Service Location</span>
+          <input class="control" name="location" [(ngModel)]="form.location" maxlength="100" />
+        </label>
+        <label class="field">
+          <span class="field-label">Start Time</span>
+          <input class="control" type="time" name="startTime" [(ngModel)]="form.startTime" />
+        </label>
+        <label class="field">
+          <span class="field-label">End Time</span>
+          <input class="control" type="time" name="endTime" [(ngModel)]="form.endTime" [class.is-invalid]="timesInvalid" />
+          <span *ngIf="timesInvalid" class="error">Must be after the start time.</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Running Hours</span>
+          <input class="control" type="number" min="0" name="runningHours" [(ngModel)]="form.runningHours" />
+        </label>
+        <label class="field">
+          <span class="field-label">Next Due Date</span>
+          <input class="control" type="date" name="nextDue" [(ngModel)]="form.nextDue" [class.is-invalid]="nextDueInvalid" />
+          <span *ngIf="nextDueInvalid" class="error">Must be after the service date.</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Health After Service</span>
+          <select class="control" name="health" [(ngModel)]="form.health">
+            <option *ngFor="let h of healthRatings" [value]="h">{{ h }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Health Score (%)</span>
+          <input class="control" type="number" min="0" max="100" name="healthScore" [(ngModel)]="form.healthScore" [class.is-invalid]="scoreInvalid" />
+          <span *ngIf="scoreInvalid" class="error">0 to 100.</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Labour Cost (AED)</span>
+          <input class="control" type="number" min="0" step="0.01" name="labourCost" [(ngModel)]="form.labourCost" [class.is-invalid]="costsInvalid" />
+        </label>
+        <label class="field">
+          <span class="field-label">Other Cost (AED)</span>
+          <input class="control" type="number" min="0" step="0.01" name="otherCost" [(ngModel)]="form.otherCost" [class.is-invalid]="costsInvalid" />
+          <span *ngIf="costsInvalid" class="error">Costs can't be negative.</span>
+        </label>
+      </div>
+      <label class="field">
+        <span class="field-label">Work Performed <span class="muted">(one item per line)</span></span>
+        <textarea class="control" name="workText" rows="3" [(ngModel)]="form.workText"></textarea>
+      </label>
+      <label class="field">
+        <span class="field-label">Remarks</span>
+        <textarea class="control" name="remarks" rows="2" [(ngModel)]="form.remarks" maxlength="500"></textarea>
+      </label>
+      <p *ngIf="!editing" class="hint">Parts and documents can be added from the record's tabs after saving.</p>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="formOpen = false">Cancel</button>
+      <button type="submit" class="btn btn-primary">{{ editing ? 'Save Changes' : 'Add Record' }}</button>
+    </div>
+  </form>
+</div>
+
+<datalist id="vendor-options"><option *ngFor="let v of vendors" [value]="v"></option></datalist>
+<datalist id="tech-options"><option *ngFor="let t of technicians" [value]="t"></option></datalist>
+
+<!-- ===== Delete confirmation ===== -->
+<div *ngIf="deleteTarget" class="overlay" (click)="deleteTarget = null">
+  <div class="modal modal--sm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2>Delete {{ deleteTarget.reference }}?</h2></div>
+    <div class="modal-body">
+      <p>{{ deleteTarget.description }} on {{ deleteTarget.date | date: 'dd MMM yyyy' }} will be removed from {{ component.name }}'s service history.</p>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="deleteTarget = null">Cancel</button>
+      <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

@@ -1,0 +1,378 @@
+<div class="fl-grid">
+  <!-- ===== Layout list ===== -->
+  <div class="card panel">
+    <div class="card-head">
+      <span class="icon-tile"><lucide-icon [img]="icons.Cog" [size]="18"></lucide-icon></span>
+      <h3 class="grow">Field Layouts ({{ layouts.length }})</h3>
+    </div>
+
+    <div class="filters filters--2">
+      <div class="search-box">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input type="search" placeholder="Search field layouts..." [(ngModel)]="search" (ngModelChange)="page = 1" aria-label="Search field layouts" />
+      </div>
+      <select class="control" [(ngModel)]="typeFilter" (ngModelChange)="page = 1" aria-label="Filter by asset type">
+        <option value="">All Asset Types</option>
+        <option *ngFor="let t of assetTypes" [value]="t">{{ t }}</option>
+      </select>
+    </div>
+
+    <div *ngIf="checked.size" class="bulk">
+      <span><strong>{{ checked.size }}</strong> selected</span>
+      <button type="button" class="link-btn" (click)="setStatus(checkedList, 'Active')">Activate</button>
+      <button type="button" class="link-btn" (click)="setStatus(checkedList, 'Inactive')">Deactivate</button>
+      <button type="button" class="link-btn link-btn--danger" (click)="askDelete(checkedList)">Delete</button>
+      <button type="button" class="link-btn link-btn--muted" (click)="checked.clear()">Clear</button>
+    </div>
+
+    <div class="table-wrap fl-list">
+      <table class="data-table data-table--layouts">
+        <thead>
+          <tr>
+            <th class="col-check">
+              <input type="checkbox" [checked]="allChecked" [indeterminate]="someChecked" (change)="toggleAll()" aria-label="Select all on this page" />
+            </th>
+            <th class="col-num">#</th>
+            <th>Layout Name</th>
+            <th>Asset Type</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let l of pageRows; let i = index" class="clickable" [class.is-current]="l === selected" (click)="requestSelect(l)">
+            <td class="col-check" (click)="$event.stopPropagation()">
+              <input type="checkbox" [checked]="checked.has(l)" (change)="toggleRow(l)" [attr.aria-label]="'Select ' + l.name" />
+            </td>
+            <td class="col-num">{{ rangeStart + i }}</td>
+            <td>{{ l.name }}</td>
+            <td>{{ l.assetType }}</td>
+            <td class="muted">{{ l.description || '–' }}</td>
+            <td><span class="pill" [class.pill--active]="l.status === 'Active'" [class.pill--inactive]="l.status === 'Inactive'"><span class="dot"></span>{{ l.status }}</span></td>
+            <td class="col-actions" (click)="$event.stopPropagation()">
+              <div class="menu-wrap">
+                <button type="button" class="icon-btn" (click)="toggleMenu('l' + l.id, $event)" [attr.aria-expanded]="openMenu === 'l' + l.id" aria-label="Actions">
+                  <lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon>
+                </button>
+                <div *ngIf="openMenu === 'l' + l.id" class="menu" role="menu">
+                  <button type="button" role="menuitem" (click)="openEdit(l)"><lucide-icon [img]="icons.SquarePen" [size]="15"></lucide-icon>Edit Details</button>
+                  <button type="button" role="menuitem" (click)="duplicate(l)"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon>Duplicate</button>
+                  <button type="button" role="menuitem" (click)="setStatus([l], l.status === 'Active' ? 'Inactive' : 'Active')">
+                    <lucide-icon [img]="l.status === 'Active' ? icons.PowerOff : icons.Power" [size]="15"></lucide-icon>{{ l.status === 'Active' ? 'Deactivate' : 'Activate' }}
+                  </button>
+                  <hr />
+                  <button type="button" role="menuitem" class="danger" (click)="askDelete([l])"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete</button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div *ngIf="!pageRows.length" class="empty">
+        <lucide-icon [img]="icons.Inbox" [size]="30"></lucide-icon>
+        <h4>{{ layouts.length ? 'No layouts match' : 'No field layouts yet' }}</h4>
+        <p>{{ layouts.length ? 'Try a different search or filter.' : 'Use "Add Field Layout" to create one.' }}</p>
+      </div>
+    </div>
+
+    <div class="pager">
+      <label class="page-size">
+        Show
+        <select class="control" [(ngModel)]="pageSize" (ngModelChange)="page = 1">
+          <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+        </select>
+        per page
+      </label>
+      <div class="pager-right">
+        <span class="range">Showing {{ rangeStart }} - {{ rangeEnd }} of {{ filtered.length }} field layouts</span>
+        <nav class="pages" aria-label="Pagination">
+          <button type="button" class="page-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)" aria-label="Previous page">
+            <lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon>
+          </button>
+          <button
+            *ngFor="let p of pageList"
+            type="button"
+            class="page-btn"
+            [class.is-active]="p === currentPage"
+            [attr.aria-current]="p === currentPage ? 'page' : null"
+            (click)="goToPage(p)"
+          >{{ p }}</button>
+          <button type="button" class="page-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)" aria-label="Next page">
+            <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Selected layout ===== -->
+  <div *ngIf="selected; else noSelection" class="card panel fl-detail">
+    <div class="fl-detail-head">
+      <h3 class="grow">{{ selected.name }}</h3>
+      <span class="pill" [class.pill--active]="selected.status === 'Active'" [class.pill--inactive]="selected.status === 'Inactive'"><span class="dot"></span>{{ selected.status }}</span>
+      <button type="button" class="btn btn-outline btn-sm" (click)="openEdit(selected)">
+        <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>
+        Edit
+      </button>
+      <div class="menu-wrap">
+        <button type="button" class="icon-btn" (click)="toggleMenu('detail', $event)" [attr.aria-expanded]="openMenu === 'detail'" aria-label="More actions">
+          <lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon>
+        </button>
+        <div *ngIf="openMenu === 'detail'" class="menu" role="menu">
+          <button type="button" role="menuitem" (click)="duplicate(selected)"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon>Duplicate</button>
+          <button type="button" role="menuitem" (click)="setStatus([selected], selected.status === 'Active' ? 'Inactive' : 'Active')">
+            <lucide-icon [img]="selected.status === 'Active' ? icons.PowerOff : icons.Power" [size]="15"></lucide-icon>{{ selected.status === 'Active' ? 'Deactivate' : 'Activate' }}
+          </button>
+          <hr />
+          <button type="button" role="menuitem" class="danger" (click)="askDelete([selected])"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <dl class="fl-meta">
+      <dt>Asset Type</dt><dd>{{ selected.assetType }}</dd>
+      <dt>Description</dt><dd>{{ selected.description || '–' }}</dd>
+      <dt>Field Groups</dt>
+      <dd>{{ draft.length }} group{{ draft.length === 1 ? '' : 's' }} <span class="fl-sep">|</span> Total Fields : {{ totalFields }} field{{ totalFields === 1 ? '' : 's' }}</dd>
+    </dl>
+
+    <div class="fl-tabs" role="tablist">
+      <button type="button" role="tab" [class.is-active]="view === 'designer'" [attr.aria-selected]="view === 'designer'" (click)="view = 'designer'">Layout Designer</button>
+      <button type="button" role="tab" [class.is-active]="view === 'preview'" [attr.aria-selected]="view === 'preview'" (click)="view = 'preview'">Layout Preview</button>
+      <span *ngIf="dirty" class="unsaved">Unsaved changes</span>
+    </div>
+
+    <!-- Designer -->
+    <div *ngIf="view === 'designer'" class="designer">
+      <aside
+        class="avail"
+        [class.avail--drop]="availDropActive"
+        (dragover)="onAvailDragOver($event)"
+        (dragleave)="availDropActive = false"
+        (drop)="onAvailDrop($event)"
+      >
+        <h4>Available Fields</h4>
+        <div class="search-box search-box--sm">
+          <lucide-icon [img]="icons.Search" [size]="14"></lucide-icon>
+          <input type="search" placeholder="Search fields..." [(ngModel)]="availSearch" aria-label="Search available fields" />
+        </div>
+        <ul class="avail-list">
+          <li
+            *ngFor="let f of availableFields"
+            class="avail-item"
+            [class.is-used]="isUsed(f)"
+            [draggable]="!isUsed(f)"
+            (dragstart)="onFieldDragStart($event, f.id, null)"
+            (dragend)="onDragEnd()"
+            [title]="isUsed(f) ? f.label + ' is already on the layout' : 'Drag onto a group, or click + to add'"
+          >
+            <lucide-icon class="handle" [img]="icons.GripVertical" [size]="14"></lucide-icon>
+            <span class="grow avail-name">{{ f.name }}</span>
+            <small class="muted">({{ f.type }})</small>
+            <button *ngIf="!isUsed(f)" type="button" class="icon-btn icon-btn--xs" (click)="quickAdd(f)" [attr.aria-label]="'Add ' + f.label + ' to the layout'">
+              <lucide-icon [img]="icons.Plus" [size]="13"></lucide-icon>
+            </button>
+          </li>
+        </ul>
+        <p *ngIf="!availableFields.length" class="assign-empty">No fields match.</p>
+        <p *ngIf="drag?.kind === 'field' && $any(drag).from" class="avail-hint">Drop here to remove from the layout</p>
+      </aside>
+
+      <section class="structure">
+        <div class="structure-head">
+          <h4 class="grow">Layout Structure <span class="muted">(Drag and Drop Fields)</span></h4>
+          <div class="menu-wrap">
+            <button type="button" class="btn btn-primary btn-sm" (click)="$event.stopPropagation(); addGroupOpen = !addGroupOpen" [attr.aria-expanded]="addGroupOpen" [disabled]="!addableGroups.length" [title]="addableGroups.length ? '' : 'Every active group is already on this layout'">
+              <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+              Add Group
+            </button>
+            <div *ngIf="addGroupOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
+              <button *ngFor="let g of addableGroups" type="button" role="menuitem" (click)="addSection(g)">{{ g.name }}</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sections">
+          <div
+            *ngFor="let s of draft; let si = index"
+            class="section"
+            [ngClass]="tone(si)"
+            [class.section--drop]="sectionDropAt === si"
+            (dragover)="onSectionDragOver($event, si)"
+            (drop)="onSectionDrop($event, si)"
+          >
+            <div class="section-head" draggable="true" (dragstart)="onSectionDragStart($event, si)" (dragend)="onDragEnd()">
+              <button
+                type="button"
+                class="grip"
+                [attr.aria-label]="'Reorder ' + s.group"
+                title="Drag, or use the arrow keys, to reorder"
+                (keydown.arrowup)="$event.preventDefault(); moveSection(si, si - 1)"
+                (keydown.arrowdown)="$event.preventDefault(); moveSection(si, si + 1)"
+              ><lucide-icon [img]="icons.GripVertical" [size]="15"></lucide-icon></button>
+              <strong class="grow">{{ s.group }}</strong>
+              <small *ngIf="groupStatus(s.group) === 'Inactive'" class="section-flag">Inactive group</small>
+              <button type="button" class="icon-btn icon-btn--xs" (click)="removeSection(si)" [attr.aria-label]="'Remove ' + s.group + ' from layout'" title="Remove group from layout">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+              <button type="button" class="icon-btn icon-btn--xs" (click)="toggleCollapse(s.group)" [attr.aria-expanded]="!collapsed.has(s.group)" [attr.aria-label]="(collapsed.has(s.group) ? 'Expand ' : 'Collapse ') + s.group">
+                <lucide-icon [img]="collapsed.has(s.group) ? icons.ChevronDown : icons.ChevronUp" [size]="16"></lucide-icon>
+              </button>
+            </div>
+
+            <div *ngIf="!collapsed.has(s.group)" class="section-body">
+              <div
+                *ngFor="let f of sectionFields(s); let fi = index"
+                class="cell"
+                [class.cell--drop]="dropAt?.s === si && dropAt?.i === fi"
+                [class.cell--inactive]="f.status === 'Inactive'"
+                draggable="true"
+                (dragstart)="onFieldDragStart($event, f.id, { s: si, i: fi })"
+                (dragend)="onDragEnd()"
+                (dragover)="onCellDragOver($event, si, fi)"
+                (drop)="onCellDrop($event)"
+                [title]="f.status === 'Inactive' ? f.label + ' is inactive and hidden on the form' : f.tooltip"
+              >
+                <lucide-icon class="handle" [img]="icons.GripVertical" [size]="15"></lucide-icon>
+                <div class="grow cell-body">
+                  <span class="cell-label">{{ f.label }} <em *ngIf="f.required">*</em></span>
+                  <span class="fake-input">
+                    <lucide-icon *ngIf="f.type === 'Date'" [img]="icons.CalendarDays" [size]="14"></lucide-icon>
+                    <lucide-icon *ngIf="f.type === 'Dropdown' || f.type === 'Lookup'" [img]="icons.ChevronDown" [size]="14"></lucide-icon>
+                  </span>
+                </div>
+                <button type="button" class="cell-remove" (click)="removeField(si, fi)" [attr.aria-label]="'Remove ' + f.label + ' from layout'" title="Remove from layout">
+                  <lucide-icon [img]="icons.X" [size]="13"></lucide-icon>
+                </button>
+              </div>
+              <div *ngIf="!s.fieldIds.length" class="section-empty" [class.cell--drop]="dropAt?.s === si">
+                Drag fields here
+                <button *ngIf="suggestedFor(s).length" type="button" class="link-btn" (click)="addSuggested(s)">or add all {{ suggestedFor(s).length }} {{ s.group }} fields</button>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="!draft.length" class="empty empty--sm">
+            <h4>No groups on this layout</h4>
+            <p>Use "Add Group" to start building the form.</p>
+          </div>
+        </div>
+
+        <div class="structure-foot">
+          <span *ngIf="saveError" class="error grow">{{ saveError }}</span>
+          <button type="button" class="btn btn-outline" (click)="cancelChanges()" [disabled]="!dirty">Cancel</button>
+          <button type="button" class="btn btn-primary" (click)="saveLayout()" [disabled]="!dirty">Save Layout</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- Preview -->
+    <div *ngIf="view === 'preview'" class="fl-preview">
+      <p class="hint">How the {{ selected.assetType === 'All Assets' ? 'asset' : selected.assetType }} form will look{{ dirty ? ', including unsaved changes' : '' }}. Inputs are disabled.</p>
+      <fieldset *ngFor="let s of draft" class="preview-section" disabled>
+        <legend>{{ s.group }}</legend>
+        <div class="grid-2">
+          <label *ngFor="let f of sectionFields(s)" class="field" [class.field--wide]="f.type === 'Text Area' || f.type === 'Compound'" [hidden]="f.status === 'Inactive'" [title]="f.tooltip">
+            <span class="field-label">{{ f.label }} <em *ngIf="f.required">*</em></span>
+            <ng-container [ngSwitch]="f.type">
+              <span *ngSwitchCase="'Compound'" class="compound-preview"><input *ngFor="let p of f.parts" class="control" [placeholder]="p" /></span>
+              <select *ngSwitchCase="'Lookup'" class="control"><option>{{ lookupPlaceholder(f) }}</option></select>
+              <input *ngSwitchCase="'Date'" class="control" type="date" [value]="f.defaultValue" />
+              <input *ngSwitchCase="'Number'" class="control" type="number" [value]="f.defaultValue" />
+              <select *ngSwitchCase="'Dropdown'" class="control"><option>{{ f.defaultValue || 'Select…' }}</option></select>
+              <span *ngSwitchCase="'Checkbox'" class="check-preview"><input type="checkbox" [checked]="f.defaultValue === 'true'" /> {{ f.label }}</span>
+              <textarea *ngSwitchCase="'Text Area'" class="control" rows="2"></textarea>
+              <input *ngSwitchDefault class="control" [value]="f.defaultValue" />
+            </ng-container>
+          </label>
+        </div>
+      </fieldset>
+      <div *ngIf="!draft.length" class="empty empty--sm"><h4>Nothing to preview yet</h4></div>
+    </div>
+  </div>
+
+  <ng-template #noSelection>
+    <div class="card panel empty">
+      <lucide-icon [img]="icons.Inbox" [size]="30"></lucide-icon>
+      <h4>Select a layout</h4>
+      <p>Pick a layout from the list to design it.</p>
+    </div>
+  </ng-template>
+</div>
+
+<!-- ===== Add / edit layout details ===== -->
+<div *ngIf="layoutForm" class="overlay" (click)="layoutForm = null">
+  <form class="modal" role="dialog" aria-modal="true" aria-labelledby="layout-title" (click)="$event.stopPropagation()" (ngSubmit)="saveLayoutForm()">
+    <div class="modal-head">
+      <h2 id="layout-title">{{ layoutForm.original ? 'Edit Field Layout' : 'Add Field Layout' }}</h2>
+      <button type="button" class="icon-btn" (click)="layoutForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <label class="field">
+        <span class="field-label">Layout Name <em>*</em></span>
+        <input class="control" name="layoutName" [(ngModel)]="layoutForm.name" [class.is-invalid]="layoutSubmitted && !!layoutNameError" maxlength="60" placeholder="e.g. Generator Layout" />
+        <span *ngIf="layoutSubmitted && layoutNameError" class="error">{{ layoutNameError }}</span>
+      </label>
+      <div class="grid-2">
+        <label class="field">
+          <span class="field-label">Asset Type <em>*</em></span>
+          <select class="control" name="assetType" [(ngModel)]="layoutForm.assetType">
+            <option *ngFor="let t of assetTypes" [value]="t">{{ t }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Status</span>
+          <select class="control" name="layoutStatus" [(ngModel)]="layoutForm.status">
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </label>
+      </div>
+      <span *ngIf="layoutForm.original && layoutForm.assetType !== layoutForm.original.assetType" class="hint">
+        Category-specific fields that don't apply to {{ layoutForm.assetType }} will be removed from the layout.
+      </span>
+      <label class="field">
+        <span class="field-label">Description</span>
+        <textarea class="control" name="layoutDescription" rows="2" [(ngModel)]="layoutForm.description" [maxlength]="descriptionMax"></textarea>
+        <span class="counter">{{ layoutForm.description.length }}/{{ descriptionMax }}</span>
+      </label>
+      <label *ngIf="!layoutForm.original" class="field">
+        <span class="field-label">Start From</span>
+        <select class="control" name="copyFrom" [(ngModel)]="layoutForm.copyFrom">
+          <option [ngValue]="0">Blank layout (Asset Name and Asset Tag only)</option>
+          <option *ngFor="let l of layouts" [ngValue]="l.id">Copy of {{ l.name }}</option>
+        </select>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="layoutForm = null">Cancel</button>
+      <button type="submit" class="btn btn-primary">{{ layoutForm.original ? 'Save' : 'Create Layout' }}</button>
+    </div>
+  </form>
+</div>
+
+<!-- ===== Discard unsaved changes ===== -->
+<div *ngIf="pendingSelect" class="overlay" (click)="pendingSelect = null">
+  <div class="modal modal--sm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2>Discard changes to {{ selected?.name }}?</h2></div>
+    <div class="modal-body"><p>Your unsaved layout changes will be lost.</p></div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="pendingSelect = null">Keep Editing</button>
+      <button type="button" class="btn btn-danger" (click)="select(pendingSelect)">Discard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Delete layouts ===== -->
+<div *ngIf="deleteTargets.length" class="overlay" (click)="deleteTargets = []">
+  <div class="modal modal--sm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2>{{ deleteTargets.length === 1 ? 'Delete ' + deleteTargets[0].name + '?' : 'Delete ' + deleteTargets.length + ' layouts?' }}</h2>
+    </div>
+    <div class="modal-body"><p>Only the layout is deleted; its fields and field groups are not affected.</p></div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="deleteTargets = []">Cancel</button>
+      <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>

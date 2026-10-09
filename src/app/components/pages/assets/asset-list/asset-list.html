@@ -1,0 +1,352 @@
+<section class="list-page">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb no-print" aria-label="Breadcrumb">
+    <a routerLink="/assets">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">Asset List</span>
+  </nav>
+
+  <!-- Header + filters -->
+  <div class="card list-header">
+    <div class="title-row">
+      <div class="title-block">
+        <span class="icon-tile icon-tile--lg">
+          <lucide-icon [img]="icons.Box" [size]="24"></lucide-icon>
+        </span>
+        <div>
+          <h1>Asset List</h1>
+          <p>View, search and manage all assets in your organization</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary no-print" (click)="registerAsset()">
+        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
+        Register Asset
+      </button>
+    </div>
+
+    <form class="filters no-print" (ngSubmit)="applyFilters()">
+      <div class="filter-grid">
+        <div class="field field--search">
+          <span class="field-label">&nbsp;</span>
+          <div class="search-box">
+            <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+            <input
+              type="search"
+              name="search"
+              placeholder="Search by asset name, tag, serial number..."
+              [(ngModel)]="search"
+              (ngModelChange)="onSearchChange()"
+              aria-label="Search assets"
+            />
+            <button *ngIf="search" type="button" class="search-clear" (click)="clearSearch()" aria-label="Clear search">
+              <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
+            </button>
+          </div>
+        </div>
+
+        <label class="field">
+          <span class="field-label">Category</span>
+          <select class="control" name="category" [(ngModel)]="draft.category" (ngModelChange)="onCategoryChange()">
+            <option value="">All Categories</option>
+            <option *ngFor="let o of categoryOptions" [value]="o">{{ o }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Asset Type</span>
+          <select class="control" name="type" [(ngModel)]="draft.type">
+            <option value="">All Types</option>
+            <option *ngFor="let o of typeOptions" [value]="o">{{ o }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Status</span>
+          <select class="control" name="status" [(ngModel)]="draft.status">
+            <option value="">All Status</option>
+            <option *ngFor="let o of statusOptions" [value]="o">{{ o }}</option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Location</span>
+          <select class="control" name="location" [(ngModel)]="draft.location">
+            <option value="">All Locations</option>
+            <option *ngFor="let o of locationOptions" [value]="o">{{ o }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Department</span>
+          <select class="control" name="department" [(ngModel)]="draft.department">
+            <option value="">All Departments</option>
+            <option *ngFor="let o of departmentOptions" [value]="o">{{ o }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Custodian</span>
+          <select class="control" name="custodian" [(ngModel)]="draft.custodian">
+            <option value="">All Custodians</option>
+            <option *ngFor="let o of custodianOptions" [value]="o">{{ o }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Criticality</span>
+          <select class="control" name="criticality" [(ngModel)]="draft.criticality">
+            <option value="">All</option>
+            <option *ngFor="let o of criticalityOptions" [value]="o">{{ o }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Manufacturer</span>
+          <select class="control" name="manufacturer" [(ngModel)]="draft.manufacturer">
+            <option value="">All Manufacturers</option>
+            <option *ngFor="let o of manufacturerOptions" [value]="o">{{ o }}</option>
+          </select>
+        </label>
+
+        <div class="filter-actions">
+          <button
+            type="button"
+            class="btn btn-soft"
+            [class.is-on]="showMoreFilters"
+            (click)="showMoreFilters = !showMoreFilters"
+            [attr.aria-expanded]="showMoreFilters"
+          >
+            <lucide-icon [img]="icons.Funnel" [size]="15"></lucide-icon>
+            More Filters
+            <span *ngIf="moreFiltersCount" class="count-badge">{{ moreFiltersCount }}</span>
+          </button>
+          <button type="button" class="btn btn-outline" (click)="resetFilters()">Reset</button>
+          <button type="submit" class="btn btn-primary" [class.has-pending]="hasPendingChanges">Apply Filters</button>
+        </div>
+      </div>
+
+      <div *ngIf="showMoreFilters" class="more-filters">
+        <label class="field">
+          <span class="field-label">Next Maintenance</span>
+          <select class="control" name="maintenanceDue" [(ngModel)]="draft.maintenanceDue">
+            <option value="">Any time</option>
+            <option value="overdue">Overdue</option>
+            <option value="30">Due in next 30 days</option>
+            <option value="90">Due in next 90 days</option>
+            <option value="none">Not scheduled</option>
+          </select>
+        </label>
+      </div>
+    </form>
+  </div>
+
+  <!-- Summary + table -->
+  <div class="card list-body">
+    <div class="summary-row">
+      <div class="summary-stats">
+        <div class="total">
+          <span>Total Assets</span>
+          <strong>{{ assets.length | number }}</strong>
+        </div>
+        <button
+          *ngFor="let card of statusCards"
+          type="button"
+          class="stat-card"
+          [class.is-active]="applied.status === card.value"
+          (click)="filterByStatusCard(card.value)"
+          [attr.aria-pressed]="applied.status === card.value"
+        >
+          <span class="stat-label"><span class="dot" [style.background]="card.dot"></span>{{ card.label }}</span>
+          <strong>{{ card.count | number }}</strong>
+        </button>
+      </div>
+
+      <div class="summary-actions no-print">
+        <button type="button" class="btn btn-outline" (click)="exportCsv()">
+          <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>
+          Export
+        </button>
+        <button type="button" class="btn btn-outline" (click)="print()">
+          <lucide-icon [img]="icons.Printer" [size]="16"></lucide-icon>
+          Print
+        </button>
+        <div class="view-toggle" role="group" aria-label="View">
+          <button type="button" [class.is-active]="view === 'list'" (click)="view = 'list'" aria-label="List view" title="List view">
+            <lucide-icon [img]="icons.List" [size]="17"></lucide-icon>
+          </button>
+          <button type="button" [class.is-active]="view === 'grid'" (click)="view = 'grid'" aria-label="Grid view" title="Grid view">
+            <lucide-icon [img]="icons.LayoutGrid" [size]="17"></lucide-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk selection bar -->
+    <div *ngIf="selected.size" class="bulk-bar no-print">
+      <span><strong>{{ selected.size }}</strong> selected</span>
+      <button type="button" class="link-btn" (click)="exportCsv()">Export selected</button>
+      <button type="button" class="link-btn" (click)="clearSelection()">Clear selection</button>
+    </div>
+
+    <!-- List view -->
+    <div *ngIf="view === 'list'" class="table-wrap">
+      <table class="asset-table">
+        <thead>
+          <tr>
+            <th class="col-check no-print">
+              <input
+                type="checkbox"
+                [checked]="allOnPageSelected"
+                [indeterminate]="someOnPageSelected"
+                (change)="toggleAllOnPage()"
+                aria-label="Select all on this page"
+              />
+            </th>
+            <th class="col-num">#</th>
+            <th class="col-img">Image</th>
+            <th><button type="button" class="sort-btn" (click)="sortBy('name')">Asset Name <lucide-icon [img]="sortIcon('name')" [size]="13"></lucide-icon></button></th>
+            <th><button type="button" class="sort-btn" (click)="sortBy('tag')">Asset Tag / ID <lucide-icon [img]="sortIcon('tag')" [size]="13"></lucide-icon></button></th>
+            <th><button type="button" class="sort-btn" (click)="sortBy('category')">Category / Type <lucide-icon [img]="sortIcon('category')" [size]="13"></lucide-icon></button></th>
+            <th><button type="button" class="sort-btn" (click)="sortBy('location')">Location <lucide-icon [img]="sortIcon('location')" [size]="13"></lucide-icon></button></th>
+            <th><button type="button" class="sort-btn" (click)="sortBy('custodian')">Custodian <lucide-icon [img]="sortIcon('custodian')" [size]="13"></lucide-icon></button></th>
+            <th><button type="button" class="sort-btn" (click)="sortBy('status')">Status <lucide-icon [img]="sortIcon('status')" [size]="13"></lucide-icon></button></th>
+            <th><button type="button" class="sort-btn" (click)="sortBy('criticality')">Criticality <lucide-icon [img]="sortIcon('criticality')" [size]="13"></lucide-icon></button></th>
+            <th><button type="button" class="sort-btn" (click)="sortBy('nextMaintenance')">Next Maintenance <lucide-icon [img]="sortIcon('nextMaintenance')" [size]="13"></lucide-icon></button></th>
+            <th class="col-actions no-print">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of pageRows; let i = index; trackBy: trackById" [class.is-selected]="selected.has(a.id)">
+            <td class="col-check no-print">
+              <input type="checkbox" [checked]="selected.has(a.id)" (change)="toggleRow(a.id)" [attr.aria-label]="'Select ' + a.name" />
+            </td>
+            <td class="col-num">{{ rangeStart + i }}</td>
+            <td class="col-img">
+              <span class="asset-thumb"><lucide-icon [img]="assetIcons[a.icon]" [size]="20"></lucide-icon></span>
+            </td>
+            <td><button type="button" class="asset-name" (click)="viewAsset(a)">{{ a.name }}</button></td>
+            <td class="mono">{{ a.tag }}</td>
+            <td class="two-line"><span>{{ a.category }}</span><small>{{ a.type }}</small></td>
+            <td class="two-line"><span>{{ a.site }}</span><small>{{ a.area }}</small></td>
+            <td>
+              <span class="person">
+                <span class="avatar" [style.background]="avatarColor(a.custodian)">{{ initials(a.custodian) }}</span>
+                {{ a.custodian }}
+              </span>
+            </td>
+            <td><span class="pill" [ngClass]="statusClass(a.status)"><span class="dot"></span>{{ a.status }}</span></td>
+            <td><span class="pill" [ngClass]="criticalityClass(a.criticality)"><span class="dot"></span>{{ a.criticality }}</span></td>
+            <td>
+              <span *ngIf="a.nextMaintenance; else noDate" class="due" [class.is-overdue]="isOverdue(a)" [class.is-soon]="isDueSoon(a)">
+                <lucide-icon [img]="icons.CalendarDays" [size]="15"></lucide-icon>
+                {{ a.nextMaintenance | date: 'dd MMM yyyy' }}
+              </span>
+              <ng-template #noDate><span class="muted">&ndash;</span></ng-template>
+            </td>
+            <td class="col-actions no-print">
+              <ng-container *ngTemplateOutlet="rowMenu; context: { $implicit: a }"></ng-container>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-container *ngIf="!pageRows.length" [ngTemplateOutlet]="emptyState"></ng-container>
+    </div>
+
+    <!-- Grid view -->
+    <div *ngIf="view === 'grid'">
+      <div *ngIf="pageRows.length; else emptyState" class="asset-grid">
+        <article *ngFor="let a of pageRows; trackBy: trackById" class="asset-card" [class.is-selected]="selected.has(a.id)">
+          <header>
+            <input type="checkbox" class="no-print" [checked]="selected.has(a.id)" (change)="toggleRow(a.id)" [attr.aria-label]="'Select ' + a.name" />
+            <span class="pill" [ngClass]="statusClass(a.status)"><span class="dot"></span>{{ a.status }}</span>
+            <span class="spacer"></span>
+            <ng-container *ngTemplateOutlet="rowMenu; context: { $implicit: a }"></ng-container>
+          </header>
+          <div class="card-main">
+            <span class="asset-thumb asset-thumb--lg"><lucide-icon [img]="assetIcons[a.icon]" [size]="26"></lucide-icon></span>
+            <div>
+              <button type="button" class="asset-name" (click)="viewAsset(a)">{{ a.name }}</button>
+              <div class="mono muted">{{ a.tag }}</div>
+            </div>
+          </div>
+          <dl>
+            <div><dt>Category</dt><dd>{{ a.category }} &middot; {{ a.type }}</dd></div>
+            <div><dt>Location</dt><dd>{{ a.site }}, {{ a.area }}</dd></div>
+            <div><dt>Custodian</dt><dd>{{ a.custodian }}</dd></div>
+            <div>
+              <dt>Next Maintenance</dt>
+              <dd [class.is-overdue]="isOverdue(a)">{{ a.nextMaintenance ? (a.nextMaintenance | date: 'dd MMM yyyy') : '–' }}</dd>
+            </div>
+          </dl>
+          <footer>
+            <span class="pill" [ngClass]="criticalityClass(a.criticality)"><span class="dot"></span>{{ a.criticality }}</span>
+          </footer>
+        </article>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pager no-print">
+      <label class="page-size">
+        Show
+        <select class="control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()" name="pageSize">
+          <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+        </select>
+        per page
+      </label>
+
+      <div class="pager-right">
+        <span class="range">Showing {{ rangeStart }} - {{ rangeEnd }} of {{ filtered.length | number }} assets</span>
+        <nav class="pages" aria-label="Pagination">
+          <button type="button" class="page-btn" [disabled]="page === 1" (click)="goToPage(page - 1)" aria-label="Previous page">
+            <lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon>
+          </button>
+          <ng-container *ngFor="let p of pageList">
+            <button
+              *ngIf="p !== null; else gap"
+              type="button"
+              class="page-btn"
+              [class.is-active]="p === page"
+              [attr.aria-current]="p === page ? 'page' : null"
+              (click)="goToPage(p)"
+            >{{ p }}</button>
+            <ng-template #gap><span class="page-gap">&hellip;</span></ng-template>
+          </ng-container>
+          <button type="button" class="page-btn" [disabled]="page === totalPages" (click)="goToPage(page + 1)" aria-label="Next page">
+            <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row action menu (shared by list and grid views) -->
+  <ng-template #rowMenu let-a>
+    <div class="menu-wrap">
+      <button type="button" class="icon-btn" (click)="toggleMenu(a.id, $event)" [attr.aria-expanded]="openMenuId === a.id" aria-label="Actions">
+        <lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon>
+      </button>
+      <div *ngIf="openMenuId === a.id" class="menu" role="menu" (click)="$event.stopPropagation()">
+        <button type="button" role="menuitem" (click)="viewAsset(a)"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>View Details</button>
+        <button type="button" role="menuitem" (click)="openAssetModule('/assets/registration', a)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Asset</button>
+        <button type="button" role="menuitem" (click)="openAssetModule('/assets/assignment', a)"><lucide-icon [img]="icons.UserRound" [size]="15"></lucide-icon>Assign / Transfer</button>
+        <button type="button" role="menuitem" (click)="openAssetModule('/assets/location-history', a)"><lucide-icon [img]="icons.History" [size]="15"></lucide-icon>Location History</button>
+        <button type="button" role="menuitem" (click)="openAssetModule('/assets/maintenance', a)"><lucide-icon [img]="icons.Wrench" [size]="15"></lucide-icon>Schedule Maintenance</button>
+        <hr />
+        <button type="button" role="menuitem" class="danger" (click)="openAssetModule('/assets/disposal', a)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Dispose Asset</button>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template #emptyState>
+    <div class="empty">
+      <lucide-icon [img]="icons.Inbox" [size]="36"></lucide-icon>
+      <h3>No assets found</h3>
+      <p>Try a different search term or adjust the filters.</p>
+      <button type="button" class="btn btn-outline" (click)="resetFilters()">Reset filters</button>
+    </div>
+  </ng-template>
+
+  <div *ngIf="toast" class="toast" role="status">{{ toast }}</div>
+</section>

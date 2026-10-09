@@ -5,6 +5,12 @@ import { Signup } from './components/pages/signup/signup/signup';
 import { SectionUnavailable } from './section-unavailable/section-unavailable';
 import { ModulePlaceholder } from './module-placeholder/module-placeholder';
 import { AssetRegistration } from './components/pages/assets/asset-registration/asset-registration';
+import { AssetList } from './components/pages/assets/asset-list/asset-list';
+import { AssetCategories } from './components/pages/assets/asset-categories/asset-categories';
+import { AssetTypesModels } from './components/pages/assets/asset-types-models/asset-types-models';
+import { AssetHierarchy } from './components/pages/assets/asset-hierarchy/asset-hierarchy';
+import { AssetComponents } from './components/pages/assets/asset-components/asset-components';
+import { AssetCustomFields } from './components/pages/assets/asset-custom-fields/asset-custom-fields';
 import { Events } from './components/pages/events/events/events';
 import { Reports } from './components/pages/reports/reports/reports';
 import { CreateReport } from './components/pages/reports/create-report/create-report';
@@ -157,13 +163,19 @@ export const routes: Routes = [
       // New UI modules: placeholder pages until their screens are built
       { path: 'assets', component: ModulePlaceholder, data: { title: 'Assets' } },
       { path: 'assets/registration', component: AssetRegistration },
-      { path: 'assets/list', component: ModulePlaceholder, data: { title: 'Asset List' } },
+      { path: 'assets/list', component: AssetList },
+      { path: 'assets/categories', component: AssetCategories },
+      { path: 'assets/types-models', component: AssetTypesModels },
+      { path: 'assets/hierarchy', component: AssetHierarchy },
+      { path: 'assets/components', component: AssetComponents },
       { path: 'assets/location-history', component: ModulePlaceholder, data: { title: 'Location History' } },
       { path: 'assets/assignment', component: ModulePlaceholder, data: { title: 'Assignment' } },
       { path: 'assets/maintenance', component: ModulePlaceholder, data: { title: 'Maintenance' } },
       { path: 'assets/service-requests', component: ModulePlaceholder, data: { title: 'Service Requests' } },
       { path: 'assets/audit', component: ModulePlaceholder, data: { title: 'Asset Audit' } },
       { path: 'assets/disposal', component: ModulePlaceholder, data: { title: 'Disposal' } },
+      { path: 'assets/custom-fields', component: AssetCustomFields },
+      { path: 'assets/lifecycle', component: AssetLifecycle },
       { path: 'tracking-iot', component: ModulePlaceholder, data: { title: 'Tracking & IoT' } },
       { path: 'tracking-iot/real-time-location', loadChildren: remoteRoutes('locating') },
       { path: 'movement-custody', component: ModulePlaceholder, data: { title: 'Movement & Custody' } },
@@ -198,7 +210,8 @@ export const routes: Routes = [
               { path: 'assets/asset-registry', component: Assets },
               { path: 'assets/location-history', component: AssetLocationHistory },
               { path: 'assets/assignment-ownership', component: AssetAssignmentOwnership },
-              { path: 'assets/asset-lifecycle', component: AssetLifecycle },
+              // The lifecycle page now lives under the Assets menu.
+              { path: 'assets/asset-lifecycle', redirectTo: '/assets/lifecycle', pathMatch: 'full' },
               { path: 'assets/tracking-telemetry', component: AssetTrackingTelemetry },
               { path: 'assets/maintenance-service', component: AssetMaintenanceService },
               { path: 'assets/utilization-performance', component: AssetUtilizationPerformance },
