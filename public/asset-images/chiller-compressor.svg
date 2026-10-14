@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Chiller compressor">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2f36"/><stop offset="1" stop-color="#15181d"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="70" y="110" width="220" height="100" rx="40" fill="#2563eb"/>
+  <rect x="90" y="120" width="180" height="16" rx="8" fill="#3b82f6"/><circle cx="300" cy="160" r="40" fill="#1e40af"/><circle cx="300" cy="160" r="14" fill="#93c5fd"/>
+  <path d="M110 110 V70 H200" fill="none" stroke="#d97706" stroke-width="12"/><path d="M240 210 V250 H350" fill="none" stroke="#9ca3af" stroke-width="12"/>
+  <rect x="100" y="150" width="80" height="34" rx="4" fill="#cbd5e1"/><text x="140" y="172" text-anchor="middle" font-family="Arial" font-size="12" fill="#1f2937">06T SCREW</text>
+</svg>

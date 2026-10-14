@@ -11,6 +11,7 @@ import { loadOrder, saveOrder, reorderByKey, moveWithinVisible } from '../shared
 import { WIDGET_CATALOG, WidgetCategory, WidgetCategoryKey } from '../shared/dashboard-widgets/widget-catalog';
 import { WidgetPicker } from '../shared/widget-picker/widget-picker';
 import { loadSelectedWidgets, saveSelectedWidgets } from '../shared/dashboard-widgets/widget-selection';
+import { DashboardWidgetsApi } from '../shared/dashboard-widgets/dashboard-widgets.api';
 
 interface AssetsStatCard {
   label: string;
@@ -109,8 +110,11 @@ export class Dashboard implements OnInit {
   deleteModule(key: WidgetCategoryKey): void {
     if (!confirm(`Remove the ${this.moduleTabs[key].tab} tab and its widgets?`)) return;
     const ids = this.selectedIds.filter((id) => !id.startsWith(key + '.'));
+    const before = this.selectedByCategory;
     this.setSelection(ids);
     saveSelectedWidgets(ids);
+    this.selectionEdited = true;
+    this.syncWidgets(before);
   }
 
   // ===== Widget selection (Add Widget popup) =====
@@ -136,11 +140,60 @@ export class Dashboard implements OnInit {
 
   onWidgetsApplied(ids: string[]): void {
     const before = new Set(this.visibleModules);
+    const previous = this.selectedByCategory;
     this.setSelection(ids);
     saveSelectedWidgets(ids);
+    this.selectionEdited = true;
+    this.syncWidgets(previous);
     // Jump to a module that just got its first widgets, so the user sees what they added
     const added = this.visibleModules.find((key) => !before.has(key));
     if (added) this.activeModule = added;
+  }
+
+  // Message shown when the server save fails; the selection is still kept on this device
+  widgetSaveError = '';
+  // Set once the user changes widgets, so a slower server load doesn't overwrite their choice
+  private selectionEdited = false;
+
+  /**
+   * Saves each module whose widget list changed to /api/widgets (one record per module).
+   * A module emptied here has its record deleted.
+   */
+  private syncWidgets(previous: Record<WidgetCategoryKey, string[]>): void {
+    const changed = this.catalog
+      .map((c) => c.key)
+      .filter((key) => previous[key].join('\n') !== this.selectedByCategory[key].join('\n'));
+    this.widgetSaveError = '';
+    for (const key of changed) {
+      this.widgetsApi.save(key, this.selectedByCategory[key]).catch((err: unknown) => {
+        console.error(`Saving ${key} dashboard widgets failed:`, err);
+        this.widgetSaveError = "Couldn't save your widgets to the server. They're kept on this device for now.";
+      });
+    }
+  }
+
+  /**
+   * The server copy wins when it has any widgets. If it has none yet, the selection saved on this
+   * device (from before the API existed) is uploaded so it isn't lost.
+   */
+  private async loadServerWidgets(): Promise<void> {
+    let saved: Map<string, string[]>;
+    try {
+      saved = await this.widgetsApi.load();
+    } catch (err) {
+      console.error('Loading dashboard widgets failed:', err);
+      this.widgetSaveError = "Couldn't load your widgets from the server. Showing the ones saved on this device.";
+      return;
+    }
+    if (this.selectionEdited) return;
+    const empty: Record<WidgetCategoryKey, string[]> = { asset: [], workOrder: [], wip: [], inspection: [] };
+    if (!saved.size) {
+      if (this.selectedIds.length) this.syncWidgets(empty);
+      return;
+    }
+    const ids = this.catalog.flatMap((c) => (saved.get(c.key) ?? []).map((local) => `${c.key}.${local}`));
+    this.setSelection(ids);
+    saveSelectedWidgets(ids);
   }
   private setSelection(ids: string[]): void {
     this.selectedIds = ids;
@@ -450,10 +503,14 @@ export class Dashboard implements OnInit {
   alerts: AlertItem[] = [];
   technicians: Technician[] = [];
 
-  constructor(private host: ElementRef<HTMLElement>) {}
+  constructor(
+    private host: ElementRef<HTMLElement>,
+    private widgetsApi: DashboardWidgetsApi,
+  ) {}
 
   async ngOnInit(): Promise<void> {
     this.setSelection(loadSelectedWidgets());
+    void this.loadServerWidgets();
     const response = await fetch('/assets/data/assets-data.json');
     const data: AssetsData = await response.json();
     this.statCards = reorderByKey(data.statCards, 'piq.dashboard.assets.statOrder', (c) => c.label);

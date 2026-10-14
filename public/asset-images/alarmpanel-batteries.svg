@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Panel standby batteries">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2f36"/><stop offset="1" stop-color="#15181d"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="70" y="100" width="120" height="120" rx="6" fill="#111827"/><rect x="210" y="100" width="120" height="120" rx="6" fill="#111827"/>
+  <text x="130" y="168" text-anchor="middle" font-family="Arial" font-size="14" fill="#e5e7eb">12V 18Ah</text><text x="270" y="168" text-anchor="middle" font-family="Arial" font-size="14" fill="#e5e7eb">12V 18Ah</text>
+  <path d="M100 100 V80 H300 V100" fill="none" stroke="#ef4444" stroke-width="6"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Exhaust system">
+  <defs>
+    <linearGradient id="pipe" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d828a"/><stop offset="0.4" stop-color="#e3e5e8"/><stop offset="1" stop-color="#6a6f77"/></linearGradient>
+    <linearGradient id="vpipe" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7d828a"/><stop offset="0.4" stop-color="#e3e5e8"/><stop offset="1" stop-color="#6a6f77"/></linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="#f2b705"/>
+  <rect x="0" y="230" width="400" height="70" fill="#2d3036"/>
+  <rect x="30" y="90" width="240" height="110" rx="55" fill="url(#pipe)"/>
+  <ellipse cx="40" cy="145" rx="16" ry="55" fill="#b3b7bd" stroke="#6a6f77" stroke-width="3"/>
+  <rect x="260" y="125" width="70" height="40" fill="url(#pipe)"/>
+  <path d="M330 125 h 30 v -125 h -40 v 85 h 10 z" fill="url(#vpipe)"/>
+  <g stroke="#6a6f77" stroke-width="3"><line x1="120" y1="92" x2="120" y2="198"/><line x1="200" y1="92" x2="200" y2="198"/></g>
+</svg>

@@ -1,98 +1,89 @@
 <div class="login-shell">
   <aside class="branding-panel">
     <div class="brand-top">
-      <div class="brand-mark">PIQ</div>
-      <h1>Welcome to<br />People 360</h1>
-      <p class="brand-subtitle">LOCATE. MONITOR. SECURE. RESPOND.</p>
+      <div class="brand-mark">
+        <img src="/PurpleIQ-white.png" alt="PurpleIQ Logo" />
+      </div>
+      <h1>Welcome to Assets 360</h1>
+      <p class="brand-subtitle">TRACK. MANAGE. OPTIMIZE. PROTECT.</p>
     </div>
 
     <div class="brand-features">
-      <div class="feature-item">Live Camera Monitoring</div>
-      <div class="feature-item">Evacuation Management</div>
-      <div class="feature-item">Access Control</div>
-      <div class="feature-item">Attendance Tracking</div>
+      <div class="feature-item">Asset Tracking & Inventory</div>
+      <div class="feature-item">Real-time Location</div>
+      <div class="feature-item">Maintenance Scheduling</div>
+      <div class="feature-item">Asset Lifecycle Management</div>
     </div>
   </aside>
 
   <section class="login-panel">
     <div class="login-card">
-      <div class="icon-shell">🤖</div>
-      <h2>Create Account</h2>
-      <p class="login-subtitle">Sign up for People 360</p>
+      <div class="icon-shell">
+        <img src="/PurpleIQLOGOPurpleBright.png" alt="PurpleIQ Logo" />
+        <img src="/PurpleIqNamePurple.png" alt="PurpleIQ Logo" />
+      </div>
 
-      <form (ngSubmit)="signup()" novalidate class="login-form">
+      <p class="login-subtitle">Create your Assets 360 account</p>
 
+      <form (ngSubmit)="signup()" class="login-form" novalidate>
         <label class="field-label">
-          <span>Full Name</span>
-          <input
-            type="text"
-            [(ngModel)]="credentials.fullName"
-            name="fullName"
-            placeholder="Enter your full name"
-            autocomplete="off"
-          />
+          <span>Full Name *</span>
+          <input type="text" [(ngModel)]="form.fullName" name="fullName" placeholder="Enter your full name" autocomplete="name" maxlength="100" />
         </label>
 
         <label class="field-label">
-          <span>Username</span>
-          <input
-            type="text"
-            [(ngModel)]="credentials.email"
-            name="email"
-            placeholder="Enter your username"
-            autocomplete="off"
-          />
+          <span>Username *</span>
+          <input type="text" [(ngModel)]="form.userName" name="userName" placeholder="Choose a username" autocomplete="username" maxlength="50" />
         </label>
 
         <label class="field-label">
-          <span>Password</span>
-          <input
-            type="password"
-            [(ngModel)]="credentials.password"
-            name="password"
-            placeholder="Enter your password"
-            autocomplete="off"
-          />
+          <span>Email *</span>
+          <input type="email" [(ngModel)]="form.email" name="email" placeholder="you@company.com" autocomplete="email" maxlength="120" />
         </label>
 
         <label class="field-label">
-          <span>Confirm Password</span>
-          <input
-            type="password"
-            [(ngModel)]="credentials.confirmPassword"
-            name="confirmPassword"
-            placeholder="Confirm your password"
-            autocomplete="off"
-          />
+          <span>Contact Number</span>
+          <input type="tel" [(ngModel)]="form.contactNo" name="contactNo" placeholder="Optional" autocomplete="tel" maxlength="20" />
         </label>
 
-        <p *ngIf="errorMsg" class="error-msg">{{ errorMsg }}</p>
-        <p *ngIf="successMsg" class="success-msg">{{ successMsg }}</p>
+        <label class="field-label">
+          <span>Role *</span>
+          <select [(ngModel)]="form.userRoleId" name="userRoleId" [disabled]="rolesLoading || !roles.length">
+            <option value="" disabled>{{ rolesLoading ? 'Loading roles...' : roles.length ? 'Select a role' : 'No roles available' }}</option>
+            <option *ngFor="let r of roles" [value]="r.roleId">{{ r.roleName }}</option>
+          </select>
+          <small *ngIf="selectedRole?.description" class="field-hint">{{ selectedRole?.description }}</small>
+          <small *ngIf="rolesError" class="field-hint field-hint--error">
+            {{ rolesError }} <button type="button" class="link-button" (click)="loadRoles()">Retry</button>
+          </small>
+          <small *ngIf="!rolesLoading && !rolesError && !roles.length" class="field-hint field-hint--error">
+            No roles exist yet. An administrator needs to create one first.
+          </small>
+        </label>
+
+        <label class="field-label">
+          <span>Password *</span>
+          <input type="password" [(ngModel)]="form.password" name="password" placeholder="At least 8 characters" autocomplete="new-password" />
+        </label>
+
+        <label class="field-label">
+          <span>Confirm Password *</span>
+          <input type="password" [(ngModel)]="confirmPassword" name="confirmPassword" placeholder="Re-enter your password" autocomplete="new-password" />
+        </label>
+
+        <p *ngIf="errorMsg" class="error-msg" role="alert">{{ errorMsg }}</p>
 
         <button type="submit" class="submit-button" [disabled]="isLoading">
           {{ isLoading ? 'Creating Account...' : 'Sign Up' }}
         </button>
-
-        <div *ngIf="popupVisible" class="popup-overlay">
-          <div class="popup-card" [class.error]="popupType === 'error'" [class.success]="popupType === 'success'">
-            <div class="popup-header">
-              <h3>{{ popupTitle }}</h3>
-              <button type="button" class="popup-close" (click)="closePopup()">×</button>
-            </div>
-            <div class="popup-body">
-              <p>{{ popupMessage }}</p>
-            </div>
-            <div class="popup-actions">
-              <button type="button" class="btn-close" (click)="closePopup()">Close</button>
-            </div>
-          </div>
-        </div>
       </form>
 
-      <div class="login-meta">
-        <span>Already have an account?</span>
-        <a routerLink="/login" class="forgot-link">Sign In</a>
-      </div>
+      <p class="switch-auth">
+        Already have an account?
+        <a routerLink="/login">Sign In</a>
+      </p>
+
+      <div class="secure-note">Secured &amp; Encrypted Connection</div>
     </div>
   </section>
 </div>

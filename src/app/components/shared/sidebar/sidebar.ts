@@ -27,6 +27,8 @@ export interface NavItem {
   // Lucide icon, only used for top-level items
   icon?: LucideIconData;
   children?: NavItem[];
+  // The item has its own page: clicking it opens that page as well as its submenu
+  hasPage?: boolean;
 }
 
 @Component({
@@ -302,6 +304,12 @@ export class Sidebar {
   toggleInline(item: NavItem, triggerEl: EventTarget | null): void {
     if (this.collapsed) {
       this.toggleDropdown(item.label, triggerEl);
+      return;
+    }
+    // Items with their own page open it and expand; clicking again while on that page collapses
+    if (item.hasPage && this.router.url.split('?')[0] !== item.path) {
+      this.openInline.add(item.label);
+      this.router.navigate([item.path]);
       return;
     }
     if (this.openInline.has(item.label)) {

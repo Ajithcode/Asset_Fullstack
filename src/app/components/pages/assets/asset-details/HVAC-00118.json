@@ -1,0 +1,1525 @@
+{
+  "tag": "HVAC-00118",
+  "documents": [
+    {
+      "id": 1,
+      "name": "Purchase Order.pdf",
+      "type": "Purchase Order",
+      "stage": "Procurement",
+      "description": "Purchase order PO-2022-0118 issued to Gulf Cooling Systems LLC for the air handling unit.",
+      "tags": [
+        "Procurement",
+        "PO"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-09T10:15",
+          "uploadedBy": "Rex Kumar",
+          "size": 1468006,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Procurement",
+      "coverTitle": "PURCHASE ORDER",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 2,
+      "name": "Invoice.pdf",
+      "type": "Invoice",
+      "stage": "Procurement",
+      "description": "Supplier invoice INV-2022-382 for the air handling unit, delivery and installation.",
+      "tags": [
+        "Finance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-11T11:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 838861,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Gulf Cooling Systems LLC",
+      "coverTitle": "INVOICE",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 3,
+      "name": "Delivery Note.pdf",
+      "type": "Delivery Note",
+      "stage": "Procurement",
+      "description": "Signed delivery note for the air handling unit.",
+      "tags": [
+        "Logistics"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-14T09:05",
+          "uploadedBy": "Store Team",
+          "size": 629146,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Gulf Cooling Systems LLC",
+      "coverTitle": "DELIVERY NOTE",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 4,
+      "name": "GRN.pdf",
+      "type": "Goods Receipt",
+      "stage": "Procurement",
+      "description": "Goods received note confirming the air handling unit was received in good condition.",
+      "tags": [
+        "Stores"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-17T16:20",
+          "uploadedBy": "Store Team",
+          "size": 524288,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Stores",
+      "coverTitle": "GOODS RECEIPT",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 5,
+      "name": "Installation Report.pdf",
+      "type": "Installation Report",
+      "stage": "Installation",
+      "description": "Installation report for the air handling unit at Head Office - Building B - Plant Room.",
+      "tags": [
+        "Installation"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-24T15:00",
+          "uploadedBy": "Installation Team",
+          "size": 1677722,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 6,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSTALLATION REPORT",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 6,
+      "name": "Commissioning Certificate.pdf",
+      "type": "Commissioning",
+      "stage": "Commissioning",
+      "description": "Commissioning certificate with functional test results for the air handling unit.",
+      "tags": [
+        "Certificate"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-25T12:10",
+          "uploadedBy": "Commissioning Team",
+          "size": 524288,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "COMMISSIONING",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 7,
+      "name": "Operation Manual.pdf",
+      "type": "User Manual",
+      "stage": "In Operation",
+      "description": "Manufacturer operation and maintenance manual for Trane Performance CSAA.",
+      "tags": [
+        "Manual",
+        "Trane"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-25T14:30",
+          "uploadedBy": "Rex Kumar",
+          "size": 5033165,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 29,
+      "issuer": "TRANE",
+      "coverTitle": "AIR HANDLING UNIT",
+      "coverSubtitle": "Operation & Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 8,
+      "name": "Technical Datasheet.pdf",
+      "type": "Technical Document",
+      "stage": "Operations",
+      "description": "Ratings, dimensions and performance data for the Performance CSAA.",
+      "tags": [
+        "Datasheet",
+        "Trane"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-25T14:35",
+          "uploadedBy": "Rex Kumar",
+          "size": 734003,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 4,
+      "issuer": "TRANE",
+      "coverTitle": "PERFORMANCE CSAA",
+      "coverSubtitle": "Technical Datasheet",
+      "showAssetImage": true
+    },
+    {
+      "id": 9,
+      "name": "Duct Layout.pdf",
+      "type": "Drawing",
+      "stage": "Operations",
+      "description": "Supply and return duct layout for Building B.",
+      "tags": [
+        "Drawing"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-25T14:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 2202010,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "DRAWING",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 10,
+      "name": "Maintenance Manual.pdf",
+      "type": "Maintenance Manual",
+      "stage": "Operations",
+      "description": "Preventive maintenance schedule and service procedures.",
+      "tags": [
+        "Manual",
+        "Maintenance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-25T14:45",
+          "uploadedBy": "Rex Kumar",
+          "size": 3774874,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 23,
+      "issuer": "TRANE",
+      "coverTitle": "AIR HANDLING UNIT",
+      "coverSubtitle": "Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 11,
+      "name": "Warranty Certificate.pdf",
+      "type": "Warranty",
+      "stage": "Warranty",
+      "description": "Manufacturer warranty, 2 years from commissioning.",
+      "tags": [
+        "Warranty"
+      ],
+      "expiryDate": "2024-05-25",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-25T15:00",
+          "uploadedBy": "Vendor",
+          "size": 1153434,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "TRANE",
+      "coverTitle": "WARRANTY",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 12,
+      "name": "AMC Contract.pdf",
+      "type": "Service Contract",
+      "stage": "Warranty",
+      "description": "Annual maintenance contract with Gulf Cooling Systems LLC.",
+      "tags": [
+        "AMC",
+        "Contract"
+      ],
+      "expiryDate": "2027-05-25",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-05-25T15:10",
+          "uploadedBy": "Rex Kumar",
+          "size": 943718,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 10,
+      "issuer": "Gulf Cooling Systems LLC",
+      "coverTitle": "SERVICE CONTRACT",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 13,
+      "name": "Inspection Report 2025.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the air handling unit with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2025-05-25T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 1153434,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 14,
+      "name": "Inspection Report 2026.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the air handling unit with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-05-25T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 314573,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 15,
+      "name": "Site Photo.jpg",
+      "type": "Image",
+      "stage": "Operations",
+      "description": "Photo of the air handling unit at Head Office - Building B - Plant Room.",
+      "tags": [
+        "Photo"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-25T16:00",
+          "uploadedBy": "Rex Kumar",
+          "size": 3040870,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 1,
+      "issuer": "Purple IQ",
+      "coverTitle": "IMAGE",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": true
+    },
+    {
+      "id": 16,
+      "name": "Work Order WO-26118.pdf",
+      "type": "Work Order",
+      "stage": "Maintenance",
+      "description": "Supply fan belt and bearing replacement after high vibration.",
+      "tags": [
+        "Work Order",
+        "Corrective"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-10-08T08:40",
+          "uploadedBy": "Maintenance Team",
+          "size": 734003,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "WORK ORDER",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 17,
+      "name": "Decommissioning Report.pdf",
+      "type": "Decommissioning",
+      "stage": "Decommissioning",
+      "description": "To be completed when the asset is decommissioned.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DECOMMISSIONING",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    },
+    {
+      "id": 18,
+      "name": "Disposal Certificate.pdf",
+      "type": "Disposal",
+      "stage": "Disposal",
+      "description": "To be issued on disposal of the asset.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DISPOSAL",
+      "coverSubtitle": "HVAC-00118 · Air Handling Unit",
+      "showAssetImage": false
+    }
+  ],
+  "previewDocumentId": 7,
+  "images": [
+    {
+      "id": 1,
+      "title": "Full View",
+      "description": "Full view of the air handling unit at Head Office - Building B - Plant Room.",
+      "type": "Asset Overview",
+      "tags": [
+        "AHU",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-05-25T09:00",
+      "location": "Head Office - Building B - Plant Room",
+      "fileName": "HVAC-00118_FullView.jpg",
+      "size": 2242071,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Taken at commissioning.",
+      "src": "asset-images/ahu-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-05-25T09:00"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Supply Fan",
+      "description": "Centrifugal supply fan and motor.",
+      "type": "Component",
+      "tags": [
+        "Fan",
+        "Motor"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-05-25T10:07",
+      "location": "Head Office - Building B - Plant Room",
+      "fileName": "HVAC-00118_SupplyFan.jpg",
+      "size": 2578052,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/ahu-fan.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-05-25T10:07"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Filter Bank",
+      "description": "Bag filter bank, upstream of the cooling coil.",
+      "type": "Component",
+      "tags": [
+        "Filters"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-05-25T11:14",
+      "location": "Head Office - Building B - Plant Room",
+      "fileName": "HVAC-00118_FilterBank.jpg",
+      "size": 1910363,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/ahu-filters.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-05-25T11:14"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Name Plate",
+      "description": "Manufacturer nameplate with model, serial number and ratings.",
+      "type": "Nameplate",
+      "tags": [
+        "Nameplate",
+        "Trane"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-05-25T12:21",
+      "location": "Head Office - Building B - Plant Room",
+      "fileName": "HVAC-00118_NamePlate.jpg",
+      "size": 1917548,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/nameplate-HVAC-00118.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-05-25T12:21"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Installed Position",
+      "description": "Air Handling Unit in its installed position.",
+      "type": "Installation",
+      "tags": [
+        "AHU",
+        "Installation"
+      ],
+      "uploadedBy": "Installation Team",
+      "uploadedAt": "2022-05-24T13:28",
+      "location": "Head Office - Building B - Plant Room",
+      "fileName": "HVAC-00118_Installed.jpg",
+      "size": 2833866,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/ahu-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Installation Team",
+          "at": "2022-05-24T13:28"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Supply Fan",
+      "description": "Supply Fan at the 2025 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Fan",
+        "Motor",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2025-05-25T14:35",
+      "location": "Head Office - Building B - Plant Room",
+      "fileName": "HVAC-00118_Inspection2025.jpg",
+      "size": 2688547,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/ahu-fan.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2025-05-25T14:35"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Filter Bank",
+      "description": "Filter Bank at the 2026 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Filters",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-05-25T15:42",
+      "location": "Head Office - Building B - Plant Room",
+      "fileName": "HVAC-00118_Inspection2026.jpg",
+      "size": 2968061,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/ahu-filters.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-05-25T15:42"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Filter Replacement",
+      "description": "New filters fitted during PM.",
+      "type": "Maintenance",
+      "tags": [
+        "Filters",
+        "Maintenance"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-05-25T09:49",
+      "location": "Head Office - Building B - Plant Room",
+      "fileName": "HVAC-00118_FilterReplacement.jpg",
+      "size": 2395202,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/ahu-filters.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-05-25T09:49"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Defect Found",
+      "description": "Supply fan belt and bearing replacement after high vibration.",
+      "type": "Damage / Defect",
+      "tags": [
+        "Defect",
+        "AHU"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-10-08T10:56",
+      "location": "Head Office - Building B - Plant Room",
+      "fileName": "HVAC-00118_Defect.jpg",
+      "size": 2195850,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Raised with the work order.",
+      "src": "asset-images/ahu-fan.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-10-08T10:56"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Latest View",
+      "description": "Latest photo of the air handling unit for the asset register.",
+      "type": "Asset Overview",
+      "tags": [
+        "AHU",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2026-09-24T11:03",
+      "location": "Head Office - Building B - Plant Room",
+      "fileName": "HVAC-00118_LatestView.jpg",
+      "size": 2566377,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/ahu-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2026-09-24T11:03"
+        }
+      ]
+    }
+  ],
+  "headerImageId": 1,
+  "status": {
+    "hasData": true,
+    "availability": 97,
+    "utilization": 72,
+    "lastMaintenance": "2026-05-25",
+    "operational": {
+      "status": "Under Maintenance",
+      "statusSince": "2026-10-08",
+      "operatingMode": "Standby",
+      "loadLabel": "Supply Airflow",
+      "currentLoad": 0,
+      "loadUnit": "m³/h",
+      "capacityLabel": "Rated Airflow",
+      "ratedCapacity": 24000,
+      "ratedUnit": "m³/h",
+      "capacityFactor": 1,
+      "runningHours": 29529,
+      "lastStart": "2026-09-08T07:45",
+      "lastStop": "2026-10-08T08:00",
+      "location": "Head Office - Building B - Plant Room",
+      "controlledBy": "BMS",
+      "remarks": "Supply fan belt and bearing replacement after high vibration."
+    },
+    "operatingModes": [
+      "Automatic",
+      "Manual",
+      "Standby"
+    ],
+    "lifecycle": {
+      "stage": "In Operation",
+      "commissionedOn": "2022-05-25",
+      "expectedLifeYears": 20,
+      "nextAssessment": "2027-04-09",
+      "nextMaintenance": "2026-10-28"
+    },
+    "readingsUpdatedAt": "2026-10-08T08:00",
+    "readings": [
+      {
+        "label": "Supply Air Temperature",
+        "value": 14.2,
+        "unit": "°C",
+        "min": 12,
+        "max": 16,
+        "scaleMax": 30,
+        "decimals": 1
+      },
+      {
+        "label": "Return Air Temperature",
+        "value": 23.1,
+        "unit": "°C",
+        "min": 21,
+        "max": 26,
+        "scaleMax": 35,
+        "decimals": 1
+      },
+      {
+        "label": "Supply Airflow",
+        "value": 0,
+        "unit": "m³/h",
+        "min": 12000,
+        "max": 24000
+      },
+      {
+        "label": "Filter Differential Pressure",
+        "value": 268,
+        "unit": "Pa",
+        "max": 250,
+        "scaleMax": 400
+      },
+      {
+        "label": "Fan Motor Current",
+        "value": 0,
+        "unit": "A",
+        "max": 24,
+        "decimals": 1
+      },
+      {
+        "label": "Fan Vibration",
+        "value": 6.8,
+        "unit": "mm/s",
+        "max": 4.5,
+        "scaleMax": 10,
+        "decimals": 1
+      },
+      {
+        "label": "Chilled Water Valve",
+        "value": 66,
+        "unit": "%",
+        "scaleMax": 100
+      }
+    ],
+    "alerts": [
+      {
+        "id": 1,
+        "severity": "Warning",
+        "message": "Filter differential pressure high — filters due",
+        "raisedAt": "2026-05-25T07:55",
+        "status": "Resolved"
+      },
+      {
+        "id": 2,
+        "severity": "Warning",
+        "message": "Supply air temperature above setpoint",
+        "raisedAt": "2026-01-25T07:55",
+        "status": "Resolved"
+      },
+      {
+        "id": 3,
+        "severity": "Critical",
+        "message": "Fan vibration above trip limit",
+        "raisedAt": "2026-10-07T21:05",
+        "status": "Open"
+      }
+    ],
+    "environment": [
+      {
+        "parameter": "Supply Air CO₂",
+        "value": 639,
+        "unit": "ppm",
+        "limit": 1000,
+        "limitType": "max",
+        "measuredOn": "2026-10-08"
+      },
+      {
+        "parameter": "Relative Humidity",
+        "value": 49,
+        "unit": "%",
+        "limit": 65,
+        "limitType": "max",
+        "measuredOn": "2026-10-08"
+      },
+      {
+        "parameter": "PM2.5 (supply)",
+        "value": 8.9,
+        "unit": "µg/m³",
+        "limit": 25,
+        "limitType": "max",
+        "measuredOn": "2026-10-08"
+      },
+      {
+        "parameter": "Plant Room Temperature",
+        "value": 31,
+        "unit": "°C",
+        "limit": 40,
+        "limitType": "max",
+        "measuredOn": "2026-10-08"
+      }
+    ],
+    "consumptionLabel": "Energy Used (kWh)",
+    "performance": [
+      {
+        "month": "Apr 2026",
+        "availability": 97,
+        "utilization": 79,
+        "runningHours": 569,
+        "consumption": 11520,
+        "downtime": 22,
+        "failures": 0
+      },
+      {
+        "month": "May 2026",
+        "availability": 97,
+        "utilization": 75,
+        "runningHours": 538,
+        "consumption": 11104,
+        "downtime": 22,
+        "failures": 0
+      },
+      {
+        "month": "Jun 2026",
+        "availability": 96,
+        "utilization": 74,
+        "runningHours": 535,
+        "consumption": 12730,
+        "downtime": 29,
+        "failures": 1
+      },
+      {
+        "month": "Jul 2026",
+        "availability": 97,
+        "utilization": 67,
+        "runningHours": 484,
+        "consumption": 10782,
+        "downtime": 22,
+        "failures": 0
+      },
+      {
+        "month": "Aug 2026",
+        "availability": 96,
+        "utilization": 72,
+        "runningHours": 521,
+        "consumption": 10379,
+        "downtime": 29,
+        "failures": 0
+      },
+      {
+        "month": "Sep 2026",
+        "availability": 96,
+        "utilization": 66,
+        "runningHours": 474,
+        "consumption": 11289,
+        "downtime": 29,
+        "failures": 1
+      }
+    ],
+    "assessments": [
+      {
+        "id": 1,
+        "date": "2022-05-25",
+        "assessedBy": "Commissioning Team",
+        "overall": "Excellent",
+        "healthScore": 99,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Baseline assessment at commissioning."
+      },
+      {
+        "id": 2,
+        "date": "2024-05-25",
+        "assessedBy": "Maintenance Team",
+        "overall": "Excellent",
+        "healthScore": 97,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 3,
+        "date": "2024-11-25",
+        "assessedBy": "HSE Team",
+        "overall": "Excellent",
+        "healthScore": 96,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Minor wear noted; monitor at next PM."
+      },
+      {
+        "id": 4,
+        "date": "2025-05-25",
+        "assessedBy": "Maintenance Team",
+        "overall": "Excellent",
+        "healthScore": 95,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Cleaned and adjusted; no issues."
+      },
+      {
+        "id": 5,
+        "date": "2025-11-25",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 92,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "No defects found."
+      },
+      {
+        "id": 6,
+        "date": "2026-05-25",
+        "assessedBy": "HSE Team",
+        "overall": "Good",
+        "healthScore": 91,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 7,
+        "date": "2026-10-09",
+        "assessedBy": "Maintenance Team",
+        "overall": "Fair",
+        "healthScore": 81,
+        "physical": "Fair",
+        "performance": "Poor",
+        "safety": "Fair",
+        "remarks": "Supply fan belt and bearing replacement after high vibration."
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2022-05-09",
+        "title": "Asset purchased",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2022-05-25",
+        "title": "Commissioned and handed over",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2023-05-25",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2024-05-25",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-05-25",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2026-05-25",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2024-11-25",
+        "title": "PM completed (filters, belts, coil cleaning)",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-11-25",
+        "title": "PM completed (filters, belts, coil cleaning)",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2026-10-08",
+        "title": "Taken out for corrective maintenance",
+        "status": "Under Maintenance",
+        "condition": "Fair",
+        "by": "Rex Kumar"
+      },
+      {
+        "date": "2026-10-09",
+        "title": "Condition changed to Fair",
+        "by": "Maintenance Team",
+        "condition": "Fair"
+      }
+    ]
+  },
+  "relationships": {
+    "parts": [
+      {
+        "tag": "LOC-HEADOFFICEBU",
+        "name": "Head Office - Building B - Plant Room",
+        "category": "Facilities",
+        "location": "Head Office - Building B - Plant Room",
+        "condition": "",
+        "icon": "Building2"
+      },
+      {
+        "tag": "VAV-00118",
+        "name": "VAV Box Group",
+        "category": "HVAC",
+        "location": "Head Office - Building B - Plant Room",
+        "condition": "Good",
+        "icon": "AirVent"
+      },
+      {
+        "tag": "VFD-00118",
+        "name": "Fan VFD",
+        "category": "Electrical Equipment",
+        "location": "Head Office - Building B - Plant Room",
+        "condition": "Good",
+        "icon": "Cpu"
+      },
+      {
+        "tag": "FAN-00118-01",
+        "name": "Supply Fan",
+        "category": "HVAC Component",
+        "location": "Head Office - Building B - Plant Room",
+        "condition": "Fair",
+        "icon": "Fan"
+      },
+      {
+        "tag": "CCL-00118-02",
+        "name": "Cooling Coil",
+        "category": "HVAC Component",
+        "location": "Head Office - Building B - Plant Room",
+        "condition": "Good",
+        "icon": "AirVent"
+      },
+      {
+        "tag": "FLT-00118-03",
+        "name": "Bag Filter Set",
+        "category": "HVAC Component",
+        "location": "Head Office - Building B - Plant Room",
+        "condition": "Good",
+        "icon": "Box"
+      }
+    ],
+    "links": [
+      {
+        "id": 1,
+        "tag": "LOC-HEADOFFICEBU",
+        "type": "Parent Asset",
+        "direction": "Parent",
+        "since": "2022-05-24",
+        "to": "",
+        "status": "Active",
+        "description": "Air Handling Unit is installed at Head Office - Building B - Plant Room.",
+        "reference": "Site Layout - Head Office",
+        "remarks": ""
+      },
+      {
+        "id": 2,
+        "tag": "VAV-00118",
+        "type": "Connected Asset",
+        "direction": "Child",
+        "since": "2022-05-24",
+        "to": "",
+        "status": "Active",
+        "description": "VAV boxes served by the AHU.",
+        "reference": "HVAC Schematic - HV-305",
+        "remarks": ""
+      },
+      {
+        "id": 3,
+        "tag": "VFD-00118",
+        "type": "Supporting Asset",
+        "direction": "Child",
+        "since": "2022-05-24",
+        "to": "",
+        "status": "Active",
+        "description": "Variable frequency drive for the supply fan.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 4,
+        "tag": "FAN-00118-01",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2022-05-24",
+        "to": "",
+        "status": "Active",
+        "description": "Centrifugal supply fan with belt drive.",
+        "reference": "OEM Manual",
+        "remarks": "Belt and bearings replaced Oct 2026."
+      },
+      {
+        "id": 5,
+        "tag": "CCL-00118-02",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2022-05-24",
+        "to": "",
+        "status": "Active",
+        "description": "Chilled water cooling coil.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 6,
+        "tag": "HVAC-00112",
+        "type": "Supporting Asset",
+        "direction": "Parent",
+        "since": "2022-05-25",
+        "to": "",
+        "status": "Active",
+        "description": "Chilled water supply from the rooftop chiller.",
+        "reference": "",
+        "remarks": ""
+      }
+    ]
+  },
+  "criticality": {
+    "level": "High",
+    "score": 73,
+    "assessmentDate": "2026-05-15",
+    "validUntil": "2027-05-15",
+    "nextReview": "2026-11-15",
+    "assessedBy": "Rex Kumar",
+    "approvedBy": "Facilities Manager",
+    "method": "Risk Matrix (Weighted)",
+    "reviewFrequency": "Every 6 Months",
+    "department": "Facilities",
+    "assetGroup": "Air Distribution",
+    "remarks": "Supplies conditioned air to Building B office floors.",
+    "likelihood": 4,
+    "consequence": 4,
+    "criteria": [
+      {
+        "key": "operational",
+        "name": "Operational Impact",
+        "weight": 25,
+        "score": 4.5,
+        "justification": "Office floors lose fresh air and cooling."
+      },
+      {
+        "key": "safety",
+        "name": "Safety Impact",
+        "weight": 20,
+        "score": 3.5,
+        "justification": "Poor indoor air quality if out for long periods."
+      },
+      {
+        "key": "financial",
+        "name": "Financial Impact",
+        "weight": 20,
+        "score": 3.5,
+        "justification": "Moderate repair costs; fan parts readily available."
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance / Regulatory",
+        "weight": 15,
+        "score": 3.5,
+        "justification": "Fresh air rates set by building code."
+      },
+      {
+        "key": "environmental",
+        "name": "Environmental Impact",
+        "weight": 10,
+        "score": 3,
+        "justification": "Limited environmental effect."
+      },
+      {
+        "key": "reputation",
+        "name": "Reputation Impact",
+        "weight": 10,
+        "score": 3,
+        "justification": "Occupant complaints when it fails."
+      }
+    ],
+    "impact": {
+      "downtimeCostPerHour": 2500,
+      "currency": "AED",
+      "mttrHours": 8,
+      "redundancy": "None (N)",
+      "spares": "Belts and filters in stock; bearings 1 week",
+      "failureScenario": "Fan failure stops supply air to two office floors.",
+      "affectedServices": [
+        "Building B office floors",
+        "Fresh air supply"
+      ]
+    },
+    "mitigations": [
+      {
+        "id": 1,
+        "action": "Monthly belt tension and vibration check",
+        "owner": "Maintenance Team",
+        "dueDate": "2026-06-15",
+        "status": "Completed",
+        "reducesTo": "Medium"
+      },
+      {
+        "id": 2,
+        "action": "Keep a spare bearing set and belts",
+        "owner": "Stores",
+        "dueDate": "2026-08-15",
+        "status": "In Progress",
+        "reducesTo": "Medium"
+      },
+      {
+        "id": 3,
+        "action": "Fit differential pressure alarm on filters",
+        "owner": "Engineering",
+        "dueDate": "2026-10-15",
+        "status": "Open",
+        "reducesTo": "Medium"
+      }
+    ],
+    "history": [
+      {
+        "date": "2025-11-15",
+        "score": 73.3,
+        "level": "High",
+        "likelihood": 3,
+        "consequence": 4,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "Facilities Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2025-05-15",
+        "score": 75.4,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "Facilities Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-11-15",
+        "score": 76.5,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "Facilities Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-05-15",
+        "score": 76.9,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "Facilities Manager",
+        "remarks": "Initial criticality assessment."
+      }
+    ]
+  },
+  "health": {
+    "score": 62,
+    "status": "Fair",
+    "grade": "Fair",
+    "assessmentDate": "2026-10-01",
+    "nextAssessment": "2026-11-01",
+    "assessedBy": "Rex Kumar",
+    "method": "Predictive Analytics + Maintenance Data",
+    "remarks": "Supply fan belt and bearing replacement after high vibration.",
+    "breakdown": [
+      {
+        "key": "performance",
+        "name": "Performance",
+        "weight": 25,
+        "score": 56
+      },
+      {
+        "key": "reliability",
+        "name": "Reliability",
+        "weight": 25,
+        "score": 57
+      },
+      {
+        "key": "condition",
+        "name": "Condition",
+        "weight": 20,
+        "score": 63
+      },
+      {
+        "key": "safety",
+        "name": "Risk & Safety",
+        "weight": 15,
+        "score": 69
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance",
+        "weight": 15,
+        "score": 72
+      }
+    ],
+    "history": [
+      {
+        "date": "2026-10-01",
+        "score": 62,
+        "status": "Fair",
+        "trigger": "Event",
+        "comments": "Supply fan belt and bearing replacement after high vibration.",
+        "assessedBy": "System"
+      },
+      {
+        "date": "2026-09-01",
+        "score": 78,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-08-01",
+        "score": 78,
+        "status": "Good",
+        "trigger": "Event",
+        "comments": "Filter differential pressure high — filters due",
+        "assessedBy": "System"
+      },
+      {
+        "date": "2026-07-01",
+        "score": 80,
+        "status": "Good",
+        "trigger": "Event",
+        "comments": "Fan vibration above trip limit",
+        "assessedBy": "System"
+      },
+      {
+        "date": "2026-06-01",
+        "score": 82,
+        "status": "Good",
+        "trigger": "Event",
+        "comments": "Supply air temperature above setpoint",
+        "assessedBy": "System"
+      },
+      {
+        "date": "2026-05-01",
+        "score": 84,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-04-01",
+        "score": 84,
+        "status": "Good",
+        "trigger": "Event",
+        "comments": "Fan vibration above trip limit",
+        "assessedBy": "System"
+      },
+      {
+        "date": "2026-03-01",
+        "score": 86,
+        "status": "Healthy",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-02-01",
+        "score": 85,
+        "status": "Healthy",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-01-01",
+        "score": 86,
+        "status": "Healthy",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-12-01",
+        "score": 87,
+        "status": "Healthy",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-11-01",
+        "score": 88,
+        "status": "Healthy",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      }
+    ],
+    "insights": [
+      {
+        "type": "warning",
+        "text": "1 open alarm: Fan vibration above trip limit."
+      },
+      {
+        "type": "warning",
+        "text": "Performance is the weakest area (56%). Consider an inspection."
+      },
+      {
+        "type": "warning",
+        "text": "Health score dropped by 16 points compared to last month."
+      }
+    ],
+    "maintenancePlan": [
+      {
+        "task": "Condenser coil cleaning",
+        "frequency": "Every 3 months",
+        "lastDone": "2026-08-25",
+        "nextDue": "2026-11-25",
+        "owner": "Maintenance Team"
+      },
+      {
+        "task": "Refrigerant leak check",
+        "frequency": "Every 3 months",
+        "lastDone": "2026-07-28",
+        "nextDue": "2026-10-28",
+        "owner": "Maintenance Team"
+      },
+      {
+        "task": "Compressor oil analysis",
+        "frequency": "Every 6 months",
+        "lastDone": "2026-05-25",
+        "nextDue": "2026-11-25",
+        "owner": "Vendor"
+      },
+      {
+        "task": "Annual inspection",
+        "frequency": "Yearly",
+        "lastDone": "2026-05-25",
+        "nextDue": "2027-05-25",
+        "owner": "Vendor"
+      }
+    ]
+  }
+}

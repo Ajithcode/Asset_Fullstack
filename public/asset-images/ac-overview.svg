@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Split AC indoor unit">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#e2e8f0"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="40" y="70" width="320" height="110" rx="20" fill="#ffffff" stroke="#cbd5e1" stroke-width="4"/>
+  <rect x="60" y="150" width="280" height="14" rx="7" fill="#e2e8f0"/><path d="M80 175 Q200 200 320 175" fill="none" stroke="#cbd5e1" stroke-width="4"/>
+  <text x="300" y="110" font-family="Arial" font-size="14" font-weight="700" fill="#0ea5e9">24°</text><circle cx="290" cy="128" r="3" fill="#22c55e"/>
+  <g stroke="#93c5fd" stroke-width="3" fill="none" opacity="0.7"><path d="M120 210 q10 20 0 40"/><path d="M200 210 q10 20 0 40"/><path d="M280 210 q10 20 0 40"/></g>
+</svg>

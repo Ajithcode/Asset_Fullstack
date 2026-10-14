@@ -2,7 +2,6 @@ import { Component, OnInit, ChangeDetectorRef, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import { MapComponent, MapPin } from 'shared-ui';
 import { WidgetDragHandle } from '../shared/widget-drag-handle/widget-drag-handle';
 import { loadOrder, saveOrder, reorderByKey, moveWithinVisible } from '../shared/dashboard-widgets/widget-order.util';
 
@@ -79,7 +78,7 @@ interface DashboardData {
 @Component({
   standalone: true,
   selector: 'app-main-dashboard',
-  imports: [CommonModule, DragDropModule, MapComponent, WidgetDragHandle],
+  imports: [CommonModule, DragDropModule,  WidgetDragHandle],
   templateUrl: './main-dashboard.html',
   styleUrls: ['./main-dashboard.css'],
 })
@@ -140,13 +139,13 @@ export class MainDashboard implements OnInit {
   onRow4Drop(event: CdkDragDrop<string[]>): void {
     this.persistDrop(event, this.row4Order, 'piq.dashboard.main.row4Order');
   }
-  mapPins: MapPin[] = [
-    { lat: 40.7168, lng: -74.001, color: '#22c55e', label: 'Forklift FL-07' },
-    { lat: 40.7118, lng: -74.012, color: '#2563eb', label: 'Generator GEN-12' },
-    { lat: 40.7098, lng: -73.998, color: '#f97316', label: 'HVAC System' },
-    { lat: 40.7138, lng: -74.008, color: '#7c3aed', label: 'Compressor AC-04' },
-    { lat: 40.7078, lng: -74.005, color: '#ef4444', label: 'Server SRV-09' },
-  ];
+  // mapPins: MapPin[] = [
+  //   { lat: 40.7168, lng: -74.001, color: '#22c55e', label: 'Forklift FL-07' },
+  //   { lat: 40.7118, lng: -74.012, color: '#2563eb', label: 'Generator GEN-12' },
+  //   { lat: 40.7098, lng: -73.998, color: '#f97316', label: 'HVAC System' },
+  //   { lat: 40.7138, lng: -74.008, color: '#7c3aed', label: 'Compressor AC-04' },
+  //   { lat: 40.7078, lng: -74.005, color: '#ef4444', label: 'Server SRV-09' },
+  // ];
   assetStatusDonut: DashboardData['assetStatusDonut'] = { total: '', totalLabel: '', legend: [] };
   assetsByTypeDonut: DashboardData['assetsByTypeDonut'] = { total: '', totalLabel: '', legend: [] };
   recentAlerts: AlertItem[] = [];

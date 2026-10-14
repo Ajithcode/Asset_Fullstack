@@ -27,10 +27,10 @@
   </button>
 
   <div class="admin-chip" (click)="toggleAdminDropdown($event.currentTarget)">
-    <div class="avatar">AD</div>
+    <div class="avatar">{{ initials }}</div>
     <div>
       <strong>{{ displayEmail }}</strong>
-      <span>Administrator</span>
+      <span>{{ roleName }}</span>
     </div>
     <b>v</b>
   </div>
@@ -45,10 +45,10 @@
   (click)="$event.stopPropagation()"
 >
   <div class="flyout-user-info">
-    <div class="flyout-avatar">AD</div>
+    <div class="flyout-avatar">{{ initials }}</div>
     <div class="flyout-user-details">
       <strong>{{ displayEmail }}</strong>
-      <span>Administrator</span>
+      <span>{{ roleName }}</span>
     </div>
   </div>
   <button type="button" class="flyout-item" (click)="logout()">Logout</button>

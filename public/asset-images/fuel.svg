@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Fuel system">
+  <rect width="400" height="300" fill="#2b2e34"/>
+  <rect x="0" y="0" width="400" height="60" fill="#f2b705"/>
+  <rect x="40" y="56" width="320" height="22" fill="#1f2226"/>
+  <g fill="#eceef1" stroke="#9aa0a8" stroke-width="2"><rect x="70" y="90" width="70" height="150" rx="10"/><rect x="165" y="90" width="70" height="150" rx="10"/><rect x="260" y="90" width="70" height="150" rx="10"/></g>
+  <g fill="#c62828"><rect x="78" y="140" width="54" height="30"/><rect x="173" y="140" width="54" height="30"/></g>
+  <rect x="268" y="140" width="54" height="30" fill="#1d4ed8"/>
+  <g fill="#3d4148"><rect x="80" y="76" width="50" height="18"/><rect x="175" y="76" width="50" height="18"/><rect x="270" y="76" width="50" height="18"/></g>
+  <g fill="none" stroke="#111317" stroke-width="8" stroke-linecap="round"><path d="M105 240 v 40"/><path d="M200 240 v 40"/><path d="M295 240 v 40"/></g>
+</svg>

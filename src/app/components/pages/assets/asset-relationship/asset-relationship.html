@@ -1,0 +1,390 @@
+<section class="rel-page">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <a routerLink="/assets/list">Asset List</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span>{{ asset.tag }}</span>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">Asset Relationship</span>
+  </nav>
+
+  <!-- Unknown or missing ?tag= -->
+  <div *ngIf="notFound" class="card not-found">
+    <h2>Asset not found</h2>
+    <p *ngIf="requestedTag">No asset with the tag <strong>{{ requestedTag }}</strong> exists in the register.</p>
+    <p *ngIf="!requestedTag">Open an asset from the Asset List to see its relationships.</p>
+    <a class="btn btn-primary" routerLink="/assets/list">Go to Asset List</a>
+  </div>
+
+  <ng-container *ngIf="!notFound">
+  <!-- Asset header -->
+  <div class="card asset-head">
+    <img *ngIf="asset.image; else headerIcon" class="asset-img" [src]="asset.image" [alt]="asset.name" />
+    <ng-template #headerIcon>
+      <span class="asset-img asset-img--icon"><lucide-icon [img]="assetIcons[iconFor[asset.icon]]" [size]="34" [strokeWidth]="1.6"></lucide-icon></span>
+    </ng-template>
+    <div class="asset-title">
+      <h1>{{ asset.tag }}</h1>
+      <p>{{ asset.name }}</p>
+    </div>
+    <div class="chips">
+      <div class="chip"><span>Category</span><strong>{{ asset.category }}</strong></div>
+      <div class="chip"><span>Type / Model</span><strong>{{ asset.model }}</strong></div>
+      <div class="chip"><span>Location</span><strong>{{ asset.location }}</strong></div>
+      <div class="chip chip--sm"><span>Status</span><span class="pill" [ngClass]="statusPill(asset.status)"><span class="dot"></span>{{ asset.status }}</span></div>
+      <div class="chip chip--sm"><span>Condition</span><span class="pill" [ngClass]="conditionPill(asset.condition)"><span class="dot"></span>{{ asset.condition }}</span></div>
+      <div class="chip chip--sm"><span>Criticality</span><span class="pill" [ngClass]="criticalityPill(asset.criticality)"><span class="dot"></span>{{ asset.criticality }}</span></div>
+    </div>
+    <div class="menu-wrap">
+      <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
+        Actions
+        <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+      </button>
+      <div *ngIf="actionsOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
+        <button type="button" role="menuitem" (click)="openAdd()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Relationship</button>
+        <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Relationships (CSV)</button>
+        <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset tabs -->
+  <nav class="card tabs" aria-label="Asset sections">
+    <ng-container *ngFor="let t of tabs">
+      <a *ngIf="t.path; else plainTab" class="tab" [routerLink]="t.path" [queryParams]="{ tag: asset.tag }">{{ t.label }}</a>
+      <ng-template #plainTab>
+        <button type="button" class="tab" [class.is-active]="t.active" [attr.aria-current]="t.active ? 'page' : null" (click)="tabClick(t)">{{ t.label }}</button>
+      </ng-template>
+    </ng-container>
+  </nav>
+
+  <!-- Section header -->
+  <div class="card section-head">
+    <span class="icon-tile"><lucide-icon [img]="icons.Workflow" [size]="20"></lucide-icon></span>
+    <div class="grow">
+      <h2>Asset Relationship</h2>
+      <p>Visualize and manage relationships between this asset and other assets, components, locations and people.</p>
+    </div>
+    <label class="field field--inline">
+      <span class="field-label">Relationship View</span>
+      <select class="control" [(ngModel)]="viewFilter">
+        <option value="all">All Relationships</option>
+        <option *ngFor="let t of relTypes" [value]="t">{{ t }}</option>
+      </select>
+    </label>
+    <label class="field field--inline">
+      <span class="field-label">Layout</span>
+      <select class="control" [(ngModel)]="layout">
+        <option value="hierarchical">Hierarchical</option>
+        <option value="horizontal">Horizontal</option>
+      </select>
+    </label>
+    <button type="button" class="btn btn-soft btn-tall" (click)="toggleFullScreen()">
+      <lucide-icon [img]="fullScreen ? icons.Minimize2 : icons.Maximize2" [size]="16"></lucide-icon>
+      {{ fullScreen ? 'Exit Full Screen' : 'Full Screen' }}
+    </button>
+    <button type="button" class="btn btn-primary btn-tall" (click)="openAdd()">
+      <lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>
+      Add Relationship
+    </button>
+  </div>
+
+  <!-- Diagram + details -->
+  <div class="rel-body">
+    <div class="card panel diagram-card" [class.is-full]="fullScreen">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.Network" [size]="20"></lucide-icon>
+        <h3 class="grow">Relationship Diagram</h3>
+        <div class="legend">
+          <span *ngFor="let t of relTypes"><i [style.background]="typeColors[t]"></i>{{ t }}</span>
+        </div>
+        <button *ngIf="fullScreen" type="button" class="icon-btn" (click)="toggleFullScreen()" aria-label="Exit full screen">
+          <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+        </button>
+      </div>
+
+      <div class="diagram-scroll" *ngIf="diagram as dg">
+        <div class="diagram" [style.width.px]="dg.width" [style.height.px]="dg.height">
+          <svg class="edges" [attr.width]="dg.width" [attr.height]="dg.height" aria-hidden="true">
+            <defs>
+              <marker *ngFor="let c of markerColors" [attr.id]="markerId(c)" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" [attr.fill]="c"></path>
+              </marker>
+            </defs>
+            <path
+              *ngFor="let e of dg.edges"
+              [attr.d]="e.d"
+              [attr.stroke]="e.color"
+              [attr.marker-end]="'url(#' + markerId(e.color) + ')'"
+              [class.is-selected]="e.id === selectedId"
+              fill="none"
+            ></path>
+          </svg>
+
+          <div class="node node--center" [style.left.px]="dg.center.x" [style.top.px]="dg.center.y" [style.width.px]="centerW" [style.height.px]="centerH">
+            <img *ngIf="asset.image; else centerIcon" [src]="asset.image" alt="" />
+            <ng-template #centerIcon><lucide-icon class="center-icon" [img]="assetIcons[iconFor[asset.icon]]" [size]="36" [strokeWidth]="1.6"></lucide-icon></ng-template>
+            <div>
+              <strong>{{ asset.tag }}</strong>
+              <span>{{ asset.name }}</span>
+            </div>
+          </div>
+
+          <button
+            *ngFor="let n of dg.nodes"
+            type="button"
+            class="node"
+            [class.is-selected]="n.rel.id === selectedId"
+            [class.is-inactive]="n.rel.status === 'Inactive'"
+            [style.left.px]="n.x"
+            [style.top.px]="n.y"
+            [style.width.px]="nodeW"
+            [style.height.px]="nodeH"
+            (click)="select(n.rel)"
+          >
+            <span class="node-icon" [ngClass]="typeClass(n.rel.type)">
+              <lucide-icon [img]="assetIcons[n.asset.icon]" [size]="24" [strokeWidth]="1.6"></lucide-icon>
+            </span>
+            <span class="node-text">
+              <strong>{{ n.asset.tag }}</strong>
+              <span class="ellipsis">{{ n.asset.name }}</span>
+              <span class="type-pill" [ngClass]="typeClass(n.rel.type)">{{ n.rel.type }}</span>
+            </span>
+          </button>
+        </div>
+        <p *ngIf="!dg.nodes.length" class="empty-line">No relationships match this view.</p>
+      </div>
+    </div>
+
+    <aside class="card panel details-card">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.Eye" [size]="20"></lucide-icon>
+        <h3 class="grow">Relationship Details</h3>
+        <button *ngIf="selected" type="button" class="link-btn" (click)="openEdit(selected)">
+          <lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon> Edit
+        </button>
+      </div>
+
+      <ng-container *ngIf="selected as s; else noSelection">
+        <div class="details-top" *ngIf="assetFor(s.tag) as a">
+          <span class="details-img" [ngClass]="typeClass(s.type)">
+            <lucide-icon [img]="assetIcons[a.icon]" [size]="44" [strokeWidth]="1.4"></lucide-icon>
+          </span>
+          <div>
+            <h4>{{ a.tag }}</h4>
+            <p>{{ a.name }}</p>
+            <span class="type-pill type-pill--lg" [ngClass]="typeClass(s.type)">{{ s.type }}</span>
+          </div>
+        </div>
+        <dl class="details">
+          <dt>Relationship Type</dt><dd>{{ s.type }}</dd>
+          <dt>Relationship Direction</dt><dd>{{ s.direction }} Asset</dd>
+          <dt>Description</dt><dd>{{ s.description || '-' }}</dd>
+          <dt>Since Date</dt><dd>{{ formatDate(s.since) }}</dd>
+          <dt *ngIf="s.to">To Date</dt><dd *ngIf="s.to">{{ formatDate(s.to) }}</dd>
+          <dt>Status</dt>
+          <dd><span class="pill pill--xs" [class.pill--active]="s.status === 'Active'" [class.pill--inactive]="s.status !== 'Active'"><span class="dot"></span>{{ s.status }}</span></dd>
+          <dt>Location</dt><dd>{{ assetFor(s.tag).location }}</dd>
+          <dt>Reference</dt><dd>{{ s.reference || '-' }}</dd>
+          <dt>Remarks</dt><dd>{{ s.remarks || '-' }}</dd>
+        </dl>
+      </ng-container>
+      <ng-template #noSelection>
+        <p class="empty-line">Select an asset in the diagram or table to see its relationship.</p>
+      </ng-template>
+    </aside>
+  </div>
+
+  <!-- Related assets -->
+  <div class="card panel">
+    <div class="card-head table-head">
+      <lucide-icon class="head-icon" [img]="icons.List" [size]="20"></lucide-icon>
+      <h3 class="grow">Related Assets ({{ relationships.length }})</h3>
+      <button *ngIf="checked.size" type="button" class="btn btn-danger-outline btn-sm" (click)="askRemove(checkedIds)">
+        <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+        Remove ({{ checked.size }})
+      </button>
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input type="search" [(ngModel)]="search" placeholder="Search related assets..." aria-label="Search related assets" />
+      </label>
+      <select class="control control--sm" [(ngModel)]="typeFilter" aria-label="Relationship type">
+        <option value="all">All Relationship Types</option>
+        <option *ngFor="let t of relTypes" [value]="t">{{ t }}</option>
+      </select>
+      <select class="control control--sm" [(ngModel)]="statusFilter" aria-label="Status">
+        <option value="all">All Status</option>
+        <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+      </select>
+      <div class="view-toggle" role="group" aria-label="View">
+        <button type="button" [class.is-active]="tableView === 'list'" (click)="tableView = 'list'" aria-label="List view"><lucide-icon [img]="icons.List" [size]="18"></lucide-icon></button>
+        <button type="button" [class.is-active]="tableView === 'grid'" (click)="tableView = 'grid'" aria-label="Grid view"><lucide-icon [img]="icons.LayoutGrid" [size]="18"></lucide-icon></button>
+      </div>
+    </div>
+
+    <div *ngIf="tableView === 'list'" class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" [checked]="allChecked" (change)="toggleAll($any($event.target).checked)" aria-label="Select all" /></th>
+            <th>#</th>
+            <th>Related Asset ID</th>
+            <th>Asset Name</th>
+            <th>Relationship Type</th>
+            <th>Direction</th>
+            <th>Category</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Condition</th>
+            <th>From Date</th>
+            <th>To Date</th>
+            <th class="center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of filteredRels; let i = index" [class.is-selected]="r.id === selectedId" (click)="select(r)">
+            <td class="col-check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="checked.has(r.id)" (change)="toggleCheck(r.id, $any($event.target).checked)" [attr.aria-label]="'Select ' + r.tag" /></td>
+            <td>{{ i + 1 }}</td>
+            <td>{{ r.tag }}</td>
+            <td>{{ assetFor(r.tag).name }}</td>
+            <td><span class="type-pill" [ngClass]="typeClass(r.type)">{{ r.type }}</span></td>
+            <td>{{ r.direction }}</td>
+            <td>{{ assetFor(r.tag).category }}</td>
+            <td>{{ assetFor(r.tag).location }}</td>
+            <td><span class="pill pill--xs" [class.pill--active]="r.status === 'Active'" [class.pill--inactive]="r.status !== 'Active'"><span class="dot"></span>{{ r.status }}</span></td>
+            <td>
+              <span *ngIf="assetFor(r.tag).condition as c; else noCond" class="pill pill--xs" [ngClass]="'pill--' + c.toLowerCase()"><span class="dot"></span>{{ c }}</span>
+              <ng-template #noCond>-</ng-template>
+            </td>
+            <td class="nowrap">{{ formatDate(r.since) }}</td>
+            <td class="nowrap">{{ formatDate(r.to) }}</td>
+            <td class="center" (click)="$event.stopPropagation()">
+              <div class="menu-wrap">
+                <button type="button" class="icon-btn" (click)="toggleRowMenu(r.id, $event)" [attr.aria-expanded]="rowMenuId === r.id" [attr.aria-label]="'Actions for ' + r.tag">
+                  <lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon>
+                </button>
+                <div *ngIf="rowMenuId === r.id" class="menu" role="menu" (click)="$event.stopPropagation()">
+                  <button type="button" role="menuitem" (click)="select(r); rowMenuId = null"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>View Details</button>
+                  <button type="button" role="menuitem" (click)="openEdit(r)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit</button>
+                  <hr />
+                  <button type="button" role="menuitem" class="danger" (click)="askRemove([r.id])"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Remove</button>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="!filteredRels.length">
+            <td colspan="13" class="empty-line">No related assets match your filters.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="tableView === 'grid'" class="rel-grid">
+      <div *ngFor="let r of filteredRels" class="rel-tile" [class.is-selected]="r.id === selectedId" (click)="select(r)">
+        <span class="node-icon" [ngClass]="typeClass(r.type)">
+          <lucide-icon [img]="assetIcons[assetFor(r.tag).icon]" [size]="24" [strokeWidth]="1.6"></lucide-icon>
+        </span>
+        <div class="grow">
+          <strong>{{ r.tag }}</strong>
+          <span class="muted ellipsis">{{ assetFor(r.tag).name }}</span>
+          <div class="tile-pills">
+            <span class="type-pill" [ngClass]="typeClass(r.type)">{{ r.type }}</span>
+            <span class="pill pill--xs" [class.pill--active]="r.status === 'Active'" [class.pill--inactive]="r.status !== 'Active'"><span class="dot"></span>{{ r.status }}</span>
+          </div>
+          <span class="muted small">{{ r.direction }} &middot; since {{ formatDate(r.since) }}</span>
+        </div>
+        <div class="tile-actions" (click)="$event.stopPropagation()">
+          <button type="button" class="icon-btn" (click)="openEdit(r)" [attr.aria-label]="'Edit ' + r.tag"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon></button>
+          <button type="button" class="icon-btn icon-btn--danger" (click)="askRemove([r.id])" [attr.aria-label]="'Remove ' + r.tag"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button>
+        </div>
+      </div>
+      <p *ngIf="!filteredRels.length" class="empty-line">No related assets match your filters.</p>
+    </div>
+  </div>
+  </ng-container>
+</section>
+
+<!-- Add / edit relationship -->
+<div *ngIf="formOpen" class="overlay" (click)="formOpen = false">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rel-form-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="rel-form-title">{{ editingId !== null ? 'Edit Relationship' : 'Add Relationship' }}</h2>
+      <button type="button" class="icon-btn" (click)="formOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveForm()">
+      <label class="field">
+        <span class="field-label">Related Asset <em>*</em></span>
+        <select class="control" [(ngModel)]="form.tag" name="tag">
+          <option value="" disabled>Select an asset</option>
+          <option *ngFor="let a of assetOptions" [value]="a.tag">{{ a.tag }} - {{ a.name }}</option>
+        </select>
+      </label>
+      <div class="grid-2">
+        <label class="field">
+          <span class="field-label">Relationship Type <em>*</em></span>
+          <select class="control" [(ngModel)]="form.type" name="type">
+            <option *ngFor="let t of relTypes" [value]="t">{{ t }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Direction <em>*</em></span>
+          <select class="control" [(ngModel)]="form.direction" name="direction">
+            <option *ngFor="let d of directions" [value]="d">{{ d }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Since Date <em>*</em></span>
+          <input type="date" class="control" [(ngModel)]="form.since" name="since" />
+        </label>
+        <label class="field">
+          <span class="field-label">To Date</span>
+          <input type="date" class="control" [(ngModel)]="form.to" name="to" />
+        </label>
+        <label class="field">
+          <span class="field-label">Status</span>
+          <select class="control" [(ngModel)]="form.status" name="status">
+            <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Reference</span>
+          <input type="text" class="control" [(ngModel)]="form.reference" name="reference" placeholder="e.g. Installation Drawing" maxlength="100" />
+        </label>
+      </div>
+      <label class="field">
+        <span class="field-label">Description</span>
+        <textarea class="control" rows="2" [(ngModel)]="form.description" name="description" maxlength="300"></textarea>
+      </label>
+      <label class="field">
+        <span class="field-label">Remarks</span>
+        <textarea class="control" rows="2" [(ngModel)]="form.remarks" name="remarks" maxlength="300"></textarea>
+      </label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="formOpen = false">Cancel</button>
+        <button type="submit" class="btn btn-primary">{{ editingId !== null ? 'Save Changes' : 'Add Relationship' }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Remove confirmation -->
+<div *ngIf="removeIds" class="overlay" (click)="removeIds = null">
+  <div class="modal modal--sm" role="alertdialog" aria-modal="true" aria-labelledby="rel-remove-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="rel-remove-title">Remove Relationship</h2>
+      <button type="button" class="icon-btn" (click)="removeIds = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <p>Remove the link between <strong>{{ asset.tag }}</strong> and <strong>{{ removeLabel }}</strong>? The assets themselves are not deleted.</p>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="removeIds = null">Cancel</button>
+      <button type="button" class="btn btn-danger" (click)="confirmRemove()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

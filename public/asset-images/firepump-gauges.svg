@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Fire pump gauges and valves">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2f36"/><stop offset="1" stop-color="#15181d"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="0" y="180" width="400" height="30" fill="#b91c1c"/>
+  <circle cx="130" cy="110" r="56" fill="#e5e7eb" stroke="#9ca3af" stroke-width="6"/><path d="M130 110 L162 84" stroke="#dc2626" stroke-width="4"/><circle cx="130" cy="110" r="5" fill="#111"/>
+  <rect x="122" y="166" width="16" height="16" fill="#9ca3af"/><rect x="250" y="120" width="40" height="60" fill="#7f1d1d"/><circle cx="270" cy="100" r="30" fill="none" stroke="#dc2626" stroke-width="8"/>
+</svg>

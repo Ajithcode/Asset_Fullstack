@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Bullet camera">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfdbfe"/><stop offset="1" stop-color="#e0f2fe"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="320" y="40" width="60" height="220" fill="#d6d3d1"/><path d="M320 140 H280 V170" fill="none" stroke="#e5e7eb" stroke-width="16"/>
+  <rect x="80" y="110" width="220" height="70" rx="20" fill="#f8fafc" stroke="#cbd5e1" stroke-width="3"/><rect x="70" y="100" width="200" height="24" rx="8" fill="#e5e7eb"/>
+  <circle cx="92" cy="145" r="24" fill="#111827"/><circle cx="92" cy="145" r="11" fill="#1e40af"/>
+</svg>

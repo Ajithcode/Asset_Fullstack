@@ -421,6 +421,11 @@
     </section>
   </div>
 
+  <div *ngIf="widgetSaveError" class="widget-save-error" role="alert">
+    <span>{{ widgetSaveError }}</span>
+    <button type="button" (click)="widgetSaveError = ''" aria-label="Dismiss">&times;</button>
+  </div>
+
   <!-- Add Widget popup -->
   <app-widget-picker *ngIf="isWidgetPickerOpen" [selected]="selectedIds" [expand]="pickerExpand"
     (applied)="onWidgetsApplied($event)" (closed)="isWidgetPickerOpen = false"></app-widget-picker>

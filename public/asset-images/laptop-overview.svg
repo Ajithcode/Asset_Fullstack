@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Laptop">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f5f9"/><stop offset="1" stop-color="#cbd5e1"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="90" y="50" width="220" height="140" rx="8" fill="#1f2937"/><rect x="102" y="62" width="196" height="116" fill="#3b82f6"/>
+  <path d="M102 140 L160 100 L210 130 L298 80 V178 H102Z" fill="#1d4ed8"/><path d="M60 196 H340 L320 230 H80Z" fill="#374151"/>
+  <rect x="110" y="202" width="180" height="2.7" fill="#4b5563"/><rect x="110" y="208" width="180" height="2.7" fill="#4b5563"/><rect x="110" y="214" width="180" height="2.7" fill="#4b5563"/><rect x="180" y="222" width="40" height="5" rx="2" fill="#6b7280"/>
+</svg>

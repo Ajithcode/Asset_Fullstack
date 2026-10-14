@@ -1,21 +1,29 @@
+/** Sign-up form data (DEMO MODE: kept in the browser only, never sent to a server). */
 export interface RegisterData {
   fullName: string;
+  userName: string;
   email: string;
+  contactNo: string;
   password: string;
-  confirmPassword: string;
+  /** roleId of one of the demo roles. */
+  userRoleId: string;
+}
+
+/** A role offered on the sign-up page. */
+export interface SignupRole {
+  roleId: string;
+  roleName: string;
+  description: string;
 }
 
 export interface LoginData {
-  email: string;
+  userName: string;
   password: string;
 }
 
-export interface RegisterResponse {
-  message: string;
+/** The signed-in demo user. */
+export interface AuthUser {
+  userName: string;
   email: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  message?: string;
+  roleName: string;
 }

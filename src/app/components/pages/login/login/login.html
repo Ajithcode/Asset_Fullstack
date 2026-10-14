@@ -29,9 +29,9 @@
         <label class="field-label">
           <span>Username</span>
           <input
-            type="email"
-            [(ngModel)]="credentials.email"
-            name="email"
+            type="text"
+            [(ngModel)]="credentials.userName"
+            name="userName"
             placeholder="Enter your username"
             autocomplete="username"
           />
@@ -56,27 +56,18 @@
           <a class="forgot-link" href="#">Forgot Password?</a>
         </div>
 
-        <p *ngIf="errorMsg" class="error-msg">{{ errorMsg }}</p>
+        <p *ngIf="infoMsg" class="success-msg" role="status">{{ infoMsg }}</p>
+        <p *ngIf="errorMsg" class="error-msg" role="alert">{{ errorMsg }}</p>
 
         <button type="submit" class="submit-button" [disabled]="isLoading">
           {{ isLoading ? 'Signing In...' : 'Sign In' }}
         </button>
-
-        <div *ngIf="popupVisible" class="popup-overlay">
-          <div class="popup-card" [class.error]="popupType === 'error'" [class.success]="popupType === 'success'">
-            <div class="popup-header">
-              <h3>{{ popupTitle }}</h3>
-              <button type="button" class="popup-close" (click)="closePopup()">×</button>
-            </div>
-            <div class="popup-body">
-              <p>{{ popupMessage }}</p>
-            </div>
-            <div class="popup-actions">
-              <button type="button" class="btn-close" (click)="closePopup()">Close</button>
-            </div>
-          </div>
-        </div>
       </form>
+
+      <p class="switch-auth">
+        Don't have an account?
+        <a routerLink="/signup">Create an account</a>
+      </p>
 
       <div class="secure-note">Secured &amp; Encrypted Connection</div>
     </div>

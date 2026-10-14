@@ -1,99 +1,66 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgIf } from '@angular/common';
+import { NgFor, NgIf } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { RegisterData } from '../../../../models/auth.model';
+import { AuthService, DEMO_ROLES } from '../../../../components/service/auth/auth.service';
+import { RegisterData, SignupRole } from '../../../../models/auth.model';
 
+const USER_NAME_PATTERN = /^[A-Za-z0-9._-]{3,50}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD = 8;
+
+/** DEMO MODE: sign-up is validated and kept in the browser only; afterwards the user signs in. */
 @Component({
   standalone: true,
   selector: 'app-signup',
-  imports: [FormsModule, NgIf, RouterLink],
+  imports: [FormsModule, NgIf, NgFor, RouterLink],
   templateUrl: './signup.html',
-  styleUrls: ['./signup.css']
+  styleUrls: ['../../login/login/login.css']
 })
 export class Signup {
-  credentials: RegisterData = {
-    fullName: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  };
-
+  form: RegisterData = { fullName: '', userName: '', email: '', contactNo: '', password: '', userRoleId: '' };
+  confirmPassword = '';
   errorMsg = '';
-  successMsg = '';
   isLoading = false;
-  popupVisible = false;
-  popupTitle = '';
-  popupMessage = '';
-  popupType: 'error' | 'success' | '' = '';
 
-  constructor(private router: Router) {}
+  roles: SignupRole[] = DEMO_ROLES;
+  rolesLoading = false;
+  rolesError = '';
 
-  showPopup(message: string, title = 'Error', type: 'error' | 'success' | '' = 'error') {
-    this.popupMessage = message;
-    this.popupTitle = title;
-    this.popupType = type;
-    this.popupVisible = true;
+  constructor(private auth: AuthService, private router: Router) {}
+
+  get selectedRole(): SignupRole | undefined {
+    return this.roles.find((r) => r.roleId === this.form.userRoleId);
   }
 
-  closePopup() {
-    this.popupVisible = false;
+  loadRoles(): void {
+    this.roles = DEMO_ROLES;
   }
 
-  async signup() {
-    if (this.isLoading) return;
+  private validate(): string | null {
+    const f = this.form;
+    if (!f.fullName.trim() || !f.userName.trim() || !f.email.trim() || !f.password) return 'Please fill in all required fields.';
+    if (!USER_NAME_PATTERN.test(f.userName.trim())) return 'Username must be 3-50 characters: letters, numbers, dot, dash or underscore.';
+    if (!EMAIL_PATTERN.test(f.email.trim())) return 'Enter a valid email address.';
+    if (f.password.length < MIN_PASSWORD) return `Password must be at least ${MIN_PASSWORD} characters.`;
+    if (f.password !== this.confirmPassword) return 'Passwords do not match.';
+    if (!f.userRoleId) return 'Select a role.';
+    return null;
+  }
 
-    this.errorMsg = '';
-    this.successMsg = '';
+  signup(): void {
+    this.errorMsg = this.validate() ?? '';
+    if (this.errorMsg) return;
 
-    if (
-      !this.credentials.fullName ||
-      !this.credentials.email ||
-      !this.credentials.password ||
-      !this.credentials.confirmPassword
-    ) {
-      this.errorMsg = 'Please fill in all fields';
-      this.showPopup(this.errorMsg, 'Validation Error', 'error');
-      return;
-    }
-
-    if (this.credentials.password !== this.credentials.confirmPassword) {
-      this.errorMsg = 'Passwords do not match';
-      this.showPopup(this.errorMsg, 'Validation Error', 'error');
-      return;
-    }
-
-    if (this.credentials.password.length < 6) {
-      this.errorMsg = 'Password must be at least 6 characters';
-      this.showPopup(this.errorMsg, 'Validation Error', 'error');
-      return;
-    }
-
-    this.isLoading = true;
-
-    // DEMO MODE: Backend registration is disabled
-    // try {
-    //   console.log('Calling register with:', this.credentials);
-    //   const response = await lastValueFrom(this.auth.register(this.credentials));
-    //   const message = response?.message || 'Registered successfully';
-    //   console.log('Registration successful', response);
-    //   this.successMsg = 'Account created! Redirecting to login...';
-    //   this.showPopup(message, 'Success', 'success');
-    //   setTimeout(() => this.router.navigate(['/login']), 1500);
-    // } catch (err: any) {
-    //   console.error('Registration failed:', err);
-    //   const errorText =
-    //     err?.error?.message || err?.message || 'Registration failed. Please try again.';
-    //   this.errorMsg = errorText;
-    //   this.showPopup(errorText, 'Registration Failed', 'error');
-    // } finally {
-    //   this.isLoading = false;
-    // }
-
-    console.log('DEMO MODE: Registration bypassed for data:', this.credentials);
-    this.successMsg = 'Account created! Redirecting to login...';
-    this.showPopup('Demo account created!', 'Success', 'success');
-    setTimeout(() => this.router.navigate(['/login']), 1500);
-    this.isLoading = false;
+    const userName = this.form.userName.trim();
+    this.auth.register({
+      fullName: this.form.fullName.trim(),
+      userName,
+      email: this.form.email.trim(),
+      contactNo: this.form.contactNo.trim(),
+      password: this.form.password,
+      userRoleId: this.form.userRoleId,
+    });
+    this.router.navigate(['/login'], { queryParams: { registered: userName } });
   }
 }

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Dome camera">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f5f9"/><stop offset="1" stop-color="#e2e8f0"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="0" y="0" width="400" height="60" fill="#e2e8f0"/><rect x="100" y="60" width="200" height="40" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="3"/>
+  <path d="M110 100 A90 90 0 0 0 290 100Z" fill="#1f2937" opacity="0.85"/><circle cx="200" cy="140" r="30" fill="#111827"/><circle cx="200" cy="140" r="14" fill="#1e40af"/><circle cx="194" cy="134" r="4" fill="#93c5fd"/>
+</svg>

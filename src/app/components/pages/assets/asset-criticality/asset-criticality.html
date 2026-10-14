@@ -1,0 +1,543 @@
+<section class="sc-page">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <a routerLink="/assets/list">Asset List</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span>{{ asset.tag }}</span>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">Asset Criticality</span>
+  </nav>
+
+  <!-- Unknown or missing ?tag= -->
+  <div *ngIf="notFound" class="card not-found">
+    <h2>Asset not found</h2>
+    <p *ngIf="requestedTag">No asset with the tag <strong>{{ requestedTag }}</strong> exists in the register.</p>
+    <p *ngIf="!requestedTag">Open an asset from the Asset List to see its criticality.</p>
+    <a class="btn btn-primary" routerLink="/assets/list">Go to Asset List</a>
+  </div>
+
+  <ng-container *ngIf="!notFound">
+  <!-- Asset header -->
+  <div class="card asset-head">
+    <img *ngIf="asset.image; else headerIcon" class="asset-img" [src]="asset.image" [alt]="asset.name" />
+    <ng-template #headerIcon>
+      <span class="asset-img asset-img--icon"><lucide-icon [img]="typeIcons[asset.icon]" [size]="34" [strokeWidth]="1.6"></lucide-icon></span>
+    </ng-template>
+    <div class="asset-title">
+      <h1>{{ asset.tag }}</h1>
+      <p>{{ asset.name }}</p>
+    </div>
+    <div class="chips">
+      <div class="chip"><span>Category</span><strong>{{ asset.category }}</strong></div>
+      <div class="chip"><span>Type / Model</span><strong>{{ asset.model }}</strong></div>
+      <div class="chip"><span>Location</span><strong>{{ asset.location }}</strong></div>
+      <div class="chip chip--sm"><span>Status</span>
+        <span class="pill" [ngClass]="'pill--' + statusTone(asset.status)"><span class="dot"></span>{{ asset.status }}</span>
+      </div>
+      <div class="chip chip--sm"><span>Condition</span>
+        <span class="pill" [ngClass]="'pill--' + conditionTone(asset.condition)"><span class="dot"></span>{{ asset.condition }}</span>
+      </div>
+      <div class="chip chip--sm"><span>Criticality</span>
+        <span class="pill" [ngClass]="'pill--' + levelTone(headerLevel)"><span class="dot"></span>{{ headerLevel }}</span>
+      </div>
+    </div>
+    <div class="menu-wrap">
+      <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
+        Actions
+        <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+      </button>
+      <div *ngIf="actionsOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
+        <ng-container *ngIf="crit">
+          <button type="button" role="menuitem" (click)="openAssessment()"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Re-assess Criticality</button>
+          <button type="button" role="menuitem" (click)="openInfoEdit()"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Additional Information</button>
+          <button type="button" role="menuitem" (click)="openMitigation()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Mitigation Action</button>
+          <button type="button" role="menuitem" (click)="exportAssessment()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Assessment (CSV)</button>
+        </ng-container>
+        <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset tabs -->
+  <nav class="card tabs" aria-label="Asset sections">
+    <ng-container *ngFor="let t of tabs">
+      <a *ngIf="t.path; else plainTab" class="tab" [routerLink]="t.path" [queryParams]="{ tag: asset.tag }">{{ t.label }}</a>
+      <ng-template #plainTab>
+        <button type="button" class="tab" [class.is-active]="t.active" [attr.aria-current]="t.active ? 'page' : null" (click)="tabClick(t)">{{ t.label }}</button>
+      </ng-template>
+    </ng-container>
+  </nav>
+
+  <div *ngIf="!crit" class="card not-found">
+    <p>{{ loading ? 'Loading criticality data…' : 'No criticality assessment has been recorded for ' + asset.tag + ' yet.' }}</p>
+  </div>
+
+  <ng-container *ngIf="crit as c">
+  <!-- ===== Overview, score breakdown, matrix ===== -->
+  <div class="crit-top">
+    <section class="card panel" aria-labelledby="cr-overview">
+      <header class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+        <h3 id="cr-overview">Criticality Overview</h3>
+      </header>
+      <div class="overview">
+        <div class="level-box" [ngClass]="'level-box--' + levelTone(c.level)">
+          <span class="level-icon"><lucide-icon [img]="icons.TriangleAlert" [size]="22"></lucide-icon></span>
+          <strong class="level-name">{{ c.level }}</strong>
+          <span class="level-caption">Criticality Score</span>
+          <span class="level-score">{{ c.score | number: '1.0-1' }}<small> / 100</small></span>
+        </div>
+        <dl class="details details--plain">
+          <dt>Criticality Level</dt><dd><span class="pill pill--xs" [ngClass]="'pill--' + levelTone(c.level)"><span class="dot"></span>{{ c.level }}</span></dd>
+          <dt>Assessment Date</dt><dd>{{ c.assessmentDate | date: 'dd MMM yyyy' }}</dd>
+          <dt>Valid Until</dt>
+          <dd [class.text-danger]="isOverdue(c.validUntil)">{{ c.validUntil | date: 'dd MMM yyyy' }}<span *ngIf="isOverdue(c.validUntil)" class="overdue">Expired</span></dd>
+          <dt>Next Review Date</dt>
+          <dd [class.text-danger]="isOverdue(c.nextReview)">{{ c.nextReview ? (c.nextReview | date: 'dd MMM yyyy') : '-' }}<span *ngIf="isOverdue(c.nextReview)" class="overdue">Overdue</span></dd>
+          <dt>Assessed By</dt><dd>{{ c.assessedBy }}</dd>
+          <dt>Approved By</dt><dd>{{ c.approvedBy }}</dd>
+        </dl>
+      </div>
+    </section>
+
+    <section class="card panel" aria-labelledby="cr-breakdown">
+      <header class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.ChartPie" [size]="20"></lucide-icon>
+        <h3 id="cr-breakdown" class="grow">Criticality Score Breakdown</h3>
+        <button type="button" class="link-btn link-btn--u" (click)="showDetails()">View Details</button>
+      </header>
+      <svg class="radar" viewBox="0 0 420 250" role="img" [attr.aria-label]="'Impact scores out of 10 for ' + asset.tag">
+        <polygon *ngFor="let ring of radarRings" class="radar-ring" [attr.points]="ring" />
+        <line *ngFor="let a of radarAxes" class="radar-axis" [attr.x1]="radar.cx" [attr.y1]="radar.cy" [attr.x2]="a.x" [attr.y2]="a.y" />
+        <polygon class="radar-area" [attr.points]="radarPolygon" />
+        <circle *ngFor="let p of radarPoints" class="radar-dot" [attr.cx]="p.x" [attr.cy]="p.y" r="3.5" />
+        <g *ngFor="let l of radarLabels">
+          <text class="radar-label" [attr.x]="l.x" [attr.y]="l.y" [attr.text-anchor]="l.anchor">{{ l.name }}</text>
+          <text class="radar-value" [attr.x]="l.x" [attr.y]="l.y + 16" [attr.text-anchor]="l.anchor">{{ l.value | number: '1.0-1' }}</text>
+        </g>
+      </svg>
+    </section>
+
+    <section class="card panel" aria-labelledby="cr-matrix">
+      <header class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.Grid3x3" [size]="20"></lucide-icon>
+        <h3 id="cr-matrix">Criticality Matrix</h3>
+      </header>
+      <div class="matrix" role="table" [attr.aria-label]="'Risk matrix: likelihood ' + scale[c.likelihood - 1] + ', consequence ' + scale[c.consequence - 1]">
+        <span class="matrix-y" aria-hidden="true">Consequence</span>
+        <ng-container *ngFor="let row of matrixRows; let ri = index">
+          <span class="matrix-row-label" role="rowheader" [style.grid-row]="ri + 1">{{ scale[row - 1] }}</span>
+          <span *ngFor="let col of matrixCols" class="cell" role="cell" [ngClass]="heatTone(col, row)" [style.grid-row]="ri + 1" [style.grid-column]="col + 2"
+            [attr.aria-label]="scale[col - 1] + ' likelihood, ' + scale[row - 1] + ' consequence'">
+            <span *ngIf="col === c.likelihood && row === c.consequence" class="marker" title="This asset"></span>
+          </span>
+        </ng-container>
+        <span *ngFor="let col of matrixCols" class="matrix-col-label" [style.grid-column]="col + 2">{{ scale[col - 1] }}</span>
+        <span class="matrix-x">Likelihood</span>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== Sub tabs ===== -->
+  <nav #subtabsEl class="card subtabs" role="tablist" aria-label="Criticality sections">
+    <button type="button" role="tab" *ngFor="let t of subTabs" class="subtab" [class.is-active]="subTab === t.key"
+      [attr.aria-selected]="subTab === t.key" (click)="subTab = t.key">{{ t.label }}</button>
+  </nav>
+
+  <!-- Assessment details -->
+  <div *ngIf="subTab === 'details'" class="crit-details">
+    <section class="card panel" aria-labelledby="cr-assessment">
+      <header class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+        <h3 id="cr-assessment" class="grow">Criticality Assessment Details</h3>
+        <button type="button" class="btn btn-outline btn-sm" (click)="openAssessment()"><lucide-icon [img]="icons.RefreshCw" [size]="14"></lucide-icon>Re-assess</button>
+      </header>
+      <div class="table-wrap">
+        <table class="data-table crit-table">
+          <thead>
+            <tr><th>#</th><th>Criteria</th><th class="num">Weight (%)</th><th class="center">Score (1-5)</th><th class="num">Weighted Score</th><th>Justification / Remarks</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let x of c.criteria; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td class="nowrap">{{ x.name }}</td>
+              <td class="num">{{ x.weight }}</td>
+              <td class="center"><span class="score-chip" [ngClass]="'tag--' + scoreTone(x.score)">{{ x.score }}</span></td>
+              <td class="num strong">{{ weighted(x) | number: '1.1-1' }}</td>
+              <td>{{ x.justification }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr><td></td><td>Total</td><td class="num">{{ totalWeight }}</td><td></td><td class="num">{{ c.score | number: '1.1-1' }}</td><td></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="card panel" aria-labelledby="cr-info">
+      <header class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+        <h3 id="cr-info" class="grow">Additional Information</h3>
+        <button type="button" class="link-btn link-btn--u" (click)="openInfoEdit()"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button>
+      </header>
+      <dl class="details">
+        <dt>Criticality Level</dt><dd><span class="pill pill--xs" [ngClass]="'pill--' + levelTone(c.level)"><span class="dot"></span>{{ c.level }}</span></dd>
+        <dt>Criticality Score</dt><dd>{{ c.score | number: '1.0-1' }} / 100</dd>
+        <dt>Assessment Method</dt><dd>{{ c.method }}</dd>
+        <dt>Assessment Date</dt><dd>{{ c.assessmentDate | date: 'dd MMM yyyy' }}</dd>
+        <dt>Valid Until</dt><dd>{{ c.validUntil | date: 'dd MMM yyyy' }}</dd>
+        <dt>Review Frequency</dt><dd>{{ c.reviewFrequency }}</dd>
+        <dt>Assessed By</dt><dd>{{ c.assessedBy }}</dd>
+        <dt>Approved By</dt><dd>{{ c.approvedBy }}</dd>
+        <dt>Department</dt><dd>{{ c.department }}</dd>
+        <dt>Site / Location</dt><dd>{{ asset.location }}</dd>
+        <dt>Asset Group</dt><dd>{{ c.assetGroup }}</dd>
+        <dt>Remarks</dt><dd>{{ c.remarks || '-' }}</dd>
+      </dl>
+    </section>
+  </div>
+
+  <!-- Impact analysis -->
+  <div *ngIf="subTab === 'impact'" class="crit-details">
+    <section class="card panel" aria-labelledby="cr-impact">
+      <header class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.TriangleAlert" [size]="20"></lucide-icon>
+        <h3 id="cr-impact">Impact by Criterion</h3>
+      </header>
+      <ul class="impact-list">
+        <li *ngFor="let x of c.criteria">
+          <div class="impact-row">
+            <strong>{{ x.name }}</strong>
+            <span class="tag" [ngClass]="'tag--' + scoreTone(x.score)">{{ x.score * 2 | number: '1.0-1' }} / 10</span>
+          </div>
+          <span class="meter meter--thin"><span class="meter-fill" [ngClass]="'meter-fill--' + scoreTone(x.score)" [style.width.%]="x.score * 20"></span></span>
+          <p class="muted">{{ x.justification }}</p>
+        </li>
+      </ul>
+    </section>
+    <section class="card panel" aria-labelledby="cr-failure">
+      <header class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.ShieldAlert" [size]="20"></lucide-icon>
+        <h3 id="cr-failure">Failure Impact</h3>
+      </header>
+      <p class="scenario">{{ c.impact.failureScenario }}</p>
+      <dl class="details">
+        <dt>Downtime Cost</dt><dd>{{ c.impact.currency }} {{ c.impact.downtimeCostPerHour | number }} / hour</dd>
+        <dt>Mean Time to Repair</dt><dd>{{ c.impact.mttrHours }} hours</dd>
+        <dt>Cost per Failure (est.)</dt><dd>{{ c.impact.currency }} {{ c.impact.downtimeCostPerHour * c.impact.mttrHours | number }}</dd>
+        <dt>Redundancy</dt><dd>{{ c.impact.redundancy }}</dd>
+        <dt>Spares</dt><dd>{{ c.impact.spares }}</dd>
+        <dt>Affected Services</dt>
+        <dd><span *ngFor="let s of c.impact.affectedServices" class="tag tag--plain">{{ s }}</span></dd>
+      </dl>
+    </section>
+  </div>
+
+  <!-- Risk mitigation -->
+  <section *ngIf="subTab === 'mitigation'" class="card panel" aria-labelledby="cr-mitigation">
+    <header class="card-head">
+      <lucide-icon class="head-icon" [img]="icons.ShieldAlert" [size]="20"></lucide-icon>
+      <h3 id="cr-mitigation" class="grow">Risk Mitigation Actions <span class="muted-inline">({{ openMitigations }} open)</span></h3>
+      <button type="button" class="btn btn-primary btn-sm" (click)="openMitigation()"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>Add Action</button>
+    </header>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Action</th><th>Owner</th><th>Due Date</th><th>Expected Criticality</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let m of c.mitigations; let i = index">
+            <td>{{ i + 1 }}</td>
+            <td>{{ m.action }}</td>
+            <td class="nowrap">{{ m.owner }}</td>
+            <td class="nowrap" [class.text-danger]="m.status !== 'Completed' && isOverdue(m.dueDate)">{{ m.dueDate | date: 'dd MMM yyyy' }}</td>
+            <td><span class="pill pill--xs" [ngClass]="'pill--' + levelTone(m.reducesTo)"><span class="dot"></span>{{ m.reducesTo }}</span></td>
+            <td>
+              <select class="control control--xs" [ngClass]="'status--' + mitigationTone(m.status)" [ngModel]="m.status"
+                (ngModelChange)="setMitigationStatus(m, $event)" [attr.aria-label]="'Status of ' + m.action">
+                <option *ngFor="let s of mitigationStatuses" [ngValue]="s">{{ s }}</option>
+              </select>
+            </td>
+          </tr>
+          <tr *ngIf="!c.mitigations.length"><td colspan="6" class="empty-line">No mitigation actions yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Review history -->
+  <section *ngIf="subTab === 'history'" class="card panel" aria-labelledby="cr-history">
+    <header class="card-head">
+      <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+      <h3 id="cr-history">Review History</h3>
+    </header>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Assessment Date</th><th class="num">Score</th><th>Level</th><th>Likelihood</th><th>Consequence</th><th>Assessed By</th><th>Approved By</th><th>Remarks</th></tr></thead>
+        <tbody>
+          <tr class="is-current">
+            <td class="nowrap">{{ c.assessmentDate | date: 'dd MMM yyyy' }} <span class="tag tag--plain">Current</span></td>
+            <td class="num strong">{{ c.score | number: '1.0-1' }}</td>
+            <td><span class="pill pill--xs" [ngClass]="'pill--' + levelTone(c.level)"><span class="dot"></span>{{ c.level }}</span></td>
+            <td>{{ scale[c.likelihood - 1] }}</td>
+            <td>{{ scale[c.consequence - 1] }}</td>
+            <td class="nowrap">{{ c.assessedBy }}</td>
+            <td class="nowrap">{{ c.approvedBy }}</td>
+            <td>{{ c.remarks }}</td>
+          </tr>
+          <tr *ngFor="let h of c.history">
+            <td class="nowrap">{{ h.date | date: 'dd MMM yyyy' }}</td>
+            <td class="num">{{ h.score | number: '1.0-1' }}</td>
+            <td><span class="pill pill--xs" [ngClass]="'pill--' + levelTone(h.level)"><span class="dot"></span>{{ h.level }}</span></td>
+            <td>{{ scale[h.likelihood - 1] }}</td>
+            <td>{{ scale[h.consequence - 1] }}</td>
+            <td class="nowrap">{{ h.assessedBy }}</td>
+            <td class="nowrap">{{ h.approvedBy }}</td>
+            <td>{{ h.remarks }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Related assets -->
+  <section *ngIf="subTab === 'related'" class="card panel" aria-labelledby="cr-related">
+    <header class="card-head">
+      <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+      <h3 id="cr-related">Related Assets</h3>
+    </header>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Asset ID</th><th>Asset Name</th><th>Relationship</th><th>Location</th><th>Criticality Level</th><th class="num">Score</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let r of related">
+            <td class="nowrap">{{ r.asset.tag }}</td>
+            <td>{{ r.asset.name }}</td>
+            <td class="nowrap">{{ r.relation }}</td>
+            <td>{{ location(r.asset) }}</td>
+            <td><span class="pill pill--xs" [ngClass]="'pill--' + levelTone(r.crit?.level ?? r.asset.criticality)"><span class="dot"></span>{{ r.crit?.level ?? r.asset.criticality }}</span></td>
+            <td class="num">{{ r.crit ? (r.crit.score | number: '1.0-1') : '-' }}</td>
+            <td><button type="button" class="link-btn" (click)="viewAsset(r.asset.tag)">View</button></td>
+          </tr>
+          <tr *ngIf="!related.length"><td colspan="7" class="empty-line">No other register assets are linked to {{ asset.tag }}. Links are managed on the Relationships tab.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  </ng-container>
+
+  <!-- ===== Asset Criticality List ===== -->
+  <section class="card panel" aria-labelledby="cr-list">
+    <header class="card-head list-head">
+      <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+      <h3 id="cr-list">Asset Criticality List</h3>
+      <div class="list-tools">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" [(ngModel)]="search" (ngModelChange)="onFilterChange()" placeholder="Search assets..." aria-label="Search assets" />
+        </label>
+        <select class="control control--sm" [(ngModel)]="categoryFilter" (ngModelChange)="onFilterChange()" aria-label="Category">
+          <option value="">All Categories</option>
+          <option *ngFor="let x of categories" [value]="x">{{ x }}</option>
+        </select>
+        <select class="control control--sm" [(ngModel)]="siteFilter" (ngModelChange)="onFilterChange()" aria-label="Location">
+          <option value="">All Locations</option>
+          <option *ngFor="let x of sites" [value]="x">{{ x }}</option>
+        </select>
+        <select class="control control--sm" [(ngModel)]="levelFilter" (ngModelChange)="onFilterChange()" aria-label="Criticality level">
+          <option value="">All Criticality Levels</option>
+          <option *ngFor="let x of levels" [value]="x">{{ x }}</option>
+        </select>
+        <div class="view-toggle" role="group" aria-label="View">
+          <button type="button" class="icon-btn" [class.is-on]="view === 'list'" (click)="view = 'list'" aria-label="List view" [attr.aria-pressed]="view === 'list'"><lucide-icon [img]="icons.List" [size]="18"></lucide-icon></button>
+          <button type="button" class="icon-btn" [class.is-on]="view === 'grid'" (click)="view = 'grid'" aria-label="Grid view" [attr.aria-pressed]="view === 'grid'"><lucide-icon [img]="icons.LayoutGrid" [size]="18"></lucide-icon></button>
+        </div>
+        <button type="button" class="btn btn-outline" (click)="exportList()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>{{ checked.size ? 'Export ' + checked.size : 'Export' }}</button>
+        <button type="button" class="btn btn-primary" [disabled]="!crit" (click)="openAssessment()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Assess Asset</button>
+      </div>
+    </header>
+
+    <p *ngIf="listLoading" class="empty-line">Loading assets…</p>
+
+    <div *ngIf="!listLoading && view === 'list'" class="table-wrap">
+      <table class="data-table list-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" [checked]="allChecked" (change)="toggleAll($any($event.target).checked)" aria-label="Select all on this page" /></th>
+            <th>#</th><th>Asset ID</th><th>Asset Name</th><th>Category</th><th>Location</th><th>Criticality Level</th>
+            <th class="num">Criticality Score</th><th>Assessment Date</th><th>Next Review</th><th>Status</th><th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of pageRows; let i = index" [class.is-current]="r.asset.tag === asset.tag">
+            <td><input type="checkbox" [checked]="checked.has(r.asset.tag)" (change)="toggleRow(r.asset.tag, $any($event.target).checked)" [attr.aria-label]="'Select ' + r.asset.tag" /></td>
+            <td>{{ rowNumber(i) }}</td>
+            <td class="nowrap"><button type="button" class="link-btn" (click)="viewAsset(r.asset.tag)">{{ r.asset.tag }}</button></td>
+            <td>{{ r.asset.name }}</td>
+            <td>{{ r.asset.category }}</td>
+            <td>{{ location(r.asset) }}</td>
+            <td><span class="pill pill--xs" [ngClass]="'pill--' + levelTone(r.crit.level)"><span class="dot"></span>{{ r.crit.level }}</span></td>
+            <td class="num">{{ r.crit.score | number: '1.0-1' }}</td>
+            <td class="nowrap">{{ r.crit.assessmentDate | date: 'dd MMM yyyy' }}</td>
+            <td class="nowrap" [class.text-danger]="isOverdue(r.crit.nextReview)">{{ r.crit.nextReview ? (r.crit.nextReview | date: 'dd MMM yyyy') : '-' }}</td>
+            <td><span class="pill pill--xs" [ngClass]="'pill--' + statusTone(r.asset.status)"><span class="dot"></span>{{ r.asset.status }}</span></td>
+            <td class="col-actions">
+              <div class="menu-wrap">
+                <button type="button" class="icon-btn" (click)="toggleRowMenu($event, r.asset.tag)" [attr.aria-expanded]="rowMenuTag === r.asset.tag" [attr.aria-label]="'Actions for ' + r.asset.tag">
+                  <lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon>
+                </button>
+                <div *ngIf="rowMenuTag === r.asset.tag" class="menu" role="menu" (click)="$event.stopPropagation()">
+                  <button type="button" role="menuitem" (click)="viewAsset(r.asset.tag)"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>View Criticality</button>
+                  <button type="button" role="menuitem" (click)="viewAsset(r.asset.tag, true)"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Re-assess</button>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="!pageRows.length"><td colspan="12" class="empty-line">No assets match the current filters.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="!listLoading && view === 'grid'" class="crit-grid">
+      <button type="button" *ngFor="let r of pageRows" class="crit-card" [class.is-current]="r.asset.tag === asset.tag" (click)="viewAsset(r.asset.tag)">
+        <span class="crit-card-top">
+          <strong>{{ r.asset.tag }}</strong>
+          <span class="pill pill--xs" [ngClass]="'pill--' + levelTone(r.crit.level)"><span class="dot"></span>{{ r.crit.level }}</span>
+        </span>
+        <span class="crit-card-name">{{ r.asset.name }}</span>
+        <span class="muted">{{ location(r.asset) }}</span>
+        <span class="meter meter--thin"><span class="meter-fill" [ngClass]="'meter-fill--' + levelTone(r.crit.level)" [style.width.%]="r.crit.score"></span></span>
+        <span class="crit-card-foot"><span>{{ r.crit.score | number: '1.0-1' }} / 100</span><span>Review {{ r.crit.nextReview ? (r.crit.nextReview | date: 'dd MMM yyyy') : '-' }}</span></span>
+      </button>
+      <p *ngIf="!pageRows.length" class="empty-line">No assets match the current filters.</p>
+    </div>
+
+    <footer class="pager">
+      <label class="pager-size">Show
+        <select class="control control--xs" [(ngModel)]="pageSize" (ngModelChange)="onFilterChange()" aria-label="Rows per page">
+          <option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option>
+        </select>
+        per page
+      </label>
+      <span class="grow"></span>
+      <span class="muted">{{ rangeLabel }}</span>
+      <button type="button" class="icon-btn" [disabled]="safePage === 1" (click)="goToPage(safePage - 1)" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+      <button type="button" *ngFor="let n of pageNumbers" class="page-btn" [class.is-on]="n === safePage" (click)="goToPage(n)" [attr.aria-current]="n === safePage ? 'page' : null">{{ n }}</button>
+      <button type="button" class="icon-btn" [disabled]="safePage === pageCount" (click)="goToPage(safePage + 1)" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+    </footer>
+  </section>
+  </ng-container>
+</section>
+
+<!-- ===== Re-assess dialog ===== -->
+<div *ngIf="assessForm as f" class="overlay" (click)="assessForm = null">
+  <div class="modal modal--xl" role="dialog" aria-modal="true" aria-labelledby="cr-assess-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="cr-assess-title">Re-assess Criticality · {{ asset.tag }}</h2>
+      <button type="button" class="icon-btn" (click)="assessForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveAssessment()">
+      <div class="grid-3">
+        <label class="field"><span class="field-label">Assessment Date <em>*</em></span><input type="date" class="control" [(ngModel)]="f.date" name="date" /></label>
+        <label class="field"><span class="field-label">Assessed By <em>*</em></span><input class="control" [(ngModel)]="f.assessedBy" name="assessedBy" /></label>
+        <label class="field"><span class="field-label">Approved By <em>*</em></span><input class="control" [(ngModel)]="f.approvedBy" name="approvedBy" /></label>
+        <label class="field"><span class="field-label">Likelihood</span>
+          <select class="control" [(ngModel)]="f.likelihood" name="likelihood"><option *ngFor="let s of scale; let i = index" [ngValue]="i + 1">{{ s }}</option></select>
+        </label>
+        <label class="field"><span class="field-label">Consequence</span>
+          <select class="control" [(ngModel)]="f.consequence" name="consequence"><option *ngFor="let s of scale; let i = index" [ngValue]="i + 1">{{ s }}</option></select>
+        </label>
+        <div class="field"><span class="field-label">Result</span>
+          <span class="result"><strong>{{ formScore | number: '1.1-1' }}</strong> / 100
+            <span class="pill pill--xs" [ngClass]="'pill--' + levelTone(formLevel)"><span class="dot"></span>{{ formLevel }}</span></span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Criteria</th><th class="num">Weight (%)</th><th>Score (1-5)</th><th class="num">Weighted</th><th>Justification <em class="text-danger">*</em></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let x of f.criteria; let i = index">
+              <td class="nowrap">{{ x.name }}</td>
+              <td class="num">{{ x.weight }}</td>
+              <td>
+                <select class="control control--xs" [(ngModel)]="x.score" [name]="'score' + i" [attr.aria-label]="'Score for ' + x.name">
+                  <option *ngFor="let s of scoreSteps" [ngValue]="s">{{ s }}</option>
+                </select>
+              </td>
+              <td class="num">{{ weighted(x) | number: '1.1-1' }}</td>
+              <td><input class="control control--xs" [(ngModel)]="x.justification" [name]="'why' + i" [attr.aria-label]="'Justification for ' + x.name" /></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <label class="field"><span class="field-label">Remarks</span><textarea class="control" rows="2" [(ngModel)]="f.remarks" name="remarks" placeholder="Leave empty to keep the current remarks"></textarea></label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="assessForm = null">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Assessment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Additional information dialog ===== -->
+<div *ngIf="infoForm as f" class="overlay" (click)="infoForm = null">
+  <div class="modal modal--lg" role="dialog" aria-modal="true" aria-labelledby="cr-info-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="cr-info-title">Edit Additional Information</h2>
+      <button type="button" class="icon-btn" (click)="infoForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveInfo()">
+      <div class="grid-2">
+        <label class="field"><span class="field-label">Assessment Method</span>
+          <select class="control" [(ngModel)]="f.method" name="method"><option *ngFor="let m of assessmentMethods" [value]="m">{{ m }}</option></select>
+        </label>
+        <label class="field"><span class="field-label">Review Frequency</span>
+          <select class="control" [(ngModel)]="f.reviewFrequency" name="reviewFrequency"><option *ngFor="let m of reviewFrequencies" [value]="m">{{ m }}</option></select>
+        </label>
+        <label class="field"><span class="field-label">Valid Until <em>*</em></span><input type="date" class="control" [(ngModel)]="f.validUntil" name="validUntil" /></label>
+        <label class="field"><span class="field-label">Next Review Date</span><input type="date" class="control" [(ngModel)]="f.nextReview" name="nextReview" /></label>
+        <label class="field"><span class="field-label">Assessed By <em>*</em></span><input class="control" [(ngModel)]="f.assessedBy" name="assessedBy" /></label>
+        <label class="field"><span class="field-label">Approved By <em>*</em></span><input class="control" [(ngModel)]="f.approvedBy" name="approvedBy" /></label>
+        <label class="field"><span class="field-label">Department</span><input class="control" [(ngModel)]="f.department" name="department" /></label>
+        <label class="field"><span class="field-label">Asset Group</span><input class="control" [(ngModel)]="f.assetGroup" name="assetGroup" /></label>
+      </div>
+      <label class="field"><span class="field-label">Remarks</span><textarea class="control" rows="3" [(ngModel)]="f.remarks" name="remarks"></textarea></label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="infoForm = null">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Mitigation dialog ===== -->
+<div *ngIf="mitigationForm as f" class="overlay" (click)="mitigationForm = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cr-mit-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="cr-mit-title">Add Mitigation Action</h2>
+      <button type="button" class="icon-btn" (click)="mitigationForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveMitigation()">
+      <label class="field"><span class="field-label">Action <em>*</em></span><textarea class="control" rows="2" [(ngModel)]="f.action" name="action"></textarea></label>
+      <div class="grid-2">
+        <label class="field"><span class="field-label">Owner <em>*</em></span><input class="control" [(ngModel)]="f.owner" name="owner" /></label>
+        <label class="field"><span class="field-label">Due Date <em>*</em></span><input type="date" class="control" [(ngModel)]="f.dueDate" name="dueDate" /></label>
+        <label class="field"><span class="field-label">Status</span>
+          <select class="control" [(ngModel)]="f.status" name="status"><option *ngFor="let s of mitigationStatuses" [ngValue]="s">{{ s }}</option></select>
+        </label>
+        <label class="field"><span class="field-label">Expected Criticality</span>
+          <select class="control" [(ngModel)]="f.reducesTo" name="reducesTo"><option *ngFor="let l of levels" [ngValue]="l">{{ l }}</option></select>
+        </label>
+      </div>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="mitigationForm = null">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Action</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

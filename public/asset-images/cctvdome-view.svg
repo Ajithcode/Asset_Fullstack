@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Camera live view">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2f36"/><stop offset="1" stop-color="#15181d"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="30" y="30" width="340" height="220" fill="#334155"/><rect x="30" y="180" width="340" height="70" fill="#475569"/>
+  <rect x="70" y="90" width="80" height="90" fill="#64748b"/><rect x="230" y="70" width="110" height="110" fill="#64748b"/><circle cx="190" cy="170" r="10" fill="#e2e8f0"/><rect x="183" y="180" width="14" height="40" fill="#e2e8f0"/>
+  <text x="40" y="50" font-family="monospace" font-size="12" fill="#fff">CAM 04 · REC ●</text><rect x="170" y="150" width="40" height="80" fill="none" stroke="#22c55e" stroke-width="2"/>
+</svg>

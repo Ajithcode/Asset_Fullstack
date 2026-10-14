@@ -1575,3 +1575,30 @@ td {
 .dashboard-grid.partial > .side-stack {
   grid-column: auto;
 }
+
+/* Shown when saving the widget selection to the server fails */
+.widget-save-error {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 440px;
+  padding: 12px 14px 12px 18px;
+  border-radius: 8px;
+  background: #1f2937;
+  color: #fff;
+  font-size: 13.5px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+}
+
+.widget-save-error button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}

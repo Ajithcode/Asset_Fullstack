@@ -1,69 +1,45 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgIf } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../components/service/auth/auth.service';
 import { LoginData } from '../../../../models/auth.model';
 
+/** DEMO MODE: any username + password signs in straight to the dashboard (no backend, no OTP). */
 @Component({
   standalone: true,
   selector: 'app-login',
-  imports: [FormsModule, NgIf],
+  imports: [FormsModule, NgIf, RouterLink],
   templateUrl: './login.html',
   styleUrls: ['./login.css']
 })
 export class Login {
-  credentials: LoginData = { email: '', password: '' };
+  credentials: LoginData = { userName: '', password: '' };
   errorMsg = '';
+  infoMsg = '';
   isLoading = false;
-  popupVisible = false;
-  popupTitle = '';
-  popupMessage = '';
-  popupType: 'error' | 'success' | '' = '';
 
-  constructor(private auth: AuthService, private router: Router) {}
-
-  showPopup(message: string, title = 'Error', type: 'error' | 'success' | '' = 'error') {
-    this.popupMessage = message;
-    this.popupTitle = title;
-    this.popupType = type;
-    this.popupVisible = true;
+  constructor(private auth: AuthService, private router: Router, private route: ActivatedRoute) {
+    // Arriving from sign-up: prefill the new username
+    const registered = this.route.snapshot.queryParamMap.get('registered');
+    if (registered) {
+      this.credentials.userName = registered;
+      this.infoMsg = 'Account created. Sign in to continue.';
+    }
   }
 
-  closePopup() {
-    this.popupVisible = false;
-  }
-
-  login() {
-    if (this.isLoading) return;
+  login(): void {
+    const userName = this.credentials.userName.trim();
+    if (!userName || !this.credentials.password) {
+      this.errorMsg = 'Enter your username and password.';
+      return;
+    }
 
     this.errorMsg = '';
-    this.popupVisible = false;
-    this.isLoading = true;
-
-    // DEMO MODE: Backend login authentication is disabled
-    // this.auth.login(this.credentials).subscribe({
-    //   next: (res) => {
-    //     if (typeof window !== 'undefined') {
-    //       localStorage.setItem('token', res.token);
-    //     }
-    //     this.isLoading = false;
-    //     this.router.navigate(['/dashboard']);
-    //   },
-    //   error: (err) => {
-    //     const errorText = err?.error?.message || 'Invalid email or password';
-    //     this.errorMsg = errorText;
-    //     this.showPopup(errorText, 'Login Failed', 'error');
-    //     this.isLoading = false;
-    //   }
-    // });
-
-    const fakeToken = 'demo-token-' + btoa(this.credentials.email + ':' + this.credentials.password);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('token', fakeToken);
-    }
-    this.auth.setUserEmail(this.credentials.email);
-    this.isLoading = false;
-    this.router.navigate(['/dashboard']);
+    this.infoMsg = '';
+    this.auth.login({ userName, password: this.credentials.password });
+    this.credentials.password = '';
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+    this.router.navigateByUrl(returnUrl || '/dashboard');
   }
 }

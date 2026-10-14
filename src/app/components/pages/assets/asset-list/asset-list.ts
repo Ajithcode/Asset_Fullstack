@@ -38,29 +38,12 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
+import { ASSET_RECORDS, AssetRecord, AssetStatus, Criticality, TODAY, toIsoDate } from '../asset-data';
 
-type AssetStatus = 'Active' | 'Under Maintenance' | 'In Repair' | 'Disposed' | 'In Storage' | 'Checked Out';
-type Criticality = 'Critical' | 'High' | 'Medium' | 'Low';
 type SortKey = 'name' | 'tag' | 'category' | 'location' | 'custodian' | 'status' | 'criticality' | 'nextMaintenance';
 type MaintenanceDue = '' | 'overdue' | '30' | '90' | 'none';
 
-interface AssetRow {
-  id: number;
-  name: string;
-  tag: string;
-  category: string;
-  type: string;
-  site: string;
-  area: string;
-  custodian: string;
-  department: string;
-  status: AssetStatus;
-  criticality: Criticality;
-  manufacturer: string;
-  /** ISO date (yyyy-mm-dd), or null when no maintenance is scheduled. */
-  nextMaintenance: string | null;
-  icon: keyof AssetList['assetIcons'];
-}
+type AssetRow = AssetRecord;
 
 interface Filters {
   category: string;
@@ -80,128 +63,6 @@ interface StatusCard {
   value: string;
   dot: string;
   count: number;
-}
-
-interface AssetTemplate {
-  name: string;
-  tagPrefix: string;
-  category: string;
-  type: string;
-  manufacturer: string;
-  icon: AssetRow['icon'];
-  criticality: Criticality;
-}
-
-const NOW = new Date();
-const TODAY = new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate());
-
-const TEMPLATES: AssetTemplate[] = [
-  { name: 'Diesel Generator 250 kVA', tagPrefix: 'GEN', category: 'Power Generation', type: 'Generator', manufacturer: 'Caterpillar', icon: 'generator', criticality: 'Critical' },
-  { name: 'HVAC Chiller', tagPrefix: 'HVAC', category: 'HVAC', type: 'Chiller', manufacturer: 'Carrier', icon: 'chiller', criticality: 'High' },
-  { name: 'UPS 100 kVA', tagPrefix: 'UPS', category: 'Electrical', type: 'UPS', manufacturer: 'Schneider Electric', icon: 'ups', criticality: 'Critical' },
-  { name: 'Forklift - Electric', tagPrefix: 'FLT', category: 'Material Handling', type: 'Forklift', manufacturer: 'Toyota', icon: 'forklift', criticality: 'High' },
-  { name: 'Fire Pump', tagPrefix: 'FP', category: 'Safety & Security', type: 'Fire System', manufacturer: 'Grundfos', icon: 'fire', criticality: 'Critical' },
-  { name: 'Split AC - 5 Ton', tagPrefix: 'AC', category: 'HVAC', type: 'Air Conditioner', manufacturer: 'Daikin', icon: 'ac', criticality: 'Medium' },
-  { name: 'Laptop - Dell Latitude', tagPrefix: 'IT', category: 'IT Equipment', type: 'Laptop', manufacturer: 'Dell', icon: 'laptop', criticality: 'Medium' },
-  { name: 'CCTV Camera - Dome', tagPrefix: 'CCTV', category: 'Security', type: 'CCTV', manufacturer: 'Hikvision', icon: 'cctv', criticality: 'Medium' },
-  { name: 'Transformer 1 MVA', tagPrefix: 'TRF', category: 'Electrical', type: 'Transformer', manufacturer: 'ABB', icon: 'transformer', criticality: 'Critical' },
-  { name: 'Solar Panel - 550W', tagPrefix: 'SOL', category: 'Renewable Energy', type: 'Solar Panel', manufacturer: 'Jinko Solar', icon: 'solar', criticality: 'Low' },
-  { name: 'Gas Generator 500 kVA', tagPrefix: 'GEN', category: 'Power Generation', type: 'Generator', manufacturer: 'Cummins', icon: 'generator', criticality: 'High' },
-  { name: 'Air Handling Unit', tagPrefix: 'HVAC', category: 'HVAC', type: 'AHU', manufacturer: 'Trane', icon: 'chiller', criticality: 'High' },
-  { name: 'Laptop - HP EliteBook', tagPrefix: 'IT', category: 'IT Equipment', type: 'Laptop', manufacturer: 'HP', icon: 'laptop', criticality: 'Low' },
-  { name: 'CCTV Camera - Bullet', tagPrefix: 'CCTV', category: 'Security', type: 'CCTV', manufacturer: 'Axis', icon: 'cctv', criticality: 'Medium' },
-  { name: 'Pallet Jack - Electric', tagPrefix: 'FLT', category: 'Material Handling', type: 'Pallet Jack', manufacturer: 'Jungheinrich', icon: 'forklift', criticality: 'Low' },
-  { name: 'Fire Alarm Panel', tagPrefix: 'FP', category: 'Safety & Security', type: 'Fire System', manufacturer: 'Honeywell', icon: 'fire', criticality: 'High' },
-];
-
-const LOCATIONS: [string, string][] = [
-  ['Head Office', 'Building A - ER-101'],
-  ['Head Office', 'Building B - Roof'],
-  ['Data Center', 'Building A - DC Room'],
-  ['Warehouse', 'Main Warehouse'],
-  ['Head Office', 'Building A - Basement'],
-  ['Building C', '2nd Floor'],
-  ['Head Office', 'IT Department'],
-  ['Building A', 'Ground Floor'],
-  ['Main Substation', 'Outdoor'],
-  ['Building B', 'Roof'],
-];
-
-const CUSTODIANS: [string, string][] = [
-  ['Ahmed Basim', 'Facilities'],
-  ['Sara Ahmed', 'Facilities'],
-  ['Mohan Kumar', 'IT'],
-  ['Rashid Ali', 'Logistics'],
-  ['Noura Saeed', 'Safety'],
-  ['Faisal Ahmed', 'Facilities'],
-  ['Sarah James', 'IT'],
-  ['Ibrahim Khan', 'Security'],
-  ['Hamad Lateef', 'Engineering'],
-  ['Ramesh Kumar', 'Engineering'],
-];
-
-const STATUS_CYCLE: AssetStatus[] = [
-  'Active', 'Active', 'Active', 'Active', 'Under Maintenance', 'Active', 'Active',
-  'In Repair', 'Active', 'In Storage', 'Active', 'Disposed', 'Active', 'Checked Out',
-];
-
-/** The first ten rows match the design mock; the rest are generated deterministically from the templates. */
-function buildMockAssets(): AssetRow[] {
-  const seed: Omit<AssetRow, 'id' | 'name' | 'category' | 'type' | 'manufacturer' | 'icon' | 'site' | 'area' | 'custodian' | 'department'>[] = [
-    { tag: 'GEN-00045', status: 'Active', criticality: 'Critical', nextMaintenance: '2027-03-01' },
-    { tag: 'HVAC-00112', status: 'Active', criticality: 'High', nextMaintenance: '2026-11-15' },
-    { tag: 'UPS-00078', status: 'Active', criticality: 'Critical', nextMaintenance: '2026-12-10' },
-    { tag: 'FLT-00021', status: 'Active', criticality: 'High', nextMaintenance: '2026-10-22' },
-    { tag: 'FP-00056', status: 'Under Maintenance', criticality: 'Critical', nextMaintenance: '2026-10-05' },
-    { tag: 'AC-00311', status: 'Active', criticality: 'Medium', nextMaintenance: '2027-01-18' },
-    { tag: 'IT-00189', status: 'Active', criticality: 'Medium', nextMaintenance: null },
-    { tag: 'CCTV-00234', status: 'Active', criticality: 'Medium', nextMaintenance: '2027-02-12' },
-    { tag: 'TRF-00067', status: 'In Repair', criticality: 'Critical', nextMaintenance: '2026-10-20' },
-    { tag: 'SOL-00456', status: 'Active', criticality: 'Low', nextMaintenance: '2027-04-01' },
-  ];
-
-  const rows: AssetRow[] = [];
-  const total = 64;
-  for (let i = 0; i < total; i++) {
-    const t = TEMPLATES[i < 10 ? i : (i * 7) % TEMPLATES.length];
-    const [site, area] = LOCATIONS[i < 10 ? i : (i * 3) % LOCATIONS.length];
-    const [custodian, department] = CUSTODIANS[i < 10 ? i : (i * 7 + 3) % CUSTODIANS.length];
-    const s = seed[i];
-
-    let nextMaintenance: string | null = null;
-    if (!s) {
-      // Spread due dates from a few weeks overdue to ~8 months out; every 9th asset has none scheduled.
-      if (i % 9 !== 4) {
-        const d = new Date(TODAY);
-        d.setDate(d.getDate() + ((i * 37) % 260) - 25);
-        nextMaintenance = toIsoDate(d);
-      }
-    }
-
-    rows.push({
-      id: i + 1,
-      name: t.name,
-      tag: s?.tag ?? `${t.tagPrefix}-${String(100 + ((i * 53) % 900)).padStart(5, '0')}`,
-      category: t.category,
-      type: t.type,
-      site,
-      area,
-      custodian,
-      department,
-      status: s?.status ?? STATUS_CYCLE[i % STATUS_CYCLE.length],
-      criticality: s?.criticality ?? t.criticality,
-      manufacturer: t.manufacturer,
-      nextMaintenance: s ? s.nextMaintenance : nextMaintenance,
-      icon: t.icon,
-    });
-  }
-  return rows;
-}
-
-function toIsoDate(d: Date): string {
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
 function uniqueSorted(values: string[]): string[] {
@@ -251,7 +112,7 @@ export class AssetList {
     solar: SolarPanel,
   };
 
-  readonly assets: AssetRow[] = buildMockAssets();
+  readonly assets: AssetRow[] = ASSET_RECORDS;
 
   readonly categoryOptions = uniqueSorted(this.assets.map((a) => a.category));
   readonly statusOptions: AssetStatus[] = ['Active', 'Under Maintenance', 'In Repair', 'Disposed', 'In Storage', 'Checked Out'];
@@ -537,9 +398,10 @@ export class AssetList {
     this.router.navigate([path], { queryParams: { tag: asset.tag } });
   }
 
+  /** Opens the asset's detail page (Relationships tab) for this row. */
   viewAsset(asset: AssetRow): void {
     this.openMenuId = null;
-    this.showToast(`${asset.name} (${asset.tag}) details coming soon.`);
+    this.router.navigate(['/assets/relationships'], { queryParams: { tag: asset.tag } });
   }
 
   // ===== Export / print =====

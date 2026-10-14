@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Eaton nameplate">
+  <defs><linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfd3d8"/><stop offset="0.5" stop-color="#a9aeb5"/><stop offset="1" stop-color="#c4c8ce"/></linearGradient></defs>
+  <rect width="400" height="300" fill="#4b4f56"/>
+  <rect x="20" y="16" width="360" height="268" rx="6" fill="url(#steel)" stroke="#6b7077" stroke-width="3"/>
+  <circle cx="38" cy="34" r="6" fill="#7c8189"/><circle cx="362" cy="34" r="6" fill="#7c8189"/><circle cx="38" cy="266" r="6" fill="#7c8189"/><circle cx="362" cy="266" r="6" fill="#7c8189"/>
+  <text x="200" y="64" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="28" fill="#2b2e33">EATON</text>
+  <g font-family="Arial, sans-serif" font-size="12" fill="#2b2e33"><text x="48" y="104">MODEL</text><text x="48" y="130">SERIAL NUMBER</text><text x="48" y="156">RATED CAPACITY</text><text x="48" y="182">TYPE</text><text x="48" y="208">ASSET TAG</text><text x="48" y="234">MFG DATE</text></g>
+  <g fill="none" stroke="#3a3d42" stroke-width="1.5"><rect x="210" y="92" width="150" height="18"/><rect x="210" y="118" width="150" height="18"/><rect x="210" y="144" width="150" height="18"/><rect x="210" y="170" width="150" height="18"/><rect x="210" y="196" width="150" height="18"/><rect x="210" y="222" width="150" height="18"/></g>
+  <g font-family="Arial, sans-serif" font-size="11" fill="#2b2e33"><text x="216" y="105">93PM 60</text><text x="216" y="131">EAT-93PM60-22-1010</text><text x="216" y="157">60 kVA</text><text x="216" y="183">UPS</text><text x="216" y="209">UPS-00081</text><text x="216" y="235">2022-07</text></g>
+</svg>

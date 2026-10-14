@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="String inverter">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e5e7eb"/><stop offset="1" stop-color="#cbd5e1"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="110" y="40" width="180" height="220" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="4"/>
+  <rect x="135" y="70" width="130" height="50" rx="4" fill="#0f172a"/><text x="145" y="100" font-family="monospace" font-size="13" fill="#4ade80">AC 18.4 kW</text>
+  <circle cx="150" cy="145" r="5" fill="#22c55e"/><circle cx="166" cy="145" r="5" fill="#22c55e"/><circle cx="182" cy="145" r="5" fill="#64748b"/><rect x="130" y="170" width="140" height="4.5" fill="#cbd5e1"/><rect x="130" y="180" width="140" height="4.5" fill="#cbd5e1"/><rect x="130" y="190" width="140" height="4.5" fill="#cbd5e1"/><rect x="130" y="200" width="140" height="4.5" fill="#cbd5e1"/><rect x="130" y="210" width="140" height="4.5" fill="#cbd5e1"/><rect x="130" y="220" width="140" height="4.5" fill="#cbd5e1"/><rect x="130" y="230" width="140" height="4.5" fill="#cbd5e1"/>
+</svg>

@@ -75,6 +75,18 @@ export class Topbar {
     return this.auth.getUserEmail() || environment.supportEmail;
   }
 
+  get roleName(): string {
+    return this.auth.getUser()?.roleName || 'Administrator';
+  }
+
+  /** Two letters for the avatar, from the signed-in user's name. */
+  get initials(): string {
+    const name = this.auth.getUser()?.userName || this.displayEmail.split('@')[0];
+    const parts = name.split(/[\s._-]+/).filter(Boolean);
+    const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2);
+    return letters.toUpperCase() || 'AD';
+  }
+
   toggleMenu(): void {
     this.toggleSidebar.emit();
   }
@@ -95,7 +107,7 @@ export class Topbar {
   logout(): void {
     this.isDropdownOpen = false;
     this.flyoutPosition = null;
-    this.router.navigate(['/login']);
+    this.auth.logout();
   }
 
   private updateBreadcrumbs(): void {

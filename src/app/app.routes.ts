@@ -11,6 +11,12 @@ import { AssetTypesModels } from './components/pages/assets/asset-types-models/a
 import { AssetHierarchy } from './components/pages/assets/asset-hierarchy/asset-hierarchy';
 import { AssetComponents } from './components/pages/assets/asset-components/asset-components';
 import { AssetCustomFields } from './components/pages/assets/asset-custom-fields/asset-custom-fields';
+import { AssetRelationship } from './components/pages/assets/asset-relationship/asset-relationship';
+import { AssetDocuments } from './components/pages/assets/asset-documents/asset-documents';
+import { AssetImages } from './components/pages/assets/asset-images/asset-images';
+import { AssetStatusCondition } from './components/pages/assets/asset-status-condition/asset-status-condition';
+import { AssetCriticality } from './components/pages/assets/asset-criticality/asset-criticality';
+import { AssetHealthScore } from './components/pages/assets/asset-health-score/asset-health-score';
 import { Events } from './components/pages/events/events/events';
 import { Reports } from './components/pages/reports/reports/reports';
 import { CreateReport } from './components/pages/reports/create-report/create-report';
@@ -161,7 +167,10 @@ export const routes: Routes = [
     children: [
       { path: 'dashboard', loadChildren: remoteRoutes('dashboard') },
       // New UI modules: placeholder pages until their screens are built
-      { path: 'assets', component: ModulePlaceholder, data: { title: 'Assets' } },
+      // The Assets menu only expands its submenu; a direct visit to /assets lands on the Asset List
+      { path: 'assets', redirectTo: 'assets/list', pathMatch: 'full' },
+      // Asset detail tabs take the asset as ?tag=, e.g. /assets/relationships?tag=GEN-00045
+      { path: 'assets/relationships', component: AssetRelationship },
       { path: 'assets/registration', component: AssetRegistration },
       { path: 'assets/list', component: AssetList },
       { path: 'assets/categories', component: AssetCategories },
@@ -176,6 +185,11 @@ export const routes: Routes = [
       { path: 'assets/disposal', component: ModulePlaceholder, data: { title: 'Disposal' } },
       { path: 'assets/custom-fields', component: AssetCustomFields },
       { path: 'assets/lifecycle', component: AssetLifecycle },
+      { path: 'assets/documents', component: AssetDocuments },
+      { path: 'assets/images', component: AssetImages },
+      { path: 'assets/status-condition', component: AssetStatusCondition },
+      { path: 'assets/criticality', component: AssetCriticality },
+      { path: 'assets/health-score', component: AssetHealthScore },
       { path: 'tracking-iot', component: ModulePlaceholder, data: { title: 'Tracking & IoT' } },
       { path: 'tracking-iot/real-time-location', loadChildren: remoteRoutes('locating') },
       { path: 'movement-custody', component: ModulePlaceholder, data: { title: 'Movement & Custody' } },

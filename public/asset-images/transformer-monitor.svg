@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Winding temperature monitor">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e5e7eb"/><stop offset="1" stop-color="#cbd5e1"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="100" y="50" width="200" height="200" rx="8" fill="#e5e7eb" stroke="#6b7280" stroke-width="4"/>
+  <rect x="125" y="80" width="150" height="60" fill="#0f172a"/><text x="135" y="118" font-family="monospace" font-size="20" fill="#f87171">132 °C</text>
+  <circle cx="135" cy="170" r="5" fill="#22c55e"/><circle cx="151" cy="170" r="5" fill="#f59e0b"/><circle cx="167" cy="170" r="5" fill="#ef4444"/><circle cx="183" cy="170" r="5" fill="#64748b"/><text x="135" y="215" font-family="Arial" font-size="11" fill="#374151">PH1  PH2  PH3  CORE</text>
+</svg>

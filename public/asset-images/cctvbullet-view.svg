@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Camera night view">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#111827"/><stop offset="1" stop-color="#030712"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="30" y="30" width="340" height="220" fill="#14532d"/><rect x="30" y="180" width="340" height="70" fill="#166534"/>
+  <rect x="60" y="100" width="120" height="80" fill="#15803d"/><rect x="240" y="120" width="50" height="40" fill="#22c55e" opacity="0.6"/><rect x="200" y="170" width="120" height="40" rx="6" fill="#4ade80" opacity="0.5"/>
+  <text x="40" y="50" font-family="monospace" font-size="12" fill="#bbf7d0">LOADING BAY · IR</text>
+</svg>

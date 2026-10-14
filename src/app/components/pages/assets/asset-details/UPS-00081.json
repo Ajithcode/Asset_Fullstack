@@ -1,0 +1,1456 @@
+{
+  "tag": "UPS-00081",
+  "documents": [
+    {
+      "id": 1,
+      "name": "Purchase Order.pdf",
+      "type": "Purchase Order",
+      "stage": "Procurement",
+      "description": "Purchase order PO-2022-0081 issued to PowerTech Solutions LLC for the UPS.",
+      "tags": [
+        "Procurement",
+        "PO"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-09-24T10:15",
+          "uploadedBy": "Rex Kumar",
+          "size": 629146,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Procurement",
+      "coverTitle": "PURCHASE ORDER",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 2,
+      "name": "Invoice.pdf",
+      "type": "Invoice",
+      "stage": "Procurement",
+      "description": "Supplier invoice INV-2022-672 for the UPS, delivery and installation.",
+      "tags": [
+        "Finance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-09-26T11:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 1153434,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "PowerTech Solutions LLC",
+      "coverTitle": "INVOICE",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 3,
+      "name": "Delivery Note.pdf",
+      "type": "Delivery Note",
+      "stage": "Procurement",
+      "description": "Signed delivery note for the UPS.",
+      "tags": [
+        "Logistics"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-09-29T09:05",
+          "uploadedBy": "Store Team",
+          "size": 734003,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "PowerTech Solutions LLC",
+      "coverTitle": "DELIVERY NOTE",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 4,
+      "name": "GRN.pdf",
+      "type": "Goods Receipt",
+      "stage": "Procurement",
+      "description": "Goods received note confirming the UPS was received in good condition.",
+      "tags": [
+        "Stores"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-10-02T16:20",
+          "uploadedBy": "Store Team",
+          "size": 629146,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Stores",
+      "coverTitle": "GOODS RECEIPT",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 5,
+      "name": "Installation Report.pdf",
+      "type": "Installation Report",
+      "stage": "Installation",
+      "description": "Installation report for the UPS at Head Office - IT Department - Server Room.",
+      "tags": [
+        "Installation"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-10-09T15:00",
+          "uploadedBy": "Installation Team",
+          "size": 1677722,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 6,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSTALLATION REPORT",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 6,
+      "name": "Commissioning Certificate.pdf",
+      "type": "Commissioning",
+      "stage": "Commissioning",
+      "description": "Commissioning certificate with functional test results for the UPS.",
+      "tags": [
+        "Certificate"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-10-10T12:10",
+          "uploadedBy": "Commissioning Team",
+          "size": 1153434,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "COMMISSIONING",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 7,
+      "name": "Operation Manual.pdf",
+      "type": "User Manual",
+      "stage": "In Operation",
+      "description": "Manufacturer operation and maintenance manual for Eaton 93PM 60.",
+      "tags": [
+        "Manual",
+        "Eaton"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-10-10T14:30",
+          "uploadedBy": "Rex Kumar",
+          "size": 5033165,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 47,
+      "issuer": "EATON",
+      "coverTitle": "UPS 60 KVA",
+      "coverSubtitle": "Operation & Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 8,
+      "name": "Technical Datasheet.pdf",
+      "type": "Technical Document",
+      "stage": "Operations",
+      "description": "Ratings, dimensions and performance data for the 93PM 60.",
+      "tags": [
+        "Datasheet",
+        "Eaton"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-10-10T14:35",
+          "uploadedBy": "Rex Kumar",
+          "size": 734003,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 4,
+      "issuer": "EATON",
+      "coverTitle": "93PM 60",
+      "coverSubtitle": "Technical Datasheet",
+      "showAssetImage": true
+    },
+    {
+      "id": 9,
+      "name": "Single Line Diagram.pdf",
+      "type": "Drawing",
+      "stage": "Operations",
+      "description": "UPS input, bypass and output single line diagram.",
+      "tags": [
+        "Drawing"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-10-10T14:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 2202010,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "DRAWING",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 10,
+      "name": "Maintenance Manual.pdf",
+      "type": "Maintenance Manual",
+      "stage": "Operations",
+      "description": "Preventive maintenance schedule and service procedures.",
+      "tags": [
+        "Manual",
+        "Maintenance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-10-10T14:45",
+          "uploadedBy": "Rex Kumar",
+          "size": 3774874,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 27,
+      "issuer": "EATON",
+      "coverTitle": "UPS 60 KVA",
+      "coverSubtitle": "Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 11,
+      "name": "Warranty Certificate.pdf",
+      "type": "Warranty",
+      "stage": "Warranty",
+      "description": "Manufacturer warranty, 2 years from commissioning.",
+      "tags": [
+        "Warranty"
+      ],
+      "expiryDate": "2024-10-10",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-10-10T15:00",
+          "uploadedBy": "Vendor",
+          "size": 524288,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "EATON",
+      "coverTitle": "WARRANTY",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 12,
+      "name": "AMC Contract.pdf",
+      "type": "Service Contract",
+      "stage": "Warranty",
+      "description": "Annual maintenance contract with PowerTech Solutions LLC.",
+      "tags": [
+        "AMC",
+        "Contract"
+      ],
+      "expiryDate": "2027-10-10",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-10-10T15:10",
+          "uploadedBy": "Rex Kumar",
+          "size": 1258291,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 10,
+      "issuer": "PowerTech Solutions LLC",
+      "coverTitle": "SERVICE CONTRACT",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 13,
+      "name": "Inspection Report 2025.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the UPS with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2025-10-10T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 943718,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 14,
+      "name": "Inspection Report 2026.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the UPS with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-10-10T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 1153434,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 15,
+      "name": "Site Photo.jpg",
+      "type": "Image",
+      "stage": "Operations",
+      "description": "Photo of the UPS at Head Office - IT Department - Server Room.",
+      "tags": [
+        "Photo"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-10-10T16:00",
+          "uploadedBy": "Rex Kumar",
+          "size": 3040870,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 1,
+      "issuer": "Purple IQ",
+      "coverTitle": "IMAGE",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": true
+    },
+    {
+      "id": 16,
+      "name": "Decommissioning Report.pdf",
+      "type": "Decommissioning",
+      "stage": "Decommissioning",
+      "description": "To be completed when the asset is decommissioned.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DECOMMISSIONING",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 17,
+      "name": "Disposal Certificate.pdf",
+      "type": "Disposal",
+      "stage": "Disposal",
+      "description": "To be issued on disposal of the asset.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DISPOSAL",
+      "coverSubtitle": "UPS-00081 · UPS 60 kVA",
+      "showAssetImage": false
+    }
+  ],
+  "previewDocumentId": 7,
+  "images": [
+    {
+      "id": 1,
+      "title": "Full View",
+      "description": "Full view of the UPS at Head Office - IT Department - Server Room.",
+      "type": "Asset Overview",
+      "tags": [
+        "UPS",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-10-10T09:00",
+      "location": "Head Office - IT Department - Server Room",
+      "fileName": "UPS-00081_FullView.jpg",
+      "size": 2772881,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Taken at commissioning.",
+      "src": "asset-images/ups-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-10-10T09:00"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Battery Cabinet",
+      "description": "VRLA battery string in the battery cabinet.",
+      "type": "Component",
+      "tags": [
+        "Batteries"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-10-10T10:07",
+      "location": "Head Office - IT Department - Server Room",
+      "fileName": "UPS-00081_BatteryCabinet.jpg",
+      "size": 2257406,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/ups-batteries.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-10-10T10:07"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Display Panel",
+      "description": "UPS display showing online mode and battery runtime.",
+      "type": "Component",
+      "tags": [
+        "Display"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-10-10T11:14",
+      "location": "Head Office - IT Department - Server Room",
+      "fileName": "UPS-00081_DisplayPanel.jpg",
+      "size": 1795869,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/ups-display.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-10-10T11:14"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Name Plate",
+      "description": "Manufacturer nameplate with model, serial number and ratings.",
+      "type": "Nameplate",
+      "tags": [
+        "Nameplate",
+        "Eaton"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-10-10T12:21",
+      "location": "Head Office - IT Department - Server Room",
+      "fileName": "UPS-00081_NamePlate.jpg",
+      "size": 2154523,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/nameplate-UPS-00081.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-10-10T12:21"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Installed Position",
+      "description": "UPS 60 kVA in its installed position.",
+      "type": "Installation",
+      "tags": [
+        "UPS",
+        "Installation"
+      ],
+      "uploadedBy": "Installation Team",
+      "uploadedAt": "2022-10-09T13:28",
+      "location": "Head Office - IT Department - Server Room",
+      "fileName": "UPS-00081_Installed.jpg",
+      "size": 1588408,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/ups-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Installation Team",
+          "at": "2022-10-09T13:28"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Battery Cabinet",
+      "description": "Battery Cabinet at the 2025 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Batteries",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2025-10-10T14:35",
+      "location": "Head Office - IT Department - Server Room",
+      "fileName": "UPS-00081_Inspection2025.jpg",
+      "size": 2010434,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/ups-batteries.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2025-10-10T14:35"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Display Panel",
+      "description": "Display Panel at the 2026 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Display",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-10-10T15:42",
+      "location": "Head Office - IT Department - Server Room",
+      "fileName": "UPS-00081_Inspection2026.jpg",
+      "size": 2064813,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/ups-display.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-10-10T15:42"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Battery Inspection",
+      "description": "Battery terminals checked and torqued.",
+      "type": "Inspection",
+      "tags": [
+        "Batteries",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-10-10T09:49",
+      "location": "Head Office - IT Department - Server Room",
+      "fileName": "UPS-00081_BatteryInspection.jpg",
+      "size": 2776453,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/ups-batteries.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-10-10T09:49"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Latest View",
+      "description": "Latest photo of the UPS for the asset register.",
+      "type": "Asset Overview",
+      "tags": [
+        "UPS",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2026-09-24T10:56",
+      "location": "Head Office - IT Department - Server Room",
+      "fileName": "UPS-00081_LatestView.jpg",
+      "size": 1558612,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/ups-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2026-09-24T10:56"
+        }
+      ]
+    }
+  ],
+  "headerImageId": 1,
+  "status": {
+    "hasData": true,
+    "availability": 98,
+    "utilization": 99,
+    "lastMaintenance": "2026-10-10",
+    "operational": {
+      "status": "Active",
+      "statusSince": "2022-10-10",
+      "operatingMode": "Online (Double Conversion)",
+      "loadLabel": "Current Load",
+      "currentLoad": 31,
+      "loadUnit": "kW",
+      "capacityLabel": "Rated Capacity",
+      "ratedCapacity": 60,
+      "ratedUnit": "kVA",
+      "capacityFactor": 1,
+      "runningHours": 34697,
+      "lastStart": "2026-10-09T07:45",
+      "lastStop": "",
+      "location": "Head Office - IT Department - Server Room",
+      "controlledBy": "DCIM / BMS",
+      "remarks": "Running normally."
+    },
+    "operatingModes": [
+      "Online (Double Conversion)",
+      "ECO Mode",
+      "Bypass"
+    ],
+    "lifecycle": {
+      "stage": "In Operation",
+      "commissionedOn": "2022-10-10",
+      "expectedLifeYears": 12,
+      "nextAssessment": "2027-04-10",
+      "nextMaintenance": "2027-02-02"
+    },
+    "readingsUpdatedAt": "2026-10-13T14:30",
+    "readings": [
+      {
+        "label": "Input Voltage (L-L)",
+        "value": 402,
+        "unit": "V",
+        "min": 360,
+        "max": 440
+      },
+      {
+        "label": "Output Voltage (L-L)",
+        "value": 400,
+        "unit": "V",
+        "min": 392,
+        "max": 408
+      },
+      {
+        "label": "Output Load",
+        "value": 61,
+        "unit": "%",
+        "max": 80,
+        "scaleMax": 100
+      },
+      {
+        "label": "Output Power",
+        "value": 38,
+        "unit": "kW",
+        "max": 54
+      },
+      {
+        "label": "Battery Charge",
+        "value": 96,
+        "unit": "%",
+        "min": 90,
+        "scaleMax": 100
+      },
+      {
+        "label": "Battery Runtime",
+        "value": 18,
+        "unit": "min",
+        "min": 10
+      },
+      {
+        "label": "Battery Temperature",
+        "value": 24,
+        "unit": "°C",
+        "max": 30,
+        "scaleMax": 45
+      },
+      {
+        "label": "Frequency",
+        "value": 50,
+        "unit": "Hz",
+        "min": 49.5,
+        "max": 50.5
+      }
+    ],
+    "alerts": [
+      {
+        "id": 1,
+        "severity": "Warning",
+        "message": "Battery string 2 cell voltage imbalance",
+        "raisedAt": "2026-06-10T07:55",
+        "status": "Monitoring"
+      },
+      {
+        "id": 2,
+        "severity": "Warning",
+        "message": "Transferred to battery for 42 s (mains dip)",
+        "raisedAt": "2026-02-10T07:55",
+        "status": "Resolved"
+      },
+      {
+        "id": 3,
+        "severity": "Critical",
+        "message": "Fan failure in power module 2",
+        "raisedAt": "2023-06-10T21:05",
+        "status": "Resolved"
+      }
+    ],
+    "environment": [
+      {
+        "parameter": "Room Temperature",
+        "value": 22,
+        "unit": "°C",
+        "limit": 27,
+        "limitType": "max",
+        "measuredOn": "2026-10-05"
+      },
+      {
+        "parameter": "Relative Humidity",
+        "value": 43,
+        "unit": "%",
+        "limit": 60,
+        "limitType": "max",
+        "measuredOn": "2026-10-06"
+      },
+      {
+        "parameter": "Battery Room Hydrogen",
+        "value": 0.1,
+        "unit": "% LEL",
+        "limit": 1,
+        "limitType": "max",
+        "measuredOn": "2026-09-24"
+      }
+    ],
+    "consumptionLabel": "Energy Through (kWh)",
+    "performance": [
+      {
+        "month": "Apr 2026",
+        "availability": 98,
+        "utilization": 100,
+        "runningHours": 785,
+        "consumption": 48684,
+        "downtime": 14,
+        "failures": 0
+      },
+      {
+        "month": "May 2026",
+        "availability": 99,
+        "utilization": 100,
+        "runningHours": 753,
+        "consumption": 46834,
+        "downtime": 7,
+        "failures": 0
+      },
+      {
+        "month": "Jun 2026",
+        "availability": 98,
+        "utilization": 100,
+        "runningHours": 790,
+        "consumption": 50610,
+        "downtime": 14,
+        "failures": 0
+      },
+      {
+        "month": "Jul 2026",
+        "availability": 98,
+        "utilization": 100,
+        "runningHours": 734,
+        "consumption": 40612,
+        "downtime": 14,
+        "failures": 0
+      },
+      {
+        "month": "Aug 2026",
+        "availability": 96,
+        "utilization": 91,
+        "runningHours": 652,
+        "consumption": 38455,
+        "downtime": 29,
+        "failures": 0
+      },
+      {
+        "month": "Sep 2026",
+        "availability": 98,
+        "utilization": 100,
+        "runningHours": 724,
+        "consumption": 41872,
+        "downtime": 14,
+        "failures": 0
+      }
+    ],
+    "assessments": [
+      {
+        "id": 1,
+        "date": "2022-10-10",
+        "assessedBy": "Commissioning Team",
+        "overall": "Excellent",
+        "healthScore": 99,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Baseline assessment at commissioning."
+      },
+      {
+        "id": 2,
+        "date": "2024-04-10",
+        "assessedBy": "Maintenance Team",
+        "overall": "Excellent",
+        "healthScore": 96,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 3,
+        "date": "2024-10-10",
+        "assessedBy": "HSE Team",
+        "overall": "Good",
+        "healthScore": 93,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Minor wear noted; monitor at next PM."
+      },
+      {
+        "id": 4,
+        "date": "2025-04-10",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 92,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Cleaned and adjusted; no issues."
+      },
+      {
+        "id": 5,
+        "date": "2025-10-10",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 91,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "No defects found."
+      },
+      {
+        "id": 6,
+        "date": "2026-04-10",
+        "assessedBy": "HSE Team",
+        "overall": "Good",
+        "healthScore": 90,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 7,
+        "date": "2026-10-10",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 88,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Minor wear noted; monitor at next PM."
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2022-09-24",
+        "title": "Asset purchased",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2022-10-10",
+        "title": "Commissioned and handed over",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2023-10-10",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2024-10-10",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-10-10",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2026-10-10",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-04-10",
+        "title": "Bi-annual PM (fans, capacitors, battery test) completed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2026-04-10",
+        "title": "Bi-annual PM (fans, capacitors, battery test) completed",
+        "status": "Active",
+        "condition": "Good"
+      }
+    ]
+  },
+  "relationships": {
+    "parts": [
+      {
+        "tag": "LOC-HEADOFFICEIT",
+        "name": "Head Office - IT Department - Server Room",
+        "category": "Facilities",
+        "location": "Head Office - IT Department - Server Room",
+        "condition": "",
+        "icon": "Building2"
+      },
+      {
+        "tag": "LP-00081",
+        "name": "Critical Load Panel",
+        "category": "Electrical Equipment",
+        "location": "Head Office - IT Department - Server Room",
+        "condition": "Good",
+        "icon": "Server"
+      },
+      {
+        "tag": "BAT-00081",
+        "name": "Battery Cabinet",
+        "category": "Electrical Equipment",
+        "location": "Head Office - IT Department - Server Room",
+        "condition": "Good",
+        "icon": "BatteryCharging"
+      },
+      {
+        "tag": "REC-00081-01",
+        "name": "Rectifier Module",
+        "category": "Electrical Component",
+        "location": "Head Office - IT Department - Server Room",
+        "condition": "Good",
+        "icon": "Cpu"
+      },
+      {
+        "tag": "INV-00081-02",
+        "name": "Inverter Module",
+        "category": "Electrical Component",
+        "location": "Head Office - IT Department - Server Room",
+        "condition": "Good",
+        "icon": "Zap"
+      },
+      {
+        "tag": "SBS-00081-03",
+        "name": "Static Bypass Switch",
+        "category": "Electrical Component",
+        "location": "Head Office - IT Department - Server Room",
+        "condition": "Good",
+        "icon": "ToggleRight"
+      }
+    ],
+    "links": [
+      {
+        "id": 1,
+        "tag": "LOC-HEADOFFICEIT",
+        "type": "Parent Asset",
+        "direction": "Parent",
+        "since": "2022-10-09",
+        "to": "",
+        "status": "Active",
+        "description": "UPS 60 kVA is installed at Head Office - IT Department - Server Room.",
+        "reference": "Site Layout - Head Office",
+        "remarks": ""
+      },
+      {
+        "id": 2,
+        "tag": "LP-00081",
+        "type": "Connected Asset",
+        "direction": "Child",
+        "since": "2022-10-09",
+        "to": "",
+        "status": "Active",
+        "description": "Panel feeding the critical loads from the UPS.",
+        "reference": "Single Line Diagram - SLD-007",
+        "remarks": ""
+      },
+      {
+        "id": 3,
+        "tag": "BAT-00081",
+        "type": "Supporting Asset",
+        "direction": "Child",
+        "since": "2022-10-09",
+        "to": "",
+        "status": "Active",
+        "description": "Battery string giving backup autonomy.",
+        "reference": "OEM Manual",
+        "remarks": "Check cell voltages quarterly."
+      },
+      {
+        "id": 4,
+        "tag": "REC-00081-01",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2022-10-09",
+        "to": "",
+        "status": "Active",
+        "description": "Converts AC input to DC.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 5,
+        "tag": "INV-00081-02",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2022-10-09",
+        "to": "",
+        "status": "Active",
+        "description": "Converts DC back to clean AC output.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 6,
+        "tag": "GEN-00045",
+        "type": "Supporting Asset",
+        "direction": "Parent",
+        "since": "2023-01-26",
+        "to": "",
+        "status": "Active",
+        "description": "Standby generator backs up the UPS input.",
+        "reference": "",
+        "remarks": ""
+      }
+    ]
+  },
+  "criticality": {
+    "level": "High",
+    "score": 76,
+    "assessmentDate": "2026-08-15",
+    "validUntil": "2027-08-15",
+    "nextReview": "2027-02-15",
+    "assessedBy": "Rex Kumar",
+    "approvedBy": "IT Manager",
+    "method": "Risk Matrix (Weighted)",
+    "reviewFrequency": "Every 6 Months",
+    "department": "IT",
+    "assetGroup": "Critical Power",
+    "remarks": "Protects the critical IT load against mains disturbances.",
+    "likelihood": 3,
+    "consequence": 4,
+    "criteria": [
+      {
+        "key": "operational",
+        "name": "Operational Impact",
+        "weight": 25,
+        "score": 4.5,
+        "justification": "IT services stop on loss of UPS output."
+      },
+      {
+        "key": "safety",
+        "name": "Safety Impact",
+        "weight": 20,
+        "score": 3,
+        "justification": "Battery fire and arc-flash hazards."
+      },
+      {
+        "key": "financial",
+        "name": "Financial Impact",
+        "weight": 20,
+        "score": 4.5,
+        "justification": "Data loss and service downtime are very costly."
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance / Regulatory",
+        "weight": 15,
+        "score": 3.5,
+        "justification": "Data center availability commitments (SLA)."
+      },
+      {
+        "key": "environmental",
+        "name": "Environmental Impact",
+        "weight": 10,
+        "score": 2,
+        "justification": "Battery disposal must follow e-waste rules."
+      },
+      {
+        "key": "reputation",
+        "name": "Reputation Impact",
+        "weight": 10,
+        "score": 4.5,
+        "justification": "Customer-facing systems go offline."
+      }
+    ],
+    "impact": {
+      "downtimeCostPerHour": 25000,
+      "currency": "AED",
+      "mttrHours": 6,
+      "redundancy": "Static bypass only",
+      "spares": "Power module available from vendor in 24 h",
+      "failureScenario": "UPS failure with mains disturbance: IT load drops, services restart.",
+      "affectedServices": [
+        "Servers and storage",
+        "Network core",
+        "Access control"
+      ]
+    },
+    "mitigations": [
+      {
+        "id": 1,
+        "action": "Bi-annual battery impedance test",
+        "owner": "Maintenance Team",
+        "dueDate": "2026-09-15",
+        "status": "Completed",
+        "reducesTo": "Medium"
+      },
+      {
+        "id": 2,
+        "action": "Replace batteries at 4 years",
+        "owner": "Engineering",
+        "dueDate": "2026-11-15",
+        "status": "In Progress",
+        "reducesTo": "Medium"
+      },
+      {
+        "id": 3,
+        "action": "Monitor UPS alarms in DCIM 24/7",
+        "owner": "IT Operations",
+        "dueDate": "2027-01-15",
+        "status": "Open",
+        "reducesTo": "Medium"
+      },
+      {
+        "id": 4,
+        "action": "Add second UPS module (N+1)",
+        "owner": "Engineering",
+        "dueDate": "2027-03-15",
+        "status": "Open",
+        "reducesTo": "Medium"
+      }
+    ],
+    "history": [
+      {
+        "date": "2026-02-15",
+        "score": 78.2,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "IT Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2025-08-15",
+        "score": 79.4,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "IT Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2025-02-15",
+        "score": 78.1,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "IT Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-08-15",
+        "score": 75.3,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "IT Manager",
+        "remarks": "Initial criticality assessment."
+      }
+    ]
+  },
+  "health": {
+    "score": 80,
+    "status": "Good",
+    "grade": "Good",
+    "assessmentDate": "2026-10-01",
+    "nextAssessment": "2026-11-01",
+    "assessedBy": "Rex Kumar",
+    "method": "Predictive Analytics + Maintenance Data",
+    "remarks": "Asset in fair working order; minor wear noted.",
+    "breakdown": [
+      {
+        "key": "performance",
+        "name": "Performance",
+        "weight": 25,
+        "score": 82
+      },
+      {
+        "key": "reliability",
+        "name": "Reliability",
+        "weight": 25,
+        "score": 81
+      },
+      {
+        "key": "condition",
+        "name": "Condition",
+        "weight": 20,
+        "score": 76
+      },
+      {
+        "key": "safety",
+        "name": "Risk & Safety",
+        "weight": 15,
+        "score": 83
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance",
+        "weight": 15,
+        "score": 80
+      }
+    ],
+    "history": [
+      {
+        "date": "2026-10-01",
+        "score": 80,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Performance improved",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-09-01",
+        "score": 77,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-08-01",
+        "score": 75,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-07-01",
+        "score": 74,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-06-01",
+        "score": 73,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-05-01",
+        "score": 73,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-04-01",
+        "score": 71,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-03-01",
+        "score": 70,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-02-01",
+        "score": 70,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-01-01",
+        "score": 71,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-12-01",
+        "score": 72,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-11-01",
+        "score": 72,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      }
+    ],
+    "insights": [
+      {
+        "type": "warning",
+        "text": "1 open alarm: Battery string 2 cell voltage imbalance."
+      },
+      {
+        "type": "warning",
+        "text": "Condition is the weakest area (76%). Consider an inspection."
+      },
+      {
+        "type": "info",
+        "text": "Health score improved by 3 points compared to last month."
+      },
+      {
+        "type": "success",
+        "text": "No critical issues found."
+      }
+    ],
+    "maintenancePlan": [
+      {
+        "task": "Visual check and alarm log review",
+        "frequency": "Monthly",
+        "lastDone": "2026-10-10",
+        "nextDue": "2026-11-10",
+        "owner": "IT Operations"
+      },
+      {
+        "task": "Battery impedance test",
+        "frequency": "Every 6 months",
+        "lastDone": "2026-08-02",
+        "nextDue": "2027-02-02",
+        "owner": "Vendor"
+      },
+      {
+        "task": "Fan and capacitor service",
+        "frequency": "Yearly",
+        "lastDone": "2026-10-10",
+        "nextDue": "2027-10-10",
+        "owner": "Vendor"
+      }
+    ]
+  }
+}

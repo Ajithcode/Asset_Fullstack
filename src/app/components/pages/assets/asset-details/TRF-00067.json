@@ -1,0 +1,1606 @@
+{
+  "tag": "TRF-00067",
+  "documents": [
+    {
+      "id": 1,
+      "name": "Purchase Order.pdf",
+      "type": "Purchase Order",
+      "stage": "Procurement",
+      "description": "Purchase order PO-2020-0067 issued to Voltline Electrical Contracting for the transformer.",
+      "tags": [
+        "Procurement",
+        "PO"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-07-30T10:15",
+          "uploadedBy": "Rex Kumar",
+          "size": 314573,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Procurement",
+      "coverTitle": "PURCHASE ORDER",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 2,
+      "name": "Invoice.pdf",
+      "type": "Invoice",
+      "stage": "Procurement",
+      "description": "Supplier invoice INV-2020-699 for the transformer, delivery and installation.",
+      "tags": [
+        "Finance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-01T11:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 1048576,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Voltline Electrical Contracting",
+      "coverTitle": "INVOICE",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 3,
+      "name": "Delivery Note.pdf",
+      "type": "Delivery Note",
+      "stage": "Procurement",
+      "description": "Signed delivery note for the transformer.",
+      "tags": [
+        "Logistics"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-04T09:05",
+          "uploadedBy": "Store Team",
+          "size": 1258291,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Voltline Electrical Contracting",
+      "coverTitle": "DELIVERY NOTE",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 4,
+      "name": "GRN.pdf",
+      "type": "Goods Receipt",
+      "stage": "Procurement",
+      "description": "Goods received note confirming the transformer was received in good condition.",
+      "tags": [
+        "Stores"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-07T16:20",
+          "uploadedBy": "Store Team",
+          "size": 314573,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Stores",
+      "coverTitle": "GOODS RECEIPT",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 5,
+      "name": "Installation Report.pdf",
+      "type": "Installation Report",
+      "stage": "Installation",
+      "description": "Installation report for the transformer at Main Substation - Outdoor.",
+      "tags": [
+        "Installation"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-14T15:00",
+          "uploadedBy": "Installation Team",
+          "size": 1677722,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 6,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSTALLATION REPORT",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 6,
+      "name": "Commissioning Certificate.pdf",
+      "type": "Commissioning",
+      "stage": "Commissioning",
+      "description": "Commissioning certificate with functional test results for the transformer.",
+      "tags": [
+        "Certificate"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-15T12:10",
+          "uploadedBy": "Commissioning Team",
+          "size": 1363149,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "COMMISSIONING",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 7,
+      "name": "Operation Manual.pdf",
+      "type": "User Manual",
+      "stage": "In Operation",
+      "description": "Manufacturer operation and maintenance manual for ABB RESIBLOC 1000.",
+      "tags": [
+        "Manual",
+        "ABB"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-15T14:30",
+          "uploadedBy": "Rex Kumar",
+          "size": 5033165,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 24,
+      "issuer": "ABB",
+      "coverTitle": "TRANSFORMER 1 MVA",
+      "coverSubtitle": "Operation & Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 8,
+      "name": "Technical Datasheet.pdf",
+      "type": "Technical Document",
+      "stage": "Operations",
+      "description": "Ratings, dimensions and performance data for the RESIBLOC 1000.",
+      "tags": [
+        "Datasheet",
+        "ABB"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-15T14:35",
+          "uploadedBy": "Rex Kumar",
+          "size": 1048576,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 4,
+      "issuer": "ABB",
+      "coverTitle": "RESIBLOC 1000",
+      "coverSubtitle": "Technical Datasheet",
+      "showAssetImage": true
+    },
+    {
+      "id": 9,
+      "name": "Single Line Diagram.pdf",
+      "type": "Drawing",
+      "stage": "Operations",
+      "description": "Substation single line diagram.",
+      "tags": [
+        "Drawing"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-15T14:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 2202010,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "DRAWING",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 10,
+      "name": "Maintenance Manual.pdf",
+      "type": "Maintenance Manual",
+      "stage": "Operations",
+      "description": "Preventive maintenance schedule and service procedures.",
+      "tags": [
+        "Manual",
+        "Maintenance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-15T14:45",
+          "uploadedBy": "Rex Kumar",
+          "size": 3774874,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 34,
+      "issuer": "ABB",
+      "coverTitle": "TRANSFORMER 1 MVA",
+      "coverSubtitle": "Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 11,
+      "name": "Warranty Certificate.pdf",
+      "type": "Warranty",
+      "stage": "Warranty",
+      "description": "Manufacturer warranty, 2 years from commissioning.",
+      "tags": [
+        "Warranty"
+      ],
+      "expiryDate": "2022-08-15",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-15T15:00",
+          "uploadedBy": "Vendor",
+          "size": 943718,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "ABB",
+      "coverTitle": "WARRANTY",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 12,
+      "name": "AMC Contract.pdf",
+      "type": "Service Contract",
+      "stage": "Warranty",
+      "description": "Annual maintenance contract with Voltline Electrical Contracting.",
+      "tags": [
+        "AMC",
+        "Contract"
+      ],
+      "expiryDate": "2027-08-15",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-08-15T15:10",
+          "uploadedBy": "Rex Kumar",
+          "size": 1363149,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 10,
+      "issuer": "Voltline Electrical Contracting",
+      "coverTitle": "SERVICE CONTRACT",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 13,
+      "name": "Inspection Report 2025.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the transformer with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2025-08-15T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 524288,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 14,
+      "name": "Inspection Report 2026.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the transformer with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-08-15T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 1048576,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 15,
+      "name": "Compliance Certificate.pdf",
+      "type": "Compliance",
+      "stage": "Compliance",
+      "description": "DEWA inspection and energisation certificate.",
+      "tags": [
+        "Compliance",
+        "HSE"
+      ],
+      "expiryDate": "2028-08-20",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-08-20T09:20",
+          "uploadedBy": "HSE Team",
+          "size": 629146,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "DEWA",
+      "coverTitle": "COMPLIANCE",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 16,
+      "name": "Site Photo.jpg",
+      "type": "Image",
+      "stage": "Operations",
+      "description": "Photo of the transformer at Main Substation - Outdoor.",
+      "tags": [
+        "Photo"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2020-08-15T16:00",
+          "uploadedBy": "Rex Kumar",
+          "size": 3040870,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 1,
+      "issuer": "Purple IQ",
+      "coverTitle": "IMAGE",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": true
+    },
+    {
+      "id": 17,
+      "name": "Fault Report.pdf",
+      "type": "Fault Report",
+      "stage": "Maintenance",
+      "description": "Tripped on winding over-temperature; HV winding insulation repair by the OEM.",
+      "tags": [
+        "Fault",
+        "Corrective"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-09-18T09:10",
+          "uploadedBy": "Maintenance Team",
+          "size": 629146,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "FAULT REPORT",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 18,
+      "name": "Repair Quotation.pdf",
+      "type": "Quotation",
+      "stage": "Maintenance",
+      "description": "Repair quotation from Voltline Electrical Contracting.",
+      "tags": [
+        "Quotation",
+        "Repair"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-09-21T13:00",
+          "uploadedBy": "Rex Kumar",
+          "size": 524288,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Voltline Electrical Contracting",
+      "coverTitle": "QUOTATION",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 19,
+      "name": "Decommissioning Report.pdf",
+      "type": "Decommissioning",
+      "stage": "Decommissioning",
+      "description": "To be completed when the asset is decommissioned.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DECOMMISSIONING",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    },
+    {
+      "id": 20,
+      "name": "Disposal Certificate.pdf",
+      "type": "Disposal",
+      "stage": "Disposal",
+      "description": "To be issued on disposal of the asset.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DISPOSAL",
+      "coverSubtitle": "TRF-00067 · Transformer 1 MVA",
+      "showAssetImage": false
+    }
+  ],
+  "previewDocumentId": 7,
+  "images": [
+    {
+      "id": 1,
+      "title": "Full View",
+      "description": "Full view of the transformer at Main Substation - Outdoor.",
+      "type": "Asset Overview",
+      "tags": [
+        "Transformer",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2020-08-15T09:00",
+      "location": "Main Substation - Outdoor",
+      "fileName": "TRF-00067_FullView.jpg",
+      "size": 2677953,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Taken at commissioning.",
+      "src": "asset-images/transformer-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2020-08-15T09:00"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "HV Terminals",
+      "description": "HV bushings and cable terminations.",
+      "type": "Component",
+      "tags": [
+        "HV",
+        "Terminals"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2020-08-15T10:07",
+      "location": "Main Substation - Outdoor",
+      "fileName": "TRF-00067_HVTerminals.jpg",
+      "size": 2798719,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/transformer-terminals.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2020-08-15T10:07"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Temperature Monitor",
+      "description": "Winding temperature monitor.",
+      "type": "Component",
+      "tags": [
+        "Temperature",
+        "Protection"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2020-08-15T11:14",
+      "location": "Main Substation - Outdoor",
+      "fileName": "TRF-00067_TemperatureMonitor.jpg",
+      "size": 2630179,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/transformer-monitor.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2020-08-15T11:14"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Name Plate",
+      "description": "Manufacturer nameplate with model, serial number and ratings.",
+      "type": "Nameplate",
+      "tags": [
+        "Nameplate",
+        "ABB"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2020-08-15T12:21",
+      "location": "Main Substation - Outdoor",
+      "fileName": "TRF-00067_NamePlate.jpg",
+      "size": 2530578,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/nameplate-TRF-00067.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2020-08-15T12:21"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Installed Position",
+      "description": "Transformer 1 MVA in its installed position.",
+      "type": "Installation",
+      "tags": [
+        "Transformer",
+        "Installation"
+      ],
+      "uploadedBy": "Installation Team",
+      "uploadedAt": "2020-08-14T13:28",
+      "location": "Main Substation - Outdoor",
+      "fileName": "TRF-00067_Installed.jpg",
+      "size": 1524704,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/transformer-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Installation Team",
+          "at": "2020-08-14T13:28"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "HV Terminals",
+      "description": "HV Terminals at the 2025 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "HV",
+        "Terminals",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2025-08-15T14:35",
+      "location": "Main Substation - Outdoor",
+      "fileName": "TRF-00067_Inspection2025.jpg",
+      "size": 2852106,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/transformer-terminals.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2025-08-15T14:35"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Temperature Monitor",
+      "description": "Temperature Monitor at the 2026 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Temperature",
+        "Protection",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-08-15T15:42",
+      "location": "Main Substation - Outdoor",
+      "fileName": "TRF-00067_Inspection2026.jpg",
+      "size": 2010896,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/transformer-monitor.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-08-15T15:42"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Thermal Scan",
+      "description": "Thermographic scan of the terminations.",
+      "type": "Inspection",
+      "tags": [
+        "Thermography"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-08-15T09:49",
+      "location": "Main Substation - Outdoor",
+      "fileName": "TRF-00067_ThermalScan.jpg",
+      "size": 1703648,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/transformer-terminals.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-08-15T09:49"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Defect Found",
+      "description": "Tripped on winding over-temperature; HV winding insulation repair by the OEM.",
+      "type": "Damage / Defect",
+      "tags": [
+        "Defect",
+        "Transformer"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-09-18T10:56",
+      "location": "Main Substation - Outdoor",
+      "fileName": "TRF-00067_Defect.jpg",
+      "size": 2024294,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Raised with the work order.",
+      "src": "asset-images/transformer-terminals.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-09-18T10:56"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Latest View",
+      "description": "Latest photo of the transformer for the asset register.",
+      "type": "Asset Overview",
+      "tags": [
+        "Transformer",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2026-09-24T11:03",
+      "location": "Main Substation - Outdoor",
+      "fileName": "TRF-00067_LatestView.jpg",
+      "size": 1922723,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/transformer-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2026-09-24T11:03"
+        }
+      ]
+    }
+  ],
+  "headerImageId": 1,
+  "status": {
+    "hasData": true,
+    "availability": 92,
+    "utilization": 85,
+    "lastMaintenance": "2026-08-15",
+    "operational": {
+      "status": "Out of Service",
+      "statusSince": "2026-09-18",
+      "operatingMode": "Out of Service",
+      "loadLabel": "Current Load",
+      "currentLoad": 0,
+      "loadUnit": "kVA",
+      "capacityLabel": "Rated Capacity",
+      "ratedCapacity": 1000,
+      "ratedUnit": "kVA",
+      "capacityFactor": 1,
+      "runningHours": 53313,
+      "lastStart": "2026-08-19T07:45",
+      "lastStop": "2026-09-18T08:00",
+      "location": "Main Substation - Outdoor",
+      "controlledBy": "SCADA",
+      "remarks": "Tripped on winding over-temperature; HV winding insulation repair by the OEM."
+    },
+    "operatingModes": [
+      "In Service",
+      "Out of Service"
+    ],
+    "lifecycle": {
+      "stage": "Under Overhaul",
+      "commissionedOn": "2020-08-15",
+      "expectedLifeYears": 30,
+      "nextAssessment": "2027-03-19",
+      "nextMaintenance": "2026-10-20"
+    },
+    "readingsUpdatedAt": "2026-09-18T08:00",
+    "readings": [
+      {
+        "label": "Load",
+        "value": 0,
+        "unit": "kVA",
+        "max": 1000
+      },
+      {
+        "label": "LV Voltage (L-L)",
+        "value": 410,
+        "unit": "V",
+        "min": 390,
+        "max": 425
+      },
+      {
+        "label": "Winding Temperature Ph1",
+        "value": 142,
+        "unit": "°C",
+        "max": 130,
+        "scaleMax": 180
+      },
+      {
+        "label": "Winding Temperature Ph2",
+        "value": 136,
+        "unit": "°C",
+        "max": 130,
+        "scaleMax": 180
+      },
+      {
+        "label": "Winding Temperature Ph3",
+        "value": 96,
+        "unit": "°C",
+        "max": 130,
+        "scaleMax": 180
+      },
+      {
+        "label": "Power Factor",
+        "value": 0.91,
+        "unit": "",
+        "min": 0.9,
+        "max": 1,
+        "decimals": 2
+      }
+    ],
+    "alerts": [
+      {
+        "id": 1,
+        "severity": "Warning",
+        "message": "Winding temperature alarm stage 1",
+        "raisedAt": "2026-04-15T07:55",
+        "status": "Resolved"
+      },
+      {
+        "id": 2,
+        "severity": "Warning",
+        "message": "Cooling fan failed to start",
+        "raisedAt": "2025-12-15T07:55",
+        "status": "Resolved"
+      },
+      {
+        "id": 3,
+        "severity": "Critical",
+        "message": "Winding over-temperature trip",
+        "raisedAt": "2026-09-17T21:05",
+        "status": "Acknowledged"
+      }
+    ],
+    "environment": [
+      {
+        "parameter": "Ambient Temperature",
+        "value": 43,
+        "unit": "°C",
+        "limit": 50,
+        "limitType": "max",
+        "measuredOn": "2026-09-18"
+      },
+      {
+        "parameter": "Noise Level (at 1 m)",
+        "value": 61,
+        "unit": "dB(A)",
+        "limit": 70,
+        "limitType": "max",
+        "measuredOn": "2026-09-18"
+      },
+      {
+        "parameter": "Partial Discharge",
+        "value": 14,
+        "unit": "pC",
+        "limit": 10,
+        "limitType": "max",
+        "measuredOn": "2026-09-18"
+      }
+    ],
+    "consumptionLabel": "Energy Through (MWh)",
+    "performance": [
+      {
+        "month": "Apr 2026",
+        "availability": 99,
+        "utilization": 87,
+        "runningHours": 629,
+        "consumption": 317.1,
+        "downtime": 7,
+        "failures": 0
+      },
+      {
+        "month": "May 2026",
+        "availability": 97,
+        "utilization": 98,
+        "runningHours": 702,
+        "consumption": 354.9,
+        "downtime": 22,
+        "failures": 0
+      },
+      {
+        "month": "Jun 2026",
+        "availability": 99,
+        "utilization": 93,
+        "runningHours": 670,
+        "consumption": 386.1,
+        "downtime": 7,
+        "failures": 0
+      },
+      {
+        "month": "Jul 2026",
+        "availability": 99,
+        "utilization": 94,
+        "runningHours": 674,
+        "consumption": 396.3,
+        "downtime": 7,
+        "failures": 0
+      },
+      {
+        "month": "Aug 2026",
+        "availability": 96,
+        "utilization": 87,
+        "runningHours": 625,
+        "consumption": 342.6,
+        "downtime": 29,
+        "failures": 0
+      },
+      {
+        "month": "Sep 2026",
+        "availability": 59,
+        "utilization": 51,
+        "runningHours": 368,
+        "consumption": 199.6,
+        "downtime": 295,
+        "failures": 1
+      }
+    ],
+    "assessments": [
+      {
+        "id": 1,
+        "date": "2020-08-15",
+        "assessedBy": "Commissioning Team",
+        "overall": "Excellent",
+        "healthScore": 99,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Baseline assessment at commissioning."
+      },
+      {
+        "id": 2,
+        "date": "2024-08-15",
+        "assessedBy": "Maintenance Team",
+        "overall": "Excellent",
+        "healthScore": 97,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 3,
+        "date": "2025-02-15",
+        "assessedBy": "HSE Team",
+        "overall": "Good",
+        "healthScore": 94,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Minor wear noted; monitor at next PM."
+      },
+      {
+        "id": 4,
+        "date": "2025-08-15",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 91,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Cleaned and adjusted; no issues."
+      },
+      {
+        "id": 5,
+        "date": "2026-02-15",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 89,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "No defects found."
+      },
+      {
+        "id": 6,
+        "date": "2026-08-15",
+        "assessedBy": "HSE Team",
+        "overall": "Good",
+        "healthScore": 88,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 7,
+        "date": "2026-09-19",
+        "assessedBy": "Maintenance Team",
+        "overall": "Poor",
+        "healthScore": 60,
+        "physical": "Poor",
+        "performance": "Critical",
+        "safety": "Fair",
+        "remarks": "Tripped on winding over-temperature; HV winding insulation repair by the OEM."
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2020-07-30",
+        "title": "Asset purchased",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2020-08-15",
+        "title": "Commissioned and handed over",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2021-08-15",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2022-08-15",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2023-08-15",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2024-08-15",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-08-15",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2026-08-15",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-02-15",
+        "title": "Annual PM (cleaning, torque check, IR test) completed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2026-02-15",
+        "title": "Annual PM (cleaning, torque check, IR test) completed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2026-09-18",
+        "title": "Sent for repair",
+        "status": "In Repair",
+        "condition": "Poor",
+        "by": "Rex Kumar"
+      },
+      {
+        "date": "2026-09-19",
+        "title": "Condition changed to Poor",
+        "by": "Maintenance Team",
+        "condition": "Poor"
+      }
+    ]
+  },
+  "relationships": {
+    "parts": [
+      {
+        "tag": "LOC-MAINSUBSTATI",
+        "name": "Main Substation - Outdoor",
+        "category": "Facilities",
+        "location": "Main Substation - Outdoor",
+        "condition": "",
+        "icon": "Building2"
+      },
+      {
+        "tag": "RMU-00067",
+        "name": "Ring Main Unit",
+        "category": "Electrical Equipment",
+        "location": "Main Substation - Outdoor",
+        "condition": "Good",
+        "icon": "ToggleRight"
+      },
+      {
+        "tag": "LVP-00067",
+        "name": "LV Main Panel",
+        "category": "Electrical Equipment",
+        "location": "Main Substation - Outdoor",
+        "condition": "Good",
+        "icon": "Server"
+      },
+      {
+        "tag": "WTI-00067",
+        "name": "Winding Temperature Monitor",
+        "category": "Electrical Equipment",
+        "location": "Main Substation - Outdoor",
+        "condition": "Good",
+        "icon": "Cpu"
+      },
+      {
+        "tag": "WND-00067-01",
+        "name": "Core & Windings",
+        "category": "Electrical Component",
+        "location": "Main Substation - Outdoor",
+        "condition": "Poor",
+        "icon": "Zap"
+      },
+      {
+        "tag": "TAP-00067-02",
+        "name": "Off-load Tap Changer",
+        "category": "Electrical Component",
+        "location": "Main Substation - Outdoor",
+        "condition": "Good",
+        "icon": "Cog"
+      },
+      {
+        "tag": "FAN-00067-03",
+        "name": "Cooling Fan Set",
+        "category": "Electrical Component",
+        "location": "Main Substation - Outdoor",
+        "condition": "Good",
+        "icon": "Fan"
+      }
+    ],
+    "links": [
+      {
+        "id": 1,
+        "tag": "LOC-MAINSUBSTATI",
+        "type": "Parent Asset",
+        "direction": "Parent",
+        "since": "2020-08-14",
+        "to": "",
+        "status": "Active",
+        "description": "Transformer 1 MVA is installed at Main Substation - Outdoor.",
+        "reference": "Site Layout - Main Substation",
+        "remarks": ""
+      },
+      {
+        "id": 2,
+        "tag": "RMU-00067",
+        "type": "Connected Asset",
+        "direction": "Child",
+        "since": "2020-08-14",
+        "to": "",
+        "status": "Active",
+        "description": "MV switchgear feeding the transformer.",
+        "reference": "Single Line Diagram - SLD-001",
+        "remarks": ""
+      },
+      {
+        "id": 3,
+        "tag": "LVP-00067",
+        "type": "Connected Asset",
+        "direction": "Child",
+        "since": "2020-08-14",
+        "to": "",
+        "status": "Active",
+        "description": "LV panel fed by the transformer.",
+        "reference": "Single Line Diagram - SLD-001",
+        "remarks": ""
+      },
+      {
+        "id": 4,
+        "tag": "WTI-00067",
+        "type": "Supporting Asset",
+        "direction": "Child",
+        "since": "2020-08-14",
+        "to": "",
+        "status": "Active",
+        "description": "Trips the transformer on over-temperature.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 5,
+        "tag": "WND-00067-01",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2020-08-14",
+        "to": "",
+        "status": "Active",
+        "description": "Cast resin core and windings.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 6,
+        "tag": "TAP-00067-02",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2020-08-14",
+        "to": "",
+        "status": "Active",
+        "description": "Adjusts the output voltage.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 7,
+        "tag": "GEN-00052",
+        "type": "Connected Asset",
+        "direction": "Sibling",
+        "since": "2021-04-12",
+        "to": "",
+        "status": "Active",
+        "description": "Gas generator backs up the substation LV bus.",
+        "reference": "",
+        "remarks": ""
+      },
+      {
+        "id": 8,
+        "tag": "UPS-00078",
+        "type": "Connected Asset",
+        "direction": "Child",
+        "since": "2023-06-12",
+        "to": "",
+        "status": "Active",
+        "description": "Feeds the data center UPS.",
+        "reference": "",
+        "remarks": ""
+      }
+    ]
+  },
+  "criticality": {
+    "level": "Critical",
+    "score": 83.5,
+    "assessmentDate": "2026-05-31",
+    "validUntil": "2027-05-31",
+    "nextReview": "2026-12-01",
+    "assessedBy": "Rex Kumar",
+    "approvedBy": "Operations Manager",
+    "method": "Risk Matrix (Weighted)",
+    "reviewFrequency": "Every 6 Months",
+    "department": "Engineering",
+    "assetGroup": "Power Distribution",
+    "remarks": "Main step-down transformer for the site LV supply.",
+    "likelihood": 5,
+    "consequence": 5,
+    "criteria": [
+      {
+        "key": "operational",
+        "name": "Operational Impact",
+        "weight": 25,
+        "score": 5,
+        "justification": "Whole site loses normal power."
+      },
+      {
+        "key": "safety",
+        "name": "Safety Impact",
+        "weight": 20,
+        "score": 4.5,
+        "justification": "Arc-flash and fire risk on failure."
+      },
+      {
+        "key": "financial",
+        "name": "Financial Impact",
+        "weight": 20,
+        "score": 4.5,
+        "justification": "Replacement is very costly with long lead time."
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance / Regulatory",
+        "weight": 15,
+        "score": 3.5,
+        "justification": "DEWA inspection and energisation rules."
+      },
+      {
+        "key": "environmental",
+        "name": "Environmental Impact",
+        "weight": 10,
+        "score": 2,
+        "justification": "Cast resin; low spill risk."
+      },
+      {
+        "key": "reputation",
+        "name": "Reputation Impact",
+        "weight": 10,
+        "score": 4,
+        "justification": "Site-wide outage is highly visible."
+      }
+    ],
+    "impact": {
+      "downtimeCostPerHour": 40000,
+      "currency": "AED",
+      "mttrHours": 72,
+      "redundancy": "Generator backup for essential loads only",
+      "spares": "No spare transformer; 12-16 weeks",
+      "failureScenario": "Transformer failure: site runs on generators for essential loads only.",
+      "affectedServices": [
+        "All LV loads",
+        "Data center UPS input",
+        "HVAC plant"
+      ]
+    },
+    "mitigations": [
+      {
+        "id": 1,
+        "action": "Annual thermography and IR test",
+        "owner": "Maintenance Team",
+        "dueDate": "2026-07-01",
+        "status": "Completed",
+        "reducesTo": "High"
+      },
+      {
+        "id": 2,
+        "action": "Online winding temperature monitoring",
+        "owner": "Engineering",
+        "dueDate": "2026-08-31",
+        "status": "In Progress",
+        "reducesTo": "High"
+      },
+      {
+        "id": 3,
+        "action": "Agree emergency mobile substation with DEWA contractor",
+        "owner": "Engineering",
+        "dueDate": "2026-10-31",
+        "status": "Open",
+        "reducesTo": "High"
+      },
+      {
+        "id": 4,
+        "action": "Repair HV winding insulation (OEM)",
+        "owner": "Engineering",
+        "dueDate": "2026-12-31",
+        "status": "Open",
+        "reducesTo": "High"
+      }
+    ],
+    "history": [
+      {
+        "date": "2025-12-01",
+        "score": 81.6,
+        "level": "Critical",
+        "likelihood": 4,
+        "consequence": 5,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "Operations Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2025-05-31",
+        "score": 80.3,
+        "level": "Critical",
+        "likelihood": 3,
+        "consequence": 5,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "Operations Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-12-01",
+        "score": 80.9,
+        "level": "Critical",
+        "likelihood": 3,
+        "consequence": 5,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "Operations Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-05-31",
+        "score": 83.5,
+        "level": "Critical",
+        "likelihood": 3,
+        "consequence": 5,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "Operations Manager",
+        "remarks": "Initial criticality assessment."
+      }
+    ]
+  },
+  "health": {
+    "score": 46,
+    "status": "Poor",
+    "grade": "Poor",
+    "assessmentDate": "2026-10-01",
+    "nextAssessment": "2026-11-01",
+    "assessedBy": "Rex Kumar",
+    "method": "Predictive Analytics + Maintenance Data",
+    "remarks": "Tripped on winding over-temperature; HV winding insulation repair by the OEM.",
+    "breakdown": [
+      {
+        "key": "performance",
+        "name": "Performance",
+        "weight": 25,
+        "score": 40
+      },
+      {
+        "key": "reliability",
+        "name": "Reliability",
+        "weight": 25,
+        "score": 42
+      },
+      {
+        "key": "condition",
+        "name": "Condition",
+        "weight": 20,
+        "score": 47
+      },
+      {
+        "key": "safety",
+        "name": "Risk & Safety",
+        "weight": 15,
+        "score": 53
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance",
+        "weight": 15,
+        "score": 57
+      }
+    ],
+    "history": [
+      {
+        "date": "2026-10-01",
+        "score": 46,
+        "status": "Poor",
+        "trigger": "Event",
+        "comments": "Tripped on winding over-temperature; HV winding insulation repair by the OEM.",
+        "assessedBy": "System"
+      },
+      {
+        "date": "2026-09-01",
+        "score": 64,
+        "status": "Fair",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-08-01",
+        "score": 63,
+        "status": "Fair",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-07-01",
+        "score": 62,
+        "status": "Fair",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-06-01",
+        "score": 63,
+        "status": "Fair",
+        "trigger": "Event",
+        "comments": "Cooling fan failed to start",
+        "assessedBy": "System"
+      },
+      {
+        "date": "2026-05-01",
+        "score": 65,
+        "status": "Fair",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-04-01",
+        "score": 65,
+        "status": "Fair",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-03-01",
+        "score": 65,
+        "status": "Fair",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-02-01",
+        "score": 66,
+        "status": "Fair",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-01-01",
+        "score": 67,
+        "status": "Fair",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-12-01",
+        "score": 68,
+        "status": "Fair",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-11-01",
+        "score": 68,
+        "status": "Fair",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      }
+    ],
+    "insights": [
+      {
+        "type": "warning",
+        "text": "1 open alarm: Winding over-temperature trip."
+      },
+      {
+        "type": "warning",
+        "text": "Performance is the weakest area (40%). Consider an inspection."
+      },
+      {
+        "type": "warning",
+        "text": "Health score dropped by 18 points compared to last month."
+      }
+    ],
+    "maintenancePlan": [
+      {
+        "task": "Visual inspection",
+        "frequency": "Every 3 months",
+        "lastDone": "2026-08-15",
+        "nextDue": "2026-11-15",
+        "owner": "Maintenance Team"
+      },
+      {
+        "task": "Thermographic scan",
+        "frequency": "Yearly",
+        "lastDone": "2025-10-20",
+        "nextDue": "2026-10-20",
+        "owner": "Vendor"
+      },
+      {
+        "task": "Insulation resistance test",
+        "frequency": "Yearly",
+        "lastDone": "2026-08-15",
+        "nextDue": "2027-08-15",
+        "owner": "Vendor"
+      }
+    ]
+  }
+}

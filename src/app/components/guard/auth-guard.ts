@@ -1,10 +1,12 @@
-import { CanActivateFn } from '@angular/router';
+import { inject } from '@angular/core';
+import { CanActivateFn, Router } from '@angular/router';
+import { AuthService } from '../service/auth/auth.service';
 
-export const authGuard: CanActivateFn = () => {
-  // DEMO MODE: Auth guard is disabled - allow all routes
-  // const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  // if (token) return true;
-  // redirect to /login if no token
-  // return false;
-  return true;
+/**
+ * Sends signed-out users to /login, remembering where they were going.
+ * DEMO MODE: not attached (see `canActivate` in app.routes.ts).
+ */
+export const authGuard: CanActivateFn = (_route, state) => {
+  if (inject(AuthService).isLoggedIn()) return true;
+  return inject(Router).createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
 };

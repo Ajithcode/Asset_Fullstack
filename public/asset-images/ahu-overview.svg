@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Air handling unit">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e5e7eb"/><stop offset="1" stop-color="#cbd5e1"/></linearGradient></defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <rect x="0" y="250" width="400" height="50" fill="#9ca3af"/>
+  <rect x="20" y="90" width="360" height="150" fill="#d1d5db" stroke="#6b7280" stroke-width="3"/>
+  <g stroke="#6b7280" stroke-width="2"><line x1="110" y1="90" x2="110" y2="240"/><line x1="200" y1="90" x2="200" y2="240"/><line x1="290" y1="90" x2="290" y2="240"/></g>
+  <g fill="#9ca3af"><rect x="96" y="150" width="6" height="28"/><rect x="186" y="150" width="6" height="28"/><rect x="276" y="150" width="6" height="28"/><rect x="366" y="150" width="6" height="28"/></g>
+  <rect x="20" y="60" width="70" height="30" fill="#9ca3af"/><rect x="310" y="60" width="70" height="30" fill="#9ca3af"/>
+  <rect x="30" y="246" width="20" height="8" fill="#4b5563"/><rect x="350" y="246" width="20" height="8" fill="#4b5563"/>
+  <text x="40" y="120" font-family="Arial" font-size="11" fill="#374151">FILTER</text><text x="130" y="120" font-family="Arial" font-size="11" fill="#374151">COIL</text><text x="222" y="120" font-family="Arial" font-size="11" fill="#374151">FAN</text>
+</svg>
