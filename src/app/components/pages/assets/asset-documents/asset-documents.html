@@ -3,10 +3,12 @@
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a routerLink="/assets/list">Assets</a>
     <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
-    <a routerLink="/assets/list">Asset List</a>
-    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
-    <span>{{ asset.tag }}</span>
-    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <ng-container *ngIf="!allAssets">
+      <a routerLink="/assets/list">Asset List</a>
+      <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+      <span>{{ asset.tag }}</span>
+      <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    </ng-container>
     <span class="breadcrumb-current">Asset Documents</span>
   </nav>
 
@@ -19,6 +21,7 @@
   </div>
 
   <ng-container *ngIf="!notFound">
+  <ng-container *ngIf="!allAssets">
   <!-- Asset header -->
   <div class="card asset-head">
     <img *ngIf="asset.image; else headerIcon" class="asset-img" [src]="asset.image" [alt]="asset.name" />
@@ -59,6 +62,7 @@
       </ng-template>
     </ng-container>
   </nav>
+  </ng-container>
 
   <div class="doc-body" [class.doc-body--full]="!previewOpen || !previewDoc">
     <!-- ===== Documents list ===== -->
@@ -67,7 +71,7 @@
         <span class="icon-tile"><lucide-icon [img]="icons.FileStack" [size]="20"></lucide-icon></span>
         <div class="grow">
           <h2>Asset Documents ({{ documents.length }})</h2>
-          <p>Manage and organize all documents related to this asset.</p>
+          <p>{{ allAssets ? 'Manage and organize documents for all assets.' : 'Manage and organize all documents related to this asset.' }}</p>
         </div>
         <button type="button" class="btn btn-primary btn-tall" (click)="openUpload()">
           <lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>
@@ -99,6 +103,10 @@
           <input type="search" placeholder="Search documents..." aria-label="Search documents" [(ngModel)]="search"
             (ngModelChange)="onFilterChange()" />
         </label>
+        <select *ngIf="allAssets" class="control control--sm" aria-label="Asset" [(ngModel)]="assetFilter" (ngModelChange)="onFilterChange()">
+          <option value="">All Assets</option>
+          <option *ngFor="let a of assetOptions" [value]="a.tag">{{ a.name }} ({{ a.tag }})</option>
+        </select>
         <select class="control control--sm" aria-label="Document type" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()">
           <option value="">All Document Types</option>
           <option *ngFor="let t of documentTypes" [value]="t">{{ t }}</option>
@@ -132,6 +140,7 @@
                   [indeterminate]="somePageChecked" (change)="toggleAll($any($event.target).checked)" />
               </th>
               <th class="col-num">#</th>
+              <ng-container *ngIf="allAssets"><th>Asset Name</th><th>Asset ID</th></ng-container>
               <th>Document Name</th>
               <th>Document Type</th>
               <th>Lifecycle Stage</th>
@@ -150,6 +159,10 @@
                   (change)="toggleChecked(d.id, $any($event.target).checked)" />
               </td>
               <td class="col-num">{{ rowNumber(i) }}</td>
+              <ng-container *ngIf="allAssets">
+                <td (click)="$event.stopPropagation()"><a class="asset-link" routerLink="/assets/documents" [queryParams]="{ tag: d.assetTag }" [title]="'Open ' + d.assetTag">{{ assetName(d) }}</a></td>
+                <td class="nowrap">{{ d.assetTag }}</td>
+              </ng-container>
               <td>
                 <button type="button" class="name-btn" [title]="'Preview ' + d.name">
                   <span class="file-badge" [class.file-badge--image]="isImage(d)">
@@ -178,7 +191,7 @@
               </td>
             </tr>
             <tr *ngIf="!pageRows.length" class="empty-row">
-              <td colspan="11">{{ loading ? "Loading documents…" : "No documents match the current filters." }}</td>
+              <td [attr.colspan]="allAssets ? 13 : 11">{{ loading ? "Loading documents…" : "No documents match the current filters." }}</td>
             </tr>
           </tbody>
         </table>
@@ -202,6 +215,7 @@
             <lucide-icon [img]="isImage(d) ? icons.FileImage : icons.FileText" [size]="24"></lucide-icon>
           </span>
           <button type="button" class="name-btn name-btn--tile" [title]="d.name">{{ d.name }}</button>
+          <a *ngIf="allAssets" class="tile-asset asset-link" routerLink="/assets/documents" [queryParams]="{ tag: d.assetTag }" (click)="$event.stopPropagation()">{{ assetName(d) }} · {{ d.assetTag }}</a>
           <div class="doc-tile-tags">
             <span class="type-tag">{{ d.type }}</span>
             <span class="stage-tag" [ngClass]="'stage--' + stageTone(d.stage)">{{ d.stage }}</span>
@@ -313,7 +327,7 @@
                 <button type="button" *ngFor="let p of previewPages" class="thumb" [class.is-active]="p === previewPage"
                   [attr.aria-label]="'Page ' + p" [attr.aria-current]="p === previewPage ? 'page' : null" (click)="setPage(p)">
                   <span class="thumb-page" [class.thumb-page--cover]="p === 1">
-                    <img *ngIf="p === 1 && doc.showAssetImage" [src]="sampleImage" alt="" />
+                    <img *ngIf="p === 1 && doc.showAssetImage" [src]="imageFor(doc)" alt="" />
                     <i></i><i></i><i></i>
                   </span>
                   <span class="thumb-num">{{ p }}</span>
@@ -323,7 +337,7 @@
                 <div class="page" [style.width.%]="zoom * 0.88" [style.transform]="'rotate(' + rotation + 'deg)'">
                   <ng-container *ngIf="previewPage === 1; else innerPage">
                     <span class="page-issuer">{{ doc.issuer }}</span>
-                    <img *ngIf="doc.showAssetImage" class="page-image" [src]="sampleImage" [alt]="asset.name" />
+                    <img *ngIf="doc.showAssetImage" class="page-image" [src]="imageFor(doc)" [alt]="assetName(doc)" />
                     <span *ngIf="!doc.showAssetImage" class="page-icon">
                       <lucide-icon [img]="isImage(doc) ? icons.FileImage : icons.FileText" [size]="34"></lucide-icon>
                     </span>
@@ -360,6 +374,7 @@
       </div>
       <dl class="details">
         <dt>Document Name</dt><dd>{{ doc.name }}</dd>
+        <ng-container *ngIf="allAssets"><dt>Asset Name</dt><dd><a class="asset-link" routerLink="/assets/documents" [queryParams]="{ tag: doc.assetTag }">{{ assetName(doc) }}</a></dd><dt>Asset ID</dt><dd>{{ doc.assetTag }}</dd></ng-container>
         <dt>Document Type</dt><dd><span class="type-tag">{{ doc.type }}</span></dd>
         <dt>Lifecycle Stage</dt><dd><span class="stage-tag" [ngClass]="'stage--' + stageTone(doc.stage)">{{ doc.stage }}</span></dd>
         <dt>Description</dt><dd>{{ doc.description || '-' }}</dd>
@@ -434,6 +449,38 @@
       </div>
 
       <ng-container *ngIf="u.mode === 'new'">
+        <div *ngIf="allAssets" class="field">
+          <span class="field-label" id="doc-assets-label">Assets <em>*</em></span>
+          <div class="asset-select" (click)="$event.stopPropagation()">
+            <button type="button" class="control asset-select-btn" aria-labelledby="doc-assets-label" aria-haspopup="listbox"
+              [attr.aria-expanded]="assetPickerOpen" (click)="toggleAssetPicker($event)">
+              <span [class.placeholder]="!u.assets.length">{{ uploadAssetsLabel }}</span>
+              <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+            </button>
+            <div *ngIf="assetPickerOpen" class="asset-panel">
+              <label class="asset-search">
+                <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+                <input type="search" [(ngModel)]="assetPickerSearch" name="assetPickerSearch" placeholder="Search by asset name or ID" aria-label="Search assets" />
+              </label>
+              <div class="asset-list" role="listbox" aria-multiselectable="true">
+                <label class="asset-row asset-row--head">
+                  <input type="checkbox" [checked]="allPickerAssetsChosen" (change)="toggleAllUploadAssets($any($event.target).checked)" />
+                  <span>Asset Name</span><span>Asset ID</span>
+                </label>
+                <label *ngFor="let a of pickerAssets" class="asset-row" [class.is-on]="u.assets.includes(a.tag)">
+                  <input type="checkbox" [checked]="u.assets.includes(a.tag)" (change)="toggleUploadAsset(a.tag)" />
+                  <span>{{ a.name }}</span><span class="nowrap">{{ a.tag }}</span>
+                </label>
+                <p *ngIf="!pickerAssets.length" class="asset-none">No assets match.</p>
+              </div>
+            </div>
+          </div>
+          <span *ngIf="u.assets.length > 1" class="asset-chips">
+            <span *ngFor="let t of u.assets" class="asset-chip">{{ t }}
+              <button type="button" (click)="toggleUploadAsset(t)" [attr.aria-label]="'Remove ' + t"><lucide-icon [img]="icons.X" [size]="12"></lucide-icon></button>
+            </span>
+          </span>
+        </div>
         <label class="field">
           <span class="field-label">Document Name <em>*</em></span>
           <input type="text" class="control" [(ngModel)]="u.name" name="name" maxlength="120" />
@@ -595,7 +642,7 @@
       <button type="button" class="icon-btn" (click)="deleteIds = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
     </div>
     <div class="modal-body">
-      <p>Delete <strong>{{ deleteLabel }}</strong> from {{ asset.tag }}? All of its versions are removed.</p>
+      <p>Delete <strong>{{ deleteLabel }}</strong>{{ allAssets ? '' : ' from ' + asset.tag }}? All of its versions are removed.</p>
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="deleteIds = null">Cancel</button>

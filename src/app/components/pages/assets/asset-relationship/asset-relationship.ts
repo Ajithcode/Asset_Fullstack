@@ -53,6 +53,7 @@ import {
   statusPill,
 } from '../asset-data';
 import { AssetDetail, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
+import { FROM_RELATIONSHIPS, nowLocal, readUserRelationships, writeUserRelationships } from '../asset-relationship-list/user-relationships';
 
 type RelType = 'Parent Asset' | 'Connected Asset' | 'Supporting Asset' | 'Component';
 type Direction = 'Parent' | 'Child' | 'Sibling';
@@ -148,6 +149,22 @@ function buildGraph(tag: string, detail: AssetDetail | null): AssetGraph {
   return { catalog, relationships, nextId: Math.max(0, ...relationships.map((r) => r.id)) + 1 };
 }
 
+/**
+ * Opened from the Asset Relationship page: the asset's sub assets created there, as Child relationships.
+ * Only register assets can be linked, so the catalogue holds just those.
+ */
+function buildUserGraph(tag: string): AssetGraph {
+  const graph = buildGraph(tag, null);
+  graph.relationships = readUserRelationships()
+    .filter((u) => u.mainTag === tag)
+    .map((u) => ({
+      id: u.id, tag: u.subTag, type: 'Connected Asset' as RelType, direction: 'Child' as Direction, since: u.createdAt.slice(0, 10), to: '',
+      status: 'Active' as RelStatus, description: `Sub asset of ${tag}.`, reference: 'Asset Relationship', remarks: `Linked by ${u.createdBy}`,
+    }));
+  graph.nextId = Math.max(0, ...readUserRelationships().map((u) => u.id)) + 1;
+  return graph;
+}
+
 /** DEMO MODE: all data is static and kept in memory. */
 @Component({
   selector: 'app-asset-relationship',
@@ -226,6 +243,8 @@ export class AssetRelationship {
   form: RelationshipForm = this.emptyForm();
   formError = '';
   removeIds: number[] | null = null;
+  /** Opened from the Asset Relationship page (?from=relationships) rather than the Asset List. */
+  fromRelationships = false;
 
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
@@ -233,16 +252,25 @@ export class AssetRelationship {
   constructor() {
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef)))
-      .subscribe((params) => this.load(params.get('tag')));
+      .subscribe((params) => {
+        this.fromRelationships = params.get('from') === FROM_RELATIONSHIPS;
+        this.load(params.get('tag'));
+      });
   }
 
   /** Shows the asset named in the URL, building (once) and reusing its relationship graph. */
   private load(tag: string | null): void {
+    tag ??= ASSET_RECORDS[0].tag; // opened from the menu without an asset: show the first one
     const record = findAsset(tag);
     this.requestedTag = tag ?? '';
     this.notFound = !record;
     if (!record) return;
     this.asset = assetHeader(record);
+    // From the Asset Relationship page: show the sub assets linked there (read fresh, they change on that page)
+    if (this.fromRelationships) {
+      this.show(buildUserGraph(record.tag));
+      return;
+    }
     const cached = GRAPHS.get(record.tag);
     if (cached) {
       this.show(cached);
@@ -486,6 +514,12 @@ export class AssetRelationship {
     } else {
       const rel: Relationship = { id: this.nextId++, ...data };
       this.relationships = [...this.relationships, rel];
+      if (this.fromRelationships) {
+        const links = readUserRelationships();
+        if (!links.some((u) => u.mainTag === this.asset.tag && u.subTag === rel.tag)) {
+          writeUserRelationships([{ id: rel.id, mainTag: this.asset.tag, subTag: rel.tag, createdBy: 'Rex Kumar', createdAt: nowLocal() }, ...links]);
+        }
+      }
       this.selectedId = rel.id;
       this.showToast(`${rel.tag} linked to ${this.asset.tag}.`);
     }
@@ -505,7 +539,11 @@ export class AssetRelationship {
 
   confirmRemove(): void {
     const ids = new Set(this.removeIds ?? []);
+    const removedTags = new Set(this.relationships.filter((r) => ids.has(r.id)).map((r) => r.tag));
     this.relationships = this.relationships.filter((r) => !ids.has(r.id));
+    if (this.fromRelationships) {
+      writeUserRelationships(readUserRelationships().filter((u) => !(u.mainTag === this.asset.tag && removedTags.has(u.subTag))));
+    }
     ids.forEach((id) => this.checked.delete(id));
     if (this.selectedId !== null && ids.has(this.selectedId)) this.selectedId = this.relationships[0]?.id ?? null;
     this.showToast(ids.size === 1 ? 'Relationship removed.' : `${ids.size} relationships removed.`);

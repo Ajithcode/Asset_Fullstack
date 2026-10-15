@@ -75,7 +75,15 @@ export class Sidebar {
         { label: 'Asset Audit', path: '/assets/audit' },
         { label: 'Disposal', path: '/assets/disposal' },
         { label: 'Custom Fields', path: '/assets/custom-fields' },
-        { label: 'Asset Lifecycle', path: '/assets/lifecycle' }
+        { label: 'Asset Lifecycle', path: '/assets/lifecycle' },
+        { label: 'Asset Relationship', path: '/assets/asset-relationships' },
+        { label: 'Asset Documents', path: '/assets/all-documents' },
+        { label: 'Asset Images', path: '/assets/all-images' },
+        { label: 'Asset Status & Condition', path: '/assets/status-condition' },
+        { label: 'Asset Criticality', path: '/assets/criticality' },
+        { label: 'Asset Health Score', path: '/assets/health-score' },
+        { label: 'Bulk Import / Export', path: '/assets/bulk-import-export' },
+        { label: 'Asset Merge / Dedup', path: '/assets/merge-dedup' }
       ]
     },
     {
@@ -90,7 +98,19 @@ export class Sidebar {
     { label: 'Maintenance', path: '/maintenance', icon: Wrench },
     { label: 'Inspection', path: '/inspection', icon: ClipboardCheck },
     { label: 'Inventory', path: '/inventory', icon: Warehouse },
-    { label: 'WIP / Operations', path: '/wip-operations', icon: Factory },
+    {
+      label: 'WIP / Operations',
+      path: '/wip-operations',
+      icon: Factory,
+      children: [
+        { label: 'Job Templates', path: '/wip-operations/job-templates' },
+        { label: 'Job Orders', path: '/wip-operations/job-orders' },
+        { label: 'Process & Routing', path: '/wip-operations/process-routing' },
+        { label: 'Resources', path: '/wip-operations/resources' },
+        { label: 'Progress & Output', path: '/wip-operations/progress-output' },
+        { label: 'Issues & Delays', path: '/wip-operations/issues-delays' }
+      ]
+    },
     { label: 'Audit & Compliance', path: '/audit-compliance', icon: ShieldCheck },
     { label: 'Contracts & Warranty', path: '/contracts-warranty', icon: FilePen },
     { label: 'Financial', path: '/financial', icon: CircleDollarSign },

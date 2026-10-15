@@ -1,0 +1,295 @@
+<section class="mg-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">Asset Merge / Dedup</span>
+  </nav>
+
+  <!-- ===== Page header ===== -->
+  <div class="card page-head">
+    <span class="head-tile"><lucide-icon [img]="icons.Link2" [size]="30"></lucide-icon></span>
+    <div class="grow">
+      <h1>Asset Merge / Dedup</h1>
+      <p>Identify and merge duplicate assets to maintain a clean and accurate asset database.</p>
+    </div>
+    <button type="button" class="btn btn-outline" (click)="openRules()"><lucide-icon [img]="icons.Settings" [size]="17"></lucide-icon>Deduplication Rules</button>
+  </div>
+
+  <!-- ===== KPIs and settings ===== -->
+  <div class="kpi-row">
+    <div class="card kpi">
+      <div class="kpi-top">
+        <span class="kpi-icon kpi-icon--violet"><lucide-icon [img]="icons.Database" [size]="24"></lucide-icon></span>
+        <div><span class="kpi-label">Potential Duplicates</span><strong class="kpi-value">{{ allMembers.length }}</strong></div>
+      </div>
+      <button type="button" class="btn btn-primary btn-block" [disabled]="scanning" (click)="scan()">
+        <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.spin]="scanning"></lucide-icon>{{ scanning ? 'Scanning…' : 'Scan for Duplicates' }}
+      </button>
+      <small class="muted">Last scan {{ lastScan | date: 'dd MMM yyyy, HH:mm' }}</small>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-top">
+        <span class="kpi-icon kpi-icon--red"><lucide-icon [img]="icons.TriangleAlert" [size]="24"></lucide-icon></span>
+        <div><span class="kpi-label">High Confidence</span><strong class="kpi-value c-high">{{ memberCount('High') }}</strong>
+          <small class="muted">Match score &ge; {{ rules.high }}%</small></div>
+      </div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-top">
+        <span class="kpi-icon kpi-icon--amber"><lucide-icon [img]="icons.CircleDot" [size]="24"></lucide-icon></span>
+        <div><span class="kpi-label">Medium Confidence</span><strong class="kpi-value c-medium">{{ memberCount('Medium') }}</strong>
+          <small class="muted">Match score {{ rules.medium }}% - {{ rules.high - 1 }}%</small></div>
+      </div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-top">
+        <span class="kpi-icon kpi-icon--blue"><lucide-icon [img]="icons.Info" [size]="24"></lucide-icon></span>
+        <div><span class="kpi-label">Low Confidence</span><strong class="kpi-value c-low">{{ memberCount('Low') }}</strong>
+          <small class="muted">Match score {{ rules.low }}% - {{ rules.medium - 1 }}%</small></div>
+      </div>
+    </div>
+    <div class="card settings">
+      <div class="settings-head">
+        <lucide-icon [img]="icons.Settings" [size]="17"></lucide-icon>
+        <h3 class="grow">Auto Detection Settings</h3>
+        <button type="button" class="link-btn link-btn--u" (click)="openRules()"><lucide-icon [img]="icons.Pencil" [size]="13"></lucide-icon>Edit</button>
+      </div>
+      <dl class="settings-list">
+        <dt>Matching Fields</dt><dd>{{ matchFieldLabels }}</dd>
+        <dt>Match Threshold (High)</dt><dd>{{ rules.high }}% and above</dd>
+        <dt>Match Threshold (Medium)</dt><dd>{{ rules.medium }}% - {{ rules.high - 1 }}%</dd>
+        <dt>Match Threshold (Low)</dt><dd>{{ rules.low }}% - {{ rules.medium - 1 }}%</dd>
+        <dt>Include Inactive Assets</dt><dd>{{ rules.includeInactive ? 'Yes' : 'No' }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- ===== Duplicate assets ===== -->
+  <section class="card panel" aria-labelledby="mg-dup-title">
+    <header class="table-head">
+      <lucide-icon class="head-icon" [img]="icons.Filter" [size]="22"></lucide-icon>
+      <h2 id="mg-dup-title">Duplicate Assets</h2>
+      <div class="chips" role="group" aria-label="Confidence">
+        <button type="button" class="chip chip--all" [class.is-on]="level === ''" (click)="setLevel('')"><span class="dot"></span>All ({{ groupCount('') }})</button>
+        <button type="button" class="chip chip--high" [class.is-on]="level === 'High'" (click)="setLevel('High')"><span class="dot"></span>High ({{ groupCount('High') }})</button>
+        <button type="button" class="chip chip--medium" [class.is-on]="level === 'Medium'" (click)="setLevel('Medium')"><span class="dot"></span>Medium ({{ groupCount('Medium') }})</button>
+        <button type="button" class="chip chip--low" [class.is-on]="level === 'Low'" (click)="setLevel('Low')"><span class="dot"></span>Low ({{ groupCount('Low') }})</button>
+      </div>
+      <span class="grow"></span>
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+        <input type="search" [(ngModel)]="search" (ngModelChange)="onFilterChange()" placeholder="Search assets..." aria-label="Search assets" />
+      </label>
+      <select class="control control--sm" [(ngModel)]="categoryFilter" (ngModelChange)="onFilterChange()" aria-label="Category">
+        <option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+      </select>
+      <select class="control control--sm" [(ngModel)]="siteFilter" (ngModelChange)="onFilterChange()" aria-label="Location">
+        <option value="">All Locations</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option>
+      </select>
+      <select class="control control--sm" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" aria-label="Status">
+        <option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+      </select>
+      <div class="menu-wrap">
+        <button type="button" class="square-btn" (click)="toggleTableMenu($event)" aria-haspopup="menu" [attr.aria-expanded]="tableMenuOpen" aria-label="More actions">
+          <lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon>
+        </button>
+        <div *ngIf="tableMenuOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
+          <button type="button" role="menuitem" (click)="closeMenus(); scan()"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Scan Again</button>
+          <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon>Export List (CSV)</button>
+          <button type="button" role="menuitem" (click)="dismissSelected()"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon>Not Duplicates ({{ checked.size }} selected)</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="table-wrap">
+      <table class="grid-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" [checked]="allPageChecked" (change)="toggleAll($any($event.target).checked)" aria-label="Select all on this page" /></th>
+            <th>#</th><th>Asset Name</th><th>Asset Type</th><th>Model</th><th>Serial Number</th><th>Category</th><th>Location</th><th>Status</th>
+            <th class="center">Match Score</th><th class="center">Potential Duplicates</th><th>Last Modified</th><th class="center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let g of pageRows; let i = index" [class.is-current]="g.primary.tag === reviewKey">
+            <td><input type="checkbox" [checked]="checked.has(g.primary.tag)" (change)="toggleRow(g.primary.tag, $any($event.target).checked)" [attr.aria-label]="'Select ' + g.primary.tag" /></td>
+            <td>{{ rowNumber(i) }}</td>
+            <td><strong class="asset-name">{{ g.primary.name }}</strong><small class="muted block">{{ g.primary.tag }}</small></td>
+            <td>{{ g.primary.type }}</td>
+            <td>{{ g.primary.model || '-' }}</td>
+            <td class="nowrap">{{ g.primary.serialNumber || '-' }}</td>
+            <td>{{ g.primary.category }}</td>
+            <td>{{ g.primary.location }}</td>
+            <td><span class="status" [ngClass]="'status--' + (g.primary.status === 'Active' ? 'good' : g.primary.status === 'Disposed' ? 'bad' : 'warn')"><span class="dot"></span>{{ g.primary.status }}</span></td>
+            <td class="center"><span class="score" [ngClass]="'score--' + scoreTone(g.maxScore)">{{ g.maxScore }}%</span></td>
+            <td class="center">{{ g.members.length }}</td>
+            <td class="nowrap">{{ g.primary.lastModified ? (g.primary.lastModified | date: 'dd MMM yyyy') : '-' }}</td>
+            <td class="nowrap center">
+              <button type="button" class="btn btn-outline btn-xs" (click)="openReview(g)">Review</button>
+              <span class="menu-wrap">
+                <button type="button" class="icon-btn" (click)="toggleRowMenu($event, g.primary.tag)" [attr.aria-expanded]="rowMenuTag === g.primary.tag" [attr.aria-label]="'More actions for ' + g.primary.tag">
+                  <lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon>
+                </button>
+                <div *ngIf="rowMenuTag === g.primary.tag" class="menu" role="menu" (click)="$event.stopPropagation()">
+                  <button type="button" role="menuitem" (click)="openReview(g)"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>Review &amp; Merge</button>
+                  <button type="button" role="menuitem" (click)="dismiss([g.primary.tag])"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon>Not a Duplicate</button>
+                </div>
+              </span>
+            </td>
+          </tr>
+          <tr *ngIf="!pageRows.length"><td colspan="13" class="empty">{{ groups.length ? 'No duplicates match the filters.' : 'No duplicates found. Run a scan after importing assets.' }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="pager">
+      <label class="pager-size">Show
+        <select class="control control--xs" [(ngModel)]="pageSize" (ngModelChange)="onFilterChange()" aria-label="Rows per page">
+          <option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option>
+        </select>
+        per page
+      </label>
+      <span class="grow"></span>
+      <span class="muted">{{ rangeLabel }}</span>
+      <button type="button" class="page-btn" [disabled]="safePage === 1" (click)="goToPage(safePage - 1)" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+      <button type="button" *ngFor="let n of pageNumbers" class="page-btn" [class.is-on]="n === safePage" (click)="goToPage(n)" [attr.aria-current]="n === safePage ? 'page' : null">{{ n }}</button>
+      <button type="button" class="page-btn" [disabled]="safePage === pageCount" (click)="goToPage(safePage + 1)" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+    </footer>
+  </section>
+
+  <!-- ===== Merge assets ===== -->
+  <section id="merge-panel" class="card panel" aria-labelledby="mg-merge-title">
+    <h2 id="mg-merge-title" class="with-icon"><lucide-icon class="head-icon" [img]="icons.GitMerge" [size]="22"></lucide-icon>Merge Assets</h2>
+
+    <p *ngIf="!reviewGroup" class="empty">Choose Review on a duplicate to compare and merge it.</p>
+
+    <ng-container *ngIf="reviewGroup">
+      <div class="merge-grid">
+        <article *ngFor="let r of cards; let n = index" class="merge-card" [class.merge-card--keep]="n === 0" [class.merge-card--dup]="n > 0">
+          <header class="mc-head">
+            <h3>{{ n === 0 ? 'Duplicate Asset 1 (Keep This)' : 'Duplicate Asset ' + (n + 1) + ' (Merge Into 1)' }}</h3>
+            <span *ngIf="n === 0" class="primary-badge">Primary</span>
+            <ng-container *ngIf="n > 0">
+              <button type="button" class="mini-btn" (click)="makePrimary(r.tag)" title="Keep this record instead"><lucide-icon [img]="icons.Star" [size]="13"></lucide-icon>Keep</button>
+              <button type="button" class="icon-btn icon-btn--sm" (click)="removeFromMerge(r.tag)" [attr.aria-label]="'Leave ' + r.tag + ' out of this merge'"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon></button>
+            </ng-container>
+          </header>
+          <div class="mc-asset">
+            <img *ngIf="r.image; else cardIcon" [src]="r.image" [alt]="r.name" />
+            <ng-template #cardIcon><span class="mc-icon"><lucide-icon [img]="typeIcons[r.icon]" [size]="26"></lucide-icon></span></ng-template>
+            <div>
+              <strong>{{ r.tag }}</strong>
+              <span>{{ r.name }}</span>
+              <small>{{ r.source }}<ng-container *ngIf="scoreOf(r.tag) !== null"> · <span class="score score--inline" [ngClass]="'score--' + scoreTone(scoreOf(r.tag)!)">{{ scoreOf(r.tag) }}% match</span></ng-container></small>
+            </div>
+          </div>
+          <dl class="mc-fields">
+            <ng-container *ngFor="let f of mergeFields">
+              <dt>{{ f.label }}</dt>
+              <dd [class.is-diff]="differs(r, f.key)" [class.is-chosen]="isChosen(r, f.key)">
+                <span *ngIf="f.key === 'status' && value(r, f.key); else plainVal" class="status" [ngClass]="'status--' + (value(r, f.key) === 'Active' ? 'good' : value(r, f.key) === 'Disposed' ? 'bad' : 'warn')"><span class="dot"></span>{{ value(r, f.key) }}</span>
+                <ng-template #plainVal><span class="val">{{ display(r, f.key) }}</span></ng-template>
+                <button type="button" class="use-btn" [disabled]="!value(r, f.key)" (click)="use(r, f.key)"
+                  [attr.aria-label]="'Use this ' + f.label + ' in the merged record'" [attr.aria-pressed]="isChosen(r, f.key)" [title]="isChosen(r, f.key) ? 'Used in merged result' : 'Use this value'">
+                  <lucide-icon [img]="icons.ArrowRight" [size]="14"></lucide-icon>
+                </button>
+              </dd>
+            </ng-container>
+            <dt>Last Modified</dt>
+            <dd><span class="val">{{ r.lastModified ? (r.lastModified | date: 'dd MMM yyyy') : '-' }}{{ r.modifiedBy ? ' (' + r.modifiedBy + ')' : '' }}</span></dd>
+          </dl>
+        </article>
+
+        <!-- Merged result -->
+        <article class="merge-card merge-card--result">
+          <header class="mc-head"><h3>Merged Result (Preview)</h3></header>
+          <div class="mc-asset">
+            <img *ngIf="cards[0]?.image; else resultIcon" [src]="cards[0].image" [alt]="cards[0].name" />
+            <ng-template #resultIcon><span class="mc-icon"><lucide-icon [img]="typeIcons[cards[0].icon]" [size]="26"></lucide-icon></span></ng-template>
+            <div><strong>{{ cards[0]?.tag }}</strong><span>{{ merged('name') }}</span></div>
+          </div>
+          <dl class="mc-fields mc-fields--result">
+            <ng-container *ngFor="let f of mergeFields">
+              <dt>{{ f.label }}</dt>
+              <dd>
+                <span *ngIf="f.key === 'status' && merged('status') !== '-'; else resultVal" class="status" [ngClass]="'status--' + (merged('status') === 'Active' ? 'good' : merged('status') === 'Disposed' ? 'bad' : 'warn')"><span class="dot"></span>{{ merged('status') }}</span>
+                <ng-template #resultVal><span class="val">{{ merged(f.key) }}</span></ng-template>
+              </dd>
+            </ng-container>
+            <dt>Related Duplicates</dt><dd><span class="val">{{ mergeCount }} asset{{ mergeCount === 1 ? '' : 's' }} will be merged</span></dd>
+            <dt>Merge Reason</dt><dd><span class="val">Duplicate records</span></dd>
+            <dt>Merged By</dt><dd><span class="val">Rex Kumar</span></dd>
+            <dt>Merge Date</dt><dd><span class="val">{{ nowLabel }}</span></dd>
+          </dl>
+        </article>
+      </div>
+
+      <div class="merge-foot">
+        <label class="notes">
+          <span class="field-label">Merge Notes (Optional)</span>
+          <textarea class="control" rows="2" maxlength="500" [(ngModel)]="notes" placeholder="Enter reason or comments for merging these assets..."></textarea>
+          <small class="counter">{{ notes.length }}/500</small>
+        </label>
+        <button type="button" class="btn btn-outline btn-lg" (click)="cancelMerge()">Cancel</button>
+        <button type="button" class="btn btn-primary btn-lg" [disabled]="mergeCount < 1" (click)="askMerge()"><lucide-icon [img]="icons.GitMerge" [size]="17"></lucide-icon>Merge Assets</button>
+      </div>
+    </ng-container>
+
+    <div *ngIf="mergeLog.length" class="log">
+      <h3>Recently Merged</h3>
+      <ul>
+        <li *ngFor="let m of mergeLog.slice(0, 5)">
+          <strong>{{ m.merged.join(', ') }}</strong> merged into <strong>{{ m.primary }}</strong>
+          <span class="muted">· {{ m.at | date: 'dd MMM yyyy, HH:mm' }} by {{ m.by }}{{ m.notes ? ' · ' + m.notes : '' }}</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+</section>
+
+<!-- ===== Confirm merge ===== -->
+<div *ngIf="confirmOpen" class="overlay" (click)="confirmOpen = false">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mg-confirm-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="mg-confirm-title">Merge {{ mergeCount }} record{{ mergeCount === 1 ? '' : 's' }} into {{ cards[0]?.tag }}?</h2>
+      <button type="button" class="icon-btn" (click)="confirmOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <p><strong>{{ cards[0]?.tag }}</strong> is kept with the values shown in the merged result. These records are removed:</p>
+      <ul><li *ngFor="let r of cards.slice(1)">{{ r.tag }} · {{ r.name }} <span class="muted">({{ r.source }})</span></li></ul>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="confirmOpen = false">Cancel</button>
+      <button type="button" class="btn btn-primary" (click)="merge()">Merge Assets</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Rules ===== -->
+<div *ngIf="rulesForm as f" class="overlay" (click)="rulesForm = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mg-rules-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="mg-rules-title">Deduplication Rules</h2>
+      <button type="button" class="icon-btn" (click)="rulesForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="saveRules()">
+      <div class="field"><span class="field-label">Matching Fields</span>
+        <div class="checks">
+          <label *ngFor="let m of matchFields" class="chip-check">
+            <input type="checkbox" [checked]="f.fields.includes(m.key)" (change)="toggleRuleField(m.key, $any($event.target).checked)" />{{ m.label }}
+          </label>
+        </div>
+        <small class="muted">Serial numbers must match exactly; a missing serial number counts as half a match.</small>
+      </div>
+      <div class="grid-3">
+        <label class="field"><span class="field-label">High (%)</span><input type="number" class="control" [(ngModel)]="f.high" name="high" min="2" max="100" /></label>
+        <label class="field"><span class="field-label">Medium (%)</span><input type="number" class="control" [(ngModel)]="f.medium" name="medium" min="2" max="99" /></label>
+        <label class="field"><span class="field-label">Low (%)</span><input type="number" class="control" [(ngModel)]="f.low" name="low" min="1" max="98" /></label>
+      </div>
+      <label class="check-row"><input type="checkbox" [(ngModel)]="f.includeInactive" name="includeInactive" />Include inactive (disposed) assets</label>
+      <p *ngIf="rulesError" class="form-error" role="alert">{{ rulesError }}</p>
+      <div class="modal-foot modal-foot--form">
+        <button type="button" class="btn btn-outline" (click)="rulesForm = null">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save &amp; Rescan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

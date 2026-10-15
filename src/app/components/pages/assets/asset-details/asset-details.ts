@@ -37,6 +37,8 @@ export interface AssetDocument {
   coverTitle: string;
   coverSubtitle: string;
   showAssetImage: boolean;
+  /** Asset the document belongs to; set when loaded, so documents of several assets can be listed together. */
+  assetTag?: string;
 }
 
 // ===== Images =====
@@ -68,6 +70,10 @@ export interface AssetImage {
   src: string;
   file?: File;
   history: ImageEvent[];
+  /** Asset the image belongs to; set when loaded, so images of several assets can be listed together. */
+  assetTag?: string;
+  /** Upload the image came in with; images uploaded together share it. */
+  batch?: string;
 }
 
 // ===== Status & condition =====

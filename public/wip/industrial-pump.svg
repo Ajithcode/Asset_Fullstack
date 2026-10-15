@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="Industrial pump with motor">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f5f9"/><stop offset="1" stop-color="#dbe3ec"/></linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b6fd8"/><stop offset="1" stop-color="#1e3f8f"/></linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#bg)"/>
+  <path d="M40 232 L360 232 L380 252 L60 252 Z" fill="#475569"/>
+  <rect x="40" y="222" width="320" height="12" fill="#64748b"/>
+  <rect x="200" y="120" width="140" height="96" rx="12" fill="url(#blue)"/>
+  <g fill="#2a55b8">
+    <rect x="212" y="126" width="6" height="84"/><rect x="226" y="126" width="6" height="84"/><rect x="240" y="126" width="6" height="84"/>
+    <rect x="254" y="126" width="6" height="84"/><rect x="268" y="126" width="6" height="84"/><rect x="282" y="126" width="6" height="84"/>
+    <rect x="296" y="126" width="6" height="84"/><rect x="310" y="126" width="6" height="84"/>
+  </g>
+  <rect x="330" y="132" width="22" height="72" rx="8" fill="#1e3f8f"/>
+  <rect x="246" y="104" width="44" height="20" rx="3" fill="#1e3f8f"/>
+  <rect x="160" y="150" width="44" height="36" fill="#94a3b8"/>
+  <rect x="166" y="144" width="32" height="48" rx="4" fill="#cbd5e1" opacity="0.6"/>
+  <circle cx="110" cy="168" r="52" fill="url(#blue)"/>
+  <circle cx="110" cy="168" r="30" fill="#2a55b8"/>
+  <circle cx="110" cy="168" r="10" fill="#0f2a6b"/>
+  <rect x="94" y="86" width="32" height="38" fill="url(#blue)"/>
+  <rect x="84" y="78" width="52" height="12" rx="2" fill="#1e3f8f"/>
+  <rect x="34" y="152" width="30" height="32" fill="url(#blue)"/>
+  <rect x="26" y="146" width="12" height="44" rx="2" fill="#1e3f8f"/>
+  <rect x="80" y="214" width="60" height="10" fill="#1e3f8f"/>
+  <rect x="210" y="214" width="120" height="10" fill="#1e3f8f"/>
+</svg>

@@ -206,6 +206,7 @@ export class AssetCriticality implements OnDestroy {
   // ===== Loading =====
 
   private load(tag: string | null): void {
+    tag ??= ASSET_RECORDS[0].tag; // opened from the menu without an asset: show the first one
     const record = findAsset(tag);
     this.requestedTag = tag ?? '';
     this.notFound = !record;

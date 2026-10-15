@@ -32,6 +32,10 @@ export interface AssetRecord {
   icon: AssetIconKey;
   /** Photo shown in the detail page headers. */
   image: string;
+  /** Set for assets imported through Bulk Import / Export. */
+  serialNumber?: string;
+  /** ISO date (yyyy-mm-dd). */
+  purchaseDate?: string;
 }
 
 /** What the asset detail pages show in their header. */

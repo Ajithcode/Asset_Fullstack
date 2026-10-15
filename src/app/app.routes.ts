@@ -12,11 +12,16 @@ import { AssetHierarchy } from './components/pages/assets/asset-hierarchy/asset-
 import { AssetComponents } from './components/pages/assets/asset-components/asset-components';
 import { AssetCustomFields } from './components/pages/assets/asset-custom-fields/asset-custom-fields';
 import { AssetRelationship } from './components/pages/assets/asset-relationship/asset-relationship';
+import { AssetRelationshipList } from './components/pages/assets/asset-relationship-list/asset-relationship-list';
 import { AssetDocuments } from './components/pages/assets/asset-documents/asset-documents';
 import { AssetImages } from './components/pages/assets/asset-images/asset-images';
 import { AssetStatusCondition } from './components/pages/assets/asset-status-condition/asset-status-condition';
 import { AssetCriticality } from './components/pages/assets/asset-criticality/asset-criticality';
 import { AssetHealthScore } from './components/pages/assets/asset-health-score/asset-health-score';
+import { AssetBulk } from './components/pages/assets/asset-bulk/asset-bulk';
+import { AssetMerge } from './components/pages/assets/asset-merge/asset-merge';
+import { JobTemplates } from './components/pages/wip-operations/job-templates/job-templates';
+import { JobOrders } from './components/pages/wip-operations/job-orders/job-orders';
 import { Events } from './components/pages/events/events/events';
 import { Reports } from './components/pages/reports/reports/reports';
 import { CreateReport } from './components/pages/reports/create-report/create-report';
@@ -171,6 +176,8 @@ export const routes: Routes = [
       { path: 'assets', redirectTo: 'assets/list', pathMatch: 'full' },
       // Asset detail tabs take the asset as ?tag=, e.g. /assets/relationships?tag=GEN-00045
       { path: 'assets/relationships', component: AssetRelationship },
+      // Menu page: relationships users create between a main asset and a sub asset
+      { path: 'assets/asset-relationships', component: AssetRelationshipList },
       { path: 'assets/registration', component: AssetRegistration },
       { path: 'assets/list', component: AssetList },
       { path: 'assets/categories', component: AssetCategories },
@@ -186,17 +193,31 @@ export const routes: Routes = [
       { path: 'assets/custom-fields', component: AssetCustomFields },
       { path: 'assets/lifecycle', component: AssetLifecycle },
       { path: 'assets/documents', component: AssetDocuments },
+      // Menu page: documents of every asset, uploaded to one or more assets at a time
+      { path: 'assets/all-documents', component: AssetDocuments, data: { allAssets: true } },
       { path: 'assets/images', component: AssetImages },
+      // Menu page: images of every asset, uploaded to one or more assets at a time
+      { path: 'assets/all-images', component: AssetImages, data: { allAssets: true } },
       { path: 'assets/status-condition', component: AssetStatusCondition },
       { path: 'assets/criticality', component: AssetCriticality },
       { path: 'assets/health-score', component: AssetHealthScore },
+      { path: 'assets/bulk-import-export', component: AssetBulk },
+      { path: 'assets/merge-dedup', component: AssetMerge },
       { path: 'tracking-iot', component: ModulePlaceholder, data: { title: 'Tracking & IoT' } },
       { path: 'tracking-iot/real-time-location', loadChildren: remoteRoutes('locating') },
       { path: 'movement-custody', component: ModulePlaceholder, data: { title: 'Movement & Custody' } },
       { path: 'maintenance', component: ModulePlaceholder, data: { title: 'Maintenance' } },
       { path: 'inspection', component: ModulePlaceholder, data: { title: 'Inspection' } },
       { path: 'inventory', component: ModulePlaceholder, data: { title: 'Inventory' } },
-      { path: 'wip-operations', component: ModulePlaceholder, data: { title: 'WIP / Operations' } },
+      { path: 'wip-operations', redirectTo: 'wip-operations/job-templates', pathMatch: 'full' },
+      // Opens one template; ?code=JT-00042 picks which
+      { path: 'wip-operations/job-templates', component: JobTemplates },
+      // Opens one job order; ?code=JO-2026-00438 picks which
+      { path: 'wip-operations/job-orders', component: JobOrders },
+      { path: 'wip-operations/process-routing', component: ModulePlaceholder, data: { title: 'Process & Routing' } },
+      { path: 'wip-operations/resources', component: ModulePlaceholder, data: { title: 'Resources' } },
+      { path: 'wip-operations/progress-output', component: ModulePlaceholder, data: { title: 'Progress & Output' } },
+      { path: 'wip-operations/issues-delays', component: ModulePlaceholder, data: { title: 'Issues & Delays' } },
       { path: 'audit-compliance', component: ModulePlaceholder, data: { title: 'Audit & Compliance' } },
       { path: 'contracts-warranty', component: ModulePlaceholder, data: { title: 'Contracts & Warranty' } },
       { path: 'financial', component: ModulePlaceholder, data: { title: 'Financial' } },

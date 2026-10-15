@@ -43,13 +43,15 @@ import {
   findAsset,
   statusPill,
 } from '../asset-data';
-import { AssetDocument, DocVersion, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
+import { AssetDetail, AssetDocument, DocVersion, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
 
 type DocStatus = 'Active' | 'Expired' | 'Draft';
 type ViewMode = 'list' | 'grid';
 
 interface UploadForm {
   mode: 'new' | 'version';
+  /** Assets that receive a new document (each gets its own copy). */
+  assets: string[];
   /** Document receiving a new version (mode 'version'). */
   docId: number | null;
   file: File | null;
@@ -98,13 +100,42 @@ const STAGE_TONES: Record<string, string> = {
 
 const MB = 1024 * 1024;
 
+/** One asset's documents, kept in memory so its Documents tab and the all-assets page show the same list (DEMO MODE). */
+interface DocStore {
+  docs: AssetDocument[];
+  previewId: number | null;
+}
+
+const DOC_STORE = new Map<string, DocStore>();
+/** Document ids are unique across assets so documents of several assets can be listed together. */
+let nextDocId = 1;
+
+/** The stored documents of an asset, created from its data file the first time. */
+function storeFor(tag: string, detail: AssetDetail | null): DocStore {
+  let store = DOC_STORE.get(tag);
+  if (!store) {
+    const docs = detail ? cloneDetail(detail.documents) : [];
+    let previewId: number | null = null;
+    for (const d of docs) {
+      const id = nextDocId++;
+      if (d.id === detail?.previewDocumentId) previewId = id;
+      d.id = id;
+      d.assetTag = tag;
+    }
+    store = { docs, previewId: previewId ?? docs[0]?.id ?? null };
+    // A failed download is not stored, so a later visit tries again
+    if (detail) DOC_STORE.set(tag, store);
+  }
+  return store;
+}
+
 @Component({
   selector: 'app-asset-documents',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './asset-documents.html',
   // Split to keep each stylesheet under the anyComponentStyle budget
-  styleUrls: ['./asset-documents.css', './asset-documents-preview.css'],
+  styleUrls: ['./asset-documents.css', './asset-documents-preview.css', './asset-documents-all.css'],
 })
 export class AssetDocuments implements OnDestroy {
   readonly icons = {
@@ -138,7 +169,14 @@ export class AssetDocuments implements OnDestroy {
   readonly pageSizes = [10, 20, 50];
 
   documents: AssetDocument[] = [];
-  private nextId = 1;
+
+  /** Asset Documents menu page: documents of every asset, with their asset name and ID. */
+  allAssets = false;
+  readonly assetOptions = ASSET_RECORDS;
+  assetFilter = '';
+  /** Asset dropdown in the upload dialog. */
+  assetPickerOpen = false;
+  assetPickerSearch = '';
 
   // ===== Filters, view, paging, selection =====
   search = '';
@@ -183,13 +221,38 @@ export class AssetDocuments implements OnDestroy {
   private readonly today = toIsoDate(new Date());
 
   constructor(private readonly sanitizer: DomSanitizer) {
-    inject(ActivatedRoute)
-      .queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef)))
-      .subscribe((params) => this.load(params.get('tag')));
+    const route = inject(ActivatedRoute);
+    this.allAssets = route.snapshot.data['allAssets'] === true;
+    if (this.allAssets) {
+      this.loadAll();
+      return;
+    }
+    route.queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe((params) => this.load(params.get('tag')));
+  }
+
+  /** Lists the documents of every asset in the register. */
+  private loadAll(): void {
+    this.reset();
+    this.loading = true;
+    Promise.all(ASSET_RECORDS.map((a) => loadAssetDetail(a.tag).then((d) => storeFor(a.tag, d)))).then((stores) => {
+      this.loading = false;
+      this.documents = stores.flatMap((s) => s.docs);
+      this.previewId = stores.find((s) => s.previewId !== null)?.previewId ?? null;
+      this.refreshFileUrl();
+    });
+  }
+
+  /** Writes uploads and deletes back to each asset's stored documents. */
+  private persist(): void {
+    for (const tag of this.allAssets ? ASSET_RECORDS.map((a) => a.tag) : [this.asset.tag]) {
+      const store = DOC_STORE.get(tag);
+      if (store) store.docs = this.documents.filter((d) => d.assetTag === tag);
+    }
   }
 
   /** Shows the asset named in the URL, with the documents from its data file. */
   private load(tag: string | null): void {
+    tag ??= ASSET_RECORDS[0].tag; // opened from the menu without an asset: show the first one
     const record = findAsset(tag);
     this.requestedTag = tag ?? '';
     this.notFound = !record;
@@ -203,9 +266,9 @@ export class AssetDocuments implements OnDestroy {
     loadAssetDetail(record.tag).then((detail) => {
       if (this.requestedTag !== record.tag) return; // the user moved on to another asset
       this.loading = false;
-      this.documents = detail ? cloneDetail(detail.documents) : [];
-      this.nextId = Math.max(0, ...this.documents.map((d) => d.id)) + 1;
-      this.previewId = detail?.previewDocumentId ?? this.documents[0]?.id ?? null;
+      const store = storeFor(record.tag, detail);
+      this.documents = store.docs;
+      this.previewId = store.previewId;
       this.refreshFileUrl();
     });
   }
@@ -228,6 +291,15 @@ export class AssetDocuments implements OnDestroy {
   }
 
   // ===== Lookups =====
+
+  assetName(doc: AssetDocument): string {
+    return findAsset(doc.assetTag)?.name ?? '-';
+  }
+
+  /** Picture for the mock-up pages of a sample manual: the photo of the document's asset. */
+  imageFor(doc: AssetDocument): string {
+    return findAsset(doc.assetTag)?.image ?? this.sampleImage;
+  }
 
   current(doc: AssetDocument): DocVersion | undefined {
     return doc.versions[doc.versions.length - 1];
@@ -255,11 +327,13 @@ export class AssetDocuments implements OnDestroy {
     const q = this.search.trim().toLowerCase();
     return this.documents.filter(
       (d) =>
+        (!this.assetFilter || d.assetTag === this.assetFilter) &&
         (!this.typeFilter || d.type === this.typeFilter) &&
         (!this.stageFilter || d.stage === this.stageFilter) &&
         (!this.statusFilter || this.statusOf(d) === this.statusFilter) &&
         (!q ||
-          [d.name, d.type, d.stage, this.current(d)?.uploadedBy ?? '', ...d.tags].some((v) => v.toLowerCase().includes(q))),
+          [d.name, d.type, d.stage, this.current(d)?.uploadedBy ?? '', d.assetTag ?? '', this.allAssets ? this.assetName(d) : '', ...d.tags]
+            .some((v) => v.toLowerCase().includes(q))),
     );
   }
 
@@ -302,11 +376,11 @@ export class AssetDocuments implements OnDestroy {
   }
 
   get hasFilters(): boolean {
-    return !!(this.search || this.typeFilter || this.stageFilter || this.statusFilter);
+    return !!(this.search || this.assetFilter || this.typeFilter || this.stageFilter || this.statusFilter);
   }
 
   clearFilters(): void {
-    this.search = this.typeFilter = this.stageFilter = this.statusFilter = '';
+    this.search = this.assetFilter = this.typeFilter = this.stageFilter = this.statusFilter = '';
     this.page = 1;
   }
 
@@ -361,7 +435,7 @@ export class AssetDocuments implements OnDestroy {
 
   @HostListener('document:click')
   closeMenus(): void {
-    this.actionsOpen = this.bulkOpen = this.viewerMenuOpen = false;
+    this.actionsOpen = this.bulkOpen = this.viewerMenuOpen = this.assetPickerOpen = false;
     this.rowMenuId = null;
   }
 
@@ -515,14 +589,14 @@ export class AssetDocuments implements OnDestroy {
 
   exportCsv(): void {
     this.closeMenus();
-    const head = ['#', 'Document Name', 'Document Type', 'Lifecycle Stage', 'Version', 'Upload Date', 'Uploaded By', 'Expiry Date', 'Status', 'Description', 'Tags'];
+    const head = ['#', 'Document Name', ...(this.allAssets ? ['Asset Name', 'Asset ID'] : []), 'Document Type', 'Lifecycle Stage', 'Version', 'Upload Date', 'Uploaded By', 'Expiry Date', 'Status', 'Description', 'Tags'];
     const rows = this.filtered.map((d, i) => {
       const v = this.current(d);
-      return [i + 1, d.name, d.type, d.stage, v?.version ?? '-', v?.uploadedAt.slice(0, 10) ?? '-', v?.uploadedBy ?? '-',
+      return [i + 1, d.name, ...(this.allAssets ? [this.assetName(d), d.assetTag ?? ''] : []), d.type, d.stage, v?.version ?? '-', v?.uploadedAt.slice(0, 10) ?? '-', v?.uploadedBy ?? '-',
         d.expiryDate || '-', this.statusOf(d), d.description, d.tags.join('; ')];
     });
     const csv = [head, ...rows].map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    saveBlob(new Blob([csv], { type: 'text/csv' }), `${this.asset.tag}-documents.csv`);
+    saveBlob(new Blob([csv], { type: 'text/csv' }), this.allAssets ? 'asset-documents.csv' : `${this.asset.tag}-documents.csv`);
   }
 
   print(): void {
@@ -537,14 +611,53 @@ export class AssetDocuments implements OnDestroy {
     this.uploadError = '';
     this.upload = doc
       ? {
-          mode: 'version', docId: doc.id, file: null, name: doc.name, type: doc.type, stage: doc.stage,
+          mode: 'version', assets: [], docId: doc.id, file: null, name: doc.name, type: doc.type, stage: doc.stage,
           version: nextVersion(this.current(doc)?.version), expiryDate: doc.expiryDate, draft: false,
           description: doc.description, tags: doc.tags.join(', '), note: '',
         }
       : {
-          mode: 'new', docId: null, file: null, name: '', type: '', stage: '', version: '1.0', expiryDate: '',
+          mode: 'new', assets: this.allAssets ? [] : [this.asset.tag], docId: null, file: null, name: '', type: '', stage: '', version: '1.0', expiryDate: '',
           draft: false, description: '', tags: '', note: '',
         };
+  }
+
+  // Asset dropdown (all-assets page): pick one or more assets by name or ID
+
+  toggleAssetPicker(event: Event): void {
+    event.stopPropagation();
+    this.assetPickerOpen = !this.assetPickerOpen;
+    this.assetPickerSearch = '';
+  }
+
+  get pickerAssets(): typeof ASSET_RECORDS {
+    const q = this.assetPickerSearch.trim().toLowerCase();
+    return q ? ASSET_RECORDS.filter((a) => a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q)) : ASSET_RECORDS;
+  }
+
+  toggleUploadAsset(tag: string): void {
+    const u = this.upload;
+    if (!u) return;
+    u.assets = u.assets.includes(tag) ? u.assets.filter((t) => t !== tag) : [...u.assets, tag];
+  }
+
+  get allPickerAssetsChosen(): boolean {
+    const u = this.upload;
+    return !!u && this.pickerAssets.length > 0 && this.pickerAssets.every((a) => u.assets.includes(a.tag));
+  }
+
+  toggleAllUploadAssets(on: boolean): void {
+    const u = this.upload;
+    if (!u) return;
+    const tags = this.pickerAssets.map((a) => a.tag);
+    u.assets = on ? [...new Set([...u.assets, ...tags])] : u.assets.filter((t) => !tags.includes(t));
+  }
+
+  /** Summary shown on the closed dropdown. */
+  get uploadAssetsLabel(): string {
+    const tags = this.upload?.assets ?? [];
+    if (!tags.length) return 'Select assets';
+    if (tags.length === 1) return `${findAsset(tags[0])?.name} (${tags[0]})`;
+    return `${tags.length} assets selected`;
   }
 
   onUploadFile(event: Event): void {
@@ -583,6 +696,10 @@ export class AssetDocuments implements OnDestroy {
       this.uploadError = 'Choose a file to upload.';
       return;
     }
+    if (u.mode === 'new' && !u.assets.length) {
+      this.uploadError = 'Select at least one asset.';
+      return;
+    }
     if (u.mode === 'new' && (!u.name.trim() || !u.type || !u.stage)) {
       this.uploadError = 'Enter the document name, type and lifecycle stage.';
       return;
@@ -612,8 +729,10 @@ export class AssetDocuments implements OnDestroy {
       return;
     }
 
-    const doc: AssetDocument = {
-      id: this.nextId++,
+    // One document per selected asset; they share the uploaded file
+    const created: AssetDocument[] = u.assets.map((assetTag) => ({
+      id: nextDocId++,
+      assetTag,
       name: u.name.trim(),
       type: u.type,
       stage: u.stage,
@@ -621,19 +740,20 @@ export class AssetDocuments implements OnDestroy {
       tags: splitTags(u.tags),
       expiryDate: u.expiryDate,
       draft: u.draft,
-      versions: [version],
+      versions: [{ ...version }],
       pages: 1,
       issuer: '',
       coverTitle: '',
       coverSubtitle: '',
       showAssetImage: false,
-    };
-    this.documents = [...this.documents, doc];
+    }));
+    this.documents = [...this.documents, ...created];
+    this.persist();
     this.upload = null;
     this.clearFilters();
     this.page = this.pageCount;
-    this.openPreview(doc);
-    this.showToast(`${doc.name} uploaded.`);
+    this.openPreview(created[0]);
+    this.showToast(created.length === 1 ? `${created[0].name} uploaded.` : `${created[0].name} uploaded to ${created.length} assets.`);
   }
 
   // ===== Edit details =====
@@ -707,6 +827,7 @@ export class AssetDocuments implements OnDestroy {
   confirmDelete(): void {
     const ids = new Set(this.deleteIds ?? []);
     this.documents = this.documents.filter((d) => !ids.has(d.id));
+    this.persist();
     ids.forEach((id) => this.checked.delete(id));
     if (this.previewId !== null && ids.has(this.previewId)) {
       this.previewId = this.documents[0]?.id ?? null;

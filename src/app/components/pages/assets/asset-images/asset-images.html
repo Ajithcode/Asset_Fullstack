@@ -3,10 +3,12 @@
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a routerLink="/assets/list">Assets</a>
     <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
-    <a routerLink="/assets/list">Asset List</a>
-    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
-    <span>{{ asset.tag }}</span>
-    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <ng-container *ngIf="!allAssets">
+      <a routerLink="/assets/list">Asset List</a>
+      <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+      <span>{{ asset.tag }}</span>
+      <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    </ng-container>
     <span class="breadcrumb-current">Asset Images</span>
   </nav>
 
@@ -19,6 +21,7 @@
   </div>
 
   <ng-container *ngIf="!notFound">
+  <ng-container *ngIf="!allAssets">
   <!-- Asset header -->
   <div class="card asset-head">
     <img *ngIf="headerImage; else headerIcon" class="asset-img" [src]="headerImage" [alt]="asset.name" />
@@ -59,6 +62,7 @@
       </ng-template>
     </ng-container>
   </nav>
+  </ng-container>
 
   <!-- Hidden picker used by "Replace Image" -->
   <input #replaceInput type="file" accept="image/*" hidden (change)="onReplaceFile($event)" />
@@ -70,7 +74,7 @@
         <span class="icon-tile"><lucide-icon [img]="icons.ImageIcon" [size]="20"></lucide-icon></span>
         <div class="grow">
           <h2>Asset Images ({{ images.length }})</h2>
-          <p>Manage and view all images related to this asset.</p>
+          <p>{{ allAssets ? 'Manage and view images for all assets.' : 'Manage and view all images related to this asset.' }}</p>
         </div>
         <button type="button" class="btn btn-primary btn-tall" (click)="openUpload()">
           <lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>
@@ -101,6 +105,10 @@
           <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
           <input type="search" placeholder="Search images..." aria-label="Search images" [(ngModel)]="search" (ngModelChange)="onFilterChange()" />
         </label>
+        <select *ngIf="allAssets" class="control control--sm" aria-label="Asset" [(ngModel)]="assetFilter" (ngModelChange)="onFilterChange()">
+          <option value="">All Assets</option>
+          <option *ngFor="let a of assetOptions" [value]="a.tag">{{ a.name }} ({{ a.tag }})</option>
+        </select>
         <select class="control control--sm" aria-label="Image type" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()">
           <option value="">All Image Types</option>
           <option *ngFor="let t of imageTypes" [value]="t">{{ t }}</option>
@@ -135,7 +143,7 @@
         <article *ngFor="let img of pageItems" class="img-card" [class.is-selected]="previewOpen && img.id === previewId">
           <button type="button" class="img-thumb" [attr.aria-label]="'Preview ' + img.title" (click)="openPreview(img)" (dblclick)="openLightbox(img)">
             <img [src]="img.src" [alt]="img.title" loading="lazy" />
-            <span *ngIf="img.id === headerImageId" class="photo-badge" title="Asset photo">
+            <span *ngIf="isAssetPhoto(img)" class="photo-badge" title="Asset photo">
               <lucide-icon [img]="icons.Star" [size]="12"></lucide-icon>
             </span>
           </button>
@@ -152,6 +160,7 @@
               <ng-container *ngTemplateOutlet="imageMenu; context: { $implicit: img }"></ng-container>
             </div>
           </div>
+          <a *ngIf="allAssets" class="tile-asset asset-link card-asset" routerLink="/assets/images" [queryParams]="{ tag: img.assetTag }">{{ assetName(img) }} · {{ img.assetTag }}</a>
         </article>
         <p *ngIf="!pageItems.length" class="empty-line">{{ loading ? 'Loading images…' : 'No images match the current filters.' }}</p>
       </div>
@@ -166,6 +175,7 @@
                   [indeterminate]="somePageChecked" (change)="toggleAll($any($event.target).checked)" />
               </th>
               <th class="col-num">#</th>
+              <ng-container *ngIf="allAssets"><th>Asset Name</th><th>Asset ID</th></ng-container>
               <th>Image</th>
               <th>Image Type</th>
               <th>Tags</th>
@@ -176,12 +186,73 @@
             </tr>
           </thead>
           <tbody>
+            <!-- All assets: one row per upload -->
+            <ng-container *ngIf="listGrouped">
+            <tr *ngFor="let g of pageGroups; let i = index" [class.is-selected]="isGroupSelected(g)"
+              (click)="openPreview(g.images[0])">
+              <td class="col-check" (click)="$event.stopPropagation()">
+                <input type="checkbox" [attr.aria-label]="'Select ' + g.images.length + ' image(s) of ' + g.images[0].assetTag"
+                  [checked]="groupChecked(g)" [indeterminate]="groupPartlyChecked(g)" (change)="toggleGroup(g, $any($event.target).checked)" />
+              </td>
+              <td class="col-num">{{ rowNumber(i) }}</td>
+              <td (click)="$event.stopPropagation()"><a class="asset-link" routerLink="/assets/images" [queryParams]="{ tag: g.images[0].assetTag }" [title]="'Open ' + g.images[0].assetTag">{{ assetName(g.images[0]) }}</a></td>
+              <td class="nowrap">{{ g.images[0].assetTag }}</td>
+              <td>
+                <span class="row-image">
+                  <button *ngIf="g.images.length > 1; else singleThumb" type="button" class="stack-thumb"
+                    [attr.aria-label]="'View all ' + g.images.length + ' images'" (click)="$event.stopPropagation(); openGallery(g)">
+                    <img [src]="g.images[0].src" alt="" loading="lazy" />
+                    <span class="stack-count">{{ g.images.length }}</span>
+                  </button>
+                  <ng-template #singleThumb><img [src]="g.images[0].src" alt="" loading="lazy" /></ng-template>
+                  <span>
+                    {{ g.images[0].title }}
+                    <small *ngIf="g.images.length > 1" class="stack-more">+ {{ g.images.length - 1 }} more</small>
+                  </span>
+                </span>
+              </td>
+              <td><span class="tag-list"><span class="type-tag" *ngFor="let t of distinct(g, typeOf)">{{ t }}</span></span></td>
+              <td>
+                <span class="tag-list">
+                  <span class="tag" *ngFor="let t of distinct(g, tagsOf).slice(0, 4)">{{ t }}</span>
+                  <span class="tag" *ngIf="distinct(g, tagsOf).length > 4">+{{ distinct(g, tagsOf).length - 4 }}</span>
+                </span>
+              </td>
+              <td>{{ g.images[0].uploadedBy }}</td>
+              <td class="nowrap">{{ g.images[0].uploadedAt | date: 'dd MMM yyyy' }}</td>
+              <td class="nowrap">{{ formatSize(groupSize(g)) }}</td>
+              <td class="col-actions" (click)="$event.stopPropagation()">
+                <div class="menu-wrap">
+                  <button type="button" class="icon-btn" [attr.aria-label]="'Actions for ' + g.images[0].title" aria-haspopup="menu"
+                    [attr.aria-expanded]="menuId === g.images[0].id" (click)="toggleMenu($event, g.images[0].id)">
+                    <lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon>
+                  </button>
+                  <ng-container *ngIf="g.images.length === 1; else groupMenu">
+                    <ng-container *ngTemplateOutlet="imageMenu; context: { $implicit: g.images[0] }"></ng-container>
+                  </ng-container>
+                  <ng-template #groupMenu>
+                    <div *ngIf="menuId === g.images[0].id" class="menu" role="menu" (click)="$event.stopPropagation()">
+                      <button type="button" role="menuitem" (click)="openGallery(g)"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>View {{ g.images.length }} Images</button>
+                      <button type="button" role="menuitem" (click)="downloadGroup(g)"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Download All</button>
+                      <hr />
+                      <button type="button" role="menuitem" class="danger" (click)="closeMenus(); askDelete(groupIds(g))"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete All</button>
+                    </div>
+                  </ng-template>
+                </div>
+              </td>
+            </tr>
+            </ng-container>
+            <ng-container *ngIf="!listGrouped">
             <tr *ngFor="let img of pageItems; let i = index" [class.is-selected]="previewOpen && img.id === previewId" (click)="openPreview(img)">
               <td class="col-check" (click)="$event.stopPropagation()">
                 <input type="checkbox" [attr.aria-label]="'Select ' + img.title" [checked]="checked.has(img.id)"
                   (change)="toggleChecked(img.id, $any($event.target).checked)" />
               </td>
               <td class="col-num">{{ rowNumber(i) }}</td>
+              <ng-container *ngIf="allAssets">
+                <td (click)="$event.stopPropagation()"><a class="asset-link" routerLink="/assets/images" [queryParams]="{ tag: img.assetTag }" [title]="'Open ' + img.assetTag">{{ assetName(img) }}</a></td>
+                <td class="nowrap">{{ img.assetTag }}</td>
+              </ng-container>
               <td>
                 <span class="row-image">
                   <img [src]="img.src" alt="" loading="lazy" />
@@ -203,8 +274,9 @@
                 </div>
               </td>
             </tr>
+            </ng-container>
             <tr *ngIf="!pageItems.length" class="empty-row">
-              <td colspan="9">{{ loading ? 'Loading images…' : 'No images match the current filters.' }}</td>
+              <td [attr.colspan]="allAssets ? 11 : 9">{{ loading ? 'Loading images…' : 'No images match the current filters.' }}</td>
             </tr>
           </tbody>
         </table>
@@ -263,6 +335,10 @@
         </button>
       </div>
       <dl class="details">
+        <ng-container *ngIf="allAssets">
+          <dt>Asset Name</dt><dd><a class="asset-link" routerLink="/assets/images" [queryParams]="{ tag: img.assetTag }">{{ assetName(img) }}</a></dd>
+          <dt>Asset ID</dt><dd>{{ img.assetTag }}</dd>
+        </ng-container>
         <dt>Image Name</dt><dd>{{ img.title }}</dd>
         <dt>Description</dt><dd>{{ img.description || '-' }}</dd>
         <dt>Image Type</dt><dd><span class="type-tag">{{ img.type }}</span></dd>
@@ -302,8 +378,8 @@
       <button type="button" role="menuitem" (click)="download(img)"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Download</button>
       <button type="button" role="menuitem" (click)="openEdit(img)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Details</button>
       <button type="button" role="menuitem" (click)="startReplace(img, replaceInput)"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Replace Image</button>
-      <button type="button" role="menuitem" [disabled]="img.id === headerImageId" (click)="setAsAssetPhoto(img)">
-        <lucide-icon [img]="icons.Star" [size]="15"></lucide-icon>{{ img.id === headerImageId ? 'Current Asset Photo' : 'Set as Asset Photo' }}
+      <button type="button" role="menuitem" [disabled]="isAssetPhoto(img)" (click)="setAsAssetPhoto(img)">
+        <lucide-icon [img]="icons.Star" [size]="15"></lucide-icon>{{ isAssetPhoto(img) ? 'Current Asset Photo' : 'Set as Asset Photo' }}
       </button>
       <button type="button" role="menuitem" (click)="openHistory(img)"><lucide-icon [img]="icons.History" [size]="15"></lucide-icon>View History</button>
       <hr />
@@ -331,6 +407,37 @@
   <button type="button" class="lightbox-nav lightbox-nav--next" aria-label="Next image" (click)="$event.stopPropagation(); step(1)">
     <lucide-icon [img]="icons.ChevronRight" [size]="26"></lucide-icon>
   </button>
+</div>
+
+<!-- Gallery: the images of one upload -->
+<div *ngIf="gallery && galleryImage as img" class="overlay" (click)="gallery = null">
+  <div class="modal modal--lg gallery" role="dialog" aria-modal="true" aria-labelledby="img-gallery-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="img-gallery-title">{{ assetName(img) }} · {{ img.assetTag }} <small>{{ galleryIndex + 1 }} / {{ gallery.length }}</small></h2>
+      <button type="button" class="icon-btn" (click)="gallery = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="gallery-stage">
+      <img [src]="img.src" [alt]="img.title" />
+      <button *ngIf="gallery.length > 1" type="button" class="gallery-nav gallery-nav--prev" aria-label="Previous image" (click)="galleryStep(-1)">
+        <lucide-icon [img]="icons.ChevronLeft" [size]="24"></lucide-icon>
+      </button>
+      <button *ngIf="gallery.length > 1" type="button" class="gallery-nav gallery-nav--next" aria-label="Next image" (click)="galleryStep(1)">
+        <lucide-icon [img]="icons.ChevronRight" [size]="24"></lucide-icon>
+      </button>
+    </div>
+    <div class="gallery-info">
+      <span class="grow"><strong>{{ img.title }}</strong> <span class="type-tag">{{ img.type }}</span>
+        <small>{{ img.uploadedAt | date: 'dd MMM yyyy, HH:mm' }} · {{ formatSize(img.size) }}</small></span>
+      <button type="button" class="btn btn-outline btn-sm" (click)="download(img)"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Download</button>
+      <button type="button" class="btn btn-soft btn-sm" (click)="galleryDetails(img)"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>Details</button>
+    </div>
+    <div class="gallery-thumbs" role="listbox" aria-label="Images in this upload">
+      <button type="button" *ngFor="let t of gallery; let i = index" class="gallery-thumb" role="option" [class.is-active]="i === galleryIndex"
+        [attr.aria-selected]="i === galleryIndex" [attr.aria-label]="t.title" (click)="galleryIndex = i">
+        <img [src]="t.src" alt="" loading="lazy" />
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- Upload images -->
@@ -365,6 +472,39 @@
         </li>
       </ul>
 
+      <div *ngIf="allAssets" class="field">
+        <span class="field-label" id="img-assets-label">Assets <em>*</em></span>
+        <div class="asset-select" (click)="$event.stopPropagation()">
+          <button type="button" class="control asset-select-btn" aria-labelledby="img-assets-label" aria-haspopup="listbox"
+            [attr.aria-expanded]="assetPickerOpen" (click)="toggleAssetPicker($event)">
+            <span [class.placeholder]="!u.assets.length">{{ uploadAssetsLabel }}</span>
+            <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+          </button>
+          <div *ngIf="assetPickerOpen" class="asset-panel">
+            <label class="asset-search">
+              <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+              <input type="search" [(ngModel)]="assetPickerSearch" name="assetPickerSearch" placeholder="Search by asset name or ID" aria-label="Search assets" />
+            </label>
+            <div class="asset-list" role="listbox" aria-multiselectable="true">
+              <label class="asset-row asset-row--head">
+                <input type="checkbox" [checked]="allPickerAssetsChosen" (change)="toggleAllUploadAssets($any($event.target).checked)" />
+                <span>Asset Name</span><span>Asset ID</span>
+              </label>
+              <label *ngFor="let a of pickerAssets" class="asset-row" [class.is-on]="u.assets.includes(a.tag)">
+                <input type="checkbox" [checked]="u.assets.includes(a.tag)" (change)="toggleUploadAsset(a.tag)" />
+                <span>{{ a.name }}</span><span class="nowrap">{{ a.tag }}</span>
+              </label>
+              <p *ngIf="!pickerAssets.length" class="asset-none">No assets match.</p>
+            </div>
+          </div>
+        </div>
+        <span *ngIf="u.assets.length > 1" class="asset-chips">
+          <span *ngFor="let t of u.assets" class="asset-chip">{{ t }}
+            <button type="button" (click)="toggleUploadAsset(t)" [attr.aria-label]="'Remove ' + t"><lucide-icon [img]="icons.X" [size]="12"></lucide-icon></button>
+          </span>
+        </span>
+      </div>
+
       <div class="grid-2">
         <label class="field">
           <span class="field-label">Image Type <em>*</em></span>
@@ -379,7 +519,7 @@
         </label>
         <label class="field">
           <span class="field-label">Location</span>
-          <input type="text" class="control" [(ngModel)]="u.location" name="location" maxlength="80" />
+          <input type="text" class="control" [(ngModel)]="u.location" name="location" maxlength="80" [placeholder]="allAssets ? 'Leave empty to use each asset\'s location' : ''" />
         </label>
         <label class="field">
           <span class="field-label">Remarks</span>
@@ -478,7 +618,7 @@
       <button type="button" class="icon-btn" (click)="deleteIds = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
     </div>
     <div class="modal-body">
-      <p>Delete <strong>{{ deleteLabel }}</strong> from {{ asset.tag }}? This can't be undone.</p>
+      <p>Delete <strong>{{ deleteLabel }}</strong>{{ allAssets ? '' : ' from ' + asset.tag }}? This can't be undone.</p>
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="deleteIds = null">Cancel</button>

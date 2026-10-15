@@ -3,7 +3,8 @@
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a routerLink="/assets/list">Assets</a>
     <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
-    <a routerLink="/assets/list">Asset List</a>
+    <a *ngIf="fromRelationships; else fromList" routerLink="/assets/asset-relationships">Asset Relationship</a>
+    <ng-template #fromList><a routerLink="/assets/list">Asset List</a></ng-template>
     <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
     <span>{{ asset.tag }}</span>
     <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
