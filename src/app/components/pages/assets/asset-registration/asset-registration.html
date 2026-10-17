@@ -97,31 +97,40 @@
 
           <label class="field">
             <span class="field-label">Category <em>*</em></span>
-            <span class="select-wrap">
-              <select class="control" [class.is-invalid]="isInvalid('category')" [(ngModel)]="form.category" (ngModelChange)="onCategoryChange()">
-                <option value="" disabled>Select category</option>
-                <option *ngFor="let o of categories" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [class.is-invalid]="isInvalid('category')" [(ngModel)]="form.category" (ngModelChange)="onCategoryChange()">
+                  <option value="" disabled>Select category</option>
+                  <option *ngFor="let o of categories" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="categories" label="Category" [value]="form.category" (valueChange)="form.category = $event; onCategoryChange()"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Sub Category <em>*</em></span>
-            <span class="select-wrap">
-              <select class="control" [class.is-invalid]="isInvalid('subCategory')" [(ngModel)]="form.subCategory" (ngModelChange)="onSubCategoryChange()">
-                <option value="" disabled>Select sub category</option>
-                <option *ngFor="let o of subCategories" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [class.is-invalid]="isInvalid('subCategory')" [(ngModel)]="form.subCategory" (ngModelChange)="onSubCategoryChange()">
+                  <option value="" disabled>Select sub category</option>
+                  <option *ngFor="let o of subCategories" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="subCategories" label="Sub Category" [value]="form.subCategory" (valueChange)="form.subCategory = $event; onSubCategoryChange()" [disabled]="!form.category" disabledHint="Choose a category first"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Asset Type <em>*</em></span>
-            <span class="select-wrap">
-              <select class="control" [class.is-invalid]="isInvalid('assetType')" [(ngModel)]="form.assetType" (ngModelChange)="onAssetTypeChange()">
-                <option value="" disabled>Select asset type</option>
-                <option *ngFor="let o of assetTypes" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [class.is-invalid]="isInvalid('assetType')" [(ngModel)]="form.assetType" (ngModelChange)="onAssetTypeChange()">
+                  <option value="" disabled>Select asset type</option>
+                  <option *ngFor="let o of assetTypes" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="assetTypes" label="Asset Type" [value]="form.assetType" (valueChange)="form.assetType = $event; onAssetTypeChange()" [disabled]="!form.subCategory" disabledHint="Choose a sub category first"></app-option-menu>
             </span>
           </label>
 
@@ -132,15 +141,18 @@
 
           <label class="field">
             <span class="field-label">Manufacturer</span>
-            <span class="select-wrap">
-              <select class="control control--clearable" [(ngModel)]="form.manufacturer">
-                <option value="" disabled>Select manufacturer</option>
-                <option *ngFor="let o of manufacturers" [value]="o.value">{{ o.label }}</option>
-              </select>
-              <button type="button" class="clear-btn" *ngIf="form.manufacturer" title="Clear"
-                (click)="$event.preventDefault(); form.manufacturer = ''">
-                <lucide-icon [img]="icons.X" [size]="10" [strokeWidth]="3"></lucide-icon>
-              </button>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control control--clearable" [(ngModel)]="form.manufacturer">
+                  <option value="" disabled>Select manufacturer</option>
+                  <option *ngFor="let o of manufacturers" [value]="o.value">{{ o.label }}</option>
+                </select>
+                <button type="button" class="clear-btn" *ngIf="form.manufacturer" title="Clear"
+                  (click)="$event.preventDefault(); form.manufacturer = ''">
+                  <lucide-icon [img]="icons.X" [size]="10" [strokeWidth]="3"></lucide-icon>
+                </button>
+              </span>
+              <app-option-menu [options]="manufacturers" label="Manufacturer" [value]="form.manufacturer" (valueChange)="form.manufacturer = $event"></app-option-menu>
             </span>
           </label>
 
@@ -152,31 +164,40 @@
           <div class="form-row-3">
             <label class="field">
               <span class="field-label">Status <em>*</em></span>
-              <span class="select-wrap select-wrap--dot">
-                <span class="status-dot" [style.background]="colorOf(statuses, form.status)"></span>
-                <select class="control" [class.is-invalid]="isInvalid('status')" [(ngModel)]="form.status">
-                  <option *ngFor="let o of statuses" [value]="o.value">{{ o.label }}</option>
-                </select>
+              <span class="opt-row">
+                <span class="select-wrap select-wrap--dot">
+                  <span class="status-dot" [style.background]="colorOf(statuses, form.status)"></span>
+                  <select class="control" [class.is-invalid]="isInvalid('status')" [(ngModel)]="form.status">
+                    <option *ngFor="let o of statuses" [value]="o.value">{{ o.label }}</option>
+                  </select>
+                </span>
+                <app-option-menu [options]="statuses" label="Status" [value]="form.status" (valueChange)="form.status = $event" [defaults]="{ color: '#64748b' }"></app-option-menu>
               </span>
             </label>
 
             <label class="field">
               <span class="field-label">Condition</span>
-              <span class="select-wrap select-wrap--dot">
-                <span class="status-dot" [style.background]="colorOf(conditions, form.condition)"></span>
-                <select class="control" [(ngModel)]="form.condition">
-                  <option *ngFor="let o of conditions" [value]="o.value">{{ o.label }}</option>
-                </select>
+              <span class="opt-row">
+                <span class="select-wrap select-wrap--dot">
+                  <span class="status-dot" [style.background]="colorOf(conditions, form.condition)"></span>
+                  <select class="control" [(ngModel)]="form.condition">
+                    <option *ngFor="let o of conditions" [value]="o.value">{{ o.label }}</option>
+                  </select>
+                </span>
+                <app-option-menu [options]="conditions" label="Condition" [value]="form.condition" (valueChange)="form.condition = $event" [defaults]="{ color: '#64748b' }"></app-option-menu>
               </span>
             </label>
 
             <label class="field">
               <span class="field-label">Criticality</span>
-              <span class="select-wrap select-wrap--dot">
-                <span class="status-dot" [style.background]="colorOf(criticalities, form.criticality)"></span>
-                <select class="control" [(ngModel)]="form.criticality">
-                  <option *ngFor="let o of criticalities" [value]="o.value">{{ o.label }}</option>
-                </select>
+              <span class="opt-row">
+                <span class="select-wrap select-wrap--dot">
+                  <span class="status-dot" [style.background]="colorOf(criticalities, form.criticality)"></span>
+                  <select class="control" [(ngModel)]="form.criticality">
+                    <option *ngFor="let o of criticalities" [value]="o.value">{{ o.label }}</option>
+                  </select>
+                </span>
+                <app-option-menu [options]="criticalities" label="Criticality" [value]="form.criticality" (valueChange)="form.criticality = $event" [defaults]="{ color: '#64748b' }"></app-option-menu>
               </span>
             </label>
           </div>
@@ -213,9 +234,7 @@
                   <option *ngFor="let o of categories" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
-              <button type="button" class="square-btn" title="Manage categories" (click)="manageCategories('category')">
-                <lucide-icon [img]="icons.Settings" [size]="18"></lucide-icon>
-              </button>
+              <app-option-menu [options]="categories" label="Category" [value]="form.category" (valueChange)="form.category = $event; onCategoryChange()"></app-option-menu>
             </span>
           </div>
 
@@ -229,80 +248,99 @@
                   <option *ngFor="let o of subCategories" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
-              <button type="button" class="square-btn" title="Manage sub categories" (click)="manageCategories('sub category')">
-                <lucide-icon [img]="icons.Settings" [size]="18"></lucide-icon>
-              </button>
+              <app-option-menu [options]="subCategories" label="Sub Category" [value]="form.subCategory" (valueChange)="form.subCategory = $event; onSubCategoryChange()" [disabled]="!form.category" disabledHint="Choose a category first"></app-option-menu>
             </span>
           </div>
 
           <label class="field">
             <span class="field-label">Asset Type <em>*</em></span>
-            <span class="select-wrap">
-              <select class="control" [class.is-invalid]="isInvalid('assetType')" [(ngModel)]="form.assetType"
-                (ngModelChange)="onAssetTypeChange()">
-                <option value="" disabled>Select asset type</option>
-                <option *ngFor="let o of assetTypes" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [class.is-invalid]="isInvalid('assetType')" [(ngModel)]="form.assetType"
+                  (ngModelChange)="onAssetTypeChange()">
+                  <option value="" disabled>Select asset type</option>
+                  <option *ngFor="let o of assetTypes" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="assetTypes" label="Asset Type" [value]="form.assetType" (valueChange)="form.assetType = $event; onAssetTypeChange()" [disabled]="!form.subCategory" disabledHint="Choose a sub category first"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Asset Sub Type</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.assetSubType" [disabled]="!assetSubTypes.length">
-                <option value="" disabled>{{ assetSubTypes.length ? 'Select asset sub type' : 'No sub types' }}</option>
-                <option *ngFor="let o of assetSubTypes" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.assetSubType" [disabled]="!assetSubTypes.length">
+                  <option value="" disabled>{{ assetSubTypes.length ? 'Select asset sub type' : 'No sub types' }}</option>
+                  <option *ngFor="let o of assetSubTypes" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="assetSubTypes" label="Asset Sub Type" [value]="form.assetSubType" (valueChange)="form.assetSubType = $event" [disabled]="!form.assetType" disabledHint="Choose an asset type first"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Function / Purpose</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.functionPurpose">
-                <option value="" disabled>Select function</option>
-                <option *ngFor="let o of functionPurposes" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.functionPurpose">
+                  <option value="" disabled>Select function</option>
+                  <option *ngFor="let o of functionPurposes" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="functionPurposes" label="Function / Purpose" [value]="form.functionPurpose" (valueChange)="form.functionPurpose = $event"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Criticality <em>*</em></span>
-            <span class="select-wrap select-wrap--dot">
-              <span class="status-dot" [style.background]="colorOf(criticalities, form.criticality)"></span>
-              <select class="control" [class.is-invalid]="isInvalid('criticality')" [(ngModel)]="form.criticality">
-                <option *ngFor="let o of criticalities" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap select-wrap--dot">
+                <span class="status-dot" [style.background]="colorOf(criticalities, form.criticality)"></span>
+                <select class="control" [class.is-invalid]="isInvalid('criticality')" [(ngModel)]="form.criticality">
+                  <option *ngFor="let o of criticalities" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="criticalities" label="Criticality" [value]="form.criticality" (valueChange)="form.criticality = $event" [defaults]="{ color: '#64748b' }"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Department <em>*</em></span>
-            <span class="select-wrap">
-              <select class="control" [class.is-invalid]="isInvalid('department')" [(ngModel)]="form.department">
-                <option value="" disabled>Select department</option>
-                <option *ngFor="let o of departments" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [class.is-invalid]="isInvalid('department')" [(ngModel)]="form.department">
+                  <option value="" disabled>Select department</option>
+                  <option *ngFor="let o of departments" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="departments" label="Department" [value]="form.department" (valueChange)="form.department = $event"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Cost Center</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.costCenter">
-                <option value="" disabled>Select cost center</option>
-                <option *ngFor="let o of costCenters" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.costCenter">
+                  <option value="" disabled>Select cost center</option>
+                  <option *ngFor="let o of costCenters" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="costCenters" label="Cost Center" [value]="form.costCenter" (valueChange)="form.costCenter = $event"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Business Unit</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.businessUnit">
-                <option value="" disabled>Select business unit</option>
-                <option *ngFor="let o of businessUnits" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.businessUnit">
+                  <option value="" disabled>Select business unit</option>
+                  <option *ngFor="let o of businessUnits" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="businessUnits" label="Business Unit" [value]="form.businessUnit" (valueChange)="form.businessUnit = $event"></app-option-menu>
             </span>
           </label>
 
@@ -319,21 +357,27 @@
 
           <label class="field">
             <span class="field-label">Compliance Category</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.complianceCategory">
-                <option value="" disabled>Select compliance category</option>
-                <option *ngFor="let o of complianceCategories" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.complianceCategory">
+                  <option value="" disabled>Select compliance category</option>
+                  <option *ngFor="let o of complianceCategories" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="complianceCategories" label="Compliance Category" [value]="form.complianceCategory" (valueChange)="form.complianceCategory = $event"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Lifecycle Stage <em>*</em></span>
-            <span class="select-wrap">
-              <select class="control" [class.is-invalid]="isInvalid('lifecycleStage')" [(ngModel)]="form.lifecycleStage">
-                <option value="" disabled>Select lifecycle stage</option>
-                <option *ngFor="let o of lifecycleStages" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [class.is-invalid]="isInvalid('lifecycleStage')" [(ngModel)]="form.lifecycleStage">
+                  <option value="" disabled>Select lifecycle stage</option>
+                  <option *ngFor="let o of lifecycleStages" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="lifecycleStages" label="Lifecycle Stage" [value]="form.lifecycleStage" (valueChange)="form.lifecycleStage = $event"></app-option-menu>
             </span>
           </label>
 
@@ -403,47 +447,59 @@
         <div class="form-grid">
           <label class="field">
             <span class="field-label">Custodian / Department <em>*</em></span>
-            <span class="select-wrap">
-              <select class="control" [class.is-invalid]="isInvalid('department')" [(ngModel)]="form.department">
-                <option value="" disabled>Select department</option>
-                <option *ngFor="let o of departments" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [class.is-invalid]="isInvalid('department')" [(ngModel)]="form.department">
+                  <option value="" disabled>Select department</option>
+                  <option *ngFor="let o of departments" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="departments" label="Department" [value]="form.department" (valueChange)="form.department = $event"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Assigned To (Person)</span>
-            <span class="select-wrap select-wrap--person" [class.has-avatar]="assignedPerson">
-              <lucide-icon class="person-icon" [img]="icons.User" [size]="17"></lucide-icon>
-              <span class="avatar avatar--sm person-avatar" *ngIf="assignedPerson">{{ assignedPerson.initials }}</span>
-              <select id="loc-assigned" class="control control--clearable" [(ngModel)]="form.assignedTo">
-                <option value="" disabled>Select person</option>
-                <option *ngFor="let p of people" [value]="p.value">{{ p.label }}</option>
-              </select>
-              <button type="button" class="clear-btn" *ngIf="form.assignedTo" title="Clear"
-                (click)="$event.preventDefault(); form.assignedTo = ''">
-                <lucide-icon [img]="icons.X" [size]="10" [strokeWidth]="3"></lucide-icon>
-              </button>
+            <span class="opt-row">
+              <span class="select-wrap select-wrap--person" [class.has-avatar]="assignedPerson">
+                <lucide-icon class="person-icon" [img]="icons.User" [size]="17"></lucide-icon>
+                <span class="avatar avatar--sm person-avatar" *ngIf="assignedPerson">{{ assignedPerson.initials }}</span>
+                <select id="loc-assigned" class="control control--clearable" [(ngModel)]="form.assignedTo">
+                  <option value="" disabled>Select person</option>
+                  <option *ngFor="let p of people" [value]="p.value">{{ p.label }}</option>
+                </select>
+                <button type="button" class="clear-btn" *ngIf="form.assignedTo" title="Clear"
+                  (click)="$event.preventDefault(); form.assignedTo = ''">
+                  <lucide-icon [img]="icons.X" [size]="10" [strokeWidth]="3"></lucide-icon>
+                </button>
+              </span>
+              <app-option-menu [options]="people" label="Person" [value]="form.assignedTo" (valueChange)="form.assignedTo = $event"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Ownership Type</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.ownershipType">
-                <option value="" disabled>Select ownership type</option>
-                <option *ngFor="let o of ownershipTypes" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.ownershipType">
+                  <option value="" disabled>Select ownership type</option>
+                  <option *ngFor="let o of ownershipTypes" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="ownershipTypes" label="Ownership Type" [value]="form.ownershipType" (valueChange)="form.ownershipType = $event"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Cost Center</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.costCenter">
-                <option value="" disabled>Select cost center</option>
-                <option *ngFor="let o of costCenters" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.costCenter">
+                  <option value="" disabled>Select cost center</option>
+                  <option *ngFor="let o of costCenters" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="costCenters" label="Cost Center" [value]="form.costCenter" (valueChange)="form.costCenter = $event"></app-option-menu>
             </span>
           </label>
 
@@ -456,11 +512,14 @@
                   <lucide-icon [img]="icons.RotateCcw" [size]="12" [strokeWidth]="2.5"></lucide-icon>
                 </button>
               </span>
-              <span class="select-wrap">
-                <select id="loc-team" class="control" [(ngModel)]="form.responsibleTeam">
-                  <option value="" disabled>Select team</option>
-                  <option *ngFor="let o of teams" [value]="o.value">{{ o.label }}</option>
-                </select>
+              <span class="opt-row">
+                <span class="select-wrap">
+                  <select id="loc-team" class="control" [(ngModel)]="form.responsibleTeam">
+                    <option value="" disabled>Select team</option>
+                    <option *ngFor="let o of teams" [value]="o.value">{{ o.label }}</option>
+                  </select>
+                </span>
+                <app-option-menu [options]="teams" label="Team" [value]="form.responsibleTeam" (valueChange)="form.responsibleTeam = $event"></app-option-menu>
               </span>
             </div>
 
@@ -526,29 +585,35 @@
 
           <label class="field">
             <span class="field-label">Supplier / Vendor <em>*</em></span>
-            <span class="select-wrap">
-              <select class="control control--clearable" [class.is-invalid]="isInvalid('vendor')" [(ngModel)]="form.vendor">
-                <option value="" disabled>Select supplier</option>
-                <option *ngFor="let o of vendors" [value]="o.value">{{ o.label }}</option>
-              </select>
-              <button type="button" class="clear-btn" *ngIf="form.vendor" title="Clear"
-                (click)="$event.preventDefault(); form.vendor = ''">
-                <lucide-icon [img]="icons.X" [size]="10" [strokeWidth]="3"></lucide-icon>
-              </button>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control control--clearable" [class.is-invalid]="isInvalid('vendor')" [(ngModel)]="form.vendor">
+                  <option value="" disabled>Select supplier</option>
+                  <option *ngFor="let o of vendors" [value]="o.value">{{ o.label }}</option>
+                </select>
+                <button type="button" class="clear-btn" *ngIf="form.vendor" title="Clear"
+                  (click)="$event.preventDefault(); form.vendor = ''">
+                  <lucide-icon [img]="icons.X" [size]="10" [strokeWidth]="3"></lucide-icon>
+                </button>
+              </span>
+              <app-option-menu [options]="vendors" label="Supplier" [value]="form.vendor" (valueChange)="form.vendor = $event"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Manufacturer <em>*</em></span>
-            <span class="select-wrap">
-              <select class="control control--clearable" [class.is-invalid]="isInvalid('manufacturer')" [(ngModel)]="form.manufacturer">
-                <option value="" disabled>Select manufacturer</option>
-                <option *ngFor="let o of manufacturers" [value]="o.value">{{ o.label }}</option>
-              </select>
-              <button type="button" class="clear-btn" *ngIf="form.manufacturer" title="Clear"
-                (click)="$event.preventDefault(); form.manufacturer = ''">
-                <lucide-icon [img]="icons.X" [size]="10" [strokeWidth]="3"></lucide-icon>
-              </button>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control control--clearable" [class.is-invalid]="isInvalid('manufacturer')" [(ngModel)]="form.manufacturer">
+                  <option value="" disabled>Select manufacturer</option>
+                  <option *ngFor="let o of manufacturers" [value]="o.value">{{ o.label }}</option>
+                </select>
+                <button type="button" class="clear-btn" *ngIf="form.manufacturer" title="Clear"
+                  (click)="$event.preventDefault(); form.manufacturer = ''">
+                  <lucide-icon [img]="icons.X" [size]="10" [strokeWidth]="3"></lucide-icon>
+                </button>
+              </span>
+              <app-option-menu [options]="manufacturers" label="Manufacturer" [value]="form.manufacturer" (valueChange)="form.manufacturer = $event"></app-option-menu>
             </span>
           </label>
 
@@ -601,10 +666,13 @@
 
           <label class="field">
             <span class="field-label">Currency</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.currency">
-                <option *ngFor="let o of currencies" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.currency">
+                  <option *ngFor="let o of currencies" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="currencies" label="Currency" [value]="form.currency" (valueChange)="form.currency = $event"></app-option-menu>
             </span>
           </label>
 
@@ -630,21 +698,27 @@
 
           <label class="field">
             <span class="field-label">Payment Terms</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.paymentTerms">
-                <option value="" disabled>Select payment terms</option>
-                <option *ngFor="let o of paymentTermsOptions" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.paymentTerms">
+                  <option value="" disabled>Select payment terms</option>
+                  <option *ngFor="let o of paymentTermsOptions" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="paymentTermsOptions" label="Payment Terms" [value]="form.paymentTerms" (valueChange)="form.paymentTerms = $event"></app-option-menu>
             </span>
           </label>
 
           <label class="field">
             <span class="field-label">Procurement Method</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.procurementMethod">
-                <option value="" disabled>Select procurement method</option>
-                <option *ngFor="let o of procurementMethods" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.procurementMethod">
+                  <option value="" disabled>Select procurement method</option>
+                  <option *ngFor="let o of procurementMethods" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="procurementMethods" label="Procurement Method" [value]="form.procurementMethod" (valueChange)="form.procurementMethod = $event"></app-option-menu>
             </span>
           </label>
 
@@ -706,10 +780,13 @@
                   </span>
                 </span>
 
-                <span class="select-wrap" *ngSwitchCase="'select'">
-                  <select [id]="'spec-' + f.key" class="control" [(ngModel)]="form.specs[f.key]">
-                    <option *ngFor="let o of f.options" [value]="o.value">{{ o.label }}</option>
-                  </select>
+                <span class="opt-row" *ngSwitchCase="'select'">
+                  <span class="select-wrap">
+                    <select [id]="'spec-' + f.key" class="control" [(ngModel)]="form.specs[f.key]">
+                      <option *ngFor="let o of f.options" [value]="o.value">{{ o.label }}</option>
+                    </select>
+                  </span>
+                  <app-option-menu [options]="f.options!" [label]="f.label" [value]="form.specs[f.key]" (valueChange)="form.specs[f.key] = $event"></app-option-menu>
                 </span>
 
                 <span class="dims-row" *ngSwitchCase="'dimensions'">
@@ -967,10 +1044,13 @@
         <div class="form-grid form-grid--3 side-grid">
           <label class="field">
             <span class="field-label">Warranty Type</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.warrantyType">
-                <option *ngFor="let o of warrantyTypes" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.warrantyType">
+                  <option *ngFor="let o of warrantyTypes" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="warrantyTypes" label="Warranty Type" [value]="form.warrantyType" (valueChange)="form.warrantyType = $event"></app-option-menu>
             </span>
           </label>
 
@@ -1015,10 +1095,13 @@
 
           <label class="field">
             <span class="field-label">Support Coverage</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.supportCoverage">
-                <option *ngFor="let o of supportCoverages" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.supportCoverage">
+                  <option *ngFor="let o of supportCoverages" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="supportCoverages" label="Support Coverage" [value]="form.supportCoverage" (valueChange)="form.supportCoverage = $event"></app-option-menu>
             </span>
           </label>
         </div>
@@ -1026,11 +1109,14 @@
         <div class="form-grid side-grid side-grid--spaced">
           <label class="field">
             <span class="field-label">Service Provider</span>
-            <span class="select-wrap">
-              <select class="control" [(ngModel)]="form.serviceProvider">
-                <option value="" disabled>Select service provider</option>
-                <option *ngFor="let o of serviceProviders" [value]="o.value">{{ o.label }}</option>
-              </select>
+            <span class="opt-row">
+              <span class="select-wrap">
+                <select class="control" [(ngModel)]="form.serviceProvider">
+                  <option value="" disabled>Select service provider</option>
+                  <option *ngFor="let o of serviceProviders" [value]="o.value">{{ o.label }}</option>
+                </select>
+              </span>
+              <app-option-menu [options]="serviceProviders" label="Service Provider" [value]="form.serviceProvider" (valueChange)="form.serviceProvider = $event"></app-option-menu>
             </span>
           </label>
 
@@ -1268,19 +1354,25 @@
 
       <label class="field">
         <span class="field-label">Operating Shift</span>
-        <span class="select-wrap">
-          <select class="control" [(ngModel)]="form.operations.operatingShift">
-            <option *ngFor="let o of operatingShifts" [value]="o.value">{{ o.label }}</option>
-          </select>
+        <span class="opt-row">
+          <span class="select-wrap">
+            <select class="control" [(ngModel)]="form.operations.operatingShift">
+              <option *ngFor="let o of operatingShifts" [value]="o.value">{{ o.label }}</option>
+            </select>
+          </span>
+          <app-option-menu [options]="operatingShifts" label="Operating Shift" [value]="form.operations.operatingShift" (valueChange)="form.operations.operatingShift = $event"></app-option-menu>
         </span>
       </label>
 
       <label class="field">
         <span class="field-label">Utilization</span>
-        <span class="select-wrap">
-          <select class="control" [(ngModel)]="form.operations.utilization">
-            <option *ngFor="let o of utilizations" [value]="o.value">{{ o.label }}</option>
-          </select>
+        <span class="opt-row">
+          <span class="select-wrap">
+            <select class="control" [(ngModel)]="form.operations.utilization">
+              <option *ngFor="let o of utilizations" [value]="o.value">{{ o.label }}</option>
+            </select>
+          </span>
+          <app-option-menu [options]="utilizations" label="Utilization" [value]="form.operations.utilization" (valueChange)="form.operations.utilization = $event"></app-option-menu>
         </span>
       </label>
 
@@ -1356,10 +1448,13 @@
           </ng-template>
         </span>
         <span class="cf-value" role="cell" [ngSwitch]="f.type">
-          <span class="select-wrap" *ngSwitchCase="'select'">
-            <select class="control control--sm" [attr.aria-label]="f.label" [(ngModel)]="f.value">
-              <option *ngFor="let o of f.options" [value]="o.value">{{ o.label }}</option>
-            </select>
+          <span class="opt-row" *ngSwitchCase="'select'">
+            <span class="select-wrap">
+              <select class="control control--sm" [attr.aria-label]="f.label" [(ngModel)]="f.value">
+                <option *ngFor="let o of f.options" [value]="o.value">{{ o.label }}</option>
+              </select>
+            </span>
+            <app-option-menu [options]="f.options!" [label]="f.label" [value]="f.value" (valueChange)="f.value = $event"></app-option-menu>
           </span>
           <span class="date-control date-control--sm" *ngSwitchCase="'date'" (click)="openDatePicker(cfDate)">
             <lucide-icon [img]="icons.Calendar" [size]="15"></lucide-icon>

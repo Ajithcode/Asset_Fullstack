@@ -1,0 +1,330 @@
+<section class="jt-page">
+  <!-- ===== Header ===== -->
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/dashboard" aria-label="Home"><lucide-icon [img]="icons.House" [size]="16"></lucide-icon></a>
+        <span class="sep" aria-hidden="true">/</span>
+        <a routerLink="/wip-operations">WIP / Operations</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span class="crumb-current">SLA Management</span>
+      </nav>
+      <h1>SLA Management</h1>
+      <p class="subtitle">Define service targets, monitor live timers and manage escalations.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export Report</button>
+      <button type="button" class="btn btn-primary" (click)="createPolicy()"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>Create SLA Policy</button>
+    </div>
+  </div>
+
+  <div class="card wb-card">
+    <nav class="tabs" role="tablist" aria-label="SLA sections">
+      <button type="button" role="tab" *ngFor="let x of tabs" class="tab" [class.is-active]="tab === x.key" [attr.aria-selected]="tab === x.key" (click)="tab = x.key">{{ x.label }}</button>
+    </nav>
+
+    <div class="wb-body">
+      <!-- KPIs -->
+      <div class="kpis">
+        <button type="button" class="kpi" (click)="showTimers('')"><span class="kpi-ic"><lucide-icon [img]="icons.Timer" [size]="22"></lucide-icon></span>
+          <span><span class="kpi-label">Active Timers</span><strong class="kpi-value">{{ timers.length }}</strong></span></button>
+        <button type="button" class="kpi" (click)="showTimers('Within Target')"><span class="kpi-ic kpi-ic--green"><lucide-icon [img]="icons.CircleCheck" [size]="22"></lucide-icon></span>
+          <span><span class="kpi-label">Within Target</span><strong class="kpi-value c-good">{{ kpiWithin }}</strong></span></button>
+        <button type="button" class="kpi" (click)="showTimers('At Risk')"><span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.Clock" [size]="22"></lucide-icon></span>
+          <span><span class="kpi-label">At Risk</span><strong class="kpi-value c-warn">{{ kpiRisk }}</strong></span></button>
+        <button type="button" class="kpi" (click)="tab = 'breaches'"><span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.TriangleAlert" [size]="22"></lucide-icon></span>
+          <span><span class="kpi-label">Breached</span><strong class="kpi-value c-bad">{{ breached.length }}</strong></span></button>
+      </div>
+
+      <!-- =================== Policies =================== -->
+      <div *ngIf="tab === 'policies'" class="sla-grid">
+        <div class="col">
+          <section class="box" aria-labelledby="sla-pol">
+            <h3 id="sla-pol">SLA Policies</h3>
+            <div class="filters">
+              <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" placeholder="Search policies..." aria-label="Search policies" /></label>
+              <label class="field"><span class="field-label">Scope</span><select class="control" [(ngModel)]="scopeFilter"><option value="">All</option><option *ngFor="let s of scopes" [value]="s">{{ s }}</option></select></label>
+              <label class="field"><span class="field-label">Status</span><select class="control" [(ngModel)]="statusFilter"><option value="">All</option><option value="Active">Active</option><option value="Draft">Draft</option><option value="Inactive">Inactive</option></select></label>
+            </div>
+            <div class="table-wrap">
+              <table class="wt">
+                <thead><tr><th>Policy</th><th>Scope</th><th>Response</th><th>Completion</th><th>Calendar</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let p of policyRows" class="is-click" [class.is-selected]="!isNew && p.id === selectedId" (click)="selectPolicy(p)">
+                    <td><strong>{{ p.name }}</strong><span class="sub">{{ p.id }} · v{{ p.version }}</span></td>
+                    <td>{{ p.scope }}</td>
+                    <td class="nowrap">{{ fmtTarget(p.responseMin) }}</td>
+                    <td class="nowrap">{{ fmtTarget(p.completionMin) }}</td>
+                    <td class="nowrap">{{ calendar(p.calendar).label }}</td>
+                    <td><span class="pill" [ngClass]="p.status === 'Active' ? 'pill--green' : p.status === 'Draft' ? 'pill--amber' : 'pill--grey'">{{ p.status }}</span></td>
+                  </tr>
+                  <tr *ngIf="!policyRows.length"><td colspan="6" class="empty">No policies match.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="sla-pair">
+            <section class="box" aria-labelledby="sla-mon">
+              <h3 id="sla-mon">Active SLA Monitoring</h3>
+              <ul class="mon-list">
+                <li *ngFor="let t of watched">
+                  <div class="mon-top">
+                    <span class="grow"><a *ngIf="isKnownJob(t.job); else plainMon" class="job-link" routerLink="/wip-operations/job-orders" [queryParams]="{ code: t.job }">{{ t.job.replace('JO-2026-', 'JO-') }}</a><ng-template #plainMon><strong>{{ t.job.replace('JO-2026-', 'JO-') }}</strong></ng-template> / {{ t.stage }}
+                      <span class="sub">{{ policyName(t.policyId) }} · {{ t.owner }}</span></span>
+                    <span class="pill" [ngClass]="stateClass(state(t))">{{ state(t) }}</span>
+                  </div>
+                  <div class="mon-bar"><span class="mon-fill" [ngClass]="'fill--' + stateClass(state(t))" [style.width.%]="pct(t) > 100 ? 100 : pct(t)"></span></div>
+                  <div class="mon-foot"><span [class.c-bad]="state(t) === 'Breached'"><lucide-icon [img]="icons.Clock" [size]="13"></lucide-icon> {{ remaining(t) }}</span><span class="muted">{{ pct(t) }}% elapsed</span></div>
+                </li>
+              </ul>
+              <button type="button" class="link-btn" (click)="showTimers('')">View all timers<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
+            </section>
+
+            <section class="box" aria-labelledby="sla-lad">
+              <h3 id="sla-lad">Escalation Ladder <span class="muted">{{ draft.name || 'New policy' }}</span></h3>
+              <ol class="ladder">
+                <li *ngFor="let s of draft.ladder; let k = index">
+                  <span class="lad-num" [ngClass]="'lad-num--' + (k > 2 ? 2 : k)">{{ k + 1 }}</span>
+                  <span class="grow"><strong>{{ stepLabel(s) }}</strong><span class="sub">{{ s.action }}</span></span>
+                  <lucide-icon class="lad-ic" [img]="icons.Bell" [size]="16"></lucide-icon>
+                </li>
+                <li *ngIf="!draft.ladder.length" class="muted">No escalation steps.</li>
+              </ol>
+              <button type="button" class="link-btn" (click)="ladderOpen = true"><lucide-icon [img]="icons.Settings2" [size]="15"></lucide-icon>Configure escalation</button>
+            </section>
+          </div>
+        </div>
+
+        <!-- ===== Configuration ===== -->
+        <div class="col">
+          <section class="box" aria-labelledby="sla-cfg">
+            <div class="box-head">
+              <h3 id="sla-cfg" class="grow">Policy Configuration</h3>
+              <span *ngIf="dirty && !isNew" class="unsaved">Unsaved changes</span>
+            </div>
+            <div class="cfg-title">
+              <span class="tpl-icon cfg-icon"><lucide-icon [img]="icons.Gauge" [size]="22"></lucide-icon></span>
+              <span class="grow"><strong class="cfg-name">{{ draft.name || 'New SLA Policy' }}</strong><span class="sub">{{ isNew ? 'Not saved yet' : draft.id + ' · version ' + draft.version }}</span></span>
+              <span class="pill" [ngClass]="draft.status === 'Active' ? 'pill--green' : draft.status === 'Draft' ? 'pill--amber' : 'pill--grey'">{{ draft.status }}</span>
+            </div>
+            <div *ngIf="selected as p" class="cfg-status">
+              <button *ngIf="p.status !== 'Active'" type="button" class="link-btn" (click)="setStatus('Active')">Activate policy</button>
+              <button *ngIf="p.status === 'Active'" type="button" class="link-btn c-bad" (click)="setStatus('Inactive')">Deactivate</button>
+            </div>
+
+            <form class="cfg-form" (ngSubmit)="savePolicy()">
+              <div class="cfg-grid">
+                <label class="field span-2"><span class="field-label">Policy Name <em>*</em></span><input class="control" [(ngModel)]="draft.name" name="name" /></label>
+                <label class="field"><span class="field-label">Applies To</span><select class="control" [(ngModel)]="draft.appliesTo" (ngModelChange)="onAppliesTo()" name="appliesTo"><option *ngFor="let a of appliesToOptions" [value]="a">{{ a }}</option></select></label>
+                <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="draft.priority" name="priority"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
+                <label class="field"><span class="field-label">Response Target</span><span class="suffix-wrap"><input class="control" type="number" min="1" [(ngModel)]="draft.responseMin" name="responseMin" /><span class="suffix">minutes</span></span></label>
+                <label class="field"><span class="field-label">Completion Target</span>
+                  <span class="unit-pair"><input class="control" type="number" min="1" [(ngModel)]="complValue" name="complValue" aria-label="Completion target" />
+                    <select class="control" [(ngModel)]="complUnit" name="complUnit" aria-label="Unit"><option value="hours">hours</option><option value="minutes">minutes</option></select></span></label>
+                <label class="field"><span class="field-label">Working Calendar</span><select class="control" [(ngModel)]="draft.calendar" name="calendar"><option *ngFor="let c of calendars" [value]="c.name">{{ c.name }}</option></select></label>
+                <label class="field"><span class="field-label">Time Zone</span><select class="control" [(ngModel)]="draft.timeZone" name="timeZone"><option *ngFor="let z of timeZones" [value]="z">{{ z }}</option></select></label>
+              </div>
+              <p class="hint cal-note"><lucide-icon [img]="icons.Info" [size]="14"></lucide-icon>{{ calendar(draft.calendar).note }}</p>
+
+              <h4>Timer Rules</h4>
+              <div class="cfg-grid">
+                <label class="field"><span class="field-label">Start Event</span><select class="control" [(ngModel)]="draft.startEvent" name="startEvent"><option *ngFor="let e of startEvents" [value]="e">{{ e }}</option></select></label>
+                <label class="field"><span class="field-label">Stop Event</span><select class="control" [(ngModel)]="draft.stopEvent" name="stopEvent"><option *ngFor="let e of stopEvents" [value]="e">{{ e }}</option></select></label>
+                <label class="field"><span class="field-label">Pause States</span><input class="control" [(ngModel)]="draft.pauseStates" name="pauseStates" /></label>
+                <label class="field"><span class="field-label">Resume Event</span><select class="control" [(ngModel)]="draft.resumeEvent" name="resumeEvent"><option *ngFor="let e of resumeEvents" [value]="e">{{ e }}</option></select></label>
+              </div>
+              <div class="cfg-switches">
+                <label class="switch switch--row"><span class="grow">Pause requires approval</span><input type="checkbox" [(ngModel)]="draft.pauseRequiresApproval" name="pra" /><span class="slider" aria-hidden="true"></span></label>
+                <label class="switch switch--row"><span class="grow">Exclude non-working hours</span><input type="checkbox" [(ngModel)]="draft.excludeNonWorking" name="enw" /><span class="slider" aria-hidden="true"></span></label>
+              </div>
+
+              <h4>Escalation &amp; Alerts</h4>
+              <div class="cfg-grid">
+                <label class="field"><span class="field-label">Warning Threshold</span><span class="suffix-wrap"><input class="control" type="number" min="1" max="99" [(ngModel)]="draft.warningPct" name="warningPct" /><span class="suffix">% elapsed</span></span></label>
+                <label class="field"><span class="field-label">Escalation Matrix</span><select class="control" [(ngModel)]="draft.escalationMatrix" name="matrix"><option *ngFor="let m of matrices" [value]="m">{{ m }}</option></select></label>
+                <label class="field span-2"><span class="field-label">Notification Channels</span><select class="control" [(ngModel)]="draft.channels" name="channels"><option *ngFor="let c of channelOptions" [value]="c">{{ c }}</option></select></label>
+              </div>
+
+              <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+              <div class="cfg-btns">
+                <button type="button" class="btn btn-outline" (click)="cancelPolicy()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Policy</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="box" aria-labelledby="sla-prev">
+            <h3 id="sla-prev">Policy Preview</h3>
+            <div class="preview">
+              <label class="prev-start"><span class="field-label">{{ draft.startEvent }} at</span><input class="control" type="time" [(ngModel)]="previewStart" aria-label="Preview start time" /></label>
+              <lucide-icon class="prev-arrow" [img]="icons.ArrowRight" [size]="20"></lucide-icon>
+              <span class="prev-due"><span class="field-label">Due at</span>
+                <strong>{{ previewDue ? (previewDue | date: (previewSameDay ? 'HH:mm' : 'EEE dd MMM, HH:mm')) : '—' }}</strong></span>
+            </div>
+            <p class="hint">{{ fmtTarget(completionMin) }} on {{ draft.excludeNonWorking ? draft.calendar : '24×7 (non-working hours counted)' }}, starting {{ previewDate | date: 'EEE dd MMM' }}. Warning at {{ draft.warningPct }}% elapsed.</p>
+          </section>
+
+          <section *ngIf="selected as p" class="box" aria-labelledby="sla-ver">
+            <h3 id="sla-ver">Version History</h3>
+            <ul class="versions">
+              <li *ngFor="let v of versionsOf(p.id)"><span class="pill pill--purple">v{{ v.version }}</span><span class="grow">{{ v.note }}<span class="sub">{{ v.at | date: 'dd MMM yyyy HH:mm' }} · {{ v.by }}</span></span></li>
+              <li *ngIf="!versionsOf(p.id).length" class="muted">No earlier versions recorded.</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      <!-- =================== Active timers =================== -->
+      <section *ngIf="tab === 'timers'" class="box" aria-labelledby="sla-tm">
+        <div class="box-head">
+          <h3 id="sla-tm" class="grow">Active SLA Timers <span class="muted">{{ timerRows.length }} of {{ timers.length }}</span></h3>
+          <select class="control w-auto" [(ngModel)]="timerState" aria-label="State"><option value="">All states</option><option *ngFor="let s of states" [value]="s">{{ s }}</option></select>
+          <select class="control w-auto" [(ngModel)]="timerPolicy" aria-label="Policy"><option value="">All policies</option><option *ngFor="let p of policies" [value]="p.id">{{ p.name }}</option></select>
+        </div>
+        <div class="table-wrap">
+          <table class="wt">
+            <thead><tr><th>Job / Stage</th><th>Policy</th><th>Owner</th><th>Started</th><th>Due</th><th>Remaining</th><th>Elapsed</th><th>State</th><th></th></tr></thead>
+            <tbody>
+              <tr *ngFor="let t of timerRows">
+                <td class="nowrap"><a *ngIf="isKnownJob(t.job); else plainT" class="job-link" routerLink="/wip-operations/job-orders" [queryParams]="{ code: t.job }">{{ t.job }}</a><ng-template #plainT>{{ t.job }}</ng-template><span class="sub">{{ t.stage }}</span></td>
+                <td>{{ policyName(t.policyId) }}</td>
+                <td>{{ t.owner }}</td>
+                <td class="nowrap">{{ t.start | date: 'dd MMM HH:mm' }}</td>
+                <td class="nowrap">{{ due(t) | date: 'dd MMM HH:mm' }}</td>
+                <td class="nowrap" [class.c-bad]="state(t) === 'Breached'">{{ remaining(t) }}</td>
+                <td><span class="mini-bar"><span class="mon-fill" [ngClass]="'fill--' + stateClass(state(t))" [style.width.%]="pct(t) > 100 ? 100 : pct(t)"></span></span> {{ pct(t) }}%</td>
+                <td><span class="pill" [ngClass]="stateClass(state(t))">{{ state(t) }}</span><span *ngIf="t.paused" class="sub">{{ t.pauseReason }}</span></td>
+                <td class="nowrap">
+                  <button *ngIf="!t.paused" type="button" class="btn btn-outline btn-xs" (click)="openPause(t)"><lucide-icon [img]="icons.CirclePause" [size]="14"></lucide-icon>Pause</button>
+                  <button *ngIf="t.paused" type="button" class="btn btn-outline btn-xs" (click)="resume(t)"><lucide-icon [img]="icons.CirclePlay" [size]="14"></lucide-icon>Resume</button>
+                </td>
+              </tr>
+              <tr *ngIf="!timerRows.length"><td colspan="9" class="empty">No timers match.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =================== Breaches & exceptions =================== -->
+      <div *ngIf="tab === 'breaches'" class="col">
+        <section class="box" aria-labelledby="sla-br">
+          <h3 id="sla-br">Breached Timers</h3>
+          <div class="table-wrap">
+            <table class="wt">
+              <thead><tr><th>Job / Stage</th><th>Policy</th><th>Owner</th><th>Due</th><th>Overdue</th><th>Breach Reason</th><th></th></tr></thead>
+              <tbody>
+                <tr *ngFor="let t of breached">
+                  <td class="nowrap">{{ t.job }}<span class="sub">{{ t.stage }}</span></td>
+                  <td>{{ policyName(t.policyId) }}</td>
+                  <td>{{ t.owner }}</td>
+                  <td class="nowrap">{{ due(t) | date: 'dd MMM HH:mm' }}</td>
+                  <td class="nowrap c-bad">{{ remaining(t).replace('Overdue ', '') }}</td>
+                  <td><input #reason class="control reason-input" [value]="t.breachReason" placeholder="Record why the target was missed" (keydown.enter)="saveBreachReason(t, reason.value)" [attr.aria-label]="'Breach reason for ' + t.job" /></td>
+                  <td class="nowrap"><button type="button" class="btn btn-outline btn-xs" (click)="saveBreachReason(t, reason.value)">Save</button> <button type="button" class="btn btn-outline btn-xs" (click)="escalateNow(t)">Escalate</button></td>
+                </tr>
+                <tr *ngIf="!breached.length"><td colspan="7" class="empty">No breached timers.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="box" aria-labelledby="sla-ex">
+          <h3 id="sla-ex">Exceptions (Pauses)</h3>
+          <div class="table-wrap">
+            <table class="wt">
+              <thead><tr><th>Job / Stage</th><th>Policy</th><th>Reason</th><th>Paused Time</th><th>State</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let t of pausedTimers">
+                  <td class="nowrap">{{ t.job }}<span class="sub">{{ t.stage }}</span></td>
+                  <td>{{ policyName(t.policyId) }}</td>
+                  <td>{{ t.pauseReason || '—' }}</td>
+                  <td class="nowrap">{{ t.paused ? 'Since ' + (t.pausedAt | date: 'dd MMM HH:mm') : '' }}{{ t.pausedMin ? (t.paused ? ' + ' : '') + t.pausedMin + ' min taken off' : '' }}</td>
+                  <td><span class="pill" [ngClass]="stateClass(state(t))">{{ state(t) }}</span></td>
+                </tr>
+                <tr *ngIf="!pausedTimers.length"><td colspan="5" class="empty">No pauses recorded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- =================== Escalation history =================== -->
+      <section *ngIf="tab === 'escalations'" class="box" aria-labelledby="sla-eh">
+        <h3 id="sla-eh">Escalation History</h3>
+        <div class="table-wrap">
+          <table class="wt">
+            <thead><tr><th>When</th><th>Job / Stage</th><th>Policy</th><th>Step</th><th>Notified</th><th>Channel</th><th>Acknowledged</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let e of escalations">
+                <td class="nowrap">{{ e.at | date: 'dd MMM HH:mm' }}</td>
+                <td class="nowrap">{{ e.job }}<span class="sub">{{ e.stage }}</span></td>
+                <td>{{ policyName(e.policyId) }}</td>
+                <td><span class="pill" [ngClass]="e.step.includes('overdue') || e.step.startsWith('100') || e.step.startsWith('Manual') ? 'pill--red' : 'pill--amber'">{{ e.step }}</span></td>
+                <td>{{ e.notified }}</td>
+                <td>{{ e.channel }}</td>
+                <td class="nowrap"><span *ngIf="e.acknowledged; else ackBtn">{{ e.acknowledged | date: 'HH:mm' }}</span><ng-template #ackBtn><button type="button" class="btn btn-outline btn-xs" (click)="acknowledge(e)">Acknowledge</button></ng-template></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =================== Performance =================== -->
+      <section *ngIf="tab === 'performance'" class="box" aria-labelledby="sla-pf">
+        <div class="box-head"><h3 id="sla-pf" class="grow">Performance <span class="muted">completed in the last 30 days</span></h3><span class="pill pill--purple">Overall {{ overallCompliance }}% on time</span></div>
+        <div class="table-wrap">
+          <table class="wt">
+            <thead><tr><th>Policy</th><th>Target</th><th>Completed</th><th>On Time</th><th>Compliance</th><th>Avg. Actual</th><th>Breached Now</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let r of performance">
+                <td><strong>{{ r.policy.name }}</strong><span class="sub">{{ r.policy.scope }} · {{ r.policy.status }}</span></td>
+                <td class="nowrap">{{ fmtTarget(r.policy.completionMin) }}</td>
+                <td class="num">{{ r.done }}</td>
+                <td class="num">{{ r.onTime }}</td>
+                <td class="perf-cell"><span class="mini-bar mini-bar--wide"><span class="mon-fill" [ngClass]="r.pct >= 85 ? 'fill--pill--green' : r.pct >= 70 ? 'fill--pill--amber' : 'fill--pill--red'" [style.width.%]="r.pct"></span></span> {{ r.done ? r.pct + '%' : '—' }}</td>
+                <td class="nowrap">{{ r.done ? fmtTarget(r.avg) : '—' }}</td>
+                <td class="num" [class.c-bad]="r.breachedNow">{{ r.breachedNow }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <p class="footnote"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>SLA clocks use working calendars. Pauses and policy versions remain visible in the audit trail.</p>
+</section>
+
+<!-- ===== Escalation ladder ===== -->
+<div *ngIf="ladderOpen" class="overlay" (click)="closeLadder()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sla-lad-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="sla-lad-title">Configure Escalation · {{ draft.name || 'New policy' }}</h2><button type="button" class="icon-btn" (click)="closeLadder()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <div *ngFor="let s of draft.ladder; let k = index" class="lad-edit">
+        <span class="lad-num" [ngClass]="'lad-num--' + (k > 2 ? 2 : k)">{{ k + 1 }}</span>
+        <input class="control lad-val" type="number" min="1" [(ngModel)]="s.value" [attr.aria-label]="'Step ' + (k + 1) + ' value'" />
+        <select class="control lad-trig" [(ngModel)]="s.trigger" [attr.aria-label]="'Step ' + (k + 1) + ' trigger'"><option value="pct">% elapsed</option><option value="overdue">min overdue</option></select>
+        <input class="control grow" [(ngModel)]="s.action" placeholder="Action, e.g. Notify supervisor" [attr.aria-label]="'Step ' + (k + 1) + ' action'" />
+        <button type="button" class="icon-btn danger" (click)="removeStep(k)" [attr.aria-label]="'Remove step ' + (k + 1)"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+      </div>
+      <button type="button" class="link-btn" (click)="addStep()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add step</button>
+      <p class="hint">Steps are part of the policy: click Save Policy to apply them.</p>
+    </div>
+    <div class="modal-foot"><button type="button" class="btn btn-primary" (click)="closeLadder()">Done</button></div>
+  </div>
+</div>
+
+<!-- ===== Pause timer ===== -->
+<div *ngIf="pauseFor as t" class="overlay" (click)="pauseFor = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sla-pause-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="sla-pause-title">Pause {{ t.job }} · {{ t.stage }}</h2><button type="button" class="icon-btn" (click)="pauseFor = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="savePause()">
+      <dl class="kv"><dt>Policy</dt><dd>{{ policyName(t.policyId) }}</dd><dt>Allowed pause states</dt><dd>{{ policy(t.policyId)?.pauseStates }}</dd><dt>Remaining</dt><dd>{{ remaining(t) }}</dd></dl>
+      <label class="field"><span class="field-label">Reason <em>*</em></span><textarea class="control" rows="3" [(ngModel)]="pauseReason" name="reason"></textarea></label>
+      <p *ngIf="policy(t.policyId)?.pauseRequiresApproval" class="hint">This policy requires approval; the pause is recorded as approved by you.</p>
+      <div class="modal-foot modal-foot--form"><button type="button" class="btn btn-outline" (click)="pauseFor = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="!pauseReason.trim()">Pause Clock</button></div>
+    </form>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" [class.toast--error]="toastError" role="status">{{ toast }}</div>

@@ -65,6 +65,105 @@
   padding: 10px 8px;
 }
 
+.count-note {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sc-text-muted);
+}
+
+.col-toggle {
+  width: 36px;
+}
+
+.main-row.is-open td {
+  background: #faf9ff;
+  border-bottom-color: transparent;
+}
+
+/* Sub assets summarised in the row: count, two names, "+N more" */
+.subs {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sub-count {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+  background: var(--sc-accent);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.sub-chip {
+  max-width: 170px;
+  padding: 3px 10px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--sc-accent-soft);
+  font-size: 12.5px;
+  color: #3b2a9e;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.more-btn {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: #f3f4f6;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.more-btn:hover {
+  background: #e5e7eb;
+}
+
+/* Expanded list of a main asset's sub assets */
+.detail-row > td {
+  padding: 0 8px 14px !important;
+  background: #faf9ff;
+}
+
+.sub-table {
+  width: 100%;
+  border: 1px solid var(--sc-border);
+  border-radius: 8px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  background: #fff;
+  font-size: 13px;
+}
+
+.sub-table th {
+  padding: 7px 10px;
+  background: #f5f6fa;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.sub-table td {
+  padding: 7px 10px;
+  border-top: 1px solid #f0f1f3;
+}
+
 .asset-link {
   color: var(--sc-accent);
   font-weight: 600;
@@ -176,6 +275,122 @@
 .btn:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* Step 1 on the page: main assets table */
+.main-wrap {
+  max-height: 440px;
+  overflow-y: auto;
+  border: 1px solid var(--sc-border);
+  border-radius: 8px;
+}
+
+.main-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.main-table tbody tr {
+  cursor: pointer;
+}
+
+.main-table tbody tr.is-picked td {
+  background: var(--sc-accent-soft);
+}
+
+.main-table input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--sc-accent);
+}
+
+.col-check {
+  width: 36px;
+}
+
+.col-num {
+  width: 44px;
+}
+
+.main-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* Review popup: each selected asset and its sub assets */
+.prev-body {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+.prev-block + .prev-block {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sc-border);
+}
+
+.prev-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.prev-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--sc-text-muted);
+}
+
+/* Sub asset popup: sub asset, ID, category and location */
+.modal--picker {
+  max-width: 860px;
+}
+
+.picker-head--sub,
+.picker-row--sub {
+  grid-template-columns: 18px minmax(0, 1.3fr) 110px minmax(0, 1fr) minmax(0, 1.3fr);
+  align-items: center;
+  cursor: pointer;
+}
+
+.picker-row--sub.is-on {
+  background: var(--sc-accent-soft);
+}
+
+.picker-row--sub.is-disabled {
+  color: var(--sc-text-muted);
+  cursor: default;
+}
+
+.picker-row--sub input,
+.picker-head--sub input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--sc-accent);
+}
+
+.linked-note {
+  display: block;
+  color: var(--sc-text-muted);
+}
+
+.main-chip {
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: #fff;
+  font-weight: 600;
+}
+
+.main-chip small {
+  font-weight: 400;
+  color: var(--sc-text-muted);
 }
 
 .picker-row small {

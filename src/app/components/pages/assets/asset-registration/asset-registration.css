@@ -14,6 +14,18 @@
   color: var(--reg-text);
 }
 
+/* A dropdown with its ⋮ add / edit / delete options menu (app-option-menu) beside it */
+.opt-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.opt-row > .select-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Fills the screen below the app's top bar (12px + 52px bar + 9px gap) so the action bar sits at the bottom */
 .reg-page {
   position: relative;

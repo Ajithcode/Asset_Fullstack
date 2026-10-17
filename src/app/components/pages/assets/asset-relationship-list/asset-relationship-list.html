@@ -5,62 +5,164 @@
     <span class="breadcrumb-current">Asset Relationship</span>
   </nav>
 
-  <!-- First visit: nothing linked yet -->
-  <div *ngIf="!relationships.length" class="card empty">
-    <span class="empty-icon"><lucide-icon [img]="icons.Network" [size]="30"></lucide-icon></span>
-    <h2>No asset relationships yet</h2>
-    <p>Pick a main asset, then the sub asset that belongs to it.</p>
-    <button type="button" class="btn btn-primary btn-tall" (click)="start()">
-      <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Asset Relationship
-    </button>
-  </div>
+  <!-- Step 1: pick the main assets (name and ID) -->
+  <section class="card panel" aria-labelledby="ar-main-title">
+    <header class="card-head">
+      <lucide-icon class="head-icon" [img]="icons.Network" [size]="20"></lucide-icon>
+      <h3 id="ar-main-title" class="grow">Assets <span class="count-note">Tick one or more to see their sub assets</span></h3>
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input type="search" [(ngModel)]="mainSearch" placeholder="Search by asset name or ID" aria-label="Search main assets" />
+      </label>
+    </header>
+    <div class="table-wrap main-wrap">
+      <table class="data-table ar-table main-table">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" [checked]="allMainsChecked" (change)="toggleAllMains($any($event.target).checked)" aria-label="Select all listed assets" /></th>
+            <th class="col-num">#</th><th>Asset Name</th><th>Asset ID</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of mainList; let i = index" [class.is-picked]="isMain(a.tag)" (click)="toggleMain(a)">
+            <td class="col-check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isMain(a.tag)" (change)="toggleMain(a)" [attr.aria-label]="'Main asset ' + a.name" /></td>
+            <td class="col-num">{{ i + 1 }}</td>
+            <td>{{ a.name }}</td>
+            <td class="nowrap">{{ a.tag }}</td>
+          </tr>
+          <tr *ngIf="!mainList.length"><td colspan="4" class="empty-line">No assets match "{{ mainSearch }}".</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <footer class="main-foot">
+      <span class="muted grow">{{ selectedMains.length }} selected</span>
+      <button *ngIf="selectedMains.length" type="button" class="btn btn-outline" (click)="clearMains()">Clear</button>
+      <button type="button" class="btn btn-primary" [disabled]="!selectedMains.length" (click)="nextToSubs()">Next</button>
+    </footer>
+  </section>
 
   <!-- Relationships made by users -->
   <section *ngIf="relationships.length" class="card panel" aria-labelledby="ar-title">
     <header class="card-head">
       <lucide-icon class="head-icon" [img]="icons.Network" [size]="20"></lucide-icon>
-      <h3 id="ar-title" class="grow">Asset Relationships ({{ relationships.length }})</h3>
+      <h3 id="ar-title" class="grow">Asset Relationships <span class="count-note">{{ groups.length }} main asset{{ groups.length === 1 ? '' : 's' }} · {{ relationships.length }} sub asset link{{ relationships.length === 1 ? '' : 's' }}</span></h3>
       <label class="search">
         <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
         <input type="search" [(ngModel)]="search" placeholder="Search assets..." aria-label="Search relationships" />
       </label>
-      <button type="button" class="btn btn-primary" (click)="start()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Asset Relationship</button>
     </header>
     <div class="table-wrap">
       <table class="data-table ar-table">
         <thead>
-          <tr><th>#</th><th>Main Asset</th><th>Main Asset ID</th><th>Sub Asset</th><th>Sub Asset ID</th><th>Created By</th><th>Created On</th><th class="col-actions">Actions</th></tr>
+          <tr><th class="col-toggle"></th><th>#</th><th>Main Asset</th><th>Main Asset ID</th><th>Sub Assets</th><th>Created By</th><th>Last Updated</th><th class="col-actions">Actions</th></tr>
         </thead>
         <tbody>
-          <tr *ngFor="let r of filtered; let i = index">
-            <td>{{ i + 1 }}</td>
-            <td><a class="asset-link" routerLink="/assets/relationships" [queryParams]="{ tag: r.mainTag, from: fromRelationships }">{{ asset(r.mainTag)?.name }}</a></td>
-            <td class="nowrap">{{ r.mainTag }}</td>
-            <td><a class="asset-link" routerLink="/assets/relationships" [queryParams]="{ tag: r.subTag, from: fromRelationships }">{{ asset(r.subTag)?.name }}</a></td>
-            <td class="nowrap">{{ r.subTag }}</td>
-            <td>{{ r.createdBy }}</td>
-            <td class="nowrap">{{ r.createdAt | date: 'dd MMM yyyy, HH:mm' }}</td>
-            <td class="col-actions">
-              <button type="button" class="icon-btn danger" (click)="deleteId = r.id" [attr.aria-label]="'Remove ' + r.mainTag + ' to ' + r.subTag"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button>
-            </td>
-          </tr>
-          <tr *ngIf="!filtered.length"><td colspan="8" class="empty-line">No relationships match "{{ search }}".</td></tr>
+          <ng-container *ngFor="let g of groups; let i = index">
+            <tr class="main-row" [class.is-open]="expanded.has(g.mainTag)">
+              <td class="col-toggle">
+                <button type="button" class="icon-btn" (click)="toggleExpand(g.mainTag)" [attr.aria-expanded]="expanded.has(g.mainTag)"
+                  [attr.aria-label]="(expanded.has(g.mainTag) ? 'Hide' : 'Show') + ' sub assets of ' + g.mainTag">
+                  <lucide-icon [img]="expanded.has(g.mainTag) ? icons.ChevronDown : icons.ChevronRight" [size]="16"></lucide-icon>
+                </button>
+              </td>
+              <td>{{ i + 1 }}</td>
+              <td><a class="asset-link" routerLink="/assets/relationships" [queryParams]="{ tag: g.mainTag, from: fromRelationships }">{{ asset(g.mainTag)?.name }}</a></td>
+              <td class="nowrap">{{ g.mainTag }}</td>
+              <td>
+                <span class="subs">
+                  <span class="sub-count">{{ g.links.length }}</span>
+                  <span *ngFor="let l of g.links.slice(0, previewCount)" class="sub-chip" [title]="asset(l.subTag)?.name + ' (' + l.subTag + ')'">{{ asset(l.subTag)?.name }}</span>
+                  <button *ngIf="g.links.length > previewCount" type="button" class="more-btn" (click)="expanded.add(g.mainTag)">+{{ g.links.length - previewCount }} more</button>
+                </span>
+              </td>
+              <td>{{ g.links[0].createdBy }}</td>
+              <td class="nowrap">{{ g.updatedAt | date: 'dd MMM yyyy, HH:mm' }}</td>
+              <td class="col-actions nowrap">
+                <button type="button" class="icon-btn" (click)="addSubsTo(g.mainTag)" [attr.aria-label]="'Add sub assets to ' + g.mainTag" title="Add sub assets"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon></button>
+                <button type="button" class="icon-btn danger" (click)="deleteMain = g.mainTag" [attr.aria-label]="'Unlink all sub assets from ' + g.mainTag" title="Unlink all"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button>
+              </td>
+            </tr>
+            <tr *ngIf="expanded.has(g.mainTag)" class="detail-row">
+              <td></td>
+              <td colspan="7">
+                <table class="sub-table">
+                  <thead><tr><th>Sub Asset</th><th>Sub Asset ID</th><th>Category</th><th>Linked By</th><th>Linked On</th><th class="col-actions"></th></tr></thead>
+                  <tbody>
+                    <tr *ngFor="let l of g.links">
+                      <td><a class="asset-link" routerLink="/assets/relationships" [queryParams]="{ tag: l.subTag, from: fromRelationships }">{{ asset(l.subTag)?.name }}</a></td>
+                      <td class="nowrap">{{ l.subTag }}</td>
+                      <td>{{ asset(l.subTag)?.category }}</td>
+                      <td>{{ l.createdBy }}</td>
+                      <td class="nowrap">{{ l.createdAt | date: 'dd MMM yyyy, HH:mm' }}</td>
+                      <td class="col-actions">
+                        <button type="button" class="icon-btn danger" (click)="deleteId = l.id" [attr.aria-label]="'Unlink ' + l.subTag + ' from ' + g.mainTag"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon></button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </ng-container>
+          <tr *ngIf="!groups.length"><td colspan="8" class="empty-line">No relationships match "{{ search }}".</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 </section>
 
+<!-- ===== Review: what is related to the selected assets ===== -->
+<div *ngIf="previews as list" class="overlay" (click)="closePreview()">
+  <div class="modal modal--picker" role="dialog" aria-modal="true" aria-labelledby="ar-prev-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="ar-prev-title">Related Assets</h2>
+      <button type="button" class="icon-btn" (click)="closePreview()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="modal-body prev-body">
+      <section *ngFor="let p of list" class="prev-block">
+        <header class="prev-head">
+          <div class="grow">
+            <strong>{{ p.asset.name }}</strong> <span class="muted">({{ p.asset.tag }})</span>
+            <span class="prev-meta">{{ p.asset.category }} · {{ location(p.asset) }} · {{ p.asset.status }}</span>
+          </div>
+          <span class="sub-count">{{ p.loading ? '…' : p.subs.length }}</span>
+        </header>
+        <p *ngIf="p.loading" class="empty-line">Loading related assets…</p>
+        <div *ngIf="!p.loading" class="table-wrap">
+          <table class="sub-table">
+            <thead><tr><th>Sub Asset</th><th>Asset ID</th><th>Relationship</th><th>Category</th><th>Location</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let s of p.subs">
+                <td>{{ s.name }}</td>
+                <td class="nowrap">{{ s.tag }}</td>
+                <td class="nowrap">{{ s.relation }}</td>
+                <td>{{ s.category }}</td>
+                <td>{{ s.location }}</td>
+              </tr>
+              <tr *ngIf="!p.subs.length"><td colspan="5" class="empty-line">No sub assets recorded for this asset.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+    <div class="modal-foot">
+      <span class="muted grow">Submit opens {{ list[list.length - 1].asset.name }} ({{ list[list.length - 1].asset.tag }}).</span>
+      <button type="button" class="btn btn-outline" (click)="closePreview()">Cancel</button>
+      <button type="button" class="btn btn-primary" (click)="submitPreview()">Submit</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Main / sub asset picker ===== -->
 <div *ngIf="step" class="overlay" (click)="closePicker()">
-  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="ar-picker-title" (click)="$event.stopPropagation()">
+  <div class="modal modal--picker" role="dialog" aria-modal="true" aria-labelledby="ar-picker-title" (click)="$event.stopPropagation()">
     <div class="modal-head">
-      <h2 id="ar-picker-title">{{ step === 'main' ? 'Main Asset' : 'Sub Asset' }}</h2>
+      <h2 id="ar-picker-title">Sub Asset</h2>
       <button type="button" class="icon-btn" (click)="closePicker()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
     </div>
     <div class="modal-body">
       <p *ngIf="step === 'sub'" class="picked">
-        Main asset: <strong>{{ mainAsset?.name }}</strong> ({{ mainTag }})
+        <span>Main asset{{ mainTags.length === 1 ? '' : 's' }}:</span>
+        <span *ngFor="let t of mainTags" class="main-chip">{{ asset(t)?.name }} <small>({{ t }})</small></span>
         <button type="button" class="link-btn" (click)="backToMain()"><lucide-icon [img]="icons.ArrowLeft" [size]="14"></lucide-icon>Change</button>
       </p>
       <label class="search search--full">
@@ -68,24 +170,18 @@
         <input type="search" [(ngModel)]="pickerSearch" placeholder="Search by asset name or ID" aria-label="Search assets" />
       </label>
       <div class="picker">
-        <!-- Main asset: one click picks it -->
-        <ng-container *ngIf="step === 'main'">
-          <div class="picker-head"><span>Asset Name</span><span>Asset ID</span></div>
-          <button type="button" *ngFor="let a of pickerAssets" class="picker-row" (click)="pickMain(a)">
-            <span>{{ a.name }}</span>
-            <span class="nowrap">{{ a.tag }}</span>
-          </button>
-        </ng-container>
-        <!-- Sub assets: tick as many as needed -->
+        <!-- Sub assets with their category and location -->
         <ng-container *ngIf="step === 'sub'">
-          <label class="picker-head picker-head--check">
+          <label class="picker-head picker-head--sub">
             <input type="checkbox" [checked]="allSelected" (change)="toggleAll($any($event.target).checked)" aria-label="Select all listed assets" />
-            <span>Asset Name</span><span>Asset ID</span>
+            <span>Sub Asset</span><span>Asset ID</span><span>Category</span><span>Location</span>
           </label>
-          <label *ngFor="let a of pickerAssets" class="picker-row picker-row--check" [class.is-disabled]="isLinked(a.tag)" [class.is-on]="selectedSubs.has(a.tag)">
-            <input type="checkbox" [checked]="selectedSubs.has(a.tag) || isLinked(a.tag)" [disabled]="isLinked(a.tag)" (change)="toggleSub(a)" />
-            <span>{{ a.name }}<small *ngIf="isLinked(a.tag)"> · already linked</small></span>
+          <label *ngFor="let a of pickerAssets" class="picker-row picker-row--sub" [class.is-disabled]="isLinked(a.tag)" [class.is-on]="selectedSubs.has(a.tag)">
+            <input type="checkbox" [checked]="selectedSubs.has(a.tag) || isLinked(a.tag)" [disabled]="isLinked(a.tag)" (change)="toggleSub(a)" [attr.aria-label]="'Sub asset ' + a.name" />
+            <span>{{ a.name }}<small *ngIf="linkedMains(a.tag).length" class="linked-note">{{ isLinked(a.tag) ? 'already linked' : 'linked to ' + linkedMains(a.tag).join(', ') }}</small></span>
             <span class="nowrap">{{ a.tag }}</span>
+            <span>{{ a.category }}</span>
+            <span>{{ location(a) }}</span>
           </label>
         </ng-container>
         <p *ngIf="!pickerAssets.length" class="empty-line">No assets match "{{ pickerSearch }}".</p>
@@ -95,8 +191,23 @@
       <span class="muted grow">{{ selectedSubs.size }} selected</span>
       <button type="button" class="btn btn-outline" (click)="closePicker()">Cancel</button>
       <button type="button" class="btn btn-primary" [disabled]="!selectedSubs.size" (click)="addSubs()">
-        Add {{ selectedSubs.size || '' }} Sub Asset{{ selectedSubs.size === 1 ? '' : 's' }}
+        Submit
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Unlink all sub assets of a main asset ===== -->
+<div *ngIf="deletingMain as m" class="overlay" (click)="deleteMain = null">
+  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="ar-delm-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="ar-delm-title">Unlink all sub assets?</h2>
+      <button type="button" class="icon-btn" (click)="deleteMain = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="modal-body"><p>{{ asset(m.mainTag)?.name }} ({{ m.mainTag }}) will no longer have its {{ m.links.length }} sub asset{{ m.links.length === 1 ? '' : 's' }}. The assets themselves are not deleted.</p></div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="deleteMain = null">Cancel</button>
+      <button type="button" class="btn btn-danger" (click)="confirmDeleteMain()">Unlink All</button>
     </div>
   </div>
 </div>

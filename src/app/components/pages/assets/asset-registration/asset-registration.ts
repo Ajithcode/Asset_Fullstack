@@ -62,6 +62,7 @@ import {
   Wifi,
   X,
 } from 'lucide-angular';
+import { OptionMenu } from './option-menu';
 
 interface Step {
   title: string;
@@ -369,7 +370,7 @@ function buildLocationModel(projects: Project[]): LocationModel {
 @Component({
   standalone: true,
   selector: 'app-asset-registration',
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, OptionMenu],
   templateUrl: './asset-registration.html',
   // Split by step, in cascade order, to keep each stylesheet under the anyComponentStyle budget (20 kB)
   styleUrls: [
@@ -910,16 +911,17 @@ export class AssetRegistration {
 
   // ===== Lookups for the template =====
 
+  // Dependent lists: the list for the chosen parent is created on first use, so options added from the ⋮ menu are kept
   get subCategories(): Option[] {
-    return this.subCategoriesByCategory[this.form.category] ?? [];
+    return this.form.category ? (this.subCategoriesByCategory[this.form.category] ??= []) : [];
   }
 
   get assetTypes(): Option[] {
-    return this.assetTypesBySubCategory[this.form.subCategory] ?? [];
+    return this.form.subCategory ? (this.assetTypesBySubCategory[this.form.subCategory] ??= []) : [];
   }
 
   get assetSubTypes(): SubTypeOption[] {
-    return this.assetSubTypesByType[this.form.assetType] ?? [];
+    return this.form.assetType ? (this.assetSubTypesByType[this.form.assetType] ??= []) : [];
   }
 
   /** Sub types that have a picture, shown as tiles in the Category Reference card. */
@@ -972,10 +974,6 @@ export class AssetRegistration {
     const control = document.getElementById(id);
     control?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     control?.focus({ preventScroll: true });
-  }
-
-  manageCategories(level: string): void {
-    this.showToast(`Manage ${level} options from Administration > Configuration.`);
   }
 
   // ===== Location =====

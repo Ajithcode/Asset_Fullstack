@@ -1,0 +1,438 @@
+<section class="jt-page">
+  <!-- ===== Header ===== -->
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/dashboard" aria-label="Home"><lucide-icon [img]="icons.House" [size]="16"></lucide-icon></a>
+        <span class="sep" aria-hidden="true">/</span>
+        <a routerLink="/wip-operations">WIP / Operations</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span class="crumb-current">Issues &amp; Delays</span>
+      </nav>
+      <h1>Issue / Delay Management</h1>
+      <p class="subtitle">Track job issues, delays, corrective actions and resolution.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export</button>
+      <button type="button" class="btn btn-outline" [attr.aria-pressed]="board" (click)="board = !board; tab = 'register'">
+        <lucide-icon [img]="board ? icons.List : icons.KanbanSquare" [size]="17"></lucide-icon>{{ board ? 'List View' : 'Board View' }}</button>
+      <button type="button" class="btn btn-primary" (click)="openReport()"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>Report Issue</button>
+    </div>
+  </div>
+
+  <!-- ===== KPIs (selected site) ===== -->
+  <div class="kpis">
+    <button type="button" class="kpi" (click)="tab = 'register'; status = 'open'; blockingOnly = false"><span class="kpi-ic kpi-ic--blue"><lucide-icon [img]="icons.CircleAlert" [size]="22"></lucide-icon></span>
+      <span><span class="kpi-label">Open Issues</span><strong class="kpi-value">{{ kpiOpen }}</strong></span></button>
+    <button type="button" class="kpi" (click)="showBlocking()"><span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.OctagonAlert" [size]="22"></lucide-icon></span>
+      <span><span class="kpi-label">Blocking Issues</span><strong class="kpi-value c-bad">{{ kpiBlocking }}</strong></span></button>
+    <button type="button" class="kpi" (click)="showOverdue()"><span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.Clock" [size]="22"></lucide-icon></span>
+      <span><span class="kpi-label">Overdue Actions</span><strong class="kpi-value c-warn">{{ kpiOverdue }}</strong></span></button>
+    <button type="button" class="kpi" (click)="tab = 'delays'"><span class="kpi-ic"><lucide-icon [img]="icons.Timer" [size]="22"></lucide-icon></span>
+      <span><span class="kpi-label">Delay Today</span><strong class="kpi-value">{{ kpiDelayToday }} min</strong><span class="kpi-note">Non-overlapping job delay</span></span></button>
+  </div>
+
+  <div class="card wb-card">
+    <nav class="tabs" role="tablist" aria-label="Issue sections">
+      <button type="button" role="tab" *ngFor="let x of tabs" class="tab" [class.is-active]="tab === x.key" [attr.aria-selected]="tab === x.key" (click)="tab = x.key">{{ x.label }}</button>
+    </nav>
+
+    <div class="wb-body">
+      <!-- Filters -->
+      <div class="filters">
+        <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" placeholder="Search issue, job or owner..." aria-label="Search issues" /></label>
+        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="site"><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
+        <label class="field"><span class="field-label">Type</span><select class="control" [(ngModel)]="type"><option value="">All</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Severity</span><select class="control" [(ngModel)]="severity"><option value="">All</option><option *ngFor="let s of severities" [value]="s">{{ s }}</option></select></label>
+        <label class="field"><span class="field-label">Status</span>
+          <select class="control" [(ngModel)]="status"><option value="open">Open</option><option value="">All</option><option *ngFor="let s of steps" [value]="s.status">{{ s.status }}</option></select></label>
+      </div>
+
+      <!-- =================== Issue register =================== -->
+      <div *ngIf="tab === 'register'" class="id-grid">
+        <div class="col">
+          <section class="box" aria-labelledby="id-reg">
+            <div class="box-head">
+              <h3 id="id-reg" class="grow">Issue Register <span class="muted">{{ rows.length }} shown</span></h3>
+              <button *ngIf="blockingOnly" type="button" class="pill pill--red chip-x" (click)="blockingOnly = false">Blocking only<lucide-icon [img]="icons.X" [size]="12"></lucide-icon></button>
+            </div>
+
+            <!-- List -->
+            <div *ngIf="!board" class="table-wrap table-wrap--scroll">
+              <table class="wt">
+                <thead><tr><th>Issue / Type</th><th>Job / Stage</th><th>Severity</th><th>Owner</th><th>Status</th><th>Delay</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let i of rows" class="is-click" [class.is-selected]="i.id === selectedId" (click)="select(i)">
+                    <td><strong>{{ i.id }}</strong> {{ i.title }}<span class="sub">{{ i.type }}</span></td>
+                    <td class="nowrap">{{ i.job.replace('JO-2026-', 'JO-') }}<span class="sub">{{ i.stage }}</span></td>
+                    <td><span class="pill" [ngClass]="severityClass(i.severity)">{{ i.severity }}</span></td>
+                    <td>{{ i.owner }}</td>
+                    <td><span class="pill" [ngClass]="statusClass(i.status)">{{ i.status }}</span></td>
+                    <td class="num" [class.c-bad]="delayRunning(i)">{{ delayToday(i) ? delayToday(i) + ' min' : '—' }}</td>
+                  </tr>
+                  <tr *ngIf="!rows.length"><td colspan="6" class="empty">No issues match the filters.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Board -->
+            <div *ngIf="board" class="board">
+              <div *ngFor="let c of columns" class="board-col">
+                <div class="board-head"><span class="pill" [ngClass]="statusClass(c.status)">{{ c.status }}</span><span class="muted">{{ c.issues.length }}</span></div>
+                <button *ngFor="let i of c.issues" type="button" class="board-card" [class.is-selected]="i.id === selectedId" (click)="select(i)">
+                  <span class="board-top"><strong>{{ i.id }}</strong><span class="pill" [ngClass]="severityClass(i.severity)">{{ i.severity }}</span></span>
+                  <span>{{ i.title }}</span>
+                  <span class="muted">{{ i.job.replace('JO-2026-', 'JO-') }} · {{ i.stage }}<ng-container *ngIf="delayToday(i)"> · {{ delayToday(i) }} min</ng-container></span>
+                  <span *ngIf="i.blocking" class="board-block"><lucide-icon [img]="icons.OctagonAlert" [size]="13"></lucide-icon>Blocking</span>
+                </button>
+                <p *ngIf="!c.issues.length" class="hint">None</p>
+              </div>
+            </div>
+          </section>
+
+          <div class="id-pair">
+            <!-- Impact & delay -->
+            <section class="box" aria-labelledby="id-impact">
+              <h3 id="id-impact">Impact &amp; Delay</h3>
+              <dl class="kv">
+                <dt>Job</dt><dd><a *ngIf="isKnownJob(selected.job); else plainJob" class="job-link" routerLink="/wip-operations/job-orders" [queryParams]="{ code: selected.job }">{{ selected.job }}</a><ng-template #plainJob>{{ selected.job }}</ng-template></dd>
+                <dt>Stage</dt><dd>{{ selected.stage }}</dd>
+                <dt>Task</dt><dd>{{ selected.task || '—' }}</dd>
+                <dt>Asset</dt><dd><a *ngIf="selected.asset && isLinkedAsset(selected.asset); else plainAsset" class="job-link" routerLink="/wip-operations/asset-linking" [queryParams]="{ asset: selected.asset }">{{ selected.asset }}</a><ng-template #plainAsset>{{ selected.asset || '—' }}</ng-template></dd>
+              </dl>
+              <div *ngIf="jobOnHold(selected) && selected.slaPause !== 'Approved'" class="alert id-alert"><lucide-icon [img]="icons.TriangleAlert" [size]="17"></lucide-icon>
+                <span>Job is on hold. SLA pause requires separate approval.</span></div>
+              <dl class="kv">
+                <dt>Job Impact</dt><dd [class.c-bad]="selected.blocking">{{ selected.blocking ? 'Blocking' : 'Non-blocking' }}</dd>
+                <dt>Delay Start</dt><dd>{{ delayStart(selected) ? (delayStart(selected) | date: 'dd MMM HH:mm') : '—' }}</dd>
+                <dt>Delay Duration</dt><dd>{{ fmtMin(delayMinutes(selected)) }}<span *ngIf="delayRunning(selected)" class="live">running</span></dd>
+                <dt>SLA Timer</dt><dd [class.c-warn]="slaLabel(selected).startsWith('Running')" [class.c-blue]="slaLabel(selected) === 'Paused'">{{ slaLabel(selected) }}</dd>
+              </dl>
+              <div class="impact-actions">
+                <button *ngIf="isOpen(selected) && !selected.slaPause" type="button" class="link-btn" (click)="requestPause(selected)"><lucide-icon [img]="icons.CalendarClock" [size]="15"></lucide-icon>Request SLA Pause</button>
+                <span *ngIf="selected.slaPause === 'Requested'" class="muted">SLA pause awaiting approval (Escalations tab)</span>
+                <button *ngIf="isOpen(selected) && delayRunning(selected)" type="button" class="link-btn" (click)="endDelay(selected)"><lucide-icon [img]="icons.CircleCheck" [size]="15"></lucide-icon>End Delay</button>
+                <button *ngIf="isOpen(selected) && !delayRunning(selected)" type="button" class="link-btn" (click)="startDelay(selected)"><lucide-icon [img]="icons.Timer" [size]="15"></lucide-icon>Start Delay</button>
+              </div>
+            </section>
+
+            <!-- Investigation & corrective actions -->
+            <section class="box" aria-labelledby="id-inv">
+              <h3 id="id-inv">Investigation &amp; Corrective Actions</h3>
+              <ol class="stepper" aria-label="Issue progress">
+                <li *ngFor="let s of steps; let k = index" [class.is-done]="k < stepIndex(selected)" [class.is-current]="k === stepIndex(selected)" [attr.aria-current]="k === stepIndex(selected) ? 'step' : null">
+                  <span class="step-dot"><lucide-icon *ngIf="k < stepIndex(selected)" [img]="icons.Check" [size]="13"></lucide-icon><ng-container *ngIf="k >= stepIndex(selected)">{{ k + 1 }}</ng-container></span>
+                  <span class="step-label">{{ s.label }}</span>
+                </li>
+              </ol>
+              <div class="table-wrap">
+                <table class="wt act-table">
+                  <thead><tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th><th class="sr-col"><span class="sr-only">Remove</span></th></tr></thead>
+                  <tbody>
+                    <tr *ngFor="let a of selected.actions">
+                      <td>{{ a.text }}<span *ngIf="!a.mandatory" class="sub">Optional</span></td>
+                      <td>{{ a.owner }}</td>
+                      <td class="nowrap" [class.c-bad]="isOverdue(a)">{{ a.due | date: (a.due.slice(0, 10) === now.slice(0, 10) ? 'HH:mm' : 'dd MMM HH:mm') }}<span *ngIf="isOverdue(a)" class="sub c-bad">Overdue</span></td>
+                      <td>
+                        <select *ngIf="isOpen(selected); else lockedStatus" class="control status-select" [ngClass]="actionClass(a.status)" [ngModel]="a.status" (ngModelChange)="setActionStatus(selected, a, $event)" [attr.aria-label]="'Status of ' + a.text">
+                          <option *ngFor="let s of actionStatuses" [value]="s">{{ s }}</option>
+                        </select>
+                        <ng-template #lockedStatus><span [ngClass]="actionClass(a.status)">{{ a.status }}</span></ng-template>
+                      </td>
+                      <td class="sr-col"><button *ngIf="isOpen(selected) && a.status === 'Pending'" type="button" class="icon-btn danger" (click)="removeAction(selected, a)" [attr.aria-label]="'Remove ' + a.text"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon></button></td>
+                    </tr>
+                    <tr *ngIf="!selected.actions.length"><td colspan="5" class="empty">No actions yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <form *ngIf="actionForm as f" class="action-form" (ngSubmit)="saveAction()">
+                <input class="control" [(ngModel)]="f.text" name="text" placeholder="Action" aria-label="Action" />
+                <select class="control" [(ngModel)]="f.owner" name="owner" aria-label="Owner"><option *ngFor="let t of teams" [value]="t">{{ t }}</option><option [value]="selected.responsible">{{ selected.responsible }}</option><option value="Quality Supervisor">Quality Supervisor</option></select>
+                <input class="control" type="time" [(ngModel)]="f.due" name="due" aria-label="Due time" />
+                <label class="check"><input type="checkbox" [(ngModel)]="f.mandatory" name="mandatory" />Mandatory</label>
+                <span class="action-form-btns"><button type="button" class="btn btn-outline btn-sm" (click)="actionForm = null">Cancel</button><button type="submit" class="btn btn-primary btn-sm">Add</button></span>
+                <p *ngIf="actionError" class="form-error">{{ actionError }}</p>
+              </form>
+
+              <div class="cause-row">
+                <span class="field-label">Root Cause</span>
+                <ng-container *ngIf="!editingCause">
+                  <strong class="grow" [class.c-warn]="selected.rootCause === 'Under investigation'">{{ selected.rootCause }}</strong>
+                  <button *ngIf="isOpen(selected)" type="button" class="link-btn" (click)="editCause()">Edit</button>
+                </ng-container>
+                <ng-container *ngIf="editingCause">
+                  <input class="control grow" [(ngModel)]="causeDraft" (keydown.enter)="saveCause()" placeholder="Describe the root cause" aria-label="Root cause" />
+                  <button type="button" class="btn btn-primary btn-sm" (click)="saveCause()">Save</button>
+                </ng-container>
+              </div>
+              <button *ngIf="isOpen(selected) && !actionForm" type="button" class="btn btn-outline btn-sm add-action" (click)="openAction()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Action</button>
+            </section>
+          </div>
+        </div>
+
+        <!-- ===== Right column ===== -->
+        <div class="col">
+          <section class="box" aria-labelledby="id-det">
+            <div class="box-head"><h3 id="id-det" class="grow">Issue Details</h3></div>
+            <div class="det-title">
+              <span class="det-id">{{ selected.id }}</span><span class="pill" [ngClass]="statusClass(selected.status)">{{ selected.status }}</span>
+            </div>
+            <p class="det-summary">{{ selected.summary }}</p>
+            <dl class="kv">
+              <dt>Type</dt><dd>{{ selected.type }}</dd>
+              <dt>Severity</dt><dd><span class="pill" [ngClass]="severityClass(selected.severity)">{{ selected.severity }}</span></dd>
+              <dt>Priority</dt><dd [class.c-bad]="selected.priority === 'Urgent'">{{ selected.priority }}</dd>
+              <dt>Reported By</dt><dd>{{ selected.reportedBy }}</dd>
+              <dt>Reported At</dt><dd>{{ selected.reportedAt | date: 'dd MMM yyyy HH:mm' }}</dd>
+              <dt>Assigned Team</dt><dd>{{ selected.owner }}</dd>
+              <dt>Responsible Owner</dt><dd>{{ selected.responsible }}</dd>
+              <dt>Resolution Due</dt><dd [class.c-bad]="isOpen(selected) && selected.due < now">{{ selected.due | date: 'dd MMM HH:mm' }}</dd>
+            </dl>
+            <span class="field-label det-desc-label">Description</span>
+            <p class="det-desc">{{ selected.description || 'No description.' }}</p>
+          </section>
+
+          <section class="box" aria-labelledby="id-ev">
+            <h3 id="id-ev">Evidence &amp; Linked Records</h3>
+            <div class="evidence">
+              <span class="ev-tile"><lucide-icon [img]="icons.ImageIcon" [size]="20"></lucide-icon>{{ selected.photos }} photo{{ selected.photos === 1 ? '' : 's' }}</span>
+              <span class="ev-tile"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon>{{ selected.logs }} test log{{ selected.logs === 1 ? '' : 's' }}</span>
+              <label *ngIf="isOpen(selected)" class="ev-tile ev-add"><lucide-icon [img]="icons.Paperclip" [size]="18"></lucide-icon>Attach<input type="file" multiple (change)="addEvidence($event)" class="sr-only" /></label>
+            </div>
+            <dl class="kv">
+              <dt>Asset</dt><dd><a *ngIf="selected.asset && isLinkedAsset(selected.asset); else plainAsset2" class="job-link" routerLink="/wip-operations/asset-linking" [queryParams]="{ asset: selected.asset }">{{ selected.asset }}</a><ng-template #plainAsset2>{{ selected.asset || '—' }}</ng-template></dd>
+              <dt>Work Order</dt><dd>{{ selected.workOrder || '—' }}</dd>
+              <dt>SLA</dt><dd><a *ngIf="selected.sla; else noSla" class="job-link" routerLink="/wip-operations/sla-management" [queryParams]="{ policy: selected.sla }">{{ selected.sla }}</a><ng-template #noSla>—</ng-template></dd>
+            </dl>
+          </section>
+
+          <section class="box" aria-labelledby="id-res">
+            <h3 id="id-res">Resolution Controls</h3>
+            <ng-container *ngIf="isOpen(selected); else closedInfo">
+              <label class="field"><span class="field-label">Resolution Summary</span>
+                <textarea class="control" rows="3" [(ngModel)]="selected.resolution" placeholder="What was done to resolve the issue"></textarea></label>
+              <label class="field"><span class="field-label">Verification Owner</span>
+                <select class="control" [(ngModel)]="selected.verificationOwner"><option value="Quality Supervisor">Quality Supervisor</option><option value="Shift Supervisor">Shift Supervisor</option><option value="Maintenance Supervisor">Maintenance Supervisor</option></select></label>
+              <div class="checks-row">
+                <label class="check"><input type="checkbox" [(ngModel)]="selected.retestPassed" />Retest passed</label>
+                <label class="check"><input type="checkbox" [(ngModel)]="selected.evidenceReviewed" />Evidence reviewed</label>
+              </div>
+              <p *ngIf="resolutionError" class="form-error" role="alert">{{ resolutionError }}</p>
+              <div class="res-btns">
+                <button type="button" class="btn btn-outline" (click)="saveUpdate()">Save Update</button>
+                <button *ngIf="selected.status !== 'Awaiting verification'" type="button" class="btn btn-primary" (click)="submitForVerification()">Submit for Verification</button>
+                <ng-container *ngIf="selected.status === 'Awaiting verification'">
+                  <button type="button" class="btn btn-outline" (click)="returnToAction()">Return</button>
+                  <button type="button" class="btn btn-primary" (click)="verifyAndClose()"><lucide-icon [img]="icons.CircleCheck" [size]="16"></lucide-icon>Verify &amp; Close</button>
+                </ng-container>
+              </div>
+              <p class="hint res-note"><lucide-icon [img]="icons.Info" [size]="14"></lucide-icon>Closure requires verification and completion of mandatory actions.</p>
+            </ng-container>
+            <ng-template #closedInfo>
+              <dl class="kv">
+                <dt>Resolution</dt><dd>{{ selected.resolution || '—' }}</dd>
+                <dt>Verified By</dt><dd>{{ selected.verificationOwner }}</dd>
+                <dt>Closed At</dt><dd>{{ selected.closedAt | date: 'dd MMM yyyy HH:mm' }}</dd>
+              </dl>
+              <button type="button" class="btn btn-outline btn-sm reopen" (click)="reopen(selected)">Reopen Issue</button>
+            </ng-template>
+          </section>
+        </div>
+      </div>
+
+      <!-- =================== Delay analysis =================== -->
+      <div *ngIf="tab === 'delays'" class="tab-grid">
+        <section class="box" aria-labelledby="id-dl">
+          <h3 id="id-dl">Delay Events <span class="muted">{{ delayRows.length }} events · {{ fmtMin(delayTotal) }} in total</span></h3>
+          <div class="table-wrap table-wrap--scroll">
+            <table class="wt">
+              <thead><tr><th>Issue</th><th>Job / Stage</th><th>Type</th><th>Start</th><th>End</th><th>Duration</th><th></th></tr></thead>
+              <tbody>
+                <tr *ngFor="let r of delayRows" class="is-click" (click)="open(r.issue)">
+                  <td><strong>{{ r.issue.id }}</strong> {{ r.issue.title }}</td>
+                  <td class="nowrap">{{ r.issue.job.replace('JO-2026-', 'JO-') }}<span class="sub">{{ r.issue.stage }}</span></td>
+                  <td>{{ r.issue.type }}</td>
+                  <td class="nowrap">{{ r.start | date: 'dd MMM HH:mm' }}</td>
+                  <td class="nowrap"><span *ngIf="r.end; else running">{{ r.end | date: 'HH:mm' }}</span><ng-template #running><span class="live">running</span></ng-template></td>
+                  <td class="num">{{ fmtMin(r.minutes) }}</td>
+                  <td (click)="$event.stopPropagation()"><button *ngIf="!r.end" type="button" class="btn btn-outline btn-xs" (click)="endDelay(r.issue)">End</button></td>
+                </tr>
+                <tr *ngIf="!delayRows.length"><td colspan="7" class="empty">No delay events.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="box" aria-labelledby="id-dt">
+          <h3 id="id-dt">Delay by Issue Type</h3>
+          <ul class="bars">
+            <li *ngFor="let b of delayByType"><span class="bar-label">{{ b.type }}</span><span class="bar-track"><span class="bar-fill" [style.width.%]="b.pct"></span></span><strong class="bar-val">{{ fmtMin(b.minutes) }}</strong></li>
+          </ul>
+          <p class="hint"><lucide-icon [img]="icons.Info" [size]="14"></lucide-icon> "Delay Today" merges overlapping delays on the same job, so a job held by two issues is counted once.</p>
+        </section>
+      </div>
+
+      <!-- =================== Corrective actions =================== -->
+      <section *ngIf="tab === 'actions'" class="box" aria-labelledby="id-ca">
+        <div class="box-head">
+          <h3 id="id-ca" class="grow">Corrective Actions <span class="muted">open issues</span></h3>
+          <label class="switch"><input type="checkbox" [(ngModel)]="overdueOnly" /><span class="slider" aria-hidden="true"></span>Overdue only</label>
+        </div>
+        <div class="table-wrap">
+          <table class="wt">
+            <thead><tr><th>Action</th><th>Issue</th><th>Job / Stage</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let r of actionTable">
+                <td>{{ r.action.text }}<span *ngIf="!r.action.mandatory" class="sub">Optional</span></td>
+                <td><button type="button" class="link-btn" (click)="open(r.issue)">{{ r.issue.id }}</button><span class="sub">{{ r.issue.title }}</span></td>
+                <td class="nowrap">{{ r.issue.job.replace('JO-2026-', 'JO-') }}<span class="sub">{{ r.issue.stage }}</span></td>
+                <td>{{ r.action.owner }}</td>
+                <td class="nowrap" [class.c-bad]="isOverdue(r.action)">{{ r.action.due | date: 'dd MMM HH:mm' }}<span *ngIf="isOverdue(r.action)" class="sub c-bad">Overdue</span></td>
+                <td><select class="control status-select" [ngClass]="actionClass(r.action.status)" [ngModel]="r.action.status" (ngModelChange)="setActionStatus(r.issue, r.action, $event)" [attr.aria-label]="'Status of ' + r.action.text">
+                  <option *ngFor="let s of actionStatuses" [value]="s">{{ s }}</option></select></td>
+              </tr>
+              <tr *ngIf="!actionTable.length"><td colspan="6" class="empty">{{ overdueOnly ? 'No overdue actions.' : 'No actions on open issues.' }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- =================== Escalations =================== -->
+      <div *ngIf="tab === 'escalations'" class="col">
+        <section *ngIf="pauseRequests.length" class="box" aria-labelledby="id-pr">
+          <h3 id="id-pr">SLA Pause Requests</h3>
+          <div class="table-wrap">
+            <table class="wt">
+              <thead><tr><th>Issue</th><th>Job / Stage</th><th>SLA</th><th>Requested</th><th>Decision</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let i of pauseRequests">
+                  <td><button type="button" class="link-btn" (click)="open(i)">{{ i.id }}</button> {{ i.title }}</td>
+                  <td class="nowrap">{{ i.job.replace('JO-2026-', 'JO-') }}<span class="sub">{{ i.stage }}</span></td>
+                  <td>{{ i.sla || '—' }}</td>
+                  <td>{{ i.history[i.history.length - 1].text.replace('SLA pause requested: ', '') }}</td>
+                  <td class="nowrap"><button type="button" class="btn btn-primary btn-xs" (click)="decidePause(i, true)">Approve</button> <button type="button" class="btn btn-outline btn-xs" (click)="decidePause(i, false)">Reject</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="box" aria-labelledby="id-es">
+          <h3 id="id-es">Escalation Log</h3>
+          <div class="table-wrap">
+            <table class="wt">
+              <thead><tr><th>When</th><th>Issue</th><th>Level</th><th>Escalated To</th><th>Reason</th><th>By</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let e of escalationRows">
+                  <td class="nowrap">{{ e.at | date: 'dd MMM HH:mm' }}</td>
+                  <td><button type="button" class="link-btn" (click)="open(e.issue)">{{ e.issue.id }}</button><span class="sub">{{ e.issue.title }}</span></td>
+                  <td><span class="pill" [ngClass]="e.level === 'Level 1' ? 'pill--amber' : 'pill--red'">{{ e.level }}</span></td>
+                  <td>{{ e.to }}</td><td>{{ e.reason }}</td><td>{{ e.by }}</td>
+                </tr>
+                <tr *ngIf="!escalationRows.length"><td colspan="6" class="empty">No escalations.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="box" aria-labelledby="id-eo">
+          <h3 id="id-eo">Open Issues</h3>
+          <div class="table-wrap">
+            <table class="wt">
+              <thead><tr><th>Issue</th><th>Severity</th><th>Owner</th><th>Due</th><th>Escalations</th><th></th></tr></thead>
+              <tbody>
+                <tr *ngFor="let i of openIssues">
+                  <td><button type="button" class="link-btn" (click)="open(i)">{{ i.id }}</button> {{ i.title }}</td>
+                  <td><span class="pill" [ngClass]="severityClass(i.severity)">{{ i.severity }}</span></td>
+                  <td>{{ i.owner }}</td>
+                  <td class="nowrap" [class.c-bad]="i.due < now">{{ i.due | date: 'dd MMM HH:mm' }}</td>
+                  <td>{{ i.escalations.length || '—' }}</td>
+                  <td><button type="button" class="btn btn-outline btn-xs" (click)="openEscalate(i)"><lucide-icon [img]="icons.ArrowUpRight" [size]="14"></lucide-icon>Escalate</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- =================== Resolution history =================== -->
+      <section *ngIf="tab === 'history'" class="box" aria-labelledby="id-rh">
+        <h3 id="id-rh">Resolution History</h3>
+        <div class="table-wrap">
+          <table class="wt">
+            <thead><tr><th>Issue</th><th>Job / Stage</th><th>Root Cause</th><th>Resolution</th><th>Delay</th><th>Closed</th><th></th></tr></thead>
+            <tbody>
+              <tr *ngFor="let i of closed">
+                <td><button type="button" class="link-btn" (click)="open(i)">{{ i.id }}</button> {{ i.title }}<span class="sub">{{ i.type }}</span></td>
+                <td class="nowrap">{{ i.job.replace('JO-2026-', 'JO-') }}<span class="sub">{{ i.stage }}</span></td>
+                <td>{{ i.rootCause }}</td>
+                <td>{{ i.resolution || '—' }}</td>
+                <td class="num">{{ fmtMin(delayMinutes(i)) }}</td>
+                <td class="nowrap">{{ i.closedAt | date: 'dd MMM HH:mm' }}<span class="sub">{{ i.verificationOwner }}</span></td>
+                <td><button type="button" class="btn btn-outline btn-xs" (click)="reopen(i)">Reopen</button></td>
+              </tr>
+              <tr *ngIf="!closed.length"><td colspan="7" class="empty">No closed issues for {{ site }}.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <p class="footnote"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>Uses the shared issue service • Delay events, SLA pauses and job status are recorded separately.</p>
+</section>
+
+<!-- ===== Report issue ===== -->
+<div *ngIf="reportForm as f" class="overlay" (click)="reportForm = null">
+  <div class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="id-rep-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="id-rep-title">Report Issue</h2><button type="button" class="icon-btn" (click)="reportForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="saveReport()">
+      <div class="grid-3">
+        <label class="field grid-span-2"><span class="field-label">Issue Title <em>*</em></span><input class="control" [(ngModel)]="f.title" name="title" /></label>
+        <label class="field"><span class="field-label">Type</span><select class="control" [(ngModel)]="f.type" name="type"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Job Order <em>*</em></span><input class="control" [(ngModel)]="f.job" name="job" placeholder="JO-2026-00438" /></label>
+        <label class="field"><span class="field-label">Stage <em>*</em></span><input class="control" [(ngModel)]="f.stage" name="stage" placeholder="Testing" /></label>
+        <label class="field"><span class="field-label">Task</span><input class="control" [(ngModel)]="f.task" name="task" /></label>
+        <label class="field"><span class="field-label">Asset</span><input class="control" [(ngModel)]="f.asset" name="asset" placeholder="PTB-003" /></label>
+        <label class="field"><span class="field-label">Severity</span><select class="control" [(ngModel)]="f.severity" name="severity"><option *ngFor="let s of severities" [value]="s">{{ s }}</option></select></label>
+        <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="f.priority" name="priority"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
+        <label class="field"><span class="field-label">Assigned Team</span><select class="control" [(ngModel)]="f.owner" name="owner"><option *ngFor="let t of teams" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Responsible Owner</span><input class="control" [(ngModel)]="f.responsible" name="responsible" /></label>
+        <label class="switch switch--field"><input type="checkbox" [(ngModel)]="f.blocking" name="blocking" /><span class="slider" aria-hidden="true"></span>Blocks the stage</label>
+        <label class="field" style="grid-column: 1 / -1"><span class="field-label">Description</span><textarea class="control" rows="3" [(ngModel)]="f.description" name="description"></textarea></label>
+      </div>
+      <p class="hint">A blocking issue starts a delay on the job. The SLA clock keeps running unless a pause is approved.</p>
+      <p *ngIf="reportError" class="form-error" role="alert">{{ reportError }}</p>
+      <div class="modal-foot modal-foot--form"><button type="button" class="btn btn-outline" (click)="reportForm = null">Cancel</button><button type="submit" class="btn btn-primary">Report Issue</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Request SLA pause ===== -->
+<div *ngIf="pauseFor as p" class="overlay" (click)="pauseFor = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="id-pause-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="id-pause-title">Request SLA Pause</h2><button type="button" class="icon-btn" (click)="pauseFor = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="savePause()">
+      <dl class="kv"><dt>Job / Stage</dt><dd>{{ p.job }} · {{ p.stage }}</dd><dt>SLA</dt><dd>{{ p.sla || 'Stage SLA' }}</dd><dt>Delay so far</dt><dd>{{ fmtMin(delayMinutes(p)) }}</dd></dl>
+      <label class="field"><span class="field-label">Reason <em>*</em></span><textarea class="control" rows="3" [(ngModel)]="pauseReason" name="reason" placeholder="e.g. Waiting for an approved external dependency"></textarea></label>
+      <p class="hint">The clock keeps running until a supervisor approves the pause.</p>
+      <p *ngIf="pauseError" class="form-error" role="alert">{{ pauseError }}</p>
+      <div class="modal-foot modal-foot--form"><button type="button" class="btn btn-outline" (click)="pauseFor = null">Cancel</button><button type="submit" class="btn btn-primary">Send Request</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Escalate ===== -->
+<div *ngIf="escalateForm as f" class="overlay" (click)="escalateForm = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="id-esc-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="id-esc-title">Escalate {{ f.issue.id }}</h2><button type="button" class="icon-btn" (click)="escalateForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="saveEscalate()">
+      <label class="field"><span class="field-label">Level</span><select class="control" [(ngModel)]="f.level" name="level"><option *ngFor="let l of levels" [value]="l">{{ l }}</option></select></label>
+      <label class="field"><span class="field-label">Escalate To <em>*</em></span><input class="control" [(ngModel)]="f.to" name="to" placeholder="e.g. Operations Manager" /></label>
+      <label class="field"><span class="field-label">Reason <em>*</em></span><textarea class="control" rows="2" [(ngModel)]="f.reason" name="reason"></textarea></label>
+      <div class="modal-foot modal-foot--form"><button type="button" class="btn btn-outline" (click)="escalateForm = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="!f.to.trim() || !f.reason.trim()">Escalate</button></div>
+    </form>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" [class.toast--error]="toastError" role="status">{{ toast }}</div>

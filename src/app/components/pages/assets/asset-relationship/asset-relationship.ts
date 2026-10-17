@@ -22,6 +22,8 @@ import {
   Fuel,
   Laptop,
   LayoutGrid,
+  MapPin,
+  Tag,
   List,
   Maximize2,
   Minimize2,
@@ -111,10 +113,11 @@ interface AssetGraph {
   nextId: number;
 }
 
-const NODE_W = 220;
-const NODE_H = 68;
-const CENTER_W = 200;
-const CENTER_H = 80;
+// Nodes show name, category and location as well as the relationship type
+const NODE_W = 250;
+const NODE_H = 104;
+const CENTER_W = 270;
+const CENTER_H = 104;
 const GAP_X = 24;
 const GAP_Y = 22;
 const ROW_GAP = 56;
@@ -175,9 +178,14 @@ function buildUserGraph(tag: string): AssetGraph {
 })
 export class AssetRelationship {
   readonly icons = {
-    ChevronDown, Download, EllipsisVertical, Eye, LayoutGrid, List, Maximize2, Minimize2,
-    Network, Pencil, Plus, Printer, Search, Trash2, Workflow, X,
+    ChevronDown, Download, EllipsisVertical, Eye, LayoutGrid, List, MapPin, Maximize2, Minimize2,
+    Network, Pencil, Plus, Printer, Search, Tag, Trash2, Workflow, X,
   };
+
+  /** Location nodes (the asset's site / room) rather than equipment. */
+  isPlace(a: CatalogAsset): boolean {
+    return a.icon === 'Building2' || a.tag.startsWith('LOC-');
+  }
   readonly assetIcons = {
     Building2, ToggleRight, BatteryCharging, Server, Fuel, Cog, Cpu, Zap, AirVent, Box, Cctv, Fan, Flame, Forklift, Laptop, SolarPanel,
   };

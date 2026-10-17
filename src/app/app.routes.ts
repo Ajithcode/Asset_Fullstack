@@ -22,6 +22,13 @@ import { AssetBulk } from './components/pages/assets/asset-bulk/asset-bulk';
 import { AssetMerge } from './components/pages/assets/asset-merge/asset-merge';
 import { JobTemplates } from './components/pages/wip-operations/job-templates/job-templates';
 import { JobOrders } from './components/pages/wip-operations/job-orders/job-orders';
+import { Resources } from './components/pages/wip-operations/resources/resources';
+import { TaskMaster } from './components/pages/wip-operations/task-master/task-master';
+import { MaterialConsumption } from './components/pages/wip-operations/material-consumption/material-consumption';
+import { LocationManagement } from './components/pages/wip-operations/location-management/location-management';
+import { IssuesDelays } from './components/pages/wip-operations/issues-delays/issues-delays';
+import { SlaManagement } from './components/pages/wip-operations/sla-management/sla-management';
+import { AssetLinking } from './components/pages/wip-operations/asset-linking/asset-linking';
 import { Events } from './components/pages/events/events/events';
 import { Reports } from './components/pages/reports/reports/reports';
 import { CreateReport } from './components/pages/reports/create-report/create-report';
@@ -215,9 +222,16 @@ export const routes: Routes = [
       // Opens one job order; ?code=JO-2026-00438 picks which
       { path: 'wip-operations/job-orders', component: JobOrders },
       { path: 'wip-operations/process-routing', component: ModulePlaceholder, data: { title: 'Process & Routing' } },
-      { path: 'wip-operations/resources', component: ModulePlaceholder, data: { title: 'Resources' } },
+      // Opens one task; ?code=TM-00056 picks which
+      { path: 'wip-operations/task-master', component: TaskMaster },
+      { path: 'wip-operations/resources', component: Resources },
+      // Opens one job order's materials; ?job=JO-2026-00438 picks which
+      { path: 'wip-operations/material-consumption', component: MaterialConsumption },
+      { path: 'wip-operations/location-management', component: LocationManagement },
+      { path: 'wip-operations/asset-linking', component: AssetLinking },
+      { path: 'wip-operations/sla-management', component: SlaManagement },
       { path: 'wip-operations/progress-output', component: ModulePlaceholder, data: { title: 'Progress & Output' } },
-      { path: 'wip-operations/issues-delays', component: ModulePlaceholder, data: { title: 'Issues & Delays' } },
+      { path: 'wip-operations/issues-delays', component: IssuesDelays },
       { path: 'audit-compliance', component: ModulePlaceholder, data: { title: 'Audit & Compliance' } },
       { path: 'contracts-warranty', component: ModulePlaceholder, data: { title: 'Contracts & Warranty' } },
       { path: 'financial', component: ModulePlaceholder, data: { title: 'Financial' } },

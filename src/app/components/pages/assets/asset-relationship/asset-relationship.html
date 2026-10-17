@@ -127,9 +127,11 @@
           <div class="node node--center" [style.left.px]="dg.center.x" [style.top.px]="dg.center.y" [style.width.px]="centerW" [style.height.px]="centerH">
             <img *ngIf="asset.image; else centerIcon" [src]="asset.image" alt="" />
             <ng-template #centerIcon><lucide-icon class="center-icon" [img]="assetIcons[iconFor[asset.icon]]" [size]="36" [strokeWidth]="1.6"></lucide-icon></ng-template>
-            <div>
+            <div class="node-text">
               <strong>{{ asset.tag }}</strong>
-              <span>{{ asset.name }}</span>
+              <span class="ellipsis">{{ asset.name }}</span>
+              <span class="node-meta ellipsis" [title]="asset.category"><lucide-icon [img]="icons.Tag" [size]="12"></lucide-icon>{{ asset.category }}</span>
+              <span class="node-meta ellipsis" [title]="asset.location"><lucide-icon [img]="icons.MapPin" [size]="12"></lucide-icon>{{ asset.location }}</span>
             </div>
           </div>
 
@@ -149,8 +151,17 @@
               <lucide-icon [img]="assetIcons[n.asset.icon]" [size]="24" [strokeWidth]="1.6"></lucide-icon>
             </span>
             <span class="node-text">
-              <strong>{{ n.asset.tag }}</strong>
-              <span class="ellipsis">{{ n.asset.name }}</span>
+              <!-- A location node shows the place itself rather than its internal code -->
+              <ng-container *ngIf="isPlace(n.asset); else assetNode">
+                <strong class="ellipsis" [title]="n.asset.name">{{ n.asset.name }}</strong>
+                <span class="node-meta"><lucide-icon [img]="icons.MapPin" [size]="12"></lucide-icon>Location · {{ n.asset.category }}</span>
+              </ng-container>
+              <ng-template #assetNode>
+                <strong>{{ n.asset.tag }}</strong>
+                <span class="ellipsis" [title]="n.asset.name">{{ n.asset.name }}</span>
+                <span class="node-meta ellipsis" [title]="n.asset.category"><lucide-icon [img]="icons.Tag" [size]="12"></lucide-icon>{{ n.asset.category }}</span>
+                <span class="node-meta ellipsis" [title]="n.asset.location"><lucide-icon [img]="icons.MapPin" [size]="12"></lucide-icon>{{ n.asset.location || "-" }}</span>
+              </ng-template>
               <span class="type-pill" [ngClass]="typeClass(n.rel.type)">{{ n.rel.type }}</span>
             </span>
           </button>

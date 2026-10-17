@@ -106,7 +106,12 @@ export class Sidebar {
         { label: 'Job Templates', path: '/wip-operations/job-templates' },
         { label: 'Job Orders', path: '/wip-operations/job-orders' },
         { label: 'Process & Routing', path: '/wip-operations/process-routing' },
+        { label: 'Task Master', path: '/wip-operations/task-master' },
         { label: 'Resources', path: '/wip-operations/resources' },
+        { label: 'Material Consumption', path: '/wip-operations/material-consumption' },
+        { label: 'Location Management', path: '/wip-operations/location-management' },
+        { label: 'Asset Linking', path: '/wip-operations/asset-linking' },
+        { label: 'SLA Management', path: '/wip-operations/sla-management' },
         { label: 'Progress & Output', path: '/wip-operations/progress-output' },
         { label: 'Issues & Delays', path: '/wip-operations/issues-delays' }
       ]

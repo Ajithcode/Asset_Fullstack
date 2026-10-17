@@ -296,7 +296,8 @@ export class AssetCustomFields {
 
   @ViewChild(CfFieldLayouts) private layoutsView?: CfFieldLayouts;
 
-  readonly tabs = (Object.keys(TAB_META) as PageTab[]).map((key) => ({ key, label: TAB_META[key].label }));
+  // Compound Fields is not shown as its own tab; compound fields are listed with the other fields of their scope
+  readonly tabs = (Object.keys(TAB_META) as PageTab[]).filter((key) => key !== 'compound').map((key) => ({ key, label: TAB_META[key].label }));
   readonly fieldTypes = FIELD_TYPES;
   readonly assetCategories = ASSET_CATEGORIES;
   readonly allComponents = ALL_COMPONENTS;

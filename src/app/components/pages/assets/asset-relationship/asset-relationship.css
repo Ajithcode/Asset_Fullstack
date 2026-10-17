@@ -734,6 +734,10 @@ button.node:hover {
   color: #374151;
 }
 
+.node-meta { display: flex; align-items: center; gap: 4px; font-size: 11.5px !important; color: #6b7280 !important; }
+.node-meta lucide-icon { flex: 0 0 auto; }
+.node-text .type-pill { align-self: flex-start; margin-top: 2px; }
+
 .ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;

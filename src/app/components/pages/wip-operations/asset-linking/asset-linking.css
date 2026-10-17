@@ -1,0 +1,126 @@
+/* Job card, linked-asset layout, association tree, link form, readiness checks and link configuration.
+   Shared pieces are in ../shared/wip-board.css. */
+.job-card { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px 18px; }
+.job-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 19px; font-weight: 800; }
+.job-title .job-link { text-decoration: none; }
+.tpl-meta lucide-icon { vertical-align: -2px; }
+.job-pick { min-width: 280px; }
+
+.al-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+  gap: 14px;
+  align-items: start;
+}
+
+.al-pair { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 14px; align-items: start; }
+.box h3 .muted { margin-left: 6px; font-weight: 500; }
+.box > .filters { margin-bottom: 12px; }
+.w-auto { width: auto; min-width: 160px; }
+.av-search { min-width: 240px; }
+.span-2 { grid-column: span 2; }
+
+/* ============ Tree ============ */
+.tree, .tree ul { margin: 0; padding: 0; list-style: none; }
+.tree ul { padding-left: 18px; }
+.tree .leaf-group { margin-left: 8px; padding-left: 14px; border-left: 1px solid var(--jt-border); }
+
+.node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--jt-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.node:hover { background: #f6f4fe; }
+.node .muted { margin-left: auto; font-size: 11.5px; }
+.node--root { font-weight: 700; color: var(--jt-accent); cursor: default; }
+.node--root:hover { background: none; }
+.node--leaf.is-selected { background: #ece7ff; font-weight: 600; }
+
+/* ============ Link form ============ */
+.link-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.link-form .search { height: 36px; }
+.form-btns { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.avail-ok { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; font-weight: 600; color: var(--wb-good); }
+
+/* ============ Checks ============ */
+.checks { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.checks li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+.checks li > lucide-icon { flex: 0 0 auto; margin-top: 1px; color: var(--wb-good); }
+.checks li.is-bad > lucide-icon { color: var(--wb-bad); }
+.checks li.is-bad strong { color: #b91c1c; }
+.checks .sub { display: block; margin-top: 2px; color: #4b5563; }
+.checks--compact { gap: 8px; padding: 10px 12px; border-radius: 8px; background: #f7f7fa; }
+
+.chk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 6px 2px 0;
+  font-size: 12px;
+  color: #15803d;
+  white-space: nowrap;
+}
+
+.chk-chip.is-bad { color: #b91c1c; font-weight: 600; }
+
+/* ============ Selected asset & configuration ============ */
+.sel-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.sel-icon { width: 46px; height: 46px; }
+.sel-name { display: block; font-size: 16px; }
+.sel-head .sub { display: block; margin-top: 2px; font-size: 12.5px; color: var(--jt-muted); }
+.sel-open { margin-top: 12px; }
+
+.cfg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cfg-grid .hint { margin-top: -4px; }
+.cfg-switches { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.cfg-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+.box .form-error { margin-top: 10px; }
+
+.seg { display: inline-flex; padding: 3px; border: 1px solid var(--jt-control-border); border-radius: 7px; background: #f7f7fa; }
+
+.seg-opt {
+  position: relative;
+  flex: 1 1 0;
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.seg-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg-opt.is-on { background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12); font-weight: 700; color: var(--jt-accent); }
+.seg-opt:focus-within { outline: 2px solid rgba(79, 43, 216, 0.35); }
+
+.alert-links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+.alert-links .link-btn { font-size: 12.5px; }
+
+/* ============ Dialogs ============ */
+.modal--wide { max-width: 760px; }
+.prof-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.prof-h { margin: 8px 0 0; font-size: 14px; font-weight: 800; }
+
+@media (max-width: 1280px) {
+  .al-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .al-pair { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .link-form, .cfg-grid, .prof-grid { grid-template-columns: minmax(0, 1fr); }
+  .span-2 { grid-column: auto; }
+  .job-pick { min-width: 0; width: 100%; }
+}
