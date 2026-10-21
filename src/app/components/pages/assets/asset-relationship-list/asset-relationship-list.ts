@@ -257,13 +257,14 @@ export class AssetRelationshipList implements OnDestroy {
     this.previews = null;
   }
 
-  /** Submit: open the details page of the most recently selected asset. */
+  /** Submit: open the details page with one diagram per selected asset; the most recently selected one is active. */
   submitPreview(): void {
-    const last = this.previews?.[this.previews.length - 1]?.asset.tag;
+    const tags = (this.previews ?? []).map((p) => p.asset.tag);
+    const last = tags[tags.length - 1];
     if (!last) return;
     this.previews = null;
     this.selectedMains = [];
-    this.router.navigate(['/assets/relationships'], { queryParams: { tag: last } });
+    this.router.navigate(['/assets/relationships'], { queryParams: { tag: last, tags: tags.join(','), from: FROM_RELATIONSHIPS } });
   }
 
   /** "Change" in the popup: back to the table on the page, keeping the ticked main assets. */

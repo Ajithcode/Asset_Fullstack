@@ -2,9 +2,10 @@ import { Component, DestroyRef, HostListener, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
   LucideAngularModule,
+  LucideIconData,
   AirVent,
   BatteryCharging,
   Box,
@@ -168,6 +169,34 @@ function buildUserGraph(tag: string): AssetGraph {
   return graph;
 }
 
+/**
+ * Opened with several assets from the Asset Relationship page: the asset's own relationships plus the sub assets
+ * linked on that page (the same data its Related Assets popup lists). Built fresh for each visit.
+ */
+function buildCombinedGraph(tag: string, detail: AssetDetail | null): AssetGraph {
+  const graph = buildGraph(tag, detail);
+  const users = readUserRelationships();
+  let id = Math.max(graph.nextId - 1, ...users.map((u) => u.id)) + 1;
+  for (const u of users) {
+    if (u.mainTag !== tag || graph.relationships.some((r) => r.tag === u.subTag)) continue;
+    graph.relationships.push({
+      id: id++, tag: u.subTag, type: 'Connected Asset', direction: 'Child', since: u.createdAt.slice(0, 10), to: '',
+      status: 'Active', description: `Sub asset of ${tag}.`, reference: 'Asset Relationship', remarks: `Linked by ${u.createdBy}`,
+    });
+  }
+  graph.nextId = id;
+  return graph;
+}
+
+type Diagram = { width: number; height: number; center: { x: number; y: number }; nodes: DiagramNode[]; edges: DiagramEdge[] };
+
+/** One of the assets opened together; `graph` is null while its data loads. */
+interface DiagramSet {
+  tag: string;
+  asset: AssetHeader;
+  graph: AssetGraph | null;
+}
+
 /** DEMO MODE: all data is static and kept in memory. */
 @Component({
   selector: 'app-asset-relationship',
@@ -190,6 +219,15 @@ export class AssetRelationship {
     Building2, ToggleRight, BatteryCharging, Server, Fuel, Cog, Cpu, Zap, AirVent, Box, Cctv, Fan, Flame, Forklift, Laptop, SolarPanel,
   };
   readonly iconFor = ICON_FOR;
+
+  /** Icon for an asset without a photo (any opened asset, in its diagram centre). */
+  nodeIcon(a: CatalogAsset): LucideIconData {
+    return this.assetIcons[a.icon];
+  }
+
+  centerIconOf(a: AssetHeader): LucideIconData {
+    return this.assetIcons[ICON_FOR[a.icon]];
+  }
   readonly statusPill = statusPill;
   readonly conditionPill = conditionPill;
   readonly criticalityPill = criticalityPill;
@@ -253,6 +291,14 @@ export class AssetRelationship {
   removeIds: number[] | null = null;
   /** Opened from the Asset Relationship page (?from=relationships) rather than the Asset List. */
   fromRelationships = false;
+  /** Assets opened together (?tags=), each with its own diagram; the page header and table follow the active one (?tag=). */
+  sets: DiagramSet[] = [];
+  private setsKey = '';
+  private setGraphs = new Map<string, Promise<AssetGraph>>();
+  /** Relationship to select once the next asset is shown (a node clicked in another asset's diagram). */
+  private pendingSelect: number | null = null;
+  private readonly router = inject(Router);
+  private diagramCache = new WeakMap<AssetGraph, { key: string; value: Diagram }>();
 
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
@@ -261,8 +307,10 @@ export class AssetRelationship {
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef)))
       .subscribe((params) => {
-        this.fromRelationships = params.get('from') === FROM_RELATIONSHIPS;
-        this.load(params.get('tag'));
+        const tags = [...new Set((params.get('tags') ?? '').split(',').map((t) => t.trim()).filter((t) => findAsset(t)))];
+        this.fromRelationships = params.get('from') === FROM_RELATIONSHIPS || tags.length > 0;
+        this.loadSets(tags);
+        this.load(params.get('tag') ?? tags[tags.length - 1] ?? null);
       });
   }
 
@@ -274,6 +322,16 @@ export class AssetRelationship {
     this.notFound = !record;
     if (!record) return;
     this.asset = assetHeader(record);
+    // Several assets opened together: share the graph shown in this asset's own diagram
+    const fromSet = this.setGraphs.get(record.tag);
+    if (fromSet) {
+      this.show({ catalog: [], relationships: [], nextId: 1 });
+      this.loading = true;
+      fromSet.then((graph) => {
+        if (this.requestedTag === record.tag) this.show(graph);
+      });
+      return;
+    }
     // From the Asset Relationship page: show the sub assets linked there (read fresh, they change on that page)
     if (this.fromRelationships) {
       this.show(buildUserGraph(record.tag));
@@ -295,11 +353,45 @@ export class AssetRelationship {
     });
   }
 
+  /** Starts loading every asset opened together (kept while switching between them). */
+  private loadSets(tags: string[]): void {
+    const key = tags.join(',');
+    if (key === this.setsKey) return;
+    this.setsKey = key;
+    this.setGraphs.clear();
+    this.sets = tags.map((tag) => ({ tag, asset: assetHeader(findAsset(tag)!), graph: null }));
+    for (const set of this.sets) {
+      const promise = loadAssetDetail(set.tag).then((detail) => buildCombinedGraph(set.tag, detail));
+      this.setGraphs.set(set.tag, promise);
+      promise.then((graph) => {
+        if (this.sets.includes(set)) set.graph = graph;
+      });
+    }
+  }
+
+  trackSet(_: number, set: DiagramSet): string {
+    return set.tag;
+  }
+
+  /** Makes another opened asset the active one (header, details and table), optionally selecting a relationship. */
+  activate(set: DiagramSet, relId: number | null = null): void {
+    if (set.tag === this.asset.tag) {
+      if (relId !== null) this.selectedId = relId;
+      return;
+    }
+    this.pendingSelect = relId;
+    this.router.navigate([], { queryParams: { tag: set.tag }, queryParamsHandling: 'merge' });
+  }
+
   private show(graph: AssetGraph): void {
     this.loading = false;
     this.graph = graph;
     // Reset per-asset view state
-    this.selectedId = graph.relationships.find((r) => r.type !== 'Parent Asset')?.id ?? graph.relationships[0]?.id ?? null;
+    const pending = this.pendingSelect;
+    this.pendingSelect = null;
+    this.selectedId = graph.relationships.some((r) => r.id === pending)
+      ? pending
+      : graph.relationships.find((r) => r.type !== 'Parent Asset')?.id ?? graph.relationships[0]?.id ?? null;
     this.checked.clear();
     this.search = '';
     this.typeFilter = 'all';
@@ -311,8 +403,8 @@ export class AssetRelationship {
   }
 
   // ===== Lookups =====
-  assetFor(tag: string): CatalogAsset {
-    return this.catalog.find((a) => a.tag === tag) ?? { tag, name: tag, category: '-', location: '-', condition: '', icon: 'Cog' };
+  assetFor(tag: string, graph: AssetGraph = this.graph): CatalogAsset {
+    return graph.catalog.find((a) => a.tag === tag) ?? { tag, name: tag, category: '-', location: '-', condition: '', icon: 'Cog' };
   }
 
   typeClass(type: RelType): string {
@@ -334,13 +426,23 @@ export class AssetRelationship {
   }
 
   // ===== Diagram =====
-  get diagramRels(): Relationship[] {
-    return this.viewFilter === 'all' ? this.relationships : this.relationships.filter((r) => r.type === this.viewFilter);
+  get diagram(): Diagram {
+    return this.diagramOf(this.graph);
+  }
+
+  /** A graph's diagram, recomputed only when its relationships, the view filter or the layout change. */
+  diagramOf(graph: AssetGraph): Diagram {
+    const key = `${this.layout}|${this.viewFilter}|${graph.catalog.length}|${graph.relationships.map((r) => `${r.id}:${r.tag}:${r.type}:${r.status}`).join(',')}`;
+    const hit = this.diagramCache.get(graph);
+    if (hit && hit.key === key) return hit.value;
+    const value = this.layoutDiagram(graph);
+    this.diagramCache.set(graph, { key, value });
+    return value;
   }
 
   /** Places nodes around the asset: parents above, components below, the rest split left/right. */
-  get diagram(): { width: number; height: number; center: { x: number; y: number }; nodes: DiagramNode[]; edges: DiagramEdge[] } {
-    const rels = this.diagramRels;
+  private layoutDiagram(graph: AssetGraph): Diagram {
+    const rels = this.viewFilter === 'all' ? graph.relationships : graph.relationships.filter((r) => r.type === this.viewFilter);
     const sides: Record<Side, Relationship[]> = { top: [], bottom: [], left: [], right: [] };
     if (this.layout === 'horizontal') {
       for (const r of rels) (r.type === 'Parent Asset' ? sides.left : sides.right).push(r);
@@ -377,7 +479,7 @@ export class AssetRelationship {
           x = side === 'left' ? 0 : width - NODE_W;
           y = midTop + (midHeight - stackHeight(list.length)) / 2 + i * (NODE_H + GAP_Y);
         }
-        nodes.push({ rel, asset: this.assetFor(rel.tag), x, y, side });
+        nodes.push({ rel, asset: this.assetFor(rel.tag, graph), x, y, side });
       });
     };
     (Object.keys(sides) as Side[]).forEach((s) => place(sides[s], s));
@@ -412,8 +514,8 @@ export class AssetRelationship {
   readonly centerW = CENTER_W;
   readonly centerH = CENTER_H;
 
-  markerId(color: string): string {
-    return 'rel-arrow-' + color.slice(1);
+  markerId(color: string, tag = ''): string {
+    return 'rel-arrow-' + color.slice(1) + (tag ? '-' + tag : '');
   }
 
   get markerColors(): string[] {

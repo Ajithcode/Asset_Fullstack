@@ -708,14 +708,14 @@ textarea.control--sm {
 }
 
 /* ============ Quick actions ============ */
-.quick-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+.quick-note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #6b7280;
 }
 
-.quick-actions .btn {
-  padding: 0 8px;
+.quick-submit {
+  width: 100%;
 }
 
 /* ============ Action bar (full width of the content area) ============ */
@@ -790,8 +790,7 @@ textarea.control--sm {
   .form-grid,
   .form-grid--3,
   .form-row-3,
-  .loc-body,
-  .quick-actions {
+  .loc-body {
     grid-template-columns: minmax(0, 1fr);
   }
 

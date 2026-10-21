@@ -112,8 +112,9 @@ export class Sidebar {
         { label: 'Location Management', path: '/wip-operations/location-management' },
         { label: 'Asset Linking', path: '/wip-operations/asset-linking' },
         { label: 'SLA Management', path: '/wip-operations/sla-management' },
-        { label: 'Progress & Output', path: '/wip-operations/progress-output' },
-        { label: 'Issues & Delays', path: '/wip-operations/issues-delays' }
+        { label: 'Issues & Delays', path: '/wip-operations/issues-delays' },
+        { label: 'Permit / Compliance', path: '/wip-operations/permit-compliance' },
+        { label: 'Progress & Output', path: '/wip-operations/progress-output' }
       ]
     },
     { label: 'Audit & Compliance', path: '/audit-compliance', icon: ShieldCheck },

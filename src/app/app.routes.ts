@@ -29,6 +29,7 @@ import { LocationManagement } from './components/pages/wip-operations/location-m
 import { IssuesDelays } from './components/pages/wip-operations/issues-delays/issues-delays';
 import { SlaManagement } from './components/pages/wip-operations/sla-management/sla-management';
 import { AssetLinking } from './components/pages/wip-operations/asset-linking/asset-linking';
+import { PermitCompliance } from './components/pages/wip-operations/permit-compliance/permit-compliance';
 import { Events } from './components/pages/events/events/events';
 import { Reports } from './components/pages/reports/reports/reports';
 import { CreateReport } from './components/pages/reports/create-report/create-report';
@@ -232,6 +233,7 @@ export const routes: Routes = [
       { path: 'wip-operations/sla-management', component: SlaManagement },
       { path: 'wip-operations/progress-output', component: ModulePlaceholder, data: { title: 'Progress & Output' } },
       { path: 'wip-operations/issues-delays', component: IssuesDelays },
+      { path: 'wip-operations/permit-compliance', component: PermitCompliance },
       { path: 'audit-compliance', component: ModulePlaceholder, data: { title: 'Audit & Compliance' } },
       { path: 'contracts-warranty', component: ModulePlaceholder, data: { title: 'Contracts & Warranty' } },
       { path: 'financial', component: ModulePlaceholder, data: { title: 'Financial' } },

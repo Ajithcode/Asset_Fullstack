@@ -582,6 +582,12 @@ select.control {
   align-items: start;
 }
 
+/* Several assets opened together: one diagram each; the active one has the details panel beside it */
+.rel-body--solo { grid-template-columns: minmax(0, 1fr); }
+.diagram-card.is-active-set { border-color: var(--rl-accent-border); box-shadow: 0 0 0 2px var(--rl-accent-soft); }
+.set-title { font-weight: 600; color: var(--rl-text-muted); }
+.btn-xs { height: 30px; padding: 0 12px; font-size: 12.5px; }
+
 .diagram-card.is-full {
   position: fixed;
   inset: 16px;

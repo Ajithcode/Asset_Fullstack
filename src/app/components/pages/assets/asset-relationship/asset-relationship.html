@@ -92,25 +92,40 @@
     </button>
   </div>
 
-  <!-- Diagram + details -->
-  <div class="rel-body">
-    <div class="card panel diagram-card" [class.is-full]="fullScreen">
+  <!-- Diagram + details: one diagram per opened asset; the details panel sits beside the active one -->
+  <ng-container *ngIf="sets.length > 1; else singleBody">
+    <div *ngFor="let set of sets; trackBy: trackSet" class="rel-body" [class.rel-body--solo]="set.tag !== asset.tag">
+      <ng-container *ngTemplateOutlet="diagramCard; context: { $implicit: set.asset, dg: set.graph ? diagramOf(set.graph) : null, set: set, active: set.tag === asset.tag }"></ng-container>
+      <ng-container *ngIf="set.tag === asset.tag"><ng-container *ngTemplateOutlet="detailsCard"></ng-container></ng-container>
+    </div>
+  </ng-container>
+  <ng-template #singleBody>
+    <div class="rel-body">
+      <ng-container *ngTemplateOutlet="diagramCard; context: { $implicit: asset, dg: diagram, set: null, active: true }"></ng-container>
+      <ng-container *ngTemplateOutlet="detailsCard"></ng-container>
+    </div>
+  </ng-template>
+
+  <ng-template #diagramCard let-a let-dg="dg" let-set="set" let-active="active">
+    <div class="card panel diagram-card" [class.is-full]="fullScreen && active" [class.is-active-set]="set && active">
       <div class="card-head">
         <lucide-icon class="head-icon" [img]="icons.Network" [size]="20"></lucide-icon>
-        <h3 class="grow">Relationship Diagram</h3>
+        <h3 class="grow">Relationship Diagram<span *ngIf="set" class="set-title"> · {{ a.tag }} {{ a.name }}</span></h3>
         <div class="legend">
           <span *ngFor="let t of relTypes"><i [style.background]="typeColors[t]"></i>{{ t }}</span>
         </div>
-        <button *ngIf="fullScreen" type="button" class="icon-btn" (click)="toggleFullScreen()" aria-label="Exit full screen">
+        <button *ngIf="set && !active" type="button" class="btn btn-soft btn-xs" (click)="activate(set)">Show details</button>
+        <button *ngIf="fullScreen && active" type="button" class="icon-btn" (click)="toggleFullScreen()" aria-label="Exit full screen">
           <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
         </button>
       </div>
 
-      <div class="diagram-scroll" *ngIf="diagram as dg">
+      <p *ngIf="!dg" class="empty-line">Loading relationships…</p>
+      <div class="diagram-scroll" *ngIf="dg">
         <div class="diagram" [style.width.px]="dg.width" [style.height.px]="dg.height">
           <svg class="edges" [attr.width]="dg.width" [attr.height]="dg.height" aria-hidden="true">
             <defs>
-              <marker *ngFor="let c of markerColors" [attr.id]="markerId(c)" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <marker *ngFor="let c of markerColors" [attr.id]="markerId(c, a.tag)" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
                 <path d="M0,0 L10,5 L0,10 z" [attr.fill]="c"></path>
               </marker>
             </defs>
@@ -118,20 +133,20 @@
               *ngFor="let e of dg.edges"
               [attr.d]="e.d"
               [attr.stroke]="e.color"
-              [attr.marker-end]="'url(#' + markerId(e.color) + ')'"
-              [class.is-selected]="e.id === selectedId"
+              [attr.marker-end]="'url(#' + markerId(e.color, a.tag) + ')'"
+              [class.is-selected]="active && e.id === selectedId"
               fill="none"
             ></path>
           </svg>
 
           <div class="node node--center" [style.left.px]="dg.center.x" [style.top.px]="dg.center.y" [style.width.px]="centerW" [style.height.px]="centerH">
-            <img *ngIf="asset.image; else centerIcon" [src]="asset.image" alt="" />
-            <ng-template #centerIcon><lucide-icon class="center-icon" [img]="assetIcons[iconFor[asset.icon]]" [size]="36" [strokeWidth]="1.6"></lucide-icon></ng-template>
+            <img *ngIf="a.image; else centerIcon" [src]="a.image" alt="" />
+            <ng-template #centerIcon><lucide-icon class="center-icon" [img]="centerIconOf(a)" [size]="36" [strokeWidth]="1.6"></lucide-icon></ng-template>
             <div class="node-text">
-              <strong>{{ asset.tag }}</strong>
-              <span class="ellipsis">{{ asset.name }}</span>
-              <span class="node-meta ellipsis" [title]="asset.category"><lucide-icon [img]="icons.Tag" [size]="12"></lucide-icon>{{ asset.category }}</span>
-              <span class="node-meta ellipsis" [title]="asset.location"><lucide-icon [img]="icons.MapPin" [size]="12"></lucide-icon>{{ asset.location }}</span>
+              <strong>{{ a.tag }}</strong>
+              <span class="ellipsis">{{ a.name }}</span>
+              <span class="node-meta ellipsis" [title]="a.category"><lucide-icon [img]="icons.Tag" [size]="12"></lucide-icon>{{ a.category }}</span>
+              <span class="node-meta ellipsis" [title]="a.location"><lucide-icon [img]="icons.MapPin" [size]="12"></lucide-icon>{{ a.location }}</span>
             </div>
           </div>
 
@@ -139,16 +154,16 @@
             *ngFor="let n of dg.nodes"
             type="button"
             class="node"
-            [class.is-selected]="n.rel.id === selectedId"
+            [class.is-selected]="active && n.rel.id === selectedId"
             [class.is-inactive]="n.rel.status === 'Inactive'"
             [style.left.px]="n.x"
             [style.top.px]="n.y"
             [style.width.px]="nodeW"
             [style.height.px]="nodeH"
-            (click)="select(n.rel)"
+            (click)="set ? activate(set, n.rel.id) : select(n.rel)"
           >
             <span class="node-icon" [ngClass]="typeClass(n.rel.type)">
-              <lucide-icon [img]="assetIcons[n.asset.icon]" [size]="24" [strokeWidth]="1.6"></lucide-icon>
+              <lucide-icon [img]="nodeIcon(n.asset)" [size]="24" [strokeWidth]="1.6"></lucide-icon>
             </span>
             <span class="node-text">
               <!-- A location node shows the place itself rather than its internal code -->
@@ -169,7 +184,9 @@
         <p *ngIf="!dg.nodes.length" class="empty-line">No relationships match this view.</p>
       </div>
     </div>
+  </ng-template>
 
+  <ng-template #detailsCard>
     <aside class="card panel details-card">
       <div class="card-head">
         <lucide-icon class="head-icon" [img]="icons.Eye" [size]="20"></lucide-icon>
@@ -207,7 +224,7 @@
         <p class="empty-line">Select an asset in the diagram or table to see its relationship.</p>
       </ng-template>
     </aside>
-  </div>
+  </ng-template>
 
   <!-- Related assets -->
   <div class="card panel">

@@ -63,6 +63,7 @@ import {
   X,
 } from 'lucide-angular';
 import { OptionMenu } from './option-menu';
+import { ScanPrintDialog, ScanPrintResult } from './scan-print-dialog';
 
 interface Step {
   title: string;
@@ -370,7 +371,7 @@ function buildLocationModel(projects: Project[]): LocationModel {
 @Component({
   standalone: true,
   selector: 'app-asset-registration',
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, OptionMenu],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, OptionMenu, ScanPrintDialog],
   templateUrl: './asset-registration.html',
   // Split by step, in cascade order, to keep each stylesheet under the anyComponentStyle budget (20 kB)
   styleUrls: [
@@ -1400,7 +1401,7 @@ export class AssetRegistration {
 
   /** Required fields per step (marked with a red asterisk); steps without an entry have none. */
   private readonly requiredByStep: (keyof AssetForm)[][] = [
-    ['assetName', 'assetTag', 'category', 'subCategory', 'assetType', 'status'],
+    ['assetName', 'assetTag', 'status'],
     ['category', 'subCategory', 'assetType', 'criticality', 'department', 'taggingMethod', 'lifecycleStage'],
     ['country', 'site', 'building', 'floor', 'department'],
     ['purchaseOrder', 'vendor', 'manufacturer', 'purchaseDate', 'purchaseCost', 'quantity'],
@@ -1538,6 +1539,20 @@ export class AssetRegistration {
 
   readRfid(): void {
     this.showToast('RFID reader not connected. Demo tag kept: ' + this.form.rfidTag);
+  }
+
+  /** Quick Actions → Submit dialog. */
+  scanPrintOpen = false;
+
+  /** Keeps what was scanned or typed in the dialog and reports the print. */
+  onScanPrint(r: ScanPrintResult): void {
+    this.scanPrintOpen = false;
+    const changed = r.assetTag !== this.form.assetTag || r.barcode !== this.form.barcode || r.rfidTag !== this.form.rfidTag;
+    this.form.assetTag = r.assetTag;
+    this.form.barcode = r.barcode;
+    this.form.rfidTag = r.rfidTag;
+    if (changed) this.generateQr();
+    this.showToast(`${r.copies} label${r.copies > 1 ? 's' : ''} for ${r.assetTag || 'the asset'} sent to ${r.printer}${changed ? '; identifiers updated on the form' : ''}.`);
   }
 
   printLabel(): void {

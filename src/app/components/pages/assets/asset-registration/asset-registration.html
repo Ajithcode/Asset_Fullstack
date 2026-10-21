@@ -67,71 +67,17 @@
 
           <label class="field">
             <span class="field-label">Asset Tag / Asset ID <em>*</em></span>
-            <span class="control-group" [class.is-invalid]="isInvalid('assetTag')">
-              <input class="control" [(ngModel)]="form.assetTag" placeholder="e.g. GEN-00045" />
-              <button type="button" class="control-addon" title="Scan asset tag" (click)="scanBarcode()">
-                <lucide-icon [img]="icons.ScanLine" [size]="18"></lucide-icon>
-              </button>
-            </span>
+            <input class="control" [class.is-invalid]="isInvalid('assetTag')" [(ngModel)]="form.assetTag" placeholder="e.g. GEN-00045" />
           </label>
 
           <label class="field">
             <span class="field-label">Barcode / QR Code</span>
-            <span class="control-group">
-              <input class="control" [(ngModel)]="form.barcode" placeholder="Scan or enter barcode" />
-              <button type="button" class="control-addon" title="Scan barcode" (click)="scanBarcode()">
-                <lucide-icon [img]="icons.ScanLine" [size]="18"></lucide-icon>
-              </button>
-            </span>
+            <input class="control" [(ngModel)]="form.barcode" placeholder="Enter barcode / QR code" />
           </label>
 
           <label class="field">
             <span class="field-label">RFID Tag ID</span>
-            <span class="control-group">
-              <input class="control" [(ngModel)]="form.rfidTag" placeholder="Read or enter RFID tag" />
-              <button type="button" class="control-addon" title="Read RFID" (click)="readRfid()">
-                <lucide-icon [img]="icons.ScanLine" [size]="18"></lucide-icon>
-              </button>
-            </span>
-          </label>
-
-          <label class="field">
-            <span class="field-label">Category <em>*</em></span>
-            <span class="opt-row">
-              <span class="select-wrap">
-                <select class="control" [class.is-invalid]="isInvalid('category')" [(ngModel)]="form.category" (ngModelChange)="onCategoryChange()">
-                  <option value="" disabled>Select category</option>
-                  <option *ngFor="let o of categories" [value]="o.value">{{ o.label }}</option>
-                </select>
-              </span>
-              <app-option-menu [options]="categories" label="Category" [value]="form.category" (valueChange)="form.category = $event; onCategoryChange()"></app-option-menu>
-            </span>
-          </label>
-
-          <label class="field">
-            <span class="field-label">Sub Category <em>*</em></span>
-            <span class="opt-row">
-              <span class="select-wrap">
-                <select class="control" [class.is-invalid]="isInvalid('subCategory')" [(ngModel)]="form.subCategory" (ngModelChange)="onSubCategoryChange()">
-                  <option value="" disabled>Select sub category</option>
-                  <option *ngFor="let o of subCategories" [value]="o.value">{{ o.label }}</option>
-                </select>
-              </span>
-              <app-option-menu [options]="subCategories" label="Sub Category" [value]="form.subCategory" (valueChange)="form.subCategory = $event; onSubCategoryChange()" [disabled]="!form.category" disabledHint="Choose a category first"></app-option-menu>
-            </span>
-          </label>
-
-          <label class="field">
-            <span class="field-label">Asset Type <em>*</em></span>
-            <span class="opt-row">
-              <span class="select-wrap">
-                <select class="control" [class.is-invalid]="isInvalid('assetType')" [(ngModel)]="form.assetType" (ngModelChange)="onAssetTypeChange()">
-                  <option value="" disabled>Select asset type</option>
-                  <option *ngFor="let o of assetTypes" [value]="o.value">{{ o.label }}</option>
-                </select>
-              </span>
-              <app-option-menu [options]="assetTypes" label="Asset Type" [value]="form.assetType" (valueChange)="form.assetType = $event; onAssetTypeChange()" [disabled]="!form.subCategory" disabledHint="Choose a sub category first"></app-option-menu>
-            </span>
+            <input class="control" [(ngModel)]="form.rfidTag" placeholder="Enter RFID tag" />
           </label>
 
           <label class="field">
@@ -1224,24 +1170,17 @@
           <span class="icon-tile"><lucide-icon [img]="icons.UsersRound" [size]="18"></lucide-icon></span>
           <h2>Quick Actions</h2>
         </div>
-        <div class="quick-actions">
-          <button type="button" class="btn btn-outline" (click)="scanBarcode()">
-            <lucide-icon [img]="icons.ScanBarcode" [size]="18"></lucide-icon>
-            Scan Barcode
-          </button>
-          <button type="button" class="btn btn-outline" (click)="readRfid()">
-            <lucide-icon [img]="icons.Wifi" [size]="18"></lucide-icon>
-            Read RFID
-          </button>
-          <button type="button" class="btn btn-outline" (click)="printLabel()">
-            <lucide-icon [img]="icons.Printer" [size]="18"></lucide-icon>
-            Print Label
-          </button>
-        </div>
+        <p class="quick-note">Scan or enter the barcode / RFID, then print the asset label.</p>
+        <button type="button" class="btn btn-primary quick-submit" (click)="scanPrintOpen = true">Submit</button>
       </div>
     </aside>
   </div>
   </div>
+
+  <!-- Quick Actions: scanner choice, input and label printing -->
+  <app-scan-print-dialog *ngIf="scanPrintOpen" [assetName]="form.assetName" [assetTag]="form.assetTag" [initialBarcode]="form.barcode"
+    [initialRfid]="form.rfidTag" [location]="locationPathText" [qrPath]="qrPath" [qrSize]="qrSize"
+    (completed)="onScanPrint($event)" (closed)="scanPrintOpen = false"></app-scan-print-dialog>
 
   <!-- Action bar -->
   <footer class="reg-footer">
