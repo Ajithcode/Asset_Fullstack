@@ -1,5 +1,5 @@
 :host {
-  --purple: #1d1160;
+  --purple: #4f2bd8;
   display: block;
   width: 100%;
 }
@@ -172,7 +172,7 @@
   height: 38px;
   border-radius: 10px;
   background: #ede9fe;
-  color: #1d1160;
+  color: #4f2bd8;
   flex-shrink: 0;
 }
 
@@ -258,7 +258,7 @@
 }
 
 .form-field input[type='text']:focus {
-  border-color: #1d1160;
+  border-color: #4f2bd8;
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
 }
 
@@ -297,7 +297,7 @@
 }
 
 .btn-submit {
-  background: #1d1160;
+  background: #4f2bd8;
   border: none;
   color: #fff;
 }

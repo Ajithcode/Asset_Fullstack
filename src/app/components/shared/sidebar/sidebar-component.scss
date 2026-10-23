@@ -68,19 +68,43 @@
   flex: 1;
 }
 
+// Collapsed: crop the Asset360 logo to its circle mark
 .brand-mark {
+  position: relative;
   width: 36px;
   height: 36px;
   flex: 0 0 36px;
   border-radius: 50%;
-  display: grid;
-  place-items: center;
   overflow: hidden;
+  cursor: pointer;
 
   img {
-    width: 100%;
+    position: absolute;
+    left: -1px;
+    top: -2px;
+    width: auto;
+    height: 40px;
+    max-width: none;
+    mix-blend-mode: multiply;
+  }
+}
+
+// Expanded: the full logo
+.brand-mark--full {
+  width: auto;
+  height: 58px;
+  flex: 1 1 auto;
+  border-radius: 0;
+  cursor: default;
+
+  img {
+    position: static;
+    width: auto;
     height: 100%;
+    max-width: 100%;
     object-fit: contain;
+    object-position: left center;
+    mix-blend-mode: multiply;
   }
 }
 
@@ -93,7 +117,7 @@
 .brand-copy strong {
   font-size: 18px;
   font-weight: 700;
-  color: #1d1160;
+  color: #4f2bd8;
   line-height: 1;
   white-space: nowrap;
   letter-spacing: -0.2px;
@@ -132,10 +156,10 @@
   // Layered depth: inner top highlight, inner bottom shadow, crisp edge ring, outer glow
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.9),   // top specular highlight
-    inset 0 -1px 2px rgba(29, 17, 96, 0.15),  // bottom internal shadow (glass thickness)
+    inset 0 -1px 2px rgba(79, 43, 216, 0.15),  // bottom internal shadow (glass thickness)
     inset 0 0 0 1px rgba(255, 255, 255, 0.5),   // subtle glass edge
-    0 0 0 1px rgba(29, 17, 96, 0.18),         // outer edge tint
-    0 6px 16px rgba(29, 17, 96, 0.20),        // ambient drop shadow
+    0 0 0 1px rgba(79, 43, 216, 0.18),         // outer edge tint
+    0 6px 16px rgba(79, 43, 216, 0.20),        // ambient drop shadow
     0 2px 5px rgba(15, 23, 42, 0.10);
 
   transition:
@@ -186,7 +210,7 @@
     font-size: 16px;
     pointer-events: none;
     stroke: currentColor;
-    color: #1d1160;
+    color: #4f2bd8;
   }
 
   &.collapsed .collapse-btn__glass {
@@ -203,10 +227,10 @@
       );
     box-shadow:
       inset 0 1px 1px rgba(255, 255, 255, 1),
-      inset 0 -1px 2px rgba(29, 17, 96, 0.2),
+      inset 0 -1px 2px rgba(79, 43, 216, 0.2),
       inset 0 0 0 1px rgba(255, 255, 255, 0.6),
-      0 0 0 1px rgba(29, 17, 96, 0.28),
-      0 10px 22px rgba(29, 17, 96, 0.28),
+      0 0 0 1px rgba(79, 43, 216, 0.28),
+      0 10px 22px rgba(79, 43, 216, 0.28),
       0 3px 8px rgba(15, 23, 42, 0.12);
   }
 
@@ -215,7 +239,7 @@
   }
 
   &:focus-visible {
-    outline: 2px solid #1d1160;
+    outline: 2px solid #4f2bd8;
     outline-offset: 3px;
   }
 }
@@ -251,7 +275,7 @@
   margin-left: -16px;
   padding: 2px 0 2px 16px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(29, 17, 96, 0.35) transparent;
+  scrollbar-color: rgba(79, 43, 216, 0.35) transparent;
 }
 
 .nav-item {
@@ -279,7 +303,7 @@
   position: relative; // IMPORTANT (needed for absolute positioning)
 
   &.active {
-    color: #1d1160;
+    color: #4f2bd8;
     font-weight: 600;
 
     // BEFORE ELEMENT
@@ -291,13 +315,13 @@
       transform: translateY(-50%);
       width: 5px;
       height: 40px;
-      background: #1d1160;
+      background: #4f2bd8;
       border-top-right-radius: 10px;
       border-bottom-right-radius: 10px;
     }
 
     .nav-icon {
-      background-color: #1d1160;
+      background-color: #4f2bd8;
       color: #fff;
     }
   }
@@ -313,7 +337,7 @@
   border-radius: 6px;
   background: transparent;
   position: relative;
-  color: #1d1160;
+  color: #4f2bd8;
   transition: background 0.2s ease, color 0.2s ease;
 
   lucide-icon {
@@ -339,7 +363,7 @@
 
   &.open {
     background: var(--piq-primary-subtle);
-    color: #1d1160;
+    color: #4f2bd8;
   }
 }
 
@@ -372,7 +396,7 @@
   }
 
   &.section-active {
-    color: #1d1160;
+    color: #4f2bd8;
     font-weight: 600;
 
     &::before {
@@ -383,7 +407,7 @@
       transform: translateY(-50%);
       width: 5px;
       height: 40px;
-      background: #1d1160;
+      background: #4f2bd8;
       border-top-right-radius: 10px;
       border-bottom-right-radius: 10px;
     }
@@ -427,12 +451,12 @@
 
   &:hover:not(.active) {
     background: var(--piq-primary-subtle);
-    color: #1d1160;
+    color: #4f2bd8;
   }
 
   &.active {
     background: #ece8fb;
-    color: #1d1160;
+    color: #4f2bd8;
     font-weight: 600;
   }
 }
@@ -450,7 +474,7 @@
 
   background: #fff;
   border-left: 1px solid #e7e2f5;
-  box-shadow: 6px 0 24px rgba(29, 17, 96, 0.15);
+  box-shadow: 6px 0 24px rgba(79, 43, 216, 0.15);
   border-radius: 12px;
   padding: 16px 12px;
   z-index: 1900;
@@ -496,7 +520,7 @@
   gap: 10px;
   padding: 0 14px;
   border-radius: 10px;
-  color: var(--piq-primary, #1d1160);
+  color: var(--piq-primary, #4f2bd8);
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
@@ -505,11 +529,11 @@
 
   &:hover:not(.active) {
     background: var(--piq-primary-subtle, #f3edfb);
-    color: var(--piq-primary, #1d1160);
+    color: var(--piq-primary, #4f2bd8);
   }
 
   &.active {
-    color: #1d1160;
+    color: #4f2bd8;
     font-weight: 600;
 
     &::before {
@@ -520,7 +544,7 @@
       transform: translateY(-50%);
       width: 5px;
       height: 30px;
-      background: #1d1160;
+      background: #4f2bd8;
       border-top-right-radius: 8px;
       border-bottom-right-radius: 8px;
     }
@@ -530,10 +554,10 @@
 // The expandable "User Management" row stays highlighted while open
 .nav-flyout-item--parent.open {
   background: var(--piq-primary-subtle, #f3edfb);
-  color: #1d1160;
+  color: #4f2bd8;
 
   .nav-flyout-item__arrow {
-    color: #1d1160;
+    color: #4f2bd8;
     transform: rotate(90deg);
   }
 }
@@ -559,7 +583,7 @@
 }
 
 .nav-flyout-item:hover .nav-flyout-item__arrow {
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 // ============= Nested sub-list (User / Role under User Management) =============
@@ -579,7 +603,7 @@
   align-items: center;
   padding: 0 12px;
   border-radius: 8px;
-  color: var(--piq-primary, #1d1160);
+  color: var(--piq-primary, #4f2bd8);
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
@@ -587,11 +611,11 @@
 
   &:hover:not(.active) {
     background: var(--piq-primary-subtle, #f3edfb);
-    color: var(--piq-primary, #1d1160);
+    color: var(--piq-primary, #4f2bd8);
   }
 
   &.active {
-    color: #1d1160;
+    color: #4f2bd8;
     font-weight: 600;
     background: var(--piq-primary-subtle, #f3edfb);
   }
@@ -608,10 +632,10 @@
 
   &.open {
     background: var(--piq-primary-subtle, #f3edfb);
-    color: #1d1160;
+    color: #4f2bd8;
 
     .nav-flyout-item__arrow {
-      color: #1d1160;
+      color: #4f2bd8;
       transform: rotate(90deg);
     }
   }
@@ -634,7 +658,7 @@
   align-items: center;
   padding: 0 12px;
   border-radius: 8px;
-  color: var(--piq-primary, #1d1160);
+  color: var(--piq-primary, #4f2bd8);
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
@@ -642,11 +666,11 @@
 
   &:hover:not(.active) {
     background: var(--piq-primary-subtle, #f3edfb);
-    color: var(--piq-primary, #1d1160);
+    color: var(--piq-primary, #4f2bd8);
   }
 
   &.active {
-    color: #1d1160;
+    color: #4f2bd8;
     font-weight: 600;
     background: var(--piq-primary-subtle, #f3edfb);
   }

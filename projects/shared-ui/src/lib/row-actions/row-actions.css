@@ -29,12 +29,12 @@
 }
 
 .row-action-btn.edit {
-  border: 1.5px solid #1d1160;
-  color: #1d1160;
+  border: 1.5px solid #4f2bd8;
+  color: #4f2bd8;
 }
 
 .row-action-btn.edit:hover {
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
 }
 

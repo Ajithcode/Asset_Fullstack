@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnInit } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
@@ -9,9 +9,17 @@ import { MapComponent, MapPin } from 'shared-ui';
 import { WidgetDragHandle } from '../shared/widget-drag-handle/widget-drag-handle';
 import { loadOrder, saveOrder, reorderByKey, moveWithinVisible } from '../shared/dashboard-widgets/widget-order.util';
 import { WIDGET_CATALOG, WidgetCategory, WidgetCategoryKey } from '../shared/dashboard-widgets/widget-catalog';
-import { WidgetPicker } from '../shared/widget-picker/widget-picker';
+// STATIC DASHBOARD: the Add Widget popup is switched off (see the commented markup at the end of dashboard.html).
+// import { WidgetPicker } from '../shared/widget-picker/widget-picker';
 import { loadSelectedWidgets, saveSelectedWidgets } from '../shared/dashboard-widgets/widget-selection';
 import { DashboardWidgetsApi } from '../shared/dashboard-widgets/dashboard-widgets.api';
+
+/**
+ * STATIC DASHBOARD: every module shows all of its widgets, with one tab per module (Assets, Work Orders,
+ * WIP, Inspection). The first-visit setup ("No widgets yet") and the Add Widget popup flow are commented out;
+ * to bring them back, restore the commented lines in ngOnInit and the commented markup in dashboard.html.
+ */
+const ALL_WIDGET_IDS: string[] = WIDGET_CATALOG.flatMap((c) => c.widgets.map((w) => `${c.key}.${w.id}`));
 
 interface AssetsStatCard {
   label: string;
@@ -78,11 +86,11 @@ interface AssetsData {
 @Component({
   standalone: true,
   selector: 'app-dashboard',
-  imports: [CommonModule, FormsModule, DragDropModule, MainDashboard, WipDashboard, InspectionDashboard, MapComponent, WidgetDragHandle, WidgetPicker],
+  imports: [CommonModule, FormsModule, DragDropModule, MainDashboard, WipDashboard, InspectionDashboard, MapComponent, WidgetDragHandle /* , WidgetPicker */],
   templateUrl: './dashboard.html',
-  styleUrls: ['./dashboard.css'],
+  styleUrls: ['./dashboard.css', './dashboard-tabs.css'],
 })
-export class Dashboard implements OnInit {
+export class Dashboard implements OnInit, OnDestroy {
   // ===== Module tabs: one per module that has selected widgets =====
   readonly moduleTabs: Record<WidgetCategoryKey, { tab: string; title: string }> = {
     asset: { tab: 'Assets', title: 'Assets Dashboard' },
@@ -99,6 +107,44 @@ export class Dashboard implements OnInit {
 
   switchModule(key: WidgetCategoryKey): void {
     this.activeModule = key;
+    // after the view marks the new tab active, slide the pill to it
+    requestAnimationFrame(() => this.moveGlider());
+  }
+
+  // ===== Sliding tab pill =====
+  private tabBarEl?: HTMLElement;
+  private tabBarObserver?: ResizeObserver;
+  private gliderPlaced = false;
+
+  /** The tab bar lives inside an *ngIf, so (re)attach whenever it appears. */
+  @ViewChild('tabBar') set tabBar(ref: ElementRef<HTMLElement> | undefined) {
+    this.tabBarObserver?.disconnect();
+    this.tabBarEl = ref?.nativeElement;
+    this.gliderPlaced = false;
+    if (!this.tabBarEl) return;
+    // tab widths change when the active label turns bold; keep sliding rather than jumping
+    this.tabBarObserver = new ResizeObserver(() => this.moveGlider());
+    this.tabBarObserver.observe(this.tabBarEl);
+    requestAnimationFrame(() => this.moveGlider());
+  }
+
+  /** Put the glass pill under the active tab; slides between tabs, jumps on first placement. */
+  private moveGlider(animate = true): void {
+    const bar = this.tabBarEl;
+    const glider = bar?.querySelector<HTMLElement>('.tab-glider');
+    const tab = bar?.querySelector<HTMLElement>('.dash-tab.active');
+    if (!bar || !glider || !tab) return;
+    glider.classList.toggle('no-anim', !(animate && this.gliderPlaced));
+    glider.style.width = `${tab.offsetWidth}px`;
+    glider.style.height = `${tab.offsetHeight}px`;
+    glider.style.transform = `translate(${tab.offsetLeft}px, ${tab.offsetTop}px)`;
+    glider.classList.add('is-ready');
+    bar.classList.add('has-glider');
+    this.gliderPlaced = true;
+  }
+
+  ngOnDestroy(): void {
+    this.tabBarObserver?.disconnect();
   }
 
   /** Edit a tab = reopen the picker on that module's widgets. */
@@ -509,8 +555,11 @@ export class Dashboard implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
-    this.setSelection(loadSelectedWidgets());
-    void this.loadServerWidgets();
+    // STATIC DASHBOARD: show all widgets of every module instead of the user's saved selection.
+    this.setSelection(ALL_WIDGET_IDS);
+    // Widget selection flow (commented out): load the user's saved widgets from this device, then the server.
+    // this.setSelection(loadSelectedWidgets());
+    // void this.loadServerWidgets();
     const response = await fetch('/assets/data/assets-data.json');
     const data: AssetsData = await response.json();
     this.statCards = reorderByKey(data.statCards, 'piq.dashboard.assets.statOrder', (c) => c.label);

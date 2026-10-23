@@ -37,7 +37,7 @@
   width: 100%;
   margin: 0 0 18px;
   padding: 10px 16px;
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -110,7 +110,7 @@
 .cascade-row.is-active {
   background: #e9dcfb;
   border-color: #dcd0ff;
-  color: #1d1160;
+  color: #4f2bd8;
   font-weight: 700;
 }
 
@@ -155,7 +155,7 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: #1d1160;
+  color: #4f2bd8;
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
@@ -190,7 +190,7 @@
 }
 
 .row-action-add-area {
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .row-action-add-zone {
@@ -206,7 +206,7 @@
 }
 
 .row-action-add-area:hover {
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
 }
 
@@ -274,7 +274,7 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: #1d1160;
+  color: #4f2bd8;
   background: #f0e6fa;
   white-space: nowrap;
 }
@@ -396,7 +396,7 @@
 .country-list-action[aria-label='Edit area']:hover,
 .country-list-action[aria-label='Edit outer zone']:hover,
 .country-list-action[aria-label='Edit building']:hover {
-  color: #1d1160;
+  color: #4f2bd8;
   background: #f3e8ff;
 }
 
@@ -609,7 +609,7 @@
 }
 
 .status-toggle.is-active .status-toggle-knob {
-  background: #1d1160;
+  background: #4f2bd8;
 }
 
 .status-toggle.is-active .status-toggle-knob::after {
@@ -623,7 +623,7 @@
 }
 
 .status-toggle.is-active .status-toggle-label {
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .modal-error {

@@ -68,7 +68,7 @@
   left: 12px;
   width: 18px;
   height: 18px;
-  color: #1d1160;
+  color: #4f2bd8;
   pointer-events: none;
 }
 
@@ -83,9 +83,9 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1.5px solid #1d1160;
+  border: 1.5px solid #4f2bd8;
   background: #ffffff;
-  color: #1d1160;
+  color: #4f2bd8;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -100,12 +100,12 @@
 }
 
 .role-icon-btn:hover {
-  background: #1d1160;
+  background: #4f2bd8;
   color: #ffffff;
 }
 
 .role-icon-btn:focus-visible {
-  outline: 2px solid #1d1160;
+  outline: 2px solid #4f2bd8;
   outline-offset: 2px;
 }
 
@@ -150,7 +150,7 @@
   border-radius: 8px;
   border: none;
   background: transparent;
-  color: #1d1160;
+  color: #4f2bd8;
   display: flex;
   align-items: center;
   justify-content: center;

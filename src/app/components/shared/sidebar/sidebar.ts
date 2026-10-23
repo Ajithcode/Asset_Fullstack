@@ -114,7 +114,8 @@ export class Sidebar {
         { label: 'SLA Management', path: '/wip-operations/sla-management' },
         { label: 'Issues & Delays', path: '/wip-operations/issues-delays' },
         { label: 'Permit / Compliance', path: '/wip-operations/permit-compliance' },
-        { label: 'Progress & Output', path: '/wip-operations/progress-output' }
+        { label: 'Progress Log', path: '/wip-operations/progress-log' },
+        { label: 'Product / Output', path: '/wip-operations/product-output' }
       ]
     },
     { label: 'Audit & Compliance', path: '/audit-compliance', icon: ShieldCheck },

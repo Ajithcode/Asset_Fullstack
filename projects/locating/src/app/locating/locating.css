@@ -13,7 +13,7 @@
   border-radius: 22px;
   border: 1px solid #ffffff;
   background: linear-gradient(180deg, #fcfbff 0%, #f4f1fa 100%);
-  box-shadow: 0 0 0 1px #e4dff0, 0 10px 28px rgba(29, 17, 96, 0.08);
+  box-shadow: 0 0 0 1px #e4dff0, 0 10px 28px rgba(79, 43, 216, 0.08);
 }
 
 .page-header {
@@ -138,19 +138,19 @@
   padding: 0;
   border: 1px solid #e4dff0;
   background: #fff;
-  color: #1d1160;
+  color: #4f2bd8;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(29, 17, 96, 0.12);
+  box-shadow: 0 4px 14px rgba(79, 43, 216, 0.12);
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .edge-toggle:hover,
 .panel-fab:hover {
   background: #f4f0fc;
-  box-shadow: 0 6px 18px rgba(29, 17, 96, 0.18);
+  box-shadow: 0 6px 18px rgba(79, 43, 216, 0.18);
 }
 
 .edge-toggle svg,
@@ -223,7 +223,7 @@
 .stat-value {
   font-size: 18px;
   font-weight: 800;
-  color: #1d1160;
+  color: #4f2bd8;
 } 
 /* ============ Filter Panel (Left) ============ */
 .filter-panel {
@@ -323,7 +323,7 @@
 .cascade-row.is-active {
   background: #cdc7e2;
   border-color: #c2bbdb;
-  color: #1d1160;
+  color: #4f2bd8;
   font-weight: 700;
 }
 
@@ -342,7 +342,7 @@
   flex: 0 0 auto;
   width: 14px;
   height: 14px;
-  color: #1d1160;
+  color: #4f2bd8;
   transition: color 0.2s ease, transform 0.2s ease;
 }
 
@@ -359,7 +359,7 @@
   flex: 0 0 auto;
   width: 15px;
   height: 15px;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .cascade-row .row-status {
@@ -596,16 +596,16 @@
 }
 
 .period-tab.is-active {
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
 }
 
 .stats-period-select {
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1.5px solid #1d1160;
+  border: 1.5px solid #4f2bd8;
   background: #fff;
-  color: #1d1160;
+  color: #4f2bd8;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -616,9 +616,9 @@
   width: 24px;
   height: 23px;
   border-radius: 50%;
-  border: 1.5px solid #1d1160;
+  border: 1.5px solid #4f2bd8;
   background: #fff;
-  color: #1d1160;
+  color: #4f2bd8;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -628,7 +628,7 @@
 }
 
 .stats-settings-btn:hover {
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
 }
 
@@ -669,7 +669,7 @@
   margin: 0;
   font-size: 18px;
   font-weight: 800;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .stats-modal-body {
@@ -711,7 +711,7 @@
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: #1d1160;
+  color: #4f2bd8;
   flex: 0 0 auto;
 }
 
@@ -745,7 +745,7 @@
 
 .btn-save {
   background: #e9dcfb;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .period-tabs {
@@ -765,7 +765,7 @@
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: #1d1160;
+  color: #4f2bd8;
   background: #f0e6fa;
   white-space: nowrap;
 }
@@ -800,7 +800,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 800;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .modal-close-btn {
@@ -808,14 +808,14 @@
   background: transparent;
   font-size: 20px;
   line-height: 1;
-  color: #1d1160;
+  color: #4f2bd8;
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 6px;
 }
 
 .modal-close-btn:hover {
-  background: rgba(29, 17, 96, 0.12);
+  background: rgba(79, 43, 216, 0.12);
 }
 
 .pin-popup-body {
@@ -1118,7 +1118,7 @@
 
 .filter-dropdown-option.is-selected {
   background: #ece3fa;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .live-group {
@@ -1130,7 +1130,7 @@
 .btn-live {
   height: 38px;
   border: none;
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
   font: inherit;
   font-size: 14px;
@@ -1163,13 +1163,13 @@
   padding: 0 22px;
   border: none;
   border-radius: 999px;
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
   font: inherit;
   font-size: 17px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 6px 16px rgba(29, 17, 96, 0.25);
+  box-shadow: 0 6px 16px rgba(79, 43, 216, 0.25);
   transition: background 0.15s ease;
 }
 
@@ -1202,7 +1202,7 @@
 .btn-view-details {
   border: none;
   background: #e9dcfb;
-  color: #1d1160;
+  color: #4f2bd8;
   font-size: 13px;
   font-weight: 700;
   padding: 7px 16px;
@@ -1264,7 +1264,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 800;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .detail-slide-body {
@@ -1303,7 +1303,7 @@
 .timeline-time {
   flex: 0 0 auto;
   font-weight: 700;
-  color: #1d1160;
+  color: #4f2bd8;
   min-width: 52px;
 }
 

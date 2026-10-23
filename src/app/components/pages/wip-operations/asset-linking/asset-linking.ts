@@ -15,6 +15,7 @@ import {
   ClipboardList,
   Database,
   Download,
+  EllipsisVertical,
   ExternalLink,
   Factory,
   FileText,
@@ -22,10 +23,13 @@ import {
   Info,
   Layers,
   Link2,
+  MapPin,
+  Pencil,
   Plus,
   Search,
   TriangleAlert,
   Unlink,
+  UserRound,
   Wrench,
   X,
 } from 'lucide-angular';
@@ -68,7 +72,7 @@ const KNOWN_JOBS = ['JO-2026-00438', 'JO-2026-00431', 'JO-2026-00442'];
 const STAGE_NEEDS: Record<string, string[]> = {
   Preparation: ['Lift up to 1 t'],
   Assembly: ['Pump assembly fixture', 'Torque 10–200 Nm', 'Shaft alignment'],
-  Testing: ['Pressure test 0–25 bar', 'Leak test'],
+  Testing: ['Pressure test (0–25 bar)', 'Leak test'],
   Inspection: ['Dimensional inspection'],
   Packing: ['Pack & wrap', 'Lift up to 2.5 t'],
   'Seat Leak Test': ['Seat leak test', 'Stroke test'],
@@ -112,8 +116,8 @@ const overlaps = (a: { start: string; end: string }, b: { start: string; end: st
 })
 export class AssetLinking implements OnDestroy {
   readonly icons = {
-    Box, CalendarClock, ChevronDown, ChevronRight, CircleCheck, CircleX, ClipboardList, Database, Download, ExternalLink, Factory, FileText, House, Info, Layers, Link2,
-    Plus, Search, TriangleAlert, Unlink, Wrench, X,
+    Box, CalendarClock, ChevronDown, ChevronRight, CircleCheck, CircleX, ClipboardList, Database, Download, EllipsisVertical, ExternalLink, Factory, FileText, House, Info, Layers, Link2, MapPin, Pencil,
+    Plus, Search, TriangleAlert, Unlink, UserRound, Wrench, X,
   };
   readonly tabs: { key: Tab; label: string }[] = [
     { key: 'linked', label: 'Linked Assets' },
@@ -141,6 +145,10 @@ export class AssetLinking implements OnDestroy {
   selectedId = 3;
   draft: ConfigDraft = this.toDraft(this.link(3)!);
   configError = '';
+  /** Link Configuration shows values until Edit is clicked. */
+  editingConfig = false;
+  /** Link whose row menu is open. */
+  menuFor: number | null = null;
   readonly collapsed = new Set<string>();
 
   form: LinkForm = this.blankForm();
@@ -277,7 +285,7 @@ export class AssetLinking implements OnDestroy {
     const mins = Math.round((parseLocal(end).getTime() - parseLocal(start).getTime()) / 60_000);
     const len = mins % 60 === 0 ? `${mins / 60} hour${mins === 60 ? '' : 's'}` : mins > 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
     const sameDay = start.slice(0, 10) === end.slice(0, 10);
-    return `${this.fmtDate(start)} ${start.slice(11)}–${sameDay ? '' : this.fmtDate(end) + ' '}${end.slice(11)} (${len})`;
+    return `${this.fmtDate(start)} ${start.slice(11)} – ${sameDay ? '' : this.fmtDate(end) + ' '}${end.slice(11)} (${len})`;
   }
 
   /** Bookings on the asset that clash with [start, end], ignoring `exceptId`. */
@@ -307,7 +315,7 @@ export class AssetLinking implements OnDestroy {
     if (a.calibrationValidTo) {
       checks.push(
         a.calibrationValidTo >= endDay
-          ? { label: 'Calibration valid', detail: `Valid to ${this.fmtDate(a.calibrationValidTo)}`, ok: true }
+          ? { label: `Calibration valid to ${this.fmtDate(a.calibrationValidTo)}`, detail: a.calibratedOn ? `Calibrated on ${this.fmtDate(a.calibratedOn)}` : 'Calibration certificate on file', ok: true }
           : { label: 'Calibration expired', detail: `Expired ${this.fmtDate(a.calibrationValidTo)}`, ok: false },
       );
     }
@@ -329,7 +337,7 @@ export class AssetLinking implements OnDestroy {
     checks.push(
       clashes.length
         ? { label: 'Booking conflict', detail: clashes.join('; '), ok: false }
-        : { label: 'No booking conflict', detail: this.fmtBooking(start, end), ok: true },
+        : { label: 'No booking conflict for selected period', detail: this.fmtBooking(start, end), ok: true },
     );
     return checks;
   }
@@ -377,6 +385,49 @@ export class AssetLinking implements OnDestroy {
     this.draft = this.toDraft(l);
     this.configError = '';
     this.confirmUnlink = false;
+    this.editingConfig = false;
+  }
+
+  // ===== Row menu & look =====
+
+  /** Picture for an asset; register photos are not wired up yet, so each category has an illustration. */
+  imageOf(tag: string): string {
+    const c = this.asset(tag)?.category ?? '';
+    const file = { 'Production Equipment': 'fixture', Tool: 'torque-tool', 'Test Equipment': 'test-bench', 'Handling Equipment': 'hoist' }[c] ?? 'fixture';
+    return `wip/assets/${file}.svg`;
+  }
+
+  /** Card colour for a stage in the association diagram. */
+  stageTone(stage: string): string {
+    return { Preparation: 'tone--amber', Assembly: 'tone--blue', Testing: 'tone--purple', Inspection: 'tone--green', Packing: 'tone--grey' }[stage] ?? 'tone--grey';
+  }
+
+  toggleMenu(l: AssetLink, event: Event): void {
+    event.stopPropagation();
+    this.menuFor = this.menuFor === l.id ? null : l.id;
+  }
+
+  rowAction(l: AssetLink, action: 'view' | 'edit' | 'profile' | 'unlink'): void {
+    this.menuFor = null;
+    this.select(l);
+    if (action === 'edit') this.editingConfig = true;
+    if (action === 'profile') {
+      const a = this.asset(l.asset);
+      if (a) this.openProfile(a);
+    }
+    if (action === 'unlink') this.confirmUnlink = true;
+  }
+
+  @HostListener('document:click')
+  closeMenu(): void {
+    this.menuFor = null;
+  }
+
+  cancelEdit(): void {
+    const l = this.selected;
+    if (l) this.draft = this.toDraft(l);
+    this.editingConfig = false;
+    this.configError = '';
   }
 
   get configDirty(): boolean {
@@ -411,6 +462,7 @@ export class AssetLinking implements OnDestroy {
     const capability = d.stage === l.stage ? l.capability : this.capabilityFor(a, d.stage);
     Object.assign(l, d, { capability });
     HISTORY.unshift({ at: this.now, job: l.job, asset: l.asset, action: 'Updated', by: CURRENT_USER, note: `${l.stage}${l.task ? ' · ' + l.task : ''} · ${this.fmtBooking(l.start, l.end)}` });
+    this.editingConfig = false;
     this.showToast(`${a.name} ${a.tag} link updated.`);
   }
 
@@ -615,6 +667,8 @@ export class AssetLinking implements OnDestroy {
   onEscape(): void {
     this.profileOf = this.inspectionOf = null;
     this.confirmUnlink = false;
+    this.menuFor = null;
+    if (this.editingConfig) this.cancelEdit();
   }
 
   private showToast(message: string, error = false): void {

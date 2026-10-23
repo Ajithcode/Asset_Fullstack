@@ -1,5 +1,5 @@
 <section class="dashboard-page">
-  <!-- Initial state: no widgets selected yet -->
+  <!-- STATIC DASHBOARD: initial setup state ("No widgets yet") commented out; every module opens with all its widgets.
   <div class="db-board" *ngIf="!hasWidgets">
     <header class="db-board-header">
       <h1>Dashboard</h1>
@@ -38,10 +38,12 @@
       </button>
     </div>
   </div>
+  END initial setup state -->
 
   <ng-container *ngIf="hasWidgets && activeModule as active">
-    <!-- Tabs: only modules that have selected widgets -->
-    <div class="dash-tabs" role="tablist">
+    <!-- Tabs: one per module (Assets, Work Orders, WIP, Inspection) -->
+    <div class="dash-tabs" role="tablist" #tabBar>
+      <span class="tab-glider" aria-hidden="true"></span>
       <div class="dash-tab" *ngFor="let key of visibleModules" role="tab" tabindex="0"
         [class.active]="active === key" [attr.aria-selected]="active === key"
         (click)="switchModule(key)" (keydown.enter)="switchModule(key)">
@@ -58,12 +60,17 @@
             <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
             <line x1="12" y1="22.08" x2="12" y2="12" />
           </svg>
+          <svg *ngSwitchCase="'wip'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+          </svg>
           <svg *ngSwitchCase="'inspection'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
             <path d="M9 11l3 3L22 4" />
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
           </svg>
         </ng-container>
         {{ moduleTabs[key].tab }}
+        <!-- Tab edit / remove (widget selection flow, commented out)
         <span class="tab-actions">
           <button type="button" class="tab-icon-btn" (click)="$event.stopPropagation(); editModule(key)"
             aria-label="Edit widgets" title="Edit widgets">
@@ -81,14 +88,17 @@
             </svg>
           </button>
         </span>
+        END tab edit / remove -->
       </div>
 
+      <!-- "New" tab (opens the Add Widget popup), commented out
       <button type="button" class="dash-tab-add" (click)="openWidgetPicker()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
           <path d="M12 5v14M5 12h14" />
         </svg>
         New
       </button>
+      END "New" tab -->
     </div>
 
     <header class="dashboard-header">
@@ -96,9 +106,11 @@
         <h1>{{ moduleTabs[active].title }}</h1>
       </div>
       <div class="action-buttons">
+        <!-- +Add Widget (widget selection flow, commented out)
         <button class="dash-btn dash-btn-primary" type="button" (click)="openWidgetPicker(active)">
           +Add Widget
         </button>
+        END +Add Widget -->
         <button class="dash-btn dash-btn-outline" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
@@ -426,7 +438,8 @@
     <button type="button" (click)="widgetSaveError = ''" aria-label="Dismiss">&times;</button>
   </div>
 
-  <!-- Add Widget popup -->
+  <!-- STATIC DASHBOARD: Add Widget popup commented out.
   <app-widget-picker *ngIf="isWidgetPickerOpen" [selected]="selectedIds" [expand]="pickerExpand"
     (applied)="onWidgetsApplied($event)" (closed)="isWidgetPickerOpen = false"></app-widget-picker>
+  END Add Widget popup -->
 </section>

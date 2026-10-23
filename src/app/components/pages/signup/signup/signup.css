@@ -17,7 +17,7 @@
   justify-content: space-between;
   padding: 3rem;
   background: radial-gradient(circle at top left, rgba(99, 102, 241, 0.25), transparent 28%),
-    linear-gradient(180deg, #1d1160 0%, #7c3aed 48%, #a855f7 100%);
+    linear-gradient(180deg, #4f2bd8 0%, #7c3aed 48%, #a855f7 100%);
   color: white;
   gap: 2rem;
 }
@@ -296,4 +296,37 @@
     border-radius: 24px;
     padding: 1.75rem;
   }
+}
+
+/* Asset360 logo (white-background JPEG): a white badge on the dark panel, full width in the form card */
+.brand-mark.brand-logo {
+  width: auto;
+  height: 64px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.brand-mark.brand-logo img {
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+}
+
+.icon-shell.logo-shell {
+  width: auto;
+  height: auto;
+  margin: 0 auto 0.5rem;
+  border-radius: 0;
+  background: none;
+}
+
+.icon-shell.logo-shell img,
+.icon-shell.logo-shell img:nth-child(1) {
+  width: min(240px, 100%);
+  height: auto;
+  object-fit: contain;
+  mix-blend-mode: multiply;
 }

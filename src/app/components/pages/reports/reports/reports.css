@@ -1,11 +1,11 @@
 /* ── Design tokens ── */
 :host {
-  --purple:        #1d1160;
+  --purple:        #4f2bd8;
   --purple-light:  #ede9fe;
   --purple-border: #c4b5fd;
   --text-primary:  #111827;
   --text-muted:    #6b7280;
-  --text-link:     #1d1160;
+  --text-link:     #4f2bd8;
   --border:        #e5e7eb;
   --row-alt:       #f5f3ff;   /* very faint purple tint for even rows */
   --status-done-text:  #6b7280;

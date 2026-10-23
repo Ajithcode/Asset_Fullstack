@@ -171,7 +171,7 @@ export class InspectionDashboard {
     return this.workOrders.filter((wo) => wo.statusClass === this.workOrderFilter);
   }
 
-  private readonly avatarPalette = ['#1d1160', '#2563eb', '#22a06b', '#f0a93b', '#e15252', '#0891b2'];
+  private readonly avatarPalette = ['#4f2bd8', '#2563eb', '#22a06b', '#f0a93b', '#e15252', '#0891b2'];
 
   avatarColor(index: number): string {
     return this.avatarPalette[index % this.avatarPalette.length];
@@ -203,7 +203,7 @@ export class InspectionDashboard {
     { label: 'Passed', value: 68, percent: 53, color: '#22a06b' },
     { label: 'Failed', value: 25, percent: 20, color: '#e15252' },
     { label: 'In Progress', value: 23, percent: 18, color: '#f0a93b' },
-    { label: 'Pending Approval', value: 12, percent: 9, color: '#1d1160' },
+    { label: 'Pending Approval', value: 12, percent: 9, color: '#4f2bd8' },
   ];
 
   get donutGradient(): string {

@@ -1,0 +1,320 @@
+<section class="jt-page">
+  <!-- ===== Header ===== -->
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/wip-operations">WIP / Operations</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span class="crumb-current">Product &amp; Output</span>
+      </nav>
+      <h1>Product / Output</h1>
+      <p class="subtitle">Record production output, quality disposition and finished-goods handover</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export</button>
+      <button type="button" class="btn btn-primary" (click)="tab = 'summary'"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>Record Output</button>
+    </div>
+  </div>
+
+  <!-- ===== Job ===== -->
+  <div class="card job-strip">
+    <div class="grow">
+      <span class="strip-label">Job Order</span>
+      <span class="strip-job"><a class="job-link plain" routerLink="/wip-operations/job-orders" [queryParams]="{ code: job.code }">{{ job.code }}</a> • {{ job.name }}
+        <span class="pill pill--green"><span class="dot-sm"></span>{{ job.status }}</span></span>
+    </div>
+    <div class="strip-cell"><span class="strip-label">Output Item</span><strong>{{ job.item }}</strong></div>
+    <div class="strip-cell"><span class="strip-label">Batch</span><strong>{{ job.batch }}</strong></div>
+    <div class="strip-cell"><span class="strip-label">Unit</span><strong>{{ job.uom }}</strong></div>
+    <div class="strip-cell"><span class="strip-label">Site</span><strong>{{ job.site }}</strong></div>
+  </div>
+
+  <nav class="card tabs po-tabs" role="tablist" aria-label="Output sections">
+    <button type="button" role="tab" *ngFor="let x of tabs" class="tab" [class.is-active]="tab === x.key" [attr.aria-selected]="tab === x.key" (click)="tab = x.key">{{ x.label }}</button>
+  </nav>
+
+  <!-- ===== KPIs ===== -->
+  <div class="po-kpis">
+    <div class="kpi"><span class="kpi-ic kpi-ic--blue"><lucide-icon [img]="icons.CalendarDays" [size]="22"></lucide-icon></span><span><span class="kpi-label">Planned</span><strong class="kpi-value">{{ job.planned }}</strong><span class="kpi-note">units</span></span></div>
+    <div class="kpi"><span class="kpi-ic"><lucide-icon [img]="icons.Cog" [size]="22"></lucide-icon></span><span><span class="kpi-label">Produced</span><strong class="kpi-value">{{ produced }}</strong><span class="kpi-note">units</span></span></div>
+    <button type="button" class="kpi" (click)="dispositionFilter = 'Accepted'; onFilter(); tab = 'summary'"><span class="kpi-ic kpi-ic--green"><lucide-icon [img]="icons.CircleCheck" [size]="22"></lucide-icon></span><span><span class="kpi-label">Accepted</span><strong class="kpi-value">{{ count('Accepted') }}</strong><span class="kpi-note">{{ count('Accepted') === 1 ? 'unit' : 'units' }}</span></span></button>
+    <button type="button" class="kpi" (click)="tab = 'quality'"><span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.Clock" [size]="22"></lucide-icon></span><span><span class="kpi-label">Awaiting QC</span><strong class="kpi-value">{{ count('Awaiting QC') }}</strong><span class="kpi-note">{{ count('Awaiting QC') === 1 ? 'unit' : 'units' }}</span></span></button>
+    <button type="button" class="kpi" (click)="tab = 'quality'"><span class="kpi-ic kpi-ic--orange"><lucide-icon [img]="icons.Wrench" [size]="22"></lucide-icon></span><span><span class="kpi-label">Rework</span><strong class="kpi-value">{{ count('Rework') }}</strong><span class="kpi-note">{{ count('Rework') === 1 ? 'unit' : 'units' }}</span></span></button>
+    <div class="kpi"><span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.CircleX" [size]="22"></lucide-icon></span><span><span class="kpi-label">Rejected</span><strong class="kpi-value">{{ count('Rejected') }}</strong><span class="kpi-note">{{ count('Rejected') === 1 ? 'unit' : 'units' }}</span></span></div>
+    <div class="kpi kpi--note"><lucide-icon class="c-blue" [img]="icons.Info" [size]="16"></lucide-icon><span>Disposition quantities are mutually exclusive.</span></div>
+  </div>
+
+  <!-- =================== Output summary =================== -->
+  <div *ngIf="tab === 'summary'" class="po-grid">
+    <div class="col">
+      <section class="box" aria-labelledby="po-reg">
+        <h3 id="po-reg">Output Register</h3>
+        <div class="filters">
+          <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search serial or batch..." aria-label="Search output" /></label>
+          <label class="field"><span class="field-label">Disposition</span><select class="control" [(ngModel)]="dispositionFilter" (ngModelChange)="onFilter()"><option value="">All</option><option *ngFor="let d of dispositions" [value]="d">{{ d }}</option></select></label>
+          <label class="field"><span class="field-label">Stage</span><select class="control" [(ngModel)]="stageFilter" (ngModelChange)="onFilter()"><option value="">All</option><option *ngFor="let s of lists.stages" [value]="s">{{ s }}</option></select></label>
+        </div>
+        <div class="table-wrap reg-wrap">
+          <table class="wt">
+            <thead><tr>
+              <th class="col-check"><input type="checkbox" [checked]="allChecked" (change)="toggleAll($any($event.target).checked)" aria-label="Select all on this page" /></th>
+              <th>Output Serial</th>
+              <th><button type="button" class="sort-btn" (click)="sortAsc = !sortAsc">Produced At {{ sortAsc ? '↑' : '↓' }}</button></th>
+              <th>Disposition</th><th>Inspection</th><th>Location</th><th>Handover</th>
+            </tr></thead>
+            <tbody>
+              <tr *ngFor="let o of pageRows" class="is-click" [class.is-selected]="o.serial === selectedSerial" (click)="select(o)">
+                <td class="col-check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="checked.has(o.serial)" (change)="toggleCheck(o, $any($event.target).checked)" [attr.aria-label]="'Select ' + o.serial" /></td>
+                <td><button type="button" class="job-link link-plain" (click)="select(o); genealogyOpen = true">{{ o.serial }}</button></td>
+                <td class="nowrap">{{ o.producedAt | date: 'dd MMM yyyy HH:mm' }}</td>
+                <td><span class="pill" [ngClass]="dispClass(o.disposition)"><span class="dot-sm"></span>{{ o.disposition }}</span></td>
+                <td>{{ o.inspection }}</td>
+                <td>{{ o.location }}</td>
+                <td><span class="pill" [ngClass]="handoverClass(o)">{{ handover(o) }}</span></td>
+              </tr>
+              <tr *ngIf="!pageRows.length"><td colspan="7" class="empty">No output units match.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="reg-foot">
+          <span class="grow">{{ produced }} output unit{{ produced === 1 ? '' : 's' }} recorded</span>
+          <label class="muted">Rows per page:
+            <select class="control page-size" [(ngModel)]="pageSize" (ngModelChange)="onFilter()" aria-label="Rows per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select></label>
+          <span>{{ rangeLabel }}</span>
+          <button type="button" class="icon-btn" [disabled]="page === 0" (click)="setPage(page - 1)" aria-label="Previous page">‹</button>
+          <button type="button" class="icon-btn" [disabled]="page >= pageCount - 1" (click)="setPage(page + 1)" aria-label="Next page">›</button>
+        </div>
+      </section>
+
+      <section class="box" aria-labelledby="po-prog">
+        <h3 id="po-prog">Output Progress</h3>
+        <div class="prog-head"><span>Produced <strong>{{ produced }} of {{ job.planned }} units</strong></span><strong class="prog-pct">{{ pct(produced) }}%</strong></div>
+        <div class="prog-bar" role="img" [attr.aria-label]="count('Accepted') + ' accepted, ' + count('Awaiting QC') + ' awaiting QC, ' + count('Rework') + ' rework, ' + count('Rejected') + ' rejected, ' + remaining + ' remaining'">
+          <span class="seg seg--acc" [style.width.%]="pct(count('Accepted'))"></span>
+          <span class="seg seg--qc" [style.width.%]="pct(count('Awaiting QC'))"></span>
+          <span class="seg seg--rw" [style.width.%]="pct(count('Rework'))"></span>
+          <span class="seg seg--rej" [style.width.%]="pct(count('Rejected'))"></span>
+          <span class="seg seg--rem" [style.width.%]="pct(remaining)"></span>
+        </div>
+        <div class="prog-legend">
+          <span><i class="seg--acc"></i><strong>Accepted</strong><small>{{ count('Accepted') }} units ({{ pct(count('Accepted')) }}%)</small></span>
+          <span><i class="seg--qc"></i><strong>Awaiting QC</strong><small>{{ count('Awaiting QC') }} unit{{ count('Awaiting QC') === 1 ? '' : 's' }} ({{ pct(count('Awaiting QC')) }}%)</small></span>
+          <span><i class="seg--rw"></i><strong>Rework</strong><small>{{ count('Rework') }} unit{{ count('Rework') === 1 ? '' : 's' }} ({{ pct(count('Rework')) }}%)</small></span>
+          <span *ngIf="count('Rejected')"><i class="seg--rej"></i><strong>Rejected</strong><small>{{ count('Rejected') }} ({{ pct(count('Rejected')) }}%)</small></span>
+          <span><i class="seg--rem"></i><strong>Remaining (to produce)</strong><small>{{ remaining }} units ({{ pct(remaining) }}%)</small></span>
+        </div>
+        <p class="hint note-line"><lucide-icon [img]="icons.Info" [size]="14"></lucide-icon>Rework updates the existing serial record; it does not create a second produced unit.</p>
+      </section>
+
+      <section class="box" aria-labelledby="po-ho">
+        <h3 id="po-ho">Finished-Goods Handover</h3>
+        <div class="ho-row">
+          <div class="ho-stat"><lucide-icon class="c-blue" [img]="icons.Box" [size]="24"></lucide-icon><span><small>Accepted</small><strong>{{ count('Accepted') }}</strong><small>units</small></span></div>
+          <div class="ho-stat"><lucide-icon class="c-good" [img]="icons.Warehouse" [size]="24"></lucide-icon><span><small>Received into stock</small><strong>{{ receivedCount }}</strong><small>units</small></span></div>
+          <div class="ho-stat"><lucide-icon class="c-warn" [img]="icons.Clock" [size]="24"></lucide-icon><span><small>Pending handover</small><strong>{{ pendingHandover.length }}</strong><small>units</small></span></div>
+          <label class="field"><span class="field-label">Destination Store</span><select class="control" [(ngModel)]="store"><option *ngFor="let s of lists.stores" [value]="s">{{ s }}</option></select></label>
+          <label class="field ref-field"><span class="field-label">Receipt Reference</span><input class="control" [(ngModel)]="receiptRef" /></label>
+          <button type="button" class="btn btn-primary ho-btn" [disabled]="!pendingHandover.length" (click)="createHandover()">Create Handover</button>
+        </div>
+        <p class="hint note-line"><lucide-icon [img]="icons.Info" [size]="14"></lucide-icon>Only approved output is eligible for stock receipt.
+          <ng-container *ngIf="pendingHandover.length"> This handover covers {{ handoverUnits.length }} unit{{ handoverUnits.length === 1 ? '' : 's' }}: {{ handoverSerials }}.</ng-container></p>
+      </section>
+    </div>
+
+    <!-- ===== Right column ===== -->
+    <div class="col">
+      <section class="box" aria-labelledby="po-rec">
+        <h3 id="po-rec">Record Output</h3>
+        <form class="rec-form" (ngSubmit)="submitOutput()">
+          <label class="field"><span class="field-label">Job <em>*</em></span><select class="control" name="job" disabled><option>{{ job.code }}</option></select></label>
+          <label class="field"><span class="field-label">Product <em>*</em></span><select class="control" name="product" disabled><option>{{ job.item }}</option></select></label>
+          <label class="field"><span class="field-label">Completed Stage <em>*</em></span><select class="control" name="stage" [(ngModel)]="form.stage"><option *ngFor="let s of lists.stages" [value]="s">{{ s }}</option></select></label>
+          <span class="qty-pair">
+            <label class="field"><span class="field-label">Quantity <em>*</em></span><input class="control" type="number" min="1" [max]="remaining" name="qty" [(ngModel)]="form.quantity" /></label>
+            <label class="field"><span class="field-label">UOM</span><select class="control" name="uom" disabled><option>{{ job.uom }}</option></select></label>
+          </span>
+          <label class="field"><span class="field-label">Batch <em>*</em></span><input class="control" name="batch" [(ngModel)]="form.batch" /></label>
+          <label class="field"><span class="field-label">Serial Number <em>*</em></span><input class="control" name="serial" [(ngModel)]="form.serial" />
+            <span *ngIf="formSerials.length > 1" class="hint">Creates {{ formSerials[0] }} – {{ formSerials[formSerials.length - 1] }}</span></label>
+          <label class="field"><span class="field-label">Produced At <em>*</em></span><input class="control" type="datetime-local" name="at" [(ngModel)]="form.producedAt" /></label>
+          <label class="field"><span class="field-label">Operator <em>*</em></span><select class="control" name="op" [(ngModel)]="form.operator"><option *ngFor="let o of lists.operators" [value]="o">{{ o }}</option></select></label>
+          <label class="field"><span class="field-label">Initial Disposition <em>*</em></span><select class="control" name="disp" [(ngModel)]="form.disposition"><option *ngFor="let d of initialDispositions" [value]="d">{{ d }}</option></select></label>
+          <label class="field"><span class="field-label">Location <em>*</em></span><select class="control" name="loc" [(ngModel)]="form.location"><option *ngFor="let l of lists.locations" [value]="l">{{ l }}</option></select></label>
+          <label *ngIf="form.disposition === 'Rejected'" class="field span-2"><span class="field-label">Reject Reason <em>*</em></span><input class="control" name="rej" [(ngModel)]="form.rejectReason" /></label>
+          <div class="field">
+            <span class="field-label">Photo / Evidence</span>
+            <label class="btn btn-outline attach"><lucide-icon [img]="icons.Paperclip" [size]="16"></lucide-icon>Attach files<input type="file" multiple accept=".jpg,.jpeg,.png,.pdf" class="sr-only" (change)="onFiles($event)" /></label>
+            <span class="hint">JPG, PNG or PDF (max 10 MB)</span>
+            <span *ngFor="let f of form.files" class="file-chip">{{ f }}<button type="button" (click)="removeFile(f)" [attr.aria-label]="'Remove ' + f">×</button></span>
+          </div>
+          <label class="field"><span class="field-label">Notes</span><textarea class="control" rows="3" name="notes" [(ngModel)]="form.notes" placeholder="Add production notes..."></textarea></label>
+          <p *ngIf="formError" class="form-error span-2" role="alert">{{ formError }}</p>
+          <div class="rec-btns span-2">
+            <span *ngIf="draftSaved" class="muted grow">Draft saved {{ draftSaved | date: 'HH:mm' }}</span>
+            <button type="button" class="btn btn-outline" (click)="saveDraft()">Save Draft</button>
+            <button type="submit" class="btn btn-primary">Submit Output</button>
+          </div>
+        </form>
+      </section>
+
+      <section *ngIf="selected as s" class="box" aria-labelledby="po-sel">
+        <div class="box-head"><h3 id="po-sel" class="grow">Selected Output: {{ s.serial }}</h3>
+          <button type="button" class="link-btn" (click)="genealogyOpen = true">View genealogy<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button></div>
+        <dl class="kv sel-kv">
+          <dt><lucide-icon [img]="icons.GitBranch" [size]="14"></lucide-icon>Material genealogy</dt><dd><button type="button" class="job-link link-plain" (click)="genealogyOpen = true">{{ components.length }} component records</button></dd>
+          <dt><lucide-icon [img]="icons.Route" [size]="14"></lucide-icon>Job routing</dt><dd><a class="job-link" routerLink="/wip-operations/job-orders" [queryParams]="{ code: job.code }">{{ job.routing }}</a></dd>
+          <dt><lucide-icon [img]="icons.ShieldCheck" [size]="14"></lucide-icon>Inspection</dt><dd>{{ s.inspectionRef || '—' }} <span class="muted">{{ s.inspection }}</span></dd>
+          <dt><lucide-icon [img]="icons.FileText" [size]="14"></lucide-icon>Related asset registration</dt><dd>{{ s.assetTag || 'Not registered' }}</dd>
+        </dl>
+      </section>
+
+      <section class="box" aria-labelledby="po-qc">
+        <div class="qc-wrap">
+          <div class="grow">
+            <h3 id="po-qc" class="qc-title"><lucide-icon class="c-blue" [img]="icons.ShieldCheck" [size]="20"></lucide-icon>Quality Controls</h3>
+            <ul class="qc-list">
+              <li><span class="qc-dot qc-dot--green"></span>Acceptance requires inspection approval.</li>
+              <li><span class="qc-dot qc-dot--amber"></span>Rework retains original serial (updates disposition).</li>
+              <li><span class="qc-dot qc-dot--red"></span>Reject requires reason and authorization.</li>
+            </ul>
+          </div>
+          <div class="qc-side">
+            <button type="button" class="btn btn-outline" [disabled]="!selected || selected.disposition !== 'Accepted' || !!selected.assetTag" (click)="registerAsset(selected!)">Register as Asset</button>
+            <span class="hint">For qualifying serialized equipment only.</span>
+          </div>
+        </div>
+        <div *ngIf="selected as s" class="qc-actions">
+          <ng-container *ngIf="s.disposition === 'Awaiting QC'">
+            <button type="button" class="btn btn-outline btn-xs" (click)="qcPass(s)">QC Pass {{ s.serial }}</button>
+            <button type="button" class="btn btn-outline btn-xs" (click)="qcFail(s)">QC Fail → Rework</button>
+          </ng-container>
+          <button *ngIf="s.disposition === 'Rework'" type="button" class="btn btn-outline btn-xs" (click)="reworkDone(s)">Rework complete</button>
+          <button *ngIf="s.disposition !== 'Rejected' && !s.handoverRef" type="button" class="btn btn-danger-outline btn-xs" (click)="openReject(s)">Reject</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- =================== Output records =================== -->
+  <section *ngIf="tab === 'records'" class="box" aria-labelledby="po-all">
+    <h3 id="po-all">Output Records</h3>
+    <div class="table-wrap">
+      <table class="wt">
+        <thead><tr><th>Serial</th><th>Stage</th><th>Produced At</th><th>Operator</th><th>Disposition</th><th>Inspection</th><th>Location</th><th>Handover</th><th>Evidence</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let o of outputs" class="is-click" (click)="select(o); tab = 'summary'">
+            <td><strong>{{ o.serial }}</strong><span class="sub">{{ job.batch }}</span></td>
+            <td>{{ o.stage }}</td>
+            <td class="nowrap">{{ o.producedAt | date: 'dd MMM HH:mm' }}</td>
+            <td>{{ o.operator }}</td>
+            <td><span class="pill" [ngClass]="dispClass(o.disposition)">{{ o.disposition }}</span><span *ngIf="o.reworkCount" class="sub">Reworked {{ o.reworkCount }}×</span></td>
+            <td>{{ o.inspection }}<span class="sub">{{ o.inspectionRef }}</span></td>
+            <td>{{ o.location }}</td>
+            <td><span class="pill" [ngClass]="handoverClass(o)">{{ handover(o) }}</span><span class="sub">{{ o.handoverRef }}</span></td>
+            <td class="num">{{ o.evidence }}</td>
+            <td>{{ o.rejectReason || o.notes || '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- =================== Quality & rework =================== -->
+  <section *ngIf="tab === 'quality'" class="box" aria-labelledby="po-q">
+    <h3 id="po-q">Quality &amp; Rework Queue</h3>
+    <div class="table-wrap">
+      <table class="wt">
+        <thead><tr><th>Serial</th><th>Disposition</th><th>Inspection</th><th>Location</th><th>Latest</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let o of qualityQueue">
+            <td><strong>{{ o.serial }}</strong><span class="sub">{{ o.stage }}</span></td>
+            <td><span class="pill" [ngClass]="dispClass(o.disposition)">{{ o.disposition }}</span></td>
+            <td>{{ o.inspection }}<span class="sub">{{ o.inspectionRef }}</span></td>
+            <td>{{ o.location }}</td>
+            <td>{{ o.history[o.history.length - 1].text }}</td>
+            <td class="nowrap">
+              <ng-container *ngIf="o.disposition === 'Awaiting QC'"><button type="button" class="btn btn-primary btn-xs" (click)="qcPass(o)">QC Pass</button> <button type="button" class="btn btn-outline btn-xs" (click)="qcFail(o)">QC Fail</button></ng-container>
+              <button *ngIf="o.disposition === 'Rework'" type="button" class="btn btn-outline btn-xs" (click)="reworkDone(o)">Rework complete</button>
+              <button type="button" class="btn btn-danger-outline btn-xs" (click)="openReject(o)">Reject</button>
+            </td>
+          </tr>
+          <tr *ngIf="!qualityQueue.length"><td colspan="6" class="empty">No units waiting for QC or rework.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- =================== Traceability =================== -->
+  <section *ngIf="tab === 'trace'" class="box" aria-labelledby="po-tr">
+    <h3 id="po-tr">Batch &amp; Serial Traceability <span class="muted">{{ job.batch }} · {{ job.routing }}</span></h3>
+    <div class="table-wrap">
+      <table class="wt">
+        <thead><tr><th>Serial</th><th>Produced</th><th>Components</th><th>Disposition</th><th>Receipt</th><th>Asset</th><th>History</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let o of outputs">
+            <td><strong>{{ o.serial }}</strong></td>
+            <td class="nowrap">{{ o.producedAt | date: 'dd MMM HH:mm' }}<span class="sub">{{ o.operator }}</span></td>
+            <td><button type="button" class="link-btn" (click)="select(o); genealogyOpen = true">{{ components.length }} records</button></td>
+            <td><span class="pill" [ngClass]="dispClass(o.disposition)">{{ o.disposition }}</span></td>
+            <td>{{ o.handoverRef || '—' }}</td>
+            <td>{{ o.assetTag || '—' }}</td>
+            <td><span *ngFor="let h of o.history" class="sub">{{ h.at | date: 'HH:mm' }} · {{ h.text }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- =================== Handover & inventory =================== -->
+  <section *ngIf="tab === 'handover'" class="box" aria-labelledby="po-hi">
+    <h3 id="po-hi">Handover &amp; Inventory</h3>
+    <div class="table-wrap">
+      <table class="wt">
+        <thead><tr><th>Receipt</th><th>Store</th><th>Received</th><th>By</th><th>Serials</th><th>Quantity</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let h of handovers">
+            <td><strong>{{ h.ref }}</strong></td><td>{{ h.store }}</td><td class="nowrap">{{ h.at | date: 'dd MMM yyyy HH:mm' }}</td><td>{{ h.by }}</td>
+            <td>{{ h.serials.join(', ') }}</td><td class="num">{{ h.serials.length }} {{ job.uom }}{{ h.serials.length === 1 ? '' : 's' }}</td>
+          </tr>
+          <tr *ngIf="!handovers.length"><td colspan="6" class="empty">No handovers yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint note-line"><lucide-icon [img]="icons.Info" [size]="14"></lucide-icon>{{ pendingHandover.length }} accepted unit(s) waiting: {{ pendingHandover.length ? pendingSerials : 'none' }}. Create the handover from Output Summary.</p>
+  </section>
+
+  <p class="footnote"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>Output references shared item records. Stock receipt, quality disposition and asset registration are separate controlled transactions.</p>
+</section>
+
+<!-- ===== Genealogy ===== -->
+<div *ngIf="genealogyOpen && selected as s" class="overlay" (click)="genealogyOpen = false">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="po-gen-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="po-gen-title">Genealogy · {{ s.serial }}</h2><button type="button" class="icon-btn" (click)="genealogyOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <dl class="kv"><dt>Item</dt><dd>{{ job.item }}</dd><dt>Batch</dt><dd>{{ job.batch }}</dd><dt>Job</dt><dd>{{ job.code }} · {{ job.routing }}</dd></dl>
+      <table class="wt">
+        <thead><tr><th>Component</th><th>Lot / Serial</th></tr></thead>
+        <tbody><tr *ngFor="let c of components"><td>{{ c.part }}</td><td>{{ c.ref.endsWith('-') ? c.ref + s.serial.replace('P-', '') : c.ref }}</td></tr></tbody>
+      </table>
+      <h4 class="gen-h">History</h4>
+      <ul class="gen-hist"><li *ngFor="let h of s.history"><strong>{{ h.at | date: 'dd MMM HH:mm' }}</strong> {{ h.text }} <span class="muted">· {{ h.by }}</span></li></ul>
+    </div>
+    <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="genealogyOpen = false">Close</button></div>
+  </div>
+</div>
+
+<!-- ===== Reject ===== -->
+<div *ngIf="rejectFor as u" class="overlay" (click)="rejectFor = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="po-rej-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="po-rej-title">Reject {{ u.serial }}</h2><button type="button" class="icon-btn" (click)="rejectFor = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="saveReject()">
+      <label class="field"><span class="field-label">Reason <em>*</em></span><textarea class="control" rows="3" [(ngModel)]="rejectReason" name="reason"></textarea></label>
+      <label class="field"><span class="field-label">Authorized By <em>*</em></span>
+        <select class="control" [(ngModel)]="rejectBy" name="by"><option value="" disabled>Select authorizer</option><option value="Quality Supervisor">Quality Supervisor</option><option value="Quality Manager">Quality Manager</option></select></label>
+      <p class="hint">The unit moves to quarantine and stays on record with its serial.</p>
+      <div class="modal-foot modal-foot--form"><button type="button" class="btn btn-outline" (click)="rejectFor = null">Cancel</button><button type="submit" class="btn btn-danger-outline" [disabled]="!rejectReason.trim() || !rejectBy">Reject Unit</button></div>
+    </form>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" [class.toast--error]="toastError" role="status">{{ toast }}</div>

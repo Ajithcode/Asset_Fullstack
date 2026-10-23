@@ -1,11 +1,8 @@
 <aside class="sidebar" [class.collapsed]="collapsed">
   <div class="brand-card">
     <div class="brand">
-      <div class="brand-mark" (click)="collapsed && toggleCollapse()">
-        <img src="PurpleIQLOGOPurpleBright.png" alt="Purple IQ" />
-      </div>
-      <div class="brand-copy" *ngIf="!collapsed">
-        <strong>Purple IQ</strong>
+      <div class="brand-mark" [class.brand-mark--full]="!collapsed" (click)="collapsed && toggleCollapse()">
+        <img src="/purple360-logo.jpeg" alt="Asset360 by Purple IQ" />
       </div>
     </div>
     <button

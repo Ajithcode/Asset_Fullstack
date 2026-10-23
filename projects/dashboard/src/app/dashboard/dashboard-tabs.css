@@ -1,0 +1,115 @@
+/* ===== Module tabs: frosted-glass bar with a sliding glass pill under the active tab ===== */
+.dash-tabs {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(244, 243, 255, 0.5));
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  box-shadow:
+    0 8px 24px rgba(79, 43, 216, 0.08),
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(79, 43, 216, 0.06);
+}
+
+/* The moving pill. Its position and width are set from the active tab (Dashboard.moveGlider). */
+.tab-glider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  width: 0;
+  height: calc(100% - 8px);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(124, 92, 255, 0.96) 0%, rgba(79, 43, 216, 0.96) 55%, rgba(61, 32, 176, 0.96) 100%);
+  box-shadow:
+    0 6px 18px rgba(79, 43, 216, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 6px rgba(30, 10, 120, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.2s ease;
+}
+
+/* glass sheen on the top half of the pill */
+.tab-glider::after {
+  content: '';
+  position: absolute;
+  inset: 1px 6px 50% 6px;
+  border-radius: 999px 999px 40% 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
+}
+
+.tab-glider.is-ready { opacity: 1; }
+/* first placement jumps into position; only later moves slide */
+.tab-glider.no-anim { transition: opacity 0.2s ease; }
+
+.dash-tab {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.3s ease, background-color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dash-tab:hover:not(.active) { color: #0f172a; background: rgba(255, 255, 255, 0.7); }
+.dash-tab:focus-visible { outline: 2px solid #4f2bd8; outline-offset: 2px; }
+.dash-tab.active { color: #fff; font-weight: 700; }
+
+/* Without the glider (before first measure) the active tab still reads as selected. */
+.dash-tabs:not(.has-glider) .dash-tab.active { background: #4f2bd8; }
+
+.dash-tab svg { flex: 0 0 auto; stroke: #64748b; transition: stroke 0.3s ease, transform 0.3s ease; }
+.dash-tab:hover svg,
+.dash-tab.active svg { stroke: currentColor; }
+.dash-tab.active svg { transform: scale(1.06); }
+
+/* ===== Tab edit / remove and "New" (used by the widget selection flow, currently commented out) ===== */
+.tab-actions { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; }
+.tab-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.tab-icon-btn svg { width: 13px; height: 13px; }
+.tab-icon-btn:hover { background: rgba(255, 255, 255, 0.25); }
+.dash-tab-add { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border: 0; background: transparent; color: #4f2bd8; font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.dash-tab-add:hover { text-decoration: underline; }
+.dash-tab-footer { display: none; }
+
+/* The module content eases in when the tab changes. */
+.dash-section { animation: dash-section-in 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+
+@keyframes dash-section-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 560px) {
+  .dash-tabs { width: 100%; box-sizing: border-box; }
+  .dash-tab { flex: 1; justify-content: center; padding: 0 10px; font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-glider, .dash-tab, .dash-tab svg { transition: none; }
+  .dash-section { animation: none; }
+}

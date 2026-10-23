@@ -45,17 +45,17 @@
 }
 
 .wip-btn-primary {
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
 }
 
 .wip-btn-primary:hover {
-  background: #140b45;
+  background: #3d20b0;
 }
 
 .wip-btn-outline {
   background: #fff;
-  color: #1d1160;
+  color: #4f2bd8;
   border: 1.5px solid #c9a8e0;
 }
 
@@ -75,7 +75,7 @@
   border: var(--piq-card-border);
   border-radius: 12px;
   padding: 12px 16px;
-  box-shadow: 0 2px 8px rgba(29, 17, 96, 0.05);
+  box-shadow: 0 2px 8px rgba(79, 43, 216, 0.05);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -83,7 +83,7 @@
 }
 
 .wip-stat-card:hover {
-  box-shadow: 0 6px 18px rgba(29, 17, 96, 0.1);
+  box-shadow: 0 6px 18px rgba(79, 43, 216, 0.1);
 }
 
 .wip-stat-top {
@@ -129,7 +129,7 @@
 }
 
 .wip-more-btn:hover {
-  color: #1d1160;
+  color: #4f2bd8;
   background: #f3eafb;
 }
 
@@ -193,7 +193,7 @@
   background: #fff;
   border: var(--piq-card-border);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(29, 17, 96, 0.05);
+  box-shadow: 0 2px 8px rgba(79, 43, 216, 0.05);
   overflow: hidden;
   height: 100%;
 }
@@ -211,7 +211,7 @@
   margin: 0;
   font-size: 14px;
   font-weight: 800;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .wip-panel-icon {
@@ -221,7 +221,7 @@
   background: #f3eafb;
   display: grid;
   place-items: center;
-  color: #1d1160;
+  color: #4f2bd8;
   flex: 0 0 auto;
 }
 
@@ -243,7 +243,7 @@
   border-radius: 50%;
   background: conic-gradient(
     #e391c9 0% 35%,
-    #1d1160 35% 55%,
+    #4f2bd8 35% 55%,
     #a8d5a2 55% 65%,
     #f08080 65% 100%
   );
@@ -275,7 +275,7 @@
 .wip-donut-total {
   font-size: 20px;
   font-weight: 800;
-  color: #1d1160;
+  color: #4f2bd8;
   line-height: 1;
 }
 
@@ -424,14 +424,14 @@
   margin: 0;
   font-size: 14px;
   font-weight: 800;
-  color: #1d1160;
+  color: #4f2bd8;
   flex: 1;
 }
 
 .wip-view-all {
   font-size: 12px;
   font-weight: 700;
-  color: #1d1160;
+  color: #4f2bd8;
   text-decoration: none;
   border: 1.5px solid #c9a8e0;
   border-radius: 6px;
@@ -458,7 +458,7 @@
   text-align: left;
   padding: 7px 14px;
   background: #faf7fd;
-  color: #1d1160;
+  color: #4f2bd8;
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
@@ -484,7 +484,7 @@
 }
 
 .wip-job-link {
-  color: #1d1160;
+  color: #4f2bd8;
   text-decoration: none;
   font-weight: 700;
 }
@@ -506,7 +506,7 @@
 
 .wip-status-inprogress {
   background: #f3eafb;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .wip-status-planned {
@@ -546,7 +546,7 @@
 }
 
 .wip-bar-inprogress {
-  background: linear-gradient(90deg, #c084e0, #1d1160);
+  background: linear-gradient(90deg, #c084e0, #4f2bd8);
 }
 
 .wip-bar-planned {
@@ -570,7 +570,7 @@
 
 /* ===== Drag-and-drop ===== */
 .cdk-drag-preview {
-  box-shadow: 0 18px 40px rgba(29, 17, 96, 0.18);
+  box-shadow: 0 18px 40px rgba(79, 43, 216, 0.18);
   border-radius: 12px;
 }
 

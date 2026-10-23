@@ -20,6 +20,8 @@ import { AssetCriticality } from './components/pages/assets/asset-criticality/as
 import { AssetHealthScore } from './components/pages/assets/asset-health-score/asset-health-score';
 import { AssetBulk } from './components/pages/assets/asset-bulk/asset-bulk';
 import { AssetMerge } from './components/pages/assets/asset-merge/asset-merge';
+import { LocationHistory } from './components/pages/assets/asset-location-history/location-history';
+import { AssetMaintenance } from './components/pages/assets/asset-maintenance/asset-maintenance';
 import { JobTemplates } from './components/pages/wip-operations/job-templates/job-templates';
 import { JobOrders } from './components/pages/wip-operations/job-orders/job-orders';
 import { Resources } from './components/pages/wip-operations/resources/resources';
@@ -30,6 +32,8 @@ import { IssuesDelays } from './components/pages/wip-operations/issues-delays/is
 import { SlaManagement } from './components/pages/wip-operations/sla-management/sla-management';
 import { AssetLinking } from './components/pages/wip-operations/asset-linking/asset-linking';
 import { PermitCompliance } from './components/pages/wip-operations/permit-compliance/permit-compliance';
+import { ProgressLog } from './components/pages/wip-operations/progress-log/progress-log';
+import { ProductOutput } from './components/pages/wip-operations/product-output/product-output';
 import { Events } from './components/pages/events/events/events';
 import { Reports } from './components/pages/reports/reports/reports';
 import { CreateReport } from './components/pages/reports/create-report/create-report';
@@ -192,9 +196,9 @@ export const routes: Routes = [
       { path: 'assets/types-models', component: AssetTypesModels },
       { path: 'assets/hierarchy', component: AssetHierarchy },
       { path: 'assets/components', component: AssetComponents },
-      { path: 'assets/location-history', component: ModulePlaceholder, data: { title: 'Location History' } },
+      { path: 'assets/location-history', component: LocationHistory },
       { path: 'assets/assignment', component: ModulePlaceholder, data: { title: 'Assignment' } },
-      { path: 'assets/maintenance', component: ModulePlaceholder, data: { title: 'Maintenance' } },
+      { path: 'assets/maintenance', component: AssetMaintenance },
       { path: 'assets/service-requests', component: ModulePlaceholder, data: { title: 'Service Requests' } },
       { path: 'assets/audit', component: ModulePlaceholder, data: { title: 'Asset Audit' } },
       { path: 'assets/disposal', component: ModulePlaceholder, data: { title: 'Disposal' } },
@@ -231,7 +235,9 @@ export const routes: Routes = [
       { path: 'wip-operations/location-management', component: LocationManagement },
       { path: 'wip-operations/asset-linking', component: AssetLinking },
       { path: 'wip-operations/sla-management', component: SlaManagement },
-      { path: 'wip-operations/progress-output', component: ModulePlaceholder, data: { title: 'Progress & Output' } },
+      { path: 'wip-operations/progress-log', component: ProgressLog },
+      { path: 'wip-operations/product-output', component: ProductOutput },
+      { path: 'wip-operations/progress-output', redirectTo: 'wip-operations/progress-log', pathMatch: 'full' },
       { path: 'wip-operations/issues-delays', component: IssuesDelays },
       { path: 'wip-operations/permit-compliance', component: PermitCompliance },
       { path: 'audit-compliance', component: ModulePlaceholder, data: { title: 'Audit & Compliance' } },

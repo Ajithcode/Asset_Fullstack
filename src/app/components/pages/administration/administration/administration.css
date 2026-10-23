@@ -29,10 +29,10 @@
 
 .admin-tab:hover {
   background: #f5f3ff;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .admin-tab.active {
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
 }

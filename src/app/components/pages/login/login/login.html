@@ -1,75 +1,114 @@
-﻿<div class="login-shell">
-  <aside class="branding-panel">
-    <div class="brand-top">
-      <div class="brand-mark">
-        <img src="/PurpleIQ-white.png" alt="PurpleIQ Logo" />
-      </div>
-      <h1>Welcome to Assets 360</h1>
-      <p class="brand-subtitle">TRACK. MANAGE. OPTIMIZE. PROTECT.</p>
-    </div>
+﻿<div class="login-shell" [class.is-scaled]="scaled" [style.--s]="scale">
+<div class="design">
+  <div class="stage">
+    <div class="stage-bg" aria-hidden="true"></div>
+    <!-- ===== Branding ===== -->
+    <aside class="brand">
+      <img class="brand-logo" src="/purple360-logo.jpeg" alt="Asset360 by Purple IQ" />
+      <h1 class="brand-title">Complete Asset Management<br />for a <span>Smarter Tomorrow</span></h1>
+      <p class="brand-tagline"><span>Track</span><i>|</i><span>Maintain</span><i>|</i><span>Optimize</span><i>|</i><span>Extend</span></p>
 
-    <div class="brand-features">
-      <div class="feature-item">Asset Tracking & Inventory</div>
-      <div class="feature-item">Real-time Location</div>
-      <div class="feature-item">Maintenance Scheduling</div>
-      <div class="feature-item">Asset Lifecycle Management</div>
-    </div>
-  </aside>
+      <ul class="features">
+        <li *ngFor="let f of features">
+          <span [class]="'feature-ic feature-ic--' + f.tone"><lucide-icon [img]="f.icon" [size]="40" [strokeWidth]="1.8"></lucide-icon></span>
+          <span class="feature-label">{{ f.label }}</span>
+        </li>
+      </ul>
+    </aside>
 
-  <section class="login-panel">
-    <div class="login-card">
-      <div class="icon-shell">
-        <img src="/PurpleIQLOGOPurpleBright.png" alt="PurpleIQ Logo" />
-        <img src="/PurpleIqNamePurple.png" alt="PurpleIQ Logo" />
-      </div>
-      
-      <p class="login-subtitle">Sign in to Assets 360</p>
+    <!-- ===== Sign-in card ===== -->
+    <section class="card" aria-labelledby="login-title">
+      <h2 id="login-title">Welcome to Asset<span>360</span></h2>
+      <p class="card-sub">Sign in to your account</p>
 
-      <form (ngSubmit)="login()" method="post" class="login-form">
-        <label class="field-label">
-          <span>Username</span>
-          <input
-            type="text"
-            [(ngModel)]="credentials.userName"
-            name="userName"
-            placeholder="Enter your username"
-            autocomplete="username"
-          />
+      <form (ngSubmit)="login()" method="post" class="form" novalidate>
+        <label class="field">
+          <span class="field-label">{{ directory ? directory + ' Username' : 'Email / Username' }}</span>
+          <span class="input">
+            <lucide-icon [img]="icons.User" [size]="22"></lucide-icon>
+            <input type="text" [(ngModel)]="credentials.userName" name="userName" [placeholder]="directory ? 'DOMAIN\\username' : 'Enter your email or username'" autocomplete="username" />
+          </span>
         </label>
 
-        <label class="field-label">
-          <span>Password</span>
-          <input
-            type="password"
-            [(ngModel)]="credentials.password"
-            name="password"
-            placeholder="Enter your password"
-            autocomplete="current-password"
-          />
+        <label class="field">
+          <span class="field-label">Password</span>
+          <span class="input">
+            <lucide-icon [img]="icons.Lock" [size]="22"></lucide-icon>
+            <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="credentials.password" name="password" placeholder="Enter your password" autocomplete="current-password" />
+            <button type="button" class="eye" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" [attr.aria-pressed]="showPassword">
+              <lucide-icon [img]="showPassword ? icons.EyeOff : icons.Eye" [size]="22"></lucide-icon>
+            </button>
+          </span>
         </label>
 
-        <div class="login-meta">
-          <label class="checkbox-label">
-            <input type="checkbox" />
-            Remember me
-          </label>
-          <a class="forgot-link" href="#">Forgot Password?</a>
+        <div class="meta">
+          <label class="check"><input type="checkbox" [(ngModel)]="rememberMe" name="remember" />Remember me</label>
+          <a class="link" href="#" (click)="forgot($event)">Forgot Password?</a>
         </div>
 
-        <p *ngIf="infoMsg" class="success-msg" role="status">{{ infoMsg }}</p>
-        <p *ngIf="errorMsg" class="error-msg" role="alert">{{ errorMsg }}</p>
+        <p *ngIf="infoMsg" class="msg msg--info" role="status">{{ infoMsg }}</p>
+        <p *ngIf="errorMsg" class="msg msg--error" role="alert">{{ errorMsg }}</p>
 
-        <button type="submit" class="submit-button" [disabled]="isLoading">
-          {{ isLoading ? 'Signing In...' : 'Sign In' }}
+        <button type="submit" class="submit" [disabled]="isLoading">
+          {{ isLoading ? 'Signing In...' : directory ? 'Sign In with ' + directory : 'Sign In' }}
+          <lucide-icon [img]="icons.ArrowRight" [size]="19"></lucide-icon>
         </button>
       </form>
 
-      <p class="switch-auth">
-        Don't have an account?
-        <a routerLink="/signup">Create an account</a>
-      </p>
+      <div class="divider"><span>OR CONTINUE WITH</span></div>
 
-      <div class="secure-note">Secured &amp; Encrypted Connection</div>
-    </div>
-  </section>
+      <button type="button" class="opt opt--row" (click)="provider('Enterprise SSO')">
+        <lucide-icon class="opt-ic" [img]="icons.Building2" [size]="32" [strokeWidth]="1.6"></lucide-icon>
+        <span class="opt-text"><strong>Enterprise SSO</strong><small>Sign in with your organization account</small></span>
+        <lucide-icon [img]="icons.ArrowRight" [size]="18"></lucide-icon>
+      </button>
+
+      <div class="opt-pair">
+        <button type="button" class="opt" (click)="provider('Microsoft sign-in')">
+          <svg class="brand-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="10.5" height="10.5" fill="#f25022" /><rect x="12.5" y="1" width="10.5" height="10.5" fill="#7fba00" /><rect x="1" y="12.5" width="10.5" height="10.5" fill="#00a4ef" /><rect x="12.5" y="12.5" width="10.5" height="10.5" fill="#ffb900" /></svg>
+          <span class="opt-text"><strong><span class="opt-prefix">Continue with </span>Microsoft</strong></span>
+          <lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon>
+        </button>
+        <button type="button" class="opt" (click)="provider('Google sign-in')">
+          <svg class="brand-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285f4" d="M23.5 12.27c0-.85-.08-1.67-.22-2.45H12v4.63h6.46a5.52 5.52 0 0 1-2.4 3.62v3h3.88c2.27-2.09 3.56-5.17 3.56-8.8Z" />
+            <path fill="#34a853" d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.88-3.01c-1.07.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.71-4.95H1.28v3.11A12 12 0 0 0 12 24Z" />
+            <path fill="#fbbc05" d="M5.29 14.28A7.2 7.2 0 0 1 4.91 12c0-.79.14-1.56.38-2.28V6.61H1.28A12 12 0 0 0 0 12c0 1.94.46 3.77 1.28 5.39l4.01-3.11Z" />
+            <path fill="#ea4335" d="M12 4.77c1.76 0 3.34.61 4.59 1.8l3.44-3.44A11.5 11.5 0 0 0 12 0 12 12 0 0 0 1.28 6.61l4.01 3.11C6.23 6.88 8.88 4.77 12 4.77Z" />
+          </svg>
+          <span class="opt-text"><strong><span class="opt-prefix">Continue with </span>Google</strong></span>
+          <lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon>
+        </button>
+      </div>
+
+      <button type="button" class="opt opt--row" (click)="provider('Passkey sign-in')">
+        <lucide-icon class="opt-ic" [img]="icons.KeyRound" [size]="30" [strokeWidth]="1.6"></lucide-icon>
+        <span class="opt-text"><strong>Sign in with Passkey</strong><small>Use your device's biometric or security key</small></span>
+        <lucide-icon [img]="icons.ArrowRight" [size]="18"></lucide-icon>
+      </button>
+
+      <button type="button" class="other-toggle" (click)="otherOpen = !otherOpen" [attr.aria-expanded]="otherOpen" aria-controls="login-other">
+        Other login options<lucide-icon [img]="otherOpen ? icons.ChevronUp : icons.ChevronDown" [size]="16"></lucide-icon>
+      </button>
+      <div *ngIf="otherOpen" id="login-other" class="tiles">
+        <button type="button" class="tile" [class.is-on]="directory === 'Active Directory'" [attr.aria-pressed]="directory === 'Active Directory'" (click)="useDirectory('Active Directory')">
+          <svg class="brand-ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="#0078d4" d="M1 3.4 10 2.2v8.6H1V3.4Zm10-1.3L23 .5v10.3H11V2.1ZM1 12.2h9v8.6l-9-1.2v-7.4Zm10 0h12v10.3l-12-1.6v-8.7Z" /></svg>
+          Active Directory
+        </button>
+        <button type="button" class="tile" [class.is-on]="directory === 'LDAP'" [attr.aria-pressed]="directory === 'LDAP'" (click)="useDirectory('LDAP')">
+          <lucide-icon [img]="icons.Server" [size]="24"></lucide-icon>LDAP
+        </button>
+        <button type="button" class="tile" (click)="provider('Email OTP')"><lucide-icon [img]="icons.Mail" [size]="24"></lucide-icon>Email OTP</button>
+        <button type="button" class="tile" (click)="provider('QR code sign-in')"><lucide-icon [img]="icons.QrCode" [size]="24"></lucide-icon>QR Code</button>
+      </div>
+
+      <p class="card-foot">New to Asset360? Contact your administrator for access.</p>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <nav class="footer-links" aria-label="Legal"><a href="#" (click)="$event.preventDefault()">Privacy Policy</a><i>|</i><a href="#" (click)="$event.preventDefault()">Terms of Service</a><i>|</i><a href="#" (click)="$event.preventDefault()">Support</a></nav>
+    <span>© {{ year }} Purple IQ. All rights reserved.</span>
+  </footer>
+</div>
 </div>

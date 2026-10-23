@@ -29,7 +29,12 @@
   // Keep the topbar below the sidebar's collapse button (which is z-index 9999)
   z-index: 1500;
 }
-
+.brand-text{
+  color: #000;
+}
+.brand-highlight{
+  color: #4f2bd8;
+}
 .menu-toggle,
 .notification-btn,
 .email-btn {
@@ -63,7 +68,7 @@
 .brand {
   font-size: 28px;
   font-weight: 900;
-  color: #1d1160;
+  color: #4f2bd8;
   letter-spacing: 0.02em;
   white-space: nowrap;
   font-family: 'Red Hat Display', sans-serif;
@@ -115,7 +120,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
   font-weight: 800;
 }
@@ -187,7 +192,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
   font-weight: 800;
 }

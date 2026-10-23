@@ -10,7 +10,7 @@
         <span class="crumb-current">Asset Linking</span>
       </nav>
       <h1>Asset Linking</h1>
-      <p class="subtitle">Link register assets to job stages and tasks, and check they are ready for use.</p>
+      <p class="subtitle">Associate registered assets with job orders, stages and tasks</p>
     </div>
     <div class="head-actions">
       <button type="button" class="btn btn-outline" (click)="tab = 'available'"><lucide-icon [img]="icons.Database" [size]="17"></lucide-icon>View Asset Register</button>
@@ -21,114 +21,113 @@
 
   <!-- ===== Job ===== -->
   <div class="card job-card">
-    <span class="tpl-icon"><lucide-icon [img]="icons.ClipboardList" [size]="26"></lucide-icon></span>
-    <div class="grow">
-      <h2 class="job-title">
-        <a *ngIf="isKnownJob(job.code); else plainJob" class="job-link" routerLink="/wip-operations/job-orders" [queryParams]="{ code: job.code }">{{ job.code }}</a><ng-template #plainJob>{{ job.code }}</ng-template>
-        • {{ job.name }}
-        <span class="pill" [ngClass]="job.status === 'In Progress' ? 'pill--blue' : job.status === 'Completed' ? 'pill--green' : 'pill--grey'">{{ job.status }}</span>
-      </h2>
-      <p class="tpl-meta"><span><lucide-icon [img]="icons.Factory" [size]="14"></lucide-icon> Site: <strong>{{ job.site }}</strong></span><span class="bar"></span><span>Template: <strong>{{ job.templateCode }} v{{ job.templateVersion }}</strong></span></p>
-    </div>
-    <label class="field job-pick"><span class="field-label">Job Order</span>
-      <select class="control" [ngModel]="jobCode" (ngModelChange)="setJob($event)"><option *ngFor="let j of jobs" [value]="j.code">{{ j.code }} · {{ j.name }}</option></select></label>
+    <span class="job-icon"><lucide-icon [img]="icons.FileText" [size]="22"></lucide-icon></span>
+    <h2 class="job-title grow">
+      <a *ngIf="isKnownJob(job.code); else plainJob" class="job-code" routerLink="/wip-operations/job-orders" [queryParams]="{ code: job.code }">{{ job.code }}</a><ng-template #plainJob><span class="job-code">{{ job.code }}</span></ng-template>
+      <span class="job-sep">•</span> {{ job.name }}
+      <span class="pill" [ngClass]="job.status === 'In Progress' ? 'pill--green' : job.status === 'Completed' ? 'pill--blue' : 'pill--grey'">{{ job.status }}</span>
+    </h2>
+    <div class="job-cell"><lucide-icon [img]="icons.MapPin" [size]="20"></lucide-icon><span><span class="cell-label">Site</span>{{ job.site }}</span></div>
+    <div class="job-cell"><lucide-icon [img]="icons.ClipboardList" [size]="20"></lucide-icon><span><span class="cell-label">Template</span>{{ job.templateCode }} v{{ job.templateVersion }}</span></div>
   </div>
 
-  <div class="card wb-card">
-    <nav class="tabs" role="tablist" aria-label="Asset linking sections">
-      <button type="button" role="tab" *ngFor="let x of tabs" class="tab" [class.is-active]="tab === x.key" [attr.aria-selected]="tab === x.key" (click)="tab = x.key">{{ x.label }}</button>
-    </nav>
+  <nav class="tabs al-tabs" role="tablist" aria-label="Asset linking sections">
+    <button type="button" role="tab" *ngFor="let x of tabs" class="tab" [class.is-active]="tab === x.key" [attr.aria-selected]="tab === x.key" (click)="tab = x.key">{{ x.label }}</button>
+  </nav>
 
-    <div class="wb-body">
-      <div class="kpis kpis--3">
-        <div class="kpi"><span class="kpi-ic"><lucide-icon [img]="icons.Link2" [size]="22"></lucide-icon></span><span><span class="kpi-label">Linked Assets</span><strong class="kpi-value">{{ links.length }}</strong></span></div>
-        <div class="kpi"><span class="kpi-ic kpi-ic--green"><lucide-icon [img]="icons.CircleCheck" [size]="22"></lucide-icon></span><span><span class="kpi-label">Ready for Use</span><strong class="kpi-value c-good">{{ kpiReady }}</strong></span></div>
-        <button type="button" class="kpi" (click)="tab = 'readiness'"><span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.TriangleAlert" [size]="22"></lucide-icon></span><span><span class="kpi-label">Requires Review</span><strong class="kpi-value c-warn">{{ reviewLinks.length }}</strong></span></button>
-      </div>
-
+  <div class="al-body">
       <!-- =================== Linked assets =================== -->
       <div *ngIf="tab === 'linked'" class="al-grid">
         <div class="col">
+          <div class="kpis kpis--3">
+            <div class="kpi"><span class="kpi-ic kpi-ic--sq"><lucide-icon [img]="icons.Link2" [size]="24"></lucide-icon></span><span><span class="kpi-label">Linked Assets</span><strong class="kpi-value">{{ links.length }}</strong></span></div>
+            <div class="kpi"><span class="kpi-ic kpi-ic--sq kpi-ic--green"><lucide-icon [img]="icons.CircleCheck" [size]="24"></lucide-icon></span><span><span class="kpi-label">Ready for Use</span><strong class="kpi-value">{{ kpiReady }}</strong></span></div>
+            <button type="button" class="kpi" (click)="tab = 'readiness'"><span class="kpi-ic kpi-ic--sq kpi-ic--amber"><lucide-icon [img]="icons.TriangleAlert" [size]="24"></lucide-icon></span><span><span class="kpi-label">Requires Review</span><strong class="kpi-value">{{ reviewLinks.length }}</strong></span></button>
+          </div>
+
           <section class="box" aria-labelledby="al-linked">
-            <h3 id="al-linked">Linked Assets</h3>
-            <div class="filters">
-              <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" placeholder="Search linked assets..." aria-label="Search linked assets" /></label>
-              <label class="field"><span class="field-label">Stage</span><select class="control" [(ngModel)]="stageFilter"><option value="">All</option><option *ngFor="let s of stageNames" [value]="s">{{ s }}</option></select></label>
-              <label class="field"><span class="field-label">Link Role</span><select class="control" [(ngModel)]="roleFilter"><option value="">All</option><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select></label>
+            <div class="box-head linked-head">
+              <h3 id="al-linked" class="grow">Linked Assets</h3>
+              <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="search" placeholder="Search linked assets..." aria-label="Search linked assets" /></label>
+              <label class="inline-filter"><span>Stage</span><select class="control" [(ngModel)]="stageFilter"><option value="">All</option><option *ngFor="let s of stageNames" [value]="s">{{ s }}</option></select></label>
+              <label class="inline-filter"><span>Link Role</span><select class="control" [(ngModel)]="roleFilter"><option value="">All</option><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select></label>
             </div>
             <div class="table-wrap">
-              <table class="wt">
-                <thead><tr><th>Asset</th><th>Link Role</th><th>Stage / Task</th><th>Location</th><th>Status</th></tr></thead>
+              <table class="wt linked-table">
+                <thead><tr><th>Asset</th><th>Link Role</th><th>Stage / Task</th><th>Location</th><th>Readiness</th><th class="col-act">Actions</th></tr></thead>
                 <tbody>
                   <tr *ngFor="let l of rows" class="is-click" [class.is-selected]="l.id === selectedId" (click)="select(l)">
-                    <td><strong>{{ l.asset }}</strong> {{ asset(l.asset)?.name }}</td>
+                    <td><span class="asset-cell"><img class="thumb" [src]="imageOf(l.asset)" alt="" /><span><span class="asset-tag">{{ l.asset }}</span><span class="sub">{{ asset(l.asset)?.name }}</span></span></span></td>
                     <td>{{ l.role }}</td>
-                    <td>{{ l.stage }}<span *ngIf="l.task" class="sub">{{ l.task }}</span></td>
+                    <td>{{ l.purpose || l.stage }}</td>
                     <td>{{ asset(l.asset)?.location }}</td>
-                    <td><span class="st" [class.c-good]="isReady(l)" [class.c-warn]="!isReady(l)"><span class="dot"></span>{{ isReady(l) ? 'Ready' : 'Review' }}</span></td>
+                    <td><span class="pill" [ngClass]="isReady(l) ? 'pill--green' : 'pill--amber'"><span class="dot-sm"></span>{{ isReady(l) ? 'Ready' : 'Review' }}</span></td>
+                    <td class="col-act">
+                      <span class="menu-wrap">
+                        <button type="button" class="icon-btn" (click)="toggleMenu(l, $event)" aria-haspopup="menu" [attr.aria-expanded]="menuFor === l.id" [attr.aria-label]="'Actions for ' + l.asset"><lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon></button>
+                        <span *ngIf="menuFor === l.id" class="menu row-menu" role="menu" (click)="$event.stopPropagation()">
+                          <button type="button" role="menuitem" (click)="rowAction(l, 'view')">View details</button>
+                          <button type="button" role="menuitem" (click)="rowAction(l, 'edit')">Edit link</button>
+                          <button type="button" role="menuitem" (click)="rowAction(l, 'profile')">Open Asset 360° View</button>
+                          <button type="button" role="menuitem" class="c-bad" (click)="rowAction(l, 'unlink')">Unlink</button>
+                        </span>
+                      </span>
+                    </td>
                   </tr>
-                  <tr *ngIf="!rows.length"><td colspan="5" class="empty">{{ links.length ? 'No linked assets match.' : 'No assets linked to this job yet.' }}</td></tr>
+                  <tr *ngIf="!rows.length"><td colspan="6" class="empty">{{ links.length ? 'No linked assets match.' : 'No assets linked to this job yet.' }}</td></tr>
                 </tbody>
               </table>
             </div>
           </section>
 
-          <div class="al-pair">
-            <!-- Association tree -->
-            <section class="box" aria-labelledby="al-tree">
-              <h3 id="al-tree">Job → Stage → Asset Associations</h3>
-              <ul class="tree" role="tree">
-                <li role="treeitem" [attr.aria-expanded]="true">
-                  <span class="node node--root"><lucide-icon [img]="icons.ClipboardList" [size]="16"></lucide-icon>{{ job.code }}</span>
-                  <ul role="group">
-                    <li *ngFor="let n of tree" role="treeitem" [attr.aria-expanded]="!collapsed.has(n.stage)">
-                      <button type="button" class="node" (click)="toggleNode(n.stage)">
-                        <lucide-icon [img]="collapsed.has(n.stage) ? icons.ChevronRight : icons.ChevronDown" [size]="15"></lucide-icon>
-                        <lucide-icon class="c-blue" [img]="icons.Layers" [size]="16"></lucide-icon>{{ n.stage }}<span class="muted">{{ n.status }}</span>
-                      </button>
-                      <ul *ngIf="!collapsed.has(n.stage)" role="group" class="leaf-group">
-                        <li *ngFor="let l of n.links" role="treeitem">
-                          <button type="button" class="node node--leaf" [class.is-selected]="l.id === selectedId" (click)="select(l)">
-                            <lucide-icon [img]="icons.Box" [size]="15"></lucide-icon><span class="grow">{{ l.asset }} {{ asset(l.asset)?.name }}</span>
-                            <span class="pill" [ngClass]="isReady(l) ? 'pill--green' : 'pill--amber'">{{ isReady(l) ? 'Ready' : 'Review' }}</span>
-                          </button>
-                        </li>
-                      </ul>
-                    </li>
-                  </ul>
-                </li>
-              </ul>
-              <p *ngIf="!tree.length" class="hint">No stage has a linked asset yet.</p>
-            </section>
-
-            <!-- Link existing asset -->
-            <section class="box" aria-labelledby="al-form">
-              <h3 id="al-form">Link Existing Asset</h3>
-              <form class="link-form" (ngSubmit)="linkAsset()">
-                <label class="field span-2"><span class="field-label">Asset <em>*</em></span>
-                  <span class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
-                    <input #assetInput list="al-assets" [(ngModel)]="form.query" (ngModelChange)="onFormAsset()" name="query" placeholder="Search asset ID or name" autocomplete="off" /></span>
-                  <datalist id="al-assets"><option *ngFor="let a of siteAssets" [value]="a.tag + ' · ' + a.name">{{ a.category }} · {{ a.location }}</option></datalist>
-                  <span *ngIf="formAsset as fa" class="hint">{{ fa.category }} · {{ fa.location }} · {{ fa.status }}</span>
-                </label>
-                <label class="field"><span class="field-label">Link Role <em>*</em></span><select class="control" [(ngModel)]="form.role" (ngModelChange)="formChecks = null" name="role"><option value="" disabled>Select role</option><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select></label>
-                <label class="field"><span class="field-label">Stage <em>*</em></span><select class="control" [(ngModel)]="form.stage" (ngModelChange)="onFormStage()" name="stage"><option *ngFor="let s of stageNames" [value]="s">{{ s }}</option></select></label>
-                <label class="field span-2"><span class="field-label">Task (optional)</span><select class="control" [(ngModel)]="form.task" name="task"><option value="">Whole stage</option><option *ngFor="let t of tasksOf(form.stage)" [value]="t">{{ t }}</option></select></label>
-                <label class="field"><span class="field-label">Booking Start <em>*</em></span><input class="control" type="datetime-local" [(ngModel)]="form.start" (ngModelChange)="formChecks = null" name="start" /></label>
-                <label class="field"><span class="field-label">Booking End <em>*</em></span><input class="control" type="datetime-local" [(ngModel)]="form.end" (ngModelChange)="formChecks = null" name="end" /></label>
-
-                <ul *ngIf="formChecks" class="checks checks--compact span-2" aria-live="polite">
-                  <li *ngFor="let c of formChecks" [class.is-bad]="!c.ok"><lucide-icon [img]="c.ok ? icons.CircleCheck : icons.CircleX" [size]="16"></lucide-icon><span><strong>{{ c.label }}</strong><span class="sub">{{ c.detail }}</span></span></li>
-                </ul>
-                <p *ngIf="formChecks && formReady" class="avail-ok span-2"><lucide-icon [img]="icons.CircleCheck" [size]="15"></lucide-icon>Available and ready for this booking.</p>
-                <p *ngIf="formError" class="form-error span-2" role="alert">{{ formError }}</p>
-                <div class="form-btns span-2">
-                  <button type="button" class="btn btn-outline" (click)="checkAvailability()"><lucide-icon [img]="icons.CalendarClock" [size]="16"></lucide-icon>Check Availability</button>
-                  <button type="submit" class="btn btn-primary"><lucide-icon [img]="icons.Link2" [size]="16"></lucide-icon>Link Asset</button>
+          <!-- Association diagram -->
+          <section class="box" aria-labelledby="al-tree">
+            <h3 id="al-tree">Job → Stage → Asset Associations</h3>
+            <div *ngIf="tree.length; else noTree" class="assoc">
+              <div class="assoc-job"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon><span><strong>{{ job.code }}</strong><span class="sub">{{ job.name }}</span></span></div>
+              <div class="assoc-lines" aria-hidden="true"></div>
+              <div class="assoc-stages" [style.grid-template-columns]="'repeat(' + tree.length + ', minmax(0, 1fr))'">
+                <div *ngFor="let n of tree" class="assoc-stage" [ngClass]="stageTone(n.stage)">
+                  <span class="assoc-stage-name"><lucide-icon [img]="icons.Layers" [size]="15"></lucide-icon>{{ n.stage }}</span>
+                  <button *ngFor="let l of n.links" type="button" class="assoc-asset" [class.is-selected]="l.id === selectedId" (click)="select(l)">
+                    <img class="thumb thumb--sm" [src]="imageOf(l.asset)" alt="" />
+                    <span class="grow"><span class="asset-tag">{{ l.asset }}</span><span class="sub">{{ asset(l.asset)?.name }}</span></span>
+                    <span class="st" [class.c-good]="isReady(l)" [class.c-warn]="!isReady(l)"><span class="dot"></span>{{ isReady(l) ? 'Ready' : 'Review' }}</span>
+                  </button>
                 </div>
-              </form>
-            </section>
-          </div>
+              </div>
+            </div>
+            <ng-template #noTree><p class="hint">No stage has a linked asset yet.</p></ng-template>
+          </section>
+
+          <!-- Link existing asset -->
+          <section class="box" aria-labelledby="al-form">
+            <h3 id="al-form">Link Existing Asset</h3>
+            <form class="link-form" (ngSubmit)="linkAsset()">
+              <label class="field"><span class="field-label">Asset <em>*</em></span>
+                <span class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+                  <input #assetInput list="al-assets" [(ngModel)]="form.query" (ngModelChange)="onFormAsset()" name="query" placeholder="Search asset ID, name or tag" autocomplete="off" /></span>
+                <datalist id="al-assets"><option *ngFor="let a of siteAssets" [value]="a.tag + ' · ' + a.name">{{ a.category }} · {{ a.location }}</option></datalist>
+                <span class="hint">{{ formAsset ? formAsset.category + ' · ' + formAsset.location + ' · ' + formAsset.status : 'Select an existing asset record.' }}</span>
+              </label>
+              <label class="field"><span class="field-label">Link Role <em>*</em></span><select class="control" [(ngModel)]="form.role" (ngModelChange)="formChecks = null" name="role"><option value="" disabled>Select role</option><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select></label>
+              <label class="field"><span class="field-label">Stage <em>*</em></span><select class="control" [(ngModel)]="form.stage" (ngModelChange)="onFormStage()" name="stage"><option *ngFor="let s of stageNames" [value]="s">{{ s }}</option></select></label>
+              <label class="field"><span class="field-label">Task (optional)</span><select class="control" [(ngModel)]="form.task" name="task"><option value="">Whole stage</option><option *ngFor="let t of tasksOf(form.stage)" [value]="t">{{ t }}</option></select></label>
+              <span class="link-spacer"></span>
+              <label class="field"><span class="field-label">Booking Start <em>*</em></span><input class="control" type="datetime-local" [(ngModel)]="form.start" (ngModelChange)="formChecks = null" name="start" /></label>
+              <label class="field"><span class="field-label">Booking End <em>*</em></span><input class="control" type="datetime-local" [(ngModel)]="form.end" (ngModelChange)="formChecks = null" name="end" /></label>
+              <div class="form-btns">
+                <button type="button" class="btn btn-outline" (click)="checkAvailability()">Check Availability</button>
+                <button type="submit" class="btn btn-primary"><lucide-icon [img]="icons.Link2" [size]="16"></lucide-icon>Link Asset</button>
+              </div>
+
+              <ul *ngIf="formChecks" class="checks checks--compact form-wide" aria-live="polite">
+                <li *ngFor="let c of formChecks" [class.is-bad]="!c.ok"><lucide-icon [img]="c.ok ? icons.CircleCheck : icons.CircleX" [size]="16"></lucide-icon><span><strong>{{ c.label }}</strong><span class="sub">{{ c.detail }}</span></span></li>
+              </ul>
+              <p *ngIf="formChecks && formReady" class="avail-ok form-wide"><lucide-icon [img]="icons.CircleCheck" [size]="15"></lucide-icon>Available and ready for this booking.</p>
+              <p *ngIf="formError" class="form-error form-wide" role="alert">{{ formError }}</p>
+            </form>
+          </section>
         </div>
 
         <!-- ===== Right column ===== -->
@@ -136,35 +135,49 @@
           <ng-container *ngIf="selected as l; else noSel">
             <section *ngIf="selectedAsset as a" class="box" aria-labelledby="al-sel">
               <h3 id="al-sel">Selected Asset</h3>
-              <div class="sel-head">
-                <span class="tpl-icon sel-icon"><lucide-icon [img]="icons.Wrench" [size]="22"></lucide-icon></span>
-                <span class="grow"><strong class="sel-name">{{ a.name }}</strong><span class="sub">{{ a.tag }} · {{ a.category }}</span></span>
+              <div class="sel-body">
+                <img class="sel-img" [src]="imageOf(a.tag)" alt="" />
+                <div class="grow">
+                  <div class="sel-top">
+                    <span class="grow"><strong class="sel-name">{{ a.name }}</strong><span class="sel-tag">{{ a.tag }}</span></span>
+                    <button type="button" class="link-btn small-link" (click)="openProfile(a)">Open Asset 360° View<lucide-icon [img]="icons.ExternalLink" [size]="13"></lucide-icon></button>
+                  </div>
+                  <dl class="sel-kv">
+                    <dt>Operational Status</dt><dd><span class="st" [class.c-good]="a.status === 'Available'" [class.c-blue]="a.status === 'In Use'" [class.c-bad]="a.status === 'Under Maintenance'"><span class="dot"></span>{{ a.status }}</span></dd>
+                    <dt>Condition</dt><dd><span class="st" [class.c-good]="a.condition === 'Good'" [class.c-warn]="a.condition !== 'Good'"><span class="dot"></span>{{ a.condition }}</span></dd>
+                    <dt>Location</dt><dd><lucide-icon [img]="icons.MapPin" [size]="14"></lucide-icon>{{ a.location }}</dd>
+                    <dt>Custodian</dt><dd><lucide-icon [img]="icons.UserRound" [size]="14"></lucide-icon>{{ a.owner }}</dd>
+                  </dl>
+                </div>
               </div>
-              <dl class="kv">
-                <dt>Status</dt><dd [class.c-good]="a.status === 'Available'" [class.c-bad]="a.status === 'Under Maintenance'">{{ a.status }}</dd>
-                <dt>Condition</dt><dd [class.c-good]="a.condition === 'Good'" [class.c-warn]="a.condition !== 'Good'">{{ a.condition }}</dd>
-                <dt>Location</dt><dd>{{ a.location }}</dd>
-                <dt>Owner</dt><dd>{{ a.owner }}</dd>
-              </dl>
-              <button type="button" class="link-btn sel-open" (click)="openProfile(a)">Open Asset 360° View<lucide-icon [img]="icons.ExternalLink" [size]="14"></lucide-icon></button>
             </section>
 
             <section class="box" aria-labelledby="al-ready">
               <h3 id="al-ready">Readiness Checks</h3>
-              <ul class="checks">
-                <li *ngFor="let c of linkChecks(l)" [class.is-bad]="!c.ok"><lucide-icon [img]="c.ok ? icons.CircleCheck : icons.CircleX" [size]="18"></lucide-icon><span><strong>{{ c.label }}</strong><span class="sub">{{ c.detail }}</span></span></li>
+              <ul class="checks checks--lined">
+                <li *ngFor="let c of linkChecks(l)" [class.is-bad]="!c.ok"><lucide-icon [img]="c.ok ? icons.CircleCheck : icons.CircleX" [size]="20"></lucide-icon><span><span class="chk-label">{{ c.label }}</span><span class="sub">{{ c.detail }}</span></span></li>
               </ul>
             </section>
 
             <section class="box" aria-labelledby="al-cfg">
-              <div class="box-head"><h3 id="al-cfg" class="grow">Link Configuration</h3><span *ngIf="configDirty" class="unsaved">Unsaved changes</span></div>
-              <div class="cfg-grid">
+              <div class="box-head">
+                <h3 id="al-cfg" class="grow">Link Configuration</h3>
+                <button *ngIf="!editingConfig" type="button" class="link-btn small-link" (click)="editingConfig = true"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button>
+                <button *ngIf="editingConfig" type="button" class="link-btn small-link" (click)="cancelEdit()">Cancel</button>
+              </div>
+              <dl *ngIf="!editingConfig" class="cfg-kv">
+                <dt>Role</dt><dd>{{ draft.role }}</dd>
+                <dt>Stage</dt><dd>{{ draft.stage }}</dd>
+                <dt>Task</dt><dd>{{ draft.task || 'Whole stage' }}</dd>
+                <dt>Booking</dt><dd>{{ fmtBooking(draft.start, draft.end) }}</dd>
+                <dt>Allocation</dt><dd>{{ draft.allocation }}</dd>
+              </dl>
+              <div *ngIf="editingConfig" class="cfg-grid">
                 <label class="field"><span class="field-label">Role</span><select class="control" [(ngModel)]="draft.role"><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select></label>
                 <label class="field"><span class="field-label">Stage</span><select class="control" [(ngModel)]="draft.stage" (ngModelChange)="onDraftStage()"><option *ngFor="let s of stageNames" [value]="s">{{ s }}</option></select></label>
                 <label class="field span-2"><span class="field-label">Task</span><select class="control" [(ngModel)]="draft.task"><option value="">Whole stage</option><option *ngFor="let t of tasksOf(draft.stage)" [value]="t">{{ t }}</option></select></label>
                 <label class="field"><span class="field-label">Booking Start</span><input class="control" type="datetime-local" [(ngModel)]="draft.start" /></label>
                 <label class="field"><span class="field-label">Booking End</span><input class="control" type="datetime-local" [(ngModel)]="draft.end" /></label>
-                <p class="hint span-2">{{ fmtBooking(draft.start, draft.end) }}</p>
                 <label class="field span-2"><span class="field-label">Allocation</span>
                   <span class="seg" role="radiogroup" aria-label="Allocation">
                     <label class="seg-opt" [class.is-on]="draft.allocation === 'Exclusive'"><input type="radio" name="alloc" value="Exclusive" [(ngModel)]="draft.allocation" />Exclusive</label>
@@ -172,27 +185,25 @@
                   </span></label>
               </div>
               <div class="cfg-switches">
-                <label class="switch switch--row"><span class="grow">Required for stage start</span><input type="checkbox" [(ngModel)]="draft.requiredForStart" /><span class="slider" aria-hidden="true"></span></label>
-                <label class="switch switch--row"><span class="grow">Release on stage completion</span><input type="checkbox" [(ngModel)]="draft.releaseOnCompletion" /><span class="slider" aria-hidden="true"></span></label>
+                <label class="switch switch--row"><span class="grow">Required for stage start <lucide-icon class="muted-ic" [img]="icons.Info" [size]="13" title="The stage cannot start until this asset is ready"></lucide-icon></span><input type="checkbox" [(ngModel)]="draft.requiredForStart" /><span class="slider" aria-hidden="true"></span><span class="sw-state">{{ draft.requiredForStart ? 'On' : 'Off' }}</span></label>
+                <label class="switch switch--row"><span class="grow">Release on stage completion <lucide-icon class="muted-ic" [img]="icons.Info" [size]="13" title="The booking ends when the stage is completed"></lucide-icon></span><input type="checkbox" [(ngModel)]="draft.releaseOnCompletion" /><span class="slider" aria-hidden="true"></span><span class="sw-state">{{ draft.releaseOnCompletion ? 'On' : 'Off' }}</span></label>
               </div>
               <p *ngIf="configDirty && !draftChecks[draftChecks.length - 1]?.ok" class="form-error">{{ draftChecks[draftChecks.length - 1].detail }}</p>
               <p *ngIf="configError" class="form-error" role="alert">{{ configError }}</p>
               <div class="cfg-btns">
-                <button type="button" class="btn btn-danger-outline" (click)="unlink()"><lucide-icon [img]="icons.Unlink" [size]="16"></lucide-icon>{{ confirmUnlink ? 'Confirm Unlink' : 'Unlink' }}</button>
-                <button *ngIf="confirmUnlink" type="button" class="btn btn-outline" (click)="confirmUnlink = false">Keep</button>
-                <span class="grow"></span>
                 <button type="button" class="btn btn-primary" (click)="saveConfig()">Save Changes</button>
+                <button type="button" class="btn btn-danger-outline" (click)="unlink()"><lucide-icon [img]="icons.Unlink" [size]="16"></lucide-icon>{{ confirmUnlink ? 'Confirm Unlink' : 'Unlink' }}</button>
               </div>
-              <p *ngIf="confirmUnlink && l.requiredForStart" class="hint c-warn">{{ l.asset }} is required to start {{ l.stage }}. Link a replacement before the stage starts.</p>
+              <p *ngIf="confirmUnlink" class="hint c-warn">{{ l.requiredForStart ? l.asset + ' is required to start ' + l.stage + '. Link a replacement before the stage starts. ' : '' }}Click Confirm Unlink to remove the link, or Esc to keep it.</p>
             </section>
           </ng-container>
           <ng-template #noSel><section class="box"><p class="hint">Select a linked asset to see its readiness and configuration.</p></section></ng-template>
 
-          <div *ngFor="let r of reviewLinks" class="alert">
-            <lucide-icon [img]="icons.TriangleAlert" [size]="18"></lucide-icon>
+          <div *ngFor="let r of reviewLinks" class="alert review-alert">
+            <lucide-icon [img]="icons.TriangleAlert" [size]="22"></lucide-icon>
             <span class="grow"><strong>Review Required</strong>{{ reviewText(r) }}
               <span class="alert-links">
-                <button *ngIf="needsInspection(r)" type="button" class="link-btn" (click)="openInspection(r.asset)"><lucide-icon [img]="icons.FileText" [size]="14"></lucide-icon>View inspection record</button>
+                <button *ngIf="needsInspection(r)" type="button" class="link-btn" (click)="openInspection(r.asset)">View inspection record<lucide-icon [img]="icons.ExternalLink" [size]="13"></lucide-icon></button>
                 <button *ngIf="r.id !== selectedId" type="button" class="link-btn" (click)="select(r)">Open link</button>
               </span></span>
           </div>
@@ -275,7 +286,6 @@
           <ng-template #noConf><p class="hint">No booking conflicts on this job's links.</p></ng-template>
         </section>
       </div>
-    </div>
   </div>
 
   <p class="footnote"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>Links reference the shared asset register. Job allocation does not change asset ownership or custody.</p>

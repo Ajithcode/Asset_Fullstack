@@ -71,7 +71,7 @@
 }
 
 .map-control-btn.is-active {
-  background: #1d1160;
+  background: #4f2bd8;
   color: #fff;
 }
 
@@ -134,7 +134,7 @@
   direction: rtl;
   width: 20px;
   height: 100px;
-  accent-color: #1d1160;
+  accent-color: #4f2bd8;
   cursor: pointer;
 }
 
@@ -217,7 +217,7 @@
 
 .map-zonetype-option.is-active {
   background: #e9dcfb;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .map-zonetype-swatch {
@@ -242,7 +242,7 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(29, 17, 96, 0.85);
+  background: rgba(79, 43, 216, 0.85);
   border: 3px solid #fff;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.35);
   color: #fff;

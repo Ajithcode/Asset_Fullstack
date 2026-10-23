@@ -89,9 +89,9 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 1.5px solid #1d1160;
+  border: 1.5px solid #4f2bd8;
   background: #fff;
-  color: #1d1160;
+  color: #4f2bd8;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
   padding: 0;
@@ -103,7 +103,7 @@
 }
 
 .icon-btn:hover:not(:disabled) {
-  background: #140b45;
+  background: #3d20b0;
   color: #fff;
 }
 
@@ -162,7 +162,7 @@
 .column-picker-item input[type='checkbox'] {
   width: 16px;
   height: 16px;
-  accent-color: #1d1160;
+  accent-color: #4f2bd8;
   cursor: pointer;
 }
 
@@ -213,7 +213,7 @@
 .selection-col input[type='checkbox'] {
   width: 16px;
   height: 16px;
-  accent-color: #1d1160;
+  accent-color: #4f2bd8;
   cursor: pointer;
 }
 
@@ -307,7 +307,7 @@
   height: 38px;
   border-radius: 10px;
   background: #ede9fe;
-  color: #1d1160;
+  color: #4f2bd8;
   flex-shrink: 0;
 }
 
@@ -397,7 +397,7 @@
 }
 
 .form-field input[type='text']:focus {
-  border-color: #1d1160;
+  border-color: #4f2bd8;
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
 }
 
@@ -412,8 +412,8 @@
   top: 50%;
   width: 9px;
   height: 9px;
-  border-right: 2px solid #1d1160;
-  border-bottom: 2px solid #1d1160;
+  border-right: 2px solid #4f2bd8;
+  border-bottom: 2px solid #4f2bd8;
   transform: translateY(-65%) rotate(45deg);
   pointer-events: none;
 }
@@ -436,7 +436,7 @@
 }
 
 .form-field select:focus {
-  border-color: #1d1160;
+  border-color: #4f2bd8;
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
 }
 
@@ -475,7 +475,7 @@
 }
 
 .btn-submit {
-  background: #1d1160;
+  background: #4f2bd8;
   border: none;
   color: #fff;
 }

@@ -28,6 +28,8 @@ export interface RegisterAsset {
   serviceIntervalDays: number;
   /** Empty when the asset needs no calibration. */
   calibrationValidTo: string;
+  /** Date of the last calibration (shown under the calibration check). */
+  calibratedOn?: string;
   /** Lifting and handling equipment needs a valid inspection certificate. */
   inspection: Inspection | null;
   bookings: ExternalBooking[];
@@ -42,6 +44,8 @@ export interface AssetLink {
   task: string;
   /** Capability the stage needs from the asset. */
   capability: string;
+  /** What the asset is used for when it differs from the stage name, e.g. "Torque verification". */
+  purpose?: string;
   start: string;
   end: string;
   allocation: Allocation;

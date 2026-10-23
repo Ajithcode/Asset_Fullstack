@@ -34,7 +34,7 @@
 .cr-label {
   font-size: 14px;
   font-weight: 600;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .cr-required {
@@ -94,7 +94,7 @@
 .cr-permissions-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .cr-permissions-cols {
@@ -102,7 +102,7 @@
   gap: 56px;
   font-size: 14px;
   font-weight: 600;
-  color: #1d1160;
+  color: #4f2bd8;
   min-width: 140px;
   justify-content: space-between;
 }
@@ -133,7 +133,7 @@
 .cr-checkbox {
   width: 18px;
   height: 18px;
-  accent-color: #1d1160;
+  accent-color: #4f2bd8;
   cursor: pointer;
 }
 
@@ -165,7 +165,7 @@
 }
 
 .cr-btn-save {
-  background: #1d1160;
+  background: #4f2bd8;
   color: #ffffff;
 }
 

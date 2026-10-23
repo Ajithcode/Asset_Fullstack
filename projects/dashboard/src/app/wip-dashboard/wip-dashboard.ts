@@ -133,7 +133,7 @@ export class WipDashboard {
 
   wipStatusDistribution: WipStatusDistribution[] = [
     { label: 'In Progress', percent: 35, color: '#e391c9' },
-    { label: 'Planned',     percent: 20, color: '#1d1160' },
+    { label: 'Planned',     percent: 20, color: '#4f2bd8' },
     { label: 'Completed',   percent: 10, color: '#a8d5a2' },
     { label: 'Delayed',     percent: 35, color: '#f08080' },
   ];

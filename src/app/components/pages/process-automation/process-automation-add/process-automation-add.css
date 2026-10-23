@@ -129,7 +129,7 @@
 .pa-label {
   font-size: 13px;
   font-weight: 500;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .pa-input {
@@ -171,13 +171,13 @@
 .pa-section-title {
   font-size: 15px;
   font-weight: 600;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 .pa-relationship {
   font-size: 13px;
   font-weight: 500;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 /* Row grid: operator-slot | label | select(grows) | minus | plus */
@@ -304,7 +304,7 @@
 
 .pa-dropdown-option.highlighted {
   background: #ede7fb;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 /* ===== Time picker (When the time is) ===== */
@@ -369,15 +369,15 @@
 }
 
 .pa-day-btn.active {
-  background: #1d1160;
-  border-color: #1d1160;
+  background: #4f2bd8;
+  border-color: #4f2bd8;
   color: #ffffff;
 }
 
 .pa-effective-time {
   font-size: 12px;
   font-weight: 500;
-  color: #1d1160;
+  color: #4f2bd8;
 }
 
 /* ===== Icon buttons (+ / -) ===== */
@@ -389,7 +389,7 @@
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: #1d1160;
+  background: #4f2bd8;
   color: #ffffff;
   cursor: pointer;
   flex-shrink: 0;
@@ -438,7 +438,7 @@
 }
 
 .pa-btn-primary {
-  background: #1d1160;
+  background: #4f2bd8;
   color: #ffffff;
   border: none;
 }

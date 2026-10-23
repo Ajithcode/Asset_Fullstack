@@ -109,8 +109,8 @@
 }
 
 .wp-group.open {
-  border-color: var(--piq-primary, #1d1160);
-  box-shadow: 0 6px 18px rgba(29, 17, 96, 0.1);
+  border-color: var(--piq-primary, #4f2bd8);
+  box-shadow: 0 6px 18px rgba(79, 43, 216, 0.1);
 }
 
 .wp-group-header {
@@ -135,7 +135,7 @@
 }
 
 .wp-group.open .wp-group-header {
-  color: var(--piq-primary, #1d1160);
+  color: var(--piq-primary, #4f2bd8);
 }
 
 /* Mouse clicks shouldn't leave a hard outline; keyboard focus still gets one */
@@ -144,7 +144,7 @@
 }
 
 .wp-group-header:focus-visible {
-  outline: 2px solid var(--piq-primary, #1d1160);
+  outline: 2px solid var(--piq-primary, #4f2bd8);
   outline-offset: -2px;
   border-radius: 10px;
 }
@@ -159,7 +159,7 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--piq-primary-subtle, #f5f0fe);
-  color: var(--piq-primary, #1d1160);
+  color: var(--piq-primary, #4f2bd8);
   animation: wp-badge-in 0.25s var(--wp-ease-out) both;
 }
 
@@ -174,7 +174,7 @@
 
 .wp-group.open .wp-group-chevron {
   transform: rotate(180deg);
-  color: var(--piq-primary, #1d1160);
+  color: var(--piq-primary, #4f2bd8);
 }
 
 /* Height animation: grid row goes 0fr -> 1fr, so it works for any number of widgets */
@@ -228,14 +228,14 @@
 }
 
 .wp-option:has(input:checked) {
-  color: var(--piq-primary, #1d1160);
+  color: var(--piq-primary, #4f2bd8);
 }
 
 .wp-option input {
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: var(--piq-primary, #1d1160);
+  accent-color: var(--piq-primary, #4f2bd8);
   cursor: pointer;
   transition: transform 0.15s ease;
 }
