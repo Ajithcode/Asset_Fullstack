@@ -7,7 +7,7 @@
     </svg>
   </button>
 
-  <div class="brand"><p class="brand-text">Asset<span class="brand-highlight">360</span></p></div>
+  <!-- <div class="brand"><p class="brand-text">Asset<span class="brand-highlight">360</span></p></div> -->
 
   <div class="topbar-spacer"></div>
 
@@ -26,33 +26,117 @@
     <span *ngIf="unreadNotificationCount > 0">{{ unreadNotificationCount }}</span>
   </button>
 
-  <div class="admin-chip" (click)="toggleAdminDropdown($event.currentTarget)">
-    <div class="avatar">{{ initials }}</div>
-    <div>
-      <strong>{{ displayEmail }}</strong>
+  <button type="button" class="admin-chip" [class.is-open]="isDropdownOpen" (click)="toggleAdminDropdown($event.currentTarget)"
+    aria-haspopup="menu" [attr.aria-expanded]="isDropdownOpen" aria-label="Account menu">
+    <span class="avatar">{{ initials }}</span>
+    <span class="chip-text">
+      <strong>{{ displayName }}</strong>
+      <span>{{ roleName }}</span>
+    </span>
+    <svg class="chip-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
+  </button>
+</div>
+
+<!-- Account menu -->
+<div class="admin-flyout" *ngIf="isDropdownOpen && flyoutPosition" [style.top.px]="flyoutPosition!.top" [style.left.px]="flyoutPosition!.left"
+  (click)="$event.stopPropagation()" role="menu" aria-label="Account">
+  <div class="flyout-user-info">
+    <div class="flyout-avatar"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="8.2" r="4.2" /><path d="M3.8 21c.7-4.3 4.1-7 8.2-7s7.5 2.7 8.2 7z" /></svg></div>
+    <div class="flyout-user-details">
+      <strong>{{ displayName === displayEmail ? displayEmail : displayName }}</strong>
+      <span *ngIf="displayName !== displayEmail" class="flyout-email">{{ displayEmail }}</span>
       <span>{{ roleName }}</span>
     </div>
-    <b>v</b>
+  </div>
+
+  <div class="flyout-group">
+    <button type="button" role="menuitem" class="flyout-row" (click)="open('profile')"><lucide-icon [img]="icons.User" [size]="17"></lucide-icon><span class="grow">My Profile</span></button>
+    <button type="button" role="menuitem" class="flyout-row" (click)="open('preferences')"><lucide-icon [img]="icons.Settings" [size]="17"></lucide-icon><span class="grow">Preferences</span></button>
+
+    <button type="button" role="menuitem" class="flyout-row" [class.is-open]="section === 'language'" [attr.aria-expanded]="section === 'language'" (click)="toggleSection('language')">
+      <lucide-icon [img]="icons.Globe" [size]="17"></lucide-icon><span class="grow">Language</span><span class="row-value">English</span><lucide-icon class="row-arrow" [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+    <div *ngIf="section === 'language'" class="flyout-sub">
+      <button *ngFor="let l of languages" type="button" class="sub-row" [disabled]="!l.ready" (click)="setLanguage(l.code)">
+        <span class="grow">{{ l.label }}</span><small *ngIf="!l.ready">Coming soon</small><lucide-icon *ngIf="l.code === 'en'" [img]="icons.Check" [size]="16"></lucide-icon></button>
+    </div>
+
+    <button type="button" role="menuitem" class="flyout-row" [class.is-open]="section === 'site'" [attr.aria-expanded]="section === 'site'" (click)="toggleSection('site')">
+      <lucide-icon [img]="icons.Users" [size]="17"></lucide-icon><span class="grow">Switch Tenant / Site</span><span class="row-value">{{ site }}</span><lucide-icon class="row-arrow" [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+    <div *ngIf="section === 'site'" class="flyout-sub">
+      <button *ngFor="let st of sites" type="button" class="sub-row" [class.is-on]="st === site" (click)="setSite(st)"><span class="grow">{{ st }}</span><lucide-icon *ngIf="st === site" [img]="icons.Check" [size]="16"></lucide-icon></button>
+    </div>
+
+    <button type="button" role="menuitem" class="flyout-row" (click)="goTo('/administration/configuration/master-management/organization')">
+      <lucide-icon [img]="icons.Landmark" [size]="17"></lucide-icon><span class="grow">Organization Settings</span><lucide-icon class="row-arrow" [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+
+    <button type="button" role="menuitem" class="flyout-row" [class.is-open]="section === 'help'" [attr.aria-expanded]="section === 'help'" (click)="toggleSection('help')">
+      <lucide-icon [img]="icons.CircleQuestionMark" [size]="17"></lucide-icon><span class="grow">Help &amp; Support</span><lucide-icon class="row-arrow" [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+    <div *ngIf="section === 'help'" class="flyout-sub">
+      <a class="sub-row" [href]="supportMail"><span class="grow">Contact support</span><small>{{ supportEmail }}</small></a>
+      <a class="sub-row" [href]="reportMail"><span class="grow">Report a problem on this page</span></a>
+    </div>
+
+    <button type="button" role="menuitem" class="flyout-row" (click)="open('whatsNew')">
+      <lucide-icon [img]="icons.Sparkles" [size]="17"></lucide-icon><span class="grow">What's New</span><span *ngIf="!whatsNewSeen" class="new-dot" aria-label="New updates"></span></button>
+    <button type="button" role="menuitem" class="flyout-row" (click)="open('docs')">
+      <lucide-icon [img]="icons.ExternalLink" [size]="17"></lucide-icon><span class="grow">Documentation</span><lucide-icon class="row-arrow" [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+  </div>
+
+  <div class="flyout-group flyout-group--end">
+    <button type="button" role="menuitem" class="flyout-row" (click)="open('password')"><lucide-icon [img]="icons.Lock" [size]="17"></lucide-icon><span class="grow">Change Password</span></button>
+    <button type="button" role="menuitem" class="flyout-row flyout-row--out" (click)="logout()"><lucide-icon [img]="icons.LogOut" [size]="17"></lucide-icon><span class="grow">Sign Out</span></button>
   </div>
 </div>
 
-<!-- Admin dropdown flyout -->
-<div
-  class="admin-flyout"
-  *ngIf="isDropdownOpen && flyoutPosition"
-  [style.top.px]="flyoutPosition!.top"
-  [style.left.px]="flyoutPosition!.left"
-  (click)="$event.stopPropagation()"
->
-  <div class="flyout-user-info">
-    <div class="flyout-avatar">{{ initials }}</div>
-    <div class="flyout-user-details">
-      <strong>{{ displayEmail }}</strong>
-      <span>{{ roleName }}</span>
+<!-- Account dialogs -->
+<div *ngIf="dialog" class="acct-overlay" (click)="closeDialog()">
+  <div class="acct-modal" role="dialog" aria-modal="true" aria-labelledby="acct-title" (click)="$event.stopPropagation()">
+    <div class="acct-head">
+      <h2 id="acct-title">{{ dialog === 'profile' ? 'My Profile' : dialog === 'preferences' ? 'Preferences' : dialog === 'whatsNew' ? "What's New" : dialog === 'docs' ? 'Documentation' : 'Change Password' }}</h2>
+      <button type="button" class="acct-close" (click)="closeDialog()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
     </div>
+
+    <form *ngIf="dialog === 'profile'" class="acct-body" (ngSubmit)="saveProfile()">
+      <div class="acct-id"><span class="flyout-avatar acct-avatar">{{ initials }}</span><div><strong>{{ displayName }}</strong><span>{{ roleName }}</span></div></div>
+      <label class="acct-field"><span>Display name</span><input [(ngModel)]="profileForm.displayName" name="dn" [placeholder]="displayName" maxlength="60" /></label>
+      <label class="acct-field"><span>Email</span><input [value]="displayEmail" disabled /></label>
+      <label class="acct-field"><span>Role</span><input [value]="roleName" disabled /></label>
+      <label class="acct-field"><span>Phone</span><input [(ngModel)]="profileForm.phone" name="ph" placeholder="+971 50 000 0000" inputmode="tel" /></label>
+      <div class="acct-foot"><button type="button" class="acct-btn" (click)="closeDialog()">Cancel</button><button type="submit" class="acct-btn acct-btn--primary">Save</button></div>
+    </form>
+
+    <form *ngIf="dialog === 'preferences'" class="acct-body" (ngSubmit)="savePrefs()">
+      <label class="acct-field"><span>Start page after sign-in</span>
+        <select [(ngModel)]="prefsForm.landing" name="landing"><option *ngFor="let lp of landingPages" [value]="lp.path">{{ lp.label }}</option></select></label>
+      <fieldset class="acct-field acct-radios"><legend>Time format</legend>
+        <label><input type="radio" name="tf" value="12h" [(ngModel)]="prefsForm.timeFormat" />12-hour (2:30 PM)</label>
+        <label><input type="radio" name="tf" value="24h" [(ngModel)]="prefsForm.timeFormat" />24-hour (14:30)</label></fieldset>
+      <label class="acct-check"><input type="checkbox" [(ngModel)]="prefsForm.notifySound" name="snd" />Play a sound for new notifications</label>
+      <div class="acct-foot"><button type="button" class="acct-btn" (click)="closeDialog()">Cancel</button><button type="submit" class="acct-btn acct-btn--primary">Save</button></div>
+    </form>
+
+    <div *ngIf="dialog === 'whatsNew'" class="acct-body">
+      <ol class="acct-news"><li *ngFor="let n of whatsNew"><small>{{ n.date }}</small><strong>{{ n.title }}</strong><span>{{ n.text }}</span></li></ol>
+    </div>
+
+    <div *ngIf="dialog === 'docs'" class="acct-body">
+      <p class="acct-muted">Quick guide to each module. Choose one to open it.</p>
+      <button *ngFor="let d of docs" type="button" class="acct-doc" (click)="goTo(d.path)"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon><span class="grow"><strong>{{ d.title }}</strong><span>{{ d.text }}</span></span><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+    </div>
+
+    <form *ngIf="dialog === 'password'" class="acct-body" (ngSubmit)="savePassword()">
+      <label class="acct-field"><span>Current password</span><input [type]="pw.show ? 'text' : 'password'" [(ngModel)]="pw.current" name="cur" autocomplete="current-password" /></label>
+      <label class="acct-field"><span>New password</span><input [type]="pw.show ? 'text' : 'password'" [(ngModel)]="pw.next" name="new" autocomplete="new-password" /></label>
+      <label class="acct-field"><span>Confirm new password</span><input [type]="pw.show ? 'text' : 'password'" [(ngModel)]="pw.confirm" name="conf" autocomplete="new-password" /></label>
+      <label class="acct-check"><input type="checkbox" [(ngModel)]="pw.show" name="show" />Show passwords</label>
+      <ul class="acct-rules"><li *ngFor="let c of pwChecks" [class.ok]="c.ok"><lucide-icon [img]="c.ok ? icons.Check : icons.X" [size]="14"></lucide-icon>{{ c.label }}</li></ul>
+      <p *ngIf="pwError" class="acct-error" role="alert">{{ pwError }}</p>
+      <div class="acct-foot"><button type="button" class="acct-btn" (click)="closeDialog()">Cancel</button><button type="submit" class="acct-btn acct-btn--primary">Change Password</button></div>
+    </form>
   </div>
-  <button type="button" class="flyout-item" (click)="logout()">Logout</button>
 </div>
+
+<div *ngIf="toast" class="acct-toast" role="status">{{ toast }}</div>
 
 <!-- 7. Notifications flyout (2.7 Notifications & Escalations) -->
 <div

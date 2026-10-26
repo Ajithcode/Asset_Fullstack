@@ -4,6 +4,9 @@ import { Login } from './components/pages/login/login/login';
 import { Signup } from './components/pages/signup/signup/signup';
 import { SectionUnavailable } from './section-unavailable/section-unavailable';
 import { ModulePlaceholder } from './module-placeholder/module-placeholder';
+import { AnalyticsInsights } from './components/pages/tracking-iot/analytics-insights/analytics-insights';
+import { TagIds } from './components/pages/tracking-iot/tag-ids/tag-ids';
+import { FirmwareConnectivity } from './components/pages/tracking-iot/firmware-connectivity/firmware-connectivity';
 import { AssetRegistration } from './components/pages/assets/asset-registration/asset-registration';
 import { AssetList } from './components/pages/assets/asset-list/asset-list';
 import { AssetCategories } from './components/pages/assets/asset-categories/asset-categories';
@@ -216,6 +219,9 @@ export const routes: Routes = [
       { path: 'assets/bulk-import-export', component: AssetBulk },
       { path: 'assets/merge-dedup', component: AssetMerge },
       { path: 'tracking-iot', component: ModulePlaceholder, data: { title: 'Tracking & IoT' } },
+      { path: 'tracking-iot/analytics-insights', component: AnalyticsInsights },
+      { path: 'tracking-iot/tag-ids', component: TagIds },
+      { path: 'tracking-iot/firmware-connectivity', component: FirmwareConnectivity },
       { path: 'tracking-iot/real-time-location', loadChildren: remoteRoutes('locating') },
       { path: 'movement-custody', component: ModulePlaceholder, data: { title: 'Movement & Custody' } },
       { path: 'maintenance', component: ModulePlaceholder, data: { title: 'Maintenance' } },

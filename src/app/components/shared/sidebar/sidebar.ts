@@ -91,6 +91,9 @@ export class Sidebar {
       path: '/tracking-iot',
       icon: RadioTower,
       children: [
+        { label: 'Analytics & Insights', path: '/tracking-iot/analytics-insights' },
+        { label: 'Tag IDs', path: '/tracking-iot/tag-ids' },
+        { label: 'Firmware & Connectivity', path: '/tracking-iot/firmware-connectivity' },
         { label: 'Real-time Location', path: '/tracking-iot/real-time-location' }
       ]
     },

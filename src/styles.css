@@ -16,3 +16,43 @@ body {
   margin: 0;
   min-width: 0;
 }
+
+/* ===== Brand gradient (sidebar + header) ===== */
+:root {
+  --piq-brand-gradient: linear-gradient(90deg, #2e1065, #4c1d95 55%, #6d28d9);
+  --piq-brand-gradient-v: linear-gradient(180deg, #2e1065, #4c1d95 55%, #6d28d9);
+}
+
+/*
+ * Scroll reveal: cards fade up one after another when a page opens and as they scroll into view
+ * (driven by the shared Layout). The classes are removed when the animation ends, so no transform is
+ * left behind on the cards.
+ */
+.piq-reveal-pending {
+  opacity: 0;
+}
+
+.piq-reveal-play {
+  animation: piq-reveal-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--piq-reveal-delay, 0ms);
+}
+
+@keyframes piq-reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piq-reveal-pending { opacity: 1; }
+  .piq-reveal-play { animation: none; }
+}
+
+@media print {
+  .piq-reveal-pending, .piq-reveal-play { opacity: 1 !important; animation: none !important; }
+}

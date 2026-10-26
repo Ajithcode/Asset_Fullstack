@@ -3,7 +3,7 @@
   <app-sidebar (collapsedChange)="onCollapseChange($event)"></app-sidebar>
   <div class="main-area">
     <app-topbar (toggleSidebar)="onToggleSidebar()"></app-topbar>
-    <main class="layout-content">
+    <main class="layout-content" #content>
       <router-outlet></router-outlet>
     </main>
   </div>

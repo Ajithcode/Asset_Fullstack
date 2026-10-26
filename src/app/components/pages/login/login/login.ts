@@ -104,7 +104,17 @@ export class Login {
     this.auth.login({ userName, password: this.credentials.password });
     this.credentials.password = '';
     const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-    this.router.navigateByUrl(returnUrl || '/dashboard');
+    this.router.navigateByUrl(returnUrl || this.startPage());
+  }
+
+  /** Start page chosen in Preferences (account menu), else the dashboard. */
+  private startPage(): string {
+    try {
+      const landing = JSON.parse(localStorage.getItem('a360.prefs') ?? '{}').landing;
+      return typeof landing === 'string' && landing.startsWith('/') ? landing : '/dashboard';
+    } catch {
+      return '/dashboard';
+    }
   }
 
   useDirectory(dir: Directory): void {

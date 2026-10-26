@@ -11,17 +11,33 @@
   inset: 0 auto 0 0;
   z-index: 100;
   width: var(--piq-sidebar-width);
-  background: transparent;
-  color: var(--piq-text-primary);
+  background: var(--piq-brand-gradient-v, linear-gradient(180deg, #2e1065, #4c1d95 55%, #6d28d9));
+  color: #fff;
   display: flex;
-  background-color: white;
+  box-shadow: 6px 0 28px rgba(46, 16, 101, 0.28);
   flex-direction: column;
   gap: 8px;
   padding: 16px 12px;
   overflow: visible;
   transition: width 0.25s ease;
   box-sizing: border-box;
-  border-radius:12px;
+  border-radius: 0 22px 22px 0;
+  isolation: isolate;
+
+  // soft light waves along the bottom, as in the design
+  &::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 220px;
+    z-index: -1;
+    border-radius: 0 0 22px 0;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 70% at 0% 100%, rgba(167, 139, 250, 0.35) 0 45%, transparent 46%),
+      radial-gradient(140% 60% at 100% 100%, rgba(139, 92, 246, 0.3) 0 40%, transparent 41%),
+      radial-gradient(160% 55% at 30% 100%, rgba(196, 181, 253, 0.18) 0 50%, transparent 51%);
+  }
   &.collapsed {
     width: var(--piq-sidebar-collapsed-width);
 
@@ -48,15 +64,14 @@
 }
 
 .brand-card {
-  background: var(--piq-surface);
-  border: 1px solid var(--piq-border-subtle);
+  background: transparent;
+  border: 0;
   border-radius: 14px;
   padding: 14px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 64px;
-  box-shadow: var(--piq-shadow-sidebar);
   position: relative;
 }
 
@@ -85,7 +100,8 @@
     width: auto;
     height: 40px;
     max-width: none;
-    mix-blend-mode: multiply;
+    filter: grayscale(1) invert(1) contrast(1.6) brightness(1.5);
+    mix-blend-mode: screen;
   }
 }
 
@@ -104,7 +120,8 @@
     max-width: 100%;
     object-fit: contain;
     object-position: left center;
-    mix-blend-mode: multiply;
+    filter: grayscale(1) invert(1) contrast(1.6) brightness(1.5);
+    mix-blend-mode: screen;
   }
 }
 
@@ -246,10 +263,9 @@
 
 // White card container wrapping the navigation list
 .nav-card {
-  background: var(--piq-surface);
-  border: 1px solid var(--piq-border-subtle);
+  background: transparent;
+  border: 0;
   border-radius: 14px;
-  box-shadow: var(--piq-shadow-sidebar);
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -274,8 +290,13 @@
   // Extra room on the left so the active indicator bar (left: -13px) isn't clipped
   margin-left: -16px;
   padding: 2px 0 2px 16px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(79, 43, 216, 0.35) transparent;
+  // still scrolls with wheel, touch and keyboard, but no visible scrollbar
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .nav-item {
@@ -286,15 +307,16 @@
   gap: 14px;
   padding: 0 14px;
   border-radius: 10px;
-  color: var(--piq-primary);
+  color: rgba(255, 255, 255, 0.88);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
 
   &:hover:not(.active) {
-    background: var(--piq-primary-subtle);
-    color: var(--piq-primary);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: translateX(2px);
   }
 }
 
@@ -303,8 +325,10 @@
   position: relative; // IMPORTANT (needed for absolute positioning)
 
   &.active {
-    color: #4f2bd8;
-    font-weight: 600;
+    color: #fff;
+    font-weight: 700;
+    background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+    box-shadow: 0 8px 20px rgba(17, 6, 51, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 
     // BEFORE ELEMENT
     &::before {
@@ -315,13 +339,13 @@
       transform: translateY(-50%);
       width: 5px;
       height: 40px;
-      background: #4f2bd8;
+      background: #fff;
       border-top-right-radius: 10px;
       border-bottom-right-radius: 10px;
     }
 
     .nav-icon {
-      background-color: #4f2bd8;
+      background-color: rgba(255, 255, 255, 0.18);
       color: #fff;
     }
   }
@@ -337,7 +361,7 @@
   border-radius: 6px;
   background: transparent;
   position: relative;
-  color: #4f2bd8;
+  color: #fff;
   transition: background 0.2s ease, color 0.2s ease;
 
   lucide-icon {
@@ -357,13 +381,13 @@
   cursor: pointer;
 
   &:hover:not(.open) {
-    background: var(--piq-primary-subtle);
-    color: var(--piq-primary);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
   }
 
   &.open {
-    background: var(--piq-primary-subtle);
-    color: #4f2bd8;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
   }
 }
 
@@ -392,12 +416,12 @@
   }
 
   &.open:hover {
-    background: var(--piq-primary-subtle);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   &.section-active {
-    color: #4f2bd8;
-    font-weight: 600;
+    color: #fff;
+    font-weight: 700;
 
     &::before {
       content: "";
@@ -407,7 +431,7 @@
       transform: translateY(-50%);
       width: 5px;
       height: 40px;
-      background: #4f2bd8;
+      background: #fff;
       border-top-right-radius: 10px;
       border-bottom-right-radius: 10px;
     }
@@ -440,7 +464,7 @@
   align-items: center;
   padding: 0 14px;
   border-radius: 8px;
-  color: #475569;
+  color: rgba(255, 255, 255, 0.72);
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
@@ -450,14 +474,14 @@
   transition: background 0.18s ease, color 0.18s ease;
 
   &:hover:not(.active) {
-    background: var(--piq-primary-subtle);
-    color: #4f2bd8;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
   }
 
   &.active {
-    background: #ece8fb;
-    color: #4f2bd8;
-    font-weight: 600;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    font-weight: 700;
   }
 }
 

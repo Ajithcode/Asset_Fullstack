@@ -29,9 +29,10 @@
   width: 0;
   height: calc(100% - 8px);
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(124, 92, 255, 0.96) 0%, rgba(79, 43, 216, 0.96) 55%, rgba(61, 32, 176, 0.96) 100%);
+  /* same brand gradient as the sidebar and header */
+  background: linear-gradient(90deg, #2e1065, #4c1d95 55%, #6d28d9);
   box-shadow:
-    0 6px 18px rgba(79, 43, 216, 0.38),
+    0 6px 18px rgba(46, 16, 101, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     inset 0 -2px 6px rgba(30, 10, 120, 0.25);
   opacity: 0;
@@ -80,7 +81,7 @@
 .dash-tab.active { color: #fff; font-weight: 700; }
 
 /* Without the glider (before first measure) the active tab still reads as selected. */
-.dash-tabs:not(.has-glider) .dash-tab.active { background: #4f2bd8; }
+.dash-tabs:not(.has-glider) .dash-tab.active { background: linear-gradient(90deg, #2e1065, #4c1d95 55%, #6d28d9); }
 
 .dash-tab svg { flex: 0 0 auto; stroke: #64748b; transition: stroke 0.3s ease, transform 0.3s ease; }
 .dash-tab:hover svg,
