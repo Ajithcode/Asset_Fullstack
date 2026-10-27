@@ -21,6 +21,7 @@ public static class LocatingApplicationBuilderExtensions
 
         app.MapZoneDrawingEndpoints();
         app.MapDeviceDrawingEndpoints();
+        app.MapLocationEndpoints();
 
         return app;
     }

@@ -12,7 +12,6 @@ DLLS=(
   A360.Device.Api.dll
   A360.Media.Api.dll
   A360.Asset.Api.dll
-  A360.MasterManagement.Api.dll
   A360.Inspection.Api.dll
   A360.EventLog.Api.dll
   A360.ApiGateway.dll

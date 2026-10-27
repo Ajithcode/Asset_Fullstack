@@ -9,6 +9,9 @@ public static class DashboardApplicationBuilderExtensions
         // Reads the bearer token forwarded by the gateway so event logs know who made each change.
         app.UseAuthentication();
 
+        // Needed for the live network status endpoint.
+        app.UseWebSockets();
+
         if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
         {
             app.UseSwagger();
@@ -22,6 +25,8 @@ public static class DashboardApplicationBuilderExtensions
         app.MapDashboardEndpoints();
         app.MapWidgetEndpoints();
         app.MapAddWidgetEndpoints();
+        app.MapNetworkStatusEndpoints();
+        app.MapDashboardAssetEndpoints();
 
         return app;
     }

@@ -21,7 +21,6 @@ declare -A SERVICES=(
   ["device"]="/app/device:A360.Device.Api.dll:5116"
   ["media"]="/app/media:A360.Media.Api.dll:5300"
   ["asset"]="/app/asset:A360.Asset.Api.dll:5401"
-  ["mastermanagement"]="/app/mastermanagement:A360.MasterManagement.Api.dll:5403"
   ["inspection"]="/app/inspection:A360.Inspection.Api.dll:5410"
   ["eventlog"]="/app/eventlog:A360.EventLog.Api.dll:5420"
 )

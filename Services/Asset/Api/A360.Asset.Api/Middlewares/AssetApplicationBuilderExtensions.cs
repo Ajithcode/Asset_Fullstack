@@ -19,28 +19,22 @@ public static class AssetApplicationBuilderExtensions
             .WithName("AssetHealth")
             .WithTags("Health");
 
-        app.MapAssetEndpoints();
-        app.MapAssetLocationEndpoints();
-        app.MapAssetOwnershipEndpoints();
-        app.MapAssetLifecycleEndpoints();
-        app.MapAssetTrackingAndTelemetryEndpoints();
-        app.MapAssetMaintenanceAndServiceEndpoints();
-        app.MapAssetUtilizationAndPerformanceEndpoints();
-        app.MapAssetFinancialDetailsEndpoints();
-        app.MapAssetDocumentsEndpoints();
-        app.MapAssetContractEndpoints();
-        app.MapAssetIncidentEndpoints();
-        app.MapAssetAuditAndVerificationEndpoints();
-        app.MapAssetActivityEndpoints();
-        app.MapAssetDomainEndpoints();
-        app.MapAssetIntegrationEndpoints();
-        app.MapAssetCertificationEndpoints();
-        app.MapAssetAuditEndpoints();
-        app.MapAssetMovementEndpoints();
-        app.MapAssetDisposalEndpoints();
-        app.MapAssetCheckoutEndpoints();
-        app.MapAssetCheckinEndpoints();
-        app.MapTaggedAssetsEndpoints();
+        app.MapAssetRegistrationEndpoints();
+        app.MapAssetCategoryEndpoints();
+        app.MapAssetCategoryTypeEndpoints();
+        app.MapAssetModelEndpoints();
+        app.MapAssetHierarchyEndpoints();
+        app.MapAssetComponentEndpoints();
+        app.MapAssetCustomFieldEndpoints();
+        app.MapAssetFieldGroupEndpoints();
+        app.MapAssetFieldLayoutEndpoints();
+        app.MapAssetDocumentEndpoints();
+        app.MapAssetImageEndpoints();
+        app.MapAssetRelationshipEndpoints();
+        app.MapAssetConditionAssessmentEndpoints();
+        app.MapAssetCriticalityEndpoints();
+        app.MapAssetRiskMitigationActionEndpoints();
+        app.MapAssetImportEndpoints();
 
         return app;
     }

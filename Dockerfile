@@ -12,7 +12,6 @@ RUN dotnet publish ApiGateway/A360.ApiGateway/A360.ApiGateway.csproj -c Release 
     dotnet publish Services/Devices/Api/A360.Device.Api/A360.Device.Api.csproj -c Release -o /out/device --no-restore && \
     dotnet publish Services/Media/Api/A360.Media.Api/A360.Media.Api.csproj -c Release -o /out/media --no-restore && \
     dotnet publish Services/Asset/Api/A360.Asset.Api/A360.Asset.Api.csproj -c Release -o /out/asset --no-restore && \
-    dotnet publish Services/MasterManagement/Api/A360.MasterManagement.Api/A360.MasterManagement.Api.csproj -c Release -o /out/mastermanagement --no-restore && \
     dotnet publish Services/Inspection/Api/A360.Inspection.Api/A360.Inspection.Api.csproj -c Release -o /out/inspection --no-restore && \
     dotnet publish Services/EventLog/Api/A360.EventLog.Api/A360.EventLog.Api.csproj -c Release -o /out/eventlog --no-restore
 
@@ -32,7 +31,6 @@ COPY --from=build /out/useraccount ./useraccount
 COPY --from=build /out/device ./device
 COPY --from=build /out/media ./media
 COPY --from=build /out/asset ./asset
-COPY --from=build /out/mastermanagement ./mastermanagement
 COPY --from=build /out/inspection ./inspection
 COPY --from=build /out/eventlog ./eventlog
 

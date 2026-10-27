@@ -49,6 +49,9 @@ public static class DashboardServiceCollectionExtensions
 
         services.AddScoped<IAddWidgetRepository, AddWidgetRepository>();
 
+        services.AddScoped<INetworkStatusRepository, NetworkStatusRepository>();
+        services.AddScoped<IDashboardAssetRepository, DashboardAssetRepository>();
+
         services.AddHostedService<MongoIndexHostedService>();
 
         services.AddEndpointsApiExplorer();

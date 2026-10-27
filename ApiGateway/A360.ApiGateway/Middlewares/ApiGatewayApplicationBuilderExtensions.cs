@@ -52,12 +52,13 @@ public static class ApiGatewayApplicationBuilderExtensions
                 options.SwaggerEndpoint("/device/swagger/v1/swagger.json", "Device Service");
                 options.SwaggerEndpoint("/media/swagger/v1/swagger.json", "Media Service");
                 options.SwaggerEndpoint("/asset/swagger/v1/swagger.json", "Asset Service");
-                options.SwaggerEndpoint("/master-management/swagger/v1/swagger.json", "Master Management Service");
                 options.SwaggerEndpoint("/eventlog/swagger/v1/swagger.json", "Event Log Service");
                 options.SwaggerEndpoint("/maintenance/swagger/v1/swagger.json", "Maintenance Service");
                 options.SwaggerEndpoint("/wip/swagger/v1/swagger.json", "WIP Service");
                 options.SwaggerEndpoint("/locating/swagger/v1/swagger.json", "Locating Service");
                 options.SwaggerEndpoint("/dashboard/swagger/v1/swagger.json", "Dashboard Service");
+                options.SwaggerEndpoint("/report/swagger/v1/swagger.json", "Report Service");
+                options.SwaggerEndpoint("/tracking/swagger/v1/swagger.json", "Tracking & IoT Service");
 
                 options.RoutePrefix = "swagger";
             });
@@ -131,6 +132,20 @@ public static class ApiGatewayApplicationBuilderExtensions
                     gatewaySwaggerUrl = "/dashboard/swagger/v1/swagger.json",
                     serviceBaseUrl = "http://172.16.100.26:5470",
                     healthUrl = "/dashboard/health"
+               },
+                new
+               {
+                    service = "Report",
+                    gatewaySwaggerUrl = "/report/swagger/v1/swagger.json",
+                    serviceBaseUrl = "http://172.16.100.26:5480",
+                    healthUrl = "/report/health"
+               },
+                new
+               {
+                    service = "Tracking",
+                    gatewaySwaggerUrl = "/tracking/swagger/v1/swagger.json",
+                    serviceBaseUrl = "http://172.16.100.26:5490",
+                    healthUrl = "/tracking/health"
                }
             }))
             .WithName("GatewayDownstreamSwagger")

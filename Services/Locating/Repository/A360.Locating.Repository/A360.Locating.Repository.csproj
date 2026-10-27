@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Domain\A360.Locating.Domain\A360.Locating.Domain.csproj" />
     <ProjectReference Include="..\..\..\..\Repository\A360.Repository\A360.Repository.csproj" />
+    <ProjectReference Include="..\..\..\Project\Repository\A360.Project.Repository\A360.Project.Repository.csproj" />
   </ItemGroup>
 
 </Project>

@@ -27,7 +27,6 @@ declare -A SERVICES=(
   ["device"]="Services/Devices/Api/A360.Device.Api/bin/Debug/net8.0:A360.Device.Api.dll:5116"
   ["media"]="Services/Media/Api/A360.Media.Api/bin/Debug/net8.0:A360.Media.Api.dll:5300"
   ["asset"]="Services/Asset/Api/A360.Asset.Api/bin/Debug/net8.0:A360.Asset.Api.dll:5401"
-  ["mastermanagement"]="Services/MasterManagement/Api/A360.MasterManagement.Api/bin/Debug/net8.0:A360.MasterManagement.Api.dll:5403"
   ["inspection"]="Services/Inspection/Api/A360.Inspection.Api/bin/Debug/net8.0:A360.Inspection.Api.dll:5410"
   ["eventlog"]="Services/EventLog/Api/A360.EventLog.Api/bin/Debug/net8.0:A360.EventLog.Api.dll:5420"
   ["apigateway"]="ApiGateway/A360.ApiGateway/bin/Debug/net8.0:A360.ApiGateway.dll:5296"
@@ -49,7 +48,7 @@ disown -a 2>/dev/null || true
 sleep 6
 echo
 echo "=== health check ==="
-for p in 5296 5254 5018 5116 5300 5401 5403 5410 5420; do
+for p in 5296 5254 5018 5116 5300 5401 5410 5420; do
   code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$p/swagger/index.html" || echo "down")
   echo "port $p -> $code"
 done

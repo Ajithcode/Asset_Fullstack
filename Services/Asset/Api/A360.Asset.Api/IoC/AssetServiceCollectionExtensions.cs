@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using A360.Asset.Api.Endpoints;
 using A360.Asset.Repository.Repositories;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
@@ -41,93 +42,70 @@ public static class AssetServiceCollectionExtensions
             "Asset",
             serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
 
-        services.AddScoped<AssetRepository>();
-        services.AddScoped<IAssetRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetRepository>());
+        services.AddScoped<AssetRegistrationDraftRepository>();
+        services.AddScoped<IAssetRegistrationDraftRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetRegistrationDraftRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetRegistrationDraftRepository>());
 
-        services.AddScoped<AssetLocationRepository>();
-        services.AddScoped<IAssetLocationRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetLocationRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetLocationRepository>());
+        services.AddScoped<AssetRegistrationRepository>();
+        services.AddScoped<IAssetRegistrationRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetRegistrationRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetRegistrationRepository>());
 
-        services.AddScoped<AssetOwnershipRepository>();
-        services.AddScoped<IAssetOwnershipRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetOwnershipRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetOwnershipRepository>());
+        services.AddScoped<AssetCategoryRepository>();
+        services.AddScoped<IAssetCategoryRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCategoryRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCategoryRepository>());
 
-        services.AddScoped<AssetLifecycleRepository>();
-        services.AddScoped<IAssetLifecycleRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetLifecycleRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetLifecycleRepository>());
+        services.AddScoped<AssetCategoryTypeRepository>();
+        services.AddScoped<IAssetCategoryTypeRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCategoryTypeRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCategoryTypeRepository>());
 
-        services.AddScoped<AssetTrackingAndTelemetryRepository>();
-        services.AddScoped<IAssetTrackingAndTelemetryRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetTrackingAndTelemetryRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetTrackingAndTelemetryRepository>());
+        services.AddScoped<AssetModelRepository>();
+        services.AddScoped<IAssetModelRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetModelRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetModelRepository>());
 
-        services.AddScoped<AssetMaintenanceAndServiceRepository>();
-        services.AddScoped<IAssetMaintenanceAndServiceRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetMaintenanceAndServiceRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetMaintenanceAndServiceRepository>());
+        services.AddScoped<AssetHierarchyItemRepository>();
+        services.AddScoped<IAssetHierarchyItemRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetHierarchyItemRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetHierarchyItemRepository>());
 
-        services.AddScoped<AssetUtilizationAndPerformanceRepository>();
-        services.AddScoped<IAssetUtilizationAndPerformanceRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetUtilizationAndPerformanceRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetUtilizationAndPerformanceRepository>());
+        services.AddScoped<AssetComponentRepository>();
+        services.AddScoped<IAssetComponentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetComponentRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetComponentRepository>());
 
-        services.AddScoped<AssetFinancialDetailsRepository>();
-        services.AddScoped<IAssetFinancialDetailsRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetFinancialDetailsRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetFinancialDetailsRepository>());
+        services.AddScoped<AssetCustomFieldRepository>();
+        services.AddScoped<IAssetCustomFieldRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCustomFieldRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCustomFieldRepository>());
 
-        services.AddScoped<AssetDocumentsRepository>();
-        services.AddScoped<IAssetDocumentsRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetDocumentsRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetDocumentsRepository>());
+        services.AddScoped<AssetFieldGroupRepository>();
+        services.AddScoped<IAssetFieldGroupRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetFieldGroupRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetFieldGroupRepository>());
 
-        services.AddScoped<AssetContractRepository>();
-        services.AddScoped<IAssetContractRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetContractRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetContractRepository>());
+        services.AddScoped<AssetFieldLayoutRepository>();
+        services.AddScoped<IAssetFieldLayoutRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetFieldLayoutRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetFieldLayoutRepository>());
+        services.AddScoped<AssetFieldLayoutEndpoints.LayoutContextLoader>();
 
-        services.AddScoped<AssetIncidentRepository>();
-        services.AddScoped<IAssetIncidentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetIncidentRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetIncidentRepository>());
+        services.AddScoped<AssetDocumentRepository>();
+        services.AddScoped<IAssetDocumentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetDocumentRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetDocumentRepository>());
 
-        services.AddScoped<AssetAuditAndVerificationRepository>();
-        services.AddScoped<IAssetAuditAndVerificationRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetAuditAndVerificationRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetAuditAndVerificationRepository>());
+        services.AddScoped<AssetImageRepository>();
+        services.AddScoped<IAssetImageRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetImageRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetImageRepository>());
 
-        services.AddScoped<AssetActivityRepository>();
-        services.AddScoped<IAssetActivityRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetActivityRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetActivityRepository>());
+        services.AddScoped<AssetRelationshipRepository>();
+        services.AddScoped<IAssetRelationshipRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetRelationshipRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetRelationshipRepository>());
 
-        services.AddScoped<AssetDomainRepository>();
-        services.AddScoped<IAssetDomainRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetDomainRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetDomainRepository>());
+        services.AddScoped<AssetConditionAssessmentRepository>();
+        services.AddScoped<IAssetConditionAssessmentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetConditionAssessmentRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetConditionAssessmentRepository>());
 
-        services.AddScoped<AssetIntegrationRepository>();
-        services.AddScoped<IAssetIntegrationRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetIntegrationRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetIntegrationRepository>());
+        services.AddScoped<AssetCriticalityAssessmentRepository>();
+        services.AddScoped<IAssetCriticalityAssessmentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityAssessmentRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityAssessmentRepository>());
 
-        services.AddScoped<AssetCertificationRepository>();
-        services.AddScoped<IAssetCertificationRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCertificationRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCertificationRepository>());
-
-        services.AddScoped<AssetAuditRepository>();
-        services.AddScoped<IAssetAuditRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetAuditRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetAuditRepository>());
-
-        services.AddScoped<AssetMovementRepository>();
-        services.AddScoped<IAssetMovementRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetMovementRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetMovementRepository>());
-
-        services.AddScoped<AssetDisposalRepository>();
-        services.AddScoped<IAssetDisposalRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetDisposalRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetDisposalRepository>());
-
-        services.AddScoped<AssetCheckoutRepository>();
-        services.AddScoped<IAssetCheckoutRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCheckoutRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCheckoutRepository>());
-
-        services.AddScoped<AssetCheckinRepository>();
-        services.AddScoped<IAssetCheckinRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCheckinRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCheckinRepository>());
-
-        services.AddScoped<TaggedAssetsRepository>();
-        services.AddScoped<ITaggedAssetsRepository>(serviceProvider => serviceProvider.GetRequiredService<TaggedAssetsRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<TaggedAssetsRepository>());
+        services.AddScoped<AssetRiskMitigationActionRepository>();
+        services.AddScoped<IAssetRiskMitigationActionRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetRiskMitigationActionRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetRiskMitigationActionRepository>());
 
         services.AddHostedService<MongoIndexHostedService>();
         services.AddEndpointsApiExplorer();

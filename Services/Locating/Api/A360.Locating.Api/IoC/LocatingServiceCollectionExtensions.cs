@@ -47,6 +47,8 @@ public static class LocatingServiceCollectionExtensions
         services.AddScoped<IDeviceDrawingRepository>(serviceProvider => serviceProvider.GetRequiredService<DeviceDrawingRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DeviceDrawingRepository>());
 
+        services.AddScoped<ILocationRepository, LocationRepository>();
+
         services.AddHostedService<MongoIndexHostedService>();
 
         services.AddEndpointsApiExplorer();
