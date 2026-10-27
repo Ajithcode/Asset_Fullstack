@@ -223,6 +223,7 @@ export const routes: Routes = [
       { path: 'tracking-iot/tag-ids', component: TagIds },
       { path: 'tracking-iot/firmware-connectivity', component: FirmwareConnectivity },
       { path: 'tracking-iot/real-time-location', loadChildren: remoteRoutes('locating') },
+      { path: 'master-data-management', loadChildren: remoteRoutes('masterDataManagement') },
       { path: 'movement-custody', component: ModulePlaceholder, data: { title: 'Movement & Custody' } },
       { path: 'maintenance', component: ModulePlaceholder, data: { title: 'Maintenance' } },
       { path: 'inspection', component: ModulePlaceholder, data: { title: 'Inspection' } },

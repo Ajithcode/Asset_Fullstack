@@ -18,8 +18,10 @@ import {
   FilePen,
   CircleDollarSign,
   ChartColumn,
-  Settings
+  Settings,
+  Database
 } from 'lucide-angular';
+import { MASTER_DATA_BASE_PATH, MASTER_DATA_MENU } from 'shared-ui';
 
 export interface NavItem {
   label: string;
@@ -29,6 +31,8 @@ export interface NavItem {
   children?: NavItem[];
   // The item has its own page: clicking it opens that page as well as its submenu
   hasPage?: boolean;
+  // Expand inline under the item even though the submenu has a second level
+  inline?: boolean;
 }
 
 @Component({
@@ -295,11 +299,29 @@ export class Sidebar {
           ]
         }
       ]
+    },
+    {
+      label: 'Master Data Management',
+      path: MASTER_DATA_BASE_PATH,
+      icon: Database,
+      hasPage: true,
+      inline: true,
+      children: MASTER_DATA_MENU.map((group) => ({
+        label: group.label,
+        path: `${MASTER_DATA_BASE_PATH}/${group.slug}`,
+        hasPage: true,
+        children: group.items.map((item) => ({
+          label: item.label,
+          path: `${MASTER_DATA_BASE_PATH}/${group.slug}/${item.slug}`
+        }))
+      }))
     }
   ];
 
   // labels of the top-level items whose submenu is expanded inline inside the sidebar (e.g. 'Assets')
   openInline = new Set<string>();
+  // path of the second-level group expanded inside an inline menu (e.g. '/master-data-management/asset')
+  openInlineGroup: string | null = null;
 
   constructor(private router: Router, private elementRef: ElementRef) {
     // Keep the section that contains the current page expanded, including on first load / deep links
@@ -311,13 +333,18 @@ export class Sidebar {
       .subscribe(() => {
         this.navItems
           .filter((item) => this.isInline(item) && this.isSectionActive(item))
-          .forEach((item) => this.openInline.add(item.label));
+          .forEach((item) => {
+            this.openInline.add(item.label);
+            const activeGroup = item.children?.find((child) => child.children && this.isSectionActive(child));
+            if (activeGroup) this.openInlineGroup = activeGroup.path;
+          });
       });
   }
 
   // Items with a single level of children expand inline; deeper menus (Administration) keep the flyout
+  // unless they opt in with `inline`
   isInline(item: NavItem): boolean {
-    return !!item.children?.length && item.children.every((child) => !child.children);
+    return !!item.children?.length && (!!item.inline || item.children.every((child) => !child.children));
   }
 
   // True when the current page is this item's page or one of its sub pages
@@ -346,6 +373,23 @@ export class Sidebar {
       this.openInline.delete(item.label);
     } else {
       this.openInline.add(item.label);
+    }
+  }
+
+  isInlineGroupOpen(group: NavItem): boolean {
+    return this.openInlineGroup === group.path;
+  }
+
+  // Second-level groups (e.g. Master Data Management > Asset): one open at a time. Clicking a
+  // closed group opens it and its overview page; clicking an open group just closes it.
+  toggleInlineGroup(group: NavItem): void {
+    if (this.isInlineGroupOpen(group)) {
+      this.openInlineGroup = null;
+      return;
+    }
+    this.openInlineGroup = group.path;
+    if (group.hasPage && this.router.url.split('?')[0] !== group.path) {
+      this.router.navigate([group.path]);
     }
   }
 

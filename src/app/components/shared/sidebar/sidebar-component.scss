@@ -369,11 +369,13 @@
   }
 }
 
+// Long labels (e.g. Master Data Management) wrap to a second line instead of being cut off
 .nav-label {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+  padding: 4px 0;
   color: inherit;
 }
 
@@ -468,9 +470,10 @@
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+  padding-block: 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
   transition: background 0.18s ease, color 0.18s ease;
 
   &:hover:not(.active) {
@@ -483,6 +486,43 @@
     color: #fff;
     font-weight: 700;
   }
+}
+
+// Second-level group row inside an inline menu (e.g. Master Data Management > Asset)
+.nav-dropdown-group {
+  gap: 8px;
+  cursor: pointer;
+
+  &.section-active {
+    color: #fff;
+    font-weight: 700;
+  }
+}
+
+.nav-dropdown-group__label {
+  min-width: 0;
+}
+
+.nav-dropdown-group__caret {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+
+  .nav-dropdown-group.open & {
+    transform: rotate(180deg);
+  }
+}
+
+.nav-dropdown--nested {
+  margin: 2px 0 4px 14px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.nav-dropdown-item--nested {
+  min-height: 30px;
+  font-size: 12.5px;
 }
 
 

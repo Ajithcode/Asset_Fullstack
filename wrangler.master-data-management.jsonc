@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "assets360-master-data-management",
+  "compatibility_date": "2026-08-18",
+  "assets": {
+    "directory": "dist/master-data-management/browser",
+    "not_found_handling": "single-page-application"
+  }
+}

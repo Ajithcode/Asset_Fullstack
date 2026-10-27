@@ -35,6 +35,11 @@ export class ReportView {
     return this.columns.filter((c) => c.visible).length;
   }
 
+  /** Rows from imported files can lack a header's key, so fall back to a dash. */
+  cell(row: Record<string, string | number>, key: string): string | number {
+    return row[key] ?? '-';
+  }
+
   toggleColumnPicker(): void {
     this.showColumnPicker = !this.showColumnPicker;
   }

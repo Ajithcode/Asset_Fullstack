@@ -1,0 +1,257 @@
+<aside class="drawer" role="dialog" aria-labelledby="bfz-form-title">
+  <header class="drawer__header">
+    <h2 id="bfz-form-title">{{ title }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <label class="upload" [class.upload--filled]="form.image" [class.invalid]="errors.image">
+            <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+            @if (form.image) {
+              <img [src]="form.image" alt="Photo" />
+              <button type="button" class="upload__remove" (click)="$event.preventDefault(); removeImage()">Remove</button>
+            } @else {
+              <span class="upload__icon"><lucide-icon [img]="icons.Building2" [size]="34" [strokeWidth]="1.6"></lucide-icon></span>
+              <span class="upload__title">Click to upload</span>
+              <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+            }
+          </label>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.name">
+              <label for="bfz-name"><span class="req">*</span> Name</label>
+              <input id="bfz-name" name="name" placeholder="Enter building / floor / zone name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.code">
+              <label for="bfz-code"><span class="req">*</span> Code</label>
+              <input id="bfz-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+              @if (errors.code) { <small>{{ errors.code }}</small> }
+            </div>
+            <div class="field">
+              <span class="field__label"><span class="req">*</span> Type</span>
+              <div class="radios" role="radiogroup" aria-label="Type">
+                @for (t of types; track t) {
+                  <label [class.disabled]="isEdit && form.type !== t">
+                    <input type="radio" name="type" [value]="t" [(ngModel)]="form.type" (ngModelChange)="onTypeChange()" [disabled]="isEdit" /> {{ t }}
+                  </label>
+                }
+              </div>
+              @if (isEdit) { <small class="hint-inline">Type can't be changed after it is created.</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors.image) { <small class="upload-error">{{ errors.image }}</small> }
+
+        <!-- Parent pickers: a floor belongs to a building; a zone to a building and floor -->
+        @if (form.type === 'Floor') {
+          <div class="field" [class.invalid]="errors.buildingCode">
+            <label for="bfz-building"><span class="req">*</span> Building</label>
+            <select id="bfz-building" name="buildingCode" [(ngModel)]="form.buildingCode" (ngModelChange)="onBuildingChange()">
+              <option [ngValue]="null" disabled>Select building</option>
+              @for (b of service.buildings(); track b.code) { <option [ngValue]="b.code">{{ service.label(b) }} - {{ service.siteName(b.siteId) }}</option> }
+            </select>
+            @if (errors.buildingCode) { <small>{{ errors.buildingCode }}</small> }
+          </div>
+        }
+        @if (form.type === 'Zone') {
+          <div class="grid">
+            <div class="field" [class.invalid]="errors.buildingCode">
+              <label for="bfz-building-z"><span class="req">*</span> Building</label>
+              <select id="bfz-building-z" name="buildingCodeZ" [(ngModel)]="form.buildingCode" (ngModelChange)="onBuildingChange()">
+                <option [ngValue]="null" disabled>Select building</option>
+                @for (b of service.buildings(); track b.code) { <option [ngValue]="b.code">{{ service.label(b) }}</option> }
+              </select>
+              @if (errors.buildingCode) { <small>{{ errors.buildingCode }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.floorCode">
+              <label for="bfz-floor"><span class="req">*</span> Floor</label>
+              <select id="bfz-floor" name="floorCode" [(ngModel)]="form.floorCode" [disabled]="!form.buildingCode">
+                <option [ngValue]="null" disabled>Select floor</option>
+                @for (fl of floorOptions; track fl.code) { <option [ngValue]="fl.code">{{ service.label(fl) }}</option> }
+              </select>
+              @if (errors.floorCode) { <small>{{ errors.floorCode }}</small> }
+            </div>
+          </div>
+        }
+
+        <div class="field" [class.invalid]="errors.siteId">
+          <label for="bfz-site"><span class="req">*</span> Site</label>
+          <select id="bfz-site" name="siteId" [(ngModel)]="form.siteId" [disabled]="form.type !== 'Building'">
+            <option value="" disabled>{{ form.type === 'Building' ? 'Select site' : 'Filled from the building' }}</option>
+            @for (s of service.sites(); track s.id) { <option [value]="s.id">{{ s.name }}</option> }
+          </select>
+          @if (errors.siteId) { <small>{{ errors.siteId }}</small> }
+        </div>
+
+        <div class="field">
+          <label for="bfz-desc">Description</label>
+          <textarea id="bfz-desc" name="description" rows="3" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+        </div>
+
+        <div class="grid">
+          <div class="field" [class.invalid]="errors.capacity">
+            <label for="bfz-capacity">Capacity (People)</label>
+            <input id="bfz-capacity" name="capacity" type="number" min="0" placeholder="Enter capacity" [(ngModel)]="form.capacity" />
+            @if (errors.capacity) { <small>{{ errors.capacity }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.area">
+            <label for="bfz-area">Area (m²)</label>
+            <input id="bfz-area" name="area" type="number" min="0" placeholder="Enter area" [(ngModel)]="form.area" />
+            @if (errors.area) { <small>{{ errors.area }}</small> }
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field__label">Status</span>
+          <div class="radios">
+            <label><input type="radio" name="status" value="Active" [(ngModel)]="form.status" /> Active</label>
+            <label><input type="radio" name="status" value="Inactive" [(ngModel)]="form.status" /> Inactive</label>
+          </div>
+        </div>
+      }
+
+      @case ('hierarchy') {
+        <div class="field">
+          <label for="bfz-path">Hierarchy Path</label>
+          <input id="bfz-path" name="path" [value]="path" readonly />
+        </div>
+        @switch (form.type) {
+          @case ('Building') {
+            <div class="field">
+              <label for="bfz-bcat">Building Category</label>
+              <select id="bfz-bcat" name="category" [(ngModel)]="form.category">
+                <option value="">Select category</option>
+                @for (c of buildingCategories; track c) { <option [value]="c">{{ c }}</option> }
+              </select>
+            </div>
+          }
+          @case ('Floor') {
+            <div class="grid">
+              <div class="field">
+                <label for="bfz-level">Level Number</label>
+                <input id="bfz-level" name="levelNumber" type="number" step="1" [(ngModel)]="form.levelNumber" />
+              </div>
+              <div class="field">
+                <span class="field__label">Shown as</span>
+                <input name="levelName" [value]="floorNameFor(form.levelNumber)" readonly />
+              </div>
+            </div>
+            <p class="hint">0 is the ground floor; use negative numbers for basements.</p>
+          }
+          @case ('Zone') {
+            <div class="grid">
+              <div class="field">
+                <label for="bfz-zcat">Zone Category</label>
+                <select id="bfz-zcat" name="zoneCategory" [(ngModel)]="form.category">
+                  <option value="">Select category</option>
+                  @for (c of zoneCategories; track c) { <option [value]="c">{{ c }}</option> }
+                </select>
+              </div>
+              <div class="field">
+                <label for="bfz-color">Colour on floor plan</label>
+                <input id="bfz-color" name="color" type="color" class="color-input" [(ngModel)]="form.color" />
+              </div>
+            </div>
+          }
+        }
+      }
+
+      @case ('address') {
+        @if (form.type === 'Building') {
+          <span class="section-title">Address</span>
+          <div class="grid">
+            <div class="field">
+              <label for="bfz-a1">Address Line 1</label>
+              <input id="bfz-a1" name="line1" [(ngModel)]="form.address.line1" />
+            </div>
+            <div class="field">
+              <label for="bfz-a2">Address Line 2</label>
+              <input id="bfz-a2" name="line2" [(ngModel)]="form.address.line2" />
+            </div>
+            <div class="field">
+              <label for="bfz-city">City</label>
+              <input id="bfz-city" name="city" [(ngModel)]="form.address.city" />
+            </div>
+            <div class="field">
+              <label for="bfz-state">State / Emirate</label>
+              <input id="bfz-state" name="state" [(ngModel)]="form.address.state" />
+            </div>
+            <div class="field">
+              <label for="bfz-country">Country</label>
+              <select id="bfz-country" name="country" [(ngModel)]="form.address.country">
+                <option value="">Select country</option>
+                @for (c of countries; track c) { <option [value]="c">{{ c }}</option> }
+              </select>
+            </div>
+            <div class="field">
+              <label for="bfz-postal">Postal Code</label>
+              <input id="bfz-postal" name="postalCode" [(ngModel)]="form.address.postalCode" />
+            </div>
+          </div>
+          <span class="section-title">Map Position</span>
+          <div class="grid">
+            <div class="field" [class.invalid]="errors.lat">
+              <label for="bfz-lat">Latitude</label>
+              <input id="bfz-lat" name="lat" type="number" step="0.000001" [(ngModel)]="form.lat" />
+              @if (errors.lat) { <small>{{ errors.lat }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.lng">
+              <label for="bfz-lng">Longitude</label>
+              <input id="bfz-lng" name="lng" type="number" step="0.000001" [(ngModel)]="form.lng" />
+              @if (errors.lng) { <small>{{ errors.lng }}</small> }
+            </div>
+          </div>
+        } @else {
+          <p class="hint">{{ form.type }}s use their building's address and map position.</p>
+          @if (building; as b) {
+            <div class="inherited">
+              <strong>{{ service.label(b) }}</strong>
+              <span>{{ b.address.line1 }}{{ b.address.line2 ? ', ' + b.address.line2 : '' }}</span>
+              <span>{{ b.address.city }}{{ b.address.country ? ', ' + b.address.country : '' }}</span>
+            </div>
+          } @else {
+            <p class="hint">Pick the building on the Basic Information tab first.</p>
+          }
+        }
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Allow asset assignment</strong><small>Assets can be placed here.</small></span>
+            <input type="checkbox" name="allowAssetAssignment" [(ngModel)]="form.allowAssetAssignment" />
+          </label>
+          <label class="toggle">
+            <span><strong>Enable tracking</strong><small>Show live tag positions.</small></span>
+            <input type="checkbox" name="enableTracking" [(ngModel)]="form.enableTracking" />
+          </label>
+          <label class="toggle">
+            <span><strong>Restricted access</strong><small>Entry needs an authorised badge.</small></span>
+            <input type="checkbox" name="restrictedAccess" [(ngModel)]="form.restrictedAccess" />
+          </label>
+          <label class="toggle">
+            <span><strong>Show on map</strong><small>Draw it on maps and floor plans.</small></span>
+            <input type="checkbox" name="showOnMap" [(ngModel)]="form.showOnMap" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>
