@@ -1,0 +1,26 @@
+.chart-upload {
+  min-height: 130px;
+}
+
+.preview-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preview-picker button {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dde0e8;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.preview-picker button.on {
+  border-color: #4f2bd8;
+  box-shadow: 0 0 0 2px rgba(79, 43, 216, 0.2);
+}

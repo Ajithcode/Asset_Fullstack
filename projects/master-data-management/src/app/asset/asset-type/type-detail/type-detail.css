@@ -1,0 +1,96 @@
+.overview {
+  grid-template-columns: minmax(280px, 1fr) minmax(300px, 1fr) minmax(300px, 1fr);
+}
+
+.type-photo {
+  background: #eef2ff;
+  color: #1d4ed8;
+}
+
+.type-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #1d4ed8;
+}
+
+.type-icon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.facts--specs {
+  grid-template-columns: 170px 1fr;
+}
+
+/* Quick links: four small counters */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tile {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: #0f172a;
+}
+
+button.tile {
+  cursor: pointer;
+}
+
+button.tile:hover {
+  background: #f4f2fb;
+}
+
+.tile__icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #1d4ed8;
+}
+
+.tile small {
+  display: block;
+  font-size: 11px;
+  color: #475066;
+  line-height: 1.25;
+}
+
+.tile strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+@media (max-width: 1700px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1500px) {
+  .overview {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .overview {
+    grid-template-columns: 1fr;
+  }
+}

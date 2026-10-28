@@ -1,0 +1,197 @@
+<aside class="drawer" role="dialog" aria-labelledby="tech-form-title">
+  <header class="drawer__header">
+    <h2 id="tech-form-title">{{ isEdit ? 'Edit Technician' : 'Add Technician' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <div class="logo-field">
+            <label class="upload photo-upload" [class.upload--filled]="form.photo" [class.invalid]="errors.photo">
+              <input type="file" accept="image/png,image/jpeg" (change)="onPhotoPicked($event)" />
+              @if (form.photo) {
+                <img [src]="form.photo" alt="Technician photo" class="logo-img" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); form.photo = null">Remove</button>
+              } @else {
+                <span class="upload__icon"><lucide-icon [img]="icons.Camera" [size]="30"></lucide-icon></span>
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+          </div>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.id">
+              <label for="tech-id"><span class="req">*</span> Technician ID</label>
+              <input id="tech-id" name="id" [(ngModel)]="form.id" />
+              @if (errors.id) { <small>{{ errors.id }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.name">
+              <label for="tech-name"><span class="req">*</span> Full Name</label>
+              <input id="tech-name" name="name" placeholder="Enter full name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field">
+              <label for="tech-skill">Primary Skill</label>
+              <select id="tech-skill" name="primarySkill" [(ngModel)]="form.primarySkill" (ngModelChange)="onPrimaryChange()">
+                <option value="">Select primary skill</option>
+                @for (s of primaryOptions; track s) { <option [value]="s">{{ s }}</option> }
+              </select>
+            </div>
+            <div class="field" [class.invalid]="errors.team">
+              <label for="tech-team">Assigned Team</label>
+              <select id="tech-team" name="team" [(ngModel)]="teamCode">
+                <option value="">Select team</option>
+                @for (t of teamOptions; track t.code) { <option [value]="t.code">{{ t.name }}</option> }
+              </select>
+              @if (errors.team) { <small>{{ errors.team }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.email">
+              <label for="tech-email"><span class="req">*</span> Email</label>
+              <input id="tech-email" name="email" type="email" placeholder="Enter email" [(ngModel)]="form.email" />
+              @if (errors.email) { <small>{{ errors.email }}</small> }
+            </div>
+            <div class="field">
+              <label for="tech-phone">Phone</label>
+              <input id="tech-phone" name="phone" type="tel" placeholder="Enter phone number" [(ngModel)]="form.phone" />
+            </div>
+            <div class="field">
+              <div class="status-select">
+                <i [attr.data-status]="form.status"></i>
+                <select name="status" aria-label="Status" [(ngModel)]="form.status">
+                  @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        @if (errors.photo) { <small class="upload-error">{{ errors.photo }}</small> }
+      }
+
+      @case ('skills') {
+        <div class="field">
+          <label for="tech-level">Skill Level ({{ form.primarySkill || 'primary skill' }})</label>
+          <select id="tech-level" name="skillLevel" [(ngModel)]="form.skillLevel">
+            @for (l of levels; track l) { <option [value]="l">{{ l }}</option> }
+          </select>
+        </div>
+        <span class="section-title">Secondary Skills ({{ form.secondarySkills.length }})</span>
+        <div class="ticks">
+          @for (s of secondaryOptions; track s) {
+            <label><input type="checkbox" [checked]="hasSecondary(s)" (change)="toggleSecondary(s)" /><span>{{ s }}</span></label>
+          }
+        </div>
+        <span class="section-title">Certifications</span>
+        <div class="rows" [class.invalid]="errors.certifications">
+          @for (c of form.certifications; track $index) {
+            <div class="row-line row-line--cert">
+              <input [name]="'certName' + $index" placeholder="Certificate name" [attr.aria-label]="'Certificate ' + ($index + 1)" [(ngModel)]="c.name" />
+              <input [name]="'certExpiry' + $index" type="date" [attr.aria-label]="'Certificate ' + ($index + 1) + ' expiry'" [class.expired]="isExpired(c.expiry)" [(ngModel)]="c.expiry" />
+              <button type="button" class="row-remove" (click)="removeCertification($index)" [attr.aria-label]="'Remove certificate ' + ($index + 1)">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="hint">No certifications.</p>
+          }
+        </div>
+        @if (errors.certifications) { <small class="upload-error">{{ errors.certifications }}</small> }
+        <div class="row-actions">
+          <button type="button" class="btn btn--ghost" (click)="addCertification()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add certification</button>
+        </div>
+      }
+
+      @case ('employment') {
+        <div class="field">
+          <span class="field__label">Source</span>
+          <div class="radios">
+            <label><input type="radio" name="source" value="In-house" [(ngModel)]="form.source" /> In-house</label>
+            <label><input type="radio" name="source" value="Contractor" [(ngModel)]="form.source" /> Contractor</label>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="field field--wide">
+            <label for="tech-emp">Linked Employee</label>
+            <select id="tech-emp" name="employeeId" [(ngModel)]="form.employeeId" (ngModelChange)="onEmployeeChange()">
+              <option value="">Not linked</option>
+              @for (e of employeeOptions; track e.id) { <option [value]="e.id">{{ e.name }} ({{ e.id }})</option> }
+            </select>
+          </div>
+          @if (form.source === 'In-house') {
+            <div class="field">
+              <label for="tech-type">Employment Type</label>
+              <select id="tech-type" name="employmentType" [(ngModel)]="form.employmentType">
+                @for (t of employmentTypes; track t) { <option [value]="t">{{ t }}</option> }
+              </select>
+            </div>
+          }
+          <div class="field">
+            <label for="tech-join">Joining Date</label>
+            <input id="tech-join" name="joiningDate" type="date" [(ngModel)]="form.joiningDate" />
+          </div>
+          <div class="field" [class.invalid]="errors.hourlyRate">
+            <label for="tech-rate">Hourly Rate (AED)</label>
+            <input id="tech-rate" name="hourlyRate" type="number" min="0" placeholder="Only for contractors / overtime" [(ngModel)]="form.hourlyRate" />
+            @if (errors.hourlyRate) { <small>{{ errors.hourlyRate }}</small> }
+          </div>
+          <div class="field">
+            <label for="tech-shift">Shift</label>
+            <input id="tech-shift" name="shift" [value]="shiftName" readonly />
+          </div>
+        </div>
+        <p class="hint">The shift comes from the technician's team.</p>
+      }
+
+      @case ('contact') {
+        <div class="field">
+          <label for="tech-address">Address</label>
+          <textarea id="tech-address" name="address" rows="2" [(ngModel)]="form.address"></textarea>
+        </div>
+        <span class="section-title">Emergency Contact</span>
+        <div class="grid">
+          <div class="field">
+            <label for="tech-emname">Name</label>
+            <input id="tech-emname" name="emergencyName" [(ngModel)]="form.emergencyName" />
+          </div>
+          <div class="field">
+            <label for="tech-emphone">Phone</label>
+            <input id="tech-emphone" name="emergencyPhone" type="tel" [(ngModel)]="form.emergencyPhone" />
+          </div>
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Available for dispatch</strong><small>Can be assigned new work orders. Off while On Leave or Inactive.</small></span>
+            <input type="checkbox" name="availableForDispatch" [disabled]="form.status === 'On Leave' || form.status === 'Inactive'" [(ngModel)]="form.availableForDispatch" />
+          </label>
+          <label class="toggle">
+            <span><strong>Mobile app access</strong><small>Can use the technician mobile app.</small></span>
+            <input type="checkbox" name="mobileAppAccess" [(ngModel)]="form.mobileAppAccess" />
+          </label>
+        </div>
+        <div class="field" [class.invalid]="errors.maxOpenWorkOrders">
+          <label for="tech-max">Max Open Work Orders</label>
+          <input id="tech-max" name="maxOpenWorkOrders" type="number" min="1" max="50" [(ngModel)]="form.maxOpenWorkOrders" />
+          @if (errors.maxOpenWorkOrders) { <small>{{ errors.maxOpenWorkOrders }}</small> }
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

@@ -1,28 +1,81 @@
-import { Component } from '@angular/core';
-import { MasterTable } from '../../shared/master-table/master-table';
-import { MasterTableConfig } from '../../shared/master-table/master-table.model';
+import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search, Star, Truck } from 'lucide-angular';
+import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { badgeInk, badgeText } from '../../asset/manufacturer/manufacturer.data';
+import { ListPage } from '../../shared/list-page';
+import { SUPPLIER_CATEGORIES } from './supplier.data';
+import { SupplierForm } from './supplier-form/supplier-form';
+import { SupplierFilters, SupplierRecord } from './supplier.model';
+import { SupplierService } from './supplier.service';
 
+type SortKey = 'name' | 'code' | 'category' | 'country' | 'rating';
+
+/** Master Data Management > Vendor > Supplier */
 @Component({
   selector: 'app-mdm-vendor-supplier',
-  imports: [MasterTable],
-  template: '<app-master-table [config]="config" />'
+  imports: [FormsModule, RouterLink, LucideAngularModule, SupplierForm],
+  templateUrl: './supplier.html',
+  styleUrls: ['../../shared/styles/mdm-page.css', '../vendor.css']
 })
-export class SupplierPage {
-  readonly config: MasterTableConfig = {
-    key: 'vendor/supplier',
-    title: 'Supplier',
-    singular: 'Supplier',
-    codePrefix: 'SUP',
-    fields: [
-      { key: 'name', label: 'Name', required: true },
-      { key: 'contact', label: 'Contact Person' },
-      { key: 'email', label: 'Email', type: 'email' },
-      { key: 'phone', label: 'Phone' },
-      { key: 'gstin', label: 'GSTIN' }
-    ],
-    rows: [
-      { code: 'SUP-0001', name: 'Sri Balaji Electricals', contact: 'Ramesh', email: 'sales@balaji.example.com', phone: '044 2345 6789', gstin: '33ABCDE1234F1Z5', status: 'Active' },
-      { code: 'SUP-0002', name: 'Coolair Spares', contact: 'Nisha', email: 'orders@coolair.example.com', phone: '080 4567 1234', gstin: '29PQRSX5678K1Z2', status: 'Active' }
-    ]
-  };
+export class SupplierPage extends ListPage<SupplierRecord, SupplierFilters, SortKey> {
+  readonly service = inject(SupplierService);
+  readonly basePath = MASTER_DATA_BASE_PATH;
+  readonly categories = SUPPLIER_CATEGORIES;
+  readonly badgeText = badgeText;
+  readonly badgeInk = badgeInk;
+  readonly icons = { Truck, Star, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+
+  constructor() {
+    super({ search: '', category: '', country: '', status: '' });
+  }
+
+  keyOf(r: SupplierRecord): string {
+    return r.code;
+  }
+
+  nameOf(r: SupplierRecord): string {
+    return r.name;
+  }
+
+  protected all(): SupplierRecord[] {
+    return this.service.all();
+  }
+
+  protected matches(r: SupplierRecord, f: SupplierFilters): boolean {
+    const term = f.search.trim().toLowerCase();
+    return (
+      (!f.category || r.category === f.category) &&
+      (!f.country || r.country === f.country) &&
+      (!f.status || r.status === f.status) &&
+      (!term || [r.name, r.code, r.contactPerson, r.category, r.email].some((v) => v.toLowerCase().includes(term)))
+    );
+  }
+
+  protected sortValue(r: SupplierRecord, key: SortKey): string | number {
+    return r[key];
+  }
+
+  protected removeRecords(codes: string[]): void {
+    this.service.remove(codes);
+  }
+
+  duplicate(r: SupplierRecord): void {
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active', logo: null });
+  }
+
+  onSaved(event: { record: SupplierRecord; originalCode: string | null }): void {
+    this.service.save(event.record, event.originalCode);
+    this.carrySelection(event.originalCode, event.record.code);
+    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+    this.closeForm();
+  }
+
+  toggleStatus(r: SupplierRecord): void {
+    this.menuFor = null;
+    const status = r.status === 'Active' ? 'Inactive' : 'Active';
+    this.service.save({ ...r, status }, r.code);
+    this.notify(`${r.name} marked ${status}.`);
+  }
 }

@@ -1,27 +1,85 @@
-import { Component } from '@angular/core';
-import { MasterTable } from '../../shared/master-table/master-table';
-import { MasterTableConfig } from '../../shared/master-table/master-table.model';
+import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, Landmark, LucideAngularModule, Plus, Search } from 'lucide-angular';
+import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { ListPage } from '../../shared/list-page';
+import { REGULATION_CATEGORIES, REGULATION_COUNTRIES } from '../compliance.data';
+import { ComplianceStatus, RegulationRecord } from '../compliance.model';
+import { RegulationService } from '../compliance.service';
+import { RegulationForm } from './regulation-form/regulation-form';
 
+type SortKey = 'name' | 'code' | 'country' | 'category';
+interface Filters {
+  search: string;
+  country: string;
+  category: string;
+  status: '' | ComplianceStatus;
+}
+
+/** Master Data Management > Compliance > Regulation */
 @Component({
   selector: 'app-mdm-compliance-regulation',
-  imports: [MasterTable],
-  template: '<app-master-table [config]="config" />'
+  imports: [FormsModule, RouterLink, LucideAngularModule, RegulationForm],
+  templateUrl: './regulation.html',
+  styleUrls: ['../../shared/styles/mdm-page.css', '../compliance.css']
 })
-export class RegulationPage {
-  readonly config: MasterTableConfig = {
-    key: 'compliance/regulation',
-    title: 'Regulation',
-    singular: 'Regulation',
-    codePrefix: 'REG',
-    fields: [
-      { key: 'name', label: 'Name', required: true },
-      { key: 'authority', label: 'Authority' },
-      { key: 'jurisdiction', label: 'Jurisdiction' },
-      { key: 'effectiveDate', label: 'Effective Date', type: 'date' }
-    ],
-    rows: [
-      { code: 'REG-0001', name: 'Factories Act 1948', authority: 'Ministry of Labour', jurisdiction: 'India', effectiveDate: '1949-04-01', status: 'Active' },
-      { code: 'REG-0002', name: 'Central Electricity Authority Regulations', authority: 'CEA', jurisdiction: 'India', effectiveDate: '2023-06-08', status: 'Active' }
-    ]
-  };
+export class RegulationPage extends ListPage<RegulationRecord, Filters, SortKey> {
+  readonly service = inject(RegulationService);
+  readonly basePath = MASTER_DATA_BASE_PATH;
+  readonly regulationCategories = REGULATION_CATEGORIES;
+  readonly regulationCountries = REGULATION_COUNTRIES;
+  readonly icons = { Landmark, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+
+  constructor() {
+    super({ search: '', country: '', category: '', status: '' });
+  }
+
+  keyOf(r: RegulationRecord): string {
+    return r.code;
+  }
+
+  nameOf(r: RegulationRecord): string {
+    return r.name;
+  }
+
+  protected all(): RegulationRecord[] {
+    return this.service.all();
+  }
+
+  protected matches(r: RegulationRecord, f: Filters): boolean {
+    const term = f.search.trim().toLowerCase();
+    return (
+      (!f.country || r.country === f.country) &&
+      (!f.category || r.category === f.category) &&
+      (!f.status || r.status === f.status) &&
+      (!term || [r.name, r.code, r.country, r.category, r.issuingAuthority].some((v) => v.toLowerCase().includes(term)))
+    );
+  }
+
+  protected sortValue(r: RegulationRecord, key: SortKey): string | number {
+    return r[key];
+  }
+
+  protected removeRecords(codes: string[]): void {
+    this.service.remove(codes);
+  }
+
+  duplicate(r: RegulationRecord): void {
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
+  }
+
+  onSaved(event: { record: RegulationRecord; originalCode: string | null }): void {
+    this.service.save(event.record, event.originalCode);
+    this.carrySelection(event.originalCode, event.record.code);
+    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+    this.closeForm();
+  }
+
+  toggleStatus(r: RegulationRecord): void {
+    this.menuFor = null;
+    const status = r.status === 'Active' ? 'Inactive' : 'Active';
+    this.service.save({ ...r, status }, r.code);
+    this.notify(`${r.name} marked ${status}.`);
+  }
 }

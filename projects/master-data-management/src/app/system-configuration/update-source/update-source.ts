@@ -1,28 +1,88 @@
-import { Component } from '@angular/core';
-import { MasterTable } from '../../shared/master-table/master-table';
-import { MasterTableConfig } from '../../shared/master-table/master-table.model';
+import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Database, Ellipsis, LucideAngularModule, Plus, Search } from 'lucide-angular';
+import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { ListPage } from '../../shared/list-page';
+import { SOURCE_TYPES } from '../system-config.data';
+import { ConfigStatus, UpdateSourceRecord } from '../system-config.model';
+import { SystemSettingsService, UpdateSourceService } from '../system-config.service';
+import { UpdateSourceForm } from './update-source-form/update-source-form';
 
+type SortKey = 'name' | 'code' | 'type';
+interface Filters {
+  search: string;
+  type: string;
+  status: '' | ConfigStatus;
+}
+
+/** Master Data Management > System Configuration > Update Source */
 @Component({
   selector: 'app-mdm-system-configuration-update-source',
-  imports: [MasterTable],
-  template: '<app-master-table [config]="config" />'
+  imports: [FormsModule, RouterLink, LucideAngularModule, UpdateSourceForm],
+  templateUrl: './update-source.html',
+  styleUrls: ['../../shared/styles/mdm-page.css', '../system-config.css']
 })
-export class UpdateSourcePage {
-  readonly config: MasterTableConfig = {
-    key: 'system-configuration/update-source',
-    title: 'Update Source',
-    singular: 'Update Source',
-    codePrefix: 'SRC',
-    fields: [
-      { key: 'name', label: 'Name', required: true },
-      { key: 'sourceType', label: 'Source Type', type: 'select', options: ['Manual', 'IoT Gateway', 'API', 'File Import', 'Mobile App'] },
-      { key: 'priority', label: 'Priority', type: 'number' }
-    ],
-    rows: [
-      { code: 'SRC-0001', name: 'Manual entry', sourceType: 'Manual', priority: 3, status: 'Active' },
-      { code: 'SRC-0002', name: 'RFID / BLE gateway', sourceType: 'IoT Gateway', priority: 1, status: 'Active' },
-      { code: 'SRC-0003', name: 'ERP sync', sourceType: 'API', priority: 2, status: 'Active' },
-      { code: 'SRC-0004', name: 'Excel import', sourceType: 'File Import', priority: 4, status: 'Active' }
-    ]
-  };
+export class UpdateSourcePage extends ListPage<UpdateSourceRecord, Filters, SortKey> {
+  readonly service = inject(UpdateSourceService);
+  private readonly settings = inject(SystemSettingsService);
+  readonly basePath = MASTER_DATA_BASE_PATH;
+  readonly sourceTypes = SOURCE_TYPES;
+  readonly icons = { Database, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+
+  constructor() {
+    super({ search: '', type: '', status: '' });
+  }
+
+  keyOf(r: UpdateSourceRecord): string {
+    return r.code;
+  }
+
+  nameOf(r: UpdateSourceRecord): string {
+    return r.name;
+  }
+
+  protected all(): UpdateSourceRecord[] {
+    return this.service.all();
+  }
+
+  protected matches(r: UpdateSourceRecord, f: Filters): boolean {
+    const term = f.search.trim().toLowerCase();
+    return (
+      (!f.type || r.type === f.type) &&
+      (!f.status || r.status === f.status) &&
+      (!term || [r.name, r.code, r.type, r.description].some((v) => v.toLowerCase().includes(term)))
+    );
+  }
+
+  protected sortValue(r: UpdateSourceRecord, key: SortKey): string | number {
+    return r[key];
+  }
+
+  protected removeRecords(codes: string[]): void {
+    this.service.remove(codes);
+  }
+
+  // Sources picked in System Settings (default source, integration sources) can't be deleted
+  protected override deleteBlocker(r: UpdateSourceRecord): string | null {
+    return this.settings.usesSource(r.code) ? `${r.name} is used in System Settings. Remove it there first.` : null;
+  }
+
+  duplicate(r: UpdateSourceRecord): void {
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
+  }
+
+  onSaved(event: { record: UpdateSourceRecord; originalCode: string | null }): void {
+    this.service.save(event.record, event.originalCode);
+    this.carrySelection(event.originalCode, event.record.code);
+    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+    this.closeForm();
+  }
+
+  toggleStatus(r: UpdateSourceRecord): void {
+    this.menuFor = null;
+    const status = r.status === 'Active' ? 'Inactive' : 'Active';
+    this.service.save({ ...r, status }, r.code);
+    this.notify(`${r.name} marked ${status}.`);
+  }
 }

@@ -1,28 +1,75 @@
-import { Component } from '@angular/core';
-import { MasterTable } from '../../shared/master-table/master-table';
-import { MasterTableConfig } from '../../shared/master-table/master-table.model';
+import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, TriangleAlert, LucideAngularModule, Plus, Search } from 'lucide-angular';
+import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { ListPage } from '../../shared/list-page';
+import { FAILURE_CATEGORIES, FAILURE_SEVERITIES } from './failure-code.data';
+import { FailureCodeForm } from './failure-code-form/failure-code-form';
+import { FailureCodeFilters, FailureCodeRecord } from './failure-code.model';
+import { FailureCodeService } from './failure-code.service';
 
+type SortKey = 'name' | 'code' | 'category' | 'severity';
+
+/** Master Data Management > Maintenance > Failure Code */
 @Component({
   selector: 'app-mdm-maintenance-failure-code',
-  imports: [MasterTable],
-  template: '<app-master-table [config]="config" />'
+  imports: [FormsModule, RouterLink, LucideAngularModule, FailureCodeForm],
+  templateUrl: './failure-code.html',
+  styleUrls: ['../../shared/styles/mdm-page.css', '../../people/people.css', '../maintenance.css']
 })
-export class FailureCodePage {
-  readonly config: MasterTableConfig = {
-    key: 'maintenance/failure-code',
-    title: 'Failure Code',
-    singular: 'Failure Code',
-    codePrefix: 'FC',
-    fields: [
-      { key: 'problem', label: 'Problem', required: true },
-      { key: 'cause', label: 'Cause' },
-      { key: 'remedy', label: 'Remedy' },
-      { key: 'assetType', label: 'Asset Type', type: 'select', options: ['Diesel Generator', 'Air Handling Unit', 'UPS'] }
-    ],
-    rows: [
-      { code: 'FC-0001', problem: 'Won’t start', cause: 'Battery drained', remedy: 'Replace battery', assetType: 'Diesel Generator', status: 'Active' },
-      { code: 'FC-0002', problem: 'Low airflow', cause: 'Clogged filter', remedy: 'Clean / replace filter', assetType: 'Air Handling Unit', status: 'Active' },
-      { code: 'FC-0003', problem: 'On battery', cause: 'Input supply failure', remedy: 'Check input breaker', assetType: 'UPS', status: 'Active' }
-    ]
-  };
+export class FailureCodePage extends ListPage<FailureCodeRecord, FailureCodeFilters, SortKey> {
+  readonly service = inject(FailureCodeService);
+  readonly categories = FAILURE_CATEGORIES;
+  readonly severities = FAILURE_SEVERITIES;
+  readonly basePath = MASTER_DATA_BASE_PATH;
+  readonly statuses = ['Active', 'Inactive'];
+  readonly icons = { TriangleAlert, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+
+  constructor() {
+    super({ search: '', category: '', severity: '' });
+  }
+
+  keyOf(r: FailureCodeRecord): string {
+    return r.code;
+  }
+
+  nameOf(r: FailureCodeRecord): string {
+    return r.name;
+  }
+
+  protected all(): FailureCodeRecord[] {
+    return this.service.all();
+  }
+
+  protected matches(r: FailureCodeRecord, f: FailureCodeFilters): boolean {
+    const term = f.search.trim().toLowerCase();
+    return (!f.category || r.category === f.category) && (!f.severity || r.severity === f.severity) && (!term || [r.name, r.code, r.description].some((v) => v.toLowerCase().includes(term)));
+  }
+
+  protected sortValue(r: FailureCodeRecord, key: SortKey): string | number {
+    return key === 'severity' ? FAILURE_SEVERITIES.indexOf(r.severity) : r[key];
+  }
+
+  protected removeRecords(codes: string[]): void {
+    this.service.remove(codes);
+  }
+
+  duplicate(r: FailureCodeRecord): void {
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
+  }
+
+  onSaved(event: { record: FailureCodeRecord; originalCode: string | null; originalName: string | null }): void {
+    this.service.save(event.record, event.originalCode);
+    this.carrySelection(event.originalCode, event.record.code);
+    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+    this.closeForm();
+  }
+
+  toggleStatus(r: FailureCodeRecord): void {
+    this.menuFor = null;
+    const status = r.status === 'Active' ? 'Inactive' : 'Active';
+    this.service.save({ ...r, status }, r.code);
+    this.notify(`${r.name} marked ${status}.`);
+  }
 }

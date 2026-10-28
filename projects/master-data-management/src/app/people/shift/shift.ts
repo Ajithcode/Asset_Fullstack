@@ -1,27 +1,86 @@
-import { Component } from '@angular/core';
-import { MasterTable } from '../../shared/master-table/master-table';
-import { MasterTableConfig } from '../../shared/master-table/master-table.model';
+import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { ArrowDown, ArrowUp, CalendarClock, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search } from 'lucide-angular';
+import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { ListPage } from '../../shared/list-page';
+import { TeamService } from '../team/team.service';
+import { SHIFT_TYPES, shiftHours } from './shift.data';
+import { ShiftForm } from './shift-form/shift-form';
+import { ShiftFilters, ShiftRecord } from './shift.model';
+import { ShiftService } from './shift.service';
 
+type SortKey = 'name' | 'code' | 'startTime' | 'duration';
+
+/** Master Data Management > People > Shift */
 @Component({
   selector: 'app-mdm-people-shift',
-  imports: [MasterTable],
-  template: '<app-master-table [config]="config" />'
+  imports: [FormsModule, RouterLink, LucideAngularModule, ShiftForm],
+  templateUrl: './shift.html',
+  styleUrls: ['../../shared/styles/mdm-page.css', '../people.css']
 })
-export class ShiftPage {
-  readonly config: MasterTableConfig = {
-    key: 'people/shift',
-    title: 'Shift',
-    singular: 'Shift',
-    codePrefix: 'SFT',
-    fields: [
-      { key: 'name', label: 'Name', required: true },
-      { key: 'start', label: 'Start Time', type: 'time' },
-      { key: 'end', label: 'End Time', type: 'time' }
-    ],
-    rows: [
-      { code: 'SFT-0001', name: 'General', start: '09:00', end: '18:00', status: 'Active' },
-      { code: 'SFT-0002', name: 'Morning', start: '06:00', end: '14:00', status: 'Active' },
-      { code: 'SFT-0003', name: 'Night', start: '22:00', end: '06:00', status: 'Active' }
-    ]
-  };
+export class ShiftPage extends ListPage<ShiftRecord, ShiftFilters, SortKey> {
+  readonly service = inject(ShiftService);
+  readonly teams = inject(TeamService);
+  readonly basePath = MASTER_DATA_BASE_PATH;
+  readonly types = SHIFT_TYPES;
+  readonly icons = { CalendarClock, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+
+  constructor() {
+    super({ search: '', shiftType: '', status: '' });
+  }
+
+  keyOf(r: ShiftRecord): string {
+    return r.code;
+  }
+
+  nameOf(r: ShiftRecord): string {
+    return r.name;
+  }
+
+  protected all(): ShiftRecord[] {
+    return this.service.all();
+  }
+
+  protected matches(r: ShiftRecord, f: ShiftFilters): boolean {
+    const term = f.search.trim().toLowerCase();
+    return (!f.shiftType || r.shiftType === f.shiftType) && (!f.status || r.status === f.status) && (!term || [r.name, r.code].some((v) => v.toLowerCase().includes(term)));
+  }
+
+  protected sortValue(r: ShiftRecord, key: SortKey): string | number {
+    return key === 'duration' ? (this.duration(r) ?? -1) : r[key];
+  }
+
+  protected removeRecords(codes: string[]): void {
+    this.service.remove(codes);
+  }
+
+  // Shifts still assigned to teams can't be deleted
+  protected override deleteBlocker(r: ShiftRecord): string | null {
+    const count = this.teams.teamsOnShift(r.code).length;
+    return count ? `${r.name} is assigned to ${count} team${count === 1 ? '' : 's'}. Move them to another shift first.` : null;
+  }
+
+  duration(r: ShiftRecord): number | null {
+    return shiftHours(r.startTime, r.endTime);
+  }
+
+  duplicate(r: ShiftRecord): void {
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
+  }
+
+  onSaved(event: { record: ShiftRecord; originalCode: string | null; teamCodes: string[] }): void {
+    this.service.save(event.record, event.originalCode);
+    this.teams.assignShift(event.record.code, event.teamCodes, event.originalCode ?? event.record.code);
+    this.carrySelection(event.originalCode, event.record.code);
+    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+    this.closeForm();
+  }
+
+  toggleStatus(r: ShiftRecord): void {
+    this.menuFor = null;
+    const status = r.status === 'Active' ? 'Inactive' : 'Active';
+    this.service.save({ ...r, status }, r.code);
+    this.notify(`${r.name} marked ${status}.`);
+  }
 }

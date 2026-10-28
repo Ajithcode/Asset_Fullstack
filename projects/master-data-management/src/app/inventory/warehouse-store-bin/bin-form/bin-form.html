@@ -1,0 +1,80 @@
+<aside class="drawer" role="dialog" aria-labelledby="bin-form-title">
+  <header class="drawer__header">
+    <h2 id="bin-form-title">{{ isEdit ? 'Edit Bin' : 'Add Bin' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['storeCode']">
+          <label for="bin-store"><span class="req">*</span> Store</label>
+          <select id="bin-store" name="storeCode" [(ngModel)]="form.storeCode" (ngModelChange)="onLocationChange()">
+            <option value="" disabled>Select store</option>
+            @for (s of storeOptions; track s.code) { <option [value]="s.code">{{ s.name }} ({{ s.code }})</option> }
+          </select>
+          @if (errors['storeCode']) { <small>{{ errors['storeCode'] }}</small> }
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="bin-rack">Rack</label>
+            <input id="bin-rack" name="rack" placeholder="e.g. A" [(ngModel)]="form.rack" (ngModelChange)="onLocationChange()" />
+          </div>
+          <div class="field">
+            <label for="bin-shelf">Shelf</label>
+            <input id="bin-shelf" name="shelf" placeholder="e.g. 1" [(ngModel)]="form.shelf" (ngModelChange)="onLocationChange()" />
+          </div>
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="bin-code"><span class="req">*</span> Bin Code</label>
+          <input id="bin-code" name="code" placeholder="e.g. 001-A1" [(ngModel)]="form.code" (input)="onCodeInput()" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+          @else if (!isEdit) { <small class="hint">Filled from store, rack and shelf until you type your own.</small> }
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="bin-type">Bin Type</label>
+            <select id="bin-type" name="binType" [(ngModel)]="form.binType">
+              @for (t of binTypes; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors['capacity']">
+            <label for="bin-capacity">Capacity (units)</label>
+            <input id="bin-capacity" name="capacity" type="number" min="1" [(ngModel)]="form.capacity" />
+            @if (errors['capacity']) { <small>{{ errors['capacity'] }}</small> }
+          </div>
+        </div>
+        <div class="field">
+          <label for="bin-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="bin-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="field">
+          <label for="bin-desc">Notes</label>
+          <textarea id="bin-desc" name="description" rows="3" placeholder="e.g. Heavy items only, keep dry" [(ngModel)]="form.description"></textarea>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

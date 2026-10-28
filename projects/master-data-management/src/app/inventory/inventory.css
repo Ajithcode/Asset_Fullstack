@@ -1,0 +1,105 @@
+/* Shared by the Inventory list pages */
+.desc {
+  max-width: 280px;
+  color: #334155;
+}
+
+.pill[data-status='Inactive'],
+.pill[data-status='Out of Stock'] {
+  background: #fde8e8;
+  color: #dc2626;
+}
+
+.pill[data-status='Inactive'] i,
+.pill[data-status='Out of Stock'] i {
+  background: #ef4444;
+}
+
+.pill[data-status='Low Stock'] {
+  background: #fef7e0;
+  color: #a16207;
+}
+
+.pill[data-status='Low Stock'] i {
+  background: #eab308;
+}
+
+.pill[data-status='Reorder'] {
+  background: #fff1e6;
+  color: #c2410c;
+}
+
+.pill[data-status='Reorder'] i {
+  background: #f97316;
+}
+
+.swatch-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.muted-dash {
+  color: #94a3b8;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #f1f3f9;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Warehouse / Store / Bin tabs */
+.sub-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid #e2e4ea;
+}
+
+.sub-tabs button {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.sub-tabs button.active {
+  color: #4f2bd8;
+  background: #f1edfd;
+  border-bottom-color: #4f2bd8;
+  border-radius: 6px 6px 0 0;
+}
+
+/* Stock Status keeps its single filter in the header, as in the design */
+.filters--inline {
+  margin: 0 0 0 auto;
+  padding: 0;
+  border: none;
+  flex-wrap: nowrap;
+}

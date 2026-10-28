@@ -1,0 +1,164 @@
+<div class="mdm-page" [class.mdm-page--with-form]="formOpen">
+  <div class="mdm-main">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a [routerLink]="basePath">Master Data Management</a>
+      <span aria-hidden="true">›</span>
+      <a [routerLink]="basePath + '/people'">People</a>
+      <span aria-hidden="true">›</span>
+      <strong>Shift</strong>
+    </nav>
+
+    <header class="head">
+      <span class="head__icon"><lucide-icon [img]="icons.CalendarClock" [size]="24"></lucide-icon></span>
+      <div class="head__text">
+        <h1>Shift</h1>
+        <p>Manage work shifts and schedules used for maintenance, operations and workforce planning.</p>
+      </div>
+      <button type="button" class="btn btn--primary head__add" (click)="openAdd()">
+        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add Shift
+      </button>
+    </header>
+
+    <section class="panel">
+      <form class="filters" (ngSubmit)="apply()">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input name="search" placeholder="Search shift by name or code..." aria-label="Search shifts" [(ngModel)]="draft.search" />
+        </label>
+        <label class="filter">
+          <span>Shift Type</span>
+          <select name="shiftType" [(ngModel)]="draft.shiftType">
+            <option value="">All</option>
+            @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+          </select>
+        </label>
+        <label class="filter">
+          <span>Status</span>
+          <select name="status" [(ngModel)]="draft.status">
+            <option value="">All</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn--link" (click)="clear()">Clear</button>
+        <button type="submit" class="btn btn--primary">Apply</button>
+      </form>
+
+      @if (selected.size) {
+        <div class="bulk">
+          <span>{{ selected.size }} selected</span>
+          <button type="button" class="btn btn--link" (click)="selected.clear()">Clear selection</button>
+          <button type="button" class="btn btn--danger" (click)="askDeleteSelected()">Delete selected</button>
+        </div>
+      }
+
+      <div class="table-wrap">
+        <table class="mdm-table">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" [checked]="allOnPageSelected" (change)="togglePage()" aria-label="Select all on this page" /></th>
+              <th>
+                <button type="button" class="sort" (click)="sortBy('name')" [class.sort--on]="sortKey === 'name'">
+                  Shift Name <lucide-icon [img]="sortKey === 'name' && sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon>
+                </button>
+              </th>
+              <th>
+                <button type="button" class="sort" (click)="sortBy('code')" [class.sort--on]="sortKey === 'code'">
+                  Code @if (sortKey === 'code') { <lucide-icon [img]="sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon> }
+                </button>
+              </th>
+              <th>Shift Type</th>
+              <th>
+                <button type="button" class="sort" (click)="sortBy('startTime')" [class.sort--on]="sortKey === 'startTime'">
+                  Start Time @if (sortKey === 'startTime') { <lucide-icon [img]="sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon> }
+                </button>
+              </th>
+              <th>End Time</th>
+              <th>
+                <button type="button" class="sort" (click)="sortBy('duration')" [class.sort--on]="sortKey === 'duration'">
+                  Duration (Hours) @if (sortKey === 'duration') { <lucide-icon [img]="sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon> }
+                </button>
+              </th>
+              <th>Color</th>
+              <th>Working Days</th>
+              <th>Status</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of pageRows; track r.code) {
+              <tr [class.is-selected]="formMode === 'edit' && formRecord?.code === r.code">
+                <td class="col-check"><input type="checkbox" [checked]="selected.has(r.code)" (change)="toggleRow(r.code)" [attr.aria-label]="'Select ' + r.name" /></td>
+                <td><button type="button" class="name" (click)="openEdit(r)">{{ r.name }}</button></td>
+                <td>{{ r.code }}</td>
+                <td>{{ r.shiftType }}</td>
+                <td>{{ r.startTime || '-' }}</td>
+                <td>{{ r.endTime || '-' }}</td>
+                <td>{{ duration(r) ?? '-' }}</td>
+                <td><span class="swatch-dot" [style.background]="r.color" role="img" [attr.aria-label]="r.color"></span></td>
+                <td>{{ r.workingDays.join(', ') || '-' }}</td>
+                <td><span class="pill" [attr.data-status]="r.status"><i></i>{{ r.status }}</span></td>
+                <td class="col-actions">
+                  <div class="row-menu">
+                    <button type="button" class="dots" [attr.aria-label]="'Actions for ' + r.name" [attr.aria-expanded]="menuFor === r.code" (click)="$event.stopPropagation(); toggleMenu(r.code)">
+                      <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon>
+                    </button>
+                    @if (menuFor === r.code) {
+                      <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                        <button type="button" role="menuitem" (click)="openEdit(r)">Edit</button>
+                        <button type="button" role="menuitem" (click)="duplicate(r)">Duplicate</button>
+                        <button type="button" role="menuitem" (click)="toggleStatus(r)">Mark as {{ r.status === 'Active' ? 'Inactive' : 'Active' }}</button>
+                        <button type="button" role="menuitem" class="danger" (click)="askDelete([r])">Delete</button>
+                      </div>
+                    }
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="11" class="empty">No shifts match these filters.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pager">
+        <span>Showing {{ showingFrom }} to {{ showingTo }} of {{ rows.length }} records</span>
+        <div class="pager__pages">
+          <button type="button" class="page-btn" [disabled]="page === 0" (click)="goTo(page - 1)" aria-label="Previous page">
+            <lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon>
+          </button>
+          @for (p of pageNumbers; track p) {
+            <button type="button" class="page-btn" [class.active]="p === page" [attr.aria-current]="p === page ? 'page' : null" (click)="goTo(p)">{{ p + 1 }}</button>
+          }
+          <button type="button" class="page-btn" [disabled]="page >= pageCount - 1" (click)="goTo(page + 1)" aria-label="Next page">
+            <lucide-icon [img]="icons.ChevronRight" [size]="15"></lucide-icon>
+          </button>
+          <select class="page-size" name="pageSize" [(ngModel)]="pageSize" (ngModelChange)="page = 0" aria-label="Rows per page">
+            @for (s of pageSizes; track s) { <option [ngValue]="s">{{ s }} / page</option> }
+          </select>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  @if (formOpen) {
+    <app-shift-form #formEl class="mdm-form" [mode]="formMode" [shift]="formRecord" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-shift-form>
+  }
+</div>
+
+@if (pendingDelete.length) {
+  <div class="overlay" (click)="cancelDelete()">
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="shift-del-title" (click)="$event.stopPropagation()">
+      <h2 id="shift-del-title">Delete {{ pendingDelete.length === 1 ? pendingDelete[0].name : pendingDelete.length + ' shifts' }}?</h2>
+      <p>This can't be undone.</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
+        <button type="button" class="btn btn--danger" (click)="confirmDelete('shifts')">Delete</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

@@ -1,0 +1,151 @@
+<aside class="drawer" role="dialog" aria-labelledby="sup-form-title">
+  <header class="drawer__header">
+    <h2 id="sup-form-title">{{ isEdit ? 'Edit Supplier' : 'Add Supplier' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <app-vendor-basic [vendor]="form" [errors]="errors" noun="Supplier">
+          <div class="field" [class.invalid]="errors['category']">
+            <label for="sup-cat"><span class="req">*</span> Category</label>
+            <select id="sup-cat" name="category" [(ngModel)]="form.category">
+              <option value="" disabled>Select category</option>
+              @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+            @if (errors['category']) { <small>{{ errors['category'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['country']">
+            <label for="sup-country"><span class="req">*</span> Country</label>
+            <select id="sup-country" name="country" [ngModel]="form.country" (ngModelChange)="setCountry($event)">
+              <option value="" disabled>Select country</option>
+              @for (c of countries; track c.name) { <option [value]="c.name">{{ c.flag }} {{ c.name }}</option> }
+            </select>
+            @if (errors['country']) { <small>{{ errors['country'] }}</small> }
+          </div>
+        </app-vendor-basic>
+      }
+
+      @case ('address') {
+        <app-vendor-address [vendor]="form" [errors]="errors"></app-vendor-address>
+      }
+
+      @case ('products') {
+        <span class="section-title">Products Supplied</span>
+        <div class="rows">
+          @for (p of form.products; track $index) {
+            <div class="row-line row-line--single">
+              <input [name]="'product' + $index" placeholder="e.g. Laptops, toner, filters" [attr.aria-label]="'Product ' + ($index + 1)" [(ngModel)]="form.products[$index]" />
+              <button type="button" class="row-remove" (click)="removeProduct($index)" [attr.aria-label]="'Remove product ' + ($index + 1)">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="hint">No products listed.</p>
+          }
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn btn--ghost" (click)="addProduct()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add product</button>
+        </div>
+
+        <span class="section-title">Asset Categories ({{ form.assetCategories.length }})</span>
+        <div class="ticks">
+          @for (c of categoryNames; track c) {
+            <label><input type="checkbox" [checked]="form.assetCategories.includes(c)" (change)="toggle('assetCategories', c)" /><span>{{ c }}</span></label>
+          }
+        </div>
+
+        <span class="section-title">Brands ({{ form.brands.length }})</span>
+        <div class="field">
+          <input name="brandSearch" placeholder="Search manufacturers" aria-label="Search manufacturers" [(ngModel)]="brandSearch" />
+        </div>
+        <div class="ticks">
+          @for (b of brandOptions; track b) {
+            <label><input type="checkbox" [checked]="form.brands.includes(b)" (change)="toggle('brands', b)" /><span>{{ b }}</span></label>
+          } @empty {
+            <p class="hint">No manufacturers match.</p>
+          }
+        </div>
+      }
+
+      @case ('financial') {
+        <div class="grid">
+          <div class="field">
+            <label for="sup-currency">Currency</label>
+            <select id="sup-currency" name="currency" [(ngModel)]="form.currency">
+              @for (c of currencies; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="sup-terms">Payment Terms</label>
+            <select id="sup-terms" name="paymentTerms" [(ngModel)]="form.paymentTerms">
+              @for (t of paymentTerms; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors['creditLimit']">
+            <label for="sup-credit">Credit Limit ({{ form.currency.slice(0, 3) }})</label>
+            <input id="sup-credit" name="creditLimit" type="number" min="0" [(ngModel)]="form.creditLimit" />
+            @if (errors['creditLimit']) { <small>{{ errors['creditLimit'] }}</small> }
+          </div>
+          <div class="field">
+            <label for="sup-trn">Tax Registration No. (TRN)</label>
+            <input id="sup-trn" name="trn" [(ngModel)]="form.trn" />
+          </div>
+          <div class="field">
+            <label for="sup-bank">Bank Name</label>
+            <input id="sup-bank" name="bankName" [(ngModel)]="form.bankName" />
+          </div>
+          <div class="field" [class.invalid]="errors['iban']">
+            <label for="sup-iban">IBAN</label>
+            <input id="sup-iban" name="iban" [(ngModel)]="form.iban" />
+            @if (errors['iban']) { <small>{{ errors['iban'] }}</small> }
+          </div>
+        </div>
+      }
+
+      @case ('documents') {
+        <app-vendor-documents [vendor]="form" [errors]="errors"></app-vendor-documents>
+      }
+
+      @case ('settings') {
+        <div class="field" [class.invalid]="errors['rating']">
+          <label for="sup-rating">Rating (0 to 5)</label>
+          <input id="sup-rating" name="rating" type="number" min="0" max="5" step="0.1" [(ngModel)]="form.rating" />
+          @if (errors['rating']) { <small>{{ errors['rating'] }}</small> }
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Approved supplier</strong><small>Purchase orders can be raised to this supplier.</small></span>
+            <input type="checkbox" name="approved" [(ngModel)]="form.approved" />
+          </label>
+          <label class="toggle">
+            <span><strong>Preferred supplier</strong><small>Suggested first when raising purchase requests.</small></span>
+            <input type="checkbox" name="preferred" [(ngModel)]="form.preferred" />
+          </label>
+          <label class="toggle">
+            <span><strong>Supplier portal access</strong><small>The supplier can view orders and upload invoices.</small></span>
+            <input type="checkbox" name="portalAccess" [(ngModel)]="form.portalAccess" />
+          </label>
+          <label class="toggle">
+            <span><strong>Email purchase orders</strong><small>Send approved purchase orders to the supplier's email.</small></span>
+            <input type="checkbox" name="emailPurchaseOrders" [(ngModel)]="form.emailPurchaseOrders" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

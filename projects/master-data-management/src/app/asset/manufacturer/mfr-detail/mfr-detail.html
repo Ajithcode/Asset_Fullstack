@@ -1,0 +1,279 @@
+<section class="detail">
+  <header class="detail__head">
+    @if (manufacturer.logo) {
+      <span class="brand brand--lg"><img [src]="manufacturer.logo" [alt]="manufacturer.name + ' logo'" /></span>
+    } @else {
+      <span class="brand brand--lg" [style.background]="manufacturer.brandColor" [style.color]="badgeInk(manufacturer.brandColor)" aria-hidden="true">{{ badgeText(manufacturer.name) }}</span>
+    }
+
+    <div class="detail__title">
+      <div class="detail__name">
+        <h2>{{ manufacturer.name }}</h2>
+        <span class="pill" [attr.data-status]="manufacturer.status"><i></i>{{ manufacturer.status }}</span>
+      </div>
+      <div class="detail__meta">
+        Code: {{ manufacturer.code }}<span class="sep">|</span>Country: {{ manufacturer.country }}<span class="sep">|</span>Models: {{ mine.length }}<span class="sep">|</span>Assets: {{ assetCount | number }}
+      </div>
+      @if (manufacturer.description) { <div class="detail__meta">{{ manufacturer.description }}</div> }
+    </div>
+
+    <div class="detail__actions">
+      <button type="button" class="btn" (click)="edit.emit({ manufacturer })">
+        <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon> Edit
+      </button>
+      <button type="button" class="btn" (click)="duplicate.emit(manufacturer)">
+        <lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon> Duplicate
+      </button>
+      <a class="btn" [routerLink]="modelPath" [queryParams]="{ manufacturer: manufacturer.name }">
+        <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon> View Models ({{ mine.length }})
+      </a>
+      <div class="more">
+        <button type="button" class="btn" [attr.aria-expanded]="moreOpen" (click)="$event.stopPropagation(); moreOpen = !moreOpen">
+          More Actions <lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon>
+        </button>
+        @if (moreOpen) {
+          <div class="menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="moreOpen = false; toggleStatus.emit(manufacturer)">
+              Mark as {{ manufacturer.status === 'Active' ? 'Inactive' : 'Active' }}
+            </button>
+            <button type="button" role="menuitem" class="danger" (click)="moreOpen = false; remove.emit(manufacturer)">Delete</button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <nav class="detail__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  @switch (tab) {
+    @case ('overview') {
+      <div class="overview">
+        <div class="card">
+          <div class="card__head">
+            <h3 class="card__title">Basic Information</h3>
+            <button type="button" class="card__edit" (click)="editAt('basic')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+          </div>
+          <dl class="facts">
+            <dt>Manufacturer Name</dt><dd>{{ manufacturer.name }}</dd>
+            <dt>Code</dt><dd>{{ manufacturer.code }}</dd>
+            <dt>Country</dt><dd><span class="flag">{{ flag(manufacturer.country) }}</span> {{ manufacturer.country }}</dd>
+            <dt>Website</dt>
+            <dd>@if (manufacturer.website) { <a class="ext" [href]="manufacturer.website" target="_blank" rel="noopener">{{ manufacturer.website }}</a> } @else { - }</dd>
+            <dt>Description</dt><dd>{{ manufacturer.description || '-' }}</dd>
+            <dt>Logo</dt>
+            <dd>
+              @if (manufacturer.logo) {
+                <span class="brand brand--md"><img [src]="manufacturer.logo" [alt]="manufacturer.name + ' logo'" /></span>
+              } @else {
+                <span class="brand brand--md" [style.background]="manufacturer.brandColor" [style.color]="badgeInk(manufacturer.brandColor)">{{ badgeText(manufacturer.name) }}</span>
+              }
+            </dd>
+            <dt>Status</dt><dd><span class="pill" [attr.data-status]="manufacturer.status"><i></i>{{ manufacturer.status }}</span></dd>
+            <dt>Created On</dt><dd>{{ formatDateTime(manufacturer.createdOn) }}</dd>
+            <dt>Created By</dt><dd>{{ manufacturer.createdBy || '-' }}</dd>
+            <dt>Last Updated</dt><dd>{{ formatDateTime(manufacturer.updatedOn) }}</dd>
+          </dl>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Contact Information</h3>
+              <button type="button" class="card__edit" (click)="editAt('contact')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <dl class="facts facts--wide">
+              <dt>Primary Contact</dt><dd>{{ manufacturer.primaryContact || '-' }}</dd>
+              <dt>Designation</dt><dd>{{ manufacturer.designation || '-' }}</dd>
+              <dt>Email</dt><dd>@if (manufacturer.email) { <a class="ext" [href]="'mailto:' + manufacturer.email">{{ manufacturer.email }}</a> } @else { - }</dd>
+              <dt>Phone</dt><dd>{{ manufacturer.phone || '-' }}</dd>
+              <dt>Secondary Contact</dt><dd>{{ manufacturer.secondaryContact || '-' }}</dd>
+              <dt>Secondary Email</dt>
+              <dd>@if (manufacturer.secondaryEmail) { <a class="ext" [href]="'mailto:' + manufacturer.secondaryEmail">{{ manufacturer.secondaryEmail }}</a> } @else { - }</dd>
+              <dt>Secondary Phone</dt><dd>{{ manufacturer.secondaryPhone || '-' }}</dd>
+            </dl>
+          </div>
+
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Support & Warranty</h3>
+              <button type="button" class="card__edit" (click)="editAt('support')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <dl class="facts facts--wide">
+              <dt>Support Portal</dt>
+              <dd>@if (manufacturer.supportPortal) { <a class="ext" [href]="manufacturer.supportPortal" target="_blank" rel="noopener">{{ manufacturer.supportPortal }}</a> } @else { - }</dd>
+              <dt>Support Email</dt>
+              <dd>@if (manufacturer.supportEmail) { <a class="ext" [href]="'mailto:' + manufacturer.supportEmail">{{ manufacturer.supportEmail }}</a> } @else { - }</dd>
+              <dt>Support Phone</dt><dd>{{ manufacturer.supportPhone || '-' }}</dd>
+              <dt>Standard Warranty (Months)</dt><dd>{{ manufacturer.standardWarrantyMonths }}</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Headquarters Address</h3>
+              <button type="button" class="card__edit" (click)="editAt('contact')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <dl class="facts">
+              <dt>Address Line 1</dt><dd>{{ manufacturer.address.line1 || '-' }}</dd>
+              @if (manufacturer.address.line2) { <dt>Address Line 2</dt><dd>{{ manufacturer.address.line2 }}</dd> }
+              <dt>City</dt><dd>{{ manufacturer.address.city || '-' }}</dd>
+              <dt>State</dt><dd>{{ manufacturer.address.state || '-' }}</dd>
+              <dt>Postal Code</dt><dd>{{ manufacturer.address.postalCode || '-' }}</dd>
+              <dt>Country</dt>
+              <dd>@if (manufacturer.address.country) { <span class="flag">{{ flag(manufacturer.address.country) }}</span> {{ manufacturer.address.country }} } @else { - }</dd>
+            </dl>
+          </div>
+
+          <div class="card">
+            <h3 class="card__title">Summary</h3>
+            <div class="tiles">
+              <button type="button" class="tile" (click)="tab = 'models'">
+                <span class="tile__icon"><lucide-icon [img]="icons.Box" [size]="18"></lucide-icon></span>
+                <span><small>Asset Models</small><strong>{{ mine.length }}</strong></span>
+              </button>
+              <button type="button" class="tile" (click)="tab = 'assets'">
+                <span class="tile__icon"><lucide-icon [img]="icons.Monitor" [size]="18"></lucide-icon></span>
+                <span><small>Total Assets</small><strong>{{ assetCount | number }}</strong></span>
+              </button>
+              <div class="tile">
+                <span class="tile__icon"><lucide-icon [img]="icons.Settings" [size]="18"></lucide-icon></span>
+                <span><small>Active Assets</small><strong>{{ activeAssets | number }}</strong></span>
+              </div>
+              <div class="tile">
+                <span class="tile__icon tile__icon--warn"><lucide-icon [img]="icons.TriangleAlert" [size]="18"></lucide-icon></span>
+                <span><small>Under Warranty</small><strong>{{ underWarranty | number }}</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @case ('contact') {
+      <div class="pair">
+        <div class="card">
+          <div class="card__head">
+            <h3 class="card__title">Contacts</h3>
+            <button type="button" class="card__edit" (click)="editAt('contact')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+          </div>
+          <table class="grid-table">
+            <thead><tr><th>Role</th><th>Name</th><th>Email</th><th>Phone</th></tr></thead>
+            <tbody>
+              <tr><td>Primary</td><td>{{ manufacturer.primaryContact || '-' }}</td><td>{{ manufacturer.email || '-' }}</td><td>{{ manufacturer.phone || '-' }}</td></tr>
+              <tr><td>Secondary</td><td>{{ manufacturer.secondaryContact || '-' }}</td><td>{{ manufacturer.secondaryEmail || '-' }}</td><td>{{ manufacturer.secondaryPhone || '-' }}</td></tr>
+              <tr><td>Support</td><td>-</td><td>{{ manufacturer.supportEmail || '-' }}</td><td>{{ manufacturer.supportPhone || '-' }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3 class="card__title">Headquarters</h3>
+          <address class="address">
+            @for (line of [manufacturer.address.line1, manufacturer.address.line2, manufacturer.address.city + (manufacturer.address.state ? ', ' + manufacturer.address.state : ''), manufacturer.address.postalCode]; track $index) {
+              @if (line) { <span>{{ line }}</span> }
+            }
+            <span>{{ flag(manufacturer.address.country) }} {{ manufacturer.address.country }}</span>
+          </address>
+        </div>
+      </div>
+    }
+
+    @case ('support') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Support & Warranty</h3>
+          <button type="button" class="card__edit" (click)="editAt('support')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <dl class="facts facts--settings">
+          <dt>Support Portal</dt><dd>{{ manufacturer.supportPortal || '-' }}</dd>
+          <dt>Support Email</dt><dd>{{ manufacturer.supportEmail || '-' }}</dd>
+          <dt>Support Phone</dt><dd>{{ manufacturer.supportPhone || '-' }}</dd>
+          <dt>Standard Warranty</dt><dd>{{ manufacturer.standardWarrantyMonths }} months</dd>
+          <dt>SLA Response</dt><dd>{{ manufacturer.slaResponseHours }} hours</dd>
+          <dt>Assets Under Warranty</dt><dd>{{ underWarranty | number }} of {{ assetCount | number }}</dd>
+        </dl>
+      </div>
+    }
+
+    @case ('defaults') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Default Settings</h3>
+          <button type="button" class="card__edit" (click)="editAt('defaults')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <dl class="facts facts--settings">
+          <dt>Default Currency</dt><dd>{{ manufacturer.defaultCurrency }}</dd>
+          <dt>Payment Terms</dt><dd>{{ manufacturer.paymentTerms }}</dd>
+          <dt>Preferred Manufacturer</dt><dd>{{ manufacturer.preferred ? 'Yes' : 'No' }}</dd>
+          <dt>Warranty Registration</dt><dd>{{ manufacturer.warrantyRegistration ? 'Required' : 'Not required' }}</dd>
+          <dt>Create Warranty Automatically</dt><dd>{{ manufacturer.autoCreateWarranty ? 'Yes' : 'No' }}</dd>
+        </dl>
+      </div>
+    }
+
+    @case ('models') {
+      <div class="card">
+        <p class="muted">{{ mine.length }} asset models. <a [routerLink]="modelPath" [queryParams]="{ manufacturer: manufacturer.name }">Open on the Asset Model page</a></p>
+        <table class="grid-table">
+          <thead><tr><th>Model</th><th>Model Code</th><th>Asset Type</th><th>Category</th><th>Assets</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (m of mine; track m.code) {
+              <tr>
+                <td>{{ m.name }}</td><td class="mono">{{ m.code }}</td><td>{{ m.assetType }}</td><td>{{ m.category }}</td><td>{{ m.assetCount | number }}</td>
+                <td><span class="pill" [attr.data-status]="m.status"><i></i>{{ m.status }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty">No asset models from this manufacturer yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('assets') {
+      <div class="card">
+        <p class="muted">{{ assetCount | number }} assets by asset type.</p>
+        <table class="grid-table">
+          <thead><tr><th>Asset Type</th><th>Models</th><th>Assets</th></tr></thead>
+          <tbody>
+            @for (t of byType; track t.type) {
+              <tr><td>{{ t.type }}</td><td>{{ t.models }}</td><td>{{ t.assets | number }}</td></tr>
+            } @empty {
+              <tr><td colspan="3" class="empty">No assets yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('documents') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Document</th><th>Type</th><th>Size</th><th>Uploaded On</th></tr></thead>
+          <tbody>
+            @for (d of documentRows; track d.name) {
+              <tr><td>{{ d.name }}</td><td>{{ d.kind }}</td><td>{{ d.size }}</td><td>{{ d.date }}</td></tr>
+            } @empty {
+              <tr><td colspan="4" class="empty">No documents linked yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('activity') {
+      <div class="card">
+        <ol class="timeline">
+          @for (a of activity; track $index) {
+            <li><span class="timeline__when">{{ formatDateTime(a.when) }}</span><span><strong>{{ a.who }}</strong> {{ a.text }}</span></li>
+          }
+        </ol>
+      </div>
+    }
+  }
+</section>

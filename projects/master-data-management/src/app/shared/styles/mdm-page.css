@@ -156,6 +156,10 @@
 .kpi__dot--green { background: #16a34a; }
 .kpi__dot--grey { background: #8190b3; }
 
+.kpis--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .kpis--5 {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }

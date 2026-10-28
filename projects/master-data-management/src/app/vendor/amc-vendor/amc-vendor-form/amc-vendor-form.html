@@ -1,0 +1,166 @@
+<aside class="drawer" role="dialog" aria-labelledby="amc-form-title">
+  <header class="drawer__header">
+    <h2 id="amc-form-title">{{ isEdit ? 'Edit AMC Vendor' : 'Add AMC Vendor' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <app-vendor-basic [vendor]="form" [errors]="errors" noun="AMC Vendor">
+          <div class="field" [class.invalid]="errors['assetType']">
+            <label for="amc-type"><span class="req">*</span> Asset Type</label>
+            <select id="amc-type" name="assetType" [(ngModel)]="form.assetType">
+              <option value="" disabled>Select asset type</option>
+              @for (t of assetTypes; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+            @if (errors['assetType']) { <small>{{ errors['assetType'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['contractType']">
+            <label for="amc-contract"><span class="req">*</span> Contract Type</label>
+            <select id="amc-contract" name="contractType" [(ngModel)]="form.contractType">
+              <option value="" disabled>Select contract type</option>
+              @for (t of contractTypes; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+            @if (errors['contractType']) { <small>{{ errors['contractType'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['startDate']">
+            <label for="amc-start"><span class="req">*</span> Start Date</label>
+            <input id="amc-start" name="startDate" type="date" [(ngModel)]="form.startDate" />
+            @if (errors['startDate']) { <small>{{ errors['startDate'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['endDate']">
+            <label for="amc-end"><span class="req">*</span> End Date</label>
+            <input id="amc-end" name="endDate" type="date" [(ngModel)]="form.endDate" />
+            @if (errors['endDate']) { <small>{{ errors['endDate'] }}</small> }
+            @else if (termMonths) { <small class="hint">{{ termMonths }} months</small> }
+          </div>
+        </app-vendor-basic>
+      }
+
+      @case ('contract') {
+        <div class="grid">
+          <div class="field">
+            <label for="amc-no">Contract No.</label>
+            <input id="amc-no" name="contractNo" placeholder="e.g. AMC/2024/101" [(ngModel)]="form.contractNo" />
+          </div>
+          <div class="field">
+            <label for="amc-billing">Billing Cycle</label>
+            <select id="amc-billing" name="billingCycle" [(ngModel)]="form.billingCycle">
+              @for (b of billingCycles; track b) { <option [value]="b">{{ b }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors['contractValue']">
+            <label for="amc-value">Contract Value</label>
+            <input id="amc-value" name="contractValue" type="number" min="0" [(ngModel)]="form.contractValue" />
+            @if (errors['contractValue']) { <small>{{ errors['contractValue'] }}</small> }
+          </div>
+          <div class="field">
+            <label for="amc-currency">Currency</label>
+            <select id="amc-currency" name="currency" [(ngModel)]="form.currency">
+              @for (c of currencies; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors['visitsPerYear']">
+            <label for="amc-visits">Preventive Visits per Year</label>
+            <input id="amc-visits" name="visitsPerYear" type="number" min="0" [(ngModel)]="form.visitsPerYear" />
+            @if (errors['visitsPerYear']) { <small>{{ errors['visitsPerYear'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['renewalNoticeDays']">
+            <label for="amc-notice">Renewal Notice (Days)</label>
+            <input id="amc-notice" name="renewalNoticeDays" type="number" min="0" max="365" [(ngModel)]="form.renewalNoticeDays" />
+            @if (errors['renewalNoticeDays']) { <small>{{ errors['renewalNoticeDays'] }}</small> }
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Auto renew</strong><small>Renew for the same term unless cancelled before the notice period.</small></span>
+            <input type="checkbox" name="autoRenew" [(ngModel)]="form.autoRenew" />
+          </label>
+        </div>
+      }
+
+      @case ('coverage') {
+        <p class="hint">Asset models covered by this contract: {{ form.coveredModels.length }} models, {{ coveredAssets | number }} registered assets.</p>
+        <div class="field">
+          <input name="modelSearch" placeholder="Search model, code or manufacturer" aria-label="Search asset models" [(ngModel)]="modelSearch" />
+        </div>
+        <div class="row-actions">
+          <label class="only-members"><input type="checkbox" name="showAllTypes" [(ngModel)]="showAllTypes" /> Show all asset types</label>
+          @if (form.name.trim()) {
+            <button type="button" class="btn btn--ghost" (click)="coverOwnModels()">Add all {{ form.name.trim() }} models</button>
+          }
+        </div>
+        <div class="ticks ticks--people">
+          @for (m of modelOptions; track m.code) {
+            <label>
+              <input type="checkbox" [checked]="isCovered(m.code)" (change)="toggleModel(m.code)" />
+              <span>{{ m.manufacturer }} {{ m.name }} <small>{{ m.code }} · {{ m.assetType }} · {{ m.assetCount }} assets</small></span>
+            </label>
+          } @empty {
+            <p class="hint">No asset models match. Pick an asset type on Basic Information or tick "Show all asset types".</p>
+          }
+        </div>
+      }
+
+      @case ('sla') {
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['responseHours']">
+            <label for="amc-response">Response Time (Hours)</label>
+            <input id="amc-response" name="responseHours" type="number" min="1" [(ngModel)]="form.responseHours" />
+            @if (errors['responseHours']) { <small>{{ errors['responseHours'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['resolutionHours']">
+            <label for="amc-resolution">Resolution Time (Hours)</label>
+            <input id="amc-resolution" name="resolutionHours" type="number" min="1" [(ngModel)]="form.resolutionHours" />
+            @if (errors['resolutionHours']) { <small>{{ errors['resolutionHours'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['uptimePercent']">
+            <label for="amc-uptime">Guaranteed Uptime (%)</label>
+            <input id="amc-uptime" name="uptimePercent" type="number" min="0" max="100" step="0.1" [(ngModel)]="form.uptimePercent" />
+            @if (errors['uptimePercent']) { <small>{{ errors['uptimePercent'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['penaltyPerHour']">
+            <label for="amc-penalty">Penalty per Hour Late ({{ form.currency.slice(0, 3) }})</label>
+            <input id="amc-penalty" name="penaltyPerHour" type="number" min="0" [(ngModel)]="form.penaltyPerHour" />
+            @if (errors['penaltyPerHour']) { <small>{{ errors['penaltyPerHour'] }}</small> }
+          </div>
+        </div>
+      }
+
+      @case ('address') {
+        <app-vendor-address [vendor]="form" [errors]="errors"></app-vendor-address>
+      }
+
+      @case ('documents') {
+        <app-vendor-documents [vendor]="form" [errors]="errors"></app-vendor-documents>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Notify before expiry</strong><small>Remind the asset owner when the renewal notice period starts.</small></span>
+            <input type="checkbox" name="notifyBeforeExpiry" [(ngModel)]="form.notifyBeforeExpiry" />
+          </label>
+          <label class="toggle">
+            <span><strong>Service report required</strong><small>Each visit must be closed with a signed service report.</small></span>
+            <input type="checkbox" name="serviceReportRequired" [(ngModel)]="form.serviceReportRequired" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

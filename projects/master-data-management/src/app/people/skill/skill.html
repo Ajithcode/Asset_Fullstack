@@ -1,0 +1,154 @@
+<div class="mdm-page" [class.mdm-page--with-form]="formOpen">
+  <div class="mdm-main">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a [routerLink]="basePath">Master Data Management</a>
+      <span aria-hidden="true">›</span>
+      <a [routerLink]="basePath + '/people'">People</a>
+      <span aria-hidden="true">›</span>
+      <strong>Skill</strong>
+    </nav>
+
+    <header class="head">
+      <span class="head__icon"><lucide-icon [img]="icons.Hexagon" [size]="24"></lucide-icon></span>
+      <div class="head__text">
+        <h1>Skill</h1>
+        <p>Manage skills and competencies required for maintenance, inspection and operations.</p>
+      </div>
+      <button type="button" class="btn btn--primary head__add" (click)="openAdd()">
+        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add Skill
+      </button>
+    </header>
+
+    <section class="panel">
+      <form class="filters" (ngSubmit)="apply()">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input name="search" placeholder="Search skill by name or code..." aria-label="Search skills" [(ngModel)]="draft.search" />
+        </label>
+        <label class="filter">
+          <span>Category</span>
+          <select name="category" [(ngModel)]="draft.category">
+            <option value="">All</option>
+            @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+        </label>
+        <label class="filter">
+          <span>Type</span>
+          <select name="type" [(ngModel)]="draft.type">
+            <option value="">All</option>
+            <option value="Hard Skill">Hard Skill</option>
+            <option value="Soft Skill">Soft Skill</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn--link" (click)="clear()">Clear</button>
+        <button type="submit" class="btn btn--primary">Apply</button>
+      </form>
+
+      @if (selected.size) {
+        <div class="bulk">
+          <span>{{ selected.size }} selected</span>
+          <button type="button" class="btn btn--link" (click)="selected.clear()">Clear selection</button>
+          <button type="button" class="btn btn--danger" (click)="askDeleteSelected()">Delete selected</button>
+        </div>
+      }
+
+      <div class="table-wrap">
+        <table class="mdm-table">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" [checked]="allOnPageSelected" (change)="togglePage()" aria-label="Select all on this page" /></th>
+              <th>
+                <button type="button" class="sort" (click)="sortBy('name')" [class.sort--on]="sortKey === 'name'">
+                  Skill Name <lucide-icon [img]="sortKey === 'name' && sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon>
+                </button>
+              </th>
+              <th>
+                <button type="button" class="sort" (click)="sortBy('code')" [class.sort--on]="sortKey === 'code'">
+                  Code @if (sortKey === 'code') { <lucide-icon [img]="sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon> }
+                </button>
+              </th>
+              <th>
+                <button type="button" class="sort" (click)="sortBy('category')" [class.sort--on]="sortKey === 'category'">
+                  Category @if (sortKey === 'category') { <lucide-icon [img]="sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon> }
+                </button>
+              </th>
+              <th>Type</th>
+              <th>Proficiency Levels</th>
+              <th>Status</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of pageRows; track r.code) {
+              <tr [class.is-selected]="formMode === 'edit' && formRecord?.code === r.code">
+                <td class="col-check"><input type="checkbox" [checked]="selected.has(r.code)" (change)="toggleRow(r.code)" [attr.aria-label]="'Select ' + r.name" /></td>
+                <td><button type="button" class="name" (click)="openEdit(r)">{{ r.name }}</button></td>
+                <td>{{ r.code }}</td>
+                <td>{{ r.category }}</td>
+                <td>{{ r.type }}</td>
+                <td>{{ levelRange(r) }}</td>
+                <td><span class="pill" [attr.data-status]="r.status"><i></i>{{ r.status }}</span></td>
+                <td class="col-actions">
+                  <div class="row-menu">
+                    <button type="button" class="dots" [attr.aria-label]="'Actions for ' + r.name" [attr.aria-expanded]="menuFor === r.code" (click)="$event.stopPropagation(); toggleMenu(r.code)">
+                      <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon>
+                    </button>
+                    @if (menuFor === r.code) {
+                      <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                        <button type="button" role="menuitem" (click)="openEdit(r)">Edit</button>
+                        <button type="button" role="menuitem" (click)="duplicate(r)">Duplicate</button>
+                        <button type="button" role="menuitem" (click)="toggleStatus(r)">Mark as {{ r.status === 'Active' ? 'Inactive' : 'Active' }}</button>
+                        <button type="button" role="menuitem" class="danger" (click)="askDelete([r])">Delete</button>
+                      </div>
+                    }
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="8" class="empty">No skills match these filters.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pager">
+        <span>Showing {{ showingFrom }} to {{ showingTo }} of {{ rows.length }} records</span>
+        <div class="pager__pages">
+          <button type="button" class="page-btn" [disabled]="page === 0" (click)="goTo(page - 1)" aria-label="Previous page">
+            <lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon>
+          </button>
+          @for (p of pageNumbers; track p) {
+            <button type="button" class="page-btn" [class.active]="p === page" [attr.aria-current]="p === page ? 'page' : null" (click)="goTo(p)">{{ p + 1 }}</button>
+          }
+          <button type="button" class="page-btn" [disabled]="page >= pageCount - 1" (click)="goTo(page + 1)" aria-label="Next page">
+            <lucide-icon [img]="icons.ChevronRight" [size]="15"></lucide-icon>
+          </button>
+          <select class="page-size" name="pageSize" [(ngModel)]="pageSize" (ngModelChange)="page = 0" aria-label="Rows per page">
+            @for (s of pageSizes; track s) { <option [ngValue]="s">{{ s }} / page</option> }
+          </select>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  @if (formOpen) {
+    <app-skill-form #formEl class="mdm-form" [mode]="formMode" [skill]="formRecord" [usage]="formRecord && formMode === 'edit' ? usage(formRecord) : 0" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-skill-form>
+  }
+</div>
+
+@if (pendingDelete.length) {
+  <div class="overlay" (click)="cancelDelete()">
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="skill-del-title" (click)="$event.stopPropagation()">
+      <h2 id="skill-del-title">Delete {{ pendingDelete.length === 1 ? pendingDelete[0].name : pendingDelete.length + ' skills' }}?</h2>
+      <p>This can't be undone.</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
+        <button type="button" class="btn btn--danger" (click)="confirmDelete('skills')">Delete</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

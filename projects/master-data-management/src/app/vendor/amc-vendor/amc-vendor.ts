@@ -1,28 +1,110 @@
-import { Component } from '@angular/core';
-import { MasterTable } from '../../shared/master-table/master-table';
-import { MasterTableConfig } from '../../shared/master-table/master-table.model';
+import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search, Settings } from 'lucide-angular';
+import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { badgeInk, badgeText } from '../../asset/manufacturer/manufacturer.data';
+import { ListPage } from '../../shared/list-page';
+import { formatDate } from '../vendor.data';
+import { AMC_ASSET_TYPES, CONTRACT_TYPES } from './amc-vendor.data';
+import { AmcVendorForm } from './amc-vendor-form/amc-vendor-form';
+import { AmcVendorFilters, AmcVendorRecord } from './amc-vendor.model';
+import { AmcVendorService } from './amc-vendor.service';
 
+type SortKey = 'name' | 'code' | 'assetType' | 'contractType' | 'startDate' | 'endDate';
+
+const DAY = 86400000;
+
+/** Master Data Management > Vendor > AMC Vendor */
 @Component({
   selector: 'app-mdm-vendor-amc-vendor',
-  imports: [MasterTable],
-  template: '<app-master-table [config]="config" />'
+  imports: [FormsModule, RouterLink, LucideAngularModule, AmcVendorForm],
+  templateUrl: './amc-vendor.html',
+  styleUrls: ['../../shared/styles/mdm-page.css', '../vendor.css']
 })
-export class AmcVendorPage {
-  readonly config: MasterTableConfig = {
-    key: 'vendor/amc-vendor',
-    title: 'AMC Vendor',
-    singular: 'AMC Vendor',
-    codePrefix: 'AMC',
-    fields: [
-      { key: 'name', label: 'Name', required: true },
-      { key: 'contractNo', label: 'Contract No.' },
-      { key: 'startDate', label: 'Start Date', type: 'date' },
-      { key: 'endDate', label: 'End Date', type: 'date' },
-      { key: 'value', label: 'Contract Value', type: 'number' }
-    ],
-    rows: [
-      { code: 'AMC-0001', name: 'Cummins Sales & Service', contractNo: 'AMC/2026/014', startDate: '2026-04-01', endDate: '2027-03-31', value: 240000, status: 'Active' },
-      { code: 'AMC-0002', name: 'Carrier Aircon', contractNo: 'AMC/2025/188', startDate: '2025-10-01', endDate: '2026-09-30', value: 180000, status: 'Inactive' }
-    ]
-  };
+export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, SortKey> {
+  readonly service = inject(AmcVendorService);
+  readonly basePath = MASTER_DATA_BASE_PATH;
+  readonly assetTypes = AMC_ASSET_TYPES;
+  readonly contractTypes = CONTRACT_TYPES;
+  readonly formatDate = formatDate;
+  readonly badgeText = badgeText;
+  readonly badgeInk = badgeInk;
+  readonly icons = { Settings, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+  private readonly today = new Date().toISOString().slice(0, 10);
+
+  constructor() {
+    super({ search: '', assetType: '', contractType: '', status: '' });
+  }
+
+  keyOf(r: AmcVendorRecord): string {
+    return r.code;
+  }
+
+  nameOf(r: AmcVendorRecord): string {
+    return r.name;
+  }
+
+  protected all(): AmcVendorRecord[] {
+    return this.service.all();
+  }
+
+  protected matches(r: AmcVendorRecord, f: AmcVendorFilters): boolean {
+    const term = f.search.trim().toLowerCase();
+    return (
+      (!f.assetType || r.assetType === f.assetType) &&
+      (!f.contractType || r.contractType === f.contractType) &&
+      (!f.status || r.status === f.status) &&
+      (!term || [r.name, r.code, r.assetType, r.contractType, r.contactPerson].some((v) => v.toLowerCase().includes(term)))
+    );
+  }
+
+  protected sortValue(r: AmcVendorRecord, key: SortKey): string {
+    return r[key];
+  }
+
+  protected removeRecords(codes: string[]): void {
+    this.service.remove(codes);
+  }
+
+  /** 'ended', 'soon' (within the notice period) or '' for the end date flag. */
+  term(r: AmcVendorRecord): 'ended' | 'soon' | '' {
+    if (r.endDate < this.today) return 'ended';
+    const days = (new Date(r.endDate).getTime() - new Date(this.today).getTime()) / DAY;
+    return days <= r.renewalNoticeDays ? 'soon' : '';
+  }
+
+  daysLeft(r: AmcVendorRecord): number {
+    return Math.round((new Date(r.endDate).getTime() - new Date(this.today).getTime()) / DAY);
+  }
+
+  duplicate(r: AmcVendorRecord): void {
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active', logo: null, contractNo: '' });
+  }
+
+  // Starts a new term of the same length the day after the current one ends
+  renew(r: AmcVendorRecord): void {
+    this.menuFor = null;
+    const start = new Date(new Date(r.endDate).getTime() + DAY);
+    const length = new Date(r.endDate).getTime() - new Date(r.startDate).getTime();
+    const end = new Date(start.getTime() + length);
+    const startDate = start.toISOString().slice(0, 10);
+    const endDate = end.toISOString().slice(0, 10);
+    this.service.save({ ...r, startDate, endDate, status: 'Active' }, r.code);
+    this.notify(`${r.name} renewed to ${formatDate(endDate)}.`);
+  }
+
+  onSaved(event: { record: AmcVendorRecord; originalCode: string | null }): void {
+    this.service.save(event.record, event.originalCode);
+    this.carrySelection(event.originalCode, event.record.code);
+    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+    this.closeForm();
+  }
+
+  toggleStatus(r: AmcVendorRecord): void {
+    this.menuFor = null;
+    const status = r.status === 'Active' ? 'Inactive' : 'Active';
+    this.service.save({ ...r, status }, r.code);
+    this.notify(`${r.name} marked ${status}.`);
+  }
 }
