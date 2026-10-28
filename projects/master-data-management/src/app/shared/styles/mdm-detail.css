@@ -158,11 +158,10 @@
 /* Tabs */
 .detail__tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin: 14px 0 12px;
   border-bottom: 1px solid #eceef3;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
 .detail__tabs button {

@@ -95,6 +95,22 @@
           @if (errors.siteId) { <small>{{ errors.siteId }}</small> }
         </div>
 
+        <div class="grid">
+          <div class="field" [class.invalid]="errors.lat">
+            <label for="bfz-lat">Latitude</label>
+            <input id="bfz-lat" name="lat" type="number" step="0.000001" placeholder="e.g. 24.986050" [(ngModel)]="form.lat" />
+            @if (errors.lat) { <small>{{ errors.lat }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.lng">
+            <label for="bfz-lng">Longitude</label>
+            <input id="bfz-lng" name="lng" type="number" step="0.000001" placeholder="e.g. 55.074450" [(ngModel)]="form.lng" />
+            @if (errors.lng) { <small>{{ errors.lng }}</small> }
+          </div>
+        </div>
+        @if (positionSource; as src) {
+          <button type="button" class="btn btn--ghost btn--small-link" (click)="usePosition()">Use {{ src.label }} position</button>
+        }
+
         <div class="field">
           <label for="bfz-desc">Description</label>
           <textarea id="bfz-desc" name="description" rows="3" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
@@ -200,21 +216,9 @@
               <input id="bfz-postal" name="postalCode" [(ngModel)]="form.address.postalCode" />
             </div>
           </div>
-          <span class="section-title">Map Position</span>
-          <div class="grid">
-            <div class="field" [class.invalid]="errors.lat">
-              <label for="bfz-lat">Latitude</label>
-              <input id="bfz-lat" name="lat" type="number" step="0.000001" [(ngModel)]="form.lat" />
-              @if (errors.lat) { <small>{{ errors.lat }}</small> }
-            </div>
-            <div class="field" [class.invalid]="errors.lng">
-              <label for="bfz-lng">Longitude</label>
-              <input id="bfz-lng" name="lng" type="number" step="0.000001" [(ngModel)]="form.lng" />
-              @if (errors.lng) { <small>{{ errors.lng }}</small> }
-            </div>
-          </div>
+          <p class="hint">Latitude and longitude are on the Basic Information tab.</p>
         } @else {
-          <p class="hint">{{ form.type }}s use their building's address and map position.</p>
+          <p class="hint">{{ form.type }}s use their building's address. Latitude and longitude are on the Basic Information tab.</p>
           @if (building; as b) {
             <div class="inherited">
               <strong>{{ service.label(b) }}</strong>

@@ -100,6 +100,27 @@ export class BfzForm implements OnChanges {
     this.form.floorCode = null;
     this.form.siteId = this.building?.siteId ?? '';
     if (this.form.type === 'Floor' && !this.isEdit) this.form.levelNumber = this.nextLevel();
+    // A new floor or zone starts at its building's position
+    if (!this.isEdit && this.form.lat === null && this.form.lng === null) this.usePosition();
+  }
+
+  /** Where "Use … position" copies from: the building for floors and zones, the site for buildings. */
+  get positionSource(): { label: string; lat: number; lng: number } | null {
+    if (this.form.type !== 'Building') {
+      const b = this.building;
+      return b && b.lat !== null && b.lng !== null ? { label: 'building', lat: b.lat, lng: b.lng } : null;
+    }
+    const site = this.service.sites().find((s) => s.id === this.form.siteId);
+    return site ? { label: 'site', lat: site.lat, lng: site.lng } : null;
+  }
+
+  usePosition(): void {
+    const src = this.positionSource;
+    if (!src) return;
+    this.form.lat = src.lat;
+    this.form.lng = src.lng;
+    const { lat, lng, ...rest } = this.errors;
+    this.errors = rest;
   }
 
   onImagePicked(event: Event): void {
@@ -139,15 +160,14 @@ export class BfzForm implements OnChanges {
     if (!f.siteId) errors.siteId = 'Select a site.';
     if (f.capacity !== null && f.capacity < 0) errors.capacity = 'Capacity cannot be negative.';
     if (f.area !== null && f.area < 0) errors.area = 'Area cannot be negative.';
-    if (f.type === 'Building') {
-      if (f.lat !== null && (f.lat < -90 || f.lat > 90)) errors.lat = 'Latitude must be between -90 and 90.';
-      if (f.lng !== null && (f.lng < -180 || f.lng > 180)) errors.lng = 'Longitude must be between -180 and 180.';
-    }
+    if (f.lat !== null && (f.lat < -90 || f.lat > 90)) errors.lat = 'Latitude must be between -90 and 90.';
+    else if (f.lat === null && f.lng !== null) errors.lat = 'Enter the latitude too.';
+    if (f.lng !== null && (f.lng < -180 || f.lng > 180)) errors.lng = 'Longitude must be between -180 and 180.';
+    else if (f.lng === null && f.lat !== null) errors.lng = 'Enter the longitude too.';
     this.errors = errors;
 
-    const keys = Object.keys(errors);
-    if (keys.length) {
-      this.tab = keys.some((k) => k !== 'lat' && k !== 'lng') ? 'basic' : 'address';
+    if (Object.keys(errors).length) {
+      this.tab = 'basic';
       return;
     }
 
@@ -164,8 +184,8 @@ export class BfzForm implements OnChanges {
         floorCode: f.type === 'Zone' ? f.floorCode : null,
         // Floors and zones sit at their building's address
         address: isBuilding ? f.address : { line1: '', line2: '', city: '', state: '', country: '', postalCode: '' },
-        lat: isBuilding ? f.lat : null,
-        lng: isBuilding ? f.lng : null,
+        lat: f.lat,
+        lng: f.lng,
         levelNumber: f.type === 'Floor' ? f.levelNumber : null,
         createdOn: this.original?.createdOn ?? stamp,
         updatedOn: stamp

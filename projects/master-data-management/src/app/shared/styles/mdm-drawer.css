@@ -44,13 +44,13 @@
   background: #f1f1f5;
 }
 
+/* Tabs wrap onto a second row so the last ones are never cut off in the narrow drawer */
 .drawer__tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   margin: 0 18px;
   border-bottom: 1px solid #eceef3;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
 .drawer__tabs button {
