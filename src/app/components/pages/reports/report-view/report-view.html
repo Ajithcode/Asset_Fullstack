@@ -58,7 +58,7 @@
         <tbody>
           <tr *ngFor="let row of report.rows">
             <ng-container *ngFor="let col of columns">
-              <td *ngIf="col.visible">{{ row[col.key] ?? '-' }}</td>
+              <td *ngIf="col.visible">{{ cell(row, col.key) }}</td>
             </ng-container>
           </tr>
 

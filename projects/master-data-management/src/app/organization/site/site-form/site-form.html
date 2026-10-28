@@ -1,0 +1,270 @@
+<aside class="drawer" role="dialog" aria-labelledby="site-form-title">
+  <header class="drawer__header">
+    <h2 id="site-form-title">{{ isEdit ? 'Edit Site' : 'Add Site' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <div class="image-field">
+            <span class="field__label">Site Image</span>
+            <label class="upload" [class.upload--filled]="form.image" [class.invalid]="errors.image">
+              <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+              @if (form.image) {
+                <img [src]="form.image" alt="Site photo" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); removeImage()">Remove</button>
+              } @else {
+                <span class="upload__icon"><lucide-icon [img]="icons.Building2" [size]="34" [strokeWidth]="1.6"></lucide-icon></span>
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+          </div>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.name">
+              <label for="site-name"><span class="req">*</span> Site Name</label>
+              <input id="site-name" name="name" placeholder="Enter site name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.code">
+              <label for="site-code"><span class="req">*</span> Code</label>
+              <input id="site-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+              @if (errors.code) { <small>{{ errors.code }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.siteType">
+              <label for="site-type"><span class="req">*</span> Site Type</label>
+              <select id="site-type" name="siteType" [(ngModel)]="form.siteType">
+                <option value="" disabled>Select site type</option>
+                @for (t of siteTypes; track t) { <option [value]="t">{{ t }}</option> }
+              </select>
+              @if (errors.siteType) { <small>{{ errors.siteType }}</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors.image) { <small class="upload-error">{{ errors.image }}</small> }
+
+        <div class="grid">
+          <div class="field">
+            <label for="site-bu">Business Unit</label>
+            <select id="site-bu" name="businessUnit" [(ngModel)]="form.businessUnit">
+              <option value="">Select business unit</option>
+              @for (b of businessUnits.names(); track b) { <option [value]="b">{{ b }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="site-dept">Department</label>
+            <select id="site-dept" name="department" [(ngModel)]="form.department">
+              <option value="">Select department</option>
+              @for (d of departments; track d) { <option [value]="d">{{ d }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="site-parent">Parent Site</label>
+            <select id="site-parent" name="parentId" [(ngModel)]="form.parentId">
+              <option [ngValue]="null">Select parent site (optional)</option>
+              @for (p of parentOptions; track p.id) { <option [ngValue]="p.id">{{ p.name }} ({{ p.code }})</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="site-tz">Time Zone</label>
+            <select id="site-tz" name="timeZone" [(ngModel)]="form.timeZone">
+              @for (z of timeZones; track z) { <option [value]="z">{{ z }}</option> }
+            </select>
+          </div>
+          <div class="field field--wide">
+            <label for="site-desc">Description</label>
+            <textarea id="site-desc" name="description" rows="3" placeholder="Enter description about the site" [(ngModel)]="form.description"></textarea>
+          </div>
+          <div class="field field--wide">
+            <span class="field__label">Status</span>
+            <div class="radios">
+              <label><input type="radio" name="status" value="Active" [(ngModel)]="form.status" /> Active</label>
+              <label><input type="radio" name="status" value="Inactive" [(ngModel)]="form.status" /> Inactive</label>
+            </div>
+          </div>
+        </div>
+      }
+
+      @case ('address') {
+        <div class="grid">
+          <div class="field field--wide">
+            <label for="site-a1">Address Line 1</label>
+            <input id="site-a1" name="line1" placeholder="Area, building" [(ngModel)]="form.address.line1" />
+          </div>
+          <div class="field field--wide">
+            <label for="site-a2">Address Line 2</label>
+            <input id="site-a2" name="line2" placeholder="Plot, street" [(ngModel)]="form.address.line2" />
+          </div>
+          <div class="field">
+            <label for="site-city">City</label>
+            <input id="site-city" name="city" [(ngModel)]="form.address.city" />
+          </div>
+          <div class="field">
+            <label for="site-state">State / Emirate</label>
+            <input id="site-state" name="state" [(ngModel)]="form.address.state" />
+          </div>
+          <div class="field">
+            <label for="site-country">Country</label>
+            <select id="site-country" name="country" [(ngModel)]="form.address.country">
+              @for (c of countries; track c.name) { <option [value]="c.name">{{ c.name }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="site-postal">Postal Code</label>
+            <input id="site-postal" name="postalCode" [(ngModel)]="form.address.postalCode" />
+          </div>
+          <div class="field" [class.invalid]="errors.lat">
+            <label for="site-lat">Latitude</label>
+            <input id="site-lat" name="lat" type="number" step="0.0001" [(ngModel)]="form.lat" />
+            @if (errors.lat) { <small>{{ errors.lat }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.lng">
+            <label for="site-lng">Longitude</label>
+            <input id="site-lng" name="lng" type="number" step="0.0001" [(ngModel)]="form.lng" />
+            @if (errors.lng) { <small>{{ errors.lng }}</small> }
+          </div>
+        </div>
+      }
+
+      @case ('hierarchy') {
+        <div class="field">
+          <label for="site-org">Organization</label>
+          <select id="site-org" name="organizationCode" [(ngModel)]="form.organizationCode">
+            @for (o of organizations.all(); track o.code) { <option [value]="o.code">{{ o.name }}</option> }
+          </select>
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="site-bu-h">Business Unit</label>
+            <select id="site-bu-h" name="businessUnitH" [(ngModel)]="form.businessUnit">
+              <option value="">Select business unit</option>
+              @for (b of businessUnits.names(); track b) { <option [value]="b">{{ b }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="site-dept-h">Department</label>
+            <select id="site-dept-h" name="departmentH" [(ngModel)]="form.department">
+              <option value="">Select department</option>
+              @for (d of departments; track d) { <option [value]="d">{{ d }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="site-parent-h">Parent Site</label>
+          <select id="site-parent-h" name="parentIdH" [(ngModel)]="form.parentId">
+            <option [ngValue]="null">No parent site</option>
+            @for (p of parentOptions; track p.id) { <option [ngValue]="p.id">{{ p.name }} ({{ p.code }})</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="site-path">Hierarchy Path</label>
+          <input id="site-path" name="path" [value]="path" readonly />
+        </div>
+      }
+
+      @case ('contacts') {
+        <span class="section-title">Site Manager</span>
+        <div class="grid">
+          <div class="field">
+            <label for="mgr-name">Name</label>
+            <input id="mgr-name" name="mgrName" [(ngModel)]="form.manager.name" />
+          </div>
+          <div class="field">
+            <label for="mgr-role">Designation</label>
+            <input id="mgr-role" name="mgrRole" [(ngModel)]="form.manager.designation" />
+          </div>
+          <div class="field" [class.invalid]="errors.managerEmail">
+            <label for="mgr-email">Email</label>
+            <input id="mgr-email" name="mgrEmail" type="email" [(ngModel)]="form.manager.email" />
+            @if (errors.managerEmail) { <small>{{ errors.managerEmail }}</small> }
+          </div>
+          <div class="field">
+            <label for="mgr-phone">Phone</label>
+            <div class="phone">
+              <select name="mgrCountry" aria-label="Manager phone country" [(ngModel)]="form.manager.phoneCountry">
+                @for (c of countries; track c.name) { <option [value]="c.name">{{ c.flag }} {{ c.dial }}</option> }
+              </select>
+              <input id="mgr-phone" name="mgrPhone" type="tel" [(ngModel)]="form.manager.phone" />
+            </div>
+          </div>
+        </div>
+
+        <span class="section-title">Emergency Contact</span>
+        <div class="grid">
+          <div class="field">
+            <label for="em-name">Name</label>
+            <input id="em-name" name="emName" [(ngModel)]="form.emergency.name" />
+          </div>
+          <div class="field">
+            <label for="em-role">Designation</label>
+            <input id="em-role" name="emRole" [(ngModel)]="form.emergency.designation" />
+          </div>
+          <div class="field" [class.invalid]="errors.emergencyEmail">
+            <label for="em-email">Email</label>
+            <input id="em-email" name="emEmail" type="email" [(ngModel)]="form.emergency.email" />
+            @if (errors.emergencyEmail) { <small>{{ errors.emergencyEmail }}</small> }
+          </div>
+          <div class="field">
+            <label for="em-phone">Phone</label>
+            <div class="phone">
+              <select name="emCountry" aria-label="Emergency phone country" [(ngModel)]="form.emergency.phoneCountry">
+                @for (c of countries; track c.name) { <option [value]="c.name">{{ c.flag }} {{ c.dial }}</option> }
+              </select>
+              <input id="em-phone" name="emPhone" type="tel" [(ngModel)]="form.emergency.phone" />
+            </div>
+          </div>
+        </div>
+      }
+
+      @case ('settings') {
+        <span class="section-title">Operating Hours</span>
+        <label class="check"><input type="checkbox" name="open24x7" [(ngModel)]="form.open24x7" /> Open 24 x 7</label>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors.hours">
+            <label for="site-open">Opens</label>
+            <input id="site-open" name="openTime" type="time" [(ngModel)]="form.openTime" [disabled]="form.open24x7" />
+            @if (errors.hours) { <small>{{ errors.hours }}</small> }
+          </div>
+          <div class="field">
+            <label for="site-close">Closes</label>
+            <input id="site-close" name="closeTime" type="time" [(ngModel)]="form.closeTime" [disabled]="form.open24x7" />
+          </div>
+        </div>
+        <div class="field">
+          <span class="field__label">Working Days</span>
+          <div class="days">
+            @for (d of weekDays; track d) {
+              <button type="button" class="day" [class.on]="form.workingDays.includes(d)" [attr.aria-pressed]="form.workingDays.includes(d)" (click)="toggleDay(d)">{{ d }}</button>
+            }
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Allow asset assignment</strong><small>Assets can be placed at this site.</small></span>
+            <input type="checkbox" name="allowAssetAssignment" [(ngModel)]="form.allowAssetAssignment" />
+          </label>
+          <label class="toggle">
+            <span><strong>Enable tracking</strong><small>Show live tag positions for this site.</small></span>
+            <input type="checkbox" name="enableTracking" [(ngModel)]="form.enableTracking" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

@@ -1,0 +1,151 @@
+/* Numbering Sequence page extras on top of the shared admin workspace */
+.attention {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--adm-pink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.stat__trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.seq-list {
+  max-height: 720px;
+  overflow-y: auto;
+}
+
+.seq-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.seq-sample {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seq-meta span:last-child:not(:first-child) {
+  flex-shrink: 0;
+  color: #334155;
+}
+
+/* The drawer host element is the third grid cell */
+@media (max-width: 1280px) {
+  .ws--with-drawer > app-sequence-drawer {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Sequence Settings: three columns like the design */
+.settings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.settings .row-field {
+  grid-template-columns: 105px minmax(0, 1fr);
+}
+
+.row-field.invalid input {
+  border-color: var(--adm-red);
+}
+
+.err {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--adm-red);
+  font-size: 11.5px;
+}
+
+.radio-row {
+  display: grid;
+  grid-template-columns: 105px minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.radio-row__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.radios {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.radios label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.toggle-row b {
+  display: block;
+  font-weight: 600;
+}
+
+.toggle-row small {
+  color: var(--adm-muted);
+  font-size: 11.5px;
+}
+
+.prefix-preview {
+  display: block;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #f8f9fc;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.test p.muted {
+  margin: -4px 0 12px;
+}
+
+.test__controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.test__controls .field {
+  width: 160px;
+  margin-bottom: 0;
+}
+
+@media (max-width: 1400px) {
+  .settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .settings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

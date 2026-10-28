@@ -1,0 +1,69 @@
+<div class="pm-top">
+  <label class="pm-all">
+    <input type="checkbox" [checked]="allState() === 'all'" [indeterminate]="allState() === 'some'" (change)="toggleAll()" />
+    Select all
+  </label>
+</div>
+
+<div class="table-wrap pm-wrap">
+  <table class="table pm">
+    <thead>
+      <tr>
+        <th>Module</th>
+        @for (a of actions; track a.id) {
+          <th class="center">
+            <button type="button" class="pm-col" [title]="'Toggle ' + a.label + ' for all modules'" (click)="toggleCol(a.id)">{{ a.label }}</button>
+          </th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (m of modules; track m) {
+        <tr>
+          <td>
+            <button type="button" class="pm-mod" [title]="'Toggle every action for ' + m" (click)="toggleRow(m)">
+              <lucide-icon [img]="moduleIcon(m)" [size]="16"></lucide-icon>
+              {{ m }}
+            </button>
+          </td>
+          @for (a of actions; track a.id) {
+            <td class="center">
+              @if (state(m, a.id) === 'na') {
+                <span class="pm-na" title="Not applicable">–</span>
+              } @else {
+                <button
+                  type="button"
+                  class="cb"
+                  role="checkbox"
+                  [attr.data-state]="state(m, a.id)"
+                  [class.locked]="isLocked(m, a.id)"
+                  [attr.aria-checked]="ariaChecked(m, a.id)"
+                  [attr.aria-label]="cellTitle(m, a.id)"
+                  [title]="cellTitle(m, a.id)"
+                  (click)="toggleCell(m, a.id)"
+                >
+                  @if (isLocked(m, a.id)) {
+                    <lucide-icon [img]="icons.Lock" [size]="12"></lucide-icon>
+                  } @else if (state(m, a.id) === 'full') {
+                    <lucide-icon [img]="icons.Check" [size]="13" [strokeWidth]="3"></lucide-icon>
+                  } @else if (state(m, a.id) === 'partial') {
+                    <lucide-icon [img]="icons.Minus" [size]="13" [strokeWidth]="3"></lucide-icon>
+                  }
+                </button>
+              }
+            </td>
+          }
+        </tr>
+      } @empty {
+        <tr><td colspan="7" class="empty">No modules match the search.</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<div class="pm-legend">
+  <span><i class="cb" data-state="full"><lucide-icon [img]="icons.Check" [size]="13" [strokeWidth]="3"></lucide-icon></i> Full access</span>
+  <span><i class="cb" data-state="partial"><lucide-icon [img]="icons.Minus" [size]="13" [strokeWidth]="3"></lucide-icon></i> Partial access</span>
+  <span><i class="cb" data-state="none"></i> No access</span>
+  <span><lucide-icon class="pm-lock" [img]="icons.Lock" [size]="15"></lucide-icon> Inherited (locked)</span>
+</div>

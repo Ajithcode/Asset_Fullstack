@@ -298,7 +298,7 @@
         <label class="field"><span class="field-label">Tag type</span><select class="control" [(ngModel)]="d.type" name="type"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Tag number <em>*</em></span><input class="control" [(ngModel)]="d.number" name="num" inputmode="numeric" (ngModelChange)="fillCode()" /><small class="muted">Tag ID: <strong>{{ registerPreview }}</strong></small></label>
         <label class="field"><span class="field-label">{{ codeLabel(d) }} <em>*</em></span><input class="control mono" [(ngModel)]="d.code" name="code" /></label>
-        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = locationsOf(d.site)[0] ?? ''"><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
+        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = locationsOf(d.site).at(0) ?? ''"><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
         <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">—</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
       </div>
       <label class="field"><span class="field-label">Link to asset (optional)</span><input class="control" [(ngModel)]="d.asset" name="asset" list="tm-assets" placeholder="Asset code, e.g. FL-008" /><small class="muted">Leave empty to keep the tag in stock as Available.</small></label>
@@ -331,7 +331,7 @@
       <p *ngIf="tagById(d.tagId)?.asset as cur" class="muted">Currently linked to <strong>{{ assetLabel(cur) }}</strong>. The link stays in the tag's assignment history.</p>
       <label class="field"><span class="field-label">Asset <em>*</em></span><input class="control" [(ngModel)]="d.asset" name="asset" list="tm-assets" placeholder="Asset code, e.g. GEN-00045" autocomplete="off" /></label>
       <div class="two">
-        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = locationsOf(d.site)[0] ?? ''"><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
+        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = locationsOf(d.site).at(0) ?? ''"><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
         <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">—</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
       </div>
       <label class="field"><span class="field-label">Note</span><input class="control" [(ngModel)]="d.note" name="note" placeholder="e.g. tag moved after repair" /></label>

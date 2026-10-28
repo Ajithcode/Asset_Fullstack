@@ -1,0 +1,18 @@
+@if (group) {
+  <section class="mdm-landing">
+    <header class="mdm-landing__header">
+      <a class="mdm-back" routerLink="..">‹ Master Data Management</a>
+      <h1>{{ group.label }}</h1>
+      <p>{{ group.description }}</p>
+    </header>
+
+    <div class="mdm-cards">
+      @for (item of group.items; track item.slug) {
+        <a class="mdm-card" [routerLink]="item.slug">
+          <span class="mdm-card__title">{{ item.label }}</span>
+          <span class="mdm-card__meta">Open list ›</span>
+        </a>
+      }
+    </div>
+  </section>
+}

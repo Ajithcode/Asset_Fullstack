@@ -1,0 +1,111 @@
+<aside class="drawer">
+  <div class="drawer__head">
+    <h2>{{ isNew ? 'New Sequence' : 'Sequence Settings' }}</h2>
+    <button type="button" class="icon-btn icon-btn--bare" title="Close" (click)="closed.emit()">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </div>
+
+  <div class="row-field" [class.invalid]="err('name')">
+    <label for="sd-name">Sequence Name <span class="req">*</span></label>
+    <input id="sd-name" [(ngModel)]="sequence.name" (ngModelChange)="touch()" maxlength="60" />
+  </div>
+  @if (err('name'); as e) { <small class="err">{{ e }}</small> }
+
+  <div class="row-field" [class.invalid]="err('code')">
+    <label for="sd-code">Sequence Code <span class="req">*</span></label>
+    <input id="sd-code" [(ngModel)]="sequence.code" (ngModelChange)="touch()" maxlength="20" />
+  </div>
+  @if (err('code'); as e) { <small class="err">{{ e }}</small> }
+
+  <div class="row-field" [class.invalid]="err('module')">
+    <label for="sd-module">Module <span class="req">*</span></label>
+    <select id="sd-module" [(ngModel)]="sequence.module" (ngModelChange)="touch()">
+      @for (m of modules; track m) { <option [value]="m">{{ m }}</option> }
+    </select>
+  </div>
+
+  <div class="row-field" [class.invalid]="err('recordType')">
+    <label for="sd-type">Record Type <span class="req">*</span></label>
+    <select id="sd-type" [(ngModel)]="sequence.recordType" (ngModelChange)="touch()">
+      @for (r of recordTypes; track r) { <option [value]="r">{{ r }}</option> }
+    </select>
+  </div>
+
+  <div class="row-field">
+    <label for="sd-prefix">Prefix <span class="req">*</span></label>
+    <input id="sd-prefix" [(ngModel)]="prefix" maxlength="10" />
+  </div>
+
+  <div class="row-field">
+    <label for="sd-sep">Separator <span class="req">*</span></label>
+    <select id="sd-sep" [(ngModel)]="sequence.separator" (ngModelChange)="touch()">
+      @for (s of separators; track s.value) { <option [value]="s.value">{{ s.label }}</option> }
+    </select>
+  </div>
+
+  <div class="row-field" [class.invalid]="err('numberLength')">
+    <label for="sd-len">Number Length <span class="req">*</span></label>
+    <select id="sd-len" [(ngModel)]="sequence.numberLength" (ngModelChange)="touch()">
+      @for (n of numberLengths; track n) { <option [ngValue]="n">{{ n }}</option> }
+    </select>
+  </div>
+
+  <div class="row-field" [class.invalid]="err('startNumber')">
+    <label for="sd-start">Start Number <span class="req">*</span></label>
+    <input id="sd-start" type="number" min="0" [(ngModel)]="sequence.startNumber" (ngModelChange)="touch()" />
+  </div>
+  @if (err('startNumber'); as e) { <small class="err">{{ e }}</small> }
+
+  <div class="row-field" [class.invalid]="err('incrementBy')">
+    <label for="sd-inc">Increment By <span class="req">*</span></label>
+    <input id="sd-inc" type="number" min="1" max="100" [(ngModel)]="sequence.incrementBy" (ngModelChange)="touch()" />
+  </div>
+  @if (err('incrementBy'); as e) { <small class="err">{{ e }}</small> }
+
+  <div class="row-field">
+    <label for="sd-reset">Reset Frequency <span class="req">*</span></label>
+    <select id="sd-reset" [(ngModel)]="sequence.resetRule" (ngModelChange)="touch()">
+      @for (r of resetRules; track r) { <option [value]="r">{{ r }}</option> }
+    </select>
+  </div>
+
+  <div class="row-field">
+    <label for="sd-scope">Scope <span class="req">*</span></label>
+    <select id="sd-scope" [(ngModel)]="sequence.scope" (ngModelChange)="touch()">
+      @for (s of scopes; track s) { <option [value]="s">{{ s }}</option> }
+    </select>
+  </div>
+
+  <div class="row-field">
+    <label>Status</label>
+    <label class="switch"><input type="checkbox" [(ngModel)]="sequence.active" (ngModelChange)="touch()" /><i></i> {{ sequence.active ? 'Active' : 'Inactive' }}</label>
+  </div>
+
+  @if (showErrors && (err('currentNumber') || err('resetDate'))) {
+    <p class="err">{{ err('currentNumber') || err('resetDate') }}</p>
+  }
+
+  <div class="sub-panel next">
+    <h3>Next 5 numbers (Preview)</h3>
+    <ol>
+      @for (n of preview; track $index) { <li>{{ n }}</li> }
+    </ol>
+  </div>
+
+  @if (nearLimitCount > 0) {
+    <button type="button" class="near" (click)="showNearLimit.emit()">
+      <lucide-icon [img]="icons.TriangleAlert" [size]="20"></lucide-icon>
+      <span>
+        <b>{{ nearLimitCount }} {{ nearLimitCount === 1 ? 'sequence' : 'sequences' }} nearing limit</b>
+        Some sequences are approaching their defined limits. Review and increase the limits to avoid interruptions.
+      </span>
+      <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+    </button>
+  }
+
+  <div class="drawer__foot">
+    <button type="button" class="btn" (click)="cancel.emit()">Cancel</button>
+    <button type="button" class="btn btn--primary" (click)="save.emit()">Save Sequence</button>
+  </div>
+</aside>

@@ -1,0 +1,68 @@
+.bfz-detail {
+  grid-column: 1 / -1;
+  scroll-margin-top: 12px;
+}
+
+.kpis--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* "Add Building / Floor / Zone" with a caret for choosing the type */
+.split {
+  position: relative;
+  display: inline-flex;
+}
+
+.split__main {
+  border-radius: 6px 0 0 6px;
+}
+
+.split__caret {
+  border-radius: 0 6px 6px 0;
+  padding: 0 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.split__menu {
+  right: 0;
+  top: calc(100% + 6px);
+}
+
+.tree-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chev {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #475066;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chev--none {
+  cursor: default;
+}
+
+.type-icon {
+  color: #1d4ed8;
+  flex-shrink: 0;
+}
+
+.type-icon[data-type='Zone'] {
+  color: #2563eb;
+}
+
+@media (max-width: 900px) {
+  .kpis--3 {
+    grid-template-columns: 1fr;
+  }
+}

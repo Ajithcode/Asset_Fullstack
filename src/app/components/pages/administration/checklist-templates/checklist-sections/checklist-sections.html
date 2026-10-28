@@ -1,0 +1,80 @@
+<div class="cols">
+  <span></span>
+  <span>Item</span>
+  <span>Response</span>
+  <span class="center">Required</span>
+  <span class="center">Critical</span>
+  <span class="center">Score</span>
+  <span></span>
+</div>
+
+@for (s of template.sections; track s.id; let si = $index; let firstSection = $first; let lastSection = $last) {
+  <section class="sec" [class.drop]="dropTarget === s.id" (dragover)="onDragOver(s.id, $event)" (drop)="onDrop(s, null, $event)">
+    <header class="sec__head">
+      <lucide-icon class="grip" [img]="icons.GripVertical" [size]="15"></lucide-icon>
+      <button type="button" class="chev" [attr.aria-expanded]="!isCollapsed(s)" (click)="toggle(s)" [title]="isCollapsed(s) ? 'Expand' : 'Collapse'">
+        <lucide-icon [img]="isCollapsed(s) ? icons.ChevronRight : icons.ChevronDown" [size]="15"></lucide-icon>
+      </button>
+      @if (renaming === s.id) {
+        <input class="sec__rename" [(ngModel)]="renameText" maxlength="60" aria-label="Section name"
+          (keydown.enter)="finishRename(s)" (keydown.escape)="cancelRename()" (blur)="finishRename(s)" />
+      } @else {
+        <h4 (dblclick)="startRename(s)" title="Double-click to rename">{{ si + 1 }}. {{ s.title }}</h4>
+      }
+      <span class="muted sec__count">{{ s.items.length }} {{ s.items.length === 1 ? 'item' : 'items' }}</span>
+      <div class="row-menu">
+        <button type="button" class="icon-btn icon-btn--bare" title="Section actions" (click)="toggleMenu(s.id, $event)">
+          <lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon>
+        </button>
+        @if (menuFor === s.id) {
+          <div class="menu">
+            <button type="button" (click)="addItem(s)">Add item</button>
+            <button type="button" (click)="startRename(s)">Rename section</button>
+            <button type="button" [disabled]="firstSection" (click)="moveSection(si, -1)">Move up</button>
+            <button type="button" [disabled]="lastSection" (click)="moveSection(si, 1)">Move down</button>
+            <button type="button" class="danger" (click)="deleteSection(s)">Delete section</button>
+          </div>
+        }
+      </div>
+    </header>
+
+    @if (!isCollapsed(s)) {
+      @for (item of s.items; track item.id; let ii = $index; let firstItem = $first; let lastItem = $last) {
+        <div class="item" [class.selected]="item.id === selectedItemId" [class.drop]="dropTarget === item.id" draggable="true"
+          (dragstart)="onDragStart(s, ii, $event)" (dragover)="onDragOver(item.id, $event)" (drop)="onDrop(s, ii, $event); $event.stopPropagation()" (dragend)="onDragEnd()">
+          <lucide-icon class="grip" [img]="icons.GripVertical" [size]="15"></lucide-icon>
+          <span class="item__no">{{ ii + 1 }}</span>
+          <button type="button" class="item__text" (click)="open(s, item)">{{ item.text }}</button>
+          <span class="item__type"><span class="pill" [attr.data-tone]="tone(item.responseType)"><i></i>{{ typeLabel(item.responseType) }}</span></span>
+          <label class="switch center" [title]="item.required ? 'Required' : 'Optional'">
+            <input type="checkbox" [(ngModel)]="item.required" (ngModelChange)="touch()" [attr.aria-label]="'Required: ' + item.text" /><i></i>
+          </label>
+          <label class="switch switch--pink center" [title]="item.critical ? 'Critical' : 'Not critical'">
+            <input type="checkbox" [(ngModel)]="item.critical" (ngModelChange)="touch()" [attr.aria-label]="'Critical: ' + item.text" /><i></i>
+          </label>
+          <input class="item__score" type="number" min="0" max="100" [(ngModel)]="item.score" (ngModelChange)="touch()" [attr.aria-label]="'Score: ' + item.text" />
+          <div class="row-menu">
+            <button type="button" class="icon-btn icon-btn--bare" title="Item actions" (click)="toggleMenu(item.id, $event)">
+              <lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon>
+            </button>
+            @if (menuFor === item.id) {
+              <div class="menu">
+                <button type="button" (click)="open(s, item)">Edit item</button>
+                <button type="button" (click)="duplicate(s, item)">Duplicate</button>
+                <button type="button" [disabled]="firstItem" (click)="moveItem(s, ii, -1)">Move up</button>
+                <button type="button" [disabled]="lastItem" (click)="moveItem(s, ii, 1)">Move down</button>
+                <button type="button" class="danger" (click)="deleteItem(s, item)">Delete</button>
+              </div>
+            }
+          </div>
+        </div>
+      } @empty {
+        <div class="sec__empty">
+          No items yet. <button type="button" class="btn btn--link" (click)="addItem(s)">Add an item</button> or drag one here.
+        </div>
+      }
+    }
+  </section>
+} @empty {
+  <p class="empty">This template has no sections. Use Add Section to start building it.</p>
+}

@@ -1,0 +1,85 @@
+<aside class="drawer event-drawer" aria-label="Audit event details">
+  <div class="drawer__head">
+    <h2>Audit Event Details</h2>
+    <button type="button" class="icon-btn icon-btn--bare" (click)="closed.emit()" aria-label="Close details">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </div>
+
+  <div class="event-id">
+    <span class="event-id__icon"><lucide-icon [img]="icons.FileText" [size]="22"></lucide-icon></span>
+    <div>
+      <span class="event-id__label">
+        Event ID
+        <button type="button" class="icon-btn icon-btn--bare icon-btn--xs" (click)="copyId.emit(event)" aria-label="Copy event ID">
+          <lucide-icon [img]="icons.Copy" [size]="13"></lucide-icon>
+        </button>
+      </span>
+      <b>{{ event.id }}</b>
+    </div>
+  </div>
+
+  <section class="dsec">
+    <h3>Event Information</h3>
+    <dl class="kv kv--drawer">
+      <dt>Timestamp</dt><dd>{{ formatAuditTime(event.timestamp) }} (GMT +4)</dd>
+      <dt>Event Type</dt><dd>{{ event.event }}</dd>
+      <dt>Severity</dt><dd><span class="pill" [attr.data-tone]="severityTone(event.severity)"><i></i>{{ event.severity }}</span></dd>
+      <dt>Outcome</dt><dd><span class="pill" [attr.data-tone]="outcomeTone(event.outcome)"><i></i>{{ event.outcome }}</span></dd>
+    </dl>
+  </section>
+
+  <section class="dsec">
+    <h3>Actor &amp; Context</h3>
+    <dl class="kv kv--drawer">
+      <dt>User</dt><dd>{{ event.user }}</dd>
+      <dt>User ID</dt><dd>{{ event.userId }}</dd>
+      <dt>Role</dt><dd>{{ event.role }}</dd>
+      <dt>Module</dt><dd>{{ event.module }}</dd>
+      <dt>Action</dt><dd>{{ event.action }}</dd>
+      <dt>Entity Type</dt><dd>{{ event.entityType }}</dd>
+      <dt>Record ID</dt><dd>{{ event.recordId }}</dd>
+      <dt>IP Address</dt><dd>{{ event.ip }}</dd>
+      <dt>Device / Browser</dt><dd>{{ event.device }}</dd>
+      <dt>Location</dt><dd><span class="flag" aria-hidden="true">{{ flag(event.countryCode) }}</span> {{ event.location }}</dd>
+      <dt>Request ID</dt><dd>{{ event.requestId }}</dd>
+    </dl>
+  </section>
+
+  @if (event.after) {
+    <section class="dsec">
+      <h3>Value Change (Before → After)</h3>
+      <div class="diff">
+        <div class="diff__box diff__box--before">
+          <span>Previous Value</span>
+          <pre>{{ event.before || '—' }}</pre>
+        </div>
+        <lucide-icon class="diff__arrow" [img]="icons.ArrowRight" [size]="16"></lucide-icon>
+        <div class="diff__box diff__box--after">
+          <span>New Value</span>
+          <pre>{{ event.after }}</pre>
+        </div>
+      </div>
+    </section>
+  }
+
+  <section class="dsec">
+    <h3><lucide-icon class="dsec__icon" [img]="icons.Shield" [size]="16"></lucide-icon> Security Context</h3>
+    <dl class="kv kv--drawer">
+      <dt>MFA Status</dt>
+      <dd><span class="dot-text" [attr.data-tone]="event.mfa === 'Enabled' ? 'green' : 'orange'">
+        <lucide-icon [img]="icons.CircleCheck" [size]="14"></lucide-icon> {{ event.mfa }}</span></dd>
+      <dt>Session ID</dt><dd>{{ event.sessionId }}</dd>
+      <dt>Authentication Method</dt><dd>{{ event.authMethod }}</dd>
+      <dt>Risk Score</dt>
+      <dd><span class="dot-text" [attr.data-tone]="riskTone">
+        <lucide-icon [img]="icons.CircleCheck" [size]="14"></lucide-icon> {{ riskLabel }} ({{ event.riskScore }}/100)</span></dd>
+    </dl>
+  </section>
+
+  <div class="drawer__foot drawer__foot--3">
+    <button type="button" class="btn btn--outline" (click)="copyId.emit(event)"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon> Copy Event ID</button>
+    <button type="button" class="btn btn--outline" (click)="exportEvent.emit(event)"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon> Export Event</button>
+    <button type="button" class="btn btn--primary" (click)="closed.emit()">Close</button>
+  </div>
+</aside>

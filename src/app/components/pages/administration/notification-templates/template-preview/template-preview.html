@@ -1,0 +1,80 @@
+<ng-template #segs let-list>
+  @for (s of list; track $index) {
+    @if (s.variable === 'priority') {
+      <span class="tp-pill">{{ value(s) }}</span>
+    } @else if (s.variable) {
+      <span class="tp-var">{{ value(s) }}</span>
+    } @else if (s.style === 'b') {
+      <b>{{ s.text }}</b>
+    } @else if (s.style === 'i') {
+      <i>{{ s.text }}</i>
+    } @else if (s.style === 'u') {
+      <u>{{ s.text }}</u>
+    } @else {
+      {{ s.text }}
+    }
+  }
+</ng-template>
+
+@switch (channel) {
+  @case ('email') {
+    <div class="tp-email">
+      <div class="tp-email__band">
+        <span class="tp-logo"><i></i>Asset360</span>
+        <span>{{ template.category }} Notification</span>
+      </div>
+      <div class="tp-email__body">
+        <p class="tp-subject">{{ filled(template.email.subject) || 'No subject' }}</p>
+        @for (b of blocks(); track $index) {
+          @switch (b.kind) {
+            @case ('kv') {
+              <dl class="tp-kv">
+                @for (r of b.rows; track $index) {
+                  <dt>{{ r.label }}:</dt>
+                  <dd><ng-container *ngTemplateOutlet="segs; context: { $implicit: r.value }"></ng-container></dd>
+                }
+              </dl>
+            }
+            @case ('button') {
+              <button type="button" class="tp-cta" (click)="action.emit(b.label)">{{ b.label }}</button>
+            }
+            @default {
+              <p>
+                @for (line of b.lines; track $index; let last = $last) {
+                  <ng-container *ngTemplateOutlet="segs; context: { $implicit: line }"></ng-container>
+                  @if (!last) { <br /> }
+                }
+              </p>
+            }
+          }
+        } @empty {
+          <p class="tp-muted">Message content is empty.</p>
+        }
+      </div>
+    </div>
+  }
+  @case ('sms') {
+    <div class="tp-phone">
+      <div class="tp-phone__head"><lucide-icon [img]="icons.MessageSquare" [size]="14"></lucide-icon> ASSET360</div>
+      <div class="tp-bubble">{{ smsText || 'SMS text is empty.' }}</div>
+      <small class="tp-muted">{{ smsText.length }} characters with sample values</small>
+    </div>
+  }
+  @case ('inApp') {
+    <div class="tp-inapp">
+      <span class="tp-inapp__icon"><lucide-icon [img]="icons.Bell" [size]="16"></lucide-icon></span>
+      <div>
+        <b>{{ filled(template.inApp.title) || 'Untitled' }}</b>
+        <p>{{ filled(template.inApp.body) }}</p>
+        @if (template.inApp.link) { <button type="button" class="tp-link" (click)="action.emit('View details')">View details</button> }
+      </div>
+    </div>
+  }
+  @case ('push') {
+    <div class="tp-push">
+      <div class="tp-push__app"><lucide-icon [img]="icons.Smartphone" [size]="13"></lucide-icon> Asset360 · now</div>
+      <b>{{ filled(template.push.title) || 'Untitled' }}</b>
+      <p>{{ filled(template.push.body) }}</p>
+    </div>
+  }
+}

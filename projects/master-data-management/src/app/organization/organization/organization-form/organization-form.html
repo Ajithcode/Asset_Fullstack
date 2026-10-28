@@ -1,0 +1,244 @@
+<aside class="drawer" role="dialog" aria-labelledby="org-form-title">
+  <header class="drawer__header">
+    <h2 id="org-form-title">{{ isEdit ? 'Edit Organization' : 'Add Organization' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <div class="logo-field">
+            <span class="field__label">Logo</span>
+            <label class="upload" [class.upload--filled]="form.logo" [class.invalid]="errors.logo">
+              <input type="file" accept="image/png,image/jpeg" (change)="onLogoPicked($event)" />
+              @if (form.logo) {
+                <img [src]="form.logo" alt="Organization logo" class="logo-img" />
+              } @else {
+                <span class="upload__icon"><lucide-icon [img]="icons.Building2" [size]="34" [strokeWidth]="1.6"></lucide-icon></span>
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+            @if (form.logo) {
+              <div class="logo-actions">
+                <label class="logo-actions__link">Change<input type="file" accept="image/png,image/jpeg" (change)="onLogoPicked($event)" /></label>
+                <span>|</span>
+                <button type="button" class="logo-actions__link" (click)="removeLogo()">Remove</button>
+              </div>
+            }
+          </div>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.name">
+              <label for="org-name"><span class="req">*</span> Organization Name</label>
+              <input id="org-name" name="name" placeholder="Enter organization name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.code">
+              <label for="org-code"><span class="req">*</span> Code</label>
+              <input id="org-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+              @if (errors.code) { <small>{{ errors.code }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.type">
+              <label for="org-type"><span class="req">*</span> Type</label>
+              <select id="org-type" name="type" [(ngModel)]="form.type">
+                <option value="" disabled>Select type</option>
+                @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+              </select>
+              @if (errors.type) { <small>{{ errors.type }}</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors.logo) { <small class="upload-error">{{ errors.logo }}</small> }
+
+        <div class="grid">
+          <div class="field">
+            <label for="org-reg">Registration Number</label>
+            <input id="org-reg" name="registrationNumber" placeholder="Enter registration number" [(ngModel)]="form.registrationNumber" />
+          </div>
+          <div class="field" [class.invalid]="errors.website">
+            <label for="org-web">Website</label>
+            <input id="org-web" name="website" type="url" placeholder="https://www.example.com" [(ngModel)]="form.website" />
+            @if (errors.website) { <small>{{ errors.website }}</small> }
+          </div>
+          <div class="field field--wide">
+            <label for="org-desc">Description</label>
+            <textarea id="org-desc" name="description" rows="5" placeholder="Enter description about the organization" [(ngModel)]="form.description"></textarea>
+          </div>
+        </div>
+      }
+
+      @case ('hierarchy') {
+        <div class="field" [class.invalid]="errors.parentCode">
+          <label for="org-parent">Parent Organization</label>
+          <div class="clearable">
+            <select id="org-parent" name="parentCode" [(ngModel)]="form.parentCode">
+              <option [ngValue]="null">No parent (top level)</option>
+              @for (p of parentOptions; track p.code) { <option [ngValue]="p.code">{{ p.name }}</option> }
+            </select>
+            @if (form.parentCode) {
+              <button type="button" class="clearable__x" (click)="clearParent()" aria-label="Clear parent organization">
+                <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
+              </button>
+            }
+          </div>
+          @if (errors.parentCode) { <small>{{ errors.parentCode }}</small> }
+        </div>
+        <div class="field">
+          <label for="org-level">Hierarchy Level</label>
+          <input id="org-level" name="level" [value]="level" readonly />
+        </div>
+        <div class="field">
+          <label for="org-path">Hierarchy Path</label>
+          <input id="org-path" name="path" [value]="path" readonly />
+        </div>
+
+        <div class="structure">
+          <span class="section-title">Organization Structure</span>
+          <ul>
+            @for (row of structure; track row.code) {
+              <li [style.padding-left.px]="(row.level - 1) * 22" [class.current]="row.current">
+                @if (row.level > 1) { <span class="structure__elbow">└</span> }
+                <lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>
+                <span class="structure__name">{{ row.label }}</span>
+                <span class="structure__level">(Level {{ row.level }})</span>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      @case ('contact') {
+        <span class="section-title">Registered Address</span>
+        <div class="grid">
+          <div class="field">
+            <label for="org-a1">Address Line 1</label>
+            <input id="org-a1" name="line1" placeholder="Building, office" [(ngModel)]="form.address.line1" />
+          </div>
+          <div class="field">
+            <label for="org-a2">Address Line 2</label>
+            <input id="org-a2" name="line2" placeholder="Street, area" [(ngModel)]="form.address.line2" />
+          </div>
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="org-city">City</label>
+            <input id="org-city" name="city" [(ngModel)]="form.address.city" />
+          </div>
+          <div class="field">
+            <label for="org-state">State / Emirate</label>
+            <input id="org-state" name="state" [(ngModel)]="form.address.state" />
+          </div>
+          <div class="field">
+            <label for="org-country">Country</label>
+            <select id="org-country" name="country" [(ngModel)]="form.address.country">
+              @for (c of countries; track c.name) { <option [value]="c.name">{{ c.name }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="org-postal">Postal Code</label>
+            <input id="org-postal" name="postalCode" [(ngModel)]="form.address.postalCode" />
+          </div>
+        </div>
+
+        <span class="section-title">Contact Information</span>
+        <div class="grid">
+          <div class="field">
+            <label for="org-person">Primary Contact Person</label>
+            <input id="org-person" name="person" [(ngModel)]="form.contact.person" />
+          </div>
+          <div class="field">
+            <label for="org-designation">Designation</label>
+            <input id="org-designation" name="designation" [(ngModel)]="form.contact.designation" />
+          </div>
+          <div class="field" [class.invalid]="errors.email">
+            <label for="org-email">Email</label>
+            <input id="org-email" name="email" type="email" [(ngModel)]="form.contact.email" />
+            @if (errors.email) { <small>{{ errors.email }}</small> }
+          </div>
+          <div class="field">
+            <label for="org-phone">Phone</label>
+            <div class="phone">
+              <select name="phoneCountry" aria-label="Phone country" [(ngModel)]="form.contact.phoneCountry">
+                @for (c of countries; track c.name) { <option [value]="c.name">{{ c.flag }} {{ c.dial }}</option> }
+              </select>
+              <input id="org-phone" name="phone" type="tel" placeholder="50 123 4567" [(ngModel)]="form.contact.phone" />
+            </div>
+          </div>
+        </div>
+      }
+
+      @case ('settings') {
+        <span class="section-title">Operational Settings</span>
+        <div class="grid">
+          <div class="field">
+            <label for="org-currency">Default Currency</label>
+            <select id="org-currency" name="currency" [(ngModel)]="form.settings.currency">
+              @for (c of currencies; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="org-tz">Default Time Zone</label>
+            <select id="org-tz" name="timeZone" [(ngModel)]="form.settings.timeZone">
+              @for (z of timeZones; track z) { <option [value]="z">{{ z }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="org-lang">Default Language</label>
+            <select id="org-lang" name="language" [(ngModel)]="form.settings.language">
+              @for (l of languages; track l) { <option [value]="l">{{ l }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="org-datefmt">Date Format</label>
+            <select id="org-datefmt" name="dateFormat" [(ngModel)]="form.settings.dateFormat">
+              @for (d of dateFormats; track d) { <option [value]="d">{{ d }}</option> }
+            </select>
+          </div>
+        </div>
+
+        <span class="section-title">Status &amp; Validity</span>
+        <div class="grid">
+          <div class="field field--wide">
+            <span class="field__label">Status</span>
+            <div class="radios">
+              <label><input type="radio" name="status" value="Active" [(ngModel)]="form.status" /> Active</label>
+              <label><input type="radio" name="status" value="Inactive" [(ngModel)]="form.status" /> Inactive</label>
+            </div>
+          </div>
+          <div class="field">
+            <label for="org-from">Effective From</label>
+            <input id="org-from" name="effectiveFrom" type="date" [(ngModel)]="form.settings.effectiveFrom" />
+          </div>
+          <div class="field" [class.invalid]="errors.effectiveTo">
+            <label for="org-to">Effective To</label>
+            <input id="org-to" name="effectiveTo" type="date" [(ngModel)]="form.settings.effectiveTo" />
+            @if (errors.effectiveTo) { <small>{{ errors.effectiveTo }}</small> }
+          </div>
+        </div>
+
+        <span class="section-title">Configuration Options</span>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="allowSub" [(ngModel)]="form.settings.allowSubOrganizations" /> Allow creation of sub-organizations</label>
+          <label class="check"><input type="checkbox" name="allowLocations" [(ngModel)]="form.settings.allowMultipleLocations" /> Allow multiple locations</label>
+          <label class="check"><input type="checkbox" name="assetNumbering" [(ngModel)]="form.settings.useForAssetNumbering" /> Use for asset numbering</label>
+          <label class="check"><input type="checkbox" name="financial" [(ngModel)]="form.settings.enableFinancialTracking" /> Enable financial tracking</label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

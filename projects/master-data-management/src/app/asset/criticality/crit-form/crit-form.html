@@ -1,0 +1,190 @@
+<aside class="drawer" role="dialog" aria-labelledby="crit-form-title">
+  <header class="drawer__header">
+    <h2 id="crit-form-title">{{ isEdit ? 'Edit Criticality' : 'Add Criticality' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <div class="logo-field">
+            <span class="field__label">Criticality Icon</span>
+            <label class="upload" [class.upload--filled]="form.image" [class.invalid]="errors.image">
+              <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+              @if (form.image) {
+                <img [src]="form.image" alt="Criticality icon" class="logo-img" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); removeImage()">Remove</button>
+              } @else {
+                <span class="upload__icon" [style.color]="pickerColor"><lucide-icon [img]="levelIcons[form.icon]" [size]="34" [strokeWidth]="1.8"></lucide-icon></span>
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+          </div>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.name">
+              <label for="crit-name"><span class="req">*</span> Criticality Name</label>
+              <input id="crit-name" name="name" placeholder="Enter criticality name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.code">
+              <label for="crit-code"><span class="req">*</span> Code</label>
+              <input id="crit-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+              @if (errors.code) { <small>{{ errors.code }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.color">
+              <label for="crit-color"><span class="req">*</span> Color</label>
+              <div class="color-field">
+                <input type="color" name="colorPicker" [ngModel]="pickerColor" (ngModelChange)="form.color = $event.toUpperCase()" aria-label="Pick colour" />
+                <input id="crit-color" type="text" name="color" maxlength="7" [(ngModel)]="form.color" />
+              </div>
+              @if (errors.color) { <small>{{ errors.color }}</small> }
+            </div>
+            <div class="field">
+              <label for="crit-risk"><span class="req">*</span> Risk Level</label>
+              <select id="crit-risk" name="riskLevel" [(ngModel)]="form.riskLevel" (ngModelChange)="onRiskLevelChange()">
+                @for (s of scale; track s) { <option [value]="s">{{ s }}</option> }
+              </select>
+            </div>
+            <div class="field">
+              <label for="crit-priority"><span class="req">*</span> Maintenance Priority</label>
+              <select id="crit-priority" name="maintenancePriority" [(ngModel)]="form.maintenancePriority">
+                @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
+              </select>
+            </div>
+            <div class="field" [class.invalid]="errors.isDefault">
+              <label for="crit-default">Default Criticality</label>
+              <input id="crit-default" class="switch" type="checkbox" name="isDefault" [(ngModel)]="form.isDefault" />
+              @if (errors.isDefault) { <small>{{ errors.isDefault }}</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors.image) { <small class="upload-error">{{ errors.image }}</small> }
+
+        <div class="field">
+          <label for="crit-desc">Description</label>
+          <textarea id="crit-desc" name="description" rows="3" placeholder="Enter description about this criticality level" [(ngModel)]="form.description"></textarea>
+        </div>
+
+        @if (!form.image) {
+          <div class="field">
+            <span class="field__label">Icon (used when there is no image)</span>
+            <div class="icon-picker" role="radiogroup" aria-label="Icon">
+              @for (k of iconKeys; track k) {
+                <button type="button" class="icon-picker__item" role="radio" [class.on]="form.icon === k" [attr.aria-checked]="form.icon === k" [attr.aria-label]="k" (click)="form.icon = k">
+                  <lucide-icon [img]="levelIcons[k]" [size]="18"></lucide-icon>
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="field">
+          <span class="field__label">Status</span>
+          <div class="radios">
+            <label><input type="radio" name="status" value="Active" [(ngModel)]="form.status" /> Active</label>
+            <label><input type="radio" name="status" value="Inactive" [(ngModel)]="form.status" /> Inactive</label>
+          </div>
+        </div>
+      }
+
+      @case ('risk') {
+        <span class="section-title">Position on the Risk Matrix</span>
+        <div class="grid">
+          <div class="field">
+            <label for="crit-likelihood">Likelihood</label>
+            <select id="crit-likelihood" name="likelihood" [(ngModel)]="form.likelihood">
+              @for (s of scale; track s) { <option [value]="s">{{ s }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="crit-impact">Impact</label>
+            <select id="crit-impact" name="impact" [(ngModel)]="form.impact">
+              @for (s of scale; track s) { <option [value]="s">{{ s }}</option> }
+            </select>
+          </div>
+        </div>
+        <span class="section-title">Business Impact</span>
+        <div class="grid">
+          @for (f of impactFields; track f.key) {
+            <div class="field">
+              <label [for]="'crit-' + f.key">{{ f.label }}</label>
+              <input [id]="'crit-' + f.key" [name]="f.key" [(ngModel)]="form.businessImpact[f.key]" />
+            </div>
+          }
+        </div>
+      }
+
+      @case ('maintenance') {
+        <div class="grid">
+          <div class="field">
+            <label for="crit-strategy">Recommended Strategy</label>
+            <input id="crit-strategy" name="recommendedStrategy" list="crit-strategies" [(ngModel)]="form.recommendedStrategy" />
+            <datalist id="crit-strategies">
+              @for (s of strategies; track s) { <option [value]="s"></option> }
+            </datalist>
+          </div>
+          <div class="field">
+            <label for="crit-inspection">Inspection Frequency</label>
+            <select id="crit-inspection" name="inspectionFrequency" [(ngModel)]="form.inspectionFrequency">
+              @for (f of frequencies; track f) { <option [value]="f">{{ f }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="crit-monitoring">Condition Monitoring</label>
+            <select id="crit-monitoring" name="conditionMonitoring" [(ngModel)]="form.conditionMonitoring">
+              @for (m of monitoring; track m) { <option [value]="m">{{ m }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="crit-spares">Spare Parts Priority</label>
+            <select id="crit-spares" name="sparePartsPriority" [(ngModel)]="form.sparePartsPriority">
+              @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors.responseTimeHours">
+            <label for="crit-response">Response Time (Hours)</label>
+            <input id="crit-response" name="responseTimeHours" type="number" min="1" max="720" [(ngModel)]="form.responseTimeHours" />
+            @if (errors.responseTimeHours) { <small>{{ errors.responseTimeHours }}</small> }
+          </div>
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Escalate on failure</strong><small>Notify management when an asset at this level fails.</small></span>
+            <input type="checkbox" name="escalateOnFailure" [(ngModel)]="form.escalateOnFailure" />
+          </label>
+          <label class="toggle">
+            <span><strong>Root cause analysis required</strong><small>Breakdown work orders need a root cause before closing.</small></span>
+            <input type="checkbox" name="rootCauseRequired" [(ngModel)]="form.rootCauseRequired" />
+          </label>
+          <label class="toggle">
+            <span><strong>Approval for disposal</strong><small>Disposing of these assets needs approval.</small></span>
+            <input type="checkbox" name="approvalForDisposal" [(ngModel)]="form.approvalForDisposal" />
+          </label>
+          <label class="toggle">
+            <span><strong>Show in reports</strong><small>Include this level in criticality reports and dashboards.</small></span>
+            <input type="checkbox" name="showInReports" [(ngModel)]="form.showInReports" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

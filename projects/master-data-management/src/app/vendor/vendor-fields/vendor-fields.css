@@ -1,0 +1,49 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Projected type fields sit in the column next to the logo */
+:host ::ng-deep .basic-top__fields > .field {
+  min-width: 0;
+}
+
+.brand-badge {
+  width: 60px;
+  height: 60px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #dde0e8;
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatch.on {
+  box-shadow: 0 0 0 2px #4f2bd8;
+}
+
+.row-line--doc {
+  grid-template-columns: 1fr 120px 128px 32px;
+}
+
+.row-line input.soon {
+  border-color: #f59e0b;
+}

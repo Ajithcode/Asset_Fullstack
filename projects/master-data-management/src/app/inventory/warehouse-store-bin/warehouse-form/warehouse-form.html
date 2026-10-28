@@ -1,0 +1,120 @@
+<aside class="drawer" role="dialog" aria-labelledby="wh-form-title">
+  <header class="drawer__header">
+    <h2 id="wh-form-title">{{ isEdit ? 'Edit Warehouse' : 'Add Warehouse' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="wh-name"><span class="req">*</span> Warehouse Name</label>
+          <input id="wh-name" name="name" placeholder="Enter warehouse name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="wh-code"><span class="req">*</span> Code</label>
+          <input id="wh-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="wh-location">Location</label>
+          <input id="wh-location" name="location" placeholder="Enter location" [(ngModel)]="form.location" />
+        </div>
+        <div class="field">
+          <label for="wh-manager">Manager</label>
+          <select id="wh-manager" name="managerId" [(ngModel)]="form.managerId">
+            <option value="">Select manager</option>
+            @for (e of managers; track e.id) { <option [value]="e.id">{{ e.name }} ({{ e.id }})</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="wh-desc">Description</label>
+          <textarea id="wh-desc" name="description" rows="2" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="wh-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="wh-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('address') {
+        <div class="grid">
+          <div class="field field--wide">
+            <label for="wh-line1">Address</label>
+            <input id="wh-line1" name="line1" [(ngModel)]="form.address.line1" />
+          </div>
+          <div class="field">
+            <label for="wh-city">City</label>
+            <input id="wh-city" name="city" [(ngModel)]="form.address.city" />
+          </div>
+          <div class="field">
+            <label for="wh-state">State / Emirate</label>
+            <input id="wh-state" name="state" [(ngModel)]="form.address.state" />
+          </div>
+          <div class="field">
+            <label for="wh-postal">Postal Code / PO Box</label>
+            <input id="wh-postal" name="postalCode" [(ngModel)]="form.address.postalCode" />
+          </div>
+          <div class="field">
+            <label for="wh-country">Country</label>
+            <select id="wh-country" name="country" [(ngModel)]="form.address.country">
+              @for (c of countries; track c.name) { <option [value]="c.name">{{ c.flag }} {{ c.name }}</option> }
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('contact') {
+        <div class="grid">
+          <div class="field">
+            <label for="wh-phone">Phone</label>
+            <input id="wh-phone" name="phone" type="tel" [(ngModel)]="form.phone" />
+          </div>
+          <div class="field" [class.invalid]="errors['email']">
+            <label for="wh-email">Email</label>
+            <input id="wh-email" name="email" type="email" [(ngModel)]="form.email" />
+            @if (errors['email']) { <small>{{ errors['email'] }}</small> }
+          </div>
+          <div class="field field--wide">
+            <label for="wh-hours">Operating Hours</label>
+            <input id="wh-hours" name="operatingHours" placeholder="e.g. 07:00 - 19:00" [(ngModel)]="form.operatingHours" />
+          </div>
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="field" [class.invalid]="errors['areaSqm']">
+          <label for="wh-area">Floor Area (m²)</label>
+          <input id="wh-area" name="areaSqm" type="number" min="0" [(ngModel)]="form.areaSqm" />
+          @if (errors['areaSqm']) { <small>{{ errors['areaSqm'] }}</small> }
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Allow transfers out</strong><small>Stock can be transferred from this warehouse to others.</small></span>
+            <input type="checkbox" name="allowTransfersOut" [(ngModel)]="form.allowTransfersOut" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

@@ -1,0 +1,103 @@
+<aside class="drawer" role="dialog" aria-labelledby="uom-form-title">
+  <header class="drawer__header">
+    <h2 id="uom-form-title">{{ isEdit ? 'Edit UOM' : 'Add UOM' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="uom-name"><span class="req">*</span> UOM Name</label>
+          <input id="uom-name" name="name" placeholder="Enter UOM name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="uom-code"><span class="req">*</span> Code</label>
+          <input id="uom-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="uom-type"><span class="req">*</span> Type</label>
+          <select id="uom-type" name="type" [(ngModel)]="form.type" (ngModelChange)="onTypeChange()">
+            @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+          </select>
+        </div>
+        <div class="field" [class.invalid]="errors['symbol']">
+          <label for="uom-symbol"><span class="req">*</span> Symbol</label>
+          <input id="uom-symbol" name="symbol" placeholder="Enter symbol" [(ngModel)]="form.symbol" />
+          @if (errors['symbol']) { <small>{{ errors['symbol'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['conversionFactor']">
+          <label for="uom-factor">Conversion Factor (Base UOM)</label>
+          <input id="uom-factor" name="conversionFactor" type="number" min="0" step="any" placeholder="Enter conversion factor" [(ngModel)]="form.conversionFactor" />
+          @if (errors['conversionFactor']) { <small>{{ errors['conversionFactor'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="uom-desc">Description</label>
+          <textarea id="uom-desc" name="description" rows="2" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="uom-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="uom-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('conversion') {
+        <div class="field" [class.invalid]="errors['baseUom']">
+          <label for="uom-base">Base UOM</label>
+          <select id="uom-base" name="baseUom" [(ngModel)]="form.baseUom">
+            <option value="">None (this is a base unit)</option>
+            @for (u of baseOptions; track u.code) { <option [value]="u.code">{{ u.name }} ({{ u.symbol }})</option> }
+          </select>
+          @if (errors['baseUom']) { <small>{{ errors['baseUom'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['conversionFactor']">
+          <label for="uom-factor-c">Conversion Factor</label>
+          <input id="uom-factor-c" name="conversionFactorC" type="number" min="0" step="any" [(ngModel)]="form.conversionFactor" [disabled]="!form.baseUom" />
+          @if (errors['conversionFactor']) { <small>{{ errors['conversionFactor'] }}</small> }
+        </div>
+        @if (form.baseUom) {
+          <p class="hint">1 {{ form.symbol || form.name || 'unit' }} = {{ form.conversionFactor }} {{ baseSymbol }}</p>
+        } @else {
+          <p class="hint">Base units have a factor of 1. Pick a base unit of the same type ({{ form.type }}) to convert, e.g. 1 Box = 12 Nos.</p>
+        }
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Allow decimal quantities</strong><small>Stock and issues can be fractions, e.g. 2.5 L.</small></span>
+            <input type="checkbox" name="allowDecimals" [(ngModel)]="form.allowDecimals" />
+          </label>
+        </div>
+        @if (form.allowDecimals) {
+          <div class="field" [class.invalid]="errors['decimalPlaces']">
+            <label for="uom-dp">Decimal Places</label>
+            <input id="uom-dp" name="decimalPlaces" type="number" min="1" max="6" [(ngModel)]="form.decimalPlaces" />
+            @if (errors['decimalPlaces']) { <small>{{ errors['decimalPlaces'] }}</small> }
+          </div>
+        }
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

@@ -58,15 +58,50 @@
           </div>
 
           <div class="nav-dropdown" *ngIf="isInlineOpen(item.label)">
-            <a
-              *ngFor="let child of item.children"
-              [routerLink]="child.path"
-              routerLinkActive="active"
-              [routerLinkActiveOptions]="{ exact: false }"
-              class="nav-dropdown-item"
-            >
-              {{ child.label }}
-            </a>
+            <ng-container *ngFor="let child of item.children">
+              <a
+                *ngIf="!child.children"
+                [routerLink]="child.path"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: false }"
+                class="nav-dropdown-item"
+              >
+                {{ child.label }}
+              </a>
+
+              <!-- Second level (Master Data Management > Asset > ...) expands under its group -->
+              <ng-container *ngIf="child.children">
+                <div
+                  class="nav-dropdown-item nav-dropdown-group"
+                  role="button"
+                  tabindex="0"
+                  [class.open]="isInlineGroupOpen(child)"
+                  [class.section-active]="isSectionActive(child)"
+                  [attr.aria-expanded]="isInlineGroupOpen(child)"
+                  (click)="toggleInlineGroup(child)"
+                  (keydown.enter)="toggleInlineGroup(child)"
+                >
+                  <span class="nav-dropdown-group__label">{{ child.label }}</span>
+                  <span class="nav-dropdown-group__caret">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </span>
+                </div>
+
+                <div class="nav-dropdown nav-dropdown--nested" *ngIf="isInlineGroupOpen(child)">
+                  <a
+                    *ngFor="let leaf of child.children"
+                    [routerLink]="leaf.path"
+                    routerLinkActive="active"
+                    [routerLinkActiveOptions]="{ exact: false }"
+                    class="nav-dropdown-item nav-dropdown-item--nested"
+                  >
+                    {{ leaf.label }}
+                  </a>
+                </div>
+              </ng-container>
+            </ng-container>
           </div>
         </ng-container>
 

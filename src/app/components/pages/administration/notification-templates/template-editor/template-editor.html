@@ -1,0 +1,141 @@
+<nav class="tabs te-tabs" role="tablist">
+  @for (c of channels; track c) {
+    <button type="button" role="tab" [class.active]="tab === c" [attr.aria-selected]="tab === c" (click)="setTab(c)">
+      <lucide-icon [img]="channelIcon(c)" [size]="15"></lucide-icon> {{ channelLabels[c] }}
+      @if (!template.channels[c]) { <span class="te-off">off</span> }
+    </button>
+  }
+</nav>
+
+@if (!template.channels[tab]) {
+  <p class="note note--warn te-note">{{ channelLabels[tab] }} is not enabled for this template. Turn it on under Delivery Channels to send this content.</p>
+}
+@if (err('variables')) { <p class="note note--warn te-note">{{ err('variables') }}</p> }
+
+@switch (tab) {
+  @case ('email') {
+    <div class="field" [class.invalid]="err('subject')">
+      <label for="te-subject">Subject <span class="req">*</span></label>
+      <input #subjectEl id="te-subject" [(ngModel)]="template.email.subject" (focus)="track('subject', subjectEl)" maxlength="150" />
+      @if (err('subject')) { <small>{{ err('subject') }}</small> }
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label for="te-from">From Name</label>
+        <input id="te-from" [(ngModel)]="template.email.fromName" maxlength="60" />
+      </div>
+      <div class="field" [class.invalid]="err('replyTo')">
+        <label for="te-reply">Reply-To Email</label>
+        <input id="te-reply" type="email" [(ngModel)]="template.email.replyTo" maxlength="120" />
+        @if (err('replyTo')) { <small>{{ err('replyTo') }}</small> }
+      </div>
+    </div>
+    <div class="field">
+      <span>Recipient Type</span>
+      <div class="seg te-seg" role="radiogroup" aria-label="Recipient Type">
+        @for (r of recipientTypes; track r) {
+          <button type="button" role="radio" [attr.aria-checked]="template.email.recipientType === r" [class.active]="template.email.recipientType === r" (click)="template.email.recipientType = r">{{ r }}</button>
+        }
+      </div>
+    </div>
+
+    <div class="te-content">
+      <div class="field te-main" [class.invalid]="err('body')">
+        <span>Message Content <span class="req">*</span></span>
+        <div class="te-editor">
+          <div class="te-toolbar">
+            <select class="te-para" [(ngModel)]="paragraphStyle" aria-label="Paragraph style">
+              @for (p of paragraphStyles; track p) { <option [value]="p">{{ p }}</option> }
+            </select>
+            <button type="button" (click)="wrap('**')" title="Bold"><lucide-icon [img]="icons.Bold" [size]="15"></lucide-icon></button>
+            <button type="button" (click)="wrap('*')" title="Italic"><lucide-icon [img]="icons.Italic" [size]="15"></lucide-icon></button>
+            <button type="button" (click)="wrap('__')" title="Underline"><lucide-icon [img]="icons.Underline" [size]="15"></lucide-icon></button>
+            <span class="te-sep"></span>
+            <button type="button" (click)="list(false)" title="Bulleted list"><lucide-icon [img]="icons.List" [size]="15"></lucide-icon></button>
+            <button type="button" (click)="list(true)" title="Numbered list"><lucide-icon [img]="icons.ListOrdered" [size]="15"></lucide-icon></button>
+            <button type="button" (click)="unsupported('Alignment')" title="Align left"><lucide-icon [img]="icons.TextAlignStart" [size]="15"></lucide-icon></button>
+            <button type="button" (click)="unsupported('Alignment')" title="Align center"><lucide-icon [img]="icons.TextAlignCenter" [size]="15"></lucide-icon></button>
+            <button type="button" (click)="unsupported('Alignment')" title="Align right"><lucide-icon [img]="icons.TextAlignEnd" [size]="15"></lucide-icon></button>
+            <span class="te-sep"></span>
+            <button type="button" (click)="insertButton()" title="Insert call-to-action button"><lucide-icon [img]="icons.Link" [size]="15"></lucide-icon></button>
+            <button type="button" (click)="unsupported('Images')" title="Insert image"><lucide-icon [img]="icons.Image" [size]="15"></lucide-icon></button>
+            <button type="button" (click)="unsupported('HTML source')" title="HTML source"><lucide-icon [img]="icons.Code" [size]="15"></lucide-icon></button>
+            <select class="te-vars" (change)="insertFromSelect($event)" aria-label="Insert variable">
+              <option value="">Variables</option>
+              @for (g of variableGroups; track g.name) {
+                <optgroup [label]="g.name">
+                  @for (v of g.variables; track v) { <option [value]="v">{{ v }}</option> }
+                </optgroup>
+              }
+            </select>
+          </div>
+          <div class="te-area">
+            <div class="te-mirror" aria-hidden="true">@for (s of bodySegments(); track $index) {@if (s.variable) {<mark [class.te-unknown]="!known(s.variable)">{{ s.text }}</mark>} @else {<span>{{ s.text }}</span>}}</div>
+            <textarea #bodyEl class="te-input" [(ngModel)]="template.email.body" (focus)="track('body', bodyEl)" aria-label="Message content" spellcheck="true"></textarea>
+          </div>
+        </div>
+        @if (err('body')) { <small>{{ err('body') }}</small> }
+        <small>Tip: a paragraph of "Label: value" lines shows as a detail table; [button:Label] adds a button.</small>
+      </div>
+      <app-variable-panel (pick)="insertVariable($event)"></app-variable-panel>
+    </div>
+  }
+
+  @case ('sms') {
+    <div class="te-content">
+      <div class="field te-main" [class.invalid]="err('sms')">
+        <label for="te-sms">SMS Message <span class="req">*</span></label>
+        <textarea #smsEl id="te-sms" rows="6" [(ngModel)]="template.sms.text" (focus)="track('sms', smsEl)"></textarea>
+        <div class="te-counter" [class.over]="smsLength > smsLimit">
+          <span>{{ smsLength }}/{{ smsLimit }} characters</span>
+          <span>{{ smsSegments }} SMS segment{{ smsSegments === 1 ? '' : 's' }}</span>
+        </div>
+        @if (err('sms')) { <small>{{ err('sms') }}</small> }
+        <small>Variables expand when sent, so keep room for long values such as asset names.</small>
+      </div>
+      <app-variable-panel (pick)="insertVariable($event)"></app-variable-panel>
+    </div>
+  }
+
+  @case ('inApp') {
+    <div class="te-content">
+      <div class="te-main">
+        <div class="field" [class.invalid]="err('inAppTitle')">
+          <label for="te-ia-title">Title <span class="req">*</span></label>
+          <input #inAppTitleEl id="te-ia-title" [(ngModel)]="template.inApp.title" (focus)="track('inAppTitle', inAppTitleEl)" maxlength="80" />
+          @if (err('inAppTitle')) { <small>{{ err('inAppTitle') }}</small> }
+        </div>
+        <div class="field">
+          <label for="te-ia-body">Message</label>
+          <textarea #inAppBodyEl id="te-ia-body" rows="5" [(ngModel)]="template.inApp.body" (focus)="track('inAppBody', inAppBodyEl)"></textarea>
+        </div>
+        <div class="field">
+          <label for="te-ia-link">Action Link</label>
+          <input id="te-ia-link" [(ngModel)]="template.inApp.link" maxlength="200" />
+          <small>Opened when the user clicks the notification.</small>
+        </div>
+      </div>
+      <app-variable-panel (pick)="insertVariable($event)"></app-variable-panel>
+    </div>
+  }
+
+  @case ('push') {
+    <div class="te-content">
+      <div class="te-main">
+        <div class="field" [class.invalid]="err('pushTitle')">
+          <label for="te-p-title">Push Title <span class="req">*</span></label>
+          <input #pushTitleEl id="te-p-title" [(ngModel)]="template.push.title" (focus)="track('pushTitle', pushTitleEl)" />
+          <small>{{ template.push.title.length }}/{{ pushTitleLimit }}</small>
+          @if (err('pushTitle')) { <small>{{ err('pushTitle') }}</small> }
+        </div>
+        <div class="field" [class.invalid]="err('pushBody')">
+          <label for="te-p-body">Push Message <span class="req">*</span></label>
+          <textarea #pushBodyEl id="te-p-body" rows="4" [(ngModel)]="template.push.body" (focus)="track('pushBody', pushBodyEl)"></textarea>
+          <small>{{ template.push.body.length }}/{{ pushBodyLimit }}</small>
+          @if (err('pushBody')) { <small>{{ err('pushBody') }}</small> }
+        </div>
+      </div>
+      <app-variable-panel (pick)="insertVariable($event)"></app-variable-panel>
+    </div>
+  }
+}

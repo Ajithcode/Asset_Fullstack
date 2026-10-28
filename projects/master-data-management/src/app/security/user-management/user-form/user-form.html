@@ -1,0 +1,174 @@
+<aside class="drawer" role="dialog" aria-labelledby="user-form-title">
+  <header class="drawer__header">
+    <h2 id="user-form-title">{{ isEdit ? 'Edit User' : 'Add User' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top basic-top--photo-right">
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors['name']">
+              <label for="user-name"><span class="req">*</span> Full Name</label>
+              <input id="user-name" name="name" placeholder="Enter full name" [(ngModel)]="form.name" (ngModelChange)="onNameChange()" />
+              @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors['username']">
+              <label for="user-username"><span class="req">*</span> Username</label>
+              <input id="user-username" name="username" placeholder="Enter username" autocomplete="off" [(ngModel)]="form.username" (input)="onUsernameChange()" />
+              @if (errors['username']) { <small>{{ errors['username'] }}</small> }
+            </div>
+          </div>
+          <div class="logo-field">
+            <label class="upload photo-upload" [class.upload--filled]="form.photo" [class.invalid]="errors['photo']">
+              <input type="file" accept="image/png,image/jpeg" (change)="onPhotoPicked($event)" />
+              @if (form.photo) {
+                <img [src]="form.photo" alt="User photo" class="logo-img" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); form.photo = null">Remove</button>
+              } @else {
+                <span class="upload__icon"><lucide-icon [img]="icons.Camera" [size]="26"></lucide-icon></span>
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+          </div>
+        </div>
+        @if (errors['photo']) { <small class="upload-error">{{ errors['photo'] }}</small> }
+
+        <div class="field" [class.invalid]="errors['email']">
+          <label for="user-email"><span class="req">*</span> Email</label>
+          <input id="user-email" name="email" type="email" placeholder="Enter email address" [(ngModel)]="form.email" (input)="onEmailInput()" />
+          @if (errors['email']) { <small>{{ errors['email'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['department']">
+          <label for="user-dept"><span class="req">*</span> Department</label>
+          <select id="user-dept" name="department" [(ngModel)]="form.department">
+            <option value="" disabled>Select department</option>
+            @for (d of departments; track d) { <option [value]="d">{{ d }}</option> }
+          </select>
+          @if (errors['department']) { <small>{{ errors['department'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['primaryRole']">
+          <label for="user-role"><span class="req">*</span> Primary Role</label>
+          <select id="user-role" name="primaryRole" [(ngModel)]="form.primaryRole" (ngModelChange)="onPrimaryChange()">
+            <option value="" disabled>Select role</option>
+            @for (r of roleOptions; track r.code) { <option [value]="r.code">{{ r.name }}</option> }
+          </select>
+          @if (errors['primaryRole']) { <small>{{ errors['primaryRole'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="user-phone">Phone</label>
+          <input id="user-phone" name="phone" type="tel" placeholder="Enter phone number" [(ngModel)]="form.phone" />
+        </div>
+        <div class="field" [class.invalid]="errors['status']">
+          <label for="user-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="user-status" name="status" [(ngModel)]="form.status" [disabled]="isSelf">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+          @if (errors['status']) { <small>{{ errors['status'] }}</small> }
+          @else if (isSelf) { <small class="hint">This is your account.</small> }
+        </div>
+      }
+
+      @case ('access') {
+        <span class="section-title">Additional Roles ({{ form.additionalRoles.length }})</span>
+        <div class="ticks">
+          @for (r of extraRoleOptions; track r.code) {
+            <label><input type="checkbox" [checked]="form.additionalRoles.includes(r.code)" (change)="toggle('additionalRoles', r.code)" /><span>{{ r.name }}</span></label>
+          }
+        </div>
+        <p class="hint">The user gets the combined permissions of all their roles.</p>
+
+        <span class="section-title">Site Access</span>
+        <div class="ticks" [class.invalid]="errors['sites']">
+          @for (s of sites; track s) {
+            <label><input type="checkbox" [checked]="form.sites.includes(s)" (change)="toggle('sites', s)" /><span>{{ s }}</span></label>
+          }
+        </div>
+        @if (errors['sites']) { <small class="upload-error">{{ errors['sites'] }}</small> }
+
+        <div class="grid">
+          <div class="field field--wide">
+            <label for="user-emp">Linked Employee</label>
+            <select id="user-emp" name="employeeId" [(ngModel)]="form.employeeId" (ngModelChange)="onEmployeeLink()">
+              <option value="">Not linked</option>
+              @for (e of employeeOptions; track e.id) { <option [value]="e.id">{{ e.name }} ({{ e.id }})</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors['accountExpiry']">
+            <label for="user-expiry">Account Expiry</label>
+            <input id="user-expiry" name="accountExpiry" type="date" [(ngModel)]="form.accountExpiry" />
+            @if (errors['accountExpiry']) { <small>{{ errors['accountExpiry'] }}</small> } @else { <small class="hint">Leave empty for no expiry.</small> }
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Two-factor sign-in</strong><small>Require a one-time code at every sign-in.</small></span>
+            <input type="checkbox" name="mfaRequired" [(ngModel)]="form.mfaRequired" />
+          </label>
+          <label class="toggle">
+            <span><strong>Change password at next sign-in</strong><small>The user must set a new password.</small></span>
+            <input type="checkbox" name="mustChangePassword" [(ngModel)]="form.mustChangePassword" />
+          </label>
+          @if (!isEdit) {
+            <label class="toggle">
+              <span><strong>Send invitation email</strong><small>The user sets their own password from the email.</small></span>
+              <input type="checkbox" name="sendInvite" [(ngModel)]="form.sendInvite" />
+            </label>
+          }
+        </div>
+      }
+
+      @case ('preferences') {
+        <div class="grid">
+          <div class="field">
+            <label for="user-lang">Language</label>
+            <select id="user-lang" name="language" [(ngModel)]="form.language">
+              @for (l of languages; track l) { <option [value]="l">{{ l }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="user-date">Date Format</label>
+            <select id="user-date" name="dateFormat" [(ngModel)]="form.dateFormat">
+              @for (d of dateFormats; track d) { <option [value]="d">{{ d }}</option> }
+            </select>
+          </div>
+          <div class="field field--wide">
+            <label for="user-tz">Time Zone</label>
+            <select id="user-tz" name="timeZone" [(ngModel)]="form.timeZone">
+              @for (t of timeZones; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Email notifications</strong><small>Assignments, approvals and reminders by email.</small></span>
+            <input type="checkbox" name="emailNotifications" [(ngModel)]="form.emailNotifications" />
+          </label>
+          <label class="toggle">
+            <span><strong>SMS notifications</strong><small>Urgent alerts by SMS.</small></span>
+            <input type="checkbox" name="smsNotifications" [(ngModel)]="form.smsNotifications" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

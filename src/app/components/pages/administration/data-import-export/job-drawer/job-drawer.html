@@ -1,0 +1,155 @@
+<aside class="drawer" aria-label="Job settings">
+  <div class="drawer__head">
+    <h2>{{ title }}</h2>
+    <button type="button" class="icon-btn icon-btn--bare" (click)="closed.emit()" aria-label="Close settings">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </div>
+
+  <form (ngSubmit)="save()" novalidate>
+    <div class="row-field" [class.invalid]="errors['name']">
+      <label for="job-name">Job Name <span class="req">*</span></label>
+      <input #nameInput id="job-name" name="name" [(ngModel)]="job.name" maxlength="80" placeholder="e.g. Asset Master Import" />
+    </div>
+    @if (errors['name']) { <small class="row-error">{{ errors['name'] }}</small> }
+
+    <div class="row-field" [class.invalid]="errors['object']">
+      <label for="job-object">Data Object <span class="req">*</span></label>
+      <select id="job-object" name="dataObject" [(ngModel)]="job.dataObject">
+        @for (o of objects; track o) { <option [value]="o">{{ o }}</option> }
+      </select>
+    </div>
+
+    @if (isImport) {
+      <div class="row-field" [class.invalid]="errors['operation']">
+        <label for="job-op">Operation <span class="req">*</span></label>
+        <select id="job-op" name="operation" [(ngModel)]="job.operation">
+          <option value="Insert">Insert</option>
+          <option value="Update">Update</option>
+          <option value="Upsert">Upsert</option>
+        </select>
+      </div>
+
+      <div class="row-field" [class.invalid]="errors['file']">
+        <label>Source File <span class="req">*</span></label>
+        <div class="file-box">
+          @if (job.fileName) {
+            <lucide-icon class="file-box__icon" [img]="icons.FileSpreadsheet" [size]="16"></lucide-icon>
+            <span class="file-box__name" [title]="job.fileName">{{ job.fileName }}</span>
+            <button type="button" class="icon-btn icon-btn--bare file-box__clear" (click)="clearFile()" aria-label="Remove file">
+              <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
+            </button>
+          } @else {
+            <button type="button" class="btn btn--link file-box__pick" (click)="fileInput.click()">
+              <lucide-icon [img]="icons.Paperclip" [size]="14"></lucide-icon> Choose .xlsx or .csv
+            </button>
+          }
+          <input #fileInput type="file" hidden accept=".xlsx,.csv" (change)="onFile(fileInput)" />
+        </div>
+      </div>
+      @if (errors['file']) { <small class="row-error">{{ errors['file'] }}</small> }
+    } @else {
+      <div class="row-field">
+        <label for="job-export">Export Format</label>
+        <select id="job-export" name="exportFormat" [(ngModel)]="job.fileFormat">
+          <option value="XLSX">Excel (.xlsx)</option>
+          <option value="CSV">CSV (.csv)</option>
+        </select>
+      </div>
+    }
+
+    @if (isImport) {
+      <div class="row-field">
+        <label for="job-format">File Format</label>
+        <select id="job-format" name="fileFormat" [(ngModel)]="job.fileFormat">
+          <option value="XLSX">XLSX</option>
+          <option value="CSV">CSV</option>
+        </select>
+      </div>
+
+      <div class="row-field">
+        <label for="job-dup">Duplicate Handling</label>
+        <select id="job-dup" name="duplicateHandling" [(ngModel)]="job.duplicateHandling">
+          @for (o of duplicateOptions; track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </div>
+    }
+
+    <div class="row-field">
+      <label for="job-date">Date Format</label>
+      <select id="job-date" name="dateFormat" [(ngModel)]="job.dateFormat">
+        @for (o of dateFormats; track o) { <option [value]="o">{{ o }}</option> }
+      </select>
+    </div>
+
+    <div class="row-field">
+      <label for="job-delim">Delimiter</label>
+      <select id="job-delim" name="delimiter" [(ngModel)]="job.delimiter">
+        @for (o of delimiters; track o) { <option [value]="o">{{ o }}</option> }
+      </select>
+    </div>
+
+    <div class="row-field">
+      <label for="job-enc">Encoding</label>
+      <select id="job-enc" name="encoding" [(ngModel)]="job.encoding">
+        @for (o of encodings; track o) { <option [value]="o">{{ o }}</option> }
+      </select>
+    </div>
+
+    <div class="row-field" [class.invalid]="errors['batch']">
+      <label for="job-batch">Batch Size</label>
+      <input id="job-batch" name="batchSize" type="number" min="1" max="50000" step="100" [(ngModel)]="job.batchSize" />
+    </div>
+    @if (errors['batch']) { <small class="row-error">{{ errors['batch'] }}</small> }
+
+    <div class="row-field" [class.invalid]="errors['schedule']">
+      <label for="job-schedule">Schedule</label>
+      <select id="job-schedule" name="schedule" [(ngModel)]="scheduleChoice">
+        <option value="manual">None (Run manually)</option>
+        <option value="once">One-time</option>
+        <option value="Daily">Daily</option>
+        <option value="Weekly">Weekly</option>
+        <option value="Monthly">Monthly</option>
+      </select>
+    </div>
+    @if (errors['schedule']) { <small class="row-error">{{ errors['schedule'] }}</small> }
+
+    <div class="row-field row-field--top" [class.invalid]="errors['recipients'] || recipientError">
+      <label for="job-recipient">Notification Recipients</label>
+      <div class="recipients">
+        <div class="chips">
+          @for (r of job.recipients; track r) {
+            <span class="chip chip--blue">{{ r }} <button type="button" (click)="removeRecipient(r)" [attr.aria-label]="'Remove ' + r">×</button></span>
+          }
+        </div>
+        <input id="job-recipient" name="recipientInput" type="email" [(ngModel)]="recipientInput" placeholder="Add email and press Enter"
+          (keydown)="onRecipientKey($event)" (blur)="addRecipient()" />
+      </div>
+    </div>
+    @if (recipientError || errors['recipients']) { <small class="row-error">{{ recipientError || errors['recipients'] }}</small> }
+
+    <div class="row-field row-field--top">
+      <label>Status</label>
+      <div>
+        <label class="switch"><input type="checkbox" name="active" [(ngModel)]="job.active" /><i></i> {{ job.active ? 'Active' : 'Inactive' }}</label>
+        <small class="muted d-block">Enable this job for execution</small>
+      </div>
+    </div>
+
+    <section class="sub-panel security">
+      <h3><lucide-icon [img]="icons.Lock" [size]="16"></lucide-icon> Security &amp; Audit</h3>
+      <dl class="kv kv--tight">
+        <dt>File Encryption</dt><dd>Encrypted at rest (AES-256)</dd>
+        <dt>Access Scope</dt><dd>Organization ({{ organization }})</dd>
+        <dt>Retention Period</dt><dd>90 days</dd>
+        <dt>Uploaded by</dt><dd>{{ job.uploadedBy || '—' }}</dd>
+        <dt>Audit Trail</dt><dd><a routerLink="/administration/system-audit-log">View audit logs</a></dd>
+      </dl>
+    </section>
+
+    <div class="drawer__foot">
+      <button type="button" class="btn" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save Job</button>
+    </div>
+  </form>
+</aside>

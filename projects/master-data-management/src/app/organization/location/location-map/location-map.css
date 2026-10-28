@@ -1,0 +1,177 @@
+:host {
+  display: block;
+}
+
+.loc-map {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+}
+
+.loc-map--expanded {
+  position: fixed;
+  inset: 24px;
+  z-index: 1700;
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.35);
+}
+
+.loc-map__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #f4f2fb;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.loc-map__tabs button {
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  height: 28px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475066;
+  cursor: pointer;
+}
+
+.loc-map__tabs button.active {
+  background: #fff;
+  color: #4f2bd8;
+  box-shadow: inset 0 -2px 0 #4f2bd8;
+}
+
+.loc-map__canvas {
+  position: relative;
+  flex: 1;
+  min-height: 200px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #e8ebf2;
+}
+
+.loc-map__leaflet {
+  position: absolute;
+  inset: 0;
+}
+
+.loc-map__plan {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #f8fafc;
+}
+
+.plan-building {
+  fill: #ffffff;
+  stroke: #2563eb;
+  stroke-width: 2;
+}
+
+.plan-building-label {
+  font-size: 9px;
+  font-weight: 700;
+  fill: #2563eb;
+}
+
+.plan-zone-label {
+  font-size: 9px;
+  font-weight: 600;
+  fill: #334155;
+}
+
+.plan-location {
+  fill: #7c3aed;
+  fill-opacity: 0.55;
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+.plan-location-label {
+  font-size: 9px;
+  font-weight: 700;
+  fill: #fff;
+}
+
+.loc-map__expand {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 500;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: none;
+  background: #fff;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+}
+
+.loc-map__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12px;
+  color: #475066;
+}
+
+.loc-map__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot--building { background: #2563eb; }
+.dot--floor { background: #7c3aed; }
+.dot--zone { background: #22c55e; }
+
+.pin {
+  width: 9px;
+  height: 9px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: #ef4444;
+  display: inline-block;
+}
+
+/* Leaflet adds these outside the component's view, so they must not be encapsulated */
+:host ::ng-deep .loc-map-label {
+  background: rgba(255, 255, 255, 0.92);
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  padding: 3px 8px;
+}
+
+:host ::ng-deep .loc-map-label::before {
+  display: none;
+}
+
+:host ::ng-deep .loc-map-label--active {
+  background: #fff;
+  color: #4f2bd8;
+}
+
+:host ::ng-deep .loc-map-pin {
+  background: transparent;
+  border: none;
+}

@@ -1,0 +1,280 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/administration">Administration</a>
+  <span>/</span>
+  <strong>System Configuration</strong>
+</nav>
+
+<header class="page-head">
+  <span class="page-head__icon"><lucide-icon [img]="icons.Settings" [size]="24"></lucide-icon></span>
+  <div class="page-head__text">
+    <h1>System Configuration</h1>
+    <p>Manage global platform preferences, regional defaults, security controls, and organization-wide behavior.</p>
+  </div>
+  <label class="org-picker cfg-org">
+    Organization
+    <select [(ngModel)]="organization">
+      @for (o of organizations; track o) {
+        <option [value]="o">{{ o }}</option>
+      }
+    </select>
+  </label>
+</header>
+
+<section class="stats" aria-label="Summary">
+  <div class="stat">
+    <span class="stat__icon"><lucide-icon [img]="icons.Settings" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Configuration Sections</span>
+      <span class="stat__value">{{ sections.length }}</span>
+      <span class="stat__hint">Manage platform settings</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.Share2" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Active Integrations</span>
+      <span class="stat__value">{{ activeIntegrations }}</span>
+      <span class="stat__hint">Connected systems</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="pink"><lucide-icon [img]="icons.Shield" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Security Policies</span>
+      <span class="stat__value">{{ securityPolicies }}</span>
+      <span class="stat__hint">Active policies</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="orange"><lucide-icon [img]="icons.Clock" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Pending Changes</span>
+      <span class="stat__value" data-tone="red">{{ pending.length }}</span>
+      <span class="stat__hint">Awaiting review</span>
+    </div>
+  </div>
+</section>
+
+<div class="toolbar">
+  <button type="button" class="btn btn--primary" (click)="saveAll()">
+    <lucide-icon [img]="icons.Save" [size]="16"></lucide-icon> Save Changes
+    @if (dirtySettings.length) {
+      <span class="cfg-count">{{ dirtySettings.length }}</span>
+    }
+  </button>
+  <button type="button" class="btn" (click)="askReset()">
+    <lucide-icon [img]="icons.RotateCcw" [size]="16"></lucide-icon> Reset to Defaults
+  </button>
+  <button type="button" class="btn" (click)="importInput.click()">
+    <lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import Configuration
+  </button>
+  <input #importInput type="file" hidden accept="application/json,.json" (change)="importConfig(importInput)" />
+  <button type="button" class="btn" (click)="exportConfig()">
+    <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export Configuration
+  </button>
+  <span class="toolbar__spacer"></span>
+  <label class="search">
+    <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+    <input type="search" placeholder="Search settings..." aria-label="Search settings" [(ngModel)]="settingsQuery" />
+  </label>
+  <button type="button" class="btn cfg-pending-btn" [disabled]="!pending.length" (click)="showPending = true">
+    <lucide-icon [img]="icons.CircleAlert" [size]="16"></lucide-icon>
+    {{ pending.length }} change{{ pending.length === 1 ? '' : 's' }} pending review
+    <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+  </button>
+</div>
+
+<div class="ws" [class.ws--with-drawer]="!!selectedKey">
+  <!-- Sections -->
+  <aside class="panel">
+    <div class="panel__head">
+      <h2>Configuration Sections ({{ sections.length }})</h2>
+    </div>
+    <label class="search">
+      <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+      <input type="search" placeholder="Search sections..." aria-label="Search sections" [(ngModel)]="sectionQuery" />
+    </label>
+    <div class="list">
+      @for (sec of filteredSections; track sec.id) {
+        <button type="button" class="list-item cfg-section" [class.active]="sec.id === sectionId && !settingsQuery" (click)="selectSection(sec)">
+          <span class="cfg-section__icon"><lucide-icon [img]="icon(sec.icon)" [size]="20"></lucide-icon></span>
+          <span class="list-item__body">
+            <span class="list-item__title">
+              {{ sec.title }}
+              @if (sectionDirtyCount(sec)) {
+                <span class="pill" data-tone="orange">{{ sectionDirtyCount(sec) }}</span>
+              }
+            </span>
+            <span class="list-item__meta">{{ sec.subtitle }}</span>
+          </span>
+          @if (sec.id === sectionId && !settingsQuery) {
+            <lucide-icon [img]="icons.ChevronRight" [size]="16" class="cfg-purple"></lucide-icon>
+          }
+        </button>
+      } @empty {
+        <p class="list-empty">No sections match.</p>
+      }
+    </div>
+  </aside>
+
+  <!-- Selected section -->
+  <main class="panel">
+    @if (settingsQuery.trim()) {
+      <div class="cfg-head">
+        <h2>Search results</h2>
+        <p class="muted">Settings matching “{{ settingsQuery.trim() }}” across all sections.</p>
+      </div>
+    } @else {
+      <div class="cfg-head">
+        <h2>
+          {{ currentSection.title }}
+          @if (currentSection.requiresApproval) {
+            <span class="pill" data-tone="orange"><i></i> Requires review</span>
+          }
+        </h2>
+        <p class="muted">{{ currentSection.description }}</p>
+      </div>
+      @if (currentSection.tabs) {
+        <nav class="tabs" role="tablist">
+          @for (t of currentSection.tabs; track t.id) {
+            <button type="button" role="tab" [class.active]="t.id === tab" [attr.aria-selected]="t.id === tab" (click)="tab = t.id">{{ t.label }}</button>
+          }
+        </nav>
+      }
+    }
+
+    @for (v of visibleGroups; track v.group.id) {
+      <app-config-group-card
+        [group]="v.group"
+        [settings]="v.settings"
+        [caption]="v.caption"
+        [values]="draft"
+        [errors]="errors"
+        [selectedKey]="selectedKey"
+        (selectSetting)="selectSetting($event)"
+        (valueChange)="onValueChange($event)"
+        (notice)="notify($event)"
+      />
+    } @empty {
+      <p class="empty">No settings match your search.</p>
+    }
+
+    <div class="cfg-actions">
+      <button type="button" class="btn btn--primary" (click)="saveAll()">
+        <lucide-icon [img]="icons.Save" [size]="16"></lucide-icon> Save Changes
+      </button>
+      <button type="button" class="btn" (click)="askDiscard()">Cancel</button>
+      @if (dirtySettings.length) {
+        <span class="muted">{{ dirtySettings.length }} unsaved change{{ dirtySettings.length === 1 ? '' : 's' }}</span>
+      }
+    </div>
+  </main>
+
+  @if (selectedKey) {
+    <app-config-detail-drawer
+      [setting]="selectedSetting"
+      [section]="selectedSection"
+      [draftValue]="selectedDraft"
+      [changes]="recentChanges"
+      (closed)="selectedKey = null"
+      (apply)="applySelected($event)"
+      (revert)="revertSelected()"
+      (viewAll)="showHistory = true"
+      (openChange)="openChange($event)"
+    />
+  }
+</div>
+
+<!-- Pending changes review -->
+@if (showPending) {
+  <div class="overlay" (click)="showPending = false">
+    <div class="confirm cfg-dialog" role="dialog" aria-modal="true" aria-labelledby="cfg-pending-title" (click)="$event.stopPropagation()">
+      <div class="drawer__head">
+        <h2 id="cfg-pending-title">Changes pending review ({{ pending.length }})</h2>
+        <button type="button" class="icon-btn icon-btn--bare" aria-label="Close" (click)="showPending = false">
+          <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+        </button>
+      </div>
+      @for (c of pending; track c.id) {
+        <article class="cfg-pending">
+          <div class="cfg-pending__body">
+            <b>{{ c.setting }}</b> <span class="muted">· {{ c.section }}</span>
+            <div class="cfg-pending__diff">
+              <span class="pill" data-tone="grey">{{ display(c, c.oldValue) }}</span>
+              <lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon>
+              <span class="pill" data-tone="purple">{{ display(c, c.newValue) }}</span>
+            </div>
+            <small class="muted">Requested by {{ c.updatedBy }} on {{ date(c.date) }} — “{{ c.reason }}”</small>
+          </div>
+          <div class="cfg-pending__actions">
+            <button type="button" class="btn btn--sm btn--danger" (click)="reject(c)">Reject</button>
+            <button type="button" class="btn btn--sm btn--primary" (click)="approve(c)">Approve</button>
+          </div>
+        </article>
+      } @empty {
+        <p class="empty">Nothing is waiting for review.</p>
+      }
+    </div>
+  </div>
+}
+
+<!-- Full change history -->
+@if (showHistory) {
+  <div class="overlay" (click)="showHistory = false">
+    <div class="confirm cfg-dialog cfg-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="cfg-history-title" (click)="$event.stopPropagation()">
+      <div class="drawer__head">
+        <h2 id="cfg-history-title">All configuration changes</h2>
+        <button type="button" class="icon-btn icon-btn--bare" aria-label="Close" (click)="showHistory = false">
+          <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+        </button>
+      </div>
+      <div class="table-wrap cfg-history">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Setting</th>
+              <th>Section</th>
+              <th>Change</th>
+              <th>Updated By</th>
+              <th>Date</th>
+              <th>Reason</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of history; track c.id) {
+              <tr class="clickable" (click)="openChange(c.key)">
+                <td><b>{{ c.setting }}</b></td>
+                <td>{{ c.section }}</td>
+                <td>{{ display(c, c.oldValue) }} → {{ display(c, c.newValue) }}</td>
+                <td>{{ c.updatedBy }}</td>
+                <td>{{ date(c.date) }}</td>
+                <td class="muted">{{ c.reason }}</td>
+                <td><span class="pill" [attr.data-tone]="tone(c)">{{ c.status }}</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+}
+
+@if (confirm) {
+  <div class="overlay">
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="cfg-confirm-title">
+      <h2 id="cfg-confirm-title">{{ confirm.title }}</h2>
+      <p>{{ confirm.message }}</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="confirm = null">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="confirmAction()">
+          {{ confirm.action === 'reset' ? 'Reset to Defaults' : 'Discard' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

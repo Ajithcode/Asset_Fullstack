@@ -1,14 +1,555 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterModule, RouterOutlet } from '@angular/router';
+import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import {
+  ArrowDown,
+  ArrowUp,
+  Ban,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Download,
+  Ellipsis,
+  LucideAngularModule,
+  Mail,
+  Plus,
+  Search,
+  Upload,
+  User,
+  UserCog,
+  Users
+} from 'lucide-angular';
+import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS, AdminPage, CURRENT_USER, avatarTone, formatDate, initials } from '../shared/admin-common';
+import { InviteDialog, InviteRequest } from './invite-dialog/invite-dialog';
+import { UserDrawer } from './user-drawer/user-drawer';
+import { downloadCsv, parseCsv } from './user-csv';
+import { LAST_MONTH, LOCATION_TIME_ZONES, USER_ROLES, blankUser, roleModules } from './user-management.data';
+import { AdminUser, UserStatus } from './user-management.model';
+import { UserAdminService } from './user-management.service';
+import { loginLabel, roleOf } from './user-format';
 
+/** A status action waiting for confirmation in the dialog. */
+interface PendingAction {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  danger: boolean;
+  run: () => void;
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
+const EXPORT_HEADER = ['Name', 'Email', 'Employee ID', 'Department', 'Job Title', 'Primary Role', 'Secondary Roles', 'Location', 'Access Scope', 'MFA', 'Last Login', 'Status'];
+
+/** Administration > User Management: accounts, roles, access scope and account status. */
 @Component({
   standalone: true,
-  selector: 'app-user-management',
-  imports: [CommonModule, RouterModule, RouterOutlet],
+  selector: 'app-admin-user-management',
+  imports: [FormsModule, RouterLink, LucideAngularModule, UserDrawer, InviteDialog],
   templateUrl: './user-management.html',
-  styleUrls: ['./user-management.css']
+  styleUrls: ['../shared/admin-workspace.css', './user-management.css']
 })
-export class UserManagement {
-  activeTab: 'user' | 'role' = 'user';
+export class UserManagementPage extends AdminPage {
+  @ViewChild('importInput') importInput?: ElementRef<HTMLInputElement>;
+
+  readonly service = inject(UserAdminService);
+  readonly icons = { ArrowDown, ArrowUp, Ban, ChevronLeft, ChevronRight, Clock, Download, Ellipsis, Mail, Plus, Search, Upload, User, UserCog, Users };
+  readonly departments = ADMIN_DEPARTMENTS;
+  readonly statuses: UserStatus[] = ['Active', 'Pending', 'Suspended'];
+  readonly pageSizes = [10, 20, 50, 100];
+  readonly initials = initials;
+
+  search = '';
+  department = '';
+  status: '' | UserStatus = '';
+  page = 0;
+  pageSize = 10;
+  checked = new Set<string>();
+  menuFor: string | null = null;
+
+  // Opens on the signed-in administrator, as in the design
+  drawerUser: AdminUser | null = this.service.find(CURRENT_USER.id) ?? null;
+  drawerMode: 'add' | 'edit' = 'edit';
+  inviteOpen = false;
+  pending: PendingAction | null = null;
+
+  /* ===== Stats ===== */
+
+  get total(): number {
+    return this.service.count();
+  }
+
+  countOf(status: UserStatus): number {
+    return this.service.count(status);
+  }
+
+  /** Change against last month's count, in whole percent. */
+  trend(current: number, last: number): number {
+    return last ? Math.round(((current - last) / last) * 100) : 0;
+  }
+
+  readonly lastMonth = LAST_MONTH;
+
+  abs(n: number): number {
+    return Math.abs(n);
+  }
+
+  /* ===== Table ===== */
+
+  get rows(): AdminUser[] {
+    const term = this.search.trim().toLowerCase();
+    return this.service
+      .all()
+      .filter(
+        (u) =>
+          (!this.department || u.department === this.department) &&
+          (!this.status || u.status === this.status) &&
+          (!term || [u.name, u.email, u.employeeId].some((v) => v.toLowerCase().includes(term)))
+      );
+  }
+
+  get pageRows(): AdminUser[] {
+    return this.rows.slice(this.page * this.pageSize, (this.page + 1) * this.pageSize);
+  }
+
+  get pageCount(): number {
+    return Math.max(1, Math.ceil(this.rows.length / this.pageSize));
+  }
+
+  /** Page buttons with -1 for a gap: 1 2 3 4 5 … 62. */
+  get pageItems(): number[] {
+    const n = this.pageCount;
+    const p = this.page;
+    const last = n - 1;
+    if (n <= 7) return Array.from({ length: n }, (_, i) => i);
+    if (p < 4) return [0, 1, 2, 3, 4, -1, last];
+    if (p > last - 4) return [0, -1, last - 4, last - 3, last - 2, last - 1, last];
+    return [0, -1, p - 1, p, p + 1, -1, last];
+  }
+
+  get showingFrom(): number {
+    return this.rows.length ? this.page * this.pageSize + 1 : 0;
+  }
+
+  get showingTo(): number {
+    return Math.min((this.page + 1) * this.pageSize, this.rows.length);
+  }
+
+  goTo(page: number): void {
+    this.page = Math.min(Math.max(0, page), this.pageCount - 1);
+  }
+
+  onFilterChange(): void {
+    this.page = 0;
+  }
+
+  clearFilters(): void {
+    this.search = '';
+    this.department = '';
+    this.status = '';
+    this.page = 0;
+  }
+
+  avatarBg(u: AdminUser): string {
+    return avatarTone(u.name).bg;
+  }
+
+  avatarInk(u: AdminUser): string {
+    return avatarTone(u.name).ink;
+  }
+
+  roleShort(u: AdminUser): string {
+    return roleOf(u.primaryRole)?.short ?? u.primaryRole;
+  }
+
+  roleTone(u: AdminUser): string {
+    return roleOf(u.primaryRole)?.tone ?? 'purple';
+  }
+
+  statusTone(u: AdminUser): string {
+    return u.status === 'Active' ? 'green' : u.status === 'Pending' ? 'orange' : 'red';
+  }
+
+  /** Two lines for older dates ("24 Oct 2026" / "10:21"), one for today / yesterday. */
+  loginDate(u: AdminUser): string {
+    if (!u.lastLogin) return u.status === 'Pending' ? 'Invited' : 'Never';
+    const label = loginLabel(u.lastLogin);
+    return /^(Today|Yesterday)/.test(label) ? label : label.slice(0, label.lastIndexOf(' '));
+  }
+
+  loginTime(u: AdminUser): string {
+    if (!u.lastLogin) return u.invitedAt ? formatDate(u.invitedAt) : '';
+    const label = loginLabel(u.lastLogin);
+    return /^(Today|Yesterday)/.test(label) ? '' : label.slice(label.lastIndexOf(' ') + 1);
+  }
+
+  isSelf(u: AdminUser): boolean {
+    return u.id === this.service.currentUserId;
+  }
+
+  isOpen(u: AdminUser): boolean {
+    return this.drawerMode === 'edit' && this.drawerUser?.id === u.id;
+  }
+
+  /* ===== Selection ===== */
+
+  isChecked(u: AdminUser): boolean {
+    return this.checked.has(u.id);
+  }
+
+  toggleCheck(u: AdminUser): void {
+    if (this.checked.has(u.id)) this.checked.delete(u.id);
+    else this.checked.add(u.id);
+  }
+
+  get allChecked(): boolean {
+    return this.pageRows.length > 0 && this.pageRows.every((u) => this.checked.has(u.id));
+  }
+
+  toggleAll(): void {
+    const all = this.allChecked;
+    for (const u of this.pageRows) {
+      if (all) this.checked.delete(u.id);
+      else this.checked.add(u.id);
+    }
+  }
+
+  clearChecked(): void {
+    this.checked.clear();
+  }
+
+  private checkedUsers(): AdminUser[] {
+    return this.service.all().filter((u) => this.checked.has(u.id));
+  }
+
+  /* ===== Row menu ===== */
+
+  toggleMenu(u: AdminUser, event: Event): void {
+    event.stopPropagation();
+    this.menuFor = this.menuFor === u.id ? null : u.id;
+  }
+
+  @HostListener('document:click')
+  closeMenu(): void {
+    this.menuFor = null;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.menuFor = null;
+    this.pending = null;
+    this.inviteOpen = false;
+  }
+
+  /* ===== Drawer ===== */
+
+  open(u: AdminUser): void {
+    this.menuFor = null;
+    this.drawerMode = 'edit';
+    this.drawerUser = u;
+  }
+
+  addUser(): void {
+    this.drawerMode = 'add';
+    this.drawerUser = { ...blankUser(), employeeId: this.service.nextEmployeeId() };
+  }
+
+  closeDrawer(): void {
+    this.drawerUser = null;
+  }
+
+  onSaved(event: { user: AdminUser; isNew: boolean }): void {
+    const now = new Date().toISOString();
+    if (event.isNew) {
+      const user: AdminUser = { ...event.user, id: this.service.nextId(), status: 'Pending', created: now, invitedAt: now, lastLogin: null };
+      this.service.save(user);
+      this.notify(`${user.name} added. An invitation was sent to ${user.email}.`);
+      this.drawerMode = 'edit';
+      this.drawerUser = user;
+      return;
+    }
+    const before = this.service.find(event.user.id);
+    this.service.save(event.user);
+    this.drawerUser = event.user;
+    const statusNote = before && before.status !== event.user.status ? ` Status is now ${event.user.status}.` : '';
+    this.notify(`${event.user.name} updated.${statusNote}`);
+  }
+
+  /** Keeps the drawer showing the latest copy after a status change from the table. */
+  private refreshDrawer(id: string): void {
+    if (this.drawerMode === 'edit' && this.drawerUser?.id === id) this.drawerUser = this.service.find(id) ?? null;
+  }
+
+  /* ===== Status actions (all confirmed first) ===== */
+
+  private ask(action: PendingAction): void {
+    this.menuFor = null;
+    this.pending = action;
+  }
+
+  cancelAction(): void {
+    this.pending = null;
+  }
+
+  confirmAction(): void {
+    const action = this.pending;
+    this.pending = null;
+    action?.run();
+  }
+
+  activate(u: AdminUser): void {
+    this.ask({
+      title: 'Activate user?',
+      message: `${u.name} will be able to sign in again with their current roles and module access.`,
+      confirmLabel: 'Activate',
+      danger: false,
+      run: () => {
+        this.service.save({ ...u, status: 'Active', suspendReason: '' });
+        this.refreshDrawer(u.id);
+        this.notify(`${u.name} is active again.`);
+      }
+    });
+  }
+
+  suspend(u: AdminUser): void {
+    const reason = this.service.lockoutReason(u);
+    if (reason) {
+      this.menuFor = null;
+      this.notify(reason);
+      return;
+    }
+    this.ask({
+      title: 'Suspend user?',
+      message: `${u.name} will be signed out and won't be able to sign in until the account is activated again.`,
+      confirmLabel: 'Suspend',
+      danger: true,
+      run: () => {
+        this.service.save({ ...u, status: 'Suspended', suspendReason: `Suspended by ${CURRENT_USER.name} on ${formatDate(new Date().toISOString())}.` });
+        this.refreshDrawer(u.id);
+        this.notify(`${u.name} is suspended.`);
+      }
+    });
+  }
+
+  // DEMO MODE: the invitation email is sent by the identity service once connected
+  resendInvite(u: AdminUser): void {
+    this.ask({
+      title: 'Resend invitation?',
+      message: `A new invitation link will be sent to ${u.email}. The previous link stops working.`,
+      confirmLabel: 'Resend Invite',
+      danger: false,
+      run: () => {
+        this.service.save({ ...u, invitedAt: new Date().toISOString() });
+        this.refreshDrawer(u.id);
+        this.notify(`Invitation sent again to ${u.email}.`);
+      }
+    });
+  }
+
+  // DEMO MODE: the reset link is sent by the identity service; admins never see or type passwords
+  resetPassword(u: AdminUser): void {
+    this.ask({
+      title: 'Reset password?',
+      message: `${u.name} will get an email at ${u.email} with a link to choose a new password. Current sessions are signed out.`,
+      confirmLabel: 'Send Reset Link',
+      danger: false,
+      run: () => this.notify(`A password reset link was sent to ${u.email}.`)
+    });
+  }
+
+  remove(u: AdminUser): void {
+    const reason = this.service.lockoutReason(u);
+    if (reason) {
+      this.menuFor = null;
+      this.notify(reason);
+      return;
+    }
+    this.ask({
+      title: u.status === 'Pending' ? 'Cancel invitation and delete user?' : 'Delete user?',
+      message: `${u.name} (${u.employeeId}) will be removed with their role assignments. This can't be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+      run: () => this.doRemove([u])
+    });
+  }
+
+  private doRemove(list: AdminUser[]): void {
+    const ids = list.map((u) => u.id);
+    this.service.remove(ids);
+    for (const id of ids) this.checked.delete(id);
+    if (this.drawerUser && this.drawerMode === 'edit' && ids.includes(this.drawerUser.id)) this.drawerUser = null;
+    this.goTo(this.page);
+    this.notify(list.length === 1 ? `${list[0].name} deleted.` : `${list.length} users deleted.`);
+  }
+
+  /* ===== Bulk actions ===== */
+
+  /** The first selected account that can't be suspended or deleted, if any. */
+  private bulkBlocker(list: AdminUser[]): string | null {
+    const ids = list.map((u) => u.id);
+    for (const u of list) {
+      const reason = this.service.lockoutReason(u, ids);
+      if (reason) return reason;
+    }
+    return null;
+  }
+
+  bulkActivate(): void {
+    const list = this.checkedUsers().filter((u) => u.status === 'Suspended');
+    if (!list.length) {
+      this.notify('None of the selected users are suspended.');
+      return;
+    }
+    this.ask({
+      title: `Activate ${list.length} user${list.length === 1 ? '' : 's'}?`,
+      message: 'Suspended accounts in the selection will be able to sign in again. Pending invitations are left as they are.',
+      confirmLabel: 'Activate',
+      danger: false,
+      run: () => {
+        for (const u of list) this.service.save({ ...u, status: 'Active', suspendReason: '' });
+        list.forEach((u) => this.refreshDrawer(u.id));
+        this.notify(`${list.length} user${list.length === 1 ? '' : 's'} activated.`);
+      }
+    });
+  }
+
+  bulkSuspend(): void {
+    const list = this.checkedUsers().filter((u) => u.status === 'Active');
+    const blocked = this.bulkBlocker(list);
+    if (!list.length || blocked) {
+      this.notify(blocked ?? 'None of the selected users are active.');
+      return;
+    }
+    this.ask({
+      title: `Suspend ${list.length} user${list.length === 1 ? '' : 's'}?`,
+      message: 'Active accounts in the selection will be signed out and blocked from signing in.',
+      confirmLabel: 'Suspend',
+      danger: true,
+      run: () => {
+        const reason = `Suspended by ${CURRENT_USER.name} on ${formatDate(new Date().toISOString())}.`;
+        for (const u of list) this.service.save({ ...u, status: 'Suspended', suspendReason: reason });
+        list.forEach((u) => this.refreshDrawer(u.id));
+        this.notify(`${list.length} user${list.length === 1 ? '' : 's'} suspended.`);
+      }
+    });
+  }
+
+  bulkDelete(): void {
+    const list = this.checkedUsers();
+    const blocked = this.bulkBlocker(list);
+    if (blocked) {
+      this.notify(blocked);
+      return;
+    }
+    this.ask({
+      title: `Delete ${list.length} user${list.length === 1 ? '' : 's'}?`,
+      message: "The selected accounts will be removed with their role assignments. This can't be undone.",
+      confirmLabel: 'Delete',
+      danger: true,
+      run: () => this.doRemove(list)
+    });
+  }
+
+  /* ===== Invite / Import / Export ===== */
+
+  openInvite(): void {
+    this.inviteOpen = true;
+  }
+
+  closeInvite(): void {
+    this.inviteOpen = false;
+  }
+
+  onInvited(req: InviteRequest): void {
+    for (const email of req.emails) this.createInvite(email, '', req.department, req.primaryRole, req.location);
+    this.inviteOpen = false;
+    this.page = 0;
+    this.notify(`${req.emails.length} invitation${req.emails.length === 1 ? '' : 's'} sent.`);
+  }
+
+  /** New pending account; the name defaults to the part of the email before the @. */
+  private createInvite(email: string, name: string, department: string, primaryRole: string, location: string, employeeId = ''): AdminUser {
+    const now = new Date().toISOString();
+    const guessed = email
+      .split('@')[0]
+      .split(/[._-]+/)
+      .filter(Boolean)
+      .map((p) => p[0].toUpperCase() + p.slice(1))
+      .join(' ');
+    const user: AdminUser = {
+      ...blankUser(),
+      id: this.service.nextId(),
+      name: name || guessed,
+      email: email.toLowerCase(),
+      employeeId: employeeId || this.service.nextEmployeeId(),
+      department,
+      jobTitle: primaryRole,
+      location,
+      timeZone: LOCATION_TIME_ZONES[location] ?? blankUser().timeZone,
+      primaryRole,
+      modules: roleModules([primaryRole]),
+      created: now,
+      invitedAt: now
+    };
+    this.service.save(user);
+    return user;
+  }
+
+  export(): void {
+    const rows = this.rows;
+    downloadCsv(
+      'users.csv',
+      EXPORT_HEADER,
+      rows.map((u) => [
+        u.name, u.email, u.employeeId, u.department, u.jobTitle, u.primaryRole, u.secondaryRoles.join('; '), u.location, u.accessScope,
+        u.mfa ? 'On' : 'Off', u.lastLogin ? loginLabel(u.lastLogin, true) : '', u.status
+      ])
+    );
+    this.notify(`Exported ${rows.length} users.`);
+  }
+
+  pickImport(): void {
+    this.importInput?.nativeElement.click();
+  }
+
+  /** Reads Name, Email, Employee ID, Department, Primary Role, Location; each valid row becomes a pending invitation. */
+  onImport(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (!/\.csv$/i.test(file.name) || file.size > 1024 * 1024) {
+      this.notify('Choose a CSV file under 1 MB (use Export for the layout).');
+      return;
+    }
+    file.text().then((text) => this.importRows(parseCsv(text)));
+  }
+
+  private importRows([header, ...lines]: string[][]): void {
+    const col = (name: string) => (header ?? []).findIndex((h) => h.toLowerCase() === name.toLowerCase());
+    const [name, email, emp, dept, role, loc] = ['Name', 'Email', 'Employee ID', 'Department', 'Primary Role', 'Location'].map(col);
+    if (email < 0 || dept < 0 || role < 0) {
+      this.notify('The file needs Email, Department and Primary Role columns.');
+      return;
+    }
+    let added = 0;
+    let skipped = 0;
+    for (const cells of lines) {
+      const get = (i: number) => (i >= 0 ? cells[i] ?? '' : '');
+      const e = get(email).toLowerCase();
+      const empId = get(emp).toUpperCase();
+      const roleOk = USER_ROLES.some((r) => r.name === get(role) && !r.secondaryOnly);
+      const location = ADMIN_LOCATIONS.includes(get(loc)) ? get(loc) : ADMIN_LOCATIONS[0];
+      if (
+        !EMAIL.test(e) || this.service.emailTaken(e, null) || !ADMIN_DEPARTMENTS.includes(get(dept)) || !roleOk ||
+        (empId && (!/^EMP-\d{4,}$/.test(empId) || this.service.employeeIdTaken(empId, null)))
+      ) {
+        skipped++;
+        continue;
+      }
+      this.createInvite(e, get(name), get(dept), get(role), location, empId);
+      added++;
+    }
+    this.page = 0;
+    this.notify(`Imported ${added} user${added === 1 ? '' : 's'} as pending invitations${skipped ? `, skipped ${skipped} (invalid or duplicate)` : ''}.`);
+  }
 }
