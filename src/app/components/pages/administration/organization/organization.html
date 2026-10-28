@@ -1,0 +1,190 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/administration">Administration</a>
+  <span aria-hidden="true">/</span>
+  <strong>Organization</strong>
+</nav>
+
+<header class="page-head">
+  <span class="page-head__icon"><lucide-icon [img]="icons.Network" [size]="24"></lucide-icon></span>
+  <div class="page-head__text">
+    <h1>Organization</h1>
+    <p>Manage your organizational structure including locations, assets, people, vendors and related master data.</p>
+  </div>
+  <label class="org-picker">
+    <span>Organization</span>
+    <select [(ngModel)]="organization" aria-label="Organization">
+      @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
+    </select>
+  </label>
+</header>
+
+<nav class="org-tabs" role="tablist" aria-label="Organization data">
+  @for (t of tabs; track t.id) {
+    <button type="button" role="tab" [class.active]="activeTab === t.id" [attr.aria-selected]="activeTab === t.id" (click)="setTab(t.id)">
+      <lucide-icon [img]="t.icon" [size]="20"></lucide-icon>
+      {{ t.label }}
+    </button>
+  }
+</nav>
+
+@if (activeTab === 'location') {
+  <section class="stats" aria-label="Location summary">
+    @for (c of typeCards; track c.type) {
+      <button type="button" class="stat stat--link" [class.active]="typeFilter === c.type" [attr.aria-pressed]="typeFilter === c.type" (click)="showType(c.type)">
+        <span class="stat__icon" [attr.data-tone]="c.tone"><lucide-icon [img]="c.icon" [size]="24"></lucide-icon></span>
+        <span class="stat__body">
+          <span class="stat__value">{{ countOf(c.type) }}</span>
+          <span class="stat__label">{{ c.label }}</span>
+        </span>
+        <lucide-icon class="stat__chevron" [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+      </button>
+    }
+  </section>
+
+  <div class="ws" [class.ws--with-drawer]="formRecord">
+    <app-location-tree [rootLabel]="organization" [selected]="selectedNode" (selectedChange)="selectNode($event)"></app-location-tree>
+
+    <section class="panel" aria-label="Locations">
+      <div class="panel__head">
+        <h2>Locations ({{ rows.length }}) <small class="muted scope">in {{ selectedLocation?.name ?? organization }}</small></h2>
+        <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="listCollapsed ? 'Show the table' : 'Hide the table'" [attr.aria-expanded]="!listCollapsed" (click)="toggleList()">
+          <lucide-icon [img]="listCollapsed ? icons.ChevronDown : icons.ChevronUp" [size]="18"></lucide-icon>
+        </button>
+      </div>
+
+      @if (!listCollapsed) {
+        <div class="toolbar">
+          <label class="search">
+            <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+            <input placeholder="Search locations..." aria-label="Search locations" [(ngModel)]="search" (ngModelChange)="onFilterChange()" />
+          </label>
+          <span class="toolbar__spacer"></span>
+          <button type="button" class="btn btn--primary" (click)="addLocation()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add Location</button>
+          <button type="button" class="btn" (click)="pickImport()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import</button>
+          <input #importInput type="file" accept=".csv,text/csv" hidden (change)="onImport($event)" />
+          <button type="button" class="btn" (click)="export()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+          <button type="button" class="btn" [class.btn--outline]="filterOpen || filterCount" [attr.aria-expanded]="filterOpen" (click)="toggleFilters()">
+            <lucide-icon [img]="icons.ListFilter" [size]="16"></lucide-icon> Filter @if (filterCount) { ({{ filterCount }}) }
+          </button>
+          <span class="row-menu">
+            <button type="button" class="icon-btn btn-tall" aria-label="More actions" [attr.aria-expanded]="menuFor === '__toolbar'" (click)="toggleToolbarMenu($event)">
+              <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon>
+            </button>
+            @if (menuFor === '__toolbar') {
+              <div class="menu" role="menu">
+                <button type="button" role="menuitem" class="danger" [disabled]="!checked.size" (click)="deleteChecked()">Delete selected ({{ checked.size }})</button>
+                <button type="button" role="menuitem" (click)="clearFilters()">Clear search &amp; filters</button>
+                <button type="button" role="menuitem" (click)="selectNode(null)">Show whole organization</button>
+              </div>
+            }
+          </span>
+        </div>
+
+        @if (filterOpen) {
+          <div class="toolbar filter-row">
+            <select class="select" aria-label="Type" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()">
+              <option value="">All Types</option>
+              @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+            <select class="select" aria-label="Status" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
+              <option value="">All Statuses</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <button type="button" class="btn btn--link" (click)="clearFilters()">Clear</button>
+          </div>
+        }
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col" class="check-col"><input type="checkbox" aria-label="Select all on this page" [checked]="allChecked" (change)="toggleAll()" /></th>
+                <th scope="col" [attr.aria-sort]="ariaSort('code')"><button type="button" class="th-sort" (click)="sortBy('code')">Location Code <lucide-icon [img]="icons.ArrowUpDown" [size]="12"></lucide-icon></button></th>
+                <th scope="col" [attr.aria-sort]="ariaSort('name')"><button type="button" class="th-sort" (click)="sortBy('name')">Location Name <lucide-icon [img]="icons.ArrowUpDown" [size]="12"></lucide-icon></button></th>
+                <th scope="col" [attr.aria-sort]="ariaSort('type')"><button type="button" class="th-sort" (click)="sortBy('type')">Type <lucide-icon [img]="icons.ArrowUpDown" [size]="12"></lucide-icon></button></th>
+                <th scope="col" [attr.aria-sort]="ariaSort('parent')"><button type="button" class="th-sort" (click)="sortBy('parent')">Parent Location <lucide-icon [img]="icons.ArrowUpDown" [size]="12"></lucide-icon></button></th>
+                <th scope="col" [attr.aria-sort]="ariaSort('contact')"><button type="button" class="th-sort" (click)="sortBy('contact')">Manager <lucide-icon [img]="icons.ArrowUpDown" [size]="12"></lucide-icon></button></th>
+                <th scope="col" [attr.aria-sort]="ariaSort('status')"><button type="button" class="th-sort" (click)="sortBy('status')">Status <lucide-icon [img]="icons.ArrowUpDown" [size]="12"></lucide-icon></button></th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (l of pageRows; track l.code) {
+                <tr class="clickable" [class.is-selected]="isEditing(l)" (click)="edit(l)">
+                  <td class="check-col" (click)="$event.stopPropagation()"><input type="checkbox" [attr.aria-label]="'Select ' + l.name" [checked]="isChecked(l)" (change)="toggleCheck(l)" /></td>
+                  <td><span class="code-link">{{ l.code }}</span></td>
+                  <td>{{ l.name }}</td>
+                  <td><span class="pill type-pill" [attr.data-tone]="typeTones[l.type]">{{ l.type }}</span></td>
+                  <td>{{ parentName(l) || '-' }}</td>
+                  <td>{{ l.contact || '-' }}</td>
+                  <td><span class="pill" [attr.data-tone]="l.status === 'Active' ? 'green' : 'grey'"><i></i>{{ l.status }}</span></td>
+                  <td class="row-actions" (click)="$event.stopPropagation()">
+                    <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Edit ' + l.name" title="Edit" (click)="edit(l)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon></button>
+                    <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Duplicate ' + l.name" title="Duplicate" (click)="duplicate(l)"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon></button>
+                    <span class="row-menu">
+                      <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'More actions for ' + l.name" [attr.aria-expanded]="menuFor === l.code" (click)="toggleMenu(l, $event)">
+                        <lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon>
+                      </button>
+                      @if (menuFor === l.code) {
+                        <div class="menu" role="menu">
+                          @if (l.type !== 'Zone') {
+                            <button type="button" role="menuitem" (click)="addChild(l)">Add {{ l.type === 'Location' ? 'Building' : l.type === 'Building' ? 'Floor' : 'Zone' }}</button>
+                          }
+                          <button type="button" role="menuitem" (click)="selectNode(l.code)">Show in hierarchy</button>
+                          <button type="button" role="menuitem" (click)="toggleStatus(l)">{{ l.status === 'Active' ? 'Deactivate' : 'Activate' }}</button>
+                          <button type="button" role="menuitem" class="danger" (click)="askDelete(l)">Delete</button>
+                        </div>
+                      }
+                    </span>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="8" class="empty">No locations match the search or filters.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pager">
+          <span>Showing {{ showingFrom }} to {{ showingTo }} of {{ rows.length }} locations</span>
+          <div class="pager__pages">
+            <button type="button" class="page-btn" aria-label="Previous page" [disabled]="page === 0" (click)="goTo(page - 1)"><lucide-icon [img]="icons.ChevronLeft" [size]="14"></lucide-icon></button>
+            @for (p of pageNumbers; track p) {
+              <button type="button" class="page-btn" [class.active]="p === page" [attr.aria-current]="p === page ? 'page' : null" (click)="goTo(p)">{{ p + 1 }}</button>
+            }
+            <button type="button" class="page-btn" aria-label="Next page" [disabled]="page >= pageCount - 1" (click)="goTo(page + 1)"><lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon></button>
+            <select class="select select--sm" aria-label="Rows per page" [(ngModel)]="pageSize" (ngModelChange)="onFilterChange()">
+              @for (s of pageSizes; track s) { <option [ngValue]="s">{{ s }} / page</option> }
+            </select>
+          </div>
+        </div>
+      }
+    </section>
+
+    @if (formRecord) {
+      <app-location-form [record]="formRecord" [mode]="formMode" (saved)="onSaved($event)" (closed)="closeForm()"></app-location-form>
+    }
+  </div>
+} @else {
+  @if (summaryTab; as tab) {
+    <app-org-summary-tab [tab]="tab" (notify)="notify($event)"></app-org-summary-tab>
+  }
+}
+
+@if (pendingDelete.length) {
+  <div class="overlay" (click)="cancelDelete()">
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="org-del-title" (click)="$event.stopPropagation()">
+      <h2 id="org-del-title">Delete {{ pendingDelete.length === 1 ? 'location' : 'locations' }}?</h2>
+      <p>{{ deleteMessage }}</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="cancelDelete()">Cancel</button>
+        <button type="button" class="btn btn--danger" (click)="doDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

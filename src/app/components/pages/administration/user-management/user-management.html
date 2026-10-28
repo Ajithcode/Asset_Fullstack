@@ -1,3 +1,232 @@
-<div class="user-mgmt-container">
-  <router-outlet></router-outlet>
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/administration">Administration</a>
+  <span aria-hidden="true">/</span>
+  <strong>User Management</strong>
+</nav>
+
+<header class="page-head">
+  <span class="page-head__icon"><lucide-icon [img]="icons.UserCog" [size]="24"></lucide-icon></span>
+  <div class="page-head__text">
+    <h1>User Management</h1>
+    <p>Manage users, access, roles, and account status across your organization.</p>
+  </div>
+  <label class="org-picker">
+    <span>Organization</span>
+    <select [(ngModel)]="organization" aria-label="Organization">
+      @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
+    </select>
+  </label>
+</header>
+
+<div class="ws ws--no-list" [class.ws--with-drawer]="drawerUser">
+  <div class="um-main">
+    <section class="stats" aria-label="User summary">
+      <div class="stat um-stat" data-tone="purple">
+        <span class="stat__icon"><lucide-icon [img]="icons.User" [size]="24"></lucide-icon></span>
+        <span class="stat__body">
+          <span class="stat__label">Total Users</span>
+          <span class="stat__value">{{ total }}
+            <span class="stat__trend" [class.stat__trend--down]="trend(total, lastMonth.total) < 0">
+              <lucide-icon [img]="trend(total, lastMonth.total) < 0 ? icons.ArrowDown : icons.ArrowUp" [size]="12"></lucide-icon>{{ trend(total, lastMonth.total) < 0 ? '-' : '+' }}{{ abs(trend(total, lastMonth.total)) }}%
+            </span>
+          </span>
+          <span class="stat__hint">vs last month</span>
+        </span>
+      </div>
+      <div class="stat um-stat" data-tone="blue">
+        <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.Users" [size]="24"></lucide-icon></span>
+        <span class="stat__body">
+          <span class="stat__label">Active Users</span>
+          <span class="stat__value">{{ countOf('Active') }}
+            <span class="stat__trend" [class.stat__trend--down]="trend(countOf('Active'), lastMonth.active) < 0">
+              <lucide-icon [img]="trend(countOf('Active'), lastMonth.active) < 0 ? icons.ArrowDown : icons.ArrowUp" [size]="12"></lucide-icon>{{ trend(countOf('Active'), lastMonth.active) < 0 ? '-' : '+' }}{{ abs(trend(countOf('Active'), lastMonth.active)) }}%
+            </span>
+          </span>
+          <span class="stat__hint">vs last month</span>
+        </span>
+      </div>
+      <div class="stat um-stat" data-tone="pink">
+        <span class="stat__icon" data-tone="pink"><lucide-icon [img]="icons.Clock" [size]="24"></lucide-icon></span>
+        <span class="stat__body">
+          <span class="stat__label">Pending Invitations</span>
+          <span class="stat__value">{{ countOf('Pending') }}
+            <span class="stat__trend" [class.stat__trend--down]="trend(countOf('Pending'), lastMonth.pending) < 0">
+              <lucide-icon [img]="trend(countOf('Pending'), lastMonth.pending) < 0 ? icons.ArrowDown : icons.ArrowUp" [size]="12"></lucide-icon>{{ trend(countOf('Pending'), lastMonth.pending) < 0 ? '-' : '+' }}{{ abs(trend(countOf('Pending'), lastMonth.pending)) }}%
+            </span>
+          </span>
+          <span class="stat__hint">vs last month</span>
+        </span>
+      </div>
+      <div class="stat um-stat" data-tone="orange">
+        <span class="stat__icon" data-tone="red"><lucide-icon [img]="icons.Ban" [size]="24"></lucide-icon></span>
+        <span class="stat__body">
+          <span class="stat__label">Suspended Users</span>
+          <span class="stat__value">{{ countOf('Suspended') }}
+            <span class="stat__trend" [class.stat__trend--down]="trend(countOf('Suspended'), lastMonth.suspended) < 0">
+              <lucide-icon [img]="trend(countOf('Suspended'), lastMonth.suspended) < 0 ? icons.ArrowDown : icons.ArrowUp" [size]="12"></lucide-icon>{{ trend(countOf('Suspended'), lastMonth.suspended) < 0 ? '-' : '+' }}{{ abs(trend(countOf('Suspended'), lastMonth.suspended)) }}%
+            </span>
+          </span>
+          <span class="stat__hint">vs last month</span>
+        </span>
+      </div>
+    </section>
+
+    <div class="toolbar">
+      <button type="button" class="btn btn--primary" (click)="addUser()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add User</button>
+      <button type="button" class="btn btn--outline" (click)="openInvite()"><lucide-icon [img]="icons.Mail" [size]="16"></lucide-icon> Invite Users</button>
+      <button type="button" class="btn btn--outline" (click)="pickImport()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import</button>
+      <input #importInput type="file" accept=".csv,text/csv" hidden (change)="onImport($event)" />
+      <button type="button" class="btn btn--outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+      <span class="toolbar__spacer"></span>
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input placeholder="Search users by name, email or ID..." aria-label="Search users" [(ngModel)]="search" (ngModelChange)="onFilterChange()" />
+      </label>
+      <select class="select" aria-label="Department" [(ngModel)]="department" (ngModelChange)="onFilterChange()">
+        <option value="">All Departments</option>
+        @for (d of departments; track d) { <option [value]="d">{{ d }}</option> }
+      </select>
+      <select class="select" aria-label="Status" [(ngModel)]="status" (ngModelChange)="onFilterChange()">
+        <option value="">All Statuses</option>
+        @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+      </select>
+    </div>
+
+    <section class="panel" aria-label="Users">
+      <div class="panel__head">
+        <h2>Users ({{ rows.length }})</h2>
+        @if (search || department || status) {
+          <button type="button" class="btn btn--link" (click)="clearFilters()">Clear filters</button>
+        }
+      </div>
+
+      @if (checked.size) {
+        <div class="bulk-bar" role="region" aria-label="Bulk actions">
+          <strong>{{ checked.size }} selected</strong>
+          <button type="button" class="btn btn--sm" (click)="bulkActivate()">Activate</button>
+          <button type="button" class="btn btn--sm" (click)="bulkSuspend()">Suspend</button>
+          <button type="button" class="btn btn--sm btn--danger" (click)="bulkDelete()">Delete</button>
+          <button type="button" class="btn btn--link" (click)="clearChecked()">Clear selection</button>
+        </div>
+      }
+
+      <div class="table-wrap">
+        <table class="table users-table">
+          <thead>
+            <tr>
+              <th scope="col" class="check-col"><input type="checkbox" aria-label="Select all on this page" [checked]="allChecked" (change)="toggleAll()" /></th>
+              <th scope="col">User</th>
+              <th scope="col">Employee ID</th>
+              <th scope="col">Department</th>
+              <th scope="col">Role</th>
+              <th scope="col">Location</th>
+              <th scope="col">Last Login</th>
+              <th scope="col">Status</th>
+              <th scope="col" class="center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (u of pageRows; track u.id) {
+              <tr class="clickable" [class.is-selected]="isOpen(u) || isChecked(u)" (click)="open(u)">
+                <td class="check-col" (click)="$event.stopPropagation()"><input type="checkbox" [attr.aria-label]="'Select ' + u.name" [checked]="isChecked(u)" (change)="toggleCheck(u)" /></td>
+                <td>
+                  <div class="user-cell">
+                    @if (u.photo) {
+                      <img class="avatar" [src]="u.photo" [alt]="u.name" />
+                    } @else {
+                      <span class="avatar" [style.background]="avatarBg(u)" [style.color]="avatarInk(u)">{{ initials(u.name) }}</span>
+                    }
+                    <span class="user-cell__text">
+                      <strong>{{ u.name }} @if (isSelf(u)) { <span class="muted you">(you)</span> }</strong>
+                      <span class="muted">{{ u.email }}</span>
+                    </span>
+                  </div>
+                </td>
+                <td>{{ u.employeeId }}</td>
+                <td>{{ u.department }}</td>
+                <td><span class="pill role-pill" [attr.data-tone]="roleTone(u)">{{ roleShort(u) }}</span></td>
+                <td>{{ u.location }}</td>
+                <td class="login-cell">{{ loginDate(u) }}@if (loginTime(u)) { <br /><span class="muted">{{ loginTime(u) }}</span> }</td>
+                <td><span class="pill" [attr.data-tone]="statusTone(u)"><i></i>{{ u.status }}</span></td>
+                <td class="center" (click)="$event.stopPropagation()">
+                  <span class="row-menu">
+                    <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Actions for ' + u.name" [attr.aria-expanded]="menuFor === u.id" (click)="toggleMenu(u, $event)">
+                      <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon>
+                    </button>
+                    @if (menuFor === u.id) {
+                      <div class="menu" role="menu">
+                        <button type="button" role="menuitem" (click)="open(u)">View / Edit</button>
+                        @switch (u.status) {
+                          @case ('Active') {
+                            <button type="button" role="menuitem" (click)="resetPassword(u)">Reset Password</button>
+                            @if (!isSelf(u)) { <button type="button" role="menuitem" (click)="suspend(u)">Suspend</button> }
+                          }
+                          @case ('Pending') {
+                            <button type="button" role="menuitem" (click)="resendInvite(u)">Resend Invite</button>
+                          }
+                          @case ('Suspended') {
+                            <button type="button" role="menuitem" (click)="activate(u)">Activate</button>
+                            <button type="button" role="menuitem" (click)="resetPassword(u)">Reset Password</button>
+                          }
+                        }
+                        @if (!isSelf(u)) { <button type="button" role="menuitem" class="danger" (click)="remove(u)">Delete</button> }
+                      </div>
+                    }
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="9" class="empty">No users match the search or filters.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <span>Showing {{ showingFrom }}–{{ showingTo }} of {{ rows.length }} users</span>
+        <div class="pager__pages">
+          <button type="button" class="page-btn" aria-label="Previous page" [disabled]="page === 0" (click)="goTo(page - 1)"><lucide-icon [img]="icons.ChevronLeft" [size]="14"></lucide-icon></button>
+          @for (p of pageItems; track $index) {
+            @if (p < 0) {
+              <span class="page-gap" aria-hidden="true">…</span>
+            } @else {
+              <button type="button" class="page-btn" [class.active]="p === page" [attr.aria-current]="p === page ? 'page' : null" (click)="goTo(p)">{{ p + 1 }}</button>
+            }
+          }
+          <button type="button" class="page-btn" aria-label="Next page" [disabled]="page >= pageCount - 1" (click)="goTo(page + 1)"><lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon></button>
+        </div>
+        <label class="rows-per-page">
+          Rows per page
+          <select class="select select--sm" [(ngModel)]="pageSize" (ngModelChange)="onFilterChange()">
+            @for (s of pageSizes; track s) { <option [ngValue]="s">{{ s }}</option> }
+          </select>
+        </label>
+      </div>
+    </section>
+  </div>
+
+  @if (drawerUser) {
+    <app-user-drawer [user]="drawerUser" [mode]="drawerMode" (saved)="onSaved($event)" (closed)="closeDrawer()"></app-user-drawer>
+  }
 </div>
+
+@if (inviteOpen) {
+  <app-invite-dialog (invited)="onInvited($event)" (closed)="closeInvite()"></app-invite-dialog>
+}
+
+@if (pending) {
+  <div class="overlay" (click)="cancelAction()">
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="um-confirm-title" (click)="$event.stopPropagation()">
+      <h2 id="um-confirm-title">{{ pending.title }}</h2>
+      <p>{{ pending.message }}</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="cancelAction()">Cancel</button>
+        <button type="button" class="btn" [class.btn--danger]="pending.danger" [class.btn--primary]="!pending.danger" (click)="confirmAction()">{{ pending.confirmLabel }}</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

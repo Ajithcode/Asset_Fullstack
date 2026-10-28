@@ -1,0 +1,99 @@
+/* The host is the grid cell, so it carries the sticky positioning instead of .drawer */
+:host {
+  position: sticky;
+  top: 72px;
+}
+
+.drawer {
+  position: static;
+}
+
+.req {
+  color: var(--adm-red);
+}
+
+.with-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.with-info lucide-icon {
+  color: var(--adm-muted);
+}
+
+.type-select {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.type-select i {
+  position: absolute;
+  left: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.type-select[data-tone='green'] i { background: var(--adm-green); }
+.type-select[data-tone='blue'] i { background: var(--adm-blue); }
+.type-select[data-tone='purple'] i { background: var(--adm-purple); }
+
+.field .type-select select {
+  padding-left: 28px;
+}
+
+.toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.toggle b {
+  display: block;
+  font-weight: 600;
+}
+
+.toggle small {
+  color: var(--adm-muted);
+  font-size: 11.5px;
+}
+
+.preview {
+  background: #fafbfd;
+}
+
+.preview > h3 {
+  margin-bottom: 2px;
+}
+
+.preview > p.muted {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+.preview__q {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.preview .preview__help {
+  margin-top: -4px;
+}
+
+@media (max-width: 1280px) {
+  :host {
+    position: static;
+  }
+
+  .drawer {
+    max-height: none;
+  }
+}

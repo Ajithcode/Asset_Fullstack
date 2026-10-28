@@ -1,0 +1,111 @@
+<div class="ex-bar">
+  <p class="muted">User-level overrides that take priority over this policy for one module.</p>
+  @if (!adding) {
+    <button type="button" class="btn btn--sm btn--outline" (click)="startAdd()">
+      <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Add Exception
+    </button>
+  }
+</div>
+
+@if (adding) {
+  <form class="sub-panel ex-form" (ngSubmit)="add()" novalidate>
+    <h3>New exception</h3>
+    <div class="ex-grid">
+      <div class="field" [class.invalid]="submitted && errors.user">
+        <label for="ex-user">User <span class="req">*</span></label>
+        <select id="ex-user" name="user" [(ngModel)]="draft.user">
+          <option value="">Select user</option>
+          @for (p of people; track p) {
+            <option [value]="p">{{ p }}</option>
+          }
+        </select>
+        @if (submitted && errors.user) { <small>{{ errors.user }}</small> }
+      </div>
+      <div class="field" [class.invalid]="submitted && errors.module">
+        <label for="ex-module">Module <span class="req">*</span></label>
+        <select id="ex-module" name="module" [(ngModel)]="draft.module">
+          <option value="">Select module</option>
+          @for (m of modules; track m) {
+            <option [value]="m">{{ m }}</option>
+          }
+        </select>
+        @if (submitted && errors.module) { <small>{{ errors.module }}</small> }
+      </div>
+      <div class="field">
+        <label for="ex-access">Access</label>
+        <select id="ex-access" name="access" [(ngModel)]="draft.access">
+          @for (a of accessTypes; track a) {
+            <option [value]="a">{{ a }}</option>
+          }
+        </select>
+      </div>
+      <div class="field" [class.invalid]="submitted && errors.expires">
+        <label for="ex-expires">Expires</label>
+        <input id="ex-expires" name="expires" type="date" [min]="today" [(ngModel)]="draft.expires" />
+        @if (submitted && errors.expires) { <small>{{ errors.expires }}</small> } @else { <small>Leave empty for no expiry</small> }
+      </div>
+      <div class="field field--wide" [class.invalid]="submitted && errors.reason">
+        <label for="ex-reason">Reason <span class="req">*</span></label>
+        <input id="ex-reason" name="reason" maxlength="120" placeholder="e.g. Covering for team lead on leave" [(ngModel)]="draft.reason" />
+        @if (submitted && errors.reason) { <small>{{ errors.reason }}</small> }
+      </div>
+    </div>
+    <div class="ex-actions">
+      <button type="button" class="btn btn--sm" (click)="cancelAdd()">Cancel</button>
+      <button type="submit" class="btn btn--sm btn--primary">Add Exception</button>
+    </div>
+  </form>
+}
+
+<div class="table-wrap ex-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Module</th>
+        <th>Access</th>
+        <th>Reason</th>
+        <th>Expires</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (ex of policy.exceptions; track ex.id) {
+        <tr>
+          <td>
+            <span class="ex-user">
+              <span class="avatar ex-av" [style.background]="tone(ex.user).bg" [style.color]="tone(ex.user).ink">{{ initialsOf(ex.user) }}</span>
+              {{ ex.user }}
+            </span>
+          </td>
+          <td>{{ ex.module }}</td>
+          <td><span class="pill" [attr.data-tone]="accessTone(ex.access)">{{ ex.access }}</span></td>
+          <td class="muted">{{ ex.reason }}</td>
+          <td>{{ date(ex.expires) }}</td>
+          <td><span class="pill" [attr.data-tone]="status(ex).tone"><i></i>{{ status(ex).label }}</span></td>
+          <td>
+            <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Remove exception for ' + ex.user" (click)="removing = ex">
+              <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+            </button>
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="7" class="empty">No exceptions. Everyone on this policy gets exactly the access above.</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+@if (removing) {
+  <div class="overlay" (click)="removing = null">
+    <div class="confirm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <h2>Remove exception?</h2>
+      <p>{{ removing.user }} goes back to the policy's {{ removing.module }} access.</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="removing = null">Cancel</button>
+        <button type="button" class="btn btn--primary ex-danger" (click)="confirmRemove()">Remove</button>
+      </div>
+    </div>
+  </div>
+}

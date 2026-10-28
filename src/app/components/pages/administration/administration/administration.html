@@ -1,12 +1,13 @@
 <div class="admin-container">
-  <app-breadcrumb [items]="breadcrumbItems" [dropdownOptions]="dropdownOptions"></app-breadcrumb>
-  
-  <ng-container *ngIf="showLanding">
-    <h2 class="admin-title">Administration</h2>
-    <nav class="admin-tabs">
-      <a *ngFor="let opt of adminOptions" [routerLink]="opt.path" class="admin-tab">{{ opt.label }}</a>
-    </nav>
-  </ng-container>
-  
-  <router-outlet></router-outlet>
+  <h2 class="admin-title">Administration</h2>
+  <p class="admin-intro">Manage your organization, users, access and system settings.</p>
+
+  <nav class="admin-grid" aria-label="Administration modules">
+    @for (m of modules; track m.slug) {
+      <a class="admin-card" [routerLink]="basePath + '/' + m.slug">
+        <strong>{{ m.label }}</strong>
+        <span>{{ m.description }}</span>
+      </a>
+    }
+  </nav>
 </div>

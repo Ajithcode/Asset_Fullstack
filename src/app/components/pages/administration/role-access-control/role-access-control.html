@@ -1,0 +1,250 @@
+<div class="rac" (click)="closeMenu()">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a routerLink="/administration">Administration</a>
+    <span>/</span>
+    <strong>Role &amp; Access Control</strong>
+  </nav>
+
+  <header class="page-head">
+    <div class="page-head__icon"><lucide-icon [img]="icons.ShieldCheck" [size]="24"></lucide-icon></div>
+    <div class="page-head__text">
+      <h1>Role &amp; Access Control</h1>
+      <p>Define role-based permissions, data scope, and approval access across Asset360.</p>
+    </div>
+    <label class="org-picker">
+      Organization
+      <select [(ngModel)]="organization" aria-label="Organization">
+        @for (o of organizations; track o) {
+          <option [value]="o">{{ o }}</option>
+        }
+      </select>
+    </label>
+  </header>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="stat__icon"><lucide-icon [img]="icons.Users" [size]="24"></lucide-icon></div>
+      <div class="stat__body">
+        <span class="stat__label">Total Roles</span>
+        <span class="stat__value">{{ roles.length }}</span>
+        <span class="stat__trend"><lucide-icon [img]="icons.ArrowUp" [size]="12"></lucide-icon> {{ newThisMonth }} this month</span>
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat__icon" data-tone="green"><lucide-icon [img]="icons.CircleCheck" [size]="24"></lucide-icon></div>
+      <div class="stat__body">
+        <span class="stat__label">Active Roles</span>
+        <span class="stat__value">{{ activeCount }}</span>
+        <span class="stat__hint"><b class="rac-green">{{ pct(activeCount) }}%</b> of total</span>
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat__icon" data-tone="pink"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></div>
+      <div class="stat__body">
+        <span class="stat__label">Custom Roles</span>
+        <span class="stat__value">{{ customCount }}</span>
+        <span class="stat__hint">{{ pct(customCount) }}% of total</span>
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.UserCheck" [size]="24"></lucide-icon></div>
+      <div class="stat__body">
+        <span class="stat__label">Users Assigned</span>
+        <span class="stat__value">{{ usersAssigned }}</span>
+        <span class="stat__trend" [class.stat__trend--down]="usersTrend < 0">
+          <lucide-icon [img]="icons.ArrowUp" [size]="12"></lucide-icon> {{ usersTrend }}% <span class="muted">from last month</span>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <button type="button" class="btn btn--primary" (click)="createRole()">
+      <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Create Role
+    </button>
+    <button type="button" class="btn" (click)="duplicateRole()">
+      <lucide-icon [img]="icons.Copy" [size]="16"></lucide-icon> Duplicate Role
+    </button>
+    <button type="button" class="btn" (click)="importFile.click()">
+      <lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import
+    </button>
+    <input #importFile type="file" accept=".json,application/json" hidden (change)="importRoles(importFile)" />
+    <button type="button" class="btn" (click)="exportRoles()">
+      <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export
+    </button>
+    <span class="toolbar__spacer"></span>
+    <label class="search rac-search">
+      <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+      <input type="search" placeholder="Search roles..." aria-label="Search roles" [(ngModel)]="search" />
+    </label>
+    <button type="button" class="btn" [class.btn--outline]="showFilters || filterCount" (click)="showFilters = !showFilters">
+      <lucide-icon [img]="icons.Funnel" [size]="16"></lucide-icon> Filters
+      @if (filterCount) { <span class="rac-badge">{{ filterCount }}</span> }
+    </button>
+  </div>
+
+  @if (showFilters) {
+    <div class="panel rac-filters">
+      <label>Role Type
+        <select class="select" [(ngModel)]="filters.type">
+          <option value="">All types</option>
+          <option value="System">System</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </label>
+      <label>Status
+        <select class="select" [(ngModel)]="filters.status">
+          <option value="">All statuses</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </label>
+      <label>Data Scope
+        <select class="select" [(ngModel)]="filters.scope">
+          <option value="">All scopes</option>
+          @for (s of scopes; track s.id) {
+            <option [value]="s.id">{{ s.id }}</option>
+          }
+        </select>
+      </label>
+      <button type="button" class="btn btn--sm" [disabled]="!filterCount" (click)="clearFilters()">Clear filters</button>
+      <span class="muted">{{ filtered.length }} of {{ roles.length }} roles</span>
+    </div>
+  }
+
+  <div class="ws" [class.ws--with-drawer]="drawerOpen">
+    <!-- Roles list -->
+    <aside class="panel">
+      <div class="panel__head"><h2>Roles ({{ filtered.length }})</h2></div>
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input type="search" placeholder="Search roles..." aria-label="Search roles list" [(ngModel)]="search" />
+      </label>
+      <div class="list rac-list">
+        @if (isNew) {
+          <button type="button" class="list-item active">
+            <span class="list-item__icon"><lucide-icon [img]="icons.Plus" [size]="20"></lucide-icon></span>
+            <span class="list-item__body">
+              <span class="list-item__title">{{ draft.name || 'New Role' }}</span>
+              <span class="list-item__meta">Unsaved draft</span>
+            </span>
+          </button>
+        }
+        @for (r of filtered; track r.id) {
+          <button type="button" class="list-item" [class.active]="!isNew && r.id === selectedId" (click)="select(r)">
+            <span class="list-item__icon"><lucide-icon [img]="roleIcon(r)" [size]="20"></lucide-icon></span>
+            <span class="list-item__body">
+              <span class="list-item__title">{{ r.name }}</span>
+              <span class="rac-meta">
+                <span class="muted"><lucide-icon [img]="icons.Users" [size]="12"></lucide-icon> {{ r.users }} users</span>
+                <span class="pill" [attr.data-tone]="r.type === 'System' ? 'blue' : 'purple'">{{ r.type }}</span>
+                <span class="pill" [attr.data-tone]="r.status === 'Active' ? 'green' : 'grey'"><i></i>{{ r.status }}</span>
+              </span>
+            </span>
+            @if (!isNew && r.id === selectedId) {
+              <lucide-icon class="rac-chev" [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+            }
+          </button>
+        } @empty {
+          <p class="list-empty">No roles match the search or filters.</p>
+        }
+      </div>
+    </aside>
+
+    <!-- Permission matrix -->
+    <section class="panel">
+      <div class="detail-head">
+        <div class="detail-head__title">
+          <h2>
+            {{ draft.name || 'New Role' }} – Permission Matrix
+            <span class="pill" [attr.data-tone]="draft.type === 'System' ? 'blue' : 'pink'">{{ draft.type }} Role</span>
+            <span class="pill" [attr.data-tone]="draft.status === 'Active' ? 'green' : 'grey'"><i></i>{{ draft.status }}</span>
+          </h2>
+          <div class="detail-head__meta">
+            Define module access and permissions for this role.
+            @if (draft.template) { Inherited from {{ draft.template }} template. }
+          </div>
+        </div>
+        <div class="detail-head__actions">
+          @if (!drawerOpen) {
+            <button type="button" class="btn btn--sm" (click)="drawerOpen = true">Role Details</button>
+          }
+          @if (!isNew) {
+            <div class="row-menu">
+              <button type="button" class="icon-btn" aria-label="More role actions" (click)="toggleMenu($event)">
+                <lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon>
+              </button>
+              @if (menuOpen) {
+                <div class="menu" (click)="$event.stopPropagation()">
+                  <button type="button" (click)="duplicateRole()">Duplicate role</button>
+                  <button type="button" class="danger" [disabled]="system" [title]="system ? 'System roles cannot be deleted' : ''" (click)="askDelete()">Delete role</button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="rac-tabs">
+        <nav class="tabs" aria-label="Role sections">
+          @for (t of tabs; track t.id) {
+            <button type="button" [class.active]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+          }
+        </nav>
+        @if (draft.template) {
+          <span class="rac-inherit"><lucide-icon [img]="icons.Info" [size]="14"></lucide-icon> Inherited from {{ draft.template }} template</span>
+        }
+      </div>
+
+      @switch (tab) {
+        @case ('modules') {
+          <app-permission-matrix [role]="draft" (notice)="notify($event)"></app-permission-matrix>
+        }
+        @case ('scope') {
+          <app-role-scope [role]="draft"></app-role-scope>
+        }
+        @case ('approvals') {
+          <app-role-approvals [role]="draft"></app-role-approvals>
+        }
+      }
+    </section>
+
+    <!-- Role details drawer -->
+    @if (drawerOpen) {
+      <aside class="drawer">
+        <app-role-drawer
+          [role]="draft"
+          [isNew]="isNew"
+          [system]="system"
+          [submitted]="submitted"
+          [dirty]="dirty"
+          (save)="saveRole()"
+          (cancel)="cancelEdit()"
+          (closed)="drawerOpen = false"
+          (viewUsers)="usersOpen = true"
+        ></app-role-drawer>
+      </aside>
+    }
+  </div>
+</div>
+
+@if (usersOpen) {
+  <app-users-dialog [title]="draft.name + ' users'" [users]="allUsers()" (closed)="usersOpen = false"></app-users-dialog>
+}
+
+@if (confirm) {
+  <div class="overlay" (click)="confirm = null">
+    <div class="confirm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <h2>{{ confirm.title }}</h2>
+      <p>{{ confirm.message }}</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="confirm = null">Cancel</button>
+        <button type="button" class="btn btn--primary rac-danger" (click)="confirmYes()">{{ confirm.action }}</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

@@ -1,0 +1,179 @@
+<div class="drawer__head">
+  <h2>Node Configuration</h2>
+  <button type="button" class="icon-btn icon-btn--bare" (click)="cancel.emit()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+</div>
+
+<div class="nc-type" [attr.data-type]="draft.type">
+  <span class="nc-type__icon"><lucide-icon [img]="icon" [size]="18"></lucide-icon></span>
+  <div>
+    <b>{{ labels[draft.type] }} Node</b>
+    <small>{{ subtitle }}</small>
+  </div>
+</div>
+
+<form (ngSubmit)="onSave()" novalidate>
+  <div class="field" [class.invalid]="err('name')">
+    <label for="nc-name">Node Name <span class="req">*</span></label>
+    <input id="nc-name" name="name" [(ngModel)]="draft.name" maxlength="80" />
+    @if (err('name')) { <small>{{ err('name') }}</small> }
+  </div>
+
+  @switch (draft.type) {
+    @case ('trigger') {
+      <div class="field">
+        <label for="nc-event">Trigger Event <span class="req">*</span></label>
+        <select id="nc-event" name="triggerEvent" [(ngModel)]="draft.config.triggerEvent">
+          @for (o of triggerEvents; track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="nc-module">Source Module</label>
+        <select id="nc-module" name="triggerModule" [(ngModel)]="draft.config.triggerModule">
+          @for (o of modules; track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+        <small>The workflow starts each time this event is raised in the module.</small>
+      </div>
+    }
+
+    @case ('condition') {
+      <div class="field">
+        <label for="nc-field">Field <span class="req">*</span></label>
+        <select id="nc-field" name="conditionField" [(ngModel)]="draft.config.conditionField">
+          @for (o of conditionFields; track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="nc-op">Operator</label>
+          <select id="nc-op" name="operator" [(ngModel)]="draft.config.operator">
+            @for (o of operators; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+        </div>
+        <div class="field" [class.invalid]="err('conditionValue')">
+          <label for="nc-value">Value <span class="req">*</span></label>
+          <input id="nc-value" name="conditionValue" [(ngModel)]="draft.config.conditionValue" />
+        </div>
+      </div>
+      @if (err('conditionValue')) { <p class="nc-err">{{ err('conditionValue') }}</p> }
+      <p class="note">Yes follows the matching branch; No takes the other connector.</p>
+    }
+
+    @case ('approval') {
+      <div class="field">
+        <label for="nc-atype">Approval Type</label>
+        <select id="nc-atype" name="approvalType" [(ngModel)]="draft.config.approvalType">
+          @for (o of approvalTypes; track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="nc-source">Approver Source</label>
+        <select id="nc-source" name="approverSource" [(ngModel)]="draft.config.approverSource">
+          @for (o of approverSources; track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </div>
+      @if (draft.config.approverSource === 'Specific User') {
+        <div class="field" [class.invalid]="err('approverUser')">
+          <label for="nc-user">Approver <span class="req">*</span></label>
+          <select id="nc-user" name="approverUser" [(ngModel)]="draft.config.approverUser">
+            @for (o of people; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+          @if (err('approverUser')) { <small>{{ err('approverUser') }}</small> }
+        </div>
+      } @else {
+        <div class="field" [class.invalid]="err('approverRole')">
+          <label for="nc-role">Approver Role <span class="req">*</span></label>
+          <select id="nc-role" name="approverRole" [(ngModel)]="draft.config.approverRole">
+            <option value="">Select role</option>
+            @for (o of approverRoles; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+          @if (err('approverRole')) { <small>{{ err('approverRole') }}</small> }
+        </div>
+      }
+      <div class="grid2">
+        <div class="field" [class.invalid]="err('slaHours')">
+          <label for="nc-sla">SLA (Hours) <span class="req">*</span></label>
+          <input id="nc-sla" name="slaHours" type="number" min="1" [(ngModel)]="draft.config.slaHours" />
+          @if (err('slaHours')) { <small>{{ err('slaHours') }}</small> }
+        </div>
+        <div class="field" [class.invalid]="err('escalationHours')">
+          <label for="nc-esc">Escalation After (Hours)</label>
+          <input id="nc-esc" name="escalationHours" type="number" min="1" [(ngModel)]="draft.config.escalationHours" />
+          @if (err('escalationHours')) { <small>{{ err('escalationHours') }}</small> }
+        </div>
+      </div>
+      <div class="field" [class.invalid]="err('requiredApprovals')">
+        <label for="nc-req">Required Approvals</label>
+        <input id="nc-req" name="requiredApprovals" type="number" min="1" [(ngModel)]="draft.config.requiredApprovals" />
+        @if (err('requiredApprovals')) { <small>{{ err('requiredApprovals') }}</small> }
+      </div>
+      <div class="nc-checks">
+        <label><input type="checkbox" name="allowDelegation" [(ngModel)]="draft.config.allowDelegation" /> Allow Delegation</label>
+        <label><input type="checkbox" name="commentsRequired" [(ngModel)]="draft.config.commentsRequired" /> Comments Required</label>
+      </div>
+    }
+
+    @case ('action') {
+      <div class="field">
+        <label for="nc-action">Action Type</label>
+        <select id="nc-action" name="actionType" [(ngModel)]="draft.config.actionType">
+          @for (o of actionTypes; track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="nc-target">Target</label>
+        <select id="nc-target" name="actionTarget" [(ngModel)]="draft.config.actionTarget">
+          @for (o of actionTargets; track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </div>
+      <div class="field" [class.invalid]="err('actionValue')">
+        <label for="nc-avalue">{{ draft.config.actionType === 'Call Webhook' ? 'Webhook URL' : 'Value / Details' }}</label>
+        <input id="nc-avalue" name="actionValue" [(ngModel)]="draft.config.actionValue" />
+        @if (err('actionValue')) { <small>{{ err('actionValue') }}</small> }
+      </div>
+    }
+
+    @case ('notification') {
+      <div class="field">
+        <label for="nc-template">Notification Template</label>
+        <select id="nc-template" name="template" [(ngModel)]="draft.config.template">
+          @for (o of templates; track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="nc-channel">Channel</label>
+          <select id="nc-channel" name="channel" [(ngModel)]="draft.config.channel">
+            @for (o of channels; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="nc-recipient">Recipient</label>
+          <select id="nc-recipient" name="recipient" [(ngModel)]="draft.config.recipient">
+            @for (o of recipients; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+        </div>
+      </div>
+    }
+
+    @case ('end') {
+      <div class="field">
+        <label for="nc-outcome">Outcome</label>
+        <select id="nc-outcome" name="outcome" [(ngModel)]="draft.config.outcome">
+          @for (o of outcomes; track o) { <option [value]="o">{{ o }}</option> }
+        </select>
+      </div>
+      <div class="nc-checks">
+        <label><input type="checkbox" name="notifyRequestor" [(ngModel)]="draft.config.notifyRequestor" /> Notify requestor</label>
+      </div>
+    }
+  }
+
+  @if (draft.type !== 'trigger') {
+    <button type="button" class="btn btn--link nc-delete" (click)="remove.emit()"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon> Delete this node</button>
+  }
+
+  <div class="drawer__foot">
+    <button type="button" class="btn" (click)="cancel.emit()">Cancel</button>
+    <button type="submit" class="btn btn--primary">Save Node</button>
+  </div>
+</form>

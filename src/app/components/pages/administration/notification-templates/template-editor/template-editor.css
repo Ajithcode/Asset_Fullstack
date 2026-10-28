@@ -1,0 +1,179 @@
+.te-tabs button {
+  padding: 10px 16px;
+}
+
+.te-off {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.te-note {
+  margin: 0 0 12px;
+}
+
+.te-seg {
+  margin-bottom: 0;
+}
+
+.te-seg button {
+  min-width: 86px;
+  border-radius: 999px;
+}
+
+.te-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 14px;
+  align-items: start;
+}
+
+.te-main {
+  min-width: 0;
+}
+
+/* Rich-text style editor */
+.te-editor {
+  border: 1px solid var(--adm-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.te-editor:focus-within {
+  border-color: var(--adm-purple);
+  box-shadow: 0 0 0 3px rgba(91, 42, 168, 0.12);
+}
+
+.te-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--adm-border);
+  background: #fafbfd;
+}
+
+.te-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #334155;
+  cursor: pointer;
+}
+
+.te-toolbar button:hover {
+  background: #eef0f6;
+}
+
+.te-para,
+.te-vars {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--adm-border);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+}
+
+.te-para {
+  margin-right: 6px;
+}
+
+.te-vars {
+  margin-left: auto;
+  color: var(--adm-purple);
+  font-weight: 600;
+}
+
+.te-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--adm-border);
+}
+
+/* Mirror and textarea share exactly the same box and text metrics */
+.te-area {
+  position: relative;
+}
+
+.te-mirror,
+.field .te-input {
+  min-height: 300px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.75;
+  letter-spacing: normal;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  box-sizing: border-box;
+}
+
+.te-mirror {
+  color: #0f172a;
+}
+
+.te-mirror mark {
+  border-radius: 4px;
+  background: #e3ecfd;
+  color: #2563eb;
+}
+
+.te-mirror mark.te-unknown {
+  background: #fdecec;
+  color: #dc2626;
+}
+
+.field .te-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: #0f172a;
+  border-radius: 0;
+}
+
+.field .te-input:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.te-input::selection {
+  background: rgba(91, 42, 168, 0.2);
+  color: transparent;
+}
+
+.te-counter {
+  display: flex;
+  justify-content: space-between;
+  color: var(--adm-muted);
+  font-size: 12px;
+}
+
+.te-counter.over {
+  color: var(--adm-red);
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .te-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

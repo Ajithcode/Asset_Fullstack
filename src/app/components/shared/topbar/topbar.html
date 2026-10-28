@@ -66,7 +66,7 @@
       <button *ngFor="let st of sites" type="button" class="sub-row" [class.is-on]="st === site" (click)="setSite(st)"><span class="grow">{{ st }}</span><lucide-icon *ngIf="st === site" [img]="icons.Check" [size]="16"></lucide-icon></button>
     </div>
 
-    <button type="button" role="menuitem" class="flyout-row" (click)="goTo('/administration/configuration/master-management/organization')">
+    <button type="button" role="menuitem" class="flyout-row" (click)="goTo('/master-data-management/organization/organization')">
       <lucide-icon [img]="icons.Landmark" [size]="17"></lucide-icon><span class="grow">Organization Settings</span><lucide-icon class="row-arrow" [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
 
     <button type="button" role="menuitem" class="flyout-row" [class.is-open]="section === 'help'" [attr.aria-expanded]="section === 'help'" (click)="toggleSection('help')">
