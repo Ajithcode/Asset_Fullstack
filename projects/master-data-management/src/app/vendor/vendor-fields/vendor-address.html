@@ -1,0 +1,47 @@
+<span class="section-title">Address</span>
+<div class="grid">
+  <div class="field field--wide">
+    <label for="vendor-a1">Address Line 1</label>
+    <input id="vendor-a1" name="line1" [(ngModel)]="vendor.address.line1" />
+  </div>
+  <div class="field field--wide">
+    <label for="vendor-a2">Address Line 2</label>
+    <input id="vendor-a2" name="line2" [(ngModel)]="vendor.address.line2" />
+  </div>
+  <div class="field">
+    <label for="vendor-city">City</label>
+    <input id="vendor-city" name="city" [(ngModel)]="vendor.address.city" />
+  </div>
+  <div class="field">
+    <label for="vendor-state">State / Emirate</label>
+    <input id="vendor-state" name="state" [(ngModel)]="vendor.address.state" />
+  </div>
+  <div class="field">
+    <label for="vendor-postal">Postal Code / PO Box</label>
+    <input id="vendor-postal" name="postalCode" [(ngModel)]="vendor.address.postalCode" />
+  </div>
+  <div class="field">
+    <label for="vendor-country">Country</label>
+    <select id="vendor-country" name="addressCountry" [(ngModel)]="vendor.address.country">
+      <option value="">Select country</option>
+      @for (c of countries; track c.name) { <option [value]="c.name">{{ c.flag }} {{ c.name }}</option> }
+    </select>
+  </div>
+</div>
+
+<span class="section-title">Alternate Contact</span>
+<div class="grid">
+  <div class="field field--wide">
+    <label for="vendor-alt-name">Name</label>
+    <input id="vendor-alt-name" name="alternateContact" [(ngModel)]="vendor.alternateContact" />
+  </div>
+  <div class="field" [class.invalid]="errors['alternateEmail']">
+    <label for="vendor-alt-email">Email</label>
+    <input id="vendor-alt-email" name="alternateEmail" type="email" [(ngModel)]="vendor.alternateEmail" />
+    @if (errors['alternateEmail']) { <small>{{ errors['alternateEmail'] }}</small> }
+  </div>
+  <div class="field">
+    <label for="vendor-alt-phone">Phone</label>
+    <input id="vendor-alt-phone" name="alternatePhone" type="tel" [(ngModel)]="vendor.alternatePhone" />
+  </div>
+</div>

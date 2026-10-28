@@ -1,0 +1,65 @@
+.nc-type {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  --c: #2563eb;
+  --c-soft: #eaf1fe;
+}
+
+.nc-type[data-type='trigger'] { --c: #7c3aed; --c-soft: #f4effe; }
+.nc-type[data-type='condition'] { --c: #f59e0b; --c-soft: #fef4e2; }
+.nc-type[data-type='action'] { --c: #10b981; --c-soft: #e7f8f1; }
+.nc-type[data-type='notification'] { --c: #ec4899; --c-soft: #fdecf4; }
+.nc-type[data-type='end'] { --c: #ef4444; --c-soft: #fdecec; }
+
+.nc-type__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--c);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.nc-type b {
+  display: block;
+  font-size: 14px;
+}
+
+.nc-type small {
+  color: var(--adm-muted);
+  font-size: 11.5px;
+}
+
+.nc-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0 8px;
+}
+
+.nc-checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.nc-checks input {
+  width: 16px;
+  height: 16px;
+}
+
+.nc-err {
+  margin: -6px 0 10px;
+  color: var(--adm-red);
+  font-size: 11.5px;
+}
+
+.nc-delete {
+  margin-top: 6px;
+  color: var(--adm-red);
+}

@@ -1,0 +1,90 @@
+<aside class="drawer" role="dialog" aria-labelledby="pr-form-title">
+  <header class="drawer__header">
+    <h2 id="pr-form-title">{{ isEdit ? 'Edit Priority / Severity' : 'Add Priority / Severity' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="pr-name"><span class="req">*</span> Name</label>
+          <input id="pr-name" name="name" placeholder="Enter name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="pr-code"><span class="req">*</span> Code</label>
+          <input id="pr-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field">
+          <span class="field__label"><span class="req">*</span> Type</span>
+          <div class="radios">
+            <label><input type="radio" name="kind" value="Priority" [(ngModel)]="form.kind" /> Priority</label>
+            <label><input type="radio" name="kind" value="Severity" [(ngModel)]="form.kind" /> Severity</label>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field__label">Color</span>
+          <div class="swatches" role="radiogroup" aria-label="Colour">
+            @for (c of colors; track c) {
+              <button type="button" class="swatch" role="radio" [style.background]="c" [class.on]="form.color === c" [attr.aria-checked]="form.color === c" [attr.aria-label]="'Colour ' + c" (click)="form.color = c"></button>
+            }
+          </div>
+        </div>
+        <div class="field">
+          <label for="pr-response">{{ form.kind === 'Priority' ? 'Response Time' : 'Impact' }}</label>
+          <input id="pr-response" name="responseTime" [placeholder]="form.kind === 'Priority' ? 'Enter response time (e.g. 4 hours)' : 'e.g. Asset not operational'" [(ngModel)]="form.responseTime" />
+        </div>
+        <div class="field">
+          <label for="pr-desc">Description</label>
+          <textarea id="pr-desc" name="description" rows="2" placeholder="" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="pr-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="pr-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('rules') {
+        <span class="section-title">Applies To</span>
+        <div class="ticks">
+          @for (a of appliesTo; track a) {
+            <label><input type="checkbox" [checked]="form.appliesTo.includes(a)" (change)="toggleApplies(a)" /><span>{{ a }}</span></label>
+          }
+        </div>
+        @if (errors['appliesTo']) { <small class="upload-error">{{ errors['appliesTo'] }}</small> }
+        <div class="field" [class.invalid]="errors['escalate']">
+          <label for="pr-escalate">Escalate After (Hours)</label>
+          <input id="pr-escalate" name="escalateAfterHours" type="number" min="1" placeholder="No escalation" [(ngModel)]="form.escalateAfterHours" />
+          @if (errors['escalate']) { <small>{{ errors['escalate'] }}</small> }
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Notify manager</strong><small>Tell the department manager when an item is raised at this level.</small></span>
+            <input type="checkbox" name="notifyManager" [(ngModel)]="form.notifyManager" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

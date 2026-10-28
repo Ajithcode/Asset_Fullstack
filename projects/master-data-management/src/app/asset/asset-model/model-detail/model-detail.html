@@ -1,0 +1,206 @@
+<section class="detail">
+  <header class="detail__head">
+    <div class="detail__photo model-photo">
+      @if (model.image) {
+        <img [src]="model.image" [alt]="title" />
+      } @else {
+        <lucide-icon [img]="icon" [size]="36" [strokeWidth]="1.6"></lucide-icon>
+      }
+    </div>
+
+    <div class="detail__title">
+      <div class="detail__name">
+        <h2>{{ title }}</h2>
+        <span class="pill" [attr.data-status]="model.status"><i></i>{{ model.status }}</span>
+      </div>
+      <div class="detail__meta">
+        Model Code: {{ model.code }}<span class="sep">|</span>Manufacturer: {{ model.manufacturer }}<span class="sep">|</span>Asset Type: {{ model.assetType }}<span class="sep">|</span>Category: {{ model.category }}
+      </div>
+      @if (model.description) { <div class="detail__meta">{{ model.description }}</div> }
+    </div>
+
+    <div class="detail__actions">
+      <button type="button" class="btn" (click)="edit.emit({ model })">
+        <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon> Edit
+      </button>
+      <button type="button" class="btn" (click)="duplicate.emit(model)">
+        <lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon> Duplicate
+      </button>
+      <a class="btn" routerLink="/assets/list" [queryParams]="{ model: model.code }">
+        <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon> View Assets ({{ model.assetCount | number }})
+      </a>
+      <div class="more">
+        <button type="button" class="btn" [attr.aria-expanded]="moreOpen" (click)="$event.stopPropagation(); moreOpen = !moreOpen">
+          More Actions <lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon>
+        </button>
+        @if (moreOpen) {
+          <div class="menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="moreOpen = false; toggleStatus.emit(model)">
+              Mark as {{ model.status === 'Active' ? 'Inactive' : 'Active' }}
+            </button>
+            <button type="button" role="menuitem" class="danger" (click)="moreOpen = false; remove.emit(model)">Delete</button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <nav class="detail__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  @switch (tab) {
+    @case ('overview') {
+      <div class="overview">
+        <div class="card">
+          <h3 class="card__title">Basic Information</h3>
+          <dl class="facts">
+            <dt>Model Name</dt><dd>{{ title }}</dd>
+            <dt>Model Code</dt><dd>{{ model.code }}</dd>
+            <dt>Manufacturer</dt><dd>{{ model.manufacturer }}</dd>
+            <dt>Asset Type</dt><dd>{{ model.assetType }}</dd>
+            <dt>Category</dt><dd>{{ model.category }}</dd>
+            <dt>Description</dt><dd>{{ model.description || '-' }}</dd>
+            <dt>Image</dt>
+            <dd>
+              <span class="mini-photo">
+                @if (model.image) { <img [src]="model.image" [alt]="title" /> } @else { <lucide-icon [img]="icon" [size]="18"></lucide-icon> }
+              </span>
+            </dd>
+            <dt>Status</dt><dd><span class="pill" [attr.data-status]="model.status"><i></i>{{ model.status }}</span></dd>
+            <dt>Created On</dt><dd>{{ formatDateTime(model.createdOn) }}</dd>
+            <dt>Last Updated</dt><dd>{{ formatDateTime(model.updatedOn) }}</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3 class="card__title">Key Specifications</h3>
+            <button type="button" class="card__edit" (click)="editAt('specs')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+          </div>
+          <dl class="facts facts--specs">
+            @for (s of keySpecs; track $index) { <dt>{{ s.label }}</dt><dd>{{ s.value || '-' }}</dd> }
+            <dt>Warranty (Months)</dt><dd>{{ model.warrantyMonths }}</dd>
+          </dl>
+          @if (model.specs.length > keySpecs.length) {
+            <button type="button" class="link" (click)="tab = 'specs'">View all {{ model.specs.length }} specifications</button>
+          }
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Classification</h3>
+              <button type="button" class="card__edit" (click)="editAt('defaults')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <dl class="facts">
+              <dt>Parent Category</dt><dd>{{ model.category }}</dd>
+              <dt>Subcategories</dt>
+              <dd class="chips">
+                @for (c of model.subcategories; track c) { <span class="chip">{{ c }}</span> } @empty { - }
+              </dd>
+              <dt>Tagging Format</dt><dd>{{ model.taggingFormat }}</dd>
+              <dt>Sample Tag</dt><dd>{{ sample }}</dd>
+            </dl>
+          </div>
+
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Financial</h3>
+              <button type="button" class="card__edit" (click)="editAt('financial')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <dl class="facts facts--wide">
+              <dt>Default Cost Center</dt><dd>{{ model.costCenter || '-' }}</dd>
+              <dt>Default Purchase Price ({{ currencyCode }})</dt><dd>{{ model.purchasePrice === null ? '-' : (model.purchasePrice | number) }}</dd>
+              <dt>Include in Depreciation</dt><dd>{{ model.includeInDepreciation ? 'Yes' : 'No' }}</dd>
+              <dt>Default Procurement Type</dt><dd>{{ model.procurementType }}</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    }
+
+    @case ('specs') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Specifications</h3>
+          <button type="button" class="card__edit" (click)="editAt('specs')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <table class="grid-table">
+          <thead><tr><th>Specification</th><th>Value</th></tr></thead>
+          <tbody>
+            @for (s of model.specs; track $index) {
+              <tr><td>{{ s.label }}</td><td>{{ s.value || '-' }}</td></tr>
+            } @empty {
+              <tr><td colspan="2" class="empty">No specifications yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('lifecycle') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Lifecycle & Maintenance</h3>
+          <button type="button" class="card__edit" (click)="editAt('lifecycle')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <dl class="facts facts--settings">
+          <dt>Lifecycle</dt><dd>{{ model.lifecycleYears }} years</dd>
+          <dt>Warranty</dt><dd>{{ model.warrantyMonths }} months</dd>
+          <dt>PM Frequency</dt><dd>{{ model.pmFrequency }}</dd>
+          <dt>Maintenance Strategy</dt><dd>{{ model.maintenanceStrategy }}</dd>
+          <dt>Criticality</dt><dd>{{ model.criticality }}</dd>
+          <dt>Calibration</dt><dd>{{ model.calibrationRequired ? 'Required' : 'Not required' }}</dd>
+        </dl>
+      </div>
+    }
+
+    @case ('financial') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Financial Defaults</h3>
+          <button type="button" class="card__edit" (click)="editAt('financial')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <dl class="facts facts--settings">
+          <dt>Default Cost Center</dt><dd>{{ model.costCenter || '-' }}</dd>
+          <dt>Currency</dt><dd>{{ model.currency }}</dd>
+          <dt>Default Purchase Price</dt><dd>{{ model.purchasePrice === null ? '-' : currencyCode + ' ' + (model.purchasePrice | number) }}</dd>
+          <dt>Procurement Type</dt><dd>{{ model.procurementType }}</dd>
+          <dt>Depreciation</dt>
+          <dd>{{ model.includeInDepreciation ? model.depreciationMethod + ', ' + model.salvagePercent + '% salvage value' : 'Not depreciated' }}</dd>
+        </dl>
+        @if (depreciation.length) {
+          <h3 class="sub-title">Book value over the lifecycle ({{ currencyCode }})</h3>
+          <table class="grid-table">
+            <thead><tr><th>Year</th><th>Opening</th><th>Depreciation</th><th>Closing</th></tr></thead>
+            <tbody>
+              @for (d of depreciation; track d.year) {
+                <tr><td>{{ d.year }}</td><td>{{ d.opening | number: '1.0-0' }}</td><td>{{ d.charge | number: '1.0-0' }}</td><td>{{ d.closing | number: '1.0-0' }}</td></tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+
+    @case ('defaults') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Defaults for New Assets</h3>
+          <button type="button" class="card__edit" (click)="editAt('defaults')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <dl class="facts facts--settings">
+          <dt>Tagging Format</dt><dd>{{ model.taggingFormat }}</dd>
+          <dt>Sample Tag</dt><dd>{{ sample }}</dd>
+          <dt>Tracking Method</dt><dd>{{ model.trackingMethod }}</dd>
+          <dt>Default Condition</dt><dd>{{ model.defaultCondition }}</dd>
+          <dt>Serial Number</dt><dd>{{ model.serialRequired ? 'Required' : 'Optional' }}</dd>
+          <dt>Assignable to Employees</dt><dd>{{ model.assignable ? 'Yes' : 'No' }}</dd>
+        </dl>
+      </div>
+    }
+  }
+</section>

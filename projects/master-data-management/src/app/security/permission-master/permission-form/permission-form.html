@@ -1,0 +1,62 @@
+<aside class="drawer" role="dialog" aria-labelledby="perm-form-title">
+  <header class="drawer__header">
+    <h2 id="perm-form-title">{{ isEdit ? 'Edit Permission' : 'Add Permission' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    <div class="field" [class.invalid]="errors['name']">
+      <label for="perm-name"><span class="req">*</span> Permission Name</label>
+      <input id="perm-name" name="name" placeholder="Enter permission name" [(ngModel)]="form.name" />
+      @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['code']">
+      <label for="perm-code"><span class="req">*</span> Code</label>
+      <input id="perm-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+      @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['module']">
+      <label for="perm-module"><span class="req">*</span> Module</label>
+      <select id="perm-module" name="module" [(ngModel)]="form.module">
+        <option value="" disabled>Select module</option>
+        @for (m of moduleOptions; track m.code) { <option [value]="m.code">{{ m.name }}</option> }
+      </select>
+      @if (errors['module']) { <small>{{ errors['module'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['type']">
+      <label for="perm-type"><span class="req">*</span> Type</label>
+      <select id="perm-type" name="type" [(ngModel)]="form.type">
+        <option value="" disabled>Select permission type</option>
+        @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+      </select>
+      @if (errors['type']) { <small>{{ errors['type'] }}</small> }
+    </div>
+    <div class="field">
+      <label for="perm-desc">Description</label>
+      <textarea id="perm-desc" name="description" rows="3" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+    </div>
+    <div class="field">
+      <label for="perm-status">Status</label>
+      <div class="status-select">
+        <i [attr.data-status]="form.status"></i>
+        <select id="perm-status" name="status" [(ngModel)]="form.status">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+    @if (isEdit) {
+      <p class="hint">{{ roleCount }} roles grant this permission.</p>
+    }
+    @if (isEdit && form.module !== record?.module && roleCount) {
+      <p class="hint">Roles that grant it will also get access to the new module.</p>
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

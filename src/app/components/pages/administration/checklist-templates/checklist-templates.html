@@ -1,0 +1,428 @@
+<nav class="crumbs">
+  <a routerLink="/administration">Administration</a>
+  <span>/</span>
+  <strong>Checklist Templates</strong>
+</nav>
+
+<header class="page-head">
+  <div class="page-head__icon"><lucide-icon [img]="icons.ListChecks" [size]="24"></lucide-icon></div>
+  <div class="page-head__text">
+    <h1>Checklist Templates</h1>
+    <p>Create reusable inspection, maintenance, safety, and compliance checklists for consistent execution.</p>
+  </div>
+  <label class="org-picker">
+    Organization
+    <select [(ngModel)]="organization">
+      @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
+    </select>
+  </label>
+</header>
+
+<section class="stats">
+  <div class="stat">
+    <div class="stat__icon"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></div>
+    <div class="stat__body">
+      <span class="stat__label">Total Templates</span>
+      <span class="stat__value">{{ all.length }}</span>
+    </div>
+  </div>
+  <div class="stat">
+    <div class="stat__icon" data-tone="green"><lucide-icon [img]="icons.CircleCheck" [size]="24"></lucide-icon></div>
+    <div class="stat__body">
+      <span class="stat__label">Active Templates</span>
+      <span class="stat__value">{{ count('Active') }}</span>
+    </div>
+  </div>
+  <div class="stat">
+    <div class="stat__icon" data-tone="orange"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></div>
+    <div class="stat__body">
+      <span class="stat__label">Draft Templates</span>
+      <span class="stat__value" data-tone="orange">{{ count('Draft') }}</span>
+    </div>
+  </div>
+  <div class="stat">
+    <div class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.ChartNoAxesColumnIncreasing" [size]="24"></lucide-icon></div>
+    <div class="stat__body">
+      <span class="stat__label">Checklist Uses</span>
+      <span class="stat__value">{{ totalUses.toLocaleString('en-US') }}</span>
+    </div>
+  </div>
+</section>
+
+<div class="toolbar">
+  <button type="button" class="btn btn--primary" (click)="createTemplate()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Create Template</button>
+  <button type="button" class="btn" (click)="libraryOpen = true"><lucide-icon [img]="icons.BookOpen" [size]="16"></lucide-icon> Template Library</button>
+  <button type="button" class="btn" (click)="openImport()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Import</button>
+  <button type="button" class="btn" (click)="exportJson()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Export</button>
+  <input #importInput type="file" accept=".json,application/json" hidden (change)="onImportFile($event)" />
+  <span class="toolbar__spacer"></span>
+  <label class="search">
+    <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+    <input [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search templates..." aria-label="Search templates" />
+  </label>
+  <select class="select" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()" aria-label="Category filter">
+    <option value="">All Categories</option>
+    @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+  </select>
+  <select class="select" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()" aria-label="Status filter">
+    <option value="">All Statuses</option>
+    @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+  </select>
+</div>
+
+<div class="ws" [class.ws--with-drawer]="drawer !== null" [class.list-collapsed]="listCollapsed">
+  <!-- Template list -->
+  @if (listCollapsed) {
+    <section class="panel rail">
+      <button type="button" class="icon-btn" title="Show templates" (click)="listCollapsed = false">
+        <lucide-icon [img]="icons.ChevronsRight" [size]="16"></lucide-icon>
+      </button>
+      @for (t of paged; track t.id) {
+        <button type="button" class="list-item__icon rail__item" [class.active]="!isNew && t.id === selectedId" [attr.data-tone]="t.tone" [title]="t.name" (click)="select(t)">
+          <lucide-icon [img]="iconFor(t)" [size]="18"></lucide-icon>
+        </button>
+      }
+    </section>
+  } @else {
+    <section class="panel">
+      <div class="panel__head">
+        <h2>Templates ({{ filtered.length }})</h2>
+        @if (hasFilters) { <button type="button" class="btn btn--link" (click)="clearFilters()">Clear</button> }
+        <button type="button" class="icon-btn icon-btn--bare" title="Collapse list" (click)="listCollapsed = true">
+          <lucide-icon [img]="icons.ChevronsLeft" [size]="16"></lucide-icon>
+        </button>
+      </div>
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+        <input [(ngModel)]="listSearch" (ngModelChange)="onFilter()" placeholder="Search templates..." aria-label="Search the list" />
+      </label>
+      <div class="list">
+        @if (isNew) {
+          <button type="button" class="list-item active">
+            <span class="list-item__icon" [attr.data-tone]="draft.tone"><lucide-icon [img]="iconFor(draft)" [size]="20"></lucide-icon></span>
+            <span class="list-item__body">
+              <span class="list-item__title">{{ draft.name || 'New template' }} <span class="pill" data-tone="blue">New</span></span>
+              <span class="list-item__meta">{{ draft.category }} • {{ draftItems }} items</span>
+            </span>
+          </button>
+        }
+        @for (t of paged; track t.id) {
+          <button type="button" class="list-item" [class.active]="!isNew && t.id === selectedId" (click)="select(t)">
+            <span class="list-item__icon" [attr.data-tone]="t.tone"><lucide-icon [img]="iconFor(t)" [size]="20"></lucide-icon></span>
+            <span class="list-item__body">
+              <span class="list-item__title">{{ t.name }} <span class="pill" [attr.data-tone]="tone(t.status)">{{ t.status }}</span></span>
+              <span class="list-item__meta">{{ t.category }} • {{ items(t) }} items</span>
+              <span class="list-item__meta">{{ t.owner }} • Updated {{ formatDate(t.updated) }}</span>
+            </span>
+          </button>
+        } @empty {
+          <p class="list-empty">No templates match these filters.</p>
+        }
+      </div>
+      @if (pageCount > 1) {
+        <div class="pager pager--center">
+          <div class="pager__pages">
+            <button type="button" class="page-btn" [disabled]="page <= 1" (click)="goTo(page - 1)" aria-label="Previous page">
+              <lucide-icon [img]="icons.ChevronLeft" [size]="14"></lucide-icon>
+            </button>
+            @for (p of pages; track p) {
+              <button type="button" class="page-btn" [class.active]="p === page" (click)="goTo(p)">{{ p }}</button>
+            }
+            <button type="button" class="page-btn" [disabled]="page >= pageCount" (click)="goTo(page + 1)" aria-label="Next page">
+              <lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon>
+            </button>
+          </div>
+        </div>
+      }
+    </section>
+  }
+
+  <!-- Selected template -->
+  <section class="panel">
+    <div class="detail-head">
+      <div class="detail-head__title">
+        <h2>
+          {{ draft.name || 'New template' }}
+          <span class="pill" [attr.data-tone]="tone(draft.status)"><i></i>{{ draft.status }}</span>
+          @if (dirty) { <span class="pill" data-tone="orange">Unsaved changes</span> }
+        </h2>
+        <div class="detail-head__meta">
+          <span>Code: <b>{{ draft.code }}</b></span>
+          <span>Version: <b>{{ draft.version }}</b></span>
+          <span>Category: <b>{{ draft.category }}</b></span>
+          <span>Owner: <b>{{ draft.owner }}</b></span>
+          <span>Updated: <b>{{ formatDate(draft.updated) }}</b></span>
+        </div>
+      </div>
+      <div class="detail-head__actions">
+        <button type="button" class="btn btn--outline" (click)="commit('draft')"><lucide-icon [img]="icons.Save" [size]="15"></lucide-icon> Save Draft</button>
+        <button type="button" class="btn btn--outline" (click)="previewOpen = true"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon> Preview</button>
+        <button type="button" class="btn btn--primary" (click)="commit('publish')"><lucide-icon [img]="icons.Send" [size]="15"></lucide-icon> Publish</button>
+        <div class="row-menu">
+          <button type="button" class="icon-btn" title="More actions" (click)="toggleHeadMenu()">
+            <lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon>
+          </button>
+          @if (headMenu) {
+            <div class="menu">
+              @if (!isNew) {
+                <button type="button" (click)="duplicateTemplate()">Duplicate template</button>
+                @if (draft.status === 'Inactive') {
+                  <button type="button" (click)="setStatus('Active')">Activate</button>
+                } @else {
+                  <button type="button" (click)="setStatus('Inactive')">Deactivate</button>
+                }
+                <button type="button" (click)="exportJson(draft)">Export template</button>
+              }
+              @if (dirty) { <button type="button" (click)="discard()">Discard changes</button> }
+              <button type="button" class="danger" (click)="askDeleteTemplate()">{{ isNew ? 'Discard template' : 'Delete template' }}</button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <nav class="tabs">
+      <button type="button" [class.active]="tab === 'items'" (click)="tab = 'items'"><lucide-icon [img]="icons.ListChecks" [size]="16"></lucide-icon> Checklist Items</button>
+      <button type="button" [class.active]="tab === 'settings'" (click)="tab = 'settings'"><lucide-icon [img]="icons.Settings" [size]="16"></lucide-icon> Settings</button>
+      <button type="button" [class.active]="tab === 'history'" (click)="tab = 'history'"><lucide-icon [img]="icons.ChartNoAxesColumnIncreasing" [size]="16"></lucide-icon> Usage &amp; History</button>
+    </nav>
+
+    @switch (tab) {
+      @case ('items') {
+        <div class="items-bar">
+          <button type="button" class="btn btn--sm btn--outline" (click)="addSection()"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Add Section</button>
+          <button type="button" class="btn btn--sm btn--outline" (click)="addItem()"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Add Item</button>
+          <div class="row-menu">
+            <button type="button" class="btn btn--sm" (click)="toggleBulk()">Bulk Actions <lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon></button>
+            @if (bulkOpen) {
+              <div class="menu menu--left">
+                <button type="button" (click)="bulk('required')">Mark all required</button>
+                <button type="button" (click)="bulk('optional')">Mark all optional</button>
+                <button type="button" (click)="bulk('clearCritical')">Clear critical flags</button>
+                <button type="button" (click)="bulk('score10')">Set all scores to 10</button>
+                <button type="button" (click)="bulk('collapse')">Collapse all sections</button>
+                <button type="button" (click)="bulk('expand')">Expand all sections</button>
+              </div>
+            }
+          </div>
+          <span class="toolbar__spacer"></span>
+          <label class="threshold" [class.invalid]="err('passThreshold')">
+            Pass threshold
+            <input type="number" min="0" max="100" [(ngModel)]="draft.passThreshold" (ngModelChange)="markDirty()" aria-label="Pass threshold percent" />
+            %
+          </label>
+          <div class="row-menu">
+            <button type="button" class="btn btn--sm btn--outline" (click)="toggleScoring()"><lucide-icon [img]="icons.Settings" [size]="14"></lucide-icon> Scoring Settings</button>
+            @if (scoringOpen) {
+              <div class="menu scoring">
+                <b>Scoring method</b>
+                <label><input type="radio" name="ct-scoring" value="Weighted" [(ngModel)]="draft.scoringMethod" (ngModelChange)="markDirty()" /> Weighted (use item scores)</label>
+                <label><input type="radio" name="ct-scoring" value="Equal weight" [(ngModel)]="draft.scoringMethod" (ngModelChange)="markDirty()" /> Equal weight per item</label>
+                <label class="switch switch--pink"><input type="checkbox" [(ngModel)]="draft.failOnCritical" (ngModelChange)="markDirty()" /><i></i> Fail if any critical item fails</label>
+                <span class="muted">Maximum score: {{ draftMaxScore }} · pass at {{ draft.passThreshold }}%</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <app-checklist-sections
+          [template]="draft"
+          [selectedItemId]="drawer ? drawer.item.id : null"
+          (selectItem)="openItem($event)"
+          (addItemTo)="addItem($event)"
+          (duplicateItem)="duplicateItem($event)"
+          (requestDelete)="askDelete($event)"
+          (changed)="markDirty()"
+        ></app-checklist-sections>
+      }
+
+      @case ('settings') {
+        <div class="grid2">
+          <div class="field" [class.invalid]="err('name')">
+            <label for="ct-name">Template Name <span class="req">*</span></label>
+            <input id="ct-name" [(ngModel)]="draft.name" (ngModelChange)="markDirty()" maxlength="80" />
+            @if (err('name'); as e) { <small>{{ e }}</small> }
+          </div>
+          <div class="field" [class.invalid]="err('code')">
+            <label for="ct-code">Template Code <span class="req">*</span></label>
+            <input id="ct-code" [(ngModel)]="draft.code" (ngModelChange)="markDirty()" maxlength="20" />
+            @if (err('code'); as e) { <small>{{ e }}</small> }
+          </div>
+          <div class="field">
+            <label for="ct-category">Category <span class="req">*</span></label>
+            <select id="ct-category" [(ngModel)]="draft.category" (ngModelChange)="onCategoryChange()">
+              @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="err('owner')">
+            <label for="ct-owner">Owner <span class="req">*</span></label>
+            <select id="ct-owner" [(ngModel)]="draft.owner" (ngModelChange)="markDirty()">
+              @for (o of owners; track o) { <option [value]="o">{{ o }}</option> }
+            </select>
+          </div>
+          <div class="field field--wide">
+            <label for="ct-desc">Description</label>
+            <textarea id="ct-desc" [(ngModel)]="draft.description" (ngModelChange)="markDirty()" maxlength="400" rows="3"></textarea>
+          </div>
+          <div class="field">
+            <label for="ct-freq">Frequency</label>
+            <select id="ct-freq" [(ngModel)]="draft.frequency" (ngModelChange)="markDirty()">
+              @for (f of frequencies; track f) { <option [value]="f">{{ f }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="err('passThreshold')">
+            <label for="ct-pass">Pass Threshold (%)</label>
+            <input id="ct-pass" type="number" min="0" max="100" [(ngModel)]="draft.passThreshold" (ngModelChange)="markDirty()" />
+            @if (err('passThreshold'); as e) { <small>{{ e }}</small> }
+          </div>
+          <div class="field field--wide">
+            <span>Assign to Asset Types</span>
+            <div class="checks">
+              @for (a of assetTypes; track a) {
+                <label><input type="checkbox" [checked]="hasValue(draft.assetTypes, a)" (change)="toggleValue(draft.assetTypes, a)" /> {{ a }}</label>
+              }
+            </div>
+          </div>
+          <div class="field field--wide">
+            <span>Assign to Locations</span>
+            <div class="checks">
+              @for (l of locations; track l) {
+                <label><input type="checkbox" [checked]="hasValue(draft.locations, l)" (change)="toggleValue(draft.locations, l)" /> {{ l }}</label>
+              }
+            </div>
+          </div>
+          <div class="field field--wide">
+            <span>Assign to Teams</span>
+            <div class="checks">
+              @for (t of teams; track t) {
+                <label><input type="checkbox" [checked]="hasValue(draft.teams, t)" (change)="toggleValue(draft.teams, t)" /> {{ t }}</label>
+              }
+            </div>
+          </div>
+          <div class="field">
+            <label class="switch"><input type="checkbox" [(ngModel)]="draft.requireApproval" (ngModelChange)="markDirty()" /><i></i> Require approval</label>
+            <small>Completed checklists go to a supervisor for sign-off.</small>
+          </div>
+          <div class="field">
+            <label class="switch switch--pink"><input type="checkbox" [(ngModel)]="draft.failOnCritical" (ngModelChange)="markDirty()" /><i></i> Fail on critical item</label>
+            <small>Any failed critical item fails the whole checklist.</small>
+          </div>
+        </div>
+        <div class="settings-foot">
+          <span class="muted">Status: <b>{{ draft.status }}</b> · Saving settings keeps the current status.</span>
+          <button type="button" class="btn btn--primary" (click)="commit('settings')">Save Settings</button>
+        </div>
+      }
+
+      @case ('history') {
+        <div class="usage-cards">
+          <div class="sub-panel"><span class="muted">Total uses</span><b>{{ draft.uses.toLocaleString('en-US') }}</b></div>
+          <div class="sub-panel"><span class="muted">Recent pass rate</span><b>{{ draft.executions.length ? passRate + '%' : '—' }}</b></div>
+          <div class="sub-panel"><span class="muted">Versions</span><b>{{ draft.versions.length }}</b></div>
+        </div>
+
+        <h3 class="table-title">Version History</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Version</th><th>Date</th><th>Changed By</th><th>Status</th><th>Notes</th></tr></thead>
+            <tbody>
+              @for (v of draft.versions; track $index) {
+                <tr>
+                  <td><b>{{ v.version }}</b></td>
+                  <td>{{ formatDate(v.date) }}</td>
+                  <td>{{ v.user }}</td>
+                  <td><span class="pill" [attr.data-tone]="tone(v.status)">{{ v.status }}</span></td>
+                  <td>{{ v.note }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="5" class="empty">No versions yet. Save Draft or Publish to create one.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="table-title">Recent Executions</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Date</th><th>Asset</th><th>Location</th><th>Performed By</th><th>Score</th><th>Result</th></tr></thead>
+            <tbody>
+              @for (e of draft.executions; track $index) {
+                <tr>
+                  <td>{{ formatDate(e.date) }}</td>
+                  <td>{{ e.asset }}</td>
+                  <td>{{ e.location }}</td>
+                  <td>{{ e.performedBy }}</td>
+                  <td>{{ e.score }}%</td>
+                  <td><span class="pill" [attr.data-tone]="e.result === 'Passed' ? 'green' : 'red'"><i></i>{{ e.result }}</span></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" class="empty">This template has not been used yet.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </section>
+
+  @if (drawer) {
+    <app-item-drawer
+      [item]="drawer.item"
+      [sectionId]="drawer.sectionId"
+      [sections]="draft.sections"
+      [isNew]="drawer.isNew"
+      (save)="onItemSave($event)"
+      (cancel)="drawer = null"
+    ></app-item-drawer>
+  }
+</div>
+
+@if (previewOpen) {
+  <app-checklist-preview [template]="draft" (closed)="previewOpen = false"></app-checklist-preview>
+}
+
+@if (libraryOpen) {
+  <div class="overlay" (click)="libraryOpen = false">
+    <div class="library" role="dialog" aria-modal="true" aria-label="Template library" (click)="$event.stopPropagation()">
+      <header class="library__head">
+        <div>
+          <h2>Template Library</h2>
+          <span class="muted">Start from a proven checklist. It is added as a draft you can edit.</span>
+        </div>
+        <button type="button" class="icon-btn icon-btn--bare" title="Close" (click)="libraryOpen = false">
+          <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+        </button>
+      </header>
+      <div class="library__grid">
+        @for (entry of library; track entry.name; let i = $index) {
+          <div class="library__card">
+            <span class="list-item__icon" [attr.data-tone]="entry.tone"><lucide-icon [img]="templateIcon(entry.icon)" [size]="20"></lucide-icon></span>
+            <div>
+              <b>{{ entry.name }}</b>
+              <span class="muted">{{ entry.category }} • {{ entry.items }} items • {{ entry.frequency }}</span>
+              <p>{{ entry.description }}</p>
+              <button type="button" class="btn btn--sm btn--outline" (click)="useLibrary(entry, i)">Use template</button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+@if (confirm) {
+  <div class="overlay" (click)="confirm = null">
+    <div class="confirm" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <h2>{{ confirm.title }}</h2>
+      <p>{{ confirm.message }}</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="confirm = null">Cancel</button>
+        <button type="button" class="btn btn--danger" (click)="confirmAction()">Delete</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

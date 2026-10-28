@@ -1,0 +1,60 @@
+<div class="overlay" (click)="closed.emit()">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Checklist preview" (click)="$event.stopPropagation()">
+    <header class="modal__head">
+      <div>
+        <span class="pill" data-tone="purple">Preview · read-only</span>
+        <h2>{{ template.name }}</h2>
+        <span class="muted">{{ template.code }} · {{ template.version }} · {{ totalItems }} items · Pass at {{ template.passThreshold }}%</span>
+      </div>
+      <button type="button" class="icon-btn icon-btn--bare" title="Close preview" (click)="closed.emit()">
+        <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+      </button>
+    </header>
+
+    <div class="progress"><i [style.width.%]="progress"></i></div>
+
+    @if (step; as st) {
+      <p class="modal__section">Section {{ st.sectionIndex + 1 }} of {{ template.sections.length }} · {{ st.section.title }}</p>
+      <div class="modal__item">
+        <span class="muted">Item {{ index + 1 }} of {{ steps.length }}</span>
+        <h3>
+          {{ st.item.text }}
+          @if (st.item.required) { <span class="req">*</span> }
+          @if (st.item.critical) { <span class="pill" data-tone="pink">Critical</span> }
+        </h3>
+        @if (st.item.helpText) { <p class="muted">{{ st.item.helpText }}</p> }
+        <app-response-preview [item]="st.item"></app-response-preview>
+        <div class="modal__facts muted">
+          <span>Score {{ st.item.score }}</span>
+          @if (st.item.failureAction !== 'None') { <span>On failure: {{ st.item.failureAction }}{{ st.item.escalate ? ' (escalated)' : '' }}</span> }
+        </div>
+      </div>
+    } @else {
+      <div class="modal__item modal__done">
+        <h3>End of checklist</h3>
+        <p class="muted">This is what the technician confirms before submitting.</p>
+        <dl class="kv">
+          <dt>Items</dt><dd>{{ totalItems }} ({{ requiredCount }} required, {{ criticalCount }} critical)</dd>
+          <dt>Maximum score</dt><dd>{{ totalScore }} ({{ template.scoringMethod }})</dd>
+          <dt>Pass threshold</dt><dd>{{ template.passThreshold }}%</dd>
+          <dt>Critical rule</dt><dd>{{ template.failOnCritical ? 'Any failed critical item fails the checklist' : 'Critical items count towards the score only' }}</dd>
+          <dt>Approval</dt><dd>{{ template.requireApproval ? 'Supervisor approval required' : 'Not required' }}</dd>
+        </dl>
+      </div>
+    }
+
+    <footer class="modal__foot">
+      <button type="button" class="btn" [disabled]="index === 0" (click)="prev()">
+        <lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon> Previous
+      </button>
+      @if (finished) {
+        <button type="button" class="btn btn--outline" (click)="restart()">Start again</button>
+        <button type="button" class="btn btn--primary" (click)="closed.emit()">Close preview</button>
+      } @else {
+        <button type="button" class="btn btn--primary" (click)="next()">
+          {{ index === steps.length - 1 ? 'Finish' : 'Next' }} <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+        </button>
+      }
+    </footer>
+  </div>
+</div>

@@ -1,0 +1,191 @@
+/* Detail panels of the small lookup masters (Criticality, Condition) */
+.level-swatch {
+  width: 72px;
+  height: 64px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #f1f3f9;
+  overflow: hidden;
+}
+
+.level-swatch img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Condition shows a coloured disc on a light tile */
+.level-swatch--disc {
+  background: #eef0f6;
+}
+
+.level-swatch--disc i {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.color-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-chip i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.level-icon {
+  color: #334155;
+}
+
+.level-icon-img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* 5 x 5 risk matrix */
+.matrix {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.matrix__ylabel {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.matrix__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.matrix__row {
+  display: grid;
+  grid-template-columns: 62px repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  align-items: center;
+}
+
+.matrix__label {
+  font-size: 10.5px;
+  color: #475066;
+  text-align: right;
+  padding-right: 6px;
+}
+
+.matrix__cell {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.matrix__cell--on {
+  outline: 2px solid #dc2626;
+  outline-offset: -2px;
+}
+
+.matrix__cell--on i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #111827;
+}
+
+.matrix__axis {
+  font-size: 10.5px;
+  color: #475066;
+  text-align: center;
+}
+
+.matrix__xlabel {
+  align-self: center;
+  padding-left: 62px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #334155;
+}
+
+/* Health score bar */
+.health {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.health__bar {
+  flex: 1;
+  max-width: 200px;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.health__bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* Read-only switch in the detail facts */
+.flag-switch {
+  display: inline-block;
+  width: 30px;
+  height: 16px;
+  border-radius: 999px;
+  background: #d6d9e2;
+  position: relative;
+  vertical-align: middle;
+}
+
+.flag-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.flag-switch.on {
+  background: #4f2bd8;
+}
+
+.flag-switch.on::after {
+  left: 16px;
+}
+
+@media (max-width: 900px) {
+  .pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+.grid-table tr.current td {
+  background: #f4f2fb;
+  font-weight: 600;
+}

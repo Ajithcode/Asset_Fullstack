@@ -1,0 +1,206 @@
+<aside class="drawer" role="dialog" aria-labelledby="cat-form-title">
+  <header class="drawer__header">
+    <h2 id="cat-form-title">{{ isEdit ? 'Edit Category' : 'Add Category' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <div class="logo-field">
+            <span class="field__label">Category Icon</span>
+            <label class="upload" [class.upload--filled]="form.image" [class.invalid]="errors.image">
+              <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+              @if (form.image) {
+                <img [src]="form.image" alt="Category icon" class="logo-img" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); removeImage()">Remove</button>
+              } @else {
+                <span class="upload__icon" [style.color]="pickerColor"><lucide-icon [img]="typeIcons[form.icon]" [size]="34" [strokeWidth]="1.8"></lucide-icon></span>
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+          </div>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.name">
+              <label for="cat-name"><span class="req">*</span> Category Name</label>
+              <input id="cat-name" name="name" placeholder="Enter category name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.code">
+              <label for="cat-code"><span class="req">*</span> Code</label>
+              <input id="cat-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" (ngModelChange)="onCodeChange()" />
+              @if (errors.code) { <small>{{ errors.code }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.assetType">
+              <label for="cat-type"><span class="req">*</span> Asset Type</label>
+              <select id="cat-type" name="assetType" [(ngModel)]="form.assetType" (ngModelChange)="onAssetTypeChange()">
+                <option value="" disabled>Select asset type</option>
+                @for (t of assetTypes; track t) { <option [value]="t">{{ t }}</option> }
+              </select>
+              @if (errors.assetType) { <small>{{ errors.assetType }}</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors.image) { <small class="upload-error">{{ errors.image }}</small> }
+
+        <div class="field">
+          <label for="cat-desc">Description</label>
+          <textarea id="cat-desc" name="description" rows="4" placeholder="Enter description about the category" [(ngModel)]="form.description"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="cat-parent">Parent Category</label>
+          <select id="cat-parent" name="parentCode" [(ngModel)]="form.parentCode">
+            <option [ngValue]="null">Select parent category (optional)</option>
+            @for (p of parentOptions; track p.code) { <option [ngValue]="p.code">{{ p.name }} ({{ p.code }})</option> }
+          </select>
+        </div>
+
+        @if (!form.image) {
+          <div class="grid">
+            <div class="field" [class.invalid]="errors.color">
+              <label for="cat-color">Icon Color</label>
+              <div class="color-field">
+                <input type="color" name="colorPicker" [ngModel]="pickerColor" (ngModelChange)="form.color = $event.toUpperCase()" aria-label="Pick colour" />
+                <input id="cat-color" type="text" name="color" maxlength="7" [(ngModel)]="form.color" />
+              </div>
+              @if (errors.color) { <small>{{ errors.color }}</small> }
+            </div>
+          </div>
+          <div class="field">
+            <span class="field__label">Icon (used when there is no image)</span>
+            <div class="icon-picker" role="radiogroup" aria-label="Icon">
+              @for (k of iconKeys; track k) {
+                <button type="button" class="icon-picker__item" role="radio" [class.on]="form.icon === k" [attr.aria-checked]="form.icon === k" [attr.aria-label]="k" (click)="form.icon = k">
+                  <lucide-icon [img]="typeIcons[k]" [size]="18"></lucide-icon>
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="field">
+          <span class="field__label">Status</span>
+          <div class="radios">
+            <label><input type="radio" name="status" value="Active" [(ngModel)]="form.status" /> Active</label>
+            <label><input type="radio" name="status" value="Inactive" [(ngModel)]="form.status" /> Inactive</label>
+          </div>
+        </div>
+      }
+
+      @case ('defaults') {
+        <div class="field" [class.invalid]="errors.assetType">
+          <label for="cat-type-d"><span class="req">*</span> Asset Type</label>
+          <select id="cat-type-d" name="assetTypeD" [(ngModel)]="form.assetType" (ngModelChange)="onAssetTypeChange()">
+            <option value="" disabled>Select asset type</option>
+            @for (t of assetTypes; track t) { <option [value]="t">{{ t }}</option> }
+          </select>
+        </div>
+        <span class="section-title">Default Values for New Assets</span>
+        <div class="grid">
+          <div class="field">
+            <label for="cat-method">Depreciation Method</label>
+            <select id="cat-method" name="depreciationMethod" [(ngModel)]="form.depreciationMethod">
+              <option value="Straight Line">Straight Line</option>
+              <option value="Declining Balance">Declining Balance</option>
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors.usefulLifeYears">
+            <label for="cat-life">Useful Life (Years)</label>
+            <input id="cat-life" name="usefulLifeYears" type="number" min="1" max="50" [(ngModel)]="form.usefulLifeYears" />
+            @if (errors.usefulLifeYears) { <small>{{ errors.usefulLifeYears }}</small> }
+          </div>
+          <div class="field">
+            <label for="cat-cc">Cost Center</label>
+            <select id="cat-cc" name="costCenter" [(ngModel)]="form.costCenter">
+              <option value="">Select cost center</option>
+              @for (c of costCenters; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors.tagPrefix">
+            <label for="cat-prefix">Asset Tag Prefix</label>
+            <input id="cat-prefix" name="tagPrefix" maxlength="6" placeholder="e.g. IT" [(ngModel)]="form.tagPrefix" />
+            @if (errors.tagPrefix) { <small>{{ errors.tagPrefix }}</small> }
+          </div>
+          <div class="field">
+            <label for="cat-tracking">Tracking Method</label>
+            <select id="cat-tracking" name="trackingMethod" [(ngModel)]="form.trackingMethod">
+              @for (t of trackingMethods; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="cat-condition">Default Condition</label>
+            <select id="cat-condition" name="defaultCondition" [(ngModel)]="form.defaultCondition">
+              <option value="New">New</option>
+              <option value="Good">Good</option>
+              <option value="Fair">Fair</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('fields') {
+        <p class="hint">Extra fields captured when an asset in this category is registered.</p>
+        <div class="specs">
+          @for (c of form.customFields; track $index) {
+            <div class="spec-row field-row">
+              <input [name]="'fieldName' + $index" placeholder="Field name" [attr.aria-label]="'Custom field ' + ($index + 1) + ' name'" [(ngModel)]="c.name" />
+              <select [name]="'fieldType' + $index" [attr.aria-label]="'Custom field ' + ($index + 1) + ' type'" [(ngModel)]="c.type">
+                @for (t of fieldTypes; track t) { <option [value]="t">{{ t }}</option> }
+              </select>
+              <label class="field-row__req"><input type="checkbox" [name]="'fieldReq' + $index" [(ngModel)]="c.required" /> Required</label>
+              <button type="button" class="spec-row__remove" (click)="removeField($index)" [attr.aria-label]="'Remove custom field ' + ($index + 1)">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="hint">No custom fields yet.</p>
+          }
+        </div>
+        @if (errors.customFields) { <small class="upload-error">{{ errors.customFields }}</small> }
+        <div class="spec-actions">
+          <button type="button" class="btn btn--ghost" (click)="addField()">
+            <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add custom field
+          </button>
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Subcategory required</strong><small>Assets in this category must also have a subcategory.</small></span>
+            <input type="checkbox" name="subcategoryRequired" [(ngModel)]="form.subcategoryRequired" />
+          </label>
+          <label class="toggle">
+            <span><strong>Approval for new assets</strong><small>Registering an asset in this category needs approval.</small></span>
+            <input type="checkbox" name="approvalForNewAssets" [(ngModel)]="form.approvalForNewAssets" />
+          </label>
+          <label class="toggle">
+            <span><strong>Show in mobile app</strong><small>Field users can pick this category.</small></span>
+            <input type="checkbox" name="showInMobile" [(ngModel)]="form.showInMobile" />
+          </label>
+          <label class="toggle">
+            <span><strong>Include in reports</strong><small>Show this category in asset reports and dashboards.</small></span>
+            <input type="checkbox" name="includeInReports" [(ngModel)]="form.includeInReports" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

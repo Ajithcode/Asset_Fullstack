@@ -1,0 +1,51 @@
+<div class="plan" [class.plan--expanded]="expanded">
+  <div class="plan__tabs" role="tablist">
+    @for (v of views; track v.id) {
+      <button type="button" role="tab" [class.active]="view === v.id" [attr.aria-selected]="view === v.id" (click)="setView(v.id)">{{ v.label }}</button>
+    }
+  </div>
+
+  @if (floors.length) {
+    <select class="plan__floor" name="floor" aria-label="Floor" [(ngModel)]="selectedFloor" (ngModelChange)="onFloorChange()">
+      @for (f of floors; track f.code) { <option [ngValue]="f.code">{{ f.name }} ({{ f.code.split('-').pop() }})</option> }
+    </select>
+  }
+
+  <div class="plan__canvas">
+    @switch (view) {
+      @case ('map') {
+        <div class="plan__leaflet" #mapEl></div>
+      }
+      @case ('plan') {
+        @if (selectedFloor) {
+          <svg viewBox="0 0 300 240" class="plan__svg" role="img" aria-label="Floor plan">
+            <image href="/floorplan-generic.svg" x="0" y="0" width="300" height="240" />
+            <rect x="20" y="20" width="260" height="200" fill="none" stroke="#1f2937" stroke-width="3" />
+            @for (p of planZones; track p.zone.code) {
+              <rect [attr.x]="p.x" [attr.y]="p.y" [attr.width]="p.w" [attr.height]="p.h" [attr.fill]="p.zone.color" fill-opacity="0.32"
+                [attr.stroke]="p.zone.code === zoneCode ? '#7c3aed' : p.zone.color" [attr.stroke-width]="p.zone.code === zoneCode ? 3 : 1.6" />
+              <rect [attr.x]="p.x + p.w / 2 - 34" [attr.y]="p.y + p.h / 2 - 8" width="68" height="16" rx="3" fill="#fff" fill-opacity="0.92" />
+              <text [attr.x]="p.x + p.w / 2" [attr.y]="p.y + p.h / 2 + 3.5" text-anchor="middle" class="plan__label">{{ p.zone.name }}</text>
+            }
+          </svg>
+        } @else {
+          <p class="plan__empty">Add a floor to see its plan.</p>
+        }
+      }
+      @case ('3d') {
+        <svg viewBox="0 0 300 240" class="plan__svg plan__svg--3d" role="img" aria-label="Floors of the building">
+          @for (s of stack; track s.floor.code) {
+            <g class="slab" [class.slab--active]="s.floor.code === selectedFloor" (click)="pickFloor(s.floor.code)">
+              <polygon [attr.points]="'60,' + s.y + ' 150,' + (s.y - 26) + ' 250,' + s.y + ' 160,' + (s.y + 26)" />
+              <text x="262" [attr.y]="s.y + 4" class="slab__label">{{ s.floor.code.split('-').pop() }}</text>
+            </g>
+          }
+        </svg>
+      }
+    }
+
+    <button type="button" class="plan__expand" (click)="toggleExpanded()" [attr.aria-label]="expanded ? 'Exit full screen' : 'Full screen'">
+      <lucide-icon [img]="expanded ? icons.Minimize2 : icons.Maximize2" [size]="16"></lucide-icon>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,107 @@
+<aside class="drawer" role="dialog" aria-labelledby="fc-form-title">
+  <header class="drawer__header">
+    <h2 id="fc-form-title">{{ isEdit ? 'Edit Failure Code' : 'Add Failure Code' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="fc-name"><span class="req">*</span> Failure Code Name</label>
+          <input id="fc-name" name="name" placeholder="Enter failure code name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="fc-code"><span class="req">*</span> Code</label>
+          <input id="fc-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['category']">
+          <label for="fc-category"><span class="req">*</span> Category</label>
+          <select id="fc-category" name="category" [(ngModel)]="form.category">
+            <option value="" disabled>Select category</option>
+            @for (o of categories; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+          @if (errors['category']) { <small>{{ errors['category'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['severity']">
+          <label for="fc-severity"><span class="req">*</span> Severity</label>
+          <select id="fc-severity" name="severity" [(ngModel)]="form.severity">
+            <option value="" disabled>Select severity</option>
+            @for (o of severities; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+          @if (errors['severity']) { <small>{{ errors['severity'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="fc-desc">Description</label>
+          <textarea id="fc-desc" name="description" rows="3" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="fc-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="fc-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('classification') {
+        <span class="section-title">Applies to Asset Categories</span>
+        <div class="ticks">
+          @for (c of assetCategories; track c) {
+            <label><input type="checkbox" [checked]="form.assetCategories.includes(c)" (change)="toggleCategory(c)" /><span>{{ c }}</span></label>
+          }
+        </div>
+        <span class="section-title">Possible Causes</span>
+        <div class="rows">
+          @for (x of form.causes; track $index) {
+            <div class="row-line row-line--single">
+              <input [name]="'causes' + $index" placeholder="Cause" [attr.aria-label]="'Cause ' + ($index + 1)" [(ngModel)]="form.causes[$index]" />
+              <button type="button" class="row-remove" (click)="removeLine('causes', $index)" aria-label="Remove">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="hint">None yet.</p>
+          }
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn btn--ghost" (click)="addLine('causes')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add cause</button>
+        </div>
+        <span class="section-title">Recommended Actions</span>
+        <div class="rows">
+          @for (x of form.actions; track $index) {
+            <div class="row-line row-line--single">
+              <input [name]="'actions' + $index" placeholder="Action" [attr.aria-label]="'Action ' + ($index + 1)" [(ngModel)]="form.actions[$index]" />
+              <button type="button" class="row-remove" (click)="removeLine('actions', $index)" aria-label="Remove">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="hint">None yet.</p>
+          }
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn btn--ghost" (click)="addLine('actions')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add action</button>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

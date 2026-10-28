@@ -1,0 +1,229 @@
+<section class="detail">
+  <header class="detail__head">
+    <div class="detail__photo detail__photo--logo">
+      @if (department.logo) {
+        <img [src]="department.logo" [alt]="department.name + ' logo'" />
+      } @else {
+        <lucide-icon [img]="logoIcons[department.icon]" [size]="34" [strokeWidth]="1.8"></lucide-icon>
+      }
+    </div>
+
+    <div class="detail__title">
+      <div class="detail__name">
+        <h2>{{ department.name }} ({{ department.code }})</h2>
+        <span class="pill" [attr.data-status]="department.status"><i></i>{{ department.status }}</span>
+      </div>
+      <div class="detail__meta">
+        Part of {{ parent ? parent.name + ', ' : '' }}{{ unit?.name ?? department.businessUnitCode }} Business Unit
+      </div>
+      @if (department.description) { <div class="detail__meta">{{ department.description }}</div> }
+    </div>
+
+    <div class="detail__actions">
+      <button type="button" class="btn" (click)="edit.emit(department)">
+        <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon> Edit
+      </button>
+      <div class="more">
+        <button type="button" class="btn" [attr.aria-expanded]="moreOpen" (click)="$event.stopPropagation(); moreOpen = !moreOpen">
+          More Actions <lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon>
+        </button>
+        @if (moreOpen) {
+          <div class="menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="moreOpen = false; addSub.emit(department)">Add sub-department</button>
+            <button type="button" role="menuitem" (click)="moreOpen = false; toggleStatus.emit(department)">
+              Mark as {{ department.status === 'Active' ? 'Inactive' : 'Active' }}
+            </button>
+            <button type="button" role="menuitem" class="danger" (click)="moreOpen = false; remove.emit(department)">Delete</button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <nav class="detail__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  @switch (tab) {
+    @case ('overview') {
+      <div class="overview">
+        <div class="card">
+          <h3>Department Details</h3>
+          <dl class="facts">
+            <dt>Name</dt><dd>{{ department.name }}</dd>
+            <dt>Code</dt><dd>{{ department.code }}</dd>
+            <dt>Business Unit</dt><dd>{{ unit?.name ?? department.businessUnitCode }}</dd>
+            <dt>Parent Department</dt>
+            <dd>@if (parent) { <button type="button" class="link" (click)="select.emit(parent.code)">{{ parent.name }}</button> } @else { - }</dd>
+            <dt>Department Type</dt><dd>{{ department.type }}</dd>
+            <dt>Department Head</dt>
+            <dd>@if (department.head) { <span class="person"><lucide-icon [img]="icons.User" [size]="13"></lucide-icon> {{ department.head }}</span> } @else { - }</dd>
+            <dt>Cost Center</dt><dd>{{ department.costCenter || '-' }}</dd>
+            <dt>Status</dt><dd><span class="pill" [attr.data-status]="department.status"><i></i>{{ department.status }}</span></dd>
+            <dt>Description</dt><dd>{{ department.description || '-' }}</dd>
+          </dl>
+          <dl class="facts facts--spaced">
+            <dt>Created On</dt><dd>{{ formatDateTime(department.createdOn) }}</dd>
+            <dt>Last Updated</dt><dd>{{ formatDateTime(department.updatedOn) }}</dd>
+          </dl>
+        </div>
+
+        <div class="middle">
+          <div class="stat-cards stat-cards--4">
+            <div class="stat-card">
+              <span class="stat-card__icon"><lucide-icon [img]="icons.Users" [size]="24"></lucide-icon></span>
+              <span>
+                <small>Employees</small><strong>{{ department.employees | number }}</strong>
+                <button type="button" class="link link--icon" (click)="tab = 'team'">View Employees <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></button>
+              </span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card__icon"><lucide-icon [img]="icons.Boxes" [size]="24"></lucide-icon></span>
+              <span>
+                <small>Assigned Assets</small><strong>{{ department.assets | number }}</strong>
+                <button type="button" class="link link--icon" (click)="tab = 'assets'">View Assets <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></button>
+              </span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card__icon"><lucide-icon [img]="icons.Wrench" [size]="24"></lucide-icon></span>
+              <span>
+                <small>Open Work Orders</small><strong>{{ department.openWorkOrders }}</strong>
+                <span class="muted-inline">From Maintenance</span>
+              </span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card__icon"><lucide-icon [img]="icons.MapPin" [size]="24"></lucide-icon></span>
+              <span>
+                <small>Sites</small><strong>{{ sites.length }}</strong>
+                <button type="button" class="link link--icon" (click)="tab = 'sites'">View Sites <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></button>
+              </span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Hierarchy</h3>
+            <ul class="hier">
+              @for (row of hierarchy; track row.key) {
+                <li [style.padding-left.px]="(row.level - 1) * 20" [class.current]="row.current">
+                  <span class="hier__elbow">└</span>
+                  <lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>
+                  @if (row.code && !row.current) {
+                    <button type="button" class="hier__name hier__name--link" (click)="select.emit(row.code)">{{ row.label }}</button>
+                  } @else {
+                    <span class="hier__name">{{ row.label }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Quick Links</h3>
+          <ul class="quick">
+            <li><button type="button" (click)="tab = 'team'"><lucide-icon [img]="icons.Users" [size]="16"></lucide-icon> View Employees</button></li>
+            <li><button type="button" (click)="tab = 'assets'"><lucide-icon [img]="icons.Boxes" [size]="16"></lucide-icon> View Assets</button></li>
+            <li><button type="button" (click)="tab = 'sites'"><lucide-icon [img]="icons.MapPin" [size]="16"></lucide-icon> View Sites</button></li>
+            <li><button type="button" (click)="tab = 'documents'"><lucide-icon [img]="icons.FileText" [size]="16"></lucide-icon> View Documents</button></li>
+            <li><button type="button" (click)="tab = 'activity'"><lucide-icon [img]="icons.History" [size]="16"></lucide-icon> View Activity Log</button></li>
+            <li>
+              <a [routerLink]="businessUnitPath" [queryParams]="{ code: department.businessUnitCode }">
+                <lucide-icon [img]="icons.Network" [size]="16"></lucide-icon> Go to Business Unit
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    }
+
+    @case ('team') {
+      <div class="card">
+        <p class="muted">Showing {{ team.length }} of {{ department.employees | number }} employees.</p>
+        <table class="grid-table">
+          <thead><tr><th>Name</th><th>Role</th></tr></thead>
+          <tbody>
+            @for (p of team; track p.name) { <tr><td>{{ p.name }}</td><td>{{ p.role }}</td></tr> }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('assets') {
+      <div class="card">
+        <p class="muted">Showing {{ assetRows.length }} of {{ department.assets | number }} assets assigned to this department.</p>
+        <table class="grid-table">
+          <thead><tr><th>Asset Tag</th><th>Name</th><th>Category</th><th>Assigned To</th></tr></thead>
+          <tbody>
+            @for (a of assetRows; track a.tag) {
+              <tr><td class="mono">{{ a.tag }}</td><td>{{ a.name }}</td><td>{{ a.category }}</td><td>{{ a.holder }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('sites') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Site</th><th>Code</th><th>Type</th><th>City</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (s of sites; track s.id) {
+              <tr>
+                <td>{{ s.name }}</td><td>{{ s.code }}</td><td>{{ s.siteType }}</td><td>{{ s.address.city || '-' }}</td>
+                <td><span class="pill" [attr.data-status]="s.status"><i></i>{{ s.status }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="empty">No sites list this department yet. Set it on the Site page.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('costCenter') {
+      <div class="card">
+        <dl class="facts facts--settings">
+          <dt>Cost Center</dt><dd>{{ department.costCenter || '-' }}</dd>
+          <dt>GL Code</dt><dd>{{ department.glCode || '-' }}</dd>
+          <dt>Annual Budget</dt><dd>{{ department.annualBudget === null ? '-' : department.currency.slice(0, 3) + ' ' + (department.annualBudget | number) }}</dd>
+          <dt>Approval Limit</dt><dd>{{ department.approvalLimit === null ? '-' : department.currency.slice(0, 3) + ' ' + (department.approvalLimit | number) }}</dd>
+          <dt>Cost Allocation</dt><dd>{{ department.includeInCostAllocation ? 'Included' : 'Excluded' }}</dd>
+        </dl>
+        @if (subDepartments.length) {
+          <h3 class="sub-title">Sub-department cost centers</h3>
+          <table class="grid-table">
+            <thead><tr><th>Department</th><th>Cost Center</th><th>Annual Budget</th></tr></thead>
+            <tbody>
+              @for (c of subDepartments; track c.code) {
+                <tr><td>{{ c.name }}</td><td class="mono">{{ c.costCenter || '-' }}</td><td>{{ c.annualBudget === null ? '-' : (c.annualBudget | number) }}</td></tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+
+    @case ('documents') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Document</th><th>Type</th><th>Size</th><th>Uploaded On</th></tr></thead>
+          <tbody>
+            @for (d of documents; track d.name) { <tr><td>{{ d.name }}</td><td>{{ d.kind }}</td><td>{{ d.size }}</td><td>{{ d.date }}</td></tr> }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('activity') {
+      <div class="card">
+        <ol class="timeline">
+          @for (a of activity; track $index) {
+            <li><span class="timeline__when">{{ formatDateTime(a.when) }}</span><span><strong>{{ a.who }}</strong> {{ a.text }}</span></li>
+          }
+        </ol>
+      </div>
+    }
+  }
+</section>

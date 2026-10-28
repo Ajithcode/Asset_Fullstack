@@ -12,3 +12,4 @@ export * from './lib/site-hierarchy/site-hierarchy.model';
 export * from './lib/site-hierarchy/site-hierarchy.service';
 export * from './lib/role/role';
 export * from './lib/geofence/geofence';
+export * from './lib/master-data/master-data-menu';

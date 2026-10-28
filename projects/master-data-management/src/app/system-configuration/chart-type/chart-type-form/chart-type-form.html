@@ -1,0 +1,74 @@
+<aside class="drawer" role="dialog" aria-labelledby="chart-form-title">
+  <header class="drawer__header">
+    <h2 id="chart-form-title">{{ isEdit ? 'Edit Chart Type' : 'Add Chart Type' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    <div class="field" [class.invalid]="errors['name']">
+      <label for="chart-name"><span class="req">*</span> Chart Type Name</label>
+      <input id="chart-name" name="name" placeholder="Enter chart type name" [(ngModel)]="form.name" />
+      @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['code']">
+      <label for="chart-code"><span class="req">*</span> Code</label>
+      <input id="chart-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+      @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['category']">
+      <label for="chart-cat"><span class="req">*</span> Category</label>
+      <select id="chart-cat" name="category" [(ngModel)]="form.category">
+        <option value="" disabled>Select category</option>
+        @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+      </select>
+      @if (errors['category']) { <small>{{ errors['category'] }}</small> }
+    </div>
+    <div class="field">
+      <label for="chart-desc">Description</label>
+      <textarea id="chart-desc" name="description" rows="2" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+    </div>
+    <div class="field">
+      <span class="field__label">Icon / Preview</span>
+      <label class="upload chart-upload" [class.upload--filled]="form.image" [class.invalid]="errors['image']">
+        <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+        <app-chart-preview [chart]="form" [size]="40"></app-chart-preview>
+        @if (form.image) {
+          <button type="button" class="upload__remove" (click)="$event.preventDefault(); form.image = null">Remove</button>
+        } @else {
+          <span class="upload__title">Click to upload</span>
+          <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+        }
+      </label>
+      @if (errors['image']) { <small>{{ errors['image'] }}</small> }
+    </div>
+    @if (!form.image) {
+      <div class="field">
+        <span class="field__label">Built-in preview</span>
+        <div class="preview-picker" role="radiogroup" aria-label="Built-in preview">
+          @for (p of previews; track p.id) {
+            <button type="button" role="radio" [class.on]="form.preview === p.id" [attr.aria-checked]="form.preview === p.id" [attr.aria-label]="p.label" (click)="form.preview = p.id">
+              <app-chart-preview [chart]="{ name: p.label, preview: p.id, image: null }" [size]="20"></app-chart-preview>
+            </button>
+          }
+        </div>
+      </div>
+    }
+    <div class="field">
+      <label for="chart-status"><span class="req">*</span> Status</label>
+      <div class="status-select">
+        <i [attr.data-status]="form.status"></i>
+        <select id="chart-status" name="status" [(ngModel)]="form.status">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

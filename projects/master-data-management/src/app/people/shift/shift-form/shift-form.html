@@ -1,0 +1,171 @@
+<aside class="drawer" role="dialog" aria-labelledby="shift-form-title">
+  <header class="drawer__header">
+    <h2 id="shift-form-title">{{ isEdit ? 'Edit Shift' : 'Add Shift' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="grid">
+          <div class="field" [class.invalid]="errors.name">
+            <label for="shift-name"><span class="req">*</span> Shift Name</label>
+            <input id="shift-name" name="name" placeholder="Enter shift name" [(ngModel)]="form.name" />
+            @if (errors.name) { <small>{{ errors.name }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.code">
+            <label for="shift-code"><span class="req">*</span> Code</label>
+            <input id="shift-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+            @if (errors.code) { <small>{{ errors.code }}</small> }
+          </div>
+          <div class="field">
+            <label for="shift-type"><span class="req">*</span> Shift Type</label>
+            <select id="shift-type" name="shiftType" [(ngModel)]="form.shiftType">
+              @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+          @if (fixedHours) {
+            <div class="field" [class.invalid]="errors.startTime">
+              <label for="shift-start">Start Time</label>
+              <input id="shift-start" name="startTime" type="time" [(ngModel)]="form.startTime" />
+              @if (errors.startTime) { <small>{{ errors.startTime }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.endTime">
+              <label for="shift-end">End Time</label>
+              <input id="shift-end" name="endTime" type="time" [(ngModel)]="form.endTime" />
+              @if (errors.endTime) { <small>{{ errors.endTime }}</small> }
+            </div>
+            <div class="field">
+              <label for="shift-duration">Duration (Hours)</label>
+              <input id="shift-duration" name="duration" [value]="duration" readonly />
+              @if (overnight) { <small class="note">Ends the next day.</small> }
+            </div>
+          }
+        </div>
+
+        @if (fixedHours) {
+          <div class="field" [class.invalid]="errors.workingDays">
+            <span class="field__label">Working Days</span>
+            <div class="days">
+              @for (d of days; track d) {
+                <label><input type="checkbox" [checked]="hasDay(d)" (change)="toggleDay(d)" /> {{ d }}</label>
+              }
+            </div>
+            @if (errors.workingDays) { <small>{{ errors.workingDays }}</small> }
+          </div>
+        } @else {
+          <p class="hint">{{ form.shiftType }} shifts have no fixed hours or working days.</p>
+        }
+
+        <div class="field">
+          <span class="field__label">Color</span>
+          <div class="swatches" role="radiogroup" aria-label="Shift colour">
+            @for (c of colors; track c) {
+              <button type="button" class="swatch" role="radio" [style.background]="c" [class.on]="form.color === c" [attr.aria-checked]="form.color === c" [attr.aria-label]="'Colour ' + c" (click)="form.color = c"></button>
+            }
+          </div>
+        </div>
+        <div class="field">
+          <label for="shift-desc">Description</label>
+          <textarea id="shift-desc" name="description" rows="2" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="shift-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="shift-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('schedule') {
+        <div class="grid">
+          <div class="field">
+            <label for="shift-from">Effective From</label>
+            <input id="shift-from" name="effectiveFrom" type="date" [(ngModel)]="form.effectiveFrom" />
+          </div>
+          <div class="field" [class.invalid]="errors.grace">
+            <label for="shift-grace">Grace Period (Minutes)</label>
+            <input id="shift-grace" name="graceMinutes" type="number" min="0" max="120" [(ngModel)]="form.graceMinutes" />
+            @if (errors.grace) { <small>{{ errors.grace }}</small> }
+          </div>
+          @if (form.shiftType === 'Rotational') {
+            <div class="field field--wide">
+              <label for="shift-rotation">Rotation Pattern</label>
+              <input id="shift-rotation" name="rotationPattern" placeholder="e.g. 2 days on, 2 days off" [(ngModel)]="form.rotationPattern" />
+            </div>
+          }
+        </div>
+        <p class="hint">Late arrivals within the grace period aren't marked late.</p>
+      }
+
+      @case ('breaks') {
+        <div class="rows" [class.invalid]="errors.breaks">
+          @for (b of form.breaks; track $index) {
+            <div class="row-line row-line--break">
+              <input [name]="'breakName' + $index" placeholder="Break name" [attr.aria-label]="'Break ' + ($index + 1) + ' name'" [(ngModel)]="b.name" />
+              <input [name]="'breakStart' + $index" type="time" [attr.aria-label]="'Break ' + ($index + 1) + ' start'" [(ngModel)]="b.start" />
+              <input [name]="'breakMinutes' + $index" type="number" min="1" [attr.aria-label]="'Break ' + ($index + 1) + ' minutes'" [(ngModel)]="b.minutes" />
+              <button type="button" class="row-remove" (click)="removeBreak($index)" [attr.aria-label]="'Remove break ' + ($index + 1)">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="hint">No breaks.</p>
+          }
+        </div>
+        @if (errors.breaks) { <small class="upload-error">{{ errors.breaks }}</small> }
+        <p class="hint">Name, start time (optional) and minutes. Total: {{ breakMinutes }} minutes.</p>
+        <div class="row-actions">
+          <button type="button" class="btn btn--ghost" (click)="addBreak()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add break</button>
+        </div>
+      }
+
+      @case ('assignments') {
+        <p class="hint">Teams that work this shift. A team works one shift, so ticking it here moves it off its current one.</p>
+        <div class="ticks ticks--wide">
+          @for (t of teams.all(); track t.code) {
+            <label>
+              <input type="checkbox" [checked]="hasTeam(t.code)" (change)="toggleTeam(t.code)" />
+              <span>{{ t.name }} @if (otherShift(t.shiftCode); as other) { <small>· now {{ other }}</small> }</span>
+            </label>
+          }
+        </div>
+        <p class="hint">{{ teamCodes.length }} teams selected.</p>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Overtime allowed</strong><small>Hours past the end time count as overtime.</small></span>
+            <input type="checkbox" name="overtimeAllowed" [(ngModel)]="form.overtimeAllowed" />
+          </label>
+          <label class="toggle">
+            <span><strong>Night allowance</strong><small>Pay the night shift allowance for this shift.</small></span>
+            <input type="checkbox" name="nightAllowance" [(ngModel)]="form.nightAllowance" />
+          </label>
+          <label class="toggle">
+            <span><strong>Attendance required</strong><small>People must clock in and out.</small></span>
+            <input type="checkbox" name="attendanceRequired" [(ngModel)]="form.attendanceRequired" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

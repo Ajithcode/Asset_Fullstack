@@ -1,0 +1,254 @@
+<section class="detail">
+  <header class="detail__head">
+    @if (level.image) {
+      <span class="level-swatch"><img [src]="level.image" [alt]="level.name" /></span>
+    } @else {
+      <span class="level-swatch" [style.background]="level.color" aria-hidden="true"></span>
+    }
+
+    <div class="detail__title">
+      <div class="detail__name">
+        <h2>{{ level.name }}</h2>
+        <span class="pill" [attr.data-status]="level.status"><i></i>{{ level.status }}</span>
+      </div>
+      <div class="detail__meta">
+        Code: {{ level.code }}<span class="sep">|</span>Risk Level: {{ level.riskLevel }}<span class="sep">|</span>Maintenance Priority: {{ level.maintenancePriority }}<span class="sep">|</span>Default: {{ level.isDefault ? 'Yes' : 'No' }}
+      </div>
+      @if (level.description) { <div class="detail__meta">{{ level.description }}</div> }
+    </div>
+
+    <div class="detail__actions">
+      <button type="button" class="btn" (click)="edit.emit({ level })">
+        <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon> Edit
+      </button>
+      <button type="button" class="btn" (click)="duplicate.emit(level)">
+        <lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon> Duplicate
+      </button>
+      <button type="button" class="btn" (click)="tab = 'assets'">
+        <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon> View Assets ({{ level.assets.total }})
+      </button>
+      <div class="more">
+        <button type="button" class="btn" [attr.aria-expanded]="moreOpen" (click)="$event.stopPropagation(); moreOpen = !moreOpen">
+          More Actions <lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon>
+        </button>
+        @if (moreOpen) {
+          <div class="menu" role="menu" (click)="$event.stopPropagation()">
+            @if (!level.isDefault) { <button type="button" role="menuitem" (click)="moreOpen = false; makeDefault.emit(level)">Make default</button> }
+            <button type="button" role="menuitem" (click)="moreOpen = false; toggleStatus.emit(level)">
+              Mark as {{ level.status === 'Active' ? 'Inactive' : 'Active' }}
+            </button>
+            <button type="button" role="menuitem" class="danger" (click)="moreOpen = false; remove.emit(level)">Delete</button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <nav class="detail__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <ng-template #matrix>
+    <div class="matrix" role="img" [attr.aria-label]="'Likelihood ' + level.likelihood + ', impact ' + level.impact">
+      <span class="matrix__ylabel">Likelihood</span>
+      <div class="matrix__rows">
+        @for (l of likelihoodRows; track l) {
+          <div class="matrix__row">
+            <span class="matrix__label">{{ l }}</span>
+            @for (i of impactCols; track i) {
+              <span class="matrix__cell" [style.background]="shade(l, i)" [class.matrix__cell--on]="isMarked(l, i)">
+                @if (isMarked(l, i)) { <i></i> }
+              </span>
+            }
+          </div>
+        }
+        <div class="matrix__row matrix__row--axis">
+          <span class="matrix__label"></span>
+          @for (i of impactCols; track i) { <span class="matrix__axis">{{ i }}</span> }
+        </div>
+        <span class="matrix__xlabel">Impact</span>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template #impactList>
+    <dl class="facts facts--wide">
+      @for (f of impactFields; track f.key) { <dt>{{ f.label }}</dt><dd>{{ level.businessImpact[f.key] || '-' }}</dd> }
+    </dl>
+  </ng-template>
+
+  <ng-template #strategyList>
+    <dl class="facts facts--wide">
+      <dt>Maintenance Priority</dt><dd>{{ level.maintenancePriority }}</dd>
+      <dt>Recommended Strategy</dt><dd>{{ level.recommendedStrategy || '-' }}</dd>
+      <dt>Inspection Frequency</dt><dd>{{ level.inspectionFrequency }}</dd>
+      <dt>Condition Monitoring</dt><dd>{{ level.conditionMonitoring }}</dd>
+      <dt>Spare Parts Priority</dt><dd>{{ level.sparePartsPriority }}</dd>
+      <dt>Response Time (Hours)</dt><dd>{{ level.responseTimeHours }}</dd>
+    </dl>
+  </ng-template>
+
+  @switch (tab) {
+    @case ('overview') {
+      <div class="overview">
+        <div class="card">
+          <div class="card__head">
+            <h3 class="card__title">Basic Information</h3>
+            <button type="button" class="card__edit" (click)="editAt('basic')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+          </div>
+          <dl class="facts">
+            <dt>Criticality Name</dt><dd>{{ level.name }}</dd>
+            <dt>Code</dt><dd>{{ level.code }}</dd>
+            <dt>Description</dt><dd>{{ level.description || '-' }}</dd>
+            <dt>Color</dt><dd><span class="color-chip"><i [style.background]="level.color"></i>{{ level.color }}</span></dd>
+            <dt>Icon</dt>
+            <dd>
+              @if (level.image) { <img class="level-icon-img" [src]="level.image" [alt]="level.name" /> }
+              @else { <lucide-icon class="level-icon" [img]="levelIcons[level.icon]" [size]="20"></lucide-icon> }
+            </dd>
+            <dt>Risk Level</dt><dd>{{ level.riskLevel }}</dd>
+            <dt>Maintenance Priority</dt><dd>{{ level.maintenancePriority }}</dd>
+            <dt>Default</dt><dd>{{ level.isDefault ? 'Yes' : 'No' }}</dd>
+            <dt>Status</dt><dd><span class="pill" [attr.data-status]="level.status"><i></i>{{ level.status }}</span></dd>
+            <dt>Created On</dt><dd>{{ formatDateTime(level.createdOn) }}</dd>
+            <dt>Created By</dt><dd>{{ level.createdBy || '-' }}</dd>
+            <dt>Last Updated</dt><dd>{{ formatDateTime(level.updatedOn) }}</dd>
+          </dl>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Risk Matrix</h3>
+              <button type="button" class="card__edit" (click)="editAt('risk')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <ng-container [ngTemplateOutlet]="matrix"></ng-container>
+          </div>
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Maintenance Strategy</h3>
+              <button type="button" class="card__edit" (click)="editAt('maintenance')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <ng-container [ngTemplateOutlet]="strategyList"></ng-container>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Business Impact</h3>
+              <button type="button" class="card__edit" (click)="editAt('risk')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <ng-container [ngTemplateOutlet]="impactList"></ng-container>
+          </div>
+          <div class="card">
+            <h3 class="card__title">Summary</h3>
+            <div class="tiles">
+              <button type="button" class="tile" (click)="tab = 'assets'">
+                <span class="tile__icon"><lucide-icon [img]="icons.Box" [size]="18"></lucide-icon></span>
+                <span><small>Total Assets</small><strong>{{ level.assets.total }}</strong></span>
+              </button>
+              <div class="tile">
+                <span class="tile__icon"><lucide-icon [img]="icons.Monitor" [size]="18"></lucide-icon></span>
+                <span><small>Active Assets</small><strong>{{ activeAssets }}</strong></span>
+              </div>
+              <div class="tile">
+                <span class="tile__icon"><lucide-icon [img]="icons.Wrench" [size]="18"></lucide-icon></span>
+                <span><small>Under Maintenance</small><strong>{{ level.assets.underMaintenance }}</strong></span>
+              </div>
+              <div class="tile">
+                <span class="tile__icon"><lucide-icon [img]="icons.Trash2" [size]="18"></lucide-icon></span>
+                <span><small>Retired Assets</small><strong>{{ level.assets.retired }}</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @case ('risk') {
+      <div class="pair">
+        <div class="card">
+          <div class="card__head">
+            <h3 class="card__title">Risk Matrix</h3>
+            <button type="button" class="card__edit" (click)="editAt('risk')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+          </div>
+          <ng-container [ngTemplateOutlet]="matrix"></ng-container>
+          <p class="muted">Likelihood: {{ level.likelihood }} · Impact: {{ level.impact }}</p>
+        </div>
+        <div class="card">
+          <h3 class="card__title">Business Impact</h3>
+          <ng-container [ngTemplateOutlet]="impactList"></ng-container>
+        </div>
+      </div>
+    }
+
+    @case ('maintenance') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Maintenance & Lifecycle</h3>
+          <button type="button" class="card__edit" (click)="editAt('maintenance')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <ng-container [ngTemplateOutlet]="strategyList"></ng-container>
+      </div>
+    }
+
+    @case ('assets') {
+      <div class="card">
+        <p class="muted">{{ level.assets.total }} assets: {{ activeAssets }} active, {{ level.assets.underMaintenance }} under maintenance, {{ level.assets.retired }} retired. Sample shown below.</p>
+        <table class="grid-table">
+          <thead><tr><th>Asset Tag</th><th>Model</th><th>Manufacturer</th><th>Asset Type</th><th>State</th></tr></thead>
+          <tbody>
+            @for (a of sampleAssets; track a.tag) {
+              <tr><td class="mono">{{ a.tag }}</td><td>{{ a.model }}</td><td>{{ a.manufacturer }}</td><td>{{ a.type }}</td><td>{{ a.state }}</td></tr>
+            } @empty {
+              <tr><td colspan="5" class="empty">No assets have this criticality yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('documents') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Document</th><th>Type</th><th>Uploaded On</th></tr></thead>
+          <tbody>
+            @for (d of documentRows; track d.name) {
+              <tr><td>{{ d.name }}</td><td>{{ d.kind }}</td><td>{{ d.date }}</td></tr>
+            } @empty {
+              <tr><td colspan="3" class="empty">No documents linked yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('activity') {
+      <div class="card">
+        <ol class="timeline">
+          @for (a of activity; track $index) {
+            <li><span class="timeline__when">{{ formatDateTime(a.when) }}</span><span><strong>{{ a.who }}</strong> {{ a.text }}</span></li>
+          }
+        </ol>
+      </div>
+    }
+
+    @case ('settings') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Settings</h3>
+          <button type="button" class="card__edit" (click)="editAt('settings')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <dl class="facts facts--settings">
+          <dt>Escalate on Failure</dt><dd>{{ level.escalateOnFailure ? 'Yes' : 'No' }}</dd>
+          <dt>Root Cause Analysis</dt><dd>{{ level.rootCauseRequired ? 'Required' : 'Not required' }}</dd>
+          <dt>Approval for Disposal</dt><dd>{{ level.approvalForDisposal ? 'Required' : 'Not required' }}</dd>
+          <dt>Show in Reports</dt><dd>{{ level.showInReports ? 'Yes' : 'No' }}</dd>
+        </dl>
+      </div>
+    }
+  }
+</section>

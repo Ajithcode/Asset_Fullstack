@@ -1,0 +1,133 @@
+<div class="drawer__head">
+  <h2>{{ isNew ? 'New Role' : 'Role Details' }}</h2>
+  @if (dirty) {
+    <span class="pill" data-tone="orange"><i></i>Unsaved</span>
+  }
+  <button type="button" class="icon-btn icon-btn--bare" aria-label="Close details" (click)="closed.emit()">
+    <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+  </button>
+</div>
+
+<form class="rd" (ngSubmit)="save.emit()" novalidate>
+  <div class="grid2">
+    <div class="field" [class.invalid]="show('name')">
+      <label for="rd-name">Role Name <span class="req">*</span></label>
+      <input id="rd-name" name="name" maxlength="60" [disabled]="system" [(ngModel)]="role.name" (ngModelChange)="changed.emit()" />
+      @if (show('name'); as msg) { <small>{{ msg }}</small> }
+    </div>
+    <div class="field" [class.invalid]="show('code')">
+      <label for="rd-code">Role Code <span class="req">*</span></label>
+      <input id="rd-code" name="code" maxlength="30" [disabled]="system" [ngModel]="role.code" (ngModelChange)="onCode($event)" />
+      @if (show('code'); as msg) { <small>{{ msg }}</small> }
+    </div>
+  </div>
+  @if (system) {
+    <p class="rd-lock"><lucide-icon [img]="icons.Lock" [size]="13"></lucide-icon> System role: name, code and type are managed by Asset360.</p>
+  }
+
+  <div class="field">
+    <label for="rd-desc">Description</label>
+    <textarea id="rd-desc" name="description" rows="3" maxlength="300" [(ngModel)]="role.description" (ngModelChange)="changed.emit()"></textarea>
+  </div>
+
+  <div class="grid2">
+    <div class="field">
+      <label for="rd-type">Role Type</label>
+      <select id="rd-type" name="type" [disabled]="system" [(ngModel)]="role.type" (ngModelChange)="changed.emit()">
+        @for (t of types; track t) {
+          <option [value]="t" [disabled]="t === 'System' && !system">{{ t }} Role</option>
+        }
+      </select>
+    </div>
+    <div class="field">
+      <span>Status</span>
+      <label class="switch rd-switch" [title]="statusLocked() ? 'The administrator role always stays active' : ''">
+        <input type="checkbox" name="status" [disabled]="statusLocked()" [(ngModel)]="active" /><i></i> {{ role.status }}
+      </label>
+    </div>
+  </div>
+
+  <div class="rd-users">
+    <div class="rd-users__head">
+      <span class="rd-label">Assigned Users ({{ role.users }})</span>
+      <button type="button" class="btn btn--link" [disabled]="!role.users" (click)="viewUsers.emit()">View all users</button>
+    </div>
+    @if (role.users) {
+      <div class="avatars">
+        @for (u of avatars; track $index) {
+          <span class="avatar" [title]="u" [style.background]="tone(u).bg" [style.color]="tone(u).ink">{{ initialsOf(u) }}</span>
+        }
+        @if (extraUsers()) {
+          <span class="avatar rd-more">+{{ extraUsers() }}</span>
+        }
+      </div>
+    } @else {
+      <p class="muted rd-none">No users assigned yet. Assign users from User Management.</p>
+    }
+  </div>
+
+  <div class="field">
+    <label for="rd-scope">Data Scope</label>
+    <select id="rd-scope" name="scope" [ngModel]="role.dataScope" (ngModelChange)="onScope($event)">
+      @for (s of scopes; track s.id) {
+        <option [value]="s.id">{{ s.id }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="field" [class.invalid]="submitted && errors.locations">
+    <span>Locations @if (role.dataScope === 'Assigned Locations') { <span class="req">*</span> }</span>
+    <app-chip-select
+      [options]="locations"
+      [value]="role.locations"
+      [disabled]="role.dataScope === 'All Locations'"
+      [invalid]="!!(submitted && errors.locations)"
+      placeholder="Select locations"
+      (valueChange)="setLocations($event)"
+    ></app-chip-select>
+    @if (submitted && errors.locations) { <small>{{ errors.locations }}</small> }
+  </div>
+
+  <div class="field" [class.invalid]="submitted && errors.departments">
+    <span>Departments @if (role.dataScope === 'Own Department') { <span class="req">*</span> }</span>
+    <app-chip-select
+      [options]="departments"
+      [value]="role.departments"
+      [invalid]="!!(submitted && errors.departments)"
+      placeholder="Select departments"
+      (valueChange)="setDepartments($event)"
+    ></app-chip-select>
+    @if (submitted && errors.departments) { <small>{{ errors.departments }}</small> }
+  </div>
+
+  <div class="field" [class.invalid]="errors.approvalLimit">
+    <label for="rd-limit">
+      Approval Limit (AED)
+      <lucide-icon class="rd-info" [img]="icons.Info" [size]="13" title="Highest amount this role can approve. Larger requests escalate."></lucide-icon>
+    </label>
+    <input id="rd-limit" name="limit" type="number" min="0" step="1000" [(ngModel)]="role.approvalLimit" (ngModelChange)="changed.emit()" />
+    @if (errors.approvalLimit) { <small>{{ errors.approvalLimit }}</small> }
+  </div>
+
+  <div class="row-field">
+    <label>MFA Required</label>
+    <label class="switch rd-switch rd-mfa">
+      <input type="checkbox" name="mfa" [(ngModel)]="role.mfaRequired" (ngModelChange)="changed.emit()" /><i></i>
+      <span class="muted">{{ role.mfaRequired ? 'Required for this role' : 'Optional' }}</span>
+    </label>
+  </div>
+
+  <div class="row-field">
+    <label for="rd-timeout">Session Timeout</label>
+    <select id="rd-timeout" name="timeout" [(ngModel)]="role.sessionTimeout" (ngModelChange)="changed.emit()">
+      @for (t of timeouts; track t) {
+        <option [value]="t">{{ t }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="drawer__foot">
+    <button type="button" class="btn btn--outline" (click)="cancel.emit()">Cancel</button>
+    <button type="submit" class="btn btn--primary">{{ isNew ? 'Create Role' : 'Save Role' }}</button>
+  </div>
+</form>

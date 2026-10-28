@@ -1,0 +1,5 @@
+/* Details panel spans under both the list and the drawer */
+.loc-detail {
+  grid-column: 1 / -1;
+  scroll-margin-top: 12px;
+}

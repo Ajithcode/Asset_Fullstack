@@ -18,8 +18,11 @@ import {
   FilePen,
   CircleDollarSign,
   ChartColumn,
-  Settings
+  Settings,
+  Database
 } from 'lucide-angular';
+import { MASTER_DATA_BASE_PATH, MASTER_DATA_MENU } from 'shared-ui';
+import { ADMINISTRATION_BASE_PATH, ADMINISTRATION_MENU } from '../../pages/administration/administration-menu';
 
 export interface NavItem {
   label: string;
@@ -29,6 +32,8 @@ export interface NavItem {
   children?: NavItem[];
   // The item has its own page: clicking it opens that page as well as its submenu
   hasPage?: boolean;
+  // Expand inline under the item even though the submenu has a second level
+  inline?: boolean;
 }
 
 @Component({
@@ -142,175 +147,33 @@ export class Sidebar {
     // { label: 'Process & Automation', path: '/process-automation', icon: this.assetUrl('Process&auto-purple.png') },
     {
       label: 'Administration',
-      path: '/administration',
+      path: ADMINISTRATION_BASE_PATH,
       icon: Settings,
-      children: [
-        {
-          label: 'Configuration',
-          path: '/administration/configuration',
-          children: [
-            { label: 'Project', path: '/administration/configuration/projects' },
-            { label: 'Devices', path: '/administration/configuration/devices' },
-            {
-              label: 'Assets',
-              path: '/administration/configuration/assets',
-              children: [
-                { label: 'Asset registration', path: '/administration/configuration/assets/asset-registry' },
-                { label: 'Location History', path: '/administration/configuration/assets/location-history' },
-                { label: 'Assignment / Ownership', path: '/administration/configuration/assets/assignment-ownership' },
-                { label: 'Asset Lifecycle', path: '/administration/configuration/assets/asset-lifecycle' },
-                { label: 'Tracking & Telemetry', path: '/administration/configuration/assets/tracking-telemetry' },
-                { label: 'Maintenance & Service', path: '/administration/configuration/assets/maintenance-service' },
-                { label: 'Utilization & Performance', path: '/administration/configuration/assets/utilization-performance' },
-                { label: 'Financial', path: '/administration/configuration/assets/financial' },
-                { label: 'Document & Attachment', path: '/administration/configuration/assets/document-attachment' },
-                { label: 'Warranty & Contract', path: '/administration/configuration/assets/warranty-contract' },
-                { label: 'Alert & Incident', path: '/administration/configuration/assets/alert-incident' },
-                { label: 'Audit & Verification', path: '/administration/configuration/assets/audit-verification' },
-                { label: 'Activity / Audit Trail', path: '/administration/configuration/assets/activity-audit-trail' },
-                { label: 'Custom / Domain-specific Asset Type Fields', path: '/administration/configuration/assets/custom-domain-fields' },
-                { label: 'Integration', path: '/administration/configuration/assets/integration' },
-                { label: 'Compliance & Certification', path: '/administration/configuration/assets/compliance-certification' },
-                { label: 'Assets Audit', path: '/administration/configuration/assets/assets-audit' },
-                { label: 'Asset Movement', path: '/administration/configuration/assets/asset-movement' },
-                { label: 'Asset Disposal', path: '/administration/configuration/assets/asset-disposal' },
-                { label: 'Tagged Assets', path: '/administration/configuration/assets/tagged-assets' },
-                { label: 'Asset Check-Out', path: '/administration/configuration/assets/asset-checkout' },
-                { label: 'Asset Check-In', path: '/administration/configuration/assets/asset-checkin' }
-              ]
-            },
-            {
-              label: 'Maintenance',
-              path: '/administration/configuration/maintenance',
-              children: [
-                { label: 'Work Order', path: '/administration/configuration/maintenance/work-order' },
-                { label: 'Maintenance Task', path: '/administration/configuration/maintenance/maintenance-task' },
-                { label: 'Preventive Maintenance', path: '/administration/configuration/maintenance/preventive-maintenance' },
-                { label: 'Predictive Maintenance', path: '/administration/configuration/maintenance/predictive-maintenance' },
-                { label: 'Breakdown / Issue Reporting', path: '/administration/configuration/maintenance/breakdown-issue-reporting' },
-                { label: 'Spare Parts', path: '/administration/configuration/maintenance/spare-parts' },
-                { label: 'Technician', path: '/administration/configuration/maintenance/technician' },
-                { label: 'Vendor / AMC', path: '/administration/configuration/maintenance/vendor-amc' },
-                { label: 'Cost Tracking', path: '/administration/configuration/maintenance/cost-tracking' },
-                { label: 'Downtime Tracking', path: '/administration/configuration/maintenance/downtime-tracking' },
-                { label: 'Performance', path: '/administration/configuration/maintenance/performance' },
-                { label: 'Compliance & Inspection', path: '/administration/configuration/maintenance/compliance-inspection' }
-              ]
-            },
-            {
-              label: 'Workflows',
-              path: '/administration/configuration/workflows',
-              children: [
-                { label: 'Workflow List', path: '/administration/configuration/workflows/list' },
-                { label: 'Workflow Builder', path: '/administration/configuration/workflows/builder' },
-                { label: 'Workflow Instances', path: '/administration/configuration/workflows/instances' },
-                { label: 'My Tasks / Approvals', path: '/administration/configuration/workflows/tasks' },
-                { label: 'Insights', path: '/administration/configuration/workflows/insights' }
-              ]
-            },
-            {
-              label: 'WIP',
-              path: '/administration/configuration/wip',
-              children: [
-                { label: 'Job Master', path: '/administration/configuration/wip/job-master' },
-                { label: 'Status Master', path: '/administration/configuration/wip/status-master' },
-                { label: 'Resource Master', path: '/administration/configuration/wip/resource-master' },
-                { label: 'Task Master', path: '/administration/configuration/wip/task-master' },
-                { label: 'Checklist Master', path: '/administration/configuration/wip/checklist-master' },
-                { label: 'Checklist Items', path: '/administration/configuration/wip/checklist-items' },
-                { label: 'Location Master', path: '/administration/configuration/wip/location-master' },
-                { label: 'Asset Linking', path: '/administration/configuration/wip/asset-linking' },
-                { label: 'SLA Master', path: '/administration/configuration/wip/sla-master' },
-                { label: 'Issue / Delay', path: '/administration/configuration/wip/issue-delay' },
-                { label: 'Material Consumption', path: '/administration/configuration/wip/material-consumption' },
-                { label: 'Permit / Compliance', path: '/administration/configuration/wip/permit-compliance' },
-                { label: 'Progress Log', path: '/administration/configuration/wip/progress-log' },
-                { label: 'Alerts', path: '/administration/configuration/wip/alerts' },
-                { label: 'KPI Config', path: '/administration/configuration/wip/kpi-config' },
-                { label: 'Role & Access', path: '/administration/configuration/wip/role-access' }
-              ]
-            },
-            {
-              label: 'Inspection',
-              path: '/administration/configuration/inspection',
-              children: [
-                { label: 'Inspection Type', path: '/administration/configuration/inspection/inspection-type' },
-                { label: 'Task Category', path: '/administration/configuration/inspection/task-category' },
-                { label: 'Inspection Task', path: '/administration/configuration/inspection/inspection-task' },
-                { label: 'Checklist', path: '/administration/configuration/inspection/checklist-template/list' },
-                { label: 'Failure Reason', path: '/administration/configuration/inspection/failure-reason' },
-                { label: 'Defect', path: '/administration/configuration/inspection/defect' },
-                { label: 'Severity', path: '/administration/configuration/inspection/severity' },
-                { label: 'Priority', path: '/administration/configuration/inspection/priority' },
-                { label: 'Signature and Stamp', path: '/administration/configuration/inspection/signature-stamp' },
-                { label: 'Notification Template', path: '/administration/configuration/inspection/notification-template' },
-                { label: 'Report Template', path: '/administration/configuration/inspection/report-template' },
-                { label: 'Numbering Sequence', path: '/administration/configuration/inspection/numbering-sequence' },
-                { label: 'Holiday and Working Calendar', path: '/administration/configuration/inspection/holiday-calendar' }
-              ]
-            },
-            {
-              label: 'Master Management',
-              path: '/administration/configuration/master-management',
-              children: [
-                { label: 'Organization', path: '/administration/configuration/master-management/organization' },
-                { label: 'Business Unit', path: '/administration/configuration/master-management/business-unit' },
-                { label: 'Department', path: '/administration/configuration/master-management/department' },
-                { label: 'Site', path: '/administration/configuration/master-management/site' },
-                { label: 'Manufacturer', path: '/administration/configuration/master-management/manufacturer' },
-                { label: 'Supplier', path: '/administration/configuration/master-management/supplier' },
-                { label: 'Master Maintenance', path: '/administration/configuration/master-management/master-maintenance' },
-                { label: 'Category / Sub-category', path: '/administration/configuration/master-management/category-subcategory' },
-                { label: 'Asset Type', path: '/administration/configuration/master-management/asset-type' },
-                { label: 'Assigned Custodian / Department', path: '/administration/configuration/master-management/assigned-custodian-department' },
-                { label: 'Current Location', path: '/administration/configuration/master-management/current-location' },
-                { label: 'Status Changes', path: '/administration/configuration/master-management/status-changes' },
-                { label: 'Tag IDs', path: '/administration/configuration/master-management/tag-ids' },
-                { label: 'Depreciation Method', path: '/administration/configuration/master-management/depreciation-method' },
-                { label: 'Cost Center', path: '/administration/configuration/master-management/cost-center' },
-                { label: 'Alert Type', path: '/administration/configuration/master-management/alert-type' },
-                { label: 'Resolution Status', path: '/administration/configuration/master-management/resolution-status' },
-                { label: 'Auditor Details', path: '/administration/configuration/master-management/auditor-details' },
-                { label: 'Physical Verification Result', path: '/administration/configuration/master-management/physical-verification-result' },
-                { label: 'Asset Type Fields', path: '/administration/configuration/master-management/asset-type-fields' },
-                { label: 'API Sync Status Master', path: '/administration/configuration/master-management/api-sync-status-master' },
-                { label: 'Certification Type Master', path: '/administration/configuration/master-management/certification-type-master' },
-                { label: 'Work Type', path: '/administration/configuration/master-management/work-type' },
-                { label: 'Priority', path: '/administration/configuration/master-management/priority' },
-                { label: 'Status', path: '/administration/configuration/master-management/status' },
-                { label: 'Resource Type', path: '/administration/configuration/master-management/resource-type' },
-                { label: 'Skill Master', path: '/administration/configuration/master-management/skill-master' },
-                { label: 'Shift Master', path: '/administration/configuration/master-management/shift-master' },
-                { label: 'Checklist Type Master', path: '/administration/configuration/master-management/checklist-type-master' },
-                { label: 'Response Type Master', path: '/administration/configuration/master-management/response-type-master' },
-                { label: 'Condition Master', path: '/administration/configuration/master-management/condition-master' },
-                { label: 'Issue Type Master', path: '/administration/configuration/master-management/issue-type-master' },
-                { label: 'Severity Master', path: '/administration/configuration/master-management/severity-master' },
-                { label: 'Unit Master', path: '/administration/configuration/master-management/unit-master' },
-                { label: 'Permit Type Master', path: '/administration/configuration/master-management/permit-type-master' },
-                { label: 'Update Source Master', path: '/administration/configuration/master-management/update-source-master' },
-                { label: 'Chart Type Master', path: '/administration/configuration/master-management/chart-type-master' },
-                { label: 'Permission Master', path: '/administration/configuration/master-management/permission-master' },
-                { label: 'Module Access Master', path: '/administration/configuration/master-management/module-access-master' }
-              ]
-            },
-          ]
-        },
-        { label: 'License', path: '/administration/license' },
-        {
-          label: 'User Management',
-          path: '/administration/user-management',
-          children: [
-            { label: 'User', path: '/administration/user-management/user' },
-            { label: 'Role', path: '/administration/user-management/role' }
-          ]
-        }
-      ]
+      hasPage: true,
+      children: ADMINISTRATION_MENU.map((m) => ({ label: m.label, path: `${ADMINISTRATION_BASE_PATH}/${m.slug}` }))
+    },
+    {
+      label: 'Master Data Management',
+      path: MASTER_DATA_BASE_PATH,
+      icon: Database,
+      hasPage: true,
+      inline: true,
+      children: MASTER_DATA_MENU.map((group) => ({
+        label: group.label,
+        path: `${MASTER_DATA_BASE_PATH}/${group.slug}`,
+        hasPage: true,
+        children: group.items.map((item) => ({
+          label: item.label,
+          path: `${MASTER_DATA_BASE_PATH}/${group.slug}/${item.slug}`
+        }))
+      }))
     }
   ];
 
   // labels of the top-level items whose submenu is expanded inline inside the sidebar (e.g. 'Assets')
   openInline = new Set<string>();
+  // path of the second-level group expanded inside an inline menu (e.g. '/master-data-management/asset')
+  openInlineGroup: string | null = null;
 
   constructor(private router: Router, private elementRef: ElementRef) {
     // Keep the section that contains the current page expanded, including on first load / deep links
@@ -322,13 +185,18 @@ export class Sidebar {
       .subscribe(() => {
         this.navItems
           .filter((item) => this.isInline(item) && this.isSectionActive(item))
-          .forEach((item) => this.openInline.add(item.label));
+          .forEach((item) => {
+            this.openInline.add(item.label);
+            const activeGroup = item.children?.find((child) => child.children && this.isSectionActive(child));
+            if (activeGroup) this.openInlineGroup = activeGroup.path;
+          });
       });
   }
 
   // Items with a single level of children expand inline; deeper menus (Administration) keep the flyout
+  // unless they opt in with `inline`
   isInline(item: NavItem): boolean {
-    return !!item.children?.length && item.children.every((child) => !child.children);
+    return !!item.children?.length && (!!item.inline || item.children.every((child) => !child.children));
   }
 
   // True when the current page is this item's page or one of its sub pages
@@ -357,6 +225,23 @@ export class Sidebar {
       this.openInline.delete(item.label);
     } else {
       this.openInline.add(item.label);
+    }
+  }
+
+  isInlineGroupOpen(group: NavItem): boolean {
+    return this.openInlineGroup === group.path;
+  }
+
+  // Second-level groups (e.g. Master Data Management > Asset): one open at a time. Clicking a
+  // closed group opens it and its overview page; clicking an open group just closes it.
+  toggleInlineGroup(group: NavItem): void {
+    if (this.isInlineGroupOpen(group)) {
+      this.openInlineGroup = null;
+      return;
+    }
+    this.openInlineGroup = group.path;
+    if (group.hasPage && this.router.url.split('?')[0] !== group.path) {
+      this.router.navigate([group.path]);
     }
   }
 

@@ -1,0 +1,252 @@
+<aside class="drawer" role="dialog" aria-labelledby="model-form-title">
+  <header class="drawer__header">
+    <h2 id="model-form-title">{{ isEdit ? 'Edit Asset Model' : 'Add Asset Model' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <div class="logo-field">
+            <span class="field__label">Model Image</span>
+            <label class="upload" [class.upload--filled]="form.image" [class.invalid]="errors.image">
+              <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+              @if (form.image) {
+                <img [src]="form.image" alt="Model image" class="logo-img" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); removeImage()">Remove</button>
+              } @else {
+                <span class="upload__icon"><lucide-icon [img]="typeIcon" [size]="38" [strokeWidth]="1.6"></lucide-icon></span>
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+          </div>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.name">
+              <label for="model-name"><span class="req">*</span> Model Name</label>
+              <input id="model-name" name="name" placeholder="Enter model name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.code">
+              <label for="model-code"><span class="req">*</span> Model Code</label>
+              <input id="model-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+              @if (errors.code) { <small>{{ errors.code }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.manufacturer">
+              <label for="model-mfr"><span class="req">*</span> Manufacturer</label>
+              <select id="model-mfr" name="manufacturer" [(ngModel)]="form.manufacturer">
+                <option value="" disabled>Select manufacturer</option>
+                @for (m of manufacturers; track m) { <option [value]="m">{{ m }}</option> }
+              </select>
+              @if (errors.manufacturer) { <small>{{ errors.manufacturer }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.assetType">
+              <label for="model-type"><span class="req">*</span> Asset Type</label>
+              <select id="model-type" name="assetType" [(ngModel)]="form.assetType" (ngModelChange)="onTypeChange()">
+                <option value="" disabled>Select asset type</option>
+                @for (t of typesInCategory; track t.name) { <option [value]="t.name">{{ t.name }}</option> }
+              </select>
+              @if (errors.assetType) { <small>{{ errors.assetType }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.category">
+              <label for="model-cat"><span class="req">*</span> Category</label>
+              <select id="model-cat" name="category" [(ngModel)]="form.category" (ngModelChange)="onCategoryChange()">
+                <option value="" disabled>Select category</option>
+                @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+              </select>
+              @if (errors.category) { <small>{{ errors.category }}</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors.image) { <small class="upload-error">{{ errors.image }}</small> }
+
+        <div class="field">
+          <label for="model-desc">Description</label>
+          <textarea id="model-desc" name="description" rows="4" placeholder="Enter description about this model" [(ngModel)]="form.description"></textarea>
+        </div>
+      }
+
+      @case ('specs') {
+        <p class="hint">Technical details shown on every asset of this model.</p>
+        <div class="specs" [class.invalid]="errors.specs">
+          @for (s of form.specs; track $index) {
+            <div class="spec-row">
+              <input [name]="'specLabel' + $index" placeholder="Specification, e.g. RAM" [attr.aria-label]="'Specification ' + ($index + 1) + ' name'" [(ngModel)]="s.label" />
+              <input [name]="'specValue' + $index" placeholder="Value, e.g. 16 GB" [attr.aria-label]="'Specification ' + ($index + 1) + ' value'" [(ngModel)]="s.value" />
+              <button type="button" class="spec-row__remove" (click)="removeSpec($index)" [attr.aria-label]="'Remove specification ' + ($index + 1)">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="hint">No specifications yet.</p>
+          }
+        </div>
+        @if (errors.specs) { <small class="upload-error">{{ errors.specs }}</small> }
+        <div class="spec-actions">
+          <button type="button" class="btn btn--ghost" (click)="addSpec()">
+            <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add specification
+          </button>
+          @if (form.assetType) {
+            <button type="button" class="btn btn--ghost" (click)="loadTemplate()">Add {{ form.assetType }} fields</button>
+          }
+        </div>
+      }
+
+      @case ('lifecycle') {
+        <div class="grid">
+          <div class="field" [class.invalid]="errors.lifecycleYears">
+            <label for="model-life"><span class="req">*</span> Lifecycle (Years)</label>
+            <input id="model-life" name="lifecycleYears" type="number" min="1" max="50" [(ngModel)]="form.lifecycleYears" />
+            @if (errors.lifecycleYears) { <small>{{ errors.lifecycleYears }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.warrantyMonths">
+            <label for="model-warranty">Warranty (Months)</label>
+            <input id="model-warranty" name="warrantyMonths" type="number" min="0" max="240" [(ngModel)]="form.warrantyMonths" />
+            @if (errors.warrantyMonths) { <small>{{ errors.warrantyMonths }}</small> }
+          </div>
+          <div class="field">
+            <label for="model-pm">PM Frequency</label>
+            <select id="model-pm" name="pmFrequency" [(ngModel)]="form.pmFrequency">
+              @for (p of pmFrequencies; track p) { <option [value]="p">{{ p }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="model-strategy">Maintenance Strategy</label>
+            <select id="model-strategy" name="maintenanceStrategy" [(ngModel)]="form.maintenanceStrategy">
+              @for (s of strategies; track s) { <option [value]="s">{{ s }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="model-crit">Criticality</label>
+            <select id="model-crit" name="criticality" [(ngModel)]="form.criticality">
+              @for (c of criticalities; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Calibration required</strong><small>Assets of this model need periodic calibration certificates.</small></span>
+            <input type="checkbox" name="calibrationRequired" [(ngModel)]="form.calibrationRequired" />
+          </label>
+        </div>
+      }
+
+      @case ('financial') {
+        <div class="grid">
+          <div class="field">
+            <label for="model-cc">Default Cost Center</label>
+            <select id="model-cc" name="costCenter" [(ngModel)]="form.costCenter">
+              <option value="">Select cost center</option>
+              @for (c of costCenters; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="model-currency">Currency</label>
+            <select id="model-currency" name="currency" [(ngModel)]="form.currency">
+              @for (c of currencies; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors.purchasePrice">
+            <label for="model-price">Default Purchase Price ({{ currencyCode }})</label>
+            <input id="model-price" name="purchasePrice" type="number" min="0" placeholder="0" [(ngModel)]="form.purchasePrice" />
+            @if (errors.purchasePrice) { <small>{{ errors.purchasePrice }}</small> }
+          </div>
+          <div class="field">
+            <span class="field__label">Default Procurement Type</span>
+            <div class="radios">
+              <label><input type="radio" name="procurementType" value="CAPEX" [(ngModel)]="form.procurementType" /> CAPEX</label>
+              <label><input type="radio" name="procurementType" value="OPEX" [(ngModel)]="form.procurementType" /> OPEX</label>
+            </div>
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Include in depreciation</strong><small>New assets of this model are depreciated over its lifecycle.</small></span>
+            <input type="checkbox" name="includeInDepreciation" [(ngModel)]="form.includeInDepreciation" />
+          </label>
+        </div>
+        @if (form.includeInDepreciation) {
+          <div class="grid">
+            <div class="field">
+              <label for="model-method">Depreciation Method</label>
+              <select id="model-method" name="depreciationMethod" [(ngModel)]="form.depreciationMethod">
+                <option value="Straight Line">Straight Line</option>
+                <option value="Declining Balance">Declining Balance</option>
+              </select>
+            </div>
+            <div class="field" [class.invalid]="errors.salvagePercent">
+              <label for="model-salvage">Salvage Value (%)</label>
+              <input id="model-salvage" name="salvagePercent" type="number" min="0" max="100" [(ngModel)]="form.salvagePercent" />
+              @if (errors.salvagePercent) { <small>{{ errors.salvagePercent }}</small> }
+            </div>
+          </div>
+        }
+      }
+
+      @case ('defaults') {
+        <div class="grid">
+          <div class="field" [class.invalid]="errors.taggingFormat">
+            <label for="model-tag"><span class="req">*</span> Tagging Format</label>
+            <input id="model-tag" name="taggingFormat" placeholder="LAP-(YY)-(0000)" [(ngModel)]="form.taggingFormat" />
+            @if (errors.taggingFormat) { <small>{{ errors.taggingFormat }}</small> }
+          </div>
+          <div class="field">
+            <label for="model-sample">Sample Tag</label>
+            <input id="model-sample" name="sampleTag" [value]="sample" readonly />
+          </div>
+          <div class="field field--wide">
+            <label for="model-subcats">Subcategories</label>
+            <input id="model-subcats" name="subcategories" placeholder="Separate with commas, e.g. Laptops, Business Series" [(ngModel)]="subcategoriesText" />
+          </div>
+          <div class="field">
+            <label for="model-tracking">Tracking Method</label>
+            <select id="model-tracking" name="trackingMethod" [(ngModel)]="form.trackingMethod">
+              @for (t of trackingMethods; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="model-condition">Default Condition</label>
+            <select id="model-condition" name="defaultCondition" [(ngModel)]="form.defaultCondition">
+              <option value="New">New</option>
+              <option value="Good">Good</option>
+              <option value="Fair">Fair</option>
+            </select>
+          </div>
+          <div class="field">
+            <span class="field__label">Status</span>
+            <div class="radios">
+              <label><input type="radio" name="status" value="Active" [(ngModel)]="form.status" /> Active</label>
+              <label><input type="radio" name="status" value="Inactive" [(ngModel)]="form.status" /> Inactive</label>
+            </div>
+          </div>
+        </div>
+        <p class="hint">(YY) is the two-digit year and (0000) the running number.</p>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Serial number required</strong><small>Assets can't be registered without a serial number.</small></span>
+            <input type="checkbox" name="serialRequired" [(ngModel)]="form.serialRequired" />
+          </label>
+          <label class="toggle">
+            <span><strong>Assignable to employees</strong><small>Assets can be checked out to a person.</small></span>
+            <input type="checkbox" name="assignable" [(ngModel)]="form.assignable" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

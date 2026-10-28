@@ -1,0 +1,224 @@
+<aside class="drawer" role="dialog" aria-labelledby="item-form-title">
+  <header class="drawer__header">
+    <h2 id="item-form-title">{{ isEdit ? 'Edit Item' : 'Add Item' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <div class="logo-field">
+            <label class="upload photo-upload" [class.upload--filled]="form.image" [class.invalid]="errors['image']">
+              <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+              @if (form.image) {
+                <img [src]="form.image" alt="Item image" class="logo-img" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); form.image = null">Remove</button>
+              } @else {
+                <span class="upload__icon"><lucide-icon [img]="icons.Camera" [size]="30"></lucide-icon></span>
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+          </div>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors['name']">
+              <label for="item-name"><span class="req">*</span> Item Name</label>
+              <input id="item-name" name="name" placeholder="Enter item name" [(ngModel)]="form.name" />
+              @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors['code']">
+              <label for="item-code"><span class="req">*</span> Item Code</label>
+              <input id="item-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+              @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors['partNumber']">
+              <label for="item-part">Part Number</label>
+              <input id="item-part" name="partNumber" placeholder="Enter part number" [(ngModel)]="form.partNumber" />
+              @if (errors['partNumber']) { <small>{{ errors['partNumber'] }}</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors['image']) { <small class="upload-error">{{ errors['image'] }}</small> }
+
+        <div class="field" [class.invalid]="errors['category']">
+          <label for="item-cat"><span class="req">*</span> Category</label>
+          <select id="item-cat" name="category" [(ngModel)]="form.category" (ngModelChange)="onCategoryChange()">
+            <option value="" disabled>Select category</option>
+            @for (c of categoryOptions; track c.code) { <option [value]="c.code">{{ c.name }}</option> }
+          </select>
+          @if (errors['category']) { <small>{{ errors['category'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['uom']">
+          <label for="item-uom"><span class="req">*</span> UOM</label>
+          <select id="item-uom" name="uom" [(ngModel)]="form.uom">
+            <option value="" disabled>Select unit of measure</option>
+            @for (u of uomOptions; track u.code) { <option [value]="u.code">{{ u.name }} ({{ u.symbol }})</option> }
+          </select>
+          @if (errors['uom']) { <small>{{ errors['uom'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="item-desc">Description</label>
+          <textarea id="item-desc" name="description" rows="2" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="item-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="item-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('inventory') {
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['currentStock']">
+            <label for="item-stock">Current Stock</label>
+            <input id="item-stock" name="currentStock" type="number" min="0" step="any" [(ngModel)]="form.currentStock" />
+            @if (errors['currentStock']) { <small>{{ errors['currentStock'] }}</small> } @else { <small class="hint">Now: {{ stockState }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['minStock']">
+            <label for="item-min">Minimum Stock</label>
+            <input id="item-min" name="minStock" type="number" min="0" step="any" [(ngModel)]="form.minStock" />
+            @if (errors['minStock']) { <small>{{ errors['minStock'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['reorderLevel']">
+            <label for="item-reorder">Reorder Level</label>
+            <input id="item-reorder" name="reorderLevel" type="number" min="0" step="any" [(ngModel)]="form.reorderLevel" />
+            @if (errors['reorderLevel']) { <small>{{ errors['reorderLevel'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['reorderQty']">
+            <label for="item-reorder-qty">Reorder Quantity</label>
+            <input id="item-reorder-qty" name="reorderQty" type="number" min="0" step="any" [(ngModel)]="form.reorderQty" />
+            @if (errors['reorderQty']) { <small>{{ errors['reorderQty'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['maxStock']">
+            <label for="item-max">Maximum Stock</label>
+            <input id="item-max" name="maxStock" type="number" min="0" step="any" [(ngModel)]="form.maxStock" />
+            @if (errors['maxStock']) { <small>{{ errors['maxStock'] }}</small> }
+          </div>
+        </div>
+        <p class="hint">Out of Stock at 0, Reorder at or below the minimum, Low Stock at or below the reorder level.</p>
+
+        <span class="section-title">Storage Location</span>
+        <div class="grid">
+          <div class="field">
+            <label for="item-wh">Warehouse</label>
+            <select id="item-wh" name="warehouseCode" [(ngModel)]="form.warehouseCode" (ngModelChange)="onWarehouseChange()">
+              <option value="">Select warehouse</option>
+              @for (w of warehouses.all(); track w.code) { <option [value]="w.code">{{ w.name }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="item-store">Store</label>
+            <select id="item-store" name="storeCode" [(ngModel)]="form.storeCode" (ngModelChange)="onStoreChange()" [disabled]="!form.warehouseCode">
+              <option value="">Select store</option>
+              @for (s of storeOptions; track s.code) { <option [value]="s.code">{{ s.name }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors['location']">
+            <label for="item-bin">Bin</label>
+            <select id="item-bin" name="binCode" [(ngModel)]="form.binCode" [disabled]="!form.storeCode">
+              <option value="">Select bin</option>
+              @for (b of binOptions; track b.code) { <option [value]="b.code">{{ b.code }} ({{ b.binType }})</option> }
+            </select>
+            @if (errors['location']) { <small>{{ errors['location'] }}</small> }
+          </div>
+        </div>
+      }
+
+      @case ('financial') {
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['unitCost']">
+            <label for="item-cost">Unit Cost ({{ form.currency.slice(0, 3) }})</label>
+            <input id="item-cost" name="unitCost" type="number" min="0" step="any" [(ngModel)]="form.unitCost" />
+            @if (errors['unitCost']) { <small>{{ errors['unitCost'] }}</small> }
+          </div>
+          <div class="field">
+            <label for="item-currency">Currency</label>
+            <select id="item-currency" name="currency" [(ngModel)]="form.currency">
+              @for (c of currencies; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="item-valuation">Valuation Method</label>
+            <select id="item-valuation" name="valuationMethod" [(ngModel)]="form.valuationMethod">
+              @for (v of valuationMethods; track v) { <option [value]="v">{{ v }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="item-value">Stock Value</label>
+            <input id="item-value" name="stockValue" [value]="stockValue === null ? '-' : form.currency.slice(0, 3) + ' ' + stockValue" readonly />
+          </div>
+        </div>
+      }
+
+      @case ('additional') {
+        <div class="field">
+          <label for="item-mfr">Manufacturer / Brand</label>
+          <input id="item-mfr" name="manufacturer" list="item-mfrs" [(ngModel)]="form.manufacturer" />
+          <datalist id="item-mfrs">
+            @for (m of manufacturers.activeNames(); track m) { <option [value]="m"></option> }
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="item-spec">Specification</label>
+          <textarea id="item-spec" name="specification" rows="3" placeholder="Size, rating, material..." [(ngModel)]="form.specification"></textarea>
+        </div>
+        <div class="field" [class.invalid]="errors['shelfLifeDays']">
+          <label for="item-shelf">Shelf Life (Days)</label>
+          <input id="item-shelf" name="shelfLifeDays" type="number" min="1" [(ngModel)]="form.shelfLifeDays" />
+          @if (errors['shelfLifeDays']) { <small>{{ errors['shelfLifeDays'] }}</small> }
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Hazardous</strong><small>Needs an MSDS and storage in a hazmat bin.</small></span>
+            <input type="checkbox" name="hazardous" [(ngModel)]="form.hazardous" />
+          </label>
+          <label class="toggle">
+            <span><strong>Serialized</strong><small>Each unit is tracked by its serial number.</small></span>
+            <input type="checkbox" name="serialized" [(ngModel)]="form.serialized" />
+          </label>
+          <label class="toggle">
+            <span><strong>Batch tracked</strong><small>Receipts and issues record a batch or lot number.</small></span>
+            <input type="checkbox" name="batchTracked" [(ngModel)]="form.batchTracked" />
+          </label>
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Purchasable</strong><small>Can be ordered on purchase requests.</small></span>
+            <input type="checkbox" name="purchasable" [(ngModel)]="form.purchasable" />
+          </label>
+          <label class="toggle">
+            <span><strong>Issuable</strong><small>Can be issued to work orders.</small></span>
+            <input type="checkbox" name="issuable" [(ngModel)]="form.issuable" />
+          </label>
+          <label class="toggle">
+            <span><strong>Critical spare</strong><small>Flag shortages on the maintenance dashboard.</small></span>
+            <input type="checkbox" name="criticalSpare" [(ngModel)]="form.criticalSpare" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

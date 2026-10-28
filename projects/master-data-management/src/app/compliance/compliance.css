@@ -1,0 +1,18 @@
+/* Shared by the Compliance list pages */
+.desc {
+  max-width: 260px;
+  color: #334155;
+}
+
+.pill[data-status='Inactive'] {
+  background: #fde8e8;
+  color: #dc2626;
+}
+
+.pill[data-status='Inactive'] i {
+  background: #ef4444;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,520 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a [routerLink]="basePath">Master Data Management</a>
+  <span aria-hidden="true">›</span>
+  <a [routerLink]="basePath + '/system-configuration'">System Configuration</a>
+  <span aria-hidden="true">›</span>
+  <strong>System Settings</strong>
+</nav>
+
+<header class="head">
+  <span class="head__icon"><lucide-icon [img]="icons.Settings" [size]="24"></lucide-icon></span>
+  <div class="head__text">
+    <h1>System Settings</h1>
+    <p>Configure system level settings and preferences for Asset360.</p>
+  </div>
+  <div class="head__actions">
+    @if (dirty) {
+      <span class="unsaved">Unsaved changes</span>
+      <button type="button" class="btn btn--link" (click)="discard()">Discard</button>
+    } @else if (lastSaved) {
+      <span class="saved">Saved</span>
+    }
+    <button type="button" class="btn btn--primary" [disabled]="!dirty" (click)="save()">
+      <lucide-icon [img]="icons.Save" [size]="16"></lucide-icon> Save Settings
+    </button>
+  </div>
+</header>
+
+<nav class="settings-tabs" role="tablist" aria-label="Settings areas">
+  @for (t of tabs; track t.id) {
+    <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="openTab(t.id)">{{ t.label }}</button>
+  }
+</nav>
+
+<div class="settings">
+  <aside class="settings__nav" aria-label="Sections">
+    @for (s of currentTab.sections; track s.id) {
+      <button type="button" [class.active]="section === s.id" [attr.aria-current]="section === s.id ? 'true' : null" (click)="section = s.id">
+        <lucide-icon [img]="s.icon" [size]="16"></lucide-icon> {{ s.label }}
+      </button>
+    }
+  </aside>
+
+  <form class="settings__panel" (ngSubmit)="save()" novalidate>
+    @switch (section) {
+      @case ('general') {
+        <h2>General Settings</h2>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['general.systemName']">
+            <label for="s-name">System Name</label>
+            <input id="s-name" name="systemName" [(ngModel)]="form.general.systemName" />
+            @if (errors['general.systemName']) { <small>{{ errors['general.systemName'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['general.systemUrl']">
+            <label for="s-url">System URL</label>
+            <input id="s-url" name="systemUrl" type="url" [(ngModel)]="form.general.systemUrl" />
+            @if (errors['general.systemUrl']) { <small>{{ errors['general.systemUrl'] }}</small> }
+          </div>
+          <div class="field">
+            <label for="s-tz">Default Time Zone</label>
+            <select id="s-tz" name="timeZone" [(ngModel)]="form.general.timeZone">
+              @for (o of options.timeZones; track o) { <option [value]="o">{{ o }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-df">Date Format</label>
+            <select id="s-df" name="dateFormat" [(ngModel)]="form.general.dateFormat">
+              @for (o of options.dateFormats; track o) { <option [value]="o">{{ o }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-tf">Time Format</label>
+            <select id="s-tf" name="timeFormat" [(ngModel)]="form.general.timeFormat">
+              @for (o of options.timeFormats; track o) { <option [value]="o">{{ o }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-lang">Default Language</label>
+            <select id="s-lang" name="language" [(ngModel)]="form.general.language">
+              @for (o of options.languages; track o) { <option [value]="o">{{ o }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-cur">Default Currency</label>
+            <select id="s-cur" name="currency" [(ngModel)]="form.general.currency">
+              @for (o of options.currencies; track o) { <option [value]="o">{{ o }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-rpp">Records Per Page</label>
+            <select id="s-rpp" name="recordsPerPage" [(ngModel)]="form.general.recordsPerPage">
+              @for (o of options.recordsPerPage; track o) { <option [ngValue]="o">{{ o }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="switch-rows">
+          <label><span>Enable Audit Log</span><input class="switch" type="checkbox" name="auditLog" [(ngModel)]="form.general.auditLog" /></label>
+          <label><span>Allow Offline Mode (Mobile)</span><input class="switch" type="checkbox" name="offlineMode" [(ngModel)]="form.general.offlineMode" /></label>
+          <label>
+            <span>System Maintenance Mode</span>
+            <input class="switch" type="checkbox" name="maintenanceMode" [(ngModel)]="form.general.maintenanceMode" />
+          </label>
+        </div>
+        @if (form.general.maintenanceMode) {
+          <p class="banner banner--warn">Maintenance mode signs everyone except administrators out after saving.</p>
+        }
+        <p class="banner"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon> System settings will be applied across the application. Some changes may require user re-login.</p>
+      }
+
+      @case ('dateTime') {
+        <h2>Date & Time</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="s-week">Week Starts On</label>
+            <select id="s-week" name="weekStartsOn" [(ngModel)]="form.dateTime.weekStartsOn">
+              @for (o of options.weekStart; track o) { <option [value]="o">{{ o }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-fy">Fiscal Year Starts</label>
+            <select id="s-fy" name="fiscalYearStart" [(ngModel)]="form.dateTime.fiscalYearStart">
+              @for (o of options.months; track o) { <option [value]="o">{{ o }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-ws">Working Day Starts</label>
+            <input id="s-ws" name="workdayStart" type="time" [(ngModel)]="form.dateTime.workdayStart" />
+          </div>
+          <div class="field" [class.invalid]="errors['dateTime.workdayEnd']">
+            <label for="s-we">Working Day Ends</label>
+            <input id="s-we" name="workdayEnd" type="time" [(ngModel)]="form.dateTime.workdayEnd" />
+            @if (errors['dateTime.workdayEnd']) { <small>{{ errors['dateTime.workdayEnd'] }}</small> }
+          </div>
+        </div>
+        <p class="hint">Working hours are used for SLA timers on work orders.</p>
+      }
+
+      @case ('branding') {
+        <h2>Application Branding</h2>
+        <div class="grid">
+          <div class="field">
+            <span class="field__label">Logo</span>
+            <label class="upload logo-upload" [class.upload--filled]="form.branding.logo" [class.invalid]="errors['branding.logo']">
+              <input type="file" accept="image/png,image/jpeg" (change)="onLogoPicked($event)" />
+              @if (form.branding.logo) {
+                <img [src]="form.branding.logo" alt="Application logo" class="logo-img" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); form.branding.logo = null">Remove</button>
+              } @else {
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+            @if (errors['branding.logo']) { <small>{{ errors['branding.logo'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['branding.primaryColor']">
+            <label for="s-color">Primary Colour</label>
+            <div class="color-field">
+              <input type="color" name="colorPicker" [ngModel]="form.branding.primaryColor.toLowerCase()" (ngModelChange)="form.branding.primaryColor = $event.toUpperCase()" aria-label="Pick colour" />
+              <input id="s-color" type="text" name="primaryColor" maxlength="7" [(ngModel)]="form.branding.primaryColor" />
+            </div>
+            @if (errors['branding.primaryColor']) { <small>{{ errors['branding.primaryColor'] }}</small> }
+          </div>
+          <div class="field field--wide">
+            <label for="s-login">Login Page Message</label>
+            <input id="s-login" name="loginMessage" [(ngModel)]="form.branding.loginMessage" />
+          </div>
+        </div>
+      }
+
+      @case ('fileUpload') {
+        <h2>File Upload</h2>
+        <div class="field narrow" [class.invalid]="errors['fileUpload.maxSizeMb']">
+          <label for="s-max">Maximum File Size (MB)</label>
+          <input id="s-max" name="maxSizeMb" type="number" min="1" max="100" [(ngModel)]="form.fileUpload.maxSizeMb" />
+          @if (errors['fileUpload.maxSizeMb']) { <small>{{ errors['fileUpload.maxSizeMb'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['fileUpload.allowedTypes']">
+          <span class="field__label">Allowed File Types</span>
+          <div class="days">
+            @for (t of options.fileTypes; track t) {
+              <label><input type="checkbox" [checked]="form.fileUpload.allowedTypes.includes(t)" (change)="form.fileUpload.allowedTypes = toggle(form.fileUpload.allowedTypes, t)" /> {{ t }}</label>
+            }
+          </div>
+          @if (errors['fileUpload.allowedTypes']) { <small>{{ errors['fileUpload.allowedTypes'] }}</small> }
+        </div>
+        <div class="switch-rows">
+          <label><span>Scan uploads for viruses</span><input class="switch" type="checkbox" name="virusScan" [(ngModel)]="form.fileUpload.virusScan" /></label>
+        </div>
+      }
+
+      @case ('session') {
+        <h2>Session & Timeout</h2>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['session.timeoutMinutes']">
+            <label for="s-timeout">Session Timeout (Minutes)</label>
+            <input id="s-timeout" name="timeoutMinutes" type="number" min="5" max="480" [(ngModel)]="form.session.timeoutMinutes" />
+            @if (errors['session.timeoutMinutes']) { <small>{{ errors['session.timeoutMinutes'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['session.idleWarningMinutes']">
+            <label for="s-idle">Warn Before Timeout (Minutes)</label>
+            <input id="s-idle" name="idleWarningMinutes" type="number" min="1" [(ngModel)]="form.session.idleWarningMinutes" />
+            @if (errors['session.idleWarningMinutes']) { <small>{{ errors['session.idleWarningMinutes'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['session.rememberMeDays']">
+            <label for="s-remember">"Remember Me" Lasts (Days)</label>
+            <input id="s-remember" name="rememberMeDays" type="number" min="0" max="90" [(ngModel)]="form.session.rememberMeDays" />
+            @if (errors['session.rememberMeDays']) { <small>{{ errors['session.rememberMeDays'] }}</small> }
+          </div>
+        </div>
+        <div class="switch-rows">
+          <label><span>Allow sign-in on several devices at once</span><input class="switch" type="checkbox" name="concurrentSessions" [(ngModel)]="form.session.concurrentSessions" /></label>
+        </div>
+      }
+
+      @case ('defaults') {
+        <h2>Default Values</h2>
+        <p class="hint">Pre-filled on new records. Each list comes from its master page.</p>
+        <div class="grid">
+          <div class="field">
+            <label for="s-crit">Default Criticality</label>
+            <select id="s-crit" name="criticality" [(ngModel)]="form.defaults.criticality">
+              @for (c of criticalities.all(); track c.code) { <option [value]="c.name">{{ c.name }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-cond">Default Condition</label>
+            <select id="s-cond" name="condition" [(ngModel)]="form.defaults.condition">
+              @for (c of conditions.all(); track c.code) { <option [value]="c.name">{{ c.name }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-src">Default Update Source</label>
+            <select id="s-src" name="updateSource" [(ngModel)]="form.defaults.updateSource">
+              @for (s of sources.all(); track s.code) { <option [value]="s.code">{{ s.name }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-chart">Default Chart Type</label>
+            <select id="s-chart" name="chartType" [(ngModel)]="form.defaults.chartType">
+              @for (c of charts.all(); track c.code) { <option [value]="c.code">{{ c.name }}</option> }
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('password') {
+        <h2>Password Policy</h2>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['password.minPasswordLength']">
+            <label for="s-pwlen">Minimum Length</label>
+            <input id="s-pwlen" name="minPasswordLength" type="number" min="6" max="64" [(ngModel)]="form.security.minPasswordLength" />
+            @if (errors['password.minPasswordLength']) { <small>{{ errors['password.minPasswordLength'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['password.passwordExpiryDays']">
+            <label for="s-pwexp">Password Expires After (Days)</label>
+            <input id="s-pwexp" name="passwordExpiryDays" type="number" min="0" max="365" [(ngModel)]="form.security.passwordExpiryDays" />
+            @if (errors['password.passwordExpiryDays']) { <small>{{ errors['password.passwordExpiryDays'] }}</small> }
+          </div>
+        </div>
+        <div class="switch-rows">
+          <label><span>Require an uppercase letter</span><input class="switch" type="checkbox" name="requireUppercase" [(ngModel)]="form.security.requireUppercase" /></label>
+          <label><span>Require a number</span><input class="switch" type="checkbox" name="requireNumber" [(ngModel)]="form.security.requireNumber" /></label>
+          <label><span>Require a symbol</span><input class="switch" type="checkbox" name="requireSymbol" [(ngModel)]="form.security.requireSymbol" /></label>
+        </div>
+      }
+
+      @case ('access') {
+        <h2>Sign-in & Access</h2>
+        <div class="field narrow" [class.invalid]="errors['access.lockoutAttempts']">
+          <label for="s-lock">Lock Account After Failed Attempts</label>
+          <input id="s-lock" name="lockoutAttempts" type="number" min="3" max="10" [(ngModel)]="form.security.lockoutAttempts" />
+          @if (errors['access.lockoutAttempts']) { <small>{{ errors['access.lockoutAttempts'] }}</small> }
+        </div>
+        <div class="switch-rows">
+          <label><span>Require two-factor authentication</span><input class="switch" type="checkbox" name="mfaRequired" [(ngModel)]="form.security.mfaRequired" /></label>
+        </div>
+        <div class="field" [class.invalid]="errors['access.ipAllowlist']">
+          <label for="s-ip">Allowed IP Addresses</label>
+          <textarea id="s-ip" name="ipAllowlist" rows="3" placeholder="One per line, e.g. 10.0.0.0/24. Leave empty to allow any." [(ngModel)]="form.security.ipAllowlist"></textarea>
+          @if (errors['access.ipAllowlist']) { <small>{{ errors['access.ipAllowlist'] }}</small> }
+        </div>
+      }
+
+      @case ('smtp') {
+        <h2>Email Server</h2>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['smtp.smtpHost']">
+            <label for="s-host">SMTP Host</label>
+            <input id="s-host" name="smtpHost" [(ngModel)]="form.email.smtpHost" />
+            @if (errors['smtp.smtpHost']) { <small>{{ errors['smtp.smtpHost'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['smtp.smtpPort']">
+            <label for="s-port">Port</label>
+            <input id="s-port" name="smtpPort" type="number" min="1" max="65535" [(ngModel)]="form.email.smtpPort" />
+            @if (errors['smtp.smtpPort']) { <small>{{ errors['smtp.smtpPort'] }}</small> }
+          </div>
+          <div class="field">
+            <label for="s-sender">Sender Name</label>
+            <input id="s-sender" name="senderName" [(ngModel)]="form.email.senderName" />
+          </div>
+          <div class="field" [class.invalid]="errors['smtp.senderEmail']">
+            <label for="s-from">Sender Email</label>
+            <input id="s-from" name="senderEmail" type="email" [(ngModel)]="form.email.senderEmail" />
+            @if (errors['smtp.senderEmail']) { <small>{{ errors['smtp.senderEmail'] }}</small> }
+          </div>
+        </div>
+        <div class="switch-rows">
+          <label><span>Use TLS</span><input class="switch" type="checkbox" name="useTls" [(ngModel)]="form.email.useTls" /></label>
+        </div>
+        <p class="hint">Mail server sign-in details are stored on the server, not in this page.</p>
+      }
+
+      @case ('notifications') {
+        <h2>Notifications</h2>
+        <div class="field">
+          <span class="field__label">Channels</span>
+          <div class="days">
+            @for (c of options.channels; track c) {
+              <label><input type="checkbox" [checked]="form.email.channels.includes(c)" (change)="form.email.channels = toggle(form.email.channels, c)" /> {{ c }}</label>
+            }
+          </div>
+        </div>
+        <div class="field narrow">
+          <label for="s-digest">Summary Digest</label>
+          <select id="s-digest" name="digest" [(ngModel)]="form.email.digest">
+            @for (d of options.digests; track d) { <option [value]="d">{{ d }}</option> }
+          </select>
+        </div>
+      }
+
+      @case ('languages') {
+        <h2>Languages</h2>
+        <div class="field" [class.invalid]="errors['languages.languages']">
+          <span class="field__label">Enabled Languages</span>
+          <div class="days">
+            @for (l of options.languages; track l) {
+              <label><input type="checkbox" [checked]="form.localization.languages.includes(l)" (change)="form.localization.languages = toggle(form.localization.languages, l)" /> {{ l }}</label>
+            }
+          </div>
+          @if (errors['languages.languages']) { <small>{{ errors['languages.languages'] }}</small> }
+        </div>
+        <div class="switch-rows">
+          <label><span>Right-to-left layout for Arabic</span><input class="switch" type="checkbox" name="rtl" [(ngModel)]="form.localization.rtl" /></label>
+        </div>
+      }
+
+      @case ('formats') {
+        <h2>Number & Units</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="s-numfmt">Number Format</label>
+            <select id="s-numfmt" name="numberFormat" [(ngModel)]="form.localization.numberFormat">
+              @for (n of options.numberFormats; track n) { <option [value]="n">{{ n }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <span class="field__label">Measurement System</span>
+            <div class="radios">
+              <label><input type="radio" name="units" value="Metric" [(ngModel)]="form.localization.units" /> Metric</label>
+              <label><input type="radio" name="units" value="Imperial" [(ngModel)]="form.localization.units" /> Imperial</label>
+            </div>
+          </div>
+        </div>
+      }
+
+      @case ('numbering') {
+        <h2>Asset Tag Format</h2>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['numbering.prefix']">
+            <label for="s-prefix">Prefix</label>
+            <input id="s-prefix" name="prefix" maxlength="6" [(ngModel)]="form.numbering.prefix" />
+            @if (errors['numbering.prefix']) { <small>{{ errors['numbering.prefix'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['numbering.pattern']">
+            <label for="s-pattern">Pattern</label>
+            <input id="s-pattern" name="pattern" [(ngModel)]="form.numbering.pattern" />
+            @if (errors['numbering.pattern']) { <small>{{ errors['numbering.pattern'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['numbering.startNumber']">
+            <label for="s-start">Start Number</label>
+            <input id="s-start" name="startNumber" type="number" min="1" [(ngModel)]="form.numbering.startNumber" />
+            @if (errors['numbering.startNumber']) { <small>{{ errors['numbering.startNumber'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['numbering.digits']">
+            <label for="s-digits">Digits</label>
+            <input id="s-digits" name="digits" type="number" min="3" max="8" [(ngModel)]="form.numbering.digits" />
+            @if (errors['numbering.digits']) { <small>{{ errors['numbering.digits'] }}</small> }
+          </div>
+        </div>
+        <p class="hint">Use {{ '{PREFIX}' }}, {{ '{YY}' }}, {{ '{SITE}' }} and a running number such as {{ '{0000}' }}. Asset types and models can set their own format.</p>
+        <div class="switch-rows">
+          <label><span>Restart numbering every year</span><input class="switch" type="checkbox" name="resetYearly" [(ngModel)]="form.numbering.resetYearly" /></label>
+          <label><span>Include the site code</span><input class="switch" type="checkbox" name="includeSite" [(ngModel)]="form.numbering.includeSite" /></label>
+        </div>
+        <p class="banner">Next tag: <strong>{{ tagPreview }}</strong></p>
+      }
+
+      @case ('erp') {
+        <h2>ERP & API</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="s-erp">ERP System</label>
+            <select id="s-erp" name="erp" [(ngModel)]="form.integration.erp">
+              @for (e of options.erp; track e) { <option [value]="e">{{ e }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors['erp.rateLimitPerMinute']">
+            <label for="s-rate">API Rate Limit (per Minute)</label>
+            <input id="s-rate" name="rateLimitPerMinute" type="number" min="10" max="10000" [(ngModel)]="form.integration.rateLimitPerMinute" />
+            @if (errors['erp.rateLimitPerMinute']) { <small>{{ errors['erp.rateLimitPerMinute'] }}</small> }
+          </div>
+          <div class="field field--wide" [class.invalid]="errors['erp.webhookUrl']">
+            <label for="s-hook">Webhook URL</label>
+            <input id="s-hook" name="webhookUrl" type="url" placeholder="https://" [(ngModel)]="form.integration.webhookUrl" />
+            @if (errors['erp.webhookUrl']) { <small>{{ errors['erp.webhookUrl'] }}</small> }
+          </div>
+        </div>
+        <div class="switch-rows">
+          <label><span>Enable public API</span><input class="switch" type="checkbox" name="apiEnabled" [(ngModel)]="form.integration.apiEnabled" /></label>
+        </div>
+        <p class="hint">API keys are issued per user in Security › User Management.</p>
+      }
+
+      @case ('sync') {
+        <h2>Data Sync</h2>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['sync.syncIntervalMinutes']">
+            <label for="s-interval">Sync Every (Minutes)</label>
+            <input id="s-interval" name="syncIntervalMinutes" type="number" min="5" max="1440" [(ngModel)]="form.integration.syncIntervalMinutes" />
+            @if (errors['sync.syncIntervalMinutes']) { <small>{{ errors['sync.syncIntervalMinutes'] }}</small> }
+          </div>
+          <div class="field">
+            <label for="s-failed">Status for Failed Syncs</label>
+            <select id="s-failed" name="failedSyncStatus" [(ngModel)]="form.integration.failedSyncStatus">
+              @for (s of failedStatuses; track s.code) { <option [value]="s.code">{{ s.name }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field__label">Sources Synced on Schedule</span>
+          <div class="ticks">
+            @for (s of sources.all(); track s.code) {
+              <label><input type="checkbox" [checked]="form.integration.sources.includes(s.code)" (change)="form.integration.sources = toggle(form.integration.sources, s.code)" /><span>{{ s.name }} <small>· {{ s.type }}</small></span></label>
+            }
+          </div>
+        </div>
+      }
+
+      @case ('backup') {
+        <h2>Backup</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="s-bfreq">Frequency</label>
+            <select id="s-bfreq" name="frequency" [(ngModel)]="form.backup.frequency">
+              @for (b of options.backupFrequencies; track b) { <option [value]="b">{{ b }}</option> }
+            </select>
+          </div>
+          @if (form.backup.frequency !== 'Hourly') {
+            <div class="field">
+              <label for="s-btime">Run At</label>
+              <input id="s-btime" name="time" type="time" [(ngModel)]="form.backup.time" />
+            </div>
+          }
+        </div>
+      }
+
+      @case ('retention') {
+        <h2>Data Retention</h2>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['retention.retentionDays']">
+            <label for="s-keep">Keep Backups (Days)</label>
+            <input id="s-keep" name="retentionDays" type="number" min="7" max="365" [(ngModel)]="form.backup.retentionDays" />
+            @if (errors['retention.retentionDays']) { <small>{{ errors['retention.retentionDays'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['retention.auditRetentionMonths']">
+            <label for="s-audit">Keep Audit Log (Months)</label>
+            <input id="s-audit" name="auditRetentionMonths" type="number" min="6" max="120" [(ngModel)]="form.backup.auditRetentionMonths" />
+            @if (errors['retention.auditRetentionMonths']) { <small>{{ errors['retention.auditRetentionMonths'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['retention.deletedRetentionDays']">
+            <label for="s-deleted">Keep Deleted Records (Days)</label>
+            <input id="s-deleted" name="deletedRetentionDays" type="number" min="0" max="365" [(ngModel)]="form.backup.deletedRetentionDays" />
+            @if (errors['retention.deletedRetentionDays']) { <small>{{ errors['retention.deletedRetentionDays'] }}</small> }
+          </div>
+        </div>
+        <p class="hint">Deleted records can be restored by an administrator until this period ends.</p>
+      }
+
+      @case ('support') {
+        <h2>Support</h2>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['support.helpdeskEmail']">
+            <label for="s-help">Helpdesk Email</label>
+            <input id="s-help" name="helpdeskEmail" type="email" [(ngModel)]="form.other.helpdeskEmail" />
+            @if (errors['support.helpdeskEmail']) { <small>{{ errors['support.helpdeskEmail'] }}</small> }
+          </div>
+          <div class="field">
+            <label for="s-phone">Support Phone</label>
+            <input id="s-phone" name="supportPhone" type="tel" [(ngModel)]="form.other.supportPhone" />
+          </div>
+          <div class="field field--wide" [class.invalid]="errors['support.termsUrl']">
+            <label for="s-terms">Terms of Use URL</label>
+            <input id="s-terms" name="termsUrl" type="url" placeholder="https://" [(ngModel)]="form.other.termsUrl" />
+            @if (errors['support.termsUrl']) { <small>{{ errors['support.termsUrl'] }}</small> }
+          </div>
+        </div>
+      }
+
+      @case ('features') {
+        <h2>Features</h2>
+        <div class="switch-rows">
+          <label><span>Enable beta features for administrators</span><input class="switch" type="checkbox" name="betaFeatures" [(ngModel)]="form.other.betaFeatures" /></label>
+        </div>
+      }
+    }
+  </form>
+</div>
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

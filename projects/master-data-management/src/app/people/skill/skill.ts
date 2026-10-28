@@ -1,0 +1,96 @@
+import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, Hexagon, LucideAngularModule, Plus, Search } from 'lucide-angular';
+import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { ListPage } from '../../shared/list-page';
+import { EmployeeService } from '../employee/employee.service';
+import { TechnicianService } from '../technician/technician.service';
+import { SKILL_CATEGORIES } from './skill.data';
+import { SkillForm } from './skill-form/skill-form';
+import { SkillFilters, SkillRecord } from './skill.model';
+import { SkillService } from './skill.service';
+
+type SortKey = 'name' | 'code' | 'category';
+
+/** Master Data Management > People > Skill */
+@Component({
+  selector: 'app-mdm-people-skill',
+  imports: [FormsModule, RouterLink, LucideAngularModule, SkillForm],
+  templateUrl: './skill.html',
+  styleUrls: ['../../shared/styles/mdm-page.css', '../people.css']
+})
+export class SkillPage extends ListPage<SkillRecord, SkillFilters, SortKey> {
+  readonly service = inject(SkillService);
+  private readonly employees = inject(EmployeeService);
+  private readonly technicians = inject(TechnicianService);
+  readonly basePath = MASTER_DATA_BASE_PATH;
+  readonly categories = SKILL_CATEGORIES;
+  readonly icons = { Hexagon, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+
+  constructor() {
+    super({ search: '', category: '', type: '' });
+  }
+
+  keyOf(r: SkillRecord): string {
+    return r.code;
+  }
+
+  nameOf(r: SkillRecord): string {
+    return r.name;
+  }
+
+  protected all(): SkillRecord[] {
+    return this.service.all();
+  }
+
+  protected matches(r: SkillRecord, f: SkillFilters): boolean {
+    const term = f.search.trim().toLowerCase();
+    return (!f.category || r.category === f.category) && (!f.type || r.type === f.type) && (!term || [r.name, r.code].some((v) => v.toLowerCase().includes(term)));
+  }
+
+  protected sortValue(r: SkillRecord, key: SortKey): string {
+    return r[key];
+  }
+
+  protected removeRecords(codes: string[]): void {
+    this.service.remove(codes);
+  }
+
+  // Skills held by people can't be deleted; they can be marked inactive instead
+  protected override deleteBlocker(r: SkillRecord): string | null {
+    const count = this.usage(r);
+    return count ? `${r.name} is held by ${count} people. Mark it Inactive instead.` : null;
+  }
+
+  usage(r: SkillRecord): number {
+    return this.employees.usesSkill(r.name) + this.technicians.usesSkill(r.name);
+  }
+
+  levelRange(r: SkillRecord): string {
+    return r.levels.length ? `${r.levels[0]} - ${r.levels[r.levels.length - 1]}` : '-';
+  }
+
+  duplicate(r: SkillRecord): void {
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
+  }
+
+  onSaved(event: { record: SkillRecord; originalCode: string | null; originalName: string | null }): void {
+    this.service.save(event.record, event.originalCode);
+    // People refer to skills by name
+    if (event.originalName) {
+      this.employees.renameSkill(event.originalName, event.record.name);
+      this.technicians.renameSkill(event.originalName, event.record.name);
+    }
+    this.carrySelection(event.originalCode, event.record.code);
+    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+    this.closeForm();
+  }
+
+  toggleStatus(r: SkillRecord): void {
+    this.menuFor = null;
+    const status = r.status === 'Active' ? 'Inactive' : 'Active';
+    this.service.save({ ...r, status }, r.code);
+    this.notify(`${r.name} marked ${status}.`);
+  }
+}

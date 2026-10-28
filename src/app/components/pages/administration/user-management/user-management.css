@@ -1,26 +1,134 @@
+/* Administration > User Management: tinted stat cards, users table and pager extras */
 
+/* The drawer sits beside stats + toolbar + table, as in the design */
+.um-main {
+  min-width: 0;
+}
 
-.user-mgmt-tabs {
+.um-stat {
+  align-items: flex-start;
+}
+
+.um-stat[data-tone='purple'] { background: #f8f5fe; }
+.um-stat[data-tone='blue'] { background: #f3f7fe; }
+.um-stat[data-tone='pink'] { background: #fef5f9; }
+.um-stat[data-tone='orange'] { background: #fff8f3; }
+
+.um-stat .stat__body {
+  flex: 1;
+}
+
+.um-stat .stat__trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.um-stat .stat__hint {
+  text-align: right;
+}
+
+.toolbar .search {
+  min-width: 240px;
+}
+
+.bulk-bar {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--adm-purple-soft);
 }
 
-.user-mgmt-tab {
-  padding: 8px 16px;
-  text-decoration: none;
-  color: #6b7280;
+.bulk-bar strong {
+  margin-right: 6px;
+  color: var(--adm-purple);
+}
+
+.check-col {
+  width: 34px;
+}
+
+.users-table td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 190px;
+}
+
+.user-cell img.avatar {
+  object-fit: cover;
+  width: 36px;
+  height: 36px;
+}
+
+.user-cell .avatar {
+  width: 36px;
+  height: 36px;
+}
+
+.user-cell__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-cell__text .muted {
+  font-size: 11.5px;
+}
+
+.you {
   font-weight: 500;
+}
+
+.role-pill {
   border-radius: 6px;
-  transition: all 0.15s;
+  padding: 4px 9px;
 }
 
-.user-mgmt-tab:hover {
-  background: #f5f3ff;
-  color: #4f2bd8;
+.login-cell {
+  white-space: nowrap;
 }
 
-.user-mgmt-tab.active {
-  background: #4f2bd8;
-  color: #fff;
+.page-gap {
+  padding: 0 4px;
+}
+
+.rows-per-page {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.select--sm {
+  height: 30px;
+}
+
+/* Invite dialog */
+.invite {
+  width: min(520px, calc(100vw - 32px));
+}
+
+.invite .drawer__head {
+  margin-bottom: 6px;
+}
+
+@media (max-width: 1500px) {
+  .ws--no-list.ws--with-drawer .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1281px) {
+  .ws--no-list.ws--with-drawer {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
 }

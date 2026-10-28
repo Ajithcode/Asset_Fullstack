@@ -1,0 +1,140 @@
+<aside class="drawer" role="dialog" aria-labelledby="skill-form-title">
+  <header class="drawer__header">
+    <h2 id="skill-form-title">{{ isEdit ? 'Edit Skill' : 'Add Skill' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors.name">
+          <label for="skill-name"><span class="req">*</span> Skill Name</label>
+          <input id="skill-name" name="name" placeholder="Enter skill name" [(ngModel)]="form.name" />
+          @if (errors.name) { <small>{{ errors.name }}</small> }
+          @if (isEdit && usage && form.name.trim() !== skill?.name) { <small class="note">{{ usage }} people hold this skill; they will be updated.</small> }
+        </div>
+        <div class="field" [class.invalid]="errors.code">
+          <label for="skill-code"><span class="req">*</span> Code</label>
+          <input id="skill-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors.code) { <small>{{ errors.code }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors.category">
+          <label for="skill-cat"><span class="req">*</span> Category</label>
+          <select id="skill-cat" name="category" [(ngModel)]="form.category">
+            <option value="" disabled>Select category</option>
+            @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+          @if (errors.category) { <small>{{ errors.category }}</small> }
+        </div>
+        <div class="field">
+          <span class="field__label"><span class="req">*</span> Type</span>
+          <div class="radios">
+            <label><input type="radio" name="type" value="Hard Skill" [(ngModel)]="form.type" /> Hard Skill</label>
+            <label><input type="radio" name="type" value="Soft Skill" [(ngModel)]="form.type" /> Soft Skill</label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="skill-desc">Description</label>
+          <textarea id="skill-desc" name="description" rows="3" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <span class="field__label">Icon</span>
+          <div class="icon-row">
+            <span class="icon-preview"><lucide-icon [img]="skillIcons[form.icon]" [size]="22"></lucide-icon></span>
+            <button type="button" class="btn btn--ghost" [attr.aria-expanded]="iconPickerOpen" (click)="iconPickerOpen = !iconPickerOpen">Choose Icon</button>
+          </div>
+          @if (iconPickerOpen) {
+            <div class="icon-picker" role="radiogroup" aria-label="Icon">
+              @for (k of iconKeys; track k) {
+                <button type="button" class="icon-picker__item" role="radio" [class.on]="form.icon === k" [attr.aria-checked]="form.icon === k" [attr.aria-label]="k" (click)="form.icon = k; iconPickerOpen = false">
+                  <lucide-icon [img]="skillIcons[k]" [size]="18"></lucide-icon>
+                </button>
+              }
+            </div>
+          }
+        </div>
+        <div class="field">
+          <label for="skill-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="skill-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+          @if (isEdit && usage && form.status === 'Inactive' && skill?.status === 'Active') {
+            <small class="note">{{ usage }} people hold this skill. It stays on their records but can't be picked for new ones.</small>
+          }
+        </div>
+      }
+
+      @case ('levels') {
+        <p class="hint">From lowest to highest. Leave empty for skills that aren't graded.</p>
+        <div class="rows" [class.invalid]="errors.levels">
+          @for (l of form.levels; track $index) {
+            <div class="row-line row-line--level">
+              <span class="hint">{{ $index + 1 }}</span>
+              <input [name]="'level' + $index" [attr.aria-label]="'Level ' + ($index + 1)" [(ngModel)]="form.levels[$index]" />
+              <button type="button" class="row-remove" [disabled]="$first" (click)="moveLevel($index, -1)" aria-label="Move up">↑</button>
+              <button type="button" class="row-remove" [disabled]="$last" (click)="moveLevel($index, 1)" aria-label="Move down">↓</button>
+              <button type="button" class="row-remove" (click)="removeLevel($index)" [attr.aria-label]="'Remove level ' + ($index + 1)">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="hint">Not graded.</p>
+          }
+        </div>
+        @if (errors.levels) { <small class="upload-error">{{ errors.levels }}</small> }
+        <div class="row-actions">
+          <button type="button" class="btn btn--ghost add-line" (click)="addLevel()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add level</button>
+          <button type="button" class="btn btn--ghost" (click)="resetLevels()">Use Beginner - Expert</button>
+        </div>
+      }
+
+      @case ('roles') {
+        <p class="hint">Designations that normally need this skill.</p>
+        <div class="ticks">
+          @for (r of roles; track r) {
+            <label><input type="checkbox" [checked]="hasRole(r)" (change)="toggleRole(r)" /><span>{{ r }}</span></label>
+          }
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Certification required</strong><small>People need a valid certificate to be assigned work needing this skill.</small></span>
+            <input type="checkbox" name="certificationRequired" [(ngModel)]="form.certificationRequired" />
+          </label>
+        </div>
+        @if (form.certificationRequired) {
+          <div class="field" [class.invalid]="errors.validity">
+            <label for="skill-validity">Certificate Validity (Months)</label>
+            <input id="skill-validity" name="certificationValidityMonths" type="number" min="1" [(ngModel)]="form.certificationValidityMonths" />
+            @if (errors.validity) { <small>{{ errors.validity }}</small> }
+          </div>
+        }
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Assessment required</strong><small>A supervisor confirms the level before it is recorded.</small></span>
+            <input type="checkbox" name="assessmentRequired" [(ngModel)]="form.assessmentRequired" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

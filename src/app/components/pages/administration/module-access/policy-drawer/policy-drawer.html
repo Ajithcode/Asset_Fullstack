@@ -1,0 +1,117 @@
+<div class="drawer__head">
+  <h2>{{ isNew ? 'New Access Policy' : 'Access Policy Details' }}</h2>
+  @if (dirty) {
+    <span class="pill" data-tone="orange"><i></i>Unsaved</span>
+  }
+  <button type="button" class="icon-btn icon-btn--bare" aria-label="Close details" (click)="closed.emit()">
+    <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+  </button>
+</div>
+
+<form (ngSubmit)="save.emit()" novalidate>
+  <div class="grid2">
+    <div class="field" [class.invalid]="show('name')">
+      <label for="pd-name">Policy Name <span class="req">*</span></label>
+      <input id="pd-name" name="name" maxlength="60" [(ngModel)]="policy.name" />
+      @if (show('name'); as msg) { <small>{{ msg }}</small> }
+    </div>
+    <div class="field" [class.invalid]="show('code')">
+      <label for="pd-code">Policy Code <span class="req">*</span></label>
+      <input id="pd-code" name="code" maxlength="20" [ngModel]="policy.code" (ngModelChange)="onCode($event)" />
+      @if (show('code'); as msg) { <small>{{ msg }}</small> }
+    </div>
+  </div>
+
+  <div class="field" [class.invalid]="show('description')">
+    <label for="pd-desc">Description</label>
+    <textarea id="pd-desc" name="description" rows="3" maxlength="500" [(ngModel)]="policy.description"></textarea>
+    <small class="pd-counter">{{ policy.description.length }}/500</small>
+  </div>
+
+  <div class="pd-type-row">
+    <div class="field">
+      <span>Policy Type</span>
+      <div class="pd-radios" role="radiogroup" aria-label="Policy type">
+        @for (t of types; track t) {
+          <label><input type="radio" name="type" [value]="t" [(ngModel)]="policy.type" /> {{ t }}</label>
+        }
+      </div>
+    </div>
+    <div class="field">
+      <span>Status</span>
+      <label class="switch pd-switch"><input type="checkbox" name="status" [(ngModel)]="active" /><i></i> {{ policy.status }}</label>
+    </div>
+  </div>
+
+  <div class="field" [class.invalid]="show('roles')">
+    <span>Assigned Roles @if (policy.type === 'Role') { <span class="req">*</span> }</span>
+    <app-chip-select [options]="roleOptions" [value]="policy.roles" [invalid]="!!show('roles')" placeholder="Select roles" (valueChange)="setRoles($event)"></app-chip-select>
+    @if (show('roles'); as msg) { <small>{{ msg }}</small> }
+  </div>
+
+  <div class="pd-users">
+    <div class="pd-users__head">
+      <span class="pd-label">Assigned Users ({{ policy.users }})</span>
+      <button type="button" class="btn btn--link" [disabled]="!policy.users" (click)="viewUsers.emit()">View all</button>
+    </div>
+    @if (policy.users) {
+      <div class="avatars">
+        @for (u of avatars; track $index) {
+          <span class="avatar" [title]="u" [style.background]="tone(u).bg" [style.color]="tone(u).ink">{{ initialsOf(u) }}</span>
+        }
+        @if (extraUsers()) {
+          <span class="avatar pd-more">+{{ extraUsers() }}</span>
+        }
+      </div>
+    } @else {
+      <p class="muted pd-none">No users yet. Users join through their roles or teams.</p>
+    }
+  </div>
+
+  <div class="grid2">
+    <div class="field">
+      <label for="pd-scope">Data Scope</label>
+      <select id="pd-scope" name="scope" [(ngModel)]="policy.dataScope">
+        @for (s of scopes; track s) {
+          <option [value]="s">{{ s }}</option>
+        }
+      </select>
+    </div>
+    <div class="field" [class.invalid]="show('landingModule')">
+      <label for="pd-landing">Default Landing Module</label>
+      <select id="pd-landing" name="landing" [(ngModel)]="policy.landingModule">
+        @for (m of enabledModules; track m) {
+          <option [value]="m">{{ m }}</option>
+        }
+        @if (enabledModules.indexOf(policy.landingModule) < 0) {
+          <option [value]="policy.landingModule">{{ policy.landingModule }} (disabled)</option>
+        }
+      </select>
+      @if (show('landingModule'); as msg) { <small>{{ msg }}</small> }
+    </div>
+    <div class="field" [class.invalid]="show('sessionTimeout')">
+      <label for="pd-timeout">Session Timeout (minutes)</label>
+      <input id="pd-timeout" name="timeout" type="number" min="5" max="1440" step="5" [(ngModel)]="policy.sessionTimeout" />
+      @if (show('sessionTimeout'); as msg) { <small>{{ msg }}</small> }
+    </div>
+    <div class="field">
+      <span>MFA Required</span>
+      <label class="switch pd-switch"><input type="checkbox" name="mfa" [(ngModel)]="policy.mfaRequired" /><i></i> {{ policy.mfaRequired ? 'Yes' : 'No' }}</label>
+    </div>
+  </div>
+
+  <section class="pd-summary">
+    <h3><lucide-icon [img]="icons.ChartColumn" [size]="16"></lucide-icon> Access Summary</h3>
+    <div class="pd-summary__grid">
+      <div><b class="pd-green">{{ summary.enabled }}/{{ summary.total }}</b><span>Enabled Modules</span></div>
+      <div><b class="pd-purple">{{ summary.full }}</b><span>Full Access</span></div>
+      <div><b class="pd-purple">{{ summary.readOnly }}</b><span>Read-only</span></div>
+      <div><b class="pd-pink">{{ summary.restricted }}</b><span>Restricted</span></div>
+    </div>
+  </section>
+
+  <div class="drawer__foot">
+    <button type="button" class="btn btn--outline" (click)="cancel.emit()">Cancel</button>
+    <button type="submit" class="btn btn--primary">{{ isNew ? 'Create Policy' : 'Save Policy' }}</button>
+  </div>
+</form>
