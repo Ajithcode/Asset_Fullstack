@@ -120,8 +120,6 @@
 .reads td { padding: 6px 4px; border-bottom: 1px solid #f0f1f4; }
 
 .panel-actions { gap: 8px; padding-top: 14px; }
-.act-row { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 8px; }
-.act-row .btn { height: 38px; padding: 0 8px; font-size: 12.5px; }
 
 /* ===== Responsive ===== */
 @media (max-width: 1600px) {
@@ -139,10 +137,6 @@
   .ex-box { flex-direction: column; gap: 10px; padding: 12px; }
   .ex-ic { width: 38px; height: 38px; }
   .dt--tm th, .dt--tm td { padding-left: 6px; padding-right: 6px; }
-  /* narrow docked panel: primary action on its own row */
-  .act-row { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .act-row .btn:first-child { grid-column: 1 / -1; }
-  .act-row .btn:only-child { grid-column: 1 / -1; }
 }
 
 @media (max-width: 900px) {
@@ -152,5 +146,4 @@
 @media (max-width: 700px) {
   .filters { grid-template-columns: minmax(0, 1fr); }
   .ex-sub { margin-left: 0; }
-  .act-row { grid-auto-flow: row; }
 }

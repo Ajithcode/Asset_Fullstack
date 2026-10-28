@@ -88,7 +88,7 @@ export class Topbar {
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/assets/list', label: 'Asset List' },
     { path: '/tracking-iot/analytics-insights', label: 'IoT Analytics & Insights' },
-    { path: '/tracking-iot/tag-ids', label: 'Tag IDs' },
+    { path: '/tracking-iot/tag-management', label: 'Tag Management' },
     { path: '/wip-operations/job-orders', label: 'WIP Job Orders' },
   ];
   readonly docs = [

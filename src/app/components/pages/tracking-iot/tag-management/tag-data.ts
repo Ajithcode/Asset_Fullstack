@@ -1,5 +1,5 @@
 /**
- * DEMO MODE: identifier registry for Tracking & IoT → Tag IDs. Tags are generated once from a fixed seed and kept in
+ * DEMO MODE: identifier registry for Tracking & IoT → Tag Management. Tags are generated once from a fixed seed and kept in
  * memory for the session (register / assign / reassign / unassign / deactivate change them in place).
  * Assets from the asset register keep their real tags so "View Asset" opens the asset; the rest of the estate uses
  * generated asset codes.
@@ -190,6 +190,16 @@ function build(): TagId[] {
     }
   }
 
+  // a few identifiers that fail validation, so the Tag IDs view has something to fix
+  const spare = tags.filter((t, i) => i >= fixed.length && t.status === 'Available');
+  const bad = (tech: Tech, k: number) => spare.filter((t) => t.tech === tech)[k];
+  const bc = bad('Barcode', 3), epc = bad('Passive RFID', 5), mac = bad('BLE', 1), dup = bad('Passive RFID', 9);
+  if (bc) bc.code = bc.code.slice(0, 9);
+  if (epc) epc.code = epc.code.replace(/ /g, '').slice(0, 20);
+  if (mac) mac.code = mac.code.replace(/:/g, '-');
+  const twin = bad('Passive RFID', 2);
+  if (dup && twin) dup.code = twin.code;
+
   for (const t of tags) t.history = seedHistory(t, rng);
   return tags;
 }
@@ -231,6 +241,24 @@ export function knownAssets(): LinkedAsset[] {
   for (const a of ASSET_RECORDS) map.set(a.tag, { tag: a.tag, kind: a.type, real: true });
   for (const t of TAGS) if (t.asset && !map.has(t.asset.tag)) map.set(t.asset.tag, t.asset);
   return [...map.values()].sort((a, b) => a.tag.localeCompare(b.tag));
+}
+
+export type Validation = 'Valid' | 'Invalid format' | 'Duplicate';
+
+/** Format rule per technology: 12–13 digit barcode, any QR payload, 96-bit EPC (24 hex), BLE MAC. */
+export function formatError(tech: Tech, code: string): string {
+  const c = code.trim();
+  if (!c) return 'Encoded value is empty';
+  switch (tech) {
+    case 'Barcode':
+      return /^\d{12,13}$/.test(c) ? '' : 'Barcode must be 12 or 13 digits';
+    case 'QR Code':
+      return c.length <= 512 ? '' : 'QR payload is longer than 512 characters';
+    case 'Passive RFID':
+      return /^[0-9A-F]{24}$/i.test(c.replace(/ /g, '')) ? '' : 'EPC must be 24 hex characters (96-bit)';
+    case 'BLE':
+      return /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i.test(c) ? '' : 'MAC must look like AC:23:3F:12:AB:01';
+  }
 }
 
 /** Next free number for a technology. */

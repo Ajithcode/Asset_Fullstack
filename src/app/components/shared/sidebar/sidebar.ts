@@ -92,7 +92,6 @@ export class Sidebar {
       icon: RadioTower,
       children: [
         { label: 'Tag Management', path: '/tracking-iot/tag-management' },
-        { label: 'Tag IDs', path: '/tracking-iot/tag-ids' },
         { label: 'IoT Device Management', path: '/tracking-iot/device-management' },
         { label: 'Device Type & Model', path: '/tracking-iot/device-type-model' },
         { label: 'Gateways', path: '/tracking-iot/gateways' },

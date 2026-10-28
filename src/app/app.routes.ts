@@ -5,7 +5,6 @@ import { Signup } from './components/pages/signup/signup/signup';
 import { SectionUnavailable } from './section-unavailable/section-unavailable';
 import { ModulePlaceholder } from './module-placeholder/module-placeholder';
 import { AnalyticsInsights } from './components/pages/tracking-iot/analytics-insights/analytics-insights';
-import { TagIds } from './components/pages/tracking-iot/tag-ids/tag-ids';
 import { TagManagement } from './components/pages/tracking-iot/tag-management/tag-management';
 import { FirmwareConnectivity } from './components/pages/tracking-iot/firmware-connectivity/firmware-connectivity';
 import { GeofenceAlerts } from './components/pages/tracking-iot/geofence-alerts/geofence-alerts';
@@ -231,7 +230,8 @@ export const routes: Routes = [
       { path: 'assets/merge-dedup', component: AssetMerge },
       { path: 'tracking-iot', component: ModulePlaceholder, data: { title: 'Tracking & IoT' } },
       { path: 'tracking-iot/analytics-insights', component: AnalyticsInsights },
-      { path: 'tracking-iot/tag-ids', component: TagIds },
+      // Tag IDs was merged into Tag Management; the old link opens its Tag IDs tab
+      { path: 'tracking-iot/tag-ids', component: TagManagement, data: { view: 'ids' } },
       { path: 'tracking-iot/firmware-connectivity', component: FirmwareConnectivity },
       { path: 'tracking-iot/geofence-alerts', component: GeofenceAlerts },
       { path: 'tracking-iot/device-configuration', component: DeviceConfiguration },

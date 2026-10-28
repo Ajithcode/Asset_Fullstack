@@ -4,16 +4,16 @@
       <div class="grow">
         <nav class="crumbs" aria-label="Breadcrumb"><lucide-icon class="crumb-home" [img]="icons.House" [size]="15"></lucide-icon><span>IoT &amp; Tracking</span><span class="sep">/</span><span>Tag Management</span></nav>
         <h1>Tag Management</h1>
-        <p>Register, assign and monitor identification tags across your asset estate.</p>
+        <p>Register tag identifiers, assign them to assets and monitor them across your asset estate.</p>
       </div>
       <button type="button" class="btn btn-outline" (click)="openImport()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Import Tags</button>
-      <button type="button" class="btn btn-primary" (click)="openRegister()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Add Tag</button>
+      <button type="button" class="btn btn-primary" (click)="openRegister()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Register Tag ID</button>
     </header>
 
     <!-- KPIs -->
     <div class="kpis" *ngIf="counts as c">
       <button type="button" class="kpi kpi--violet" (click)="setStatus('')"><span class="kpi-ic"><lucide-icon [img]="icons.Tag" [size]="24"></lucide-icon></span>
-        <span class="kpi-body"><span class="kpi-label">Total Tags</span><strong>{{ c.Total | number }}</strong></span>
+        <span class="kpi-body"><span class="kpi-label">Total Tag IDs</span><strong>{{ c.Total | number }}</strong></span>
         <span class="kpi-trend" [class.down]="trend.Total < 0"><b><lucide-icon [img]="trend.Total < 0 ? icons.ArrowDown : icons.ArrowUp" [size]="12"></lucide-icon>{{ trend.Total < 0 ? '-' : '+' }}{{ abs(trend.Total) }}%</b><small>vs. last month</small></span></button>
       <button type="button" class="kpi kpi--green" [class.is-on]="statusFilter === 'Assigned'" (click)="setStatus('Assigned')"><span class="kpi-ic"><lucide-icon [img]="icons.Link2" [size]="24"></lucide-icon></span>
         <span class="kpi-body"><span class="kpi-label">Assigned</span><strong>{{ c.Assigned | number }}</strong></span>
@@ -28,26 +28,84 @@
 
     <!-- Table -->
     <section class="card table-card" aria-label="Tags">
-      <div class="filters">
-        <label class="search"><lucide-icon [img]="icons.Search" [size]="17"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search tag ID or asset..." aria-label="Search tags" /></label>
+      <div class="vtabs-bar">
+        <nav class="vtabs" role="tablist" aria-label="Tag views">
+          <button *ngFor="let v of views" type="button" role="tab" [class.is-active]="view === v.key" [attr.aria-selected]="view === v.key" (click)="setView(v.key)">
+            <lucide-icon [img]="v.key === 'ids' ? icons.Tag : v.key === 'assignments' ? icons.Link2 : icons.History" [size]="16"></lucide-icon>{{ v.label }}<span class="vtab-n">{{ viewCount(v.key) | number }}</span>
+          </button>
+        </nav>
+        <button *ngIf="issueCount" type="button" class="issues" (click)="showIssues()"><lucide-icon [img]="icons.CircleAlert" [size]="15"></lucide-icon>{{ issueCount }} ID{{ issueCount === 1 ? '' : 's' }} failing validation</button>
+        <button type="button" class="link-btn vtabs-export" (click)="exportRows()"><lucide-icon [img]="icons.Download" [size]="14"></lucide-icon>Export</button>
+      </div>
+      <p class="vhint">{{ viewHint }}</p>
+
+      <!-- Filters: tag views -->
+      <div *ngIf="view !== 'audit'" class="filters">
+        <label class="search"><lucide-icon [img]="icons.Search" [size]="17"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" [placeholder]="view === 'ids' ? 'Search tag ID, EPC, MAC or barcode...' : 'Search tag ID, asset or location...'" aria-label="Search tags" /></label>
         <label class="lsel"><span>Tag Type</span><select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">All Types</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
         <label class="lsel"><span>Technology</span><select class="control" [(ngModel)]="techFilter" (ngModelChange)="onFilter()"><option value="">All Technologies</option><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
         <label class="lsel"><span>Status</span><select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All Statuses</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
-        <label class="lsel"><span>Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onFilter()"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
+        <label *ngIf="view === 'ids'" class="lsel"><span>Validation</span><select class="control" [(ngModel)]="validFilter" (ngModelChange)="onFilter()"><option value="">Any Result</option><option value="Valid">Valid</option><option value="Invalid format">Invalid format</option><option value="Duplicate">Duplicate</option></select></label>
+        <label *ngIf="view === 'assignments'" class="lsel"><span>Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onFilter()"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
       </div>
 
-      <div *ngIf="checked.size" class="bulk" role="status">
+      <!-- Filters: audit -->
+      <div *ngIf="view === 'audit'" class="filters">
+        <label class="search"><lucide-icon [img]="icons.Search" [size]="17"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search tag ID, asset or note..." aria-label="Search audit trail" /></label>
+        <label class="lsel"><span>Event</span><select class="control" [(ngModel)]="eventFilter" (ngModelChange)="onFilter()"><option value="">All Events</option><option *ngFor="let k of eventKinds" [value]="k">{{ k }}</option></select></label>
+        <label class="lsel"><span>Technology</span><select class="control" [(ngModel)]="techFilter" (ngModelChange)="onFilter()"><option value="">All Technologies</option><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
+        <label class="lsel"><span>Performed By</span><select class="control" [(ngModel)]="userFilter" (ngModelChange)="onFilter()"><option value="">Anyone</option><option *ngFor="let u of users" [value]="u">{{ u }}</option></select></label>
+        <label class="lsel"><span>Period</span><select class="control" [(ngModel)]="periodFilter" (ngModelChange)="onFilter()"><option value="">All Time</option><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select></label>
+      </div>
+
+      <div *ngIf="checked.size && view !== 'audit'" class="bulk" role="status">
         <strong>{{ checked.size }} selected</strong>
+        <button *ngIf="view === 'ids'" type="button" class="link-btn" (click)="validateChecked()"><lucide-icon [img]="icons.ShieldCheck" [size]="14"></lucide-icon>Validate selected</button>
         <button type="button" class="link-btn" (click)="exportRows()"><lucide-icon [img]="icons.Download" [size]="14"></lucide-icon>Export selected</button>
         <span class="grow"></span>
         <button type="button" class="link-btn" (click)="clearChecked()">Clear selection</button>
       </div>
 
       <div class="table-wrap">
-        <table class="dt dt--tm">
+        <!-- Tag IDs: the identifier registry -->
+        <table *ngIf="view === 'ids'" class="dt dt--tm dt--ids">
           <thead><tr>
             <th class="col-chk"><input type="checkbox" [checked]="pageAllChecked" [indeterminate]="pageSomeChecked" (change)="togglePage()" aria-label="Select all tags on this page" /></th>
-            <th>Tag ID</th><th>Tag Type</th><th>Technology</th><th>Linked Asset</th><th>Site / Location</th><th>Status</th><th>Last Seen</th><th class="col-act">Actions</th>
+            <th><button type="button" class="sort" (click)="sortBy('id')" [attr.aria-sort]="sortState('id')">Tag ID<lucide-icon *ngIf="sortKey === 'id'" [img]="sortDesc ? icons.ArrowDown : icons.ArrowUp" [size]="14"></lucide-icon></button></th>
+            <th>Technology</th><th>Format</th><th>EPC / Serial / Value</th>
+            <th class="col-md"><button type="button" class="sort" (click)="sortBy('registered')" [attr.aria-sort]="sortState('registered')">Registered On<lucide-icon *ngIf="sortKey === 'registered'" [img]="sortDesc ? icons.ArrowDown : icons.ArrowUp" [size]="14"></lucide-icon></button></th>
+            <th>Validation</th><th>Status</th><th class="col-act">Actions</th>
+          </tr></thead>
+          <tbody>
+            <tr *ngFor="let t of pageRows" [class.is-selected]="selected?.id === t.id" [class.is-checked]="isChecked(t)" (click)="select(t)" (keydown.enter)="select(t)" tabindex="0">
+              <td class="col-chk" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isChecked(t)" (change)="toggleCheck(t)" [attr.aria-label]="'Select ' + t.id" /></td>
+              <td><span class="tag-id">{{ t.id }}</span></td>
+              <td><span class="tech" [ngClass]="techClass(t.tech)"><lucide-icon [img]="techIcon(t.tech)" [size]="14"></lucide-icon>{{ t.tech }}</span></td>
+              <td>{{ typeLabel(t) }}</td>
+              <td class="code-cell" [title]="codeLabel(t) + ': ' + t.code"><small>{{ codeLabel(t) }}</small><span class="mono">{{ t.code }}</span></td>
+              <td class="col-md nowrap">{{ fmtDate(t.registeredOn) }}</td>
+              <td><span class="val" [ngClass]="validation(t) === 'Valid' ? 'val--ok' : 'val--bad'" [title]="validationDetail(t)"><lucide-icon [img]="validation(t) === 'Valid' ? icons.ShieldCheck : icons.CircleAlert" [size]="14"></lucide-icon>{{ validation(t) }}</span></td>
+              <td><span class="st" [ngClass]="'st--' + t.status.toLowerCase()"><lucide-icon [img]="t.status === 'Inactive' ? icons.Ban : icons.CircleCheck" [size]="14"></lucide-icon>{{ t.status }}</span></td>
+              <td class="col-act" (click)="$event.stopPropagation()"><span class="menu-wrap">
+                <button type="button" class="icon-btn" (click)="toggleMenu(t.id, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + t.id"><lucide-icon [img]="icons.Ellipsis" [size]="20"></lucide-icon></button>
+                <div *ngIf="menuOpen === t.id" class="pop menu" role="menu" (click)="$event.stopPropagation()">
+                  <ng-container *ngTemplateOutlet="tagActions; context: { $implicit: t }"></ng-container>
+                </div></span></td>
+            </tr>
+            <tr *ngIf="!pageRows.length"><td colspan="9" class="empty">No tag IDs match these filters. <button type="button" class="link-btn" (click)="clearFilters()">Clear filters</button></td></tr>
+          </tbody>
+        </table>
+
+        <!-- Assignments: lifecycle of each tag on an asset -->
+        <table *ngIf="view === 'assignments'" class="dt dt--tm">
+          <thead><tr>
+            <th class="col-chk"><input type="checkbox" [checked]="pageAllChecked" [indeterminate]="pageSomeChecked" (change)="togglePage()" aria-label="Select all tags on this page" /></th>
+            <th><button type="button" class="sort" (click)="sortBy('id')" [attr.aria-sort]="sortState('id')">Tag ID<lucide-icon *ngIf="sortKey === 'id'" [img]="sortDesc ? icons.ArrowDown : icons.ArrowUp" [size]="14"></lucide-icon></button></th>
+            <th>Tag Type</th><th>Technology</th><th>Linked Asset</th><th>Site / Location</th>
+            <th class="col-md"><button type="button" class="sort" (click)="sortBy('assigned')" [attr.aria-sort]="sortState('assigned')">Assigned On<lucide-icon *ngIf="sortKey === 'assigned'" [img]="sortDesc ? icons.ArrowDown : icons.ArrowUp" [size]="14"></lucide-icon></button></th>
+            <th>Status</th>
+            <th><button type="button" class="sort" (click)="sortBy('lastSeen')" [attr.aria-sort]="sortState('lastSeen')">Last Seen<lucide-icon *ngIf="sortKey === 'lastSeen'" [img]="sortDesc ? icons.ArrowDown : icons.ArrowUp" [size]="14"></lucide-icon></button></th>
+            <th class="col-act">Actions</th>
           </tr></thead>
           <tbody>
             <tr *ngFor="let t of pageRows" [class.is-selected]="selected?.id === t.id" [class.is-checked]="isChecked(t)" (click)="select(t)" (keydown.enter)="select(t)" tabindex="0">
@@ -57,6 +115,7 @@
               <td>{{ t.tech }}</td>
               <td (click)="$event.stopPropagation()"><button *ngIf="t.asset; else noAsset" type="button" class="asset-link" (click)="select(t); viewAsset(t)" [title]="'Open ' + t.asset.tag">{{ assetLabel(t.asset) }}</button><ng-template #noAsset><span class="muted">—</span></ng-template></td>
               <td>{{ siteLabel(t) }}</td>
+              <td class="col-md nowrap">{{ fmtDate(t.assignedOn) }}</td>
               <td><span class="st" [ngClass]="'st--' + t.status.toLowerCase()"><lucide-icon [img]="t.status === 'Inactive' ? icons.Ban : icons.CircleCheck" [size]="14"></lucide-icon>{{ t.status }}</span></td>
               <td class="nowrap">{{ fmtSeen(t.lastSeen) }}</td>
               <td class="col-act" (click)="$event.stopPropagation()"><span class="menu-wrap">
@@ -65,7 +124,22 @@
                   <ng-container *ngTemplateOutlet="tagActions; context: { $implicit: t }"></ng-container>
                 </div></span></td>
             </tr>
-            <tr *ngIf="!pageRows.length"><td colspan="9" class="empty">No tags match these filters. <button type="button" class="link-btn" (click)="clearFilters()">Clear filters</button></td></tr>
+            <tr *ngIf="!pageRows.length"><td colspan="10" class="empty">No tags match these filters. <button type="button" class="link-btn" (click)="clearFilters()">Clear filters</button></td></tr>
+          </tbody>
+        </table>
+
+        <!-- Audit trail -->
+        <table *ngIf="view === 'audit'" class="dt dt--tm dt--audit">
+          <thead><tr><th>When</th><th>Tag ID</th><th>Event</th><th>Details</th><th>Performed By</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let r of pageAudit" [class.is-selected]="selected?.id === r.tag.id" (click)="select(r.tag)" (keydown.enter)="select(r.tag)" tabindex="0">
+              <td class="nowrap">{{ fmtWhen(r.at) }}</td>
+              <td><span class="tag-id">{{ r.tag.id }}</span></td>
+              <td><span class="ev" [ngClass]="eventClass(r.kind)">{{ r.kind }}</span></td>
+              <td class="audit-text">{{ r.text }}</td>
+              <td class="nowrap">{{ r.by }}</td>
+            </tr>
+            <tr *ngIf="!pageAudit.length"><td colspan="5" class="empty">No events match these filters. <button type="button" class="link-btn" (click)="clearFilters()">Clear filters</button></td></tr>
           </tbody>
         </table>
       </div>
@@ -83,19 +157,19 @@
     <!-- Explainer -->
     <section class="card explain-tm" aria-labelledby="tm-ex">
       <div class="ex-head">
-        <h2 id="tm-ex"><lucide-icon class="ex-badge" [img]="icons.Info" [size]="18"></lucide-icon>Asset ≠ Tag ≠ IoT Device<lucide-icon class="ex-q" [img]="icons.Info" [size]="16"></lucide-icon></h2>
-        <a class="link-btn ex-more" routerLink="/tracking-iot/tag-ids">Learn more<lucide-icon [img]="icons.ExternalLink" [size]="14"></lucide-icon></a>
+        <h2 id="tm-ex"><lucide-icon class="ex-badge" [img]="icons.Info" [size]="18"></lucide-icon>Asset ≠ Tag ID ≠ IoT Device</h2>
+        <button type="button" class="link-btn ex-more" (click)="setView('audit')">View audit trail<lucide-icon [img]="icons.ArrowRight" [size]="14"></lucide-icon></button>
       </div>
-      <p class="ex-sub">One asset can have multiple tags; tags can be replaced without losing asset history.</p>
+      <p class="ex-sub">One asset can have multiple tag IDs. Keep tag IDs separate from IoT devices so identifiers can be replaced without losing asset history.</p>
       <div class="ex-flow">
         <div class="ex-box"><span class="ex-ic ex-ic--violet"><lucide-icon [img]="icons.Box" [size]="22"></lucide-icon></span>
-          <span><strong>Asset</strong><small>Physical item in your estate</small><small>e.g. Generator, Pump, Forklift</small><em class="ex-pill ex-pill--violet">One asset</em></span></div>
-        <lucide-icon class="ex-arrow" [img]="icons.ArrowRight" [size]="22"></lucide-icon>
-        <div class="ex-box"><span class="ex-ic ex-ic--green"><lucide-icon [img]="icons.Link2" [size]="22"></lucide-icon></span>
-          <span><strong>Tag Assignment</strong><small>Links a tag to an asset (with history)</small><small>Track assignment, location and changes</small><em class="ex-pill ex-pill--green">Many-to-many</em></span></div>
-        <lucide-icon class="ex-arrow" [img]="icons.ArrowRight" [size]="22"></lucide-icon>
-        <div class="ex-box"><span class="ex-ic ex-ic--blue"><lucide-icon [img]="icons.Tag" [size]="22"></lucide-icon></span>
-          <span><strong>Tag</strong><small>Identification label or device</small><small>e.g. QR Label, RFID, BLE Beacon</small><em class="ex-pill ex-pill--blue">Multiple tags</em></span></div>
+          <span><strong>Asset</strong><small>Physical item in your estate</small><small>e.g. Generator, Pump, Forklift FL-008</small><em class="ex-pill ex-pill--violet">One asset</em></span></div>
+        <lucide-icon class="ex-arrow" [img]="icons.ArrowLeftRight" [size]="22"></lucide-icon>
+        <button type="button" class="ex-box ex-box--btn" (click)="setView('assignments')"><span class="ex-ic ex-ic--green"><lucide-icon [img]="icons.Link2" [size]="22"></lucide-icon></span>
+          <span><strong>Tag Assignment</strong><small>Links a tag ID to an asset, with dates, location and history</small><small>Assign, reassign, replace, unassign</small><em class="ex-pill ex-pill--green">Assignments tab</em></span></button>
+        <lucide-icon class="ex-arrow" [img]="icons.ArrowLeftRight" [size]="22"></lucide-icon>
+        <button type="button" class="ex-box ex-box--btn" (click)="setView('ids')"><span class="ex-ic ex-ic--blue"><lucide-icon [img]="icons.Tag" [size]="22"></lucide-icon></span>
+          <span><strong>Tag ID</strong><small>The identifier itself: barcode, QR value, RFID EPC, BLE ID</small><small>Create, import, validate, deactivate</small><em class="ex-pill ex-pill--blue">Tag IDs tab</em></span></button>
       </div>
     </section>
   </section>
@@ -104,6 +178,7 @@
   <aside *ngIf="selected as t" class="panel" aria-labelledby="tm-sel">
     <button type="button" class="icon-btn panel-close" (click)="selectedId = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="20"></lucide-icon></button>
     <div class="panel-title"><h2 id="tm-sel">{{ t.id }}</h2><span class="st" [ngClass]="'st--' + t.status.toLowerCase()"><lucide-icon [img]="t.status === 'Inactive' ? icons.Ban : icons.CircleCheck" [size]="14"></lucide-icon>{{ t.status }}</span></div>
+    <p class="panel-sub">{{ typeLabel(t) }}<span class="sep">|</span>{{ t.tech }}</p>
     <nav class="panel-tabs" role="tablist" aria-label="Tag sections">
       <button type="button" role="tab" [class.is-active]="panelTab === 'details'" [attr.aria-selected]="panelTab === 'details'" (click)="panelTab = 'details'">Details</button>
       <button type="button" role="tab" [class.is-active]="panelTab === 'telemetry'" [attr.aria-selected]="panelTab === 'telemetry'" (click)="panelTab = 'telemetry'">Telemetry</button>
@@ -112,27 +187,30 @@
 
     <!-- Details -->
     <ng-container *ngIf="panelTab === 'details'">
-      <h3 class="p-h3">Tag Information</h3>
+      <h3 class="p-h3">Identifier</h3>
       <dl class="info">
         <dt>Tag ID</dt><dd>{{ t.id }}</dd>
-        <dt>Tag Type</dt><dd>{{ typeLabel(t) }}</dd>
-        <dt>Technology</dt><dd>{{ techLong(t) }}</dd>
+        <dt>Technology</dt><dd><span class="tech" [ngClass]="techClass(t.tech)"><lucide-icon [img]="techIcon(t.tech)" [size]="13"></lucide-icon>{{ techLong(t) }}</span></dd>
+        <dt>Format</dt><dd>{{ typeLabel(t) }}</dd>
         <dt>{{ codeLabel(t) }}</dt><dd class="code">{{ t.code }}</dd>
         <ng-container *ngIf="isBle(t)"><dt>Firmware Version</dt><dd>{{ firmware(t) }}</dd></ng-container>
+        <dt>Registered On</dt><dd>{{ fmtDate(t.registeredOn) }}</dd>
+        <dt>Validation</dt><dd><span class="val" [ngClass]="validation(t) === 'Valid' ? 'val--ok' : 'val--bad'"><lucide-icon [img]="validation(t) === 'Valid' ? icons.ShieldCheck : icons.CircleAlert" [size]="13"></lucide-icon>{{ validation(t) }}</span><small *ngIf="validation(t) !== 'Valid'" class="val-why">{{ validationDetail(t) }}</small></dd>
       </dl>
 
       <h3 class="p-h3">Linked Asset</h3>
       <div *ngIf="t.asset as a; else noLink" class="p-card">
         <span class="p-ic"><lucide-icon [img]="assetIcon(a)" [size]="22"></lucide-icon></span>
-        <span class="grow"><button type="button" class="asset-link p-strong" (click)="viewAsset(t)">{{ assetLabel(a) }}</button><small>{{ a.kind }}{{ a.real ? ' · in asset register' : '' }}</small></span>
+        <span class="grow"><button type="button" class="asset-link p-strong" (click)="viewAsset(t)">{{ assetLabel(a) }}</button><small>Assigned {{ fmtDate(t.assignedOn, true) }}</small></span>
         <button type="button" class="link-btn p-link" (click)="viewAsset(t)"><lucide-icon [img]="icons.ExternalLink" [size]="14"></lucide-icon>View Asset</button>
       </div>
       <ng-template #noLink><p class="p-empty">Not linked to an asset. <button *ngIf="t.status !== 'Inactive'" type="button" class="link-btn" (click)="openAssign(t)">Assign</button></p></ng-template>
+      <p *ngIf="siblings(t).length" class="siblings">Also on {{ t.asset?.tag }}: <button *ngFor="let s of siblings(t)" type="button" class="chip" (click)="select(s)">{{ s.id }}</button></p>
 
       <h3 class="p-h3">Location</h3>
       <div class="p-card">
         <span class="p-ic p-ic--round"><lucide-icon [img]="icons.MapPin" [size]="18"></lucide-icon></span>
-        <span class="grow"><span class="p-text">{{ siteLabel(t) }}</span><small>{{ t.lastSeen !== null ? 'Last read by ' + t.reader : 'Not read yet' }}</small></span>
+        <span class="grow"><span class="p-text">{{ siteLabel(t) }}</span><small>{{ t.lastSeen !== null ? 'Last seen ' + fmtSeen(t.lastSeen) + ' by ' + t.reader : 'Not read yet' }}</small></span>
       </div>
 
       <ng-container *ngIf="isBle(t)">
@@ -177,20 +255,23 @@
 
     <div class="panel-actions">
       <h3 class="p-h3">Actions</h3>
-      <div class="act-row" [ngSwitch]="t.status">
+      <div class="act-grid" [ngSwitch]="t.status">
         <ng-container *ngSwitchCase="'Assigned'">
           <button type="button" class="btn btn-primary" (click)="viewAsset(t)"><lucide-icon [img]="icons.ExternalLink" [size]="16"></lucide-icon>View Asset</button>
           <button type="button" class="btn btn-outline" (click)="openAssign(t)"><lucide-icon [img]="icons.ArrowLeftRight" [size]="16"></lucide-icon>Reassign</button>
-          <button type="button" class="btn btn-outline" (click)="openUnassign(t)"><lucide-icon [img]="icons.Unlink" [size]="16"></lucide-icon>Unassign</button>
+          <button type="button" class="btn btn-outline" (click)="openReplace(t)"><lucide-icon [img]="icons.Replace" [size]="16"></lucide-icon>Replace</button>
+          <button type="button" class="btn btn-danger" (click)="openUnassign(t)"><lucide-icon [img]="icons.Unlink" [size]="16"></lucide-icon>Unassign</button>
         </ng-container>
         <ng-container *ngSwitchCase="'Available'">
           <button type="button" class="btn btn-primary" (click)="openAssign(t)"><lucide-icon [img]="icons.Link2" [size]="16"></lucide-icon>Assign to Asset</button>
+          <button type="button" class="btn btn-outline" (click)="openEdit(t)"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>Edit ID</button>
           <button type="button" class="btn btn-danger" (click)="openStatus(t, 'Inactive')"><lucide-icon [img]="icons.Ban" [size]="16"></lucide-icon>Deactivate</button>
         </ng-container>
         <ng-container *ngSwitchCase="'Inactive'">
           <button type="button" class="btn btn-primary" (click)="openStatus(t, 'Available')"><lucide-icon [img]="icons.CircleCheck" [size]="16"></lucide-icon>Reactivate</button>
         </ng-container>
       </div>
+      <button type="button" class="link-btn act-validate" (click)="validate([t])"><lucide-icon [img]="icons.ShieldCheck" [size]="14"></lucide-icon>Run validation check</button>
     </div>
   </aside>
 </div>
@@ -199,27 +280,45 @@
   <button type="button" role="menuitem" (click)="select(t)">View details</button>
   <button *ngIf="t.status === 'Assigned'" type="button" role="menuitem" (click)="viewAsset(t)">View asset</button>
   <button *ngIf="t.status !== 'Inactive'" type="button" role="menuitem" (click)="openAssign(t)">{{ t.status === 'Assigned' ? 'Reassign' : 'Assign to asset' }}</button>
+  <button *ngIf="t.status === 'Assigned'" type="button" role="menuitem" (click)="openReplace(t)">Replace tag</button>
   <button *ngIf="t.status === 'Assigned'" type="button" role="menuitem" (click)="openUnassign(t)">Unassign</button>
+  <button type="button" role="menuitem" (click)="validate([t])">Validate</button>
+  <button *ngIf="t.status !== 'Assigned'" type="button" role="menuitem" (click)="openEdit(t)">Edit identifier</button>
   <button *ngIf="t.status !== 'Inactive'" type="button" role="menuitem" class="danger" (click)="openStatus(t, 'Inactive')">Deactivate</button>
   <button *ngIf="t.status === 'Inactive'" type="button" role="menuitem" (click)="openStatus(t, 'Available')">Reactivate</button>
 </ng-template>
 
-<!-- ===== Add tag ===== -->
+<!-- ===== Register ===== -->
 <div *ngIf="dlg('register') as d" class="overlay" (click)="dialog = null">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tm-reg" (click)="$event.stopPropagation()">
-    <div class="modal-head"><h2 id="tm-reg">Add Tag</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-head"><h2 id="tm-reg">Register Tag ID</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveRegister()">
       <div class="two">
         <label class="field"><span class="field-label">Technology</span><select class="control" [(ngModel)]="d.tech" name="tech" (ngModelChange)="onRegisterTech()"><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Tag type</span><select class="control" [(ngModel)]="d.type" name="type"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Tag number <em>*</em></span><input class="control" [(ngModel)]="d.number" name="num" inputmode="numeric" (ngModelChange)="fillCode()" /><small class="muted">Tag ID: <strong>{{ registerPreview }}</strong></small></label>
-        <label class="field"><span class="field-label">{{ d.tech === 'Passive RFID' ? 'EPC' : d.tech === 'BLE' ? 'Serial number (MAC)' : 'Encoded value' }} <em>*</em></span><input class="control mono" [(ngModel)]="d.code" name="code" /></label>
+        <label class="field"><span class="field-label">{{ codeLabel(d) }} <em>*</em></span><input class="control mono" [(ngModel)]="d.code" name="code" /></label>
         <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = locationsOf(d.site)[0] ?? ''"><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
         <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">—</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
       </div>
-      <label class="field"><span class="field-label">Link to asset (optional)</span><input class="control" [(ngModel)]="d.asset" name="asset" list="tm-assets" placeholder="Asset code, e.g. FL-008" /></label>
+      <label class="field"><span class="field-label">Link to asset (optional)</span><input class="control" [(ngModel)]="d.asset" name="asset" list="tm-assets" placeholder="Asset code, e.g. FL-008" /><small class="muted">Leave empty to keep the tag in stock as Available.</small></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">Add Tag</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">Register</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Edit identifier ===== -->
+<div *ngIf="dlg('edit') as d" class="overlay" (click)="dialog = null">
+  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="tm-edit" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="tm-edit">Edit {{ d.tagId }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form *ngIf="tagById(d.tagId) as t" class="modal-body" (ngSubmit)="saveEdit()">
+      <p class="muted">Correct the encoded value or format. The Tag ID and technology stay the same; the change is kept in the audit trail.</p>
+      <label class="field"><span class="field-label">Tag type</span><select class="control" [(ngModel)]="d.type" name="type"><option *ngFor="let x of types" [value]="x">{{ x }}</option></select></label>
+      <label class="field"><span class="field-label">{{ codeLabel(t) }} <em>*</em></span><input class="control mono" [(ngModel)]="d.code" name="code" />
+        <small [class]="editError ? 'bad' : 'ok'">{{ editError || 'Format OK' }}</small></label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
     </form>
   </div>
 </div>
@@ -242,13 +341,33 @@
   </div>
 </div>
 
+<!-- ===== Replace ===== -->
+<div *ngIf="dlg('replace') as d" class="overlay" (click)="dialog = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tm-rep" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="tm-rep">Replace {{ d.tagId }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form *ngIf="tagById(d.tagId) as old" class="modal-body" (ngSubmit)="saveReplace()">
+      <p class="muted">Fit a new tag on <strong>{{ old.asset ? assetLabel(old.asset) : '' }}</strong>. The asset keeps its history; both tags record the swap.</p>
+      <label class="field"><span class="field-label">New tag ID <em>*</em></span><input class="control" [(ngModel)]="d.newId" name="newId" list="tm-spares" placeholder="An available tag, e.g. {{ old.tech === 'BLE' ? 'BLE-002501' : 'QR-000844' }}" autocomplete="off" />
+        <small class="muted">Available tags, {{ old.tech }} first.</small></label>
+      <datalist id="tm-spares"><option *ngFor="let s of spareTags(old)" [value]="s.id">{{ s.tech }} · {{ siteLabel(s) }}</option></datalist>
+      <fieldset class="radio-row"><legend class="field-label">Old tag {{ old.id }} becomes</legend>
+        <label><input type="radio" name="oldTo" value="Inactive" [(ngModel)]="d.oldTo" />Inactive (damaged or lost)</label>
+        <label><input type="radio" name="oldTo" value="Available" [(ngModel)]="d.oldTo" />Available (back in stock)</label>
+      </fieldset>
+      <label class="field"><span class="field-label">Reason <em *ngIf="d.oldTo === 'Inactive'">*</em></span><input class="control" [(ngModel)]="d.reason" name="reason" placeholder="e.g. label unreadable" /></label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">Replace Tag</button></div>
+    </form>
+  </div>
+</div>
+
 <!-- ===== Unassign ===== -->
 <div *ngIf="dlg('unassign') as d" class="overlay" (click)="dialog = null">
   <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="tm-una" (click)="$event.stopPropagation()">
     <div class="modal-head"><h2 id="tm-una">Unassign {{ d.tagId }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveUnassign()">
       <p>The tag becomes <strong>Available</strong>. {{ tagById(d.tagId)?.asset?.tag }} keeps this link in its history.</p>
-      <label class="field"><span class="field-label">Reason</span><input class="control" [(ngModel)]="d.reason" name="reason" placeholder="e.g. tag replaced" /></label>
+      <label class="field"><span class="field-label">Reason</span><input class="control" [(ngModel)]="d.reason" name="reason" placeholder="e.g. asset retired" /></label>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-danger-solid">Unassign</button></div>
     </form>
   </div>
@@ -272,7 +391,7 @@
   <div class="modal modal--lg" role="dialog" aria-modal="true" aria-labelledby="tm-imp" (click)="$event.stopPropagation()">
     <div class="modal-head"><h2 id="tm-imp">Import Tags</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <div class="modal-body">
-      <p class="muted">Columns: Technology, Tag Number, Type, Encoded Value, Site, Location, Asset Code. Leave Encoded Value empty to generate it.</p>
+      <p class="muted">Columns: Technology, Tag Number, Type, Encoded Value, Site, Location, Asset Code. Leave Encoded Value empty to generate it. Each row is validated before import.</p>
       <div class="import-actions">
         <button type="button" class="btn btn-outline btn-sm" (click)="downloadTemplate()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Download template</button>
         <label class="btn btn-primary btn-sm file-btn"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon>Choose file<input type="file" accept=".xlsx,.xls,.csv" (change)="onImportFile($event)" /></label>
