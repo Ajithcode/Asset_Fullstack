@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { LucideAngularModule, ArrowLeft, ChevronDown, ChevronRight, Network, Plus, Search, Trash2, X } from 'lucide-angular';
-import { ASSET_RECORDS, AssetRecord, assetLocation, findAsset } from '../asset-data';
+import { ASSET_RECORDS, AssetRecord, assetLocation, findAsset } from 'shared-ui';
 import { FROM_RELATIONSHIPS, UserRelationship, nowLocal, readUserRelationships, writeUserRelationships } from './user-relationships';
 import { loadAssetDetail } from '../asset-details/asset-details';
 

@@ -24,7 +24,7 @@ import {
   CircleDot,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetIconKey, AssetRecord, AssetStatus, assetLocation } from '../asset-data';
+import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetIconKey, AssetRecord, AssetStatus, assetLocation } from 'shared-ui';
 import DEDUP_DATA from './dedup-data.json';
 import { Comparable, DEFAULT_RULES, DedupRules, MATCH_FIELDS, MatchField, confidence, matchScore } from './dedup-match';
 

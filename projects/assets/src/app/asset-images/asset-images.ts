@@ -39,7 +39,7 @@ import {
   criticalityPill,
   findAsset,
   statusPill,
-} from '../asset-data';
+} from 'shared-ui';
 import { AssetDetail, AssetImage, ImageEvent, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
 
 type ViewMode = 'grid' | 'list';

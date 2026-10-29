@@ -36,7 +36,7 @@ import {
   assetLocation,
   assetTabs,
   findAsset,
-} from '../asset-data';
+} from 'shared-ui';
 import {
   CriticalityCriterion,
   CriticalityData,

@@ -2,7 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { environment } from '../../../../../environments/environment';
+import { environment } from 'shared-ui';
 import { ImportColumn, ImportFileModal } from 'shared-ui';
 import { RowActions } from 'shared-ui';
 import { downloadReportAsExcel, downloadReportsAsWorkbook, GeneratedReportService, Report } from '../generated-report.service';
@@ -77,11 +77,11 @@ export class Reports {
   }
 
   addReport() {
-    this.router.navigate(['/report/create']);
+    this.router.navigate(['/reports-analytics/create']);
   }
 
   viewReport(report: Report): void {
-    this.router.navigate(['/report/view', report.id]);
+    this.router.navigate(['/reports-analytics/view', report.id]);
   }
 
   uploadReport() {

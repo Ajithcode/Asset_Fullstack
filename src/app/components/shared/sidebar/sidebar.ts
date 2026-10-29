@@ -21,8 +21,7 @@ import {
   Settings,
   Database
 } from 'lucide-angular';
-import { MASTER_DATA_BASE_PATH, MASTER_DATA_MENU } from 'shared-ui';
-import { ADMINISTRATION_BASE_PATH, ADMINISTRATION_MENU } from '../../pages/administration/administration-menu';
+import { ADMINISTRATION_BASE_PATH, ADMINISTRATION_MENU, MASTER_DATA_BASE_PATH, MASTER_DATA_MENU } from 'shared-ui';
 
 export interface NavItem {
   label: string;

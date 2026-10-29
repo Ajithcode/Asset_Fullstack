@@ -22,7 +22,7 @@ import {
   Search,
   X,
 } from 'lucide-angular';
-import { AssetRecord, TODAY, toIsoDate } from '../../asset-data';
+import { AssetRecord, TODAY, toIsoDate } from 'shared-ui';
 import {
   DUE_SOON_DAYS,
   PM_CATEGORIES,

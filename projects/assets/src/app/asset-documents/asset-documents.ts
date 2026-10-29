@@ -42,7 +42,7 @@ import {
   criticalityPill,
   findAsset,
   statusPill,
-} from '../asset-data';
+} from 'shared-ui';
 import { AssetDetail, AssetDocument, DocVersion, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
 
 type DocStatus = 'Active' | 'Expired' | 'Draft';

@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { environment } from '../../../environments/environment';
-import { AuthService } from '../service/auth/auth.service';
+import { environment } from 'shared-ui';
+import { AuthService } from 'shared-ui';
 
 /** UI-friendly model derived from the API's OuterZoneDto. Nests under a "Project Area" (State). */
 export interface AppOuterZone {

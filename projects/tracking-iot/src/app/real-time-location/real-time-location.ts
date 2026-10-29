@@ -35,7 +35,7 @@ import {
   ASSETS, AssetState, LEVELS, LocEvent, SITE, TrackedAsset, ZONES, buildEvents, distanceM, isAlert, isLowConfidence, placeOf, trailFL008,
 } from './location-data';
 import type * as Leaflet from 'leaflet';
-import { MapDrawTools } from '../../../shared/map-draw-tools/map-draw-tools';
+import { MapDrawTools } from '../shared/map-draw-tools/map-draw-tools';
 import { LivePosition, MapLayers, RlMap, stateColor } from './rl-map';
 
 type StatusFilter = '' | AssetState | 'alerts';

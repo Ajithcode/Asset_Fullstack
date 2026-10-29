@@ -54,7 +54,7 @@ import {
   criticalityPill,
   findAsset,
   statusPill,
-} from '../asset-data';
+} from 'shared-ui';
 import { AssetDetail, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
 import { FROM_RELATIONSHIPS, nowLocal, readUserRelationships, writeUserRelationships } from '../asset-relationship-list/user-relationships';
 

@@ -36,7 +36,7 @@ import {
   X,
 } from 'lucide-angular';
 import DATA from './maintenance.json';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, TODAY, assetLocation, findAsset, toIsoDate } from '../asset-data';
+import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, TODAY, assetLocation, findAsset, toIsoDate } from 'shared-ui';
 import { MaintenanceTask, loadAssetDetail } from '../asset-details/asset-details';
 import { WoDetail, buildWoDetail } from './maintenance-history';
 import { PmSchedule, schedulesFromPlan } from './maintenance-pm';

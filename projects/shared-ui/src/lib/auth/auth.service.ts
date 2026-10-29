@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { AuthUser, LoginData, RegisterData, SignupRole } from '../../../models/auth.model';
+import { AuthUser, LoginData, RegisterData, SignupRole } from './auth.model';
 
 // DEMO MODE: this is a static app, so sign-in and sign-up never call a backend.
 // 'token' and 'userEmail' are read elsewhere (the auth interceptor, createdBy/updatedBy in services)

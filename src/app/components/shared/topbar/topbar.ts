@@ -22,7 +22,7 @@ import {
 } from 'lucide-angular';
 import { Router, NavigationEnd, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
-import { AuthService } from '../../service/auth/auth.service';
+import { AuthService } from 'shared-ui';
 import { environment } from '../../../../environments/environment';
 import { NotificationService, AppNotification } from '../../services/notification.service';
 

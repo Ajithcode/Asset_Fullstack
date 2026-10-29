@@ -21,8 +21,7 @@ import {
   User,
   Wrench,
 } from 'lucide-angular';
-import { AuthService } from '../../../../components/service/auth/auth.service';
-import { LoginData } from '../../../../models/auth.model';
+import { AuthService, LoginData } from 'shared-ui';
 
 const REMEMBER_KEY = 'a360.rememberedUser';
 /** Design canvas of the login page (the mock is 1536 × 1024, drawn here with a tighter vertical rhythm). */

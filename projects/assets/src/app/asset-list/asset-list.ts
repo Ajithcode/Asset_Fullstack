@@ -38,7 +38,7 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { ASSET_RECORDS, AssetRecord, AssetStatus, Criticality, TODAY, toIsoDate } from '../asset-data';
+import { ASSET_RECORDS, AssetRecord, AssetStatus, Criticality, TODAY, toIsoDate } from 'shared-ui';
 
 type SortKey = 'name' | 'tag' | 'category' | 'location' | 'custodian' | 'status' | 'criticality' | 'nextMaintenance';
 type MaintenanceDue = '' | 'overdue' | '30' | '90' | 'none';

@@ -28,7 +28,7 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetHeader, AssetTabLink, assetHeader, assetTabs, findAsset } from '../asset-data';
+import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetHeader, AssetTabLink, assetHeader, assetTabs, findAsset } from 'shared-ui';
 import { HealthData, HealthRecord, HealthStatus, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
 
 type Range = 6 | 12;

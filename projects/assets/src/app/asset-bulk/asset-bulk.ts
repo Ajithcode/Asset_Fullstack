@@ -28,7 +28,7 @@ import {
   Wand2,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS, AssetIconKey, AssetRecord, AssetStatus, Criticality, assetLocation } from '../asset-data';
+import { ASSET_RECORDS, AssetIconKey, AssetRecord, AssetStatus, Criticality, assetLocation } from 'shared-ui';
 import { readUserRelationships } from '../asset-relationship-list/user-relationships';
 
 type ImportType = 'create' | 'update' | 'upsert';

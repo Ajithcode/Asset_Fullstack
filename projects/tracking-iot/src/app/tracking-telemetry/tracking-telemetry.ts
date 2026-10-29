@@ -36,7 +36,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import type * as Leaflet from 'leaflet';
-import { MapDrawTools } from '../../../shared/map-draw-tools/map-draw-tools';
+import { MapDrawTools } from '../shared/map-draw-tools/map-draw-tools';
 import { MapLayers, MapPosition, TtMap } from './tt-map';
 import {
   ASSETS, AlertItem, BUILDINGS, CAMPUS_GEO, CAMPUS_NAME, EVENTS, KPIS, MarkerIcon, Metric, RANGE_SPEC, Range, SITE_OPTIONS, Series, Severity, Status,

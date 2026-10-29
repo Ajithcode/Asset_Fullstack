@@ -29,7 +29,7 @@ import {
   List,
   Package,
 } from 'lucide-angular';
-import { AssetRecord, TODAY, toIsoDate } from '../../asset-data';
+import { AssetRecord, TODAY, toIsoDate } from 'shared-ui';
 import {
   SR_CATEGORIES,
   SR_CATEGORY_COLORS,

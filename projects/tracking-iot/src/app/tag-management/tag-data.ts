@@ -4,7 +4,7 @@
  * Assets from the asset register keep their real tags so "View Asset" opens the asset; the rest of the estate uses
  * generated asset codes.
  */
-import { ASSET_RECORDS } from '../../assets/asset-data';
+import { ASSET_RECORDS } from 'shared-ui';
 
 export type Tech = 'Barcode' | 'QR Code' | 'Passive RFID' | 'BLE';
 export type TagType = 'Label' | 'Hard Tag' | 'Beacon';

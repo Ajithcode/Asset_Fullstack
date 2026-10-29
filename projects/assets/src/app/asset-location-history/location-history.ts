@@ -28,7 +28,7 @@ import {
   X,
 } from 'lucide-angular';
 import DATA from './location-history.json';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, findAsset } from '../asset-data';
+import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, findAsset } from 'shared-ui';
 
 type MovementType = 'In' | 'Out' | 'Move';
 

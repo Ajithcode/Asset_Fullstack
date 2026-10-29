@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ADMINISTRATION_BASE_PATH, ADMINISTRATION_MENU } from '../administration-menu';
+import { ADMINISTRATION_BASE_PATH, ADMINISTRATION_MENU } from 'shared-ui';
 
 @Component({
   standalone: true,

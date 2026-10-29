@@ -28,7 +28,7 @@ import {
   Wrench,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS } from '../../assets/asset-data';
+import { ASSET_RECORDS } from 'shared-ui';
 import RESOURCE_DATA from './resources.json';
 import { Availability, Booking, BookingRequest, Resource, ResourceType } from './resource.model';
 

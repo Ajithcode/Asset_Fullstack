@@ -35,7 +35,7 @@ import {
   criticalityPill,
   findAsset,
   statusPill,
-} from '../asset-data';
+} from 'shared-ui';
 import {
   AlertItem,
   AlertStatus,

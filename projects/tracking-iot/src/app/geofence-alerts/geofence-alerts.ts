@@ -50,7 +50,7 @@ import {
   Zone, ZoneShape, ZoneType, assetGroup, startOfToday,
 } from './geofence-data';
 import type * as Leaflet from 'leaflet';
-import { MapDrawTools } from '../../../shared/map-draw-tools/map-draw-tools';
+import { MapDrawTools } from '../shared/map-draw-tools/map-draw-tools';
 import { GeofenceMap, MapAlert, MapMode } from './geofence-map';
 import { LL, applySeedOutlines, areaM2, siteArea } from './geofence-geo';
 

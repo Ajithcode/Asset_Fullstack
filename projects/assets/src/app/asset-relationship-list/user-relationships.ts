@@ -1,4 +1,4 @@
-import { findAsset } from '../asset-data';
+import { findAsset } from 'shared-ui';
 
 /**
  * Main asset → sub asset links that users create on the Asset Relationship page (menu).

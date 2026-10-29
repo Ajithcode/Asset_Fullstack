@@ -21,7 +21,7 @@ import {
   X,
   Package,
 } from 'lucide-angular';
-import { AssetRecord, TODAY, toIsoDate } from '../../asset-data';
+import { AssetRecord, TODAY, toIsoDate } from 'shared-ui';
 import { PartReservation, PartUsage, SparePart, StockStatus, isStocked, lineCost, reservedQty, stockStatus } from '../maintenance-parts';
 
 /** The work-order fields this tab reads and updates (issuing parts adds to a work order's parts cost). */

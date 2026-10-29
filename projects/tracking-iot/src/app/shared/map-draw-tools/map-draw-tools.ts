@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import type * as Leaflet from 'leaflet';
 import { LucideAngularModule, Check, Maximize, Pentagon, Search, Smartphone, SquarePen, Trash2, Undo2, X } from 'lucide-angular';
 import { Subscription } from 'rxjs';
-import { DEVICES } from '../../pages/tracking-iot/device-management/device-data';
+import { DEVICES } from '../../device-management/device-data';
 import { DeviceFix, DevicePositionFeed } from './device-position-feed';
 import { MdPortal } from './md-portal';
 

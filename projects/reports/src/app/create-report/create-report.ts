@@ -73,7 +73,7 @@ export class CreateReport {
   // ---- Breadcrumb navigation ----
   navigateToReport(): void {
     // Adjust the path below to match your app's actual route for the Report list page
-    this.router.navigate(['/report']);
+    this.router.navigate(['/reports-analytics']);
   }
 
   // ---- Left navigation tree ----
@@ -235,7 +235,7 @@ export class CreateReport {
       rows
     });
 
-    this.router.navigate(['/report']);
+    this.router.navigate(['/reports-analytics']);
   }
 
   onCancel(): void {

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { Coords, HierarchyNode, Project, SiteHierarchyService } from 'shared-ui';
-import { SiteHierarchyLoader } from '../../../services/site-hierarchy-loader.service';
+import { SiteHierarchyLoader } from '../services/site-hierarchy-loader.service';
 import {
   LucideAngularModule,
   ArrowLeft,
