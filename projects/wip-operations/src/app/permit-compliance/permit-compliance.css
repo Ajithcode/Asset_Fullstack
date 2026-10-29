@@ -1,0 +1,111 @@
+/* Permit register layout, authorization gate, details column and blocked-job card. Shared pieces are in ../shared/wip-board.css. */
+.pc-tabs { padding: 0 14px; }
+
+.pc-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(330px, 430px);
+  gap: 14px;
+  align-items: start;
+}
+
+.box h3 .muted { margin-left: 6px; font-weight: 500; }
+.reg-search { width: 220px; height: 32px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.small-link { margin-left: 8px; font-size: 12px; cursor: pointer; }
+.link-plain { padding: 0; border: 0; background: none; font: inherit; cursor: pointer; text-align: left; }
+.dot-sm { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+/* ============ Gate ============ */
+.gate-title { margin-bottom: 2px !important; }
+.gate-sub { margin: 0 0 12px; font-size: 13px; color: #4b5563; }
+
+.gate-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--wb-good-soft);
+  font-weight: 700;
+  color: #166534;
+}
+
+.gate-banner.is-bad { background: var(--wb-bad-soft); color: #991b1b; }
+.gate-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 14px 0 10px; padding: 0 0 0 10px; list-style: none; font-size: 13px; }
+.gate-list li { display: flex; align-items: center; gap: 10px; }
+.gate-list lucide-icon { color: var(--wb-good); }
+.gate-list li.is-bad { color: #991b1b; font-weight: 600; }
+.gate-list li.is-bad lucide-icon { color: var(--wb-bad); }
+.gate-note { display: flex; align-items: center; gap: 6px; }
+
+/* ============ Checklist ============ */
+.ev-ref { color: var(--wb-blue); }
+.result { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.check-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+
+/* ============ Details ============ */
+.det-title { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.det-id { font-size: 19px; font-weight: 800; }
+.det-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--jt-border); }
+.det-section h4 { margin: 0 0 8px; font-size: 14px; font-weight: 800; }
+.det-scope { margin: 0 0 10px; font-size: 13px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pc-chip { padding: 5px 12px; border-radius: 14px; background: #ece7ff; font-size: 12.5px; color: var(--jt-accent); }
+.wt--compact td, .wt--compact th { padding: 7px 10px; }
+.wt--compact .pill lucide-icon { margin-right: -2px; }
+.ev-ic { margin-right: 8px; vertical-align: -3px; color: #4b5563; }
+.ev-cell { text-align: right; }
+.ext-note { margin-top: 14px; }
+.det-btns { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 8px; }
+.det-btns .btn { flex: 1 1 160px; }
+.btn-warn { border-color: #f5c46b; background: #fff; color: #b45309; }
+.btn-warn:hover { background: #fff8e6; }
+
+.blocked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #f6d58b;
+  border-radius: 10px;
+  background: #fff8e6;
+  font-size: 13px;
+}
+
+.blocked-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #fff;
+}
+
+.blocked strong { display: block; margin-bottom: 4px; font-size: 14.5px; color: #92400e; }
+.blocked p { margin: 0 0 4px; color: #78350f; }
+.blocked-links { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+/* ============ Requirements & evidence tabs ============ */
+.req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.req-card { padding: 12px 14px; border: 1px solid var(--jt-border); border-radius: 10px; }
+.req-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.req-card ul { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.req-card li { display: flex; align-items: center; gap: 8px; }
+.req-card li lucide-icon { color: var(--wb-good); }
+.req-card li.is-bad lucide-icon { color: var(--wb-warn); }
+.miss-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.miss-list li { display: flex; align-items: center; gap: 10px; }
+.miss-list label { position: relative; cursor: pointer; }
+.modal--wide { max-width: 760px; }
+
+@media (max-width: 1280px) {
+  .pc-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .gate-list { grid-template-columns: minmax(0, 1fr); }
+  .blocked-links { align-items: flex-start; }
+}

@@ -1,0 +1,654 @@
+<section class="doc-page">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <ng-container *ngIf="!allAssets">
+      <a routerLink="/assets/list">Asset List</a>
+      <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+      <span>{{ asset.tag }}</span>
+      <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    </ng-container>
+    <span class="breadcrumb-current">Asset Documents</span>
+  </nav>
+
+  <!-- Unknown or missing ?tag= -->
+  <div *ngIf="notFound" class="card not-found">
+    <h2>Asset not found</h2>
+    <p *ngIf="requestedTag">No asset with the tag <strong>{{ requestedTag }}</strong> exists in the register.</p>
+    <p *ngIf="!requestedTag">Open an asset from the Asset List to see its documents.</p>
+    <a class="btn btn-primary" routerLink="/assets/list">Go to Asset List</a>
+  </div>
+
+  <ng-container *ngIf="!notFound">
+  <ng-container *ngIf="!allAssets">
+  <!-- Asset header -->
+  <div class="card asset-head">
+    <img *ngIf="asset.image; else headerIcon" class="asset-img" [src]="asset.image" [alt]="asset.name" />
+    <ng-template #headerIcon>
+      <span class="asset-img asset-img--icon"><lucide-icon [img]="typeIcons[asset.icon]" [size]="34" [strokeWidth]="1.6"></lucide-icon></span>
+    </ng-template>
+    <div class="asset-title">
+      <h1>{{ asset.tag }}</h1>
+      <p>{{ asset.name }}</p>
+    </div>
+    <div class="chips">
+      <div class="chip"><span>Category</span><strong>{{ asset.category }}</strong></div>
+      <div class="chip"><span>Type / Model</span><strong>{{ asset.model }}</strong></div>
+      <div class="chip"><span>Location</span><strong>{{ asset.location }}</strong></div>
+      <div class="chip chip--sm"><span>Status</span><span class="pill" [ngClass]="statusPill(asset.status)"><span class="dot"></span>{{ asset.status }}</span></div>
+      <div class="chip chip--sm"><span>Condition</span><span class="pill" [ngClass]="conditionPill(asset.condition)"><span class="dot"></span>{{ asset.condition }}</span></div>
+      <div class="chip chip--sm"><span>Criticality</span><span class="pill" [ngClass]="criticalityPill(asset.criticality)"><span class="dot"></span>{{ asset.criticality }}</span></div>
+    </div>
+    <div class="menu-wrap">
+      <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
+        Actions
+        <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+      </button>
+      <div *ngIf="actionsOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
+        <button type="button" role="menuitem" (click)="openUpload()"><lucide-icon [img]="icons.Upload" [size]="15"></lucide-icon>Upload Document</button>
+        <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Document List (CSV)</button>
+        <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset tabs -->
+  <nav class="card tabs" aria-label="Asset sections">
+    <ng-container *ngFor="let t of tabs">
+      <a *ngIf="t.path; else plainTab" class="tab" [routerLink]="t.path" [queryParams]="{ tag: asset.tag }">{{ t.label }}</a>
+      <ng-template #plainTab>
+        <button type="button" class="tab" [class.is-active]="t.active" [attr.aria-current]="t.active ? 'page' : null" (click)="tabClick(t)">{{ t.label }}</button>
+      </ng-template>
+    </ng-container>
+  </nav>
+  </ng-container>
+
+  <div class="doc-body" [class.doc-body--full]="!previewOpen || !previewDoc">
+    <!-- ===== Documents list ===== -->
+    <div class="card panel docs-card">
+      <div class="docs-head">
+        <span class="icon-tile"><lucide-icon [img]="icons.FileStack" [size]="20"></lucide-icon></span>
+        <div class="grow">
+          <h2>Asset Documents ({{ documents.length }})</h2>
+          <p>{{ allAssets ? 'Manage and organize documents for all assets.' : 'Manage and organize all documents related to this asset.' }}</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-tall" (click)="openUpload()">
+          <lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>
+          Upload Document
+        </button>
+        <div class="menu-wrap">
+          <button type="button" class="square-btn" title="More actions" aria-haspopup="menu" [attr.aria-expanded]="bulkOpen"
+            (click)="toggleBulk($event)">
+            <lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon>
+          </button>
+          <div *ngIf="bulkOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="downloadSelected()">
+              <lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Download Selected ({{ selectedIds.length }})
+            </button>
+            <button type="button" role="menuitem" class="danger" (click)="askDelete(selectedIds)">
+              <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete Selected ({{ selectedIds.length }})
+            </button>
+            <hr />
+            <button type="button" role="menuitem" (click)="exportCsv()">
+              <lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export List (CSV)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" placeholder="Search documents..." aria-label="Search documents" [(ngModel)]="search"
+            (ngModelChange)="onFilterChange()" />
+        </label>
+        <select *ngIf="allAssets" class="control control--sm" aria-label="Asset" [(ngModel)]="assetFilter" (ngModelChange)="onFilterChange()">
+          <option value="">All Assets</option>
+          <option *ngFor="let a of assetOptions" [value]="a.tag">{{ a.name }} ({{ a.tag }})</option>
+        </select>
+        <select class="control control--sm" aria-label="Document type" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()">
+          <option value="">All Document Types</option>
+          <option *ngFor="let t of documentTypes" [value]="t">{{ t }}</option>
+        </select>
+        <select class="control control--sm" aria-label="Lifecycle stage" [(ngModel)]="stageFilter" (ngModelChange)="onFilterChange()">
+          <option value="">All Lifecycle Stages</option>
+          <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
+        </select>
+        <select class="control control--xs" aria-label="Status" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
+          <option value="">All Status</option>
+          <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+        </select>
+        <button type="button" class="link-btn" *ngIf="hasFilters" (click)="clearFilters()">Clear filters</button>
+        <div class="view-toggle">
+          <button type="button" [class.is-active]="view === 'list'" [attr.aria-pressed]="view === 'list'" (click)="view = 'list'" aria-label="List view">
+            <lucide-icon [img]="icons.List" [size]="18"></lucide-icon>
+          </button>
+          <button type="button" [class.is-active]="view === 'grid'" [attr.aria-pressed]="view === 'grid'" (click)="view = 'grid'" aria-label="Grid view">
+            <lucide-icon [img]="icons.LayoutGrid" [size]="18"></lucide-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- List view -->
+      <div *ngIf="view === 'list'" class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="col-check">
+                <input type="checkbox" aria-label="Select all on this page" [checked]="allPageChecked"
+                  [indeterminate]="somePageChecked" (change)="toggleAll($any($event.target).checked)" />
+              </th>
+              <th class="col-num">#</th>
+              <ng-container *ngIf="allAssets"><th>Asset Name</th><th>Asset ID</th></ng-container>
+              <th>Document Name</th>
+              <th>Document Type</th>
+              <th>Lifecycle Stage</th>
+              <th>Version</th>
+              <th>Upload Date</th>
+              <th>Uploaded By</th>
+              <th>Expiry Date</th>
+              <th>Status</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let d of pageRows; let i = index" [class.is-selected]="previewOpen && d.id === previewId" (click)="openPreview(d)">
+              <td class="col-check" (click)="$event.stopPropagation()">
+                <input type="checkbox" [attr.aria-label]="'Select ' + d.name" [checked]="checked.has(d.id)"
+                  (change)="toggleChecked(d.id, $any($event.target).checked)" />
+              </td>
+              <td class="col-num">{{ rowNumber(i) }}</td>
+              <ng-container *ngIf="allAssets">
+                <td (click)="$event.stopPropagation()"><a class="asset-link" routerLink="/assets/documents" [queryParams]="{ tag: d.assetTag }" [title]="'Open ' + d.assetTag">{{ assetName(d) }}</a></td>
+                <td class="nowrap">{{ d.assetTag }}</td>
+              </ng-container>
+              <td>
+                <button type="button" class="name-btn" [title]="'Preview ' + d.name">
+                  <span class="file-badge" [class.file-badge--image]="isImage(d)">
+                    <lucide-icon [img]="isImage(d) ? icons.FileImage : icons.FileText" [size]="15"></lucide-icon>
+                  </span>
+                  <span class="name-text">{{ d.name }}</span>
+                </button>
+              </td>
+              <td><span class="type-tag">{{ d.type }}</span></td>
+              <td><span class="stage-tag" [ngClass]="'stage--' + stageTone(d.stage)">{{ d.stage }}</span></td>
+              <td>{{ current(d)?.version ?? '-' }}</td>
+              <td class="nowrap">{{ current(d) ? (current(d)!.uploadedAt | date: 'dd MMM yyyy') : '-' }}</td>
+              <td>{{ current(d)?.uploadedBy || '-' }}</td>
+              <td class="nowrap" [class.text-danger]="statusOf(d) === 'Expired'">{{ d.expiryDate ? (d.expiryDate | date: 'dd MMM yyyy') : '-' }}</td>
+              <td>
+                <span class="pill pill--xs" [ngClass]="'pill--' + statusOf(d).toLowerCase()"><span class="dot"></span>{{ statusOf(d) }}</span>
+              </td>
+              <td class="col-actions" (click)="$event.stopPropagation()">
+                <div class="menu-wrap">
+                  <button type="button" class="icon-btn" [attr.aria-label]="'Actions for ' + d.name" aria-haspopup="menu"
+                    [attr.aria-expanded]="rowMenuId === d.id" (click)="toggleRowMenu($event, d.id)">
+                    <lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon>
+                  </button>
+                  <ng-container *ngTemplateOutlet="rowMenu; context: { $implicit: d }"></ng-container>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="!pageRows.length" class="empty-row">
+              <td [attr.colspan]="allAssets ? 13 : 11">{{ loading ? "Loading documents…" : "No documents match the current filters." }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Grid view -->
+      <div *ngIf="view === 'grid'" class="doc-grid">
+        <article *ngFor="let d of pageRows" class="doc-tile" [class.is-selected]="previewOpen && d.id === previewId" (click)="openPreview(d)">
+          <div class="doc-tile-top" (click)="$event.stopPropagation()">
+            <input type="checkbox" [attr.aria-label]="'Select ' + d.name" [checked]="checked.has(d.id)"
+              (change)="toggleChecked(d.id, $any($event.target).checked)" />
+            <div class="menu-wrap">
+              <button type="button" class="icon-btn" [attr.aria-label]="'Actions for ' + d.name" aria-haspopup="menu"
+                [attr.aria-expanded]="rowMenuId === d.id" (click)="toggleRowMenu($event, d.id)">
+                <lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon>
+              </button>
+              <ng-container *ngTemplateOutlet="rowMenu; context: { $implicit: d }"></ng-container>
+            </div>
+          </div>
+          <span class="file-badge file-badge--lg" [class.file-badge--image]="isImage(d)">
+            <lucide-icon [img]="isImage(d) ? icons.FileImage : icons.FileText" [size]="24"></lucide-icon>
+          </span>
+          <button type="button" class="name-btn name-btn--tile" [title]="d.name">{{ d.name }}</button>
+          <a *ngIf="allAssets" class="tile-asset asset-link" routerLink="/assets/documents" [queryParams]="{ tag: d.assetTag }" (click)="$event.stopPropagation()">{{ assetName(d) }} · {{ d.assetTag }}</a>
+          <div class="doc-tile-tags">
+            <span class="type-tag">{{ d.type }}</span>
+            <span class="stage-tag" [ngClass]="'stage--' + stageTone(d.stage)">{{ d.stage }}</span>
+          </div>
+          <div class="doc-tile-meta">
+            <span>{{ current(d) ? 'v' + current(d)!.version + ' · ' + (current(d)!.uploadedAt | date: 'dd MMM yyyy') : 'No file yet' }}</span>
+            <span class="pill pill--xs" [ngClass]="'pill--' + statusOf(d).toLowerCase()"><span class="dot"></span>{{ statusOf(d) }}</span>
+          </div>
+        </article>
+        <p *ngIf="!pageRows.length" class="empty-line">{{ loading ? "Loading documents…" : "No documents match the current filters." }}</p>
+      </div>
+
+      <!-- Paging -->
+      <div class="pager">
+        <label class="pager-size">
+          Show
+          <select class="control control--page" [(ngModel)]="pageSize" (ngModelChange)="onFilterChange()" aria-label="Rows per page">
+            <option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option>
+          </select>
+          per page
+        </label>
+        <span class="pager-range">{{ rangeLabel }}</span>
+        <div class="pager-pages">
+          <button type="button" class="page-btn" aria-label="Previous page" [disabled]="safePage === 1" (click)="goToPage(safePage - 1)">
+            <lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon>
+          </button>
+          <button type="button" class="page-btn" *ngFor="let n of pageNumbers" [class.is-active]="n === safePage"
+            [attr.aria-current]="n === safePage ? 'page' : null" (click)="goToPage(n)">{{ n }}</button>
+          <button type="button" class="page-btn" aria-label="Next page" [disabled]="safePage === pageCount" (click)="goToPage(safePage + 1)">
+            <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Preview + details ===== -->
+    <aside *ngIf="previewOpen && previewDoc as doc" class="card panel preview-card" aria-label="Document preview">
+      <div class="preview-head">
+        <h2>Document Preview</h2>
+        <button type="button" class="icon-btn" aria-label="Close preview" (click)="closePreview()">
+          <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+        </button>
+      </div>
+
+      <div class="viewer">
+        <div class="viewer-bar">
+          <span class="viewer-file">
+            <lucide-icon [img]="isImage(doc) ? icons.FileImage : icons.FileText" [size]="15"></lucide-icon>
+            <span class="viewer-name" [title]="doc.name">{{ doc.name }}</span>
+          </span>
+          <ng-container *ngIf="current(doc) && !previewIsPdfFile">
+            <button type="button" class="viewer-btn" title="Rotate" (click)="rotate()">
+              <lucide-icon [img]="icons.RotateCw" [size]="14"></lucide-icon>
+            </button>
+            <button type="button" class="viewer-btn" title="Zoom out" [disabled]="!canZoomOut" (click)="zoomBy(-1)">
+              <lucide-icon [img]="icons.Minus" [size]="14"></lucide-icon>
+            </button>
+            <span class="viewer-zoom">{{ zoom }}%</span>
+            <button type="button" class="viewer-btn" title="Zoom in" [disabled]="!canZoomIn" (click)="zoomBy(1)">
+              <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>
+            </button>
+            <button type="button" class="viewer-btn" title="Fit to width" (click)="fitWidth()">
+              <lucide-icon [img]="icons.Maximize2" [size]="14"></lucide-icon>
+            </button>
+          </ng-container>
+          <button type="button" class="viewer-btn" title="Download" (click)="download(doc)">
+            <lucide-icon [img]="icons.Download" [size]="14"></lucide-icon>
+          </button>
+          <button type="button" class="viewer-btn" title="Print" (click)="printPreview()">
+            <lucide-icon [img]="icons.Printer" [size]="14"></lucide-icon>
+          </button>
+          <div class="menu-wrap">
+            <button type="button" class="viewer-btn" title="More" aria-haspopup="menu" [attr.aria-expanded]="viewerMenuOpen"
+              (click)="toggleViewerMenu($event)">
+              <lucide-icon [img]="icons.EllipsisVertical" [size]="14"></lucide-icon>
+            </button>
+            <div *ngIf="viewerMenuOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
+              <button type="button" role="menuitem" (click)="openInNewTab()"><lucide-icon [img]="icons.ExternalLink" [size]="15"></lucide-icon>Open in New Tab</button>
+              <button type="button" role="menuitem" (click)="openUpload(doc)"><lucide-icon [img]="icons.Upload" [size]="15"></lucide-icon>Upload New Version</button>
+              <button type="button" role="menuitem" (click)="openHistory(doc)"><lucide-icon [img]="icons.History" [size]="15"></lucide-icon>Version History</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="viewer-body">
+          <!-- Draft: nothing uploaded yet -->
+          <div *ngIf="!current(doc)" class="viewer-empty">
+            <lucide-icon [img]="icons.CloudUpload" [size]="28"></lucide-icon>
+            <p>No file has been uploaded for this draft yet.</p>
+            <button type="button" class="btn btn-soft btn-sm" (click)="openUpload(doc)">Upload File</button>
+          </div>
+
+          <ng-container *ngIf="current(doc)">
+            <!-- A real file uploaded in this session -->
+            <iframe *ngIf="previewIsPdfFile" class="viewer-frame" [src]="fileResourceUrl" [title]="doc.name"></iframe>
+            <div *ngIf="previewIsImageFile" class="viewer-stage">
+              <img class="viewer-image" [src]="previewFileUrl" [alt]="doc.name" [style.width.%]="zoom"
+                [style.transform]="'rotate(' + rotation + 'deg)'" />
+            </div>
+            <div *ngIf="previewFile && !previewIsPdfFile && !previewIsImageFile" class="viewer-empty">
+              <lucide-icon [img]="icons.FileText" [size]="28"></lucide-icon>
+              <p>Preview isn't available for this file type.</p>
+              <button type="button" class="btn btn-soft btn-sm" (click)="download(doc)">Download to view</button>
+            </div>
+
+            <!-- Sample record: rendered page mock-up -->
+            <ng-container *ngIf="!previewFile">
+              <div class="thumbs" *ngIf="doc.pages > 1" aria-label="Pages">
+                <button type="button" *ngFor="let p of previewPages" class="thumb" [class.is-active]="p === previewPage"
+                  [attr.aria-label]="'Page ' + p" [attr.aria-current]="p === previewPage ? 'page' : null" (click)="setPage(p)">
+                  <span class="thumb-page" [class.thumb-page--cover]="p === 1">
+                    <img *ngIf="p === 1 && doc.showAssetImage" [src]="imageFor(doc)" alt="" />
+                    <i></i><i></i><i></i>
+                  </span>
+                  <span class="thumb-num">{{ p }}</span>
+                </button>
+              </div>
+              <div class="viewer-stage">
+                <div class="page" [style.width.%]="zoom * 0.88" [style.transform]="'rotate(' + rotation + 'deg)'">
+                  <ng-container *ngIf="previewPage === 1; else innerPage">
+                    <span class="page-issuer">{{ doc.issuer }}</span>
+                    <img *ngIf="doc.showAssetImage" class="page-image" [src]="imageFor(doc)" [alt]="assetName(doc)" />
+                    <span *ngIf="!doc.showAssetImage" class="page-icon">
+                      <lucide-icon [img]="isImage(doc) ? icons.FileImage : icons.FileText" [size]="34"></lucide-icon>
+                    </span>
+                    <strong class="page-title">{{ doc.coverTitle }}</strong>
+                    <span class="page-subtitle">{{ doc.coverSubtitle }}</span>
+                    <span class="page-lines"><i></i><i></i></span>
+                    <span class="page-corner" aria-hidden="true"></span>
+                  </ng-container>
+                  <ng-template #innerPage>
+                    <span class="page-heading">{{ doc.coverSubtitle || doc.type }} — Page {{ previewPage }}</span>
+                    <span class="page-lines page-lines--body"><i *ngFor="let l of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"></i></span>
+                  </ng-template>
+                </div>
+                <div class="page-nav" *ngIf="doc.pages > 1">
+                  <button type="button" class="viewer-btn" aria-label="Previous page" [disabled]="previewPage === 1" (click)="setPage(previewPage - 1)">
+                    <lucide-icon [img]="icons.ChevronLeft" [size]="14"></lucide-icon>
+                  </button>
+                  <span>{{ previewPage }} / {{ doc.pages }}</span>
+                  <button type="button" class="viewer-btn" aria-label="Next page" [disabled]="previewPage === doc.pages" (click)="setPage(previewPage + 1)">
+                    <lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon>
+                  </button>
+                </div>
+              </div>
+            </ng-container>
+          </ng-container>
+        </div>
+      </div>
+
+      <div class="details-head">
+        <h3>Document Details</h3>
+        <button type="button" class="link-btn" (click)="openEdit(doc)">
+          <lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit
+        </button>
+      </div>
+      <dl class="details">
+        <dt>Document Name</dt><dd>{{ doc.name }}</dd>
+        <ng-container *ngIf="allAssets"><dt>Asset Name</dt><dd><a class="asset-link" routerLink="/assets/documents" [queryParams]="{ tag: doc.assetTag }">{{ assetName(doc) }}</a></dd><dt>Asset ID</dt><dd>{{ doc.assetTag }}</dd></ng-container>
+        <dt>Document Type</dt><dd><span class="type-tag">{{ doc.type }}</span></dd>
+        <dt>Lifecycle Stage</dt><dd><span class="stage-tag" [ngClass]="'stage--' + stageTone(doc.stage)">{{ doc.stage }}</span></dd>
+        <dt>Description</dt><dd>{{ doc.description || '-' }}</dd>
+        <dt>Version</dt><dd>{{ current(doc)?.version ?? '-' }}</dd>
+        <dt>File Size</dt><dd>{{ current(doc) ? formatSize(current(doc)!.size) : '-' }}</dd>
+        <dt>Uploaded By</dt><dd>{{ current(doc)?.uploadedBy || '-' }}</dd>
+        <dt>Upload Date</dt><dd>{{ current(doc) ? (current(doc)!.uploadedAt | date: 'dd MMM yyyy, HH:mm') : '-' }}</dd>
+        <dt>Expiry Date</dt>
+        <dd [class.text-danger]="statusOf(doc) === 'Expired'">{{ doc.expiryDate ? (doc.expiryDate | date: 'dd MMM yyyy') : '-' }}</dd>
+        <dt>Status</dt>
+        <dd><span class="pill pill--xs" [ngClass]="'pill--' + statusOf(doc).toLowerCase()"><span class="dot"></span>{{ statusOf(doc) }}</span></dd>
+        <dt>Tags</dt>
+        <dd>
+          <span class="tag-list" *ngIf="doc.tags.length; else noTags"><span class="tag" *ngFor="let t of doc.tags">{{ t }}</span></span>
+          <ng-template #noTags>-</ng-template>
+        </dd>
+      </dl>
+
+      <div class="preview-actions">
+        <button type="button" class="btn btn-soft btn-tall" (click)="download(doc)">
+          <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Download
+        </button>
+        <button type="button" class="btn btn-soft btn-tall" (click)="openHistory(doc)">
+          <lucide-icon [img]="icons.History" [size]="16"></lucide-icon>View History
+        </button>
+        <button type="button" class="btn btn-danger-outline btn-tall" (click)="askDelete([doc.id])">
+          <lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>Delete
+        </button>
+      </div>
+    </aside>
+  </div>
+  </ng-container>
+</section>
+
+<!-- Row / tile actions -->
+<ng-template #rowMenu let-d>
+  <div *ngIf="rowMenuId === d.id" class="menu" role="menu" (click)="$event.stopPropagation()">
+    <button type="button" role="menuitem" (click)="openPreview(d)"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>Preview</button>
+    <button type="button" role="menuitem" (click)="download(d)"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Download</button>
+    <button type="button" role="menuitem" (click)="openEdit(d)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Details</button>
+    <button type="button" role="menuitem" (click)="openUpload(d)"><lucide-icon [img]="icons.Upload" [size]="15"></lucide-icon>Upload New Version</button>
+    <button type="button" role="menuitem" (click)="openHistory(d)"><lucide-icon [img]="icons.History" [size]="15"></lucide-icon>Version History</button>
+    <hr />
+    <button type="button" role="menuitem" class="danger" (click)="askDelete([d.id])"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete</button>
+  </div>
+</ng-template>
+
+<!-- Upload document / new version -->
+<div *ngIf="upload as u" class="overlay" (click)="upload = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="doc-upload-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="doc-upload-title">{{ u.mode === 'version' ? 'Upload New Version' : 'Upload Document' }}</h2>
+      <button type="button" class="icon-btn" (click)="upload = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveUpload()">
+      <p *ngIf="u.mode === 'version'">New version of <strong>{{ u.name }}</strong>. The previous versions stay in the history.</p>
+
+      <input #uploadInput type="file" hidden accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" (change)="onUploadFile($event)" />
+      <div class="dropzone" role="button" tabindex="0" [class.is-dragging]="isDragging"
+        aria-label="Choose a file: drag and drop or press Enter to browse"
+        (click)="uploadInput.click()" (keydown.enter)="uploadInput.click()" (keydown.space)="$event.preventDefault(); uploadInput.click()"
+        (dragover)="$event.preventDefault(); isDragging = true" (dragleave)="isDragging = false" (drop)="onUploadDrop($event)">
+        <lucide-icon [img]="icons.CloudUpload" [size]="24"></lucide-icon>
+        <ng-container *ngIf="u.file; else noFile">
+          <strong>{{ u.file.name }}</strong>
+          <small>{{ formatSize(u.file.size) }} · click to choose a different file</small>
+        </ng-container>
+        <ng-template #noFile>
+          <span>Drag & drop a file here or <span class="link">click to browse</span></span>
+          <small>PDF, JPG, PNG, DOC, XLS (max 25 MB)</small>
+        </ng-template>
+      </div>
+
+      <ng-container *ngIf="u.mode === 'new'">
+        <div *ngIf="allAssets" class="field">
+          <span class="field-label" id="doc-assets-label">Assets <em>*</em></span>
+          <div class="asset-select" (click)="$event.stopPropagation()">
+            <button type="button" class="control asset-select-btn" aria-labelledby="doc-assets-label" aria-haspopup="listbox"
+              [attr.aria-expanded]="assetPickerOpen" (click)="toggleAssetPicker($event)">
+              <span [class.placeholder]="!u.assets.length">{{ uploadAssetsLabel }}</span>
+              <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+            </button>
+            <div *ngIf="assetPickerOpen" class="asset-panel">
+              <label class="asset-search">
+                <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+                <input type="search" [(ngModel)]="assetPickerSearch" name="assetPickerSearch" placeholder="Search by asset name or ID" aria-label="Search assets" />
+              </label>
+              <div class="asset-list" role="listbox" aria-multiselectable="true">
+                <label class="asset-row asset-row--head">
+                  <input type="checkbox" [checked]="allPickerAssetsChosen" (change)="toggleAllUploadAssets($any($event.target).checked)" />
+                  <span>Asset Name</span><span>Asset ID</span>
+                </label>
+                <label *ngFor="let a of pickerAssets" class="asset-row" [class.is-on]="u.assets.includes(a.tag)">
+                  <input type="checkbox" [checked]="u.assets.includes(a.tag)" (change)="toggleUploadAsset(a.tag)" />
+                  <span>{{ a.name }}</span><span class="nowrap">{{ a.tag }}</span>
+                </label>
+                <p *ngIf="!pickerAssets.length" class="asset-none">No assets match.</p>
+              </div>
+            </div>
+          </div>
+          <span *ngIf="u.assets.length > 1" class="asset-chips">
+            <span *ngFor="let t of u.assets" class="asset-chip">{{ t }}
+              <button type="button" (click)="toggleUploadAsset(t)" [attr.aria-label]="'Remove ' + t"><lucide-icon [img]="icons.X" [size]="12"></lucide-icon></button>
+            </span>
+          </span>
+        </div>
+        <label class="field">
+          <span class="field-label">Document Name <em>*</em></span>
+          <input type="text" class="control" [(ngModel)]="u.name" name="name" maxlength="120" />
+        </label>
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label">Document Type <em>*</em></span>
+            <select class="control" [(ngModel)]="u.type" name="type">
+              <option value="" disabled>Select type</option>
+              <option *ngFor="let t of documentTypes" [value]="t">{{ t }}</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Lifecycle Stage <em>*</em></span>
+            <select class="control" [(ngModel)]="u.stage" name="stage">
+              <option value="" disabled>Select stage</option>
+              <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Version <em>*</em></span>
+            <input type="text" class="control" [(ngModel)]="u.version" name="version" maxlength="10" />
+          </label>
+          <label class="field">
+            <span class="field-label">Expiry Date</span>
+            <input type="date" class="control" [(ngModel)]="u.expiryDate" name="expiryDate" />
+          </label>
+        </div>
+        <label class="field">
+          <span class="field-label">Description</span>
+          <textarea class="control" rows="2" [(ngModel)]="u.description" name="description" maxlength="300"></textarea>
+        </label>
+        <div class="grid-2">
+          <label class="field">
+            <span class="field-label">Tags</span>
+            <input type="text" class="control" [(ngModel)]="u.tags" name="tags" placeholder="Comma separated, e.g. Manual, Caterpillar" />
+          </label>
+          <label class="field">
+            <span class="field-label">Status</span>
+            <select class="control" [(ngModel)]="u.draft" name="draft">
+              <option [ngValue]="false">Active</option>
+              <option [ngValue]="true">Draft</option>
+            </select>
+          </label>
+        </div>
+      </ng-container>
+
+      <div *ngIf="u.mode === 'version'" class="grid-2">
+        <label class="field">
+          <span class="field-label">Version <em>*</em></span>
+          <input type="text" class="control" [(ngModel)]="u.version" name="version" maxlength="10" />
+        </label>
+        <label class="field">
+          <span class="field-label">Change Note</span>
+          <input type="text" class="control" [(ngModel)]="u.note" name="note" maxlength="120" placeholder="What changed?" />
+        </label>
+      </div>
+
+      <p *ngIf="uploadError" class="form-error" role="alert">{{ uploadError }}</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="upload = null">Cancel</button>
+        <button type="submit" class="btn btn-primary">Upload</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit details -->
+<div *ngIf="edit as e" class="overlay" (click)="edit = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="doc-edit-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="doc-edit-title">Edit Document Details</h2>
+      <button type="button" class="icon-btn" (click)="edit = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveEdit()">
+      <label class="field">
+        <span class="field-label">Document Name <em>*</em></span>
+        <input type="text" class="control" [(ngModel)]="e.name" name="name" maxlength="120" />
+      </label>
+      <div class="grid-2">
+        <label class="field">
+          <span class="field-label">Document Type <em>*</em></span>
+          <select class="control" [(ngModel)]="e.type" name="type">
+            <option *ngFor="let t of documentTypes" [value]="t">{{ t }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Lifecycle Stage <em>*</em></span>
+          <select class="control" [(ngModel)]="e.stage" name="stage">
+            <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Expiry Date</span>
+          <input type="date" class="control" [(ngModel)]="e.expiryDate" name="expiryDate" />
+        </label>
+        <label class="field">
+          <span class="field-label">Status</span>
+          <select class="control" [(ngModel)]="e.draft" name="draft">
+            <option [ngValue]="false">Active</option>
+            <option [ngValue]="true">Draft</option>
+          </select>
+        </label>
+      </div>
+      <label class="field">
+        <span class="field-label">Description</span>
+        <textarea class="control" rows="3" [(ngModel)]="e.description" name="description" maxlength="300"></textarea>
+      </label>
+      <label class="field">
+        <span class="field-label">Tags</span>
+        <input type="text" class="control" [(ngModel)]="e.tags" name="tags" placeholder="Comma separated" />
+      </label>
+      <p *ngIf="editError" class="form-error" role="alert">{{ editError }}</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="edit = null">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Version history -->
+<div *ngIf="historyDoc as h" class="overlay" (click)="historyId = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="doc-history-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="doc-history-title">Version History · {{ h.name }}</h2>
+      <button type="button" class="icon-btn" (click)="historyId = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <ol class="history" *ngIf="historyVersions.length; else noHistory">
+        <li *ngFor="let v of historyVersions; let first = first" class="history-item">
+          <span class="history-version">v{{ v.version }}</span>
+          <span class="history-text">
+            <strong>{{ v.note }}</strong>
+            <small>{{ v.uploadedBy }} · {{ v.uploadedAt | date: 'dd MMM yyyy, HH:mm' }} · {{ formatSize(v.size) }}</small>
+          </span>
+          <span *ngIf="first" class="pill pill--xs pill--active">Current</span>
+          <button type="button" class="icon-btn" [attr.aria-label]="'Download version ' + v.version" (click)="download(h, v)">
+            <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>
+          </button>
+        </li>
+      </ol>
+      <ng-template #noHistory><p>No versions yet. This draft has no uploaded file.</p></ng-template>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="historyId = null">Close</button>
+      <button type="button" class="btn btn-primary" (click)="historyId = null; openUpload(h)">
+        <lucide-icon [img]="icons.Upload" [size]="15"></lucide-icon>Upload New Version
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirmation -->
+<div *ngIf="deleteIds" class="overlay" (click)="deleteIds = null">
+  <div class="modal modal--sm" role="alertdialog" aria-modal="true" aria-labelledby="doc-delete-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="doc-delete-title">Delete Document</h2>
+      <button type="button" class="icon-btn" (click)="deleteIds = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <p>Delete <strong>{{ deleteLabel }}</strong>{{ allAssets ? '' : ' from ' + asset.tag }}? All of its versions are removed.</p>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="deleteIds = null">Cancel</button>
+      <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

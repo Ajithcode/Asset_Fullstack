@@ -1,0 +1,99 @@
+<div class="drawer__head">
+  <lucide-icon class="ts-head-icon" [img]="icons.Settings" [size]="20"></lucide-icon>
+  <h2>Template Settings</h2>
+  <button type="button" class="icon-btn icon-btn--bare" (click)="cancel.emit()" aria-label="Discard changes"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+</div>
+
+<div class="grid2">
+  <div class="field" [class.invalid]="err('name')">
+    <label for="ts-name">Template Name <span class="req">*</span></label>
+    <input id="ts-name" [(ngModel)]="template.name" maxlength="80" />
+    @if (err('name')) { <small>{{ err('name') }}</small> }
+  </div>
+  <div class="field" [class.invalid]="err('code')">
+    <label for="ts-code">Template Code <span class="req">*</span></label>
+    <input id="ts-code" [(ngModel)]="template.code" (ngModelChange)="upperCode()" maxlength="20" />
+    @if (err('code')) { <small>{{ err('code') }}</small> }
+  </div>
+  <div class="field" [class.invalid]="err('category')">
+    <label for="ts-cat">Category <span class="req">*</span></label>
+    <select id="ts-cat" [(ngModel)]="template.category">
+      <option value="">Select</option>
+      @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+    </select>
+    @if (err('category')) { <small>{{ err('category') }}</small> }
+  </div>
+  <div class="field" [class.invalid]="err('triggerEvent')">
+    <label for="ts-trigger">Trigger Event <span class="req">*</span></label>
+    <select id="ts-trigger" [(ngModel)]="template.triggerEvent">
+      <option value="">Select</option>
+      @for (e of triggerEvents; track e) { <option [value]="e">{{ e }}</option> }
+    </select>
+    @if (err('triggerEvent')) { <small>{{ err('triggerEvent') }}</small> }
+  </div>
+</div>
+
+<div class="field" [class.invalid]="err('channels')">
+  <span>Delivery Channels <span class="req">*</span></span>
+  <div class="checks ts-channels">
+    @for (c of channels; track c) {
+      <label><input type="checkbox" [(ngModel)]="template.channels[c]" /> {{ channelLabels[c] }}</label>
+    }
+  </div>
+  @if (err('channels')) { <small>{{ err('channels') }}</small> }
+</div>
+
+<div class="grid2">
+  <div class="field" [class.invalid]="err('language')">
+    <label for="ts-lang">Language <span class="req">*</span></label>
+    <select id="ts-lang" [(ngModel)]="template.language">
+      @for (l of languages; track l) { <option [value]="l">{{ l }}</option> }
+    </select>
+  </div>
+  <div class="field">
+    <label for="ts-priority">Priority</label>
+    <select id="ts-priority" [(ngModel)]="template.priority">
+      @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
+    </select>
+  </div>
+  <div class="field">
+    <label for="ts-timing">Delivery Timing</label>
+    <select id="ts-timing" [(ngModel)]="template.deliveryTiming">
+      @for (t of timings; track t) { <option [value]="t">{{ t }}</option> }
+    </select>
+  </div>
+  <div class="field">
+    <label for="ts-retry">Retry Policy</label>
+    <select id="ts-retry" [(ngModel)]="template.retryPolicy">
+      @for (r of retries; track r) { <option [value]="r">{{ r }}</option> }
+    </select>
+  </div>
+</div>
+
+<div class="ts-status">
+  <span class="ts-status__label">Status</span>
+  <label class="switch"><input type="checkbox" [(ngModel)]="active" /><i></i> {{ template.status }}</label>
+</div>
+<p class="ts-status__hint">
+  @switch (template.status) {
+    @case ('Active') { Template is available for use in workflows and rules. }
+    @case ('Draft') { Draft templates are not sent. Publish to make it available. }
+    @default { Inactive templates are kept but never sent. }
+  }
+</p>
+
+<div class="ts-preview">
+  <div class="ts-preview__head">
+    <lucide-icon [img]="icons.Eye" [size]="18"></lucide-icon>
+    <h3>Live Preview</h3>
+    <select [(ngModel)]="previewChannel" aria-label="Preview channel">
+      @for (c of channels; track c) { <option [value]="c">{{ channelLabels[c] }} Preview</option> }
+    </select>
+  </div>
+  <app-template-preview [template]="template" [channel]="previewChannel" (action)="previewAction.emit($event)"></app-template-preview>
+</div>
+
+<div class="drawer__foot">
+  <button type="button" class="btn" (click)="cancel.emit()">Cancel</button>
+  <button type="button" class="btn btn--primary" (click)="save.emit()">Save Template</button>
+</div>

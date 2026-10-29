@@ -1,0 +1,307 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/administration">Administration</a>
+  <span>/</span>
+  <strong>Workflow Builder</strong>
+</nav>
+
+<header class="page-head">
+  <span class="page-head__icon"><lucide-icon [img]="icons.WorkflowIcon" [size]="24"></lucide-icon></span>
+  <div class="page-head__text">
+    <h1>Workflow Builder</h1>
+    <p>Design, automate, and monitor approval workflows across Asset360.</p>
+  </div>
+  <label class="org-picker">
+    Organization
+    <select [(ngModel)]="organization" name="organization">
+      @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
+    </select>
+  </label>
+</header>
+
+<!-- Stats -->
+<section class="stats">
+  <div class="stat">
+    <span class="stat__icon"><lucide-icon [img]="icons.Share2" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Active Workflows</span>
+      <span class="stat__value">{{ count('Active') }} <span class="stat__trend"><lucide-icon [img]="icons.ArrowUp" [size]="12"></lucide-icon> 26%</span></span>
+    </div>
+    <span class="spark" aria-hidden="true">@for (h of sparks.active; track $index) { <i [style.height.%]="h"></i> }</span>
+  </div>
+  <div class="stat">
+    <span class="stat__icon"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Draft Workflows</span>
+      <span class="stat__value">{{ count('Draft') }} <span class="stat__trend"><lucide-icon [img]="icons.ArrowUp" [size]="12"></lucide-icon> 20%</span></span>
+    </div>
+    <span class="spark" aria-hidden="true">@for (h of sparks.draft; track $index) { <i [style.height.%]="h"></i> }</span>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.Play" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Running Instances</span>
+      <span class="stat__value">{{ runningInstances }} <span class="stat__trend"><lucide-icon [img]="icons.ArrowUp" [size]="12"></lucide-icon> 12%</span></span>
+    </div>
+    <span class="spark" data-tone="blue" aria-hidden="true">@for (h of sparks.running; track $index) { <i [style.height.%]="h"></i> }</span>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="pink"><lucide-icon [img]="icons.Clock" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Pending Approvals</span>
+      <span class="stat__value">{{ pendingApprovals }} <span class="stat__trend stat__trend--down"><lucide-icon [img]="icons.ArrowDown" [size]="12"></lucide-icon> 18%</span></span>
+    </div>
+    <span class="spark" data-tone="pink" aria-hidden="true">@for (h of sparks.pending; track $index) { <i [style.height.%]="h"></i> }</span>
+  </div>
+</section>
+
+<!-- Toolbar -->
+<section class="toolbar">
+  <button type="button" class="btn btn--primary" (click)="openCreate()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Create Workflow</button>
+  <button type="button" class="btn" (click)="templatesOpen = true"><lucide-icon [img]="icons.LayoutTemplate" [size]="16"></lucide-icon> Templates</button>
+  <button type="button" class="btn" (click)="importInput.click()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import</button>
+  <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
+  <button type="button" class="btn" (click)="exportWorkflows()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+  <span class="toolbar__spacer"></span>
+  <label class="search">
+    <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+    <input [(ngModel)]="search" name="toolbarSearch" placeholder="Search workflows..." aria-label="Search workflows" />
+  </label>
+  <div class="row-menu">
+    <button type="button" class="btn" (click)="filtersOpen = !filtersOpen">
+      <lucide-icon [img]="icons.Funnel" [size]="16"></lucide-icon> Filters
+      @if (activeFilterCount) { <span class="pill" data-tone="purple">{{ activeFilterCount }}</span> }
+      <lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>
+    </button>
+    @if (filtersOpen) {
+      <div class="menu wb-filters">
+        <div class="field">
+          <label for="wb-f-status">Status</label>
+          <select id="wb-f-status" [(ngModel)]="statusFilter" name="statusFilter">
+            <option value="">All statuses</option>
+            @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="wb-f-cat">Category</label>
+          <select id="wb-f-cat" [(ngModel)]="categoryFilter" name="categoryFilter">
+            <option value="">All categories</option>
+            @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+        </div>
+        <div class="wb-filters__foot">
+          <button type="button" class="btn btn--sm" (click)="clearFilters()">Clear</button>
+          <button type="button" class="btn btn--sm btn--primary" (click)="filtersOpen = false">Apply</button>
+        </div>
+      </div>
+    }
+  </div>
+</section>
+
+<!-- Workspace -->
+<section class="ws ws--with-drawer">
+  <!-- Workflow list -->
+  <div class="panel">
+    <div class="panel__head">
+      <h2>Workflows ({{ visible().length }})</h2>
+      <div class="row-menu">
+        <button type="button" class="icon-btn icon-btn--bare" (click)="listMenuOpen = !listMenuOpen" aria-label="List options"><lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon></button>
+        @if (listMenuOpen) {
+          <div class="menu">
+            <button type="button" (click)="setSort('updated')">{{ sortBy === 'updated' ? '✓ ' : '' }}Sort by last updated</button>
+            <button type="button" (click)="setSort('name')">{{ sortBy === 'name' ? '✓ ' : '' }}Sort by name</button>
+          </div>
+        }
+      </div>
+    </div>
+    <label class="search">
+      <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+      <input [(ngModel)]="search" name="listSearch" placeholder="Search workflows..." aria-label="Search workflows in list" />
+    </label>
+    <div class="list wb-list">
+      @for (w of visible(); track w.id) {
+        <button type="button" class="list-item" [class.active]="w.id === wf?.id" (click)="pick(w.id)">
+          <span class="list-item__icon wb-solid" [attr.data-tone]="w.tone"><lucide-icon [img]="listIcons[w.icon]" [size]="18"></lucide-icon></span>
+          <span class="list-item__body">
+            <span class="list-item__title">{{ w.name }} <span class="pill" [attr.data-tone]="statusTone(w.status)">{{ w.status }}</span></span>
+            <span class="list-item__meta">{{ w.category }}</span>
+            <span class="wb-list__foot"><span>Owner: {{ w.owner }}</span><span>Updated: {{ formatDate(w.updated) }}</span></span>
+          </span>
+        </button>
+      } @empty {
+        <p class="list-empty">No workflows match your search or filters.</p>
+      }
+    </div>
+  </div>
+
+  <!-- Builder -->
+  <div class="panel">
+    @if (wf) {
+      <div class="detail-head wb-head">
+        <div class="detail-head__title">
+          <h2>
+            {{ wf.name }}
+            <span class="pill" [attr.data-tone]="statusTone(wf.status)">{{ wf.status }}</span>
+            <select class="select wb-version" [(ngModel)]="viewVersion" name="viewVersion" (ngModelChange)="onVersionChange($event)" aria-label="Version">
+              @for (v of versionOptions(); track v) { <option [value]="v">{{ v }}</option> }
+            </select>
+            @if (dirty) { <span class="pill" data-tone="orange">Unsaved changes</span> }
+          </h2>
+          <div class="detail-head__meta">
+            <span>Code <b>{{ wf.code }}</b></span>
+            <span>Category <b>{{ wf.category }}</b></span>
+            <span>Owner <b>{{ wf.owner }}</b></span>
+            <span>Nodes <b>{{ wf.graph.nodes.length }}</b></span>
+          </div>
+        </div>
+        <div class="detail-head__actions">
+          <button type="button" class="btn btn--outline" (click)="save()"><lucide-icon [img]="icons.Save" [size]="15"></lucide-icon> Save</button>
+          <button type="button" class="btn btn--outline" (click)="test()" title="DEMO MODE: simulated run"><lucide-icon [img]="icons.Play" [size]="15"></lucide-icon> Test</button>
+          <button type="button" class="btn btn--primary" (click)="publish()"><lucide-icon [img]="icons.Upload" [size]="15"></lucide-icon> Publish</button>
+          <div class="row-menu">
+            <button type="button" class="icon-btn icon-btn--bare" (click)="headMenuOpen = !headMenuOpen" aria-label="More actions"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button>
+            @if (headMenuOpen) {
+              <div class="menu">
+                <button type="button" (click)="openEditDetails()">Edit details</button>
+                <button type="button" (click)="duplicate()">Duplicate</button>
+                <button type="button" (click)="toggleStatus()">{{ wf.status === 'Inactive' ? 'Activate' : 'Deactivate' }}</button>
+                <button type="button" (click)="exportCurrent()">Export JSON</button>
+                <button type="button" class="danger" (click)="askDeleteWorkflow()">Delete workflow</button>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <app-workflow-canvas
+        [graph]="wf.graph"
+        [selectedId]="selectedNodeId"
+        (select)="selectNode($event)"
+        (moved)="markDirty()"
+        (add)="addNode($event)"
+        (remove)="askDeleteNode()"
+      ></app-workflow-canvas>
+      <p class="muted wb-hint">Drag nodes to rearrange. Select a node to configure it; new nodes are inserted after the selected one.</p>
+    } @else {
+      <p class="empty">Select a workflow, or create one to start building.</p>
+    }
+  </div>
+
+  <!-- Node configuration / palette -->
+  <aside class="drawer">
+    @if (selectedNode; as node) {
+      <app-node-config [node]="node" (save)="saveNode($event)" (cancel)="selectNode(null)" (remove)="askDeleteNode()"></app-node-config>
+    } @else {
+      <div class="drawer__head"><h2>Node Configuration</h2></div>
+      <p class="muted">Select a node on the canvas to configure it, or add a step:</p>
+      <div class="wb-palette">
+        @for (t of nodeTypes; track t) {
+          <button type="button" class="wb-palette__item" [attr.data-type]="t" [disabled]="!wf" (click)="addNode(t)">
+            <i></i>{{ nodeLabels[t] }}
+            <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>
+          </button>
+        }
+      </div>
+      @if (wf) {
+        <div class="sub-panel">
+          <h3>Versions</h3>
+          @for (v of wf.versions; track v.version) {
+            <div class="wb-version-row"><b>{{ v.version }}</b><span class="muted">Published {{ formatDate(v.publishedOn) }}</span></div>
+          } @empty {
+            <p class="muted">Not published yet. Publish to create v1.0.</p>
+          }
+        </div>
+      }
+    }
+  </aside>
+</section>
+
+<!-- Create / edit details -->
+@if (details; as d) {
+  <div class="overlay" (click)="details = null">
+    <form class="confirm wb-modal" (click)="$event.stopPropagation()" (ngSubmit)="saveDetails()" novalidate>
+      <h2>{{ d.id ? 'Edit Workflow Details' : 'Create Workflow' }}</h2>
+      @if (!d.id && d.template >= 0) { <p class="note">Starting from template: {{ templates[d.template].name }}</p> }
+      <div class="grid2">
+        <div class="field field--wide" [class.invalid]="detailErr('name')">
+          <label for="wb-name">Workflow Name <span class="req">*</span></label>
+          <input id="wb-name" name="name" [(ngModel)]="d.name" maxlength="80" />
+          @if (detailErr('name')) { <small>{{ detailErr('name') }}</small> }
+        </div>
+        <div class="field" [class.invalid]="detailErr('code')">
+          <label for="wb-code">Code <span class="req">*</span></label>
+          <input id="wb-code" name="code" [(ngModel)]="d.code" (ngModelChange)="upperCode()" maxlength="20" />
+          @if (detailErr('code')) { <small>{{ detailErr('code') }}</small> }
+        </div>
+        <div class="field" [class.invalid]="detailErr('category')">
+          <label for="wb-cat">Category <span class="req">*</span></label>
+          <select id="wb-cat" name="category" [(ngModel)]="d.category">
+            @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="wb-owner">Owner</label>
+          <select id="wb-owner" name="owner" [(ngModel)]="d.owner">
+            @for (p of people; track p) { <option [value]="p">{{ p }}</option> }
+          </select>
+        </div>
+        @if (!d.id) {
+          <div class="field">
+            <label for="wb-tpl">Start From</label>
+            <select id="wb-tpl" name="template" [(ngModel)]="d.template">
+              <option [ngValue]="-1">Blank (trigger only)</option>
+              @for (t of templates; track t.name; let i = $index) { <option [ngValue]="i">{{ t.name }}</option> }
+            </select>
+          </div>
+        }
+        <div class="field field--wide">
+          <label for="wb-desc">Description</label>
+          <textarea id="wb-desc" name="description" [(ngModel)]="d.description" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="details = null">Cancel</button>
+        <button type="submit" class="btn btn--primary">{{ d.id ? 'Save Details' : 'Create Draft' }}</button>
+      </div>
+    </form>
+  </div>
+}
+
+<!-- Templates -->
+@if (templatesOpen) {
+  <div class="overlay" (click)="templatesOpen = false">
+    <div class="confirm wb-modal" (click)="$event.stopPropagation()">
+      <h2>Workflow Templates</h2>
+      <p>Start a new workflow from a ready-made flow.</p>
+      <div class="list">
+        @for (t of templates; track t.name; let i = $index) {
+          <button type="button" class="list-item" (click)="openCreate(i)">
+            <span class="list-item__icon"><lucide-icon [img]="icons.LayoutTemplate" [size]="18"></lucide-icon></span>
+            <span class="list-item__body">
+              <span class="list-item__title">{{ t.name }}</span>
+              <span class="list-item__meta">{{ t.category }} · {{ t.description }}</span>
+            </span>
+          </button>
+        }
+      </div>
+      <div class="confirm__actions"><button type="button" class="btn" (click)="templatesOpen = false">Close</button></div>
+    </div>
+  </div>
+}
+
+<!-- Confirm -->
+@if (confirm; as c) {
+  <div class="overlay" (click)="confirm = null">
+    <div class="confirm" role="alertdialog" (click)="$event.stopPropagation()">
+      <h2>{{ c.title }}</h2>
+      <p>{{ c.message }}</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="confirm = null">Cancel</button>
+        <button type="button" class="btn" [class.btn--danger]="c.kind !== 'discard'" [class.btn--primary]="c.kind === 'discard'" (click)="confirmYes()">
+          {{ c.kind === 'discard' ? 'Discard' : 'Delete' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) { <div class="toast" role="status">{{ toast }}</div> }

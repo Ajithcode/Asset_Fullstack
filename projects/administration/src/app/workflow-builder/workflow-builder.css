@@ -1,0 +1,179 @@
+/* Workflow Builder extras on top of admin-workspace.css */
+
+/* Sparkline bars on the stat cards */
+.stat {
+  position: relative;
+}
+
+.stat__body {
+  flex: 1;
+}
+
+.stat__trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 38px;
+  flex-shrink: 0;
+  --bar: #c4b5fd;
+}
+
+.spark[data-tone='blue'] { --bar: #93c5fd; }
+.spark[data-tone='pink'] { --bar: #f9a8d4; }
+
+.spark i {
+  display: block;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--bar);
+}
+
+.spark i:last-child {
+  filter: saturate(2) brightness(0.85);
+}
+
+/* Filters dropdown */
+.wb-filters {
+  width: 240px;
+  padding: 12px;
+}
+
+.wb-filters .field select {
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--adm-border);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.wb-filters__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.row-menu .menu .field label {
+  font-size: 12px;
+}
+
+/* Workflow list */
+.panel > .search {
+  min-width: 0;
+}
+
+.wb-list {
+  max-height: 640px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.wb-list .list-item__title {
+  font-size: 13px;
+}
+
+.wb-list__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 6px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.wb-solid {
+  color: #fff !important;
+  background: var(--adm-purple) !important;
+}
+
+.wb-solid[data-tone='blue'] { background: var(--adm-blue) !important; }
+.wb-solid[data-tone='green'] { background: var(--adm-green) !important; }
+.wb-solid[data-tone='pink'] { background: var(--adm-pink) !important; }
+.wb-solid[data-tone='orange'] { background: var(--adm-orange) !important; }
+.wb-solid[data-tone='red'] { background: var(--adm-red) !important; }
+
+/* Builder header */
+.wb-head .detail-head__actions .btn--outline {
+  border-color: #d9cdf3;
+}
+
+.wb-version {
+  height: 30px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.wb-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+/* Palette in the empty drawer */
+.wb-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.wb-palette__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px dashed #d4d8e3;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wb-palette__item:hover:not(:disabled) {
+  border-color: var(--adm-purple);
+  background: var(--adm-purple-soft);
+}
+
+.wb-palette__item lucide-icon {
+  margin-left: auto;
+  color: var(--adm-muted);
+}
+
+.wb-palette__item i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: #7c3aed;
+}
+
+.wb-palette__item[data-type='condition'] i { background: #f59e0b; transform: rotate(45deg); }
+.wb-palette__item[data-type='approval'] i { background: #2563eb; }
+.wb-palette__item[data-type='action'] i { background: #10b981; }
+.wb-palette__item[data-type='notification'] i { background: #ec4899; }
+.wb-palette__item[data-type='end'] i { background: #ef4444; border-radius: 50%; }
+
+.wb-version-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f2f6;
+  font-size: 12.5px;
+}
+
+/* Modals */
+.wb-modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+
+.wb-modal .note {
+  margin-bottom: 12px;
+}

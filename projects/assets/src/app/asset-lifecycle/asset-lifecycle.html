@@ -1,0 +1,606 @@
+<section class="lc-page">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <a routerLink="/assets/list">Asset List</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span>{{ asset.tag }}</span>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">Asset Lifecycle</span>
+  </nav>
+
+  <!-- Asset header -->
+  <div class="card asset-head">
+    <img class="asset-img" [src]="image" [alt]="asset.name" />
+    <div class="asset-title">
+      <h1>{{ asset.tag }}</h1>
+      <p>{{ asset.name }}</p>
+    </div>
+    <div class="chips">
+      <div class="chip"><span>Category</span><strong>{{ asset.category }}</strong></div>
+      <div class="chip"><span>Location</span><strong>{{ asset.location }}</strong></div>
+      <div class="chip"><span>Custodian</span><strong>{{ asset.custodian }}</strong></div>
+      <div class="chip chip--sm">
+        <span>Status</span>
+        <span class="pill" [class.pill--active]="status.operational === 'Active'" [class.pill--inactive]="status.operational !== 'Active'"><span class="dot"></span>{{ status.operational }}</span>
+      </div>
+      <div class="chip chip--sm">
+        <span>Condition</span>
+        <span class="pill" [ngClass]="'pill--' + status.condition.toLowerCase()"><span class="dot"></span>{{ status.condition }}</span>
+      </div>
+      <div class="chip chip--sm">
+        <span>Criticality</span>
+        <span class="pill" [ngClass]="'pill--crit-' + asset.criticality.toLowerCase()"><span class="dot"></span>{{ asset.criticality }}</span>
+      </div>
+    </div>
+    <div class="menu-wrap">
+      <button type="button" class="btn btn-outline" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
+        Actions
+        <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+      </button>
+      <div *ngIf="actionsOpen" class="menu menu--right" role="menu" (click)="$event.stopPropagation()">
+        <button type="button" role="menuitem" (click)="open('advance')" [disabled]="!nextStage"><lucide-icon [img]="icons.SkipForward" [size]="15"></lucide-icon>Move to Next Stage</button>
+        <button type="button" role="menuitem" (click)="open('condition')"><lucide-icon [img]="icons.Stethoscope" [size]="15"></lucide-icon>Record Condition Assessment</button>
+        <button type="button" role="menuitem" (click)="open('event')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Lifecycle Event</button>
+        <button type="button" role="menuitem" (click)="open('info')"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Asset Information</button>
+        <hr />
+        <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Lifecycle (CSV)</button>
+        <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="card kpi">
+      <span class="kpi-icon kpi-icon--violet"><lucide-icon [img]="icons.Play" [size]="20"></lucide-icon></span>
+      <div><span>Current Stage</span><strong class="accent">{{ currentStage?.label ?? 'Not set' }}</strong></div>
+    </div>
+    <div class="card kpi">
+      <span class="kpi-icon kpi-icon--blue"><lucide-icon [img]="icons.CalendarDays" [size]="22"></lucide-icon></span>
+      <div><span>Asset Age</span><strong>{{ assetAge }}</strong></div>
+    </div>
+    <div class="card kpi">
+      <span class="kpi-icon kpi-icon--blue"><lucide-icon [img]="icons.Clock" [size]="22"></lucide-icon></span>
+      <div><span>Expected Useful Life</span><strong>{{ usefulLife }}</strong></div>
+    </div>
+    <div class="card kpi">
+      <span class="kpi-icon kpi-icon--teal"><lucide-icon [img]="icons.Hourglass" [size]="22"></lucide-icon></span>
+      <div><span>Remaining Useful Life</span><strong>{{ remainingLife }}</strong></div>
+    </div>
+    <div class="card kpi">
+      <svg class="ring" viewBox="0 0 44 44" aria-hidden="true">
+        <circle cx="22" cy="22" r="18" class="ring-track" />
+        <circle cx="22" cy="22" r="18" class="ring-value" [attr.stroke-dasharray]="2 * 3.14159265 * 18" [attr.stroke-dashoffset]="progressOffset" />
+      </svg>
+      <div><span>Lifecycle Progress</span><strong>{{ progress }}%</strong></div>
+    </div>
+    <div class="card kpi">
+      <span class="kpi-icon kpi-icon--violet"><lucide-icon [img]="icons.Coins" [size]="22"></lucide-icon></span>
+      <div><span>Total Cost of Ownership</span><strong>AED {{ totalCost | number }}</strong></div>
+    </div>
+  </div>
+
+  <!-- Lifecycle stages -->
+  <div class="card panel">
+    <div class="card-head">
+      <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+      <h3 class="grow">Lifecycle Stages</h3>
+      <button type="button" class="link-btn underline" (click)="activeTab = 'stages'">View Details</button>
+    </div>
+    <div class="stepper-scroll">
+      <ol class="stepper">
+        <li *ngFor="let s of stages; let i = index" class="step" [ngClass]="'step--' + s.status.toLowerCase().replace(' ', '-')" [class.link-done]="connectorDone(i)">
+          <button type="button" class="step-dot" (click)="open('stage', s)" [attr.aria-label]="'Edit ' + s.label + ' stage (' + s.status + ')'">
+            <lucide-icon *ngIf="s.status === 'Completed'" [img]="icons.Check" [size]="20"></lucide-icon>
+            <lucide-icon *ngIf="s.status === 'Current'" [img]="icons.Play" [size]="18"></lucide-icon>
+            <lucide-icon *ngIf="s.status !== 'Completed' && s.status !== 'Current'" [img]="stageIcons[s.key] ?? icons.Clock" [size]="18"></lucide-icon>
+          </button>
+          <strong>{{ s.label }}</strong>
+          <span class="step-date">{{ s.date ? fmt(s.date) : '-' }}</span>
+          <span class="badge" [ngClass]="'badge--' + s.status.toLowerCase().replace(' ', '-')">{{ stageBadge(s) }}</span>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs-wrap">
+    <div class="tabs" role="tablist">
+      <button
+        *ngFor="let t of tabs"
+        type="button"
+        role="tab"
+        [class.is-active]="activeTab === t.key"
+        [attr.aria-selected]="activeTab === t.key"
+        (click)="activeTab = t.key"
+      >{{ t.label }}</button>
+    </div>
+  </div>
+
+  <!-- ===== Overview ===== -->
+  <ng-container *ngIf="activeTab === 'overview'">
+    <div class="ov-top">
+      <div class="ov-col">
+        <ng-container *ngTemplateOutlet="infoCard"></ng-container>
+        <ng-container *ngTemplateOutlet="datesCard"></ng-container>
+      </div>
+      <ng-container *ngTemplateOutlet="timelineCard"></ng-container>
+      <ng-container *ngTemplateOutlet="statusCard"></ng-container>
+    </div>
+    <div class="ov-bottom">
+      <ng-container *ngTemplateOutlet="financialCard"></ng-container>
+      <ng-container *ngTemplateOutlet="warrantyCard"></ng-container>
+      <ng-container *ngTemplateOutlet="maintCard"></ng-container>
+      <ng-container *ngTemplateOutlet="conditionCard"></ng-container>
+    </div>
+  </ng-container>
+
+  <!-- ===== Lifecycle stages tab ===== -->
+  <div *ngIf="activeTab === 'stages'" class="card panel">
+    <div class="card-head">
+      <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+      <h3 class="grow">Lifecycle Stages</h3>
+      <button type="button" class="btn btn-primary btn-sm" (click)="open('advance')" [disabled]="!nextStage">
+        <lucide-icon [img]="icons.SkipForward" [size]="15"></lucide-icon>
+        Move to Next Stage
+      </button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th>Stage</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Owner</th>
+            <th>Notes</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of stages; let i = index" [class.is-current]="s.status === 'Current'">
+            <td class="col-num">{{ i + 1 }}</td>
+            <td><strong>{{ s.label }}</strong></td>
+            <td><span class="badge" [ngClass]="'badge--' + s.status.toLowerCase().replace(' ', '-')">{{ stageBadge(s) }}</span></td>
+            <td>{{ fmt(s.date) }}</td>
+            <td>{{ s.owner || '-' }}</td>
+            <td class="muted notes">{{ s.notes || '-' }}</td>
+            <td class="col-actions">
+              <button type="button" class="icon-btn" (click)="open('stage', s)" [attr.aria-label]="'Edit ' + s.label"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== Stage-focused tabs ===== -->
+  <div *ngIf="scope as sc" class="scope-grid">
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+        <h3 class="grow">{{ activeTabLabel }}</h3>
+      </div>
+      <div class="stage-cards">
+        <div *ngFor="let s of sc.stages" class="stage-card" [ngClass]="'stage-card--' + s.status.toLowerCase().replace(' ', '-')">
+          <div class="stage-card-head">
+            <strong class="grow">{{ s.label }}</strong>
+            <span class="badge" [ngClass]="'badge--' + s.status.toLowerCase().replace(' ', '-')">{{ stageBadge(s) }}</span>
+            <button type="button" class="link-btn" (click)="open('stage', s)"><lucide-icon [img]="icons.Pencil" [size]="13"></lucide-icon> Edit</button>
+          </div>
+          <dl class="facts">
+            <dt>Date</dt><dd>{{ fmt(s.date) }}</dd>
+            <dt>Owner</dt><dd>{{ s.owner || '-' }}</dd>
+            <dt>Notes</dt><dd>{{ s.notes || '-' }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="scope-side">
+      <ng-container [ngSwitch]="activeTab">
+        <ng-container *ngSwitchCase="'procurement'"><ng-container *ngTemplateOutlet="datesCard"></ng-container></ng-container>
+        <ng-container *ngSwitchCase="'installation'"><ng-container *ngTemplateOutlet="datesCard"></ng-container></ng-container>
+        <ng-container *ngSwitchCase="'operational'"><ng-container *ngTemplateOutlet="statusCard"></ng-container></ng-container>
+        <ng-container *ngSwitchCase="'maintenance'"><ng-container *ngTemplateOutlet="maintCard"></ng-container></ng-container>
+        <div *ngSwitchCase="'upgrade'" class="card panel">
+          <div class="card-head"><lucide-icon class="head-icon" [img]="icons.RefreshCw" [size]="20"></lucide-icon><h3 class="grow">Upgrade Plan</h3></div>
+          <dl class="facts facts--wide">
+            <dt>Expected Upgrade</dt><dd>{{ fmt(dates.expectedUpgrade) }}</dd>
+            <dt>Time Until Upgrade</dt><dd>{{ dates.expectedUpgrade ? timeLeft(dates.expectedUpgrade) : '-' }}</dd>
+            <dt>Upgrade Cost to Date</dt><dd>AED {{ financial.upgrade | number }}</dd>
+          </dl>
+        </div>
+        <div *ngSwitchDefault class="card panel">
+          <div class="card-head"><lucide-icon class="head-icon" [img]="icons.Archive" [size]="20"></lucide-icon><h3 class="grow">End of Life Plan</h3></div>
+          <dl class="facts facts--wide">
+            <dt>Expected Disposal</dt><dd>{{ fmt(dates.expectedDisposal) }}</dd>
+            <dt>Remaining Useful Life</dt><dd>{{ remainingLife }}</dd>
+            <dt>Lifecycle Progress</dt><dd>{{ progress }}%</dd>
+          </dl>
+        </div>
+      </ng-container>
+
+      <div class="card panel">
+        <div class="card-head">
+          <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+          <h3 class="grow">Related Events</h3>
+          <button type="button" class="link-btn" (click)="open('event')"><lucide-icon [img]="icons.Plus" [size]="13"></lucide-icon> Add Event</button>
+        </div>
+        <ul *ngIf="eventsFor(sc.kinds).length; else noEvents" class="event-list">
+          <li *ngFor="let e of eventsFor(sc.kinds)">
+            <span class="ev-dot" [ngClass]="kindClass(e.kind)"></span>
+            <span class="ev-date">{{ fmt(e.date) }}</span>
+            <span class="grow"><strong>{{ e.title }}</strong><small>By: {{ e.by }}</small></span>
+          </li>
+        </ul>
+        <ng-template #noEvents><p class="empty-line">No {{ activeTabLabel.toLowerCase() }} events recorded yet.</p></ng-template>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Warranty & contract tab ===== -->
+  <div *ngIf="activeTab === 'warranty'" class="pair-grid">
+    <ng-container *ngTemplateOutlet="warrantyCard"></ng-container>
+    <div class="card panel">
+      <div class="card-head"><lucide-icon class="head-icon" [img]="icons.ShieldCheck" [size]="20"></lucide-icon><h3 class="grow">Coverage Details</h3></div>
+      <dl class="facts facts--wide">
+        <dt>Warranty Provider</dt><dd>{{ warranty.provider }}</dd>
+        <dt>Warranty Period</dt><dd>{{ fmt(dates.purchase) }} – {{ fmt(warranty.end) }}</dd>
+        <dt>Warranty Status</dt><dd><span class="tag" [class.tag--bad]="isPast(warranty.end)">{{ isPast(warranty.end) ? 'Expired ' + (-daysUntil(warranty.end)) + ' days ago' : timeLeft(warranty.end) }}</span></dd>
+        <dt>AMC Provider</dt><dd>{{ warranty.amcProvider }}</dd>
+        <dt>AMC End Date</dt><dd>{{ fmt(warranty.amcEnd) }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- ===== Financial tab ===== -->
+  <div *ngIf="activeTab === 'financial'" class="pair-grid">
+    <ng-container *ngTemplateOutlet="financialCard"></ng-container>
+    <div class="card panel">
+      <div class="card-head"><lucide-icon class="head-icon" [img]="icons.ChartColumn" [size]="20"></lucide-icon><h3 class="grow">Cost Breakdown</h3></div>
+      <div class="cost-bar" role="img" [attr.aria-label]="'Cost breakdown of AED ' + (totalCost | number)">
+        <span *ngFor="let r of costRows" [style.width.%]="costShare(r.key)" [style.background]="r.color" [title]="r.label + ': AED ' + (financial[r.key] | number)"></span>
+      </div>
+      <table class="data-table data-table--plain">
+        <thead><tr><th>Cost</th><th class="num">Amount (AED)</th><th class="num">Share</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let r of costRows">
+            <td><span class="swatch" [style.background]="r.color"></span>{{ r.label }}</td>
+            <td class="num">{{ financial[r.key] | number }}</td>
+            <td class="num">{{ costShare(r.key) | number: '1.0-1' }}%</td>
+          </tr>
+          <tr class="total-row"><td>Total Cost of Ownership</td><td class="num">{{ totalCost | number }}</td><td class="num">100%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== History tab ===== -->
+  <div *ngIf="activeTab === 'history'" class="card panel">
+    <div class="card-head">
+      <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+      <h3 class="grow">Lifecycle History ({{ events.length }})</h3>
+      <button type="button" class="btn btn-primary btn-sm" (click)="open('event')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Event</button>
+    </div>
+    <div class="history-filters">
+      <div class="search-box">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input type="search" placeholder="Search events..." [(ngModel)]="historySearch" aria-label="Search events" />
+      </div>
+      <select class="control" [(ngModel)]="historyKind" aria-label="Filter by event type">
+        <option value="">All Event Types</option>
+        <option *ngFor="let k of eventKinds" [value]="k">{{ k }}</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Event</th><th>Type</th><th>By</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let e of historyRows">
+            <td class="nowrap">{{ fmt(e.date) }}</td>
+            <td>{{ e.title }}</td>
+            <td><span class="kind-tag"><span class="ev-dot" [ngClass]="kindClass(e.kind)"></span>{{ e.kind }}</span></td>
+            <td>{{ e.by }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p *ngIf="!historyRows.length" class="empty-line">No events match.</p>
+    </div>
+  </div>
+
+  <!-- ===================== Card templates ===================== -->
+  <ng-template #infoCard>
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.LayoutGrid" [size]="20"></lucide-icon>
+        <h3 class="grow">Asset Information</h3>
+        <button type="button" class="link-btn" (click)="open('info')"><lucide-icon [img]="icons.Pencil" [size]="13"></lucide-icon> Edit</button>
+      </div>
+      <div class="info">
+        <img class="info-img" [src]="image" [alt]="asset.name" />
+        <div class="info-body">
+          <h4>{{ asset.tag }}<br />{{ asset.name }}</h4>
+          <dl class="facts">
+            <dt>Category</dt><dd>{{ asset.category }}</dd>
+            <dt>Type / Model</dt><dd>{{ asset.typeModel }}</dd>
+            <dt>Serial Number</dt><dd>{{ asset.serial }}</dd>
+            <dt>Location</dt><dd>{{ asset.location }}</dd>
+            <dt>Custodian</dt><dd>{{ asset.custodian }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template #datesCard>
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.CalendarDays" [size]="20"></lucide-icon>
+        <h3 class="grow">Key Dates</h3>
+        <button type="button" class="link-btn" (click)="open('dates')"><lucide-icon [img]="icons.Pencil" [size]="13"></lucide-icon> Edit</button>
+      </div>
+      <dl class="facts facts--wide">
+        <dt>Purchase Date</dt><dd>{{ fmt(dates.purchase) }}</dd>
+        <dt>Installation Date</dt><dd>{{ fmt(dates.installation) }}</dd>
+        <dt>Operational Since</dt><dd>{{ fmt(dates.operationalSince) }}</dd>
+        <dt>Expected Upgrade</dt><dd>{{ fmt(dates.expectedUpgrade) }}</dd>
+        <dt>Expected Disposal</dt><dd>{{ fmt(dates.expectedDisposal) }}</dd>
+        <dt>Total Expected Lifecycle</dt><dd>{{ totalLifecycle }}</dd>
+      </dl>
+    </div>
+  </ng-template>
+
+  <ng-template #timelineCard>
+    <div class="card panel timeline-card">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+        <h3 class="grow">Lifecycle Timeline</h3>
+      </div>
+      <ol class="timeline">
+        <li *ngFor="let e of recentEvents">
+          <span class="ev-dot" [ngClass]="kindClass(e.kind)" [title]="e.kind"></span>
+          <span class="ev-date">{{ fmt(e.date) }}</span>
+          <span class="ev-text"><strong>{{ e.title }}</strong><small>By: {{ e.by }}</small></span>
+        </li>
+      </ol>
+      <button type="button" class="link-btn view-all" (click)="openHistory()">View All Events <lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
+    </div>
+  </ng-template>
+
+  <ng-template #statusCard>
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.HeartPulse" [size]="20"></lucide-icon>
+        <h3 class="grow">Current Status &amp; Condition</h3>
+        <button type="button" class="link-btn" (click)="open('status')">Edit</button>
+      </div>
+      <dl class="facts facts--status">
+        <dt>Operational Status</dt>
+        <dd><span class="pill pill--xs" [class.pill--active]="status.operational === 'Active'" [class.pill--inactive]="status.operational !== 'Active'"><span class="dot"></span>{{ status.operational }}</span></dd>
+        <dt>Condition</dt>
+        <dd><span class="pill pill--xs" [ngClass]="'pill--' + status.condition.toLowerCase()"><span class="dot"></span>{{ status.condition }}</span></dd>
+        <dt>Health Score</dt>
+        <dd class="meter-row"><strong>{{ status.health }}%</strong><span class="meter" role="meter" [attr.aria-valuenow]="status.health" aria-valuemin="0" aria-valuemax="100" aria-label="Health score"><span class="meter-fill meter--green" [style.width.%]="status.health"></span></span></dd>
+        <dt>Utilization</dt>
+        <dd class="meter-row"><strong>{{ status.utilization }}%</strong><span class="meter" role="meter" [attr.aria-valuenow]="status.utilization" aria-valuemin="0" aria-valuemax="100" aria-label="Utilization"><span class="meter-fill meter--violet" [style.width.%]="status.utilization"></span></span></dd>
+        <dt>Availability</dt>
+        <dd class="meter-row"><strong>{{ status.availability }}%</strong><span class="meter" role="meter" [attr.aria-valuenow]="status.availability" aria-valuemin="0" aria-valuemax="100" aria-label="Availability"><span class="meter-fill meter--blue" [style.width.%]="status.availability"></span></span></dd>
+        <dt>Last Maintenance</dt><dd>{{ fmt(status.lastMaintenance) }}</dd>
+        <dt>Next Maintenance</dt>
+        <dd>{{ fmt(status.nextMaintenance) }} <span *ngIf="isPast(status.nextMaintenance)" class="tag tag--bad">Overdue</span></dd>
+        <dt>Last Condition Assessment</dt><dd>{{ fmt(status.lastAssessment) }}</dd>
+        <dt>Next Condition Assessment</dt>
+        <dd>{{ fmt(status.nextAssessment) }} <span *ngIf="isPast(status.nextAssessment)" class="tag tag--bad">Overdue</span></dd>
+      </dl>
+    </div>
+  </ng-template>
+
+  <ng-template #financialCard>
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.Coins" [size]="20"></lucide-icon>
+        <h3 class="grow">Financial Summary</h3>
+      </div>
+      <dl class="facts facts--money">
+        <dt>Acquisition Cost</dt><dd>AED {{ financial.acquisition | number }}</dd>
+        <dt>Operating Cost</dt><dd>AED {{ financial.operating | number }}</dd>
+        <dt>Total Maintenance Cost</dt><dd>AED {{ financial.maintenance | number }}</dd>
+        <dt>Upgrade Cost</dt><dd>AED {{ financial.upgrade | number }}</dd>
+        <dt class="total">Total Cost of Ownership</dt><dd class="total">AED {{ totalCost | number }}</dd>
+      </dl>
+    </div>
+  </ng-template>
+
+  <ng-template #warrantyCard>
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.ShieldCheck" [size]="20"></lucide-icon>
+        <h3 class="grow">Warranty &amp; Contract</h3>
+      </div>
+      <dl class="facts facts--tags">
+        <dt>Warranty End Date</dt>
+        <dd>{{ fmt(warranty.end) }} <span class="tag" [class.tag--warn]="!isPast(warranty.end) && daysUntil(warranty.end) <= 365" [class.tag--bad]="isPast(warranty.end)">{{ timeLeft(warranty.end) }}</span></dd>
+        <dt>AMC End Date</dt>
+        <dd>{{ fmt(warranty.amcEnd) }} <span class="tag" [class.tag--warn]="!isPast(warranty.amcEnd) && daysUntil(warranty.amcEnd) <= 365" [class.tag--bad]="isPast(warranty.amcEnd)">{{ timeLeft(warranty.amcEnd) }}</span></dd>
+        <dt>Contract Status</dt>
+        <dd><span class="pill pill--xs" [class.pill--active]="contractActive" [class.pill--expired]="!contractActive"><span class="dot"></span>{{ contractActive ? 'Active' : 'Expired' }}</span></dd>
+      </dl>
+    </div>
+  </ng-template>
+
+  <ng-template #maintCard>
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.Wrench" [size]="20"></lucide-icon>
+        <h3 class="grow">Maintenance Summary</h3>
+      </div>
+      <div class="maint-grid">
+        <span>Total Work Orders</span><strong>{{ maintenanceSummary.workOrders }}</strong>
+        <span>Open Work Orders</span><strong class="danger">{{ maintenanceSummary.openWorkOrders }}</strong>
+        <span>Breakdown Count</span><strong>{{ maintenanceSummary.breakdowns }}</strong>
+        <span>Total Downtime</span><strong>{{ maintenanceSummary.downtimeHours }} Hours</strong>
+      </div>
+      <button *ngIf="activeTab !== 'maintenance'" type="button" class="link-btn view-all" (click)="activeTab = 'maintenance'">View Maintenance <lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
+    </div>
+  </ng-template>
+
+  <ng-template #conditionCard>
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.ChartColumn" [size]="20"></lucide-icon>
+        <h3 class="grow">Condition History</h3>
+        <button type="button" class="link-btn" (click)="openHistory('Condition')">View All</button>
+      </div>
+      <svg class="cond-chart" [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" role="img" [attr.aria-label]="'Condition history: ' + sortedConditions.length + ' assessments, latest ' + status.condition">
+        <g *ngFor="let l of chartLevels">
+          <text [attr.x]="chart.left - 8" [attr.y]="chartY(l.level) + 3" class="axis-label" text-anchor="end">{{ l.label }}</text>
+        </g>
+        <line [attr.x1]="chart.left" [attr.x2]="chart.left" [attr.y1]="chart.top - 4" [attr.y2]="chart.height - chart.bottom + 4" class="axis" />
+        <line [attr.x1]="chart.left" [attr.x2]="chart.width - chart.right" [attr.y1]="chart.height - chart.bottom + 4" [attr.y2]="chart.height - chart.bottom + 4" class="axis" />
+        <line *ngFor="let s of chartSegments" [attr.x1]="s.x1" [attr.y1]="s.y1" [attr.x2]="s.x2" [attr.y2]="s.y2" [attr.stroke]="conditionColor(s.condition)" class="seg" />
+        <g *ngFor="let pt of chartPoints">
+          <circle [attr.cx]="pt.x" [attr.cy]="pt.y" r="4.5" [attr.fill]="conditionColor(pt.p.condition)" class="pt">
+            <title>{{ fmt(pt.p.date) }}: {{ pt.p.condition }}{{ pt.p.notes ? ' – ' + pt.p.notes : '' }}</title>
+          </circle>
+          <text [attr.x]="pt.x" [attr.y]="chart.height - 6" class="axis-label" text-anchor="middle">{{ fmtMonth(pt.p.date) }}</text>
+        </g>
+      </svg>
+    </div>
+  </ng-template>
+
+  <!-- ===================== Modals ===================== -->
+  <div *ngIf="modal" class="overlay" (click)="closeModal()">
+    <!-- Asset information -->
+    <form *ngIf="modal === 'info'" class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title" (click)="$event.stopPropagation()" (ngSubmit)="saveInfo()">
+      <div class="modal-head"><h2 id="m-title">Edit Asset Information</h2><button type="button" class="icon-btn" (click)="closeModal()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+      <div class="modal-body">
+        <div class="grid-2">
+          <label class="field"><span class="field-label">Category <em>*</em></span><input class="control" name="category" [(ngModel)]="infoDraft.category" [class.is-invalid]="submitted && !infoDraft.category.trim()" /></label>
+          <label class="field"><span class="field-label">Type / Model <em>*</em></span><input class="control" name="typeModel" [(ngModel)]="infoDraft.typeModel" [class.is-invalid]="submitted && !infoDraft.typeModel.trim()" /></label>
+          <label class="field"><span class="field-label">Serial Number <em>*</em></span><input class="control" name="serial" [(ngModel)]="infoDraft.serial" [class.is-invalid]="submitted && !infoDraft.serial.trim()" /></label>
+          <label class="field"><span class="field-label">Criticality</span>
+            <select class="control" name="criticality" [(ngModel)]="infoDraft.criticality"><option *ngFor="let c of criticalities" [value]="c">{{ c }}</option></select>
+          </label>
+          <label class="field"><span class="field-label">Location <em>*</em></span><input class="control" name="location" [(ngModel)]="infoDraft.location" [class.is-invalid]="submitted && !infoDraft.location.trim()" /></label>
+          <label class="field"><span class="field-label">Custodian <em>*</em></span><input class="control" name="custodian" [(ngModel)]="infoDraft.custodian" [class.is-invalid]="submitted && !infoDraft.custodian.trim()" /></label>
+        </div>
+        <span *ngIf="submitted" class="error">Fill in all required fields.</span>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+    </form>
+
+    <!-- Key dates -->
+    <form *ngIf="modal === 'dates'" class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title" (click)="$event.stopPropagation()" (ngSubmit)="saveDates()">
+      <div class="modal-head"><h2 id="m-title">Edit Key Dates</h2><button type="button" class="icon-btn" (click)="closeModal()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+      <div class="modal-body">
+        <div class="grid-2">
+          <label class="field"><span class="field-label">Purchase Date <em>*</em></span><input class="control" type="date" name="purchase" [(ngModel)]="datesDraft.purchase" /></label>
+          <label class="field"><span class="field-label">Installation Date <em>*</em></span><input class="control" type="date" name="installation" [(ngModel)]="datesDraft.installation" /></label>
+          <label class="field"><span class="field-label">Operational Since <em>*</em></span><input class="control" type="date" name="operationalSince" [(ngModel)]="datesDraft.operationalSince" /></label>
+          <label class="field"><span class="field-label">Expected Upgrade</span><input class="control" type="date" name="expectedUpgrade" [(ngModel)]="datesDraft.expectedUpgrade" /></label>
+          <label class="field"><span class="field-label">Expected Disposal <em>*</em></span><input class="control" type="date" name="expectedDisposal" [(ngModel)]="datesDraft.expectedDisposal" /></label>
+        </div>
+        <span class="hint">Asset age, useful life and lifecycle progress are worked out from the operational and disposal dates.</span>
+        <span *ngIf="submitted && datesError" class="error">{{ datesError }}</span>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+    </form>
+
+    <!-- Status & condition -->
+    <form *ngIf="modal === 'status'" class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title" (click)="$event.stopPropagation()" (ngSubmit)="saveStatus()">
+      <div class="modal-head"><h2 id="m-title">Edit Status &amp; Condition</h2><button type="button" class="icon-btn" (click)="closeModal()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+      <div class="modal-body">
+        <div class="grid-2">
+          <label class="field"><span class="field-label">Operational Status</span>
+            <select class="control" name="operational" [(ngModel)]="statusDraft.operational"><option *ngFor="let o of operationalStatuses" [value]="o">{{ o }}</option></select>
+          </label>
+          <label class="field"><span class="field-label">Condition</span>
+            <select class="control" name="condition" [(ngModel)]="statusDraft.condition"><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
+          </label>
+        </div>
+        <div class="grid-3">
+          <label class="field"><span class="field-label">Health Score (%)</span><input class="control" type="number" min="0" max="100" name="health" [(ngModel)]="statusDraft.health" /></label>
+          <label class="field"><span class="field-label">Utilization (%)</span><input class="control" type="number" min="0" max="100" name="utilization" [(ngModel)]="statusDraft.utilization" /></label>
+          <label class="field"><span class="field-label">Availability (%)</span><input class="control" type="number" min="0" max="100" name="availability" [(ngModel)]="statusDraft.availability" /></label>
+        </div>
+        <div class="grid-2">
+          <label class="field"><span class="field-label">Last Maintenance</span><input class="control" type="date" name="lastMaintenance" [(ngModel)]="statusDraft.lastMaintenance" /></label>
+          <label class="field"><span class="field-label">Next Maintenance</span><input class="control" type="date" name="nextMaintenance" [(ngModel)]="statusDraft.nextMaintenance" /></label>
+          <label class="field"><span class="field-label">Last Condition Assessment</span><input class="control" type="date" name="lastAssessment" [(ngModel)]="statusDraft.lastAssessment" /></label>
+          <label class="field"><span class="field-label">Next Condition Assessment</span><input class="control" type="date" name="nextAssessment" [(ngModel)]="statusDraft.nextAssessment" /></label>
+        </div>
+        <span *ngIf="submitted && statusError" class="error">{{ statusError }}</span>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+    </form>
+
+    <!-- Condition assessment -->
+    <form *ngIf="modal === 'condition'" class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title" (click)="$event.stopPropagation()" (ngSubmit)="saveCondition()">
+      <div class="modal-head"><h2 id="m-title">Record Condition Assessment</h2><button type="button" class="icon-btn" (click)="closeModal()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+      <div class="modal-body">
+        <div class="grid-2">
+          <label class="field"><span class="field-label">Assessment Date <em>*</em></span>
+            <input class="control" type="date" name="cDate" [max]="todayIso" [(ngModel)]="conditionDraft.date" [class.is-invalid]="submitted && (!conditionDraft.date || conditionDraft.date > todayIso)" />
+          </label>
+          <label class="field"><span class="field-label">Condition <em>*</em></span>
+            <select class="control" name="cCondition" [(ngModel)]="conditionDraft.condition"><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
+          </label>
+        </div>
+        <label class="field"><span class="field-label">Notes</span><textarea class="control" name="cNotes" rows="3" maxlength="250" [(ngModel)]="conditionDraft.notes"></textarea></label>
+        <span class="hint">The latest assessment updates the current condition and sets the next assessment six months later.</span>
+        <span *ngIf="submitted && (!conditionDraft.date || conditionDraft.date > todayIso)" class="error">Pick an assessment date that isn't in the future.</span>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Record</button></div>
+    </form>
+
+    <!-- Lifecycle event -->
+    <form *ngIf="modal === 'event'" class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title" (click)="$event.stopPropagation()" (ngSubmit)="saveEvent()">
+      <div class="modal-head"><h2 id="m-title">Add Lifecycle Event</h2><button type="button" class="icon-btn" (click)="closeModal()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+      <div class="modal-body">
+        <label class="field"><span class="field-label">Event <em>*</em></span><input class="control" name="eTitle" maxlength="120" [(ngModel)]="eventDraft.title" [class.is-invalid]="submitted && !eventDraft.title.trim()" placeholder="e.g. Load bank test completed" /></label>
+        <div class="grid-3">
+          <label class="field"><span class="field-label">Date <em>*</em></span><input class="control" type="date" name="eDate" [(ngModel)]="eventDraft.date" [class.is-invalid]="submitted && !eventDraft.date" /></label>
+          <label class="field"><span class="field-label">Type</span>
+            <select class="control" name="eKind" [(ngModel)]="eventDraft.kind"><option *ngFor="let k of eventKinds" [value]="k">{{ k }}</option></select>
+          </label>
+          <label class="field"><span class="field-label">By</span><input class="control" name="eBy" maxlength="60" [(ngModel)]="eventDraft.by" placeholder="Rex Kumar" /></label>
+        </div>
+        <span *ngIf="submitted && (!eventDraft.title.trim() || !eventDraft.date)" class="error">Event and date are required.</span>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Add Event</button></div>
+    </form>
+
+    <!-- Stage -->
+    <form *ngIf="modal === 'stage' && stageDraft" class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title" (click)="$event.stopPropagation()" (ngSubmit)="saveStage()">
+      <div class="modal-head"><h2 id="m-title">Edit {{ stageDraft.label }} Stage</h2><button type="button" class="icon-btn" (click)="closeModal()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+      <div class="modal-body">
+        <div class="grid-2">
+          <label class="field"><span class="field-label">Status</span>
+            <select class="control" name="sStatus" [(ngModel)]="stageDraft.status"><option *ngFor="let s of stageStatuses" [value]="s">{{ s === 'Current' ? 'Current Stage' : s }}</option></select>
+          </label>
+          <label class="field"><span class="field-label">Date</span><input class="control" type="date" name="sDate" [(ngModel)]="stageDraft.date" [class.is-invalid]="submitted && !!stageError" /></label>
+        </div>
+        <label class="field"><span class="field-label">Owner</span><input class="control" name="sOwner" maxlength="60" [(ngModel)]="stageDraft.owner" /></label>
+        <label class="field"><span class="field-label">Notes</span><textarea class="control" name="sNotes" rows="3" maxlength="250" [(ngModel)]="stageDraft.notes"></textarea></label>
+        <span *ngIf="stageDraft.status === 'Current' && currentStage && currentStage.key !== stageDraft.key" class="hint">{{ currentStage.label }} will be marked Completed.</span>
+        <span *ngIf="submitted && stageError" class="error">{{ stageError }}</span>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+    </form>
+
+    <!-- Advance stage -->
+    <div *ngIf="modal === 'advance' && nextStage" class="modal modal--sm" role="alertdialog" aria-modal="true" aria-labelledby="m-title" (click)="$event.stopPropagation()">
+      <div class="modal-head"><h2 id="m-title">Move to {{ nextStage.label }}?</h2></div>
+      <div class="modal-body">
+        <p>{{ currentStage?.label ?? 'The current stage' }} will be marked Completed and {{ nextStage.label }} becomes the current stage from today ({{ fmt(todayIso) }}).</p>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="button" class="btn btn-primary" (click)="confirmAdvance()">Move Stage</button></div>
+    </div>
+  </div>
+
+  <div *ngIf="toast" class="toast" role="status">{{ toast }}</div>
+</section>

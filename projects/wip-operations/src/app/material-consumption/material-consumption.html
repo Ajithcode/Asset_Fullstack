@@ -1,0 +1,307 @@
+<section class="jt-page">
+  <!-- ===== Header ===== -->
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/wip-operations">WIP / Operations</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span class="menu-wrap">
+          <button type="button" class="crumb-btn" (click)="toggleSwitcher($event)" [attr.aria-expanded]="switcherOpen" aria-haspopup="menu" title="Switch job order">
+            Material Consumption<lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>
+          </button>
+          <div *ngIf="switcherOpen" class="menu menu--left" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" *ngFor="let x of jobList" [class.is-on]="x.job === j.job" (click)="openJob(x.job)">
+              <strong>{{ x.job }}</strong> {{ x.name }} <span class="muted">· {{ x.status }}</span>
+            </button>
+          </div>
+        </span>
+      </nav>
+      <h1>Material Consumption</h1>
+      <p class="subtitle">Record material usage, returns and scrap against job orders</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-outline" (click)="exportXlsx()"><lucide-icon [img]="icons.Upload" [size]="17"></lucide-icon>Export</button>
+      <button type="button" class="btn btn-outline" (click)="openMove('return')"><lucide-icon [img]="icons.Undo2" [size]="17"></lucide-icon>Return Material</button>
+      <button type="button" class="btn btn-primary" (click)="focusForm()"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>Record Consumption</button>
+    </div>
+  </div>
+
+  <!-- ===== Job card ===== -->
+  <div class="card job-card">
+    <div class="job-main">
+      <span class="lbl">Job Order</span>
+      <a *ngIf="isKnownJob(j.job); else plainJob" class="job-code" routerLink="/wip-operations/job-orders" [queryParams]="{ code: j.job }">{{ j.job }}</a>
+      <ng-template #plainJob><strong class="job-code">{{ j.job }}</strong></ng-template>
+      <span class="job-name">{{ j.name }} <span class="state" [ngClass]="'state--' + j.status.toLowerCase().replace(' ', '-')">{{ j.status }}</span></span>
+    </div>
+    <div class="job-fact"><span class="lbl">Stage</span><strong>{{ j.stage }}</strong></div>
+    <div class="job-fact"><span class="lbl">Site</span><strong>{{ j.site }}</strong></div>
+    <div class="job-fact"><span class="lbl">Source Store</span><strong>{{ j.store }}</strong></div>
+  </div>
+
+  <div class="mc-layout">
+    <div class="mc-main">
+      <nav class="card tabs" role="tablist" aria-label="Material sections">
+        <button type="button" role="tab" *ngFor="let x of tabs" class="tab" [class.is-active]="tab === x.key" [attr.aria-selected]="tab === x.key" (click)="tab = x.key">{{ x.label }}</button>
+      </nav>
+
+      <!-- KPIs -->
+      <div class="kpis">
+        <div class="card kpi"><span class="kpi-ic kpi-ic--violet"><lucide-icon [img]="icons.Coins" [size]="22"></lucide-icon></span><span><span class="kpi-label">Planned Material Cost</span><strong class="kpi-value">AED {{ plannedCost | number }}</strong></span></div>
+        <div class="card kpi"><span class="kpi-ic kpi-ic--green"><lucide-icon [img]="icons.Coins" [size]="22"></lucide-icon></span><span><span class="kpi-label">Consumed Cost</span><strong class="kpi-value">AED {{ consumedCost | number }}</strong></span></div>
+        <div class="card kpi"><span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.Trash2" [size]="22"></lucide-icon></span><span><span class="kpi-label">Scrap Cost</span><strong class="kpi-value">AED {{ scrapCost | number }}</strong></span></div>
+        <button type="button" class="card kpi kpi--btn" (click)="tab = 'issues'"><span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.TriangleAlert" [size]="22"></lucide-icon></span><span><span class="kpi-label">Open Exceptions</span><strong class="kpi-value" [class.c-bad]="openExceptions.length">{{ openExceptions.length }}</strong></span></button>
+      </div>
+
+      <!-- ===== Summary ===== -->
+      <ng-container *ngIf="tab === 'summary'">
+        <section class="card panel" aria-labelledby="mc-ledger">
+          <h3 id="mc-ledger">Job Material Ledger</h3>
+          <div class="ledger-filters">
+            <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" placeholder="Search material..." aria-label="Search material" /></label>
+            <label class="inline-field"><span>Category</span><select class="control" [(ngModel)]="category"><option value="">All</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+            <label class="inline-field"><span>Stage</span><select class="control" [(ngModel)]="stageFilter"><option value="">All</option><option *ngFor="let s of stages" [value]="s">{{ s }}</option></select></label>
+          </div>
+          <div class="table-wrap">
+            <table class="ledger">
+              <thead><tr><th>Material</th><th>UOM</th><th class="num">Planned</th><th class="num">Issued</th><th class="num">Used</th><th class="num">Scrap</th><th class="num">Returned</th><th class="num">At Job</th><th class="num">Unit Cost</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let m of ledger" [class.is-selected]="m.code === form.code" (click)="onFormMaterial(m.code)" [title]="'Record consumption of ' + m.name">
+                  <td><span class="mat"><lucide-icon class="mat-ic" [img]="icons.Box" [size]="20"></lucide-icon><span><strong>{{ m.name }}</strong><small>{{ m.code }}</small></span></span></td>
+                  <td>{{ m.uom }}</td>
+                  <td class="num">{{ m.planned }}</td>
+                  <td class="num">{{ m.issued }}</td>
+                  <td class="num">{{ m.used }}</td>
+                  <td class="num" [class.c-bad]="m.scrap">{{ m.scrap }}</td>
+                  <td class="num">{{ m.returned }}</td>
+                  <td class="num strong" [class.c-warn]="atJob(m) === 0 && m.issued > 0">{{ atJob(m) }}</td>
+                  <td class="num nowrap">AED {{ m.unitCost }}</td>
+                </tr>
+                <tr *ngIf="!ledger.length"><td colspan="9" class="empty">No materials match the filters.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card panel" aria-labelledby="mc-recent">
+          <div class="section-head"><h3 id="mc-recent" class="grow">Recent Transactions</h3>
+            <button type="button" class="link-btn" (click)="tab = 'transactions'">View all transactions<lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon></button></div>
+          <ng-container *ngTemplateOutlet="txTable; context: { $implicit: j.transactions.slice(0, 3), full: false }"></ng-container>
+        </section>
+      </ng-container>
+
+      <!-- ===== Transactions ===== -->
+      <section *ngIf="tab === 'transactions'" class="card panel">
+        <div class="section-head"><h3 class="grow">Consumption Transactions ({{ transactions.length }})</h3>
+          <select class="control control--auto" [(ngModel)]="txType" aria-label="Transaction type"><option value="">All types</option><option *ngFor="let t of txTypes" [value]="t">{{ t }}</option></select></div>
+        <ng-container *ngTemplateOutlet="txTable; context: { $implicit: transactions, full: true }"></ng-container>
+        <p class="hint">Posted entries cannot be edited; Reverse posts an opposite entry instead.</p>
+      </section>
+
+      <!-- ===== Issues & returns ===== -->
+      <ng-container *ngIf="tab === 'issues'">
+        <section class="card panel">
+          <div class="section-head"><h3 class="grow">Issues &amp; Returns</h3>
+            <button type="button" class="btn btn-outline btn-sm" (click)="openMove('issue')"><lucide-icon [img]="icons.PackagePlus" [size]="15"></lucide-icon>Issue Material</button>
+            <button type="button" class="btn btn-outline btn-sm" (click)="openMove('return')"><lucide-icon [img]="icons.Undo2" [size]="15"></lucide-icon>Return Material</button>
+            <button type="button" class="btn btn-outline btn-sm btn-warn" (click)="openMove('scrap')"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Record Scrap</button>
+          </div>
+          <ng-container *ngTemplateOutlet="txTable; context: { $implicit: movements, full: true }"></ng-container>
+        </section>
+        <section class="card panel">
+          <h3>Material Exceptions</h3>
+          <ul class="exc-list">
+            <li *ngFor="let e of j.exceptions">
+              <lucide-icon [img]="e.status === 'Closed' ? icons.CircleCheck : icons.TriangleAlert" [size]="18" [class.c-warn]="e.status !== 'Closed'" [class.c-good]="e.status === 'Closed'"></lucide-icon>
+              <span class="grow"><strong>{{ material(e.code)?.name }}:</strong> {{ e.text }} <small class="muted">· {{ e.ref }} · {{ e.at | date: 'dd MMM, HH:mm' }}</small></span>
+              <span class="exc-status" [class.is-closed]="e.status === 'Closed'">{{ e.status }}</span>
+              <button *ngIf="e.status !== 'Closed'" type="button" class="link-btn" (click)="reviewing = e">Review</button>
+            </li>
+            <li *ngIf="!j.exceptions.length" class="muted">No exceptions.</li>
+          </ul>
+        </section>
+      </ng-container>
+
+      <!-- ===== Traceability ===== -->
+      <ng-container *ngIf="tab === 'trace'">
+        <section class="card panel">
+          <h3>Material Genealogy</h3>
+          <div class="table-wrap">
+            <table class="ledger">
+              <thead><tr><th>Output Serial</th><th>Material</th><th>Material Batch</th><th>Supplier</th><th>Expiry Date</th><th>Linked</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let t of j.traceability">
+                  <td class="strong c-accent">{{ t.serial }}</td><td>{{ material(t.code)?.name }} <small class="muted">({{ t.code }})</small></td><td>{{ t.lot }}</td>
+                  <td>{{ t.supplier }}</td><td>{{ t.expiry ? (t.expiry | date: 'dd MMM yyyy') : '-' }}</td><td class="nowrap">{{ t.at | date: 'dd MMM, HH:mm' }}</td>
+                </tr>
+                <tr *ngIf="!j.traceability.length"><td colspan="6" class="empty">No units linked yet. Mention the unit serial (e.g. SN-P-006) in the consumption notes to link it.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card panel">
+          <h3>Batches at This Job</h3>
+          <div class="table-wrap">
+            <table class="ledger">
+              <thead><tr><th>Material</th><th>Batch / Lot</th><th>Supplier</th><th>Expiry</th><th class="num">At Job</th></tr></thead>
+              <tbody>
+                <ng-container *ngFor="let m of j.materials">
+                  <tr *ngFor="let b of m.batches"><td>{{ m.name }} <small class="muted">({{ m.code }})</small></td><td>{{ b.lot }}</td><td>{{ b.supplier }}</td><td>{{ b.expiry ? (b.expiry | date: 'dd MMM yyyy') : '-' }}</td><td class="num">{{ atJob(m) }} {{ m.uom }}</td></tr>
+                </ng-container>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </ng-container>
+
+      <!-- ===== Cost analysis ===== -->
+      <section *ngIf="tab === 'cost'" class="card panel">
+        <h3>Cost Analysis</h3>
+        <div class="cost-bar" aria-label="Cost split">
+          <span class="seg seg--used" [style.width.%]="share(consumedCost, plannedCost)" [title]="'Consumed AED ' + consumedCost"></span>
+          <span class="seg seg--scrap" [style.width.%]="share(scrapCost, plannedCost)" [title]="'Scrap AED ' + scrapCost"></span>
+        </div>
+        <p class="hint">Consumed AED {{ consumedCost | number }} + scrap AED {{ scrapCost | number }} of AED {{ plannedCost | number }} planned · {{ remainingCost >= 0 ? 'AED ' + (remainingCost | number) + ' remaining' : 'AED ' + (-remainingCost | number) + ' over budget' }}</p>
+        <div class="table-wrap">
+          <table class="ledger">
+            <thead><tr><th>Material</th><th class="num">Planned Cost</th><th class="num">Consumed</th><th class="num">Scrap</th><th class="num">Remaining</th><th>Budget Used</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let m of j.materials">
+                <td>{{ m.name }} <small class="muted">({{ m.code }})</small></td>
+                <td class="num">AED {{ m.planned * m.unitCost | number }}</td>
+                <td class="num">AED {{ m.used * m.unitCost | number }}</td>
+                <td class="num" [class.c-bad]="m.scrap">AED {{ m.scrap * m.unitCost | number }}</td>
+                <td class="num" [class.c-bad]="remaining(m) < 0">AED {{ remaining(m) | number }}</td>
+                <td><span class="mini-bar"><span class="seg seg--used" [style.width.%]="share(m.used, m.planned)"></span><span class="seg seg--scrap" [style.width.%]="share(m.scrap, m.planned)"></span></span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===== Side ===== -->
+    <aside class="mc-side">
+      <section id="mc-form" class="card panel" aria-labelledby="mc-rec">
+        <h3 id="mc-rec">Record Consumption</h3>
+        <p *ngIf="!canRecord" class="note">{{ j.status === 'Planned' ? 'This job has not started; issue material first, then record consumption once work begins.' : 'This job is complete. Consumption can no longer be recorded.' }}</p>
+        <form class="rec-form" (ngSubmit)="submitConsumption()">
+          <div class="grid-2">
+            <label class="field"><span class="field-label">Material</span>
+              <select class="control" [ngModel]="form.code" (ngModelChange)="onFormMaterial($event)" name="code"><option *ngFor="let m of j.materials" [value]="m.code">{{ m.name }} ({{ m.code }})</option></select>
+            </label>
+            <label class="field"><span class="field-label">Stage</span><select class="control" [(ngModel)]="form.stage" name="stage"><option *ngFor="let s of stages" [value]="s">{{ s }}</option></select></label>
+            <label class="field"><span class="field-label">Batch / Lot</span>
+              <select class="control" [(ngModel)]="form.lot" name="lot"><option *ngFor="let b of formMaterial?.batches" [value]="b.lot">{{ b.lot }}</option></select>
+            </label>
+            <label class="field"><span class="field-label">Issue Reference</span><input class="control" [(ngModel)]="form.ref" name="ref" /></label>
+          </div>
+          <div class="grid-3">
+            <label class="field"><span class="field-label">Available At Job</span><input class="control" [value]="(formMaterial ? atJob(formMaterial) : 0) + ' ' + (formMaterial?.uom ?? '')" readonly /></label>
+            <label class="field"><span class="field-label">Quantity Used <em>*</em></span><input type="number" class="control" [(ngModel)]="form.qty" name="qty" min="0" step="1" /></label>
+            <label class="field"><span class="field-label">UOM</span><input class="control" [value]="formMaterial?.uom ?? ''" readonly /></label>
+          </div>
+          <div class="grid-2">
+            <label class="field"><span class="field-label">Unit Cost (AED)</span><input class="control" [value]="'AED ' + (formMaterial?.unitCost ?? 0)" readonly /></label>
+            <label class="field"><span class="field-label">Line Cost (AED)</span><input class="control" [value]="'AED ' + (lineCost | number)" readonly /></label>
+            <label class="field"><span class="field-label">Operator</span><select class="control" [(ngModel)]="form.operator" name="operator"><option *ngFor="let o of operators" [value]="o">{{ o }}</option></select></label>
+            <label class="field"><span class="field-label">Consumption Time</span><input type="datetime-local" class="control" [(ngModel)]="form.at" name="at" /></label>
+          </div>
+          <label class="field"><span class="field-label">Notes</span><textarea class="control" rows="2" [(ngModel)]="form.notes" name="notes" placeholder="e.g. Installed on pump unit SN-P-006"></textarea></label>
+          <div class="evidence">
+            <span class="field-label">Evidence</span>
+            <input #photoInput type="file" hidden accept="image/*" (change)="onPhoto($event)" />
+            <button type="button" class="link-btn" (click)="photoInput.click()"><lucide-icon [img]="icons.Paperclip" [size]="15"></lucide-icon>{{ form.photo ? form.photo.name : 'Attach Photo' }}</button>
+            <button *ngIf="form.photo" type="button" class="icon-btn" (click)="form.photo = null" aria-label="Remove photo"><lucide-icon [img]="icons.X" [size]="14"></lucide-icon></button>
+          </div>
+          <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+          <button type="submit" class="btn btn-primary btn-block" [disabled]="!canRecord">Submit Consumption</button>
+        </form>
+      </section>
+
+      <section class="card panel" aria-labelledby="mc-trace">
+        <div class="section-head"><h3 id="mc-trace" class="grow with-icon"><lucide-icon [img]="icons.Network" [size]="20"></lucide-icon>Traceability</h3>
+          <button type="button" class="link-btn" (click)="tab = 'trace'">View genealogy<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button></div>
+        <dl *ngIf="j.traceability[0] as t; else noTrace" class="trace">
+          <div><dt>Output Serial</dt><dd class="c-accent">{{ t.serial }}</dd></div>
+          <div><dt>Material Batch</dt><dd>{{ t.lot }}</dd></div>
+          <div><dt>Supplier</dt><dd>{{ t.supplier || '-' }}</dd></div>
+          <div><dt>Expiry Date</dt><dd>{{ t.expiry ? (t.expiry | date: 'dd MMM yyyy') : '-' }}</dd></div>
+        </dl>
+        <ng-template #noTrace><p class="muted">No output units linked yet.</p></ng-template>
+      </section>
+
+      <section *ngFor="let e of openExceptions.slice(0, 1)" class="card panel exc-card">
+        <div class="section-head"><h3 class="grow with-icon"><lucide-icon [img]="icons.TriangleAlert" [size]="20"></lucide-icon>Material Exception</h3><span class="exc-status">{{ e.status }}</span></div>
+        <p>{{ material(e.code)?.name }}: {{ e.text }}</p>
+        <div class="right"><button type="button" class="link-btn" (click)="reviewing = e">Review exception<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button></div>
+        <p *ngIf="openExceptions.length > 1" class="hint">{{ openExceptions.length - 1 }} more on the Issues &amp; Returns tab.</p>
+      </section>
+    </aside>
+  </div>
+
+  <p class="foot-note"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>Transactions update the shared inventory ledger and job costs. Posted entries require a reversal to correct.</p>
+</section>
+
+<!-- Transactions table (summary, transactions and issues tabs) -->
+<ng-template #txTable let-rows let-full="full">
+  <div class="table-wrap">
+    <table class="ledger">
+      <thead><tr><th>Time</th><th>Type</th><th>Material</th><th class="num">Quantity</th><th>Reference</th><th>Recorded By</th><th *ngIf="full">Notes</th><th *ngIf="full"></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let t of rows">
+          <td class="nowrap">{{ t.at.slice(0, 10) === j.transactions[0]?.at?.slice(0, 10) ? (t.at | date: 'HH:mm') : (t.at | date: 'dd MMM, HH:mm') }}</td>
+          <td><span class="tx" [ngClass]="'tx--' + txTone(t.type)">{{ t.type }}</span></td>
+          <td>{{ material(t.code)?.name }} <small class="muted">({{ t.code }})</small></td>
+          <td class="num nowrap" [class.c-bad]="t.qty < 0">{{ t.qty }} {{ material(t.code)?.uom }}</td>
+          <td class="nowrap"><span [class.ref-link]="t.type !== 'Consumption'">{{ t.ref }}</span>
+            <button *ngIf="hasPhoto(t.ref)" type="button" class="icon-btn" (click)="viewPhoto(t.ref)" aria-label="View photo"><lucide-icon [img]="icons.Paperclip" [size]="13"></lucide-icon></button></td>
+          <td class="nowrap">{{ t.by }}</td>
+          <td *ngIf="full">{{ t.notes || '-' }}</td>
+          <td *ngIf="full" class="nowrap"><button *ngIf="!isReversed(t) && j.status !== 'Completed'" type="button" class="link-btn" (click)="reverse(t)">Reverse</button></td>
+        </tr>
+        <tr *ngIf="!rows.length"><td [attr.colspan]="full ? 8 : 6" class="empty">No transactions yet.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</ng-template>
+
+<!-- ===== Issue / return / scrap ===== -->
+<div *ngIf="dialog" class="overlay" (click)="dialog = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mc-move-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="mc-move-title">{{ dialog === 'return' ? 'Return Material' : dialog === 'scrap' ? 'Record Scrap' : 'Issue Material' }}</h2>
+      <button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="saveMove()">
+      <div class="grid-2">
+        <label class="field"><span class="field-label">Material</span>
+          <select class="control" [ngModel]="move.code" (ngModelChange)="onMoveMaterial($event)" name="mcode"><option *ngFor="let m of j.materials" [value]="m.code">{{ m.name }} ({{ m.code }})</option></select>
+        </label>
+        <label class="field"><span class="field-label">Batch / Lot</span><select class="control" [(ngModel)]="move.lot" name="mlot"><option *ngFor="let b of moveMaterial?.batches" [value]="b.lot">{{ b.lot }}</option></select></label>
+        <label class="field"><span class="field-label">Quantity <em>*</em></span><input type="number" class="control" [(ngModel)]="move.qty" name="mqty" min="0" /></label>
+        <label class="field"><span class="field-label">{{ dialog === 'issue' ? 'From Store' : 'At Job Now' }}</span>
+          <input class="control" readonly [value]="dialog === 'issue' ? j.store : (moveMaterial ? atJob(moveMaterial) + ' ' + moveMaterial.uom : '')" /></label>
+      </div>
+      <label class="field"><span class="field-label">{{ dialog === 'scrap' ? 'Scrap Reason' : 'Reason' }} <em *ngIf="dialog === 'scrap'">*</em></span><input class="control" [(ngModel)]="move.reason" name="mreason" /></label>
+      <p *ngIf="dialog === 'scrap'" class="hint">Scrap raises a material exception for review.</p>
+      <p *ngIf="moveError" class="form-error" role="alert">{{ moveError }}</p>
+      <div class="modal-foot modal-foot--form"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">{{ dialog === 'return' ? 'Return' : dialog === 'scrap' ? 'Record Scrap' : 'Issue' }}</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Review exception ===== -->
+<div *ngIf="reviewing as e" class="overlay" (click)="reviewing = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mc-exc-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="mc-exc-title">Review Exception · {{ e.ref }}</h2><button type="button" class="icon-btn" (click)="reviewing = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <p><strong>{{ material(e.code)?.name }} ({{ e.code }})</strong>: {{ e.text }}</p>
+      <p class="hint">Raised {{ e.at | date: 'dd MMM yyyy, HH:mm' }}. Scrap cost so far for this material: AED {{ (material(e.code)?.scrap ?? 0) * (material(e.code)?.unitCost ?? 0) | number }}.</p>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-outline" (click)="reviewing = null">Later</button>
+      <button type="button" class="btn btn-primary" (click)="closeException(e)">Accept &amp; Close</button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" [class.toast--error]="toastError" role="status">{{ toast }}</div>

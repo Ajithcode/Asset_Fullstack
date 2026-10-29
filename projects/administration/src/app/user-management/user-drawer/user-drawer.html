@@ -1,0 +1,192 @@
+<aside class="drawer user-drawer" [attr.aria-label]="isAdd ? 'Add user' : 'User details'">
+  <div class="drawer__head">
+    <h2>{{ isAdd ? 'Add User' : 'User Details' }}</h2>
+    <button type="button" class="icon-btn icon-btn--bare" aria-label="Close" (click)="close()"><lucide-icon [img]="icons.X" [size]="20"></lucide-icon></button>
+  </div>
+
+  <form (ngSubmit)="save()" novalidate>
+    <!-- Photo, name, status -->
+    <div class="profile">
+      <div class="profile__photo">
+        @if (form.photo) {
+          <img [src]="form.photo" [alt]="form.name" />
+        } @else {
+          <span class="profile__initials" [style.background]="avatarBg()" [style.color]="avatarInk()">{{ initials(form.name || '?') }}</span>
+        }
+        <label class="profile__camera" title="Upload photo">
+          <lucide-icon [img]="icons.Camera" [size]="14"></lucide-icon>
+          <input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Upload photo" (change)="onPhotoPicked($event)" />
+        </label>
+      </div>
+      <div class="profile__text">
+        @if (!isAdd) {
+          <div class="profile__name">
+            <strong>{{ user.name }}</strong>
+            <span class="pill" [attr.data-tone]="statusTone()">{{ form.status }}</span>
+          </div>
+          <span class="muted">{{ user.email }}</span>
+          <span class="muted">{{ user.employeeId }}</span>
+          <div class="profile__links">
+            @if (!editingProfile) {
+              <button type="button" class="btn btn--link" (click)="editProfile()"><lucide-icon [img]="icons.Pencil" [size]="13"></lucide-icon> Edit profile</button>
+            }
+            @if (form.photo) { <button type="button" class="btn btn--link" (click)="removePhoto()">Remove photo</button> }
+          </div>
+        } @else {
+          <span class="muted">New users get an email invitation to set up their own sign-in.</span>
+        }
+      </div>
+    </div>
+    @if (errors['photo']) { <p class="field-error">{{ errors['photo'] }}</p> }
+
+    <!-- Profile fields -->
+    @if (editingProfile) {
+      <div class="grid2 profile-form">
+        <div class="field field--wide" [class.invalid]="errors['name']">
+          <label for="u-name">Full Name <span class="req">*</span></label>
+          <input id="u-name" name="name" [(ngModel)]="form.name" maxlength="80" autocomplete="off" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field field--wide" [class.invalid]="errors['email']">
+          <label for="u-email">Email Address <span class="req">*</span></label>
+          <input id="u-email" name="email" type="email" [(ngModel)]="form.email" maxlength="120" autocomplete="off" />
+          @if (errors['email']) { <small>{{ errors['email'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['employeeId']">
+          <label for="u-emp">Employee ID <span class="req">*</span></label>
+          <input id="u-emp" name="employeeId" [(ngModel)]="form.employeeId" maxlength="12" />
+          @if (errors['employeeId']) { <small>{{ errors['employeeId'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['department']">
+          <label for="u-dept">Department <span class="req">*</span></label>
+          <select id="u-dept" name="department" [(ngModel)]="form.department">
+            <option value="">Select...</option>
+            @for (d of departments; track d) { <option [value]="d">{{ d }}</option> }
+          </select>
+          @if (errors['department']) { <small>{{ errors['department'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="u-title">Job Title</label>
+          <input id="u-title" name="jobTitle" [(ngModel)]="form.jobTitle" maxlength="80" />
+        </div>
+        <div class="field" [class.invalid]="errors['phone']">
+          <label for="u-phone">Phone</label>
+          <input id="u-phone" name="phone" type="tel" [(ngModel)]="form.phone" maxlength="20" placeholder="+971 50 000 0000" />
+          @if (errors['phone']) { <small>{{ errors['phone'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="u-loc">Location</label>
+          <select id="u-loc" name="location" [(ngModel)]="form.location" (ngModelChange)="onLocationChange()">
+            @for (l of locations; track l) { <option [value]="l">{{ l }}</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="u-tz">Time Zone</label>
+          <select id="u-tz" name="timeZone" [(ngModel)]="form.timeZone">
+            @for (z of timeZones; track z) { <option [value]="z">{{ z }}</option> }
+          </select>
+        </div>
+      </div>
+    } @else {
+      <dl class="kv user-kv">
+        <dt>Department</dt><dd>{{ form.department }}</dd>
+        <dt>Job Title</dt><dd>{{ form.jobTitle || '—' }}</dd>
+        <dt>Phone</dt><dd>{{ form.phone || '—' }}</dd>
+        <dt>Location</dt><dd><lucide-icon [img]="icons.MapPin" [size]="14"></lucide-icon> {{ form.location }}</dd>
+        <dt>Time Zone</dt><dd>{{ form.timeZone }}</dd>
+      </dl>
+    }
+
+    <div class="divider"></div>
+
+    <!-- Access -->
+    <div class="row-field" [class.invalid]="errors['primaryRole']">
+      <label for="u-role">Primary Role</label>
+      <select id="u-role" name="primaryRole" [(ngModel)]="form.primaryRole" (ngModelChange)="onPrimaryChange()">
+        <option value="">Select...</option>
+        @for (r of primaryOptions; track r.name) { <option [value]="r.name">{{ r.name }}</option> }
+      </select>
+    </div>
+    @if (errors['primaryRole']) { <p class="field-error">{{ errors['primaryRole'] }}</p> }
+
+    <div class="row-field row-field--top">
+      <label for="u-roles">Secondary Roles</label>
+      <div class="role-picker">
+        @if (form.secondaryRoles.length) {
+          <div class="chips">
+            @for (r of form.secondaryRoles; track r) {
+              <span class="chip" [attr.data-tone]="roleTone(r)">{{ r }} <button type="button" [attr.aria-label]="'Remove ' + r" (click)="removeSecondary(r)">×</button></span>
+            }
+          </div>
+        }
+        <select id="u-roles" (change)="addSecondary($event)">
+          <option value="">Add a role...</option>
+          @for (r of secondaryOptions; track r.name) { <option [value]="r.name">{{ r.name }}</option> }
+        </select>
+      </div>
+    </div>
+
+    <div class="row-field">
+      <label for="u-scope">Access Scope</label>
+      <select id="u-scope" name="accessScope" [(ngModel)]="form.accessScope">
+        <option [value]="allLocations">{{ allLocations }}</option>
+        @for (l of locations; track l) { <option [value]="l">{{ l }} only</option> }
+      </select>
+    </div>
+
+    <div class="row-field">
+      <span class="row-label">Multi-Factor Authentication</span>
+      <label class="switch">
+        <input type="checkbox" name="mfa" [(ngModel)]="form.mfa" />
+        <i></i>
+        <span class="muted">{{ form.mfa ? 'Required' : 'Off' }}</span>
+      </label>
+    </div>
+
+    <div class="row-field" [class.invalid]="errors['status']">
+      <label for="u-status">Account Status</label>
+      @if (isAdd) {
+        <span class="muted">Pending until the invitation is accepted</span>
+      } @else {
+        <select id="u-status" name="status" [(ngModel)]="form.status" [disabled]="isSelf">
+          @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+      }
+    </div>
+    @if (errors['status']) { <p class="field-error">{{ errors['status'] }}</p> }
+    @if (isSelf) { <p class="field-hint">You can't change the status of your own account.</p> }
+
+    @if (form.status === 'Suspended') {
+      <div class="field" [class.invalid]="errors['suspendReason']">
+        <label for="u-reason">Suspension Reason <span class="req">*</span></label>
+        <textarea id="u-reason" name="suspendReason" rows="2" [(ngModel)]="form.suspendReason" maxlength="200"></textarea>
+        @if (errors['suspendReason']) { <small>{{ errors['suspendReason'] }}</small> }
+      </div>
+    }
+
+    @if (!isAdd) {
+      <dl class="kv user-kv dates">
+        <dt>Last Login</dt><dd><lucide-icon [img]="icons.Calendar" [size]="14"></lucide-icon> {{ lastLoginText() }}</dd>
+        <dt>Created Date</dt><dd><lucide-icon [img]="icons.Calendar" [size]="14"></lucide-icon> {{ createdText() }}</dd>
+      </dl>
+    }
+
+    <!-- Module access -->
+    <div class="sub-panel" [class.invalid]="errors['modules']">
+      <h3>Module Access ({{ form.modules.length }} of {{ modules.length }})</h3>
+      <div class="modules">
+        @for (m of modules; track m) {
+          <button type="button" class="module" [class.on]="hasModule(m)" [attr.aria-pressed]="hasModule(m)" (click)="toggleModule(m)">
+            <lucide-icon [img]="moduleIcon(m)" [size]="16"></lucide-icon> {{ m }}
+          </button>
+        }
+      </div>
+      @if (errors['modules']) { <p class="field-error">{{ errors['modules'] }}</p> }
+    </div>
+
+    <div class="drawer__foot">
+      <button type="button" class="btn" (click)="close()">Cancel</button>
+      <button type="submit" class="btn btn--primary">{{ isAdd ? 'Add & Send Invite' : 'Save Changes' }}</button>
+    </div>
+  </form>
+</aside>

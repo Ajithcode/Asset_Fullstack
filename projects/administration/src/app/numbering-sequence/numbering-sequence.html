@@ -1,0 +1,357 @@
+<nav class="crumbs">
+  <a routerLink="/administration">Administration</a>
+  <lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon>
+  <strong>Numbering Sequence</strong>
+</nav>
+
+<header class="page-head">
+  <div class="page-head__icon"><lucide-icon [img]="icons.Hash" [size]="24"></lucide-icon></div>
+  <div class="page-head__text">
+    <h1>Numbering Sequence</h1>
+    <p>Configure unique, consistent numbering for assets, work orders, inspections, inventory, and other records.</p>
+  </div>
+  <label class="org-picker">
+    Organization
+    <select [(ngModel)]="organization">
+      @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
+    </select>
+  </label>
+</header>
+
+<section class="stats">
+  <div class="stat">
+    <div class="stat__icon"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></div>
+    <div class="stat__body">
+      <span class="stat__label">Active Sequences</span>
+      <span class="stat__value">{{ activeCount }}</span>
+      <span class="stat__trend"><lucide-icon [img]="icons.ArrowUp" [size]="12"></lucide-icon> +{{ newThisMonth }} this month</span>
+    </div>
+  </div>
+  <div class="stat">
+    <div class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.Database" [size]="24"></lucide-icon></div>
+    <div class="stat__body">
+      <span class="stat__label">Records Numbered</span>
+      <span class="stat__value">{{ recordsNumbered.toLocaleString('en-US') }}</span>
+      <span class="stat__trend"><lucide-icon [img]="icons.ArrowUp" [size]="12"></lucide-icon> +12% from last month</span>
+    </div>
+  </div>
+  <div class="stat">
+    <div class="stat__icon" data-tone="pink"><lucide-icon [img]="icons.Tag" [size]="24"></lucide-icon></div>
+    <div class="stat__body">
+      <span class="stat__label">Prefixes</span>
+      <span class="stat__value">{{ prefixCount }}</span>
+      <span class="stat__hint">Across all modules</span>
+    </div>
+  </div>
+  <div class="stat">
+    <div class="stat__icon" data-tone="red"><lucide-icon [img]="icons.TriangleAlert" [size]="24"></lucide-icon></div>
+    <div class="stat__body">
+      <span class="stat__label">Sequences Near Limit</span>
+      <span class="stat__value" data-tone="red">{{ nearLimitCount }}</span>
+      <button type="button" class="attention" (click)="showNearLimit()">Requires attention</button>
+    </div>
+  </div>
+</section>
+
+<div class="toolbar">
+  <button type="button" class="btn btn--primary" (click)="createSequence()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Create Sequence</button>
+  <button type="button" class="btn" (click)="cloneSelected()"><lucide-icon [img]="icons.Copy" [size]="16"></lucide-icon> Clone Sequence</button>
+  <button type="button" class="btn" (click)="openImport()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import</button>
+  <button type="button" class="btn" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+  <input #importInput type="file" accept=".csv,text/csv" hidden (change)="onImportFile($event)" />
+  <span class="toolbar__spacer"></span>
+  <label class="search">
+    <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+    <input [(ngModel)]="search" placeholder="Search sequences..." aria-label="Search sequences" />
+  </label>
+  <select class="select" [(ngModel)]="moduleFilter" aria-label="Module filter">
+    <option value="">All Modules</option>
+    @for (m of modules; track m) { <option [value]="m">{{ m }}</option> }
+  </select>
+  <select class="select" [(ngModel)]="statusFilter" aria-label="Status filter">
+    <option value="">All Statuses</option>
+    @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+  </select>
+</div>
+
+<div class="ws" [class.ws--with-drawer]="drawerOpen">
+  <!-- Sequence list -->
+  <section class="panel">
+    <div class="panel__head">
+      <h2>Sequences ({{ filtered.length }})</h2>
+      @if (hasFilters) { <button type="button" class="btn btn--link" (click)="clearFilters()">Clear</button> }
+    </div>
+    <label class="search">
+      <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+      <input [(ngModel)]="listSearch" placeholder="Search sequences..." aria-label="Search the list" />
+    </label>
+    <div class="list seq-list">
+      @if (isNew) {
+        <button type="button" class="list-item active">
+          <span class="list-item__icon"><lucide-icon [img]="draftIcon" [size]="20"></lucide-icon></span>
+          <span class="list-item__body">
+            <span class="list-item__title">{{ draft.name || 'New sequence' }} <span class="pill" data-tone="blue">New</span></span>
+            <span class="list-item__meta">{{ draft.module }}</span>
+            <span class="list-item__meta">{{ sample(draft) }}</span>
+          </span>
+        </button>
+      }
+      @for (s of filtered; track s.id) {
+        <button type="button" class="list-item" [class.active]="!isNew && s.id === selectedId" (click)="select(s)">
+          <span class="list-item__icon" [attr.data-tone]="s.tone"><lucide-icon [img]="iconFor(s)" [size]="20"></lucide-icon></span>
+          <span class="list-item__body">
+            <span class="list-item__title">{{ s.name }} <span class="pill" [attr.data-tone]="tone(s)">{{ status(s) }}</span></span>
+            <span class="list-item__meta seq-meta"><span>{{ s.module }}</span></span>
+            <span class="list-item__meta seq-meta">
+              <span class="seq-sample">{{ sample(s) }}</span>
+              <span>Current: {{ s.currentNumber.toLocaleString('en-US') }}</span>
+            </span>
+          </span>
+        </button>
+      } @empty {
+        <p class="list-empty">No sequences match these filters.</p>
+      }
+    </div>
+  </section>
+
+  <!-- Selected sequence -->
+  <section class="panel">
+    <div class="detail-head">
+      <span class="list-item__icon" [attr.data-tone]="draft.tone"><lucide-icon [img]="draftIcon" [size]="22"></lucide-icon></span>
+      <div class="detail-head__title">
+        <h2>
+          {{ draft.name || 'New sequence' }}
+          <span class="pill" [attr.data-tone]="draftTone">{{ draftStatus }}</span>
+          @if (dirty) { <span class="pill" data-tone="blue">Unsaved changes</span> }
+        </h2>
+        <div class="detail-head__meta">
+          <span>Sequence Code <b>{{ draft.code || '—' }}</b></span>
+          <span>Version <b>{{ isNew ? 'v1.0' : draft.version }}</b></span>
+          <span>Range used <b>{{ rangeUsed }}%</b></span>
+        </div>
+      </div>
+      <div class="detail-head__actions">
+        <div class="row-menu">
+          <button type="button" class="icon-btn icon-btn--bare" title="More actions" (click)="toggleMenu()">
+            <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon>
+          </button>
+          @if (menuOpen) {
+            <div class="menu">
+              <button type="button" (click)="drawerOpen = true; menuOpen = false">Open settings drawer</button>
+              <button type="button" (click)="cloneSelected()">Clone sequence</button>
+              @if (!isNew) {
+                <button type="button" (click)="toggleActive()">{{ draft.active ? 'Deactivate' : 'Activate' }}</button>
+                <button type="button" (click)="askReset()">Reset counter</button>
+              }
+              <button type="button" class="danger" (click)="askDelete()">{{ isNew ? 'Discard' : 'Delete' }}</button>
+            </div>
+          }
+        </div>
+        <button type="button" class="btn btn--primary" (click)="commit(false)">Save</button>
+        <button type="button" class="btn btn--outline" (click)="testPreview()">Test Preview</button>
+        <button type="button" class="btn btn--outline" (click)="commit(true)">Publish</button>
+      </div>
+    </div>
+
+    <nav class="tabs">
+      <button type="button" [class.active]="tab === 'config'" (click)="tab = 'config'">Configuration</button>
+      <button type="button" [class.active]="tab === 'preview'" (click)="testPreview()">Preview &amp; Test</button>
+      <button type="button" [class.active]="tab === 'usage'" (click)="tab = 'usage'">Usage History</button>
+      <button type="button" [class.active]="tab === 'changes'" (click)="tab = 'changes'">Change Log</button>
+    </nav>
+
+    @switch (tab) {
+      @case ('config') {
+        <app-format-builder [sequence]="draft" (changed)="markDirty()"></app-format-builder>
+
+        <section class="sub-panel">
+          <h3>Sequence Settings</h3>
+          <div class="settings">
+            <div class="settings__col">
+              <div class="row-field" [class.invalid]="fieldError('startNumber')">
+                <label for="ns-start">Start Number</label>
+                <input id="ns-start" type="number" min="0" [(ngModel)]="draft.startNumber" (ngModelChange)="markDirty()" />
+              </div>
+              <div class="row-field" [class.invalid]="fieldError('currentNumber')">
+                <label for="ns-current">Current Number</label>
+                <input id="ns-current" type="number" min="0" [(ngModel)]="draft.currentNumber" (ngModelChange)="markDirty()" />
+              </div>
+              <div class="row-field" [class.invalid]="fieldError('incrementBy')">
+                <label for="ns-inc">Increment By</label>
+                <input id="ns-inc" type="number" min="1" max="100" [(ngModel)]="draft.incrementBy" (ngModelChange)="markDirty()" />
+              </div>
+              <div class="row-field" [class.invalid]="fieldError('numberLength')">
+                <label for="ns-digits">Minimum Digits</label>
+                <input id="ns-digits" type="number" min="2" max="8" [(ngModel)]="draft.numberLength" (ngModelChange)="markDirty()" />
+              </div>
+              @for (f of ['startNumber', 'currentNumber', 'incrementBy', 'numberLength']; track f) {
+                @if (fieldError(f); as e) { <small class="err">{{ e }}</small> }
+              }
+            </div>
+
+            <div class="settings__col">
+              <div class="radio-row">
+                <span class="radio-row__label">Numbering Scope</span>
+                <div class="radios">
+                  @for (s of scopes; track s) {
+                    <label><input type="radio" name="ns-scope" [value]="s" [(ngModel)]="draft.scope" (ngModelChange)="markDirty()" /> {{ s }}</label>
+                  }
+                </div>
+              </div>
+              <div class="radio-row">
+                <span class="radio-row__label">Reset Rule</span>
+                <div class="radios">
+                  @for (r of resetRules; track r) {
+                    <label><input type="radio" name="ns-reset" [value]="r" [(ngModel)]="draft.resetRule" (ngModelChange)="markDirty()" /> {{ r }}</label>
+                  }
+                </div>
+              </div>
+              <div class="row-field" [class.invalid]="fieldError('resetDate')">
+                <label for="ns-reset-date">Reset Date</label>
+                <input id="ns-reset-date" type="date" [(ngModel)]="draft.resetDate" (ngModelChange)="markDirty()" [disabled]="draft.resetRule === 'Never'" />
+              </div>
+              @if (fieldError('resetDate'); as e) { <small class="err">{{ e }}</small> }
+            </div>
+
+            <div class="settings__col">
+              <div class="toggle-row">
+                <div>
+                  <b>Duplicate Prevention</b>
+                  <small>Prevent duplicate numbers</small>
+                </div>
+                <label class="switch"><input type="checkbox" [(ngModel)]="draft.duplicatePrevention" (ngModelChange)="markDirty()" aria-label="Duplicate prevention" /><i></i></label>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <b>Allow Manual Override</b>
+                  <small>Allow authorized users to manually enter numbers</small>
+                </div>
+                <label class="switch"><input type="checkbox" [(ngModel)]="draft.manualOverride" (ngModelChange)="markDirty()" aria-label="Allow manual override" /><i></i></label>
+              </div>
+              <div class="row-field">
+                <label>Prefix Preview</label>
+                <span class="prefix-preview">{{ prefixPreview || '—' }}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      }
+
+      @case ('preview') {
+        <section class="sub-panel test">
+          <h3>Generate test numbers</h3>
+          <p class="muted">Simulate the next numbers this sequence will issue. Nothing is reserved or saved.</p>
+          <div class="test__controls">
+            <div class="field">
+              <label for="ns-test-count">How many</label>
+              <input id="ns-test-count" type="number" min="1" max="50" [(ngModel)]="testCount" />
+            </div>
+            <div class="field">
+              <label for="ns-test-date">As of date</label>
+              <input id="ns-test-date" type="date" [(ngModel)]="testDate" />
+            </div>
+            <button type="button" class="btn btn--primary" (click)="generateTest()"><lucide-icon [img]="icons.Play" [size]="15"></lucide-icon> Generate</button>
+          </div>
+          @if (testFormatErrors.length) {
+            <p class="note note--warn">{{ testFormatErrors[0] }}</p>
+          }
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>#</th><th>Generated Number</th><th>Counter</th><th>Check</th></tr></thead>
+              <tbody>
+                @for (n of testResults; track $index; let i = $index) {
+                  <tr>
+                    <td>{{ i + 1 }}</td>
+                    <td><b>{{ n }}</b></td>
+                    <td>{{ draft.currentNumber + i * draft.incrementBy }}</td>
+                    <td>
+                      @if (testOverflows(i)) { <span class="pill" data-tone="red"><i></i>Exceeds {{ draft.numberLength }} digits</span> }
+                      @else { <span class="pill" data-tone="green"><i></i>Unique</span> }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="4" class="empty">Choose how many numbers to generate, then select Generate.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      @case ('usage') {
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Date</th><th>Number</th><th>Record</th><th>Generated By</th><th>Method</th></tr></thead>
+            <tbody>
+              @for (u of draft.usage; track $index) {
+                <tr>
+                  <td>{{ formatDate(u.date) }}</td>
+                  <td><b>{{ u.number }}</b></td>
+                  <td>{{ u.record }}</td>
+                  <td>{{ u.generatedBy }}</td>
+                  <td><span class="pill" [attr.data-tone]="u.method === 'Auto' ? 'blue' : 'orange'">{{ u.method }}</span></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="5" class="empty">No numbers have been generated by this sequence yet.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      @case ('changes') {
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Date</th><th>Version</th><th>Changed By</th><th>Change</th></tr></thead>
+            <tbody>
+              @for (c of draft.changes; track $index) {
+                <tr>
+                  <td>{{ formatDate(c.date) }}</td>
+                  <td><span class="pill" data-tone="purple">{{ c.version }}</span></td>
+                  <td>{{ c.user }}</td>
+                  <td>{{ c.change }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="4" class="empty">Changes are logged once the sequence is saved.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </section>
+
+  @if (drawerOpen) {
+    <app-sequence-drawer
+      [sequence]="draft"
+      [errors]="fieldErrors"
+      [showErrors]="showErrors"
+      [nearLimitCount]="nearLimitCount"
+      [isNew]="isNew"
+      (changed)="markDirty()"
+      (save)="commit(false)"
+      (cancel)="cancelEdit()"
+      (closed)="drawerOpen = false"
+      (showNearLimit)="showNearLimit()"
+    ></app-sequence-drawer>
+  }
+</div>
+
+@if (confirm) {
+  <div class="overlay" (click)="confirm = null">
+    <div class="confirm" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <h2>{{ confirm.title }}</h2>
+      <p>{{ confirm.message }}</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="confirm = null">Cancel</button>
+        <button type="button" class="btn" [class.btn--danger]="confirm.action === 'delete'" [class.btn--primary]="confirm.action !== 'delete'" (click)="confirmAction()">
+          {{ confirm.action === 'delete' ? 'Delete' : 'Reset' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

@@ -1,0 +1,241 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/administration">Administration</a>
+  <span>/</span>
+  <strong>Integration &amp; API</strong>
+</nav>
+
+<header class="page-head">
+  <span class="page-head__icon"><lucide-icon [img]="icons.Link" [size]="24"></lucide-icon></span>
+  <div class="page-head__text">
+    <h1>Integration &amp; API</h1>
+    <p>Connect Asset360 with ERP, HR, IoT, finance, identity, and external systems securely.</p>
+  </div>
+  <label class="org-picker">
+    <span class="sr-only">Organization</span>
+    <select aria-label="Organization" [(ngModel)]="organization">
+      @for (o of organizations; track o) {
+        <option [value]="o">{{ o }}</option>
+      }
+    </select>
+  </label>
+</header>
+
+<section class="stats" aria-label="Summary">
+  <div class="stat">
+    <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.Link" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Active Integrations</span>
+      <span class="stat__value">
+        {{ activeCount }}
+        <span class="stat__trend"><lucide-icon [img]="icons.ArrowUp" [size]="13"></lucide-icon>2</span>
+      </span>
+      <span class="stat__hint">of {{ integrations.length }} configured</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.ChartColumn" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">API Requests Today</span>
+      <span class="stat__value">
+        {{ requestsToday }}
+        <span class="stat__trend"><lucide-icon [img]="icons.ArrowUp" [size]="13"></lucide-icon>12%</span>
+      </span>
+      <span class="stat__hint">vs. yesterday</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="pink"><lucide-icon [img]="icons.Webhook" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Webhooks</span>
+      <span class="stat__value">
+        {{ activeWebhooks }}
+        <span class="stat__trend"><lucide-icon [img]="icons.ArrowUp" [size]="13"></lucide-icon>3</span>
+      </span>
+      <span class="stat__hint">active endpoints</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="red"><lucide-icon [img]="icons.TriangleAlert" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Failed Syncs</span>
+      <span class="stat__value">
+        {{ failedSyncs }}
+        <span class="stat__trend stat__trend--down"><lucide-icon [img]="icons.ArrowDown" [size]="13"></lucide-icon>5</span>
+      </span>
+      <span class="stat__hint">in the last 24 hours</span>
+    </div>
+  </div>
+</section>
+
+<div class="toolbar">
+  <button type="button" class="btn btn--primary" (click)="addIntegration()">
+    <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add Integration
+  </button>
+  <button type="button" class="btn btn--outline" (click)="openKeyDialog()">
+    <lucide-icon [img]="icons.KeyRound" [size]="16"></lucide-icon> Create API Key
+  </button>
+  <button type="button" class="btn btn--outline" (click)="importInput.click()">
+    <lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import
+  </button>
+  <input #importInput type="file" hidden accept="application/json,.json" (change)="importIntegrations(importInput)" />
+  <button type="button" class="btn btn--outline" (click)="exportIntegrations()">
+    <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export
+  </button>
+  <span class="toolbar__spacer"></span>
+  <label class="search">
+    <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+    <input type="search" placeholder="Search integrations..." aria-label="Search integrations" [(ngModel)]="query" />
+  </label>
+  <select class="select" aria-label="Type" [(ngModel)]="typeFilter">
+    <option value="">All Types</option>
+    @for (t of types; track t) {
+      <option [value]="t">{{ t }}</option>
+    }
+  </select>
+  <select class="select" aria-label="Status" [(ngModel)]="statusFilter">
+    <option value="">All Statuses</option>
+    @for (s of statuses; track s) {
+      <option [value]="s">{{ s }}</option>
+    }
+  </select>
+</div>
+
+<div class="ws" [class.ws--with-drawer]="drawerOpen">
+  <!-- Integrations list -->
+  <aside class="panel">
+    <div class="panel__head">
+      <h2>Integrations <span class="muted">({{ integrations.length }})</span></h2>
+    </div>
+    <label class="search">
+      <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+      <input type="search" placeholder="Search connectors..." aria-label="Search connectors" [(ngModel)]="listQuery" />
+    </label>
+    <div class="list int-list">
+      @for (i of filtered; track i.id) {
+        <button type="button" class="list-item" [class.active]="i.id === selectedId" (click)="select(i)">
+          <span class="int-logo" [style.background]="i.logo.bg" [style.color]="i.logo.ink">{{ i.logo.text }}</span>
+          <span class="list-item__body">
+            <span class="list-item__title">
+              <span class="int-ellipsis">{{ i.name }}</span>
+              <span class="pill" [attr.data-tone]="tone(i)"><i></i> {{ i.status }}</span>
+            </span>
+            <span class="list-item__meta">{{ i.type }} • {{ i.version }}</span>
+            <span class="list-item__meta">Last sync: {{ stamp(i.lastSync) }}</span>
+          </span>
+          <lucide-icon [img]="icons.ChevronRight" [size]="15" class="muted int-chevron"></lucide-icon>
+        </button>
+      } @empty {
+        <p class="list-empty">No integrations match the filters.</p>
+      }
+    </div>
+  </aside>
+
+  <!-- Selected integration -->
+  <main class="panel">
+    @if (selected; as i) {
+      <div class="detail-head">
+        <span class="int-logo int-logo--lg" [style.background]="i.logo.bg" [style.color]="i.logo.ink">{{ i.logo.text }}</span>
+        <div class="detail-head__title">
+          <h2>
+            {{ i.name }} Integration
+            <span class="pill" [attr.data-tone]="tone(i)"><i></i> {{ i.status }}</span>
+          </h2>
+          <div class="detail-head__meta">
+            <span>Integration Code: <b>{{ i.code }}</b></span>
+            <span>Version: <b>{{ i.version }}</b></span>
+            <span class="pill" data-tone="purple">DEMO MODE</span>
+          </div>
+        </div>
+        <div class="detail-head__actions">
+          <button type="button" class="btn btn--sm btn--outline" (click)="testConnection()">
+            <lucide-icon [img]="icons.RefreshCw" [size]="14"></lucide-icon> Test Connection
+          </button>
+          <button type="button" class="btn btn--sm btn--primary" [disabled]="i.status === 'Disabled'" (click)="syncNow()">
+            <lucide-icon [img]="icons.RefreshCw" [size]="14"></lucide-icon> Sync Now
+          </button>
+          <button type="button" class="btn btn--sm btn--outline" (click)="edit()">
+            <lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon> Edit
+          </button>
+          @if (i.status === 'Disabled') {
+            <button type="button" class="btn btn--sm btn--outline" (click)="toggleEnabled()">
+              <lucide-icon [img]="icons.Power" [size]="14"></lucide-icon> Enable
+            </button>
+          } @else {
+            <button type="button" class="btn btn--sm btn--danger" (click)="toggleEnabled()">
+              <lucide-icon [img]="icons.Ban" [size]="14"></lucide-icon> Disable
+            </button>
+          }
+        </div>
+      </div>
+
+      <nav class="tabs" role="tablist">
+        @for (t of tabs; track t.id) {
+          <button type="button" role="tab" [class.active]="t.id === tab" [attr.aria-selected]="t.id === tab" (click)="tab = t.id">
+            <lucide-icon [img]="t.icon" [size]="15"></lucide-icon> {{ t.label }}
+          </button>
+        }
+      </nav>
+
+      @switch (tab) {
+        @case ('overview') {
+          <app-integration-overview-tab [integration]="i" (viewLogs)="tab = 'logs'" (notice)="notify($event)" />
+        }
+        @case ('mapping') {
+          <app-integration-mapping-tab [integration]="i" (notice)="notify($event)" />
+        }
+        @case ('credentials') {
+          <app-integration-credentials-tab
+            [integration]="i"
+            (create)="openKeyDialog()"
+            (secret)="showSecret($event)"
+            (notice)="notify($event)"
+          />
+        }
+        @case ('webhooks') {
+          <app-integration-webhooks-tab [integration]="i" (secretIssued)="showSecret($event)" (notice)="notify($event)" />
+        }
+        @case ('logs') {
+          <app-integration-logs-tab [integration]="i" />
+        }
+      }
+    } @else {
+      <p class="empty">No integration selected. Use Add Integration to connect a system.</p>
+    }
+  </main>
+
+  @if (drawerOpen && (creating || selected)) {
+    <app-integration-settings-drawer
+      [integration]="selected"
+      [creating]="creating"
+      (saved)="onSaved($event)"
+      (deleted)="onDeleted($event)"
+      (closed)="closeDrawer()"
+      (notice)="notify($event)"
+    />
+  }
+</div>
+
+@if (showKeyDialog) {
+  <app-api-key-dialog [integrations]="integrations" [initialId]="selectedId" (created)="createKey($event)" (cancelled)="showKeyDialog = false" />
+}
+
+@if (secret) {
+  <app-secret-dialog [title]="secret.title" [value]="secret.value" (closed)="closeSecret()" />
+}
+
+@if (confirmDisable && selected) {
+  <div class="overlay">
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="int-disable-title">
+      <h2 id="int-disable-title">Disable {{ selected.name }}?</h2>
+      <p>Scheduled syncs stop and incoming calls are rejected until the integration is enabled again.</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="confirmDisable = false">Cancel</button>
+        <button type="button" class="btn btn--danger" (click)="disable()">Disable</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

@@ -1,0 +1,72 @@
+<div class="mt-legend">
+  <span><i data-tone="green"></i> Full Access</span>
+  <span><i data-tone="blue"></i> Limited Access</span>
+  <span><i data-tone="purple"></i> Read Only</span>
+  <span><i data-tone="pink"></i> Restricted</span>
+  <span><lucide-icon [img]="icons.Lock" [size]="13"></lucide-icon> Inherited (from parent)</span>
+</div>
+
+<div class="table-wrap mt-wrap">
+  <div class="mt-all">
+    <label>
+      <input type="checkbox" [checked]="allEnabled()" [indeterminate]="someEnabled()" (change)="toggleAllModules()" />
+      Select all modules
+    </label>
+  </div>
+  <table class="table mt">
+    <thead>
+      <tr>
+        <th>Module</th>
+        <th class="center">Enabled</th>
+        @for (p of perms; track p.id) {
+          <th class="center">{{ p.label }}</th>
+        }
+        <th>Data Scope</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (g of rows; track g.module) {
+        <tr [class.mt-off]="!g.enabled">
+          <td>
+            <span class="mt-mod">
+              <lucide-icon [img]="icon(g.module)" [size]="16"></lucide-icon>
+              {{ g.module }}
+            </span>
+          </td>
+          <td class="center">
+            <label class="switch mt-switch" [attr.aria-label]="'Enable ' + g.module">
+              <input type="checkbox" [checked]="g.enabled" (change)="toggleEnabled(g)" /><i></i>
+            </label>
+          </td>
+          @for (p of perms; track p.id) {
+            <td class="center">
+              @if (g.perms[p.id] === null) {
+                <span class="mt-na" title="Not applicable">–</span>
+              } @else if (isLocked(g, p.id)) {
+                <button type="button" class="mt-lock" [title]="'Inherited from parent policy: ' + (g.perms[p.id] ? 'granted' : 'not granted')" (click)="togglePerm(g, p.id)">
+                  <lucide-icon [img]="icons.Lock" [size]="14"></lucide-icon>
+                </button>
+              } @else {
+                <input
+                  type="checkbox"
+                  class="mt-cb"
+                  [checked]="!!g.perms[p.id]"
+                  [disabled]="!g.enabled"
+                  [attr.aria-label]="g.module + ' ' + p.label"
+                  (change)="togglePerm(g, p.id)"
+                />
+              }
+            </td>
+          }
+          <td>
+            <select class="mt-scope" [attr.data-tone]="tone(g.scope)" [disabled]="!g.enabled" [attr.aria-label]="g.module + ' data scope'" (change)="setScope(g, $event)">
+              @for (s of scopes; track s) {
+                <option [value]="s" [selected]="s === g.scope">{{ s }}</option>
+              }
+            </select>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

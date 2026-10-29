@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "assets360-tracking-iot",
+  "compatibility_date": "2026-08-18",
+  "assets": {
+    "directory": "dist/tracking-iot/browser",
+    "not_found_handling": "single-page-application"
+  }
+}

@@ -1,0 +1,1447 @@
+{
+  "tag": "FP-00061",
+  "documents": [
+    {
+      "id": 1,
+      "name": "Purchase Order.pdf",
+      "type": "Purchase Order",
+      "stage": "Procurement",
+      "description": "Purchase order PO-2021-0061 issued to SafeGuard Fire Systems for the fire alarm panel.",
+      "tags": [
+        "Procurement",
+        "PO"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-09T10:15",
+          "uploadedBy": "Rex Kumar",
+          "size": 419430,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Procurement",
+      "coverTitle": "PURCHASE ORDER",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 2,
+      "name": "Invoice.pdf",
+      "type": "Invoice",
+      "stage": "Procurement",
+      "description": "Supplier invoice INV-2021-145 for the fire alarm panel, delivery and installation.",
+      "tags": [
+        "Finance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-11T11:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 1468006,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "SafeGuard Fire Systems",
+      "coverTitle": "INVOICE",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 3,
+      "name": "Delivery Note.pdf",
+      "type": "Delivery Note",
+      "stage": "Procurement",
+      "description": "Signed delivery note for the fire alarm panel.",
+      "tags": [
+        "Logistics"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-14T09:05",
+          "uploadedBy": "Store Team",
+          "size": 314573,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "SafeGuard Fire Systems",
+      "coverTitle": "DELIVERY NOTE",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 4,
+      "name": "GRN.pdf",
+      "type": "Goods Receipt",
+      "stage": "Procurement",
+      "description": "Goods received note confirming the fire alarm panel was received in good condition.",
+      "tags": [
+        "Stores"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-17T16:20",
+          "uploadedBy": "Store Team",
+          "size": 734003,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Stores",
+      "coverTitle": "GOODS RECEIPT",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 5,
+      "name": "Installation Report.pdf",
+      "type": "Installation Report",
+      "stage": "Installation",
+      "description": "Installation report for the fire alarm panel at Head Office - Building A - Security Room.",
+      "tags": [
+        "Installation"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-24T15:00",
+          "uploadedBy": "Installation Team",
+          "size": 1677722,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 6,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSTALLATION REPORT",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 6,
+      "name": "Commissioning Certificate.pdf",
+      "type": "Commissioning",
+      "stage": "Commissioning",
+      "description": "Commissioning certificate with functional test results for the fire alarm panel.",
+      "tags": [
+        "Certificate"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-25T12:10",
+          "uploadedBy": "Commissioning Team",
+          "size": 1258291,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "COMMISSIONING",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 7,
+      "name": "Operation Manual.pdf",
+      "type": "User Manual",
+      "stage": "In Operation",
+      "description": "Manufacturer operation and maintenance manual for Honeywell NFS2-3030.",
+      "tags": [
+        "Manual",
+        "Honeywell"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-25T14:30",
+          "uploadedBy": "Rex Kumar",
+          "size": 5033165,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 40,
+      "issuer": "HONEYWELL",
+      "coverTitle": "FIRE ALARM PANEL",
+      "coverSubtitle": "Operation & Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 8,
+      "name": "Technical Datasheet.pdf",
+      "type": "Technical Document",
+      "stage": "Operations",
+      "description": "Ratings, dimensions and performance data for the NFS2-3030.",
+      "tags": [
+        "Datasheet",
+        "Honeywell"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-25T14:35",
+          "uploadedBy": "Rex Kumar",
+          "size": 629146,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 4,
+      "issuer": "HONEYWELL",
+      "coverTitle": "NFS2-3030",
+      "coverSubtitle": "Technical Datasheet",
+      "showAssetImage": true
+    },
+    {
+      "id": 9,
+      "name": "Detector Layout.pdf",
+      "type": "Drawing",
+      "stage": "Operations",
+      "description": "Detector and call point layout per floor.",
+      "tags": [
+        "Drawing"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-25T14:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 2202010,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "DRAWING",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 10,
+      "name": "Maintenance Manual.pdf",
+      "type": "Maintenance Manual",
+      "stage": "Operations",
+      "description": "Preventive maintenance schedule and service procedures.",
+      "tags": [
+        "Manual",
+        "Maintenance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-25T14:45",
+          "uploadedBy": "Rex Kumar",
+          "size": 3774874,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 24,
+      "issuer": "HONEYWELL",
+      "coverTitle": "FIRE ALARM PANEL",
+      "coverSubtitle": "Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 11,
+      "name": "Warranty Certificate.pdf",
+      "type": "Warranty",
+      "stage": "Warranty",
+      "description": "Manufacturer warranty, 2 years from commissioning.",
+      "tags": [
+        "Warranty"
+      ],
+      "expiryDate": "2023-11-25",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-25T15:00",
+          "uploadedBy": "Vendor",
+          "size": 419430,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "HONEYWELL",
+      "coverTitle": "WARRANTY",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 12,
+      "name": "AMC Contract.pdf",
+      "type": "Service Contract",
+      "stage": "Warranty",
+      "description": "Annual maintenance contract with SafeGuard Fire Systems.",
+      "tags": [
+        "AMC",
+        "Contract"
+      ],
+      "expiryDate": "2026-11-25",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2025-11-25T15:10",
+          "uploadedBy": "Rex Kumar",
+          "size": 1468006,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 10,
+      "issuer": "SafeGuard Fire Systems",
+      "coverTitle": "SERVICE CONTRACT",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 13,
+      "name": "Inspection Report 2024.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the fire alarm panel with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-11-25T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 838861,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 14,
+      "name": "Inspection Report 2025.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the fire alarm panel with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2025-11-25T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 838861,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 15,
+      "name": "Compliance Certificate.pdf",
+      "type": "Compliance",
+      "stage": "Compliance",
+      "description": "Civil Defence fire alarm system certificate.",
+      "tags": [
+        "Compliance",
+        "HSE"
+      ],
+      "expiryDate": "2026-11-30",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2025-11-30T09:20",
+          "uploadedBy": "HSE Team",
+          "size": 629146,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "UAE Civil Defence",
+      "coverTitle": "COMPLIANCE",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 16,
+      "name": "Site Photo.jpg",
+      "type": "Image",
+      "stage": "Operations",
+      "description": "Photo of the fire alarm panel at Head Office - Building A - Security Room.",
+      "tags": [
+        "Photo"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2021-11-25T16:00",
+          "uploadedBy": "Rex Kumar",
+          "size": 3040870,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 1,
+      "issuer": "Purple IQ",
+      "coverTitle": "IMAGE",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": true
+    },
+    {
+      "id": 17,
+      "name": "Decommissioning Report.pdf",
+      "type": "Decommissioning",
+      "stage": "Decommissioning",
+      "description": "To be completed when the asset is decommissioned.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DECOMMISSIONING",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    },
+    {
+      "id": 18,
+      "name": "Disposal Certificate.pdf",
+      "type": "Disposal",
+      "stage": "Disposal",
+      "description": "To be issued on disposal of the asset.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DISPOSAL",
+      "coverSubtitle": "FP-00061 · Fire Alarm Panel",
+      "showAssetImage": false
+    }
+  ],
+  "previewDocumentId": 7,
+  "images": [
+    {
+      "id": 1,
+      "title": "Full View",
+      "description": "Full view of the fire alarm panel at Head Office - Building A - Security Room.",
+      "type": "Asset Overview",
+      "tags": [
+        "Fire System",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2021-11-25T09:00",
+      "location": "Head Office - Building A - Security Room",
+      "fileName": "FP-00061_FullView.jpg",
+      "size": 2058634,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Taken at commissioning.",
+      "src": "asset-images/alarmpanel-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2021-11-25T09:00"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Smoke Detector",
+      "description": "Addressable smoke detector, loop 2.",
+      "type": "Component",
+      "tags": [
+        "Detector"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2021-11-25T10:07",
+      "location": "Head Office - Building A - Security Room",
+      "fileName": "FP-00061_SmokeDetector.jpg",
+      "size": 1562697,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/alarmpanel-detector.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2021-11-25T10:07"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Standby Batteries",
+      "description": "2 × 12 V 18 Ah standby batteries.",
+      "type": "Component",
+      "tags": [
+        "Batteries"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2021-11-25T11:14",
+      "location": "Head Office - Building A - Security Room",
+      "fileName": "FP-00061_StandbyBatteries.jpg",
+      "size": 1558457,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/alarmpanel-batteries.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2021-11-25T11:14"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Name Plate",
+      "description": "Manufacturer nameplate with model, serial number and ratings.",
+      "type": "Nameplate",
+      "tags": [
+        "Nameplate",
+        "Honeywell"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2021-11-25T12:21",
+      "location": "Head Office - Building A - Security Room",
+      "fileName": "FP-00061_NamePlate.jpg",
+      "size": 1858718,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/nameplate-FP-00061.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2021-11-25T12:21"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Installed Position",
+      "description": "Fire Alarm Panel in its installed position.",
+      "type": "Installation",
+      "tags": [
+        "Fire System",
+        "Installation"
+      ],
+      "uploadedBy": "Installation Team",
+      "uploadedAt": "2021-11-24T13:28",
+      "location": "Head Office - Building A - Security Room",
+      "fileName": "FP-00061_Installed.jpg",
+      "size": 2259408,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/alarmpanel-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Installation Team",
+          "at": "2021-11-24T13:28"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Smoke Detector",
+      "description": "Smoke Detector at the 2024 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Detector",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2024-11-25T14:35",
+      "location": "Head Office - Building A - Security Room",
+      "fileName": "FP-00061_Inspection2024.jpg",
+      "size": 2413399,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/alarmpanel-detector.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2024-11-25T14:35"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Standby Batteries",
+      "description": "Standby Batteries at the 2025 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Batteries",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2025-11-25T15:42",
+      "location": "Head Office - Building A - Security Room",
+      "fileName": "FP-00061_Inspection2025.jpg",
+      "size": 1700760,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/alarmpanel-batteries.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2025-11-25T15:42"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Detector Testing",
+      "description": "Detector smoke test during the annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Detector",
+        "Test"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-05-25T09:49",
+      "location": "Head Office - Building A - Security Room",
+      "fileName": "FP-00061_DetectorTesting.jpg",
+      "size": 2893173,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/alarmpanel-detector.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-05-25T09:49"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Latest View",
+      "description": "Latest photo of the fire alarm panel for the asset register.",
+      "type": "Asset Overview",
+      "tags": [
+        "Fire System",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2026-09-24T10:56",
+      "location": "Head Office - Building A - Security Room",
+      "fileName": "FP-00061_LatestView.jpg",
+      "size": 2558165,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/alarmpanel-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2026-09-24T10:56"
+        }
+      ]
+    }
+  ],
+  "headerImageId": 1,
+  "status": {
+    "hasData": true,
+    "availability": 98,
+    "utilization": 96,
+    "lastMaintenance": "2026-05-25",
+    "operational": {
+      "status": "Active",
+      "statusSince": "2021-11-25",
+      "operatingMode": "Normal",
+      "loadLabel": "Devices Online",
+      "currentLoad": 248,
+      "loadUnit": "devices",
+      "capacityLabel": "Loop Capacity",
+      "ratedCapacity": 318,
+      "ratedUnit": "devices",
+      "capacityFactor": 1,
+      "runningHours": 42253,
+      "lastStart": "2026-10-13T07:45",
+      "lastStop": "",
+      "location": "Head Office - Building A - Security Room",
+      "controlledBy": "Fire Alarm Network",
+      "remarks": "Running normally."
+    },
+    "operatingModes": [
+      "Normal",
+      "Test",
+      "Disabled Zones"
+    ],
+    "lifecycle": {
+      "stage": "In Operation",
+      "commissionedOn": "2021-11-25",
+      "expectedLifeYears": 15,
+      "nextAssessment": "2026-11-25",
+      "nextMaintenance": "2026-12-20"
+    },
+    "readingsUpdatedAt": "2026-10-13T14:30",
+    "readings": [
+      {
+        "label": "Devices Online",
+        "value": 243,
+        "unit": "",
+        "min": 248.04000000000002
+      },
+      {
+        "label": "Active Faults",
+        "value": 0,
+        "unit": "",
+        "max": 0
+      },
+      {
+        "label": "Disabled Zones",
+        "value": 0,
+        "unit": "",
+        "max": 0
+      },
+      {
+        "label": "Battery Voltage",
+        "value": 26.5,
+        "unit": "V",
+        "min": 24,
+        "max": 28,
+        "scaleMax": 30,
+        "decimals": 1
+      },
+      {
+        "label": "Charger Current",
+        "value": 0.4,
+        "unit": "A",
+        "max": 1.5,
+        "decimals": 1
+      }
+    ],
+    "alerts": [
+      {
+        "id": 1,
+        "severity": "Warning",
+        "message": "Detector 2-041 dirty — clean or replace",
+        "raisedAt": "2026-03-25T07:55",
+        "status": "Monitoring"
+      },
+      {
+        "id": 2,
+        "severity": "Warning",
+        "message": "Earth fault on loop 3",
+        "raisedAt": "2025-11-25T07:55",
+        "status": "Resolved"
+      },
+      {
+        "id": 3,
+        "severity": "Critical",
+        "message": "Mains failure — running on batteries",
+        "raisedAt": "2022-07-25T21:05",
+        "status": "Resolved"
+      }
+    ],
+    "environment": [
+      {
+        "parameter": "Room Temperature",
+        "value": 24,
+        "unit": "°C",
+        "limit": 35,
+        "limitType": "max",
+        "measuredOn": "2026-09-28"
+      },
+      {
+        "parameter": "Relative Humidity",
+        "value": 49,
+        "unit": "%",
+        "limit": 85,
+        "limitType": "max",
+        "measuredOn": "2026-10-02"
+      }
+    ],
+    "consumptionLabel": "Energy Used (kWh)",
+    "performance": [
+      {
+        "month": "Apr 2026",
+        "availability": 95,
+        "utilization": 100,
+        "runningHours": 726,
+        "consumption": 93.6,
+        "downtime": 36,
+        "failures": 1
+      },
+      {
+        "month": "May 2026",
+        "availability": 99,
+        "utilization": 93,
+        "runningHours": 671,
+        "consumption": 73.5,
+        "downtime": 7,
+        "failures": 0
+      },
+      {
+        "month": "Jun 2026",
+        "availability": 100,
+        "utilization": 100,
+        "runningHours": 756,
+        "consumption": 91.8,
+        "downtime": 0,
+        "failures": 0
+      },
+      {
+        "month": "Jul 2026",
+        "availability": 96,
+        "utilization": 93,
+        "runningHours": 667,
+        "consumption": 85.4,
+        "downtime": 29,
+        "failures": 1
+      },
+      {
+        "month": "Aug 2026",
+        "availability": 98,
+        "utilization": 100,
+        "runningHours": 743,
+        "consumption": 94.8,
+        "downtime": 14,
+        "failures": 0
+      },
+      {
+        "month": "Sep 2026",
+        "availability": 98,
+        "utilization": 90,
+        "runningHours": 646,
+        "consumption": 71.5,
+        "downtime": 14,
+        "failures": 0
+      }
+    ],
+    "assessments": [
+      {
+        "id": 1,
+        "date": "2021-11-25",
+        "assessedBy": "Commissioning Team",
+        "overall": "Excellent",
+        "healthScore": 97,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Baseline assessment at commissioning."
+      },
+      {
+        "id": 2,
+        "date": "2023-11-25",
+        "assessedBy": "Maintenance Team",
+        "overall": "Excellent",
+        "healthScore": 95,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 3,
+        "date": "2024-05-25",
+        "assessedBy": "HSE Team",
+        "overall": "Good",
+        "healthScore": 94,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Minor wear noted; monitor at next PM."
+      },
+      {
+        "id": 4,
+        "date": "2024-11-25",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 93,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Cleaned and adjusted; no issues."
+      },
+      {
+        "id": 5,
+        "date": "2025-05-25",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 92,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "No defects found."
+      },
+      {
+        "id": 6,
+        "date": "2025-11-25",
+        "assessedBy": "HSE Team",
+        "overall": "Good",
+        "healthScore": 90,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 7,
+        "date": "2026-05-25",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 87,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Minor wear noted; monitor at next PM."
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2021-11-09",
+        "title": "Asset purchased",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2021-11-25",
+        "title": "Commissioned and handed over",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2022-11-25",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2023-11-25",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2024-11-25",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-11-25",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-05-25",
+        "title": "Quarterly fire alarm test completed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2026-05-25",
+        "title": "Quarterly fire alarm test completed",
+        "status": "Active",
+        "condition": "Good"
+      }
+    ]
+  },
+  "relationships": {
+    "parts": [
+      {
+        "tag": "LOC-HEADOFFICEBU",
+        "name": "Head Office - Building A - Security Room",
+        "category": "Facilities",
+        "location": "Head Office - Building A - Security Room",
+        "condition": "",
+        "icon": "Building2"
+      },
+      {
+        "tag": "RPT-00061",
+        "name": "Repeater Panel",
+        "category": "Safety & Security",
+        "location": "Head Office - Building A - Security Room",
+        "condition": "Good",
+        "icon": "Cpu"
+      },
+      {
+        "tag": "PSU-00061",
+        "name": "Booster Power Supply",
+        "category": "Safety & Security",
+        "location": "Head Office - Building A - Security Room",
+        "condition": "Good",
+        "icon": "BatteryCharging"
+      },
+      {
+        "tag": "LP1-00061-01",
+        "name": "Loop Card 1-2",
+        "category": "Safety & Security",
+        "location": "Head Office - Building A - Security Room",
+        "condition": "Good",
+        "icon": "Cpu"
+      },
+      {
+        "tag": "BAT-00061-02",
+        "name": "Standby Batteries",
+        "category": "Safety & Security",
+        "location": "Head Office - Building A - Security Room",
+        "condition": "Good",
+        "icon": "BatteryCharging"
+      },
+      {
+        "tag": "LP2-00061-03",
+        "name": "Loop Card 3-4",
+        "category": "Safety & Security",
+        "location": "Head Office - Building A - Security Room",
+        "condition": "Good",
+        "icon": "Cpu"
+      }
+    ],
+    "links": [
+      {
+        "id": 1,
+        "tag": "LOC-HEADOFFICEBU",
+        "type": "Parent Asset",
+        "direction": "Parent",
+        "since": "2021-11-24",
+        "to": "",
+        "status": "Active",
+        "description": "Fire Alarm Panel is installed at Head Office - Building A - Security Room.",
+        "reference": "Site Layout - Head Office",
+        "remarks": ""
+      },
+      {
+        "id": 2,
+        "tag": "RPT-00061",
+        "type": "Connected Asset",
+        "direction": "Child",
+        "since": "2021-11-24",
+        "to": "",
+        "status": "Active",
+        "description": "Repeater panel at the main reception.",
+        "reference": "Fire Schematic - FS-120",
+        "remarks": ""
+      },
+      {
+        "id": 3,
+        "tag": "PSU-00061",
+        "type": "Supporting Asset",
+        "direction": "Child",
+        "since": "2021-11-24",
+        "to": "",
+        "status": "Active",
+        "description": "Powers sounders and beacons.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 4,
+        "tag": "LP1-00061-01",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2021-11-24",
+        "to": "",
+        "status": "Active",
+        "description": "Addressable loop controller.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 5,
+        "tag": "BAT-00061-02",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2021-11-24",
+        "to": "",
+        "status": "Active",
+        "description": "24 h standby batteries.",
+        "reference": "OEM Manual",
+        "remarks": "Replace every 4 years."
+      },
+      {
+        "id": 6,
+        "tag": "FP-00056",
+        "type": "Connected Asset",
+        "direction": "Child",
+        "since": "2021-11-25",
+        "to": "",
+        "status": "Active",
+        "description": "Starts the fire pump on alarm.",
+        "reference": "",
+        "remarks": ""
+      }
+    ]
+  },
+  "criticality": {
+    "level": "High",
+    "score": 71,
+    "assessmentDate": "2026-06-26",
+    "validUntil": "2027-06-26",
+    "nextReview": "2026-12-26",
+    "assessedBy": "Rex Kumar",
+    "approvedBy": "HSE Manager",
+    "method": "Risk Matrix (Weighted)",
+    "reviewFrequency": "Every 6 Months",
+    "department": "Safety",
+    "assetGroup": "Fire Detection",
+    "remarks": "Monitors all detectors and call points in Head Office.",
+    "likelihood": 3,
+    "consequence": 4,
+    "criteria": [
+      {
+        "key": "operational",
+        "name": "Operational Impact",
+        "weight": 25,
+        "score": 3,
+        "justification": "Alarm monitoring stops for the whole building."
+      },
+      {
+        "key": "safety",
+        "name": "Safety Impact",
+        "weight": 20,
+        "score": 4.5,
+        "justification": "Fires may not be detected in time."
+      },
+      {
+        "key": "financial",
+        "name": "Financial Impact",
+        "weight": 20,
+        "score": 3,
+        "justification": "Fire watch costs during outages."
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance / Regulatory",
+        "weight": 15,
+        "score": 5,
+        "justification": "Civil Defence requires a working fire alarm system."
+      },
+      {
+        "key": "environmental",
+        "name": "Environmental Impact",
+        "weight": 10,
+        "score": 1.5,
+        "justification": "Indirect, through fire spread."
+      },
+      {
+        "key": "reputation",
+        "name": "Reputation Impact",
+        "weight": 10,
+        "score": 4,
+        "justification": "Serious if an incident is missed."
+      }
+    ],
+    "impact": {
+      "downtimeCostPerHour": 3000,
+      "currency": "AED",
+      "mttrHours": 4,
+      "redundancy": "Repeater panel only",
+      "spares": "Loop card and batteries in stock",
+      "failureScenario": "Panel failure leaves the building unmonitored.",
+      "affectedServices": [
+        "Detectors and call points",
+        "Fire pump start signal",
+        "Lift homing"
+      ]
+    },
+    "mitigations": [
+      {
+        "id": 1,
+        "action": "Quarterly testing by certified contractor",
+        "owner": "Safety",
+        "dueDate": "2026-07-26",
+        "status": "Completed",
+        "reducesTo": "Medium"
+      },
+      {
+        "id": 2,
+        "action": "Replace standby batteries every 4 years",
+        "owner": "Maintenance Team",
+        "dueDate": "2026-09-26",
+        "status": "In Progress",
+        "reducesTo": "Medium"
+      },
+      {
+        "id": 3,
+        "action": "Fire watch procedure for outages",
+        "owner": "HSE",
+        "dueDate": "2026-11-26",
+        "status": "Open",
+        "reducesTo": "Medium"
+      }
+    ],
+    "history": [
+      {
+        "date": "2025-12-26",
+        "score": 72.1,
+        "level": "High",
+        "likelihood": 3,
+        "consequence": 4,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "HSE Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2025-06-26",
+        "score": 74.2,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "HSE Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-12-26",
+        "score": 73.8,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "HSE Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-06-26",
+        "score": 71.8,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "HSE Manager",
+        "remarks": "Initial criticality assessment."
+      }
+    ]
+  },
+  "health": {
+    "score": 87,
+    "status": "Healthy",
+    "grade": "Good",
+    "assessmentDate": "2026-10-01",
+    "nextAssessment": "2026-11-01",
+    "assessedBy": "Rex Kumar",
+    "method": "Predictive Analytics + Maintenance Data",
+    "remarks": "Asset in good health; no action needed.",
+    "breakdown": [
+      {
+        "key": "performance",
+        "name": "Performance",
+        "weight": 25,
+        "score": 88
+      },
+      {
+        "key": "reliability",
+        "name": "Reliability",
+        "weight": 25,
+        "score": 88
+      },
+      {
+        "key": "condition",
+        "name": "Condition",
+        "weight": 20,
+        "score": 81
+      },
+      {
+        "key": "safety",
+        "name": "Risk & Safety",
+        "weight": 15,
+        "score": 92
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance",
+        "weight": 15,
+        "score": 85
+      }
+    ],
+    "history": [
+      {
+        "date": "2026-10-01",
+        "score": 87,
+        "status": "Healthy",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-09-01",
+        "score": 85,
+        "status": "Healthy",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-08-01",
+        "score": 83,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-07-01",
+        "score": 84,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-06-01",
+        "score": 83,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-05-01",
+        "score": 82,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-04-01",
+        "score": 82,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-03-01",
+        "score": 82,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-02-01",
+        "score": 83,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-01-01",
+        "score": 81,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-12-01",
+        "score": 80,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-11-01",
+        "score": 80,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      }
+    ],
+    "insights": [
+      {
+        "type": "warning",
+        "text": "1 open alarm: Detector 2-041 dirty — clean or replace."
+      },
+      {
+        "type": "warning",
+        "text": "Condition is the weakest area (81%). Consider an inspection."
+      },
+      {
+        "type": "info",
+        "text": "Health score improved by 2 points compared to last month."
+      },
+      {
+        "type": "success",
+        "text": "No critical issues found."
+      }
+    ],
+    "maintenancePlan": [
+      {
+        "task": "Weekly churn test review",
+        "frequency": "Monthly",
+        "lastDone": "2026-09-25",
+        "nextDue": "2026-10-25",
+        "owner": "Safety"
+      },
+      {
+        "task": "Quarterly system test",
+        "frequency": "Every 3 months",
+        "lastDone": "2026-09-20",
+        "nextDue": "2026-12-20",
+        "owner": "Vendor"
+      },
+      {
+        "task": "Annual flow / full test",
+        "frequency": "Yearly",
+        "lastDone": "2026-05-25",
+        "nextDue": "2027-05-25",
+        "owner": "Vendor"
+      }
+    ]
+  }
+}

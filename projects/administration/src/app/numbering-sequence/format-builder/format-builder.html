@@ -1,0 +1,109 @@
+<section class="sub-panel fb">
+  <div class="fb__head">
+    <div>
+      <h3 class="sub-panel__title">Format Builder</h3>
+      <p class="muted">Drag and arrange tokens to create your numbering format.</p>
+    </div>
+    <div class="fb__available">
+      <span>Available Tokens</span>
+      <div class="fb__chips">
+        @for (kind of kinds; track kind) {
+          <button type="button" class="tok-chip" [attr.data-kind]="kind" [disabled]="hasKind(kind)" (click)="addToken(kind)"
+            [title]="hasKind(kind) ? labels[kind] + ' is already in the format' : 'Add ' + labels[kind]">
+            <lucide-icon [img]="kindIcon(kind)" [size]="12"></lucide-icon> {{ labels[kind] }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="fb__row">
+    @for (token of sequence.tokens; track $index; let i = $index; let first = $first; let last = $last) {
+      <div class="tok" [attr.data-kind]="token.kind" [class.drop]="dropIndex === i" draggable="true"
+        (dragstart)="onDragStart(i, $event)" (dragover)="onDragOver(i, $event)" (drop)="onDrop(i, $event)" (dragend)="onDragEnd()">
+        <div class="tok__head">
+          <lucide-icon class="tok__grip" [img]="icons.GripVertical" [size]="13"></lucide-icon>
+          <span class="tok__label">
+            {{ labels[token.kind] }}@if (token.kind === 'date') { ({{ token.value }}) }@if (token.kind === 'suffix') { (Optional) }
+          </span>
+          <button type="button" class="tok__x" title="Remove token" (click)="removeToken(i)">
+            <lucide-icon [img]="icons.X" [size]="12"></lucide-icon>
+          </button>
+        </div>
+        @switch (token.kind) {
+          @case ('prefix') {
+            <input class="tok__ctl" [(ngModel)]="token.value" (ngModelChange)="changed.emit()" maxlength="10" placeholder="AST" aria-label="Prefix text" />
+          }
+          @case ('date') {
+            <select class="tok__ctl" [(ngModel)]="token.value" (ngModelChange)="changed.emit()" aria-label="Date format">
+              @for (f of dateFormats; track f) { <option [value]="f">{{ f }}</option> }
+            </select>
+          }
+          @case ('location') {
+            <select class="tok__ctl" [(ngModel)]="token.value" (ngModelChange)="changed.emit()" aria-label="Location code">
+              @for (c of locationCodes; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          }
+          @case ('number') {
+            <select class="tok__ctl" [ngModel]="sequence.numberLength" (ngModelChange)="setNumberLength($event)" aria-label="Number padding">
+              @for (n of numberLengths; track n) { <option [ngValue]="n">{{ padSample(n) }}</option> }
+            </select>
+          }
+          @case ('suffix') {
+            <input class="tok__ctl" [(ngModel)]="token.value" (ngModelChange)="changed.emit()" maxlength="6" placeholder="e.g. A" aria-label="Suffix text" />
+          }
+        }
+        <div class="tok__move">
+          <button type="button" [disabled]="first" title="Move left" (click)="move(i, -1)"><lucide-icon [img]="icons.ArrowLeft" [size]="12"></lucide-icon></button>
+          <button type="button" [disabled]="last" title="Move right" (click)="move(i, 1)"><lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></button>
+        </div>
+      </div>
+      @if (!last) {
+        @if (first) {
+          <div class="tok tok--sep">
+            <div class="tok__head"><span class="tok__label">Separator</span></div>
+            <select class="tok__ctl" [(ngModel)]="sequence.separator" (ngModelChange)="changed.emit()" aria-label="Separator">
+              @for (s of separators; track s.value) { <option [value]="s.value">{{ s.label }}</option> }
+            </select>
+          </div>
+        } @else {
+          <span class="sep-glyph">{{ sequence.separator || '·' }}</span>
+        }
+      }
+    } @empty {
+      <p class="muted">No tokens yet — add a Prefix and a Number from Available Tokens.</p>
+    }
+  </div>
+
+  <div class="fb__result">
+    <div class="fb__preview">
+      <div>
+        <span class="muted">Live Format Preview</span>
+        <div class="fb__number">
+          {{ preview || '—' }}
+          <button type="button" class="icon-btn icon-btn--bare" title="Preview the following numbers" (click)="stepPreview()">
+            <lucide-icon [img]="icons.RefreshCw" [size]="14"></lucide-icon>
+          </button>
+        </div>
+      </div>
+      <div class="fb__desc">
+        <span class="muted">Description</span>
+        <input [(ngModel)]="sequence.description" (ngModelChange)="changed.emit()" maxlength="120" aria-label="Description" />
+      </div>
+    </div>
+    @if (errors.length === 0) {
+      <div class="note note--ok fb__valid">
+        <lucide-icon [img]="icons.CircleCheck" [size]="16"></lucide-icon>
+        <div><b>Format is valid</b><br /><small>This format will generate unique numbers.</small></div>
+      </div>
+    } @else {
+      <div class="note fb__invalid">
+        <lucide-icon [img]="icons.CircleAlert" [size]="16"></lucide-icon>
+        <div>
+          <b>Format needs attention</b>
+          @for (e of errors; track e) { <small>{{ e }}</small> }
+        </div>
+      </div>
+    }
+  </div>
+</section>

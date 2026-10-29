@@ -1,0 +1,235 @@
+<div (click)="closeMenus()">
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/administration">Administration</a>
+  <span>/</span>
+  <strong>System Audit Log</strong>
+</nav>
+
+<header class="page-head">
+  <span class="page-head__icon"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></span>
+  <div class="page-head__text">
+    <h1>System Audit Log</h1>
+    <p>Track configuration changes, user activity, security events, approvals, integrations, and data access across Asset360.</p>
+  </div>
+  <label class="org-picker">
+    Organization
+    <select [(ngModel)]="organization">
+      @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
+    </select>
+  </label>
+</header>
+
+<!-- Stats -->
+<section class="stats">
+  <div class="stat">
+    <span class="stat__icon"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Events Today</span>
+      <span class="stat__value">{{ service.eventsToday.toLocaleString('en-US') }} <span class="stat__trend">↑ 12%</span></span>
+      <span class="stat__hint">vs. previous day</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="pink"><lucide-icon [img]="icons.ShieldAlert" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Critical Events</span>
+      <span class="stat__value">{{ service.criticalEvents }} <span class="stat__trend stat__trend--down">↑ 200%</span></span>
+      <span class="stat__hint">vs. previous day</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.Settings" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Configuration Changes</span>
+      <span class="stat__value">{{ service.configurationChanges }} <span class="stat__trend">↑ 18%</span></span>
+      <span class="stat__hint">vs. previous day</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="red"><lucide-icon [img]="icons.CircleX" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Failed Actions</span>
+      <span class="stat__value">{{ service.failedActions }} <span class="stat__trend">↓ 27%</span></span>
+      <span class="stat__hint">vs. previous day</span>
+    </div>
+  </div>
+</section>
+
+<div class="ws ws--no-list" [class.ws--with-drawer]="drawerOpen && !!selected">
+  <div class="main-col">
+    <!-- Actions -->
+    <div class="toolbar toolbar--end">
+      <button type="button" class="btn btn--outline" (click)="exportLog()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export Log</button>
+      <button type="button" class="btn btn--outline" (click)="openSave()"><lucide-icon [img]="icons.Bookmark" [size]="16"></lucide-icon> Save Filter</button>
+      <button type="button" class="btn btn--outline" (click)="retentionOpen = true"><lucide-icon [img]="icons.FileClock" [size]="16"></lucide-icon> Retention Policy</button>
+    </div>
+
+    <app-adm-audit-filters [filters]="filters" [eventTypes]="service.eventTypes" [modules]="service.modules" [users]="service.users"
+      [saved]="service.savedFilters()" (applied)="onApply($event)" (savedChosen)="useSaved($event)"></app-adm-audit-filters>
+
+    <!-- Category chips -->
+    <div class="cats" role="tablist" aria-label="Event category">
+      <button type="button" role="tab" [class.active]="!category" [attr.aria-selected]="!category" (click)="setCategory('')">
+        All Events ({{ base.length.toLocaleString('en-US') }})
+      </button>
+      @for (c of service.categories; track c) {
+        <button type="button" role="tab" [class.active]="category === c" [attr.aria-selected]="category === c" (click)="setCategory(c)">
+          {{ c }} ({{ countOf(c).toLocaleString('en-US') }})
+        </button>
+      }
+    </div>
+
+    <section class="panel">
+      <div class="panel__head">
+        <h2>Audit Events ({{ rows.length.toLocaleString('en-US') }})</h2>
+        <div class="row-menu" (click)="$event.stopPropagation()">
+          <button type="button" class="btn btn--sm" (click)="columnMenuOpen = !columnMenuOpen" [attr.aria-expanded]="columnMenuOpen">
+            <lucide-icon [img]="icons.Columns3" [size]="15"></lucide-icon> Column Settings
+          </button>
+          @if (columnMenuOpen) {
+            <div class="menu col-menu">
+              <span class="col-menu__title">Show columns</span>
+              <label><input type="checkbox" checked disabled /> Timestamp</label>
+              @for (c of columns; track c.key) {
+                <label>
+                  <input type="checkbox" [checked]="visible[c.key]" [disabled]="visible[c.key] && visibleColumnCount === 1" (change)="toggleColumn(c.key)" />
+                  {{ c.label }}
+                </label>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table audit-table">
+          <thead>
+            <tr>
+              <th [attr.aria-sort]="ariaSort('timestamp')">
+                <button type="button" class="th-sort" (click)="sortBy('timestamp')">Timestamp <lucide-icon [img]="sortIcon('timestamp')" [size]="13"></lucide-icon></button>
+              </th>
+              @if (visible.event) {
+                <th [attr.aria-sort]="ariaSort('event')"><button type="button" class="th-sort" (click)="sortBy('event')">Event <lucide-icon [img]="sortIcon('event')" [size]="13"></lucide-icon></button></th>
+              }
+              @if (visible.module) { <th>Module</th> }
+              @if (visible.user) {
+                <th [attr.aria-sort]="ariaSort('user')"><button type="button" class="th-sort" (click)="sortBy('user')">User <lucide-icon [img]="sortIcon('user')" [size]="13"></lucide-icon></button></th>
+              }
+              @if (visible.entity) { <th>Entity / Record</th> }
+              @if (visible.ip) {
+                <th [attr.aria-sort]="ariaSort('ip')"><button type="button" class="th-sort" (click)="sortBy('ip')">IP Address <lucide-icon [img]="sortIcon('ip')" [size]="13"></lucide-icon></button></th>
+              }
+              @if (visible.severity) {
+                <th [attr.aria-sort]="ariaSort('severity')"><button type="button" class="th-sort" (click)="sortBy('severity')">Severity <lucide-icon [img]="sortIcon('severity')" [size]="13"></lucide-icon></button></th>
+              }
+              @if (visible.outcome) { <th>Outcome</th> }
+              <th class="center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of pageRows; track e.id) {
+              <tr class="clickable" [class.is-selected]="e.id === selectedId" (click)="select(e)">
+                <td class="nowrap">{{ formatAuditTime(e.timestamp) }}</td>
+                @if (visible.event) { <td class="ellipsis" [title]="e.event">{{ e.event }}</td> }
+                @if (visible.module) { <td>{{ e.module }}</td> }
+                @if (visible.user) { <td class="nowrap">{{ e.user }}</td> }
+                @if (visible.entity) { <td class="ellipsis" [title]="e.entity">{{ e.entity }}</td> }
+                @if (visible.ip) { <td class="nowrap">{{ e.ip }}</td> }
+                @if (visible.severity) { <td><span class="pill" [attr.data-tone]="severityTone(e.severity)"><i></i>{{ e.severity }}</span></td> }
+                @if (visible.outcome) { <td><span class="pill" [attr.data-tone]="outcomeTone(e.outcome)"><i></i>{{ e.outcome }}</span></td> }
+                <td class="center">
+                  <div class="row-menu">
+                    <button type="button" class="icon-btn icon-btn--bare" (click)="toggleMenu(e, $event)" [attr.aria-label]="'Actions for ' + e.id"
+                      [attr.aria-expanded]="menuId === e.id">
+                      <lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon>
+                    </button>
+                    @if (menuId === e.id) {
+                      <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                        <button type="button" role="menuitem" (click)="viewFromMenu(e)">View details</button>
+                        <button type="button" role="menuitem" (click)="copyId(e)">Copy Event ID</button>
+                        <button type="button" role="menuitem" (click)="exportEvent(e)">Export Event (JSON)</button>
+                      </div>
+                    }
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td [attr.colspan]="visibleColumnCount + 2" class="empty">No audit events match these filters.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <span>{{ rangeLabel }}</span>
+        <div class="pager__pages">
+          <label class="rows-per-page">Rows per page
+            <select class="select select--sm" [(ngModel)]="pageSize" (ngModelChange)="onPageSize()">
+              @for (s of pageSizes; track s) { <option [ngValue]="s">{{ s }}</option> }
+            </select>
+          </label>
+          <button type="button" class="page-btn" [disabled]="page === 1" (click)="goTo(1)" aria-label="First page"><lucide-icon [img]="icons.ChevronsLeft" [size]="14"></lucide-icon></button>
+          <button type="button" class="page-btn" [disabled]="page === 1" (click)="goTo(page - 1)" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="14"></lucide-icon></button>
+          @for (p of pageItems; track $index) {
+            @if (p === '…') { <span class="gap">…</span> }
+            @else { <button type="button" class="page-btn" [class.active]="p === page" [attr.aria-current]="p === page ? 'page' : null" (click)="goTo(p)">{{ p }}</button> }
+          }
+          <button type="button" class="page-btn" [disabled]="page === pageCount" (click)="goTo(page + 1)" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon></button>
+          <button type="button" class="page-btn" [disabled]="page === pageCount" (click)="goTo(pageCount)" aria-label="Last page"><lucide-icon [img]="icons.ChevronsRight" [size]="14"></lucide-icon></button>
+        </div>
+      </div>
+
+      <div class="note immutable"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon> Logs are immutable and retained for {{ retentionDays }} days.</div>
+    </section>
+  </div>
+
+  @if (drawerOpen) {
+    @if (selected; as ev) {
+      <app-adm-audit-event-drawer class="drawer-host" [event]="ev" (closed)="drawerOpen = false" (copyId)="copyId($event)"
+        (exportEvent)="exportEvent($event)"></app-adm-audit-event-drawer>
+    }
+  }
+</div>
+</div>
+
+<!-- Retention policy -->
+@if (retentionOpen) {
+  <div class="overlay" (click)="retentionOpen = false">
+    <div class="confirm confirm--wide" role="dialog" aria-modal="true" aria-labelledby="ret-title" (click)="$event.stopPropagation()">
+      <h2 id="ret-title"><lucide-icon [img]="icons.Lock" [size]="18"></lucide-icon> Retention Policy</h2>
+      <dl class="kv">
+        <dt>Retention period</dt><dd><b>{{ retentionDays }} days</b></dd>
+        <dt>Storage</dt><dd>Immutable, append-only (WORM) — events can't be edited or deleted</dd>
+        <dt>Integrity</dt><dd>Each event is hashed and chained to the previous one</dd>
+        <dt>After {{ retentionDays }} days</dt><dd>Archived to encrypted cold storage, then purged by the system</dd>
+        <dt>Export formats</dt><dd>CSV (log), JSON (single event)</dd>
+        <dt>Access</dt><dd>Administrators and Compliance Officers (read-only)</dd>
+      </dl>
+      <p class="muted ret-note">The retention period is set at platform level for compliance and can't be shortened from this screen.</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn btn--primary" (click)="retentionOpen = false">Close</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Save filter -->
+@if (saveOpen) {
+  <div class="overlay" (click)="saveOpen = false">
+    <form class="confirm" role="dialog" aria-modal="true" aria-labelledby="save-title" (click)="$event.stopPropagation()" (ngSubmit)="confirmSave()" novalidate>
+      <h2 id="save-title">Save Filter</h2>
+      <p>Save the current filter panel{{ category ? ' and the “' + category + '” category' : '' }} for quick reuse.</p>
+      <div class="field" [class.invalid]="saveError">
+        <label for="save-name">Filter name <span class="req">*</span></label>
+        <input id="save-name" name="saveName" [(ngModel)]="saveName" maxlength="40" placeholder="e.g. Failed security events" />
+        @if (saveError) { <small>{{ saveError }}</small> }
+      </div>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="saveOpen = false">Cancel</button>
+        <button type="submit" class="btn btn--primary">Save Filter</button>
+      </div>
+    </form>
+  </div>
+}
+
+@if (toast) { <div class="toast" role="status">{{ toast }}</div> }

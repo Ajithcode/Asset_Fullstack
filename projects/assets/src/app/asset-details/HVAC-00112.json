@@ -1,0 +1,1501 @@
+{
+  "tag": "HVAC-00112",
+  "documents": [
+    {
+      "id": 1,
+      "name": "Purchase Order.pdf",
+      "type": "Purchase Order",
+      "stage": "Procurement",
+      "description": "Purchase order PO-2022-0112 issued to Gulf Cooling Systems LLC for the chiller.",
+      "tags": [
+        "Procurement",
+        "PO"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-02T10:15",
+          "uploadedBy": "Rex Kumar",
+          "size": 1048576,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Procurement",
+      "coverTitle": "PURCHASE ORDER",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 2,
+      "name": "Invoice.pdf",
+      "type": "Invoice",
+      "stage": "Procurement",
+      "description": "Supplier invoice INV-2022-666 for the chiller, delivery and installation.",
+      "tags": [
+        "Finance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-04T11:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 734003,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Gulf Cooling Systems LLC",
+      "coverTitle": "INVOICE",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 3,
+      "name": "Delivery Note.pdf",
+      "type": "Delivery Note",
+      "stage": "Procurement",
+      "description": "Signed delivery note for the chiller.",
+      "tags": [
+        "Logistics"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-07T09:05",
+          "uploadedBy": "Store Team",
+          "size": 838861,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Gulf Cooling Systems LLC",
+      "coverTitle": "DELIVERY NOTE",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 4,
+      "name": "GRN.pdf",
+      "type": "Goods Receipt",
+      "stage": "Procurement",
+      "description": "Goods received note confirming the chiller was received in good condition.",
+      "tags": [
+        "Stores"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-10T16:20",
+          "uploadedBy": "Store Team",
+          "size": 1048576,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Stores",
+      "coverTitle": "GOODS RECEIPT",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 5,
+      "name": "Installation Report.pdf",
+      "type": "Installation Report",
+      "stage": "Installation",
+      "description": "Installation report for the chiller at Head Office - Building B - Roof.",
+      "tags": [
+        "Installation"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-17T15:00",
+          "uploadedBy": "Installation Team",
+          "size": 1677722,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 6,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSTALLATION REPORT",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 6,
+      "name": "Commissioning Certificate.pdf",
+      "type": "Commissioning",
+      "stage": "Commissioning",
+      "description": "Commissioning certificate with functional test results for the chiller.",
+      "tags": [
+        "Certificate"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-18T12:10",
+          "uploadedBy": "Commissioning Team",
+          "size": 209715,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "COMMISSIONING",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 7,
+      "name": "Operation Manual.pdf",
+      "type": "User Manual",
+      "stage": "In Operation",
+      "description": "Manufacturer operation and maintenance manual for Carrier 30XA 400.",
+      "tags": [
+        "Manual",
+        "Carrier"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-18T14:30",
+          "uploadedBy": "Rex Kumar",
+          "size": 5033165,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 45,
+      "issuer": "CARRIER",
+      "coverTitle": "HVAC CHILLER",
+      "coverSubtitle": "Operation & Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 8,
+      "name": "Technical Datasheet.pdf",
+      "type": "Technical Document",
+      "stage": "Operations",
+      "description": "Ratings, dimensions and performance data for the 30XA 400.",
+      "tags": [
+        "Datasheet",
+        "Carrier"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-18T14:35",
+          "uploadedBy": "Rex Kumar",
+          "size": 838861,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 4,
+      "issuer": "CARRIER",
+      "coverTitle": "30XA 400",
+      "coverSubtitle": "Technical Datasheet",
+      "showAssetImage": true
+    },
+    {
+      "id": 9,
+      "name": "HVAC Schematic.pdf",
+      "type": "Drawing",
+      "stage": "Operations",
+      "description": "Chilled water and condenser piping schematic.",
+      "tags": [
+        "Drawing"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-18T14:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 2202010,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "DRAWING",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 10,
+      "name": "Maintenance Manual.pdf",
+      "type": "Maintenance Manual",
+      "stage": "Operations",
+      "description": "Preventive maintenance schedule and service procedures.",
+      "tags": [
+        "Manual",
+        "Maintenance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-18T14:45",
+          "uploadedBy": "Rex Kumar",
+          "size": 3774874,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 23,
+      "issuer": "CARRIER",
+      "coverTitle": "HVAC CHILLER",
+      "coverSubtitle": "Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 11,
+      "name": "Warranty Certificate.pdf",
+      "type": "Warranty",
+      "stage": "Warranty",
+      "description": "Manufacturer warranty, 2 years from commissioning.",
+      "tags": [
+        "Warranty"
+      ],
+      "expiryDate": "2024-05-18",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-18T15:00",
+          "uploadedBy": "Vendor",
+          "size": 524288,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "CARRIER",
+      "coverTitle": "WARRANTY",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 12,
+      "name": "AMC Contract.pdf",
+      "type": "Service Contract",
+      "stage": "Warranty",
+      "description": "Annual maintenance contract with Gulf Cooling Systems LLC.",
+      "tags": [
+        "AMC",
+        "Contract"
+      ],
+      "expiryDate": "2027-05-18",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-05-18T15:10",
+          "uploadedBy": "Rex Kumar",
+          "size": 1258291,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 10,
+      "issuer": "Gulf Cooling Systems LLC",
+      "coverTitle": "SERVICE CONTRACT",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 13,
+      "name": "Inspection Report 2025.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the chiller with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2025-05-18T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 524288,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 14,
+      "name": "Inspection Report 2026.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the chiller with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-05-18T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 314573,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 15,
+      "name": "Compliance Certificate.pdf",
+      "type": "Compliance",
+      "stage": "Compliance",
+      "description": "Refrigerant handling and F-gas compliance certificate.",
+      "tags": [
+        "Compliance",
+        "HSE"
+      ],
+      "expiryDate": "2027-05-23",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-05-23T09:20",
+          "uploadedBy": "HSE Team",
+          "size": 419430,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Dubai Municipality",
+      "coverTitle": "COMPLIANCE",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 16,
+      "name": "Site Photo.jpg",
+      "type": "Image",
+      "stage": "Operations",
+      "description": "Photo of the chiller at Head Office - Building B - Roof.",
+      "tags": [
+        "Photo"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2022-05-18T16:00",
+          "uploadedBy": "Rex Kumar",
+          "size": 3040870,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 1,
+      "issuer": "Purple IQ",
+      "coverTitle": "IMAGE",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": true
+    },
+    {
+      "id": 17,
+      "name": "Decommissioning Report.pdf",
+      "type": "Decommissioning",
+      "stage": "Decommissioning",
+      "description": "To be completed when the asset is decommissioned.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DECOMMISSIONING",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    },
+    {
+      "id": 18,
+      "name": "Disposal Certificate.pdf",
+      "type": "Disposal",
+      "stage": "Disposal",
+      "description": "To be issued on disposal of the asset.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DISPOSAL",
+      "coverSubtitle": "HVAC-00112 · HVAC Chiller",
+      "showAssetImage": false
+    }
+  ],
+  "previewDocumentId": 7,
+  "images": [
+    {
+      "id": 1,
+      "title": "Full View",
+      "description": "Full view of the chiller at Head Office - Building B - Roof.",
+      "type": "Asset Overview",
+      "tags": [
+        "Chiller",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-05-18T09:00",
+      "location": "Head Office - Building B - Roof",
+      "fileName": "HVAC-00112_FullView.jpg",
+      "size": 2009374,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Taken at commissioning.",
+      "src": "asset-images/chiller-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-05-18T09:00"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Compressor",
+      "description": "Screw compressor of circuit A.",
+      "type": "Component",
+      "tags": [
+        "Compressor",
+        "Refrigeration"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-05-18T10:07",
+      "location": "Head Office - Building B - Roof",
+      "fileName": "HVAC-00112_Compressor.jpg",
+      "size": 2831721,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/chiller-compressor.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-05-18T10:07"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Control Panel",
+      "description": "Chiller controller showing leaving and entering water temperatures.",
+      "type": "Component",
+      "tags": [
+        "Control Panel"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-05-18T11:14",
+      "location": "Head Office - Building B - Roof",
+      "fileName": "HVAC-00112_ControlPanel.jpg",
+      "size": 2778009,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/chiller-control.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-05-18T11:14"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Name Plate",
+      "description": "Manufacturer nameplate with model, serial number and ratings.",
+      "type": "Nameplate",
+      "tags": [
+        "Nameplate",
+        "Carrier"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2022-05-18T12:21",
+      "location": "Head Office - Building B - Roof",
+      "fileName": "HVAC-00112_NamePlate.jpg",
+      "size": 2475592,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/nameplate-HVAC-00112.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2022-05-18T12:21"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Installed Position",
+      "description": "HVAC Chiller in its installed position.",
+      "type": "Installation",
+      "tags": [
+        "Chiller",
+        "Installation"
+      ],
+      "uploadedBy": "Installation Team",
+      "uploadedAt": "2022-05-17T13:28",
+      "location": "Head Office - Building B - Roof",
+      "fileName": "HVAC-00112_Installed.jpg",
+      "size": 2203211,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/chiller-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Installation Team",
+          "at": "2022-05-17T13:28"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Compressor",
+      "description": "Compressor at the 2025 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Compressor",
+        "Refrigeration",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2025-05-18T14:35",
+      "location": "Head Office - Building B - Roof",
+      "fileName": "HVAC-00112_Inspection2025.jpg",
+      "size": 2310164,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/chiller-compressor.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2025-05-18T14:35"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Control Panel",
+      "description": "Control Panel at the 2026 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Control Panel",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-05-18T15:42",
+      "location": "Head Office - Building B - Roof",
+      "fileName": "HVAC-00112_Inspection2026.jpg",
+      "size": 1468728,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/chiller-control.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-05-18T15:42"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Condenser Fans",
+      "description": "Condenser fans and coils after cleaning.",
+      "type": "Maintenance",
+      "tags": [
+        "Condenser",
+        "Fans"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-05-18T09:49",
+      "location": "Head Office - Building B - Roof",
+      "fileName": "HVAC-00112_CondenserFans.jpg",
+      "size": 1696205,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/chiller-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-05-18T09:49"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Latest View",
+      "description": "Latest photo of the chiller for the asset register.",
+      "type": "Asset Overview",
+      "tags": [
+        "Chiller",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2026-09-24T10:56",
+      "location": "Head Office - Building B - Roof",
+      "fileName": "HVAC-00112_LatestView.jpg",
+      "size": 2812686,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/chiller-overview.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2026-09-24T10:56"
+        }
+      ]
+    }
+  ],
+  "headerImageId": 1,
+  "status": {
+    "hasData": true,
+    "availability": 97,
+    "utilization": 72,
+    "lastMaintenance": "2026-05-18",
+    "operational": {
+      "status": "Active",
+      "statusSince": "2022-05-18",
+      "operatingMode": "Automatic",
+      "loadLabel": "Cooling Load",
+      "currentLoad": 280,
+      "loadUnit": "TR",
+      "capacityLabel": "Rated Capacity",
+      "ratedCapacity": 400,
+      "ratedUnit": "TR",
+      "capacityFactor": 1,
+      "runningHours": 27539,
+      "lastStart": "2026-10-11T07:45",
+      "lastStop": "",
+      "location": "Head Office - Building B - Roof",
+      "controlledBy": "BMS",
+      "remarks": "Running normally."
+    },
+    "operatingModes": [
+      "Automatic",
+      "Manual",
+      "Standby"
+    ],
+    "lifecycle": {
+      "stage": "In Operation",
+      "commissionedOn": "2022-05-18",
+      "expectedLifeYears": 20,
+      "nextAssessment": "2026-11-18",
+      "nextMaintenance": "2026-11-15"
+    },
+    "readingsUpdatedAt": "2026-10-13T14:30",
+    "readings": [
+      {
+        "label": "Leaving Chilled Water",
+        "value": 6.7,
+        "unit": "°C",
+        "min": 5.5,
+        "max": 8,
+        "scaleMax": 15,
+        "decimals": 1
+      },
+      {
+        "label": "Entering Chilled Water",
+        "value": 12.5,
+        "unit": "°C",
+        "min": 10,
+        "max": 14,
+        "scaleMax": 20,
+        "decimals": 1
+      },
+      {
+        "label": "Cooling Load",
+        "value": 273,
+        "unit": "TR",
+        "max": 400
+      },
+      {
+        "label": "Compressor Current",
+        "value": 323,
+        "unit": "A",
+        "max": 420
+      },
+      {
+        "label": "Suction Pressure",
+        "value": 3.5,
+        "unit": "bar",
+        "min": 2.8,
+        "max": 4.2,
+        "scaleMax": 6,
+        "decimals": 1
+      },
+      {
+        "label": "Discharge Pressure",
+        "value": 14.6,
+        "unit": "bar",
+        "max": 18,
+        "scaleMax": 22,
+        "decimals": 1
+      },
+      {
+        "label": "Oil Pressure",
+        "value": 2.8,
+        "unit": "bar",
+        "min": 2,
+        "max": 4,
+        "scaleMax": 5,
+        "decimals": 1
+      },
+      {
+        "label": "COP",
+        "value": 5.7,
+        "unit": "",
+        "min": 4.5,
+        "decimals": 1
+      }
+    ],
+    "alerts": [
+      {
+        "id": 1,
+        "severity": "Warning",
+        "message": "High condenser pressure on circuit B",
+        "raisedAt": "2026-05-18T07:55",
+        "status": "Monitoring"
+      },
+      {
+        "id": 2,
+        "severity": "Warning",
+        "message": "Chilled water flow below setpoint",
+        "raisedAt": "2026-01-18T07:55",
+        "status": "Resolved"
+      },
+      {
+        "id": 3,
+        "severity": "Critical",
+        "message": "Compressor A tripped on high discharge temperature",
+        "raisedAt": "2023-01-18T21:05",
+        "status": "Resolved"
+      }
+    ],
+    "environment": [
+      {
+        "parameter": "Ambient Temperature",
+        "value": 41,
+        "unit": "°C",
+        "limit": 52,
+        "limitType": "max",
+        "measuredOn": "2026-09-27"
+      },
+      {
+        "parameter": "Noise Level (at 10 m)",
+        "value": 70,
+        "unit": "dB(A)",
+        "limit": 80,
+        "limitType": "max",
+        "measuredOn": "2026-10-02"
+      },
+      {
+        "parameter": "Refrigerant Leak (R-134a)",
+        "value": 0,
+        "unit": "ppm",
+        "limit": 50,
+        "limitType": "max",
+        "measuredOn": "2026-09-25"
+      },
+      {
+        "parameter": "Relative Humidity",
+        "value": 57,
+        "unit": "%",
+        "limit": 90,
+        "limitType": "max",
+        "measuredOn": "2026-09-30"
+      }
+    ],
+    "consumptionLabel": "Energy Used (kWh)",
+    "performance": [
+      {
+        "month": "Apr 2026",
+        "availability": 100,
+        "utilization": 78,
+        "runningHours": 559,
+        "consumption": 139199,
+        "downtime": 0,
+        "failures": 0
+      },
+      {
+        "month": "May 2026",
+        "availability": 97,
+        "utilization": 73,
+        "runningHours": 528,
+        "consumption": 138494,
+        "downtime": 22,
+        "failures": 0
+      },
+      {
+        "month": "Jun 2026",
+        "availability": 96,
+        "utilization": 74,
+        "runningHours": 534,
+        "consumption": 127407,
+        "downtime": 29,
+        "failures": 1
+      },
+      {
+        "month": "Jul 2026",
+        "availability": 98,
+        "utilization": 63,
+        "runningHours": 456,
+        "consumption": 119959,
+        "downtime": 14,
+        "failures": 0
+      },
+      {
+        "month": "Aug 2026",
+        "availability": 94,
+        "utilization": 71,
+        "runningHours": 511,
+        "consumption": 134699,
+        "downtime": 43,
+        "failures": 1
+      },
+      {
+        "month": "Sep 2026",
+        "availability": 99,
+        "utilization": 72,
+        "runningHours": 519,
+        "consumption": 131706,
+        "downtime": 7,
+        "failures": 0
+      }
+    ],
+    "assessments": [
+      {
+        "id": 1,
+        "date": "2022-05-18",
+        "assessedBy": "Commissioning Team",
+        "overall": "Excellent",
+        "healthScore": 96,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Baseline assessment at commissioning."
+      },
+      {
+        "id": 2,
+        "date": "2023-11-18",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 93,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 3,
+        "date": "2024-05-18",
+        "assessedBy": "HSE Team",
+        "overall": "Good",
+        "healthScore": 90,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Minor wear noted; monitor at next PM."
+      },
+      {
+        "id": 4,
+        "date": "2024-11-18",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 88,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Cleaned and adjusted; no issues."
+      },
+      {
+        "id": 5,
+        "date": "2025-05-18",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 85,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "No defects found."
+      },
+      {
+        "id": 6,
+        "date": "2025-11-18",
+        "assessedBy": "HSE Team",
+        "overall": "Fair",
+        "healthScore": 83,
+        "physical": "Fair",
+        "performance": "Fair",
+        "safety": "Fair",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 7,
+        "date": "2026-05-18",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 85,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Minor wear noted; monitor at next PM."
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2022-05-02",
+        "title": "Asset purchased",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2022-05-18",
+        "title": "Commissioned and handed over",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2023-05-18",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2024-05-18",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-05-18",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2026-05-18",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2024-11-18",
+        "title": "Quarterly PM (coil cleaning, oil and refrigerant checks) completed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-11-18",
+        "title": "Quarterly PM (coil cleaning, oil and refrigerant checks) completed",
+        "status": "Active",
+        "condition": "Good"
+      }
+    ]
+  },
+  "relationships": {
+    "parts": [
+      {
+        "tag": "LOC-HEADOFFICEBU",
+        "name": "Head Office - Building B - Roof",
+        "category": "Facilities",
+        "location": "Head Office - Building B - Roof",
+        "condition": "",
+        "icon": "Building2"
+      },
+      {
+        "tag": "CT-00112",
+        "name": "Cooling Tower",
+        "category": "HVAC",
+        "location": "Head Office - Building B - Roof",
+        "condition": "Good",
+        "icon": "Fan"
+      },
+      {
+        "tag": "CHWP-00112",
+        "name": "Chilled Water Pump",
+        "category": "Mechanical Equipment",
+        "location": "Head Office - Building B - Roof",
+        "condition": "Good",
+        "icon": "Cog"
+      },
+      {
+        "tag": "CMP-00112-01",
+        "name": "Compressor",
+        "category": "HVAC Component",
+        "location": "Head Office - Building B - Roof",
+        "condition": "Good",
+        "icon": "Cog"
+      },
+      {
+        "tag": "CND-00112-02",
+        "name": "Condenser Coil",
+        "category": "HVAC Component",
+        "location": "Head Office - Building B - Roof",
+        "condition": "Good",
+        "icon": "Fan"
+      },
+      {
+        "tag": "EVP-00112-03",
+        "name": "Evaporator",
+        "category": "HVAC Component",
+        "location": "Head Office - Building B - Roof",
+        "condition": "Good",
+        "icon": "Fan"
+      }
+    ],
+    "links": [
+      {
+        "id": 1,
+        "tag": "LOC-HEADOFFICEBU",
+        "type": "Parent Asset",
+        "direction": "Parent",
+        "since": "2022-05-17",
+        "to": "",
+        "status": "Active",
+        "description": "HVAC Chiller is installed at Head Office - Building B - Roof.",
+        "reference": "Site Layout - Head Office",
+        "remarks": ""
+      },
+      {
+        "id": 2,
+        "tag": "CT-00112",
+        "type": "Connected Asset",
+        "direction": "Child",
+        "since": "2022-05-17",
+        "to": "",
+        "status": "Active",
+        "description": "Rejects condenser heat for the chiller.",
+        "reference": "HVAC Schematic - HV-201",
+        "remarks": ""
+      },
+      {
+        "id": 3,
+        "tag": "CHWP-00112",
+        "type": "Supporting Asset",
+        "direction": "Child",
+        "since": "2022-05-17",
+        "to": "",
+        "status": "Active",
+        "description": "Circulates chilled water to the AHUs.",
+        "reference": "HVAC Schematic - HV-201",
+        "remarks": ""
+      },
+      {
+        "id": 4,
+        "tag": "CMP-00112-01",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2022-05-17",
+        "to": "",
+        "status": "Active",
+        "description": "Screw compressor of the refrigeration circuit.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 5,
+        "tag": "CND-00112-02",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2022-05-17",
+        "to": "",
+        "status": "Active",
+        "description": "Condenser heat exchanger.",
+        "reference": "OEM Manual",
+        "remarks": ""
+      },
+      {
+        "id": 6,
+        "tag": "HVAC-00118",
+        "type": "Connected Asset",
+        "direction": "Sibling",
+        "since": "2022-05-25",
+        "to": "",
+        "status": "Active",
+        "description": "Supplies chilled water to the Building B AHU.",
+        "reference": "",
+        "remarks": ""
+      }
+    ]
+  },
+  "criticality": {
+    "level": "High",
+    "score": 74,
+    "assessmentDate": "2026-05-20",
+    "validUntil": "2027-05-20",
+    "nextReview": "2026-11-20",
+    "assessedBy": "Rex Kumar",
+    "approvedBy": "Facilities Manager",
+    "method": "Risk Matrix (Weighted)",
+    "reviewFrequency": "Every 6 Months",
+    "department": "Facilities",
+    "assetGroup": "Central Cooling",
+    "remarks": "Serves chilled water to all Building B air handling units.",
+    "likelihood": 2,
+    "consequence": 4,
+    "criteria": [
+      {
+        "key": "operational",
+        "name": "Operational Impact",
+        "weight": 25,
+        "score": 4,
+        "justification": "Loss of cooling across Building B within an hour."
+      },
+      {
+        "key": "safety",
+        "name": "Safety Impact",
+        "weight": 20,
+        "score": 2.5,
+        "justification": "Heat stress risk for occupants in summer."
+      },
+      {
+        "key": "financial",
+        "name": "Financial Impact",
+        "weight": 20,
+        "score": 5,
+        "justification": "Compressor rebuilds are costly; long lead time."
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance / Regulatory",
+        "weight": 15,
+        "score": 3,
+        "justification": "F-gas handling and leak reporting obligations."
+      },
+      {
+        "key": "environmental",
+        "name": "Environmental Impact",
+        "weight": 10,
+        "score": 4.5,
+        "justification": "Refrigerant leak has high global warming potential."
+      },
+      {
+        "key": "reputation",
+        "name": "Reputation Impact",
+        "weight": 10,
+        "score": 3,
+        "justification": "Occupant complaints during outages."
+      }
+    ],
+    "impact": {
+      "downtimeCostPerHour": 6500,
+      "currency": "AED",
+      "mttrHours": 24,
+      "redundancy": "Partial (one circuit can run)",
+      "spares": "Contactors and sensors in stock; compressor 6 weeks",
+      "failureScenario": "Chiller trip in peak summer: space temperatures exceed 28°C in under two hours.",
+      "affectedServices": [
+        "Building B comfort cooling",
+        "AHU HVAC-00118",
+        "Meeting rooms"
+      ]
+    },
+    "mitigations": [
+      {
+        "id": 1,
+        "action": "Quarterly coil cleaning and refrigerant leak check",
+        "owner": "Maintenance Team",
+        "dueDate": "2026-06-20",
+        "status": "Completed",
+        "reducesTo": "Medium"
+      },
+      {
+        "id": 2,
+        "action": "Install vibration monitoring on compressors",
+        "owner": "Engineering",
+        "dueDate": "2026-08-20",
+        "status": "In Progress",
+        "reducesTo": "Medium"
+      },
+      {
+        "id": 3,
+        "action": "Agree emergency rental chiller with vendor",
+        "owner": "Facilities",
+        "dueDate": "2026-10-20",
+        "status": "Open",
+        "reducesTo": "Medium"
+      }
+    ],
+    "history": [
+      {
+        "date": "2025-11-20",
+        "score": 74.2,
+        "level": "High",
+        "likelihood": 1,
+        "consequence": 4,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "Facilities Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2025-05-20",
+        "score": 73.6,
+        "level": "High",
+        "likelihood": 1,
+        "consequence": 4,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "Facilities Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-11-20",
+        "score": 71.3,
+        "level": "High",
+        "likelihood": 2,
+        "consequence": 4,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "Facilities Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-05-20",
+        "score": 68.8,
+        "level": "High",
+        "likelihood": 1,
+        "consequence": 4,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "Facilities Manager",
+        "remarks": "Initial criticality assessment."
+      }
+    ]
+  },
+  "health": {
+    "score": 85,
+    "status": "Healthy",
+    "grade": "Good",
+    "assessmentDate": "2026-10-01",
+    "nextAssessment": "2026-11-01",
+    "assessedBy": "Rex Kumar",
+    "method": "Predictive Analytics + Maintenance Data",
+    "remarks": "Asset in good health; no action needed.",
+    "breakdown": [
+      {
+        "key": "performance",
+        "name": "Performance",
+        "weight": 25,
+        "score": 86
+      },
+      {
+        "key": "reliability",
+        "name": "Reliability",
+        "weight": 25,
+        "score": 86
+      },
+      {
+        "key": "condition",
+        "name": "Condition",
+        "weight": 20,
+        "score": 81
+      },
+      {
+        "key": "safety",
+        "name": "Risk & Safety",
+        "weight": 15,
+        "score": 86
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance",
+        "weight": 15,
+        "score": 83
+      }
+    ],
+    "history": [
+      {
+        "date": "2026-10-01",
+        "score": 85,
+        "status": "Healthy",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-09-01",
+        "score": 84,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-08-01",
+        "score": 85,
+        "status": "Healthy",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-07-01",
+        "score": 84,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-06-01",
+        "score": 83,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-05-01",
+        "score": 84,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-04-01",
+        "score": 82,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-03-01",
+        "score": 81,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-02-01",
+        "score": 79,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-01-01",
+        "score": 79,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "After maintenance",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-12-01",
+        "score": 76,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-11-01",
+        "score": 76,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      }
+    ],
+    "insights": [
+      {
+        "type": "warning",
+        "text": "1 open alarm: High condenser pressure on circuit B."
+      },
+      {
+        "type": "warning",
+        "text": "Condition is the weakest area (81%). Consider an inspection."
+      },
+      {
+        "type": "info",
+        "text": "Health score improved by 1 points compared to last month."
+      },
+      {
+        "type": "success",
+        "text": "No critical issues found."
+      }
+    ],
+    "maintenancePlan": [
+      {
+        "task": "Condenser coil cleaning",
+        "frequency": "Every 3 months",
+        "lastDone": "2026-08-18",
+        "nextDue": "2026-11-18",
+        "owner": "Maintenance Team"
+      },
+      {
+        "task": "Refrigerant leak check",
+        "frequency": "Every 3 months",
+        "lastDone": "2026-08-15",
+        "nextDue": "2026-11-15",
+        "owner": "Maintenance Team"
+      },
+      {
+        "task": "Compressor oil analysis",
+        "frequency": "Every 6 months",
+        "lastDone": "2026-05-18",
+        "nextDue": "2026-11-18",
+        "owner": "Vendor"
+      },
+      {
+        "task": "Annual inspection",
+        "frequency": "Yearly",
+        "lastDone": "2026-05-18",
+        "nextDue": "2027-05-18",
+        "owner": "Vendor"
+      }
+    ]
+  }
+}

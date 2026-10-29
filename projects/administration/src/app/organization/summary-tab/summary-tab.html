@@ -1,0 +1,105 @@
+<section class="stats" [attr.aria-label]="tab.title + ' summary'">
+  @for (s of tab.stats; track s.label) {
+    <div class="stat">
+      <span class="stat__icon" [attr.data-tone]="s.tone"><lucide-icon [img]="statIcon(s)" [size]="24"></lucide-icon></span>
+      <span class="stat__body">
+        <span class="stat__value">{{ statValue(s) }}</span>
+        <span class="stat__label">{{ s.label }}</span>
+      </span>
+    </div>
+  }
+</section>
+
+<div class="ws ws--no-list" [class.ws--with-drawer]="selected">
+  <section class="panel">
+    <div class="panel__head">
+      <h2>{{ tab.title }} ({{ rows.length }})</h2>
+    </div>
+
+    <div class="toolbar">
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input [placeholder]="'Search ' + tab.title.toLowerCase() + '...'" [attr.aria-label]="'Search ' + tab.title" [(ngModel)]="search" (ngModelChange)="onFilterChange()" />
+      </label>
+      <select class="select" [attr.aria-label]="filterLabel" [(ngModel)]="filter" (ngModelChange)="onFilterChange()">
+        <option value="">All {{ filterLabel }}</option>
+        @for (o of filterOptions; track o) { <option [value]="o">{{ o }}</option> }
+      </select>
+      <select class="select" aria-label="Status" [(ngModel)]="status" (ngModelChange)="onFilterChange()">
+        <option value="">All Statuses</option>
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+      @if (search || filter || status) {
+        <button type="button" class="btn btn--link" (click)="clearFilters()">Clear</button>
+      }
+      <span class="toolbar__spacer"></span>
+      <button type="button" class="btn" (click)="export()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            @for (c of tab.columns; track c.key) { <th scope="col">{{ c.label }}</th> }
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of pageRows; track r['code']) {
+            <tr class="clickable" [class.is-selected]="selected === r" (click)="open(r)">
+              @for (c of tab.columns; track c.key) {
+                <td>
+                  @switch (c.kind) {
+                    @case ('code') { <span class="code-link">{{ r[c.key] }}</span> }
+                    @case ('pill') { <span class="pill" [attr.data-tone]="tone(c, r)">{{ r[c.key] }}</span> }
+                    @case ('status') { <span class="pill" [attr.data-tone]="tone(c, r)"><i></i>{{ r[c.key] }}</span> }
+                    @default { {{ r[c.key] }} }
+                  }
+                </td>
+              }
+            </tr>
+          } @empty {
+            <tr><td class="empty" [attr.colspan]="tab.columns.length">No {{ tab.title.toLowerCase() }} match the filters.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      <span>Showing {{ showingFrom }} to {{ showingTo }} of {{ rows.length }} {{ tab.title.toLowerCase() }}</span>
+      <div class="pager__pages">
+        <button type="button" class="page-btn" aria-label="Previous page" [disabled]="page === 0" (click)="goTo(page - 1)"><lucide-icon [img]="icons.ChevronLeft" [size]="14"></lucide-icon></button>
+        @for (p of pages; track p) {
+          <button type="button" class="page-btn" [class.active]="p === page" (click)="goTo(p)">{{ p + 1 }}</button>
+        }
+        <button type="button" class="page-btn" aria-label="Next page" [disabled]="page >= pageCount - 1" (click)="goTo(page + 1)"><lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon></button>
+        <select class="select select--sm" aria-label="Rows per page" [(ngModel)]="pageSize" (ngModelChange)="onFilterChange()">
+          @for (s of pageSizes; track s) { <option [ngValue]="s">{{ s }} / page</option> }
+        </select>
+      </div>
+    </div>
+  </section>
+
+  @if (selected) {
+    <aside class="drawer" [attr.aria-label]="tab.singular + ' details'">
+      <div class="drawer__head">
+        <h2>{{ tab.singular }} Details</h2>
+        <button type="button" class="icon-btn icon-btn--bare" aria-label="Close" (click)="close()"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <h3 class="drawer-title">{{ rowTitle(selected) }}</h3>
+      <dl class="kv">
+        @for (c of tab.columns; track c.key) {
+          <dt>{{ c.label }}</dt>
+          <dd>
+            @if (c.kind === 'pill' || c.kind === 'status') {
+              <span class="pill" [attr.data-tone]="tone(c, selected)">{{ selected[c.key] }}</span>
+            } @else {
+              {{ selected[c.key] }}
+            }
+          </dd>
+        }
+      </dl>
+      <p class="note drawer-note">These records are maintained in Master Data Management; this tab shows them for {{ tab.title.toLowerCase() }} set-up checks.</p>
+    </aside>
+  }
+</div>

@@ -1,0 +1,218 @@
+<section class="lh-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a><span class="sep" aria-hidden="true">›</span><span class="crumb-current">Location History</span>
+  </nav>
+
+  <!-- ===== Page header ===== -->
+  <div class="card page-head">
+    <span class="head-ic"><lucide-icon [img]="icons.MapPin" [size]="24"></lucide-icon></span>
+    <div class="grow">
+      <h1>Location History</h1>
+      <p>View the movement and location history of an asset over time.</p>
+    </div>
+    <button type="button" class="btn btn-outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export History</button>
+  </div>
+
+  <!-- ===== Asset ===== -->
+  <div class="card asset-card">
+    <img *ngIf="asset.image; else typeIcon" class="asset-img" [src]="asset.image" [alt]="asset.name" />
+    <ng-template #typeIcon><span class="asset-img asset-img--icon"><lucide-icon [img]="typeIcons[asset.icon]" [size]="40"></lucide-icon></span></ng-template>
+    <div class="asset-main">
+      <div class="asset-title">
+        <h2>{{ asset.tag }}</h2>
+        <span class="pill" [class.pill--green]="asset.status === 'Active'" [class.pill--amber]="asset.status !== 'Active' && asset.status !== 'Disposed'" [class.pill--red]="asset.status === 'Disposed'">{{ asset.status }}</span>
+      </div>
+      <p class="asset-name">{{ asset.name }}</p>
+      <p class="asset-sub">{{ asset.type }} <span class="bar">|</span> {{ asset.manufacturer }} {{ asset.model }}</p>
+      <div class="facts">
+        <div class="fact"><lucide-icon [img]="icons.Shapes" [size]="20"></lucide-icon><span><small>Category</small>{{ asset.category }}</span></div>
+        <div class="fact"><lucide-icon [img]="icons.Box" [size]="20"></lucide-icon><span><small>Model</small>{{ asset.manufacturer }} {{ asset.model }}</span></div>
+        <div class="fact"><lucide-icon [img]="icons.Barcode" [size]="20"></lucide-icon><span><small>Serial Number</small>{{ history.serialNumber }}</span></div>
+        <div class="fact"><lucide-icon [img]="icons.MapPin" [size]="20"></lucide-icon><span><small>Current Location</small>{{ current?.location || '—' }}<small class="fact-sub">{{ currentZone }}</small></span></div>
+        <div class="fact"><lucide-icon [img]="icons.User" [size]="20"></lucide-icon><span><small>Assigned To</small>{{ history.assignedTo }}</span></div>
+        <div class="fact"><lucide-icon [img]="icons.Users" [size]="20"></lucide-icon><span><small>Custodian</small>{{ history.custodian }}</span></div>
+      </div>
+    </div>
+    <div class="asset-actions">
+      <a class="btn btn-outline" routerLink="/assets/status-condition" [queryParams]="{ tag: asset.tag }"><lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>View Details</a>
+      <span class="menu-wrap">
+        <button type="button" class="btn btn-outline btn-icon" (click)="toggleMenu('asset', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'asset'" aria-label="Asset actions"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button>
+        <span *ngIf="menuOpen === 'asset'" class="menu" role="menu" (click)="$event.stopPropagation()">
+          <button type="button" role="menuitem" (click)="pickerOpen = true; pickerSearch = ''; menuOpen = ''">Change asset</button>
+          <button type="button" role="menuitem" (click)="openRecord()">Record movement</button>
+          <button type="button" role="menuitem" (click)="export()">Export history</button>
+        </span>
+      </span>
+    </div>
+  </div>
+
+  <!-- ===== Timeline + recent ===== -->
+  <div class="lh-grid">
+    <section class="card panel" aria-labelledby="lh-tl">
+      <div class="panel-head">
+        <lucide-icon class="head-icon" [img]="icons.MapIcon" [size]="20"></lucide-icon>
+        <h3 id="lh-tl" class="grow">Location Timeline</h3>
+        <div class="seg" role="group" aria-label="View">
+          <button type="button" class="seg-btn" [class.is-on]="view === 'map'" [attr.aria-pressed]="view === 'map'" (click)="setView('map')"><lucide-icon [img]="icons.MapIcon" [size]="15"></lucide-icon>Map View</button>
+          <button type="button" class="seg-btn" [class.is-on]="view === 'list'" [attr.aria-pressed]="view === 'list'" (click)="setView('list')"><lucide-icon [img]="icons.List" [size]="15"></lucide-icon>List View</button>
+        </div>
+      </div>
+
+      <div class="map-box" [hidden]="view !== 'map'">
+        <div #mapEl class="map" tabindex="0" role="application" aria-label="Map of the asset's recent locations. Drag or use the arrow keys to pan, plus and minus to zoom."
+          (pointerdown)="onMapDown($event)" (pointermove)="onMapMove($event)" (pointerup)="onMapUp($event)" (pointercancel)="onMapUp($event)" (keydown)="onMapKey($event)">
+          <ng-container *ngIf="mapView as mv">
+            <img *ngFor="let t of mv.tiles; trackBy: trackTile" class="tile" [class.is-failed]="failedTiles.has(t.key)" [src]="t.url" [style.left.px]="t.x" [style.top.px]="t.y"
+              (error)="tileFailed(t.key)" alt="" draggable="false" />
+            <svg class="map-overlay" [attr.width]="mapW" [attr.height]="mapH" aria-hidden="true">
+              <polygon class="fence" [attr.points]="mv.fence"></polygon>
+              <polyline *ngIf="mv.pins.length > 1" class="path" [attr.points]="mv.path"></polyline>
+            </svg>
+            <button *ngFor="let p of mv.pins; trackBy: trackPin" type="button" class="pin" [class.is-current]="p.current" [class.is-selected]="p.row.id === selectedId"
+              [style.left.px]="p.x" [style.top.px]="p.y" (click)="pinClick(p)" [attr.aria-label]="p.row.location + (p.current ? ', current location since ' : ', ') + (p.when | date: 'dd MMM yyyy HH:mm')">
+              <svg viewBox="0 0 32 42" width="32" height="42" aria-hidden="true"><path d="M16 1C8 1 2 7 2 15c0 10 14 26 14 26s14-16 14-26C30 7 24 1 16 1z" stroke="#fff" stroke-width="2" /><circle cx="16" cy="15" r="6" fill="#fff" /></svg>
+              <span class="pin-label"><strong>{{ p.row.location }}</strong><span>{{ p.current ? 'Since ' : '' }}{{ p.when | date: 'dd MMM yyyy HH:mm' }}</span></span>
+            </button>
+          </ng-container>
+          <span class="attribution">Imagery © Esri</span>
+        </div>
+        <div class="legend">
+          <span><i class="lg-pin lg-pin--current"></i>Current Location</span>
+          <span><i class="lg-pin lg-pin--prev"></i>Previous Location</span>
+          <span><i class="lg-path"></i>Movement Path</span>
+          <span><i class="lg-pin lg-pin--zone"></i>Geofence/Zone</span>
+        </div>
+        <div class="map-ctrl">
+          <button type="button" (click)="zoom(1)" aria-label="Zoom in"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon></button>
+          <button type="button" (click)="zoom(-1)" aria-label="Zoom out"><lucide-icon [img]="icons.Minus" [size]="18"></lucide-icon></button>
+          <button type="button" class="map-locate" (click)="fit()" aria-label="Show all recent locations"><lucide-icon [img]="icons.LocateFixed" [size]="18"></lucide-icon></button>
+        </div>
+      </div>
+
+      <ol *ngIf="view === 'list'" class="list-view">
+        <li *ngFor="let r of rows; let first = first" [class.is-current]="first">
+          <span class="lv-dot"></span>
+          <div class="grow"><strong>{{ r.location }}</strong><span class="muted">{{ r.place.site }} · {{ r.place.zone }} · {{ r.remarks }}</span></div>
+          <span class="lv-time">{{ r.at | date: 'dd MMM yyyy HH:mm' }}<small>{{ first ? 'Current location' : 'Stayed ' + fmtDwell(r.dwell) }}</small></span>
+        </li>
+      </ol>
+    </section>
+
+    <section class="card panel" aria-labelledby="lh-rm">
+      <div class="panel-head">
+        <lucide-icon class="head-icon" [img]="icons.Clock" [size]="20"></lucide-icon>
+        <h3 id="lh-rm" class="grow">Recent Movements</h3>
+        <button type="button" class="link-btn" (click)="setView('list')">View All</button>
+      </div>
+      <ol class="recent">
+        <li *ngFor="let r of recent; let first = first" [class.is-current]="first">
+          <span class="rc-dot"></span>
+          <div class="grow"><strong>{{ r.location }}</strong><span class="muted">{{ r.place.zone }}</span></div>
+          <div class="rc-right">
+            <span [class.c-muted]="!first">{{ r.at | date: 'dd MMM yyyy HH:mm' }}</span>
+            <span class="rc-pill" [class.rc-pill--current]="first">{{ first ? 'Current Location' : fmtDwell(r.dwell) }}</span>
+          </div>
+        </li>
+      </ol>
+      <button *ngIf="rows.length > 5" type="button" class="link-btn full-link" (click)="showAllRecent = !showAllRecent">
+        <lucide-icon [img]="icons.ChevronDown" [size]="16" [class.flip]="showAllRecent"></lucide-icon>{{ showAllRecent ? 'Show Recent Only' : 'View Full Timeline' }}</button>
+    </section>
+  </div>
+
+  <!-- ===== Location history table ===== -->
+  <section class="card panel" aria-labelledby="lh-hist">
+    <div class="hist-head">
+      <h3 id="lh-hist" class="hist-title"><lucide-icon class="head-icon" [img]="icons.CalendarDays" [size]="20"></lucide-icon>Location History</h3>
+      <div class="filters">
+        <div class="field date-field">
+          <span class="field-label">Date Range</span>
+          <button type="button" class="control date-btn" (click)="dateOpen = !dateOpen" [attr.aria-expanded]="dateOpen"><span [class.placeholder]="!dateFrom && !dateTo">{{ dateLabel }}</span><lucide-icon [img]="icons.CalendarDays" [size]="16"></lucide-icon></button>
+          <div *ngIf="dateOpen" class="date-pop" (click)="$event.stopPropagation()">
+            <label class="field"><span class="field-label">From</span><input class="control" type="date" [(ngModel)]="dateFrom" (ngModelChange)="onFilter()" /></label>
+            <label class="field"><span class="field-label">To</span><input class="control" type="date" [(ngModel)]="dateTo" (ngModelChange)="onFilter()" /></label>
+            <div class="date-btns"><button type="button" class="link-btn" (click)="clearDates()">Clear</button><button type="button" class="btn btn-primary btn-sm" (click)="dateOpen = false">Done</button></div>
+          </div>
+        </div>
+        <label class="field"><span class="field-label">Location Type</span><select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">All Locations</option><option *ngFor="let t of typeOptions" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onSite()"><option value="">All Sites</option><option *ngFor="let s of siteOptions" [value]="s">{{ s }}</option></select></label>
+        <label class="field"><span class="field-label">Zone</span><select class="control" [(ngModel)]="zoneFilter" (ngModelChange)="onFilter()"><option value="">All Zones</option><option *ngFor="let z of zoneOptions" [value]="z">{{ z }}</option></select></label>
+        <label class="field"><span class="field-label">Movement Type</span><select class="control" [(ngModel)]="movementFilter" (ngModelChange)="onFilter()"><option value="">All Types</option><option value="In">In</option><option value="Out">Out</option><option value="Move">Move</option></select></label>
+        <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by location, remarks..." aria-label="Search history" /></label>
+        <span class="menu-wrap">
+          <button type="button" class="btn btn-outline btn-icon" (click)="toggleMenu('table', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'table'" aria-label="Table actions"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button>
+          <span *ngIf="menuOpen === 'table'" class="menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="openRecord()">Record movement</button>
+            <button type="button" role="menuitem" (click)="export()">Export filtered rows</button>
+            <button type="button" role="menuitem" [disabled]="!filtersActive" (click)="resetFilters()">Reset filters</button>
+          </span>
+        </span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="hist-table">
+        <thead><tr><th>#</th><th>Date &amp; Time</th><th>Location</th><th>Site</th><th>Zone / Area</th><th>Location Type</th><th>Movement Type</th><th>Source</th><th>Remarks</th><th>Dwell Time</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let r of pageRows; let i = index" [class.is-selected]="r.id === selectedId" (click)="selectRow(r)" tabindex="0" (keydown.enter)="selectRow(r)" [attr.aria-label]="'Show ' + r.location + ' on the map'">
+            <td>{{ rowNo(i) }}</td>
+            <td class="nowrap">{{ r.at | date: 'dd MMM yyyy HH:mm' }}</td>
+            <td class="loc">{{ r.location }}</td>
+            <td>{{ r.place.site }}</td>
+            <td>{{ r.place.zone }}</td>
+            <td>{{ r.place.type }}</td>
+            <td [class.mv-in]="r.movement === 'In'" [class.mv-out]="r.movement === 'Out'" [class.mv-move]="r.movement === 'Move'">{{ r.movement }}</td>
+            <td>{{ r.source }}</td>
+            <td>{{ r.remarks }}</td>
+            <td class="nowrap">{{ fmtDwell(r.dwell) }}</td>
+          </tr>
+          <tr *ngIf="!pageRows.length"><td colspan="10" class="empty">No movements match the filters.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      <label class="pager-size">Show <select class="control" [(ngModel)]="pageSize" (ngModelChange)="onFilter()" aria-label="Rows per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select> per page</label>
+      <span class="grow"></span>
+      <span class="showing">{{ showingLabel }}</span>
+      <button type="button" class="pg-btn" [disabled]="page === 0" (click)="page = page - 1" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+      <button *ngFor="let p of pages" type="button" class="pg-btn" [class.is-on]="p === page" (click)="page = p" [attr.aria-current]="p === page ? 'page' : null">{{ p + 1 }}</button>
+      <button type="button" class="pg-btn" [disabled]="page >= pageCount - 1" (click)="page = page + 1" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+    </div>
+  </section>
+</section>
+
+<!-- ===== Change asset ===== -->
+<div *ngIf="pickerOpen" class="overlay" (click)="pickerOpen = false">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="lh-pick-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="lh-pick-title">Choose Asset</h2><button type="button" class="icon-btn" (click)="pickerOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="pickerSearch" placeholder="Search asset name or ID" aria-label="Search assets" /></label>
+      <ul class="pick-list">
+        <li *ngFor="let a of pickerAssets"><button type="button" [class.is-on]="a.tag === asset.tag" (click)="setAsset(a)"><strong>{{ a.tag }}</strong> {{ a.name }}<span class="muted">{{ a.category }}</span></button></li>
+        <li *ngIf="!pickerAssets.length" class="muted">No assets match.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Record movement ===== -->
+<div *ngIf="recordForm as f" class="overlay" (click)="recordForm = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="lh-rec-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="lh-rec-title">Record Movement · {{ asset.tag }}</h2><button type="button" class="icon-btn" (click)="recordForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="saveRecord()">
+      <p class="muted">Current location: <strong>{{ current?.location || '—' }}</strong></p>
+      <label class="field"><span class="field-label">New Location <em>*</em></span>
+        <select class="control" [(ngModel)]="f.location" name="loc"><option value="" disabled>Select location</option><option *ngFor="let p of places" [value]="p.name">{{ p.name }} · {{ p.zone }}</option></select></label>
+      <div class="two">
+        <label class="field"><span class="field-label">Movement Type</span><select class="control" [(ngModel)]="f.movement" name="mv"><option value="In">In</option><option value="Out">Out</option><option value="Move">Move</option></select></label>
+        <label class="field"><span class="field-label">Date &amp; Time <em>*</em></span><input class="control" type="datetime-local" [(ngModel)]="f.at" name="at" /></label>
+      </div>
+      <label class="field"><span class="field-label">Source</span><select class="control" [(ngModel)]="f.source" name="src"><option>Manual Update</option><option>GPS Tag</option><option>RFID Gate</option><option>Barcode Scan</option></select></label>
+      <label class="field"><span class="field-label">Remarks</span><input class="control" [(ngModel)]="f.remarks" name="rem" /></label>
+      <p *ngIf="recordError" class="form-error" role="alert">{{ recordError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="recordForm = null">Cancel</button><button type="submit" class="btn btn-primary">Save Movement</button></div>
+    </form>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

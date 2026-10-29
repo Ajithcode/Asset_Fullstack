@@ -1,0 +1,91 @@
+:host {
+  display: block;
+}
+
+.rs-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rs-levels {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rs-level {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.rs-level.active {
+  border-color: #c9b8ef;
+  background: var(--adm-purple-soft);
+}
+
+.rs-level span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rs-level small {
+  color: var(--adm-muted);
+  font-size: 11.5px;
+}
+
+.rs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.rs-grid .sub-panel h3 {
+  flex-wrap: wrap;
+}
+
+.rs-count {
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.rs-all {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.rs-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rs-checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.rs-note {
+  margin: 10px 0 0;
+}
+
+.rs-switch {
+  margin-top: 12px;
+  font-weight: 500;
+  font-size: 12.5px;
+}
+
+@media (max-width: 1400px) {
+  .rs-levels,
+  .rs-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

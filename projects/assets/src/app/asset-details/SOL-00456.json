@@ -1,0 +1,1404 @@
+{
+  "tag": "SOL-00456",
+  "documents": [
+    {
+      "id": 1,
+      "name": "Purchase Order.pdf",
+      "type": "Purchase Order",
+      "stage": "Procurement",
+      "description": "Purchase order PO-2024-0456 issued to SunGrid Renewables for the solar panel.",
+      "tags": [
+        "Procurement",
+        "PO"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-06T10:15",
+          "uploadedBy": "Rex Kumar",
+          "size": 1048576,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Procurement",
+      "coverTitle": "PURCHASE ORDER",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 2,
+      "name": "Invoice.pdf",
+      "type": "Invoice",
+      "stage": "Procurement",
+      "description": "Supplier invoice INV-2024-871 for the solar panel, delivery and installation.",
+      "tags": [
+        "Finance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-08T11:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 1468006,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "SunGrid Renewables",
+      "coverTitle": "INVOICE",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 3,
+      "name": "Delivery Note.pdf",
+      "type": "Delivery Note",
+      "stage": "Procurement",
+      "description": "Signed delivery note for the solar panel.",
+      "tags": [
+        "Logistics"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-11T09:05",
+          "uploadedBy": "Store Team",
+          "size": 1258291,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "SunGrid Renewables",
+      "coverTitle": "DELIVERY NOTE",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 4,
+      "name": "GRN.pdf",
+      "type": "Goods Receipt",
+      "stage": "Procurement",
+      "description": "Goods received note confirming the solar panel was received in good condition.",
+      "tags": [
+        "Stores"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-14T16:20",
+          "uploadedBy": "Store Team",
+          "size": 838861,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "Purple IQ Stores",
+      "coverTitle": "GOODS RECEIPT",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 5,
+      "name": "Installation Report.pdf",
+      "type": "Installation Report",
+      "stage": "Installation",
+      "description": "Installation report for the solar panel at Building B - Roof.",
+      "tags": [
+        "Installation"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-21T15:00",
+          "uploadedBy": "Installation Team",
+          "size": 1677722,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 6,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSTALLATION REPORT",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 6,
+      "name": "Commissioning Certificate.pdf",
+      "type": "Commissioning",
+      "stage": "Commissioning",
+      "description": "Commissioning certificate with functional test results for the solar panel.",
+      "tags": [
+        "Certificate"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-22T12:10",
+          "uploadedBy": "Commissioning Team",
+          "size": 524288,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "COMMISSIONING",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 7,
+      "name": "Operation Manual.pdf",
+      "type": "User Manual",
+      "stage": "In Operation",
+      "description": "Manufacturer operation and maintenance manual for Jinko Solar Tiger Neo 550.",
+      "tags": [
+        "Manual",
+        "Jinko Solar"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-22T14:30",
+          "uploadedBy": "Rex Kumar",
+          "size": 5033165,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 41,
+      "issuer": "JINKO SOLAR",
+      "coverTitle": "SOLAR PANEL - 550W",
+      "coverSubtitle": "Operation & Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 8,
+      "name": "Technical Datasheet.pdf",
+      "type": "Technical Document",
+      "stage": "Operations",
+      "description": "Ratings, dimensions and performance data for the Tiger Neo 550.",
+      "tags": [
+        "Datasheet",
+        "Jinko Solar"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-22T14:35",
+          "uploadedBy": "Rex Kumar",
+          "size": 838861,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 4,
+      "issuer": "JINKO SOLAR",
+      "coverTitle": "TIGER NEO 550",
+      "coverSubtitle": "Technical Datasheet",
+      "showAssetImage": true
+    },
+    {
+      "id": 9,
+      "name": "PV Layout.pdf",
+      "type": "Drawing",
+      "stage": "Operations",
+      "description": "Roof array layout and string allocation.",
+      "tags": [
+        "Drawing"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-22T14:40",
+          "uploadedBy": "Rex Kumar",
+          "size": 2202010,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 3,
+      "issuer": "Purple IQ",
+      "coverTitle": "DRAWING",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 10,
+      "name": "Maintenance Manual.pdf",
+      "type": "Maintenance Manual",
+      "stage": "Operations",
+      "description": "Preventive maintenance schedule and service procedures.",
+      "tags": [
+        "Manual",
+        "Maintenance"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-22T14:45",
+          "uploadedBy": "Rex Kumar",
+          "size": 3774874,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 20,
+      "issuer": "JINKO SOLAR",
+      "coverTitle": "SOLAR PANEL - 550W",
+      "coverSubtitle": "Maintenance Manual",
+      "showAssetImage": true
+    },
+    {
+      "id": 11,
+      "name": "Warranty Certificate.pdf",
+      "type": "Warranty",
+      "stage": "Warranty",
+      "description": "Manufacturer warranty, 12 years from commissioning.",
+      "tags": [
+        "Warranty"
+      ],
+      "expiryDate": "2036-04-22",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-22T15:00",
+          "uploadedBy": "Vendor",
+          "size": 734003,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "JINKO SOLAR",
+      "coverTitle": "WARRANTY",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 12,
+      "name": "AMC Contract.pdf",
+      "type": "Service Contract",
+      "stage": "Warranty",
+      "description": "Annual maintenance contract with SunGrid Renewables.",
+      "tags": [
+        "AMC",
+        "Contract"
+      ],
+      "expiryDate": "2027-04-22",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-04-22T15:10",
+          "uploadedBy": "Rex Kumar",
+          "size": 1363149,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 10,
+      "issuer": "SunGrid Renewables",
+      "coverTitle": "SERVICE CONTRACT",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 13,
+      "name": "Inspection Report 2025.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the solar panel with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2025-04-22T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 838861,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 14,
+      "name": "Inspection Report 2026.pdf",
+      "type": "Inspection Report",
+      "stage": "Maintenance",
+      "description": "Annual inspection of the solar panel with findings and corrective actions.",
+      "tags": [
+        "Inspection"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-04-22T10:30",
+          "uploadedBy": "Maintenance Team",
+          "size": 1363149,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 5,
+      "issuer": "Purple IQ",
+      "coverTitle": "INSPECTION REPORT",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 15,
+      "name": "Compliance Certificate.pdf",
+      "type": "Compliance",
+      "stage": "Compliance",
+      "description": "DEWA Shams Dubai connection approval.",
+      "tags": [
+        "Compliance",
+        "HSE"
+      ],
+      "expiryDate": "2031-04-27",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2026-04-27T09:20",
+          "uploadedBy": "HSE Team",
+          "size": 524288,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 2,
+      "issuer": "DEWA",
+      "coverTitle": "COMPLIANCE",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 16,
+      "name": "Site Photo.jpg",
+      "type": "Image",
+      "stage": "Operations",
+      "description": "Photo of the solar panel at Building B - Roof.",
+      "tags": [
+        "Photo"
+      ],
+      "expiryDate": "",
+      "draft": false,
+      "versions": [
+        {
+          "version": "1.0",
+          "uploadedAt": "2024-04-22T16:00",
+          "uploadedBy": "Rex Kumar",
+          "size": 3040870,
+          "note": "Initial upload"
+        }
+      ],
+      "pages": 1,
+      "issuer": "Purple IQ",
+      "coverTitle": "IMAGE",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": true
+    },
+    {
+      "id": 17,
+      "name": "Decommissioning Report.pdf",
+      "type": "Decommissioning",
+      "stage": "Decommissioning",
+      "description": "To be completed when the asset is decommissioned.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DECOMMISSIONING",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    },
+    {
+      "id": 18,
+      "name": "Disposal Certificate.pdf",
+      "type": "Disposal",
+      "stage": "Disposal",
+      "description": "To be issued on disposal of the asset.",
+      "tags": [
+        "Draft"
+      ],
+      "expiryDate": "",
+      "draft": true,
+      "versions": [],
+      "pages": 2,
+      "issuer": "Purple IQ",
+      "coverTitle": "DISPOSAL",
+      "coverSubtitle": "SOL-00456 · Solar Panel - 550W",
+      "showAssetImage": false
+    }
+  ],
+  "previewDocumentId": 7,
+  "images": [
+    {
+      "id": 1,
+      "title": "Full View",
+      "description": "Full view of the solar panel at Building B - Roof.",
+      "type": "Asset Overview",
+      "tags": [
+        "Solar Panel",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2024-04-22T09:00",
+      "location": "Building B - Roof",
+      "fileName": "SOL-00456_FullView.jpg",
+      "size": 1578279,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Taken at commissioning.",
+      "src": "asset-images/solar-array.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2024-04-22T09:00"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Junction Box",
+      "description": "Junction box and MC4 connectors on the back sheet.",
+      "type": "Component",
+      "tags": [
+        "Junction Box",
+        "Cables"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2024-04-22T10:07",
+      "location": "Building B - Roof",
+      "fileName": "SOL-00456_JunctionBox.jpg",
+      "size": 2387096,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/solar-junction.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2024-04-22T10:07"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "String Inverter",
+      "description": "String inverter the panel feeds.",
+      "type": "Component",
+      "tags": [
+        "Inverter"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2024-04-22T11:14",
+      "location": "Building B - Roof",
+      "fileName": "SOL-00456_StringInverter.jpg",
+      "size": 3032490,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/solar-inverter.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2024-04-22T11:14"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Name Plate",
+      "description": "Manufacturer nameplate with model, serial number and ratings.",
+      "type": "Nameplate",
+      "tags": [
+        "Nameplate",
+        "Jinko Solar"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2024-04-22T12:21",
+      "location": "Building B - Roof",
+      "fileName": "SOL-00456_NamePlate.jpg",
+      "size": 1706701,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/nameplate-SOL-00456.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2024-04-22T12:21"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Installed Position",
+      "description": "Solar Panel - 550W in its installed position.",
+      "type": "Installation",
+      "tags": [
+        "Solar Panel",
+        "Installation"
+      ],
+      "uploadedBy": "Installation Team",
+      "uploadedAt": "2024-04-21T13:28",
+      "location": "Building B - Roof",
+      "fileName": "SOL-00456_Installed.jpg",
+      "size": 2757887,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/solar-array.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Installation Team",
+          "at": "2024-04-21T13:28"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Junction Box",
+      "description": "Junction Box at the 2025 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Junction Box",
+        "Cables",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2025-04-22T14:35",
+      "location": "Building B - Roof",
+      "fileName": "SOL-00456_Inspection2025.jpg",
+      "size": 2192227,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/solar-junction.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2025-04-22T14:35"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "String Inverter",
+      "description": "String Inverter at the 2026 annual inspection.",
+      "type": "Inspection",
+      "tags": [
+        "Inverter",
+        "Inspection"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-04-22T15:42",
+      "location": "Building B - Roof",
+      "fileName": "SOL-00456_Inspection2026.jpg",
+      "size": 2068754,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "Annual inspection photo.",
+      "src": "asset-images/solar-inverter.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-04-22T15:42"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Panel Cleaning",
+      "description": "Array after dust cleaning.",
+      "type": "Maintenance",
+      "tags": [
+        "Cleaning"
+      ],
+      "uploadedBy": "Maintenance Team",
+      "uploadedAt": "2026-04-22T09:49",
+      "location": "Building B - Roof",
+      "fileName": "SOL-00456_PanelCleaning.jpg",
+      "size": 2143851,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/solar-array.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Maintenance Team",
+          "at": "2026-04-22T09:49"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Latest View",
+      "description": "Latest photo of the solar panel for the asset register.",
+      "type": "Asset Overview",
+      "tags": [
+        "Solar Panel",
+        "Exterior"
+      ],
+      "uploadedBy": "Rex Kumar",
+      "uploadedAt": "2026-09-24T10:56",
+      "location": "Building B - Roof",
+      "fileName": "SOL-00456_LatestView.jpg",
+      "size": 1695107,
+      "width": 4032,
+      "height": 3024,
+      "remarks": "",
+      "src": "asset-images/solar-array.svg",
+      "history": [
+        {
+          "action": "Image uploaded",
+          "by": "Rex Kumar",
+          "at": "2026-09-24T10:56"
+        }
+      ]
+    }
+  ],
+  "headerImageId": 1,
+  "status": {
+    "hasData": true,
+    "availability": 97,
+    "utilization": 38,
+    "lastMaintenance": "2026-04-22",
+    "operational": {
+      "status": "Active",
+      "statusSince": "2024-04-22",
+      "operatingMode": "Generating",
+      "loadLabel": "Current Output",
+      "currentLoad": 412,
+      "loadUnit": "W",
+      "capacityLabel": "Rated Power",
+      "ratedCapacity": 550,
+      "ratedUnit": "Wp",
+      "capacityFactor": 1,
+      "runningHours": 8931,
+      "lastStart": "2026-10-11T07:45",
+      "lastStop": "",
+      "location": "Building B - Roof",
+      "controlledBy": "Inverter Monitoring Portal",
+      "remarks": "Running normally."
+    },
+    "operatingModes": [
+      "Generating",
+      "Night / Idle"
+    ],
+    "lifecycle": {
+      "stage": "In Operation",
+      "commissionedOn": "2024-04-22",
+      "expectedLifeYears": 25,
+      "nextAssessment": "2026-10-22",
+      "nextMaintenance": "2027-04-01"
+    },
+    "readingsUpdatedAt": "2026-10-13T14:30",
+    "readings": [
+      {
+        "label": "Output Power",
+        "value": 404,
+        "unit": "W",
+        "max": 550
+      },
+      {
+        "label": "Module Voltage (Vmp)",
+        "value": 42.3,
+        "unit": "V",
+        "min": 36,
+        "max": 45,
+        "decimals": 1
+      },
+      {
+        "label": "Module Current (Imp)",
+        "value": 9.8,
+        "unit": "A",
+        "max": 13.4,
+        "decimals": 1
+      },
+      {
+        "label": "Module Temperature",
+        "value": 52,
+        "unit": "°C",
+        "max": 85,
+        "scaleMax": 100
+      },
+      {
+        "label": "Irradiance",
+        "value": 840,
+        "unit": "W/m²",
+        "scaleMax": 1200
+      }
+    ],
+    "alerts": [
+      {
+        "id": 1,
+        "severity": "Warning",
+        "message": "String output 8% below neighbours (soiling)",
+        "raisedAt": "2026-04-22T07:55",
+        "status": "Monitoring"
+      },
+      {
+        "id": 2,
+        "severity": "Critical",
+        "message": "Hot spot detected on module",
+        "raisedAt": "2024-12-22T21:05",
+        "status": "Resolved"
+      }
+    ],
+    "environment": [
+      {
+        "parameter": "Ambient Temperature",
+        "value": 36,
+        "unit": "°C",
+        "limit": 55,
+        "limitType": "max",
+        "measuredOn": "2026-10-09"
+      },
+      {
+        "parameter": "Soiling Loss",
+        "value": 3.9,
+        "unit": "%",
+        "limit": 8,
+        "limitType": "max",
+        "measuredOn": "2026-10-07"
+      },
+      {
+        "parameter": "Wind Speed",
+        "value": 6.2,
+        "unit": "m/s",
+        "limit": 25,
+        "limitType": "max",
+        "measuredOn": "2026-10-09"
+      }
+    ],
+    "consumptionLabel": "Energy Generated (kWh)",
+    "performance": [
+      {
+        "month": "Apr 2026",
+        "availability": 97,
+        "utilization": 39,
+        "runningHours": 282,
+        "consumption": 96.7,
+        "downtime": 22,
+        "failures": 0
+      },
+      {
+        "month": "May 2026",
+        "availability": 93,
+        "utilization": 35,
+        "runningHours": 250,
+        "consumption": 90.5,
+        "downtime": 50,
+        "failures": 1
+      },
+      {
+        "month": "Jun 2026",
+        "availability": 95,
+        "utilization": 38,
+        "runningHours": 271,
+        "consumption": 103.4,
+        "downtime": 36,
+        "failures": 1
+      },
+      {
+        "month": "Jul 2026",
+        "availability": 98,
+        "utilization": 39,
+        "runningHours": 282,
+        "consumption": 117.7,
+        "downtime": 14,
+        "failures": 0
+      },
+      {
+        "month": "Aug 2026",
+        "availability": 98,
+        "utilization": 40,
+        "runningHours": 285,
+        "consumption": 109.6,
+        "downtime": 14,
+        "failures": 0
+      },
+      {
+        "month": "Sep 2026",
+        "availability": 100,
+        "utilization": 36,
+        "runningHours": 261,
+        "consumption": 102.6,
+        "downtime": 0,
+        "failures": 0
+      }
+    ],
+    "assessments": [
+      {
+        "id": 1,
+        "date": "2024-04-22",
+        "assessedBy": "Commissioning Team",
+        "overall": "Excellent",
+        "healthScore": 97,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Baseline assessment at commissioning."
+      },
+      {
+        "id": 2,
+        "date": "2024-10-22",
+        "assessedBy": "Maintenance Team",
+        "overall": "Excellent",
+        "healthScore": 95,
+        "physical": "Excellent",
+        "performance": "Excellent",
+        "safety": "Good",
+        "remarks": "Operating within normal parameters."
+      },
+      {
+        "id": 3,
+        "date": "2025-04-22",
+        "assessedBy": "HSE Team",
+        "overall": "Good",
+        "healthScore": 94,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Minor wear noted; monitor at next PM."
+      },
+      {
+        "id": 4,
+        "date": "2025-10-22",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 92,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "Cleaned and adjusted; no issues."
+      },
+      {
+        "id": 5,
+        "date": "2026-04-22",
+        "assessedBy": "Maintenance Team",
+        "overall": "Good",
+        "healthScore": 91,
+        "physical": "Good",
+        "performance": "Good",
+        "safety": "Good",
+        "remarks": "No defects found."
+      }
+    ],
+    "timeline": [
+      {
+        "date": "2024-04-06",
+        "title": "Asset purchased",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2024-04-22",
+        "title": "Commissioned and handed over",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-04-22",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2026-04-22",
+        "title": "Annual inspection passed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2024-10-22",
+        "title": "Panel cleaning and visual inspection completed",
+        "status": "Active",
+        "condition": "Good"
+      },
+      {
+        "date": "2025-10-22",
+        "title": "Panel cleaning and visual inspection completed",
+        "status": "Active",
+        "condition": "Good"
+      }
+    ]
+  },
+  "relationships": {
+    "parts": [
+      {
+        "tag": "LOC-BUILDINGBROO",
+        "name": "Building B - Roof",
+        "category": "Facilities",
+        "location": "Building B - Roof",
+        "condition": "",
+        "icon": "Building2"
+      },
+      {
+        "tag": "INV-00456",
+        "name": "String Inverter",
+        "category": "Renewable Energy",
+        "location": "Building B - Roof",
+        "condition": "Good",
+        "icon": "Zap"
+      },
+      {
+        "tag": "MNT-00456",
+        "name": "Mounting Structure",
+        "category": "Renewable Energy",
+        "location": "Building B - Roof",
+        "condition": "Good",
+        "icon": "Box"
+      },
+      {
+        "tag": "JB-00456-01",
+        "name": "Junction Box",
+        "category": "Renewable Energy",
+        "location": "Building B - Roof",
+        "condition": "Good",
+        "icon": "Server"
+      },
+      {
+        "tag": "CBL-00456-02",
+        "name": "DC Cable Set",
+        "category": "Renewable Energy",
+        "location": "Building B - Roof",
+        "condition": "Good",
+        "icon": "Zap"
+      },
+      {
+        "tag": "OPT-00456-03",
+        "name": "Power Optimiser",
+        "category": "Renewable Energy",
+        "location": "Building B - Roof",
+        "condition": "Good",
+        "icon": "Cpu"
+      }
+    ],
+    "links": [
+      {
+        "id": 1,
+        "tag": "LOC-BUILDINGBROO",
+        "type": "Parent Asset",
+        "direction": "Parent",
+        "since": "2024-04-21",
+        "to": "",
+        "status": "Active",
+        "description": "Solar Panel - 550W is installed at Building B - Roof.",
+        "reference": "Site Layout - Building B",
+        "remarks": ""
+      },
+      {
+        "id": 2,
+        "tag": "INV-00456",
+        "type": "Connected Asset",
+        "direction": "Child",
+        "since": "2024-04-21",
+        "to": "",
+        "status": "Active",
+        "description": "Converts the string DC output to AC.",
+        "reference": "PV Layout - PV-01",
+        "remarks": ""
+      },
+      {
+        "id": 3,
+        "tag": "MNT-00456",
+        "type": "Supporting Asset",
+        "direction": "Child",
+        "since": "2024-04-21",
+        "to": "",
+        "status": "Active",
+        "description": "Roof mounting rails and clamps.",
+        "reference": "PV Layout - PV-01",
+        "remarks": ""
+      },
+      {
+        "id": 4,
+        "tag": "JB-00456-01",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2024-04-21",
+        "to": "",
+        "status": "Active",
+        "description": "Module junction box with bypass diodes.",
+        "reference": "OEM Spec",
+        "remarks": ""
+      },
+      {
+        "id": 5,
+        "tag": "CBL-00456-02",
+        "type": "Component",
+        "direction": "Child",
+        "since": "2024-04-21",
+        "to": "",
+        "status": "Active",
+        "description": "MC4 DC string cables.",
+        "reference": "OEM Spec",
+        "remarks": ""
+      },
+      {
+        "id": 6,
+        "tag": "SOL-00462",
+        "type": "Connected Asset",
+        "direction": "Sibling",
+        "since": "2024-04-22",
+        "to": "2026-05-20",
+        "status": "Inactive",
+        "description": "Was in the same PV string until replaced.",
+        "reference": "",
+        "remarks": ""
+      }
+    ]
+  },
+  "criticality": {
+    "level": "Low",
+    "score": 33.5,
+    "assessmentDate": "2026-05-22",
+    "validUntil": "2027-05-22",
+    "nextReview": "2026-11-22",
+    "assessedBy": "Rex Kumar",
+    "approvedBy": "Operations Manager",
+    "method": "Risk Matrix (Weighted)",
+    "reviewFrequency": "Every 6 Months",
+    "department": "Engineering",
+    "assetGroup": "Renewable Generation",
+    "remarks": "One module of the Building B rooftop array.",
+    "likelihood": 1,
+    "consequence": 2,
+    "criteria": [
+      {
+        "key": "operational",
+        "name": "Operational Impact",
+        "weight": 25,
+        "score": 1.5,
+        "justification": "Small loss of array output."
+      },
+      {
+        "key": "safety",
+        "name": "Safety Impact",
+        "weight": 20,
+        "score": 2,
+        "justification": "DC arc and fire risk from hot spots."
+      },
+      {
+        "key": "financial",
+        "name": "Financial Impact",
+        "weight": 20,
+        "score": 1.5,
+        "justification": "Low module cost."
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance / Regulatory",
+        "weight": 15,
+        "score": 2,
+        "justification": "DEWA connection conditions."
+      },
+      {
+        "key": "environmental",
+        "name": "Environmental Impact",
+        "weight": 10,
+        "score": 1.5,
+        "justification": "Must be recycled as e-waste."
+      },
+      {
+        "key": "reputation",
+        "name": "Reputation Impact",
+        "weight": 10,
+        "score": 1.5,
+        "justification": "Minimal."
+      }
+    ],
+    "impact": {
+      "downtimeCostPerHour": 5,
+      "currency": "AED",
+      "mttrHours": 4,
+      "redundancy": "Rest of the string keeps generating",
+      "spares": "Spare modules in stock",
+      "failureScenario": "Module failure reduces string output.",
+      "affectedServices": [
+        "Array output (about 0.3%)"
+      ]
+    },
+    "mitigations": [
+      {
+        "id": 1,
+        "action": "Quarterly cleaning",
+        "owner": "Maintenance Team",
+        "dueDate": "2026-06-22",
+        "status": "Completed",
+        "reducesTo": "Low"
+      },
+      {
+        "id": 2,
+        "action": "Annual thermographic scan for hot spots",
+        "owner": "Engineering",
+        "dueDate": "2026-08-22",
+        "status": "In Progress",
+        "reducesTo": "Low"
+      }
+    ],
+    "history": [
+      {
+        "date": "2025-11-22",
+        "score": 34.2,
+        "level": "Low",
+        "likelihood": 1,
+        "consequence": 2,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "Operations Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2025-05-22",
+        "score": 36.2,
+        "level": "Low",
+        "likelihood": 1,
+        "consequence": 2,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "Operations Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-11-22",
+        "score": 34.5,
+        "level": "Low",
+        "likelihood": 1,
+        "consequence": 2,
+        "assessedBy": "Rex Kumar",
+        "approvedBy": "Operations Manager",
+        "remarks": "Periodic review; no change to the asset role."
+      },
+      {
+        "date": "2024-05-22",
+        "score": 36.1,
+        "level": "Low",
+        "likelihood": 1,
+        "consequence": 2,
+        "assessedBy": "Maintenance Team",
+        "approvedBy": "Operations Manager",
+        "remarks": "Initial criticality assessment."
+      }
+    ]
+  },
+  "health": {
+    "score": 81,
+    "status": "Good",
+    "grade": "Good",
+    "assessmentDate": "2026-10-01",
+    "nextAssessment": "2026-11-01",
+    "assessedBy": "Rex Kumar",
+    "method": "Predictive Analytics + Maintenance Data",
+    "remarks": "Asset in fair working order; minor wear noted.",
+    "breakdown": [
+      {
+        "key": "performance",
+        "name": "Performance",
+        "weight": 25,
+        "score": 84
+      },
+      {
+        "key": "reliability",
+        "name": "Reliability",
+        "weight": 25,
+        "score": 81
+      },
+      {
+        "key": "condition",
+        "name": "Condition",
+        "weight": 20,
+        "score": 77
+      },
+      {
+        "key": "safety",
+        "name": "Risk & Safety",
+        "weight": 15,
+        "score": 85
+      },
+      {
+        "key": "compliance",
+        "name": "Compliance",
+        "weight": 15,
+        "score": 80
+      }
+    ],
+    "history": [
+      {
+        "date": "2026-10-01",
+        "score": 81,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Performance improved",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-09-01",
+        "score": 78,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-08-01",
+        "score": 77,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-07-01",
+        "score": 76,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-06-01",
+        "score": 75,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-05-01",
+        "score": 73,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-04-01",
+        "score": 73,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-03-01",
+        "score": 73,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-02-01",
+        "score": 72,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2026-01-01",
+        "score": 72,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-12-01",
+        "score": 73,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Normal operation",
+        "assessedBy": "Rex Kumar"
+      },
+      {
+        "date": "2025-11-01",
+        "score": 73,
+        "status": "Good",
+        "trigger": "Scheduled",
+        "comments": "Routine assessment",
+        "assessedBy": "Rex Kumar"
+      }
+    ],
+    "insights": [
+      {
+        "type": "warning",
+        "text": "1 open alarm: String output 8% below neighbours (soiling)."
+      },
+      {
+        "type": "warning",
+        "text": "Condition is the weakest area (77%). Consider an inspection."
+      },
+      {
+        "type": "info",
+        "text": "Health score improved by 3 points compared to last month."
+      },
+      {
+        "type": "success",
+        "text": "No critical issues found."
+      }
+    ],
+    "maintenancePlan": [
+      {
+        "task": "Panel cleaning",
+        "frequency": "Every 3 months",
+        "lastDone": "2026-07-22",
+        "nextDue": "2026-10-22",
+        "owner": "Maintenance Team"
+      },
+      {
+        "task": "Thermographic scan",
+        "frequency": "Yearly",
+        "lastDone": "2026-04-01",
+        "nextDue": "2027-04-01",
+        "owner": "Engineering"
+      },
+      {
+        "task": "Inverter service",
+        "frequency": "Yearly",
+        "lastDone": "2026-04-22",
+        "nextDue": "2027-04-22",
+        "owner": "Vendor"
+      }
+    ]
+  }
+}

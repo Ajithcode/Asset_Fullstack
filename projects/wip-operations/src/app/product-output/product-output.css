@@ -1,0 +1,103 @@
+/* Job strip, KPI row, output register, progress bar, handover row and the record form. Shared pieces are in ../shared/wip-board.css. */
+.po-tabs { padding: 0 14px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.dot-sm { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.link-plain { padding: 0; border: 0; background: none; font: inherit; cursor: pointer; }
+.pill--orange { background: #ffe8d6; color: #c2410c; }
+.kpi-ic--orange { background: #ffe8d6; color: #ea580c; }
+.span-2 { grid-column: 1 / -1; }
+
+/* ============ Job strip ============ */
+.job-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; padding: 14px 18px; }
+.strip-label { display: block; margin-bottom: 4px; font-size: 12px; color: #6b7280; }
+.strip-job { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; }
+.job-link.plain { text-decoration: none; color: inherit; }
+.strip-cell { min-width: 110px; padding-left: 24px; border-left: 1px solid var(--jt-border); font-size: 14px; }
+
+/* ============ KPIs ============ */
+.po-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(150px, 1fr); gap: 12px; }
+.po-kpis .kpi { gap: 12px; padding: 12px 14px; }
+.po-kpis .kpi-ic { width: 40px; height: 40px; }
+.kpi--note { gap: 8px !important; background: #f5f7ff; font-size: 12px; color: #374151; }
+
+.po-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 480px);
+  gap: 14px;
+  align-items: start;
+}
+
+/* ============ Register ============ */
+.box > .filters { margin-bottom: 12px; }
+.reg-wrap { max-height: 420px; overflow-y: auto; }
+.col-check { width: 36px; }
+.col-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--jt-accent); }
+.sort-btn { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; }
+.reg-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; font-size: 13px; }
+.page-size { width: auto; height: 30px; margin-left: 6px; padding-right: 28px; font-size: 13px; }
+.reg-foot .icon-btn { font-size: 18px; }
+
+/* ============ Progress ============ */
+.prog-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 15px; }
+.prog-pct { font-size: 20px; }
+.prog-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #e5e7eb; }
+.seg { height: 100%; }
+.seg--acc { background: #22a95b; }
+.seg--qc { background: #f5b800; }
+.seg--rw { background: #f97316; }
+.seg--rej { background: #dc2626; }
+.seg--rem { background: #c7cad1; }
+.prog-legend { display: flex; flex-wrap: wrap; gap: 14px 34px; margin: 14px 0 10px; font-size: 13px; }
+.prog-legend > span { display: grid; grid-template-columns: 12px auto; gap: 2px 8px; align-items: center; }
+.prog-legend i { width: 11px; height: 11px; border-radius: 50%; }
+.prog-legend small { grid-column: 2; color: #6b7280; }
+.note-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+/* ============ Handover ============ */
+.ho-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 10px; }
+.ho-stat { display: flex; align-items: center; gap: 10px; min-width: 120px; padding: 10px 12px; border: 1px solid var(--jt-border); border-radius: 8px; }
+.ho-stat > span { display: flex; flex-direction: column; font-size: 12px; color: #4b5563; }
+.ho-stat strong { font-size: 20px; color: var(--jt-text); }
+.ho-row .field { flex: 1 1 150px; }
+.ref-field { max-width: 140px; }
+.ho-btn { height: 36px; }
+
+/* ============ Record form ============ */
+.rec-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
+.rec-form select[disabled] { background-color: #f9fafb; color: #111827; opacity: 1; }
+.qty-pair { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 8px; }
+.attach { position: relative; align-self: flex-start; height: 34px; cursor: pointer; }
+.file-chip { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 2px 8px; border-radius: 10px; background: #f3f0ff; font-size: 12px; }
+.file-chip button { border: 0; background: none; font-size: 14px; color: #6b7280; cursor: pointer; }
+.rec-btns { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.rec-btns .btn { min-width: 130px; }
+
+/* ============ Selected & quality ============ */
+.sel-kv dt { display: flex; align-items: center; gap: 8px; }
+.qc-wrap { display: flex; flex-wrap: wrap; gap: 14px; }
+.qc-title { display: flex; align-items: center; gap: 8px; }
+.qc-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.qc-list li { display: flex; align-items: center; gap: 10px; }
+.qc-dot { width: 12px; height: 12px; border-radius: 50%; }
+.qc-dot--green { background: #22a95b; }
+.qc-dot--amber { background: #f5b800; }
+.qc-dot--red { background: #ea580c; }
+.qc-side { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 170px; text-align: center; }
+.qc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--jt-border); }
+.qc-actions:empty { display: none; }
+.gen-h { margin: 8px 0 0; font-size: 14px; }
+.gen-hist { margin: 0; padding-left: 18px; font-size: 13px; }
+
+@media (max-width: 1400px) {
+  .po-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1280px) {
+  .po-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .po-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rec-form { grid-template-columns: minmax(0, 1fr); }
+  .strip-cell { padding-left: 0; border-left: 0; }
+}

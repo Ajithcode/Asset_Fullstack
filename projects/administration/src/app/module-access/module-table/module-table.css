@@ -1,0 +1,133 @@
+:host {
+  display: block;
+}
+
+.mt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 16px;
+  margin-bottom: 10px;
+  color: #475569;
+  font-size: 11.5px;
+}
+
+.mt-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mt-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.mt-legend i[data-tone='green'] { background: var(--adm-green); }
+.mt-legend i[data-tone='blue'] { background: var(--adm-blue); }
+.mt-legend i[data-tone='purple'] { background: var(--adm-purple); }
+.mt-legend i[data-tone='pink'] { background: var(--adm-pink); }
+
+.mt-wrap {
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+}
+
+.mt-all {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--adm-border);
+}
+
+.mt-all label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mt td {
+  padding: 6px 10px;
+}
+
+.mt-mod {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.mt-mod lucide-icon {
+  color: #334155;
+}
+
+.mt-off .mt-mod {
+  color: #64748b;
+}
+
+.mt-switch {
+  vertical-align: middle;
+}
+
+.mt-switch i {
+  width: 32px;
+  height: 18px;
+}
+
+.mt-switch i::after {
+  width: 12px;
+  height: 12px;
+}
+
+.mt-switch input:checked + i::after {
+  transform: translateX(14px);
+}
+
+.mt-cb {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.mt-cb:disabled {
+  cursor: not-allowed;
+}
+
+.mt-na {
+  color: #94a3b8;
+}
+
+.mt-lock {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.mt-scope {
+  width: 100%;
+  min-width: 150px;
+  height: 26px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mt-scope:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.mt-scope[data-tone='green'] { background: var(--adm-green-soft); color: #059669; }
+.mt-scope[data-tone='blue'] { background: var(--adm-blue-soft); color: var(--adm-blue); }
+.mt-scope[data-tone='purple'] { background: var(--adm-purple-soft); color: var(--adm-purple); }
+.mt-scope[data-tone='pink'] { background: var(--adm-pink-soft); color: #db2777; }

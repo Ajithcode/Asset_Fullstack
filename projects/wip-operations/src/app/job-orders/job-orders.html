@@ -1,0 +1,449 @@
+<section class="jt-page">
+  <!-- ===== Page header ===== -->
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/wip-operations">WIP</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span>Operations</span>
+        <span class="sep" aria-hidden="true">/</span>
+        <a routerLink="/wip-operations/job-orders">Job Orders</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span class="menu-wrap">
+          <button type="button" class="crumb-btn crumb-btn--accent" (click)="toggleSwitcher($event)" [attr.aria-expanded]="switcherOpen" aria-haspopup="menu" title="Switch job order">
+            {{ o.code }}<lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>
+          </button>
+          <div *ngIf="switcherOpen" class="menu menu--left" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" *ngFor="let x of orderList" [class.is-on]="x.code === o.code" (click)="openOrder(x.code)">
+              <strong>{{ x.code }}</strong> {{ x.name }} <span class="muted">· {{ x.status }}</span>
+            </button>
+          </div>
+        </span>
+      </nav>
+      <h1>Job Order (Instance)</h1>
+      <p class="subtitle">Execute, track and complete a job created from a published template</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-outline" [disabled]="o.status === 'Completed'" (click)="togglePause()">
+        <lucide-icon [img]="o.status === 'In Progress' ? icons.Pause : icons.Play" [size]="18"></lucide-icon>
+        {{ o.status === 'In Progress' ? 'Pause Job' : o.status === 'Paused' ? 'Resume Job' : 'Start Job' }}
+      </button>
+      <button type="button" class="btn btn-outline" (click)="openDialog('issue')"><lucide-icon [img]="icons.TriangleAlert" [size]="18"></lucide-icon>Report Issue</button>
+      <button type="button" class="btn btn-primary" [disabled]="o.status === 'Completed' || o.status === 'Planned'" (click)="openDialog('completeStage')">
+        <lucide-icon [img]="icons.Check" [size]="18"></lucide-icon>Complete Stage
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== Order summary ===== -->
+  <div class="card summary-card">
+    <img class="product" [src]="o.image" [alt]="o.name" />
+    <div class="grow">
+      <h2>{{ o.name }}</h2>
+      <p class="code-line">
+        <lucide-icon [img]="icons.FileText" [size]="15"></lucide-icon>{{ o.code }}
+        <span class="sep" aria-hidden="true">&bull;</span>
+        <span class="state" [ngClass]="'state--' + statusTone(o.status)"><span class="dot"></span>{{ o.status }}</span>
+      </p>
+      <dl class="facts">
+        <div><dt>Priority</dt><dd><span class="dot" [ngClass]="'bg--' + severityTone(o.priority)"></span>{{ o.priority }}</dd></div>
+        <div><dt>Template</dt><dd><a [routerLink]="'/wip-operations/job-templates'" [queryParams]="{ code: o.templateCode }" title="Open template">{{ o.templateCode }} &bull; Version {{ o.templateVersion }}</a></dd></div>
+        <div><dt>Production Batch</dt><dd>{{ o.batch }}</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <nav class="tabs tabs--bare" role="tablist" aria-label="Job order sections">
+    <button type="button" role="tab" *ngFor="let x of tabs" class="tab" [class.is-active]="tab === x.key" [attr.aria-selected]="tab === x.key" (click)="tab = x.key">
+      {{ x.label }}<span *ngIf="x.key === 'issues' && openIssueCount" class="count">{{ openIssueCount }}</span>
+    </button>
+  </nav>
+
+  <!-- =================== Overview =================== -->
+  <ng-container *ngIf="tab === 'overview'">
+    <div class="kpis">
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.ChartColumn" [size]="22"></lucide-icon></span>
+        <svg class="ring" viewBox="0 0 64 64" aria-hidden="true">
+          <circle class="ring-track" cx="32" cy="32" r="26" />
+          <circle class="ring-fill" cx="32" cy="32" r="26" [attr.stroke-dasharray]="progressDash" transform="rotate(-90 32 32)" />
+        </svg>
+        <div><span class="kpi-label">Overall Progress</span><strong class="kpi-value">{{ progress }}%</strong><small class="muted">{{ doneTasks }} / {{ allTasks.length }} tasks complete</small></div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-circle kpi-circle--blue"><lucide-icon [img]="icons.Box" [size]="24"></lucide-icon></span>
+        <div><span class="kpi-label">Planned Output</span><strong class="kpi-value">{{ o.output.planned }} {{ o.output.unit }}</strong></div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-circle kpi-circle--green"><lucide-icon [img]="icons.Check" [size]="26"></lucide-icon></span>
+        <div><span class="kpi-label">Accepted Output</span><strong class="kpi-value">{{ o.output.accepted }} {{ o.output.unit }}</strong></div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-circle kpi-circle--amber"><lucide-icon [img]="icons.Clock" [size]="24"></lucide-icon></span>
+        <div><span class="kpi-label">{{ slaMinutes !== null && slaMinutes < 0 ? 'SLA Overdue' : 'SLA Remaining' }}</span><strong class="kpi-value sla" [ngClass]="'sla--' + slaTone">{{ slaText }}</strong></div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="col">
+        <!-- Job details -->
+        <section class="card panel" aria-labelledby="jo-details">
+          <h3 id="jo-details" class="with-icon"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon>Job Details</h3>
+          <div class="details-2">
+            <dl class="rows">
+              <dt>Site</dt><dd>{{ o.site }}</dd>
+              <dt>Location</dt><dd>{{ o.location }}</dd>
+              <dt>Supervisor</dt><dd>{{ o.supervisor }}</dd>
+              <dt>Assigned Team</dt><dd>{{ o.team }}</dd>
+            </dl>
+            <dl class="rows">
+              <dt>Planned Start</dt><dd>{{ o.plannedStart | date: 'dd MMM yyyy, HH:mm' }}</dd>
+              <dt>Due</dt><dd>{{ o.due | date: 'dd MMM yyyy, HH:mm' }}</dd>
+              <dt>Actual Start</dt><dd>{{ o.actualStart ? (o.actualStart | date: 'dd MMM yyyy, HH:mm') : 'Not started' }}</dd>
+              <dt>Linked Asset</dt><dd><button type="button" class="link-btn" (click)="tab = 'resources'">{{ o.linkedAsset.name }}<lucide-icon [img]="icons.ExternalLink" [size]="14"></lucide-icon></button></dd>
+            </dl>
+          </div>
+        </section>
+
+        <!-- Stage progress -->
+        <section class="card panel" aria-labelledby="jo-stages">
+          <h3 id="jo-stages" class="with-icon"><lucide-icon [img]="icons.Waypoints" [size]="20"></lucide-icon>Stage Progress</h3>
+          <ol class="stage-flow">
+            <li *ngFor="let s of o.stages; let last = last">
+              <div class="stage-box" [ngClass]="'stage-box--' + statusTone(s.status)" [class.is-current]="s.status === 'In Progress'">
+                <span class="stage-mark" [ngClass]="'mark--' + statusTone(s.status)">
+                  <lucide-icon *ngIf="s.status === 'Completed'" [img]="icons.Check" [size]="14"></lucide-icon>
+                </span>
+                <div>
+                  <strong>{{ s.name }}</strong>
+                  <span class="stage-state">{{ s.status }}</span>
+                  <small *ngIf="s.start">{{ s.start | date: 'dd MMM, HH:mm' }}</small>
+                  <small *ngIf="s.end">{{ s.end | date: 'dd MMM, HH:mm' }}</small>
+                  <small *ngIf="!s.start">&ndash;</small>
+                </div>
+              </div>
+              <lucide-icon *ngIf="!last" class="flow-arrow" [img]="icons.ArrowRight" [size]="20"></lucide-icon>
+            </li>
+          </ol>
+
+          <div *ngIf="currentStage as cs; else noCurrent" class="current">
+            <div class="current-head">
+              <h4 class="grow">Current Stage: {{ cs.name }}</h4>
+              <button type="button" class="btn btn-outline btn-sm" (click)="openDialog('checklist')"><lucide-icon [img]="icons.ListChecks" [size]="15"></lucide-icon>Open Checklist</button>
+              <button type="button" class="btn btn-primary btn-sm" (click)="openDialog('progress')"><lucide-icon [img]="icons.ChartColumn" [size]="15"></lucide-icon>Log Progress</button>
+            </div>
+            <table class="grid-table">
+              <thead><tr><th>Task</th><th>Assignee</th><th>Status</th><th>Evidence</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let t of cs.tasks">
+                  <td>{{ t.name }}</td>
+                  <td>{{ t.assignee }}</td>
+                  <td><span class="state" [ngClass]="'state--' + statusTone(t.status)"><span class="dot"></span>{{ t.status }}</span></td>
+                  <td><span *ngIf="t.evidence; else noEvidence" class="evidence"><lucide-icon [img]="icons.ImageIcon" [size]="14"></lucide-icon>{{ t.evidence }} photo{{ t.evidence > 1 ? 's' : '' }}</span><ng-template #noEvidence>&ndash;</ng-template></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #noCurrent>
+            <p class="hint">{{ o.status === 'Completed' ? 'All stages are complete.' : o.status === 'Planned' ? 'The job has not started yet. Use Start Job to begin the first stage.' : 'No stage is in progress.' }}</p>
+          </ng-template>
+        </section>
+
+        <!-- Material consumption -->
+        <section class="card panel" aria-labelledby="jo-materials">
+          <h3 id="jo-materials" class="with-icon"><lucide-icon [img]="icons.Box" [size]="20"></lucide-icon>Material Consumption</h3>
+          <div class="materials">
+            <table class="grid-table">
+              <thead><tr><th>Item</th><th class="num">Reserved</th><th class="num">Issued</th><th class="num">Consumed</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let m of o.materials.slice(0, 4)"><td>{{ m.item }}</td><td class="num">{{ m.reserved }}</td><td class="num">{{ m.issued }}</td><td class="num">{{ m.consumed }}</td></tr>
+              </tbody>
+            </table>
+            <div class="materials-links">
+              <button *ngIf="o.materials.length > 4" type="button" class="link-btn" (click)="tab = 'materials'">All {{ o.materials.length }} items</button>
+              <button type="button" class="link-btn" (click)="openDialog('consumption')">Record Consumption<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="col">
+        <!-- Gates -->
+        <section class="card panel" aria-labelledby="jo-gates">
+          <h3 id="jo-gates" class="with-icon"><lucide-icon [img]="icons.ShieldCheck" [size]="20"></lucide-icon>Quality &amp; Completion Gates</h3>
+          <ul class="gates">
+            <li *ngFor="let g of o.gates" [class.is-active]="g.status === 'In Progress'">
+              <span class="gate-mark" [ngClass]="'gate--' + statusTone(g.status)"><lucide-icon *ngIf="g.status === 'Done'" [img]="icons.Check" [size]="13"></lucide-icon></span>
+              <span class="grow">{{ g.status === 'In Progress' ? g.name.replace('passed', 'pending') : g.name }}</span>
+              <span class="muted">{{ g.at ? (g.at | date: 'dd MMM yyyy, HH:mm') : g.status }}</span>
+            </li>
+          </ul>
+          <button type="button" class="link-btn link-end" (click)="tab = 'quality'">View quality checks<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
+        </section>
+
+        <!-- Output -->
+        <section class="card panel" aria-labelledby="jo-output">
+          <h3 id="jo-output" class="with-icon"><lucide-icon [img]="icons.Box" [size]="20"></lucide-icon>Output Summary</h3>
+          <dl class="output">
+            <div><dt>Planned</dt><dd>{{ o.output.planned }}</dd></div>
+            <div><dt>Completed</dt><dd>{{ o.output.completed }}</dd></div>
+            <div><dt>Accepted</dt><dd class="c-good">{{ o.output.accepted }}</dd></div>
+            <div><dt>Rework</dt><dd class="c-warn">{{ o.output.rework }}</dd></div>
+            <div><dt>Rejected</dt><dd class="c-bad">{{ o.output.rejected }}</dd></div>
+          </dl>
+          <div class="right"><button type="button" class="btn btn-outline btn-sm" (click)="openDialog('output')"><lucide-icon [img]="icons.PlusCircle" [size]="15"></lucide-icon>Record Output</button></div>
+        </section>
+
+        <!-- Open issue -->
+        <section class="card panel" aria-labelledby="jo-issue">
+          <div class="issue-head">
+            <h3 id="jo-issue" class="with-icon grow"><lucide-icon class="c-warn" [img]="icons.TriangleAlert" [size]="20"></lucide-icon>{{ openIssue ? 'Open Issue' : 'Issues' }}</h3>
+            <span *ngIf="openIssue as i" class="sev" [ngClass]="'sev--' + severityTone(i.severity)"><span class="dot"></span>{{ i.severity }}</span>
+          </div>
+          <ng-container *ngIf="openIssue as i; else noIssue">
+            <p class="issue-title">{{ i.title }}</p>
+            <div class="issue-meta">
+              <span class="muted grow">{{ i.id }} <span aria-hidden="true">|</span> Owner: {{ i.owner }}</span>
+              <button type="button" class="link-btn" (click)="tab = 'issues'">View issue<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
+            </div>
+            <p *ngIf="openIssueCount > 1" class="hint">{{ openIssueCount - 1 }} more open issue{{ openIssueCount > 2 ? 's' : '' }}.</p>
+          </ng-container>
+          <ng-template #noIssue><p class="hint">No open issues.</p></ng-template>
+        </section>
+
+        <!-- Activity -->
+        <section class="card panel" aria-labelledby="jo-activity">
+          <div class="issue-head">
+            <h3 id="jo-activity" class="with-icon grow"><lucide-icon [img]="icons.Clock" [size]="20"></lucide-icon>Recent Activity</h3>
+            <button type="button" class="link-btn" (click)="tab = 'activity'">View all activity<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
+          </div>
+          <ul class="activity">
+            <li *ngFor="let a of o.activity.slice(0, 3)">
+              <span class="time">{{ a.at | date: 'HH:mm' }}</span>
+              <span><strong>{{ a.title }}</strong><small>{{ a.detail }}</small></span>
+            </li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- =================== Stages & Tasks =================== -->
+  <section *ngIf="tab === 'stages'" class="card panel">
+    <div *ngFor="let s of o.stages; let i = index" class="stage-block">
+      <div class="issue-head">
+        <h3 class="grow">{{ i + 1 }}. {{ s.name }}</h3>
+        <span class="state" [ngClass]="'state--' + statusTone(s.status)"><span class="dot"></span>{{ s.status }}</span>
+        <span class="muted">{{ stageTasksDone(s) }} / {{ s.tasks.length }} tasks</span>
+      </div>
+      <table class="grid-table">
+        <thead><tr><th>Task</th><th>Assignee</th><th>Status</th><th class="num">Evidence</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let t of s.tasks">
+            <td>{{ t.name }}</td>
+            <td>{{ t.assignee }}</td>
+            <td>
+              <select *ngIf="s.status === 'In Progress' && o.status === 'In Progress'; else readStatus" class="control control--xs" [ngModel]="t.status"
+                (ngModelChange)="setTaskStatus(s, t, $event)" [attr.aria-label]="'Status of ' + t.name">
+                <option *ngFor="let x of taskStatuses" [ngValue]="x">{{ x }}</option>
+              </select>
+              <ng-template #readStatus><span class="state" [ngClass]="'state--' + statusTone(t.status)"><span class="dot"></span>{{ t.status }}</span></ng-template>
+            </td>
+            <td class="num">{{ t.evidence || '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- =================== Resources & Assets =================== -->
+  <section *ngIf="tab === 'resources'" class="card panel">
+    <h3>Resources</h3>
+    <table class="grid-table">
+      <thead><tr><th>Resource</th><th>Type</th><th>Assigned</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let r of o.resources"><td>{{ r.name }}</td><td>{{ r.type }}</td><td>{{ r.assigned }}</td><td><span class="state" [ngClass]="'state--' + statusTone(r.status)"><span class="dot"></span>{{ r.status }}</span></td></tr>
+      </tbody>
+    </table>
+    <h3 class="gap-top">Linked Asset</h3>
+    <dl class="rows rows--narrow"><dt>Asset</dt><dd>{{ o.linkedAsset.name }}</dd><dt>Tag</dt><dd>{{ o.linkedAsset.tag }}</dd><dt>Location</dt><dd>{{ o.site }} - {{ o.location }}</dd></dl>
+  </section>
+
+  <!-- =================== Materials =================== -->
+  <section *ngIf="tab === 'materials'" class="card panel">
+    <div class="issue-head"><h3 class="grow">Materials</h3><button type="button" class="btn btn-outline btn-sm" (click)="openDialog('consumption')">Record Consumption</button></div>
+    <table class="grid-table">
+      <thead><tr><th>Item</th><th>Code</th><th class="num">Reserved</th><th class="num">Issued</th><th class="num">Consumed</th><th class="num">Balance</th><th>Unit</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let m of o.materials">
+          <td>{{ m.item }}</td><td>{{ m.code }}</td><td class="num">{{ m.reserved }}</td><td class="num">{{ m.issued }}</td><td class="num">{{ m.consumed }}</td>
+          <td class="num" [class.c-warn]="m.issued < m.reserved">{{ m.issued - m.consumed }}</td><td>{{ m.unit }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="hint">Balance is issued but not yet consumed. Items shown in amber are not fully issued yet.</p>
+  </section>
+
+  <!-- =================== Quality & Permits =================== -->
+  <section *ngIf="tab === 'quality'" class="card panel">
+    <h3>Completion Gates</h3>
+    <table class="grid-table">
+      <thead><tr><th>Gate</th><th>Stage</th><th>Status</th><th>Passed At</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let g of o.gates"><td>{{ g.name }}</td><td>{{ g.stage || 'Before start' }}</td><td><span class="state" [ngClass]="'state--' + statusTone(g.status)"><span class="dot"></span>{{ g.status }}</span></td><td>{{ g.at ? (g.at | date: 'dd MMM yyyy, HH:mm') : '-' }}</td></tr>
+      </tbody>
+    </table>
+    <h3 class="gap-top">Quality Checks</h3>
+    <table class="grid-table">
+      <thead><tr><th>Check</th><th>Stage</th><th>Acceptance Criteria</th><th>Result</th></tr></thead>
+      <tbody><tr *ngFor="let q of o.qualityChecks"><td>{{ q.name }}</td><td>{{ q.stage }}</td><td>{{ q.criteria }}</td><td>{{ q.result || 'Not tested' }}</td></tr></tbody>
+    </table>
+    <h3 class="gap-top">Permits</h3>
+    <table class="grid-table">
+      <thead><tr><th>Permit</th><th>Number</th><th>Issuer</th><th>Status</th><th>Valid Until</th></tr></thead>
+      <tbody><tr *ngFor="let p of o.permits"><td>{{ p.name }}</td><td>{{ p.number || '-' }}</td><td>{{ p.issuer }}</td><td><span class="state" [ngClass]="'state--' + statusTone(p.status)"><span class="dot"></span>{{ p.status }}</span></td><td>{{ p.validUntil ? (p.validUntil | date: 'dd MMM yyyy, HH:mm') : '-' }}</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- =================== Issues & Delays =================== -->
+  <section *ngIf="tab === 'issues'" class="card panel">
+    <div class="issue-head"><h3 class="grow">Issues &amp; Delays</h3><button type="button" class="btn btn-outline btn-sm" (click)="openDialog('issue')">Report Issue</button></div>
+    <table class="grid-table">
+      <thead><tr><th>ID</th><th>Issue</th><th>Severity</th><th>Stage</th><th>Owner</th><th>Raised</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let i of o.issues">
+          <td class="nowrap">{{ i.id }}</td><td><strong>{{ i.title }}</strong><small class="block muted">{{ i.description }}</small></td>
+          <td><span class="sev" [ngClass]="'sev--' + severityTone(i.severity)"><span class="dot"></span>{{ i.severity }}</span></td>
+          <td>{{ i.stage }}</td><td>{{ i.owner }}</td><td class="nowrap">{{ i.raisedAt | date: 'dd MMM, HH:mm' }}</td>
+          <td><span class="state" [ngClass]="'state--' + statusTone(i.status)"><span class="dot"></span>{{ i.status }}</span></td>
+          <td><button *ngIf="i.status !== 'Resolved'" type="button" class="link-btn" (click)="resolveIssue(i)">Resolve</button></td>
+        </tr>
+        <tr *ngIf="!o.issues.length"><td colspan="8" class="empty">No issues reported.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- =================== Output & Traceability =================== -->
+  <section *ngIf="tab === 'output'" class="card panel">
+    <div class="issue-head"><h3 class="grow">Output &amp; Traceability</h3><button type="button" class="btn btn-outline btn-sm" (click)="openDialog('output')">Record Output</button></div>
+    <dl class="output output--wide">
+      <div><dt>Planned</dt><dd>{{ o.output.planned }}</dd></div><div><dt>Completed</dt><dd>{{ o.output.completed }}</dd></div>
+      <div><dt>Accepted</dt><dd class="c-good">{{ o.output.accepted }}</dd></div><div><dt>Rework</dt><dd class="c-warn">{{ o.output.rework }}</dd></div>
+      <div><dt>Rejected</dt><dd class="c-bad">{{ o.output.rejected }}</dd></div>
+    </dl>
+    <table class="grid-table">
+      <thead><tr><th>Serial / Batch</th><th>Batch</th><th>Status</th><th>Last Stage</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let u of o.serials"><td class="nowrap">{{ u.serial }}</td><td>{{ o.batch }}</td><td><span class="state" [ngClass]="'state--' + statusTone(u.status)"><span class="dot"></span>{{ u.status }}</span></td><td>{{ u.stage || '-' }}</td><td>{{ u.note || '-' }}</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- =================== Activity =================== -->
+  <section *ngIf="tab === 'activity'" class="card panel">
+    <h3>Activity &amp; Audit Trail</h3>
+    <ul class="activity activity--full">
+      <li *ngFor="let a of o.activity">
+        <span class="time">{{ a.at | date: 'dd MMM, HH:mm' }}</span>
+        <span><strong>{{ a.title }}</strong><small>{{ a.detail }}</small></span>
+      </li>
+    </ul>
+  </section>
+
+  <footer class="foot-note">
+    <lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>
+    <span class="grow">Template version locked at job creation &bull; All execution changes are recorded</span>
+    <button type="button" class="link-btn" (click)="tab = 'activity'">View Audit Trail<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
+  </footer>
+</section>
+
+<!-- =================== Dialogs =================== -->
+<div *ngIf="dialog" class="overlay" (click)="dialog = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="jo-dialog-title" (click)="$event.stopPropagation()">
+    <ng-container [ngSwitch]="dialog">
+      <!-- Report issue -->
+      <ng-container *ngSwitchCase="'issue'">
+        <div class="modal-head"><h2 id="jo-dialog-title">Report Issue</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+        <form class="modal-body" (ngSubmit)="saveIssue()">
+          <label class="field"><span class="field-label">Title <em>*</em></span><input class="control" [(ngModel)]="issueForm.title" name="title" /></label>
+          <div class="grid-3">
+            <label class="field"><span class="field-label">Severity</span><select class="control" [(ngModel)]="issueForm.severity" name="severity"><option *ngFor="let s of severities" [ngValue]="s">{{ s }}</option></select></label>
+            <label class="field"><span class="field-label">Stage</span><select class="control" [(ngModel)]="issueForm.stage" name="stage"><option *ngFor="let s of o.stages" [value]="s.name">{{ s.name }}</option></select></label>
+            <label class="field"><span class="field-label">Owner</span><select class="control" [(ngModel)]="issueForm.owner" name="owner"><option *ngFor="let s of owners" [value]="s">{{ s }}</option></select></label>
+          </div>
+          <label class="field"><span class="field-label">Description</span><textarea class="control" rows="3" [(ngModel)]="issueForm.description" name="description"></textarea></label>
+          <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+          <div class="modal-foot modal-foot--form"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">Report Issue</button></div>
+        </form>
+      </ng-container>
+
+      <!-- Log progress -->
+      <ng-container *ngSwitchCase="'progress'">
+        <div class="modal-head"><h2 id="jo-dialog-title">Log Progress · {{ currentStage?.name }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+        <form class="modal-body" (ngSubmit)="saveProgress()">
+          <label class="field"><span class="field-label">Task</span>
+            <select class="control" [(ngModel)]="progressForm.task" name="task"><option *ngFor="let t of currentStage?.tasks; let i = index" [ngValue]="i">{{ t.name }} ({{ t.status }})</option></select>
+          </label>
+          <div class="grid-3">
+            <label class="field"><span class="field-label">New Status</span><select class="control" [(ngModel)]="progressForm.status" name="status"><option *ngFor="let s of taskStatuses" [ngValue]="s">{{ s }}</option></select></label>
+            <label class="field"><span class="field-label">Photos Added</span><input type="number" class="control" [(ngModel)]="progressForm.photos" name="photos" min="0" /></label>
+          </div>
+          <label class="field"><span class="field-label">Note</span><textarea class="control" rows="2" [(ngModel)]="progressForm.note" name="note"></textarea></label>
+          <div class="modal-foot modal-foot--form"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">Log Progress</button></div>
+        </form>
+      </ng-container>
+
+      <!-- Checklist -->
+      <ng-container *ngSwitchCase="'checklist'">
+        <div class="modal-head"><h2 id="jo-dialog-title">{{ currentStage?.name }} Checklist</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+        <div class="modal-body">
+          <label *ngFor="let c of currentStage?.checklist" class="check-row"><input type="checkbox" [checked]="c.done" (change)="toggleChecklistItem(c)" />{{ c.item }}</label>
+          <p *ngIf="!currentStage?.checklist?.length" class="hint">This stage has no checklist.</p>
+        </div>
+        <div class="modal-foot"><button type="button" class="btn btn-primary" (click)="dialog = null">Done</button></div>
+      </ng-container>
+
+      <!-- Complete stage with open tasks -->
+      <ng-container *ngSwitchCase="'completeStage'">
+        <div class="modal-head"><h2 id="jo-dialog-title">Complete {{ currentStage?.name }}?</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+        <div class="modal-body">
+          <p>These tasks are not complete yet and will be marked complete with the stage:</p>
+          <ul><li *ngFor="let t of currentStage?.tasks" [hidden]="t.status === 'Completed'">{{ t.name }} ({{ t.assignee }}, {{ t.status }})</li></ul>
+        </div>
+        <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="button" class="btn btn-primary" (click)="completeStage()">Complete Stage</button></div>
+      </ng-container>
+
+      <!-- Record output -->
+      <ng-container *ngSwitchCase="'output'">
+        <div class="modal-head"><h2 id="jo-dialog-title">Record Output</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+        <form class="modal-body" (ngSubmit)="saveOutput()">
+          <p class="hint">{{ o.output.completed }} of {{ o.output.planned }} {{ o.output.unit.toLowerCase() }} recorded so far.</p>
+          <div class="grid-3">
+            <label class="field"><span class="field-label">Accepted</span><input type="number" class="control" [(ngModel)]="outputForm.accepted" name="accepted" min="0" /></label>
+            <label class="field"><span class="field-label">Rework</span><input type="number" class="control" [(ngModel)]="outputForm.rework" name="rework" min="0" /></label>
+            <label class="field"><span class="field-label">Rejected</span><input type="number" class="control" [(ngModel)]="outputForm.rejected" name="rejected" min="0" /></label>
+          </div>
+          <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+          <div class="modal-foot modal-foot--form"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">Record Output</button></div>
+        </form>
+      </ng-container>
+
+      <!-- Record consumption -->
+      <ng-container *ngSwitchCase="'consumption'">
+        <div class="modal-head"><h2 id="jo-dialog-title">Record Consumption</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+        <form class="modal-body" (ngSubmit)="saveConsumption()">
+          <div class="grid-3">
+            <label class="field grid-span-2"><span class="field-label">Material</span>
+              <select class="control" [(ngModel)]="consumptionForm.material" name="material"><option *ngFor="let m of o.materials; let i = index" [ngValue]="i">{{ m.item }} ({{ m.issued - m.consumed }} {{ m.unit.toLowerCase() }} available)</option></select>
+            </label>
+            <label class="field"><span class="field-label">Quantity</span><input type="number" class="control" [(ngModel)]="consumptionForm.quantity" name="quantity" min="1" /></label>
+          </div>
+          <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+          <div class="modal-foot modal-foot--form"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">Record</button></div>
+        </form>
+      </ng-container>
+    </ng-container>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" [class.toast--error]="toastError" role="status">{{ toast }}</div>

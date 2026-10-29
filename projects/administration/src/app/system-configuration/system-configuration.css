@@ -1,0 +1,299 @@
+/* System Configuration: page extras on top of admin-workspace.css (also used by the child cards / drawer) */
+
+.cfg-org {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.cfg-purple {
+  color: var(--adm-purple);
+}
+
+.cfg-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--adm-purple);
+  font-size: 11px;
+}
+
+.cfg-pending-btn {
+  border-color: #f8c77a;
+  background: var(--adm-orange-soft);
+  color: #b45309;
+}
+
+/* Sections list */
+.cfg-section {
+  align-items: center;
+}
+
+.cfg-section__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.cfg-section.active .cfg-section__icon {
+  color: var(--adm-purple);
+}
+
+/* Centre head */
+.cfg-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.cfg-head p {
+  margin: 4px 0 12px;
+}
+
+/* Settings card */
+.cfg-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cfg-card__head h3 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.cfg-card__head p {
+  margin: 2px 0 0;
+  color: var(--adm-muted);
+  font-size: 12px;
+}
+
+.cfg-card__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--adm-purple-soft);
+  color: var(--adm-purple);
+  flex-shrink: 0;
+}
+
+.cfg-card__icon--round {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.cfg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 4px 16px;
+}
+
+.cfg-field {
+  padding: 6px;
+  margin: -6px -6px 6px;
+  border-radius: 8px;
+}
+
+.cfg-field.selected {
+  background: #faf8fe;
+  box-shadow: 0 0 0 1px #d8ccf3;
+}
+
+.cfg-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+}
+
+.cfg-label__btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cfg-label__btn:hover {
+  color: var(--adm-purple);
+}
+
+.cfg-info {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.cfg-info:hover {
+  color: var(--adm-purple);
+}
+
+.cfg-dirty {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--adm-orange-soft);
+  color: #b45309;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.cfg-switch {
+  min-height: 36px;
+}
+
+.cfg-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cfg-unit span {
+  color: var(--adm-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cfg-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cfg-logo img,
+.cfg-logo__default {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.cfg-logo__default {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #3b1784, #5b2aa8);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.cfg-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* Drawer */
+.cfg-detail__title {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cfg-detail__title h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.cfg-detail__title p {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+}
+
+.cfg-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cfg-person small {
+  display: block;
+}
+
+.cfg-gap {
+  margin-top: 14px;
+}
+
+.cfg-counter {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cfg-counter span:last-child {
+  margin-left: auto;
+}
+
+.cfg-drawer__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cfg-recent {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--adm-border);
+}
+
+/* Dialogs */
+.cfg-dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+}
+
+.cfg-dialog--wide {
+  width: min(1000px, calc(100vw - 32px));
+}
+
+.cfg-pending {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--adm-border);
+}
+
+.cfg-pending__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.cfg-pending__diff {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.cfg-pending__actions {
+  display: flex;
+  gap: 8px;
+}

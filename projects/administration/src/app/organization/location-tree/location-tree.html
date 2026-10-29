@@ -1,0 +1,50 @@
+<section class="panel tree-panel" aria-label="Location hierarchy">
+  <div class="panel__head">
+    <h3>Location Hierarchy</h3>
+    <button type="button" class="icon-btn icon-btn--bare" title="Collapse all" aria-label="Collapse all" (click)="collapseAll()">
+      <lucide-icon [img]="icons.ChevronsDownUp" [size]="16"></lucide-icon>
+    </button>
+    <button type="button" class="icon-btn icon-btn--bare" title="Expand all" aria-label="Expand all" (click)="expandAll()">
+      <lucide-icon [img]="icons.ChevronsUpDown" [size]="16"></lucide-icon>
+    </button>
+    <button type="button" class="icon-btn icon-btn--bare" title="Search the hierarchy" aria-label="Search the hierarchy" [attr.aria-pressed]="searchOpen" (click)="toggleSearch()">
+      <lucide-icon [img]="searchOpen ? icons.X : icons.Search" [size]="16"></lucide-icon>
+    </button>
+  </div>
+
+  @if (searchOpen) {
+    <label class="search tree-search">
+      <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+      <input placeholder="Find a location..." aria-label="Find a location" [(ngModel)]="term" />
+    </label>
+  }
+
+  <ul class="tree" role="tree">
+    <li role="treeitem" [attr.aria-expanded]="rootOpen" [attr.aria-selected]="selected === null">
+      <div class="tree__row" [class.active]="selected === null" (click)="select(null)">
+        <button type="button" class="tree__caret" [attr.aria-label]="rootOpen ? 'Collapse' : 'Expand'" (click)="toggleRoot($event)">
+          <lucide-icon [img]="rootOpen ? icons.ChevronDown : icons.ChevronRight" [size]="14"></lucide-icon>
+        </button>
+        <lucide-icon class="tree__icon" data-type="Organization" [img]="icons.Building2" [size]="16"></lucide-icon>
+        <strong>{{ rootLabel }}</strong>
+      </div>
+    </li>
+    @for (r of rows; track r.node.code) {
+      <li role="treeitem" [attr.aria-expanded]="r.hasChildren ? isOpen(r) : null" [attr.aria-selected]="selected === r.node.code">
+        <div class="tree__row" [class.active]="selected === r.node.code" [class.inactive]="r.node.status === 'Inactive'" [style.padding-left]="indent(r.depth)" (click)="select(r.node.code)">
+          @if (r.hasChildren) {
+            <button type="button" class="tree__caret" [attr.aria-label]="isOpen(r) ? 'Collapse ' + r.node.name : 'Expand ' + r.node.name" (click)="toggle(r, $event)">
+              <lucide-icon [img]="isOpen(r) ? icons.ChevronDown : icons.ChevronRight" [size]="14"></lucide-icon>
+            </button>
+          } @else {
+            <span class="tree__caret" aria-hidden="true"></span>
+          }
+          <lucide-icon class="tree__icon" [attr.data-type]="r.node.type" [img]="iconOf(r.node.type)" [size]="16"></lucide-icon>
+          <span class="tree__label">{{ r.node.name }}</span>
+        </div>
+      </li>
+    } @empty {
+      @if (term) { <li class="list-empty">No locations match “{{ term }}”.</li> }
+    }
+  </ul>
+</section>

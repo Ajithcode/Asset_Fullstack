@@ -1,0 +1,247 @@
+/* Administration > Organization: big tab bar, clickable stat cards, hierarchy tree and table extras */
+
+/* ===== Tab bar (Location / Asset / People / ...) ===== */
+.org-tabs {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.org-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--adm-purple-soft);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: #3b2a6b;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.org-tabs button lucide-icon {
+  color: var(--adm-purple);
+}
+
+.org-tabs button:hover {
+  border-color: #c9b8ef;
+}
+
+.org-tabs button.active {
+  background: var(--adm-purple);
+  color: #fff;
+}
+
+.org-tabs button.active lucide-icon {
+  color: #fff;
+}
+
+/* ===== Stat cards that filter the table ===== */
+.stat--link {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.stat--link:hover,
+.stat--link.active {
+  border-color: #c9b8ef;
+}
+
+.stat--link.active {
+  box-shadow: inset 0 -3px 0 var(--adm-purple);
+}
+
+.stat__body {
+  flex: 1;
+}
+
+.stat__chevron {
+  color: #94a3b8;
+}
+
+/* ===== Hierarchy tree ===== */
+.tree-panel .panel__head {
+  gap: 2px;
+}
+
+.tree-search {
+  min-width: 0;
+  height: 34px;
+  margin-bottom: 8px;
+}
+
+.tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tree__row:hover {
+  background: #faf9fe;
+}
+
+.tree__row.active {
+  background: var(--adm-purple-soft);
+  color: var(--adm-purple);
+  font-weight: 600;
+}
+
+.tree__row.inactive .tree__label {
+  color: #94a3b8;
+}
+
+.tree__caret {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #475569;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tree__icon {
+  color: var(--adm-purple);
+  flex-shrink: 0;
+}
+
+.tree__icon[data-type='Building'] { color: var(--adm-blue); }
+.tree__icon[data-type='Floor'] { color: var(--adm-pink); }
+.tree__icon[data-type='Zone'] { color: var(--adm-green); }
+
+.tree__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== Table ===== */
+.panel__head .scope {
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.filter-row {
+  padding: 10px;
+  border-radius: 10px;
+  background: #f8f9fc;
+}
+
+.btn-tall {
+  width: 38px;
+  height: 38px;
+}
+
+.check-col {
+  width: 34px;
+}
+
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+}
+
+.th-sort lucide-icon {
+  color: #94a3b8;
+}
+
+th[aria-sort='ascending'] .th-sort lucide-icon,
+th[aria-sort='descending'] .th-sort lucide-icon {
+  color: var(--adm-purple);
+}
+
+.code-link {
+  color: var(--adm-blue);
+  font-weight: 700;
+}
+
+.type-pill {
+  min-width: 70px;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.row-actions {
+  white-space: nowrap;
+}
+
+.select--sm {
+  height: 30px;
+}
+
+/* ===== Drawers ===== */
+.drawer form.grid2 {
+  align-content: start;
+}
+
+.drawer-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.drawer-note {
+  margin-top: 14px;
+}
+
+.input-icon {
+  position: relative;
+  display: block;
+}
+
+.input-icon lucide-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.status-select[data-status='Active'] {
+  color: #059669;
+  font-weight: 600;
+}
+
+@media (max-width: 1280px) {
+  .org-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .org-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
