@@ -1,0 +1,8 @@
+/* Design puts the photo to the right of name and username */
+.basic-top--photo-right {
+  grid-template-columns: 1fr 120px;
+}
+
+.basic-top--photo-right .upload {
+  min-height: 130px;
+}

@@ -1,0 +1,38 @@
+<div class="loc-map" [class.loc-map--expanded]="expanded">
+  <div class="loc-map__tabs" role="tablist">
+    <button type="button" role="tab" [class.active]="view === 'map'" [attr.aria-selected]="view === 'map'" (click)="setView('map')">Map View</button>
+    <button type="button" role="tab" [class.active]="view === 'plan'" [attr.aria-selected]="view === 'plan'" (click)="setView('plan')">Floor Plan</button>
+  </div>
+
+  <div class="loc-map__canvas">
+    @if (view === 'map') {
+      <div class="loc-map__leaflet" #mapEl></div>
+    } @else {
+      <svg class="loc-map__plan" viewBox="0 0 400 260" role="img" [attr.aria-label]="'Floor plan of ' + (plan.building?.label ?? '')">
+        @if (plan.building; as b) {
+          <rect [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.w" [attr.height]="b.h" rx="4" class="plan-building" />
+          <text [attr.x]="b.x + 6" [attr.y]="b.y + 12" class="plan-building-label">{{ b.label }}</text>
+        }
+        @for (z of plan.zones; track z.label) {
+          <rect [attr.x]="z.x" [attr.y]="z.y" [attr.width]="z.w" [attr.height]="z.h" rx="3" [attr.fill]="z.color" fill-opacity="0.18" [attr.stroke]="z.color" stroke-width="1.5" />
+          <text [attr.x]="z.x + z.w / 2" [attr.y]="z.y + z.h - 8" text-anchor="middle" class="plan-zone-label">{{ z.label }}</text>
+        }
+        @if (plan.location; as l) {
+          <rect [attr.x]="l.x" [attr.y]="l.y" [attr.width]="l.w" [attr.height]="l.h" rx="3" class="plan-location" />
+          <text [attr.x]="l.x + l.w / 2" [attr.y]="l.y + l.h / 2 + 4" text-anchor="middle" class="plan-location-label">{{ l.label }}</text>
+        }
+      </svg>
+    }
+
+    <button type="button" class="loc-map__expand" (click)="toggleExpanded()" [attr.aria-label]="expanded ? 'Exit full screen' : 'Full screen'">
+      <lucide-icon [img]="expanded ? icons.Minimize2 : icons.Maximize2" [size]="16"></lucide-icon>
+    </button>
+  </div>
+
+  <div class="loc-map__legend">
+    <span><i class="dot dot--building"></i>Building</span>
+    <span><i class="dot dot--floor"></i>Floor</span>
+    <span><i class="dot dot--zone"></i>Zone</span>
+    <span><i class="pin"></i>Location</span>
+  </div>
+</div>

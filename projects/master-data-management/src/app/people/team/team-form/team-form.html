@@ -1,0 +1,133 @@
+<aside class="drawer" role="dialog" aria-labelledby="team-form-title">
+  <header class="drawer__header">
+    <h2 id="team-form-title">{{ isEdit ? 'Edit Team' : 'Add Team' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">
+        {{ t.label }}@if (t.id === 'members') { ({{ form.members.length }}) }
+      </button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors.name">
+          <label for="team-name"><span class="req">*</span> Team Name</label>
+          <input id="team-name" name="name" placeholder="Enter team name" [(ngModel)]="form.name" />
+          @if (errors.name) { <small>{{ errors.name }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors.code">
+          <label for="team-code"><span class="req">*</span> Code</label>
+          <input id="team-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors.code) { <small>{{ errors.code }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors.department">
+          <label for="team-dept"><span class="req">*</span> Department</label>
+          <select id="team-dept" name="department" [(ngModel)]="form.department">
+            <option value="" disabled>Select department</option>
+            @for (d of departments; track d) { <option [value]="d">{{ d }}</option> }
+          </select>
+          @if (errors.department) { <small>{{ errors.department }}</small> }
+        </div>
+        <div class="field">
+          <label for="team-leader">Team Leader</label>
+          <select id="team-leader" name="leaderId" [(ngModel)]="form.leaderId" (ngModelChange)="onLeaderChange()">
+            <option value="">Select team leader</option>
+            <optgroup label="Technicians">
+              @for (p of technicianOptions; track p.id) { <option [value]="p.id">{{ p.name }} ({{ p.id }})</option> }
+            </optgroup>
+            <optgroup label="Employees">
+              @for (p of employeeOptions; track p.id) { <option [value]="p.id">{{ p.name }} ({{ p.id }})</option> }
+            </optgroup>
+          </select>
+          <small class="hint">The leader is added to the members.</small>
+        </div>
+        <div class="field">
+          <label for="team-desc">Description</label>
+          <textarea id="team-desc" name="description" rows="3" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="team-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="team-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="On Leave">On Leave</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('members') {
+        <div class="field">
+          <label for="team-search">Find people</label>
+          <input id="team-search" name="memberSearch" placeholder="Name, ID, skill or designation" [(ngModel)]="memberSearch" />
+        </div>
+        <label class="only-members"><input type="checkbox" name="showMembersOnly" [(ngModel)]="showMembersOnly" /> Show members only</label>
+        <div class="ticks ticks--people" [class.invalid]="errors.members">
+          @for (p of filteredPeople.slice(0, 200); track p.id) {
+            <label>
+              <input type="checkbox" [checked]="isMember(p.id)" [disabled]="p.id === form.leaderId" (change)="toggleMember(p.id)" />
+              <span>{{ p.name }} <small>{{ p.detail }}@if (p.id === form.leaderId) { · Leader }</small></span>
+            </label>
+          } @empty {
+            <p class="hint">No one matches.</p>
+          }
+        </div>
+        @if (filteredPeople.length > 200) { <p class="hint">Showing the first 200; narrow the search to see more.</p> }
+        @if (errors.members) { <small class="upload-error">{{ errors.members }}</small> }
+      }
+
+      @case ('roles') {
+        <div class="field">
+          <label for="team-shift">Shift</label>
+          <select id="team-shift" name="shiftCode" [(ngModel)]="form.shiftCode">
+            <option value="">No fixed shift</option>
+            @for (s of shifts.all(); track s.code) { <option [value]="s.code">{{ s.name }}@if (s.status === 'Inactive') { (inactive) }</option> }
+          </select>
+        </div>
+        <span class="section-title">Responsibilities</span>
+        <div class="rows">
+          @for (r of form.responsibilities; track $index) {
+            <div class="row-line row-line--single">
+              <input [name]="'resp' + $index" [attr.aria-label]="'Responsibility ' + ($index + 1)" [(ngModel)]="form.responsibilities[$index]" />
+              <button type="button" class="row-remove" (click)="removeResponsibility($index)" [attr.aria-label]="'Remove responsibility ' + ($index + 1)">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="hint">None yet.</p>
+          }
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn btn--ghost" (click)="addResponsibility()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add responsibility</button>
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Notify team leader</strong><small>Send new work orders for this team to the leader.</small></span>
+            <input type="checkbox" name="notifyLeader" [(ngModel)]="form.notifyLeader" />
+          </label>
+          <label class="toggle">
+            <span><strong>Auto assign work orders</strong><small>Assign new work orders to the least busy member.</small></span>
+            <input type="checkbox" name="autoAssign" [(ngModel)]="form.autoAssign" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

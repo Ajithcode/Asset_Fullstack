@@ -1,0 +1,251 @@
+<aside class="drawer" role="dialog" aria-labelledby="dept-form-title">
+  <header class="drawer__header">
+    <h2 id="dept-form-title">{{ isEdit ? 'Edit Department' : 'Add Department' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <div class="logo-field">
+            <span class="field__label">Logo</span>
+            <label class="upload" [class.upload--filled]="form.logo" [class.invalid]="errors.logo">
+              <input type="file" accept="image/png,image/jpeg" (change)="onLogoPicked($event)" />
+              @if (form.logo) {
+                <img [src]="form.logo" alt="Department logo" class="logo-img" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); removeLogo()">Remove</button>
+              } @else {
+                <span class="upload__icon"><lucide-icon [img]="logoIcons[form.icon]" [size]="34" [strokeWidth]="1.8"></lucide-icon></span>
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+          </div>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.name">
+              <label for="dept-name"><span class="req">*</span> Department Name</label>
+              <input id="dept-name" name="name" placeholder="Enter department name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.code">
+              <label for="dept-code"><span class="req">*</span> Code</label>
+              <input id="dept-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+              @if (errors.code) { <small>{{ errors.code }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.businessUnitCode">
+              <label for="dept-bu"><span class="req">*</span> Business Unit</label>
+              <select id="dept-bu" name="businessUnitCode" [(ngModel)]="form.businessUnitCode" (ngModelChange)="onBusinessUnitChange()">
+                <option value="" disabled>Select business unit</option>
+                @for (b of businessUnits.all(); track b.code) { <option [value]="b.code">{{ b.name }}</option> }
+              </select>
+              @if (errors.businessUnitCode) { <small>{{ errors.businessUnitCode }}</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors.logo) { <small class="upload-error">{{ errors.logo }}</small> }
+
+        @if (!form.logo) {
+          <div class="field">
+            <span class="field__label">Icon (used when there is no logo)</span>
+            <div class="icon-picker" role="radiogroup" aria-label="Icon">
+              @for (k of logoKeys; track k) {
+                <button type="button" class="icon-picker__item" role="radio" [class.on]="form.icon === k" [attr.aria-checked]="form.icon === k" [attr.aria-label]="k" (click)="form.icon = k">
+                  <lucide-icon [img]="logoIcons[k]" [size]="18"></lucide-icon>
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="grid">
+          <div class="field">
+            <label for="dept-parent">Parent Department</label>
+            <select id="dept-parent" name="parentCode" [(ngModel)]="form.parentCode" [disabled]="!form.businessUnitCode">
+              <option [ngValue]="null">Select parent department</option>
+              @for (p of parentOptions; track p.code) { <option [ngValue]="p.code">{{ p.name }} ({{ p.code }})</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="dept-head">Department Head</label>
+            <div class="with-icon">
+              <lucide-icon [img]="icons.User" [size]="15"></lucide-icon>
+              <input id="dept-head" name="head" list="dept-employees" placeholder="Search employee" [(ngModel)]="form.head" />
+            </div>
+          </div>
+          <div class="field" [class.invalid]="errors.type">
+            <label for="dept-type"><span class="req">*</span> Department Type</label>
+            <select id="dept-type" name="type" [(ngModel)]="form.type">
+              <option value="" disabled>Select type</option>
+              @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+            @if (errors.type) { <small>{{ errors.type }}</small> }
+          </div>
+          <div class="field">
+            <label for="dept-cc">Cost Center</label>
+            <select id="dept-cc" name="costCenter" [(ngModel)]="form.costCenter">
+              <option value="">Select cost center</option>
+              @for (c of costCenters; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field field--wide">
+            <label for="dept-desc">Description</label>
+            <textarea id="dept-desc" name="description" rows="3" placeholder="Enter description about the department" [(ngModel)]="form.description"></textarea>
+          </div>
+          <div class="field field--wide">
+            <span class="field__label">Status</span>
+            <div class="radios">
+              <label><input type="radio" name="status" value="Active" [(ngModel)]="form.status" /> Active</label>
+              <label><input type="radio" name="status" value="Inactive" [(ngModel)]="form.status" /> Inactive</label>
+            </div>
+          </div>
+        </div>
+      }
+
+      @case ('hierarchy') {
+        <div class="field" [class.invalid]="errors.businessUnitCode">
+          <label for="dept-bu-h"><span class="req">*</span> Business Unit</label>
+          <select id="dept-bu-h" name="businessUnitCodeH" [(ngModel)]="form.businessUnitCode" (ngModelChange)="onBusinessUnitChange()">
+            <option value="" disabled>Select business unit</option>
+            @for (b of businessUnits.all(); track b.code) { <option [value]="b.code">{{ b.name }}</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="dept-parent-h">Parent Department</label>
+          <select id="dept-parent-h" name="parentCodeH" [(ngModel)]="form.parentCode" [disabled]="!form.businessUnitCode">
+            <option [ngValue]="null">None (directly under the business unit)</option>
+            @for (p of parentOptions; track p.code) { <option [ngValue]="p.code">{{ p.name }} ({{ p.code }})</option> }
+          </select>
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="dept-level">Hierarchy Level</label>
+            <input id="dept-level" name="level" [value]="level" readonly />
+          </div>
+          <div class="field">
+            <label for="dept-subs">Sub-departments</label>
+            <input id="dept-subs" name="subs" [value]="isEdit ? service.children(form.code).length : 0" readonly />
+          </div>
+        </div>
+        <div class="field">
+          <label for="dept-path">Hierarchy Path</label>
+          <input id="dept-path" name="path" [value]="path" readonly />
+        </div>
+      }
+
+      @case ('people') {
+        <div class="grid">
+          <div class="field">
+            <label for="dept-head-p">Department Head</label>
+            <div class="with-icon">
+              <lucide-icon [img]="icons.User" [size]="15"></lucide-icon>
+              <input id="dept-head-p" name="headP" list="dept-employees" placeholder="Search employee" [(ngModel)]="form.head" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="dept-deputy">Deputy Head</label>
+            <div class="with-icon">
+              <lucide-icon [img]="icons.User" [size]="15"></lucide-icon>
+              <input id="dept-deputy" name="deputy" list="dept-employees" placeholder="Search employee" [(ngModel)]="form.deputy" />
+            </div>
+          </div>
+          <div class="field" [class.invalid]="errors.email">
+            <label for="dept-email">Department Email</label>
+            <input id="dept-email" name="email" type="email" [(ngModel)]="form.email" />
+            @if (errors.email) { <small>{{ errors.email }}</small> }
+          </div>
+          <div class="field">
+            <label for="dept-phone">Phone</label>
+            <div class="phone">
+              <select name="phoneCountry" aria-label="Phone country" [(ngModel)]="form.phoneCountry">
+                @for (c of countries; track c.name) { <option [value]="c.name">{{ c.flag }} {{ c.dial }}</option> }
+              </select>
+              <input id="dept-phone" name="phone" type="tel" [(ngModel)]="form.phone" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="dept-emps">Employees</label>
+            <input id="dept-emps" name="employees" [value]="form.employees" readonly />
+          </div>
+        </div>
+        <p class="hint">Employee numbers come from the People master.</p>
+      }
+
+      @case ('finance') {
+        <div class="grid">
+          <div class="field">
+            <label for="dept-cc-f">Cost Center</label>
+            <select id="dept-cc-f" name="costCenterF" [(ngModel)]="form.costCenter">
+              <option value="">Select cost center</option>
+              @for (c of costCenters; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="dept-gl">GL Code</label>
+            <input id="dept-gl" name="glCode" placeholder="e.g. 61020" [(ngModel)]="form.glCode" />
+          </div>
+          <div class="field">
+            <label for="dept-currency">Currency</label>
+            <select id="dept-currency" name="currency" [(ngModel)]="form.currency">
+              @for (c of currencies; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field" [class.invalid]="errors.budget">
+            <label for="dept-budget">Annual Budget</label>
+            <input id="dept-budget" name="annualBudget" type="number" min="0" [(ngModel)]="form.annualBudget" />
+            @if (errors.budget) { <small>{{ errors.budget }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.approvalLimit">
+            <label for="dept-limit">Approval Limit</label>
+            <input id="dept-limit" name="approvalLimit" type="number" min="0" [(ngModel)]="form.approvalLimit" />
+            @if (errors.approvalLimit) { <small>{{ errors.approvalLimit }}</small> }
+          </div>
+        </div>
+        <label class="check"><input type="checkbox" name="includeInCostAllocation" [(ngModel)]="form.includeInCostAllocation" /> Include in cost allocation</label>
+      }
+
+      @case ('settings') {
+        <span class="section-title">Validity</span>
+        <div class="grid">
+          <div class="field">
+            <label for="dept-from">Effective From</label>
+            <input id="dept-from" name="effectiveFrom" type="date" [(ngModel)]="form.effectiveFrom" />
+          </div>
+          <div class="field" [class.invalid]="errors.effectiveTo">
+            <label for="dept-to">Effective To</label>
+            <input id="dept-to" name="effectiveTo" type="date" [(ngModel)]="form.effectiveTo" />
+            @if (errors.effectiveTo) { <small>{{ errors.effectiveTo }}</small> }
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Allow asset ownership</strong><small>Assets can be owned by this department.</small></span>
+            <input type="checkbox" name="allowAssetOwnership" [(ngModel)]="form.allowAssetOwnership" />
+          </label>
+          <label class="toggle">
+            <span><strong>Approve asset assignments</strong><small>The head approves assets assigned to the team.</small></span>
+            <input type="checkbox" name="requireAssignmentApproval" [(ngModel)]="form.requireAssignmentApproval" />
+          </label>
+        </div>
+      }
+    }
+
+    <datalist id="dept-employees">
+      @for (e of employees; track e) { <option [value]="e"></option> }
+    </datalist>
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

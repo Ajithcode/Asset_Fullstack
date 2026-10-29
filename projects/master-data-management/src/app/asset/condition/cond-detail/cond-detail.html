@@ -1,0 +1,261 @@
+<section class="detail">
+  <header class="detail__head">
+    @if (condition.image) {
+      <span class="level-swatch"><img [src]="condition.image" [alt]="condition.name" /></span>
+    } @else {
+      <span class="level-swatch level-swatch--disc" aria-hidden="true"><i [style.background]="condition.color"></i></span>
+    }
+
+    <div class="detail__title">
+      <div class="detail__name">
+        <h2>{{ condition.name }}</h2>
+        <span class="pill" [attr.data-status]="condition.status"><i></i>{{ condition.status }}</span>
+      </div>
+      <div class="detail__meta">
+        Code: {{ condition.code }}<span class="sep">|</span>Type: {{ condition.type }}<span class="sep">|</span>Health Score: {{ condition.healthScore }}%<span class="sep">|</span>Default: {{ condition.isDefault ? 'Yes' : 'No' }}
+      </div>
+      @if (condition.description) { <div class="detail__meta">{{ condition.description }}</div> }
+    </div>
+
+    <div class="detail__actions">
+      <button type="button" class="btn" (click)="edit.emit({ condition })">
+        <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon> Edit
+      </button>
+      <button type="button" class="btn" (click)="duplicate.emit(condition)">
+        <lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon> Duplicate
+      </button>
+      <button type="button" class="btn" (click)="tab = 'assets'">
+        <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon> View Assets ({{ condition.usage.assets | number }})
+      </button>
+      <div class="more">
+        <button type="button" class="btn" [attr.aria-expanded]="moreOpen" (click)="$event.stopPropagation(); moreOpen = !moreOpen">
+          More Actions <lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon>
+        </button>
+        @if (moreOpen) {
+          <div class="menu" role="menu" (click)="$event.stopPropagation()">
+            @if (!condition.isDefault) { <button type="button" role="menuitem" (click)="moreOpen = false; makeDefault.emit(condition)">Make default</button> }
+            <button type="button" role="menuitem" (click)="moreOpen = false; toggleStatus.emit(condition)">
+              Mark as {{ condition.status === 'Active' ? 'Inactive' : 'Active' }}
+            </button>
+            <button type="button" role="menuitem" class="danger" (click)="moreOpen = false; remove.emit(condition)">Delete</button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <nav class="detail__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  @switch (tab) {
+    @case ('overview') {
+      <div class="overview">
+        <div class="card">
+          <div class="card__head">
+            <h3 class="card__title">Basic Information</h3>
+            <button type="button" class="card__edit" (click)="editAt('basic')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+          </div>
+          <dl class="facts">
+            <dt>Condition Name</dt><dd>{{ condition.name }}</dd>
+            <dt>Code</dt><dd>{{ condition.code }}</dd>
+            <dt>Type</dt><dd>{{ condition.type }}</dd>
+            <dt>Description</dt><dd>{{ condition.description || '-' }}</dd>
+            <dt>Color</dt><dd><span class="color-chip"><i [style.background]="condition.color"></i>{{ condition.color }}</span></dd>
+            <dt>Icon</dt>
+            <dd>
+              @if (condition.image) { <img class="level-icon-img" [src]="condition.image" [alt]="condition.name" /> }
+              @else { <lucide-icon class="level-icon" [img]="levelIcons[condition.icon]" [size]="20"></lucide-icon> }
+            </dd>
+            <dt>Health Score (%)</dt><dd>{{ condition.healthScore }}</dd>
+            <dt>Default Condition</dt><dd>{{ condition.isDefault ? 'Yes' : 'No' }}</dd>
+            <dt>Status</dt><dd><span class="pill" [attr.data-status]="condition.status"><i></i>{{ condition.status }}</span></dd>
+            <dt>Created On</dt><dd>{{ formatDateTime(condition.createdOn) }}</dd>
+            <dt>Created By</dt><dd>{{ condition.createdBy || '-' }}</dd>
+            <dt>Last Updated</dt><dd>{{ formatDateTime(condition.updatedOn) }}</dd>
+          </dl>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Health & Visual</h3>
+              <button type="button" class="card__edit" (click)="editAt('health')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <dl class="facts facts--wide">
+              <dt>Health Score (%)</dt>
+              <dd>
+                <span class="health">
+                  {{ condition.healthScore }}
+                  <span class="health__bar"><i [style.width.%]="condition.healthScore" [style.background]="condition.color"></i></span>
+                </span>
+              </dd>
+              <dt>Condition Color</dt><dd><span class="color-chip"><i [style.background]="condition.color"></i>{{ condition.color }}</span></dd>
+              <dt>Associated Icon</dt>
+              <dd>
+                @if (condition.image) { <img class="level-icon-img" [src]="condition.image" [alt]="condition.name" /> }
+                @else { <lucide-icon class="level-icon" [img]="levelIcons[condition.icon]" [size]="18"></lucide-icon> }
+              </dd>
+              <dt>Display Order</dt><dd>{{ condition.displayOrder }}</dd>
+              <dt>Show in Mobile App</dt><dd><span class="flag-switch" [class.on]="condition.showInMobile" role="img" [attr.aria-label]="condition.showInMobile ? 'Yes' : 'No'"></span></dd>
+              <dt>Show in Reports</dt><dd><span class="flag-switch" [class.on]="condition.showInReports" role="img" [attr.aria-label]="condition.showInReports ? 'Yes' : 'No'"></span></dd>
+            </dl>
+          </div>
+
+          <div class="card">
+            <h3 class="card__title">Usage Summary</h3>
+            <div class="tiles">
+              <button type="button" class="tile" (click)="tab = 'assets'">
+                <span class="tile__icon"><lucide-icon [img]="icons.Box" [size]="18"></lucide-icon></span>
+                <span><small>Assets</small><strong>{{ condition.usage.assets | number }}</strong></span>
+              </button>
+              <div class="tile">
+                <span class="tile__icon"><lucide-icon [img]="icons.Wrench" [size]="18"></lucide-icon></span>
+                <span><small>Open Work Orders</small><strong>{{ condition.usage.openWorkOrders }}</strong></span>
+              </div>
+              <div class="tile">
+                <span class="tile__icon tile__icon--warn"><lucide-icon [img]="icons.TriangleAlert" [size]="18"></lucide-icon></span>
+                <span><small>SLA Breaches</small><strong>{{ condition.usage.slaBreaches }}</strong></span>
+              </div>
+              <div class="tile">
+                <span class="tile__icon"><lucide-icon [img]="icons.ShieldCheck" [size]="18"></lucide-icon></span>
+                <span><small>Under Warranty</small><strong>{{ condition.usage.underWarranty | number }}</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Typical Characteristics</h3>
+              <button type="button" class="card__edit" (click)="editAt('usage')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <dl class="facts facts--wide">
+              @for (c of characteristicFields; track c.key) { <dt>{{ c.label }}</dt><dd>{{ condition.characteristics[c.key] || '-' }}</dd> }
+            </dl>
+          </div>
+
+          <div class="card">
+            <div class="card__head">
+              <h3 class="card__title">Transition Rules</h3>
+              <button type="button" class="card__edit" (click)="editAt('usage')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+            </div>
+            <dl class="facts facts--wide">
+              <dt>Can Move From</dt><dd>{{ names(condition.canMoveFrom) }}</dd>
+              <dt>Can Move To</dt><dd>{{ names(condition.canMoveTo) }}</dd>
+              <dt>Trigger Criteria</dt><dd>{{ condition.triggerCriteria || '-' }}</dd>
+              <dt>Auto Update</dt><dd>{{ condition.autoUpdate ? 'Yes' : 'No' }}</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    }
+
+    @case ('health') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Health & Visual</h3>
+          <button type="button" class="card__edit" (click)="editAt('health')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <p class="muted">All conditions by health score, in display order.</p>
+        <table class="grid-table">
+          <thead><tr><th>Order</th><th>Condition</th><th>Type</th><th>Health Score</th><th>Mobile</th><th>Reports</th></tr></thead>
+          <tbody>
+            @for (c of service.all(); track c.code) {
+              <tr [class.current]="c.code === condition.code">
+                <td>{{ c.displayOrder }}</td>
+                <td><span class="color-chip"><i [style.background]="c.color"></i>{{ c.name }}</span></td>
+                <td>{{ c.type }}</td>
+                <td><span class="health">{{ c.healthScore }}%<span class="health__bar"><i [style.width.%]="c.healthScore" [style.background]="c.color"></i></span></span></td>
+                <td>{{ c.showInMobile ? 'Yes' : 'No' }}</td>
+                <td>{{ c.showInReports ? 'Yes' : 'No' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('usage') {
+      <div class="pair">
+        <div class="card">
+          <div class="card__head">
+            <h3 class="card__title">Typical Characteristics</h3>
+            <button type="button" class="card__edit" (click)="editAt('usage')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+          </div>
+          <dl class="facts facts--wide">
+            @for (c of characteristicFields; track c.key) { <dt>{{ c.label }}</dt><dd>{{ condition.characteristics[c.key] || '-' }}</dd> }
+          </dl>
+        </div>
+        <div class="card">
+          <h3 class="card__title">Transition Rules</h3>
+          <dl class="facts facts--wide">
+            <dt>Can Move From</dt><dd>{{ names(condition.canMoveFrom) }}</dd>
+            <dt>Can Move To</dt><dd>{{ names(condition.canMoveTo) }}</dd>
+            <dt>Trigger Criteria</dt><dd>{{ condition.triggerCriteria || '-' }}</dd>
+            <dt>Auto Update</dt><dd>{{ condition.autoUpdate ? 'Yes' : 'No' }}</dd>
+          </dl>
+        </div>
+      </div>
+    }
+
+    @case ('assets') {
+      <div class="card">
+        <p class="muted">{{ condition.usage.assets | number }} assets are in this condition. Sample shown below.</p>
+        <table class="grid-table">
+          <thead><tr><th>Asset Tag</th><th>Model</th><th>Manufacturer</th><th>Asset Type</th></tr></thead>
+          <tbody>
+            @for (a of sampleAssets; track a.tag) {
+              <tr><td class="mono">{{ a.tag }}</td><td>{{ a.model }}</td><td>{{ a.manufacturer }}</td><td>{{ a.type }}</td></tr>
+            } @empty {
+              <tr><td colspan="4" class="empty">No assets are in this condition.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('documents') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Document</th><th>Type</th><th>Uploaded On</th></tr></thead>
+          <tbody>
+            @for (d of documentRows; track d.name) {
+              <tr><td>{{ d.name }}</td><td>{{ d.kind }}</td><td>{{ d.date }}</td></tr>
+            } @empty {
+              <tr><td colspan="3" class="empty">No documents linked yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('activity') {
+      <div class="card">
+        <ol class="timeline">
+          @for (a of activity; track $index) {
+            <li><span class="timeline__when">{{ formatDateTime(a.when) }}</span><span><strong>{{ a.who }}</strong> {{ a.text }}</span></li>
+          }
+        </ol>
+      </div>
+    }
+
+    @case ('settings') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Settings</h3>
+          <button type="button" class="card__edit" (click)="editAt('settings')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <dl class="facts facts--settings">
+          <dt>Photo Required</dt><dd>{{ condition.photoRequired ? 'Yes' : 'No' }}</dd>
+          <dt>Comment Required</dt><dd>{{ condition.commentRequired ? 'Yes' : 'No' }}</dd>
+          <dt>Notify Asset Owner</dt><dd>{{ condition.notifyOwner ? 'Yes' : 'No' }}</dd>
+          <dt>Block Assignment</dt><dd>{{ condition.blocksAssignment ? 'Yes' : 'No' }}</dd>
+        </dl>
+      </div>
+    }
+  }
+</section>

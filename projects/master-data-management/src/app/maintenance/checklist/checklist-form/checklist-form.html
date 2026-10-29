@@ -1,0 +1,91 @@
+<aside class="drawer" role="dialog" aria-labelledby="cl-form-title">
+  <header class="drawer__header">
+    <h2 id="cl-form-title">{{ isEdit ? 'Edit Checklist' : 'Add Checklist' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="cl-name"><span class="req">*</span> Checklist Name</label>
+          <input id="cl-name" name="name" placeholder="Enter checklist name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="cl-code"><span class="req">*</span> Code</label>
+          <input id="cl-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['checklistType']">
+          <label for="cl-checklistType"><span class="req">*</span> Checklist Type</label>
+          <select id="cl-checklistType" name="checklistType" [(ngModel)]="form.checklistType">
+            <option value="" disabled>Select type</option>
+            @for (o of types; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+          @if (errors['checklistType']) { <small>{{ errors['checklistType'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['category']">
+          <label for="cl-category"><span class="req">*</span> Category</label>
+          <select id="cl-category" name="category" [(ngModel)]="form.category">
+            <option value="" disabled>Select category</option>
+            @for (o of categories; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+          @if (errors['category']) { <small>{{ errors['category'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="cl-desc">Description</label>
+          <textarea id="cl-desc" name="description" rows="3" placeholder="" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="cl-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="cl-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('items') {
+        <p class="hint">Questions the technician answers, in order. {{ form.items.length }} items.</p>
+        <div class="rows" [class.invalid]="errors['items']">
+          @for (item of form.items; track $index) {
+            <div class="row-line row-line--item">
+              <span class="hint">{{ $index + 1 }}</span>
+              <input [name]="'q' + $index" placeholder="Question or check" [attr.aria-label]="'Item ' + ($index + 1)" [(ngModel)]="item.question" />
+              <select [name]="'r' + $index" [attr.aria-label]="'Item ' + ($index + 1) + ' response'" [(ngModel)]="item.response">
+                @for (t of responseTypes; track t) { <option [value]="t">{{ t }}</option> }
+              </select>
+              <label class="req-tick" [title]="'Required'"><input type="checkbox" [name]="'req' + $index" [(ngModel)]="item.required" /> Req.</label>
+              <button type="button" class="row-remove" (click)="removeItem($index)" [attr.aria-label]="'Remove item ' + ($index + 1)">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="hint">No items yet.</p>
+          }
+        </div>
+        @if (errors['items']) { <small class="upload-error">{{ errors['items'] }}</small> }
+        <div class="row-actions">
+          <button type="button" class="btn btn--ghost" (click)="addItem()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add item</button>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

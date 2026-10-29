@@ -1,0 +1,85 @@
+<aside class="drawer" role="dialog" aria-labelledby="st-form-title">
+  <header class="drawer__header">
+    <h2 id="st-form-title">{{ isEdit ? 'Edit Store' : 'Add Store' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="st-name"><span class="req">*</span> Store Name</label>
+          <input id="st-name" name="name" placeholder="Enter store name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="st-code"><span class="req">*</span> Code</label>
+          <input id="st-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['warehouseCode']">
+          <label for="st-wh"><span class="req">*</span> Warehouse</label>
+          <select id="st-wh" name="warehouseCode" [(ngModel)]="form.warehouseCode">
+            <option value="" disabled>Select warehouse</option>
+            @for (w of warehouseOptions; track w.code) { <option [value]="w.code">{{ w.name }} ({{ w.code }})</option> }
+          </select>
+          @if (errors['warehouseCode']) { <small>{{ errors['warehouseCode'] }}</small> }
+          @if (isEdit && form.warehouseCode !== record?.warehouseCode) { <small class="note">Its bins and stocked items move with it.</small> }
+        </div>
+        <div class="field">
+          <label for="st-type">Store Type</label>
+          <select id="st-type" name="storeType" [(ngModel)]="form.storeType">
+            @for (t of storeTypes; track t) { <option [value]="t">{{ t }}</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="st-keeper">Store Keeper</label>
+          <select id="st-keeper" name="keeperId" [(ngModel)]="form.keeperId">
+            <option value="">Select store keeper</option>
+            @for (e of keepers; track e.id) { <option [value]="e.id">{{ e.name }} ({{ e.id }})</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="st-desc">Description</label>
+          <textarea id="st-desc" name="description" rows="2" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="st-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="st-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Temperature controlled</strong><small>Stock here needs a controlled temperature.</small></span>
+            <input type="checkbox" name="temperatureControlled" [(ngModel)]="form.temperatureControlled" />
+          </label>
+          <label class="toggle">
+            <span><strong>Restricted access</strong><small>Only the store keeper and supervisors can issue from this store.</small></span>
+            <input type="checkbox" name="restrictedAccess" [(ngModel)]="form.restrictedAccess" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

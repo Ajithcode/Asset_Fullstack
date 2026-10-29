@@ -1,0 +1,48 @@
+<aside class="drawer" role="dialog" aria-labelledby="src-form-title">
+  <header class="drawer__header">
+    <h2 id="src-form-title">{{ isEdit ? 'Edit Update Source' : 'Add Update Source' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    <div class="field" [class.invalid]="errors['name']">
+      <label for="src-name"><span class="req">*</span> Source Name</label>
+      <input id="src-name" name="name" placeholder="Enter source name" [(ngModel)]="form.name" />
+      @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['code']">
+      <label for="src-code"><span class="req">*</span> Code</label>
+      <input id="src-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+      @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['type']">
+      <label for="src-type"><span class="req">*</span> Type</label>
+      <select id="src-type" name="type" [(ngModel)]="form.type">
+        <option value="" disabled>Select type</option>
+        @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+      </select>
+      @if (errors['type']) { <small>{{ errors['type'] }}</small> }
+    </div>
+    <div class="field">
+      <label for="src-desc">Description</label>
+      <textarea id="src-desc" name="description" rows="3" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+    </div>
+    <div class="field">
+      <label for="src-status"><span class="req">*</span> Status</label>
+      <div class="status-select">
+        <i [attr.data-status]="form.status"></i>
+        <select id="src-status" name="status" [(ngModel)]="form.status">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

@@ -1,0 +1,28 @@
+<p class="hint">Trade licence, insurance and other documents, with expiry dates.</p>
+<div class="rows" [class.invalid]="errors['documents']">
+  @for (d of vendor.documents; track $index) {
+    <div class="row-line row-line--doc">
+      <input [name]="'docName' + $index" placeholder="Document name or number" [attr.aria-label]="'Document ' + ($index + 1)" [(ngModel)]="d.name" />
+      <select [name]="'docType' + $index" [attr.aria-label]="'Document ' + ($index + 1) + ' type'" [(ngModel)]="d.type">
+        @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+      </select>
+      <input
+        [name]="'docExpiry' + $index"
+        type="date"
+        [attr.aria-label]="'Document ' + ($index + 1) + ' expiry'"
+        [class.expired]="!!d.expiry && d.expiry < today"
+        [class.soon]="expiringSoon(d.expiry)"
+        [(ngModel)]="d.expiry"
+      />
+      <button type="button" class="row-remove" (click)="remove($index)" [attr.aria-label]="'Remove document ' + ($index + 1)">
+        <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+      </button>
+    </div>
+  } @empty {
+    <p class="hint">No documents.</p>
+  }
+</div>
+@if (errors['documents']) { <small class="upload-error">{{ errors['documents'] }}</small> }
+<div class="row-actions">
+  <button type="button" class="btn btn--ghost" (click)="add()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon> Add document</button>
+</div>

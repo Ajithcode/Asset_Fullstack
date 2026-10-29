@@ -1,0 +1,101 @@
+<aside class="drawer" role="dialog" aria-labelledby="permit-form-title">
+  <header class="drawer__header">
+    <h2 id="permit-form-title">{{ isEdit ? 'Edit Permit Type' : 'Add Permit Type' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="permit-name"><span class="req">*</span> Permit Type Name</label>
+          <input id="permit-name" name="name" placeholder="Enter permit type name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="permit-code"><span class="req">*</span> Code</label>
+          <input id="permit-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['category']">
+          <label for="permit-cat"><span class="req">*</span> Category</label>
+          <select id="permit-cat" name="category" [(ngModel)]="form.category">
+            <option value="" disabled>Select category</option>
+            @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+          @if (errors['category']) { <small>{{ errors['category'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['validDays']">
+          <label for="permit-valid">Valid Till (Days)</label>
+          <input id="permit-valid" name="validDays" type="number" min="1" max="365" placeholder="Enter validity in days" [(ngModel)]="form.validDays" />
+          @if (errors['validDays']) { <small>{{ errors['validDays'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="permit-desc">Description</label>
+          <textarea id="permit-desc" name="description" rows="3" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="permit-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="permit-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('workflow') {
+        <div class="grid">
+          <div class="field" [class.invalid]="errors['approvalLevels']">
+            <label for="permit-levels">Approval Levels</label>
+            <input id="permit-levels" name="approvalLevels" type="number" min="1" max="5" [(ngModel)]="form.approvalLevels" />
+            @if (errors['approvalLevels']) { <small>{{ errors['approvalLevels'] }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors['maxExtensionDays']">
+            <label for="permit-ext">Max Extension (Days)</label>
+            <input id="permit-ext" name="maxExtensionDays" type="number" min="0" [(ngModel)]="form.maxExtensionDays" />
+            @if (errors['maxExtensionDays']) { <small>{{ errors['maxExtensionDays'] }}</small> }
+          </div>
+        </div>
+        <div class="field" [class.invalid]="errors['approverRoles']">
+          <span class="field__label">Approver Roles (in order)</span>
+          <div class="ticks">
+            @for (r of roles; track r) {
+              <label><input type="checkbox" [checked]="form.approverRoles.includes(r)" (change)="toggleRole(r)" /><span>{{ r }}</span></label>
+            }
+          </div>
+          @if (errors['approverRoles']) { <small>{{ errors['approverRoles'] }}</small> }
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Isolation required</strong><small>Energy sources are locked out and tagged before work starts.</small></span>
+            <input type="checkbox" name="isolationRequired" [(ngModel)]="form.isolationRequired" />
+          </label>
+          <label class="toggle">
+            <span><strong>Gas test required</strong><small>Record a gas test before the permit is issued.</small></span>
+            <input type="checkbox" name="gasTestRequired" [(ngModel)]="form.gasTestRequired" />
+          </label>
+          <label class="toggle">
+            <span><strong>Close-out inspection</strong><small>The area is inspected before the permit is closed.</small></span>
+            <input type="checkbox" name="closeOutInspection" [(ngModel)]="form.closeOutInspection" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

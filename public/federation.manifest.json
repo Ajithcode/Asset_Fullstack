@@ -4,5 +4,9 @@
 	"events": "http://localhost:4203/remoteEntry.json",
 	"reports": "http://localhost:4204/remoteEntry.json",
 	"processAutomation": "http://localhost:4205/remoteEntry.json",
-	"administration": "http://localhost:4206/remoteEntry.json"
+	"administration": "http://localhost:4206/remoteEntry.json",
+	"masterDataManagement": "http://localhost:4207/remoteEntry.json",
+	"assets": "http://localhost:4208/remoteEntry.json",
+	"trackingIot": "http://localhost:4209/remoteEntry.json",
+	"wipOperations": "http://localhost:4210/remoteEntry.json"
 }

@@ -1,0 +1,298 @@
+<section class="detail">
+  <header class="detail__head">
+    <div class="detail__photo">
+      @if (record.image || building.image) {
+        <img [src]="record.image || building.image" [alt]="record.name" />
+      } @else {
+        <lucide-icon [img]="record.type === 'Zone' ? icons.Hexagon : record.type === 'Floor' ? icons.Layers : icons.Building2" [size]="34" [strokeWidth]="1.6"></lucide-icon>
+      }
+    </div>
+
+    <div class="detail__title">
+      <div class="detail__name">
+        <h2>{{ service.label(record) }}</h2>
+        <span class="pill" [attr.data-status]="record.status"><i></i>{{ record.status }}</span>
+      </div>
+      <div class="detail__meta">
+        Code: {{ record.code }} <span class="sep">|</span> Type: {{ record.type }} <span class="sep">|</span> Site: {{ service.siteName(record.siteId) }}
+      </div>
+      @if (building.address.line1 || building.address.city) {
+        <div class="detail__path">
+          <lucide-icon [img]="icons.MapPin" [size]="14"></lucide-icon>
+          {{ building.address.line1 }}{{ building.address.city ? ', ' + building.address.city : '' }}{{ building.address.country ? ', ' + (building.address.country === 'United Arab Emirates' ? 'UAE' : building.address.country) : '' }}
+        </div>
+      }
+    </div>
+
+    <div class="detail__actions">
+      <button type="button" class="btn" (click)="edit.emit(record)">
+        <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon> Edit
+      </button>
+      <button type="button" class="btn" (click)="viewOnMap()">
+        <lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon> View on Map
+      </button>
+      <div class="more">
+        <button type="button" class="btn" [attr.aria-expanded]="moreOpen" (click)="$event.stopPropagation(); moreOpen = !moreOpen">
+          More Actions <lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon>
+        </button>
+        @if (moreOpen) {
+          <div class="menu" role="menu" (click)="$event.stopPropagation()">
+            @if (record.type !== 'Zone') {
+              <button type="button" role="menuitem" (click)="moreOpen = false; addChild.emit(record)">{{ childLabel }}</button>
+            }
+            <button type="button" role="menuitem" (click)="moreOpen = false; toggleStatus.emit(record)">
+              Mark as {{ record.status === 'Active' ? 'Inactive' : 'Active' }}
+            </button>
+            <button type="button" role="menuitem" class="danger" (click)="moreOpen = false; remove.emit(record)">Delete</button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <nav class="detail__tabs" role="tablist">
+    <button type="button" role="tab" [class.active]="tab === 'overview'" (click)="tab = 'overview'">Overview</button>
+    <button type="button" role="tab" [class.active]="tab === 'floors'" (click)="tab = 'floors'">Floors ({{ floors.length }})</button>
+    <button type="button" role="tab" [class.active]="tab === 'zones'" (click)="tab = 'zones'">Zones ({{ zones.length }})</button>
+    <button type="button" role="tab" [class.active]="tab === 'assets'" (click)="tab = 'assets'">Assets ({{ building.assets | number }})</button>
+    <button type="button" role="tab" [class.active]="tab === 'departments'" (click)="tab = 'departments'">Departments ({{ building.departments }})</button>
+    <button type="button" role="tab" [class.active]="tab === 'people'" (click)="tab = 'people'">People ({{ building.people | number }})</button>
+    <button type="button" role="tab" [class.active]="tab === 'documents'" (click)="tab = 'documents'">Documents</button>
+    <button type="button" role="tab" [class.active]="tab === 'map'" (click)="tab = 'map'">Map &amp; Layout</button>
+    <button type="button" role="tab" [class.active]="tab === 'activity'" (click)="tab = 'activity'">Activity Log</button>
+  </nav>
+
+  @switch (tab) {
+    @case ('overview') {
+      <div class="overview">
+        <div class="card">
+          <h3>{{ detailsTitle }}</h3>
+          <dl class="facts">
+            <dt>Name</dt><dd>{{ record.name }}</dd>
+            <dt>Code</dt><dd>{{ record.code }}</dd>
+            <dt>Type</dt><dd>{{ record.type }}</dd>
+            <dt>Site</dt><dd>{{ service.siteName(record.siteId) }}</dd>
+            @if (record.type !== 'Building') {
+              <dt>Building</dt><dd><button type="button" class="link" (click)="select.emit(building.code)">{{ service.label(building) }}</button></dd>
+            }
+            @if (record.type === 'Zone') {
+              <dt>Category</dt><dd>{{ record.category || '-' }}</dd>
+            }
+            <dt>Address</dt>
+            <dd>{{ building.address.line1 || '-' }}@if (building.address.line2) {<br />{{ building.address.line2 }}}</dd>
+          </dl>
+          <dl class="facts facts--spaced">
+            <dt>City</dt><dd>{{ building.address.city || '-' }}</dd>
+            <dt>State / Emirate</dt><dd>{{ building.address.state || '-' }}</dd>
+            <dt>Country</dt><dd>{{ flags[building.address.country] ?? '' }} {{ building.address.country || '-' }}</dd>
+            <dt>Postal Code</dt><dd>{{ building.address.postalCode || '-' }}</dd>
+          </dl>
+          <dl class="facts facts--spaced facts--wide">
+            @if (record.type === 'Building') {
+              <dt>Total Floors</dt><dd>{{ floors.length }}</dd>
+            }
+            @if (record.type !== 'Zone') {
+              <dt>Total Zones</dt><dd>{{ zones.length }}</dd>
+            }
+            <dt>Total Area (m²)</dt><dd>{{ totalArea === null ? '-' : (totalArea | number) }}</dd>
+            <dt>Total Capacity</dt><dd>{{ record.capacity === null ? '-' : (record.capacity | number) }}</dd>
+          </dl>
+          <dl class="facts facts--spaced">
+            <dt>Status</dt><dd><span class="pill" [attr.data-status]="record.status"><i></i>{{ record.status }}</span></dd>
+            <dt>Created On</dt><dd>{{ formatDateTime(record.createdOn) }}</dd>
+            <dt>Last Updated</dt><dd>{{ formatDateTime(record.updatedOn) }}</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <h3>Hierarchy</h3>
+          <ul class="tree">
+            <li>
+              <div class="tree__row" [class.tree__row--current]="record.code === building.code">
+                <span class="tree__elbow">└</span>
+                <lucide-icon class="tree__icon" [img]="icons.Building2" [size]="15"></lucide-icon>
+                <button type="button" class="tree__label" (click)="select.emit(building.code)">{{ service.label(building) }}</button>
+              </div>
+              <ul>
+                @for (f of floors; track f.code) {
+                  <li>
+                    <div class="tree__row" [class.tree__row--current]="record.code === f.code">
+                      <button type="button" class="tree__toggle" (click)="toggleFloor(f.code)" [attr.aria-label]="(expandedFloors.has(f.code) ? 'Collapse ' : 'Expand ') + f.name">
+                        <lucide-icon [img]="expandedFloors.has(f.code) ? icons.ChevronDown : icons.ChevronRight" [size]="14"></lucide-icon>
+                      </button>
+                      <lucide-icon class="tree__icon" [img]="icons.Layers" [size]="15"></lucide-icon>
+                      <button type="button" class="tree__label" (click)="select.emit(f.code)">{{ service.label(f) }}</button>
+                    </div>
+                    @if (expandedFloors.has(f.code)) {
+                      <ul>
+                        @for (z of service.zonesOfFloor(f.code); track z.code) {
+                          <li>
+                            <div class="tree__row" [class.tree__row--current]="record.code === z.code">
+                              <lucide-icon class="tree__icon" [img]="icons.Hexagon" [size]="14"></lucide-icon>
+                              <button type="button" class="tree__label" (click)="select.emit(z.code)">{{ z.name }}</button>
+                            </div>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </li>
+                }
+              </ul>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card card--plan">
+          <h3>Floor Plan / Map</h3>
+          <app-bfz-plan [building]="building" [floorCode]="focusFloor" [zoneCode]="record.type === 'Zone' ? record.code : null" view="plan"></app-bfz-plan>
+        </div>
+
+        <div class="side">
+          <div class="card">
+            <h3>Statistics</h3>
+            <div class="stats">
+              <div class="stat"><lucide-icon [img]="icons.Layers" [size]="22"></lucide-icon><span><small>Floors</small><strong>{{ floors.length }}</strong></span></div>
+              <div class="stat"><lucide-icon [img]="icons.Hexagon" [size]="22"></lucide-icon><span><small>Zones</small><strong>{{ service.zonesOfBuilding(building.code).length }}</strong></span></div>
+              <div class="stat"><lucide-icon [img]="icons.Boxes" [size]="22"></lucide-icon><span><small>Assets</small><strong>{{ building.assets | number }}</strong></span></div>
+              <div class="stat"><lucide-icon [img]="icons.Users" [size]="22"></lucide-icon><span><small>People</small><strong>{{ building.people | number }}</strong></span></div>
+              <div class="stat"><lucide-icon [img]="icons.Network" [size]="22"></lucide-icon><span><small>Departments</small><strong>{{ building.departments }}</strong></span></div>
+            </div>
+            <button type="button" class="link link--end" (click)="tab = 'assets'">View Details <lucide-icon [img]="icons.ArrowRight" [size]="13"></lucide-icon></button>
+          </div>
+
+          <div class="card">
+            <div class="card__head">
+              <h3>Building Images</h3>
+              <span class="muted">{{ images.length }} {{ images.length === 1 ? 'image' : 'images' }}</span>
+            </div>
+            <div class="gallery">
+              @for (img of images.slice(0, 3); track $index) {
+                <img [src]="img" [alt]="building.name + ' image ' + ($index + 1)" />
+              }
+              <label class="gallery__add">
+                <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+                <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
+                Add Image
+              </label>
+            </div>
+            @if (!images.length) {
+              <p class="muted">No images yet.</p>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    @case ('floors') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Floor</th><th>Code</th><th>Zones</th><th>Capacity</th><th>Area (m²)</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (f of floors; track f.code) {
+              <tr>
+                <td><button type="button" class="link" (click)="select.emit(f.code)">{{ service.label(f) }}</button></td>
+                <td>{{ f.code }}</td><td>{{ service.zonesOfFloor(f.code).length }}</td>
+                <td>{{ f.capacity ?? '-' }}</td><td>{{ f.area === null ? '-' : (f.area | number) }}</td>
+                <td><span class="pill" [attr.data-status]="f.status"><i></i>{{ f.status }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty">This building has no floors yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('zones') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Zone</th><th>Code</th><th>Floor</th><th>Category</th><th>Capacity</th><th>Area (m²)</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (z of zones; track z.code) {
+              <tr>
+                <td><span class="swatch" [style.background]="z.color"></span><button type="button" class="link" (click)="select.emit(z.code)">{{ z.name }}</button></td>
+                <td>{{ z.code }}</td><td>{{ service.find(z.floorCode)?.name ?? '-' }}</td><td>{{ z.category || '-' }}</td>
+                <td>{{ z.capacity ?? '-' }}</td><td>{{ z.area === null ? '-' : (z.area | number) }}</td>
+                <td><span class="pill" [attr.data-status]="z.status"><i></i>{{ z.status }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="empty">No zones yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('assets') {
+      <div class="card">
+        <p class="muted">Showing {{ assets(building).length }} of {{ building.assets | number }} assets in {{ building.name }}.</p>
+        <table class="grid-table">
+          <thead><tr><th>Asset Tag</th><th>Name</th><th>Category</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (a of assets(building); track a.tag) {
+              <tr><td class="mono">{{ a.tag }}</td><td>{{ a.name }}</td><td>{{ a.category }}</td><td>{{ a.status }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('departments') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Department</th><th>Head</th><th>People</th></tr></thead>
+          <tbody>
+            @for (d of departments(building, building.departments); track d.name) {
+              <tr><td>{{ d.name }}</td><td>{{ d.head }}</td><td>{{ d.people }}</td></tr>
+            } @empty {
+              <tr><td colspan="3" class="empty">No departments are based here.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('people') {
+      <div class="card">
+        <p class="muted">Showing {{ people(building).length }} of {{ building.people | number }} people based in {{ building.name }}.</p>
+        <table class="grid-table">
+          <thead><tr><th>Name</th><th>Role</th><th>Department</th></tr></thead>
+          <tbody>
+            @for (p of people(building); track p.name) {
+              <tr><td>{{ p.name }}</td><td>{{ p.role }}</td><td>{{ p.department }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('documents') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Document</th><th>Type</th><th>Size</th><th>Uploaded On</th></tr></thead>
+          <tbody>
+            @for (d of documents(record); track d.name) {
+              <tr><td>{{ d.name }}</td><td>{{ d.kind }}</td><td>{{ d.size }}</td><td>{{ d.date }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('map') {
+      <div class="card card--plan card--plan-large">
+        <app-bfz-plan [building]="building" [floorCode]="focusFloor" [zoneCode]="record.type === 'Zone' ? record.code : null" [view]="planView"></app-bfz-plan>
+      </div>
+    }
+
+    @case ('activity') {
+      <div class="card">
+        <ol class="timeline">
+          @for (a of activity(record); track $index) {
+            <li><span class="timeline__when">{{ formatDateTime(a.when) }}</span><span><strong>{{ a.who }}</strong> {{ a.text }}</span></li>
+          }
+        </ol>
+      </div>
+    }
+  }
+</section>

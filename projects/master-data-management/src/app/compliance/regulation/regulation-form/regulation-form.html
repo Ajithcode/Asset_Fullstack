@@ -1,0 +1,101 @@
+<aside class="drawer" role="dialog" aria-labelledby="reg-form-title">
+  <header class="drawer__header">
+    <h2 id="reg-form-title">{{ isEdit ? 'Edit Regulation' : 'Add Regulation' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="reg-name"><span class="req">*</span> Regulation Name</label>
+          <input id="reg-name" name="name" placeholder="Enter regulation name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="reg-code"><span class="req">*</span> Code</label>
+          <input id="reg-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['country']">
+          <label for="reg-country"><span class="req">*</span> Country</label>
+          <select id="reg-country" name="country" [(ngModel)]="form.country">
+            <option value="" disabled>Select country</option>
+            @for (c of countries; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+          @if (errors['country']) { <small>{{ errors['country'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['category']">
+          <label for="reg-cat"><span class="req">*</span> Category</label>
+          <select id="reg-cat" name="category" [(ngModel)]="form.category">
+            <option value="" disabled>Select category</option>
+            @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+          @if (errors['category']) { <small>{{ errors['category'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="reg-auth">Issuing Authority</label>
+          <input id="reg-auth" name="issuingAuthority" placeholder="Enter issuing authority" [(ngModel)]="form.issuingAuthority" />
+        </div>
+        <div class="field">
+          <label for="reg-desc">Description</label>
+          <textarea id="reg-desc" name="description" rows="3" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="reg-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="reg-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('scope') {
+        <div class="grid">
+          <div class="field">
+            <label for="reg-effective">Effective Date</label>
+            <input id="reg-effective" name="effectiveDate" type="date" [(ngModel)]="form.effectiveDate" />
+          </div>
+          <div class="field" [class.invalid]="errors['reviewMonths']">
+            <label for="reg-review">Review Every (Months)</label>
+            <input id="reg-review" name="reviewMonths" type="number" min="1" max="120" [(ngModel)]="form.reviewMonths" />
+            @if (errors['reviewMonths']) { <small>{{ errors['reviewMonths'] }}</small> }
+          </div>
+        </div>
+        <span class="section-title">Applies to Asset Categories ({{ form.assetCategories.length || 'all' }})</span>
+        <div class="ticks">
+          @for (c of categoryNames; track c) {
+            <label><input type="checkbox" [checked]="form.assetCategories.includes(c)" (change)="toggle('assetCategories', c)" /><span>{{ c }}</span></label>
+          }
+        </div>
+        <p class="hint">Leave all unticked when the regulation applies to every asset.</p>
+        <span class="section-title">Related Standards</span>
+        <div class="ticks">
+          @for (s of standards.all(); track s.code) {
+            <label><input type="checkbox" [checked]="form.standardCodes.includes(s.code)" (change)="toggle('standardCodes', s.code)" /><span>{{ s.name }}</span></label>
+          }
+        </div>
+        <div class="field">
+          <label for="reg-penalties">Penalties for Non-compliance</label>
+          <textarea id="reg-penalties" name="penalties" rows="2" [(ngModel)]="form.penalties"></textarea>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

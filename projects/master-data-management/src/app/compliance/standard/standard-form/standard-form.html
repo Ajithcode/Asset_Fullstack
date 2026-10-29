@@ -1,0 +1,107 @@
+<aside class="drawer" role="dialog" aria-labelledby="std-form-title">
+  <header class="drawer__header">
+    <h2 id="std-form-title">{{ isEdit ? 'Edit Standard' : 'Add Standard' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="std-name"><span class="req">*</span> Standard Name</label>
+          <input id="std-name" name="name" placeholder="Enter standard name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="std-code"><span class="req">*</span> Code</label>
+          <input id="std-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['organization']">
+          <label for="std-org"><span class="req">*</span> Organization</label>
+          <select id="std-org" name="organization" [(ngModel)]="form.organization">
+            <option value="" disabled>Select organization</option>
+            @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+          @if (errors['organization']) { <small>{{ errors['organization'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['category']">
+          <label for="std-cat"><span class="req">*</span> Category</label>
+          <select id="std-cat" name="category" [(ngModel)]="form.category">
+            <option value="" disabled>Select category</option>
+            @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+          @if (errors['category']) { <small>{{ errors['category'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="std-version">Version</label>
+          <input id="std-version" name="version" placeholder="Enter version" [(ngModel)]="form.version" />
+        </div>
+        <div class="field">
+          <label for="std-desc">Description</label>
+          <textarea id="std-desc" name="description" rows="3" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="std-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="std-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('details') {
+        <div class="field">
+          <label for="std-title">Full Title</label>
+          <input id="std-title" name="title" [(ngModel)]="form.title" />
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="std-published">Published On</label>
+            <input id="std-published" name="publishedOn" type="date" [(ngModel)]="form.publishedOn" />
+          </div>
+          <div class="field" [class.invalid]="errors['nextReview']">
+            <label for="std-review">Next Review</label>
+            <input id="std-review" name="nextReview" type="date" [(ngModel)]="form.nextReview" />
+            @if (errors['nextReview']) { <small>{{ errors['nextReview'] }}</small> }
+          </div>
+          <div class="field field--wide" [class.invalid]="errors['url']">
+            <label for="std-url">Reference URL</label>
+            <input id="std-url" name="url" type="url" placeholder="https://" [(ngModel)]="form.url" />
+            @if (errors['url']) { <small>{{ errors['url'] }}</small> }
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Mandatory</strong><small>Required by law or contract rather than adopted voluntarily.</small></span>
+            <input type="checkbox" name="mandatory" [(ngModel)]="form.mandatory" />
+          </label>
+        </div>
+        @if (isEdit) {
+          <span class="section-title">Used By</span>
+          @for (u of usedBy; track u) {
+            <p class="hint">{{ u }}</p>
+          } @empty {
+            <p class="hint">No certification types or regulations refer to this standard.</p>
+          }
+        }
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

@@ -1,0 +1,70 @@
+<aside class="drawer" role="dialog" aria-labelledby="mod-form-title">
+  <header class="drawer__header">
+    <h2 id="mod-form-title">{{ isEdit ? 'Edit Module Access' : 'Add Module Access' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    <div class="field" [class.invalid]="errors['name']">
+      <label for="mod-name"><span class="req">*</span> Module Name</label>
+      <input id="mod-name" name="name" placeholder="Enter module name" [(ngModel)]="form.name" />
+      @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['code']">
+      <label for="mod-code"><span class="req">*</span> Code</label>
+      <input id="mod-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+      @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['category']">
+      <label for="mod-cat"><span class="req">*</span> Category</label>
+      <select id="mod-cat" name="category" [(ngModel)]="form.category">
+        <option value="" disabled>Select category</option>
+        @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+      </select>
+      @if (errors['category']) { <small>{{ errors['category'] }}</small> }
+    </div>
+    <div class="field">
+      <label for="mod-desc">Description</label>
+      <textarea id="mod-desc" name="description" rows="3" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+    </div>
+    <div class="field">
+      <span class="field__label">Icon</span>
+      <div class="icon-row">
+        <span class="icon-preview"><lucide-icon [img]="moduleIcon(form.icon)" [size]="20"></lucide-icon></span>
+        <button type="button" class="btn btn--ghost" [attr.aria-expanded]="iconPickerOpen" (click)="iconPickerOpen = !iconPickerOpen">Choose icon</button>
+      </div>
+      @if (iconPickerOpen) {
+        <div class="icon-picker" role="radiogroup" aria-label="Icon">
+          @for (k of iconKeys; track k) {
+            <button type="button" class="icon-picker__item" role="radio" [class.on]="form.icon === k" [attr.aria-checked]="form.icon === k" [attr.aria-label]="k" (click)="form.icon = k; iconPickerOpen = false">
+              <lucide-icon [img]="moduleIcons[k]" [size]="18"></lucide-icon>
+            </button>
+          }
+        </div>
+      }
+    </div>
+    <div class="field">
+      <label for="mod-status">Status</label>
+      <div class="status-select">
+        <i [attr.data-status]="form.status"></i>
+        <select id="mod-status" name="status" [(ngModel)]="form.status">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+      @if (usage && form.status === 'Inactive' && record?.status === 'Active' && usage.roles) {
+        <small class="note">{{ usage.roles }} roles have access; the module will be hidden from all of them.</small>
+      }
+    </div>
+    @if (usage) {
+      <p class="hint">{{ usage.permissions }} permissions belong to this module; {{ usage.roles }} roles can open it.</p>
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

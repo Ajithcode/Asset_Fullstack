@@ -1,0 +1,73 @@
+/* Extra drawer pieces used by several masters: logo/icon pickers, search-with-icon, phone, section titles */
+
+.section-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-top: 4px;
+}
+
+.logo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.logo-img {
+  object-fit: contain !important;
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+.icon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.icon-picker__item {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d6d9e2;
+  border-radius: 8px;
+  background: #fff;
+  color: #1d4ed8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.icon-picker__item.on {
+  border-color: #4f2bd8;
+  background: #f1edfd;
+  box-shadow: 0 0 0 2px rgba(79, 43, 216, 0.2);
+}
+
+.with-icon {
+  position: relative;
+}
+
+.with-icon lucide-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+}
+
+.with-icon input {
+  padding-left: 32px !important;
+}
+
+.field input[readonly] {
+  background: #f6f7fa;
+  color: #475066;
+}
+
+.phone {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 6px;
+}

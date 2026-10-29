@@ -1,0 +1,60 @@
+/* Shared by the Security list pages */
+.desc {
+  max-width: 280px;
+  color: #334155;
+}
+
+.pill[data-status='Inactive'] {
+  background: #fde8e8;
+  color: #dc2626;
+}
+
+.pill[data-status='Inactive'] i {
+  background: #ef4444;
+}
+
+.icon-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon-cell lucide-icon {
+  color: #4f2bd8;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.more-roles {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #4f2bd8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.you {
+  margin-left: 6px;
+  font-size: 11px;
+  color: #64748b;
+}

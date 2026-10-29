@@ -1,0 +1,257 @@
+<section class="detail">
+  <header class="detail__head">
+    <div class="detail__photo">
+      @if (site.image) {
+        <img [src]="site.image" [alt]="site.name" />
+      } @else {
+        <lucide-icon [img]="icons.Building2" [size]="34" [strokeWidth]="1.6"></lucide-icon>
+      }
+    </div>
+
+    <div class="detail__title">
+      <div class="detail__name">
+        <h2>{{ site.name }}</h2>
+        <span class="pill" [attr.data-status]="site.status"><i></i>{{ site.status }}</span>
+      </div>
+      <div class="detail__meta">
+        {{ site.code }} <span class="sep">|</span> {{ site.siteType }}
+        @if (site.businessUnit) { <span class="sep">|</span> {{ site.businessUnit }} }
+      </div>
+      @if (site.address.line1 || site.address.city) {
+        <div class="detail__path">
+          <lucide-icon [img]="icons.MapPin" [size]="14"></lucide-icon>
+          {{ site.address.line1 }}{{ site.address.city ? ', ' + site.address.city : '' }}{{ site.address.country ? ', ' + (site.address.country === 'United Arab Emirates' ? 'UAE' : site.address.country) : '' }}
+        </div>
+      }
+    </div>
+
+    <div class="detail__actions">
+      <button type="button" class="btn" (click)="edit.emit({ site: site, tab: 'basic' })">
+        <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon> Edit
+      </button>
+      <button type="button" class="btn" (click)="viewOnMap()">
+        <lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon> View on Map
+      </button>
+      <div class="more">
+        <button type="button" class="btn" [attr.aria-expanded]="moreOpen" (click)="$event.stopPropagation(); moreOpen = !moreOpen">
+          More Actions <lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon>
+        </button>
+        @if (moreOpen) {
+          <div class="menu" role="menu" (click)="$event.stopPropagation()">
+            <a role="menuitem" class="menu__link" [routerLink]="bfzPath">Manage buildings</a>
+            <button type="button" role="menuitem" (click)="moreOpen = false; toggleStatus.emit(site)">
+              Mark as {{ site.status === 'Active' ? 'Inactive' : 'Active' }}
+            </button>
+            <button type="button" role="menuitem" class="danger" (click)="moreOpen = false; remove.emit(site)">Delete</button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <nav class="detail__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  @switch (tab) {
+    @case ('overview') {
+      <div class="overview">
+        <div class="card">
+          <h3>Site Details</h3>
+          <dl class="facts">
+            <dt>Site Name</dt><dd>{{ site.name }}</dd>
+            <dt>Code</dt><dd>{{ site.code }}</dd>
+            <dt>Site Type</dt><dd>{{ site.siteType }}</dd>
+            <dt>Business Unit</dt><dd>{{ site.businessUnit || '-' }}</dd>
+            <dt>Department</dt><dd>{{ site.department || '-' }}</dd>
+            <dt>Parent Site</dt>
+            <dd>
+              @if (parent) { <button type="button" class="link" (click)="select.emit(parent.id)">{{ parent.name }}</button> } @else { - }
+            </dd>
+            <dt>Status</dt><dd><span class="pill" [attr.data-status]="site.status"><i></i>{{ site.status }}</span></dd>
+            <dt>Description</dt><dd>{{ site.description || '-' }}</dd>
+          </dl>
+          <dl class="facts facts--spaced">
+            <dt>Time Zone</dt><dd>{{ site.timeZone }}</dd>
+            <dt>Created On</dt><dd>{{ formatDateTime(site.createdOn) }}</dd>
+            <dt>Last Updated</dt><dd>{{ formatDateTime(site.updatedOn) }}</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h3>Address &amp; Location</h3>
+            <button type="button" class="link link--icon" (click)="edit.emit({ site: site, tab: 'address' })">
+              <lucide-icon [img]="icons.Pencil" [size]="13"></lucide-icon> Edit
+            </button>
+          </div>
+          <div class="addr">
+            <div class="addr__wide"><small>Address Line 1</small><span>{{ site.address.line1 || '-' }}</span></div>
+            <div class="addr__wide"><small>Address Line 2</small><span>{{ site.address.line2 || '-' }}</span></div>
+            <div><small>City</small><span>{{ site.address.city || '-' }}</span></div>
+            <div><small>State / Emirate</small><span>{{ site.address.state || '-' }}</span></div>
+            <div><small>Country</small><span>{{ flag }} {{ site.address.country || '-' }}</span></div>
+            <div><small>Postal Code</small><span>{{ site.address.postalCode || '-' }}</span></div>
+            <div><small>Latitude</small><span>{{ site.lat ?? '-' }}</span></div>
+            <div><small>Longitude</small><span>{{ site.lng ?? '-' }}</span></div>
+          </div>
+        </div>
+
+        <div class="card card--map">
+          <div class="card__head">
+            <h3>Map Location</h3>
+            <button type="button" class="link link--icon" (click)="viewOnMap()">View Larger <lucide-icon [img]="icons.Expand" [size]="13"></lucide-icon></button>
+          </div>
+          <app-site-map [lat]="site.lat" [lng]="site.lng" [label]="site.name"></app-site-map>
+        </div>
+
+        <div class="side">
+          <div class="card">
+            <h3>Hierarchy</h3>
+            <ul class="hier">
+              @for (row of hierarchy; track row.key) {
+                <li [style.padding-left.px]="(row.level - 1) * 18" [class.current]="row.current">
+                  <span class="hier__elbow">└</span>
+                  <lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>
+                  @if (row.siteId && !row.current) {
+                    <button type="button" class="hier__name hier__name--link" (click)="select.emit(row.siteId)">{{ row.label }}</button>
+                  } @else {
+                    <span class="hier__name">{{ row.label }}</span>
+                  }
+                  <span class="hier__level">(Level {{ row.level }})</span>
+                </li>
+              }
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card__head">
+              <h3>Site Images</h3>
+              <span class="muted">{{ images.length }} {{ images.length === 1 ? 'image' : 'images' }}</span>
+            </div>
+            <div class="gallery">
+              @for (img of images.slice(0, 4); track $index) {
+                <img [src]="img" [alt]="site.name + ' image ' + ($index + 1)" />
+              }
+              <label class="gallery__add">
+                <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+                <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>
+                Add Image
+              </label>
+            </div>
+            @if (!images.length) { <p class="muted">No images yet.</p> }
+          </div>
+        </div>
+      </div>
+    }
+
+    @case ('buildings') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Building</th><th>Code</th><th>Category</th><th>Area (m²)</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (b of buildings; track b.code) {
+              <tr>
+                <td>{{ b.name }}</td><td>{{ b.code }}</td><td>{{ b.category || '-' }}</td>
+                <td>{{ b.area === null ? '-' : (b.area | number) }}</td>
+                <td><span class="pill" [attr.data-status]="b.status"><i></i>{{ b.status }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="empty">No buildings at this site yet.</td></tr>
+            }
+          </tbody>
+        </table>
+        <a class="link link--end" [routerLink]="bfzPath">Manage buildings, floors and zones →</a>
+      </div>
+    }
+
+    @case ('assets') {
+      <div class="card">
+        <p class="muted">Showing {{ sampleAssets.length }} of {{ site.assets | number }} assets at this site.</p>
+        <table class="grid-table">
+          <thead><tr><th>Asset Tag</th><th>Name</th><th>Category</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (a of sampleAssets; track a.tag) {
+              <tr><td class="mono">{{ a.tag }}</td><td>{{ a.name }}</td><td>{{ a.category }}</td><td>{{ a.status }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('departments') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Department</th><th>Head</th><th>People</th></tr></thead>
+          <tbody>
+            @for (d of sampleDepartments; track d.name) {
+              <tr><td>{{ d.name }}</td><td>{{ d.head }}</td><td>{{ d.people }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('contacts') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Role</th><th>Name</th><th>Designation</th><th>Email</th><th>Phone</th></tr></thead>
+          <tbody>
+            @for (c of [{ role: 'Site Manager', v: site.manager }, { role: 'Emergency Contact', v: site.emergency }]; track c.role) {
+              <tr>
+                <td>{{ c.role }}</td><td>{{ c.v.name || '-' }}</td><td>{{ c.v.designation || '-' }}</td><td>{{ c.v.email || '-' }}</td>
+                <td>{{ c.v.phone ? dial(c.v.phoneCountry) + ' ' + c.v.phone : '-' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <button type="button" class="btn btn--small" (click)="edit.emit({ site: site, tab: 'contacts' })">Edit contacts</button>
+      </div>
+    }
+
+    @case ('documents') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Document</th><th>Type</th><th>Size</th><th>Uploaded On</th></tr></thead>
+          <tbody>
+            @for (d of sampleDocuments; track d.name) {
+              <tr><td>{{ d.name }}</td><td>{{ d.kind }}</td><td>{{ d.size }}</td><td>{{ d.date }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('map') {
+      <div class="card card--map card--map-large">
+        <app-site-map [lat]="site.lat" [lng]="site.lng" [label]="site.name" [zoom]="17"></app-site-map>
+      </div>
+    }
+
+    @case ('operations') {
+      <div class="card">
+        <dl class="facts facts--settings">
+          <dt>Operating hours</dt><dd>{{ site.open24x7 ? 'Open 24 x 7' : site.openTime + ' - ' + site.closeTime }}</dd>
+          <dt>Working days</dt><dd>{{ site.workingDays.join(', ') || '-' }}</dd>
+          <dt>Time zone</dt><dd>{{ site.timeZone }}</dd>
+          <dt>Allow asset assignment</dt><dd>{{ site.allowAssetAssignment ? 'Yes' : 'No' }}</dd>
+          <dt>Tracking</dt><dd>{{ site.enableTracking ? 'Enabled' : 'Disabled' }}</dd>
+          <dt>People based here</dt><dd>{{ site.people | number }}</dd>
+        </dl>
+        <button type="button" class="btn btn--small" (click)="edit.emit({ site: site, tab: 'settings' })">Change settings</button>
+      </div>
+    }
+
+    @case ('activity') {
+      <div class="card">
+        <ol class="timeline">
+          @for (a of activity; track $index) {
+            <li><span class="timeline__when">{{ formatDateTime(a.when) }}</span><span><strong>{{ a.who }}</strong> {{ a.text }}</span></li>
+          }
+        </ol>
+      </div>
+    }
+  }
+</section>

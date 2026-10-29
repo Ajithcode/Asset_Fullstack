@@ -1,0 +1,192 @@
+<aside class="drawer" role="dialog" aria-labelledby="cond-form-title">
+  <header class="drawer__header">
+    <h2 id="cond-form-title">{{ isEdit ? 'Edit Condition' : 'Add Condition' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <div class="logo-field">
+            <span class="field__label">Condition Icon</span>
+            <label class="upload" [class.upload--filled]="form.image" [class.invalid]="errors.image">
+              <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+              @if (form.image) {
+                <img [src]="form.image" alt="Condition icon" class="logo-img" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); removeImage()">Remove</button>
+              } @else {
+                <span class="upload__icon"><lucide-icon [img]="levelIcons[form.icon]" [size]="34" [strokeWidth]="1.8"></lucide-icon></span>
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+          </div>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.name">
+              <label for="cond-name"><span class="req">*</span> Condition Name</label>
+              <input id="cond-name" name="name" placeholder="Enter condition name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.code">
+              <label for="cond-code"><span class="req">*</span> Code</label>
+              <input id="cond-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+              @if (errors.code) { <small>{{ errors.code }}</small> }
+            </div>
+            <div class="field">
+              <label for="cond-type"><span class="req">*</span> Type</label>
+              <select id="cond-type" name="type" [(ngModel)]="form.type">
+                @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+              </select>
+            </div>
+            <div class="field" [class.invalid]="errors.color">
+              <label for="cond-color"><span class="req">*</span> Color</label>
+              <div class="color-field">
+                <input type="color" name="colorPicker" [ngModel]="pickerColor" (ngModelChange)="form.color = $event.toUpperCase()" aria-label="Pick colour" />
+                <input id="cond-color" type="text" name="color" maxlength="7" [(ngModel)]="form.color" />
+              </div>
+              @if (errors.color) { <small>{{ errors.color }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.isDefault">
+              <label for="cond-default">Default Condition</label>
+              <input id="cond-default" class="switch" type="checkbox" name="isDefault" [(ngModel)]="form.isDefault" />
+              @if (errors.isDefault) { <small>{{ errors.isDefault }}</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors.image) { <small class="upload-error">{{ errors.image }}</small> }
+
+        <div class="field">
+          <label for="cond-desc">Description</label>
+          <textarea id="cond-desc" name="description" rows="3" placeholder="Enter description about this condition" [(ngModel)]="form.description"></textarea>
+        </div>
+
+        <div class="field">
+          <span class="field__label">Status</span>
+          <div class="radios">
+            <label><input type="radio" name="status" value="Active" [(ngModel)]="form.status" /> Active</label>
+            <label><input type="radio" name="status" value="Inactive" [(ngModel)]="form.status" /> Inactive</label>
+          </div>
+        </div>
+      }
+
+      @case ('health') {
+        <div class="grid">
+          <div class="field" [class.invalid]="errors.healthScore">
+            <label for="cond-health"><span class="req">*</span> Health Score (%)</label>
+            <div class="health-input">
+              <input type="range" name="healthRange" min="0" max="100" step="5" [(ngModel)]="form.healthScore" [style.accent-color]="pickerColor" aria-label="Health score slider" />
+              <input id="cond-health" name="healthScore" type="number" min="0" max="100" [(ngModel)]="form.healthScore" />
+            </div>
+            @if (errors.healthScore) { <small>{{ errors.healthScore }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.displayOrder">
+            <label for="cond-order">Display Order</label>
+            <input id="cond-order" name="displayOrder" type="number" min="1" [(ngModel)]="form.displayOrder" />
+            @if (errors.displayOrder) { <small>{{ errors.displayOrder }}</small> }
+          </div>
+        </div>
+
+        @if (!form.image) {
+          <div class="field">
+            <span class="field__label">Associated Icon</span>
+            <div class="icon-picker" role="radiogroup" aria-label="Icon">
+              @for (k of iconKeys; track k) {
+                <button type="button" class="icon-picker__item" role="radio" [class.on]="form.icon === k" [attr.aria-checked]="form.icon === k" [attr.aria-label]="k" (click)="form.icon = k">
+                  <lucide-icon [img]="levelIcons[k]" [size]="18"></lucide-icon>
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Show in mobile app</strong><small>Field users can pick this condition during audits and inspections.</small></span>
+            <input type="checkbox" name="showInMobile" [(ngModel)]="form.showInMobile" />
+          </label>
+          <label class="toggle">
+            <span><strong>Show in reports</strong><small>Include this condition in asset health reports.</small></span>
+            <input type="checkbox" name="showInReports" [(ngModel)]="form.showInReports" />
+          </label>
+        </div>
+      }
+
+      @case ('usage') {
+        <span class="section-title">Typical Characteristics</span>
+        <div class="grid">
+          @for (c of characteristicFields; track c.key) {
+            <div class="field">
+              <label [for]="'cond-' + c.key">{{ c.label }}</label>
+              <input [id]="'cond-' + c.key" [name]="c.key" [(ngModel)]="form.characteristics[c.key]" />
+            </div>
+          }
+        </div>
+
+        <span class="section-title">Transition Rules</span>
+        <div class="rules">
+          <fieldset>
+            <legend>Can move from</legend>
+            @for (o of others; track o.code) {
+              <label class="rule"><input type="checkbox" [checked]="hasRule('canMoveFrom', o.code)" (change)="toggleRule('canMoveFrom', o.code)" />
+                <i [style.background]="o.color"></i>{{ o.name }}</label>
+            }
+          </fieldset>
+          <fieldset>
+            <legend>Can move to</legend>
+            @for (o of others; track o.code) {
+              <label class="rule"><input type="checkbox" [checked]="hasRule('canMoveTo', o.code)" (change)="toggleRule('canMoveTo', o.code)" />
+                <i [style.background]="o.color"></i>{{ o.name }}</label>
+            }
+          </fieldset>
+        </div>
+        <p class="hint">The other condition's rules are updated to match when you save.</p>
+        <div class="field">
+          <label for="cond-trigger">Trigger Criteria</label>
+          <input id="cond-trigger" name="triggerCriteria" placeholder="e.g. Based on inspection result" [(ngModel)]="form.triggerCriteria" />
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Auto update</strong><small>Move assets into this condition automatically when the trigger is met.</small></span>
+            <input type="checkbox" name="autoUpdate" [(ngModel)]="form.autoUpdate" />
+          </label>
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Photo required</strong><small>Setting an asset to this condition needs a photo.</small></span>
+            <input type="checkbox" name="photoRequired" [(ngModel)]="form.photoRequired" />
+          </label>
+          <label class="toggle">
+            <span><strong>Comment required</strong><small>Setting an asset to this condition needs a comment.</small></span>
+            <input type="checkbox" name="commentRequired" [(ngModel)]="form.commentRequired" />
+          </label>
+          <label class="toggle">
+            <span><strong>Notify asset owner</strong><small>Email the owner when an asset moves into this condition.</small></span>
+            <input type="checkbox" name="notifyOwner" [(ngModel)]="form.notifyOwner" />
+          </label>
+          <label class="toggle">
+            <span><strong>Block assignment</strong><small>Assets in this condition can't be checked out to people.</small></span>
+            <input type="checkbox" name="blocksAssignment" [(ngModel)]="form.blocksAssignment" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>
