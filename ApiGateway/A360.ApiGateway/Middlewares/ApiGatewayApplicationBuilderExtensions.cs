@@ -55,6 +55,7 @@ public static class ApiGatewayApplicationBuilderExtensions
                 options.SwaggerEndpoint("/dashboard/swagger/v1/swagger.json", "Dashboard Service");
                 options.SwaggerEndpoint("/administration/swagger/v1/swagger.json", "Administration Service");
                 options.SwaggerEndpoint("/tracking/swagger/v1/swagger.json", "Tracking & IoT Service");
+                options.SwaggerEndpoint("/master-data-management/swagger/v1/swagger.json", "Master Data Management Service");
 
                 options.RoutePrefix = "swagger";
             });
@@ -114,6 +115,13 @@ public static class ApiGatewayApplicationBuilderExtensions
                     gatewaySwaggerUrl = "/tracking/swagger/v1/swagger.json",
                     serviceBaseUrl = "http://172.16.100.26:5490",
                     healthUrl = "/tracking/health"
+               },
+                new
+               {
+                    service = "MasterDataManagement",
+                    gatewaySwaggerUrl = "/master-data-management/swagger/v1/swagger.json",
+                    serviceBaseUrl = "http://172.16.100.26:5500",
+                    healthUrl = "/master-data-management/health"
                }
             }))
             .WithName("GatewayDownstreamSwagger")

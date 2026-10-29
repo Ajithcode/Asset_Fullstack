@@ -11,6 +11,7 @@ DLLS=(
   A360.Asset.Api.dll
   A360.Inspection.Api.dll
   A360.EventLog.Api.dll
+  A360.MasterDataManagement.Api.dll
   A360.ApiGateway.dll
 )
 
