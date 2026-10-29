@@ -48,6 +48,7 @@ function impacts([safety, operational, financial, regulatory, reputation, enviro
 
 export function initialCriticalities(): CriticalityRecord[] {
   return SEEDS.map(([code, name, description, color, level, priority, isDefault, impact, strategy, inspection, monitoring, spares, response, [total, underMaintenance, retired]], i) => ({
+    id: '',
     code,
     name,
     description,
@@ -80,6 +81,7 @@ export function initialCriticalities(): CriticalityRecord[] {
 
 export function blankCriticality(): CriticalityRecord {
   return {
+    id: '',
     code: '',
     name: '',
     description: '',

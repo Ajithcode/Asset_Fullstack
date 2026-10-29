@@ -259,6 +259,7 @@ function base(type: AssetTypeInfo, manufacturer: string, s: number): Omit<AssetM
   const price = Math.round((low + ((s % 997) / 997) * (high - low)) / 50) * 50;
   const heavy = ['Machinery', 'Vehicles', 'HVAC', 'Electrical', 'Facilities'].includes(type.category);
   return {
+    id: '',
     manufacturer,
     assetType: type.name,
     category: type.category,
@@ -430,6 +431,7 @@ export function initialAssetModels(): AssetModelRecord[] {
 
 export function blankAssetModel(): AssetModelRecord {
   return {
+    id: '',
     code: '',
     name: '',
     manufacturer: '',

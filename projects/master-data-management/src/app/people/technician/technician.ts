@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, HardHat, LucideAngularModule, Plus, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { concat, tap } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
 import { PersonStatus, avatarColor, initials } from '../people.data';
 import { SkillService } from '../skill/skill.service';
@@ -33,6 +34,7 @@ export class TechnicianPage extends ListPage<TechnicianRecord, TechnicianFilters
 
   constructor() {
     super({ search: '', status: '', skill: '' });
+    this.service.load();
     this.sortKey = 'id';
   }
 
@@ -61,9 +63,14 @@ export class TechnicianPage extends ListPage<TechnicianRecord, TechnicianFilters
     return key === 'team' ? this.teamName(r) : r[key];
   }
 
-  protected removeRecords(ids: string[]): void {
-    this.service.remove(ids);
-    this.teams.removeMembers(ids);
+  protected removeRecords(ids: string[]) {
+    return concat(...ids.map((id) => this.service.remove(this.service.find(id)!))).pipe(tap({ complete: () => this.teams.removeMembers(ids) }));
+  }
+
+  /** The team a technician should stay in, as the API's {id, name} reference. */
+  private teamRef(code: string | null) {
+    const team = this.teams.find(code);
+    return team ? { id: team.id, name: team.name } : null;
   }
 
   protected override deleteBlocker(r: TechnicianRecord): string | null {
@@ -81,17 +88,18 @@ export class TechnicianPage extends ListPage<TechnicianRecord, TechnicianFilters
   }
 
   onSaved(event: { record: TechnicianRecord; originalId: string | null; teamCode: string }): void {
-    this.service.save(event.record, event.originalId);
-    if (event.originalId) this.teams.renameMember(event.originalId, event.record.id);
-    this.teams.setPrimaryTeam(event.record.id, event.teamCode || null);
-    this.carrySelection(event.originalId, event.record.id);
-    this.notify(`${event.record.name} ${event.originalId ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, this.teamRef(event.teamCode || null)), (saved) => {
+      if (event.originalId) this.teams.renameMember(event.originalId, saved.id);
+      this.teams.setPrimaryTeam(saved.id, event.teamCode || null);
+      this.carrySelection(event.originalId, saved.id);
+      this.notify(`${saved.name} ${event.originalId ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   setStatus(r: TechnicianRecord, status: PersonStatus): void {
     this.menuFor = null;
-    this.service.save({ ...r, status, availableForDispatch: status === 'Active' || status === 'On Duty' ? r.availableForDispatch : false }, r.id);
-    this.notify(`${r.name} marked ${status}.`);
+    const record = { ...r, status, availableForDispatch: status === 'Active' || status === 'On Duty' ? r.availableForDispatch : false };
+    this.persist(this.service.save(record, this.teamRef(this.teams.primaryTeamOf(r.id)?.code ?? null)), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

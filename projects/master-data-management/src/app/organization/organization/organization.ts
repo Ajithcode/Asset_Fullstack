@@ -15,7 +15,9 @@ import {
   Search,
   Workflow
 } from 'lucide-angular';
+import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { apiErrorMessage } from '../../shared/api-error';
 import { OrganizationForm } from './organization-form/organization-form';
 import { ORGANIZATION_TYPES, OrganizationFilters, OrganizationRecord } from './organization.model';
 import { OrganizationService } from './organization.service';
@@ -55,7 +57,12 @@ export class OrganizationPage {
 
   pendingDelete: OrganizationRecord[] = [];
   toast = '';
+  saving = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    this.service.load();
+  }
 
   get stats() {
     return this.service.stats();
@@ -170,6 +177,7 @@ export class OrganizationPage {
     const blank: OrganizationRecord = structuredClone(parent);
     this.openAdd({
       ...blank,
+      id: '',
       code: '',
       name: '',
       type: 'Subsidiary',
@@ -192,19 +200,31 @@ export class OrganizationPage {
   }
 
   onSaved(event: { record: OrganizationRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode && this.selected.delete(event.originalCode)) {
-      this.selected.add(event.record.code);
-    }
-    this.notify(event.originalCode ? `${event.record.name} updated.` : `${event.record.name} added.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.save(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        if (event.originalCode && this.selected.delete(event.originalCode)) {
+          this.selected.add(saved.code);
+        }
+        this.notify(event.originalCode ? `${saved.name} updated.` : `${saved.name} added.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(record: OrganizationRecord): void {
     this.menuFor = null;
     const status = record.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...record, status }, record.code);
-    this.notify(`${record.name} marked ${status}.`);
+    this.service.save({ ...record, status }, record.code).subscribe({
+      next: () => this.notify(`${record.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   // Organizations with sub-organizations can't be deleted until those are moved or deleted
@@ -225,13 +245,21 @@ export class OrganizationPage {
   }
 
   confirmDelete(): void {
-    const codes = this.pendingDelete.map((r) => r.code);
-    this.service.remove(codes);
-    codes.forEach((c) => this.selected.delete(c));
-    if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-    this.notify(codes.length === 1 ? `${this.pendingDelete[0].name} deleted.` : `${codes.length} organizations deleted.`);
+    const list = this.pendingDelete;
+    const codes = list.map((r) => r.code);
     this.pendingDelete = [];
-    this.goTo(this.page);
+    // Children first, so the API doesn't refuse a parent that still has sub-organizations in this batch
+    const ordered = [...list].sort((a, b) => this.service.ancestry(b.code).length - this.service.ancestry(a.code).length);
+    concat(...ordered.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
+      next: () => {
+        codes.forEach((c) => this.selected.delete(c));
+        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
+        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} organizations deleted.`);
+        this.goTo(this.page);
+      },
+      // Any organizations deleted before the failure are already gone from the table
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   cancelDelete(): void {

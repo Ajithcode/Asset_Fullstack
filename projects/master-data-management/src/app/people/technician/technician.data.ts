@@ -30,6 +30,7 @@ const TOTAL = 86;
 function build(i: number, [id, name, primarySkill, status]: Seed): TechnicianRecord {
   const contractor = i % 7 === 5;
   return {
+    recordId: '',
     id,
     name,
     photo: null,

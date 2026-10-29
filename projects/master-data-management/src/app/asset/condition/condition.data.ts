@@ -41,6 +41,7 @@ export function initialConditions(): ConditionRecord[] {
     const [physicalState, functionality, appearance, maintenanceNeed, expectedRemainingLife] = chars;
     const operational = type === 'Operational';
     return {
+      id: '',
       code,
       name,
       description: code === 'COND-GOOD' ? 'Good working condition with normal wear and tear.' : description,
@@ -74,6 +75,7 @@ export function initialConditions(): ConditionRecord[] {
 
 export function blankCondition(): ConditionRecord {
   return {
+    id: '',
     code: '',
     name: '',
     description: '',

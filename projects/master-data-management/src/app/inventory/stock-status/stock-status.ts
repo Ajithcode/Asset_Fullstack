@@ -28,6 +28,7 @@ export class StockStatusPage extends ListPage<StockStatusRecord, Filters, SortKe
 
   constructor() {
     super({ status: '' });
+    this.service.load();
   }
 
   keyOf(r: StockStatusRecord): string {
@@ -50,8 +51,8 @@ export class StockStatusPage extends ListPage<StockStatusRecord, Filters, SortKe
     return r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   // The default status and the four statuses items are graded with stay
@@ -67,15 +68,15 @@ export class StockStatusPage extends ListPage<StockStatusRecord, Filters, SortKe
       this.notify(`Activate ${r.name} before making it the default.`);
       return;
     }
-    this.service.save({ ...r, isDefault: true }, r.code);
-    this.notify(`${r.name} is now the system default.`);
+    this.persist(this.service.save({ ...r, isDefault: true }, r.code), () => this.notify(`${r.name} is now the system default.`));
   }
 
   onSaved(event: { record: StockStatusRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: StockStatusRecord): void {
@@ -85,7 +86,6 @@ export class StockStatusPage extends ListPage<StockStatusRecord, Filters, SortKe
       return;
     }
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

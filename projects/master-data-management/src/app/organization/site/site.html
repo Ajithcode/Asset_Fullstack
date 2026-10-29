@@ -113,7 +113,7 @@
           </thead>
           <tbody>
             @for (r of pageRows; track r.id) {
-              <tr [class.is-selected]="r.id === selectedId" (click)="open(r.id, false)">
+              <tr [class.is-selected]="r.id === selectedSite?.id" (click)="open(r.id, false)">
                 <td class="col-check" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="selected.has(r.id)" (change)="toggleRow(r.id)" [attr.aria-label]="'Select ' + r.name" />
                 </td>
@@ -153,7 +153,13 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="10" class="empty">No sites match these filters.</td></tr>
+              @if (service.loading) {
+                <tr><td colspan="10" class="empty">Loading sites...</td></tr>
+              } @else if (service.loadError) {
+                <tr><td colspan="10" class="empty">{{ service.loadError }} <button type="button" class="btn btn--link" (click)="service.load()">Retry</button></td></tr>
+              } @else {
+                <tr><td colspan="10" class="empty">No sites match these filters.</td></tr>
+              }
             }
           </tbody>
         </table>

@@ -18,6 +18,7 @@ const SEEDS: Seed[] = [
 
 export function initialMaintenanceTypes(): MaintenanceTypeRecord[] {
   return SEEDS.map(([code, name, description, color, planned, inactive], i) => ({
+    id: '',
     code,
     name,
     description,
@@ -34,6 +35,7 @@ export function initialMaintenanceTypes(): MaintenanceTypeRecord[] {
 
 export function blankMaintenanceType(): MaintenanceTypeRecord {
   return {
+    id: '',
     code: '',
     name: '',
     description: '',

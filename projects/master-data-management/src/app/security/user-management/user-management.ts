@@ -34,6 +34,7 @@ export class UserManagementPage extends ListPage<UserRecord, Filters, SortKey> {
 
   constructor() {
     super({ search: '', role: '', status: '' });
+    this.service.load();
   }
 
   keyOf(r: UserRecord): string {
@@ -61,8 +62,8 @@ export class UserManagementPage extends ListPage<UserRecord, Filters, SortKey> {
     return r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   protected override deleteBlocker(r: UserRecord): string | null {
@@ -98,12 +99,11 @@ export class UserManagementPage extends ListPage<UserRecord, Filters, SortKey> {
 
   onSaved(event: { record: UserRecord; originalCode: string | null }): void {
     const invite = !event.originalCode && event.record.sendInvite;
-    this.service.save({ ...event.record, sendInvite: false }, event.originalCode);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(
-      event.originalCode ? `${event.record.name} updated.` : `${event.record.name} added.${invite ? ` An invitation will be sent to ${event.record.email}.` : ''}`
-    );
-    this.closeForm();
+    this.persist(this.service.save({ ...event.record, sendInvite: false }, event.originalCode), (saved) => {
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(event.originalCode ? `${saved.name} updated.` : `${saved.name} added.${invite ? ` An invitation will be sent to ${saved.email}.` : ''}`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: UserRecord): void {
@@ -116,14 +116,12 @@ export class UserManagementPage extends ListPage<UserRecord, Filters, SortKey> {
       }
     }
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} ${status === 'Active' ? 'can sign in again' : 'can no longer sign in'}.`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} ${status === 'Active' ? 'can sign in again' : 'can no longer sign in'}.`));
   }
 
   // DEMO MODE: the reset email is sent by the identity service once it is connected
   resetPassword(r: UserRecord): void {
     this.menuFor = null;
-    this.service.save({ ...r, mustChangePassword: true }, r.code);
-    this.notify(`A password reset link will be sent to ${r.email}.`);
+    this.persist(this.service.save({ ...r, mustChangePassword: true }, r.code), () => this.notify(`A password reset link will be sent to ${r.email}.`));
   }
 }

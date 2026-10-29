@@ -36,6 +36,7 @@ export class StoreList extends ListPage<StoreRecord, Filters, SortKey> implement
 
   constructor() {
     super({ search: '', warehouse: '', status: '' });
+    this.service.load();
   }
 
   ngOnInit(): void {
@@ -70,8 +71,8 @@ export class StoreList extends ListPage<StoreRecord, Filters, SortKey> implement
     return key === 'bins' ? this.binCount(r) : key === 'warehouse' ? this.warehouseName(r) : r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   // Stores with bins or stock can't be deleted
@@ -100,24 +101,22 @@ export class StoreList extends ListPage<StoreRecord, Filters, SortKey> implement
   }
 
   onSaved(event: { record: StoreRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode && event.originalCode !== event.record.code) {
-      this.bins.moveStore(event.originalCode, event.record.code);
-      this.items.recode('storeCode', event.originalCode, event.record.code);
-    }
-    // Items in the store follow it to another warehouse
-    for (const item of this.items.inStore(event.record.code)) {
-      if (item.warehouseCode !== event.record.warehouseCode) this.items.save({ ...item, warehouseCode: event.record.warehouseCode }, item.code);
-    }
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
+      if (event.originalCode && event.originalCode !== saved.code) {
+        this.bins.moveStore(event.originalCode, saved.code);
+        this.items.recode('storeCode', event.originalCode, saved.code);
+      }
+      // Items in the store follow it to another warehouse
+      this.items.followLocation((item) => item.storeCode === saved.code, { warehouseCode: saved.warehouseCode });
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: StoreRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

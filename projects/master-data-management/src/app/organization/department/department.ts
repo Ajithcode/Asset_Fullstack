@@ -3,7 +3,9 @@ import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Boxes, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Network, Plus, Search, Users } from 'lucide-angular';
+import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { apiErrorMessage } from '../../shared/api-error';
 import { MASTER_ICONS } from '../../shared/master-icons';
 import { BusinessUnitService } from '../business-unit/business-unit.service';
 import { SiteService } from '../site/site.service';
@@ -46,14 +48,19 @@ export class DepartmentPage {
   selected = new Set<string>();
   menuFor: string | null = null;
 
-  selectedCode: string | null = 'ENG';
+  selectedCode: string | null = null;
   formOpen = false;
   formMode: 'add' | 'edit' = 'add';
   formRecord: DepartmentRecord | null = null;
 
   pendingDelete: DepartmentRecord[] = [];
   toast = '';
+  saving = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    this.service.load();
+  }
 
   get stats() {
     const all = this.service.all();
@@ -101,7 +108,7 @@ export class DepartmentPage {
   }
 
   get selectedDepartment(): DepartmentRecord | undefined {
-    return this.service.find(this.selectedCode);
+    return this.service.find(this.selectedCode) ?? this.service.all()[0];
   }
 
   unitName(code: string): string {
@@ -197,20 +204,32 @@ export class DepartmentPage {
   }
 
   onSaved(event: { record: DepartmentRecord; originalCode: string | null; originalName: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    // Sites refer to the department by name
-    if (event.originalName) this.sites.renameDepartment(event.originalName, event.record.name);
-    if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(event.record.code);
-    this.open(event.record.code, false);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.save(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        // DEMO MODE: sites are still in-memory and refer to the department by name
+        if (event.originalName) this.sites.renameDepartment(event.originalName, saved.name);
+        if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
+        this.open(saved.code, false);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(d: DepartmentRecord): void {
     this.menuFor = null;
     const status = d.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...d, status }, d.code);
-    this.notify(`${d.name} marked ${status}.`);
+    this.service.save({ ...d, status }, d.code).subscribe({
+      next: () => this.notify(`${d.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   // Departments still used by sites can't be deleted; sub-departments move up to the business unit
@@ -230,14 +249,20 @@ export class DepartmentPage {
   }
 
   confirmDelete(): void {
-    const codes = this.pendingDelete.map((r) => r.code);
-    this.service.remove(codes);
-    codes.forEach((c) => this.selected.delete(c));
-    if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-    if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-    this.notify(codes.length === 1 ? `${this.pendingDelete[0].name} deleted.` : `${codes.length} departments deleted.`);
+    const list = this.pendingDelete;
+    const codes = list.map((r) => r.code);
     this.pendingDelete = [];
-    this.goTo(this.page);
+    concat(...list.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
+      next: () => {
+        codes.forEach((c) => this.selected.delete(c));
+        if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
+        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} departments deleted.`);
+        this.goTo(this.page);
+      },
+      // Any departments deleted before the failure are already gone from the table
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   cancelDelete(): void {

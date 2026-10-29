@@ -2,7 +2,9 @@ import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, MapPin, Network, Plus, Search, Users } from 'lucide-angular';
+import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { apiErrorMessage } from '../../shared/api-error';
 import { DepartmentService } from '../department/department.service';
 import { OrganizationService } from '../organization/organization.service';
 import { SiteService } from '../site/site.service';
@@ -47,19 +49,20 @@ export class BusinessUnitPage {
   selected = new Set<string>();
   menuFor: string | null = null;
 
-  selectedCode: string | null = 'MFG';
+  selectedCode: string | null = null;
   formOpen = false;
   formMode: 'add' | 'edit' = 'add';
   formRecord: BusinessUnitRecord | null = null;
 
   pendingDelete: BusinessUnitRecord[] = [];
   toast = '';
+  saving = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
-    // "Go to Business Unit" links pass ?code=MFG to open that unit
-    const code = inject(ActivatedRoute).snapshot.queryParamMap.get('code');
-    if (code && this.service.find(code)) this.selectedCode = code;
+    this.service.load();
+    // "Go to Business Unit" links pass ?code=MFG to open that unit once the list has loaded
+    this.selectedCode = inject(ActivatedRoute).snapshot.queryParamMap.get('code');
   }
 
   get stats() {
@@ -108,7 +111,7 @@ export class BusinessUnitPage {
   }
 
   get selectedUnit(): BusinessUnitRecord | undefined {
-    return this.service.find(this.selectedCode);
+    return this.service.find(this.selectedCode) ?? this.service.all()[0];
   }
 
   organizationName(code: string): string {
@@ -208,21 +211,33 @@ export class BusinessUnitPage {
   }
 
   onSaved(event: { record: BusinessUnitRecord; originalCode: string | null; originalName: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    // Sites refer to the unit by name
-    if (event.originalName) this.sites.renameBusinessUnit(event.originalName, event.record.name);
-    if (event.originalCode) this.departments.renameBusinessUnit(event.originalCode, event.record.code);
-    if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(event.record.code);
-    this.open(event.record.code, false);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.save(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        // DEMO MODE: sites (by name) and departments (by code) are still in-memory, so rename there too
+        if (event.originalName) this.sites.renameBusinessUnit(event.originalName, saved.name);
+        if (event.originalCode) this.departments.renameBusinessUnit(event.originalCode, saved.code);
+        if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
+        this.open(saved.code, false);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(unit: BusinessUnitRecord): void {
     this.menuFor = null;
     const status = unit.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...unit, status }, unit.code);
-    this.notify(`${unit.name} marked ${status}.`);
+    this.service.save({ ...unit, status }, unit.code).subscribe({
+      next: () => this.notify(`${unit.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   // Units that still have departments or sites can't be deleted
@@ -248,14 +263,20 @@ export class BusinessUnitPage {
   }
 
   confirmDelete(): void {
-    const codes = this.pendingDelete.map((r) => r.code);
-    this.service.remove(codes);
-    codes.forEach((c) => this.selected.delete(c));
-    if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-    if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-    this.notify(codes.length === 1 ? `${this.pendingDelete[0].name} deleted.` : `${codes.length} business units deleted.`);
+    const list = this.pendingDelete;
+    const codes = list.map((r) => r.code);
     this.pendingDelete = [];
-    this.goTo(this.page);
+    concat(...list.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
+      next: () => {
+        codes.forEach((c) => this.selected.delete(c));
+        if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
+        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} business units deleted.`);
+        this.goTo(this.page);
+      },
+      // Any units deleted before the failure are already gone from the table
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   cancelDelete(): void {

@@ -1,45 +1,60 @@
 import { Injectable } from '@angular/core';
-import { initialSuppliers } from './supplier.data';
+import { ApiCodeStore, MasterDto } from '../../shared/api-code-store';
+import { blankSupplier } from './supplier.data';
 import { SupplierRecord } from './supplier.model';
 
-/** DEMO MODE: in-memory suppliers; replace these methods with API calls when the backend is ready. */
+interface SupplierDto extends MasterDto {
+  supplierName: string;
+  website: string | null;
+  supplierLogo: string | null;
+  primaryContact: string | null;
+  category: string | null;
+  email: string | null;
+  country: string | null;
+  phone: string | null;
+}
+
+/**
+ * Suppliers from {projectApiUrl}api/master-data/suppliers. Products, financial details, address,
+ * documents and settings are UI-only for now.
+ */
 @Injectable({ providedIn: 'root' })
-export class SupplierService {
-  private records: SupplierRecord[] = initialSuppliers();
-
-  all(): SupplierRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null): SupplierRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+export class SupplierService extends ApiCodeStore<SupplierRecord, SupplierDto> {
+  constructor() {
+    super('suppliers');
+    this.load();
   }
 
   countries(): string[] {
-    return [...new Set(this.records.map((r) => r.country))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(this.records.map((r) => r.country).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+  protected toRecord(dto: SupplierDto, cached: SupplierRecord | undefined): SupplierRecord {
+    return {
+      ...(cached ?? blankSupplier()),
+      name: dto.supplierName,
+      website: dto.website ?? '',
+      logo: dto.supplierLogo,
+      contactPerson: dto.primaryContact ?? '',
+      category: dto.category ?? '',
+      email: dto.email ?? '',
+      country: dto.country ?? '',
+      phone: dto.phone ?? ''
+    };
   }
 
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  save(record: SupplierRecord, originalCode: string | null): void {
-    const index = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    if (index >= 0) {
-      this.records[index] = record;
-      this.records = [...this.records];
-    } else {
-      this.records = [record, ...this.records];
-    }
-  }
-
-  remove(codes: string[]): void {
-    this.records = this.records.filter((r) => !codes.includes(r.code));
+  protected toRequest(r: SupplierRecord) {
+    return {
+      supplierName: r.name,
+      code: r.code,
+      website: r.website || null,
+      // TODO: upload through the Media service and send its URL; this sends the picked image as a data URL
+      supplierLogo: r.logo,
+      primaryContact: r.contactPerson,
+      category: r.category,
+      email: r.email,
+      country: r.country,
+      phone: r.phone
+    };
   }
 }

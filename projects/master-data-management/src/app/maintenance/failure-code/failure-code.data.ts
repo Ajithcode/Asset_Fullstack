@@ -27,6 +27,7 @@ const SEEDS: Seed[] = [
 
 export function initialFailureCodes(): FailureCodeRecord[] {
   return SEEDS.map(([code, name, category, description, severity, inactive, assetCategories, causes, actions], i) => ({
+    id: '',
     code,
     name,
     category,
@@ -43,6 +44,7 @@ export function initialFailureCodes(): FailureCodeRecord[] {
 
 export function blankFailureCode(): FailureCodeRecord {
   return {
+    id: '',
     code: '',
     name: '',
     category: '',

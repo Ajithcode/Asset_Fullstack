@@ -4,6 +4,8 @@ export type SkillStatus = 'Active' | 'Inactive';
 export type SkillType = 'Hard Skill' | 'Soft Skill';
 
 export interface SkillRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   category: string;

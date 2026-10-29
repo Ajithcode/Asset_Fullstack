@@ -37,6 +37,7 @@ export function initialShifts(): ShiftRecord[] {
   return SEEDS.map(([code, name, shiftType, startTime, endTime, color, workingDays, inactive], i) => {
     const hours = shiftHours(startTime, endTime) ?? 0;
     return {
+      id: '',
       code,
       name,
       shiftType,
@@ -61,6 +62,7 @@ export function initialShifts(): ShiftRecord[] {
 
 export function blankShift(): ShiftRecord {
   return {
+    id: '',
     code: '',
     name: '',
     shiftType: 'Regular',

@@ -152,7 +152,8 @@ export class SiteForm implements OnChanges {
     const stamp = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     this.saved.emit({
       ...f,
-      id: this.original?.id ?? this.service.nextId(),
+      // Empty for a new site; the API assigns the id
+      id: this.original?.id ?? '',
       name: f.name.trim(),
       code: f.code.trim(),
       description: f.description.trim(),

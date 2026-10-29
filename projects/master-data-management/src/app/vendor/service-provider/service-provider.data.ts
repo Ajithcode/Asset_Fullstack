@@ -34,6 +34,7 @@ function build(i: number, [code, name, serviceType, country, contactPerson, phon
   const local = country === 'UAE';
   return {
     ...blankVendorBase(),
+    id: '',
     code,
     name,
     brandColor: VENDOR_PALETTE[i % VENDOR_PALETTE.length],

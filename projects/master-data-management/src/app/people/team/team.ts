@@ -3,9 +3,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search, Users } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { concat } from 'rxjs';
+import { DepartmentService } from '../../organization/department/department.service';
 import { ListPage } from '../../shared/list-page';
 import { EmployeeService } from '../employee/employee.service';
-import { PEOPLE_DEPARTMENTS } from '../people.data';
 import { TechnicianService } from '../technician/technician.service';
 import { TeamForm } from './team-form/team-form';
 import { TeamFilters, TeamRecord } from './team.model';
@@ -25,12 +26,13 @@ export class TeamPage extends ListPage<TeamRecord, TeamFilters, SortKey> {
   private readonly employees = inject(EmployeeService);
   private readonly technicians = inject(TechnicianService);
   readonly basePath = MASTER_DATA_BASE_PATH;
-  readonly departments = PEOPLE_DEPARTMENTS;
+  private readonly departmentService = inject(DepartmentService);
   readonly statuses: TeamRecord['status'][] = ['Active', 'On Leave', 'Inactive'];
   readonly icons = { Users, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
 
   constructor() {
     super({ search: '', department: '', status: '' });
+    this.service.load();
   }
 
   keyOf(r: TeamRecord): string {
@@ -58,8 +60,12 @@ export class TeamPage extends ListPage<TeamRecord, TeamFilters, SortKey> {
     return key === 'members' ? r.members.length : r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  get departments(): string[] {
+    return this.departmentService.names();
+  }
+
+  protected removeRecords(codes: string[]) {
+    return concat(...codes.map((c) => this.service.remove(this.service.find(c)!)));
   }
 
   /** Name of an employee (EMP…) or technician (TECH…). */
@@ -72,19 +78,20 @@ export class TeamPage extends ListPage<TeamRecord, TeamFilters, SortKey> {
   }
 
   duplicate(r: TeamRecord): void {
-    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
+    // A technician is in one team, so the copy starts without members
+    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Inactive', members: [], leaderId: '' });
   }
 
   onSaved(event: { record: TeamRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   setStatus(r: TeamRecord, status: TeamRecord['status']): void {
     this.menuFor = null;
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

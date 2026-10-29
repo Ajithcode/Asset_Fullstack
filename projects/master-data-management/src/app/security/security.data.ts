@@ -50,6 +50,7 @@ const MODULES: [string, string, string, string][] = [
 
 export function initialModules(): ModuleRecord[] {
   return MODULES.map(([name, category, description, icon], i) => ({
+    id: '',
     code: `MOD-${String(i + 1).padStart(3, '0')}`,
     name,
     category,
@@ -117,6 +118,7 @@ const PERMISSIONS: [string, string, PermissionType, string, boolean?][] = [
 
 export function initialPermissions(): PermissionRecord[] {
   return PERMISSIONS.map(([name, module, type, description, inactive], i) => ({
+    id: '',
     code: `PERM-${String(i + 1).padStart(3, '0')}`,
     name,
     module: MOD(module),
@@ -167,6 +169,7 @@ const ROLES: [string, RoleType, string, number, string[]][] = [
 export function initialRoles(): RoleRecord[] {
   const perms = initialPermissions();
   return ROLES.map(([name, type, description, , permissions], i) => ({
+    id: '',
     code: `ROLE-${String(i + 1).padStart(3, '0')}`,
     name,
     type,
@@ -210,6 +213,7 @@ export function initialUsers(): UserRecord[] {
   });
 
   const users: UserRecord[] = seeds.map(([name, username, email, department, primary, inactive], i) => ({
+    id: '',
     code: `USR-${String(i + 1).padStart(3, '0')}`,
     name,
     username,
@@ -249,19 +253,20 @@ export function initialUsers(): UserRecord[] {
 }
 
 export function blankModule(): ModuleRecord {
-  return { code: '', name: '', category: '', description: '', icon: 'box', status: 'Active', createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', category: '', description: '', icon: 'box', status: 'Active', createdOn: '', updatedOn: '' };
 }
 
 export function blankPermission(): PermissionRecord {
-  return { code: '', name: '', module: '', type: 'Read', description: '', status: 'Active', createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', module: '', type: 'Read', description: '', status: 'Active', createdOn: '', updatedOn: '' };
 }
 
 export function blankRole(): RoleRecord {
-  return { code: '', name: '', type: 'Business', description: '', status: 'Active', permissions: [], modules: [], createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', type: 'Business', description: '', status: 'Active', permissions: [], modules: [], createdOn: '', updatedOn: '' };
 }
 
 export function blankUser(): UserRecord {
   return {
+    id: '',
     code: '',
     name: '',
     username: '',

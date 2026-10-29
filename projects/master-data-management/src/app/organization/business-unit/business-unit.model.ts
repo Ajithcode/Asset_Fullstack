@@ -6,6 +6,8 @@ export type BusinessUnitStatus = 'Active' | 'Inactive';
 export type BusinessUnitIcon = MasterIcon;
 
 export interface BusinessUnitRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   // Organization master code, e.g. DCS

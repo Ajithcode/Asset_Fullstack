@@ -26,6 +26,8 @@ export interface BfzAddress {
 }
 
 export interface BfzRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   type: BfzType;

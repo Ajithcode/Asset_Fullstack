@@ -35,6 +35,7 @@ export class StandardPage extends ListPage<StandardRecord, Filters, SortKey> {
 
   constructor() {
     super({ search: '', organization: '', category: '', status: '' });
+    this.service.load();
   }
 
   keyOf(r: StandardRecord): string {
@@ -63,8 +64,8 @@ export class StandardPage extends ListPage<StandardRecord, Filters, SortKey> {
     return r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   // Standards referenced by certification types or regulations can't be deleted
@@ -74,24 +75,24 @@ export class StandardPage extends ListPage<StandardRecord, Filters, SortKey> {
   }
 
   duplicate(r: StandardRecord): void {
-    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
+    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Active' });
   }
 
   onSaved(event: { record: StandardRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode) {
-      this.certifications.recodeStandard(event.originalCode, event.record.code);
-      this.regulations.recodeStandard(event.originalCode, event.record.code);
-    }
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
+      if (event.originalCode) {
+        this.certifications.recodeStandard(event.originalCode, saved.code);
+        this.regulations.recodeStandard(event.originalCode, saved.code);
+      }
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: StandardRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

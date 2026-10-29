@@ -70,6 +70,7 @@ export function demoDocuments(seed: number, kinds: string[]): VendorDocument[] {
 /** Base fields for a new vendor of any type. */
 export function blankVendorBase(): VendorBase {
   return {
+    id: '',
     code: '',
     name: '',
     logo: null,

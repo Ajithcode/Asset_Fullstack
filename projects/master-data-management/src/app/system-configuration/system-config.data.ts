@@ -22,6 +22,7 @@ const SYNC: [string, string, string, string, boolean][] = [
 
 export function initialSyncStatuses(): SyncStatusRecord[] {
   return SYNC.map(([code, name, description, color, isSuccess], i) => ({
+    id: '',
     code,
     name,
     description,
@@ -47,6 +48,7 @@ const CHARTS: [string, string, string, string, ChartPreview][] = [
 
 export function initialChartTypes(): ChartTypeRecord[] {
   return CHARTS.map(([code, name, category, description, preview], i) => ({
+    id: '',
     code,
     name,
     category,
@@ -73,6 +75,7 @@ const SOURCES: [string, string, string, string][] = [
 
 export function initialUpdateSources(): UpdateSourceRecord[] {
   return SOURCES.map(([code, name, type, description], i) => ({
+    id: '',
     code,
     name,
     type,
@@ -84,15 +87,15 @@ export function initialUpdateSources(): UpdateSourceRecord[] {
 }
 
 export function blankSyncStatus(): SyncStatusRecord {
-  return { code: '', name: '', description: '', color: SYNC_COLORS[0], isSuccess: false, status: 'Active', createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', description: '', color: SYNC_COLORS[0], isSuccess: false, status: 'Active', createdOn: '', updatedOn: '' };
 }
 
 export function blankChartType(): ChartTypeRecord {
-  return { code: '', name: '', category: '', description: '', preview: 'column', image: null, status: 'Active', createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', category: '', description: '', preview: 'column', image: null, status: 'Active', createdOn: '', updatedOn: '' };
 }
 
 export function blankUpdateSource(): UpdateSourceRecord {
-  return { code: '', name: '', type: '', description: '', status: 'Active', createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', type: '', description: '', status: 'Active', createdOn: '', updatedOn: '' };
 }
 
 /* System Settings choices */

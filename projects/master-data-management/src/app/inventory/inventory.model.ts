@@ -1,6 +1,8 @@
 export type RecordStatus = 'Active' | 'Inactive';
 
 export interface ItemCategoryRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   parentCode: string | null;
@@ -18,6 +20,8 @@ export interface ItemCategoryRecord {
 export type UomType = 'Discrete' | 'Weight' | 'Volume' | 'Length' | 'Area' | 'Time' | 'Energy';
 
 export interface UomRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   type: UomType;
@@ -36,6 +40,8 @@ export interface UomRecord {
 export type StockStatusType = 'Available' | 'Warning' | 'Unavailable' | 'Allocated' | 'In Transit' | 'On Hold' | 'Closed';
 
 export interface StockStatusRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   type: StockStatusType;
@@ -57,6 +63,8 @@ export interface StockStatusRecord {
 }
 
 export interface WarehouseRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   location: string;
@@ -75,6 +83,8 @@ export interface WarehouseRecord {
 }
 
 export interface StoreRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   warehouseCode: string;
@@ -90,6 +100,8 @@ export interface StoreRecord {
 }
 
 export interface BinRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   storeCode: string;
   rack: string;
@@ -104,6 +116,8 @@ export interface BinRecord {
 }
 
 export interface ItemRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   partNumber: string;

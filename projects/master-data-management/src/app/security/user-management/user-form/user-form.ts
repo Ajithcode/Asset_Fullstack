@@ -4,7 +4,8 @@ import { Camera, LucideAngularModule, X } from 'lucide-angular';
 import { MasterForm } from '../../../maintenance/form-base';
 import { EmployeeService } from '../../../people/employee/employee.service';
 import { EMAIL, readPhoto } from '../../../people/people.data';
-import { ACCESS_SITES, DATE_FORMATS, LANGUAGES, TIME_ZONES, USER_DEPARTMENTS, blankUser } from '../../security.data';
+import { DepartmentService } from '../../../organization/department/department.service';
+import { ACCESS_SITES, DATE_FORMATS, LANGUAGES, TIME_ZONES, blankUser } from '../../security.data';
 import { UserRecord } from '../../security.model';
 import { RoleService, UserService } from '../../security.service';
 
@@ -24,7 +25,11 @@ export class UserForm extends MasterForm<UserRecord, Tab> implements OnChanges {
   readonly roles = inject(RoleService);
   private readonly employees = inject(EmployeeService);
   readonly icons = { X, Camera };
-  readonly departments = USER_DEPARTMENTS;
+  private readonly departmentService = inject(DepartmentService);
+
+  get departments(): string[] {
+    return this.departmentService.names();
+  }
   readonly sites = ACCESS_SITES;
   readonly languages = LANGUAGES;
   readonly timeZones = TIME_ZONES;

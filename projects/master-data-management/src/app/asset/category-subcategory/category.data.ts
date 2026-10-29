@@ -164,6 +164,7 @@ export function initialCategories(): CategoryRecord[] {
     const [depreciationMethod, usefulLifeYears, trackingMethod] = TYPE_DEFAULTS[assetType];
     const fields: CustomField[] = FIELDS.map(([n, type, required]) => ({ name: n, type, required }));
     return {
+      id: '',
       code,
       name,
       assetType,
@@ -196,6 +197,7 @@ export function initialCategories(): CategoryRecord[] {
 
 export function blankCategory(): CategoryRecord {
   return {
+    id: '',
     code: '',
     name: '',
     assetType: '',

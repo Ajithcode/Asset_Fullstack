@@ -16,6 +16,7 @@ const SEEDS: Seed[] = [
 
 export function initialWorkTypes(): WorkTypeRecord[] {
   return SEEDS.map(([code, name, maintenanceType, description, durationHours, defaultPriority, requiredSkill, checklistCode, inactive], i) => ({
+    id: '',
     code,
     name,
     maintenanceType,
@@ -33,6 +34,7 @@ export function initialWorkTypes(): WorkTypeRecord[] {
 
 export function blankWorkType(): WorkTypeRecord {
   return {
+    id: '',
     code: '',
     name: '',
     maintenanceType: '',

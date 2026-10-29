@@ -20,6 +20,7 @@ const SEEDS: Seed[] = [
 
 export function initialPriorities(): PriorityRecord[] {
   return SEEDS.map(([code, name, kind, color, responseTime, description, escalateAfterHours, inactive], i) => ({
+    id: '',
     code,
     name,
     kind,
@@ -37,6 +38,7 @@ export function initialPriorities(): PriorityRecord[] {
 
 export function blankPriority(): PriorityRecord {
   return {
+    id: '',
     code: '',
     name: '',
     kind: 'Priority',

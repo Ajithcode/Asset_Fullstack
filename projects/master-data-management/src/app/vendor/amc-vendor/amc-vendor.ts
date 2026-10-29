@@ -6,7 +6,8 @@ import { MASTER_DATA_BASE_PATH } from 'shared-ui';
 import { badgeInk, badgeText } from '../../asset/manufacturer/manufacturer.data';
 import { ListPage } from '../../shared/list-page';
 import { formatDate } from '../vendor.data';
-import { AMC_ASSET_TYPES, CONTRACT_TYPES } from './amc-vendor.data';
+import { AssetTypeService } from '../../asset/asset-type/asset-type.service';
+import { CONTRACT_TYPES } from './amc-vendor.data';
 import { AmcVendorForm } from './amc-vendor-form/amc-vendor-form';
 import { AmcVendorFilters, AmcVendorRecord } from './amc-vendor.model';
 import { AmcVendorService } from './amc-vendor.service';
@@ -25,7 +26,11 @@ const DAY = 86400000;
 export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, SortKey> {
   readonly service = inject(AmcVendorService);
   readonly basePath = MASTER_DATA_BASE_PATH;
-  readonly assetTypes = AMC_ASSET_TYPES;
+  private readonly typeService = inject(AssetTypeService);
+
+  get assetTypes(): string[] {
+    return this.typeService.all().map((t) => t.name);
+  }
   readonly contractTypes = CONTRACT_TYPES;
   readonly formatDate = formatDate;
   readonly badgeText = badgeText;
@@ -35,6 +40,7 @@ export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, S
 
   constructor() {
     super({ search: '', assetType: '', contractType: '', status: '' });
+    this.service.load();
   }
 
   keyOf(r: AmcVendorRecord): string {
@@ -63,8 +69,8 @@ export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, S
     return r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   /** 'ended', 'soon' (within the notice period) or '' for the end date flag. */
@@ -79,7 +85,7 @@ export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, S
   }
 
   duplicate(r: AmcVendorRecord): void {
-    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active', logo: null, contractNo: '' });
+    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Active', logo: null, contractNo: '' });
   }
 
   // Starts a new term of the same length the day after the current one ends
@@ -90,21 +96,20 @@ export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, S
     const end = new Date(start.getTime() + length);
     const startDate = start.toISOString().slice(0, 10);
     const endDate = end.toISOString().slice(0, 10);
-    this.service.save({ ...r, startDate, endDate, status: 'Active' }, r.code);
-    this.notify(`${r.name} renewed to ${formatDate(endDate)}.`);
+    this.persist(this.service.save({ ...r, startDate, endDate, status: 'Active' }, r.code), () => this.notify(`${r.name} renewed to ${formatDate(endDate)}.`));
   }
 
   onSaved(event: { record: AmcVendorRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: AmcVendorRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

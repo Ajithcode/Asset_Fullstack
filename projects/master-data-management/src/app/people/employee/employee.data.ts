@@ -31,6 +31,7 @@ function stamp(day: number): string {
 function build(i: number, [id, name, department, designation, status, skills]: Seed): EmployeeRecord {
   const designMaria = id === 'EMP010';
   return {
+    recordId: '',
     id,
     name,
     photo: null,

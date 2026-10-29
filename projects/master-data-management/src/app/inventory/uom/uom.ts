@@ -32,6 +32,7 @@ export class UomPage extends ListPage<UomRecord, Filters, SortKey> {
 
   constructor() {
     super({ search: '', type: '', status: '' });
+    this.service.load();
   }
 
   keyOf(r: UomRecord): string {
@@ -55,8 +56,8 @@ export class UomPage extends ListPage<UomRecord, Filters, SortKey> {
     return r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   // Units used by items or as another unit's base can't be deleted
@@ -74,17 +75,17 @@ export class UomPage extends ListPage<UomRecord, Filters, SortKey> {
   }
 
   onSaved(event: { record: UomRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode) this.items.recode('uom', event.originalCode, event.record.code);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
+      if (event.originalCode) this.items.recode('uom', event.originalCode, saved.code);
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: UomRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

@@ -5,6 +5,8 @@ export type DepartmentType = (typeof DEPARTMENT_TYPES)[number];
 export type DepartmentStatus = 'Active' | 'Inactive';
 
 export interface DepartmentRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   businessUnitCode: string;

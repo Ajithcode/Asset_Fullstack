@@ -31,6 +31,7 @@ export function initialTaskTemplates(): TaskTemplateRecord[] {
     const each = Math.max(5, Math.round((estimatedHours * 60) / list.length / 5) * 5);
     const tasks: TemplateTask[] = list.map((description, k) => ({ description, minutes: each, required: k < list.length - 1 || list.length < 4 }));
     return {
+      id: '',
       code,
       name,
       maintenanceType,
@@ -45,5 +46,5 @@ export function initialTaskTemplates(): TaskTemplateRecord[] {
 }
 
 export function blankTaskTemplate(): TaskTemplateRecord {
-  return { code: '', name: '', maintenanceType: '', estimatedHours: 1, description: '', status: 'Active', tasks: [], createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', maintenanceType: '', estimatedHours: 1, description: '', status: 'Active', tasks: [], createdOn: '', updatedOn: '' };
 }

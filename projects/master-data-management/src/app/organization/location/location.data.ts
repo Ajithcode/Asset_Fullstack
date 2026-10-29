@@ -113,6 +113,7 @@ function fromSeed(s: Seed): LocationRecord {
   const [code, name, type, buildingCode, floorCode, zoneCode, parentCode, status, outdoor, area, description, createdOn, updatedOn] = s;
   const building = findBuilding(buildingCode)!;
   return {
+    id: '',
     code,
     name,
     type,
@@ -177,6 +178,7 @@ function generate(): LocationRecord[] {
     const updated = new Date(created.getTime() + ((i * 37) % 400) * 24 * 3600 * 1000);
     const area = type === 'Bin' || type === 'Rack' ? 2 + (i % 4) : 20 + ((i * 53) % 900);
     records.push({
+      id: '',
       code,
       name: generatedName(type, i + 1, zone.floorCode),
       type,
@@ -209,4 +211,33 @@ export function initialLocations(): LocationRecord[] {
   // Sub-codes (LOC-001-01) go after the main list so the first page matches the design
   const isSubCode = (r: LocationRecord) => /^LOC-\d+-\d+$/.test(r.code);
   return [...seeds.filter((r) => !isSubCode(r)), ...generate(), ...seeds.filter(isSubCode)];
+}
+
+export function blankLocation(): LocationRecord {
+  return {
+    id: '',
+    code: '',
+    name: '',
+    type: '' as LocationRecord['type'],
+    environment: 'Indoor',
+    siteId: '',
+    buildingCode: '',
+    floorCode: '',
+    zoneCode: '',
+    parentCode: null,
+    area: null,
+    capacity: null,
+    description: '',
+    status: 'Active',
+    image: null,
+    lat: 0,
+    lng: 0,
+    restrictedAccess: false,
+    temperatureControlled: false,
+    allowAssetAssignment: true,
+    enableTracking: true,
+    geofenceAlerts: false,
+    createdOn: '',
+    updatedOn: ''
+  };
 }

@@ -15,7 +15,9 @@ import {
   Search,
   Warehouse
 } from 'lucide-angular';
+import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { apiErrorMessage } from '../../shared/api-error';
 import { SiteDetail } from './site-detail/site-detail';
 import { SiteForm, SiteFormTab } from './site-form/site-form';
 import { BusinessUnitService } from '../business-unit/business-unit.service';
@@ -60,7 +62,7 @@ export class SitePage {
   selected = new Set<string>();
   menuFor: string | null = null;
 
-  selectedId: string | null = 'S01';
+  selectedId: string | null = null;
   formOpen = false;
   formMode: 'add' | 'edit' = 'add';
   formRecord: SiteRecord | null = null;
@@ -68,7 +70,12 @@ export class SitePage {
 
   pendingDelete: SiteRecord[] = [];
   toast = '';
+  saving = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    this.service.load();
+  }
 
   get stats() {
     return this.service.stats();
@@ -108,7 +115,7 @@ export class SitePage {
   }
 
   get selectedSite(): SiteRecord | undefined {
-    return this.service.find(this.selectedId);
+    return this.service.find(this.selectedId) ?? this.service.all()[0];
   }
 
   countryShort(country: string): string {
@@ -198,23 +205,38 @@ export class SitePage {
   }
 
   onSaved(site: SiteRecord): void {
-    const isNew = !this.service.find(site.id);
-    this.service.save(site);
-    this.open(site.id, false);
-    this.notify(`${site.name} ${isNew ? 'added' : 'updated'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    const isNew = !site.id;
+    this.service.save(site).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.open(saved.id, false);
+        this.notify(`${saved.name} ${isNew ? 'added' : 'updated'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(site: SiteRecord): void {
     this.menuFor = null;
     const status = site.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...site, status });
-    this.notify(`${site.name} marked ${status}.`);
+    this.service.save({ ...site, status }).subscribe({
+      next: () => this.notify(`${site.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   onAddImage(event: { site: SiteRecord; image: string }): void {
-    this.service.save({ ...event.site, images: [...event.site.images, event.image] });
-    this.notify('Image added.');
+    // DEMO MODE: images aren't stored by the API yet, so this only lasts until the page reloads
+    this.service.save({ ...event.site, images: [...event.site.images, event.image] }).subscribe({
+      next: () => this.notify('Image added.'),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   // Sites that still have buildings can't be deleted
@@ -234,14 +256,20 @@ export class SitePage {
   }
 
   confirmDelete(): void {
-    const ids = this.pendingDelete.map((r) => r.id);
-    this.service.remove(ids);
-    ids.forEach((id) => this.selected.delete(id));
-    if (this.selectedId && ids.includes(this.selectedId)) this.selectedId = this.service.all()[0]?.id ?? null;
-    if (this.formMode === 'edit' && this.formRecord && ids.includes(this.formRecord.id)) this.closeForm();
-    this.notify(ids.length === 1 ? `${this.pendingDelete[0].name} deleted.` : `${ids.length} sites deleted.`);
+    const list = this.pendingDelete;
+    const ids = list.map((r) => r.id);
     this.pendingDelete = [];
-    this.goTo(this.page);
+    concat(...list.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
+      next: () => {
+        ids.forEach((id) => this.selected.delete(id));
+        if (this.selectedId && ids.includes(this.selectedId)) this.selectedId = this.service.all()[0]?.id ?? null;
+        if (this.formMode === 'edit' && this.formRecord && ids.includes(this.formRecord.id)) this.closeForm();
+        this.notify(ids.length === 1 ? `${list[0].name} deleted.` : `${ids.length} sites deleted.`);
+        this.goTo(this.page);
+      },
+      // Any sites deleted before the failure are already gone from the table
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   cancelDelete(): void {

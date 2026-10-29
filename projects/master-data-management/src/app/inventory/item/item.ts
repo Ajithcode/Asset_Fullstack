@@ -36,6 +36,7 @@ export class ItemPage extends ListPage<ItemRecord, Filters, SortKey> {
 
   constructor() {
     super({ search: '', category: '', status: '' });
+    this.service.load();
     this.sortKey = 'name';
   }
 
@@ -64,8 +65,8 @@ export class ItemPage extends ListPage<ItemRecord, Filters, SortKey> {
     return key === 'stock' ? r.currentStock : key === 'category' ? this.categoryName(r) : r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   // Items still holding stock can't be deleted
@@ -93,20 +94,20 @@ export class ItemPage extends ListPage<ItemRecord, Filters, SortKey> {
   }
 
   duplicate(r: ItemRecord): void {
-    this.openAdd({ ...structuredClone(r), code: this.service.nextCode(), name: `${r.name} (Copy)`, partNumber: '', currentStock: 0, status: 'Active' });
+    this.openAdd({ ...structuredClone(r), id: '', code: this.service.nextCode(), name: `${r.name} (Copy)`, partNumber: '', currentStock: 0, status: 'Active' });
   }
 
   onSaved(event: { record: ItemRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: ItemRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

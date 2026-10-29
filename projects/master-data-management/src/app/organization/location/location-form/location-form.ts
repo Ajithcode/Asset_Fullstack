@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angu
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Building2, LucideAngularModule, X } from 'lucide-angular';
-import { positionFor } from '../location.data';
+import { blankLocation, positionFor } from '../location.data';
 import { LOCATION_TYPES, LocationRecord } from '../location.model';
 import { LocationService } from '../location.service';
 
@@ -37,13 +37,13 @@ export class LocationForm implements OnChanges {
   ];
 
   tab: FormTab = 'basic';
-  form: LocationRecord = this.blank();
+  form: LocationRecord = blankLocation();
   errors: Partial<Record<FieldKey, string>> = {};
   // Coordinates follow the chosen zone until the user types their own
   private coordsEdited = false;
 
   ngOnChanges(): void {
-    this.form = this.location ? { ...this.location } : this.blank();
+    this.form = this.location ? { ...this.location } : blankLocation();
     this.coordsEdited = !!this.location;
     this.original = this.mode === 'edit' ? this.location : null;
     this.errors = {};
@@ -181,33 +181,5 @@ export class LocationForm implements OnChanges {
     const pos = positionFor(this.form.code || 'NEW', this.form.buildingCode, this.form.floorCode, this.form.zoneCode);
     this.form.lat = Number(pos.lat.toFixed(6));
     this.form.lng = Number(pos.lng.toFixed(6));
-  }
-
-  private blank(): LocationRecord {
-    return {
-      code: '',
-      name: '',
-      type: '' as LocationRecord['type'],
-      environment: 'Indoor',
-      siteId: '',
-      buildingCode: '',
-      floorCode: '',
-      zoneCode: '',
-      parentCode: null,
-      area: null,
-      capacity: null,
-      description: '',
-      status: 'Active',
-      image: null,
-      lat: 0,
-      lng: 0,
-      restrictedAccess: false,
-      temperatureControlled: false,
-      allowAssetAssignment: true,
-      enableTracking: true,
-      geofenceAlerts: false,
-      createdOn: '',
-      updatedOn: ''
-    };
   }
 }

@@ -65,6 +65,7 @@ function build(i: number, [code, name, assetType, contractType, startDate, endDa
   const comprehensive = contractType === 'Comprehensive AMC';
   return {
     ...blankVendorBase(),
+    id: '',
     code,
     name,
     brandColor,

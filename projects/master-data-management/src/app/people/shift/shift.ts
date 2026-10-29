@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, CalendarClock, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { concat, map, switchMap } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
 import { TeamService } from '../team/team.service';
 import { SHIFT_TYPES, shiftHours } from './shift.data';
@@ -28,6 +29,7 @@ export class ShiftPage extends ListPage<ShiftRecord, ShiftFilters, SortKey> {
 
   constructor() {
     super({ search: '', shiftType: '', status: '' });
+    this.service.load();
   }
 
   keyOf(r: ShiftRecord): string {
@@ -51,8 +53,8 @@ export class ShiftPage extends ListPage<ShiftRecord, ShiftFilters, SortKey> {
     return key === 'duration' ? (this.duration(r) ?? -1) : r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return concat(...codes.map((c) => this.service.remove(this.service.find(c)!)));
   }
 
   // Shifts still assigned to teams can't be deleted
@@ -66,21 +68,24 @@ export class ShiftPage extends ListPage<ShiftRecord, ShiftFilters, SortKey> {
   }
 
   duplicate(r: ShiftRecord): void {
-    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
+    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Active' });
   }
 
   onSaved(event: { record: ShiftRecord; originalCode: string | null; teamCodes: string[] }): void {
-    this.service.save(event.record, event.originalCode);
-    this.teams.assignShift(event.record.code, event.teamCodes, event.originalCode ?? event.record.code);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    // Save the shift, then move the chosen teams onto it
+    const request$ = this.service.save(event.record).pipe(
+      switchMap((saved) => this.teams.assignShift(saved.code, event.teamCodes, event.originalCode ?? saved.code).pipe(map(() => saved)))
+    );
+    this.persist(request$, (saved) => {
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: ShiftRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

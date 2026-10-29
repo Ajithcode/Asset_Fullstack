@@ -1,6 +1,8 @@
 export type SecurityStatus = 'Active' | 'Inactive';
 
 export interface ModuleRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   category: string;
@@ -14,6 +16,8 @@ export interface ModuleRecord {
 export type PermissionType = 'Read' | 'Create' | 'Update' | 'Delete' | 'Approve' | 'Manage' | 'Execute';
 
 export interface PermissionRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   // Module code
@@ -28,6 +32,8 @@ export interface PermissionRecord {
 export type RoleType = 'System' | 'Business' | 'Operational' | 'Read Only';
 
 export interface RoleRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   code: string;
   name: string;
   type: RoleType;
@@ -41,6 +47,8 @@ export interface RoleRecord {
 }
 
 export interface UserRecord {
+  /** Mongo id from the API; empty until the record is first saved. */
+  id: string;
   // USR-001
   code: string;
   name: string;

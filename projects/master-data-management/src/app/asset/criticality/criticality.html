@@ -96,7 +96,7 @@
           </thead>
           <tbody>
             @for (r of pageRows; track r.code) {
-              <tr [class.is-selected]="r.code === selectedCode" (click)="open(r.code, false)">
+              <tr [class.is-selected]="r.code === selectedLevel?.code" (click)="open(r.code, false)">
                 <td class="col-check" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="selected.has(r.code)" (change)="toggleRow(r.code)" [attr.aria-label]="'Select ' + r.name" />
                 </td>
@@ -129,7 +129,13 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="10" class="empty">No criticality levels match these filters.</td></tr>
+              @if (service.loading) {
+                <tr><td colspan="10" class="empty">Loading criticality levels...</td></tr>
+              } @else if (service.loadError) {
+                <tr><td colspan="10" class="empty">{{ service.loadError }} <button type="button" class="btn btn--link" (click)="service.load()">Retry</button></td></tr>
+              } @else {
+                <tr><td colspan="10" class="empty">No criticality levels match these filters.</td></tr>
+              }
             }
           </tbody>
         </table>

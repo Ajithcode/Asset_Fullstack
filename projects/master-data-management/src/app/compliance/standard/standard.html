@@ -118,7 +118,13 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="9" class="empty">No standards match these filters.</td></tr>
+              @if (service.loading) {
+                <tr><td colspan="9" class="empty">Loading standards...</td></tr>
+              } @else if (service.loadError) {
+                <tr><td colspan="9" class="empty">{{ service.loadError }} <button type="button" class="btn btn--link" (click)="service.load()">Retry</button></td></tr>
+              } @else {
+                <tr><td colspan="9" class="empty">No standards match these filters.</td></tr>
+              }
             }
           </tbody>
         </table>

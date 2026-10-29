@@ -183,6 +183,7 @@ export function initialAssetTypes(): AssetTypeRecord[] {
     const fields: CustomField[] = (CUSTOM_FIELDS[category] ?? [['Serial Number', 'Text', true]]).map(([n, type, required]) => ({ name: n, type, required }));
     const expensed = assetClass === 'Consumable' || assetClass === 'Intangible Asset';
     return {
+      id: '',
       code,
       name,
       category,
@@ -225,6 +226,7 @@ export function initialAssetTypes(): AssetTypeRecord[] {
 
 export function blankAssetType(): AssetTypeRecord {
   return {
+    id: '',
     code: '',
     name: '',
     category: '',

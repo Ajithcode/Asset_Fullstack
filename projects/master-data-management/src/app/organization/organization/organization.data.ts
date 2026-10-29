@@ -73,8 +73,9 @@ const GULF_SETTINGS: OrganizationSettings = {
   enableFinancialTracking: false
 };
 
+// Demo seed rows, kept for seeding a fresh database
 export function initialOrganizations(): OrganizationRecord[] {
-  return [
+  const seeds: Omit<OrganizationRecord, 'id'>[] = [
     {
       code: 'DCS',
       name: 'DCS Group',
@@ -166,10 +167,12 @@ export function initialOrganizations(): OrganizationRecord[] {
       updatedOn: '2026-01-05T10:00'
     }
   ];
+  return seeds.map((r) => ({ id: '', ...r }));
 }
 
 export function blankOrganization(): OrganizationRecord {
   return {
+    id: '',
     code: '',
     name: '',
     type: '' as OrganizationRecord['type'],

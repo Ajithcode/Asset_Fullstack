@@ -39,6 +39,7 @@ const CATEGORIES: [string, string, string | null, string, string][] = [
 
 export function initialItemCategories(): ItemCategoryRecord[] {
   return CATEGORIES.map(([code, name, parentCode, description, defaultUom], i) => ({
+    id: '',
     code,
     name,
     parentCode,
@@ -67,6 +68,7 @@ const UOMS: [string, string, UomType, string, string, boolean][] = [
 
 export function initialUoms(): UomRecord[] {
   return UOMS.map(([code, name, type, symbol, description, allowDecimals], i) => ({
+    id: '',
     code,
     name,
     type,
@@ -96,6 +98,7 @@ const STATUSES: [string, string, StockStatusType, string, string, string, boolea
 
 export function initialStockStatuses(): StockStatusRecord[] {
   return STATUSES.map(([code, name, type, color, description, usage, isDefault, canIssue, canReserve, countsAsAvailable, triggersReorder], i) => ({
+    id: '',
     code,
     name,
     type,
@@ -125,6 +128,7 @@ const WAREHOUSES: [string, string, string, string, string, string][] = [
 
 export function initialWarehouses(): WarehouseRecord[] {
   return WAREHOUSES.map(([code, name, location, managerId, city, state], i) => ({
+    id: '',
     code,
     name,
     location,
@@ -162,6 +166,7 @@ const STORES: [string, string, string, string, string, number][] = [
 
 export function initialStores(): StoreRecord[] {
   return STORES.map(([code, name, warehouseCode, storeType, keeperId], i) => ({
+    id: '',
     code,
     name,
     warehouseCode,
@@ -184,6 +189,7 @@ export function initialBins(): BinRecord[] {
       const rack = String.fromCharCode(65 + Math.floor(b / 2));
       const shelf = String((b % 2) + 1);
       bins.push({
+        id: '',
         code: `${storeCode.slice(3)}-${rack}${shelf}`,
         storeCode,
         rack,
@@ -218,6 +224,7 @@ export function initialItems(): ItemRecord[] {
   return ITEMS.map(([code, name, partNumber, category, uom, currentStock, minStock, reorderLevel, unitCost, binCode], i) => {
     const storeCode = bins.find((b) => b.code === binCode)?.storeCode ?? '';
     return {
+      id: '',
       code,
       name,
       partNumber,
@@ -253,15 +260,16 @@ export function initialItems(): ItemRecord[] {
 }
 
 export function blankItemCategory(): ItemCategoryRecord {
-  return { code: '', name: '', parentCode: null, description: '', status: 'Active', defaultUom: 'NOS', valuationMethod: 'Weighted Average', inspectionOnReceipt: false, allowNegativeStock: false, createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', parentCode: null, description: '', status: 'Active', defaultUom: 'NOS', valuationMethod: 'Weighted Average', inspectionOnReceipt: false, allowNegativeStock: false, createdOn: '', updatedOn: '' };
 }
 
 export function blankUom(): UomRecord {
-  return { code: '', name: '', type: 'Discrete', symbol: '', baseUom: '', conversionFactor: 1, description: '', status: 'Active', allowDecimals: false, decimalPlaces: 0, createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', type: 'Discrete', symbol: '', baseUom: '', conversionFactor: 1, description: '', status: 'Active', allowDecimals: false, decimalPlaces: 0, createdOn: '', updatedOn: '' };
 }
 
 export function blankStockStatus(): StockStatusRecord {
   return {
+    id: '',
     code: '',
     name: '',
     type: 'Available',
@@ -283,6 +291,7 @@ export function blankStockStatus(): StockStatusRecord {
 
 export function blankWarehouse(): WarehouseRecord {
   return {
+    id: '',
     code: '',
     name: '',
     location: '',
@@ -301,15 +310,16 @@ export function blankWarehouse(): WarehouseRecord {
 }
 
 export function blankStore(warehouseCode = ''): StoreRecord {
-  return { code: '', name: '', warehouseCode, storeType: 'General', keeperId: '', description: '', status: 'Active', temperatureControlled: false, restrictedAccess: false, createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', warehouseCode, storeType: 'General', keeperId: '', description: '', status: 'Active', temperatureControlled: false, restrictedAccess: false, createdOn: '', updatedOn: '' };
 }
 
 export function blankBin(storeCode = ''): BinRecord {
-  return { code: '', storeCode, rack: '', shelf: '', binType: 'Shelf', capacity: null, description: '', status: 'Active', createdOn: '', updatedOn: '' };
+  return { id: '', code: '', storeCode, rack: '', shelf: '', binType: 'Shelf', capacity: null, description: '', status: 'Active', createdOn: '', updatedOn: '' };
 }
 
 export function blankItem(): ItemRecord {
   return {
+    id: '',
     code: '',
     name: '',
     partNumber: '',

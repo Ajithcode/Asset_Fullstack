@@ -1,45 +1,57 @@
 import { Injectable } from '@angular/core';
-import { initialServiceProviders } from './service-provider.data';
+import { ApiCodeStore, MasterDto } from '../../shared/api-code-store';
+import { blankServiceProvider } from './service-provider.data';
 import { ServiceProviderRecord } from './service-provider.model';
 
-/** DEMO MODE: in-memory service providers; replace these methods with API calls when the backend is ready. */
+interface ServiceProviderDto extends MasterDto {
+  serviceProviderName: string;
+  website: string | null;
+  primaryContact: string | null;
+  serviceType: string | null;
+  email: string | null;
+  country: string | null;
+  phone: string | null;
+  description: string | null;
+}
+
+/**
+ * Service providers from {projectApiUrl}api/master-data/service-providers. Services, licences,
+ * address, documents and settings are UI-only for now.
+ */
 @Injectable({ providedIn: 'root' })
-export class ServiceProviderService {
-  private records: ServiceProviderRecord[] = initialServiceProviders();
-
-  all(): ServiceProviderRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null): ServiceProviderRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+export class ServiceProviderService extends ApiCodeStore<ServiceProviderRecord, ServiceProviderDto> {
+  constructor() {
+    super('service-providers');
+    this.load();
   }
 
   countries(): string[] {
-    return [...new Set(this.records.map((r) => r.country))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(this.records.map((r) => r.country).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+  protected toRecord(dto: ServiceProviderDto, cached: ServiceProviderRecord | undefined): ServiceProviderRecord {
+    return {
+      ...(cached ?? blankServiceProvider()),
+      name: dto.serviceProviderName,
+      website: dto.website ?? '',
+      contactPerson: dto.primaryContact ?? '',
+      serviceType: dto.serviceType ?? '',
+      email: dto.email ?? '',
+      country: dto.country ?? '',
+      phone: dto.phone ?? ''
+    };
   }
 
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  save(record: ServiceProviderRecord, originalCode: string | null): void {
-    const index = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    if (index >= 0) {
-      this.records[index] = record;
-      this.records = [...this.records];
-    } else {
-      this.records = [record, ...this.records];
-    }
-  }
-
-  remove(codes: string[]): void {
-    this.records = this.records.filter((r) => !codes.includes(r.code));
+  protected toRequest(r: ServiceProviderRecord) {
+    return {
+      serviceProviderName: r.name,
+      code: r.code,
+      website: r.website || null,
+      primaryContact: r.contactPerson,
+      serviceType: r.serviceType,
+      email: r.email,
+      country: r.country,
+      phone: r.phone
+    };
   }
 }

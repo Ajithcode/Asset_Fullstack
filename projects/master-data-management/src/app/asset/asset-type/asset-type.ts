@@ -2,7 +2,9 @@ import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, Ellipsis, Layers, LucideAngularModule, Monitor, Plus, Search } from 'lucide-angular';
+import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { apiErrorMessage } from '../../shared/api-error';
 import { MODEL_ICONS } from '../asset-model/asset-model.icons';
 import { AssetModelService } from '../asset-model/asset-model.service';
 import { AssetTypeFilters, AssetTypeRecord } from './asset-type.model';
@@ -42,7 +44,7 @@ export class AssetTypePage {
   selected = new Set<string>();
   menuFor: string | null = null;
 
-  selectedCode: string | null = 'AT-LAP-001';
+  selectedCode: string | null = null;
   formOpen = false;
   formMode: 'add' | 'edit' = 'add';
   formRecord: AssetTypeRecord | null = null;
@@ -50,7 +52,12 @@ export class AssetTypePage {
 
   pendingDelete: AssetTypeRecord[] = [];
   toast = '';
+  saving = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    this.service.load();
+  }
 
   get stats() {
     const all = this.service.all();
@@ -94,7 +101,7 @@ export class AssetTypePage {
   }
 
   get selectedType(): AssetTypeRecord | undefined {
-    return this.service.find(this.selectedCode);
+    return this.service.find(this.selectedCode) ?? this.service.all()[0];
   }
 
   apply(): void {
@@ -162,7 +169,7 @@ export class AssetTypePage {
 
   // A copy keeps every default; name and code must be new
   duplicate(t: AssetTypeRecord): void {
-    this.openAdd({ ...structuredClone(t), code: '', name: `${t.name} (Copy)`, status: 'Active', openWorkOrders: 0, documents: 0 });
+    this.openAdd({ ...structuredClone(t), id: '', code: '', name: `${t.name} (Copy)`, status: 'Active', openWorkOrders: 0, documents: 0 });
   }
 
   openEdit(event: { type: AssetTypeRecord; tab?: TypeFormTab }): void {
@@ -185,20 +192,32 @@ export class AssetTypePage {
   }
 
   onSaved(event: { record: AssetTypeRecord; originalCode: string | null; originalName: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    // Asset models refer to the type by name
-    if (event.originalName) this.models.renameType(event.originalName, event.record.name);
-    if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(event.record.code);
-    this.open(event.record.code, false);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.save(event.record).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        // Asset models show the type by name; the API renames them too
+        if (event.originalName) this.models.renameType(event.originalName, saved.name);
+        if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
+        this.open(saved.code, false);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(t: AssetTypeRecord): void {
     this.menuFor = null;
     const status = t.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...t, status }, t.code);
-    this.notify(`${t.name} marked ${status}.`);
+    this.service.save({ ...t, status }).subscribe({
+      next: () => this.notify(`${t.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   // Types still used by asset models can't be deleted; they can be marked inactive instead
@@ -218,14 +237,20 @@ export class AssetTypePage {
   }
 
   confirmDelete(): void {
-    const codes = this.pendingDelete.map((r) => r.code);
-    this.service.remove(codes);
-    codes.forEach((c) => this.selected.delete(c));
-    if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-    if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-    this.notify(codes.length === 1 ? `${this.pendingDelete[0].name} deleted.` : `${codes.length} asset types deleted.`);
+    const list = this.pendingDelete;
+    const codes = list.map((r) => r.code);
     this.pendingDelete = [];
-    this.goTo(this.page);
+    concat(...list.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
+      next: () => {
+        codes.forEach((c) => this.selected.delete(c));
+        if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
+        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} asset types deleted.`);
+        this.goTo(this.page);
+      },
+      // Any asset types deleted before the failure are already gone from the table
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   cancelDelete(): void {

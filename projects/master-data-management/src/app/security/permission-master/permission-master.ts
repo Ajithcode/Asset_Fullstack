@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, KeyRound, LucideAngularModule, Plus, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { concat, map, of, switchMap, toArray } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
 import { PERMISSION_TYPES } from '../security.data';
 import { PermissionRecord, PermissionType } from '../security.model';
@@ -33,6 +34,7 @@ export class PermissionMasterPage extends ListPage<PermissionRecord, Filters, So
 
   constructor() {
     super({ search: '', module: '', type: '' });
+    this.service.load();
   }
 
   keyOf(r: PermissionRecord): string {
@@ -64,8 +66,8 @@ export class PermissionMasterPage extends ListPage<PermissionRecord, Filters, So
     return this.modules.nameOf(r.module);
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   // Permissions granted to roles can't be deleted
@@ -79,25 +81,29 @@ export class PermissionMasterPage extends ListPage<PermissionRecord, Filters, So
   }
 
   duplicate(r: PermissionRecord): void {
-    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
+    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Active' });
   }
 
   onSaved(event: { record: PermissionRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode) this.roles.recode('permissions', event.originalCode, event.record.code);
-    // Roles granting the permission also need its module
-    for (const role of this.roles.withPermission(event.record.code)) {
-      if (!role.modules.includes(event.record.module)) this.roles.save({ ...role, modules: [...role.modules, event.record.module] }, role.code);
-    }
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    const request$ = this.service.save(event.record, event.originalCode).pipe(
+      switchMap((saved) => {
+        if (event.originalCode) this.roles.recode('permissions', event.originalCode, saved.code);
+        // Roles granting the permission also need its module
+        const missing = this.roles.withPermission(saved.code).filter((role) => !role.modules.includes(saved.module));
+        const updates = missing.map((role) => this.roles.save({ ...role, modules: [...role.modules, saved.module] }, role.code));
+        return (updates.length ? concat(...updates).pipe(toArray()) : of([])).pipe(map(() => saved));
+      })
+    );
+    this.persist(request$, (saved) => {
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: PermissionRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.${status === 'Inactive' ? ' Roles keep it but it no longer applies.' : ''}`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.${status === 'Inactive' ? ' Roles keep it but it no longer applies.' : ''}`));
   }
 }

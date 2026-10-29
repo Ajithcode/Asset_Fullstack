@@ -43,6 +43,7 @@ const NO_ADDRESS: BfzAddress = { line1: '', line2: '', city: '', state: '', coun
 
 function base(): Omit<BfzRecord, 'code' | 'name' | 'type' | 'siteId'> {
   return {
+    id: '',
     buildingCode: null,
     floorCode: null,
     description: '',

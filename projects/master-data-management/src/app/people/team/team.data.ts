@@ -52,6 +52,7 @@ export function initialTeams(): TeamRecord[] {
       members.push(technical && nextTech <= 86 ? id('TECH', nextTech++) : id('EMP', nextEmp++));
     }
     return {
+      id: '',
       code,
       name,
       department,
@@ -71,6 +72,7 @@ export function initialTeams(): TeamRecord[] {
 
 export function blankTeam(): TeamRecord {
   return {
+    id: '',
     code: '',
     name: '',
     department: '',

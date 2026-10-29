@@ -9,6 +9,8 @@ export interface Certification {
 }
 
 export interface EmployeeRecord {
+  /** Mongo id from the API; empty until the record is first saved. `id` is the person's own number. */
+  recordId: string;
   id: string;
   name: string;
   photo: string | null;

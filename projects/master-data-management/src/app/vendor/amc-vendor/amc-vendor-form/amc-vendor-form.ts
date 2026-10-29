@@ -7,7 +7,8 @@ import { AssetModelService } from '../../../asset/asset-model/asset-model.servic
 import { CURRENCIES } from '../../../organization/organization/organization.data';
 import { nowStamp } from '../../../people/people.data';
 import { BASE_TAB_OF, VendorAddressFields, VendorBasic, VendorDocuments, VendorErrors, cleanVendorBase, validateVendorBase } from '../../vendor-fields/vendor-fields';
-import { AMC_ASSET_TYPES, BILLING_CYCLES, CONTRACT_TYPES, MODEL_TYPES_FOR, blankAmcVendor } from '../amc-vendor.data';
+import { AssetTypeService } from '../../../asset/asset-type/asset-type.service';
+import { BILLING_CYCLES, CONTRACT_TYPES, MODEL_TYPES_FOR, blankAmcVendor } from '../amc-vendor.data';
 import { AmcVendorRecord } from '../amc-vendor.model';
 import { AmcVendorService } from '../amc-vendor.service';
 
@@ -44,7 +45,12 @@ export class AmcVendorForm implements OnChanges {
   readonly service = inject(AmcVendorService);
   readonly models = inject(AssetModelService);
   readonly icons = { X };
-  readonly assetTypes = AMC_ASSET_TYPES;
+  private readonly typeService = inject(AssetTypeService);
+
+  /** Asset types from the Asset Type master; the contract links to one by id. */
+  get assetTypes(): string[] {
+    return this.typeService.active().map((t) => t.name);
+  }
   readonly contractTypes = CONTRACT_TYPES;
   readonly billingCycles = BILLING_CYCLES;
   readonly currencies = CURRENCIES;
@@ -85,7 +91,8 @@ export class AmcVendorForm implements OnChanges {
 
   /** Asset models that fit the contract's asset type (or all, when asked), plus those already covered. */
   get modelOptions(): AssetModelRecord[] {
-    const types = MODEL_TYPES_FOR[this.form.assetType] ?? [];
+    // Demo contract types map to several model types; a real asset type matches its own models
+    const types = MODEL_TYPES_FOR[this.form.assetType] ?? (this.form.assetType ? [this.form.assetType] : []);
     const term = this.modelSearch.trim().toLowerCase();
     return this.models
       .all()

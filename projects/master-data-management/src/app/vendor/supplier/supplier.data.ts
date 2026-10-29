@@ -34,6 +34,7 @@ function build(i: number, [code, name, category, country, contactPerson, phone, 
   const inactive = i >= SEEDS.length && i % 11 === 4;
   return {
     ...blankVendorBase(),
+    id: '',
     code,
     name,
     logo: null,

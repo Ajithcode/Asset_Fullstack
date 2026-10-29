@@ -108,7 +108,7 @@
           </thead>
           <tbody>
             @for (row of pageRows; track row.record.code) {
-              <tr [class.is-selected]="row.record.code === selectedCode" (click)="open(row.record.code, false)">
+              <tr [class.is-selected]="row.record.code === selectedRecord?.code" (click)="open(row.record.code, false)">
                 <td class="col-check" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="selected.has(row.record.code)" (change)="toggleRow(row.record.code)" [attr.aria-label]="'Select ' + row.record.name" />
                 </td>
@@ -152,7 +152,13 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="10" class="empty">Nothing matches these filters.</td></tr>
+              @if (service.loading) {
+                <tr><td colspan="10" class="empty">Loading buildings, floors and zones...</td></tr>
+              } @else if (service.loadError) {
+                <tr><td colspan="10" class="empty">{{ service.loadError }} <button type="button" class="btn btn--link" (click)="service.load()">Retry</button></td></tr>
+              } @else {
+                <tr><td colspan="10" class="empty">Nothing matches these filters.</td></tr>
+              }
             }
           </tbody>
         </table>

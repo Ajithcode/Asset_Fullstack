@@ -2,7 +2,9 @@ import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Box, ChevronLeft, ChevronRight, Ellipsis, Factory, Layers, LucideAngularModule, Plus, Search } from 'lucide-angular';
+import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { apiErrorMessage } from '../../shared/api-error';
 import { AssetTypeService } from '../asset-type/asset-type.service';
 import { MODEL_ICONS } from './asset-model.icons';
 import { AssetModelFilters, AssetModelRecord } from './asset-model.model';
@@ -43,7 +45,7 @@ export class AssetModelPage {
   selected = new Set<string>();
   menuFor: string | null = null;
 
-  selectedCode: string | null = 'MOD-DELL-7440';
+  selectedCode: string | null = null;
   formOpen = false;
   formMode: 'add' | 'edit' = 'add';
   formRecord: AssetModelRecord | null = null;
@@ -51,9 +53,11 @@ export class AssetModelPage {
 
   pendingDelete: AssetModelRecord[] = [];
   toast = '';
+  saving = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
+    this.service.load();
     // "View Models" on the Manufacturer page links here with ?manufacturer=Dell
     const manufacturer = this.route.snapshot.queryParamMap.get('manufacturer');
     if (manufacturer) {
@@ -111,7 +115,7 @@ export class AssetModelPage {
   }
 
   get selectedModel(): AssetModelRecord | undefined {
-    return this.service.find(this.selectedCode);
+    return this.service.find(this.selectedCode) ?? this.rows[0] ?? this.service.all()[0];
   }
 
   iconFor(r: AssetModelRecord) {
@@ -183,7 +187,7 @@ export class AssetModelPage {
 
   // A copy keeps the specifications and defaults; the code must be new and it starts with no assets
   duplicate(m: AssetModelRecord): void {
-    this.openAdd({ ...structuredClone(m), code: '', name: `${m.name} (Copy)`, assetCount: 0, status: 'Active' });
+    this.openAdd({ ...structuredClone(m), id: '', code: '', name: `${m.name} (Copy)`, assetCount: 0, status: 'Active' });
   }
 
   openEdit(event: { model: AssetModelRecord; tab?: ModelFormTab }): void {
@@ -206,18 +210,30 @@ export class AssetModelPage {
   }
 
   onSaved(event: { record: AssetModelRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(event.record.code);
-    this.open(event.record.code, false);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.save(event.record).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
+        this.open(saved.code, false);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(m: AssetModelRecord): void {
     this.menuFor = null;
     const status = m.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...m, status }, m.code);
-    this.notify(`${m.name} marked ${status}.`);
+    this.service.save({ ...m, status }).subscribe({
+      next: () => this.notify(`${m.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   // Models with registered assets can't be deleted; they can be marked inactive instead
@@ -237,14 +253,20 @@ export class AssetModelPage {
   }
 
   confirmDelete(): void {
-    const codes = this.pendingDelete.map((r) => r.code);
-    this.service.remove(codes);
-    codes.forEach((c) => this.selected.delete(c));
-    if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-    if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-    this.notify(codes.length === 1 ? `${this.pendingDelete[0].name} deleted.` : `${codes.length} models deleted.`);
+    const list = this.pendingDelete;
+    const codes = list.map((r) => r.code);
     this.pendingDelete = [];
-    this.goTo(this.page);
+    concat(...list.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
+      next: () => {
+        codes.forEach((c) => this.selected.delete(c));
+        if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
+        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} models deleted.`);
+        this.goTo(this.page);
+      },
+      // Any models deleted before the failure are already gone from the table
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   cancelDelete(): void {

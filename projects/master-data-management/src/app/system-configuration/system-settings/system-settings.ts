@@ -26,6 +26,7 @@ import { ConditionService } from '../../asset/condition/condition.service';
 import { CriticalityService } from '../../asset/criticality/criticality.service';
 import { HEX_COLOR } from '../../asset/level-icons';
 import { CURRENCIES } from '../../organization/organization/organization.data';
+import { apiErrorMessage } from '../../shared/api-error';
 import { EMAIL, nowStamp, readPhoto } from '../../people/people.data';
 import {
   BACKUP_FREQUENCIES,
@@ -87,6 +88,18 @@ export class SystemSettingsPage {
   readonly syncStatuses = inject(SyncStatusService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly icons = { Settings, Save, Info };
+
+  saving = false;
+
+  constructor() {
+    // The default-criticality dropdown lists the levels from the API
+    if (!this.criticalities.all().length) this.criticalities.load();
+    // Show the stored settings once they arrive, unless editing has already started
+    const untouched = JSON.stringify(this.service.current());
+    this.service.settled$.subscribe(() => {
+      if (JSON.stringify(this.form) === untouched) this.form = this.service.draft();
+    });
+  }
 
   readonly options = {
     timeZones: TIME_ZONES,
@@ -251,9 +264,19 @@ export class SystemSettingsPage {
       this.notify('Some settings need fixing before they can be saved.');
       return;
     }
-    this.service.save(this.form, nowStamp());
-    this.form = this.service.draft();
-    this.notify('Settings saved.');
+    if (this.saving) return;
+    this.saving = true;
+    this.service.save(this.form, nowStamp()).subscribe({
+      next: () => {
+        this.saving = false;
+        this.form = this.service.draft();
+        this.notify('Settings saved.');
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   private validate(f: SystemSettings): Record<string, string> {

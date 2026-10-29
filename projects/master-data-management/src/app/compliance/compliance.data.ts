@@ -28,6 +28,7 @@ const CERTS: [string, string, string, string[], number, number, string, string][
 
 export function initialCertificationTypes(): CertificationTypeRecord[] {
   return CERTS.map(([code, name, category, applicableTo, validityMonths, renewalReminderDays, issuingBody, standardCode], i) => ({
+    id: '',
     code,
     name,
     category,
@@ -61,6 +62,7 @@ const PERMITS: [string, string, string, number, string, number, string[], boolea
 
 export function initialPermitTypes(): PermitTypeRecord[] {
   return PERMITS.map(([code, name, category, validDays, description, approvalLevels, approverRoles, isolationRequired, gasTestRequired], i) => ({
+    id: '',
     code,
     name,
     category,
@@ -92,6 +94,7 @@ const REGS: [string, string, string, string, string, string, string[]][] = [
 
 export function initialRegulations(): RegulationRecord[] {
   return REGS.map(([code, name, country, category, description, issuingAuthority, standardCodes], i) => ({
+    id: '',
     code,
     name,
     country,
@@ -125,6 +128,7 @@ export function initialStandards(): StandardRecord[] {
   return STANDARDS.map(([code, name, organization, category, version, description, title], i) => {
     const year = /^\d{4}$/.test(version) ? Number(version) : 2016;
     return {
+      id: '',
       code,
       name,
       organization,
@@ -145,6 +149,7 @@ export function initialStandards(): StandardRecord[] {
 
 export function blankCertificationType(): CertificationTypeRecord {
   return {
+    id: '',
     code: '',
     name: '',
     category: '',
@@ -166,6 +171,7 @@ export function blankCertificationType(): CertificationTypeRecord {
 
 export function blankPermitType(): PermitTypeRecord {
   return {
+    id: '',
     code: '',
     name: '',
     category: '',
@@ -185,6 +191,7 @@ export function blankPermitType(): PermitTypeRecord {
 
 export function blankRegulation(): RegulationRecord {
   return {
+    id: '',
     code: '',
     name: '',
     country: '',
@@ -204,6 +211,7 @@ export function blankRegulation(): RegulationRecord {
 
 export function blankStandard(): StandardRecord {
   return {
+    id: '',
     code: '',
     name: '',
     organization: '',

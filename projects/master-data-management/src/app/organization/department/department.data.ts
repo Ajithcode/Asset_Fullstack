@@ -97,6 +97,7 @@ const SEEDS: Seed[] = [
 function base(code: string, i: number): Omit<DepartmentRecord, 'code' | 'name' | 'businessUnitCode' | 'type' | 'icon' | 'head'> {
   const created = new Date(Date.UTC(2024, 0, 20) + i * 4 * 86400000).toISOString().slice(0, 16);
   return {
+    id: '',
     parentCode: null,
     logo: null,
     deputy: EMPLOYEES[(i + 5) % EMPLOYEES.length],

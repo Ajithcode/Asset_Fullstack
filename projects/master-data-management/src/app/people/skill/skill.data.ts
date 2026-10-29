@@ -62,6 +62,7 @@ function stamp(day: number): string {
 
 export function initialSkills(): SkillRecord[] {
   return SEEDS.map(([name, code, category, type, graded, inactive, icon, relatedRoles], i) => ({
+    id: '',
     code,
     name,
     category,
@@ -81,6 +82,7 @@ export function initialSkills(): SkillRecord[] {
 
 export function blankSkill(): SkillRecord {
   return {
+    id: '',
     code: '',
     name: '',
     category: '',

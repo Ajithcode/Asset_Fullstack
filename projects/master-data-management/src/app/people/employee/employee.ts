@@ -3,8 +3,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search, Users } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { concat, tap } from 'rxjs';
+import { DepartmentService } from '../../organization/department/department.service';
 import { ListPage } from '../../shared/list-page';
-import { PEOPLE_DEPARTMENTS, avatarColor, initials } from '../people.data';
+import { avatarColor, initials } from '../people.data';
 import { TeamService } from '../team/team.service';
 import { blankEmployee } from './employee.data';
 import { EmployeeForm } from './employee-form/employee-form';
@@ -24,7 +26,7 @@ export class EmployeePage extends ListPage<EmployeeRecord, EmployeeFilters, Sort
   readonly service = inject(EmployeeService);
   private readonly teams = inject(TeamService);
   readonly basePath = MASTER_DATA_BASE_PATH;
-  readonly departments = PEOPLE_DEPARTMENTS;
+  private readonly departmentService = inject(DepartmentService);
   readonly statuses: EmployeeStatus[] = ['Active', 'On Leave', 'Inactive'];
   readonly initials = initials;
   readonly avatarColor = avatarColor;
@@ -32,6 +34,7 @@ export class EmployeePage extends ListPage<EmployeeRecord, EmployeeFilters, Sort
 
   constructor() {
     super({ search: '', department: '', status: '' });
+    this.service.load();
     this.sortKey = 'id';
   }
 
@@ -60,9 +63,12 @@ export class EmployeePage extends ListPage<EmployeeRecord, EmployeeFilters, Sort
     return r[key];
   }
 
-  protected removeRecords(ids: string[]): void {
-    this.service.remove(ids);
-    this.teams.removeMembers(ids);
+  get departments(): string[] {
+    return this.departmentService.names();
+  }
+
+  protected removeRecords(ids: string[]) {
+    return concat(...ids.map((id) => this.service.remove(this.service.find(id)!))).pipe(tap({ complete: () => this.teams.removeMembers(ids) }));
   }
 
   // Team leaders and managers with reports must be replaced first
@@ -78,16 +84,16 @@ export class EmployeePage extends ListPage<EmployeeRecord, EmployeeFilters, Sort
   }
 
   onSaved(event: { record: EmployeeRecord; originalId: string | null }): void {
-    this.service.save(event.record, event.originalId);
-    if (event.originalId) this.teams.renameMember(event.originalId, event.record.id);
-    this.carrySelection(event.originalId, event.record.id);
-    this.notify(`${event.record.name} ${event.originalId ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalId), (saved) => {
+      if (event.originalId) this.teams.renameMember(event.originalId, saved.id);
+      this.carrySelection(event.originalId, saved.id);
+      this.notify(`${saved.name} ${event.originalId ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   setStatus(r: EmployeeRecord, status: EmployeeStatus): void {
     this.menuFor = null;
-    this.service.save({ ...r, status }, r.id);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }, r.id), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

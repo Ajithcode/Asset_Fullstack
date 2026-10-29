@@ -1,9 +1,12 @@
 import { Directive, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { Observable, isObservable } from 'rxjs';
+import { apiErrorMessage } from './api-error';
 
 /**
  * List + side drawer behaviour shared by the People masters: filters, sorting, paging, row
  * selection, row menus, the add/edit drawer, delete confirmation and the toast.
- * Subclasses say how to read, filter, sort and remove their records.
+ * Subclasses say how to read, filter, sort and remove their records. Masters backed by the API
+ * return an Observable from removeRecords and save through persist().
  */
 @Directive()
 export abstract class ListPage<T, F extends object, S extends string = string> {
@@ -25,6 +28,7 @@ export abstract class ListPage<T, F extends object, S extends string = string> {
   formRecord: T | null = null;
 
   pendingDelete: T[] = [];
+  saving = false;
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
@@ -40,7 +44,8 @@ export abstract class ListPage<T, F extends object, S extends string = string> {
   protected abstract all(): T[];
   protected abstract matches(record: T, filters: F): boolean;
   protected abstract sortValue(record: T, key: S): string | number;
-  protected abstract removeRecords(keys: string[]): void;
+  /** Removes the records; an Observable means the removal is done once it completes. */
+  protected abstract removeRecords(keys: string[]): void | Observable<unknown>;
 
   get rows(): T[] {
     const rows = this.all().filter((r) => this.matches(r, this.applied));
@@ -181,13 +186,35 @@ export abstract class ListPage<T, F extends object, S extends string = string> {
   }
 
   confirmDelete(noun: string): void {
-    const keys = this.pendingDelete.map((r) => this.keyOf(r));
-    this.removeRecords(keys);
-    keys.forEach((k) => this.selected.delete(k));
-    if (this.formMode === 'edit' && this.formRecord && keys.includes(this.keyOf(this.formRecord))) this.closeForm();
-    this.notify(keys.length === 1 ? `${this.nameOf(this.pendingDelete[0])} deleted.` : `${keys.length} ${noun} deleted.`);
+    const list = this.pendingDelete;
+    const keys = list.map((r) => this.keyOf(r));
     this.pendingDelete = [];
-    this.goTo(this.page);
+    const done = () => {
+      keys.forEach((k) => this.selected.delete(k));
+      if (this.formMode === 'edit' && this.formRecord && keys.includes(this.keyOf(this.formRecord))) this.closeForm();
+      this.notify(keys.length === 1 ? `${this.nameOf(list[0])} deleted.` : `${keys.length} ${noun} deleted.`);
+      this.goTo(this.page);
+    };
+    const removal = this.removeRecords(keys);
+    // Any records removed before a failure are already gone from the table
+    if (isObservable(removal)) removal.subscribe({ complete: done, error: (err) => this.notify(apiErrorMessage(err)) });
+    else done();
+  }
+
+  /** Runs an API write, then `done` with its result; shows the API's message when it fails. */
+  protected persist<R>(request$: Observable<R>, done: (result: R) => void): void {
+    if (this.saving) return;
+    this.saving = true;
+    request$.subscribe({
+      next: (result) => {
+        this.saving = false;
+        done(result);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   cancelDelete(): void {

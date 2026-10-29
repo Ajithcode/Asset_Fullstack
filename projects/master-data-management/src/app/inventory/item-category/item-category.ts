@@ -29,6 +29,7 @@ export class ItemCategoryPage extends ListPage<ItemCategoryRecord, Filters, Sort
 
   constructor() {
     super({ search: '', status: '' });
+    this.service.load();
   }
 
   keyOf(r: ItemCategoryRecord): string {
@@ -52,8 +53,8 @@ export class ItemCategoryPage extends ListPage<ItemCategoryRecord, Filters, Sort
     return key === 'parent' ? this.parentName(r) : r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   // Categories with items or sub-categories can't be deleted
@@ -73,21 +74,21 @@ export class ItemCategoryPage extends ListPage<ItemCategoryRecord, Filters, Sort
   }
 
   addChild(parent: ItemCategoryRecord): void {
-    this.openAdd({ ...structuredClone(parent), code: '', name: '', description: '', parentCode: parent.code, status: 'Active' });
+    this.openAdd({ ...structuredClone(parent), id: '', code: '', name: '', description: '', parentCode: parent.code, status: 'Active' });
   }
 
   onSaved(event: { record: ItemCategoryRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode) this.items.recode('category', event.originalCode, event.record.code);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
+      if (event.originalCode) this.items.recode('category', event.originalCode, saved.code);
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: ItemCategoryRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
   }
 }

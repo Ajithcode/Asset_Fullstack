@@ -42,6 +42,7 @@ export function initialBusinessUnits(): BusinessUnitRecord[] {
     const created = i === 0 ? '2024-01-01T10:30' : new Date(Date.UTC(2024, 0, 2) + i * 5 * 86400000).toISOString().slice(0, 16);
     const ksa = organizationCode === 'DCS-KSA';
     return {
+      id: '',
       code,
       name,
       organizationCode,
@@ -74,6 +75,7 @@ export function initialBusinessUnits(): BusinessUnitRecord[] {
 export function blankBusinessUnit(): BusinessUnitRecord {
   const today = new Date().toISOString().slice(0, 10);
   return {
+    id: '',
     code: '',
     name: '',
     organizationCode: '',

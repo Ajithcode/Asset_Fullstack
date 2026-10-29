@@ -41,6 +41,7 @@ const SEEDS: Seed[] = [
 
 export function initialChecklists(): ChecklistRecord[] {
   return SEEDS.map(([code, name, checklistType, category, count, inactive], i) => ({
+    id: '',
     code,
     name,
     checklistType,
@@ -54,5 +55,5 @@ export function initialChecklists(): ChecklistRecord[] {
 }
 
 export function blankChecklist(): ChecklistRecord {
-  return { code: '', name: '', checklistType: '', category: '', description: '', status: 'Active', items: [], createdOn: '', updatedOn: '' };
+  return { id: '', code: '', name: '', checklistType: '', category: '', description: '', status: 'Active', items: [], createdOn: '', updatedOn: '' };
 }

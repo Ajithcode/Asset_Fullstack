@@ -146,7 +146,13 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="11" class="empty">No AMC vendors match these filters.</td></tr>
+              @if (service.loading) {
+                <tr><td colspan="11" class="empty">Loading AMC vendors...</td></tr>
+              } @else if (service.loadError) {
+                <tr><td colspan="11" class="empty">{{ service.loadError }} <button type="button" class="btn btn--link" (click)="service.load()">Retry</button></td></tr>
+              } @else {
+                <tr><td colspan="11" class="empty">No AMC vendors match these filters.</td></tr>
+              }
             }
           </tbody>
         </table>

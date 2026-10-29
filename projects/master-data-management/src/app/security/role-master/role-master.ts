@@ -32,6 +32,7 @@ export class RoleMasterPage extends ListPage<RoleRecord, Filters, SortKey> {
 
   constructor() {
     super({ search: '', type: '', status: '' });
+    this.service.load();
   }
 
   keyOf(r: RoleRecord): string {
@@ -55,8 +56,8 @@ export class RoleMasterPage extends ListPage<RoleRecord, Filters, SortKey> {
     return key === 'users' ? this.userCount(r) : r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   // System roles stay, and roles held by users can't be deleted
@@ -71,15 +72,16 @@ export class RoleMasterPage extends ListPage<RoleRecord, Filters, SortKey> {
   }
 
   duplicate(r: RoleRecord): void {
-    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, type: r.type === 'System' ? 'Business' : r.type, status: 'Active' });
+    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, type: r.type === 'System' ? 'Business' : r.type, status: 'Active' });
   }
 
   onSaved(event: { record: RoleRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode) this.users.recodeRole(event.originalCode, event.record.code);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
+      if (event.originalCode) this.users.recodeRole(event.originalCode, saved.code);
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: RoleRecord): void {
@@ -89,8 +91,9 @@ export class RoleMasterPage extends ListPage<RoleRecord, Filters, SortKey> {
       return;
     }
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
     const users = this.userCount(r);
-    this.notify(`${r.name} marked ${status}.${status === 'Inactive' && users ? ` ${users} users lose its access.` : ''}`);
+    this.persist(this.service.save({ ...r, status }, r.code), () =>
+      this.notify(`${r.name} marked ${status}.${status === 'Inactive' && users ? ` ${users} users lose its access.` : ''}`)
+    );
   }
 }

@@ -143,6 +143,7 @@ function record(i: number, name: string, code: string, country: string, contact:
   const second = CONTACTS[(i * 5 + 3) % CONTACTS.length];
   const [first, last] = second.toLowerCase().split(' ');
   return {
+    id: '',
     code,
     name,
     country,
@@ -222,6 +223,7 @@ export function initialManufacturers(): ManufacturerRecord[] {
 
 export function blankManufacturer(): ManufacturerRecord {
   return {
+    id: '',
     code: '',
     name: '',
     country: '',

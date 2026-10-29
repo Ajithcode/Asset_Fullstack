@@ -32,6 +32,7 @@ export class UpdateSourcePage extends ListPage<UpdateSourceRecord, Filters, Sort
 
   constructor() {
     super({ search: '', type: '', status: '' });
+    this.service.load();
   }
 
   keyOf(r: UpdateSourceRecord): string {
@@ -59,8 +60,8 @@ export class UpdateSourcePage extends ListPage<UpdateSourceRecord, Filters, Sort
     return r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]) {
+    return this.service.remove(codes);
   }
 
   // Sources picked in System Settings (default source, integration sources) can't be deleted
@@ -69,20 +70,20 @@ export class UpdateSourcePage extends ListPage<UpdateSourceRecord, Filters, Sort
   }
 
   duplicate(r: UpdateSourceRecord): void {
-    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
+    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Active' });
   }
 
   onSaved(event: { record: UpdateSourceRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
+      this.carrySelection(event.originalCode, saved.code);
+      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+      this.closeForm();
+    });
   }
 
   toggleStatus(r: UpdateSourceRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
   }
 }
