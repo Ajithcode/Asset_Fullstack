@@ -13,7 +13,8 @@ RUN dotnet publish ApiGateway/A360.ApiGateway/A360.ApiGateway.csproj -c Release 
     dotnet publish Services/Media/Api/A360.Media.Api/A360.Media.Api.csproj -c Release -o /out/media --no-restore && \
     dotnet publish Services/Asset/Api/A360.Asset.Api/A360.Asset.Api.csproj -c Release -o /out/asset --no-restore && \
     dotnet publish Services/Inspection/Api/A360.Inspection.Api/A360.Inspection.Api.csproj -c Release -o /out/inspection --no-restore && \
-    dotnet publish Services/EventLog/Api/A360.EventLog.Api/A360.EventLog.Api.csproj -c Release -o /out/eventlog --no-restore
+    dotnet publish Services/EventLog/Api/A360.EventLog.Api/A360.EventLog.Api.csproj -c Release -o /out/eventlog --no-restore && \
+    dotnet publish Services/MasterDataManagement/Api/A360.MasterDataManagement.Api/A360.MasterDataManagement.Api.csproj -c Release -o /out/masterdatamanagement --no-restore
 
 FROM mongo:7.0 AS final
 RUN apt-get update \
@@ -33,6 +34,7 @@ COPY --from=build /out/media ./media
 COPY --from=build /out/asset ./asset
 COPY --from=build /out/inspection ./inspection
 COPY --from=build /out/eventlog ./eventlog
+COPY --from=build /out/masterdatamanagement ./masterdatamanagement
 
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh

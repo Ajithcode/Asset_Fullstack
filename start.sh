@@ -23,6 +23,7 @@ declare -A SERVICES=(
   ["asset"]="/app/asset:A360.Asset.Api.dll:5401"
   ["inspection"]="/app/inspection:A360.Inspection.Api.dll:5410"
   ["eventlog"]="/app/eventlog:A360.EventLog.Api.dll:5420"
+  ["masterdatamanagement"]="/app/masterdatamanagement:A360.MasterDataManagement.Api.dll:5500"
 )
 
 for name in "${!SERVICES[@]}"; do
