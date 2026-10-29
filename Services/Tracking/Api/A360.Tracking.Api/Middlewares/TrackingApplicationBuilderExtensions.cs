@@ -22,6 +22,7 @@ public static class TrackingApplicationBuilderExtensions
         app.MapTrackingTagEndpoints();
         app.MapFirmwareVersionEndpoints();
         app.MapGeofenceEndpoints();
+        app.MapAlertRuleEndpoints();
         app.MapDeviceHealthEndpoints();
         app.MapDeviceMaintenanceEndpoints();
         app.MapDeviceModelEndpoints();

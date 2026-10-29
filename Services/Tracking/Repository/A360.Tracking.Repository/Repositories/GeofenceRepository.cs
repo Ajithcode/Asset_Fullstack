@@ -24,6 +24,14 @@ public sealed class GeofenceRepository
             .AnyAsync(cancellationToken);
     }
 
+    public async Task IncrementRuleCountAsync(string geofenceId, CancellationToken cancellationToken = default)
+    {
+        await Collection.UpdateOneAsync(
+            geofence => geofence.Id == geofenceId,
+            Builders<Geofence>.Update.Inc(geofence => geofence.RuleCount, 1),
+            cancellationToken: cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
     {
         var indexes = new[]

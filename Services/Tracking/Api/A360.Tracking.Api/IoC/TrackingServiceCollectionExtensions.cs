@@ -53,6 +53,10 @@ public static class TrackingServiceCollectionExtensions
         services.AddScoped<IGeofenceRepository>(serviceProvider => serviceProvider.GetRequiredService<GeofenceRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<GeofenceRepository>());
 
+        services.AddScoped<AlertRuleRepository>();
+        services.AddScoped<IAlertRuleRepository>(serviceProvider => serviceProvider.GetRequiredService<AlertRuleRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AlertRuleRepository>());
+
         services.AddScoped<DeviceHealthRepository>();
         services.AddScoped<IDeviceHealthRepository>(serviceProvider => serviceProvider.GetRequiredService<DeviceHealthRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DeviceHealthRepository>());
