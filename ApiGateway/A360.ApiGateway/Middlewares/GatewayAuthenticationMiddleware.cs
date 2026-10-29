@@ -5,20 +5,10 @@ namespace A360.ApiGateway.Middlewares;
 
 /// <summary>
 /// Requires a valid bearer token for every request passing through the gateway, except the public
-/// endpoints needed to sign in, check health and browse swagger.
+/// endpoints needed to check health and browse swagger.
 /// </summary>
 public sealed class GatewayAuthenticationMiddleware
 {
-    private static readonly string[] PublicAuthPaths =
-    [
-        "/api/auth/login",
-        "/api/auth/verify-otp",
-        "/api/auth/refresh",
-        "/api/auth/logout"
-    ];
-
-    private const string UserAccountPrefix = "/user-account";
-
     private readonly RequestDelegate _next;
 
     public GatewayAuthenticationMiddleware(RequestDelegate next)
@@ -42,16 +32,6 @@ public sealed class GatewayAuthenticationMiddleware
     private static bool IsPublicPath(PathString path)
     {
         var value = (path.Value ?? string.Empty).TrimEnd('/');
-
-        if (value.StartsWith(UserAccountPrefix + "/api/auth/", StringComparison.OrdinalIgnoreCase))
-        {
-            value = value[UserAccountPrefix.Length..];
-        }
-
-        if (PublicAuthPaths.Contains(value, StringComparer.OrdinalIgnoreCase))
-        {
-            return true;
-        }
 
         var segments = value.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length == 0)

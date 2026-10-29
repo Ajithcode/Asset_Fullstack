@@ -47,17 +47,13 @@ public static class ApiGatewayApplicationBuilderExtensions
             app.UseSwaggerUI(options =>
             {
                 options.SwaggerEndpoint("/openapi/all.json", "All Services (Aggregated)");
-                options.SwaggerEndpoint("/project/swagger/v1/swagger.json", "Project Service");
-                options.SwaggerEndpoint("/user-account/swagger/v1/swagger.json", "User Account Service");
-                options.SwaggerEndpoint("/device/swagger/v1/swagger.json", "Device Service");
                 options.SwaggerEndpoint("/media/swagger/v1/swagger.json", "Media Service");
                 options.SwaggerEndpoint("/asset/swagger/v1/swagger.json", "Asset Service");
                 options.SwaggerEndpoint("/eventlog/swagger/v1/swagger.json", "Event Log Service");
                 options.SwaggerEndpoint("/maintenance/swagger/v1/swagger.json", "Maintenance Service");
                 options.SwaggerEndpoint("/wip/swagger/v1/swagger.json", "WIP Service");
-                options.SwaggerEndpoint("/locating/swagger/v1/swagger.json", "Locating Service");
                 options.SwaggerEndpoint("/dashboard/swagger/v1/swagger.json", "Dashboard Service");
-                options.SwaggerEndpoint("/report/swagger/v1/swagger.json", "Report Service");
+                options.SwaggerEndpoint("/administration/swagger/v1/swagger.json", "Administration Service");
                 options.SwaggerEndpoint("/tracking/swagger/v1/swagger.json", "Tracking & IoT Service");
 
                 options.RoutePrefix = "swagger";
@@ -70,27 +66,6 @@ public static class ApiGatewayApplicationBuilderExtensions
 
         app.MapGet("/gateway/swagger/downstream", () => Results.Ok(new[]
             {
-                new
-                {
-                    service = "Project",
-                    gatewaySwaggerUrl = "/project/swagger/v1/swagger.json",
-                    serviceBaseUrl = "http://172.16.100.26:5254",
-                    healthUrl = "/project/health"
-                },
-                new
-                {
-                    service = "UserAccount",
-                    gatewaySwaggerUrl = "/user-account/swagger/v1/swagger.json",
-                    serviceBaseUrl = "http://172.16.100.26:5018",
-                    healthUrl = "/user-account/health"
-                },
-                new
-               {
-                    service = "Device",
-                    gatewaySwaggerUrl = "/device/swagger/v1/swagger.json",
-                    serviceBaseUrl = "http://172.16.100.26:5077",
-                    healthUrl = "/device/health"
-               },
                 new
                {
                     service = "Media",
@@ -121,13 +96,6 @@ public static class ApiGatewayApplicationBuilderExtensions
                },
                 new
                {
-                    service = "Locating",
-                    gatewaySwaggerUrl = "/locating/swagger/v1/swagger.json",
-                    serviceBaseUrl = "http://172.16.100.26:5460",
-                    healthUrl = "/locating/health"
-               },
-                new
-               {
                     service = "Dashboard",
                     gatewaySwaggerUrl = "/dashboard/swagger/v1/swagger.json",
                     serviceBaseUrl = "http://172.16.100.26:5470",
@@ -135,10 +103,10 @@ public static class ApiGatewayApplicationBuilderExtensions
                },
                 new
                {
-                    service = "Report",
-                    gatewaySwaggerUrl = "/report/swagger/v1/swagger.json",
-                    serviceBaseUrl = "http://172.16.100.26:5480",
-                    healthUrl = "/report/health"
+                    service = "Administration",
+                    gatewaySwaggerUrl = "/administration/swagger/v1/swagger.json",
+                    serviceBaseUrl = "http://172.16.100.26:5500",
+                    healthUrl = "/administration/health"
                },
                 new
                {

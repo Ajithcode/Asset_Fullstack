@@ -16,9 +16,6 @@ for i in $(seq 1 30); do
 done
 
 declare -A SERVICES=(
-  ["project"]="/app/project:A360.Project.Api.dll:5254"
-  ["useraccount"]="/app/useraccount:A360.UserAccount.Api.dll:5018"
-  ["device"]="/app/device:A360.Device.Api.dll:5116"
   ["media"]="/app/media:A360.Media.Api.dll:5300"
   ["asset"]="/app/asset:A360.Asset.Api.dll:5401"
   ["inspection"]="/app/inspection:A360.Inspection.Api.dll:5410"

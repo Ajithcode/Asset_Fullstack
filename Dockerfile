@@ -1,4 +1,4 @@
-# Builds and runs all 9 A360 services (8 backend services + ApiGateway) plus MongoDB
+# Builds and runs all 6 A360 services (5 backend services + ApiGateway) plus MongoDB
 # inside a single Cloudflare Container instance. Mirrors scripts/start-all.sh.
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
@@ -7,9 +7,6 @@ COPY . .
 RUN dotnet restore src.sln
 
 RUN dotnet publish ApiGateway/A360.ApiGateway/A360.ApiGateway.csproj -c Release -o /out/apigateway --no-restore && \
-    dotnet publish Services/Project/Api/A360.Project.Api/A360.Project.Api.csproj -c Release -o /out/project --no-restore && \
-    dotnet publish Services/UserAccount/Api/A360.UserAccount.Api/A360.UserAccount.Api.csproj -c Release -o /out/useraccount --no-restore && \
-    dotnet publish Services/Devices/Api/A360.Device.Api/A360.Device.Api.csproj -c Release -o /out/device --no-restore && \
     dotnet publish Services/Media/Api/A360.Media.Api/A360.Media.Api.csproj -c Release -o /out/media --no-restore && \
     dotnet publish Services/Asset/Api/A360.Asset.Api/A360.Asset.Api.csproj -c Release -o /out/asset --no-restore && \
     dotnet publish Services/Inspection/Api/A360.Inspection.Api/A360.Inspection.Api.csproj -c Release -o /out/inspection --no-restore && \
@@ -26,9 +23,6 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=build /out/apigateway ./apigateway
-COPY --from=build /out/project ./project
-COPY --from=build /out/useraccount ./useraccount
-COPY --from=build /out/device ./device
 COPY --from=build /out/media ./media
 COPY --from=build /out/asset ./asset
 COPY --from=build /out/inspection ./inspection

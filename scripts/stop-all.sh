@@ -7,9 +7,6 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOGDIR="$REPO_ROOT/logs"
 
 DLLS=(
-  A360.Project.Api.dll
-  A360.UserAccount.Api.dll
-  A360.Device.Api.dll
   A360.Media.Api.dll
   A360.Asset.Api.dll
   A360.Inspection.Api.dll

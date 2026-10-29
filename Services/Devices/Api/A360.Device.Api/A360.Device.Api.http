@@ -1,6 +1,0 @@
-@A360.Device.Api_HostAddress = http://localhost:5116
-
-GET {{A360.Device.Api_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
