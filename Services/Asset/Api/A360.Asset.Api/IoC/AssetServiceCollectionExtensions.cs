@@ -107,6 +107,28 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<IAssetRiskMitigationActionRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetRiskMitigationActionRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetRiskMitigationActionRepository>());
 
+        services.AddScoped<AssetAssignmentRepository>();
+        services.AddScoped<IAssetAssignmentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetAssignmentRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetAssignmentRepository>());
+
+        services.AddScoped<AssetBulkAssignmentRepository>();
+        services.AddScoped<IAssetBulkAssignmentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetBulkAssignmentRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetBulkAssignmentRepository>());
+        services.AddScoped<IAssignmentMasterDataRepository, AssignmentMasterDataRepository>();
+
+        services.AddScoped<AssetAuditRepository>();
+        services.AddScoped<IAssetAuditRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetAuditRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetAuditRepository>());
+
+        services.AddScoped<AssetDisposalRequestRepository>();
+        services.AddScoped<IAssetDisposalRequestRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetDisposalRequestRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetDisposalRequestRepository>());
+
+        services.AddScoped<AssetServiceRequestRepository>();
+        services.AddScoped<IAssetServiceRequestRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetServiceRequestRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetServiceRequestRepository>());
+        services.AddScoped<IMaintenanceLookupRepository, MaintenanceLookupRepository>();
+
         services.AddHostedService<MongoIndexHostedService>();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();

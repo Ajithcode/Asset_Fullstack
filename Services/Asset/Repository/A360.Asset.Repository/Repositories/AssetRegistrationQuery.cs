@@ -16,7 +16,8 @@ public sealed record AssetRegistrationQuery(
     string? SortBy,
     bool SortDescending,
     int Page,
-    int PageSize);
+    int PageSize,
+    string? Condition = null);
 
 /// <param name="StatusCounts">
 /// Asset counts per status for the same filters except Status, so the summary cards

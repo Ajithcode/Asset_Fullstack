@@ -35,6 +35,11 @@ public static class AssetApplicationBuilderExtensions
         app.MapAssetCriticalityEndpoints();
         app.MapAssetRiskMitigationActionEndpoints();
         app.MapAssetImportEndpoints();
+        app.MapAssetAssignmentEndpoints();
+        app.MapAssetBulkAssignmentEndpoints();
+        app.MapAssetAuditEndpoints();
+        app.MapAssetDisposalEndpoints();
+        app.MapAssetServiceRequestEndpoints();
 
         return app;
     }

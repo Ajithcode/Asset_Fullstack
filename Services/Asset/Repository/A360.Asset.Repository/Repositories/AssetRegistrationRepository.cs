@@ -66,6 +66,22 @@ public sealed class AssetRegistrationRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<AssetRegistration>> FindByTagsOrSerialsAsync(IReadOnlyCollection<string> tagsOrSerials, CancellationToken cancellationToken = default)
+    {
+        if (tagsOrSerials.Count == 0)
+        {
+            return [];
+        }
+
+        var filter = Builders<AssetRegistration>.Filter.And(
+            Builders<AssetRegistration>.Filter.Eq(asset => asset.IsDeleted, false),
+            Builders<AssetRegistration>.Filter.Or(
+                Builders<AssetRegistration>.Filter.In(asset => asset.BasicInformation.AssetTag, tagsOrSerials),
+                Builders<AssetRegistration>.Filter.In(asset => asset.BasicInformation.SerialNumber, tagsOrSerials)));
+
+        return await Collection.Find(filter).ToListAsync(cancellationToken);
+    }
+
     public async Task<AssetRegistrationQueryResult> QueryAsync(AssetRegistrationQuery query, CancellationToken cancellationToken = default)
     {
         var filters = new List<FilterDefinition<AssetRegistration>>
@@ -90,6 +106,7 @@ public sealed class AssetRegistrationRepository
         AddEquals(filters, asset => asset.Classification.Criticality, query.Criticality);
         AddEquals(filters, asset => asset.LocationAssignment.Assignment.AssignedToUserId, query.CustodianUserId);
         AddEquals(filters, asset => asset.PurchaseWarranty.Purchase.Manufacturer, query.Manufacturer);
+        AddEquals(filters, asset => asset.BasicInformation.Condition, query.Condition);
 
         // A location picked anywhere in the hierarchy matches every asset at or below it.
         if (!string.IsNullOrWhiteSpace(query.LocationId))
@@ -158,6 +175,53 @@ public sealed class AssetRegistrationRepository
         return new AssetRegistrationQueryResult(items, totalCount, statusCounts);
     }
 
+    public async Task<IReadOnlyCollection<AssetRegistration>> FindInScopeAsync(AssetScopeQuery query, int limit, CancellationToken cancellationToken = default)
+    {
+        var filters = new List<FilterDefinition<AssetRegistration>>
+        {
+            Builders<AssetRegistration>.Filter.Eq(asset => asset.IsDeleted, false)
+        };
+
+        if (!string.IsNullOrWhiteSpace(query.LocationId))
+        {
+            var locationId = query.LocationId.Trim();
+            filters.Add(Builders<AssetRegistration>.Filter.Or(
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.CountryId, locationId),
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.SiteId, locationId),
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.BuildingId, locationId),
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.FloorId, locationId),
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.ZoneId, locationId),
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.RoomId, locationId)));
+        }
+
+        AddEquals(filters, asset => asset.Classification.Department, query.Department);
+        AddEquals(filters, asset => asset.Classification.Category, query.Category);
+        AddEquals(filters, asset => asset.BasicInformation.Status, query.Status);
+        AddEquals(filters, asset => asset.Classification.AssetType, query.AssetType);
+        AddEquals(filters, asset => asset.Classification.Criticality, query.Criticality);
+
+        if (!string.IsNullOrWhiteSpace(query.TagFrom))
+        {
+            filters.Add(Builders<AssetRegistration>.Filter.Gte(asset => asset.BasicInformation.AssetTag, query.TagFrom.Trim()));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.TagTo))
+        {
+            filters.Add(Builders<AssetRegistration>.Filter.Lte(asset => asset.BasicInformation.AssetTag, query.TagTo.Trim()));
+        }
+
+        if (query.AssetRegistrationIds is not null)
+        {
+            filters.Add(Builders<AssetRegistration>.Filter.In(asset => asset.AssetRegistrationId, query.AssetRegistrationIds));
+        }
+
+        return await Collection
+            .Find(Builders<AssetRegistration>.Filter.And(filters))
+            .Sort(Builders<AssetRegistration>.Sort.Ascending(asset => asset.BasicInformation.AssetTag).Ascending(asset => asset.AssetRegistrationId))
+            .Limit(limit)
+            .ToListAsync(cancellationToken);
+    }
+
     private static void AddEquals(
         List<FilterDefinition<AssetRegistration>> filters,
         System.Linq.Expressions.Expression<Func<AssetRegistration, string?>> field,
@@ -179,6 +243,9 @@ public sealed class AssetRegistrationRepository
             new CreateIndexModel<AssetRegistration>(
                 Builders<AssetRegistration>.IndexKeys.Ascending(asset => asset.BasicInformation.AssetTag),
                 new CreateIndexOptions { Name = "ix_asset_registration_asset_tag" }),
+            new CreateIndexModel<AssetRegistration>(
+                Builders<AssetRegistration>.IndexKeys.Ascending(asset => asset.BasicInformation.SerialNumber),
+                new CreateIndexOptions { Name = "ix_asset_registration_serial_number" }),
             new CreateIndexModel<AssetRegistration>(
                 Builders<AssetRegistration>.IndexKeys
                     .Ascending(asset => asset.BasicInformation.Status)

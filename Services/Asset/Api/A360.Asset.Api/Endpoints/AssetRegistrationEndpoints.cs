@@ -357,6 +357,7 @@ public static class AssetRegistrationEndpoints
         string? custodianUserId = null,
         string? criticality = null,
         string? manufacturer = null,
+        string? condition = null,
         string? sortBy = null,
         string? sortDirection = null,
         int page = 1,
@@ -365,7 +366,7 @@ public static class AssetRegistrationEndpoints
         var sortDescending = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
 
         var result = await assetRegistrationRepository.QueryAsync(
-            new AssetRegistrationQuery(search, category, assetType, status, locationId, department, custodianUserId, criticality, manufacturer, sortBy, sortDescending, page, pageSize),
+            new AssetRegistrationQuery(search, category, assetType, status, locationId, department, custodianUserId, criticality, manufacturer, sortBy, sortDescending, page, pageSize, condition),
             cancellationToken);
 
         return Results.Ok(AssetRegistrationListResponse.FromResult(
