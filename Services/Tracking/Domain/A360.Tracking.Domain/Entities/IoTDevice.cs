@@ -48,6 +48,23 @@ public sealed class IoTDevice : BaseEntity
 
     [BsonElement("last_seen_at")]
     public DateTime? LastSeenAt { get; set; }
+
+    /// <summary>Firmware installed on the device, e.g. v1.6.2.</summary>
+    [BsonElement("firmware_version")]
+    public string? FirmwareVersion { get; set; }
+
+    /// <summary>Firmware the device is scheduled to update to; null when no update is scheduled.</summary>
+    [BsonElement("pending_firmware_version")]
+    public string? PendingFirmwareVersion { get; set; }
+
+    [BsonElement("firmware_update_scheduled_at")]
+    public DateTime? FirmwareUpdateScheduledAt { get; set; }
+}
+
+public static class IoTDeviceType
+{
+    /// <summary>A device that other devices report through, offered in the Gateway dropdown.</summary>
+    public const string Gateway = "Gateway";
 }
 
 public static class IoTDeviceHealth

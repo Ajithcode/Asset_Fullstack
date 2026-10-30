@@ -84,6 +84,15 @@ public sealed record TrackingTagResponse(
     }
 }
 
+/// <summary>An option of the Technology dropdown, with the tag types it offers and its tag id prefix.</summary>
+public sealed record TagTechnologyOptionResponse(string Technology, string IdPrefix, IReadOnlyList<string> TagTypes)
+{
+    public static TagTechnologyOptionResponse FromTechnology(string technology)
+    {
+        return new TagTechnologyOptionResponse(technology, TagTechnology.IdPrefixes[technology], TagTechnology.TagTypes[technology]);
+    }
+}
+
 internal static class ContractText
 {
     public static string? TrimOrNull(string? value)

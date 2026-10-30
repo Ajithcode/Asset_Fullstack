@@ -7,6 +7,7 @@ public static class DeviceMaintenanceValidationExtensions
 {
     private const int CodeMaxLength = 50;
     private const int NameMaxLength = 100;
+    private const int DescriptionMaxLength = 2000;
 
     public static Dictionary<string, string[]> Validate(this CreateDeviceMaintenanceRequest request)
     {
@@ -20,9 +21,13 @@ public static class DeviceMaintenanceValidationExtensions
         MaxLength(errors, "AssetRegistrationId", request.AssetRegistrationId, CodeMaxLength);
         MaxLength(errors, "AssetName", request.AssetName, NameMaxLength);
         MaxLength(errors, "AssignedTo", request.AssignedTo, NameMaxLength);
+        MaxLength(errors, "AssignedToId", request.AssignedToId, CodeMaxLength);
+        MaxLength(errors, "Description", request.Description, DescriptionMaxLength);
 
         OneOf(errors, "MaintenanceType", request.MaintenanceType, DeviceMaintenanceType.All, required: true);
         OneOf(errors, "Status", request.Status, DeviceMaintenanceStatus.All, required: false);
+        OneOf(errors, "Priority", request.Priority, DeviceMaintenancePriority.All, required: false);
+        OneOf(errors, "AssignedToType", request.AssignedToType, DeviceMaintenanceAssigneeType.All, required: false);
 
         if (request.DueDate is null)
         {

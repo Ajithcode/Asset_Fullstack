@@ -10,4 +10,11 @@ public interface IDeviceMaintenanceRepository : IMongoRepository<DeviceMaintenan
     /// <summary>A device cannot have the same type of maintenance twice on one due date, ignoring case.</summary>
     /// <remarks>excludeId is the job being updated, so it does not clash with itself.</remarks>
     Task<bool> ExistsAsync(string deviceId, string maintenanceType, DateTime dueDate, string? excludeId = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The newest job of each device, keyed by device id ignoring case.
+    /// IoT devices don't store a site, so this is where a device's site is remembered.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, DeviceMaintenance>> GetLatestByDeviceIdsAsync(
+        IReadOnlyCollection<string> deviceIds, CancellationToken cancellationToken = default);
 }

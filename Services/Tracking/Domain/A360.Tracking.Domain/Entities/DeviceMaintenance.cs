@@ -46,6 +46,22 @@ public sealed class DeviceMaintenance : BaseEntity
     /// <summary>Technician or vendor doing the work, e.g. "A. Rahman", "Field Services LLC"; null while unassigned.</summary>
     [BsonElement("assigned_to")]
     public string? AssignedTo { get; set; }
+
+    /// <summary>Master-data id of the technician or vendor in <see cref="AssignedTo"/>.</summary>
+    [BsonElement("assigned_to_id")]
+    public string? AssignedToId { get; set; }
+
+    /// <summary>One of <see cref="DeviceMaintenanceAssigneeType.All"/>; null while unassigned.</summary>
+    [BsonElement("assigned_to_type")]
+    public string? AssignedToType { get; set; }
+
+    /// <summary>One of <see cref="DeviceMaintenancePriority.All"/>.</summary>
+    [BsonElement("priority")]
+    public string Priority { get; set; } = DeviceMaintenancePriority.Medium;
+
+    /// <summary>The issue or work required.</summary>
+    [BsonElement("description")]
+    public string? Description { get; set; }
 }
 
 public static class DeviceMaintenanceType
@@ -58,6 +74,24 @@ public static class DeviceMaintenanceType
     public const string Inspection = "Inspection";
 
     public static readonly IReadOnlyList<string> All = [Preventive, CorrectiveRepair, Calibration, BatteryReplacement, FirmwareUpdate, Inspection];
+}
+
+public static class DeviceMaintenancePriority
+{
+    public const string Low = "Low";
+    public const string Medium = "Medium";
+    public const string High = "High";
+    public const string Critical = "Critical";
+
+    public static readonly IReadOnlyList<string> All = [Low, Medium, High, Critical];
+}
+
+public static class DeviceMaintenanceAssigneeType
+{
+    public const string Technician = "Technician";
+    public const string Vendor = "Vendor";
+
+    public static readonly IReadOnlyList<string> All = [Technician, Vendor];
 }
 
 public static class DeviceMaintenanceStatus

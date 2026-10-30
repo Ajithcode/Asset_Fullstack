@@ -32,6 +32,7 @@ public static class TrackingApplicationBuilderExtensions
         app.MapLocationEventEndpoints();
         app.MapZoneDrawingEndpoints();
         app.MapDeviceDrawingEndpoints();
+        app.MapDeviceConfigurationEndpoints();
 
         return app;
     }

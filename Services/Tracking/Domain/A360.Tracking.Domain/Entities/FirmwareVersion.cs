@@ -21,6 +21,10 @@ public sealed class FirmwareVersion : BaseEntity
     [BsonElement("device_count")]
     public int DeviceCount { get; set; }
 
+    /// <summary>What changed in the latest version, one line per note.</summary>
+    [BsonElement("release_notes")]
+    public List<string> ReleaseNotes { get; set; } = [];
+
     /// <summary>Release date of the latest version.</summary>
     [BsonElement("release_date")]
     public DateTime? ReleaseDate { get; set; }

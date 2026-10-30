@@ -3,6 +3,7 @@ using A360.Repository.Activity;
 using A360.Security;
 using A360.Tracking.Api.Contracts;
 using A360.Tracking.Api.Validation;
+using A360.Tracking.Domain.Entities;
 using A360.Tracking.Repository.Repositories;
 
 namespace A360.Tracking.Api.Endpoints;
@@ -17,6 +18,13 @@ public static class DeviceModelEndpoints
         var group = routes.MapGroup("/api/device-models").WithTags("Device Models");
 
         group.MapGet("", GetDeviceModelsAsync).WithName("GetDeviceModels");
+        // Literal segments take precedence over /{modelNumber}, so these are not read as model numbers.
+        group.MapGet("/device-types", GetDeviceTypesAsync).WithName("GetDeviceModelTypes");
+        group.MapGet("/connectivities", () => Results.Ok(DeviceModelConnectivity.All)).WithName("GetDeviceModelConnectivities");
+        group.MapGet("/power-sources", () => Results.Ok(DeviceModelPowerSource.All)).WithName("GetDeviceModelPowerSources");
+        group.MapGet("/measurements", () => Results.Ok(DeviceMeasurement.All)).WithName("GetDeviceModelMeasurements");
+        group.MapGet("/configurable-attributes", () => Results.Ok(DeviceModelAttribute.All)).WithName("GetDeviceModelConfigurableAttributes");
+        group.MapGet("/statuses", () => Results.Ok(DeviceModelStatus.All)).WithName("GetDeviceModelStatuses");
         group.MapGet("/{modelNumber}", GetDeviceModelAsync).WithName("GetDeviceModelByModelNumber");
         group.MapPost("", CreateDeviceModelAsync).WithName("CreateDeviceModel");
         group.MapPut("/{modelNumber}", UpdateDeviceModelAsync).WithName("UpdateDeviceModel");
@@ -31,6 +39,21 @@ public static class DeviceModelEndpoints
     {
         var models = await repository.GetAllAsync(cancellationToken);
         return Results.Ok(TrackingRecords.Listed(models).Select(DeviceModelResponse.FromEntity).ToList());
+    }
+
+    /// <summary>The standard device types plus any other type already used by a model, each with its model count.</summary>
+    private static async Task<IResult> GetDeviceTypesAsync(
+        IDeviceModelRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var counts = await repository.CountByDeviceTypeAsync(cancellationToken);
+        var usedTypes = counts.Keys.Where(type => !DeviceModelType.All.Contains(type, StringComparer.OrdinalIgnoreCase));
+
+        return Results.Ok(DeviceModelType.All
+            .Concat(usedTypes.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase))
+            .Select(type => new DeviceTypeOptionResponse(
+                type,
+                counts.Where(count => string.Equals(count.Key, type, StringComparison.OrdinalIgnoreCase)).Sum(count => count.Value))));
     }
 
     private static async Task<IResult> GetDeviceModelAsync(

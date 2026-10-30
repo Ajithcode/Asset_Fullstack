@@ -3,6 +3,7 @@ using A360.Repository.Activity;
 using A360.Security;
 using A360.Tracking.Api.Contracts;
 using A360.Tracking.Api.Validation;
+using A360.Tracking.Domain.Entities;
 using A360.Tracking.Repository.Repositories;
 
 namespace A360.Tracking.Api.Endpoints;
@@ -17,6 +18,10 @@ public static class SensorEndpoints
         var group = routes.MapGroup("/api/sensors").WithTags("Sensors");
 
         group.MapGet("", GetSensorsAsync).WithName("GetSensors");
+        // Literal segments take precedence over /{sensorId}, so these are not read as sensor ids.
+        group.MapGet("/types", () => Results.Ok(SensorTypeOption.All)).WithName("GetSensorTypes");
+        group.MapGet("/sampling-intervals", () => Results.Ok(TelemetrySamplingInterval.Seconds)).WithName("GetSensorSamplingIntervals");
+        group.MapGet("/statuses", () => Results.Ok(SensorStatus.All)).WithName("GetSensorStatuses");
         group.MapGet("/{sensorId}", GetSensorAsync).WithName("GetSensorById");
         group.MapPost("", CreateSensorAsync).WithName("CreateSensor");
         group.MapPut("/{sensorId}", UpdateSensorAsync).WithName("UpdateSensor");

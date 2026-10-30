@@ -3,6 +3,7 @@ using A360.Repository.Activity;
 using A360.Security;
 using A360.Tracking.Api.Contracts;
 using A360.Tracking.Api.Validation;
+using A360.Tracking.Domain.Entities;
 using A360.Tracking.Repository.Repositories;
 
 namespace A360.Tracking.Api.Endpoints;
@@ -17,6 +18,10 @@ public static class TrackingTagEndpoints
         var group = routes.MapGroup("/api/tag-ids").WithTags("Tag IDs");
 
         group.MapGet("", GetTagsAsync).WithName("GetTrackingTags");
+        // Literal segments take precedence over /{tagId}, so these are not read as tag ids.
+        group.MapGet("/technologies", GetTechnologies).WithName("GetTagTechnologies");
+        group.MapGet("/tag-types", GetTagTypes).WithName("GetTagTypes");
+        group.MapGet("/statuses", () => Results.Ok(TagStatus.All)).WithName("GetTagStatuses");
         group.MapGet("/{tagId}", GetTagAsync).WithName("GetTrackingTagById");
         group.MapPost("", CreateTagAsync).WithName("CreateTrackingTag");
         group.MapPut("/{tagId}", UpdateTagAsync).WithName("UpdateTrackingTag");
@@ -31,6 +36,25 @@ public static class TrackingTagEndpoints
     {
         var tags = await repository.GetAllAsync(cancellationToken);
         return Results.Ok(TrackingRecords.Listed(tags).Select(TrackingTagResponse.FromEntity).ToList());
+    }
+
+    private static IResult GetTechnologies()
+    {
+        return Results.Ok(TagTechnology.All.Select(TagTechnologyOptionResponse.FromTechnology));
+    }
+
+    /// <summary>The tag types of one technology, or of all technologies when none is given.</summary>
+    private static IResult GetTagTypes(string? technology)
+    {
+        if (string.IsNullOrWhiteSpace(technology))
+        {
+            return Results.Ok(TagTechnology.TagTypes.Values.SelectMany(types => types).Distinct());
+        }
+
+        var canonical = ContractText.Canonical(technology, TagTechnology.All);
+        return canonical is null
+            ? Results.BadRequest(new { message = $"Technology must be one of: {string.Join(", ", TagTechnology.All)}" })
+            : Results.Ok(TagTechnology.TagTypes[canonical]);
     }
 
     private static async Task<IResult> GetTagAsync(

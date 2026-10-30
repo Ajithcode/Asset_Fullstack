@@ -7,6 +7,8 @@ public static class FirmwareVersionValidationExtensions
 {
     private const int NameMaxLength = 100;
     private const int VersionMaxLength = 50;
+    private const int MaxReleaseNotes = 30;
+    private const int ReleaseNoteMaxLength = 300;
 
     public static Dictionary<string, string[]> Validate(this CreateFirmwareVersionRequest request)
     {
@@ -19,6 +21,15 @@ public static class FirmwareVersionValidationExtensions
         if (request.DeviceCount < 0)
         {
             errors["DeviceCount"] = ["DeviceCount cannot be negative"];
+        }
+
+        if (request.ReleaseNotes?.Count > MaxReleaseNotes)
+        {
+            errors["ReleaseNotes"] = [$"At most {MaxReleaseNotes} release notes are allowed"];
+        }
+        else if (request.ReleaseNotes?.Any(note => note?.Trim().Length > ReleaseNoteMaxLength) == true)
+        {
+            errors["ReleaseNotes"] = [$"Each release note cannot be longer than {ReleaseNoteMaxLength} characters"];
         }
 
         if (!string.IsNullOrWhiteSpace(request.Status) && ContractText.Canonical(request.Status, FirmwareUpdateStatus.All) is null)

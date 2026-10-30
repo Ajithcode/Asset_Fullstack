@@ -57,4 +57,26 @@ public static class TagTechnology
     public const string Nfc = "NFC";
 
     public static readonly IReadOnlyList<string> All = [Barcode, QrCode, PassiveRfid, ActiveRfid, Ble, Nfc];
+
+    /// <summary>Prefix of the tag id shown in the Register Tag ID form, e.g. BLE + 002952 → BLE-002952.</summary>
+    public static readonly IReadOnlyDictionary<string, string> IdPrefixes = new Dictionary<string, string>
+    {
+        [Barcode] = "BC",
+        [QrCode] = "QR",
+        [PassiveRfid] = "RFID",
+        [ActiveRfid] = "RFID",
+        [Ble] = "BLE",
+        [Nfc] = "NFC"
+    };
+
+    /// <summary>The tag types (physical forms) offered for each technology in the Tag type dropdown.</summary>
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> TagTypes = new Dictionary<string, IReadOnlyList<string>>
+    {
+        [Barcode] = ["Barcode Label"],
+        [QrCode] = ["QR Label"],
+        [PassiveRfid] = ["Label", "Hard Tag"],
+        [ActiveRfid] = ["Hard Tag"],
+        [Ble] = ["Beacon"],
+        [Nfc] = ["Label", "Hard Tag"]
+    };
 }

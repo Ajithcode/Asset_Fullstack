@@ -3,6 +3,7 @@ using A360.Repository.Activity;
 using A360.Security;
 using A360.Tracking.Api.Contracts;
 using A360.Tracking.Api.Validation;
+using A360.Tracking.Domain.Entities;
 using A360.Tracking.Repository.Repositories;
 
 namespace A360.Tracking.Api.Endpoints;
@@ -11,12 +12,18 @@ namespace A360.Tracking.Api.Endpoints;
 public static class IoTDeviceEndpoints
 {
     private const string EntityType = "IoTDevice";
+    private const int MaxSearchResults = 100;
 
     public static RouteGroupBuilder MapIoTDeviceEndpoints(this IEndpointRouteBuilder routes)
     {
         var group = routes.MapGroup("/api/iot-devices").WithTags("IoT Devices");
 
         group.MapGet("", GetIoTDevicesAsync).WithName("GetIoTDevices");
+        // Literal segments take precedence over /{deviceId}, so these are not read as device ids.
+        group.MapGet("/device-types", GetDeviceTypesAsync).WithName("GetIoTDeviceTypes");
+        group.MapGet("/models", GetModelsAsync).WithName("GetIoTDeviceModelOptions");
+        group.MapGet("/connectivities", () => Results.Ok(DeviceModelConnectivity.All)).WithName("GetIoTDeviceConnectivities");
+        group.MapGet("/gateways", GetGatewaysAsync).WithName("GetIoTDeviceGateways");
         group.MapGet("/{deviceId}", GetIoTDeviceAsync).WithName("GetIoTDeviceById");
         group.MapPost("", CreateIoTDeviceAsync).WithName("CreateIoTDevice");
         group.MapPut("/{deviceId}", UpdateIoTDeviceAsync).WithName("UpdateIoTDevice");
@@ -25,12 +32,52 @@ public static class IoTDeviceEndpoints
         return group;
     }
 
+    /// <summary>
+    /// Every device; with search or limit, the Device dropdown search by id or name (at most limit, default 50).
+    /// </summary>
     private static async Task<IResult> GetIoTDevicesAsync(
+        string? search,
+        int? limit,
         IIoTDeviceRepository repository,
         CancellationToken cancellationToken)
     {
-        var devices = await repository.GetAllAsync(cancellationToken);
-        return Results.Ok(TrackingRecords.Listed(devices).Select(IoTDeviceResponse.FromEntity).ToList());
+        if (search is null && limit is null)
+        {
+            var all = await repository.GetAllAsync(cancellationToken);
+            return Results.Ok(TrackingRecords.Listed(all).Select(IoTDeviceResponse.FromEntity).ToList());
+        }
+
+        var devices = await repository.SearchAsync(search, Math.Clamp(limit ?? 50, 1, MaxSearchResults), cancellationToken);
+        return Results.Ok(devices.Select(IoTDeviceResponse.FromEntity));
+    }
+
+    /// <summary>The device types of the selectable models, so every type offered has at least one model.</summary>
+    private static async Task<IResult> GetDeviceTypesAsync(
+        IDeviceModelRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var models = await repository.GetSelectableAsync(null, cancellationToken);
+        return Results.Ok(models
+            .Select(model => model.DeviceType)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static async Task<IResult> GetModelsAsync(
+        string? deviceType,
+        IDeviceModelRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var models = await repository.GetSelectableAsync(deviceType, cancellationToken);
+        return Results.Ok(models.Select(DeviceModelOptionResponse.FromEntity));
+    }
+
+    private static async Task<IResult> GetGatewaysAsync(
+        IIoTDeviceRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var gateways = await repository.GetGatewaysAsync(cancellationToken);
+        return Results.Ok(gateways.Select(GatewayOptionResponse.FromEntity));
     }
 
     private static async Task<IResult> GetIoTDeviceAsync(

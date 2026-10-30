@@ -13,6 +13,7 @@ public sealed record CreateFirmwareVersionRequest(
     int? DeviceCount,
     string? Status,
     DateTime? ReleaseDate,
+    IReadOnlyList<string>? ReleaseNotes,
     string? CreatedBy,
     string? ClientId,
     string? TenantId)
@@ -34,6 +35,7 @@ public sealed record CreateFirmwareVersionRequest(
                     : FirmwareUpdateStatus.UpdateAvailable),
             // Kept as UTC midnight so a date sent without a time does not shift a day.
             ReleaseDate = ReleaseDate is { } date ? DateTime.SpecifyKind(date.Date, DateTimeKind.Utc) : null,
+            ReleaseNotes = (ReleaseNotes ?? []).Where(note => !string.IsNullOrWhiteSpace(note)).Select(note => note.Trim()).ToList(),
             CreatedBy = ContractText.FirstNonEmpty(CreatedBy, currentUser?.UserName),
             CreatedAt = DateTime.UtcNow,
             ClientId = ContractText.FirstNonEmpty(ClientId, currentUser?.ClientId),
@@ -51,6 +53,7 @@ public sealed record FirmwareVersionResponse(
     int DeviceCount,
     string? Status,
     DateTime? ReleaseDate,
+    IReadOnlyList<string> ReleaseNotes,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? ClientId,
@@ -66,6 +69,7 @@ public sealed record FirmwareVersionResponse(
             firmware.DeviceCount,
             firmware.Status,
             firmware.ReleaseDate,
+            firmware.ReleaseNotes,
             firmware.CreatedBy,
             firmware.CreatedAt,
             firmware.ClientId,

@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using A360.Tracking.Api.Endpoints;
 using A360.Tracking.Repository.Repositories;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
@@ -92,6 +93,12 @@ public static class TrackingServiceCollectionExtensions
         services.AddScoped<DeviceDrawingRepository>();
         services.AddScoped<IDeviceDrawingRepository>(serviceProvider => serviceProvider.GetRequiredService<DeviceDrawingRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DeviceDrawingRepository>());
+
+        services.AddScoped<DeviceConfigurationRepository>();
+        services.AddScoped<IDeviceConfigurationRepository>(serviceProvider => serviceProvider.GetRequiredService<DeviceConfigurationRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DeviceConfigurationRepository>());
+
+        services.AddScoped<DeviceConfigurationDependencies>();
 
         services.AddHostedService<MongoIndexHostedService>();
         services.AddEndpointsApiExplorer();

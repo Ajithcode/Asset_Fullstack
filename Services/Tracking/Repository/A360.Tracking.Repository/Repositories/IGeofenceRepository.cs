@@ -10,6 +10,9 @@ public interface IGeofenceRepository : IMongoRepository<Geofence>
     Task<bool> NameExistsAsync(string siteName, string name, string? excludeId = null, CancellationToken cancellationToken = default);
 
     /// <summary>Adds one to the Rules column of the Geofence List.</summary>
+    /// <summary>Asset groups used by non-deleted geofences.</summary>
+    Task<IReadOnlyList<string>> GetAssetGroupsInUseAsync(CancellationToken cancellationToken = default);
+
     Task IncrementRuleCountAsync(string geofenceId, CancellationToken cancellationToken = default);
 
     /// <summary>Takes one off the Rules column of the Geofence List, never below zero.</summary>

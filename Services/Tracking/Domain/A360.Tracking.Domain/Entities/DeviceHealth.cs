@@ -38,6 +38,10 @@ public sealed class DeviceHealth : BaseEntity
     [BsonElement("signal_strength_dbm")]
     public int? SignalStrengthDbm { get; set; }
 
+    /// <summary>Signal-to-noise ratio in dB, e.g. 7.5; null when the device does not report it.</summary>
+    [BsonElement("snr_db")]
+    public double? SnrDb { get; set; }
+
     /// <summary>One of <see cref="SignalQuality.All"/>.</summary>
     [BsonElement("signal_quality")]
     public string? SignalQuality { get; set; }

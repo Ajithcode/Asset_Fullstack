@@ -53,6 +53,19 @@ public sealed class Sensor : BaseEntity
     public DateTime? CalibrationDueDate { get; set; }
 }
 
+/// <summary>A Sensor type option, with what it measures and the prefix of its sensor ids (e.g. SEN-T + 80900 → SEN-T-80900).</summary>
+public sealed record SensorTypeOption(string SensorType, string IdPrefix, string MeasuredParameter, string Unit)
+{
+    public static readonly IReadOnlyList<SensorTypeOption> All =
+    [
+        new("Temperature Probe", "SEN-T", "Temperature", "°C"),
+        new("Humidity Sensor", "SEN-H", "Relative Humidity", "%RH"),
+        new("Vibration Sensor", "SEN-V", "Vibration", "mm/s"),
+        new("Pressure Transmitter", "SEN-P", "Pressure", "bar"),
+        new("Current Sensor", "SEN-C", "Current", "A")
+    ];
+}
+
 public static class SensorStatus
 {
     public const string Active = "Active";

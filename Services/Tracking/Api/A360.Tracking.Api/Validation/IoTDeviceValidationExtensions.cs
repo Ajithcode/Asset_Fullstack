@@ -20,6 +20,7 @@ public static class IoTDeviceValidationExtensions
         MaxLength(errors, "AssetRegistrationId", request.AssetRegistrationId, CodeMaxLength);
         MaxLength(errors, "AssetName", request.AssetName, NameMaxLength);
         MaxLength(errors, "Gateway", request.Gateway, CodeMaxLength);
+        MaxLength(errors, "FirmwareVersion", request.FirmwareVersion, CodeMaxLength);
 
         OneOf(errors, "Connectivity", request.Connectivity, DeviceConnectivity.All, required: true);
         OneOf(errors, "PowerSource", request.PowerSource, DevicePowerSource.All, required: true);

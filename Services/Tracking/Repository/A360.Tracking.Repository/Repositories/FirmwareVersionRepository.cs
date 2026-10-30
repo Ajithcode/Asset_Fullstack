@@ -17,6 +17,13 @@ public sealed class FirmwareVersionRepository
     {
     }
 
+    public async Task<FirmwareVersion?> GetByDeviceModelAsync(string deviceModel, CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(firmware => firmware.DeviceModel == deviceModel && !firmware.IsDeleted, new FindOptions { Collation = CaseInsensitive })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<bool> DeviceModelExistsAsync(string deviceModel, string? excludeId = null, CancellationToken cancellationToken = default)
     {
         return await Collection
