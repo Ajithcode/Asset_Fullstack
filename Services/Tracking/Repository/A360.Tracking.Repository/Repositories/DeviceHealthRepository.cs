@@ -17,10 +17,10 @@ public sealed class DeviceHealthRepository
     {
     }
 
-    public async Task<bool> DeviceIdExistsAsync(string deviceId, CancellationToken cancellationToken = default)
+    public async Task<bool> DeviceIdExistsAsync(string deviceId, string? excludeId = null, CancellationToken cancellationToken = default)
     {
         return await Collection
-            .Find(device => device.DeviceId == deviceId, new FindOptions { Collation = CaseInsensitive })
+            .Find(device => device.DeviceId == deviceId && device.Id != excludeId, new FindOptions { Collation = CaseInsensitive })
             .AnyAsync(cancellationToken);
     }
 

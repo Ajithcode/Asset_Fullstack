@@ -16,10 +16,21 @@ public static class ReplacementDeviceEndpoints
     {
         var group = routes.MapGroup("/api/replacement-devices").WithTags("Replacement Devices");
 
+        group.MapGet("", GetReplacementDevicesAsync).WithName("GetReplacementDevices");
         group.MapGet("/{deviceId}", GetReplacementDeviceAsync).WithName("GetReplacementDeviceById");
         group.MapPost("", CreateReplacementDeviceAsync).WithName("CreateReplacementDevice");
+        group.MapPut("/{deviceId}", UpdateReplacementDeviceAsync).WithName("UpdateReplacementDevice");
+        group.MapDelete("/{deviceId}", DeleteReplacementDeviceAsync).WithName("DeleteReplacementDevice");
 
         return group;
+    }
+
+    private static async Task<IResult> GetReplacementDevicesAsync(
+        IReplacementDeviceRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var devices = await repository.GetAllAsync(cancellationToken);
+        return Results.Ok(TrackingRecords.Listed(devices).Select(ReplacementDeviceResponse.FromEntity).ToList());
     }
 
     private static async Task<IResult> GetReplacementDeviceAsync(
@@ -29,7 +40,7 @@ public static class ReplacementDeviceEndpoints
     {
         var device = await repository.GetByDeviceIdAsync(deviceId.Trim(), cancellationToken);
         return device is null
-            ? Results.NotFound(new { message = $"Replacement device '{deviceId}' was not found." })
+            ? NotFound(deviceId)
             : Results.Ok(ReplacementDeviceResponse.FromEntity(device));
     }
 
@@ -57,5 +68,66 @@ public static class ReplacementDeviceEndpoints
         await eventLogger.LogAsync(EntityType, device.DeviceId, $"{device.DeviceId} - {device.Model}", EventAction.Created, cancellationToken);
 
         return Results.Created($"/api/replacement-devices/{device.DeviceId}", ReplacementDeviceResponse.FromEntity(device));
+    }
+
+    /// <summary>Takes the same body as create; its DeviceId must match the one in the URL.</summary>
+    private static async Task<IResult> UpdateReplacementDeviceAsync(
+        string deviceId,
+        CreateReplacementDeviceRequest request,
+        IReplacementDeviceRepository repository,
+        ICurrentUserAccessor currentUserAccessor,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var validationErrors = request.Validate();
+        if (validationErrors.Count > 0)
+        {
+            return Results.ValidationProblem(validationErrors);
+        }
+
+        if (TrackingRecords.KeyChanged("DeviceId", deviceId, request.DeviceId) is { } keyChanged)
+        {
+            return keyChanged;
+        }
+
+        var existing = await repository.GetByDeviceIdAsync(deviceId.Trim(), cancellationToken);
+        if (existing is null)
+        {
+            return NotFound(deviceId);
+        }
+
+        var currentUser = currentUserAccessor.GetCurrentUser();
+        var device = request.ToEntity(currentUser).Replacing(existing, currentUser);
+        device.DeviceId = existing.DeviceId;
+
+        if (!await repository.UpdateAsync(existing.Id, device, cancellationToken))
+        {
+            return NotFound(deviceId);
+        }
+
+        await eventLogger.LogAsync(EntityType, device.DeviceId, $"{device.DeviceId} - {device.Model}", EventAction.Updated, cancellationToken);
+
+        return Results.Ok(ReplacementDeviceResponse.FromEntity(device));
+    }
+
+    private static async Task<IResult> DeleteReplacementDeviceAsync(
+        string deviceId,
+        IReplacementDeviceRepository repository,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var device = await repository.GetByDeviceIdAsync(deviceId.Trim(), cancellationToken);
+        if (device is null || !await repository.DeleteAsync(device.Id, cancellationToken))
+        {
+            return NotFound(deviceId);
+        }
+
+        await eventLogger.LogAsync(EntityType, device.DeviceId, $"{device.DeviceId} - {device.Model}", EventAction.Deleted, cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static IResult NotFound(string deviceId)
+    {
+        return Results.NotFound(new { message = $"Replacement device '{deviceId}' was not found." });
     }
 }

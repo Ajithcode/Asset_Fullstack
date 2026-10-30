@@ -8,5 +8,6 @@ public interface IDeviceMaintenanceRepository : IMongoRepository<DeviceMaintenan
     Task<DeviceMaintenance?> GetByMaintenanceIdAsync(string maintenanceId, CancellationToken cancellationToken = default);
 
     /// <summary>A device cannot have the same type of maintenance twice on one due date, ignoring case.</summary>
-    Task<bool> ExistsAsync(string deviceId, string maintenanceType, DateTime dueDate, CancellationToken cancellationToken = default);
+    /// <remarks>excludeId is the job being updated, so it does not clash with itself.</remarks>
+    Task<bool> ExistsAsync(string deviceId, string maintenanceType, DateTime dueDate, string? excludeId = null, CancellationToken cancellationToken = default);
 }

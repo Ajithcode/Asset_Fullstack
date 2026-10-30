@@ -17,10 +17,10 @@ public sealed class GeofenceRepository
     {
     }
 
-    public async Task<bool> NameExistsAsync(string siteName, string name, CancellationToken cancellationToken = default)
+    public async Task<bool> NameExistsAsync(string siteName, string name, string? excludeId = null, CancellationToken cancellationToken = default)
     {
         return await Collection
-            .Find(geofence => geofence.SiteName == siteName && geofence.Name == name, new FindOptions { Collation = CaseInsensitive })
+            .Find(geofence => geofence.SiteName == siteName && geofence.Name == name && geofence.Id != excludeId, new FindOptions { Collation = CaseInsensitive })
             .AnyAsync(cancellationToken);
     }
 
@@ -29,6 +29,14 @@ public sealed class GeofenceRepository
         await Collection.UpdateOneAsync(
             geofence => geofence.Id == geofenceId,
             Builders<Geofence>.Update.Inc(geofence => geofence.RuleCount, 1),
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task DecrementRuleCountAsync(string geofenceId, CancellationToken cancellationToken = default)
+    {
+        await Collection.UpdateOneAsync(
+            geofence => geofence.Id == geofenceId && geofence.RuleCount > 0,
+            Builders<Geofence>.Update.Inc(geofence => geofence.RuleCount, -1),
             cancellationToken: cancellationToken);
     }
 
