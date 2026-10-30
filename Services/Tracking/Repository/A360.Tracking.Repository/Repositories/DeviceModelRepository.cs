@@ -31,6 +31,32 @@ public sealed class DeviceModelRepository
             .AnyAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<string, int>> CountByDeviceTypeAsync(CancellationToken cancellationToken = default)
+    {
+        var counts = await Collection
+            .Aggregate()
+            .Match(model => !model.IsDeleted)
+            .Group(model => model.DeviceType, group => new { DeviceType = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+
+        return counts.ToDictionary(count => count.DeviceType, count => count.Count);
+    }
+
+    public async Task<IReadOnlyList<DeviceModel>> GetSelectableAsync(string? deviceType, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<DeviceModel>.Filter.Where(model => !model.IsDeleted && model.Status != DeviceModelStatus.Inactive);
+        if (!string.IsNullOrWhiteSpace(deviceType))
+        {
+            filter &= Builders<DeviceModel>.Filter.Eq(model => model.DeviceType, deviceType.Trim());
+        }
+
+        return await Collection
+            .Find(filter, new FindOptions { Collation = CaseInsensitive })
+            .SortBy(model => model.Manufacturer)
+            .ThenBy(model => model.ModelNumber)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
     {
         var indexes = new[]

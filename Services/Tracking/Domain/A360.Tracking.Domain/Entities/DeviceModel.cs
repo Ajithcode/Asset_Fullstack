@@ -29,13 +29,84 @@ public sealed class DeviceModel : BaseEntity
     [BsonElement("supported_measurements")]
     public List<string> SupportedMeasurements { get; set; } = [];
 
-    /// <summary>One of <see cref="DevicePowerSource.All"/>.</summary>
+    /// <summary>One of <see cref="DeviceModelPowerSource.All"/>; older models may hold a <see cref="DevicePowerSource"/> value.</summary>
     [BsonElement("power_source")]
     public string PowerSource { get; set; } = string.Empty;
 
     /// <summary>Protocol and version, e.g. LoRaWAN 1.0.3, BLE 5.0.</summary>
     [BsonElement("protocol")]
     public string? Protocol { get; set; }
+
+    /// <summary>e.g. EU868, US915.</summary>
+    [BsonElement("frequency_bands")]
+    public List<string> FrequencyBands { get; set; } = [];
+
+    /// <summary>e.g. IP65.</summary>
+    [BsonElement("ip_rating")]
+    public string? IpRating { get; set; }
+
+    /// <summary>Free text, e.g. Up to 5 years (10 min interval).</summary>
+    [BsonElement("battery_life")]
+    public string? BatteryLife { get; set; }
+
+    /// <summary>Free text, e.g. -20 °C to 60 °C.</summary>
+    [BsonElement("operating_temperature")]
+    public string? OperatingTemperature { get; set; }
+
+    /// <summary>Lowest compatible firmware version, e.g. 1.1.0.</summary>
+    [BsonElement("firmware_from")]
+    public string? FirmwareFrom { get; set; }
+
+    /// <summary>Highest compatible firmware version, e.g. 1.4.0.</summary>
+    [BsonElement("firmware_to")]
+    public string? FirmwareTo { get; set; }
+
+    /// <summary>Settings a device of this model exposes, e.g. Reporting Interval, Threshold Alerts.</summary>
+    [BsonElement("configurable_attributes")]
+    public List<string> ConfigurableAttributes { get; set; } = [];
+}
+
+/// <summary>The device type categories listed in Device Type & Model, including ones with no models yet.</summary>
+public static class DeviceModelType
+{
+    public static readonly IReadOnlyList<string> All =
+    [
+        "Asset Tracker", "Environmental Sensor", "Condition Sensor", "Gateway",
+        "RFID Reader", "BLE Beacon", "Smart Meter", "People Counter"
+    ];
+}
+
+/// <summary>Power options of a model; separate from <see cref="DevicePowerSource"/>, which device battery checks rely on.</summary>
+public static class DeviceModelPowerSource
+{
+    public const string BatteryReplaceable = "Battery (replaceable)";
+    public const string BatteryRechargeable = "Battery (rechargeable)";
+    public const string ExternalPower = "External power";
+    public const string PoE = "PoE";
+
+    public static readonly IReadOnlyList<string> All = [BatteryReplaceable, BatteryRechargeable, ExternalPower, PoE];
+}
+
+/// <summary>A measurement a model can report, with its unit, e.g. Temperature in °C.</summary>
+public sealed record DeviceMeasurement(string Name, string Unit)
+{
+    public static readonly IReadOnlyList<DeviceMeasurement> All =
+    [
+        new("Temperature", "°C"), new("Humidity", "%RH"), new("Vibration", "mm/s"), new("Battery", "%"),
+        new("Atmospheric Pressure", "hPa"), new("CO₂", "ppm"), new("TVOC", "ppb"), new("Light", "lux"),
+        new("Door/Window State", "open/closed"), new("Water Leak", "yes/no"), new("Tilt", "°"), new("Location", "GNSS"),
+        new("Motion", "g"), new("Tag Reads", "reads/s"), new("RSSI", "dBm"), new("Uplink Packets", "pkt/min"),
+        new("Energy", "kWh"), new("People Count", "count")
+    ];
+}
+
+public static class DeviceModelAttribute
+{
+    public static readonly IReadOnlyList<string> All =
+    [
+        "Reporting Interval", "Measurement Intervals", "Threshold Alerts", "Motion Detection", "Geo-fencing",
+        "LED Indication", "Data Retransmission", "OTA Firmware", "Time Sync", "Tamper Alert", "Power Saving Mode"
+    ];
 }
 
 public static class DeviceModelConnectivity

@@ -24,6 +24,7 @@ public sealed record CreateIoTDeviceRequest(
     int? BatteryLevel,
     DateTime? LastSeenAt,
     string? Health,
+    string? FirmwareVersion,
     string? CreatedBy,
     string? ClientId,
     string? TenantId)
@@ -46,6 +47,7 @@ public sealed record CreateIoTDeviceRequest(
             BatteryLevel = powerSource == DevicePowerSource.Battery ? BatteryLevel : null,
             LastSeenAt = LastSeenAt?.ToUniversalTime(),
             Status = ContractText.Canonical(Health, IoTDeviceHealth.All) ?? IoTDeviceHealth.Good,
+            FirmwareVersion = ContractText.TrimOrNull(FirmwareVersion),
             CreatedBy = ContractText.FirstNonEmpty(CreatedBy, currentUser?.UserName),
             CreatedAt = DateTime.UtcNow,
             ClientId = ContractText.FirstNonEmpty(ClientId, currentUser?.ClientId),
@@ -69,6 +71,9 @@ public sealed record IoTDeviceResponse(
     int? BatteryLevel,
     DateTime? LastSeenAt,
     string? Health,
+    string? FirmwareVersion,
+    string? PendingFirmwareVersion,
+    DateTime? FirmwareUpdateScheduledAt,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -92,11 +97,32 @@ public sealed record IoTDeviceResponse(
             device.BatteryLevel,
             device.LastSeenAt,
             device.Status,
+            device.FirmwareVersion,
+            device.PendingFirmwareVersion,
+            device.FirmwareUpdateScheduledAt,
             device.CreatedBy,
             device.CreatedAt,
             device.UpdatedBy,
             device.UpdatedAt,
             device.ClientId,
             device.TenantId);
+    }
+}
+
+/// <summary>An option of the Model dropdown, e.g. Minew E8.</summary>
+public sealed record DeviceModelOptionResponse(string ModelNumber, string Manufacturer, string DeviceType, string Connectivity, string? Protocol)
+{
+    public static DeviceModelOptionResponse FromEntity(DeviceModel model)
+    {
+        return new DeviceModelOptionResponse(model.ModelNumber, model.Manufacturer, model.DeviceType, model.Connectivity, model.Protocol);
+    }
+}
+
+/// <summary>An option of the Gateway dropdown, e.g. GW-DXB-01.</summary>
+public sealed record GatewayOptionResponse(string DeviceId, string DeviceName)
+{
+    public static GatewayOptionResponse FromEntity(IoTDevice gateway)
+    {
+        return new GatewayOptionResponse(gateway.DeviceId, gateway.DeviceName);
     }
 }

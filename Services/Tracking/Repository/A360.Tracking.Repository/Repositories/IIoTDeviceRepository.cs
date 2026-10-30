@@ -9,4 +9,10 @@ public interface IIoTDeviceRepository : IMongoRepository<IoTDevice>
 
     /// <summary>Device ids are unique, ignoring case.</summary>
     Task<bool> DeviceIdExistsAsync(string deviceId, CancellationToken cancellationToken = default);
+
+    /// <summary>Non-deleted devices whose id or name contains the search text, ignoring case, ordered by id.</summary>
+    Task<IReadOnlyList<IoTDevice>> SearchAsync(string? search, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Devices of type <see cref="IoTDeviceType.Gateway"/>, ignoring case, that other devices can report through.</summary>
+    Task<IReadOnlyList<IoTDevice>> GetGatewaysAsync(CancellationToken cancellationToken = default);
 }

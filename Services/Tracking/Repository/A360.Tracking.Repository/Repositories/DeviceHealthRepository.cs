@@ -17,6 +17,13 @@ public sealed class DeviceHealthRepository
     {
     }
 
+    public async Task<DeviceHealth?> GetByDeviceIdAsync(string deviceId, CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(device => device.DeviceId == deviceId && !device.IsDeleted, new FindOptions { Collation = CaseInsensitive })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<bool> DeviceIdExistsAsync(string deviceId, CancellationToken cancellationToken = default)
     {
         return await Collection

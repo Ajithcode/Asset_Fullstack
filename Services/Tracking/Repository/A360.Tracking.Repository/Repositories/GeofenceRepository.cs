@@ -24,6 +24,16 @@ public sealed class GeofenceRepository
             .AnyAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<string>> GetAssetGroupsInUseAsync(CancellationToken cancellationToken = default)
+    {
+        var cursor = await Collection.DistinctAsync(
+            new StringFieldDefinition<Geofence, string>("asset_groups"),
+            Builders<Geofence>.Filter.Where(geofence => !geofence.IsDeleted),
+            cancellationToken: cancellationToken);
+
+        return await cursor.ToListAsync(cancellationToken);
+    }
+
     public async Task IncrementRuleCountAsync(string geofenceId, CancellationToken cancellationToken = default)
     {
         await Collection.UpdateOneAsync(

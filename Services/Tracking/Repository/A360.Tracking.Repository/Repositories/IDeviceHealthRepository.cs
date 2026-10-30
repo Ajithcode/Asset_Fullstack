@@ -6,5 +6,7 @@ namespace A360.Tracking.Repository.Repositories;
 public interface IDeviceHealthRepository : IMongoRepository<DeviceHealth>
 {
     /// <summary>Each device has one health record, ignoring case.</summary>
+    Task<DeviceHealth?> GetByDeviceIdAsync(string deviceId, CancellationToken cancellationToken = default);
+
     Task<bool> DeviceIdExistsAsync(string deviceId, CancellationToken cancellationToken = default);
 }

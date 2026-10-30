@@ -8,6 +8,7 @@ public static class DeviceModelValidationExtensions
     private const int CodeMaxLength = 50;
     private const int NameMaxLength = 100;
     private const int MaxMeasurements = 30;
+    private const int MaxListItems = 30;
 
     public static Dictionary<string, string[]> Validate(this CreateDeviceModelRequest request)
     {
@@ -18,10 +19,17 @@ public static class DeviceModelValidationExtensions
         RequireText(errors, "DeviceType", request.DeviceType, NameMaxLength);
 
         OneOf(errors, "Connectivity", request.Connectivity, DeviceModelConnectivity.All, required: true);
-        OneOf(errors, "PowerSource", request.PowerSource, DevicePowerSource.All, required: true);
+        OneOf(errors, "PowerSource", request.PowerSource, DeviceModelPowerSource.All, required: true);
         OneOf(errors, "Status", request.Status, DeviceModelStatus.All, required: false);
 
         MaxLength(errors, "Protocol", request.Protocol, CodeMaxLength);
+        MaxLength(errors, "IpRating", request.IpRating, CodeMaxLength);
+        MaxLength(errors, "BatteryLife", request.BatteryLife, NameMaxLength);
+        MaxLength(errors, "OperatingTemperature", request.OperatingTemperature, NameMaxLength);
+        MaxLength(errors, "FirmwareFrom", request.FirmwareFrom, CodeMaxLength);
+        MaxLength(errors, "FirmwareTo", request.FirmwareTo, CodeMaxLength);
+        ListItems(errors, "FrequencyBands", request.FrequencyBands, CodeMaxLength);
+        ListItems(errors, "ConfigurableAttributes", request.ConfigurableAttributes, NameMaxLength);
 
         if (request.SupportedMeasurements?.Count > MaxMeasurements)
         {
@@ -33,6 +41,18 @@ public static class DeviceModelValidationExtensions
         }
 
         return errors;
+    }
+
+    private static void ListItems(Dictionary<string, string[]> errors, string field, IReadOnlyList<string>? values, int maxLength)
+    {
+        if (values?.Count > MaxListItems)
+        {
+            errors[field] = [$"At most {MaxListItems} {field} are allowed"];
+        }
+        else if (values?.Any(value => value?.Trim().Length > maxLength) == true)
+        {
+            errors[field] = [$"Each of {field} cannot be longer than {maxLength} characters"];
+        }
     }
 
     private static void RequireText(Dictionary<string, string[]> errors, string field, string? value, int maxLength)

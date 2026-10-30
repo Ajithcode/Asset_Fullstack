@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using A360.Tracking.Domain.Entities;
 using A360.Repository.Repositories;
@@ -29,6 +31,32 @@ public sealed class IoTDeviceRepository
         return await Collection
             .Find(device => device.DeviceId == deviceId, new FindOptions { Collation = CaseInsensitive })
             .AnyAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<IoTDevice>> SearchAsync(string? search, int limit, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<IoTDevice>.Filter.Where(device => !device.IsDeleted);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = new BsonRegularExpression(Regex.Escape(search.Trim()), "i");
+            filter &= Builders<IoTDevice>.Filter.Or(
+                Builders<IoTDevice>.Filter.Regex(device => device.DeviceId, pattern),
+                Builders<IoTDevice>.Filter.Regex(device => device.DeviceName, pattern));
+        }
+
+        return await Collection
+            .Find(filter)
+            .SortBy(device => device.DeviceId)
+            .Limit(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<IoTDevice>> GetGatewaysAsync(CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(device => device.DeviceType == IoTDeviceType.Gateway && !device.IsDeleted, new FindOptions { Collation = CaseInsensitive })
+            .SortBy(device => device.DeviceId)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
