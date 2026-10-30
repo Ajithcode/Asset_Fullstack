@@ -50,7 +50,7 @@ type Tab = 'overview' | 'workOrders' | 'pm' | 'predictive' | 'requests' | 'histo
 type WoType = 'Preventive' | 'Corrective' | 'Inspection' | 'Service';
 type WoStatus = 'Completed' | 'In Progress' | 'Scheduled' | 'Open';
 
-interface WorkOrder {
+export interface WorkOrder {
   id: string;
   date: string;
   type: WoType;
@@ -79,7 +79,7 @@ interface Activity {
   kind: ActivityKind;
 }
 
-interface MaintenanceData {
+export interface MaintenanceData {
   year: number;
   lastYear: { cost: number; downtimeMin: number };
   lastMonthOpen: number;
@@ -152,7 +152,7 @@ const PAD = { l: 34, r: 8, t: 8, b: 22 };
  * so every asset opens with consistent figures. Kept in memory per asset.
  */
 const STORE = new Map<string, MaintenanceData>();
-function dataFor(a: AssetRecord): MaintenanceData {
+export function dataFor(a: AssetRecord): MaintenanceData {
   let d = STORE.get(a.tag);
   if (d) return d;
   d = structuredClone(SOURCE);
@@ -283,6 +283,9 @@ export class AssetMaintenance implements OnDestroy {
         // ?tab=costs opens a section directly
         const tab = p.get('tab') as Tab | null;
         if (tab && this.tabs.some((t) => t.key === tab)) this.tab = tab;
+        // ?wo=WO-2026-081 opens that work order (from a service request)
+        const wo = p.get('wo');
+        if (wo) this.showWorkOrder(wo);
       });
   }
 
@@ -441,7 +444,7 @@ export class AssetMaintenance implements OnDestroy {
 
   /** Header button: the Service Requests tab creates requests, every other tab work orders. */
   headerCreate(): void {
-    if (this.tab === 'requests' && this.srTab) this.srTab.openForm();
+    if (this.tab === 'requests') this.router.navigate(['/assets/service-requests/new'], { queryParams: { tag: this.asset.tag } });
     else this.openWorkOrder();
   }
 

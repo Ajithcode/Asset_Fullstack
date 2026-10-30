@@ -1,0 +1,58 @@
+/* Asset Disposal. Page frame, cards, filters, table, details panel and dialogs come from the Asset Assignment stylesheets. */
+
+/* ============ Summary cards double as a status filter ============ */
+button.stat { width: 100%; font: inherit; text-align: left; color: inherit; cursor: pointer; }
+button.stat:hover { border-color: var(--aa-accent-border); }
+button.stat.is-on { border-color: var(--aa-accent); box-shadow: inset 0 -3px 0 var(--aa-accent); }
+.stat-ic--amber { background: #fff1d6; color: #d97706; }
+.stat-ic--green { background: #dcf5e4; color: #15803d; }
+.stat-ic--red { background: #fde2e2; color: var(--aa-red); }
+
+/* ============ Status ============ */
+.status--pending { border: 1px solid #fcd9a5; background: #fff6e6; color: #d97706; }
+.status--approved, .status--completed { border: 1px solid #bbe7c8; background: #e8f8ee; color: #15803d; }
+.status--rejected, .status--cancelled { border: 1px solid #fbc4c4; background: #fff1f1; color: var(--aa-red); }
+.status--draft { border: 1px solid #e5e7eb; background: #f3f4f6; color: #4b5563; }
+
+/* ============ Table & details ============ */
+.dp-ref { font-weight: 700; color: var(--aa-accent); }
+.dp-selected { display: inline; margin-right: 4px; }
+.d-img { overflow: hidden; }
+.d-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* Five tabs in the 320px panel */
+.detail .tabs button { padding: 10px 2px; font-size: 12.5px; }
+.dp-item { display: flex; align-items: center; gap: 10px; padding: 8px; font-size: 13px; }
+.dp-item strong { display: block; font-weight: 700; color: #1e1b4b; }
+.dp-item small { display: block; color: var(--aa-muted); }
+
+/* Workflow */
+.flow { margin: 0; padding: 0; list-style: none; }
+.flow li { position: relative; display: flex; gap: 12px; padding-bottom: 16px; font-size: 13px; }
+.flow li:last-child { padding-bottom: 0; }
+.flow li:not(:last-child)::before { content: ''; position: absolute; top: 22px; bottom: 0; left: 10px; width: 2px; background: #e5e7eb; }
+.flow li.flow--done:not(:last-child)::before { background: var(--aa-accent); }
+.flow strong { display: block; margin-bottom: 4px; font-weight: 700; color: #1e1b4b; }
+.flow-dot { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 22px; height: 22px; box-sizing: border-box; border: 2px solid #d1d5db; border-radius: 50%; background: #fff; color: #fff; }
+.flow--done .flow-dot { border-color: var(--aa-accent); background: var(--aa-accent); }
+.flow--current .flow-dot { border-color: #d97706; }
+.flow--rejected .flow-dot { border-color: var(--aa-red); background: var(--aa-red); }
+.flow--pending strong { color: #6b7280; }
+.flow-meta { display: block; font-size: 12px; color: #374151; }
+
+/* Files & notes */
+.tab-body { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.tab-body p { margin: 0; }
+.file-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.file-list li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--aa-border); border-radius: 8px; color: var(--aa-accent); }
+.file-name { display: block; overflow: hidden; color: #1e1b4b; text-overflow: ellipsis; white-space: nowrap; }
+.note-form { display: flex; gap: 8px; }
+.note-form .control { height: 34px; }
+.upload { align-self: flex-start; }
+.upload input { display: none; }
+
+/* ============ Dialogs ============ */
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+
+@media (max-width: 760px) {
+  .three { grid-template-columns: minmax(0, 1fr); }
+}

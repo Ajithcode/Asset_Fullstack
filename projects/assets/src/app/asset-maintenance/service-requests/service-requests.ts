@@ -1,4 +1,5 @@
-import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
@@ -12,6 +13,7 @@ import {
   CircleUser,
   Ellipsis,
   EllipsisVertical,
+  ExternalLink,
   FileText,
   Flag,
   Folder,
@@ -90,7 +92,7 @@ export class ServiceRequests {
   @Output() notify = new EventEmitter<string>();
   @Output() openWorkOrder = new EventEmitter<string>();
 
-  readonly icons = { Activity, List, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleUser, Ellipsis, EllipsisVertical, FileText, Flag, Folder, Hash, MapPin, Package, Paperclip, Pencil, Plus, Search, Type, User, Wrench, X };
+  readonly icons = { Activity, List, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleUser, Ellipsis, EllipsisVertical, ExternalLink, FileText, Flag, Folder, Hash, MapPin, Package, Paperclip, Pencil, Plus, Search, Type, User, Wrench, X };
   readonly statuses = SR_STATUSES;
   readonly priorities = SR_PRIORITIES;
   readonly categories = SR_CATEGORIES;
@@ -122,6 +124,7 @@ export class ServiceRequests {
   /** Resolve / close dialog. */
   closing: { id: string; to: 'Resolved' | 'Closed'; note: string; rating: number } | null = null;
   slaOpen = false;
+  private readonly router = inject(Router);
 
   // ===== Rows =====
 
@@ -203,6 +206,16 @@ export class ServiceRequests {
     this.panelOpen = true;
     this.detailTab = 'details';
     this.menuOpen = '';
+  }
+
+  newRequest(): void {
+    this.router.navigate(['/assets/service-requests/new'], { queryParams: { tag: this.asset.tag } });
+  }
+
+  /** Full page for one request, opened on the given tab. */
+  open(r: ServiceRequest, tab: 'details' | 'updates' | 'attachments' | 'related' = 'details'): void {
+    this.menuOpen = '';
+    this.router.navigate(['/assets/service-requests', r.id], { queryParams: { tag: this.asset.tag, tab } });
   }
 
   get selected(): ServiceRequest | null {

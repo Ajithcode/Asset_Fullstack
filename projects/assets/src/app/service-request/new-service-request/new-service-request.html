@@ -1,0 +1,188 @@
+<section class="mt-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a><span class="sep">›</span>
+    <a routerLink="/assets/service-requests" [queryParams]="{ tag: asset.tag }">Service Requests</a><span class="sep">›</span>
+    <span class="crumb-current">New Service Request</span>
+  </nav>
+
+  <!-- ===== Asset header ===== -->
+  <div class="card head">
+    <img *ngIf="asset.image; else typeIcon" class="head-img" [src]="asset.image" [alt]="asset.name" />
+    <ng-template #typeIcon><span class="head-img head-img--icon"><lucide-icon [img]="typeIcons[asset.icon]" [size]="40"></lucide-icon></span></ng-template>
+    <div class="head-main">
+      <div class="head-title"><h1>{{ asset.tag }}</h1><span class="pill" [class.pill--green]="asset.status === 'Active'" [class.pill--amber]="asset.status !== 'Active'">{{ asset.status === 'Active' ? 'In Service' : asset.status }}</span></div>
+      <p class="head-name">{{ asset.name }}</p>
+      <p class="head-meta">
+        <span><lucide-icon [img]="icons.Folder" [size]="15"></lucide-icon>{{ asset.category }}</span>
+        <span><lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon>{{ location }}</span>
+        <span><lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>{{ asset.department }} Department</span>
+      </p>
+    </div>
+    <div class="head-side">
+      <div class="health" aria-label="Health score">
+        <span class="health-label">Health<br />Score</span>
+        <svg class="gauge" viewBox="0 0 84 84" role="img" [attr.aria-label]="health === null ? 'Health score loading' : 'Health score ' + health + ' out of 100, ' + healthBand">
+          <circle cx="42" cy="42" r="34" class="gauge-track" [attr.stroke-dasharray]="gaugeTrack" transform="rotate(135 42 42)" />
+          <circle *ngIf="health !== null" cx="42" cy="42" r="34" class="gauge-fill" [class.g-excellent]="health >= 70" [class.g-good]="health >= 50 && health < 70" [class.g-fair]="health >= 30 && health < 50" [class.g-poor]="health < 30"
+            [attr.stroke-dasharray]="gaugeDash(health)" transform="rotate(135 42 42)" />
+          <text x="42" y="44" class="gauge-num">{{ health ?? '…' }}</text>
+          <text x="42" y="57" class="gauge-of">/100</text>
+        </svg>
+        <ul class="health-legend">
+          <li [class.is-on]="healthBand === 'Excellent'"><i class="g-excellent"></i>Excellent<span>70-100</span></li>
+          <li [class.is-on]="healthBand === 'Good'"><i class="g-good"></i>Good<span>50-69</span></li>
+          <li [class.is-on]="healthBand === 'Fair'"><i class="g-fair"></i>Fair<span>30-49</span></li>
+          <li [class.is-on]="healthBand === 'Poor'"><i class="g-poor"></i>Poor<span>0-29</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <form class="nsr-layout" (ngSubmit)="submit()" novalidate>
+    <div class="card nsr-main">
+      <div class="nsr-intro">
+        <h2>New Service Request</h2>
+        <p>Raise a new service request for this asset. Fill in the details below and submit for review.</p>
+        <p *ngIf="hasDraft" class="nsr-draft">Restored your saved draft. <button type="button" class="sr-link" (click)="discardDraft()">Start blank</button></p>
+      </div>
+
+      <!-- ===== Request information ===== -->
+      <fieldset class="nsr-sec">
+        <legend>Request Information</legend>
+        <div class="nsr-grid nsr-grid--info">
+          <label class="field nsr-span2"><span class="field-label">Title / Description <em>*</em></span>
+            <input class="control" [class.is-invalid]="submitted && errors.title" [(ngModel)]="form.title" (ngModelChange)="validate()" name="title" maxlength="150" placeholder="Short summary of the problem" />
+            <small *ngIf="submitted && errors.title" class="nsr-err">{{ errors.title }}</small></label>
+          <label class="field"><span class="field-label">Request Type <em>*</em></span>
+            <select class="control" [(ngModel)]="form.category" name="category"><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+          <label class="field"><span class="field-label">Priority <em>*</em></span>
+            <span class="nsr-prio" [ngClass]="prioClass(form.priority)"><lucide-icon *ngIf="form.priority === 'High'" [img]="icons.TriangleAlert" [size]="14"></lucide-icon>
+              <select class="control" [(ngModel)]="form.priority" (ngModelChange)="onSchedule()" name="priority"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></span></label>
+          <label class="field"><span class="field-label">Requested Date <em>*</em></span>
+            <input class="control" type="date" [class.is-invalid]="submitted && errors.requestedDate" [(ngModel)]="form.requestedDate" (ngModelChange)="onSchedule()" name="requestedDate" />
+            <small *ngIf="submitted && errors.requestedDate" class="nsr-err">{{ errors.requestedDate }}</small></label>
+          <label class="field"><span class="field-label">Target Date</span>
+            <input class="control" type="date" [class.is-invalid]="submitted && errors.targetDate" [(ngModel)]="form.targetDate" (ngModelChange)="onTarget()" name="targetDate" [min]="form.requestedDate" />
+            <small *ngIf="submitted && errors.targetDate" class="nsr-err">{{ errors.targetDate }}</small></label>
+          <label class="field nsr-full"><span class="field-label">Detailed Description <em>*</em></span>
+            <textarea class="control sr-textarea nsr-desc" [class.is-invalid]="submitted && errors.description" [(ngModel)]="form.description" (ngModelChange)="validate()" name="description" rows="4" [maxlength]="maxDescription" placeholder="What is happening, since when, and under what conditions?"></textarea>
+            <span class="nsr-count">{{ form.description.length }}/{{ maxDescription }}</span>
+            <small *ngIf="submitted && errors.description" class="nsr-err">{{ errors.description }}</small></label>
+        </div>
+      </fieldset>
+
+      <!-- ===== Location & assignment ===== -->
+      <fieldset class="nsr-sec">
+        <legend>Location &amp; Assignment</legend>
+        <div class="nsr-grid nsr-grid--4">
+          <label class="field"><span class="field-label">Location <em>*</em></span>
+            <select class="control" [class.is-invalid]="submitted && errors.location" [(ngModel)]="form.location" (ngModelChange)="validate()" name="location"><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select>
+            <small *ngIf="submitted && errors.location" class="nsr-err">{{ errors.location }}</small></label>
+          <label class="field"><span class="field-label">Department</span>
+            <select class="control" [(ngModel)]="form.department" name="department"><option *ngFor="let d of departments" [value]="d">{{ d }}</option></select></label>
+          <label class="field"><span class="field-label">Requested By <em>*</em></span>
+            <select class="control" [class.is-invalid]="submitted && errors.requestedBy" [(ngModel)]="form.requestedBy" (ngModelChange)="validate()" name="requestedBy"><option *ngFor="let p of people" [value]="p">{{ p }}</option></select>
+            <small *ngIf="submitted && errors.requestedBy" class="nsr-err">{{ errors.requestedBy }}</small></label>
+          <label class="field"><span class="field-label">Assign To</span>
+            <span class="nsr-ic-field"><lucide-icon [img]="icons.User" [size]="15"></lucide-icon>
+              <select class="control" [(ngModel)]="form.assignedTo" name="assignedTo"><option value="">Not assigned</option><option *ngFor="let t of technicians" [value]="t">{{ t }} (Technician)</option></select></span></label>
+        </div>
+      </fieldset>
+
+      <!-- ===== Work details ===== -->
+      <fieldset class="nsr-sec">
+        <legend>Work Details</legend>
+        <div class="nsr-grid nsr-grid--5">
+          <label class="field"><span class="field-label">Estimated Downtime</span>
+            <span class="nsr-ic-field"><lucide-icon [img]="icons.Clock" [size]="15"></lucide-icon>
+              <input class="control" type="number" min="0" step="0.5" [(ngModel)]="form.downtimeHours" (ngModelChange)="onPlanned()" name="downtime" placeholder="Hours" /></span></label>
+          <label class="field"><span class="field-label">Required Start Date &amp; Time</span>
+            <input class="control" type="datetime-local" [(ngModel)]="form.plannedStart" (ngModelChange)="onPlanned()" name="plannedStart" /></label>
+          <label class="field"><span class="field-label">Required End Date &amp; Time</span>
+            <input class="control" type="datetime-local" [class.is-invalid]="submitted && errors.plannedEnd" [(ngModel)]="form.plannedEnd" (ngModelChange)="validate()" name="plannedEnd" [min]="form.plannedStart" />
+            <small *ngIf="submitted && errors.plannedEnd" class="nsr-err">{{ errors.plannedEnd }}</small></label>
+          <label class="field"><span class="field-label">Related Work Order</span>
+            <select class="control" [(ngModel)]="form.workOrder" name="workOrder"><option value="">Select Work Order (Optional)</option>
+              <option *ngFor="let w of data.workOrders" [value]="w.id">{{ w.id }} · {{ w.description }}</option></select></label>
+          <label class="field"><span class="field-label">Related Service Request</span>
+            <select class="control" [(ngModel)]="form.relatedRequest" name="relatedRequest"><option value="">Select SR (Optional)</option>
+              <option *ngFor="let r of requestsByDate" [value]="r.id">{{ r.id }} · {{ r.title }}</option></select></label>
+        </div>
+      </fieldset>
+
+      <div class="nsr-bottom">
+        <!-- ===== Attachments ===== -->
+        <fieldset class="nsr-sec">
+          <legend>Attachments</legend>
+          <input #picker type="file" multiple hidden [accept]="uploadAccept" (change)="onPick(picker)" />
+          <div class="srd-drop" [class.is-over]="dragging" role="button" tabindex="0" (click)="picker.click()" (keydown.enter)="picker.click()"
+            (dragover)="$event.preventDefault(); dragging = true" (dragleave)="dragging = false" (drop)="onDrop($event)">
+            <lucide-icon [img]="icons.Upload" [size]="28"></lucide-icon>
+            <strong>Drag and drop files here or click to upload</strong>
+            <span class="muted">Supports: PDF, JPG, PNG, DOC, XLS (Max 10 MB each)</span>
+          </div>
+          <ul *ngIf="files.length" class="nsr-files">
+            <li *ngFor="let f of files"><lucide-icon [img]="icons.File" [size]="15"></lucide-icon><span class="grow">{{ f.name }}</span><span class="muted">{{ f.size }}</span>
+              <button type="button" class="icon-btn" (click)="removeFile(f)" [attr.aria-label]="'Remove ' + f.name"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon></button></li>
+          </ul>
+        </fieldset>
+
+        <!-- ===== Additional information ===== -->
+        <fieldset class="nsr-sec">
+          <legend>Additional Information</legend>
+          <div class="field"><span class="field-label" id="nsr-tags-l">Tags</span>
+            <div class="nsr-tags control" (click)="$event.stopPropagation(); tagsOpen = true; tagBox.focus()">
+              <span *ngFor="let t of form.tags" class="nsr-chip">{{ t }}<button type="button" (click)="removeTag(t)" [attr.aria-label]="'Remove tag ' + t"><lucide-icon [img]="icons.X" [size]="12"></lucide-icon></button></span>
+              <input #tagBox [(ngModel)]="tagInput" name="tagInput" (keydown)="onTagKey($event)" (focus)="tagsOpen = true" aria-labelledby="nsr-tags-l" [placeholder]="form.tags.length ? '' : 'Add tags'" />
+              <span *ngIf="tagsOpen && tagOptions.length" class="menu nsr-tag-menu" role="listbox">
+                <button *ngFor="let t of tagOptions" type="button" role="option" (click)="addTag(t); tagBox.focus()">{{ t }}</button>
+              </span>
+            </div></div>
+          <label class="field"><span class="field-label">Reference No. (Optional)</span>
+            <input class="control" [(ngModel)]="form.reference" name="reference" placeholder="Enter reference number" /></label>
+        </fieldset>
+      </div>
+
+      <div class="nsr-foot">
+        <button type="button" class="btn btn-outline" (click)="cancel()">Cancel</button>
+        <span class="grow"></span>
+        <button type="button" class="btn btn-outline" (click)="saveDraft()"><lucide-icon [img]="icons.Save" [size]="16"></lucide-icon>Save as Draft</button>
+        <button type="submit" class="btn btn-primary"><lucide-icon [img]="icons.Send" [size]="16"></lucide-icon>Submit Service Request</button>
+      </div>
+    </div>
+
+    <!-- ===== Summary column ===== -->
+    <aside class="srd-side">
+      <section class="card panel" aria-labelledby="nsr-sum">
+        <h3 id="nsr-sum" class="srd-h">Request Summary</h3>
+        <dl class="srd-kv srd-kv--side">
+          <dt>Asset</dt><dd><a class="sr-link" routerLink="/assets/status-condition" [queryParams]="{ tag: asset.tag }">{{ asset.tag }}</a><br />{{ asset.name }}</dd>
+          <dt>Request Type</dt><dd>{{ form.category }}</dd>
+          <dt>Priority</dt><dd><span class="prio" [ngClass]="prioClass(form.priority)"><lucide-icon *ngIf="form.priority === 'High'" [img]="icons.TriangleAlert" [size]="12"></lucide-icon> {{ form.priority }}</span></dd>
+          <dt>Requested Date</dt><dd>{{ fmtDate(form.requestedDate) }}</dd>
+          <dt>Target Date</dt><dd>{{ fmtDate(form.targetDate) }}</dd>
+          <dt>Location</dt><dd>{{ form.location || '-' }}</dd>
+          <dt>Department</dt><dd>{{ form.department || '-' }}</dd>
+          <dt>Requested By</dt><dd>{{ form.requestedBy || '-' }}</dd>
+          <dt>Assign To</dt><dd>{{ form.assignedTo ? form.assignedTo + ' (Technician)' : '-' }}</dd>
+          <dt>Estimated Downtime</dt><dd>{{ form.downtimeHours ? form.downtimeHours + ' Hours' : '-' }}</dd>
+        </dl>
+      </section>
+
+      <section class="card panel" aria-labelledby="nsr-recent">
+        <div class="srd-sec-head"><h3 id="nsr-recent" class="srd-h grow">Recent Service Requests</h3><button type="button" class="srd-edit" (click)="cancel()">View All</button></div>
+        <ul class="nsr-recent">
+          <li *ngFor="let r of recent">
+            <button type="button" (click)="openRequest(r)">
+              <span class="nsr-recent-row"><strong>{{ r.id }}</strong><span class="sr-st" [ngClass]="statusClass(r.status)">{{ r.status }}</span></span>
+              <span class="nsr-recent-row"><span class="grow">{{ r.title }}</span><small class="muted">{{ fmtDate(r.date) }}</small></span>
+            </button>
+          </li>
+          <li *ngIf="!recent.length" class="muted">No service requests yet.</li>
+        </ul>
+      </section>
+    </aside>
+  </form>
+</section>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>
