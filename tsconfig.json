@@ -80,6 +80,12 @@
     },
     {
       "path": "./projects/administration/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/master-data-management/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/master-data-management/tsconfig.spec.json"
     }
   ]
 }

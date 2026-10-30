@@ -2,8 +2,7 @@ import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgFor, NgIf } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { AuthService, DEMO_ROLES } from '../../../../components/service/auth/auth.service';
-import { RegisterData, SignupRole } from '../../../../models/auth.model';
+import { AuthService, DEMO_ROLES, RegisterData, SignupRole } from 'shared-ui';
 
 const USER_NAME_PATTERN = /^[A-Za-z0-9._-]{3,50}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

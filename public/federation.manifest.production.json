@@ -4,5 +4,9 @@
 	"events": "https://assets360-events.madheshsiva28.workers.dev/remoteEntry.json",
 	"reports": "https://assets360-reports.madheshsiva28.workers.dev/remoteEntry.json",
 	"processAutomation": "https://assets360-process-automation.madheshsiva28.workers.dev/remoteEntry.json",
-	"administration": "https://assets360-administration.madheshsiva28.workers.dev/remoteEntry.json"
+	"administration": "https://assets360-administration.madheshsiva28.workers.dev/remoteEntry.json",
+	"masterDataManagement": "https://assets360-master-data-management.madheshsiva28.workers.dev/remoteEntry.json",
+	"assets": "https://assets360-assets.madheshsiva28.workers.dev/remoteEntry.json",
+	"trackingIot": "https://assets360-tracking-iot.madheshsiva28.workers.dev/remoteEntry.json",
+	"wipOperations": "https://assets360-wip-operations.madheshsiva28.workers.dev/remoteEntry.json"
 }

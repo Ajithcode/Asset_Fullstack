@@ -1,0 +1,99 @@
+<div class="wf-canvas">
+  <!-- Floating palette: add / delete -->
+  @if (!readonly) {
+    <div class="wf-tools">
+      <div class="row-menu">
+        <button type="button" class="btn btn--sm" (click)="toggleAdd()"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Add Node</button>
+        @if (addOpen) {
+          <div class="menu wf-add-menu">
+            @for (t of nodeTypes; track t) {
+              <button type="button" (click)="addNode(t)">
+                <span class="wf-dot" [attr.data-type]="t"></span>{{ labels[t] }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+      <button type="button" class="btn btn--sm btn--danger" [disabled]="!selectedId" (click)="remove.emit()" title="Delete selected node (Del)">
+        <lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon> Delete
+      </button>
+    </div>
+  }
+
+  <div #viewport class="wf-viewport" [style.background-size]="24 * zoom + 'px ' + 24 * zoom + 'px'" (scroll)="onScroll()">
+    <div class="wf-stage" [style.width.px]="content.w * zoom" [style.height.px]="content.h * zoom">
+      <div class="wf-surface" [style.width.px]="content.w" [style.height.px]="content.h" [style.transform]="'scale(' + zoom + ')'" (click)="onSurfaceClick($event)">
+        <svg class="wf-edges" [attr.width]="content.w" [attr.height]="content.h">
+          <defs>
+            <marker id="wf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"></path>
+            </marker>
+          </defs>
+          @for (edge of edgeViews(); track edge.id) {
+            <path [attr.d]="edge.d" class="wf-edge" marker-end="url(#wf-arrow)"></path>
+            @if (edge.label) {
+              <text [attr.x]="edge.lx" [attr.y]="edge.ly" [attr.text-anchor]="edge.anchor" class="wf-edge-label" [class.rejected]="edge.rejected">{{ edge.label }}</text>
+            }
+          }
+        </svg>
+
+        @for (node of graph.nodes; track node.id) {
+          <div
+            class="wf-node"
+            [attr.data-type]="node.type"
+            [class.selected]="node.id === selectedId"
+            [style.left.px]="node.x"
+            [style.top.px]="node.y"
+            [style.width.px]="size(node).w"
+            [style.height.px]="size(node).h"
+            (pointerdown)="startDrag($event, node)"
+            role="button"
+            tabindex="0"
+            (keydown.enter)="select.emit(node.id)"
+            [attr.aria-label]="labels[node.type] + ': ' + node.name"
+          >
+            @if (node.type === 'condition') {
+              <span class="wf-node__diamond"></span>
+            }
+            @if (node.type === 'end') {
+              <span class="wf-node__end-icon"><lucide-icon [img]="icons.CircleX" [size]="14"></lucide-icon></span>
+              <span class="wf-node__end-text">{{ node.name }}</span>
+            } @else {
+              <span class="wf-node__content">
+                <lucide-icon [img]="iconFor(node.type)" [size]="18"></lucide-icon>
+                <b>{{ labels[node.type] }}</b>
+                <small>{{ node.name }}</small>
+              </span>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Zoom controls -->
+  <div class="wf-zoom">
+    <div class="wf-zoom__group">
+      <button type="button" (click)="zoomBy(-0.1)" title="Zoom out"><lucide-icon [img]="icons.Minus" [size]="14"></lucide-icon></button>
+      <span>{{ zoomLabel }}</span>
+      <button type="button" (click)="zoomBy(0.1)" title="Zoom in"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon></button>
+    </div>
+    <button type="button" class="wf-zoom__fit" (click)="fit()" title="Fit to screen"><lucide-icon [img]="icons.Maximize" [size]="14"></lucide-icon></button>
+  </div>
+
+  <!-- Minimap -->
+  <svg class="wf-mini" width="150" height="90" (click)="miniJump($event)" aria-label="Minimap">
+    @for (node of graph.nodes; track node.id) {
+      <rect
+        [attr.x]="node.x * miniScale"
+        [attr.y]="node.y * miniScale"
+        [attr.width]="size(node).w * miniScale"
+        [attr.height]="size(node).h * miniScale"
+        rx="2"
+        class="wf-mini__node"
+        [attr.data-type]="node.type"
+      ></rect>
+    }
+    <rect [attr.x]="miniViewport().x" [attr.y]="miniViewport().y" [attr.width]="miniViewport().w" [attr.height]="miniViewport().h" class="wf-mini__view"></rect>
+  </svg>
+</div>

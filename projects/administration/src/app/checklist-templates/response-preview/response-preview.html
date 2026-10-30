@@ -1,0 +1,47 @@
+@switch (item.responseType) {
+  @case ('Pass/Fail') {
+    <div class="rp-choices">
+      <button type="button" class="rp-btn rp-btn--pass" [class.on]="answer === 'Pass'" (click)="choose('Pass')"><i></i> Pass</button>
+      <button type="button" class="rp-btn rp-btn--fail" [class.on]="answer === 'Fail'" (click)="choose('Fail')"><i></i> Fail</button>
+    </div>
+  }
+  @case ('Yes/No') {
+    <div class="rp-choices rp-choices--3">
+      <button type="button" class="rp-btn rp-btn--pass" [class.on]="answer === 'Yes'" (click)="choose('Yes')"><i></i> Yes</button>
+      <button type="button" class="rp-btn rp-btn--fail" [class.on]="answer === 'No'" (click)="choose('No')"><i></i> No</button>
+      <button type="button" class="rp-btn" [class.on]="answer === 'N/A'" (click)="choose('N/A')">N/A</button>
+    </div>
+  }
+  @case ('Numeric') {
+    <div class="rp-numeric">
+      <input type="number" [(ngModel)]="numeric" placeholder="Enter reading" aria-label="Reading" />
+      @if (item.expected) { <span class="muted">Expected: {{ item.expected }}</span> }
+      @if (numericInRange === true) { <span class="pill" data-tone="green"><i></i>Within range</span> }
+      @if (numericInRange === false) { <span class="pill" data-tone="red"><i></i>Out of range</span> }
+    </div>
+  }
+  @case ('Text') {
+    <textarea class="rp-text" [(ngModel)]="text" rows="2" placeholder="Type the observation..." aria-label="Observation"></textarea>
+  }
+  @case ('Photo') {
+    <button type="button" class="rp-photo" (click)="addPhoto()">
+      <lucide-icon [img]="icons.Camera" [size]="20"></lucide-icon>
+      {{ photos ? photos + ' photo' + (photos === 1 ? '' : 's') + ' added — tap to add another' : 'Take or upload a photo' }}
+    </button>
+  }
+}
+
+<div class="rp-extras">
+  <button type="button" class="rp-extra" [class.on]="showComment" (click)="toggleComment()">
+    <lucide-icon [img]="icons.MessageSquare" [size]="14"></lucide-icon> Add Comment (optional)
+  </button>
+  @if (item.responseType !== 'Photo') {
+    <button type="button" class="rp-extra" [class.on]="photos > 0" (click)="addPhoto()">
+      <lucide-icon [img]="icons.Camera" [size]="14"></lucide-icon>
+      Add Photo ({{ item.attachmentRequired ? 'required' : 'optional' }}){{ photos ? ' · ' + photos : '' }}
+    </button>
+  }
+</div>
+@if (showComment) {
+  <textarea class="rp-text" [(ngModel)]="comment" rows="2" placeholder="Comment..." aria-label="Comment"></textarea>
+}

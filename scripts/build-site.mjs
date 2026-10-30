@@ -17,6 +17,7 @@ import { join } from 'node:path';
 const REMOTES = {
   dashboard: 'dashboard',
   locating: 'locating',
+  masterDataManagement: 'master-data-management',
 };
 
 const root = process.cwd();

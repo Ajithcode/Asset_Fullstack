@@ -1,0 +1,199 @@
+/* Checklist Templates page extras on top of the shared admin workspace */
+.ws.list-collapsed {
+  grid-template-columns: 64px minmax(0, 1fr);
+}
+
+.ws.list-collapsed.ws--with-drawer {
+  grid-template-columns: 64px minmax(0, 1fr) 330px;
+}
+
+/* The drawer host element is the third grid cell */
+@media (max-width: 1280px) {
+  .ws--with-drawer > app-item-drawer {
+    grid-column: 1 / -1;
+  }
+
+  .ws.list-collapsed.ws--with-drawer {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1100px) {
+  .ws.list-collapsed,
+  .ws.list-collapsed.ws--with-drawer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+}
+
+.rail__item {
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.rail__item.active {
+  border-color: var(--adm-purple);
+}
+
+.pager--center {
+  justify-content: center;
+}
+
+.detail-head__actions .btn--outline {
+  height: 36px;
+}
+
+.items-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.menu--left {
+  left: 0;
+  right: auto;
+  min-width: 190px;
+}
+
+.threshold {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--adm-muted);
+  font-size: 12.5px;
+}
+
+.threshold input {
+  width: 58px;
+  height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--adm-border);
+  border-radius: 6px;
+  font: inherit;
+  text-align: center;
+}
+
+.threshold.invalid input {
+  border-color: var(--adm-red);
+}
+
+.scoring {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 250px;
+  padding: 12px;
+}
+
+.scoring label:not(.switch) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.scoring .muted {
+  font-size: 12px;
+}
+
+.req {
+  color: var(--adm-red);
+}
+
+.settings-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--adm-border);
+}
+
+.usage-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.usage-cards .sub-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 0;
+}
+
+.usage-cards b {
+  font-size: 22px;
+}
+
+.table-title {
+  margin: 18px 0 8px;
+  font-size: 15px;
+}
+
+/* Template library dialog */
+.library {
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 14px;
+}
+
+.library__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.library__head h2 {
+  margin: 0 0 2px;
+  font-size: 19px;
+}
+
+.library__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.library__card {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+}
+
+.library__card b,
+.library__card .muted {
+  display: block;
+}
+
+.library__card .muted {
+  font-size: 12px;
+}
+
+.library__card p {
+  margin: 6px 0 10px;
+  color: #475569;
+}
+
+@media (max-width: 640px) {
+  .usage-cards,
+  .library__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

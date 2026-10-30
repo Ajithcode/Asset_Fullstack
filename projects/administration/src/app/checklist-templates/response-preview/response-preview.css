@@ -1,0 +1,126 @@
+.rp-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.rp-choices--3 {
+  grid-template-columns: 1fr 1fr 0.6fr;
+}
+
+.rp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  border: 1px solid var(--adm-border);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rp-btn i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.rp-btn--pass {
+  color: #059669;
+  border-color: #a7e3cb;
+}
+
+.rp-btn--fail {
+  color: #db2777;
+  border-color: #f7c0d9;
+  background: var(--adm-pink-soft);
+}
+
+.rp-btn.on {
+  color: #fff;
+  background: #475569;
+  border-color: #475569;
+}
+
+.rp-btn--pass.on {
+  background: #10a56f;
+  border-color: #10a56f;
+}
+
+.rp-btn--fail.on {
+  background: var(--adm-pink);
+  border-color: var(--adm-pink);
+}
+
+.rp-numeric {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rp-numeric input {
+  width: 140px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.rp-text {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: 6px;
+  font: inherit;
+  resize: vertical;
+}
+
+.rp-photo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 56px;
+  border: 1px dashed #c9b8ef;
+  border-radius: 8px;
+  background: var(--adm-purple-soft);
+  color: var(--adm-purple);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rp-extras {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.rp-extra {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 1px solid var(--adm-border);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rp-extra.on {
+  border-color: var(--adm-purple);
+  color: var(--adm-purple);
+}

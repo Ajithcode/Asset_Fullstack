@@ -22,10 +22,9 @@ import {
 } from 'lucide-angular';
 import { Router, NavigationEnd, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
-import { AuthService } from '../../service/auth/auth.service';
+import { AuthService } from 'shared-ui';
 import { environment } from '../../../../environments/environment';
-import { WorkflowNotificationService } from '../../pages/administration/configuration/workflows/services/workflow-notification.service';
-import { WorkflowNotification } from '../../pages/administration/configuration/workflows/models/workflow.model';
+import { NotificationService, AppNotification } from '../../services/notification.service';
 
 type ProfileSection = '' | 'language' | 'site' | 'help';
 type ProfileDialog = '' | 'profile' | 'preferences' | 'whatsNew' | 'docs' | 'password';
@@ -95,7 +94,7 @@ export class Topbar {
     { title: 'Assets', text: 'Register assets, follow their location, maintenance, health and documents.', path: '/assets/list' },
     { title: 'Tracking & IoT', text: 'Analytics, tag identifiers and real-time location of tagged assets.', path: '/tracking-iot/analytics-insights' },
     { title: 'WIP / Operations', text: 'Job templates and orders, routing, resources, SLAs and output.', path: '/wip-operations/job-orders' },
-    { title: 'Administration', text: 'Projects, devices, master data, workflows and users.', path: '/administration' },
+    { title: 'Administration', text: 'Administration settings.', path: '/administration' },
   ];
   readonly whatsNew = [
     { date: 'Oct 2026', title: 'Tag IDs in Tracking & IoT', text: 'Register, assign, reassign and bulk-import barcode, QR, RFID and BLE identifiers.' },
@@ -124,14 +123,14 @@ export class Topbar {
     private router: Router,
     private elementRef: ElementRef,
     private auth: AuthService,
-    private notificationService: WorkflowNotificationService
+    private notificationService: NotificationService
   ) {
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => this.updateBreadcrumbs());
   }
 
-  get notifications(): WorkflowNotification[] {
+  get notifications(): AppNotification[] {
     return this.notificationService.getAll();
   }
 
@@ -152,7 +151,7 @@ export class Topbar {
     }
   }
 
-  openNotification(notification: WorkflowNotification): void {
+  openNotification(notification: AppNotification): void {
     this.notificationService.markRead(notification.id);
     this.isNotificationsOpen = false;
     this.notificationsFlyoutPosition = null;
@@ -336,22 +335,7 @@ export class Topbar {
   }
 
   private updateBreadcrumbs(): void {
-    const url = this.router.url;
     this.breadcrumbs = [];
-
-    if (url.includes('/administration/user-management/user')) {
-      this.breadcrumbs = [
-        { label: 'Administration', path: '/administration' },
-        { label: 'User Management', path: '/administration/user-management' },
-        { label: 'User', path: '/administration/user-management/user' }
-      ];
-    } else if (url.includes('/administration/user-management/role')) {
-      this.breadcrumbs = [
-        { label: 'Administration', path: '/administration' },
-        { label: 'User Management', path: '/administration/user-management' },
-        { label: 'Role', path: '/administration/user-management/role' }
-      ];
-    }
   }
 
   @HostListener('document:click', ['$event'])

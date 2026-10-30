@@ -1,0 +1,91 @@
+<aside class="drawer" aria-label="Location details">
+  <div class="drawer__head">
+    <button type="button" class="icon-btn icon-btn--bare" title="Back to the list" aria-label="Back to the list" (click)="close()">
+      <lucide-icon [img]="icons.ChevronLeft" [size]="18"></lucide-icon>
+    </button>
+    <h2>{{ isEdit ? 'Location Details' : 'Add Location' }}</h2>
+    <button type="button" class="icon-btn icon-btn--bare" aria-label="Close" (click)="close()">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </div>
+
+  <form class="grid2" (ngSubmit)="save()" novalidate>
+    <div class="field" [class.invalid]="errors['code']">
+      <label for="loc-code">Location Code <span class="req">*</span></label>
+      <input id="loc-code" name="code" [(ngModel)]="form.code" maxlength="20" />
+      @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['name']">
+      <label for="loc-name">Location Name <span class="req">*</span></label>
+      <input id="loc-name" name="name" [(ngModel)]="form.name" maxlength="80" />
+      @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+    </div>
+
+    <div class="field">
+      <label for="loc-type">Location Type <span class="req">*</span></label>
+      <select id="loc-type" name="type" [(ngModel)]="form.type" (ngModelChange)="onTypeChange()" [disabled]="typeLocked">
+        @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+      </select>
+      @if (typeLocked) { <small>Has child locations, so the type can't change.</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['parent']">
+      <label for="loc-parent">Parent Location @if (form.type !== 'Location') { <span class="req">*</span> }</label>
+      <select id="loc-parent" name="parent" [(ngModel)]="form.parent" (ngModelChange)="onParentChange()" [disabled]="form.type === 'Location'">
+        <option [ngValue]="null">{{ form.type === 'Location' ? 'None (top level)' : 'Select...' }}</option>
+        @for (p of parentOptions; track p.code) { <option [ngValue]="p.code" [title]="parentLabel(p)">{{ p.name }} ({{ p.code }})</option> }
+      </select>
+      @if (errors['parent']) { <small>{{ errors['parent'] }}</small> }
+    </div>
+
+    <div class="field field--wide">
+      <label for="loc-address">Address</label>
+      <textarea id="loc-address" name="address" rows="3" [(ngModel)]="form.address" maxlength="200"></textarea>
+    </div>
+
+    <div class="field" [class.invalid]="errors['country']">
+      <label for="loc-country">Country</label>
+      <select id="loc-country" name="country" [(ngModel)]="form.country" (ngModelChange)="onCountryChange()">
+        <option value="">Select...</option>
+        @for (c of countries; track c) { <option [value]="c">{{ c }}</option> }
+      </select>
+      @if (errors['country']) { <small>{{ errors['country'] }}</small> }
+    </div>
+    <div class="field">
+      <label for="loc-city">City</label>
+      <select id="loc-city" name="city" [(ngModel)]="form.city">
+        @for (c of cities; track c) { <option [value]="c">{{ c }}</option> }
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="loc-tz">Time Zone</label>
+      <select id="loc-tz" name="timeZone" [(ngModel)]="form.timeZone">
+        @for (z of timeZones; track z) { <option [value]="z">{{ z }}</option> }
+      </select>
+    </div>
+    <div class="field" [class.invalid]="errors['contact']">
+      <label for="loc-contact">Contact Person</label>
+      <span class="input-icon">
+        <input id="loc-contact" name="contact" list="loc-people" [(ngModel)]="form.contact" placeholder="Search people..." />
+        <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+      </span>
+      <datalist id="loc-people">
+        @for (p of people; track p) { <option [value]="p"></option> }
+      </datalist>
+      @if (errors['contact']) { <small>{{ errors['contact'] }}</small> }
+    </div>
+
+    <div class="field">
+      <label for="loc-status">Status <span class="req">*</span></label>
+      <select id="loc-status" name="status" [(ngModel)]="form.status" class="status-select" [attr.data-status]="form.status">
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+    </div>
+
+    <div class="drawer__foot field--wide">
+      <button type="button" class="btn" (click)="close()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save Location</button>
+    </div>
+  </form>
+</aside>

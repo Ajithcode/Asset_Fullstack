@@ -1,0 +1,231 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/administration">Administration</a>
+  <span>/</span>
+  <strong>Notification Templates</strong>
+</nav>
+
+<header class="page-head">
+  <span class="page-head__icon"><lucide-icon [img]="icons.Mail" [size]="24"></lucide-icon></span>
+  <div class="page-head__text">
+    <h1>Notification Templates</h1>
+    <p>Create and manage reusable email, SMS, in-app, and push notification messages across Asset360.</p>
+  </div>
+  <label class="org-picker">
+    Organization
+    <select [(ngModel)]="organization" name="organization">
+      @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
+    </select>
+  </label>
+</header>
+
+<!-- Stats -->
+<section class="stats">
+  <div class="stat">
+    <span class="stat__icon"><lucide-icon [img]="icons.Mail" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Total Templates</span>
+      <span class="stat__value">{{ total }}</span>
+      <span class="stat__hint">All templates in library</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="green"><lucide-icon [img]="icons.CircleCheck" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Active Templates</span>
+      <span class="stat__value">{{ count('Active') }}</span>
+      <span class="stat__hint">{{ pct(count('Active')) }}% of total</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="orange"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Draft Templates</span>
+      <span class="stat__value">{{ count('Draft') }}</span>
+      <span class="stat__hint">{{ pct(count('Draft')) }}% of total</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.Share2" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Delivery Channels</span>
+      <span class="stat__value">{{ usedChannels().length }}</span>
+      <span class="stat__hint">{{ usedChannelNames() }}</span>
+    </div>
+  </div>
+</section>
+
+<!-- Toolbar -->
+<section class="toolbar">
+  <button type="button" class="btn btn--primary" (click)="create()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Create Template</button>
+  <button type="button" class="btn" (click)="libraryOpen = true"><lucide-icon [img]="icons.BookOpen" [size]="16"></lucide-icon> Template Library</button>
+  <button type="button" class="btn" (click)="importInput.click()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import</button>
+  <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
+  <button type="button" class="btn" (click)="exportTemplates()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+  <span class="toolbar__spacer"></span>
+  <label class="search">
+    <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+    <input [(ngModel)]="search" name="toolbarSearch" placeholder="Search templates..." aria-label="Search templates" />
+  </label>
+  <div class="row-menu">
+    <button type="button" class="btn" (click)="filtersOpen = !filtersOpen">
+      <lucide-icon [img]="icons.Funnel" [size]="16"></lucide-icon> Filters
+      @if (activeFilterCount) { <span class="pill" data-tone="purple">{{ activeFilterCount }}</span> }
+    </button>
+    @if (filtersOpen) {
+      <div class="menu nt-filters">
+        <div class="field">
+          <label for="nt-f-cat">Category</label>
+          <select id="nt-f-cat" [(ngModel)]="categoryFilter" name="categoryFilter">
+            <option value="">All categories</option>
+            @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="nt-f-status">Status</label>
+          <select id="nt-f-status" [(ngModel)]="statusFilter" name="statusFilter">
+            <option value="">All statuses</option>
+            @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="nt-f-channel">Channel</label>
+          <select id="nt-f-channel" [(ngModel)]="channelFilter" name="channelFilter">
+            <option value="">All channels</option>
+            @for (c of channels; track c) { <option [value]="c">{{ channelLabels[c] }}</option> }
+          </select>
+        </div>
+        <div class="nt-filters__foot">
+          <button type="button" class="btn btn--sm" (click)="clearFilters()">Clear</button>
+          <button type="button" class="btn btn--sm btn--primary" (click)="filtersOpen = false">Apply</button>
+        </div>
+      </div>
+    }
+  </div>
+</section>
+
+<!-- Workspace -->
+<section class="ws ws--with-drawer nt-ws">
+  <!-- Template list -->
+  <div class="panel">
+    <div class="panel__head">
+      <h2>Templates ({{ visible().length }})</h2>
+      <select class="select nt-sort" [(ngModel)]="sortBy" name="sortBy" aria-label="Sort templates">
+        @for (s of sortOptions; track s) { <option [value]="s">{{ s }}</option> }
+      </select>
+    </div>
+    <label class="search">
+      <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+      <input [(ngModel)]="search" name="listSearch" placeholder="Search templates..." aria-label="Search templates in list" />
+    </label>
+    <div class="list nt-list">
+      @for (t of visible(); track t.id) {
+        <button type="button" class="list-item" [class.active]="t.id === draft?.id" (click)="pick(t.id)">
+          <span class="list-item__icon" [attr.data-tone]="t.tone"><lucide-icon [img]="listIcons[t.icon]" [size]="20"></lucide-icon></span>
+          <span class="list-item__body">
+            <span class="list-item__title">{{ t.name }} <span class="pill" [attr.data-tone]="statusTone(t.status)">{{ t.status }}</span></span>
+            <span class="nt-row">
+              <span class="list-item__meta">{{ t.category }}</span>
+              <span class="nt-owner">{{ t.owner }}</span>
+            </span>
+            <span class="nt-row">
+              <span class="nt-channels">
+                @for (c of channels; track c) {
+                  <lucide-icon [img]="channelIcons[c]" [size]="13" [class.off]="!t.channels[c]" [attr.aria-label]="channelLabels[c] + (t.channels[c] ? '' : ' (off)')"></lucide-icon>
+                }
+              </span>
+              <span class="nt-time">{{ relative(t.updated) }}</span>
+            </span>
+          </span>
+        </button>
+      } @empty {
+        <p class="list-empty">No templates match your search or filters.</p>
+      }
+    </div>
+  </div>
+
+  <!-- Editor -->
+  <div class="panel">
+    @if (draft; as t) {
+      <div class="detail-head">
+        <span class="nt-head-icon"><lucide-icon [img]="icons.Mail" [size]="22"></lucide-icon></span>
+        <div class="detail-head__title">
+          <h2>
+            {{ t.name || 'Untitled template' }}
+            <span class="pill" [attr.data-tone]="statusTone(t.status)">{{ t.status }}</span>
+            @if (dirty) { <span class="pill" data-tone="blue">Unsaved</span> }
+          </h2>
+          <div class="detail-head__meta nt-meta">
+            <span>{{ t.code }}</span><span>Version <b>{{ t.version }}</b></span><span>{{ t.category }}</span>
+          </div>
+        </div>
+        <div class="detail-head__actions">
+          <button type="button" class="btn" (click)="saveDraft()">Save Draft</button>
+          <button type="button" class="btn" (click)="testSend()" title="DEMO MODE: simulated send"><lucide-icon [img]="icons.Send" [size]="15"></lucide-icon> Test Send</button>
+          <button type="button" class="btn btn--primary" (click)="publish()"><lucide-icon [img]="icons.Send" [size]="15"></lucide-icon> Publish</button>
+          <div class="row-menu">
+            <button type="button" class="icon-btn icon-btn--bare" (click)="headMenuOpen = !headMenuOpen" aria-label="More actions"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button>
+            @if (headMenuOpen) {
+              <div class="menu">
+                <button type="button" (click)="duplicate()">Duplicate</button>
+                <button type="button" (click)="exportCurrent()">Export JSON</button>
+                <button type="button" class="danger" (click)="askDelete()">Delete template</button>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+      <app-template-editor [template]="t" [submitted]="submitted" (notice)="notify($event)"></app-template-editor>
+    } @else {
+      <p class="empty">Select a template, or create one.</p>
+    }
+  </div>
+
+  <!-- Settings + preview -->
+  <aside class="drawer">
+    @if (draft; as t) {
+      <app-template-settings [template]="t" [submitted]="submitted" (cancel)="cancelEdits()" (save)="saveTemplate()" (previewAction)="previewAction($event)"></app-template-settings>
+    } @else {
+      <p class="empty">No template selected.</p>
+    }
+  </aside>
+</section>
+
+<!-- Template Library -->
+@if (libraryOpen) {
+  <div class="overlay" (click)="libraryOpen = false">
+    <div class="confirm nt-modal" (click)="$event.stopPropagation()">
+      <h2>Template Library</h2>
+      <p>Start from a ready-made message. It is added as a draft you can edit.</p>
+      <div class="list">
+        @for (l of library; track l.name; let i = $index) {
+          <button type="button" class="list-item" (click)="useLibrary(i)">
+            <span class="list-item__icon"><lucide-icon [img]="icons.BookOpen" [size]="18"></lucide-icon></span>
+            <span class="list-item__body">
+              <span class="list-item__title">{{ l.name }}</span>
+              <span class="list-item__meta">{{ l.category }} · Trigger: {{ l.trigger }}</span>
+            </span>
+          </button>
+        }
+      </div>
+      <div class="confirm__actions"><button type="button" class="btn" (click)="libraryOpen = false">Close</button></div>
+    </div>
+  </div>
+}
+
+<!-- Confirm -->
+@if (confirm; as c) {
+  <div class="overlay" (click)="confirm = null">
+    <div class="confirm" role="alertdialog" (click)="$event.stopPropagation()">
+      <h2>{{ c.title }}</h2>
+      <p>{{ c.message }}</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="confirm = null">Cancel</button>
+        <button type="button" class="btn" [class.btn--danger]="c.kind === 'delete'" [class.btn--primary]="c.kind === 'discard'" (click)="confirmYes()">
+          {{ c.kind === 'delete' ? 'Delete' : 'Discard' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) { <div class="toast" role="status">{{ toast }}</div> }

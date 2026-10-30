@@ -1,0 +1,242 @@
+<div (click)="closeMenu()">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a routerLink="/administration">Administration</a>
+    <span>/</span>
+    <strong>Module Access</strong>
+  </nav>
+
+  <header class="page-head">
+    <div class="page-head__icon"><lucide-icon [img]="icons.Box" [size]="24"></lucide-icon></div>
+    <div class="page-head__text">
+      <h1>Module Access</h1>
+      <p>Configure which Asset360 modules and features are available to roles, teams, and users.</p>
+    </div>
+    <label class="org-picker">
+      Organization
+      <select [(ngModel)]="organization" aria-label="Organization">
+        @for (o of organizations; track o) {
+          <option [value]="o">{{ o }}</option>
+        }
+      </select>
+    </label>
+  </header>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="stat__icon"><lucide-icon [img]="icons.Box" [size]="24"></lucide-icon></div>
+      <div class="stat__body">
+        <span class="stat__value">{{ modules.length }}</span>
+        <span class="stat__label">Modules</span>
+        <span class="stat__hint">Total system modules</span>
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.List" [size]="24"></lucide-icon></div>
+      <div class="stat__body">
+        <span class="stat__value">{{ featureCount }}</span>
+        <span class="stat__label">Features</span>
+        <span class="stat__hint">Across all modules</span>
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat__icon" data-tone="pink"><lucide-icon [img]="icons.Lock" [size]="24"></lucide-icon></div>
+      <div class="stat__body">
+        <span class="stat__value">{{ restrictedCount }}</span>
+        <span class="stat__label ma-pink">Restricted Features</span>
+        <span class="stat__hint">Limited or no access</span>
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat__icon" data-tone="green"><lucide-icon [img]="icons.Users" [size]="24"></lucide-icon></div>
+      <div class="stat__body">
+        <span class="stat__value">{{ usersCovered }}</span>
+        <span class="stat__label ma-green">Users Covered</span>
+        <span class="stat__hint">Across all policies</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <button type="button" class="btn btn--primary" (click)="createPolicy()">
+      <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Create Access Policy
+    </button>
+    <button type="button" class="btn" (click)="clonePolicy()">
+      <lucide-icon [img]="icons.Copy" [size]="16"></lucide-icon> Clone Policy
+    </button>
+    <button type="button" class="btn" (click)="importFile.click()">
+      <lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import
+    </button>
+    <input #importFile type="file" accept=".json,application/json" hidden (change)="importPolicies(importFile)" />
+    <button type="button" class="btn" (click)="exportPolicies()">
+      <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export
+    </button>
+    <span class="toolbar__spacer"></span>
+    <label class="search ma-search">
+      <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+      <input type="search" placeholder="Search policies or modules..." aria-label="Search policies or modules" [(ngModel)]="search" />
+    </label>
+    <button type="button" class="btn" [class.btn--outline]="showFilters || filterCount" (click)="showFilters = !showFilters">
+      <lucide-icon [img]="icons.Funnel" [size]="16"></lucide-icon> Filters
+      @if (filterCount) { <span class="ma-badge">{{ filterCount }}</span> }
+    </button>
+  </div>
+
+  @if (showFilters) {
+    <div class="panel ma-filters">
+      <label>Policy Type
+        <select class="select" [(ngModel)]="filters.type">
+          <option value="">All types</option>
+          <option value="Role">Role</option>
+          <option value="Team">Team</option>
+          <option value="User">User</option>
+        </select>
+      </label>
+      <label>Status
+        <select class="select" [(ngModel)]="filters.status">
+          <option value="">All statuses</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </label>
+      <label>Grants module
+        <select class="select" [(ngModel)]="filters.module">
+          <option value="">Any module</option>
+          @for (m of modules; track m) {
+            <option [value]="m">{{ m }}</option>
+          }
+        </select>
+      </label>
+      <button type="button" class="btn btn--sm" [disabled]="!filterCount" (click)="clearFilters()">Clear filters</button>
+      <span class="muted">{{ filtered.length }} of {{ policies.length }} policies</span>
+    </div>
+  }
+
+  <div class="ws" [class.ws--with-drawer]="drawerOpen">
+    <!-- Policies list -->
+    <aside class="panel">
+      <div class="panel__head"><h2>Access Policies ({{ filtered.length }})</h2></div>
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input type="search" placeholder="Search access policies..." aria-label="Search access policies" [(ngModel)]="listSearch" />
+      </label>
+      <div class="list ma-list">
+        @if (isNew) {
+          <button type="button" class="list-item active">
+            <span class="list-item__icon"><lucide-icon [img]="icons.Plus" [size]="20"></lucide-icon></span>
+            <span class="list-item__body">
+              <span class="list-item__title">{{ draft.name || 'New Access Policy' }}</span>
+              <span class="list-item__meta">Unsaved draft</span>
+            </span>
+          </button>
+        }
+        @for (p of filtered; track p.id) {
+          <button type="button" class="list-item ma-item" [class.active]="!isNew && p.id === selectedId" (click)="select(p)">
+            <span class="list-item__icon" [attr.data-tone]="p.tone"><lucide-icon [img]="policyIcon(p)" [size]="20"></lucide-icon></span>
+            <span class="list-item__body">
+              <span class="list-item__title">{{ p.name }}</span>
+              <span class="list-item__meta">{{ p.users }} users assigned</span>
+            </span>
+            <span class="ma-pills">
+              <span class="pill" [attr.data-tone]="typeTone(p.type)">{{ p.type }}</span>
+              <span class="pill ma-status" [attr.data-tone]="p.status === 'Active' ? 'green' : 'grey'"><i></i>{{ p.status }}</span>
+            </span>
+          </button>
+        } @empty {
+          <p class="list-empty">No policies match the search or filters.</p>
+        }
+      </div>
+    </aside>
+
+    <!-- Module access -->
+    <section class="panel">
+      <div class="detail-head">
+        <div class="detail-head__title">
+          <h2>
+            {{ draft.name || 'New Access Policy' }} – Module Access
+            @if (draft.status === 'Inactive') {
+              <span class="pill" data-tone="grey"><i></i>Inactive</span>
+            }
+          </h2>
+        </div>
+        <div class="detail-head__actions">
+          <span class="muted ma-updated">{{ lastUpdated() }}</span>
+          @if (!drawerOpen) {
+            <button type="button" class="btn btn--sm" (click)="drawerOpen = true">Policy Details</button>
+          }
+          @if (!isNew) {
+            <div class="row-menu">
+              <button type="button" class="icon-btn" aria-label="More policy actions" (click)="toggleMenu($event)">
+                <lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon>
+              </button>
+              @if (menuOpen) {
+                <div class="menu" (click)="$event.stopPropagation()">
+                  <button type="button" (click)="clonePolicy()">Clone policy</button>
+                  <button type="button" (click)="toggleStatus()">{{ draft.status === 'Active' ? 'Deactivate' : 'Activate' }}</button>
+                  <button type="button" class="danger" (click)="askDelete()">Delete policy</button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <nav class="seg" aria-label="Policy sections">
+        @for (t of tabs; track t.id) {
+          <button type="button" [class.active]="tab === t.id" (click)="tab = t.id">
+            {{ t.label }}
+            @if (t.id === 'exceptions' && draft.exceptions.length) { ({{ draft.exceptions.length }}) }
+          </button>
+        }
+      </nav>
+
+      @switch (tab) {
+        @case ('modules') {
+          <app-module-table [policy]="draft" [filter]="search" (notice)="notify($event)"></app-module-table>
+        }
+        @case ('features') {
+          <app-feature-list [policy]="draft" (notice)="notify($event)"></app-feature-list>
+        }
+        @case ('exceptions') {
+          <app-exception-list [policy]="draft" (notice)="notify($event)"></app-exception-list>
+        }
+      }
+    </section>
+
+    <!-- Access policy details drawer -->
+    @if (drawerOpen) {
+      <aside class="drawer">
+        <app-policy-drawer
+          [policy]="draft"
+          [isNew]="isNew"
+          [submitted]="submitted"
+          [dirty]="dirty"
+          (save)="savePolicy()"
+          (cancel)="cancelEdit()"
+          (closed)="drawerOpen = false"
+          (viewUsers)="usersOpen = true"
+        ></app-policy-drawer>
+      </aside>
+    }
+  </div>
+</div>
+
+@if (usersOpen) {
+  <app-users-dialog [title]="draft.name + ' users'" [users]="allUsers()" (closed)="usersOpen = false"></app-users-dialog>
+}
+
+@if (confirm) {
+  <div class="overlay" (click)="confirm = null">
+    <div class="confirm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <h2>{{ confirm.title }}</h2>
+      <p>{{ confirm.message }}</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="confirm = null">Cancel</button>
+        <button type="button" class="btn btn--primary ma-danger" (click)="confirmYes()">{{ confirm.action }}</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

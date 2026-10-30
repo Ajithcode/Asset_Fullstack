@@ -1,0 +1,214 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/administration">Administration</a>
+  <span>/</span>
+  <strong>Data Import / Export</strong>
+</nav>
+
+<header class="page-head">
+  <span class="page-head__icon"><lucide-icon [img]="icons.Upload" [size]="24"></lucide-icon></span>
+  <div class="page-head__text">
+    <h1>Data Import / Export</h1>
+    <p>Move structured Asset360 data securely with mapping, validation, scheduling, and auditability.</p>
+  </div>
+  <label class="org-picker">
+    Organization
+    <select [(ngModel)]="organization">
+      @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
+    </select>
+  </label>
+</header>
+
+<!-- Stats -->
+<section class="stats">
+  <div class="stat">
+    <span class="stat__icon"><lucide-icon [img]="icons.Upload" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Import Jobs</span>
+      <span class="stat__value">{{ service.importCount() }} <span class="stat__trend">↑ 12%</span></span>
+      <span class="stat__hint">vs. last 30 days</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.Download" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Export Jobs</span>
+      <span class="stat__value">{{ service.exportCount() }} <span class="stat__trend">↑ 8%</span></span>
+      <span class="stat__hint">vs. last 30 days</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="green"><lucide-icon [img]="icons.Database" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Records Processed</span>
+      <span class="stat__value" [title]="service.recordsProcessed().toLocaleString('en-US')">{{ compactNumber(service.recordsProcessed()) }} <span class="stat__trend">↑ 24%</span></span>
+      <span class="stat__hint">vs. last 30 days</span>
+    </div>
+  </div>
+  <div class="stat">
+    <span class="stat__icon" data-tone="red"><lucide-icon [img]="icons.TriangleAlert" [size]="24"></lucide-icon></span>
+    <div class="stat__body">
+      <span class="stat__label">Failed Records</span>
+      <span class="stat__value">{{ service.failedRecords() }} <span class="stat__trend stat__trend--down">↓ 62%</span></span>
+      <span class="stat__hint">vs. last 30 days</span>
+    </div>
+  </div>
+</section>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <button type="button" class="btn btn--primary" (click)="newJob('Import')"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> New Import</button>
+  <button type="button" class="btn btn--outline" (click)="newJob('Export')"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> New Export</button>
+  <button type="button" class="btn" (click)="downloadTemplate('Import')"><lucide-icon [img]="icons.FileUp" [size]="16"></lucide-icon> Import Template</button>
+  <button type="button" class="btn" (click)="downloadTemplate('Export')"><lucide-icon [img]="icons.FileDown" [size]="16"></lucide-icon> Export Template</button>
+  <span class="toolbar__spacer"></span>
+  <label class="search">
+    <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+    <input [(ngModel)]="search" (ngModelChange)="onFilterChange()" placeholder="Search jobs by name, object or owner…" aria-label="Search jobs" />
+  </label>
+  <select class="select" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()" aria-label="Job type">
+    <option value="">All Types</option>
+    <option value="Import">Import</option>
+    <option value="Export">Export</option>
+  </select>
+  <select class="select" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" aria-label="Job status">
+    <option value="">All Statuses</option>
+    @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+  </select>
+  <button type="button" class="icon-btn icon-btn--lg" [class.is-on]="showMoreFilters || activeFilterCount" (click)="showMoreFilters = !showMoreFilters"
+    [attr.aria-expanded]="showMoreFilters" aria-label="More filters">
+    <lucide-icon [img]="icons.Funnel" [size]="16"></lucide-icon>
+    @if (activeFilterCount) { <span class="badge">{{ activeFilterCount }}</span> }
+  </button>
+</div>
+
+@if (showMoreFilters) {
+  <div class="toolbar more-filters">
+    <select class="select" [(ngModel)]="objectFilter" (ngModelChange)="onFilterChange()" aria-label="Data object">
+      <option value="">All Data Objects</option>
+      @for (o of objects; track o) { <option [value]="o">{{ o }}</option> }
+    </select>
+    <select class="select" [(ngModel)]="ownerFilter" (ngModelChange)="onFilterChange()" aria-label="Owner">
+      <option value="">All Owners</option>
+      @for (o of owners; track o) { <option [value]="o">{{ o }}</option> }
+    </select>
+    <button type="button" class="btn btn--link" (click)="clearFilters()">Clear all filters</button>
+  </div>
+}
+
+<div class="ws" [class.ws--with-drawer]="drawerOpen">
+  <!-- Left: jobs list -->
+  <section class="panel jobs">
+    <div class="panel__head">
+      <h2>Data Jobs ({{ filtered.length }})</h2>
+      <button type="button" class="icon-btn icon-btn--bare plus" (click)="newJob('Import')" aria-label="New import job">
+        <lucide-icon [img]="icons.Plus" [size]="20"></lucide-icon>
+      </button>
+    </div>
+    <label class="search search--full">
+      <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+      <input [(ngModel)]="listSearch" (ngModelChange)="onFilterChange()" placeholder="Search data jobs..." aria-label="Search data jobs" />
+    </label>
+
+    <div class="list">
+      @for (j of visibleJobs; track j.id) {
+        <button type="button" class="list-item" [class.active]="j.id === selectedId" (click)="select(j)">
+          <span class="list-item__icon" [attr.data-tone]="objectTone(j.dataObject)"><lucide-icon [img]="objectIcon(j.dataObject)" [size]="20"></lucide-icon></span>
+          <span class="list-item__body">
+            <span class="list-item__title">
+              <span class="job-name">{{ j.name }}</span>
+              <span class="pill" [attr.data-tone]="statusTone(j.status)">{{ j.status }}</span>
+            </span>
+            <span class="list-item__meta">{{ j.dataObject }} · {{ j.type }}</span>
+            <span class="job-meta">
+              <span><lucide-icon [img]="icons.User" [size]="12"></lucide-icon> {{ j.owner }}</span>
+              <span><lucide-icon [img]="icons.Database" [size]="12"></lucide-icon> {{ j.records.toLocaleString('en-US') }} records</span>
+            </span>
+            <span class="job-meta"><span><lucide-icon [img]="icons.Calendar" [size]="12"></lucide-icon> {{ formatStamp(j.date) }}</span></span>
+          </span>
+        </button>
+      } @empty {
+        <div class="list-empty">
+          No jobs match your filters.
+          <button type="button" class="btn btn--link" (click)="clearFilters()">Clear filters</button>
+        </div>
+      }
+    </div>
+    @if (visibleJobs.length < filtered.length) {
+      <button type="button" class="btn load-more" (click)="loadMore()">Load more ({{ filtered.length - visibleJobs.length }} remaining)</button>
+    }
+  </section>
+
+  <!-- Centre: selected job -->
+  <section class="panel">
+    @if (selected; as job) {
+      <div class="detail-head">
+        <div class="detail-head__title">
+          <h2>{{ job.name }} <span class="pill" [attr.data-tone]="statusTone(job.status)"><i></i>{{ job.status }}</span></h2>
+          <div class="detail-head__meta">
+            <span>Job Code: <b class="link-ish">{{ job.code }}</b></span>
+            <span>Version: <b>{{ job.version }}</b></span>
+            <span>Created by <b>{{ job.createdBy }}</b></span>
+          </div>
+        </div>
+        <div class="detail-head__actions">
+          <button type="button" class="btn btn--blue btn--sm" [disabled]="isRunning" (click)="runNow()">
+            <lucide-icon [img]="icons.Play" [size]="14"></lucide-icon> {{ isRunning ? 'Running…' : 'Run Now' }}
+          </button>
+          <button type="button" class="btn btn--sm btn--outline-blue" [disabled]="validatingId === job.id || isRunning" (click)="validate()">
+            <lucide-icon [img]="icons.CircleCheck" [size]="14"></lucide-icon> {{ validatingId === job.id ? 'Validating…' : 'Validate' }}
+          </button>
+          <button type="button" class="btn btn--sm btn--outline" (click)="edit()"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon> Edit</button>
+          <button type="button" class="btn btn--sm btn--outline" (click)="downloadReport()"><lucide-icon [img]="icons.Download" [size]="14"></lucide-icon> Download Report</button>
+          <div class="row-menu">
+            <button type="button" class="icon-btn" (click)="moreOpen = !moreOpen" aria-label="More actions" [attr.aria-expanded]="moreOpen">
+              <lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon>
+            </button>
+            @if (moreOpen) {
+              <div class="menu" role="menu">
+                <button type="button" role="menuitem" (click)="duplicate()">Duplicate job</button>
+                <button type="button" role="menuitem" class="danger" (click)="askDelete()">Delete job</button>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <nav class="tabs" role="tablist">
+        @for (t of tabs; track t.key) {
+          <button type="button" role="tab" [class.active]="tab === t.key" [attr.aria-selected]="tab === t.key" (click)="tab = t.key">{{ t.label }}</button>
+        }
+      </nav>
+
+      @switch (tab) {
+        @case ('overview') { <app-adm-job-overview [job]="job" (downloadErrors)="downloadErrors()"></app-adm-job-overview> }
+        @case ('mapping') { <app-adm-job-mapping [job]="job" (mappingChange)="onMapping($event)"></app-adm-job-mapping> }
+        @case ('rules') { <app-adm-job-rules [job]="job" (rulesChange)="onRules($event)"></app-adm-job-rules> }
+        @case ('schedule') { <app-adm-job-schedule [job]="job" (scheduleChange)="onSchedule($event)"></app-adm-job-schedule> }
+        @case ('history') { <app-adm-job-history [job]="job"></app-adm-job-history> }
+      }
+    } @else {
+      <div class="empty">Select a job from the list, or create a new import or export.</div>
+    }
+  </section>
+
+  <!-- Right: settings drawer -->
+  @if (drawerOpen) {
+    <app-adm-job-drawer class="drawer-host" [job]="draft" [organization]="organization" (saved)="onSaved($event)"
+      (cancelled)="cancelDrawer()" (closed)="drawerOpen = false"></app-adm-job-drawer>
+  }
+</div>
+
+@if (confirmDelete) {
+  <div class="overlay" (click)="confirmDelete = null">
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="del-title" (click)="$event.stopPropagation()">
+      <h2 id="del-title">Delete {{ confirmDelete.name }}?</h2>
+      <p>The job definition, mapping, rules and run history for {{ confirmDelete.code }} will be removed. Records already imported stay in Asset360.</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="confirmDelete = null">Cancel</button>
+        <button type="button" class="btn btn--danger" (click)="doDelete()">Delete Job</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) { <div class="toast" role="status">{{ toast }}</div> }
