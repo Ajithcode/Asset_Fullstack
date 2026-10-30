@@ -1,0 +1,127 @@
+/* Asset Overview cards. Page frame, KPIs, tables and quick view: ../iot-tracking-overview styles. */
+.ao-asof { width: 160px; }
+.ao-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.ao-kpis .io-kpi { gap: 10px; padding: 12px; }
+.ao-kpis .io-kpi-ic { width: 52px; height: 52px; }
+.ao-kpis .io-kpi-body strong { font-size: 24px; }
+.ic--amber { background: #fff1dc; color: #ea8a00; }
+
+.ao-row { display: grid; align-items: stretch; gap: 12px; }
+.ao-row--1 { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr) minmax(0, 0.95fr) 290px; }
+.ao-row--2 { grid-template-columns: minmax(0, 1fr) minmax(0, 0.55fr) minmax(0, 1.05fr) 290px; }
+.ao-side { display: flex; flex-direction: column; min-width: 0; }
+.ao-side > .card { flex: 1 1 auto; }
+.ao-row--1 > .card { display: flex; flex-direction: column; }
+.ao-row--1 > .card > :last-child { flex: 1 1 auto; }
+.ao-row--2 > .io-quick { grid-area: auto; }
+.ao-click { cursor: pointer; }
+.ao-red { color: var(--io-bad) !important; }
+.num { text-align: right !important; white-space: nowrap; }
+
+/* ===== Portfolio by category ===== */
+.ao-cat { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ao-cat th { padding: 4px 4px 6px; border-bottom: 1px solid var(--io-border); font-weight: 600; color: var(--io-text-2); text-align: left; }
+.ao-cat td { padding: 4px 4px; }
+.ao-cat tbody tr { cursor: pointer; }
+.ao-cat tbody tr:hover td, .ao-cat tbody tr.is-on td { background: var(--io-accent-soft); }
+.ao-cat-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.ao-cat-ic { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; }
+.ao-cat-bar { width: 32%; }
+.ao-cat-bar span { display: block; height: 12px; overflow: hidden; border-radius: 3px; background: #e8ebf3; }
+.ao-cat-bar i { display: block; height: 100%; border-radius: 3px; }
+
+/* ===== Health distribution ===== */
+.ao-health { display: flex; align-items: center; gap: 12px; }
+.ao-health svg { flex: 1 1 auto; max-width: 170px; overflow: visible; }
+.ao-health circle { transition: stroke-width 0.15s; }
+.ao-health-num { font-size: 18px; font-weight: 800; fill: var(--io-navy); text-anchor: middle; }
+.ao-seg-label { font-size: 8px; font-weight: 700; }
+.ao-health-legend { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.ao-health-legend li { display: flex; align-items: flex-start; gap: 8px; cursor: default; }
+.ao-health-legend i { flex: 0 0 auto; width: 12px; height: 12px; margin-top: 3px; border-radius: 50%; }
+.ao-health-legend strong { display: block; font-weight: 600; }
+.ao-hl-row { display: flex; gap: 10px; }
+.ao-hl-row small { font-size: 12.5px; font-weight: 600; }
+
+/* ===== Status overview ===== */
+.ao-status { display: flex; flex-direction: column; justify-content: space-between; gap: 3px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.ao-status li { display: grid; grid-template-columns: 32px minmax(70px, 0.9fr) minmax(0, 1fr) 46px 46px; align-items: center; gap: 10px; padding: 3px 4px; border-radius: 6px; cursor: pointer; }
+.ao-status li:hover, .ao-status li.is-on { background: var(--io-accent-soft); }
+.ao-st-ic { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; }
+.ao-st-name { font-weight: 500; }
+.ao-st-bar { display: block; height: 12px; overflow: hidden; border-radius: 3px; background: #e8ebf3; }
+.ao-st-bar i { display: block; height: 100%; min-width: 3px; border-radius: 3px; }
+.ao-status b { text-align: right; font-weight: 600; }
+.ao-status small { text-align: right; color: var(--io-text-2); }
+
+/* ===== Insights ===== */
+.ao-insights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0 0 10px; padding: 0; list-style: none; }
+.ao-insights button { display: flex; align-items: center; gap: 8px; width: 100%; height: 100%; padding: 6px 8px; border: 1px solid var(--io-border); border-radius: 8px; background: #fff; font: inherit; text-align: left; color: var(--io-muted); cursor: pointer; }
+.ao-insights button:hover, .ao-insights button.is-on { border-color: var(--io-accent-border); background: var(--io-accent-soft); }
+.ao-insights strong { display: block; font-size: 16px; line-height: 1.2; font-weight: 800; color: var(--io-navy); }
+.ao-insights small { display: block; font-size: 11px; line-height: 1.25; color: var(--io-text-2); }
+.ao-insights button > lucide-icon { display: none; }
+.ao-in-ic { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; }
+.tone--red { background: #fde4e4; color: #dc2626; }
+.tone--amber { background: #fff1dc; color: #ea8a00; }
+.tone--blue { background: #e3eeff; color: #1d4ed8; }
+.tone--violet { background: #ede9fe; color: #6d28d9; }
+.ao-qa-title { margin-top: 0; }
+.ao-side .io-actions { gap: 6px; }
+.ao-side .io-actions button { height: 32px; }
+
+/* ===== Map ===== */
+.ao-map-card { display: flex; flex-direction: column; }
+.ao-map-wrap { position: relative; flex: 1 1 auto; min-height: 280px; overflow: hidden; border-radius: 10px; background: #eef2f6; }
+.ao-map { position: absolute; inset: 0; z-index: 0; }
+:host ::ng-deep .ao-site { position: relative; }
+:host ::ng-deep .ao-site-pin { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; background: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25); }
+:host ::ng-deep .ao-site-card {
+  position: absolute; top: -34px; display: flex; flex-direction: column; gap: 1px; width: 150px; padding: 7px 10px; border: 1px solid #e5e7eb; border-radius: 8px;
+  background: #fff; font-family: var(--piq-font, 'Red Hat Display', sans-serif); font-size: 11.5px; color: #374151; white-space: nowrap; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15); cursor: pointer;
+}
+:host ::ng-deep .ao-site-card--right { left: 16px; }
+:host ::ng-deep .ao-site-card--left { right: 16px; }
+:host ::ng-deep .ao-site-card strong { font-size: 12.5px; color: #1e1b6b; }
+:host ::ng-deep .ao-site-card.is-on { border-color: #4f2bd8; box-shadow: 0 0 0 2px #c9c3f6; }
+:host ::ng-deep .ao-site-card.is-dim { opacity: 0.55; }
+:host ::ng-deep .ao-site-health { display: inline-flex; align-items: center; gap: 4px; color: #15803d; }
+:host ::ng-deep .ao-site-health b { font-size: 12px; }
+
+/* ===== Aging ===== */
+.ao-aging svg { display: block; width: 100%; height: auto; }
+.ao-aging g { transition: opacity 0.15s; }
+.ao-aging g.is-dim { opacity: 0.45; }
+.ao-bar-val { font-size: 10px; font-weight: 700; fill: var(--io-ink); }
+.ao-age-keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 6px 0 0 30px; padding: 0; list-style: none; text-align: center; font-size: 11px; }
+.ao-age-keys strong { display: block; font-weight: 600; }
+.ao-age-keys small { display: block; color: var(--io-muted); }
+.ao-age-keys b { display: block; margin-top: 4px; font-size: 12.5px; }
+
+/* ===== Critical & high-value table ===== */
+.ao-tb-links { display: inline-flex; gap: 12px; }
+.ao-table { font-size: 12px; }
+.ao-table td, .ao-table th { padding: 6px 8px; }
+.sev--healthy { background: #dcf5e6; color: #15803d; }
+.sev--unknown { background: #f1f5f9; color: #475569; }
+.ao-st { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ao-st i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.ao-st--pill { padding: 1px 9px; border-radius: 10px; background: #f1f5f9; font-size: 11.5px; font-weight: 600; }
+.st--active { color: #15803d; }
+.st--idle { color: #1d4ed8; }
+.st--in-transit { color: #6d28d9; }
+.st--under-maintenance { color: #c2410c; }
+.st--retired, .st--disposed { color: #475569; }
+
+@media (max-width: 1600px) {
+  .ao-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1400px) {
+  .ao-row--1, .ao-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 800px) {
+  .ao-kpis, .ao-row--1, .ao-row--2 { grid-template-columns: minmax(0, 1fr); }
+  .ao-health { flex-direction: column; }
+}

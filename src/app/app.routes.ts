@@ -22,8 +22,11 @@ import { AssetStatusCondition } from './components/pages/assets/asset-status-con
 import { AssetCriticality } from './components/pages/assets/asset-criticality/asset-criticality';
 import { AssetHealthScore } from './components/pages/assets/asset-health-score/asset-health-score';
 import { AssetBulk } from './components/pages/assets/asset-bulk/asset-bulk';
+import { BulkAssignment } from './components/pages/assets/asset-bulk/bulk-assignment/bulk-assignment';
 import { AssetMerge } from './components/pages/assets/asset-merge/asset-merge';
 import { LocationHistory } from './components/pages/assets/asset-location-history/location-history';
+import { AssetAssignment } from './components/pages/assets/asset-assignment/asset-assignment';
+import { AssignAsset } from './components/pages/assets/asset-assignment/assign-asset/assign-asset';
 import { AssetMaintenance } from './components/pages/assets/asset-maintenance/asset-maintenance';
 import { JobTemplates } from './components/pages/wip-operations/job-templates/job-templates';
 import { JobOrders } from './components/pages/wip-operations/job-orders/job-orders';
@@ -70,9 +73,16 @@ import { AssetActivityAuditTrail } from './components/pages/administration/confi
 import { AssetCustomDomainFields } from './components/pages/administration/configuration/assets/custom-domain-fields/custom-domain-fields';
 import { AssetIntegration } from './components/pages/administration/configuration/assets/integration/integration';
 import { AssetComplianceCertification } from './components/pages/administration/configuration/assets/compliance-certification/compliance-certification';
-import { AssetAuditConfig } from './components/pages/administration/configuration/assets/assets-audit/assets-audit';
+import { AssetAudit } from './components/pages/administration/configuration/assets/asset-audit/asset-audit/asset-audit';
+import { NewassetAudit } from './components/pages/administration/configuration/assets/asset-audit/newasset-audit/newasset-audit';
 import { AssetMovement } from './components/pages/administration/configuration/assets/asset-movement/asset-movement';
-import { AssetDisposal } from './components/pages/administration/configuration/assets/asset-disposal/asset-disposal';
+import { AssetDisposal } from './components/pages/administration/configuration/assets/asset-disposal/asset-disposal/asset-disposal';
+import { NewDisposal } from './components/pages/administration/configuration/assets/asset-disposal/new-disposal/new-disposal';
+import { AssetOverview } from './components/pages/dashboard/asset-overview/asset-overview';
+import { IotTrackingOverview } from './components/pages/dashboard/iot-tracking-overview/iot-tracking-overview';
+import { Report } from './components/pages/dashboard/report/report';
+import { ServiceRequest } from './components/pages/administration/configuration/assets/service-request/service-request/service-request';
+import { NewServiceRequest } from './components/pages/administration/configuration/assets/service-request/new-service-request/new-service-request';
 import { AssetTaggedAssets } from './components/pages/administration/configuration/assets/tagged-assets/tagged-assets';
 import { AssetCheckout } from './components/pages/administration/configuration/assets/asset-checkout/asset-checkout';
 import { AssetCheckin } from './components/pages/administration/configuration/assets/asset-checkin/asset-checkin';
@@ -185,6 +195,10 @@ export const routes: Routes = [
     // DEMO MODE: Auth guard is disabled
     // canActivate: [authGuard],
     children: [
+      // Dashboard sub pages: placeholders until their screens are built (listed before the remote so they match first)
+      { path: 'dashboard/iot-tracking-overview', component: IotTrackingOverview },
+      { path: 'dashboard/asset-overview', component: AssetOverview },
+      { path: 'dashboard/reports', component: Report },
       { path: 'dashboard', loadChildren: remoteRoutes('dashboard') },
       // New UI modules: placeholder pages until their screens are built
       // The Assets menu only expands its submenu; a direct visit to /assets lands on the Asset List
@@ -200,11 +214,19 @@ export const routes: Routes = [
       { path: 'assets/hierarchy', component: AssetHierarchy },
       { path: 'assets/components', component: AssetComponents },
       { path: 'assets/location-history', component: LocationHistory },
-      { path: 'assets/assignment', component: ModulePlaceholder, data: { title: 'Assignment' } },
+      { path: 'assets/assignment', component: AssetAssignment },
+      // ?type= preselects the assignee kind, ?assets= the asset tags
+      { path: 'assets/assignment/assign-asset', component: AssignAsset },
+      { path: 'assets/assignment/bulk-assignment', component: BulkAssignment },
       { path: 'assets/maintenance', component: AssetMaintenance },
-      { path: 'assets/service-requests', component: ModulePlaceholder, data: { title: 'Service Requests' } },
-      { path: 'assets/audit', component: ModulePlaceholder, data: { title: 'Asset Audit' } },
-      { path: 'assets/disposal', component: ModulePlaceholder, data: { title: 'Disposal' } },
+      // ?tag= the asset, ?tab= details | updates | attachments | related; without an id the asset's latest request opens
+      { path: 'assets/service-requests', component: ServiceRequest },
+      { path: 'assets/service-requests/new', component: NewServiceRequest },
+      { path: 'assets/service-requests/:id', component: ServiceRequest },
+      { path: 'assets/audit', component: AssetAudit },
+      { path: 'assets/audit/new-audit', component: NewassetAudit },
+      { path: 'assets/disposal', component: AssetDisposal },
+      { path: 'assets/disposal/new-disposal', component: NewDisposal },
       { path: 'assets/custom-fields', component: AssetCustomFields },
       { path: 'assets/lifecycle', component: AssetLifecycle },
       { path: 'assets/documents', component: AssetDocuments },
@@ -287,7 +309,6 @@ export const routes: Routes = [
               { path: 'assets/custom-domain-fields', component: AssetCustomDomainFields },
               { path: 'assets/integration', component: AssetIntegration },
               { path: 'assets/compliance-certification', component: AssetComplianceCertification },
-              { path: 'assets/assets-audit', component: AssetAuditConfig },
               { path: 'assets/asset-movement', component: AssetMovement },
               { path: 'assets/asset-disposal', component: AssetDisposal },
               { path: 'assets/tagged-assets', component: AssetTaggedAssets },

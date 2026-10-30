@@ -27,8 +27,8 @@ export interface NavItem {
   // Lucide icon, only used for top-level items
   icon?: LucideIconData;
   children?: NavItem[];
-  // The item has its own page: clicking it opens that page as well as its submenu
-  hasPage?: boolean;
+  // Page opened (with the submenu expanded) when the item is clicked from outside its section
+  landing?: string;
 }
 
 @Component({
@@ -56,7 +56,17 @@ export class Sidebar {
   flyoutPosition: { top: number; left: number } | null = null;
 
   navItems: NavItem[] = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    {
+      label: 'Dashboard',
+      path: '/dashboard',
+      icon: LayoutDashboard,
+      landing: '/dashboard/iot-tracking-overview',
+      children: [
+        { label: 'IoT & Tracking Overview', path: '/dashboard/iot-tracking-overview' },
+        { label: 'Asset Overview', path: '/dashboard/asset-overview' },
+        { label: 'Reports', path: '/dashboard/reports' },
+      ],
+    },
     {
       label: 'Assets',
       path: '/assets',
@@ -160,7 +170,6 @@ export class Sidebar {
                 { label: 'Custom / Domain-specific Asset Type Fields', path: '/administration/configuration/assets/custom-domain-fields' },
                 { label: 'Integration', path: '/administration/configuration/assets/integration' },
                 { label: 'Compliance & Certification', path: '/administration/configuration/assets/compliance-certification' },
-                { label: 'Assets Audit', path: '/administration/configuration/assets/assets-audit' },
                 { label: 'Asset Movement', path: '/administration/configuration/assets/asset-movement' },
                 { label: 'Asset Disposal', path: '/administration/configuration/assets/asset-disposal' },
                 { label: 'Tagged Assets', path: '/administration/configuration/assets/tagged-assets' },
@@ -336,10 +345,10 @@ export class Sidebar {
       this.toggleDropdown(item.label, triggerEl);
       return;
     }
-    // Items with their own page open it and expand; clicking again while on that page collapses
-    if (item.hasPage && this.router.url.split('?')[0] !== item.path) {
+    // Items with a landing page open it and expand; clicking again inside the section collapses
+    if (item.landing && !this.isSectionActive(item)) {
       this.openInline.add(item.label);
-      this.router.navigate([item.path]);
+      this.router.navigateByUrl(item.landing);
       return;
     }
     if (this.openInline.has(item.label)) {

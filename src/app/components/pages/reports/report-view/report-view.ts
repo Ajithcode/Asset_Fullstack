@@ -35,6 +35,11 @@ export class ReportView {
     return this.columns.filter((c) => c.visible).length;
   }
 
+  /** Row records may lack a header key at runtime even though the type says otherwise. */
+  cell(row: GeneratedReport['rows'][number], key: string): string | number {
+    return row[key] ?? '-';
+  }
+
   toggleColumnPicker(): void {
     this.showColumnPicker = !this.showColumnPicker;
   }

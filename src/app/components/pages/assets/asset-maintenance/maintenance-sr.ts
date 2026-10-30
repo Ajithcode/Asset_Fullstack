@@ -27,7 +27,17 @@ export interface ServiceRequest {
   /** 1-5 from the requester once resolved, 0 = not rated. */
   rating: number;
   updates: { at: string; by: string; text: string }[];
-  attachments: { name: string; size: string }[];
+  /** by / at / description are set on files added after the request was raised; url on files uploaded this session. */
+  attachments: { name: string; size: string; by?: string; at?: string; description?: string; url?: string }[];
+  /** Set by the New Service Request page. */
+  location?: string;
+  downtimeHours?: number;
+  /** yyyy-MM-ddTHH:mm */
+  plannedStart?: string;
+  plannedEnd?: string;
+  relatedRequest?: string;
+  tags?: string[];
+  reference?: string;
 }
 
 export const SR_STATUSES: SrStatus[] = ['Open', 'In Progress', 'Resolved', 'Closed'];
