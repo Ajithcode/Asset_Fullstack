@@ -9,6 +9,18 @@ namespace A360.ApiGateway.Middlewares;
 /// </summary>
 public sealed class GatewayAuthenticationMiddleware
 {
+    // Sign-up and sign-in happen before the caller has a token.
+    private static readonly string[] PublicAuthPaths =
+    [
+        "/api/auth/roles",
+        "/api/auth/register",
+        "/api/auth/login",
+        "/api/auth/verify-otp",
+        "/api/auth/verify-totp",
+        "/api/auth/refresh",
+        "/api/auth/logout"
+    ];
+
     private readonly RequestDelegate _next;
 
     public GatewayAuthenticationMiddleware(RequestDelegate next)
@@ -32,6 +44,11 @@ public sealed class GatewayAuthenticationMiddleware
     private static bool IsPublicPath(PathString path)
     {
         var value = (path.Value ?? string.Empty).TrimEnd('/');
+
+        if (PublicAuthPaths.Contains(value, StringComparer.OrdinalIgnoreCase))
+        {
+            return true;
+        }
 
         var segments = value.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length == 0)

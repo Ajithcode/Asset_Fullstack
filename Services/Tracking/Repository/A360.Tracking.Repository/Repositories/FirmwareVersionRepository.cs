@@ -17,10 +17,10 @@ public sealed class FirmwareVersionRepository
     {
     }
 
-    public async Task<bool> DeviceModelExistsAsync(string deviceModel, CancellationToken cancellationToken = default)
+    public async Task<bool> DeviceModelExistsAsync(string deviceModel, string? excludeId = null, CancellationToken cancellationToken = default)
     {
         return await Collection
-            .Find(firmware => firmware.DeviceModel == deviceModel, new FindOptions { Collation = CaseInsensitive })
+            .Find(firmware => firmware.DeviceModel == deviceModel && firmware.Id != excludeId, new FindOptions { Collation = CaseInsensitive })
             .AnyAsync(cancellationToken);
     }
 

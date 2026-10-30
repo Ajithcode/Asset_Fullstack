@@ -24,11 +24,11 @@ public sealed class DeviceMaintenanceRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<bool> ExistsAsync(string deviceId, string maintenanceType, DateTime dueDate, CancellationToken cancellationToken = default)
+    public async Task<bool> ExistsAsync(string deviceId, string maintenanceType, DateTime dueDate, string? excludeId = null, CancellationToken cancellationToken = default)
     {
         return await Collection
             .Find(
-                job => job.DeviceId == deviceId && job.MaintenanceType == maintenanceType && job.DueDate == dueDate && !job.IsDeleted,
+                job => job.DeviceId == deviceId && job.MaintenanceType == maintenanceType && job.DueDate == dueDate && !job.IsDeleted && job.Id != excludeId,
                 new FindOptions { Collation = CaseInsensitive })
             .AnyAsync(cancellationToken);
     }

@@ -85,6 +85,14 @@ public static class TrackingServiceCollectionExtensions
         services.AddScoped<ILocationEventRepository>(serviceProvider => serviceProvider.GetRequiredService<LocationEventRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<LocationEventRepository>());
 
+        services.AddScoped<ZoneDrawingRepository>();
+        services.AddScoped<IZoneDrawingRepository>(serviceProvider => serviceProvider.GetRequiredService<ZoneDrawingRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<ZoneDrawingRepository>());
+
+        services.AddScoped<DeviceDrawingRepository>();
+        services.AddScoped<IDeviceDrawingRepository>(serviceProvider => serviceProvider.GetRequiredService<DeviceDrawingRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DeviceDrawingRepository>());
+
         services.AddHostedService<MongoIndexHostedService>();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();

@@ -19,10 +19,25 @@ public static class LocationEventEndpoints
     {
         var group = routes.MapGroup("/api/location-events").WithTags("Location Events");
 
+        group.MapGet("", GetLocationEventsAsync).WithName("GetLocationEvents");
         group.MapGet("/{eventId}", GetLocationEventAsync).WithName("GetLocationEventById");
         group.MapPost("", CreateLocationEventAsync).WithName("CreateLocationEvent");
+        group.MapPut("/{eventId}", UpdateLocationEventAsync).WithName("UpdateLocationEvent");
+        group.MapDelete("/{eventId}", DeleteLocationEventAsync).WithName("DeleteLocationEvent");
 
         return group;
+    }
+
+    /// <summary>Most recent event first.</summary>
+    private static async Task<IResult> GetLocationEventsAsync(
+        ILocationEventRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var locationEvents = await repository.GetAllAsync(cancellationToken);
+        return Results.Ok(TrackingRecords.Listed(locationEvents)
+            .OrderByDescending(locationEvent => locationEvent.EventTime)
+            .Select(LocationEventResponse.FromEntity)
+            .ToList());
     }
 
     private static async Task<IResult> GetLocationEventAsync(
@@ -32,7 +47,7 @@ public static class LocationEventEndpoints
     {
         var locationEvent = await repository.GetByEventIdAsync(eventId.Trim(), cancellationToken);
         return locationEvent is null
-            ? Results.NotFound(new { message = $"Location event '{eventId}' was not found." })
+            ? NotFound(eventId)
             : Results.Ok(LocationEventResponse.FromEntity(locationEvent));
     }
 
@@ -57,5 +72,60 @@ public static class LocationEventEndpoints
         await eventLogger.LogAsync(EntityType, locationEvent.EventId, $"{locationEvent.AssetId} - {locationEvent.EventType}", EventAction.Created, cancellationToken);
 
         return Results.Created($"/api/location-events/{locationEvent.EventId}", LocationEventResponse.FromEntity(locationEvent));
+    }
+
+    /// <summary>Takes the same body as create; the event keeps its event id.</summary>
+    private static async Task<IResult> UpdateLocationEventAsync(
+        string eventId,
+        CreateLocationEventRequest request,
+        ILocationEventRepository repository,
+        ICurrentUserAccessor currentUserAccessor,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var validationErrors = request.Validate();
+        if (validationErrors.Count > 0)
+        {
+            return Results.ValidationProblem(validationErrors);
+        }
+
+        var existing = await repository.GetByEventIdAsync(eventId.Trim(), cancellationToken);
+        if (existing is null)
+        {
+            return NotFound(eventId);
+        }
+
+        var currentUser = currentUserAccessor.GetCurrentUser();
+        var locationEvent = request.ToEntity(existing.EventId, currentUser).Replacing(existing, currentUser);
+
+        if (!await repository.UpdateAsync(existing.Id, locationEvent, cancellationToken))
+        {
+            return NotFound(eventId);
+        }
+
+        await eventLogger.LogAsync(EntityType, locationEvent.EventId, $"{locationEvent.AssetId} - {locationEvent.EventType}", EventAction.Updated, cancellationToken);
+
+        return Results.Ok(LocationEventResponse.FromEntity(locationEvent));
+    }
+
+    private static async Task<IResult> DeleteLocationEventAsync(
+        string eventId,
+        ILocationEventRepository repository,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var locationEvent = await repository.GetByEventIdAsync(eventId.Trim(), cancellationToken);
+        if (locationEvent is null || !await repository.DeleteAsync(locationEvent.Id, cancellationToken))
+        {
+            return NotFound(eventId);
+        }
+
+        await eventLogger.LogAsync(EntityType, locationEvent.EventId, $"{locationEvent.AssetId} - {locationEvent.EventType}", EventAction.Deleted, cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static IResult NotFound(string eventId)
+    {
+        return Results.NotFound(new { message = $"Location event '{eventId}' was not found." });
     }
 }

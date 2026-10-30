@@ -17,11 +17,26 @@ public sealed class AlertRuleRepository
     {
     }
 
-    public async Task<bool> NameExistsAsync(string geofenceId, string name, CancellationToken cancellationToken = default)
+    public async Task<bool> NameExistsAsync(string geofenceId, string name, string? excludeId = null, CancellationToken cancellationToken = default)
     {
         return await Collection
-            .Find(rule => rule.GeofenceId == geofenceId && rule.Name == name, new FindOptions { Collation = CaseInsensitive })
+            .Find(rule => rule.GeofenceId == geofenceId && rule.Name == name && rule.Id != excludeId, new FindOptions { Collation = CaseInsensitive })
             .AnyAsync(cancellationToken);
+    }
+
+    public async Task<bool> AnyForGeofenceAsync(string geofenceId, CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(rule => rule.GeofenceId == geofenceId && !rule.IsDeleted)
+            .AnyAsync(cancellationToken);
+    }
+
+    public async Task RenameGeofenceAsync(string geofenceId, string geofenceName, CancellationToken cancellationToken = default)
+    {
+        await Collection.UpdateManyAsync(
+            rule => rule.GeofenceId == geofenceId,
+            Builders<AlertRule>.Update.Set(rule => rule.GeofenceName, geofenceName),
+            cancellationToken: cancellationToken);
     }
 
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)

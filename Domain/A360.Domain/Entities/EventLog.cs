@@ -40,6 +40,8 @@ public static class EventAction
     public const string OtpSendFailed = "OtpSendFailed";
     public const string OtpFailed = "OtpFailed";
     public const string OtpLocked = "OtpLocked";
+    public const string TotpSetupStarted = "TotpSetupStarted";
+    public const string TotpEnabled = "TotpEnabled";
     public const string TokenRefreshed = "TokenRefreshed";
     public const string TokenRefreshFailed = "TokenRefreshFailed";
     public const string TokenReuseDetected = "TokenReuseDetected";

@@ -1,38 +1,48 @@
 #!/usr/bin/env bash
-# Starts MongoDB + all A360 services + the ApiGateway inside a single container.
-# Mirrors scripts/start-all.sh, adapted to run as the container's entrypoint.
+# Starts all A360 services + the ApiGateway inside a single container.
+# MongoDB is external: MONGODB_URI (e.g. MongoDB Atlas) overrides MongoDb:ConnectionString in every service.
 set -euo pipefail
 
-mkdir -p /data/db
-mongod --dbpath /data/db --logpath /var/log/mongod.log --bind_ip 127.0.0.1 \
-  --wiredTigerCacheSizeGB 0.5 &
+if [ -z "${MONGODB_URI:-}" ]; then
+  echo "MONGODB_URI is not set" >&2
+  exit 1
+fi
+export MongoDb__ConnectionString="$MONGODB_URI"
+export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
 
-for i in $(seq 1 30); do
-  if (exec 3<>/dev/tcp/127.0.0.1/27017) 2>/dev/null; then
-    exec 3<&- 3>&-
-    break
-  fi
-  sleep 1
-done
+# The Jwt:SigningKey in appsettings.json is committed to git, so it is only fit for local development.
+if [ "$ASPNETCORE_ENVIRONMENT" = "Production" ] && [ -z "${Jwt__SigningKey:-}" ]; then
+  echo "Jwt__SigningKey is not set (required in Production)" >&2
+  exit 1
+fi
+if [ "$ASPNETCORE_ENVIRONMENT" = "Production" ] && [ -z "${Smtp__Host:-}" ]; then
+  echo "warning: Smtp__Host is not set, login OTP emails will not be sent" >&2
+fi
 
+# Ports must match the cluster addresses in ApiGateway appsettings.json.
 declare -A SERVICES=(
-  ["media"]="/app/media:A360.Media.Api.dll:5300"
-  ["asset"]="/app/asset:A360.Asset.Api.dll:5401"
-  ["inspection"]="/app/inspection:A360.Inspection.Api.dll:5410"
-  ["eventlog"]="/app/eventlog:A360.EventLog.Api.dll:5420"
-  ["masterdatamanagement"]="/app/masterdatamanagement:A360.MasterDataManagement.Api.dll:5500"
+  ["useraccount"]="A360.UserAccount.Api.dll:5018"
+  ["media"]="A360.Media.Api.dll:5300"
+  ["asset"]="A360.Asset.Api.dll:5401"
+  ["inspection"]="A360.Inspection.Api.dll:5410"
+  ["eventlog"]="A360.EventLog.Api.dll:5420"
+  ["maintenance"]="A360.Maintenance.Api.dll:5430"
+  ["wip"]="A360.Wip.Api.dll:5440"
+  ["workflows"]="A360.Workflows.Api.dll:5450"
+  ["administration"]="A360.Administration.Api.dll:5460"
+  ["dashboard"]="A360.Dashboard.Api.dll:5470"
+  ["tracking"]="A360.Tracking.Api.dll:5490"
+  ["masterdatamanagement"]="A360.MasterDataManagement.Api.dll:5500"
 )
 
 for name in "${!SERVICES[@]}"; do
-  IFS=':' read -r dir dll port <<< "${SERVICES[$name]}"
-  ( cd "$dir" && ASPNETCORE_ENVIRONMENT=Production ASPNETCORE_URLS="http://0.0.0.0:${port}" \
-    dotnet "$dll" >> "/var/log/${name}.log" 2>&1 & )
+  IFS=':' read -r dll port <<< "${SERVICES[$name]}"
+  ( cd "/app/$name" && ASPNETCORE_URLS="http://0.0.0.0:${port}" dotnet "$dll" 2>&1 | sed "s/^/[$name] /" & )
   echo "started $name on port $port"
 done
 
 sleep 3
 
 cd /app/apigateway
-export ASPNETCORE_ENVIRONMENT=Production
 export ASPNETCORE_URLS="http://0.0.0.0:5296"
 exec dotnet A360.ApiGateway.dll

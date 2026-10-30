@@ -148,6 +148,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Api", "Api", "{8BE75F51-4E8
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A360.MasterDataManagement.Api", "Services\MasterDataManagement\Api\A360.MasterDataManagement.Api\A360.MasterDataManagement.Api.csproj", "{20B3402B-619A-4FCC-A706-A8ACB5E37E71}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UserAccount", "UserAccount", "{EE1CCAF3-33C1-44BD-A014-298465C5AF92}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A360.UserAccount.Api", "Services\UserAccount\Api\A360.UserAccount.Api\A360.UserAccount.Api.csproj", "{A4091004-665D-4BB4-9941-21F4DC67F685}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A360.UserAccount.Domain", "Services\UserAccount\Domain\A360.UserAccount.Domain\A360.UserAccount.Domain.csproj", "{A1A46B3E-FEC4-46FE-9BE4-0946F500A601}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A360.UserAccount.Repository", "Services\UserAccount\Repository\A360.UserAccount.Repository\A360.UserAccount.Repository.csproj", "{0CB08957-ABE5-4F53-AA54-50368449FD3D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -294,6 +302,18 @@ Global
 		{20B3402B-619A-4FCC-A706-A8ACB5E37E71}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{20B3402B-619A-4FCC-A706-A8ACB5E37E71}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{20B3402B-619A-4FCC-A706-A8ACB5E37E71}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A4091004-665D-4BB4-9941-21F4DC67F685}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4091004-665D-4BB4-9941-21F4DC67F685}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A4091004-665D-4BB4-9941-21F4DC67F685}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A4091004-665D-4BB4-9941-21F4DC67F685}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1A46B3E-FEC4-46FE-9BE4-0946F500A601}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1A46B3E-FEC4-46FE-9BE4-0946F500A601}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1A46B3E-FEC4-46FE-9BE4-0946F500A601}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1A46B3E-FEC4-46FE-9BE4-0946F500A601}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CB08957-ABE5-4F53-AA54-50368449FD3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CB08957-ABE5-4F53-AA54-50368449FD3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CB08957-ABE5-4F53-AA54-50368449FD3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CB08957-ABE5-4F53-AA54-50368449FD3D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -363,6 +383,9 @@ Global
 		{3405CA5C-F5A8-4601-A946-597D4A39E3FD} = {153BB863-373C-4438-8C89-38BA2AAD06A6}
 		{8BE75F51-4E8D-42F3-BA07-3D19165697DC} = {B69C8CE8-95A5-4231-9661-DE798EDAE5B1}
 		{20B3402B-619A-4FCC-A706-A8ACB5E37E71} = {8BE75F51-4E8D-42F3-BA07-3D19165697DC}
+		{A4091004-665D-4BB4-9941-21F4DC67F685} = {EE1CCAF3-33C1-44BD-A014-298465C5AF92}
+		{A1A46B3E-FEC4-46FE-9BE4-0946F500A601} = {EE1CCAF3-33C1-44BD-A014-298465C5AF92}
+		{0CB08957-ABE5-4F53-AA54-50368449FD3D} = {EE1CCAF3-33C1-44BD-A014-298465C5AF92}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {5E515CFC-B33D-4789-BB0F-DFD9C335C07B}

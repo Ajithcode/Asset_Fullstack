@@ -27,3 +27,9 @@ x86/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local secrets (MongoDB Atlas connection string etc.)
+.env.local
+.env
+.dev.vars
+logs/
