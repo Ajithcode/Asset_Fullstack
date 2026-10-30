@@ -53,6 +53,7 @@ public static class ApiGatewayApplicationBuilderExtensions
                 options.SwaggerEndpoint("/maintenance/swagger/v1/swagger.json", "Maintenance Service");
                 options.SwaggerEndpoint("/wip/swagger/v1/swagger.json", "WIP Service");
                 options.SwaggerEndpoint("/dashboard/swagger/v1/swagger.json", "Dashboard Service");
+                options.SwaggerEndpoint("/report-analytics/swagger/v1/swagger.json", "Report Analytics Service");
                 options.SwaggerEndpoint("/administration/swagger/v1/swagger.json", "Administration Service");
                 options.SwaggerEndpoint("/tracking/swagger/v1/swagger.json", "Tracking & IoT Service");
                 options.SwaggerEndpoint("/master-data-management/swagger/v1/swagger.json", "Master Data Management Service");
@@ -101,6 +102,13 @@ public static class ApiGatewayApplicationBuilderExtensions
                     gatewaySwaggerUrl = "/dashboard/swagger/v1/swagger.json",
                     serviceBaseUrl = "http://172.16.100.26:5470",
                     healthUrl = "/dashboard/health"
+               },
+                new
+               {
+                    service = "ReportAnalytics",
+                    gatewaySwaggerUrl = "/report-analytics/swagger/v1/swagger.json",
+                    serviceBaseUrl = "http://172.16.100.26:5480",
+                    healthUrl = "/report-analytics/health"
                },
                 new
                {

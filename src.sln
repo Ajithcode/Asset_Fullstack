@@ -156,6 +156,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A360.UserAccount.Domain", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A360.UserAccount.Repository", "Services\UserAccount\Repository\A360.UserAccount.Repository\A360.UserAccount.Repository.csproj", "{0CB08957-ABE5-4F53-AA54-50368449FD3D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ReportAnalytics", "ReportAnalytics", "{29C6109D-1002-4AE6-9373-36882DEE75D1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A360.ReportAnalytics.Domain", "Services\ReportAnalytics\Domain\A360.ReportAnalytics.Domain\A360.ReportAnalytics.Domain.csproj", "{26B89799-E94E-4C83-AA0B-6CD98712A394}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A360.ReportAnalytics.Repository", "Services\ReportAnalytics\Repository\A360.ReportAnalytics.Repository\A360.ReportAnalytics.Repository.csproj", "{45B24C55-DA05-44F8-A444-B4204461C841}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "A360.ReportAnalytics.Api", "Services\ReportAnalytics\Api\A360.ReportAnalytics.Api\A360.ReportAnalytics.Api.csproj", "{9238DE40-DF81-418A-9194-50AD51449405}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -314,6 +322,18 @@ Global
 		{0CB08957-ABE5-4F53-AA54-50368449FD3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0CB08957-ABE5-4F53-AA54-50368449FD3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0CB08957-ABE5-4F53-AA54-50368449FD3D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26B89799-E94E-4C83-AA0B-6CD98712A394}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26B89799-E94E-4C83-AA0B-6CD98712A394}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26B89799-E94E-4C83-AA0B-6CD98712A394}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26B89799-E94E-4C83-AA0B-6CD98712A394}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45B24C55-DA05-44F8-A444-B4204461C841}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45B24C55-DA05-44F8-A444-B4204461C841}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45B24C55-DA05-44F8-A444-B4204461C841}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45B24C55-DA05-44F8-A444-B4204461C841}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9238DE40-DF81-418A-9194-50AD51449405}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9238DE40-DF81-418A-9194-50AD51449405}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9238DE40-DF81-418A-9194-50AD51449405}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9238DE40-DF81-418A-9194-50AD51449405}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -386,6 +406,9 @@ Global
 		{A4091004-665D-4BB4-9941-21F4DC67F685} = {EE1CCAF3-33C1-44BD-A014-298465C5AF92}
 		{A1A46B3E-FEC4-46FE-9BE4-0946F500A601} = {EE1CCAF3-33C1-44BD-A014-298465C5AF92}
 		{0CB08957-ABE5-4F53-AA54-50368449FD3D} = {EE1CCAF3-33C1-44BD-A014-298465C5AF92}
+		{26B89799-E94E-4C83-AA0B-6CD98712A394} = {29C6109D-1002-4AE6-9373-36882DEE75D1}
+		{45B24C55-DA05-44F8-A444-B4204461C841} = {29C6109D-1002-4AE6-9373-36882DEE75D1}
+		{9238DE40-DF81-418A-9194-50AD51449405} = {29C6109D-1002-4AE6-9373-36882DEE75D1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {5E515CFC-B33D-4789-BB0F-DFD9C335C07B}

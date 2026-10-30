@@ -31,6 +31,7 @@ declare -A SERVICES=(
   ["workflows"]="A360.Workflows.Api.dll:5450"
   ["administration"]="A360.Administration.Api.dll:5460"
   ["dashboard"]="A360.Dashboard.Api.dll:5470"
+  ["reportanalytics"]="A360.ReportAnalytics.Api.dll:5480"
   ["tracking"]="A360.Tracking.Api.dll:5490"
   ["masterdatamanagement"]="A360.MasterDataManagement.Api.dll:5500"
 )
