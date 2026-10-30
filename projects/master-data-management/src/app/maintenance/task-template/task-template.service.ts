@@ -1,73 +1,61 @@
 import { Injectable, inject } from '@angular/core';
-import { ApiCodeStore, MasterDto } from '../../shared/api-code-store';
+import { MdmAudit } from '../../shared/mdm-api';
 import { MaintenanceTypeService } from '../maintenance-type/maintenance-type.service';
-import { blankTaskTemplate } from './task-template.data';
+import { MasterApiStore, stampOf } from '../master-api-store';
 import { TaskTemplateRecord } from './task-template.model';
 
-interface ReferenceDto {
-  id: string | null;
-  name: string;
-}
-
-interface StepDto {
-  name: string;
-  description: string | null;
-  minutes: number | null;
-  required: boolean | null;
-}
-
-interface TaskTemplateDto extends MasterDto {
+interface TaskTemplateDto extends MdmAudit {
   templateName: string;
-  maintenanceType: ReferenceDto | null;
-  // In hours
+  code: string;
+  maintenanceType: { id: string | null; name: string } | null;
   estimatedDuration: number | null;
   description: string | null;
-  tasks: StepDto[];
+  tasks: { name: string; description: string | null; durationMinutes: number | null; isRequired: boolean }[];
 }
 
-/**
- * Task templates from {projectApiUrl}api/master-data/task-templates. The maintenance type is shown
- * by name and linked by id; each task's text is stored as the step name.
- */
+/** Task templates (/api/master-data/task-templates); tasks are stored as ordered steps. */
 @Injectable({ providedIn: 'root' })
-export class TaskTemplateService extends ApiCodeStore<TaskTemplateRecord, TaskTemplateDto> {
+export class TaskTemplateService extends MasterApiStore<TaskTemplateRecord, TaskTemplateDto> {
+  protected readonly resource = 'task-templates';
   private readonly types = inject(MaintenanceTypeService);
 
   constructor() {
-    super('task-templates');
-    this.load();
+    super();
   }
 
   usesType(name: string): number {
     return this.records.filter((r) => r.maintenanceType === name).length;
   }
 
-  // The API renames the type on templates; this keeps the cached rows in step
+  /** Follows a renamed maintenance type locally; the API renames the stored references itself. */
   renameType(from: string, to: string): void {
     if (from === to) return;
     this.records = this.records.map((r) => (r.maintenanceType === from ? { ...r, maintenanceType: to } : r));
   }
 
-  protected toRecord(dto: TaskTemplateDto, cached: TaskTemplateRecord | undefined): TaskTemplateRecord {
-    const base = cached ?? blankTaskTemplate();
+  protected toRecord(dto: TaskTemplateDto): TaskTemplateRecord {
     return {
-      ...base,
+      code: dto.code,
       name: dto.templateName,
       maintenanceType: dto.maintenanceType?.name ?? '',
-      estimatedHours: dto.estimatedDuration ?? base.estimatedHours,
+      estimatedHours: dto.estimatedDuration ?? 0,
       description: dto.description ?? '',
-      tasks: dto.tasks.map((t) => ({ description: t.name, minutes: t.minutes ?? 0, required: t.required ?? true }))
+      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
+      tasks: (dto.tasks ?? []).map((t) => ({ description: t.name, minutes: t.durationMinutes ?? 0, required: t.isRequired })),
+      createdOn: stampOf(dto.createdAt),
+      updatedOn: stampOf(dto.updatedAt ?? dto.createdAt)
     };
   }
 
-  protected toRequest(r: TaskTemplateRecord) {
+  protected toRequest(r: TaskTemplateRecord): object {
     return {
       templateName: r.name,
       code: r.code,
-      maintenanceType: this.types.refOf(r.maintenanceType),
+      maintenanceType: r.maintenanceType ? { id: this.types.idOfName(r.maintenanceType), name: r.maintenanceType } : null,
       estimatedDuration: r.estimatedHours,
       description: r.description,
-      tasks: r.tasks.map((t) => ({ name: t.description, minutes: t.minutes, required: t.required }))
+      tasks: r.tasks.map((t) => ({ name: t.description, durationMinutes: t.minutes, isRequired: t.required })),
+      status: r.status
     };
   }
 }

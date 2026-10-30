@@ -15,9 +15,10 @@ import {
   Search,
   Workflow
 } from 'lucide-angular';
-import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { apiErrorMessage, inParallel } from '../../shared/mdm-api';
+import { BusinessUnitService } from '../business-unit/business-unit.service';
+import { SiteService } from '../site/site.service';
 import { OrganizationForm } from './organization-form/organization-form';
 import { ORGANIZATION_TYPES, OrganizationFilters, OrganizationRecord } from './organization.model';
 import { OrganizationService } from './organization.service';
@@ -35,6 +36,8 @@ const EMPTY_FILTERS: OrganizationFilters = { search: '', status: '', type: '' };
 })
 export class OrganizationPage {
   readonly service = inject(OrganizationService);
+  private readonly businessUnits = inject(BusinessUnitService);
+  private readonly sites = inject(SiteService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly types = ORGANIZATION_TYPES;
   readonly icons = { Building2, Network, Workflow, MapPin, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
@@ -56,12 +59,28 @@ export class OrganizationPage {
   formRecord: OrganizationRecord | null = null;
 
   pendingDelete: OrganizationRecord[] = [];
-  toast = '';
   saving = false;
+  deleting = false;
+  toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
-    this.service.load();
+    this.reload();
+  }
+
+  /** Organizations, plus business units and sites for the counts. */
+  reload(): void {
+    inParallel<unknown>([this.service.load(), this.businessUnits.load(), this.sites.load()]).subscribe({
+      next: () => this.refreshCounts(),
+      error: (err) => this.notify(`Could not load organizations: ${apiErrorMessage(err)}`)
+    });
+  }
+
+  private refreshCounts(): void {
+    this.service.applyCounts(
+      (code) => this.businessUnits.all().filter((b) => b.organizationCode === code).length,
+      (code) => this.sites.all().filter((s) => s.organizationCode === code).length
+    );
   }
 
   get stats() {
@@ -177,7 +196,6 @@ export class OrganizationPage {
     const blank: OrganizationRecord = structuredClone(parent);
     this.openAdd({
       ...blank,
-      id: '',
       code: '',
       name: '',
       type: 'Subsidiary',
@@ -202,9 +220,10 @@ export class OrganizationPage {
   onSaved(event: { record: OrganizationRecord; originalCode: string | null }): void {
     if (this.saving) return;
     this.saving = true;
-    this.service.save(event.record, event.originalCode).subscribe({
+    this.service.persist(event.record, event.originalCode).subscribe({
       next: (saved) => {
         this.saving = false;
+        this.refreshCounts();
         if (event.originalCode && this.selected.delete(event.originalCode)) {
           this.selected.add(saved.code);
         }
@@ -221,8 +240,11 @@ export class OrganizationPage {
   toggleStatus(record: OrganizationRecord): void {
     this.menuFor = null;
     const status = record.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...record, status }, record.code).subscribe({
-      next: () => this.notify(`${record.name} marked ${status}.`),
+    this.service.setStatus(record, status).subscribe({
+      next: () => {
+        this.refreshCounts();
+        this.notify(`${record.name} marked ${status}.`);
+      },
       error: (err) => this.notify(apiErrorMessage(err))
     });
   }
@@ -245,20 +267,25 @@ export class OrganizationPage {
   }
 
   confirmDelete(): void {
+    if (this.deleting) return;
     const list = this.pendingDelete;
-    const codes = list.map((r) => r.code);
-    this.pendingDelete = [];
-    // Children first, so the API doesn't refuse a parent that still has sub-organizations in this batch
-    const ordered = [...list].sort((a, b) => this.service.ancestry(b.code).length - this.service.ancestry(a.code).length);
-    concat(...ordered.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
-      next: () => {
-        codes.forEach((c) => this.selected.delete(c));
-        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} organizations deleted.`);
-        this.goTo(this.page);
-      },
-      // Any organizations deleted before the failure are already gone from the table
-      error: (err) => this.notify(apiErrorMessage(err))
+    // Sub-organizations go before their parents so the API accepts each delete
+    const depth = (r: OrganizationRecord) => this.service.ancestry(r.code).length;
+    const codes = [...list].sort((a, b) => depth(b) - depth(a)).map((r) => r.code);
+    const done = (message: string) => {
+      const remaining = new Set(this.service.all().map((r) => r.code));
+      codes.filter((c) => !remaining.has(c)).forEach((c) => this.selected.delete(c));
+      if (this.formMode === 'edit' && this.formRecord && !remaining.has(this.formRecord.code)) this.closeForm();
+      this.refreshCounts();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.delete(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} organizations deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
     });
   }
 

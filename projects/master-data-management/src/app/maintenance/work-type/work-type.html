@@ -108,13 +108,7 @@
                 </td>
               </tr>
             } @empty {
-              @if (service.loading) {
-                <tr><td colspan="8" class="empty">Loading work types...</td></tr>
-              } @else if (service.loadError) {
-                <tr><td colspan="8" class="empty">{{ service.loadError }} <button type="button" class="btn btn--link" (click)="service.load()">Retry</button></td></tr>
-              } @else {
-                <tr><td colspan="8" class="empty">No work types match these filters.</td></tr>
-              }
+              <tr><td colspan="8" class="empty">No work types match these filters.</td></tr>
             }
           </tbody>
         </table>

@@ -1,114 +1,63 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, switchMap, take, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { Observable, switchMap } from 'rxjs';
+import { MasterIcon } from '../../shared/master-icons';
+import { MdmAudit } from '../../shared/mdm-api';
 import { BusinessUnitService } from '../business-unit/business-unit.service';
+import { StructureReference, toLocalStamp } from '../structure-api';
+import { StructureStore } from '../structure-store';
 import { blankDepartment } from './department.data';
-import { DepartmentFilters, DepartmentRecord, DepartmentType } from './department.model';
+import { DepartmentFilters, DepartmentRecord, DepartmentStatus, DepartmentType } from './department.model';
 
-interface ReferenceDto {
-  id: string | null;
-  name: string;
-}
-
-/** Raw shape returned by GET/POST/PUT {projectApiUrl}api/master-data/departments */
-interface DepartmentDto {
-  id: string;
+interface DepartmentDto extends MdmAudit {
   departmentName: string;
   code: string;
-  type: string | null;
-  description: string | null;
-  parentDepartment: ReferenceDto | null;
-  businessUnit: ReferenceDto | null;
-  departmentHead: ReferenceDto | null;
-  employees: ReferenceDto[];
-  assets: ReferenceDto[];
+  businessUnit: StructureReference | null;
+  departmentHead: StructureReference | null;
   employeeCount: number;
   assetCount: number;
-  createdBy: string | null;
-  createdAt: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  clientId: string | null;
-  tenantId: string | null;
-  status: string | null;
-  isDeleted: boolean;
+  parentDepartment: StructureReference | null;
+  icon: string | null;
+  logoUrl: string | null;
+  type: string | null;
+  deputy: string | null;
+  costCenter: string | null;
+  description: string | null;
+  email: string | null;
+  phoneCountry: string | null;
+  phone: string | null;
+  annualBudget: number | null;
+  currency: string | null;
+  glCode: string | null;
+  approvalLimit: number | null;
+  allowAssetOwnership: boolean;
+  requireAssignmentApproval: boolean;
+  includeInCostAllocation: boolean;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
 }
 
 /**
- * Fields the API stores; deputy, cost centre, contact, budget and settings are UI-only for now.
- * Employees are left out so the API keeps the current members.
- */
-interface DepartmentRequest {
-  departmentName: string;
-  code: string;
-  type: string;
-  description: string;
-  parentDepartment: ReferenceDto | null;
-  businessUnit: ReferenceDto | null;
-  departmentHead: ReferenceDto | null;
-  assets: ReferenceDto[];
-  status: string;
-}
-
-/**
- * Departments from the Master Data API. Rows are cached after load() so this page and the
- * Business Unit / Site pages can keep reading them synchronously; writes go to the API and update
- * the cache when they succeed.
+ * Departments from `/api/master-data/departments`, keyed by code. The business unit is kept as
+ * its code, so business units load first. Employee and asset counts come from the API.
  */
 @Injectable({ providedIn: 'root' })
-export class DepartmentService {
-  private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
+export class DepartmentService extends StructureStore<DepartmentRecord, DepartmentDto> {
+  protected readonly resource = 'departments';
   private readonly businessUnits = inject(BusinessUnitService);
-  private readonly apiUrl = `${environment.projectApiUrl}api/master-data/departments`;
-
-  private records: DepartmentRecord[] = [];
-  // Raw API rows by id: head id and linked assets, which a PUT clears if it leaves them out
-  private dtos = new Map<string, DepartmentDto>();
-  loading = false;
-  loadError = '';
 
   constructor() {
-    this.load();
+    super();
   }
 
-  /** GET /api/master-data/departments (skipped while a load is already running) */
-  load(): void {
-    if (this.loading) return;
-    this.loading = true;
-    this.loadError = '';
-    // Wait for the business units so each department's unit id can be mapped to its code
-    this.businessUnits.settled$.pipe(
-      take(1),
-      switchMap(() => this.http.get<DepartmentDto[]>(this.apiUrl, { params: { clientId: environment.clientId } }))
-    ).subscribe({
-      next: (list) => {
-        this.dtos = new Map(list.map((d) => [d.id, d]));
-        this.records = list.map((d) => this.toRecord(d));
-        this.loading = false;
-      },
-      error: (err) => {
-        this.loadError = apiErrorMessage(err);
-        this.loading = false;
-      }
-    });
-  }
-
-  all(): DepartmentRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null): DepartmentRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+  override load(query: Record<string, string | number | boolean | null | undefined> = {}): Observable<DepartmentRecord[]> {
+    return this.businessUnits.ensureLoaded().pipe(switchMap(() => super.load(query)));
   }
 
   ofBusinessUnit(businessUnitCode: string): DepartmentRecord[] {
     return this.records.filter((r) => r.businessUnitCode === businessUnitCode);
   }
 
-  /** Department names for a business unit (by its name or code), for pickers on other masters. */
+  /** Department names for a business unit (by its code), for pickers on other masters. */
   names(businessUnitCode = ''): string[] {
     return this.records.filter((r) => !businessUnitCode || r.businessUnitCode === businessUnitCode).map((r) => r.name);
   }
@@ -148,110 +97,76 @@ export class DepartmentService {
     );
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  /** Keeps departments attached when their business unit's code changes (the API links by id). */
+  /** Keeps departments attached when their business unit's code changes. */
   renameBusinessUnit(oldCode: string, newCode: string): void {
     if (oldCode === newCode) return;
     this.records = this.records.map((r) => (r.businessUnitCode === oldCode ? { ...r, businessUnitCode: newCode } : r));
   }
 
-  /** POST for a new record, PUT /{id} for an existing one. */
-  save(record: DepartmentRecord, originalCode: string | null): Observable<DepartmentRecord> {
-    const user = this.auth.getUserEmail() || 'unknown';
-    const body = this.toRequest(record);
-    const request$ = record.id
-      ? this.http.put<DepartmentDto>(`${this.apiUrl}/${record.id}`, { ...body, updatedBy: user })
-      : this.http.post<DepartmentDto>(this.apiUrl, {
-          ...body,
-          createdBy: user,
-          clientId: environment.clientId,
-          tenantId: environment.tenantId
-        });
-
-    return request$.pipe(
-      tap((dto) => this.dtos.set(dto.id, dto)),
-      // Keep the fields the API doesn't store yet
-      map((dto) => ({ ...record, ...this.toRecord(dto), icon: record.icon })),
-      tap((saved) => {
-        const rows = [...this.records];
-        const index = rows.findIndex((r) => r.id === saved.id);
-        if (index >= 0) {
-          rows[index] = saved;
-        } else {
-          rows.push(saved);
-        }
-        // Sub-departments point at their parent by code, so follow a code change
-        if (originalCode && originalCode !== saved.code) {
-          rows.forEach((r, i) => {
-            if (r.parentCode === originalCode) rows[i] = { ...r, parentCode: saved.code };
-          });
-        }
-        this.records = rows;
-      })
-    );
-  }
-
-  /** DELETE /api/master-data/departments/{id}; the API makes its sub-departments top-level. */
-  remove(record: DepartmentRecord): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${record.id}`).pipe(
-      tap(() => {
-        this.dtos.delete(record.id);
-        this.records = this.records
-          .filter((r) => r.id !== record.id)
-          .map((r) => (r.parentCode === record.code ? { ...r, parentCode: null } : r));
-      })
-    );
-  }
-
-  private toRecord(dto: DepartmentDto): DepartmentRecord {
-    const unitId = dto.businessUnit?.id;
-    const unit = unitId ? this.businessUnits.all().find((b) => b.id === unitId) : undefined;
-    const parentId = dto.parentDepartment?.id;
-    // DEMO MODE: the fields the API doesn't store yet keep what this session has
-    const cached = this.records.find((r) => r.id === dto.id) ?? blankDepartment();
+  protected toRecord(dto: DepartmentDto): DepartmentRecord {
+    const blank = blankDepartment();
+    const known = this.find(dto.code);
     return {
-      ...cached,
-      id: dto.id,
       code: dto.code,
       name: dto.departmentName,
-      businessUnitCode: unit?.code ?? '',
-      parentCode: parentId ? (this.dtos.get(parentId)?.code ?? null) : null,
+      businessUnitCode: this.businessUnits.codeOf(dto.businessUnit?.id) ?? '',
+      // Parent id for now; StructureStore swaps it for the code
+      parentCode: dto.parentDepartment?.id ?? null,
+      icon: (dto.icon ?? blank.icon) as MasterIcon,
+      logo: dto.logoUrl,
       type: (dto.type ?? '') as DepartmentType,
       head: dto.departmentHead?.name ?? '',
+      deputy: dto.deputy ?? '',
+      costCenter: dto.costCenter ?? '',
       description: dto.description ?? '',
-      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
-      employees: dto.employeeCount,
-      assets: dto.assetCount,
-      createdOn: dto.createdAt?.slice(0, 16) ?? '',
-      updatedOn: (dto.updatedAt ?? dto.createdAt)?.slice(0, 16) ?? ''
+      status: (dto.status as DepartmentStatus) ?? 'Active',
+      employees: dto.employeeCount ?? 0,
+      assets: dto.assetCount ?? 0,
+      // Work orders live in another module; not counted here
+      openWorkOrders: known?.openWorkOrders ?? 0,
+      email: dto.email ?? '',
+      phoneCountry: dto.phoneCountry ?? blank.phoneCountry,
+      phone: dto.phone ?? '',
+      annualBudget: dto.annualBudget ?? null,
+      currency: dto.currency ?? '',
+      glCode: dto.glCode ?? '',
+      approvalLimit: dto.approvalLimit ?? null,
+      allowAssetOwnership: dto.allowAssetOwnership,
+      requireAssignmentApproval: dto.requireAssignmentApproval,
+      includeInCostAllocation: dto.includeInCostAllocation,
+      effectiveFrom: dto.effectiveFrom ?? '',
+      effectiveTo: dto.effectiveTo ?? '',
+      createdOn: toLocalStamp(dto.createdAt),
+      updatedOn: toLocalStamp(dto.updatedAt ?? dto.createdAt)
     };
   }
 
-  private toRequest(r: DepartmentRecord): DepartmentRequest {
-    const unit = this.businessUnits.find(r.businessUnitCode);
-    const parent = this.find(r.parentCode);
-    const existing = r.id ? this.dtos.get(r.id) : undefined;
-    const head = r.head.trim();
-    // Keep the employee link when the head is unchanged; a newly typed name is stored as typed
-    const departmentHead = !head ? null : existing?.departmentHead?.name === head ? existing.departmentHead : { id: null, name: head };
+  protected toRequest(r: DepartmentRecord): object {
     return {
       departmentName: r.name,
       code: r.code,
-      type: r.type,
+      businessUnit: this.businessUnits.refOf(r.businessUnitCode),
+      // The head is picked from a name list, so it is stored by name
+      departmentHead: r.head.trim() ? { id: null, name: r.head.trim() } : null,
+      parentDepartment: this.refOf(r.parentCode),
+      icon: r.icon,
+      logoUrl: r.logo,
+      type: r.type || null,
+      deputy: r.deputy,
+      costCenter: r.costCenter,
       description: r.description,
-      parentDepartment: parent ? { id: parent.id, name: parent.name } : null,
-      businessUnit: unit ? { id: unit.id, name: unit.name } : null,
-      departmentHead,
-      assets: existing?.assets ?? [],
+      email: r.email,
+      phoneCountry: r.phoneCountry,
+      phone: r.phone,
+      annualBudget: r.annualBudget,
+      currency: r.currency,
+      glCode: r.glCode,
+      approvalLimit: r.approvalLimit,
+      allowAssetOwnership: r.allowAssetOwnership,
+      requireAssignmentApproval: r.requireAssignmentApproval,
+      includeInCostAllocation: r.includeInCostAllocation,
+      effectiveFrom: r.effectiveFrom || null,
+      effectiveTo: r.effectiveTo || null,
       status: r.status
     };
   }

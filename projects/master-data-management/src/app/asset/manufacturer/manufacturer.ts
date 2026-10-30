@@ -1,10 +1,9 @@
-import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Box, ChevronLeft, ChevronRight, Ellipsis, Factory, LucideAngularModule, Plus, Search } from 'lucide-angular';
-import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { AssetModelService } from '../asset-model/asset-model.service';
 import { badgeInk, badgeText } from './manufacturer.data';
 import { ManufacturerFilters, ManufacturerRecord } from './manufacturer.model';
@@ -23,7 +22,7 @@ const EMPTY_FILTERS: ManufacturerFilters = { search: '', status: '', assetType: 
   templateUrl: './manufacturer.html',
   styleUrls: ['../../shared/styles/mdm-page.css', './manufacturer.css']
 })
-export class ManufacturerPage {
+export class ManufacturerPage implements OnInit {
   readonly service = inject(ManufacturerService);
   readonly models = inject(AssetModelService);
   readonly basePath = MASTER_DATA_BASE_PATH;
@@ -52,12 +51,18 @@ export class ManufacturerPage {
   formTab: MfrFormTab = 'basic';
 
   pendingDelete: ManufacturerRecord[] = [];
-  toast = '';
   saving = false;
+  deleting = false;
+  toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  constructor() {
-    this.service.load();
+  ngOnInit(): void {
+    this.service.reload().subscribe({
+      next: (list) => {
+        if (!this.service.find(this.selectedCode)) this.selectedCode = list[0]?.code ?? null;
+      },
+      error: (err) => this.notify(`Could not load manufacturers: ${apiErrorMessage(err)}`)
+    });
   }
 
   get stats() {
@@ -103,7 +108,7 @@ export class ManufacturerPage {
   }
 
   get selectedManufacturer(): ManufacturerRecord | undefined {
-    return this.service.find(this.selectedCode) ?? this.service.all()[0];
+    return this.service.find(this.selectedCode);
   }
 
   modelCount(r: ManufacturerRecord): number {
@@ -175,7 +180,7 @@ export class ManufacturerPage {
 
   // A copy keeps the contacts and defaults; name and code must be new
   duplicate(m: ManufacturerRecord): void {
-    this.openAdd({ ...structuredClone(m), id: '', code: '', name: `${m.name} (Copy)`, status: 'Active', documents: 0 });
+    this.openAdd({ ...structuredClone(m), code: '', name: `${m.name} (Copy)`, status: 'Active', documents: 0 });
   }
 
   openEdit(event: { manufacturer: ManufacturerRecord; tab?: MfrFormTab }): void {
@@ -200,10 +205,10 @@ export class ManufacturerPage {
   onSaved(event: { record: ManufacturerRecord; originalCode: string | null; originalName: string | null }): void {
     if (this.saving) return;
     this.saving = true;
-    this.service.save(event.record).subscribe({
+    this.service.persist(event.record, event.originalCode).subscribe({
       next: (saved) => {
         this.saving = false;
-        // Asset models show the manufacturer by name; the API renames them too
+        // Asset models refer to the manufacturer by name; the server renames them too
         if (event.originalName) this.models.renameManufacturer(event.originalName, saved.name);
         if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
         this.open(saved.code, false);
@@ -217,10 +222,11 @@ export class ManufacturerPage {
     });
   }
 
+
   toggleStatus(m: ManufacturerRecord): void {
     this.menuFor = null;
     const status = m.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...m, status }).subscribe({
+    this.service.setStatus(m, status).subscribe({
       next: () => this.notify(`${m.name} marked ${status}.`),
       error: (err) => this.notify(apiErrorMessage(err))
     });
@@ -243,21 +249,27 @@ export class ManufacturerPage {
   }
 
   confirmDelete(): void {
+    if (this.deleting) return;
     const list = this.pendingDelete;
     const codes = list.map((r) => r.code);
-    this.pendingDelete = [];
-    concat(...list.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
-      next: () => {
-        codes.forEach((c) => this.selected.delete(c));
-        if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} manufacturers deleted.`);
-        this.goTo(this.page);
-      },
-      // Any manufacturers deleted before the failure are already gone from the table
-      error: (err) => this.notify(apiErrorMessage(err))
+    const done = (message: string) => {
+      // Records deleted before a failure are gone too
+      const gone = codes.filter((c) => !this.service.find(c));
+      gone.forEach((c) => this.selected.delete(c));
+      if (this.selectedCode && gone.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+      if (this.formMode === 'edit' && this.formRecord && gone.includes(this.formRecord.code)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.delete(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} manufacturers deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
     });
   }
+
 
   cancelDelete(): void {
     this.pendingDelete = [];

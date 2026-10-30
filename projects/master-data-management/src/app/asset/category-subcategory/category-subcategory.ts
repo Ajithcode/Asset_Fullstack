@@ -1,11 +1,10 @@
-import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Box, ChevronLeft, ChevronRight, Ellipsis, Layers, LucideAngularModule, MapPin, Plus, Search } from 'lucide-angular';
-import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { MODEL_ICONS } from '../asset-model/asset-model.icons';
 import { CatDetail } from './cat-detail/cat-detail';
 import { CatForm, CatFormTab } from './cat-form/cat-form';
@@ -24,7 +23,7 @@ const EMPTY_FILTERS: CategoryFilters = { search: '', status: '', assetType: '' }
   templateUrl: './category-subcategory.html',
   styleUrls: ['../../shared/styles/mdm-page.css', '../asset-model/asset-model.css']
 })
-export class CategorySubcategoryPage {
+export class CategorySubcategoryPage implements OnInit {
   readonly service = inject(CategoryService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly typeIcons = MODEL_ICONS;
@@ -51,12 +50,18 @@ export class CategorySubcategoryPage {
   formTab: CatFormTab = 'basic';
 
   pendingDelete: CategoryRecord[] = [];
-  toast = '';
   saving = false;
+  deleting = false;
+  toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  constructor() {
-    this.service.load();
+  ngOnInit(): void {
+    this.service.reload().subscribe({
+      next: (list) => {
+        if (!this.service.find(this.selectedCode)) this.selectedCode = list[0]?.code ?? null;
+      },
+      error: (err) => this.notify(`Could not load asset categories: ${apiErrorMessage(err)}`)
+    });
   }
 
   get stats() {
@@ -106,7 +111,7 @@ export class CategorySubcategoryPage {
   }
 
   get selectedCategory(): CategoryRecord | undefined {
-    return this.service.find(this.selectedCode) ?? this.service.all()[0];
+    return this.service.find(this.selectedCode);
   }
 
   apply(): void {
@@ -174,7 +179,7 @@ export class CategorySubcategoryPage {
 
   // A copy keeps the defaults and custom fields but starts without subcategories
   duplicate(c: CategoryRecord): void {
-    this.openAdd({ ...structuredClone(c), id: '', code: '', name: `${c.name} (Copy)`, status: 'Active', subcategories: [], openWorkOrders: 0, documents: 0 });
+    this.openAdd({ ...structuredClone(c), code: '', name: `${c.name} (Copy)`, status: 'Active', subcategories: [], openWorkOrders: 0, documents: 0 });
   }
 
   // A child category starts with its parent's accounting defaults
@@ -205,7 +210,7 @@ export class CategorySubcategoryPage {
   onSaved(event: { record: CategoryRecord; originalCode: string | null }): void {
     if (this.saving) return;
     this.saving = true;
-    this.service.save(event.record, event.originalCode).subscribe({
+    this.service.persist(event.record, event.originalCode).subscribe({
       next: (saved) => {
         this.saving = false;
         if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
@@ -220,28 +225,28 @@ export class CategorySubcategoryPage {
     });
   }
 
+
   toggleStatus(c: CategoryRecord): void {
     this.menuFor = null;
     const status = c.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...c, status }, c.code).subscribe({
+    this.service.setStatus(c, status).subscribe({
       next: () => this.notify(`${c.name} marked ${status}.`),
       error: (err) => this.notify(apiErrorMessage(err))
     });
   }
 
-  // Categories with sub-categories or assets can't be deleted
+  // Categories with assets, or with child categories that stay, can't be deleted
   askDelete(list: CategoryRecord[]): void {
     this.menuFor = null;
-    const codes = new Set(list.map((c) => c.code));
-    const parent = list.find((c) => this.service.children(c.code).some((child) => !codes.has(child.code)));
-    if (parent) {
-      const count = this.service.children(parent.code).length;
-      this.notify(`${parent.name} has ${count} sub-categor${count === 1 ? 'y' : 'ies'}. Move or delete ${count === 1 ? 'it' : 'them'} first.`);
-      return;
-    }
     const used = list.find((c) => this.service.assetsOf(c) > 0);
     if (used) {
       this.notify(`${used.name} has ${this.service.assetsOf(used).toLocaleString('en-US')} assets. Mark it Inactive instead.`);
+      return;
+    }
+    const codes = new Set(list.map((c) => c.code));
+    const parent = list.find((c) => this.service.children(c.code).some((child) => !codes.has(child.code)));
+    if (parent) {
+      this.notify(`${parent.name} has child categories. Delete or move them first.`);
       return;
     }
     this.pendingDelete = list;
@@ -252,23 +257,27 @@ export class CategorySubcategoryPage {
   }
 
   confirmDelete(): void {
+    if (this.deleting) return;
     const list = this.pendingDelete;
     const codes = list.map((r) => r.code);
-    this.pendingDelete = [];
-    // Sub-categories first, so the API doesn't refuse a parent whose children are in this batch
-    const ordered = [...list].sort((a, b) => this.service.ancestry(b.code).length - this.service.ancestry(a.code).length);
-    concat(...ordered.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
-      next: () => {
-        codes.forEach((c) => this.selected.delete(c));
-        if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} categories deleted.`);
-        this.goTo(this.page);
-      },
-      // Any categories deleted before the failure are already gone from the table
-      error: (err) => this.notify(apiErrorMessage(err))
+    const done = (message: string) => {
+      // Records deleted before a failure are gone too
+      const gone = codes.filter((c) => !this.service.find(c));
+      gone.forEach((c) => this.selected.delete(c));
+      if (this.selectedCode && gone.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+      if (this.formMode === 'edit' && this.formRecord && gone.includes(this.formRecord.code)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.deleteCategories(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} categories deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
     });
   }
+
 
   cancelDelete(): void {
     this.pendingDelete = [];

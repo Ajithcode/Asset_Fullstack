@@ -1,8 +1,6 @@
 export type ConfigStatus = 'Active' | 'Inactive';
 
 export interface SyncStatusRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   description: string;
@@ -16,8 +14,6 @@ export interface SyncStatusRecord {
 export type ChartPreview = 'column' | 'bar' | 'line' | 'pie' | 'doughnut' | 'area' | 'gauge' | 'table';
 
 export interface ChartTypeRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   category: string;
@@ -31,8 +27,6 @@ export interface ChartTypeRecord {
 }
 
 export interface UpdateSourceRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   type: string;

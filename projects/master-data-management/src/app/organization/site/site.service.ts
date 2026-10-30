@@ -1,104 +1,82 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable, map, switchMap, take, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { Injectable, Injector, inject, signal } from '@angular/core';
+import { Observable, finalize, map, shareReplay, switchMap, tap } from 'rxjs';
+import { MdmApi, MdmAudit, apiErrorMessage, inSequence } from '../../shared/mdm-api';
 import { BfzService } from '../building-floor-zone/bfz.service';
 import { BusinessUnitService } from '../business-unit/business-unit.service';
 import { DepartmentService } from '../department/department.service';
 import { OrganizationService } from '../organization/organization.service';
+import { StructureAddressDto, StructureContactDto, StructureReference, fromApiAddress, reference, toLocalStamp } from '../structure-api';
 import { blankSite } from './site.data';
-import { SiteFilters, SiteRecord, SiteType } from './site.model';
+import { SiteContact, SiteFilters, SiteRecord, SiteStatus, SiteType } from './site.model';
 
-interface ReferenceDto {
-  id: string | null;
-  name: string;
-}
+const RESOURCE = 'sites';
 
-/** Raw shape returned by GET/POST/PUT {projectApiUrl}api/master-data/sites */
-interface SiteDto {
-  id: string;
+interface SiteDto extends MdmAudit {
   siteName: string;
   code: string;
-  description: string | null;
-  organization: ReferenceDto | null;
-  parentSite: ReferenceDto | null;
-  latitude: number | null;
-  longitude: number | null;
-  businessUnit: ReferenceDto | null;
-  department: ReferenceDto | null;
+  businessUnit: StructureReference | null;
+  department: StructureReference | null;
   siteType: string | null;
   city: string | null;
   country: string | null;
-  createdBy: string | null;
-  createdAt: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  clientId: string | null;
-  tenantId: string | null;
-  status: string | null;
-  isDeleted: boolean;
-}
-
-/** Fields the API stores; the rest of the address, contacts, hours, settings and images are UI-only for now. */
-interface SiteRequest {
-  siteName: string;
-  code: string;
-  description: string;
-  organization: ReferenceDto | null;
-  parentSite: ReferenceDto | null;
+  organization: StructureReference | null;
+  parentSite: StructureReference | null;
+  timeZone: string | null;
+  description: string | null;
+  imageUrl: string | null;
+  images: string[] | null;
+  address: StructureAddressDto | null;
   latitude: number | null;
   longitude: number | null;
-  businessUnit: ReferenceDto | null;
-  department: ReferenceDto | null;
-  siteType: string;
-  city: string;
-  country: string;
-  status: string;
+  manager: StructureContactDto | null;
+  emergency: StructureContactDto | null;
+  openTime: string | null;
+  closeTime: string | null;
+  workingDays: string[] | null;
+  open24x7: boolean;
+  allowAssetAssignment: boolean;
+  enableTracking: boolean;
 }
 
 /**
- * Sites from the Master Data API. Rows are cached after load() so this page and the Business Unit /
- * Department pages can keep reading them synchronously; writes go to the API and update the cache
- * when they succeed.
+ * Sites from `/api/master-data/sites`. A site's `id` is its API id, which buildings, locations and
+ * child sites refer to. Business unit and department are kept by name, the organization by code.
  */
 @Injectable({ providedIn: 'root' })
 export class SiteService {
-  private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
-  private readonly bfz = inject(BfzService);
+  private readonly api = inject(MdmApi);
+  private readonly injector = inject(Injector);
   private readonly organizations = inject(OrganizationService);
   private readonly businessUnits = inject(BusinessUnitService);
   private readonly departments = inject(DepartmentService);
-  private readonly apiUrl = `${environment.projectApiUrl}api/master-data/sites`;
-
   private records: SiteRecord[] = [];
-  loading = false;
-  loadError = '';
+  private firstLoad?: Observable<SiteRecord[]>;
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
 
-  constructor() {
-    this.load();
+  // Buildings use this service for their sites, so look them up lazily
+  private get bfz(): BfzService {
+    return this.injector.get(BfzService);
   }
 
-  /** GET /api/master-data/sites (skipped while a load is already running) */
-  load(): void {
-    if (this.loading) return;
-    this.loading = true;
-    this.loadError = '';
-    // Wait for the organizations so each site's organization id can be mapped to its code
-    this.organizations.settled$.pipe(
-      take(1),
-      switchMap(() => this.http.get<SiteDto[]>(this.apiUrl, { params: { clientId: environment.clientId } }))
-    ).subscribe({
-      next: (list) => {
-        this.records = list.map((d) => this.toRecord(d));
-        this.loading = false;
-      },
-      error: (err) => {
-        this.loadError = apiErrorMessage(err);
-        this.loading = false;
-      }
-    });
+  load(): Observable<SiteRecord[]> {
+    this.loading.set(true);
+    this.error.set(null);
+    return this.organizations.ensureLoaded().pipe(
+      switchMap(() => this.api.list<SiteDto>(RESOURCE)),
+      map((dtos) => (this.records = dtos.map((dto) => this.toRecord(dto)))),
+      tap({ error: (err) => this.error.set(apiErrorMessage(err)) }),
+      finalize(() => this.loading.set(false))
+    );
+  }
+
+  /** Loads once and shares the result; used by pages that only need sites for lookups. */
+  ensureLoaded(): Observable<SiteRecord[]> {
+    this.firstLoad ??= this.load().pipe(
+      tap({ error: () => (this.firstLoad = undefined) }),
+      shareReplay(1)
+    );
+    return this.firstLoad;
   }
 
   all(): SiteRecord[] {
@@ -129,7 +107,6 @@ export class SiteService {
     return this.records.filter((r) => r.businessUnit === name);
   }
 
-  // The API links by id and renames for us; these keep the cached rows in step until the next load
   renameBusinessUnit(oldName: string, newName: string): void {
     if (oldName === newName) return;
     this.records = this.records.map((r) => (r.businessUnit === oldName ? { ...r, businessUnit: newName } : r));
@@ -182,95 +159,124 @@ export class SiteService {
     return this.records.some((r) => r.code.toLowerCase() === wanted && r.id !== exceptId);
   }
 
-  /** POST for a new record (empty id), PUT /{id} for an existing one. */
-  save(record: SiteRecord): Observable<SiteRecord> {
-    const user = this.auth.getUserEmail() || 'unknown';
+  /** New sites get their id from the API when saved. */
+  nextId(): string {
+    return '';
+  }
+
+  /** Creates (no id yet) or updates the site, then stores what the server returned. */
+  persist(record: SiteRecord): Observable<SiteRecord> {
     const body = this.toRequest(record);
-    const request$ = record.id
-      ? this.http.put<SiteDto>(`${this.apiUrl}/${record.id}`, { ...body, updatedBy: user })
-      : this.http.post<SiteDto>(this.apiUrl, {
-          ...body,
-          createdBy: user,
-          clientId: environment.clientId,
-          tenantId: environment.tenantId
-        });
-
-    return request$.pipe(
-      // Keep the fields the API doesn't store yet
+    const call = record.id ? this.api.update<SiteDto>(RESOURCE, record.id, body) : this.api.create<SiteDto>(RESOURCE, body);
+    return call.pipe(
       map((dto) => {
-        const saved = this.toRecord(dto);
-        return { ...record, ...saved, address: { ...record.address, city: saved.address.city, country: saved.address.country } };
-      }),
-      tap((saved) => {
-        const rows = [...this.records];
-        const index = rows.findIndex((r) => r.id === saved.id);
-        if (index >= 0) {
-          rows[index] = saved;
-        } else {
-          rows.push(saved);
-        }
-        this.records = rows;
+        const saved = this.toRecord(dto, record);
+        this.store(saved);
+        return saved;
       })
     );
   }
 
-  /** DELETE /api/master-data/sites/{id}; the API makes its sub-sites top-level. */
-  remove(record: SiteRecord): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${record.id}`).pipe(
-      tap(() => {
-        this.records = this.records
-          .filter((r) => r.id !== record.id)
-          .map((r) => (r.parentId === record.id ? { ...r, parentId: null } : r));
+  setStatus(record: SiteRecord, status: SiteStatus): Observable<SiteRecord> {
+    return this.api.setStatus<SiteDto>(RESOURCE, record.id, status).pipe(
+      map((dto) => {
+        const saved = { ...record, status: (dto.status as SiteStatus) ?? status, updatedOn: toLocalStamp(dto.updatedAt) || record.updatedOn };
+        this.store(saved);
+        return saved;
       })
     );
   }
 
-  private toRecord(dto: SiteDto): SiteRecord {
-    const orgId = dto.organization?.id;
-    const organization = orgId ? this.organizations.all().find((o) => o.id === orgId) : undefined;
-    // DEMO MODE: the fields the API doesn't store yet keep what this session has
-    const cached = this.records.find((r) => r.id === dto.id) ?? blankSite();
+  /** Deletes one at a time; sites deleted before a failure are still removed locally. */
+  delete(ids: string[]): Observable<unknown> {
+    return inSequence(ids.map((id) => this.api.remove(RESOURCE, id).pipe(tap(() => this.forget(id)))));
+  }
+
+  private store(record: SiteRecord): void {
+    const index = this.records.findIndex((r) => r.id === record.id);
+    this.records = index >= 0 ? this.records.map((r, i) => (i === index ? record : r)) : [...this.records, record];
+  }
+
+  private forget(id: string): void {
+    this.records = this.records
+      .filter((r) => r.id !== id)
+      .map((r) => (r.parentId === id ? { ...r, parentId: null } : r));
+  }
+
+  private toRecord(dto: SiteDto, previous?: SiteRecord): SiteRecord {
+    const blank = blankSite();
+    const known = previous ?? this.find(dto.id);
+    const contact = (c: StructureContactDto | null): SiteContact => ({
+      name: c?.name ?? '',
+      designation: c?.designation ?? '',
+      email: c?.email ?? '',
+      phoneCountry: c?.phoneCountry ?? blank.manager.phoneCountry,
+      phone: c?.phone ?? ''
+    });
+    const address = fromApiAddress(dto.address);
     return {
-      ...cached,
       id: dto.id,
       code: dto.code,
       name: dto.siteName,
       siteType: (dto.siteType ?? '') as SiteType,
-      organizationCode: organization?.code ?? '',
-      // Business units and departments are shown and picked by name
+      organizationCode: this.organizations.codeOf(dto.organization?.id) ?? '',
       businessUnit: dto.businessUnit?.name ?? '',
       department: dto.department?.name ?? '',
       parentId: dto.parentSite?.id ?? null,
+      timeZone: dto.timeZone ?? '',
       description: dto.description ?? '',
-      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
-      address: { ...cached.address, city: dto.city ?? '', country: dto.country ?? '' },
-      lat: dto.latitude,
-      lng: dto.longitude,
-      createdOn: dto.createdAt?.slice(0, 16) ?? '',
-      updatedOn: (dto.updatedAt ?? dto.createdAt)?.slice(0, 16) ?? ''
+      status: (dto.status as SiteStatus) ?? 'Active',
+      image: dto.imageUrl,
+      images: dto.images ?? [],
+      address: { ...address, city: address.city || dto.city || '', country: address.country || dto.country || '' },
+      lat: dto.latitude ?? null,
+      lng: dto.longitude ?? null,
+      manager: contact(dto.manager),
+      emergency: contact(dto.emergency),
+      openTime: dto.openTime ?? '',
+      closeTime: dto.closeTime ?? '',
+      workingDays: dto.workingDays ?? [],
+      open24x7: dto.open24x7,
+      allowAssetAssignment: dto.allowAssetAssignment,
+      enableTracking: dto.enableTracking,
+      // Counts owned by the asset and people modules
+      assets: known?.assets ?? 0,
+      people: known?.people ?? 0,
+      createdOn: toLocalStamp(dto.createdAt),
+      updatedOn: toLocalStamp(dto.updatedAt ?? dto.createdAt)
     };
   }
 
-  private toRequest(r: SiteRecord): SiteRequest {
-    const organization = this.organizations.find(r.organizationCode);
+  private toRequest(r: SiteRecord): object {
     const unit = r.businessUnit ? this.businessUnits.findByName(r.businessUnit) : undefined;
-    // Department names can repeat across business units, so prefer the one in this site's unit
-    const sameName = r.department ? this.departments.all().filter((d) => d.name === r.department) : [];
-    const department = sameName.find((d) => d.businessUnitCode === unit?.code) ?? sameName[0];
-    const parent = this.find(r.parentId);
+    const department = r.department
+      ? this.departments.all().find((d) => d.name === r.department && (!unit || d.businessUnitCode === unit.code))
+      : undefined;
     return {
       siteName: r.name,
       code: r.code,
-      description: r.description,
-      organization: organization ? { id: organization.id, name: organization.name } : null,
-      parentSite: parent ? { id: parent.id, name: parent.name } : null,
-      latitude: r.lat,
-      longitude: r.lng,
-      businessUnit: unit ? { id: unit.id, name: unit.name } : null,
-      department: department ? { id: department.id, name: department.name } : null,
-      siteType: r.siteType,
+      siteType: r.siteType || null,
+      organization: this.organizations.refOf(r.organizationCode),
+      businessUnit: unit ? this.businessUnits.refOf(unit.code) : null,
+      department: department ? this.departments.refOf(department.code) : null,
+      parentSite: reference(r.parentId, this.find(r.parentId)?.name),
       city: r.address.city,
       country: r.address.country,
+      timeZone: r.timeZone,
+      description: r.description,
+      imageUrl: r.image,
+      images: r.images,
+      address: r.address,
+      latitude: r.lat,
+      longitude: r.lng,
+      manager: r.manager,
+      emergency: r.emergency,
+      openTime: r.openTime,
+      closeTime: r.closeTime,
+      workingDays: r.workingDays,
+      open24x7: r.open24x7,
+      allowAssetAssignment: r.allowAssetAssignment,
+      enableTracking: r.enableTracking,
       status: r.status
     };
   }

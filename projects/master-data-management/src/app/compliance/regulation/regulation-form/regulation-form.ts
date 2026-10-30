@@ -28,6 +28,11 @@ export class RegulationForm extends MasterForm<RegulationRecord, Tab> {
     { id: 'scope', label: 'Scope & Applicability' }
   ];
 
+  constructor() {
+    super();
+    this.standards.ensureLoaded();
+  }
+
   protected blank(): RegulationRecord {
     return blankRegulation();
   }

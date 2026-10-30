@@ -1,8 +1,8 @@
 import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Plus, Trash2, X } from 'lucide-angular';
-import { DepartmentService } from '../../../organization/department/department.service';
-import { nowStamp } from '../../people.data';
+import { EmployeeService } from '../../employee/employee.service';
+import { PEOPLE_DEPARTMENTS, nowStamp } from '../../people.data';
 import { ShiftService } from '../../shift/shift.service';
 import { TechnicianService } from '../../technician/technician.service';
 import { blankTeam } from '../team.data';
@@ -33,12 +33,10 @@ export class TeamForm implements OnChanges {
 
   readonly service = inject(TeamService);
   readonly shifts = inject(ShiftService);
-  private readonly departmentService = inject(DepartmentService);
+  private readonly employees = inject(EmployeeService);
   private readonly technicians = inject(TechnicianService);
   readonly icons = { X, Plus, Trash2 };
-  get departments(): string[] {
-    return this.departmentService.names();
-  }
+  readonly departments = PEOPLE_DEPARTMENTS;
   readonly tabs: { id: FormTab; label: string }[] = [
     { id: 'basic', label: 'Basic Information' },
     { id: 'members', label: 'Members' },
@@ -66,7 +64,7 @@ export class TeamForm implements OnChanges {
     return this.original !== null;
   }
 
-  // Members are technicians (each in one team); current members stay listed whatever their status
+  // Active technicians and employees; current members stay listed whatever their status
   get technicianOptions(): Person[] {
     return this.technicians
       .all()
@@ -74,9 +72,16 @@ export class TeamForm implements OnChanges {
       .map((t) => ({ id: t.id, name: t.name, detail: `${t.id} · ${t.primarySkill}` }));
   }
 
+  get employeeOptions(): Person[] {
+    return this.employees
+      .all()
+      .filter((e) => e.status !== 'Inactive' || this.form.members.includes(e.id))
+      .map((e) => ({ id: e.id, name: e.name, detail: `${e.id} · ${e.designation}` }));
+  }
+
   get filteredPeople(): Person[] {
     const term = this.memberSearch.trim().toLowerCase();
-    return this.technicianOptions.filter(
+    return [...this.technicianOptions, ...this.employeeOptions].filter(
       (p) => (!this.showMembersOnly || this.form.members.includes(p.id)) && (!term || `${p.name} ${p.detail}`.toLowerCase().includes(term))
     );
   }

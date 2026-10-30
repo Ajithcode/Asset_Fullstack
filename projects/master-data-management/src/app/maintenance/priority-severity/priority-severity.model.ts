@@ -1,8 +1,6 @@
 export type LevelKind = 'Priority' | 'Severity';
 
 export interface PriorityRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   kind: LevelKind;

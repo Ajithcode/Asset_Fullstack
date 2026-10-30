@@ -12,8 +12,8 @@ export interface BfzSite {
   city: string;
   state: string;
   country: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface BfzAddress {
@@ -26,8 +26,6 @@ export interface BfzAddress {
 }
 
 export interface BfzRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   type: BfzType;

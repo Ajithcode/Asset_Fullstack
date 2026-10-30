@@ -1,41 +1,51 @@
 import { Injectable, inject } from '@angular/core';
 import { AssetModelService } from '../../asset/asset-model/asset-model.service';
-import { AssetTypeService } from '../../asset/asset-type/asset-type.service';
-import { ApiCodeStore, MasterDto } from '../../shared/api-code-store';
-import { blankAmcVendor } from './amc-vendor.data';
+import { MasterLookups } from '../../people/name-lookup';
+import { MdmRef, apiText } from '../../people/people.data';
+import { VendorBaseDto, vendorBaseFrom, vendorBaseRequest } from '../vendor.data';
+import { VendorStore } from '../vendor-store';
 import { AmcVendorRecord } from './amc-vendor.model';
 
-interface ReferenceDto {
-  id: string | null;
-  name: string;
-}
-
-interface AmcVendorDto extends MasterDto {
+interface AmcVendorDto extends VendorBaseDto {
   amcVendorName: string;
-  // "YYYY-MM-DD"
   startDate: string;
   endDate: string;
   primaryContact: string | null;
-  assetType: ReferenceDto | null;
+  assetType: MdmRef | null;
   email: string | null;
   contractType: string | null;
-  // Asset model codes
+  logo: string | null;
+  website: string | null;
+  phone: string | null;
+  contractNo: string | null;
+  contractValue: number | null;
+  currency: string | null;
+  billingCycle: string | null;
+  renewalNoticeDays: number;
+  autoRenew: boolean;
   coveredModels: string[];
+  visitsPerYear: number;
+  responseHours: number;
+  resolutionHours: number;
+  uptimePercent: number;
+  penaltyPerHour: number | null;
+  notifyBeforeExpiry: boolean;
+  serviceReportRequired: boolean;
 }
 
 /**
- * AMC vendors from {projectApiUrl}api/master-data/amc-vendors. The asset type is shown by name and
- * linked by id. Contract value, billing, service levels, address, documents and settings are
- * UI-only for now.
+ * AMC vendors from /api/master-data/amc-vendors. The asset type is linked by name (with the asset type's
+ * id when one of that name exists); covered models are asset model codes.
  */
 @Injectable({ providedIn: 'root' })
-export class AmcVendorService extends ApiCodeStore<AmcVendorRecord, AmcVendorDto> {
+export class AmcVendorService extends VendorStore<AmcVendorRecord, AmcVendorDto> {
+  protected readonly resource = 'amc-vendors';
   private readonly models = inject(AssetModelService);
-  private readonly types = inject(AssetTypeService);
+  private readonly lookups = inject(MasterLookups);
 
   constructor() {
-    super('amc-vendors');
-    this.load();
+    super();
+    this.lookups.assetTypes.ensureLoaded();
   }
 
   /** Registered assets of the covered models. */
@@ -43,32 +53,64 @@ export class AmcVendorService extends ApiCodeStore<AmcVendorRecord, AmcVendorDto
     return r.coveredModels.reduce((sum, code) => sum + (this.models.find(code)?.assetCount ?? 0), 0);
   }
 
-  protected toRecord(dto: AmcVendorDto, cached: AmcVendorRecord | undefined): AmcVendorRecord {
+  protected toRecord(dto: AmcVendorDto): AmcVendorRecord {
     return {
-      ...(cached ?? blankAmcVendor()),
-      name: dto.amcVendorName,
+      ...vendorBaseFrom(dto, {
+        name: dto.amcVendorName,
+        logo: dto.logo,
+        website: dto.website,
+        contactPerson: dto.primaryContact,
+        email: dto.email,
+        phone: dto.phone
+      }),
+      assetType: dto.assetType?.name ?? '',
+      contractType: dto.contractType ?? '',
       startDate: dto.startDate,
       endDate: dto.endDate,
-      contactPerson: dto.primaryContact ?? '',
-      assetType: dto.assetType?.name ?? '',
-      email: dto.email ?? '',
-      contractType: dto.contractType ?? '',
-      coveredModels: dto.coveredModels
+      contractNo: dto.contractNo ?? '',
+      contractValue: dto.contractValue,
+      currency: dto.currency ?? '',
+      billingCycle: dto.billingCycle ?? '',
+      renewalNoticeDays: dto.renewalNoticeDays ?? 0,
+      autoRenew: dto.autoRenew,
+      coveredModels: dto.coveredModels ?? [],
+      visitsPerYear: dto.visitsPerYear ?? 0,
+      responseHours: dto.responseHours ?? 0,
+      resolutionHours: dto.resolutionHours ?? 0,
+      uptimePercent: dto.uptimePercent ?? 0,
+      penaltyPerHour: dto.penaltyPerHour,
+      notifyBeforeExpiry: dto.notifyBeforeExpiry,
+      serviceReportRequired: dto.serviceReportRequired
     };
   }
 
-  protected toRequest(r: AmcVendorRecord) {
-    const type = this.types.findByName(r.assetType);
+  protected toRequest(r: AmcVendorRecord): object {
     return {
+      ...vendorBaseRequest(r),
       amcVendorName: r.name,
-      code: r.code,
       startDate: r.startDate,
       endDate: r.endDate,
-      primaryContact: r.contactPerson,
-      assetType: type ? { id: type.id, name: type.name } : null,
-      email: r.email,
-      contractType: r.contractType,
-      coveredModels: r.coveredModels
+      primaryContact: apiText(r.contactPerson),
+      assetType: this.lookups.assetTypes.ref(r.assetType),
+      email: apiText(r.email),
+      contractType: apiText(r.contractType),
+      logo: r.logo,
+      website: apiText(r.website),
+      phone: apiText(r.phone),
+      contractNo: apiText(r.contractNo),
+      contractValue: r.contractValue,
+      currency: apiText(r.currency),
+      billingCycle: apiText(r.billingCycle),
+      renewalNoticeDays: r.renewalNoticeDays,
+      autoRenew: r.autoRenew,
+      coveredModels: r.coveredModels,
+      visitsPerYear: r.visitsPerYear,
+      responseHours: r.responseHours,
+      resolutionHours: r.resolutionHours,
+      uptimePercent: r.uptimePercent,
+      penaltyPerHour: r.penaltyPerHour,
+      notifyBeforeExpiry: r.notifyBeforeExpiry,
+      serviceReportRequired: r.serviceReportRequired
     };
   }
 }

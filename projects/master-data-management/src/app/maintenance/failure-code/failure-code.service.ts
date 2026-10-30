@@ -1,37 +1,56 @@
 import { Injectable } from '@angular/core';
-import { ApiCodeStore, MasterDto } from '../../shared/api-code-store';
-import { blankFailureCode } from './failure-code.data';
+import { MdmAudit } from '../../shared/mdm-api';
+import { MasterApiStore, stampOf } from '../master-api-store';
+import { FAILURE_SEVERITIES } from './failure-code.data';
 import { FailureCodeRecord, FailureSeverity } from './failure-code.model';
 
-interface FailureCodeDto extends MasterDto {
+interface FailureCodeDto extends MdmAudit {
   failureCodeName: string;
+  code: string;
   category: string;
   severity: string;
   description: string | null;
+  assetCategories: string[];
+  causes: string[];
+  actions: string[];
 }
 
-/**
- * Failure codes from {projectApiUrl}api/master-data/failure-codes. Asset categories, causes and
- * actions are UI-only for now.
- */
+/** Failure codes (/api/master-data/failure-codes). */
 @Injectable({ providedIn: 'root' })
-export class FailureCodeService extends ApiCodeStore<FailureCodeRecord, FailureCodeDto> {
+export class FailureCodeService extends MasterApiStore<FailureCodeRecord, FailureCodeDto> {
+  protected readonly resource = 'failure-codes';
+
   constructor() {
-    super('failure-codes');
-    this.load();
+    super();
   }
 
-  protected toRecord(dto: FailureCodeDto, cached: FailureCodeRecord | undefined): FailureCodeRecord {
+  protected toRecord(dto: FailureCodeDto): FailureCodeRecord {
     return {
-      ...(cached ?? blankFailureCode()),
+      code: dto.code,
       name: dto.failureCodeName,
       category: dto.category,
-      severity: dto.severity as FailureSeverity,
-      description: dto.description ?? ''
+      description: dto.description ?? '',
+      severity: FAILURE_SEVERITIES.includes(dto.severity as FailureSeverity) ? (dto.severity as FailureSeverity) : 'Medium',
+      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
+      assetCategories: dto.assetCategories ?? [],
+      causes: dto.causes ?? [],
+      actions: dto.actions ?? [],
+      createdOn: stampOf(dto.createdAt),
+      updatedOn: stampOf(dto.updatedAt ?? dto.createdAt)
     };
   }
 
-  protected toRequest(r: FailureCodeRecord) {
-    return { failureCodeName: r.name, code: r.code, category: r.category, severity: r.severity, description: r.description };
+  protected toRequest(r: FailureCodeRecord): object {
+    return {
+      failureCodeName: r.name,
+      code: r.code,
+      category: r.category,
+      severity: r.severity,
+      description: r.description,
+      assetCategories: r.assetCategories,
+      causes: r.causes,
+      actions: r.actions,
+      status: r.status
+    };
   }
 }

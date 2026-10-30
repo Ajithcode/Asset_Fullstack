@@ -3,10 +3,10 @@ import { DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ArrowRight, ArrowUp, Box, Building2, ChevronDown, Copy, Ellipsis, Layers, LucideAngularModule, Pencil, Plus, Wrench, X } from 'lucide-angular';
 import { formatDateTime } from '../../../organization/location/location.format';
+import { apiErrorMessage } from '../../../shared/mdm-api';
 import { MODEL_ICONS, MODEL_ICON_KEYS } from '../../asset-model/asset-model.icons';
 import { subcategoryCode } from '../category.data';
 import { CategoryRecord, SubcategoryRecord } from '../category.model';
-import { apiErrorMessage } from '../../../shared/api-error';
 import { CategoryService } from '../category.service';
 import { CatFormTab } from '../cat-form/cat-form';
 
@@ -70,6 +70,7 @@ export class CatDetail implements OnChanges {
   subForm: SubcategoryRecord | null = null;
   subOriginal: string | null = null;
   subErrors: { name?: string; code?: string } = {};
+  subSaving = false;
 
   ngOnChanges(): void {
     this.moreOpen = false;
@@ -181,13 +182,18 @@ export class CatDetail implements OnChanges {
     if (!f.code.trim()) errors.code = 'Enter a code.';
     else if (this.service.isSubCodeTaken(f.code, this.subOriginal)) errors.code = `${f.code.trim()} is already used.`;
     this.subErrors = errors;
-    if (errors.name || errors.code) return;
+    if (errors.name || errors.code || this.subSaving) return;
+    this.subSaving = true;
     this.service.saveSubcategory(this.category.code, { ...f, name, code: f.code.trim().toUpperCase() }, this.subOriginal).subscribe({
       next: () => {
+        this.subSaving = false;
         this.notify.emit(`${name} ${this.subOriginal ? 'updated' : 'added'}.`);
         this.subForm = null;
       },
-      error: (err) => this.notify.emit(apiErrorMessage(err))
+      error: (err) => {
+        this.subSaving = false;
+        this.notify.emit(apiErrorMessage(err));
+      }
     });
   }
 

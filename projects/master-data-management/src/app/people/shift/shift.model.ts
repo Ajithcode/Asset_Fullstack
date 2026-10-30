@@ -8,8 +8,6 @@ export interface ShiftBreak {
 }
 
 export interface ShiftRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   shiftType: ShiftType;

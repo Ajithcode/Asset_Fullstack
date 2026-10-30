@@ -12,8 +12,6 @@ export interface CustomField {
 }
 
 export interface AssetTypeRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   category: string;

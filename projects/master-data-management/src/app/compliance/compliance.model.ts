@@ -1,8 +1,6 @@
 export type ComplianceStatus = 'Active' | 'Inactive';
 
 export interface CertificationTypeRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   category: string;
@@ -26,8 +24,6 @@ export interface CertificationTypeRecord {
 }
 
 export interface PermitTypeRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   category: string;
@@ -46,8 +42,6 @@ export interface PermitTypeRecord {
 }
 
 export interface RegulationRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   country: string;
@@ -66,8 +60,6 @@ export interface RegulationRecord {
 }
 
 export interface StandardRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   organization: string;

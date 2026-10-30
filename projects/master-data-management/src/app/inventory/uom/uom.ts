@@ -3,7 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Ruler, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { Observable } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { UOM_TYPES } from '../inventory.data';
 import { RecordStatus, UomRecord, UomType } from '../inventory.model';
 import { ItemService, UomService } from '../inventory.service';
@@ -29,10 +31,16 @@ export class UomPage extends ListPage<UomRecord, Filters, SortKey> {
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly types = UOM_TYPES;
   readonly icons = { Ruler, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+  saving = false;
 
   constructor() {
     super({ search: '', type: '', status: '' });
-    this.service.load();
+    this.refresh();
+  }
+
+  /** Loads the list from the API, with the masters it points at. */
+  refresh(): void {
+    this.items.load().subscribe({ error: (err) => this.notify(apiErrorMessage(err)) });
   }
 
   keyOf(r: UomRecord): string {
@@ -56,8 +64,8 @@ export class UomPage extends ListPage<UomRecord, Filters, SortKey> {
     return r[key];
   }
 
-  protected removeRecords(codes: string[]) {
-    return this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   // Units used by items or as another unit's base can't be deleted
@@ -75,17 +83,29 @@ export class UomPage extends ListPage<UomRecord, Filters, SortKey> {
   }
 
   onSaved(event: { record: UomRecord; originalCode: string | null }): void {
-    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
-      if (event.originalCode) this.items.recode('uom', event.originalCode, saved.code);
-      this.carrySelection(event.originalCode, saved.code);
-      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
-      this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: () => {
+        this.saving = false;
+        if (event.originalCode) this.items.recode('uom', event.originalCode, event.record.code);
+        this.carrySelection(event.originalCode, event.record.code);
+        this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
     });
   }
 
   toggleStatus(r: UomRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

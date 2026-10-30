@@ -15,9 +15,10 @@ import {
   Search,
   Warehouse
 } from 'lucide-angular';
-import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { apiErrorMessage, inParallel } from '../../shared/mdm-api';
+import { BfzService } from '../building-floor-zone/bfz.service';
+import { DepartmentService } from '../department/department.service';
 import { SiteDetail } from './site-detail/site-detail';
 import { SiteForm, SiteFormTab } from './site-form/site-form';
 import { BusinessUnitService } from '../business-unit/business-unit.service';
@@ -69,12 +70,21 @@ export class SitePage {
   formTab: SiteFormTab = 'basic';
 
   pendingDelete: SiteRecord[] = [];
-  toast = '';
   saving = false;
+  deleting = false;
+  toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
-    this.service.load();
+    // Business units and departments feed the pickers; buildings the counts and delete check
+    const bfz = inject(BfzService);
+    const departments = inject(DepartmentService);
+    inParallel<unknown>([this.service.load(), departments.ensureLoaded(), bfz.ensureLoaded()]).subscribe({
+      next: () => {
+        if (!this.service.find(this.selectedId)) this.selectedId = this.service.all()[0]?.id ?? null;
+      },
+      error: (err) => this.notify(`Could not load sites: ${apiErrorMessage(err)}`)
+    });
   }
 
   get stats() {
@@ -115,7 +125,7 @@ export class SitePage {
   }
 
   get selectedSite(): SiteRecord | undefined {
-    return this.service.find(this.selectedId) ?? this.service.all()[0];
+    return this.service.find(this.selectedId);
   }
 
   countryShort(country: string): string {
@@ -208,7 +218,7 @@ export class SitePage {
     if (this.saving) return;
     this.saving = true;
     const isNew = !site.id;
-    this.service.save(site).subscribe({
+    this.service.persist(site).subscribe({
       next: (saved) => {
         this.saving = false;
         this.open(saved.id, false);
@@ -225,15 +235,14 @@ export class SitePage {
   toggleStatus(site: SiteRecord): void {
     this.menuFor = null;
     const status = site.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...site, status }).subscribe({
+    this.service.setStatus(site, status).subscribe({
       next: () => this.notify(`${site.name} marked ${status}.`),
       error: (err) => this.notify(apiErrorMessage(err))
     });
   }
 
   onAddImage(event: { site: SiteRecord; image: string }): void {
-    // DEMO MODE: images aren't stored by the API yet, so this only lasts until the page reloads
-    this.service.save({ ...event.site, images: [...event.site.images, event.image] }).subscribe({
+    this.service.persist({ ...event.site, images: [...event.site.images, event.image] }).subscribe({
       next: () => this.notify('Image added.'),
       error: (err) => this.notify(apiErrorMessage(err))
     });
@@ -256,19 +265,23 @@ export class SitePage {
   }
 
   confirmDelete(): void {
+    if (this.deleting) return;
     const list = this.pendingDelete;
     const ids = list.map((r) => r.id);
-    this.pendingDelete = [];
-    concat(...list.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
-      next: () => {
-        ids.forEach((id) => this.selected.delete(id));
-        if (this.selectedId && ids.includes(this.selectedId)) this.selectedId = this.service.all()[0]?.id ?? null;
-        if (this.formMode === 'edit' && this.formRecord && ids.includes(this.formRecord.id)) this.closeForm();
-        this.notify(ids.length === 1 ? `${list[0].name} deleted.` : `${ids.length} sites deleted.`);
-        this.goTo(this.page);
-      },
-      // Any sites deleted before the failure are already gone from the table
-      error: (err) => this.notify(apiErrorMessage(err))
+    const done = (message: string) => {
+      const remaining = new Set(this.service.all().map((r) => r.id));
+      ids.filter((id) => !remaining.has(id)).forEach((id) => this.selected.delete(id));
+      if (this.selectedId && !remaining.has(this.selectedId)) this.selectedId = this.service.all()[0]?.id ?? null;
+      if (this.formMode === 'edit' && this.formRecord && !remaining.has(this.formRecord.id)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.delete(ids).subscribe({
+      complete: () => done(ids.length === 1 ? `${list[0].name} deleted.` : `${ids.length} sites deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
     });
   }
 

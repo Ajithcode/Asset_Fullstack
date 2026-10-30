@@ -4,8 +4,6 @@ import { PersonStatus } from '../people.data';
 export type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 
 export interface TechnicianRecord {
-  /** Mongo id from the API; empty until the record is first saved. `id` is the person's own number. */
-  recordId: string;
   id: string;
   name: string;
   photo: string | null;

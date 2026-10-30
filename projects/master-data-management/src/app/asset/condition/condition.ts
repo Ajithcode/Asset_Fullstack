@@ -1,10 +1,9 @@
-import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Box, ChevronLeft, ChevronRight, Ellipsis, List, LucideAngularModule, Plus, Search, Settings, Star } from 'lucide-angular';
-import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { CondDetail } from './cond-detail/cond-detail';
 import { CondForm, CondFormTab } from './cond-form/cond-form';
 import { CONDITION_TYPES } from './condition.data';
@@ -22,7 +21,7 @@ const EMPTY_FILTERS: ConditionFilters = { search: '', status: '', type: '' };
   templateUrl: './condition.html',
   styleUrls: ['../../shared/styles/mdm-page.css', '../level-page.css']
 })
-export class ConditionPage {
+export class ConditionPage implements OnInit {
   readonly service = inject(ConditionService);
   readonly types = CONDITION_TYPES;
   readonly basePath = MASTER_DATA_BASE_PATH;
@@ -49,12 +48,18 @@ export class ConditionPage {
   formTab: CondFormTab = 'basic';
 
   pendingDelete: ConditionRecord[] = [];
-  toast = '';
   saving = false;
+  deleting = false;
+  toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  constructor() {
-    this.service.load();
+  ngOnInit(): void {
+    this.service.reload().subscribe({
+      next: (list) => {
+        if (!this.service.find(this.selectedCode)) this.selectedCode = list[0]?.code ?? null;
+      },
+      error: (err) => this.notify(`Could not load conditions: ${apiErrorMessage(err)}`)
+    });
   }
 
   get stats() {
@@ -105,7 +110,7 @@ export class ConditionPage {
   }
 
   get selectedCondition(): ConditionRecord | undefined {
-    return this.service.find(this.selectedCode) ?? this.service.all()[0];
+    return this.service.find(this.selectedCode);
   }
 
   apply(): void {
@@ -174,7 +179,7 @@ export class ConditionPage {
   // A copy keeps the rules and characteristics; it is never the default and has no assets
   duplicate(c: ConditionRecord): void {
     const usage = { assets: 0, openWorkOrders: 0, slaBreaches: 0, underWarranty: 0 };
-    this.openAdd({ ...structuredClone(c), id: '', code: '', name: `${c.name} (Copy)`, isDefault: false, status: 'Active', usage, documents: 0 });
+    this.openAdd({ ...structuredClone(c), code: '', name: `${c.name} (Copy)`, isDefault: false, status: 'Active', usage, documents: 0 });
   }
 
   openEdit(event: { condition: ConditionRecord; tab?: CondFormTab }): void {
@@ -199,7 +204,7 @@ export class ConditionPage {
   onSaved(event: { record: ConditionRecord; originalCode: string | null }): void {
     if (this.saving) return;
     this.saving = true;
-    this.service.save(event.record, event.originalCode).subscribe({
+    this.service.saveWithRules(event.record, event.originalCode).subscribe({
       next: (saved) => {
         this.saving = false;
         if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
@@ -214,13 +219,14 @@ export class ConditionPage {
     });
   }
 
+
   makeDefault(c: ConditionRecord): void {
     this.menuFor = null;
     if (c.status !== 'Active') {
       this.notify(`Activate ${c.name} before making it the default.`);
       return;
     }
-    this.service.save({ ...c, isDefault: true }, c.code).subscribe({
+    this.service.persist({ ...c, isDefault: true }, c.code).subscribe({
       next: () => this.notify(`${c.name} is now the default condition.`),
       error: (err) => this.notify(apiErrorMessage(err))
     });
@@ -234,7 +240,7 @@ export class ConditionPage {
       return;
     }
     const status = c.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...c, status }, c.code).subscribe({
+    this.service.setStatus(c, status).subscribe({
       next: () => this.notify(`${c.name} marked ${status}.`),
       error: (err) => this.notify(apiErrorMessage(err))
     });
@@ -261,21 +267,27 @@ export class ConditionPage {
   }
 
   confirmDelete(): void {
+    if (this.deleting) return;
     const list = this.pendingDelete;
     const codes = list.map((r) => r.code);
-    this.pendingDelete = [];
-    concat(...list.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
-      next: () => {
-        codes.forEach((c) => this.selected.delete(c));
-        if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} conditions deleted.`);
-        this.goTo(this.page);
-      },
-      // Any conditions deleted before the failure are already gone from the table
-      error: (err) => this.notify(apiErrorMessage(err))
+    const done = (message: string) => {
+      // Records deleted before a failure are gone too
+      const gone = codes.filter((c) => !this.service.find(c));
+      gone.forEach((c) => this.selected.delete(c));
+      if (this.selectedCode && gone.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+      if (this.formMode === 'edit' && this.formRecord && gone.includes(this.formRecord.code)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.deleteWithRules(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} conditions deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
     });
   }
+
 
   cancelDelete(): void {
     this.pendingDelete = [];

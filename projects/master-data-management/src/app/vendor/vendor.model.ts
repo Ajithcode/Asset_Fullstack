@@ -18,8 +18,6 @@ export interface VendorDocument {
 
 /** Fields every vendor type has (supplier, service provider, AMC vendor). */
 export interface VendorBase {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   // Uploaded logo (data URL); a coloured badge with the initials is shown when empty

@@ -1,102 +1,150 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, ReplaySubject, map, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
+import { Observable, map, throwError } from 'rxjs';
+import { environment } from 'shared-ui';
 import { CURRENCIES } from '../organization/organization/organization.data';
-import { apiErrorMessage } from '../shared/api-error';
-import { ApiCodeStore, MasterDto } from '../shared/api-code-store';
-import { DATE_FORMATS, LANGUAGES, TIME_FORMATS, TIME_ZONES, blankChartType, blankSyncStatus, blankUpdateSource, initialSettings } from './system-config.data';
-import { ChartTypeRecord, SyncStatusRecord, SystemSettings, UpdateSourceRecord } from './system-config.model';
+import { ApiCodeStore } from '../shared/code-store';
+import { MDM_API, MdmApi, MdmAudit } from '../shared/mdm-api';
+import { DATE_FORMATS, LANGUAGE_CODES, TIME_FORMATS, TIME_ZONE_IDS, defaultSettings } from './system-config.data';
+import { ChartPreview, ChartTypeRecord, ConfigStatus, SyncStatusRecord, SystemSettings, UpdateSourceRecord } from './system-config.model';
 
-/*
- * System configuration masters from {projectApiUrl}api/master-data/... Fields the API doesn't
- * store yet are kept for the session only.
- */
+/* System configuration masters and settings, backed by /api/master-data. */
 
-interface SyncStatusDto extends MasterDto {
+/** `yyyy-mm-ddThh:mm` from an API timestamp, as the pages show it. */
+function stampOf(value: string | null | undefined): string {
+  return (value ?? '').slice(0, 16);
+}
+
+function statusOf(value: string | null): ConfigStatus {
+  return value === 'Inactive' ? 'Inactive' : 'Active';
+}
+
+/** Code-keyed master with a status PATCH. */
+abstract class ConfigStore<T extends { code: string; name: string }, TDto extends MdmAudit> extends ApiCodeStore<T, TDto> {
+  setStatus(record: T, status: ConfigStatus): Observable<T> {
+    const id = this.idOf(record.code);
+    if (!id) return throwError(() => new Error('Record not found.'));
+    return this.api.setStatus<TDto>(this.resource, id, status).pipe(
+      map((dto) => {
+        const saved = this.toRecord(dto);
+        this.save(saved, record.code);
+        return saved;
+      })
+    );
+  }
+}
+
+interface SyncStatusDto extends MdmAudit {
   statusName: string;
+  code: string;
   description: string | null;
   color: string | null;
   isSuccess: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
-export class SyncStatusService extends ApiCodeStore<SyncStatusRecord, SyncStatusDto> {
+export class SyncStatusService extends ConfigStore<SyncStatusRecord, SyncStatusDto> {
+  protected readonly resource = 'api-sync-statuses';
+
   constructor() {
-    super('api-sync-statuses');
-    this.load();
+    super();
   }
 
-  protected toRecord(dto: SyncStatusDto, cached: SyncStatusRecord | undefined): SyncStatusRecord {
-    const base = cached ?? blankSyncStatus();
-    return { ...base, name: dto.statusName, description: dto.description ?? '', color: dto.color?.toLowerCase() ?? base.color, isSuccess: dto.isSuccess };
+  protected toRecord(dto: SyncStatusDto): SyncStatusRecord {
+    return {
+      code: dto.code,
+      name: dto.statusName,
+      description: dto.description ?? '',
+      // The API stores colours in upper case; the swatches are lower case
+      color: (dto.color ?? '').toLowerCase(),
+      isSuccess: dto.isSuccess,
+      status: statusOf(dto.status),
+      createdOn: stampOf(dto.createdAt),
+      updatedOn: stampOf(dto.updatedAt)
+    };
   }
 
-  protected toRequest(r: SyncStatusRecord) {
-    return { statusName: r.name, code: r.code, description: r.description, color: r.color, isSuccess: r.isSuccess };
+  protected toRequest(r: SyncStatusRecord): object {
+    return { statusName: r.name, code: r.code, description: r.description, color: r.color, isSuccess: r.isSuccess, status: r.status };
   }
 }
 
-interface ChartTypeDto extends MasterDto {
+interface ChartTypeDto extends MdmAudit {
   chartTypeName: string;
+  code: string;
   category: string;
   description: string | null;
   iconUrl: string | null;
+  previewType: string | null;
 }
 
-/** Chart types; the built-in preview choice is UI-only, an uploaded image is stored as the icon. */
 @Injectable({ providedIn: 'root' })
-export class ChartTypeService extends ApiCodeStore<ChartTypeRecord, ChartTypeDto> {
+export class ChartTypeService extends ConfigStore<ChartTypeRecord, ChartTypeDto> {
+  protected readonly resource = 'chart-types';
+
   constructor() {
-    super('chart-types');
-    this.load();
+    super();
   }
 
-  protected toRecord(dto: ChartTypeDto, cached: ChartTypeRecord | undefined): ChartTypeRecord {
-    return { ...(cached ?? blankChartType()), name: dto.chartTypeName, category: dto.category, description: dto.description ?? '', image: dto.iconUrl };
+  protected toRecord(dto: ChartTypeDto): ChartTypeRecord {
+    return {
+      code: dto.code,
+      name: dto.chartTypeName,
+      category: dto.category,
+      description: dto.description ?? '',
+      preview: (dto.previewType as ChartPreview) || 'column',
+      image: dto.iconUrl,
+      status: statusOf(dto.status),
+      createdOn: stampOf(dto.createdAt),
+      updatedOn: stampOf(dto.updatedAt)
+    };
   }
 
-  protected toRequest(r: ChartTypeRecord) {
-    // TODO: upload through the Media service and send its URL; this sends the picked image as a data URL
-    return { chartTypeName: r.name, code: r.code, category: r.category, description: r.description, iconUrl: r.image };
+  protected toRequest(r: ChartTypeRecord): object {
+    return { chartTypeName: r.name, code: r.code, category: r.category, description: r.description, iconUrl: r.image, previewType: r.preview, status: r.status };
   }
 }
 
-interface UpdateSourceDto extends MasterDto {
+interface UpdateSourceDto extends MdmAudit {
   sourceName: string;
+  code: string;
   type: string;
   description: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
-export class UpdateSourceService extends ApiCodeStore<UpdateSourceRecord, UpdateSourceDto> {
+export class UpdateSourceService extends ConfigStore<UpdateSourceRecord, UpdateSourceDto> {
+  protected readonly resource = 'update-sources';
+
   constructor() {
-    super('update-sources');
-    this.load();
+    super();
   }
 
-  protected toRecord(dto: UpdateSourceDto, cached: UpdateSourceRecord | undefined): UpdateSourceRecord {
-    return { ...(cached ?? blankUpdateSource()), name: dto.sourceName, type: dto.type, description: dto.description ?? '' };
+  protected toRecord(dto: UpdateSourceDto): UpdateSourceRecord {
+    return {
+      code: dto.code,
+      name: dto.sourceName,
+      type: dto.type,
+      description: dto.description ?? '',
+      status: statusOf(dto.status),
+      createdOn: stampOf(dto.createdAt),
+      updatedOn: stampOf(dto.updatedAt)
+    };
   }
 
-  protected toRequest(r: UpdateSourceRecord) {
-    return { sourceName: r.name, code: r.code, type: r.type, description: r.description };
+  protected toRequest(r: UpdateSourceRecord): object {
+    return { sourceName: r.name, code: r.code, type: r.type, description: r.description, status: r.status };
   }
 }
 
-/** The General section as GET/PUT {projectApiUrl}api/master-data/system-settings stores it. */
-interface GeneralSettingsDto {
+/** General section as the API stores it: codes instead of the labels the page shows. */
+interface GeneralDto {
   systemName: string;
   systemUrl: string | null;
-  // IANA id, e.g. Asia/Dubai
   defaultTimeZone: string;
-  // .NET pattern, e.g. dd-MMM-yyyy
   dateFormat: string;
-  // "24Hour" or "12Hour"
   timeFormat: string;
-  // Language code, e.g. en
   defaultLanguage: string;
-  // ISO 4217, e.g. AED
   defaultCurrency: string;
   recordsPerPage: number;
   enableAuditLog: boolean;
@@ -104,60 +152,23 @@ interface GeneralSettingsDto {
   systemMaintenanceMode: boolean;
 }
 
-interface SystemSettingsDto {
-  general: GeneralSettingsDto;
-  updatedAt: string | null;
+type SettingsDto = { general: GeneralDto; updatedAt: string | null } & { [K in Exclude<keyof SystemSettings, 'general'>]?: Partial<SystemSettings[K]> | null };
+
+/** Label whose value starts with `code`, e.g. 'AED' -> 'AED - UAE Dirham'; falls back to the code. */
+function labelFor(labels: string[], code: string, keyOf: (label: string) => string): string {
+  return labels.find((l) => keyOf(l) === code) ?? code;
 }
 
-// The page's time zone labels and the IANA ids the API stores, in the same order as TIME_ZONES
-const TIME_ZONE_IDS = ['Asia/Dubai', 'Asia/Riyadh', 'Asia/Qatar', 'Asia/Kolkata', 'Europe/London', 'America/New_York'];
-const LANGUAGE_CODES = ['en', 'ar', 'hi', 'fr'];
+const firstWord = (label: string) => label.split(' ')[0];
+const timeKey = (label: string) => label.replace(/ \(.*$/, '').replace(' ', '');
 
-/** Picks the label whose stored value matches, or the first label when none does. */
-function labelFor(labels: string[], values: string[], value: string): string {
-  const i = values.indexOf(value);
-  return labels[i >= 0 ? i : 0];
-}
-
-/**
- * System settings. Only the General section is stored by the API; the other sections are kept for
- * the session until the backend adds them.
- */
+/** One settings document per client, read and saved whole. */
 @Injectable({ providedIn: 'root' })
 export class SystemSettingsService {
   private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
-  private readonly apiUrl = `${environment.projectApiUrl}api/master-data/system-settings`;
-
-  private settings: SystemSettings = initialSettings();
+  private readonly api = inject(MdmApi);
+  private settings: SystemSettings = defaultSettings();
   private savedOn = '';
-  loading = false;
-  loadError = '';
-  private readonly settled = new ReplaySubject<void>(1);
-  /** Emits once the first load has finished (or failed). */
-  readonly settled$ = this.settled.asObservable();
-
-  constructor() {
-    this.load();
-  }
-
-  load(): void {
-    if (this.loading) return;
-    this.loading = true;
-    this.loadError = '';
-    this.http.get<SystemSettingsDto>(this.apiUrl, { params: { clientId: environment.clientId } }).subscribe({
-      next: (dto) => {
-        this.apply(dto);
-        this.loading = false;
-        this.settled.next();
-      },
-      error: (err) => {
-        this.loadError = apiErrorMessage(err);
-        this.loading = false;
-        this.settled.next();
-      }
-    });
-  }
 
   /** A copy to edit; nothing changes until `save`. */
   draft(): SystemSettings {
@@ -172,60 +183,34 @@ export class SystemSettingsService {
     return this.savedOn;
   }
 
-  /** PUT the General section; the other sections are kept in memory. */
-  save(settings: SystemSettings, stamp: string): Observable<SystemSettings> {
-    const g = settings.general;
-    const general: GeneralSettingsDto = {
-      systemName: g.systemName,
-      systemUrl: g.systemUrl || null,
-      defaultTimeZone: TIME_ZONE_IDS[TIME_ZONES.indexOf(g.timeZone)] ?? TIME_ZONE_IDS[0],
-      // "dd-MMM-yyyy (26-Oct-2026)" -> "dd-MMM-yyyy"
-      dateFormat: g.dateFormat.split(' (')[0],
-      timeFormat: g.timeFormat.startsWith('12') ? '12Hour' : '24Hour',
-      defaultLanguage: LANGUAGE_CODES[LANGUAGES.indexOf(g.language)] ?? 'en',
-      // "AED - UAE Dirham" -> "AED"
-      defaultCurrency: g.currency.slice(0, 3),
-      recordsPerPage: g.recordsPerPage,
-      enableAuditLog: g.auditLog,
-      allowOfflineMode: g.offlineMode,
-      systemMaintenanceMode: g.maintenanceMode
-    };
+  /** GET the client's settings; sections never saved come back with the API defaults. */
+  load(): Observable<SystemSettings> {
+    const params = new HttpParams().set('clientId', environment.clientId);
+    return this.http.get<SettingsDto>(`${MDM_API}system-settings`, { params }).pipe(map((dto) => this.adopt(dto)));
+  }
+
+  save(settings: SystemSettings): Observable<SystemSettings> {
+    const { general, ...sections } = settings;
     const body = {
       clientId: environment.clientId,
       tenantId: environment.tenantId,
-      updatedBy: this.auth.getUserEmail() || 'unknown',
-      general
-    };
-    return this.http.put<SystemSettingsDto>(this.apiUrl, body).pipe(
-      tap((dto) => {
-        this.settings = structuredClone(settings);
-        this.apply(dto);
-        this.savedOn = stamp;
-      }),
-      map(() => this.settings)
-    );
-  }
-
-  private apply(dto: SystemSettingsDto): void {
-    const g = dto.general;
-    this.settings = {
-      ...this.settings,
+      updatedBy: this.api.actor(),
       general: {
-        ...this.settings.general,
-        systemName: g.systemName,
-        systemUrl: g.systemUrl ?? '',
-        timeZone: labelFor(TIME_ZONES, TIME_ZONE_IDS, g.defaultTimeZone),
-        dateFormat: DATE_FORMATS.find((f) => f.split(' (')[0] === g.dateFormat) ?? DATE_FORMATS[0],
-        timeFormat: TIME_FORMATS.find((f) => f.startsWith(g.timeFormat === '12Hour' ? '12' : '24')) ?? TIME_FORMATS[0],
-        language: labelFor(LANGUAGES, LANGUAGE_CODES, g.defaultLanguage),
-        currency: CURRENCIES.find((c) => c.startsWith(g.defaultCurrency)) ?? g.defaultCurrency,
-        recordsPerPage: g.recordsPerPage,
-        auditLog: g.enableAuditLog,
-        offlineMode: g.allowOfflineMode,
-        maintenanceMode: g.systemMaintenanceMode
-      }
+        systemName: general.systemName,
+        systemUrl: general.systemUrl,
+        defaultTimeZone: TIME_ZONE_IDS[general.timeZone] ?? general.timeZone,
+        dateFormat: firstWord(general.dateFormat),
+        timeFormat: timeKey(general.timeFormat),
+        defaultLanguage: LANGUAGE_CODES[general.language] ?? general.language,
+        defaultCurrency: firstWord(general.currency),
+        recordsPerPage: general.recordsPerPage,
+        enableAuditLog: general.auditLog,
+        allowOfflineMode: general.offlineMode,
+        systemMaintenanceMode: general.maintenanceMode
+      } satisfies GeneralDto,
+      ...sections
     };
-    if (dto.updatedAt) this.savedOn = dto.updatedAt.slice(0, 16).replace('T', ' ');
+    return this.http.put<SettingsDto>(`${MDM_API}system-settings`, body).pipe(map((dto) => this.adopt(dto)));
   }
 
   /** Default code references, so the referenced master can't be deleted. */
@@ -239,5 +224,38 @@ export class SystemSettingsService {
 
   usesSource(code: string): boolean {
     return this.settings.defaults.updateSource === code || this.settings.integration.sources.includes(code);
+  }
+
+  private adopt(dto: SettingsDto): SystemSettings {
+    const defaults = defaultSettings();
+    const g = dto.general;
+    const timeZone = Object.keys(TIME_ZONE_IDS).find((label) => TIME_ZONE_IDS[label] === g.defaultTimeZone) ?? g.defaultTimeZone;
+    const language = Object.keys(LANGUAGE_CODES).find((name) => LANGUAGE_CODES[name] === g.defaultLanguage) ?? g.defaultLanguage;
+    const settings: SystemSettings = {
+      ...defaults,
+      general: {
+        systemName: g.systemName,
+        systemUrl: g.systemUrl ?? '',
+        timeZone,
+        dateFormat: labelFor(DATE_FORMATS, g.dateFormat, firstWord),
+        timeFormat: labelFor(TIME_FORMATS, g.timeFormat, timeKey),
+        language,
+        currency: labelFor(CURRENCIES, g.defaultCurrency, firstWord),
+        recordsPerPage: g.recordsPerPage,
+        auditLog: g.enableAuditLog,
+        offlineMode: g.allowOfflineMode,
+        maintenanceMode: g.systemMaintenanceMode
+      }
+    };
+    // Other sections are stored as the page sends them; missing or null values keep the page defaults
+    for (const key of Object.keys(defaults) as (keyof SystemSettings)[]) {
+      const section = dto[key as Exclude<keyof SystemSettings, 'general'>];
+      if (key === 'general' || !section) continue;
+      const kept = Object.fromEntries(Object.entries(section).filter(([, v]) => v !== null && v !== undefined));
+      (settings as unknown as Record<string, object>)[key] = { ...defaults[key], ...kept };
+    }
+    this.settings = settings;
+    this.savedOn = stampOf(dto.updatedAt);
+    return settings;
   }
 }

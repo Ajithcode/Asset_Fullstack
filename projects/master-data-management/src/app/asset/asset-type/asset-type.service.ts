@@ -1,97 +1,70 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
+import { MdmAudit } from '../../shared/mdm-api';
 import { AssetModelIcon } from '../asset-model/asset-model.icons';
-import { DepreciationMethod } from '../asset-model/asset-model.model';
+import { AssetCondition, DepreciationMethod, ProcurementType, TrackingMethod } from '../asset-model/asset-model.model';
+import { AssetStore, activeStatus, localStamp } from '../asset-store';
 import { CategoryService } from '../category-subcategory/category.service';
-import { apiErrorMessage } from '../../shared/api-error';
 import { blankAssetType } from './asset-type.data';
-import { AssetTypeFilters, AssetTypeRecord } from './asset-type.model';
+import { AssetTypeFilters, AssetTypeRecord, CustomField, CustomFieldType, MaintenanceType } from './asset-type.model';
 
-interface ReferenceDto {
-  id: string | null;
-  name: string;
-}
-
-/** Raw shape returned by GET/POST/PUT {projectApiUrl}api/master-data/asset-types */
-interface AssetTypeDto {
-  id: string;
+/** Asset type as `/api/master-data/asset-types` returns it. */
+interface AssetTypeDto extends MdmAudit {
   assetTypeName: string;
   code: string;
-  category: ReferenceDto | null;
+  category: { id: string | null; name: string } | null;
   assetClass: string | null;
   description: string | null;
   depreciationMethod: string | null;
   defaultLifetime: number | null;
-  createdBy: string | null;
-  createdAt: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  status: string | null;
+  icon: string | null;
+  image: string | null;
+  subcategories: string[] | null;
+  taggingFormat: string | null;
+  maintenanceType: string | null;
+  maintenancePlan: string | null;
+  warrantyMonths: number | null;
+  serviceProvider: string | null;
+  usefulLifeMonths: number | null;
+  residualPercent: number | null;
+  costCenter: string | null;
+  currency: string | null;
+  capitalizationThreshold: number | null;
+  procurementType: string | null;
+  defaultCondition: string | null;
+  trackingMethod: string | null;
+  serialRequired: boolean;
+  assignable: boolean;
+  customFields: { name: string; type: string | null; required: boolean }[] | null;
+  inspectionRequired: boolean;
+  allowTransfers: boolean;
+  iotTracking: boolean;
+  disposalApproval: boolean;
 }
 
 /**
- * Asset types from the Master Data API. Rows are cached after load() so this page and the Asset
- * Model page can keep reading them synchronously; writes go to the API and update the cache when
- * they succeed. Tagging, maintenance, most financial defaults and settings are UI-only for now.
+ * Asset types from the master data API. The category is an asset category, shown by name here
+ * and sent by id. Asset models use this service for their type lists and icons.
  */
 @Injectable({ providedIn: 'root' })
-export class AssetTypeService {
-  private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
-  private readonly categoryService = inject(CategoryService);
-  private readonly apiUrl = `${environment.projectApiUrl}api/master-data/asset-types`;
-
-  private records: AssetTypeRecord[] = [];
-  loading = false;
-  loadError = '';
+export class AssetTypeService extends AssetStore<AssetTypeRecord, AssetTypeDto> {
+  protected readonly resource = 'asset-types';
+  private readonly categoryStore = inject(CategoryService);
 
   constructor() {
-    this.load();
-  }
-
-  /** GET /api/master-data/asset-types (skipped while a load is already running) */
-  load(): void {
-    if (this.loading) return;
-    this.loading = true;
-    this.loadError = '';
-    this.http.get<AssetTypeDto[]>(this.apiUrl, { params: { clientId: environment.clientId } }).subscribe({
-      next: (list) => {
-        this.records = list.map((d) => this.toRecord(d));
-        this.loading = false;
-      },
-      error: (err) => {
-        this.loadError = apiErrorMessage(err);
-        this.loading = false;
-      }
-    });
-  }
-
-  all(): AssetTypeRecord[] {
-    return this.records;
+    super();
   }
 
   active(): AssetTypeRecord[] {
-    return this.records.filter((r) => r.status === 'Active');
-  }
-
-  find(code: string | null): AssetTypeRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
-  }
-
-  // Asset models refer to their type by name
-  findByName(name: string): AssetTypeRecord | undefined {
-    return this.records.find((r) => r.name === name);
+    return this.all().filter((r) => r.status === 'Active');
   }
 
   iconFor(name: string): AssetModelIcon {
     return this.findByName(name)?.icon ?? 'conveyor';
   }
 
-  /** Asset categories from the Category master, plus any already on a record. */
+  /** Asset category names, plus any category already on a type. */
   categories(): string[] {
-    return [...new Set([...this.categoryService.all().map((c) => c.name), ...this.records.map((r) => r.category).filter(Boolean)])];
+    return [...new Set([...this.categoryStore.all().map((c) => c.name), ...this.records.map((r) => r.category).filter(Boolean)])];
   }
 
   classesInUse(): string[] {
@@ -108,74 +81,82 @@ export class AssetTypeService {
     );
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  /** POST for a new record, PUT /{id} for an existing one. The category is linked by id. */
-  save(record: AssetTypeRecord): Observable<AssetTypeRecord> {
-    const user = this.auth.getUserEmail() || 'unknown';
-    const category = this.categoryService.findByName(record.category);
-    const body = {
-      assetTypeName: record.name,
-      code: record.code,
-      category: category ? { id: category.id, name: category.name } : null,
-      assetClass: record.assetClass,
-      description: record.description,
-      depreciationMethod: record.depreciationMethod,
-      defaultLifetime: record.lifecycleYears,
-      status: record.status
-    };
-    const request$ = record.id
-      ? this.http.put<AssetTypeDto>(`${this.apiUrl}/${record.id}`, { ...body, updatedBy: user })
-      : this.http.post<AssetTypeDto>(this.apiUrl, { ...body, createdBy: user, clientId: environment.clientId, tenantId: environment.tenantId });
-
-    return request$.pipe(
-      // Keep the fields the API doesn't store yet
-      map((dto) => ({ ...record, ...this.toRecord(dto) })),
-      tap((saved) => {
-        const index = this.records.findIndex((r) => r.id === saved.id);
-        this.records = index >= 0 ? this.records.map((r, i) => (i === index ? saved : r)) : [saved, ...this.records];
-      })
-    );
-  }
-
-  /** DELETE /api/master-data/asset-types/{id}; the API refuses one still used by models or AMC vendors. */
-  remove(record: AssetTypeRecord): Observable<void> {
-    return this.http
-      .delete<void>(`${this.apiUrl}/${record.id}`)
-      .pipe(tap(() => (this.records = this.records.filter((r) => r.id !== record.id))));
-  }
-
-  /** Keeps the cached rows in step when a category is renamed (the API renames them too). */
-  renameCategory(oldName: string, newName: string): void {
-    if (oldName === newName) return;
-    this.records = this.records.map((r) => (r.category === oldName ? { ...r, category: newName } : r));
-  }
-
-  private toRecord(dto: AssetTypeDto): AssetTypeRecord {
-    // DEMO MODE: the fields the API doesn't store yet keep what this session has
-    const cached = this.records.find((r) => r.id === dto.id) ?? blankAssetType();
+  protected toRecord(dto: AssetTypeDto): AssetTypeRecord {
+    const blank = blankAssetType();
     return {
-      ...cached,
-      id: dto.id,
+      ...blank,
       code: dto.code,
       name: dto.assetTypeName,
       category: dto.category?.name ?? '',
       assetClass: dto.assetClass ?? '',
+      icon: (dto.icon as AssetModelIcon) ?? blank.icon,
+      image: dto.image,
       description: dto.description ?? '',
-      depreciationMethod: (dto.depreciationMethod ?? cached.depreciationMethod) as DepreciationMethod,
-      lifecycleYears: dto.defaultLifetime ?? cached.lifecycleYears,
-      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
-      createdOn: dto.createdAt?.slice(0, 16) ?? '',
+      status: activeStatus(dto.status),
+      subcategories: dto.subcategories ?? [],
+      taggingFormat: dto.taggingFormat ?? '',
+      lifecycleYears: dto.defaultLifetime ?? blank.lifecycleYears,
+      maintenanceType: (dto.maintenanceType as MaintenanceType) ?? blank.maintenanceType,
+      maintenancePlan: dto.maintenancePlan ?? '',
+      warrantyMonths: dto.warrantyMonths ?? blank.warrantyMonths,
+      serviceProvider: dto.serviceProvider ?? '',
+      depreciationMethod: (dto.depreciationMethod as DepreciationMethod) ?? blank.depreciationMethod,
+      usefulLifeMonths: dto.usefulLifeMonths ?? blank.usefulLifeMonths,
+      residualPercent: dto.residualPercent ?? blank.residualPercent,
+      costCenter: dto.costCenter ?? '',
+      currency: dto.currency ?? blank.currency,
+      capitalizationThreshold: dto.capitalizationThreshold ?? blank.capitalizationThreshold,
+      procurementType: (dto.procurementType as ProcurementType) ?? blank.procurementType,
+      defaultCondition: (dto.defaultCondition as AssetCondition) ?? blank.defaultCondition,
+      trackingMethod: (dto.trackingMethod as TrackingMethod) ?? blank.trackingMethod,
+      serialRequired: dto.serialRequired,
+      assignable: dto.assignable,
+      customFields: (dto.customFields ?? []).map((f): CustomField => ({ name: f.name, type: (f.type as CustomFieldType) ?? 'Text', required: f.required })),
+      inspectionRequired: dto.inspectionRequired,
+      allowTransfers: dto.allowTransfers,
+      iotTracking: dto.iotTracking,
+      disposalApproval: dto.disposalApproval,
+      createdOn: localStamp(dto.createdAt),
       createdBy: dto.createdBy ?? '',
-      updatedOn: (dto.updatedAt ?? dto.createdAt)?.slice(0, 16) ?? ''
+      updatedOn: localStamp(dto.updatedAt ?? dto.createdAt)
+    };
+  }
+
+  protected toRequest(r: AssetTypeRecord): object {
+    const category = this.categoryStore.findByName(r.category);
+    const categoryId = category ? this.categoryStore.idOf(category.code) : undefined;
+    return {
+      assetTypeName: r.name,
+      code: r.code,
+      category: categoryId ? { id: categoryId, name: r.category } : null,
+      assetClass: r.assetClass,
+      description: r.description,
+      depreciationMethod: r.depreciationMethod,
+      defaultLifetime: r.lifecycleYears,
+      icon: r.icon,
+      image: r.image,
+      subcategories: r.subcategories,
+      taggingFormat: r.taggingFormat,
+      maintenanceType: r.maintenanceType,
+      maintenancePlan: r.maintenancePlan,
+      warrantyMonths: r.warrantyMonths,
+      serviceProvider: r.serviceProvider,
+      usefulLifeMonths: r.usefulLifeMonths,
+      residualPercent: r.residualPercent,
+      costCenter: r.costCenter,
+      currency: r.currency,
+      capitalizationThreshold: r.capitalizationThreshold,
+      procurementType: r.procurementType,
+      defaultCondition: r.defaultCondition,
+      trackingMethod: r.trackingMethod,
+      serialRequired: r.serialRequired,
+      assignable: r.assignable,
+      customFields: r.customFields,
+      inspectionRequired: r.inspectionRequired,
+      allowTransfers: r.allowTransfers,
+      iotTracking: r.iotTracking,
+      disposalApproval: r.disposalApproval,
+      status: r.status
     };
   }
 }

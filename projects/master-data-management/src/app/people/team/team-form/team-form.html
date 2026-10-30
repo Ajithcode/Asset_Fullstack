@@ -39,7 +39,12 @@
           <label for="team-leader">Team Leader</label>
           <select id="team-leader" name="leaderId" [(ngModel)]="form.leaderId" (ngModelChange)="onLeaderChange()">
             <option value="">Select team leader</option>
-            @for (p of technicianOptions; track p.id) { <option [value]="p.id">{{ p.name }} ({{ p.id }})</option> }
+            <optgroup label="Technicians">
+              @for (p of technicianOptions; track p.id) { <option [value]="p.id">{{ p.name }} ({{ p.id }})</option> }
+            </optgroup>
+            <optgroup label="Employees">
+              @for (p of employeeOptions; track p.id) { <option [value]="p.id">{{ p.name }} ({{ p.id }})</option> }
+            </optgroup>
           </select>
           <small class="hint">The leader is added to the members.</small>
         </div>

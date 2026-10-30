@@ -1,7 +1,9 @@
 import { Component, Input, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Search } from 'lucide-angular';
+import { Observable } from 'rxjs';
 import { ListPage } from '../../../shared/list-page';
+import { apiErrorMessage } from '../../../shared/mdm-api';
 import { BIN_TYPES, blankBin } from '../../inventory.data';
 import { BinRecord, RecordStatus } from '../../inventory.model';
 import { BinService, ItemService, StoreService, WarehouseService } from '../../inventory.service';
@@ -32,10 +34,11 @@ export class BinList extends ListPage<BinRecord, Filters, SortKey> implements On
   private readonly items = inject(ItemService);
   readonly binTypes = BIN_TYPES;
   readonly icons = { Search, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+  saving = false;
 
   constructor() {
     super({ search: '', store: '', binType: '', status: '' });
-    this.service.load();
+    this.refresh();
   }
 
   ngOnInit(): void {
@@ -43,6 +46,11 @@ export class BinList extends ListPage<BinRecord, Filters, SortKey> implements On
       this.draft.store = this.storeFilter;
       this.apply();
     }
+  }
+
+  /** Loads the list from the API, with the masters it points at. */
+  refresh(): void {
+    this.items.load().subscribe({ error: (err) => this.notify(apiErrorMessage(err)) });
   }
 
   keyOf(r: BinRecord): string {
@@ -71,8 +79,8 @@ export class BinList extends ListPage<BinRecord, Filters, SortKey> implements On
     return key === 'items' ? this.itemCount(r) : key === 'store' ? this.storeName(r) : r[key];
   }
 
-  protected removeRecords(codes: string[]) {
-    return this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   protected override deleteBlocker(r: BinRecord): string | null {
@@ -99,20 +107,34 @@ export class BinList extends ListPage<BinRecord, Filters, SortKey> implements On
   }
 
   onSaved(event: { record: BinRecord; originalCode: string | null }): void {
-    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
-      if (event.originalCode) this.items.recode('binCode', event.originalCode, saved.code);
-      // Items in the bin follow it to another store
-      const store = this.stores.find(saved.storeCode);
-      if (store) this.items.followLocation((item) => item.binCode === saved.code, { storeCode: store.code, warehouseCode: store.warehouseCode });
-      this.carrySelection(event.originalCode, saved.code);
-      this.notify(`Bin ${saved.code} ${event.originalCode ? 'updated' : 'added'}.`);
-      this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: () => {
+        this.saving = false;
+        if (event.originalCode) this.items.recode('binCode', event.originalCode, event.record.code);
+        // Items in the bin follow it to another store (the API moves them too)
+        const store = this.stores.find(event.record.storeCode);
+        for (const item of this.items.inBin(event.record.code)) {
+          if (store && item.storeCode !== store.code) this.items.save({ ...item, storeCode: store.code, warehouseCode: store.warehouseCode }, item.code);
+        }
+        this.carrySelection(event.originalCode, event.record.code);
+        this.notify(`Bin ${event.record.code} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
     });
   }
 
   toggleStatus(r: BinRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`Bin ${r.code} marked ${status}.`));
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`Bin ${r.code} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

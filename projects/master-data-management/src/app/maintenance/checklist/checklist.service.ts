@@ -1,53 +1,54 @@
 import { Injectable } from '@angular/core';
-import { ApiCodeStore, MasterDto } from '../../shared/api-code-store';
-import { blankChecklist } from './checklist.data';
+import { MdmAudit } from '../../shared/mdm-api';
+import { MasterApiStore, stampOf } from '../master-api-store';
+import { RESPONSE_TYPES } from './checklist.data';
 import { ChecklistRecord, ResponseType } from './checklist.model';
 
-interface StepDto {
-  name: string;
-  description: string | null;
-  required: boolean | null;
-  responseType: string | null;
-}
-
-interface ChecklistDto extends MasterDto {
+interface ChecklistDto extends MdmAudit {
   checklistName: string;
+  code: string;
   checklistType: string;
   category: string;
   description: string | null;
-  items: StepDto[];
+  items: { name: string; description: string | null; responseType: string | null; isRequired: boolean }[];
 }
 
-/**
- * Checklists from {projectApiUrl}api/master-data/checklists; work types refer to one by code.
- * Each item's question is stored as the step name.
- */
+/** Checklists (/api/master-data/checklists); work types refer to one by code. */
 @Injectable({ providedIn: 'root' })
-export class ChecklistService extends ApiCodeStore<ChecklistRecord, ChecklistDto> {
+export class ChecklistService extends MasterApiStore<ChecklistRecord, ChecklistDto> {
+  protected readonly resource = 'checklists';
+
   constructor() {
-    super('checklists');
-    this.load();
+    super();
   }
 
-  protected toRecord(dto: ChecklistDto, cached: ChecklistRecord | undefined): ChecklistRecord {
+  protected toRecord(dto: ChecklistDto): ChecklistRecord {
     return {
-      ...(cached ?? blankChecklist()),
+      code: dto.code,
       name: dto.checklistName,
       checklistType: dto.checklistType,
       category: dto.category,
       description: dto.description ?? '',
-      items: dto.items.map((i) => ({ question: i.name, response: (i.responseType ?? 'Yes / No') as ResponseType, required: i.required ?? true }))
+      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
+      items: (dto.items ?? []).map((i) => ({
+        question: i.name,
+        response: RESPONSE_TYPES.includes(i.responseType as ResponseType) ? (i.responseType as ResponseType) : 'Pass / Fail',
+        required: i.isRequired
+      })),
+      createdOn: stampOf(dto.createdAt),
+      updatedOn: stampOf(dto.updatedAt ?? dto.createdAt)
     };
   }
 
-  protected toRequest(r: ChecklistRecord) {
+  protected toRequest(r: ChecklistRecord): object {
     return {
       checklistName: r.name,
       code: r.code,
       checklistType: r.checklistType,
       category: r.category,
       description: r.description,
-      items: r.items.map((i) => ({ name: i.question, responseType: i.response, required: i.required }))
+      items: r.items.map((i) => ({ name: i.question, responseType: i.response, isRequired: i.required })),
+      status: r.status
     };
   }
 }

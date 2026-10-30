@@ -4,10 +4,11 @@ import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search, Settings } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
 import { badgeInk, badgeText } from '../../asset/manufacturer/manufacturer.data';
+import { Observable } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { formatDate } from '../vendor.data';
-import { AssetTypeService } from '../../asset/asset-type/asset-type.service';
-import { CONTRACT_TYPES } from './amc-vendor.data';
+import { AMC_ASSET_TYPES, CONTRACT_TYPES } from './amc-vendor.data';
 import { AmcVendorForm } from './amc-vendor-form/amc-vendor-form';
 import { AmcVendorFilters, AmcVendorRecord } from './amc-vendor.model';
 import { AmcVendorService } from './amc-vendor.service';
@@ -26,11 +27,7 @@ const DAY = 86400000;
 export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, SortKey> {
   readonly service = inject(AmcVendorService);
   readonly basePath = MASTER_DATA_BASE_PATH;
-  private readonly typeService = inject(AssetTypeService);
-
-  get assetTypes(): string[] {
-    return this.typeService.all().map((t) => t.name);
-  }
+  readonly assetTypes = AMC_ASSET_TYPES;
   readonly contractTypes = CONTRACT_TYPES;
   readonly formatDate = formatDate;
   readonly badgeText = badgeText;
@@ -38,9 +35,11 @@ export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, S
   readonly icons = { Settings, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
   private readonly today = new Date().toISOString().slice(0, 10);
 
+  saving = false;
+
   constructor() {
     super({ search: '', assetType: '', contractType: '', status: '' });
-    this.service.load();
+    this.service.refresh().subscribe({ error: (err) => this.notify(`Couldn't load AMC vendors: ${apiErrorMessage(err)}`) });
   }
 
   keyOf(r: AmcVendorRecord): string {
@@ -69,8 +68,8 @@ export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, S
     return r[key];
   }
 
-  protected removeRecords(codes: string[]) {
-    return this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   /** 'ended', 'soon' (within the notice period) or '' for the end date flag. */
@@ -85,7 +84,7 @@ export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, S
   }
 
   duplicate(r: AmcVendorRecord): void {
-    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Active', logo: null, contractNo: '' });
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active', logo: null, contractNo: '' });
   }
 
   // Starts a new term of the same length the day after the current one ends
@@ -96,20 +95,35 @@ export class AmcVendorPage extends ListPage<AmcVendorRecord, AmcVendorFilters, S
     const end = new Date(start.getTime() + length);
     const startDate = start.toISOString().slice(0, 10);
     const endDate = end.toISOString().slice(0, 10);
-    this.persist(this.service.save({ ...r, startDate, endDate, status: 'Active' }, r.code), () => this.notify(`${r.name} renewed to ${formatDate(endDate)}.`));
+    this.service.persist({ ...r, startDate, endDate, status: 'Active' }, r.code).subscribe({
+      next: () => this.notify(`${r.name} renewed to ${formatDate(endDate)}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   onSaved(event: { record: AmcVendorRecord; originalCode: string | null }): void {
-    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
-      this.carrySelection(event.originalCode, saved.code);
-      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
-      this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.carrySelection(event.originalCode, saved.code);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
     });
   }
 
   toggleStatus(r: AmcVendorRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

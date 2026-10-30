@@ -31,6 +31,13 @@ export class WorkTypeForm extends MasterForm<WorkTypeRecord, Tab> {
     { id: 'details', label: 'Additional Details' }
   ];
 
+  constructor() {
+    super();
+    this.types.ensureLoaded();
+    this.priorities.ensureLoaded();
+    this.checklists.ensureLoaded();
+  }
+
   protected blank(): WorkTypeRecord {
     return blankWorkType();
   }

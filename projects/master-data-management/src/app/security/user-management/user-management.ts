@@ -2,12 +2,14 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search, UserRound } from 'lucide-angular';
+import { Observable } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
 import { avatarColor, initials } from '../../people/people.data';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { blankUser } from '../security.data';
 import { SecurityStatus, UserRecord } from '../security.model';
-import { RoleService, UserService } from '../security.service';
+import { RoleService, SecurityLoader, UserService } from '../security.service';
 import { UserForm } from './user-form/user-form';
 
 type SortKey = 'name' | 'username' | 'department';
@@ -31,10 +33,11 @@ export class UserManagementPage extends ListPage<UserRecord, Filters, SortKey> {
   readonly initials = initials;
   readonly avatarColor = avatarColor;
   readonly icons = { UserRound, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+  saving = false;
 
   constructor() {
     super({ search: '', role: '', status: '' });
-    this.service.load();
+    inject(SecurityLoader).load().subscribe({ error: (err) => this.notify(`Couldn't load users: ${apiErrorMessage(err)}`) });
   }
 
   keyOf(r: UserRecord): string {
@@ -62,8 +65,8 @@ export class UserManagementPage extends ListPage<UserRecord, Filters, SortKey> {
     return r[key];
   }
 
-  protected removeRecords(codes: string[]) {
-    return this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   protected override deleteBlocker(r: UserRecord): string | null {
@@ -98,11 +101,20 @@ export class UserManagementPage extends ListPage<UserRecord, Filters, SortKey> {
   }
 
   onSaved(event: { record: UserRecord; originalCode: string | null }): void {
+    if (this.saving) return;
+    this.saving = true;
     const invite = !event.originalCode && event.record.sendInvite;
-    this.persist(this.service.save({ ...event.record, sendInvite: false }, event.originalCode), (saved) => {
-      this.carrySelection(event.originalCode, saved.code);
-      this.notify(event.originalCode ? `${saved.name} updated.` : `${saved.name} added.${invite ? ` An invitation will be sent to ${saved.email}.` : ''}`);
-      this.closeForm();
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.carrySelection(event.originalCode, saved.code);
+        this.notify(event.originalCode ? `${saved.name} updated.` : `${saved.name} added.${invite ? ` An invitation will be sent to ${saved.email}.` : ''}`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
     });
   }
 
@@ -116,12 +128,18 @@ export class UserManagementPage extends ListPage<UserRecord, Filters, SortKey> {
       }
     }
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} ${status === 'Active' ? 'can sign in again' : 'can no longer sign in'}.`));
+    this.service.setStatus(r.code, status).subscribe({
+      next: () => this.notify(`${r.name} ${status === 'Active' ? 'can sign in again' : 'can no longer sign in'}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
-  // DEMO MODE: the reset email is sent by the identity service once it is connected
+  // Flags the account so the user must pick a new password; the reset email itself is sent by the identity service
   resetPassword(r: UserRecord): void {
     this.menuFor = null;
-    this.persist(this.service.save({ ...r, mustChangePassword: true }, r.code), () => this.notify(`A password reset link will be sent to ${r.email}.`));
+    this.service.persist({ ...r, mustChangePassword: true }, r.code).subscribe({
+      next: () => this.notify(`A password reset link will be sent to ${r.email}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

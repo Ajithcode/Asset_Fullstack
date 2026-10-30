@@ -1,6 +1,10 @@
+import { inject, signal } from '@angular/core';
+import { Observable, finalize, map, of, tap } from 'rxjs';
+import { MdmApi, apiErrorMessage, inSequence } from './mdm-api';
+
 /**
- * DEMO MODE: in-memory list of records keyed by `code`, shared by the simpler master services.
- * Replace the subclasses' storage with API calls when the backend is ready.
+ * In-memory list of records keyed by `code`, shared by the simpler master services.
+ * API-backed masters extend `ApiCodeStore` below.
  */
 export abstract class CodeStore<T extends { code: string; name?: string }> {
   protected records: T[];
@@ -44,5 +48,82 @@ export abstract class CodeStore<T extends { code: string; name?: string }> {
 
   remove(codes: string[]): void {
     this.records = this.records.filter((r) => !codes.includes(r.code));
+  }
+}
+
+/**
+ * CodeStore backed by `/api/master-data/{resource}`. Records stay keyed by `code` for the pages; the
+ * Mongo id of each one is kept alongside. `load()` fills the list; `persist()` / `delete()` call the API
+ * and update the local list only when the call succeeds.
+ */
+export abstract class ApiCodeStore<T extends { code: string; name?: string }, TDto extends { id: string }> extends CodeStore<T> {
+  protected readonly api = inject(MdmApi);
+  private readonly ids = new Map<string, string>();
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
+
+  /** Path under /api/master-data/, e.g. 'failure-codes'. */
+  protected abstract readonly resource: string;
+  protected abstract toRecord(dto: TDto): T;
+  /** Body for POST / PUT (the stamp fields are added by MdmApi). */
+  protected abstract toRequest(record: T): object;
+
+  protected constructor() {
+    super([]);
+  }
+
+  idOf(code: string): string | undefined {
+    return this.ids.get(code);
+  }
+
+  load(query: Record<string, string | number | boolean | null | undefined> = {}): Observable<T[]> {
+    this.loading.set(true);
+    this.error.set(null);
+    return this.api.list<TDto>(this.resource, query).pipe(
+      map((dtos) => {
+        this.ids.clear();
+        this.records = dtos.map((dto) => this.adopt(dto));
+        return this.records;
+      }),
+      tap({ error: (err) => this.error.set(apiErrorMessage(err)) }),
+      finalize(() => this.loading.set(false))
+    );
+  }
+
+  /** Creates (no `originalCode`) or updates the record, then stores what the server returned. */
+  persist(record: T, originalCode: string | null): Observable<T> {
+    const id = originalCode ? this.ids.get(originalCode) : undefined;
+    const call = id
+      ? this.api.update<TDto>(this.resource, id, this.toRequest(record))
+      : this.api.create<TDto>(this.resource, this.toRequest(record));
+    return call.pipe(
+      map((dto) => {
+        if (originalCode) this.ids.delete(originalCode);
+        const saved = this.adopt(dto);
+        this.save(saved, id ? originalCode : null);
+        return saved;
+      })
+    );
+  }
+
+  /** Deletes the records one at a time; codes deleted before a failure are still removed locally. */
+  delete(codes: string[]): Observable<unknown> {
+    const calls = codes.map((code) => {
+      const id = this.ids.get(code);
+      const call = id ? this.api.remove(this.resource, id) : of(null);
+      return call.pipe(tap(() => this.forget(code)));
+    });
+    return inSequence(calls);
+  }
+
+  private forget(code: string): void {
+    this.ids.delete(code);
+    this.remove([code]);
+  }
+
+  private adopt(dto: TDto): T {
+    const record = this.toRecord(dto);
+    this.ids.set(record.code, dto.id);
+    return record;
   }
 }

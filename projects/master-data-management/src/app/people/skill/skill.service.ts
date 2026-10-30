@@ -1,144 +1,121 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable, ReplaySubject, map, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { Injectable } from '@angular/core';
+import { Observable, map } from 'rxjs';
+import { ApiCodeStore } from '../../shared/code-store';
+import { MdmAudit } from '../../shared/mdm-api';
 import { AssetModelIcon } from '../../asset/asset-model/asset-model.icons';
-import { blankSkill } from './skill.data';
-import { SkillRecord, SkillType } from './skill.model';
+import { LoadOnce } from '../load-once';
+import { apiText, stampOf } from '../people.data';
+import { SkillRecord, SkillStatus, SkillType } from './skill.model';
 
-/** Raw shape returned by GET/POST/PUT {projectApiUrl}api/master-data/skills */
-interface SkillDto {
-  id: string;
+interface SkillDto extends MdmAudit {
   skillName: string;
   code: string;
   category: string | null;
   type: string | null;
   description: string | null;
   icon: string | null;
-  createdBy: string | null;
-  createdAt: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  status: string | null;
+  levels: string[];
+  relatedRoles: string[];
+  certificationRequired: boolean;
+  certificationValidityMonths: number | null;
+  assessmentRequired: boolean;
 }
 
 /**
- * Skills from the Master Data API. Rows are cached after load() so the People pages can keep
- * reading them synchronously; writes go to the API and update the cache when they succeed.
- * Employees and technicians refer to skills by name; the API renames them too. Levels, related
- * roles and certification settings are UI-only for now.
+ * Skills from /api/master-data/skills. Employees, technicians and service providers refer to skills by
+ * name; the API renames them there when a skill is renamed.
  */
 @Injectable({ providedIn: 'root' })
-export class SkillService {
-  private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
-  private readonly apiUrl = `${environment.projectApiUrl}api/master-data/skills`;
-
-  private records: SkillRecord[] = [];
-  loading = false;
-  loadError = '';
-  private readonly settled = new ReplaySubject<void>(1);
-  /** Emits once the first load has finished (or failed), so pages that link by id can map them. */
-  readonly settled$ = this.settled.asObservable();
+export class SkillService extends ApiCodeStore<SkillRecord, SkillDto> {
+  protected readonly resource = 'skills';
+  private readonly loader = new LoadOnce(() => this.load());
 
   constructor() {
-    this.load();
+    super();
   }
 
-  /** GET /api/master-data/skills (skipped while a load is already running) */
-  load(): void {
-    if (this.loading) return;
-    this.loading = true;
-    this.loadError = '';
-    this.http.get<SkillDto[]>(this.apiUrl, { params: { clientId: environment.clientId } }).subscribe({
-      next: (list) => {
-        this.records = list.map((d) => this.toRecord(d));
-        this.loading = false;
-        this.settled.next();
-      },
-      error: (err) => {
-        this.loadError = apiErrorMessage(err);
-        this.loading = false;
-        this.settled.next();
-      }
-    });
-  }
-
-  all(): SkillRecord[] {
+  /** All skills; the first read starts loading them. */
+  override all(): SkillRecord[] {
+    this.loadOnFirstRead();
     return this.records;
   }
 
-  find(code: string | null): SkillRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+  private autoLoad = true;
+
+  // Deferred: reads happen while templates render, where the loading signal can't be written
+  private loadOnFirstRead(): void {
+    if (!this.autoLoad) return;
+    this.autoLoad = false;
+    queueMicrotask(() => this.ensureLoaded());
+  }
+
+  /** Loads the list once, for pages and pickers that only read it. */
+  ensureLoaded(): void {
+    this.loader.ensure();
+  }
+
+  /** Completes once the list has been loaded (at most one request). */
+  loadOnce(): Observable<unknown> {
+    return this.loader.once();
+  }
+
+  /** Reloads the list from the API. */
+  refresh(): Observable<SkillRecord[]> {
+    return this.loader.refresh();
   }
 
   /** Active skill names A-Z, plus `keep` so existing choices stay selectable. */
   activeNames(keep: string[] = []): string[] {
+    this.loadOnFirstRead();
     return this.records
       .filter((r) => r.status === 'Active' || keep.includes(r.name))
       .map((r) => r.name)
       .sort((a, b) => a.localeCompare(b));
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+  setStatus(record: SkillRecord, status: SkillStatus): Observable<SkillRecord> {
+    return this.api.setStatus<SkillDto>(this.resource, this.idOf(record.code)!, status).pipe(map((dto) => this.replace(dto)));
   }
 
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
+  private replace(dto: SkillDto): SkillRecord {
+    const record = this.toRecord(dto);
+    this.save(record, record.code);
+    return record;
   }
 
-  /** POST for a new record, PUT /{id} for an existing one. */
-  save(record: SkillRecord): Observable<SkillRecord> {
-    const user = this.auth.getUserEmail() || 'unknown';
-    const body = {
-      skillName: record.name,
-      code: record.code,
-      category: record.category,
-      type: record.type,
-      description: record.description,
-      icon: record.icon,
-      status: record.status
-    };
-    const request$ = record.id
-      ? this.http.put<SkillDto>(`${this.apiUrl}/${record.id}`, { ...body, updatedBy: user })
-      : this.http.post<SkillDto>(this.apiUrl, { ...body, createdBy: user, clientId: environment.clientId, tenantId: environment.tenantId });
-
-    return request$.pipe(
-      // Keep the fields the API doesn't store yet
-      map((dto) => ({ ...record, ...this.toRecord(dto) })),
-      tap((saved) => {
-        const index = this.records.findIndex((r) => r.id === saved.id);
-        this.records = index >= 0 ? this.records.map((r, i) => (i === index ? saved : r)) : [saved, ...this.records];
-      })
-    );
-  }
-
-  /** DELETE /api/master-data/skills/{id} */
-  remove(record: SkillRecord): Observable<void> {
-    return this.http
-      .delete<void>(`${this.apiUrl}/${record.id}`)
-      .pipe(tap(() => (this.records = this.records.filter((r) => r.id !== record.id))));
-  }
-
-  private toRecord(dto: SkillDto): SkillRecord {
-    // DEMO MODE: the fields the API doesn't store yet keep what this session has
-    const cached = this.records.find((r) => r.id === dto.id) ?? blankSkill();
+  protected toRecord(dto: SkillDto): SkillRecord {
     return {
-      ...cached,
-      id: dto.id,
       code: dto.code,
       name: dto.skillName,
       category: dto.category ?? '',
-      type: (dto.type ?? cached.type) as SkillType,
+      type: (dto.type as SkillType) || 'Hard Skill',
       description: dto.description ?? '',
-      icon: (dto.icon ?? cached.icon) as AssetModelIcon,
-      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
-      createdOn: dto.createdAt?.slice(0, 16) ?? '',
-      updatedOn: (dto.updatedAt ?? dto.createdAt)?.slice(0, 16) ?? ''
+      icon: (dto.icon as AssetModelIcon) || 'wrench',
+      status: (dto.status as SkillStatus) || 'Active',
+      levels: dto.levels ?? [],
+      relatedRoles: dto.relatedRoles ?? [],
+      certificationRequired: dto.certificationRequired,
+      certificationValidityMonths: dto.certificationValidityMonths ?? 0,
+      assessmentRequired: dto.assessmentRequired,
+      createdOn: stampOf(dto.createdAt),
+      updatedOn: stampOf(dto.updatedAt)
+    };
+  }
+
+  protected toRequest(r: SkillRecord): object {
+    return {
+      skillName: r.name,
+      code: r.code,
+      category: apiText(r.category),
+      type: r.type,
+      description: apiText(r.description),
+      icon: r.icon,
+      levels: r.levels,
+      relatedRoles: r.relatedRoles,
+      certificationRequired: r.certificationRequired,
+      certificationValidityMonths: r.certificationRequired ? r.certificationValidityMonths : null,
+      assessmentRequired: r.assessmentRequired,
+      status: r.status
     };
   }
 }

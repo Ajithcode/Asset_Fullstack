@@ -2,8 +2,6 @@ export type ManufacturerStatus = 'Active' | 'Inactive';
 export type PaymentTerms = 'Advance' | 'Net 15' | 'Net 30' | 'Net 45' | 'Net 60';
 
 export interface ManufacturerRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   country: string;

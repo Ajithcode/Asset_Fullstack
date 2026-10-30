@@ -1,8 +1,6 @@
 export type FailureSeverity = 'Critical' | 'High' | 'Medium' | 'Low';
 
 export interface FailureCodeRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   category: string;

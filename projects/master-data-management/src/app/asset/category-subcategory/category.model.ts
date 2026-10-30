@@ -15,8 +15,6 @@ export interface SubcategoryRecord {
 }
 
 export interface CategoryRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   // How assets in the category are accounted for, e.g. Fixed Asset or Consumable

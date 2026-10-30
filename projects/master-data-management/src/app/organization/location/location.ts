@@ -16,9 +16,8 @@ import {
   Search,
   TreePine
 } from 'lucide-angular';
-import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { LocationDetail } from './location-detail/location-detail';
 import { LocationForm } from './location-form/location-form';
 import { iconForType } from './location.icons';
@@ -64,12 +63,18 @@ export class LocationPage {
   formRecord: LocationRecord | null = null;
 
   pendingDelete: LocationRecord[] = [];
-  toast = '';
   saving = false;
+  deleting = false;
+  toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
-    this.service.load();
+    this.service.load().subscribe({
+      next: () => {
+        if (!this.service.find(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+      },
+      error: (err) => this.notify(`Could not load locations: ${apiErrorMessage(err)}`)
+    });
   }
 
   get stats() {
@@ -111,7 +116,7 @@ export class LocationPage {
   }
 
   get selectedLocation(): LocationRecord | undefined {
-    return this.service.find(this.selectedCode) ?? this.service.all()[0];
+    return this.service.find(this.selectedCode);
   }
 
   // ---- filters ----
@@ -223,7 +228,7 @@ export class LocationPage {
   onSaved(event: { record: LocationRecord; originalCode: string | null }): void {
     if (this.saving) return;
     this.saving = true;
-    this.service.save(event.record, event.originalCode).subscribe({
+    this.service.persist(event.record, event.originalCode).subscribe({
       next: (saved) => {
         this.saving = false;
         if (event.originalCode && this.selected.delete(event.originalCode)) {
@@ -244,12 +249,12 @@ export class LocationPage {
   duplicate(record: LocationRecord): void {
     let n = 1;
     while (this.service.isCodeTaken(`${record.code}-C${n}`, null)) n++;
-    this.openAdd({ ...record, id: '', code: `${record.code}-C${n}`, name: `${record.name} (Copy)` });
+    this.openAdd({ ...record, code: `${record.code}-C${n}`, name: `${record.name} (Copy)` });
   }
 
   toggleStatus(record: LocationRecord): void {
     const status = record.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...record, status }, record.code).subscribe({
+    this.service.setStatus(record, status).subscribe({
       next: () => this.notify(`${record.name} marked ${status}.`),
       error: (err) => this.notify(apiErrorMessage(err))
     });
@@ -257,7 +262,7 @@ export class LocationPage {
 
   // ---- delete ----
 
-  // Locations with child locations can't be deleted until those are moved or deleted
+  // Locations with child locations not being deleted too must be emptied first
   askDelete(records: LocationRecord[]): void {
     this.menuFor = null;
     const codes = new Set(records.map((r) => r.code));
@@ -275,28 +280,25 @@ export class LocationPage {
   }
 
   confirmDelete(): void {
+    if (this.deleting) return;
     const list = this.pendingDelete;
     const codes = list.map((r) => r.code);
-    this.pendingDelete = [];
-    // Children first, so the API doesn't refuse a parent whose children are in this batch
-    const depth = (r: LocationRecord) => {
-      let d = 0;
-      for (let p = this.service.find(r.parentCode); p && d < 20; p = this.service.find(p.parentCode)) d++;
-      return d;
+    const done = (message: string) => {
+      const remaining = new Set(this.service.all().map((r) => r.code));
+      codes.filter((c) => !remaining.has(c)).forEach((c) => this.selected.delete(c));
+      if (this.selectedCode && !remaining.has(this.selectedCode)) {
+        this.selectedCode = this.pageRows.find((r) => remaining.has(r.code))?.code ?? null;
+      }
+      if (this.formMode === 'edit' && this.formRecord && !remaining.has(this.formRecord.code)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
     };
-    const ordered = [...list].sort((a, b) => depth(b) - depth(a));
-    concat(...ordered.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
-      next: () => {
-        codes.forEach((c) => this.selected.delete(c));
-        if (this.selectedCode && codes.includes(this.selectedCode)) {
-          this.selectedCode = this.pageRows.find((r) => !codes.includes(r.code))?.code ?? null;
-        }
-        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} locations deleted.`);
-        this.goTo(this.page);
-      },
-      // Any locations deleted before the failure are already gone from the table
-      error: (err) => this.notify(apiErrorMessage(err))
+    this.deleting = true;
+    this.service.deleteNested(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} locations deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
     });
   }
 

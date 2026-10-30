@@ -1,9 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, FileText, LucideAngularModule, Plus, Search } from 'lucide-angular';
+import { Observable, finalize } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { STANDARD_CATEGORIES, STANDARD_ORGANIZATIONS } from '../compliance.data';
 import { ComplianceStatus, StandardRecord } from '../compliance.model';
 import { CertificationTypeService, RegulationService, StandardService } from '../compliance.service';
@@ -24,8 +26,9 @@ interface Filters {
   templateUrl: './standard.html',
   styleUrls: ['../../shared/styles/mdm-page.css', '../compliance.css']
 })
-export class StandardPage extends ListPage<StandardRecord, Filters, SortKey> {
+export class StandardPage extends ListPage<StandardRecord, Filters, SortKey> implements OnInit {
   readonly service = inject(StandardService);
+  saving = false;
   private readonly certifications = inject(CertificationTypeService);
   private readonly regulations = inject(RegulationService);
   readonly basePath = MASTER_DATA_BASE_PATH;
@@ -35,7 +38,12 @@ export class StandardPage extends ListPage<StandardRecord, Filters, SortKey> {
 
   constructor() {
     super({ search: '', organization: '', category: '', status: '' });
-    this.service.load();
+  }
+
+  ngOnInit(): void {
+    this.service.refresh((message) => this.notify(`Could not load standards: ${message}`));
+    this.certifications.ensureLoaded();
+    this.regulations.ensureLoaded();
   }
 
   keyOf(r: StandardRecord): string {
@@ -64,8 +72,8 @@ export class StandardPage extends ListPage<StandardRecord, Filters, SortKey> {
     return r[key];
   }
 
-  protected removeRecords(codes: string[]) {
-    return this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   // Standards referenced by certification types or regulations can't be deleted
@@ -75,24 +83,35 @@ export class StandardPage extends ListPage<StandardRecord, Filters, SortKey> {
   }
 
   duplicate(r: StandardRecord): void {
-    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Active' });
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
   }
 
   onSaved(event: { record: StandardRecord; originalCode: string | null }): void {
-    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
-      if (event.originalCode) {
-        this.certifications.recodeStandard(event.originalCode, saved.code);
-        this.regulations.recodeStandard(event.originalCode, saved.code);
-      }
-      this.carrySelection(event.originalCode, saved.code);
-      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
-      this.closeForm();
-    });
+    if (this.saving) return;
+    this.saving = true;
+    this.service
+      .persist(event.record, event.originalCode)
+      .pipe(finalize(() => (this.saving = false)))
+      .subscribe({
+        next: () => {
+          if (event.originalCode) {
+            this.certifications.recodeStandard(event.originalCode, event.record.code);
+            this.regulations.recodeStandard(event.originalCode, event.record.code);
+          }
+          this.carrySelection(event.originalCode, event.record.code);
+          this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+          this.closeForm();
+        },
+        error: (err) => this.notify(apiErrorMessage(err))
+      });
   }
 
   toggleStatus(r: StandardRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
+    this.service.setStatus(r.code, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

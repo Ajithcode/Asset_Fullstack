@@ -1,14 +1,13 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable, map, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { Injectable } from '@angular/core';
+import { MdmAudit } from '../../shared/mdm-api';
+import { AssetStore, activeStatus, localStamp } from '../asset-store';
 import { blankManufacturer } from './manufacturer.data';
-import { ManufacturerFilters, ManufacturerRecord } from './manufacturer.model';
+import { ManufacturerFilters, ManufacturerRecord, PaymentTerms } from './manufacturer.model';
 
-/** Raw shape returned by GET/POST/PUT {projectApiUrl}api/master-data/manufacturers */
-interface ManufacturerDto {
-  id: string;
+type Address = ManufacturerRecord['address'];
+
+/** Manufacturer as `/api/master-data/manufacturers` returns it. */
+interface ManufacturerDto extends MdmAudit {
   manufacturerName: string;
   code: string;
   country: string | null;
@@ -17,65 +16,40 @@ interface ManufacturerDto {
   contactPerson: string | null;
   email: string | null;
   phoneNumber: string | null;
-  createdBy: string | null;
-  createdAt: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  status: string | null;
+  logo: string | null;
+  brandColor: string | null;
+  designation: string | null;
+  secondaryContact: string | null;
+  secondaryEmail: string | null;
+  secondaryPhone: string | null;
+  address: { [K in keyof Address]: string | null } | null;
+  supportPortal: string | null;
+  supportEmail: string | null;
+  supportPhone: string | null;
+  standardWarrantyMonths: number | null;
+  slaResponseHours: number | null;
+  defaultCurrency: string | null;
+  paymentTerms: string | null;
+  preferred: boolean;
+  warrantyRegistration: boolean;
+  autoCreateWarranty: boolean;
 }
 
 /**
- * Manufacturers from the Master Data API. Rows are cached after load() so this page and the Asset
- * Model / Item / Supplier pages can keep reading them synchronously; writes go to the API and
- * update the cache when they succeed. Logo, address, support and default settings are UI-only.
+ * Manufacturers from the master data API. Has no dependencies so the Asset Model master can use it
+ * for its Manufacturer list. A manufacturer's models are not sent; each model points at its maker.
  */
 @Injectable({ providedIn: 'root' })
-export class ManufacturerService {
-  private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
-  private readonly apiUrl = `${environment.projectApiUrl}api/master-data/manufacturers`;
-
-  private records: ManufacturerRecord[] = [];
-  loading = false;
-  loadError = '';
+export class ManufacturerService extends AssetStore<ManufacturerRecord, ManufacturerDto> {
+  protected readonly resource = 'manufacturers';
 
   constructor() {
-    this.load();
-  }
-
-  /** GET /api/master-data/manufacturers (skipped while a load is already running) */
-  load(): void {
-    if (this.loading) return;
-    this.loading = true;
-    this.loadError = '';
-    this.http.get<ManufacturerDto[]>(this.apiUrl, { params: { clientId: environment.clientId } }).subscribe({
-      next: (list) => {
-        this.records = list.map((d) => this.toRecord(d));
-        this.loading = false;
-      },
-      error: (err) => {
-        this.loadError = apiErrorMessage(err);
-        this.loading = false;
-      }
-    });
-  }
-
-  all(): ManufacturerRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null): ManufacturerRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
-  }
-
-  // Asset models refer to their manufacturer by name
-  findByName(name: string): ManufacturerRecord | undefined {
-    return this.records.find((r) => r.name === name);
+    super();
   }
 
   /** Active manufacturers A-Z, plus `keep` so an existing choice stays selectable. */
   activeNames(keep = ''): string[] {
-    return this.records
+    return this.all()
       .filter((r) => r.status === 'Active' || r.name === keep)
       .map((r) => r.name)
       .sort((a, b) => a.localeCompare(b));
@@ -92,69 +66,78 @@ export class ManufacturerService {
     );
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  /** POST for a new record, PUT /{id} for an existing one. */
-  save(record: ManufacturerRecord): Observable<ManufacturerRecord> {
-    const user = this.auth.getUserEmail() || 'unknown';
-    const body = {
-      manufacturerName: record.name,
-      code: record.code,
-      country: record.country,
-      website: record.website,
-      description: record.description,
-      contactPerson: record.primaryContact,
-      email: record.email,
-      phoneNumber: record.phone,
-      status: record.status
-    };
-    const request$ = record.id
-      ? this.http.put<ManufacturerDto>(`${this.apiUrl}/${record.id}`, { ...body, updatedBy: user })
-      : this.http.post<ManufacturerDto>(this.apiUrl, { ...body, createdBy: user, clientId: environment.clientId, tenantId: environment.tenantId });
-
-    return request$.pipe(
-      // Keep the fields the API doesn't store yet
-      map((dto) => ({ ...record, ...this.toRecord(dto) })),
-      tap((saved) => {
-        const index = this.records.findIndex((r) => r.id === saved.id);
-        this.records = index >= 0 ? this.records.map((r, i) => (i === index ? saved : r)) : [saved, ...this.records];
-      })
-    );
-  }
-
-  /** DELETE /api/master-data/manufacturers/{id}; the API refuses one that still has asset models. */
-  remove(record: ManufacturerRecord): Observable<void> {
-    return this.http
-      .delete<void>(`${this.apiUrl}/${record.id}`)
-      .pipe(tap(() => (this.records = this.records.filter((r) => r.id !== record.id))));
-  }
-
-  private toRecord(dto: ManufacturerDto): ManufacturerRecord {
-    // DEMO MODE: the fields the API doesn't store yet keep what this session has
-    const cached = this.records.find((r) => r.id === dto.id) ?? blankManufacturer();
+  protected toRecord(dto: ManufacturerDto): ManufacturerRecord {
+    const blank = blankManufacturer();
+    const a = dto.address;
     return {
-      ...cached,
-      id: dto.id,
+      ...blank,
       code: dto.code,
       name: dto.manufacturerName,
       country: dto.country ?? '',
       website: dto.website ?? '',
       description: dto.description ?? '',
+      logo: dto.logo,
+      brandColor: dto.brandColor ?? blank.brandColor,
+      status: activeStatus(dto.status),
       primaryContact: dto.contactPerson ?? '',
+      designation: dto.designation ?? '',
       email: dto.email ?? '',
       phone: dto.phoneNumber ?? '',
-      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
-      createdOn: dto.createdAt?.slice(0, 16) ?? '',
+      secondaryContact: dto.secondaryContact ?? '',
+      secondaryEmail: dto.secondaryEmail ?? '',
+      secondaryPhone: dto.secondaryPhone ?? '',
+      address: {
+        line1: a?.line1 ?? '',
+        line2: a?.line2 ?? '',
+        city: a?.city ?? '',
+        state: a?.state ?? '',
+        postalCode: a?.postalCode ?? '',
+        country: a?.country ?? ''
+      },
+      supportPortal: dto.supportPortal ?? '',
+      supportEmail: dto.supportEmail ?? '',
+      supportPhone: dto.supportPhone ?? '',
+      standardWarrantyMonths: dto.standardWarrantyMonths ?? blank.standardWarrantyMonths,
+      slaResponseHours: dto.slaResponseHours ?? blank.slaResponseHours,
+      defaultCurrency: dto.defaultCurrency ?? blank.defaultCurrency,
+      paymentTerms: (dto.paymentTerms as PaymentTerms) ?? blank.paymentTerms,
+      preferred: dto.preferred,
+      warrantyRegistration: dto.warrantyRegistration,
+      autoCreateWarranty: dto.autoCreateWarranty,
+      createdOn: localStamp(dto.createdAt),
       createdBy: dto.createdBy ?? '',
-      updatedOn: (dto.updatedAt ?? dto.createdAt)?.slice(0, 16) ?? ''
+      updatedOn: localStamp(dto.updatedAt ?? dto.createdAt)
+    };
+  }
+
+  protected toRequest(r: ManufacturerRecord): object {
+    return {
+      manufacturerName: r.name,
+      code: r.code,
+      country: r.country,
+      website: r.website,
+      description: r.description,
+      contactPerson: r.primaryContact,
+      email: r.email,
+      phoneNumber: r.phone,
+      logo: r.logo,
+      brandColor: r.brandColor,
+      designation: r.designation,
+      secondaryContact: r.secondaryContact,
+      secondaryEmail: r.secondaryEmail,
+      secondaryPhone: r.secondaryPhone,
+      address: r.address,
+      supportPortal: r.supportPortal,
+      supportEmail: r.supportEmail,
+      supportPhone: r.supportPhone,
+      standardWarrantyMonths: r.standardWarrantyMonths,
+      slaResponseHours: r.slaResponseHours,
+      defaultCurrency: r.defaultCurrency,
+      paymentTerms: r.paymentTerms,
+      preferred: r.preferred,
+      warrantyRegistration: r.warrantyRegistration,
+      autoCreateWarranty: r.autoCreateWarranty,
+      status: r.status
     };
   }
 }

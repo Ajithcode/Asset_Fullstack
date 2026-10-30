@@ -101,7 +101,7 @@
           </thead>
           <tbody>
             @for (r of pageRows; track r.code) {
-              <tr [class.is-selected]="r.code === selectedDepartment?.code" (click)="open(r.code, false)">
+              <tr [class.is-selected]="r.code === selectedCode" (click)="open(r.code, false)">
                 <td class="col-check" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="selected.has(r.code)" (change)="toggleRow(r.code)" [attr.aria-label]="'Select ' + r.name" />
                 </td>
@@ -141,13 +141,7 @@
                 </td>
               </tr>
             } @empty {
-              @if (service.loading) {
-                <tr><td colspan="9" class="empty">Loading departments...</td></tr>
-              } @else if (service.loadError) {
-                <tr><td colspan="9" class="empty">{{ service.loadError }} <button type="button" class="btn btn--link" (click)="service.load()">Retry</button></td></tr>
-              } @else {
-                <tr><td colspan="9" class="empty">No departments match these filters.</td></tr>
-              }
+              <tr><td colspan="9" class="empty">No departments match these filters.</td></tr>
             }
           </tbody>
         </table>
@@ -174,7 +168,7 @@
   </div>
 
   @if (formOpen) {
-    <app-dept-form #formEl class="mdm-form" [mode]="formMode" [department]="formRecord" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-dept-form>
+    <app-dept-form [saving]="saving" #formEl class="mdm-form" [mode]="formMode" [department]="formRecord" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-dept-form>
   }
 
   <div class="mdm-detail" #detailEl>
@@ -198,7 +192,7 @@
       <p>Sub-departments will move directly under their business unit. This can't be undone.</p>
       <div class="confirm__actions">
         <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
-        <button type="button" class="btn btn--danger" (click)="confirmDelete()">Delete</button>
+        <button type="button" class="btn btn--danger" [disabled]="deleting" (click)="confirmDelete()">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
       </div>
     </div>
   </div>

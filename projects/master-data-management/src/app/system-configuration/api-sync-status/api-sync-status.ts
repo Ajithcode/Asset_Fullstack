@@ -3,7 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, RefreshCw, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { Observable } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { ConfigStatus, SyncStatusRecord } from '../system-config.model';
 import { SyncStatusService, SystemSettingsService } from '../system-config.service';
 import { SyncStatusForm } from './sync-status-form/sync-status-form';
@@ -27,10 +29,17 @@ export class ApiSyncStatusPage extends ListPage<SyncStatusRecord, Filters, SortK
   readonly basePath = MASTER_DATA_BASE_PATH;
 
   readonly icons = { RefreshCw, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+  saving = false;
 
   constructor() {
     super({ search: '', status: '' });
-    this.service.load();
+    this.refresh();
+  }
+
+  /** Loads the list from the API, with the masters it points at. */
+  refresh(): void {
+    this.service.load().subscribe({ error: (err) => this.notify(apiErrorMessage(err)) });
+    this.settings.load().subscribe({ error: (err) => this.notify(apiErrorMessage(err)) });
   }
 
   keyOf(r: SyncStatusRecord): string {
@@ -57,8 +66,8 @@ export class ApiSyncStatusPage extends ListPage<SyncStatusRecord, Filters, SortK
     return r[key];
   }
 
-  protected removeRecords(codes: string[]) {
-    return this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   // The status used for failed syncs in Integration settings can't be deleted
@@ -67,20 +76,32 @@ export class ApiSyncStatusPage extends ListPage<SyncStatusRecord, Filters, SortK
   }
 
   duplicate(r: SyncStatusRecord): void {
-    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Active' });
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
   }
 
   onSaved(event: { record: SyncStatusRecord; originalCode: string | null }): void {
-    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
-      this.carrySelection(event.originalCode, saved.code);
-      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
-      this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: () => {
+        this.saving = false;
+        this.carrySelection(event.originalCode, event.record.code);
+        this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
     });
   }
 
   toggleStatus(r: SyncStatusRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

@@ -115,13 +115,7 @@
                 </td>
               </tr>
             } @empty {
-              @if (service.loading) {
-                <tr><td colspan="11" class="empty">Loading shifts...</td></tr>
-              } @else if (service.loadError) {
-                <tr><td colspan="11" class="empty">{{ service.loadError }} <button type="button" class="btn btn--link" (click)="service.load()">Retry</button></td></tr>
-              } @else {
-                <tr><td colspan="11" class="empty">No shifts match these filters.</td></tr>
-              }
+              <tr><td colspan="11" class="empty">No shifts match these filters.</td></tr>
             }
           </tbody>
         </table>

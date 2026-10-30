@@ -1,8 +1,6 @@
 export type MasterStatus = 'Active' | 'Inactive';
 
 export interface MaintenanceTypeRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   description: string;

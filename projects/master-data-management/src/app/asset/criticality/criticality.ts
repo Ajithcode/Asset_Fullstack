@@ -1,14 +1,13 @@
-import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, List, LucideAngularModule, Plus, Search, ShieldHalf, Star } from 'lucide-angular';
-import { forkJoin } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { CritDetail } from './crit-detail/crit-detail';
 import { CritForm, CritFormTab } from './crit-form/crit-form';
 import { SCALE } from './criticality.data';
 import { CriticalityFilters, CriticalityRecord } from './criticality.model';
-import { apiErrorMessage } from '../../shared/api-error';
 import { CriticalityService } from './criticality.service';
 
 type SortKey = 'name' | 'code' | 'riskLevel';
@@ -22,7 +21,7 @@ const EMPTY_FILTERS: CriticalityFilters = { search: '', status: '' };
   templateUrl: './criticality.html',
   styleUrls: ['../../shared/styles/mdm-page.css', '../level-page.css']
 })
-export class CriticalityPage {
+export class CriticalityPage implements OnInit {
   readonly service = inject(CriticalityService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly icons = { ShieldHalf, List, Star, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
@@ -48,12 +47,18 @@ export class CriticalityPage {
   formTab: CritFormTab = 'basic';
 
   pendingDelete: CriticalityRecord[] = [];
-  toast = '';
   saving = false;
+  deleting = false;
+  toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  constructor() {
-    this.service.load();
+  ngOnInit(): void {
+    this.service.reload().subscribe({
+      next: (list) => {
+        if (!this.service.find(this.selectedCode)) this.selectedCode = list[0]?.code ?? null;
+      },
+      error: (err) => this.notify(`Could not load criticality levels: ${apiErrorMessage(err)}`)
+    });
   }
 
   get stats() {
@@ -98,7 +103,7 @@ export class CriticalityPage {
   }
 
   get selectedLevel(): CriticalityRecord | undefined {
-    return this.service.find(this.selectedCode) ?? this.service.all()[0];
+    return this.service.find(this.selectedCode);
   }
 
   apply(): void {
@@ -166,7 +171,7 @@ export class CriticalityPage {
 
   // A copy keeps the impact and maintenance settings; it is never the default and has no assets
   duplicate(c: CriticalityRecord): void {
-    this.openAdd({ ...structuredClone(c), id: '', code: '', name: `${c.name} (Copy)`, isDefault: false, status: 'Active', assets: { total: 0, underMaintenance: 0, retired: 0 }, documents: 0 });
+    this.openAdd({ ...structuredClone(c), code: '', name: `${c.name} (Copy)`, isDefault: false, status: 'Active', assets: { total: 0, underMaintenance: 0, retired: 0 }, documents: 0 });
   }
 
   openEdit(event: { level: CriticalityRecord; tab?: CritFormTab }): void {
@@ -191,7 +196,7 @@ export class CriticalityPage {
   onSaved(event: { record: CriticalityRecord; originalCode: string | null }): void {
     if (this.saving) return;
     this.saving = true;
-    this.service.save(event.record).subscribe({
+    this.service.persist(event.record, event.originalCode).subscribe({
       next: (saved) => {
         this.saving = false;
         if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
@@ -212,7 +217,7 @@ export class CriticalityPage {
       this.notify(`Activate ${c.name} before making it the default.`);
       return;
     }
-    this.service.save({ ...c, isDefault: true }).subscribe({
+    this.service.persist({ ...c, isDefault: true }, c.code).subscribe({
       next: () => this.notify(`${c.name} is now the default criticality.`),
       error: (err) => this.notify(apiErrorMessage(err))
     });
@@ -226,7 +231,7 @@ export class CriticalityPage {
       return;
     }
     const status = c.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...c, status }).subscribe({
+    this.service.setStatus(c, status).subscribe({
       next: () => this.notify(`${c.name} marked ${status}.`),
       error: (err) => this.notify(apiErrorMessage(err))
     });
@@ -253,19 +258,24 @@ export class CriticalityPage {
   }
 
   confirmDelete(): void {
+    if (this.deleting) return;
     const list = this.pendingDelete;
     const codes = list.map((r) => r.code);
-    this.pendingDelete = [];
-    forkJoin(list.map((r) => this.service.remove(r))).subscribe({
-      next: () => {
-        codes.forEach((c) => this.selected.delete(c));
-        if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} criticality levels deleted.`);
-        this.goTo(this.page);
-      },
-      // Any rows deleted before the failure are already gone from the cache
-      error: (err) => this.notify(apiErrorMessage(err))
+    const done = (message: string) => {
+      // Levels deleted before a failure are gone too
+      const gone = codes.filter((c) => !this.service.find(c));
+      gone.forEach((c) => this.selected.delete(c));
+      if (this.selectedCode && gone.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+      if (this.formMode === 'edit' && this.formRecord && gone.includes(this.formRecord.code)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.delete(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} criticality levels deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
     });
   }
 

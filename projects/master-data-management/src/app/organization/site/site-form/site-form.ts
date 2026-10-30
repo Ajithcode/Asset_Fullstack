@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, inject, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { COUNTRIES, TIME_ZONES } from '../../organization/organization.data';
@@ -26,6 +26,7 @@ export class SiteForm implements OnChanges {
   // 'edit' changes `site`; 'add' creates a new one, pre-filled from `site` if given
   @Input() mode: 'add' | 'edit' = 'add';
   @Input() site: SiteRecord | null = null;
+  @Input() saving = false;
   @Input() initialTab: SiteFormTab = 'basic';
   @Output() saved = new EventEmitter<SiteRecord>();
   @Output() cancelled = new EventEmitter<void>();
@@ -52,7 +53,9 @@ export class SiteForm implements OnChanges {
   errors: Partial<Record<FieldKey, string>> = {};
   private original: SiteRecord | null = null;
 
-  ngOnChanges(): void {
+  ngOnChanges(changes: SimpleChanges): void {
+    // Only a new record (or mode) resets the form; `saving` flips must keep the user's edits
+    if (!changes['mode'] && !changes['site'] && !changes['initialTab']) return;
     this.original = this.mode === 'edit' ? this.site : null;
     this.form = this.site ? structuredClone(this.site) : blankSite();
     this.errors = {};
@@ -152,8 +155,7 @@ export class SiteForm implements OnChanges {
     const stamp = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     this.saved.emit({
       ...f,
-      // Empty for a new site; the API assigns the id
-      id: this.original?.id ?? '',
+      id: this.original?.id ?? this.service.nextId(),
       name: f.name.trim(),
       code: f.code.trim(),
       description: f.description.trim(),

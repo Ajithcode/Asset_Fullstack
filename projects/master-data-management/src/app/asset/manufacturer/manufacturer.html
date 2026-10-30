@@ -108,7 +108,7 @@
           </thead>
           <tbody>
             @for (r of pageRows; track r.code) {
-              <tr [class.is-selected]="r.code === selectedManufacturer?.code" (click)="open(r.code, false)">
+              <tr [class.is-selected]="r.code === selectedCode" (click)="open(r.code, false)">
                 <td class="col-check" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="selected.has(r.code)" (change)="toggleRow(r.code)" [attr.aria-label]="'Select ' + r.name" />
                 </td>
@@ -149,13 +149,7 @@
                 </td>
               </tr>
             } @empty {
-              @if (service.loading) {
-                <tr><td colspan="10" class="empty">Loading manufacturers...</td></tr>
-              } @else if (service.loadError) {
-                <tr><td colspan="10" class="empty">{{ service.loadError }} <button type="button" class="btn btn--link" (click)="service.load()">Retry</button></td></tr>
-              } @else {
-                <tr><td colspan="10" class="empty">No manufacturers match these filters.</td></tr>
-              }
+              <tr><td colspan="10" class="empty">No manufacturers match these filters.</td></tr>
             }
           </tbody>
         </table>
@@ -205,7 +199,7 @@
       <p>The manufacturer and its contact details will be removed. This can't be undone.</p>
       <div class="confirm__actions">
         <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
-        <button type="button" class="btn btn--danger" (click)="confirmDelete()">Delete</button>
+        <button type="button" class="btn btn--danger" [disabled]="deleting" (click)="confirmDelete()">{{ deleting ? 'Deleting...' : 'Delete' }}</button>
       </div>
     </div>
   </div>

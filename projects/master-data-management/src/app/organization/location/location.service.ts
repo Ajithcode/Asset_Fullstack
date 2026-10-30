@@ -1,93 +1,54 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
-import { BUILDINGS, FLOORS, SITES, ZONES, blankLocation, findBuilding } from './location.data';
-import { Building, Floor, LocationFilters, LocationRecord, LocationStats, LocationType, Site, Zone } from './location.model';
+import { Observable, switchMap } from 'rxjs';
+import { MdmAudit } from '../../shared/mdm-api';
+import { BfzService } from '../building-floor-zone/bfz.service';
+import { BfzRecord } from '../building-floor-zone/bfz.model';
+import { SiteService } from '../site/site.service';
+import { StructureReference, reference, toLocalStamp } from '../structure-api';
+import { StructureStore } from '../structure-store';
+import { buildingBounds, center, locationBounds, zoneCells } from './location.geometry';
+import { Building, Floor, LocationEnvironment, LocationFilters, LocationRecord, LocationStats, LocationStatus, LocationType, Site, Zone } from './location.model';
 
-/** Raw shape returned by GET/POST/PUT {projectApiUrl}api/master-data/locations */
-interface LocationDto {
-  id: string;
+interface LocationDto extends MdmAudit {
   locationName: string;
   code: string;
   type: string;
-  environment: string | null;
-  description: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  site: string | null;
+  // Codes of the building, floor and zone records
   building: string | null;
   floor: string | null;
   zone: string | null;
   parentLocationId: string | null;
-  parentLocationName: string | null;
-  createdBy: string | null;
-  createdAt: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  clientId: string | null;
-  tenantId: string | null;
-  status: string | null;
-  isDeleted: boolean;
-}
-
-/** Fields the API stores; area, capacity, image and the settings switches are UI-only for now. */
-interface LocationRequest {
-  locationName: string;
-  code: string;
-  type: string;
-  environment: string;
-  description: string;
-  latitude: number;
-  longitude: number;
-  site: string;
-  building: string;
-  floor: string;
-  zone: string;
-  parentLocationId: string | null;
-  status: string;
+  environment: string | null;
+  site: StructureReference | null;
+  area: number | null;
+  capacity: number | null;
+  description: string | null;
+  imageUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  restrictedAccess: boolean;
+  temperatureControlled: boolean;
+  allowAssetAssignment: boolean;
+  enableTracking: boolean;
+  geofenceAlerts: boolean;
 }
 
 /**
- * Locations from the Master Data API. Rows are cached after load() so the page can keep reading
- * them synchronously; writes go to the API and update the cache when they succeed. The site /
- * building / floor / zone pickers are still DEMO MODE data until those masters are connected.
+ * Locations from `/api/master-data/locations`, keyed by code. The site / building / floor / zone
+ * lookups come from the Site and Building / Floor / Zone masters, which load first.
  */
 @Injectable({ providedIn: 'root' })
-export class LocationService {
-  private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
-  private readonly apiUrl = `${environment.projectApiUrl}api/master-data/locations`;
+export class LocationService extends StructureStore<LocationRecord, LocationDto> {
+  protected readonly resource = 'locations';
+  private readonly siteService = inject(SiteService);
+  private readonly bfz = inject(BfzService);
 
-  private records: LocationRecord[] = [];
-  loading = false;
-  loadError = '';
-
-  /** GET /api/master-data/locations (skipped while a load is already running) */
-  load(): void {
-    if (this.loading) return;
-    this.loading = true;
-    this.loadError = '';
-    this.http.get<LocationDto[]>(this.apiUrl, { params: { clientId: environment.clientId } }).subscribe({
-      next: (list) => {
-        const codeById = new Map(list.map((d) => [d.id, d.code]));
-        this.records = list.map((d) => this.toRecord(d, codeById));
-        this.loading = false;
-      },
-      error: (err) => {
-        this.loadError = apiErrorMessage(err);
-        this.loading = false;
-      }
-    });
+  constructor() {
+    super();
   }
 
-  all(): LocationRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null): LocationRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+  override load(query: Record<string, string | number | boolean | null | undefined> = {}): Observable<LocationRecord[]> {
+    return this.bfz.ensureLoaded().pipe(switchMap(() => super.load(query)));
   }
 
   children(code: string): LocationRecord[] {
@@ -126,139 +87,148 @@ export class LocationService {
     };
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+  // ---- hierarchy lookups (Site and Building / Floor / Zone masters) ----
+
+  sites(): Site[] {
+    return this.siteService.all().map((s) => {
+      const first = this.bfz.buildings(s.id).find((b) => b.lat !== null && b.lng !== null);
+      return { id: s.id, name: s.name, lat: s.lat ?? first?.lat ?? 0, lng: s.lng ?? first?.lng ?? 0 };
+    });
   }
 
-  /** POST for a new record, PUT /{id} for an existing one. */
-  save(record: LocationRecord, originalCode: string | null): Observable<LocationRecord> {
-    const user = this.auth.getUserEmail() || 'unknown';
-    const body = this.toRequest(record);
-    const request$ = record.id
-      ? this.http.put<LocationDto>(`${this.apiUrl}/${record.id}`, { ...body, updatedBy: user })
-      : this.http.post<LocationDto>(this.apiUrl, {
-          ...body,
-          createdBy: user,
-          clientId: environment.clientId,
-          tenantId: environment.tenantId
-        });
-
-    return request$.pipe(
-      // Keep the fields the API doesn't store yet
-      map((dto) => ({ ...record, ...this.toRecord(dto) })),
-      tap((saved) => {
-        const rows = [...this.records];
-        const index = rows.findIndex((r) => r.id === saved.id);
-        if (index >= 0) {
-          rows[index] = saved;
-        } else {
-          rows.unshift(saved);
-        }
-        // Children point at their parent by code, so follow a code change
-        if (originalCode && originalCode !== saved.code) {
-          rows.forEach((r, i) => {
-            if (r.parentCode === originalCode) rows[i] = { ...r, parentCode: saved.code };
-          });
-        }
-        this.records = rows;
-      })
-    );
+  buildings(siteId = ''): Building[] {
+    return this.bfz.buildings(siteId).map((b) => this.toBuilding(b));
   }
 
-  /** DELETE /api/master-data/locations/{id}; the API refuses a location that still has children. */
-  remove(record: LocationRecord): Observable<void> {
-    return this.http
-      .delete<void>(`${this.apiUrl}/${record.id}`)
-      .pipe(tap(() => (this.records = this.records.filter((r) => r.id !== record.id))));
+  findBuilding(code: string): Building | undefined {
+    const b = this.bfz.find(code);
+    return b && b.type === 'Building' ? this.toBuilding(b) : undefined;
   }
 
-  private toRecord(dto: LocationDto, codeById?: Map<string, string>): LocationRecord {
-    const parentId = dto.parentLocationId;
-    // DEMO MODE: the fields the API doesn't store yet keep what this session has
-    const cached = this.records.find((r) => r.id === dto.id) ?? blankLocation();
+  floors(buildingCode = ''): Floor[] {
+    const floors = buildingCode ? this.bfz.floorsOf(buildingCode) : this.bfz.all().filter((r) => r.type === 'Floor');
+    return floors.map((f) => ({ code: f.code, name: f.name }));
+  }
+
+  zones(buildingCode = '', floorCode = ''): Zone[] {
+    return this.bfz
+      .all()
+      .filter((z) => z.type === 'Zone' && (!buildingCode || z.buildingCode === buildingCode) && (!floorCode || z.floorCode === floorCode))
+      .map((z) => this.toZone(z));
+  }
+
+  zonesOnFloor(buildingCode: string, floorCode: string): Zone[] {
+    return this.zones(buildingCode, floorCode).filter((z) => z.buildingCode === buildingCode && z.floorCode === floorCode);
+  }
+
+  findZone(buildingCode: string, floorCode: string, zoneCode: string): Zone | undefined {
+    return this.zonesOnFloor(buildingCode, floorCode).find((z) => z.code === zoneCode);
+  }
+
+  /** Map position for a location: inside its zone's cell, or the building centre when it has no zone. */
+  positionFor(code: string, buildingCode: string, floorCode: string, zoneCode: string): { lat: number; lng: number } {
+    const building = this.findBuilding(buildingCode);
+    if (!building) {
+      const site = this.sites()[0];
+      return { lat: site?.lat ?? 0, lng: site?.lng ?? 0 };
+    }
+    const cell = zoneCells(building, this.zonesOnFloor(buildingCode, floorCode)).get(zoneCode);
+    return center(cell ? locationBounds(cell, code) : buildingBounds(building));
+  }
+
+  siteName(siteId: string): string {
+    return this.siteService.find(siteId)?.name ?? siteId;
+  }
+
+  buildingName(code: string): string {
+    return this.bfz.find(code)?.name ?? code;
+  }
+
+  floorName(code: string): string {
+    return this.bfz.find(code)?.name ?? code;
+  }
+
+  zoneName(r: Pick<LocationRecord, 'buildingCode' | 'floorCode' | 'zoneCode'>): string {
+    return this.bfz.find(r.zoneCode)?.name ?? r.zoneCode;
+  }
+
+  protected toRecord(dto: LocationDto): LocationRecord {
+    const buildingCode = dto.building ?? '';
+    const floorCode = dto.floor ?? '';
+    const zoneCode = dto.zone ?? '';
+    const siteId = dto.site?.id ?? this.bfz.find(buildingCode)?.siteId ?? '';
+    const position =
+      dto.latitude !== null && dto.longitude !== null
+        ? { lat: dto.latitude, lng: dto.longitude }
+        : this.positionFor(dto.code, buildingCode, floorCode, zoneCode);
     return {
-      ...cached,
-      id: dto.id,
       code: dto.code,
       name: dto.locationName,
       type: dto.type as LocationType,
-      environment: dto.environment === 'Outdoor' ? 'Outdoor' : 'Indoor',
-      siteId: dto.site ?? '',
-      buildingCode: dto.building ?? '',
-      floorCode: dto.floor ?? '',
-      zoneCode: dto.zone ?? '',
-      parentCode: parentId ? (codeById?.get(parentId) ?? this.records.find((r) => r.id === parentId)?.code ?? null) : null,
+      environment: (dto.environment as LocationEnvironment) ?? 'Indoor',
+      siteId,
+      buildingCode,
+      floorCode,
+      zoneCode,
+      // Parent id for now; StructureStore swaps it for the code
+      parentCode: dto.parentLocationId ?? null,
+      area: dto.area ?? null,
+      capacity: dto.capacity ?? null,
       description: dto.description ?? '',
-      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
-      lat: dto.latitude ?? 0,
-      lng: dto.longitude ?? 0,
-      createdOn: dto.createdAt?.slice(0, 16) ?? '',
-      updatedOn: (dto.updatedAt ?? dto.createdAt)?.slice(0, 16) ?? ''
+      status: (dto.status as LocationStatus) ?? 'Active',
+      image: dto.imageUrl,
+      lat: position.lat,
+      lng: position.lng,
+      restrictedAccess: dto.restrictedAccess,
+      temperatureControlled: dto.temperatureControlled,
+      allowAssetAssignment: dto.allowAssetAssignment,
+      enableTracking: dto.enableTracking,
+      geofenceAlerts: dto.geofenceAlerts,
+      createdOn: toLocalStamp(dto.createdAt),
+      updatedOn: toLocalStamp(dto.updatedAt ?? dto.createdAt)
     };
   }
 
-  private toRequest(r: LocationRecord): LocationRequest {
+  protected toRequest(r: LocationRecord): object {
     return {
       locationName: r.name,
       code: r.code,
       type: r.type,
       environment: r.environment,
+      site: reference(r.siteId, this.siteName(r.siteId)),
+      building: r.buildingCode || null,
+      floor: r.floorCode || null,
+      zone: r.zoneCode || null,
+      parentLocationId: r.parentCode ? (this.idOf(r.parentCode) ?? null) : null,
+      area: r.area,
+      capacity: r.capacity,
       description: r.description,
+      imageUrl: r.image,
       latitude: r.lat,
       longitude: r.lng,
-      site: r.siteId,
-      building: r.buildingCode,
-      floor: r.floorCode,
-      zone: r.zoneCode,
-      parentLocationId: this.find(r.parentCode)?.id ?? null,
+      restrictedAccess: r.restrictedAccess,
+      temperatureControlled: r.temperatureControlled,
+      allowAssetAssignment: r.allowAssetAssignment,
+      enableTracking: r.enableTracking,
+      geofenceAlerts: r.geofenceAlerts,
       status: r.status
     };
   }
 
-  // ---- hierarchy lookups ----
-
-  sites(): Site[] {
-    return SITES;
+  private toBuilding(b: BfzRecord): Building {
+    const site = this.siteService.find(b.siteId);
+    return {
+      code: b.code,
+      name: b.name,
+      siteId: b.siteId,
+      floorCodes: this.bfz.floorsOf(b.code).map((f) => f.code),
+      lat: b.lat ?? site?.lat ?? 0,
+      lng: b.lng ?? site?.lng ?? 0
+    };
   }
 
-  buildings(siteId = ''): Building[] {
-    return BUILDINGS.filter((b) => !siteId || b.siteId === siteId);
-  }
-
-  floors(buildingCode = ''): Floor[] {
-    const building = findBuilding(buildingCode);
-    return building ? FLOORS.filter((f) => building.floorCodes.includes(f.code)) : FLOORS;
-  }
-
-  zones(buildingCode = '', floorCode = ''): Zone[] {
-    const seen = new Set<string>();
-    return ZONES.filter((z) => {
-      if ((buildingCode && z.buildingCode !== buildingCode) || (floorCode && z.floorCode !== floorCode)) return false;
-      // The same zone code can exist in several buildings; list it once when unfiltered
-      if (seen.has(z.code)) return false;
-      seen.add(z.code);
-      return true;
-    });
-  }
-
-  siteName(siteId: string): string {
-    return SITES.find((s) => s.id === siteId)?.name ?? siteId;
-  }
-
-  buildingName(code: string): string {
-    return findBuilding(code)?.name ?? code;
-  }
-
-  floorName(code: string): string {
-    return FLOORS.find((f) => f.code === code)?.name ?? code;
-  }
-
-  zoneName(r: Pick<LocationRecord, 'buildingCode' | 'floorCode' | 'zoneCode'>): string {
-    return (
-      ZONES.find((z) => z.code === r.zoneCode && z.buildingCode === r.buildingCode && z.floorCode === r.floorCode)?.name ??
-      ZONES.find((z) => z.code === r.zoneCode)?.name ??
-      r.zoneCode
-    );
+  private toZone(z: BfzRecord): Zone {
+    // The masters don't record indoor / outdoor for zones; locations carry their own environment
+    return { code: z.code, name: z.name, buildingCode: z.buildingCode ?? '', floorCode: z.floorCode ?? '', outdoor: false };
   }
 }

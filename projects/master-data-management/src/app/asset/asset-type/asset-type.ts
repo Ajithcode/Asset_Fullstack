@@ -1,10 +1,9 @@
-import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Building2, ChevronLeft, ChevronRight, Ellipsis, Layers, LucideAngularModule, Monitor, Plus, Search } from 'lucide-angular';
-import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { MODEL_ICONS } from '../asset-model/asset-model.icons';
 import { AssetModelService } from '../asset-model/asset-model.service';
 import { AssetTypeFilters, AssetTypeRecord } from './asset-type.model';
@@ -23,7 +22,7 @@ const EMPTY_FILTERS: AssetTypeFilters = { search: '', category: '', status: '' }
   templateUrl: './asset-type.html',
   styleUrls: ['../../shared/styles/mdm-page.css', '../asset-model/asset-model.css']
 })
-export class AssetTypePage {
+export class AssetTypePage implements OnInit {
   readonly service = inject(AssetTypeService);
   readonly models = inject(AssetModelService);
   readonly basePath = MASTER_DATA_BASE_PATH;
@@ -51,12 +50,18 @@ export class AssetTypePage {
   formTab: TypeFormTab = 'basic';
 
   pendingDelete: AssetTypeRecord[] = [];
-  toast = '';
   saving = false;
+  deleting = false;
+  toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  constructor() {
-    this.service.load();
+  ngOnInit(): void {
+    this.service.reload().subscribe({
+      next: (list) => {
+        if (!this.service.find(this.selectedCode)) this.selectedCode = list[0]?.code ?? null;
+      },
+      error: (err) => this.notify(`Could not load asset types: ${apiErrorMessage(err)}`)
+    });
   }
 
   get stats() {
@@ -101,7 +106,7 @@ export class AssetTypePage {
   }
 
   get selectedType(): AssetTypeRecord | undefined {
-    return this.service.find(this.selectedCode) ?? this.service.all()[0];
+    return this.service.find(this.selectedCode);
   }
 
   apply(): void {
@@ -169,7 +174,7 @@ export class AssetTypePage {
 
   // A copy keeps every default; name and code must be new
   duplicate(t: AssetTypeRecord): void {
-    this.openAdd({ ...structuredClone(t), id: '', code: '', name: `${t.name} (Copy)`, status: 'Active', openWorkOrders: 0, documents: 0 });
+    this.openAdd({ ...structuredClone(t), code: '', name: `${t.name} (Copy)`, status: 'Active', openWorkOrders: 0, documents: 0 });
   }
 
   openEdit(event: { type: AssetTypeRecord; tab?: TypeFormTab }): void {
@@ -194,10 +199,10 @@ export class AssetTypePage {
   onSaved(event: { record: AssetTypeRecord; originalCode: string | null; originalName: string | null }): void {
     if (this.saving) return;
     this.saving = true;
-    this.service.save(event.record).subscribe({
+    this.service.persist(event.record, event.originalCode).subscribe({
       next: (saved) => {
         this.saving = false;
-        // Asset models show the type by name; the API renames them too
+        // Asset models refer to the type by name; the server renames them too
         if (event.originalName) this.models.renameType(event.originalName, saved.name);
         if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
         this.open(saved.code, false);
@@ -211,10 +216,11 @@ export class AssetTypePage {
     });
   }
 
+
   toggleStatus(t: AssetTypeRecord): void {
     this.menuFor = null;
     const status = t.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...t, status }).subscribe({
+    this.service.setStatus(t, status).subscribe({
       next: () => this.notify(`${t.name} marked ${status}.`),
       error: (err) => this.notify(apiErrorMessage(err))
     });
@@ -237,21 +243,27 @@ export class AssetTypePage {
   }
 
   confirmDelete(): void {
+    if (this.deleting) return;
     const list = this.pendingDelete;
     const codes = list.map((r) => r.code);
-    this.pendingDelete = [];
-    concat(...list.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
-      next: () => {
-        codes.forEach((c) => this.selected.delete(c));
-        if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} asset types deleted.`);
-        this.goTo(this.page);
-      },
-      // Any asset types deleted before the failure are already gone from the table
-      error: (err) => this.notify(apiErrorMessage(err))
+    const done = (message: string) => {
+      // Records deleted before a failure are gone too
+      const gone = codes.filter((c) => !this.service.find(c));
+      gone.forEach((c) => this.selected.delete(c));
+      if (this.selectedCode && gone.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+      if (this.formMode === 'edit' && this.formRecord && gone.includes(this.formRecord.code)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.delete(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} asset types deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
     });
   }
+
 
   cancelDelete(): void {
     this.pendingDelete = [];

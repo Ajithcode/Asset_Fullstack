@@ -1,87 +1,72 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
+import { MdmAudit } from '../../shared/mdm-api';
+import { AssetStore, activeStatus, localStamp } from '../asset-store';
 import { AssetTypeService } from '../asset-type/asset-type.service';
 import { CategoryService } from '../category-subcategory/category.service';
-import { apiErrorMessage } from '../../shared/api-error';
 import { ManufacturerService } from '../manufacturer/manufacturer.service';
 import { blankAssetModel } from './asset-model.data';
-import { AssetModelFilters, AssetModelRecord } from './asset-model.model';
+import {
+  AssetCondition,
+  AssetModelFilters,
+  AssetModelRecord,
+  Criticality,
+  DepreciationMethod,
+  MaintenanceStrategy,
+  PmFrequency,
+  ProcurementType,
+  TrackingMethod
+} from './asset-model.model';
 
-interface ReferenceDto {
-  id: string | null;
-  name: string;
-}
+type Reference = { id: string | null; name: string } | null;
 
-/** Raw shape returned by GET/POST/PUT {projectApiUrl}api/master-data/asset-models */
-interface AssetModelDto {
-  id: string;
+/** Asset model as `/api/master-data/asset-models` returns it. */
+interface AssetModelDto extends MdmAudit {
   modelName: string;
   modelCode: string;
-  manufacturer: ReferenceDto | null;
-  assetType: ReferenceDto | null;
-  category: ReferenceDto | null;
+  manufacturer: Reference;
+  assetType: Reference;
+  category: Reference;
   description: string | null;
-  // Free text; this page stores the lifecycle in years
-  lifecycle: string | null;
-  createdBy: string | null;
-  createdAt: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  status: string | null;
+  image: string | null;
+  specs: { label: string; value: string | null }[] | null;
+  lifecycleYears: number | null;
+  warrantyMonths: number | null;
+  pmFrequency: string | null;
+  maintenanceStrategy: string | null;
+  criticality: string | null;
+  calibrationRequired: boolean;
+  costCenter: string | null;
+  currency: string | null;
+  purchasePrice: number | null;
+  includeInDepreciation: boolean;
+  depreciationMethod: string | null;
+  salvagePercent: number | null;
+  procurementType: string | null;
+  subcategories: string[] | null;
+  taggingFormat: string | null;
+  trackingMethod: string | null;
+  defaultCondition: string | null;
+  serialRequired: boolean;
+  assignable: boolean;
 }
 
 /**
- * Asset models from the Master Data API. Rows are cached after load() so the asset pages can keep
- * reading them synchronously; writes go to the API and update the cache when they succeed.
- * Manufacturer, type and category are shown by name and linked by id. Specs, maintenance,
- * financial defaults and settings are UI-only for now.
+ * Asset models from the master data API. Manufacturer, asset type and category are shown by name
+ * here and sent by id; the server renames them on models when the master is renamed.
  */
 @Injectable({ providedIn: 'root' })
-export class AssetModelService {
-  private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
-  private readonly makers = inject(ManufacturerService);
-  private readonly types = inject(AssetTypeService);
-  private readonly categories = inject(CategoryService);
-  private readonly apiUrl = `${environment.projectApiUrl}api/master-data/asset-models`;
-
-  private records: AssetModelRecord[] = [];
-  loading = false;
-  loadError = '';
+export class AssetModelService extends AssetStore<AssetModelRecord, AssetModelDto> {
+  protected readonly resource = 'asset-models';
+  private readonly typeStore = inject(AssetTypeService);
+  private readonly makerStore = inject(ManufacturerService);
+  private readonly categoryStore = inject(CategoryService);
 
   constructor() {
-    this.load();
-  }
-
-  /** GET /api/master-data/asset-models (skipped while a load is already running) */
-  load(): void {
-    if (this.loading) return;
-    this.loading = true;
-    this.loadError = '';
-    this.http.get<AssetModelDto[]>(this.apiUrl, { params: { clientId: environment.clientId } }).subscribe({
-      next: (list) => {
-        this.records = list.map((d) => this.toRecord(d));
-        this.loading = false;
-      },
-      error: (err) => {
-        this.loadError = apiErrorMessage(err);
-        this.loading = false;
-      }
-    });
-  }
-
-  all(): AssetModelRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null): AssetModelRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+    super();
   }
 
   ofType(typeName: string): AssetModelRecord[] {
-    return this.records.filter((r) => r.assetType === typeName);
+    return this.all().filter((r) => r.assetType === typeName);
   }
 
   /** Registered assets across every model of a type. */
@@ -90,9 +75,10 @@ export class AssetModelService {
   }
 
   ofManufacturer(name: string): AssetModelRecord[] {
-    return this.records.filter((r) => r.manufacturer === name);
+    return this.all().filter((r) => r.manufacturer === name);
   }
 
+  /** Keeps the local list in step after a manufacturer rename (the server does the same). */
   renameManufacturer(from: string, to: string): void {
     if (from === to) return;
     this.records = this.records.map((r) => (r.manufacturer === from ? { ...r, manufacturer: to } : r));
@@ -105,11 +91,11 @@ export class AssetModelService {
 
   /** Manufacturers that have at least one model, A-Z. */
   manufacturers(): string[] {
-    return [...new Set(this.records.map((r) => r.manufacturer))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(this.all().map((r) => r.manufacturer))].sort((a, b) => a.localeCompare(b));
   }
 
   usedTypes(): string[] {
-    return [...new Set(this.records.map((r) => r.assetType))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(this.all().map((r) => r.assetType))].sort((a, b) => a.localeCompare(b));
   }
 
   filter(f: AssetModelFilters): AssetModelRecord[] {
@@ -123,69 +109,84 @@ export class AssetModelService {
     );
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
   // Model names only need to be unique per manufacturer
-  isNameTaken(name: string, manufacturer: string, exceptCode: string | null): boolean {
+  isModelNameTaken(name: string, manufacturer: string, exceptCode: string | null): boolean {
     const wanted = name.trim().toLowerCase();
     return this.records.some((r) => r.manufacturer === manufacturer && r.name.toLowerCase() === wanted && r.code !== exceptCode);
   }
 
-  /** POST for a new record, PUT /{id} for an existing one. */
-  save(record: AssetModelRecord): Observable<AssetModelRecord> {
-    const user = this.auth.getUserEmail() || 'unknown';
-    const ref = (r: { id: string; name: string } | undefined) => (r ? { id: r.id, name: r.name } : null);
-    const body = {
-      modelName: record.name,
-      modelCode: record.code,
-      manufacturer: ref(this.makers.findByName(record.manufacturer)),
-      assetType: ref(this.types.findByName(record.assetType)),
-      category: ref(this.categories.findByName(record.category)),
-      description: record.description,
-      lifecycle: String(record.lifecycleYears),
-      status: record.status
-    };
-    const request$ = record.id
-      ? this.http.put<AssetModelDto>(`${this.apiUrl}/${record.id}`, { ...body, updatedBy: user })
-      : this.http.post<AssetModelDto>(this.apiUrl, { ...body, createdBy: user, clientId: environment.clientId, tenantId: environment.tenantId });
-
-    return request$.pipe(
-      // Keep the fields the API doesn't store yet
-      map((dto) => ({ ...record, ...this.toRecord(dto) })),
-      tap((saved) => {
-        const index = this.records.findIndex((r) => r.id === saved.id);
-        this.records = index >= 0 ? this.records.map((r, i) => (i === index ? saved : r)) : [saved, ...this.records];
-      })
-    );
-  }
-
-  /** DELETE /api/master-data/asset-models/{id} */
-  remove(record: AssetModelRecord): Observable<void> {
-    return this.http
-      .delete<void>(`${this.apiUrl}/${record.id}`)
-      .pipe(tap(() => (this.records = this.records.filter((r) => r.id !== record.id))));
-  }
-
-  private toRecord(dto: AssetModelDto): AssetModelRecord {
-    // DEMO MODE: the fields the API doesn't store yet keep what this session has
-    const cached = this.records.find((r) => r.id === dto.id) ?? blankAssetModel();
-    const years = Number.parseInt(dto.lifecycle ?? '', 10);
+  protected toRecord(dto: AssetModelDto): AssetModelRecord {
+    const blank = blankAssetModel();
     return {
-      ...cached,
-      id: dto.id,
+      ...blank,
       code: dto.modelCode,
       name: dto.modelName,
       manufacturer: dto.manufacturer?.name ?? '',
       assetType: dto.assetType?.name ?? '',
       category: dto.category?.name ?? '',
       description: dto.description ?? '',
-      lifecycleYears: Number.isNaN(years) ? cached.lifecycleYears : years,
-      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
-      createdOn: dto.createdAt?.slice(0, 16) ?? '',
-      updatedOn: (dto.updatedAt ?? dto.createdAt)?.slice(0, 16) ?? ''
+      image: dto.image,
+      status: activeStatus(dto.status),
+      specs: (dto.specs ?? []).map((s) => ({ label: s.label, value: s.value ?? '' })),
+      lifecycleYears: dto.lifecycleYears ?? blank.lifecycleYears,
+      warrantyMonths: dto.warrantyMonths ?? blank.warrantyMonths,
+      pmFrequency: (dto.pmFrequency as PmFrequency) ?? blank.pmFrequency,
+      maintenanceStrategy: (dto.maintenanceStrategy as MaintenanceStrategy) ?? blank.maintenanceStrategy,
+      criticality: (dto.criticality as Criticality) ?? blank.criticality,
+      calibrationRequired: dto.calibrationRequired,
+      costCenter: dto.costCenter ?? '',
+      currency: dto.currency ?? blank.currency,
+      purchasePrice: dto.purchasePrice,
+      includeInDepreciation: dto.includeInDepreciation,
+      depreciationMethod: (dto.depreciationMethod as DepreciationMethod) ?? blank.depreciationMethod,
+      salvagePercent: dto.salvagePercent ?? blank.salvagePercent,
+      procurementType: (dto.procurementType as ProcurementType) ?? blank.procurementType,
+      subcategories: dto.subcategories ?? [],
+      taggingFormat: dto.taggingFormat ?? '',
+      trackingMethod: (dto.trackingMethod as TrackingMethod) ?? blank.trackingMethod,
+      defaultCondition: (dto.defaultCondition as AssetCondition) ?? blank.defaultCondition,
+      serialRequired: dto.serialRequired,
+      assignable: dto.assignable,
+      createdOn: localStamp(dto.createdAt),
+      updatedOn: localStamp(dto.updatedAt ?? dto.createdAt)
+    };
+  }
+
+  protected toRequest(r: AssetModelRecord): object {
+    const ref = (name: string, code: string | undefined, id: (code: string) => string | undefined) => {
+      const resolved = code ? id(code) : undefined;
+      return resolved ? { id: resolved, name } : null;
+    };
+    return {
+      modelName: r.name,
+      modelCode: r.code,
+      manufacturer: ref(r.manufacturer, this.makerStore.findByName(r.manufacturer)?.code, (c) => this.makerStore.idOf(c)),
+      assetType: ref(r.assetType, this.typeStore.findByName(r.assetType)?.code, (c) => this.typeStore.idOf(c)),
+      // Left out when unknown; the server then uses the asset type's category
+      category: ref(r.category, this.categoryStore.findByName(r.category)?.code, (c) => this.categoryStore.idOf(c)),
+      description: r.description,
+      image: r.image,
+      specs: r.specs,
+      lifecycleYears: r.lifecycleYears,
+      warrantyMonths: r.warrantyMonths,
+      pmFrequency: r.pmFrequency,
+      maintenanceStrategy: r.maintenanceStrategy,
+      criticality: r.criticality,
+      calibrationRequired: r.calibrationRequired,
+      costCenter: r.costCenter,
+      currency: r.currency,
+      purchasePrice: r.purchasePrice,
+      includeInDepreciation: r.includeInDepreciation,
+      depreciationMethod: r.depreciationMethod,
+      salvagePercent: r.salvagePercent,
+      procurementType: r.procurementType,
+      subcategories: r.subcategories,
+      taggingFormat: r.taggingFormat,
+      trackingMethod: r.trackingMethod,
+      defaultCondition: r.defaultCondition,
+      serialRequired: r.serialRequired,
+      assignable: r.assignable,
+      status: r.status
     };
   }
 }

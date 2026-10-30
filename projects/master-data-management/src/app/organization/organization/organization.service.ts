@@ -1,105 +1,36 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable, ReplaySubject, map, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { Injectable } from '@angular/core';
+import { MdmAudit } from '../../shared/mdm-api';
 import { blankOrganization } from './organization.data';
-import { OrganizationFilters, OrganizationRecord, OrganizationType } from './organization.model';
+import { OrganizationFilters, OrganizationRecord, OrganizationStatus, OrganizationType } from './organization.model';
+import { StructureAddressDto, StructureContactDto, StructureReference, fromApiAddress, toLocalStamp } from '../structure-api';
+import { StructureStore } from '../structure-store';
 
-interface ReferenceDto {
-  id: string | null;
-  name: string;
-}
-
-/** Raw shape returned by GET/POST/PUT {projectApiUrl}api/master-data/organizations */
-interface OrganizationDto {
-  id: string;
+interface OrganizationDto extends MdmAudit {
   organizationName: string;
   code: string;
-  description: string | null;
-  registrationNumber: string | null;
-  website: string | null;
   logoUrl: string | null;
   type: string | null;
-  parentOrganization: ReferenceDto | null;
-  businessUnits: ReferenceDto[];
-  sites: ReferenceDto[];
-  createdBy: string | null;
-  createdAt: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  clientId: string | null;
-  tenantId: string | null;
-  status: string | null;
-  isDeleted: boolean;
+  parentOrganization: StructureReference | null;
+  registrationNumber: string | null;
+  website: string | null;
+  description: string | null;
+  address: StructureAddressDto | null;
+  contact: StructureContactDto | null;
+  settings: OrganizationRecord['settings'] | null;
 }
 
-/** Fields the API stores; address, contact and settings are UI-only until the backend adds them. */
-interface OrganizationRequest {
-  organizationName: string;
-  code: string;
-  description: string;
-  registrationNumber: string;
-  website: string;
-  logoUrl: string | null;
-  type: string;
-  parentOrganization: ReferenceDto | null;
-  businessUnits: ReferenceDto[];
-  sites: ReferenceDto[];
-  status: string;
-}
-
-/**
- * Organizations from the Master Data API. Rows are cached after load() so this page and the
- * Business Unit / Site pages can keep reading them synchronously; writes go to the API and update
- * the cache when they succeed.
- */
+/** Organizations from `/api/master-data/organizations`, keyed by code; the parent is kept as a code too. */
 @Injectable({ providedIn: 'root' })
-export class OrganizationService {
-  private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
-  private readonly apiUrl = `${environment.projectApiUrl}api/master-data/organizations`;
-
-  private records: OrganizationRecord[] = [];
-  // Linked business units and sites by organization id; the API clears them if a PUT leaves them out
-  private links = new Map<string, Pick<OrganizationDto, 'businessUnits' | 'sites'>>();
-  loading = false;
-  loadError = '';
-  private readonly settled = new ReplaySubject<void>(1);
-  /** Emits once the first load has finished (or failed), so pages that link by code can map ids. */
-  readonly settled$ = this.settled.asObservable();
+export class OrganizationService extends StructureStore<OrganizationRecord, OrganizationDto> {
+  protected readonly resource = 'organizations';
 
   constructor() {
-    this.load();
+    super();
   }
 
-  /** GET /api/master-data/organizations (skipped while a load is already running) */
-  load(): void {
-    if (this.loading) return;
-    this.loading = true;
-    this.loadError = '';
-    this.http.get<OrganizationDto[]>(this.apiUrl, { params: { clientId: environment.clientId } }).subscribe({
-      next: (list) => {
-        this.links = new Map(list.map((d) => [d.id, { businessUnits: d.businessUnits, sites: d.sites }]));
-        const codeById = new Map(list.map((d) => [d.id, d.code]));
-        this.records = list.map((d) => this.toRecord(d, codeById));
-        this.loading = false;
-        this.settled.next();
-      },
-      error: (err) => {
-        this.loadError = apiErrorMessage(err);
-        this.loading = false;
-        this.settled.next();
-      }
-    });
-  }
-
-  all(): OrganizationRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null): OrganizationRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+  /** Business unit and site counts come from those masters. */
+  applyCounts(businessUnits: (code: string) => number, sites: (code: string) => number): void {
+    this.records = this.records.map((r) => ({ ...r, businessUnits: businessUnits(r.code), sites: sites(r.code) }));
   }
 
   children(code: string): OrganizationRecord[] {
@@ -153,96 +84,62 @@ export class OrganizationService {
     };
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  /** POST for a new record, PUT /{id} for an existing one. */
-  save(record: OrganizationRecord, originalCode: string | null): Observable<OrganizationRecord> {
-    const user = this.auth.getUserEmail() || 'unknown';
-    const body = this.toRequest(record);
-    const request$ = record.id
-      ? this.http.put<OrganizationDto>(`${this.apiUrl}/${record.id}`, { ...body, updatedBy: user })
-      : this.http.post<OrganizationDto>(this.apiUrl, {
-          ...body,
-          createdBy: user,
-          clientId: environment.clientId,
-          tenantId: environment.tenantId
-        });
-
-    return request$.pipe(
-      tap((dto) => this.links.set(dto.id, { businessUnits: dto.businessUnits, sites: dto.sites })),
-      // Keep the address, contact and settings the API doesn't store yet
-      map((dto) => ({ ...this.toRecord(dto), address: record.address, contact: record.contact, settings: record.settings })),
-      tap((saved) => {
-        const rows = [...this.records];
-        const index = rows.findIndex((r) => r.id === saved.id);
-        if (index >= 0) {
-          rows[index] = saved;
-        } else {
-          rows.push(saved);
-        }
-        // Children point at the parent by code, so follow a code change
-        if (originalCode && originalCode !== saved.code) {
-          rows.forEach((r, i) => {
-            if (r.parentCode === originalCode) rows[i] = { ...r, parentCode: saved.code };
-          });
-        }
-        this.records = rows;
-      })
-    );
-  }
-
-  /** DELETE /api/master-data/organizations/{id} */
-  remove(record: OrganizationRecord): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${record.id}`).pipe(
-      tap(() => {
-        this.records = this.records.filter((r) => r.id !== record.id);
-        this.links.delete(record.id);
-      })
-    );
-  }
-
-  private toRecord(dto: OrganizationDto, codeById?: Map<string, string>): OrganizationRecord {
-    const parentId = dto.parentOrganization?.id ?? null;
-    const parentCode = parentId ? (codeById?.get(parentId) ?? this.records.find((r) => r.id === parentId)?.code ?? null) : null;
-    // DEMO MODE: address, contact and settings aren't stored by the API yet, so keep what this session has
-    const cached = this.records.find((r) => r.id === dto.id) ?? blankOrganization();
+  protected toRecord(dto: OrganizationDto): OrganizationRecord {
+    const blank = blankOrganization();
+    const c = dto.contact;
+    const s = dto.settings;
+    const known = this.find(dto.code);
     return {
-      ...cached,
-      id: dto.id,
       code: dto.code,
       name: dto.organizationName,
       type: (dto.type ?? '') as OrganizationType,
-      parentCode,
+      // Parent id for now; StructureStore swaps it for the code
+      parentCode: dto.parentOrganization?.id ?? null,
       logo: dto.logoUrl,
       registrationNumber: dto.registrationNumber ?? '',
       website: dto.website ?? '',
       description: dto.description ?? '',
-      businessUnits: dto.businessUnits.length,
-      sites: dto.sites.length,
-      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
-      createdOn: dto.createdAt?.slice(0, 16) ?? '',
-      updatedOn: (dto.updatedAt ?? dto.createdAt)?.slice(0, 16) ?? ''
+      businessUnits: known?.businessUnits ?? 0,
+      sites: known?.sites ?? 0,
+      status: (dto.status as OrganizationStatus) ?? 'Active',
+      address: fromApiAddress(dto.address),
+      contact: {
+        person: c?.name ?? '',
+        designation: c?.designation ?? '',
+        email: c?.email ?? '',
+        phoneCountry: c?.phoneCountry ?? blank.contact.phoneCountry,
+        phone: c?.phone ?? ''
+      },
+      settings: {
+        currency: s?.currency ?? '',
+        timeZone: s?.timeZone ?? '',
+        language: s?.language ?? '',
+        dateFormat: s?.dateFormat ?? '',
+        effectiveFrom: s?.effectiveFrom ?? '',
+        effectiveTo: s?.effectiveTo ?? '',
+        allowSubOrganizations: s?.allowSubOrganizations ?? false,
+        allowMultipleLocations: s?.allowMultipleLocations ?? false,
+        useForAssetNumbering: s?.useForAssetNumbering ?? false,
+        enableFinancialTracking: s?.enableFinancialTracking ?? false
+      },
+      createdOn: toLocalStamp(dto.createdAt),
+      updatedOn: toLocalStamp(dto.updatedAt ?? dto.createdAt)
     };
   }
 
-  private toRequest(r: OrganizationRecord): OrganizationRequest {
-    const parent = this.find(r.parentCode);
-    const links = (r.id && this.links.get(r.id)) || { businessUnits: [], sites: [] };
+  protected toRequest(r: OrganizationRecord): object {
     return {
       organizationName: r.name,
       code: r.code,
-      description: r.description,
+      logoUrl: r.logo,
+      type: r.type || null,
+      parentOrganization: this.refOf(r.parentCode),
       registrationNumber: r.registrationNumber,
       website: r.website,
-      // TODO: upload through the Media service and send its URL; this sends the picked image as a data URL
-      logoUrl: r.logo,
-      type: r.type,
-      parentOrganization: parent ? { id: parent.id, name: parent.name } : null,
-      businessUnits: links.businessUnits,
-      sites: links.sites,
+      description: r.description,
+      address: r.address,
+      contact: { name: r.contact.person, designation: r.contact.designation, email: r.contact.email, phoneCountry: r.contact.phoneCountry, phone: r.contact.phone },
+      settings: { ...r.settings, effectiveFrom: r.settings.effectiveFrom || null, effectiveTo: r.settings.effectiveTo || null },
       status: r.status
     };
   }

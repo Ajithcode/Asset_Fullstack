@@ -3,7 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Database, Ellipsis, LucideAngularModule, Plus, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { Observable } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { SOURCE_TYPES } from '../system-config.data';
 import { ConfigStatus, UpdateSourceRecord } from '../system-config.model';
 import { SystemSettingsService, UpdateSourceService } from '../system-config.service';
@@ -29,10 +31,17 @@ export class UpdateSourcePage extends ListPage<UpdateSourceRecord, Filters, Sort
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly sourceTypes = SOURCE_TYPES;
   readonly icons = { Database, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+  saving = false;
 
   constructor() {
     super({ search: '', type: '', status: '' });
-    this.service.load();
+    this.refresh();
+  }
+
+  /** Loads the list from the API, with the masters it points at. */
+  refresh(): void {
+    this.service.load().subscribe({ error: (err) => this.notify(apiErrorMessage(err)) });
+    this.settings.load().subscribe({ error: (err) => this.notify(apiErrorMessage(err)) });
   }
 
   keyOf(r: UpdateSourceRecord): string {
@@ -60,8 +69,8 @@ export class UpdateSourcePage extends ListPage<UpdateSourceRecord, Filters, Sort
     return r[key];
   }
 
-  protected removeRecords(codes: string[]) {
-    return this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   // Sources picked in System Settings (default source, integration sources) can't be deleted
@@ -70,20 +79,32 @@ export class UpdateSourcePage extends ListPage<UpdateSourceRecord, Filters, Sort
   }
 
   duplicate(r: UpdateSourceRecord): void {
-    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Active' });
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
   }
 
   onSaved(event: { record: UpdateSourceRecord; originalCode: string | null }): void {
-    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
-      this.carrySelection(event.originalCode, saved.code);
-      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
-      this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: () => {
+        this.saving = false;
+        this.carrySelection(event.originalCode, event.record.code);
+        this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
     });
   }
 
   toggleStatus(r: UpdateSourceRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

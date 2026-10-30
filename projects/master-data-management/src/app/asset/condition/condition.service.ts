@@ -1,14 +1,13 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable, map, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { Injectable } from '@angular/core';
+import { Observable, map, switchMap } from 'rxjs';
+import { MdmAudit } from '../../shared/mdm-api';
+import { AssetStore, activeStatus, localStamp } from '../asset-store';
+import { LevelIcon } from '../level-icons';
 import { blankCondition } from './condition.data';
-import { ConditionFilters, ConditionRecord, ConditionType } from './condition.model';
+import { ConditionCharacteristics, ConditionFilters, ConditionRecord, ConditionType } from './condition.model';
 
-/** Raw shape returned by GET/POST/PUT {projectApiUrl}api/master-data/conditions */
-interface ConditionDto {
-  id: string;
+/** Condition as `/api/master-data/conditions` returns it. */
+interface ConditionDto extends MdmAudit {
   conditionName: string;
   code: string;
   type: string | null;
@@ -16,55 +15,33 @@ interface ConditionDto {
   defaultCondition: boolean;
   description: string | null;
   healthScore: number | null;
-  createdBy: string | null;
-  createdAt: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  status: string | null;
+  icon: string | null;
+  image: string | null;
+  displayOrder: number | null;
+  showInMobile: boolean;
+  showInReports: boolean;
+  characteristics: { [K in keyof ConditionCharacteristics]: string | null } | null;
+  canMoveFrom: string[] | null;
+  canMoveTo: string[] | null;
+  triggerCriteria: string | null;
+  autoUpdate: boolean;
+  photoRequired: boolean;
+  commentRequired: boolean;
+  notifyOwner: boolean;
+  blocksAssignment: boolean;
 }
 
 /**
- * Condition values from the Master Data API. Rows are cached after load() so the page can keep
- * reading them synchronously; writes go to the API and update the cache when they succeed.
- * Transition rules, characteristics and settings are UI-only until the backend adds them.
+ * Condition values from the master data API. Only one condition is the default (the server clears
+ * the others). "Can move to / from" rules are kept mirrored on both conditions, so saving or deleting
+ * one condition also saves the other conditions whose rules changed.
  */
 @Injectable({ providedIn: 'root' })
-export class ConditionService {
-  private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
-  private readonly apiUrl = `${environment.projectApiUrl}api/master-data/conditions`;
-
-  private records: ConditionRecord[] = [];
-  loading = false;
-  loadError = '';
+export class ConditionService extends AssetStore<ConditionRecord, ConditionDto> {
+  protected readonly resource = 'conditions';
 
   constructor() {
-    this.load();
-  }
-
-  /** GET /api/master-data/conditions (skipped while a load is already running) */
-  load(): void {
-    if (this.loading) return;
-    this.loading = true;
-    this.loadError = '';
-    this.http.get<ConditionDto[]>(this.apiUrl, { params: { clientId: environment.clientId } }).subscribe({
-      next: (list) => {
-        this.records = list.map((d) => this.toRecord(d));
-        this.loading = false;
-      },
-      error: (err) => {
-        this.loadError = apiErrorMessage(err);
-        this.loading = false;
-      }
-    });
-  }
-
-  all(): ConditionRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null): ConditionRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+    super();
   }
 
   nameOf(code: string): string {
@@ -81,93 +58,111 @@ export class ConditionService {
     );
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+  /** Only one condition can be the default, so storing a default clears the others. */
+  override save(record: ConditionRecord, originalCode: string | null): void {
+    if (record.isDefault) this.records = this.records.map((r) => (r.isDefault && r.code !== originalCode ? { ...r, isDefault: false } : r));
+    super.save(record, originalCode);
   }
 
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  /**
-   * POST for a new record, PUT /{id} for an existing one. Only one condition can be the default (the
-   * API clears the others), a changed code is carried into other conditions' transition rules, and
-   * "can move to / from" stay mirrored on both sides.
-   */
-  save(record: ConditionRecord, originalCode: string | null): Observable<ConditionRecord> {
-    const user = this.auth.getUserEmail() || 'unknown';
-    const body = {
-      conditionName: record.name,
-      code: record.code,
-      type: record.type,
-      color: record.color,
-      defaultCondition: record.isDefault,
-      description: record.description,
-      healthScore: record.healthScore,
-      status: record.status
-    };
-    const request$ = record.id
-      ? this.http.put<ConditionDto>(`${this.apiUrl}/${record.id}`, { ...body, updatedBy: user })
-      : this.http.post<ConditionDto>(this.apiUrl, { ...body, createdBy: user, clientId: environment.clientId, tenantId: environment.tenantId });
-
-    return request$.pipe(
-      // Keep the fields the API doesn't store yet
-      map((dto) => ({ ...record, ...this.toRecord(dto), icon: record.icon })),
-      tap((saved) => this.store(saved, originalCode))
+  /** Saves the condition, then the other conditions whose rules follow from it (code change, mirrored moves). */
+  saveWithRules(record: ConditionRecord, originalCode: string | null): Observable<ConditionRecord> {
+    return this.persist(record, originalCode).pipe(
+      switchMap((saved) => this.persistAll(this.mirroredOthers(saved, originalCode ?? saved.code)).pipe(map(() => saved)))
     );
   }
 
-  /** DELETE /api/master-data/conditions/{id} */
-  remove(record: ConditionRecord): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${record.id}`).pipe(
-      tap(() => {
-        this.records = this.records
-          .filter((r) => r.id !== record.id)
-          .map((r) => ({ ...r, canMoveFrom: r.canMoveFrom.filter((c) => c !== record.code), canMoveTo: r.canMoveTo.filter((c) => c !== record.code) }));
+  /** Deletes the conditions, then drops them from the other conditions' rules. */
+  deleteWithRules(codes: string[]): Observable<unknown> {
+    return this.delete(codes).pipe(
+      switchMap(() => {
+        const changed = this.records
+          .filter((r) => r.canMoveFrom.some((c) => codes.includes(c)) || r.canMoveTo.some((c) => codes.includes(c)))
+          .map((r) => ({ ...r, canMoveFrom: r.canMoveFrom.filter((c) => !codes.includes(c)), canMoveTo: r.canMoveTo.filter((c) => !codes.includes(c)) }));
+        return this.persistAll(changed);
       })
     );
   }
 
-  private store(record: ConditionRecord, originalCode: string | null): void {
-    const oldCode = originalCode ?? record.code;
-    let list = this.records.map((r) => {
-      const rename = (codes: string[]) => codes.map((c) => (c === oldCode ? record.code : c));
-      return { ...r, isDefault: record.isDefault ? false : r.isDefault, canMoveFrom: rename(r.canMoveFrom), canMoveTo: rename(r.canMoveTo) };
-    });
-    const index = list.findIndex((r) => r.id === record.id);
-    if (index >= 0) list[index] = record;
-    else list = [...list, record];
-
-    // Mirror this record's rules onto the other conditions
-    this.records = list.map((r) => {
-      if (r.code === record.code) return r;
-      const from = r.canMoveFrom.filter((c) => c !== record.code);
-      const to = r.canMoveTo.filter((c) => c !== record.code);
-      if (record.canMoveTo.includes(r.code)) from.push(record.code);
-      if (record.canMoveFrom.includes(r.code)) to.push(record.code);
-      return { ...r, canMoveFrom: from, canMoveTo: to };
-    });
+  /** Other conditions with `record`'s code change carried in and its rules mirrored; only the ones that differ. */
+  private mirroredOthers(record: ConditionRecord, oldCode: string): ConditionRecord[] {
+    const same = (a: string[], b: string[]) => a.length === b.length && a.every((c) => b.includes(c));
+    return this.records
+      .filter((r) => r.code !== record.code)
+      .map((r) => {
+        const rename = (codes: string[]) => codes.map((c) => (c === oldCode ? record.code : c)).filter((c) => c !== record.code);
+        const from = rename(r.canMoveFrom);
+        const to = rename(r.canMoveTo);
+        if (record.canMoveTo.includes(r.code)) from.push(record.code);
+        if (record.canMoveFrom.includes(r.code)) to.push(record.code);
+        return { before: r, after: { ...r, canMoveFrom: from, canMoveTo: to } };
+      })
+      .filter(({ before, after }) => !same(before.canMoveFrom, after.canMoveFrom) || !same(before.canMoveTo, after.canMoveTo))
+      .map(({ after }) => after);
   }
 
-  private toRecord(dto: ConditionDto): ConditionRecord {
-    // DEMO MODE: the fields the API doesn't store yet keep what this session has
-    const cached = this.records.find((r) => r.id === dto.id) ?? blankCondition();
+  protected toRecord(dto: ConditionDto): ConditionRecord {
+    const blank = blankCondition();
+    const c = dto.characteristics;
     return {
-      ...cached,
-      id: dto.id,
+      ...blank,
       code: dto.code,
       name: dto.conditionName,
       description: dto.description ?? '',
-      type: (dto.type ?? cached.type) as ConditionType,
-      color: dto.color ?? cached.color,
-      healthScore: dto.healthScore ?? cached.healthScore,
+      type: (dto.type as ConditionType) ?? blank.type,
+      color: dto.color ?? blank.color,
+      icon: (dto.icon as LevelIcon) ?? blank.icon,
+      image: dto.image,
+      healthScore: dto.healthScore ?? 0,
       isDefault: dto.defaultCondition,
-      status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
-      createdOn: dto.createdAt?.slice(0, 16) ?? '',
+      status: activeStatus(dto.status),
+      displayOrder: dto.displayOrder ?? 0,
+      showInMobile: dto.showInMobile,
+      showInReports: dto.showInReports,
+      characteristics: {
+        physicalState: c?.physicalState ?? '',
+        functionality: c?.functionality ?? '',
+        appearance: c?.appearance ?? '',
+        maintenanceNeed: c?.maintenanceNeed ?? '',
+        expectedRemainingLife: c?.expectedRemainingLife ?? ''
+      },
+      canMoveFrom: dto.canMoveFrom ?? [],
+      canMoveTo: dto.canMoveTo ?? [],
+      triggerCriteria: dto.triggerCriteria ?? '',
+      autoUpdate: dto.autoUpdate,
+      photoRequired: dto.photoRequired,
+      commentRequired: dto.commentRequired,
+      notifyOwner: dto.notifyOwner,
+      blocksAssignment: dto.blocksAssignment,
+      createdOn: localStamp(dto.createdAt),
       createdBy: dto.createdBy ?? '',
-      updatedOn: (dto.updatedAt ?? dto.createdAt)?.slice(0, 16) ?? ''
+      updatedOn: localStamp(dto.updatedAt ?? dto.createdAt)
+    };
+  }
+
+  protected toRequest(r: ConditionRecord): object {
+    return {
+      conditionName: r.name,
+      code: r.code,
+      type: r.type,
+      color: r.color,
+      defaultCondition: r.isDefault,
+      description: r.description,
+      healthScore: r.healthScore,
+      icon: r.icon,
+      image: r.image,
+      displayOrder: r.displayOrder || null,
+      showInMobile: r.showInMobile,
+      showInReports: r.showInReports,
+      characteristics: r.characteristics,
+      canMoveFrom: r.canMoveFrom,
+      canMoveTo: r.canMoveTo,
+      triggerCriteria: r.triggerCriteria,
+      autoUpdate: r.autoUpdate,
+      photoRequired: r.photoRequired,
+      commentRequired: r.commentRequired,
+      notifyOwner: r.notifyOwner,
+      blocksAssignment: r.blocksAssignment,
+      status: r.status
     };
   }
 }

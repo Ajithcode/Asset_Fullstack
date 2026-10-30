@@ -44,8 +44,6 @@ export interface Zone {
 }
 
 export interface LocationRecord {
-  /** Mongo id from the API; empty until the record is first saved. */
-  id: string;
   code: string;
   name: string;
   type: LocationType;

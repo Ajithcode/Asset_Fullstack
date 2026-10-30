@@ -1,8 +1,7 @@
 import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Camera, LucideAngularModule, Plus, Trash2, X } from 'lucide-angular';
-import { DepartmentService } from '../../../organization/department/department.service';
-import { ACCESS_ROLES, DESIGNATIONS, EMAIL, EMPLOYMENT_TYPES, nowStamp, readPhoto } from '../../people.data';
+import { ACCESS_ROLES, DESIGNATIONS, EMAIL, EMPLOYMENT_TYPES, PEOPLE_DEPARTMENTS, nowStamp, readPhoto } from '../../people.data';
 import { SkillService } from '../../skill/skill.service';
 import { TeamService } from '../../team/team.service';
 import { EMPLOYEE_SITES, NATIONALITIES, blankEmployee } from '../employee.data';
@@ -41,11 +40,7 @@ export class EmployeeForm implements OnChanges {
   readonly skillService = inject(SkillService);
   readonly teams = inject(TeamService);
   readonly icons = { X, Camera, Plus, Trash2 };
-  private readonly departmentService = inject(DepartmentService);
-
-  get departments(): string[] {
-    return this.departmentService.names();
-  }
+  readonly departments = PEOPLE_DEPARTMENTS;
   readonly designations = DESIGNATIONS;
   readonly employmentTypes = EMPLOYMENT_TYPES;
   readonly accessRoles = ACCESS_ROLES;

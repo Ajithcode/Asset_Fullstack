@@ -28,6 +28,11 @@ export class CertificationTypeForm extends MasterForm<CertificationTypeRecord, T
     { id: 'settings', label: 'Settings' }
   ];
 
+  constructor() {
+    super();
+    this.standards.ensureLoaded();
+  }
+
   protected blank(): CertificationTypeRecord {
     return blankCertificationType();
   }

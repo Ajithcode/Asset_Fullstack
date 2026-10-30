@@ -3,10 +3,12 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search, Users } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
-import { concat } from 'rxjs';
-import { DepartmentService } from '../../organization/department/department.service';
+import { Observable } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
+import { ShiftService } from '../shift/shift.service';
 import { EmployeeService } from '../employee/employee.service';
+import { PEOPLE_DEPARTMENTS } from '../people.data';
 import { TechnicianService } from '../technician/technician.service';
 import { TeamForm } from './team-form/team-form';
 import { TeamFilters, TeamRecord } from './team.model';
@@ -25,14 +27,18 @@ export class TeamPage extends ListPage<TeamRecord, TeamFilters, SortKey> {
   readonly service = inject(TeamService);
   private readonly employees = inject(EmployeeService);
   private readonly technicians = inject(TechnicianService);
+  private readonly shifts = inject(ShiftService);
   readonly basePath = MASTER_DATA_BASE_PATH;
-  private readonly departmentService = inject(DepartmentService);
+  readonly departments = PEOPLE_DEPARTMENTS;
   readonly statuses: TeamRecord['status'][] = ['Active', 'On Leave', 'Inactive'];
   readonly icons = { Users, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
 
+  saving = false;
+
   constructor() {
     super({ search: '', department: '', status: '' });
-    this.service.load();
+    this.service.refresh().subscribe({ error: (err) => this.notify(`Couldn't load teams: ${apiErrorMessage(err)}`) });
+    this.shifts.ensureLoaded();
   }
 
   keyOf(r: TeamRecord): string {
@@ -60,12 +66,14 @@ export class TeamPage extends ListPage<TeamRecord, TeamFilters, SortKey> {
     return key === 'members' ? r.members.length : r[key];
   }
 
-  get departments(): string[] {
-    return this.departmentService.names();
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
-  protected removeRecords(codes: string[]) {
-    return concat(...codes.map((c) => this.service.remove(this.service.find(c)!)));
+  // The API keeps technicians on their team, so a team with technicians can't be deleted
+  protected override deleteBlocker(r: TeamRecord): string | null {
+    const count = this.service.technicianMembers(r).length;
+    return count ? `${r.name} still has ${count} technician${count === 1 ? '' : 's'}. Move them to another team first.` : null;
   }
 
   /** Name of an employee (EMP…) or technician (TECH…). */
@@ -78,20 +86,31 @@ export class TeamPage extends ListPage<TeamRecord, TeamFilters, SortKey> {
   }
 
   duplicate(r: TeamRecord): void {
-    // A technician is in one team, so the copy starts without members
-    this.openAdd({ ...structuredClone(r), id: '', code: '', name: `${r.name} (Copy)`, status: 'Inactive', members: [], leaderId: '' });
+    this.openAdd({ ...structuredClone(r), code: '', name: `${r.name} (Copy)`, status: 'Active' });
   }
 
   onSaved(event: { record: TeamRecord; originalCode: string | null }): void {
-    this.persist(this.service.save(event.record, event.originalCode), (saved) => {
-      this.carrySelection(event.originalCode, saved.code);
-      this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
-      this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persistTeam(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.carrySelection(event.originalCode, saved.code);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
     });
   }
 
   setStatus(r: TeamRecord, status: TeamRecord['status']): void {
     this.menuFor = null;
-    this.persist(this.service.save({ ...r, status }, r.code), () => this.notify(`${r.name} marked ${status}.`));
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

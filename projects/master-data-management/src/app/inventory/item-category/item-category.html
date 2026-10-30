@@ -96,13 +96,7 @@
                 </td>
               </tr>
             } @empty {
-              @if (service.loading) {
-                <tr><td colspan="7" class="empty">Loading categories...</td></tr>
-              } @else if (service.loadError) {
-                <tr><td colspan="7" class="empty">{{ service.loadError }} <button type="button" class="btn btn--link" (click)="service.load()">Retry</button></td></tr>
-              } @else {
-                <tr><td colspan="7" class="empty">No categories match these filters.</td></tr>
-              }
+              <tr><td colspan="7" class="empty">No categories match these filters.</td></tr>
             }
           </tbody>
         </table>

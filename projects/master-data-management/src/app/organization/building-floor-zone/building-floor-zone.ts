@@ -15,9 +15,8 @@ import {
   Plus,
   Search
 } from 'lucide-angular';
-import { concat, toArray } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
-import { apiErrorMessage } from '../../shared/api-error';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { DecimalPipe } from '@angular/common';
 import { BfzDetail } from './bfz-detail/bfz-detail';
 import { BfzForm } from './bfz-form/bfz-form';
@@ -57,7 +56,7 @@ export class BuildingFloorZonePage {
   page = 0;
   pageSize = 10;
   selected = new Set<string>();
-  // Buildings and floors opened in the tree
+  // Buildings and floors opened in the tree; the first building starts open
   expanded = new Set<string>();
   menuFor: string | null = null;
   addMenuOpen = false;
@@ -68,12 +67,22 @@ export class BuildingFloorZonePage {
   formRecord: BfzRecord | null = null;
 
   pendingDelete: BfzRecord[] = [];
-  toast = '';
   saving = false;
+  deleting = false;
+  toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
-    this.service.load();
+    this.service.load().subscribe({
+      next: () => {
+        if (!this.service.find(this.selectedCode)) {
+          const first = this.service.buildings()[0];
+          this.selectedCode = first?.code ?? null;
+          if (first) this.expanded.add(first.code);
+        }
+      },
+      error: (err) => this.notify(`Could not load buildings, floors and zones: ${apiErrorMessage(err)}`)
+    });
   }
 
   get stats() {
@@ -131,7 +140,7 @@ export class BuildingFloorZonePage {
   }
 
   get selectedRecord(): BfzRecord | undefined {
-    return this.service.find(this.selectedCode) ?? this.service.all()[0];
+    return this.service.find(this.selectedCode);
   }
 
   parentLabel(r: BfzRecord): string {
@@ -253,7 +262,7 @@ export class BuildingFloorZonePage {
   onSaved(event: { record: BfzRecord; originalCode: string | null }): void {
     if (this.saving) return;
     this.saving = true;
-    this.service.save(event.record, event.originalCode).subscribe({
+    this.service.persist(event.record, event.originalCode).subscribe({
       next: (saved) => {
         this.saving = false;
         if (event.originalCode && this.expanded.delete(event.originalCode)) this.expanded.add(saved.code);
@@ -272,15 +281,14 @@ export class BuildingFloorZonePage {
   toggleStatus(record: BfzRecord): void {
     this.menuFor = null;
     const status = record.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...record, status }, record.code).subscribe({
+    this.service.setStatus(record, status).subscribe({
       next: () => this.notify(`${record.name} marked ${status}.`),
       error: (err) => this.notify(apiErrorMessage(err))
     });
   }
 
   onAddImage(event: { building: BfzRecord; image: string }): void {
-    // DEMO MODE: images aren't stored by the API yet, so this only lasts until the page reloads
-    this.service.save({ ...event.building, images: [...event.building.images, event.image] }, event.building.code).subscribe({
+    this.service.persist({ ...event.building, images: [...event.building.images, event.image] }, event.building.code).subscribe({
       next: () => this.notify('Image added.'),
       error: (err) => this.notify(apiErrorMessage(err))
     });
@@ -307,28 +315,29 @@ export class BuildingFloorZonePage {
   }
 
   confirmDelete(): void {
+    if (this.deleting) return;
     const list = this.pendingDelete;
     const codes = list.map((r) => r.code);
     const fallback = list[0] && this.service.parent(list[0])?.code;
-    this.pendingDelete = [];
-    // Zones, then floors, then buildings, so the API doesn't refuse a parent emptied in this batch
-    const rank: Record<BfzType, number> = { Zone: 0, Floor: 1, Building: 2 };
-    const ordered = [...list].sort((a, b) => rank[a.type] - rank[b.type]);
-    concat(...ordered.map((r) => this.service.remove(r))).pipe(toArray()).subscribe({
-      next: () => {
-        codes.forEach((c) => {
-          this.selected.delete(c);
-          this.expanded.delete(c);
-        });
-        if (this.selectedCode && codes.includes(this.selectedCode)) {
-          this.selectedCode = fallback && !codes.includes(fallback) ? fallback : (this.service.buildings()[0]?.code ?? null);
-        }
-        if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-        this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} records deleted.`);
-        this.goTo(this.page);
-      },
-      // Any records deleted before the failure are already gone from the table
-      error: (err) => this.notify(apiErrorMessage(err))
+    const done = (message: string) => {
+      const remaining = new Set(this.service.all().map((r) => r.code));
+      codes.filter((c) => !remaining.has(c)).forEach((c) => {
+        this.selected.delete(c);
+        this.expanded.delete(c);
+      });
+      if (this.selectedCode && !remaining.has(this.selectedCode)) {
+        this.selectedCode = fallback && remaining.has(fallback) ? fallback : (this.service.buildings()[0]?.code ?? null);
+      }
+      if (this.formMode === 'edit' && this.formRecord && !remaining.has(this.formRecord.code)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.delete(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} records deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
     });
   }
 

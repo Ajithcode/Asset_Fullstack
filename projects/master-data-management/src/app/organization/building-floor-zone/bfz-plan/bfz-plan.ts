@@ -126,7 +126,7 @@ export class BfzPlan implements AfterViewInit, OnChanges, OnDestroy {
     const site = this.service.site(this.building.siteId);
     const lat = this.building.lat ?? site?.lat;
     const lng = this.building.lng ?? site?.lng;
-    if (lat === undefined || lng === undefined) return;
+    if (lat === undefined || lng === undefined || lat === null || lng === null) return;
     if (!this.L) {
       const mod = await import('leaflet');
       // Leaflet is UMD; depending on the bundler the API is on the module or its default export

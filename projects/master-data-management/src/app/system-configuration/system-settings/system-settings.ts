@@ -26,8 +26,8 @@ import { ConditionService } from '../../asset/condition/condition.service';
 import { CriticalityService } from '../../asset/criticality/criticality.service';
 import { HEX_COLOR } from '../../asset/level-icons';
 import { CURRENCIES } from '../../organization/organization/organization.data';
-import { apiErrorMessage } from '../../shared/api-error';
-import { EMAIL, nowStamp, readPhoto } from '../../people/people.data';
+import { EMAIL, readPhoto } from '../../people/people.data';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import {
   BACKUP_FREQUENCIES,
   DATE_FORMATS,
@@ -88,18 +88,6 @@ export class SystemSettingsPage {
   readonly syncStatuses = inject(SyncStatusService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly icons = { Settings, Save, Info };
-
-  saving = false;
-
-  constructor() {
-    // The default-criticality dropdown lists the levels from the API
-    if (!this.criticalities.all().length) this.criticalities.load();
-    // Show the stored settings once they arrive, unless editing has already started
-    const untouched = JSON.stringify(this.service.current());
-    this.service.settled$.subscribe(() => {
-      if (JSON.stringify(this.form) === untouched) this.form = this.service.draft();
-    });
-  }
 
   readonly options = {
     timeZones: TIME_ZONES,
@@ -187,7 +175,19 @@ export class SystemSettingsPage {
   form: SystemSettings = this.service.draft();
   errors: Partial<Record<string, string>> = {};
   toast = '';
+  saving = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    this.service.load().subscribe({
+      next: () => (this.form = this.service.draft()),
+      error: (err) => this.notify(`Settings could not be loaded: ${apiErrorMessage(err)}`)
+    });
+    // Choices for Default Values and Integration
+    this.sources.load().subscribe({ error: () => undefined });
+    this.charts.load().subscribe({ error: () => undefined });
+    this.syncStatuses.load().subscribe({ error: () => undefined });
+  }
 
   get currentTab() {
     return this.tabs.find((t) => t.id === this.tab)!;
@@ -266,7 +266,7 @@ export class SystemSettingsPage {
     }
     if (this.saving) return;
     this.saving = true;
-    this.service.save(this.form, nowStamp()).subscribe({
+    this.service.save(this.form).subscribe({
       next: () => {
         this.saving = false;
         this.form = this.service.draft();

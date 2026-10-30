@@ -3,8 +3,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, HardHat, LucideAngularModule, Plus, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
-import { concat, tap } from 'rxjs';
+import { Observable, finalize } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
+import { ShiftService } from '../shift/shift.service';
 import { PersonStatus, avatarColor, initials } from '../people.data';
 import { SkillService } from '../skill/skill.service';
 import { TeamService } from '../team/team.service';
@@ -26,16 +28,22 @@ export class TechnicianPage extends ListPage<TechnicianRecord, TechnicianFilters
   readonly service = inject(TechnicianService);
   readonly skills = inject(SkillService);
   private readonly teams = inject(TeamService);
+  private readonly shifts = inject(ShiftService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly statuses: PersonStatus[] = ['Active', 'On Duty', 'On Leave', 'Inactive'];
   readonly initials = initials;
   readonly avatarColor = avatarColor;
   readonly icons = { HardHat, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
 
+  saving = false;
+
   constructor() {
     super({ search: '', status: '', skill: '' });
-    this.service.load();
     this.sortKey = 'id';
+    this.service.refresh().subscribe({ error: (err) => this.notify(`Couldn't load technicians: ${apiErrorMessage(err)}`) });
+    this.teams.ensureLoaded();
+    this.skills.ensureLoaded();
+    this.shifts.ensureLoaded();
   }
 
   keyOf(r: TechnicianRecord): string {
@@ -63,14 +71,8 @@ export class TechnicianPage extends ListPage<TechnicianRecord, TechnicianFilters
     return key === 'team' ? this.teamName(r) : r[key];
   }
 
-  protected removeRecords(ids: string[]) {
-    return concat(...ids.map((id) => this.service.remove(this.service.find(id)!))).pipe(tap({ complete: () => this.teams.removeMembers(ids) }));
-  }
-
-  /** The team a technician should stay in, as the API's {id, name} reference. */
-  private teamRef(code: string | null) {
-    const team = this.teams.find(code);
-    return team ? { id: team.id, name: team.name } : null;
+  protected removeRecords(ids: string[]): Observable<unknown> {
+    return this.service.delete(ids).pipe(finalize(() => this.teams.removeMembers(ids.filter((id) => !this.service.find(id)))));
   }
 
   protected override deleteBlocker(r: TechnicianRecord): string | null {
@@ -88,18 +90,29 @@ export class TechnicianPage extends ListPage<TechnicianRecord, TechnicianFilters
   }
 
   onSaved(event: { record: TechnicianRecord; originalId: string | null; teamCode: string }): void {
-    this.persist(this.service.save(event.record, this.teamRef(event.teamCode || null)), (saved) => {
-      if (event.originalId) this.teams.renameMember(event.originalId, saved.id);
-      this.teams.setPrimaryTeam(saved.id, event.teamCode || null);
-      this.carrySelection(event.originalId, saved.id);
-      this.notify(`${saved.name} ${event.originalId ? 'updated' : 'added'}.`);
-      this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalId, this.teams.ref(event.teamCode)).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        if (event.originalId) this.teams.renameMember(event.originalId, saved.id);
+        this.teams.setPrimaryTeam(saved.id, event.teamCode || null);
+        this.carrySelection(event.originalId, saved.id);
+        this.notify(`${saved.name} ${event.originalId ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
     });
   }
 
   setStatus(r: TechnicianRecord, status: PersonStatus): void {
     this.menuFor = null;
-    const record = { ...r, status, availableForDispatch: status === 'Active' || status === 'On Duty' ? r.availableForDispatch : false };
-    this.persist(this.service.save(record, this.teamRef(this.teams.primaryTeamOf(r.id)?.code ?? null)), () => this.notify(`${r.name} marked ${status}.`));
+    this.service.setStatus(r, status, this.teams.ref(this.teams.primaryTeamOf(r.id)?.code)).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }
