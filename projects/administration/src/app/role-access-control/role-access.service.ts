@@ -1,25 +1,124 @@
-import { Injectable } from '@angular/core';
-import { CURRENT_USER, todayIso } from '../shared/admin-common';
-import { RoleRecord, seedRoles } from './role-access.data';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Injectable, inject, signal } from '@angular/core';
+import { Observable, finalize, map, shareReplay, tap } from 'rxjs';
+import { AuthService, environment } from 'shared-ui';
+import { RoleRecord, RoleStatus, RoleType, blankRole } from './role-access.data';
 
-// DEMO MODE: roles live in memory for the session; swap for the roles API when it exists
+/** Request body for POST {administrationApiUrl}api/roles */
+interface CreateRoleRequest {
+  roleName: string;
+  roleCode: string;
+  description: string | null;
+  roleType: RoleType;
+  status: RoleStatus;
+  createdBy: string | null;
+  tenantId: string;
+  clientId: string;
+}
+
+/** Request body for PUT {administrationApiUrl}api/roles/{roleId} */
+type UpdateRoleRequest = Pick<CreateRoleRequest, 'roleName' | 'roleCode' | 'description' | 'roleType' | 'status'>;
+
+/** Raw shape returned by the roles API. */
+interface RoleDto {
+  roleId: string;
+  roleName: string;
+  roleCode: string;
+  description: string | null;
+  roleType: string;
+  status: string | null;
+  createdBy: string | null;
+  createdAt: string | null;
+  updatedBy: string | null;
+  updatedAt: string | null;
+  tenantId: string | null;
+  clientId: string | null;
+}
+
+/**
+ * Maps a RoleDto onto the page model. The API only stores the role header (name, code, type, status, audit);
+ * the permission matrix, data scope, approvals, security settings and user count have no backend fields yet,
+ * so they come from `extras` (the client-side copy) or the blank-role defaults.
+ */
+function toAppRole(dto: RoleDto, extras?: RoleRecord): RoleRecord {
+  const base = extras ? structuredClone(extras) : blankRole();
+  return {
+    ...base,
+    id: dto.roleId,
+    name: dto.roleName,
+    code: dto.roleCode,
+    description: dto.description ?? '',
+    type: dto.roleType === 'System' ? 'System' : 'Custom',
+    status: dto.status === 'Inactive' ? 'Inactive' : 'Active',
+    icon: extras?.icon ?? (dto.roleType === 'System' ? 'shield' : 'settings'),
+    createdOn: (dto.createdAt ?? '').slice(0, 10),
+    createdBy: dto.createdBy ?? '',
+    updatedOn: (dto.updatedAt ?? dto.createdAt ?? '').slice(0, 10)
+  };
+}
+
+/** Readable message for a failed Administration API call (validation problem, conflict or network error). */
+export function adminApiError(err: unknown, service: string): string {
+  if (err instanceof HttpErrorResponse) {
+    const body = err.error;
+    if (body?.errors) {
+      const first = Object.values(body.errors as Record<string, string[]>)[0];
+      if (first?.length) return first[0];
+    }
+    if (body?.message) return body.message;
+    if (err.status === 0) return `The ${service} service is unreachable.`;
+  }
+  return `The ${service} service returned an error.`;
+}
+
+/** Roles from the Administration API (GET / POST / PUT / DELETE api/roles). */
 @Injectable({ providedIn: 'root' })
 export class RoleAccessService {
-  private roles: RoleRecord[] = seedRoles();
-  private nextId = this.roles.length + 1;
+  private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
+  private readonly apiUrl = `${environment.administrationApiUrl}api/roles`;
+
+  private readonly roles = signal<RoleRecord[]>([]);
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
+  private request: Observable<RoleRecord[]> | null = null;
 
   all(): RoleRecord[] {
-    return this.roles;
+    return this.roles();
   }
 
   byId(id: string): RoleRecord | undefined {
-    return this.roles.find((r) => r.id === id);
+    return this.roles().find((r) => r.id === id);
+  }
+
+  /** GET /api/roles — replaces the list; client-only fields of roles already loaded are kept. */
+  load(): Observable<RoleRecord[]> {
+    this.loading.set(true);
+    this.error.set(null);
+    this.request = this.http.get<RoleDto[]>(this.apiUrl).pipe(
+      map((list) => list.map((dto) => toAppRole(dto, this.byId(dto.roleId)))),
+      tap({
+        next: (roles) => this.roles.set(roles),
+        error: (err) => {
+          this.error.set(adminApiError(err, 'roles'));
+          this.request = null;
+        }
+      }),
+      finalize(() => this.loading.set(false)),
+      shareReplay(1)
+    );
+    return this.request;
+  }
+
+  /** Loads once for pages that only need the role list (e.g. Module Access). */
+  ensureLoaded(): Observable<RoleRecord[]> {
+    return this.request ?? this.load();
   }
 
   /** True when another role already uses the code (case-insensitive). */
   codeTaken(code: string, exceptId: string): boolean {
     const c = code.trim().toUpperCase();
-    return this.roles.some((r) => r.id !== exceptId && r.code.toUpperCase() === c);
+    return this.roles().some((r) => r.id !== exceptId && r.code.toUpperCase() === c);
   }
 
   /** A free code built from the base, e.g. OPS_MANAGER_COPY, OPS_MANAGER_COPY_2 */
@@ -29,22 +128,41 @@ export class RoleAccessService {
     return code;
   }
 
-  /** Inserts or replaces the role; returns the stored copy. */
-  save(role: RoleRecord): RoleRecord {
-    const stored = structuredClone(role);
-    stored.updatedOn = todayIso();
-    if (!stored.id) {
-      stored.id = `ROLE-${String(this.nextId++).padStart(3, '0')}`;
-      stored.createdOn = todayIso();
-      stored.createdBy = CURRENT_USER.name;
-      this.roles = [...this.roles, stored];
-    } else {
-      this.roles = this.roles.map((r) => (r.id === stored.id ? stored : r));
+  /** New roles: POST /api/roles; existing roles: PUT /api/roles/{roleId}. Emits the stored copy. */
+  save(role: RoleRecord): Observable<RoleRecord> {
+    if (role.id) {
+      const update: UpdateRoleRequest = {
+        roleName: role.name.trim(),
+        roleCode: role.code.trim().toUpperCase(),
+        description: role.description.trim() || null,
+        roleType: role.type,
+        status: role.status
+      };
+      return this.http.put<RoleDto>(`${this.apiUrl}/${encodeURIComponent(role.id)}`, update).pipe(
+        map((dto) => toAppRole(dto, role)),
+        tap((stored) => this.roles.update((list) => list.map((r) => (r.id === stored.id ? stored : r))))
+      );
     }
-    return stored;
+    const request: CreateRoleRequest = {
+      roleName: role.name.trim(),
+      roleCode: role.code.trim().toUpperCase(),
+      description: role.description.trim() || null,
+      roleType: role.type,
+      status: role.status,
+      createdBy: this.auth.getUserEmail(),
+      tenantId: environment.tenantId,
+      clientId: environment.clientId
+    };
+    return this.http.post<RoleDto>(this.apiUrl, request).pipe(
+      map((dto) => toAppRole(dto, role)),
+      tap((stored) => this.roles.update((list) => [...list, stored]))
+    );
   }
 
-  remove(id: string): void {
-    this.roles = this.roles.filter((r) => r.id !== id);
+  /** DELETE /api/roles/{roleId} (soft delete). Fails with 409 while an access policy still uses the role. */
+  remove(id: string): Observable<void> {
+    return this.http
+      .delete<void>(`${this.apiUrl}/${encodeURIComponent(id)}`)
+      .pipe(tap(() => this.roles.update((list) => list.filter((r) => r.id !== id))));
   }
 }

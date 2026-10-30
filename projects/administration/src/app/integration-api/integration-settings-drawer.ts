@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, injec
 import { FormsModule } from '@angular/forms';
 import { CircleCheck, CircleX, Eye, EyeOff, LucideAngularModule, Trash2, X } from 'lucide-angular';
 import { AUTH_METHODS, ENVIRONMENTS, Integration, PROVIDERS, RETRY_POLICIES, SYNC_FREQUENCIES } from './integration-api.data';
-import { IntegrationApiService, IntegrationForm } from './integration-api.service';
+import { IntegrationApiService, IntegrationForm, SECRET_MASK, apiErrorMessage } from './integration-api.service';
 import { HTTPS_URL, relative } from './integration-format';
 
 const CODE_PATTERN = /^[A-Z0-9][A-Z0-9-]{2,29}$/i;
@@ -184,7 +184,7 @@ function emptyForm(): IntegrationForm {
 
         <div class="drawer__foot">
           <button type="button" class="btn" (click)="cancel()">Cancel</button>
-          <button type="submit" class="btn btn--primary">Save Integration</button>
+          <button type="submit" class="btn btn--primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save Integration' }}</button>
         </div>
       </form>
     </aside>
@@ -228,6 +228,7 @@ export class IntegrationSettingsDrawer implements OnChanges {
   showClientId = false;
   showSecret = false;
   submitted = false;
+  saving = false;
   confirmDelete = false;
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -272,7 +273,9 @@ export class IntegrationSettingsDrawer implements OnChanges {
   }
 
   secretHint(): string {
-    return this.needsSecret() ? 'Stored encrypted; shown only while you type it.' : `Stored securely (ends …${this.integration?.secretLast4}). Leave blank to keep it.`;
+    if (this.needsSecret()) return 'Stored encrypted; shown only while you type it.';
+    const last4 = this.integration?.secretLast4;
+    return last4 === SECRET_MASK ? 'Stored securely. Leave blank to keep it.' : `Stored securely (ends …${last4}). Leave blank to keep it.`;
   }
 
   errors(): Record<string, string> {
@@ -341,28 +344,44 @@ export class IntegrationSettingsDrawer implements OnChanges {
       this.notice.emit(`Fix ${count} field${count > 1 ? 's' : ''} before saving.`);
       return;
     }
+    if (this.saving) return;
     const form: IntegrationForm = { ...this.form, timeout: Number(this.form.timeout) };
-    if (this.creating || !this.integration) {
-      const created = this.service.create(form, this.secretKey);
-      this.secretKey = '';
-      this.saved.emit(created.id);
-      this.notice.emit(`${created.name} added. Run Test Connection to verify it.`);
-    } else {
-      this.service.update(this.integration.id, form, this.secretKey);
-      this.secretKey = '';
-      this.showSecret = false;
-      this.submitted = false;
-      this.saved.emit(this.integration.id);
-      this.notice.emit(`${form.name.trim()} saved.`);
-    }
+    const creating = this.creating || !this.integration;
+    const wasDraft = !creating && this.service.isDraft(this.integration!.id);
+    const request = creating ? this.service.create(form, this.secretKey) : this.service.update(this.integration!.id, form, this.secretKey);
+    this.saving = true;
+    request.subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.secretKey = '';
+        this.showSecret = false;
+        this.submitted = false;
+        this.saved.emit(saved.id);
+        this.notice.emit(creating || wasDraft ? `${saved.name} added. Run Test Connection to verify it.` : `${saved.name} saved.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notice.emit(apiErrorMessage(err, `Could not save ${form.name.trim()}.`));
+      }
+    });
   }
 
   remove(): void {
-    if (!this.integration) return;
+    if (!this.integration || this.saving) return;
     const { id, name } = this.integration;
-    this.service.remove(id);
-    this.confirmDelete = false;
-    this.deleted.emit(id);
-    this.notice.emit(`${name} deleted.`);
+    this.saving = true;
+    this.service.remove(id).subscribe({
+      next: () => {
+        this.saving = false;
+        this.confirmDelete = false;
+        this.deleted.emit(id);
+        this.notice.emit(`${name} deleted.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.confirmDelete = false;
+        this.notice.emit(apiErrorMessage(err, `Could not delete ${name}.`));
+      }
+    });
   }
 }

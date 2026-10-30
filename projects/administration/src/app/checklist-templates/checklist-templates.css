@@ -191,6 +191,23 @@
   color: #475569;
 }
 
+.library__saved {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--adm-border);
+}
+
+.library__saved h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+
+.library__saved > .muted {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
 @media (max-width: 640px) {
   .usage-cards,
   .library__grid {

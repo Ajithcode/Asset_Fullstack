@@ -87,6 +87,22 @@ export const RECORD_TYPES = [
   'Contract', 'Warranty Claim', 'Invoice', 'Depreciation Run', 'Report', 'Device', 'Tag', 'Location', 'Department'
 ];
 
+// Icon given to a new sequence, by module
+export const MODULE_ICONS: Record<string, SequenceIcon> = {
+  Assets: 'box',
+  Maintenance: 'wrench',
+  Inspection: 'clipboard',
+  Inventory: 'package',
+  'Audit & Compliance': 'shield',
+  'Movement & Custody': 'truck',
+  'Contracts & Warranty': 'file',
+  Financial: 'receipt',
+  'Reports & Analytics': 'chart',
+  'Tracking & IoT': 'zap',
+  'Master Data Management': 'building',
+  Administration: 'user'
+};
+
 /** Share of the number range after which a sequence is flagged "Near Limit" */
 export const NEAR_LIMIT_RATIO = 0.9;
 

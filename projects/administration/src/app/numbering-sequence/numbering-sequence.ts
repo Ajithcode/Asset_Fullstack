@@ -9,10 +9,10 @@ import {
 import { ASSET360_MODULES, AdminPage, formatDate, todayIso } from '../shared/admin-common';
 import { FormatBuilder } from './format-builder/format-builder';
 import {
-  NumberSequence, RESET_RULES, SCOPES, SequenceIcon, SequenceStatus, cloneSequence, formatErrors, formatNumber, formatSample,
+  MODULE_ICONS, NumberSequence, RESET_RULES, SCOPES, SequenceIcon, SequenceStatus, cloneSequence, formatErrors, formatNumber, formatSample,
   isNearLimit, maxNumber, nextNumbers, prefixPreview, sequenceStatus, settingErrors, statusTone
 } from './numbering-sequence.model';
-import { NumberingSequenceService } from './numbering-sequence.service';
+import { NumberingSequenceService, apiErrorMessage } from './numbering-sequence.service';
 import { SequenceDrawer } from './sequence-drawer/sequence-drawer';
 
 type Tab = 'config' | 'preview' | 'usage' | 'changes';
@@ -22,22 +22,6 @@ interface ConfirmState {
   message: string;
   action: 'delete' | 'reset';
 }
-
-// Icon given to a new sequence, by module
-const MODULE_ICONS: Record<string, SequenceIcon> = {
-  Assets: 'box',
-  Maintenance: 'wrench',
-  Inspection: 'clipboard',
-  Inventory: 'package',
-  'Audit & Compliance': 'shield',
-  'Movement & Custody': 'truck',
-  'Contracts & Warranty': 'file',
-  Financial: 'receipt',
-  'Reports & Analytics': 'chart',
-  'Tracking & IoT': 'zap',
-  'Master Data Management': 'building',
-  Administration: 'user'
-};
 
 /** Administration > Numbering Sequence: list of sequences, format builder and the settings drawer. */
 @Component({
@@ -75,6 +59,8 @@ export class NumberingSequencePage extends AdminPage {
   draft: NumberSequence;
   isNew = false;
   dirty = false;
+  /** True while a save or delete request is in flight. */
+  saving = false;
   showErrors = false;
   drawerOpen = true;
   tab: Tab = 'config';
@@ -87,9 +73,15 @@ export class NumberingSequencePage extends AdminPage {
 
   constructor() {
     super();
-    const first = this.service.sequences()[0];
-    this.selectedId = first.id;
-    this.draft = cloneSequence(first);
+    // Blank until the list arrives; then the first stored sequence opens (blank only when there are none)
+    this.draft = this.blank();
+    this.isNew = true;
+    this.service.load().subscribe({
+      next: (list) => {
+        if (this.isNew && !this.dirty && list[0]) this.select(list[0]);
+      },
+      error: (err) => this.notify(`Could not load sequences: ${apiErrorMessage(err)}`)
+    });
   }
 
   // ===== Stats =====
@@ -275,8 +267,9 @@ export class NumberingSequencePage extends AdminPage {
     };
   }
 
-  /** Validates and stores the draft; publish also bumps the version. */
+  /** Validates and stores the draft (POST when new, PUT otherwise); publish also bumps the version. */
   commit(publish: boolean): void {
+    if (this.saving) return;
     this.showErrors = true;
     const fieldErrors = Object.values(this.fieldErrors);
     if (fieldErrors.length) {
@@ -291,15 +284,30 @@ export class NumberingSequencePage extends AdminPage {
       return;
     }
     if (this.isNew) this.draft.icon = MODULE_ICONS[this.draft.module] ?? 'box';
-    const wasNew = this.isNew;
-    const change = wasNew ? 'Created sequence' : publish ? 'Published format and settings' : 'Saved configuration changes';
-    const saved = this.service.save(this.draft, change, publish);
+    const isNew = this.isNew;
+    this.saving = true;
+    const request = isNew
+      ? this.service.create(this.draft, 'Created sequence')
+      : this.service.update(this.draft, publish ? 'Published format and settings' : 'Saved configuration changes', publish);
+    request.subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.afterSave(saved);
+        this.notify(isNew ? `${saved.name} created.` : publish ? `${saved.name} published as ${saved.version}.` : `${saved.name} saved.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(`Could not save: ${apiErrorMessage(err)}`);
+      }
+    });
+  }
+
+  private afterSave(saved: NumberSequence): void {
     this.selectedId = saved.id;
     this.draft = cloneSequence(saved);
     this.isNew = false;
     this.dirty = false;
     this.showErrors = false;
-    this.notify(wasNew ? `${saved.name} created.` : publish ? `${saved.name} published as ${saved.version}.` : `${saved.name} saved.`);
   }
 
   cancelEdit(): void {
@@ -373,11 +381,22 @@ export class NumberingSequencePage extends AdminPage {
       this.commit(false);
       return;
     }
+    if (this.saving) return;
     const name = this.draft.name;
-    this.service.remove(this.draft.id);
-    const next = this.all[0];
-    if (next) this.select(next);
-    this.notify(`${name} deleted.`);
+    this.saving = true;
+    this.service.remove(this.draft.id).subscribe({
+      next: () => {
+        this.saving = false;
+        const next = this.all[0];
+        if (next) this.select(next);
+        else this.createSequence();
+        this.notify(`${name} deleted.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(`Could not delete: ${apiErrorMessage(err)}`);
+      }
+    });
   }
 
   // ===== Import / export =====
@@ -415,8 +434,9 @@ export class NumberingSequencePage extends AdminPage {
         this.notify('No sequences found. Use the CSV layout from Export.');
         return;
       }
-      const added = this.service.importMany(rows);
-      this.notify(`Imported ${added} of ${rows.length} sequences${added < rows.length ? ' (duplicate codes skipped)' : ''}.`);
+      this.service.importMany(rows).subscribe((added) =>
+        this.notify(`Imported ${added} of ${rows.length} sequences${added < rows.length ? ' (duplicates and rejected rows skipped)' : ''}.`)
+      );
     });
   }
 

@@ -142,7 +142,7 @@
             </span>
           </button>
         } @empty {
-          <p class="list-empty">No policies match the search or filters.</p>
+          <p class="list-empty">{{ loading ? 'Loading policies...' : 'No policies match the search or filters.' }}</p>
         }
       </div>
     </aside>
