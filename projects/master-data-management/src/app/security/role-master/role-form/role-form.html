@@ -1,0 +1,120 @@
+<aside class="drawer" role="dialog" aria-labelledby="role-form-title">
+  <header class="drawer__header">
+    <h2 id="role-form-title">{{ isEdit ? 'Edit Role' : 'Add Role' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    <div class="field" [class.invalid]="errors['name']">
+      <label for="role-name"><span class="req">*</span> Role Name</label>
+      <input id="role-name" name="name" placeholder="Enter role name" [(ngModel)]="form.name" />
+      @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['code']">
+      <label for="role-code"><span class="req">*</span> Code</label>
+      <input id="role-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+      @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+    </div>
+    <div class="field" [class.invalid]="errors['type']">
+      <label for="role-type"><span class="req">*</span> Type</label>
+      <select id="role-type" name="type" [(ngModel)]="form.type">
+        <option value="" disabled>Select role type</option>
+        @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+      </select>
+      @if (errors['type']) { <small>{{ errors['type'] }}</small> }
+    </div>
+    <div class="field">
+      <label for="role-desc">Description</label>
+      <textarea id="role-desc" name="description" rows="2" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+    </div>
+    <div class="field">
+      <label for="role-copy">Copy From Role</label>
+      <select id="role-copy" name="copyFrom" [(ngModel)]="copyFrom" (ngModelChange)="onCopyFrom()">
+        <option value="">Select role (optional)</option>
+        @for (r of otherRoles; track r.code) { <option [value]="r.code">{{ r.name }}</option> }
+      </select>
+      <small class="hint">Replaces the permissions and module access below with that role's.</small>
+    </div>
+    <div class="field" [class.invalid]="errors['status']">
+      <label for="role-status">Status</label>
+      <div class="status-select">
+        <i [attr.data-status]="form.status"></i>
+        <select id="role-status" name="status" [(ngModel)]="form.status">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+      @if (errors['status']) { <small>{{ errors['status'] }}</small> }
+      @else if (isEdit && userCount && form.status === 'Inactive' && record?.status === 'Active') {
+        <small class="note">{{ userCount }} users hold this role and will lose its access.</small>
+      }
+    </div>
+
+    <nav class="drawer__tabs inner-tabs" role="tablist">
+      @for (t of tabs; track t.id) {
+        <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">
+          {{ t.label }} ({{ t.id === 'permissions' ? form.permissions.length : form.modules.length }})
+        </button>
+      }
+    </nav>
+    @if (errors['access']) { <small class="upload-error">{{ errors['access'] }}</small> }
+
+    @switch (tab) {
+      @case ('permissions') {
+        <label class="tree-search">
+          <lucide-icon [img]="icons.Search" [size]="14"></lucide-icon>
+          <input name="permSearch" placeholder="Search permissions..." aria-label="Search permissions" [(ngModel)]="search" />
+        </label>
+        <ul class="tree">
+          @for (g of groups; track g.module.code) {
+            <li>
+              <div class="tree__group">
+                <button type="button" class="tree__toggle" (click)="toggleExpanded(g.module.code)" [attr.aria-expanded]="expanded.has(g.module.code) || !!search"
+                  [attr.aria-label]="(expanded.has(g.module.code) ? 'Collapse ' : 'Expand ') + g.module.name">
+                  <lucide-icon [img]="expanded.has(g.module.code) || search ? icons.ChevronDown : icons.ChevronRight" [size]="14"></lucide-icon>
+                </button>
+                <label>
+                  <input type="checkbox" [checked]="groupState(g) === 'all'" [indeterminate]="groupState(g) === 'some'" (change)="toggleGroup(g)" />
+                  <span>{{ g.module.name }} ({{ g.permissions.length }})</span>
+                </label>
+              </div>
+              @if (expanded.has(g.module.code) || search) {
+                <ul class="tree__items">
+                  @for (p of g.permissions; track p.code) {
+                    <li>
+                      <label>
+                        <input type="checkbox" [checked]="hasPermission(p.code)" (change)="togglePermission(p)" />
+                        <span>{{ p.name }} <small>{{ p.type }}@if (p.status === 'Inactive') { · inactive }</small></span>
+                      </label>
+                    </li>
+                  }
+                </ul>
+              }
+            </li>
+          } @empty {
+            <li class="hint">No permissions match.</li>
+          }
+        </ul>
+      }
+
+      @case ('modules') {
+        <p class="hint">Modules this role can open. Removing a module also removes its permissions.</p>
+        <div class="ticks ticks--people">
+          @for (m of modules.all(); track m.code) {
+            <label>
+              <input type="checkbox" [checked]="hasModule(m.code)" (change)="toggleModule(m)" />
+              <span>{{ m.name }} <small>{{ m.category }} · {{ permissionCount(m) }} permissions@if (m.status === 'Inactive') { · inactive }</small></span>
+            </label>
+          }
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

@@ -1,0 +1,215 @@
+<aside class="drawer" role="dialog" aria-labelledby="loc-form-title">
+  <header class="drawer__header">
+    <h2 id="loc-form-title">{{ isEdit ? 'Edit Location' : 'Add Location' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <label class="upload" [class.upload--filled]="form.image" [class.invalid]="errors.image">
+            <input type="file" accept="image/png,image/jpeg" (change)="onImagePicked($event)" />
+            @if (form.image) {
+              <img [src]="form.image" alt="Location photo" />
+              <button type="button" class="upload__remove" (click)="$event.preventDefault(); removeImage()">Remove</button>
+            } @else {
+              <span class="upload__icon"><lucide-icon [img]="icons.Building2" [size]="34" [strokeWidth]="1.6"></lucide-icon></span>
+              <span class="upload__title">Click to upload</span>
+              <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+            }
+          </label>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.name">
+              <label for="loc-name"><span class="req">*</span> Location Name</label>
+              <input id="loc-name" name="name" placeholder="Enter location name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.code">
+              <label for="loc-code"><span class="req">*</span> Code</label>
+              <input id="loc-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+              @if (errors.code) { <small>{{ errors.code }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.siteId">
+              <label for="loc-site"><span class="req">*</span> Site</label>
+              <select id="loc-site" name="siteId" [(ngModel)]="form.siteId" (ngModelChange)="onSiteChange()">
+                <option value="" disabled>Select site</option>
+                @for (s of service.sites(); track s.id) { <option [value]="s.id">{{ s.name }}</option> }
+              </select>
+              @if (errors.siteId) { <small>{{ errors.siteId }}</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors.image) { <small class="upload-error">{{ errors.image }}</small> }
+
+        <div class="grid">
+          <ng-container *ngTemplateOutlet="hierarchyFields"></ng-container>
+
+          <div class="field" [class.invalid]="errors.type">
+            <label for="loc-type"><span class="req">*</span> Location Type</label>
+            <select id="loc-type" name="type" [(ngModel)]="form.type">
+              <option value="" disabled>Select type</option>
+              @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+            @if (errors.type) { <small>{{ errors.type }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.area">
+            <label for="loc-area">Area (m²)</label>
+            <input id="loc-area" name="area" type="number" min="0" placeholder="Enter area" [(ngModel)]="form.area" />
+            @if (errors.area) { <small>{{ errors.area }}</small> }
+          </div>
+
+          <div class="field field--wide">
+            <label for="loc-desc">Description</label>
+            <textarea id="loc-desc" name="description" rows="3" placeholder="Enter description about the location" [(ngModel)]="form.description"></textarea>
+          </div>
+
+          <div class="field field--wide">
+            <span class="field__label">Status</span>
+            <div class="radios">
+              <label><input type="radio" name="status" value="Active" [(ngModel)]="form.status" /> Active</label>
+              <label><input type="radio" name="status" value="Inactive" [(ngModel)]="form.status" /> Inactive</label>
+            </div>
+          </div>
+        </div>
+      }
+
+      @case ('hierarchy') {
+        <p class="hint">Where this location sits. Changing a level clears the levels below it.</p>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors.siteId">
+            <label for="loc-site-h"><span class="req">*</span> Site</label>
+            <select id="loc-site-h" name="siteIdH" [(ngModel)]="form.siteId" (ngModelChange)="onSiteChange()">
+              <option value="" disabled>Select site</option>
+              @for (s of service.sites(); track s.id) { <option [value]="s.id">{{ s.name }}</option> }
+            </select>
+            @if (errors.siteId) { <small>{{ errors.siteId }}</small> }
+          </div>
+          <div></div>
+          <ng-container *ngTemplateOutlet="hierarchyFields"></ng-container>
+        </div>
+        <div class="path">
+          <span class="field__label">Path</span>
+          <ol>
+            @for (p of hierarchyPath; track $index) { <li>{{ p }}</li> }
+          </ol>
+        </div>
+      }
+
+      @case ('type') {
+        <div class="grid">
+          <div class="field" [class.invalid]="errors.type">
+            <label for="loc-type-t"><span class="req">*</span> Location Type</label>
+            <select id="loc-type-t" name="typeT" [(ngModel)]="form.type">
+              <option value="" disabled>Select type</option>
+              @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+            @if (errors.type) { <small>{{ errors.type }}</small> }
+          </div>
+          <div class="field">
+            <span class="field__label">Environment</span>
+            <div class="radios">
+              <label><input type="radio" name="environment" value="Indoor" [(ngModel)]="form.environment" /> Indoor</label>
+              <label><input type="radio" name="environment" value="Outdoor" [(ngModel)]="form.environment" /> Outdoor</label>
+            </div>
+          </div>
+          <div class="field" [class.invalid]="errors.area">
+            <label for="loc-area-t">Area (m²)</label>
+            <input id="loc-area-t" name="areaT" type="number" min="0" placeholder="Enter area" [(ngModel)]="form.area" />
+            @if (errors.area) { <small>{{ errors.area }}</small> }
+          </div>
+          <div class="field">
+            <label for="loc-capacity">Capacity (people)</label>
+            <input id="loc-capacity" name="capacity" type="number" min="0" placeholder="Optional" [(ngModel)]="form.capacity" />
+          </div>
+          <label class="check field--wide"><input type="checkbox" name="restrictedAccess" [(ngModel)]="form.restrictedAccess" /> Restricted access (badge required)</label>
+          <label class="check field--wide"><input type="checkbox" name="temperatureControlled" [(ngModel)]="form.temperatureControlled" /> Temperature controlled</label>
+        </div>
+      }
+
+      @case ('map') {
+        <p class="hint">Coordinates follow the selected zone. Type your own to pin an exact spot.</p>
+        <div class="grid">
+          <div class="field" [class.invalid]="errors.lat">
+            <label for="loc-lat">Latitude</label>
+            <input id="loc-lat" name="lat" type="number" step="0.000001" [(ngModel)]="form.lat" (ngModelChange)="onCoordsInput()" />
+            @if (errors.lat) { <small>{{ errors.lat }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.lng">
+            <label for="loc-lng">Longitude</label>
+            <input id="loc-lng" name="lng" type="number" step="0.000001" [(ngModel)]="form.lng" (ngModelChange)="onCoordsInput()" />
+            @if (errors.lng) { <small>{{ errors.lng }}</small> }
+          </div>
+          <div class="field--wide">
+            <button type="button" class="btn btn--ghost" [disabled]="!form.buildingCode || !form.floorCode" (click)="useZonePosition()">Use zone position</button>
+          </div>
+        </div>
+      }
+
+      @case ('settings') {
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Allow asset assignment</strong><small>Assets can be placed in this location.</small></span>
+            <input type="checkbox" name="allowAssetAssignment" [(ngModel)]="form.allowAssetAssignment" />
+          </label>
+          <label class="toggle">
+            <span><strong>Enable tracking</strong><small>Show live tag positions for this location.</small></span>
+            <input type="checkbox" name="enableTracking" [(ngModel)]="form.enableTracking" />
+          </label>
+          <label class="toggle">
+            <span><strong>Geofence alerts</strong><small>Alert when tagged assets enter or leave.</small></span>
+            <input type="checkbox" name="geofenceAlerts" [(ngModel)]="form.geofenceAlerts" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>
+
+<!-- Building / Floor / Zone / Parent, shared by the Basic and Hierarchy tabs -->
+<ng-template #hierarchyFields>
+  <div class="field" [class.invalid]="errors.buildingCode">
+    <label for="loc-building"><span class="req">*</span> Building</label>
+    <select id="loc-building" name="buildingCode" [(ngModel)]="form.buildingCode" (ngModelChange)="onBuildingChange()" [disabled]="!form.siteId">
+      <option value="" disabled>Select building</option>
+      @for (b of service.buildings(form.siteId); track b.code) { <option [value]="b.code">{{ b.code }} - {{ b.name }}</option> }
+    </select>
+    @if (errors.buildingCode) { <small>{{ errors.buildingCode }}</small> }
+  </div>
+  <div class="field" [class.invalid]="errors.floorCode">
+    <label for="loc-floor"><span class="req">*</span> Floor</label>
+    <select id="loc-floor" name="floorCode" [(ngModel)]="form.floorCode" (ngModelChange)="onFloorChange()" [disabled]="!form.buildingCode">
+      <option value="" disabled>Select floor</option>
+      @for (f of service.floors(form.buildingCode); track f.code) { <option [value]="f.code">{{ f.name }} ({{ f.code }})</option> }
+    </select>
+    @if (errors.floorCode) { <small>{{ errors.floorCode }}</small> }
+  </div>
+  <div class="field">
+    <label for="loc-zone">Zone</label>
+    <select id="loc-zone" name="zoneCode" [(ngModel)]="form.zoneCode" (ngModelChange)="onZoneChange()" [disabled]="!form.floorCode">
+      <option value="">Select zone</option>
+      @for (z of service.zones(form.buildingCode, form.floorCode); track z.code) { <option [value]="z.code">{{ z.name }} ({{ z.code }})</option> }
+    </select>
+  </div>
+  <div class="field">
+    <label for="loc-parent">Parent Location</label>
+    <select id="loc-parent" name="parentCode" [(ngModel)]="form.parentCode" [disabled]="!form.floorCode">
+      <option [ngValue]="null">Select parent location (optional)</option>
+      @for (p of parentOptions; track p.code) { <option [ngValue]="p.code">{{ p.name }} ({{ p.code }})</option> }
+    </select>
+  </div>
+</ng-template>

@@ -1,0 +1,107 @@
+<aside class="drawer" role="dialog" aria-labelledby="icat-form-title">
+  <header class="drawer__header">
+    <h2 id="icat-form-title">{{ isEdit ? 'Edit Category' : 'Add Category' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="icat-name"><span class="req">*</span> Category Name</label>
+          <input id="icat-name" name="name" placeholder="Enter category name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="icat-code"><span class="req">*</span> Code</label>
+          <input id="icat-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['parentCode']">
+          <label for="icat-parent">Parent Category</label>
+          <select id="icat-parent" name="parentCode" [(ngModel)]="form.parentCode">
+            <option [ngValue]="null">Select parent category</option>
+            @for (p of parentOptions; track p.code) { <option [ngValue]="p.code">{{ p.name }} ({{ p.code }})</option> }
+          </select>
+          @if (errors['parentCode']) { <small>{{ errors['parentCode'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="icat-desc">Description</label>
+          <textarea id="icat-desc" name="description" rows="3" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field">
+          <label for="icat-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="icat-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('hierarchy') {
+        <div class="field">
+          <label for="icat-parent-h">Parent Category</label>
+          <select id="icat-parent-h" name="parentCodeH" [(ngModel)]="form.parentCode">
+            <option [ngValue]="null">None (top level)</option>
+            @for (p of parentOptions; track p.code) { <option [ngValue]="p.code">{{ p.name }} ({{ p.code }})</option> }
+          </select>
+        </div>
+        <div class="field">
+          <label for="icat-path">Path</label>
+          <input id="icat-path" name="path" [value]="path" readonly />
+        </div>
+        <span class="section-title">Sub-categories</span>
+        @for (c of children; track c.code) {
+          <p class="hint">{{ c.name }} ({{ c.code }})</p>
+        } @empty {
+          <p class="hint">None.</p>
+        }
+        @if (isEdit) { <p class="hint">{{ itemCount }} items use this category.</p> }
+      }
+
+      @case ('settings') {
+        <div class="grid">
+          <div class="field">
+            <label for="icat-uom">Default UOM</label>
+            <select id="icat-uom" name="defaultUom" [(ngModel)]="form.defaultUom">
+              @for (u of uoms.all(); track u.code) { <option [value]="u.code">{{ u.name }} ({{ u.symbol }})</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="icat-val">Valuation Method</label>
+            <select id="icat-val" name="valuationMethod" [(ngModel)]="form.valuationMethod">
+              @for (v of valuationMethods; track v) { <option [value]="v">{{ v }}</option> }
+            </select>
+          </div>
+        </div>
+        <p class="hint">New items in this category start with these values.</p>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Inspection on receipt</strong><small>Received stock goes to Quarantine until inspected.</small></span>
+            <input type="checkbox" name="inspectionOnReceipt" [(ngModel)]="form.inspectionOnReceipt" />
+          </label>
+          <label class="toggle">
+            <span><strong>Allow negative stock</strong><small>Issues can go below zero and are reconciled later.</small></span>
+            <input type="checkbox" name="allowNegativeStock" [(ngModel)]="form.allowNegativeStock" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

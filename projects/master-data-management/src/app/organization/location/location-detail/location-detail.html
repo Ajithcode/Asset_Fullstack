@@ -1,0 +1,244 @@
+<section class="detail">
+  <header class="detail__head">
+    <div class="detail__photo">
+      @if (location.image) {
+        <img [src]="location.image" [alt]="location.name" />
+      } @else {
+        <lucide-icon [img]="iconForType(location.type)" [size]="34" [strokeWidth]="1.6"></lucide-icon>
+      }
+    </div>
+
+    <div class="detail__title">
+      <div class="detail__name">
+        <h2>{{ location.name }}</h2>
+        <span class="pill" [attr.data-status]="location.status"><i></i>{{ location.status }}</span>
+      </div>
+      <div class="detail__meta">{{ location.code }} <span class="sep">|</span> Type: {{ location.type }}</div>
+      <div class="detail__path">
+        <lucide-icon [img]="icons.MapPin" [size]="14"></lucide-icon>
+        @for (p of pathParts; track $index; let last = $last) {
+          <span>{{ p }}</span>@if (!last) {<span class="chev">›</span>}
+        }
+      </div>
+    </div>
+
+    <div class="detail__actions">
+      <button type="button" class="btn" (click)="edit.emit(location)">
+        <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon> Edit
+      </button>
+      <button type="button" class="btn" (click)="viewOnMap()">
+        <lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon> View on Map
+      </button>
+      <div class="more">
+        <button type="button" class="btn" [attr.aria-expanded]="moreOpen" (click)="$event.stopPropagation(); moreOpen = !moreOpen">
+          More Actions <lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon>
+        </button>
+        @if (moreOpen) {
+          <div class="menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="moreOpen = false; duplicate.emit(location)">Duplicate</button>
+            <button type="button" role="menuitem" (click)="moreOpen = false; toggleStatus.emit(location)">
+              Mark as {{ location.status === 'Active' ? 'Inactive' : 'Active' }}
+            </button>
+            <button type="button" role="menuitem" class="danger" (click)="moreOpen = false; remove.emit(location)">Delete</button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <nav class="detail__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  @switch (tab) {
+    @case ('overview') {
+      <div class="overview">
+        <div class="card">
+          <h3>Location Details</h3>
+          <dl class="facts">
+            <dt>Name</dt><dd>{{ location.name }}</dd>
+            <dt>Code</dt><dd>{{ location.code }}</dd>
+            <dt>Type</dt><dd>{{ location.type }}</dd>
+            <dt>Site</dt><dd>{{ service.siteName(location.siteId) }}</dd>
+            <dt>Building</dt><dd>{{ location.buildingCode }} ({{ service.buildingName(location.buildingCode) }})</dd>
+            <dt>Floor</dt><dd>{{ location.floorCode }} ({{ service.floorName(location.floorCode) }})</dd>
+            <dt>Zone</dt><dd>{{ location.zoneCode ? location.zoneCode + ' (' + service.zoneName(location) + ')' : '-' }}</dd>
+            <dt>Parent Location</dt>
+            <dd>
+              @if (parent) {
+                <button type="button" class="link" (click)="select.emit(parent.code)">{{ parent.name }}</button>
+              } @else { - }
+            </dd>
+            <dt>Area</dt><dd>{{ formatArea(location.area) }}</dd>
+            <dt>Description</dt><dd>{{ location.description || '-' }}</dd>
+          </dl>
+          <dl class="facts facts--spaced">
+            <dt>Status</dt><dd><span class="pill" [attr.data-status]="location.status"><i></i>{{ location.status }}</span></dd>
+          </dl>
+          <dl class="facts facts--spaced">
+            <dt>Created On</dt><dd>{{ formatDateTime(location.createdOn) }}</dd>
+            <dt>Last Updated</dt><dd>{{ formatDateTime(location.updatedOn) }}</dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <h3>Hierarchy</h3>
+          @if (tree) {
+            <ul class="tree">
+              <ng-container *ngTemplateOutlet="treeNode; context: { $implicit: tree }"></ng-container>
+            </ul>
+          }
+        </div>
+
+        <div class="card card--map">
+          <h3>Map &amp; Layout</h3>
+          <app-location-map [location]="location"></app-location-map>
+        </div>
+      </div>
+    }
+
+    @case ('assets') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Asset Tag</th><th>Name</th><th>Category</th><th>Condition</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (a of assets(location); track a.tag) {
+              <tr><td class="mono">{{ a.tag }}</td><td>{{ a.name }}</td><td>{{ a.category }}</td><td>{{ a.condition }}</td><td><span class="tag" [attr.data-kind]="a.status">{{ a.status }}</span></td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('people') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Name</th><th>Role</th><th>Shift</th><th>Phone</th></tr></thead>
+          <tbody>
+            @for (p of people(location); track p.name) {
+              <tr><td>{{ p.name }}</td><td>{{ p.role }}</td><td>{{ p.shift }}</td><td>{{ p.phone }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('equipment') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Name</th><th>Code</th><th>Area</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (e of equipment; track e.code) {
+              <tr>
+                <td><button type="button" class="link" (click)="select.emit(e.code)">{{ e.name }}</button></td>
+                <td>{{ e.code }}</td><td>{{ formatArea(e.area) }}</td>
+                <td><span class="pill" [attr.data-status]="e.status"><i></i>{{ e.status }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="empty">No equipment is registered as a child of this location.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('documents') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Document</th><th>Type</th><th>Size</th><th>Uploaded On</th><th>Uploaded By</th></tr></thead>
+          <tbody>
+            @for (d of documents(location); track d.name) {
+              <tr><td>{{ d.name }}</td><td>{{ d.kind }}</td><td>{{ d.size }}</td><td>{{ d.uploadedOn }}</td><td>{{ d.uploadedBy }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('map') {
+      <div class="card card--map card--map-large">
+        <app-location-map [location]="location"></app-location-map>
+      </div>
+    }
+
+    @case ('children') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Location Name</th><th>Code</th><th>Type</th><th>Zone</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (c of children; track c.code) {
+              <tr>
+                <td><button type="button" class="link" (click)="select.emit(c.code)">{{ c.name }}</button></td>
+                <td>{{ c.code }}</td><td>{{ c.type }}</td><td>{{ c.zoneCode || '-' }}</td>
+                <td><span class="pill" [attr.data-status]="c.status"><i></i>{{ c.status }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="empty">This location has no child locations.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('settings') {
+      <div class="card">
+        <dl class="facts facts--settings">
+          <dt>Environment</dt><dd>{{ location.environment }}</dd>
+          <dt>Capacity</dt><dd>{{ location.capacity ?? '-' }}</dd>
+          <dt>Restricted access</dt><dd>{{ location.restrictedAccess ? 'Yes' : 'No' }}</dd>
+          <dt>Temperature controlled</dt><dd>{{ location.temperatureControlled ? 'Yes' : 'No' }}</dd>
+          <dt>Allow asset assignment</dt><dd>{{ location.allowAssetAssignment ? 'Yes' : 'No' }}</dd>
+          <dt>Tracking</dt><dd>{{ location.enableTracking ? 'Enabled' : 'Disabled' }}</dd>
+          <dt>Geofence alerts</dt><dd>{{ location.geofenceAlerts ? 'On' : 'Off' }}</dd>
+          <dt>Coordinates</dt><dd>{{ location.lat.toFixed(6) }}, {{ location.lng.toFixed(6) }}</dd>
+        </dl>
+        <button type="button" class="btn btn--small" (click)="edit.emit(location)">Change settings</button>
+      </div>
+    }
+
+    @case ('activity') {
+      <div class="card">
+        <ol class="timeline">
+          @for (a of activity(location); track $index) {
+            <li><span class="timeline__when">{{ formatDateTime(a.when) }}</span><span class="timeline__text"><strong>{{ a.who }}</strong> {{ a.text }}</span></li>
+          }
+        </ol>
+      </div>
+    }
+  }
+</section>
+
+<ng-template #treeNode let-node>
+  <li>
+    <div class="tree__row" [class.tree__row--current]="node.current">
+      @if (node.children.length) {
+        <button type="button" class="tree__toggle" (click)="toggleNode(node)" [attr.aria-label]="(expanded.has(node.key) ? 'Collapse ' : 'Expand ') + node.label">
+          <lucide-icon [img]="expanded.has(node.key) ? icons.ChevronDown : icons.ChevronRight" [size]="14"></lucide-icon>
+        </button>
+      } @else {
+        <span class="tree__toggle tree__toggle--leaf">└</span>
+      }
+      <lucide-icon class="tree__icon" [img]="node.icon" [size]="15"></lucide-icon>
+      @if (node.locationCode && !node.current) {
+        <button type="button" class="tree__label tree__label--link" (click)="select.emit(node.locationCode)">
+          {{ node.label }}@if (node.code) { ({{ node.code }})}
+        </button>
+      } @else {
+        <span class="tree__label">{{ node.label }}@if (node.code) { ({{ node.code }})}</span>
+      }
+      <span class="tree__kind">- {{ node.kind }}</span>
+    </div>
+    @if (node.children.length && expanded.has(node.key)) {
+      <ul>
+        @for (child of node.children; track child.key) {
+          <ng-container *ngTemplateOutlet="treeNode; context: { $implicit: child }"></ng-container>
+        }
+        @if (node.more > 0) {
+          <li class="tree__more">+ {{ node.more }} more locations</li>
+        }
+      </ul>
+    }
+  </li>
+</ng-template>

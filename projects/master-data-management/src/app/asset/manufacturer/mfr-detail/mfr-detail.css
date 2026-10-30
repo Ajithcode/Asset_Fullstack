@@ -1,0 +1,72 @@
+/* Brand badge: uploaded logo or the initials on the brand colour */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  font-weight: 800;
+}
+
+.brand img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brand--lg {
+  width: 64px;
+  height: 64px;
+  font-size: 15px;
+}
+
+.brand--md {
+  width: 46px;
+  height: 46px;
+  font-size: 12px;
+}
+
+.flag {
+  font-size: 15px;
+}
+
+.ext {
+  color: #1d4ed8;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.ext:hover {
+  text-decoration: underline;
+}
+
+.tile__icon--warn {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+}
+
+.address {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-style: normal;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.detail__actions a.btn {
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  .pair {
+    grid-template-columns: 1fr;
+  }
+}

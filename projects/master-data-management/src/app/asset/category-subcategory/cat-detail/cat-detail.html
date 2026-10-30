@@ -1,0 +1,314 @@
+<section class="detail">
+  <header class="detail__head">
+    <span class="cat-photo" [style.color]="category.color">
+      @if (category.image) { <img [src]="category.image" [alt]="category.name" /> }
+      @else { <lucide-icon [img]="typeIcons[category.icon]" [size]="38" [strokeWidth]="1.6"></lucide-icon> }
+    </span>
+
+    <div class="detail__title">
+      <div class="detail__name">
+        <h2>{{ category.name }}</h2>
+        <span class="pill" [attr.data-status]="category.status"><i></i>{{ category.status }}</span>
+      </div>
+      <div class="detail__meta">
+        Code: {{ category.code }}<span class="sep">|</span>Asset Type: {{ category.assetType || '-' }}
+        @if (parent) { <span class="sep">|</span>Parent: {{ parent.name }} }
+      </div>
+      @if (category.description) { <div class="detail__meta">{{ category.description }}</div> }
+    </div>
+
+    <div class="detail__actions">
+      <button type="button" class="btn" (click)="edit.emit({ category })">
+        <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon> Edit
+      </button>
+      <button type="button" class="btn" (click)="duplicate.emit(category)">
+        <lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon> Duplicate
+      </button>
+      <div class="more">
+        <button type="button" class="btn" [attr.aria-expanded]="moreOpen" (click)="$event.stopPropagation(); moreOpen = !moreOpen">
+          More Actions <lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon>
+        </button>
+        @if (moreOpen) {
+          <div class="menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="moreOpen = false; openSubForm(null)">Add subcategory</button>
+            <button type="button" role="menuitem" (click)="moreOpen = false; addChild.emit(category)">Add child category</button>
+            <button type="button" role="menuitem" (click)="moreOpen = false; toggleStatus.emit(category)">
+              Mark as {{ category.status === 'Active' ? 'Inactive' : 'Active' }}
+            </button>
+            <button type="button" role="menuitem" class="danger" (click)="moreOpen = false; remove.emit(category)">Delete</button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <nav class="detail__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <ng-template #subTable let-compact="compact">
+    <div class="sub-head">
+      <h4>Subcategories</h4>
+      <div class="sub-head__actions">
+        @if (picked.size) {
+          <span class="muted-inline">{{ picked.size }} selected</span>
+          <button type="button" class="card__edit card__edit--danger" (click)="removePicked()">Delete</button>
+        }
+        <button type="button" class="card__edit" (click)="openSubForm(null)"><lucide-icon [img]="icons.Plus" [size]="12"></lucide-icon> Add</button>
+      </div>
+    </div>
+    <table class="grid-table sub-table">
+      <thead>
+        <tr>
+          <th class="col-check"><input type="checkbox" [checked]="allPicked" (change)="togglePickAll()" aria-label="Select all subcategories" /></th>
+          <th><button type="button" class="th-sort" (click)="toggleSort()">Subcategory Name @if (subSort) { <lucide-icon [img]="icons.ArrowUp" [size]="12" [class.flip]="subSort === -1"></lucide-icon> }</button></th>
+          <th>Code</th>
+          <th>Assets</th>
+          <th>Status</th>
+          <th class="col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (s of compact ? subs.slice(0, 5) : subs; track s.code) {
+          <tr>
+            <td class="col-check"><input type="checkbox" [checked]="picked.has(s.code)" (change)="togglePick(s.code)" [attr.aria-label]="'Select ' + s.name" /></td>
+            <td>
+              <span class="sub-name">
+                <lucide-icon [img]="typeIcons[s.icon]" [size]="15" [style.color]="s.color"></lucide-icon>
+                <button type="button" class="link" (click)="openSubForm(s)">{{ s.name }}</button>
+              </span>
+            </td>
+            <td class="mono">{{ s.code }}</td>
+            <td>{{ s.assets | number }}</td>
+            <td><span class="pill" [attr.data-status]="s.status"><i></i>{{ s.status }}</span></td>
+            <td class="col-actions">
+              <div class="more">
+                <button type="button" class="dots" [attr.aria-label]="'Actions for ' + s.name" (click)="$event.stopPropagation(); subMenuFor = subMenuFor === s.code ? null : s.code">
+                  <lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon>
+                </button>
+                @if (subMenuFor === s.code) {
+                  <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                    <button type="button" role="menuitem" (click)="openSubForm(s)">Edit</button>
+                    <button type="button" role="menuitem" (click)="toggleSubStatus(s)">Mark as {{ s.status === 'Active' ? 'Inactive' : 'Active' }}</button>
+                    <button type="button" role="menuitem" class="danger" (click)="removeSubs([s.code])">Delete</button>
+                  </div>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="6" class="empty">No subcategories yet.</td></tr>
+        }
+      </tbody>
+    </table>
+    @if (compact && subs.length > 5) {
+      <button type="button" class="link link--icon more-link" (click)="tab = 'subcategories'">View all {{ subs.length }} subcategories <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></button>
+    }
+  </ng-template>
+
+  @switch (tab) {
+    @case ('overview') {
+      <div class="overview">
+        <div class="card">
+          <div class="card__head">
+            <h3 class="card__title">Category Details</h3>
+            <button type="button" class="card__edit" (click)="editAt('basic')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+          </div>
+          <dl class="facts">
+            <dt>Name</dt><dd>{{ category.name }}</dd>
+            <dt>Code</dt><dd>{{ category.code }}</dd>
+            <dt>Asset Type</dt><dd>{{ category.assetType || '-' }}</dd>
+            <dt>Parent Category</dt>
+            <dd>@if (parent) { <button type="button" class="link" (click)="select.emit(parent.code)">{{ parent.name }}</button> } @else { - }</dd>
+            <dt>Description</dt><dd>{{ category.description || '-' }}</dd>
+            <dt>Status</dt><dd><span class="pill" [attr.data-status]="category.status"><i></i>{{ category.status }}</span></dd>
+            <dt>Created On</dt><dd>{{ formatDateTime(category.createdOn) }}</dd>
+            <dt>Last Updated</dt><dd>{{ formatDateTime(category.updatedOn) }}</dd>
+          </dl>
+        </div>
+
+        <div class="middle">
+          <div class="stat-cards">
+            <div class="stat-card">
+              <span class="stat-card__icon"><lucide-icon [img]="icons.Layers" [size]="24"></lucide-icon></span>
+              <span>
+                <small>Subcategories</small><strong>{{ category.subcategories.length }}</strong>
+                <button type="button" class="link link--icon" (click)="tab = 'subcategories'">View Subcategories <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></button>
+              </span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card__icon"><lucide-icon [img]="icons.Box" [size]="24"></lucide-icon></span>
+              <span>
+                <small>Assets</small><strong>{{ assetCount | number }}</strong>
+                <button type="button" class="link link--icon" (click)="tab = 'assets'">View Assets <lucide-icon [img]="icons.ArrowRight" [size]="12"></lucide-icon></button>
+              </span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card__icon"><lucide-icon [img]="icons.Wrench" [size]="24"></lucide-icon></span>
+              <span>
+                <small>Open Work Orders</small><strong>{{ category.openWorkOrders }}</strong>
+                <span class="muted-inline">From Maintenance</span>
+              </span>
+            </div>
+          </div>
+          <div class="card">
+            <ng-container [ngTemplateOutlet]="subTable" [ngTemplateOutletContext]="{ compact: true }"></ng-container>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card__title">Category Hierarchy</h3>
+          <ul class="hier">
+            @for (row of hierarchy; track row.key) {
+              <li [style.padding-left.px]="row.level * 18" [class.current]="row.kind === 'current'">
+                @if (row.level) { <span class="hier__elbow">└</span> }
+                @if (row.icon) { <lucide-icon [img]="typeIcons[row.icon]" [size]="15"></lucide-icon> }
+                @else { <lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon> }
+                @if (row.code) {
+                  <button type="button" class="hier__name hier__name--link" (click)="select.emit(row.code)">{{ row.label }}</button>
+                } @else {
+                  <span class="hier__name">{{ row.label }}</span>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      </div>
+    }
+
+    @case ('subcategories') {
+      <div class="card">
+        <ng-container [ngTemplateOutlet]="subTable" [ngTemplateOutletContext]="{ compact: false }"></ng-container>
+      </div>
+    }
+
+    @case ('assets') {
+      <div class="card">
+        <p class="muted">{{ assetCount | number }} assets across {{ category.subcategories.length }} subcategories.</p>
+        <table class="grid-table">
+          <thead><tr><th>Subcategory</th><th>Assets</th><th>Share</th></tr></thead>
+          <tbody>
+            @for (s of category.subcategories; track s.code) {
+              <tr>
+                <td>{{ s.name }}</td>
+                <td>{{ s.assets | number }}</td>
+                <td><span class="health">{{ share(s) | number: '1.0-1' }}%<span class="health__bar"><i [style.width.%]="share(s)" [style.background]="category.color"></i></span></span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="3" class="empty">No assets yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('fields') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Custom Fields</h3>
+          <button type="button" class="card__edit" (click)="editAt('fields')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <table class="grid-table">
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th></tr></thead>
+          <tbody>
+            @for (c of category.customFields; track c.name) {
+              <tr><td>{{ c.name }}</td><td>{{ c.type }}</td><td>{{ c.required ? 'Yes' : 'No' }}</td></tr>
+            } @empty {
+              <tr><td colspan="3" class="empty">No custom fields yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('defaults') {
+      <div class="card">
+        <div class="card__head">
+          <h3 class="card__title">Default Values for New Assets</h3>
+          <button type="button" class="card__edit" (click)="editAt('defaults')"><lucide-icon [img]="icons.Pencil" [size]="12"></lucide-icon> Edit</button>
+        </div>
+        <dl class="facts facts--settings">
+          <dt>Asset Type</dt><dd>{{ category.assetType || '-' }}</dd>
+          <dt>Depreciation Method</dt><dd>{{ category.depreciationMethod }}</dd>
+          <dt>Useful Life</dt><dd>{{ category.usefulLifeYears }} years</dd>
+          <dt>Cost Center</dt><dd>{{ category.costCenter || '-' }}</dd>
+          <dt>Asset Tag Prefix</dt><dd>{{ category.tagPrefix || '-' }}</dd>
+          <dt>Tracking Method</dt><dd>{{ category.trackingMethod }}</dd>
+          <dt>Default Condition</dt><dd>{{ category.defaultCondition }}</dd>
+          <dt>Subcategory Required</dt><dd>{{ category.subcategoryRequired ? 'Yes' : 'No' }}</dd>
+          <dt>Approval for New Assets</dt><dd>{{ category.approvalForNewAssets ? 'Yes' : 'No' }}</dd>
+        </dl>
+      </div>
+    }
+
+    @case ('documents') {
+      <div class="card">
+        <table class="grid-table">
+          <thead><tr><th>Document</th><th>Type</th><th>Uploaded On</th></tr></thead>
+          <tbody>
+            @for (d of documentRows; track d.name) {
+              <tr><td>{{ d.name }}</td><td>{{ d.kind }}</td><td>{{ d.date }}</td></tr>
+            } @empty {
+              <tr><td colspan="3" class="empty">No documents linked yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('activity') {
+      <div class="card">
+        <ol class="timeline">
+          @for (a of activity; track $index) {
+            <li><span class="timeline__when">{{ formatDateTime(a.when) }}</span><span><strong>{{ a.who }}</strong> {{ a.text }}</span></li>
+          }
+        </ol>
+      </div>
+    }
+  }
+</section>
+
+@if (subForm; as f) {
+  <div class="overlay" (click)="subForm = null">
+    <form class="sub-dialog" role="dialog" aria-modal="true" aria-labelledby="sub-title" (click)="$event.stopPropagation()" (ngSubmit)="saveSub()" novalidate>
+      <header>
+        <h2 id="sub-title">{{ subOriginal ? 'Edit Subcategory' : 'Add Subcategory' }}</h2>
+        <button type="button" class="dots" (click)="subForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+      </header>
+      <p class="muted">In {{ category.name }} ({{ category.code }})</p>
+      <label class="sub-field" [class.invalid]="subErrors.name">
+        <span><i class="req">*</i> Subcategory Name</span>
+        <input name="subName" [(ngModel)]="f.name" (ngModelChange)="onSubNameChange()" />
+        @if (subErrors.name) { <small>{{ subErrors.name }}</small> }
+      </label>
+      <label class="sub-field" [class.invalid]="subErrors.code">
+        <span><i class="req">*</i> Code</span>
+        <input name="subCode" [(ngModel)]="f.code" />
+        @if (subErrors.code) { <small>{{ subErrors.code }}</small> }
+      </label>
+      <div class="sub-field">
+        <span>Icon</span>
+        <div class="icon-picker" role="radiogroup" aria-label="Icon">
+          @for (k of iconKeys; track k) {
+            <button type="button" class="icon-picker__item" role="radio" [class.on]="f.icon === k" [attr.aria-checked]="f.icon === k" [attr.aria-label]="k" (click)="f.icon = k">
+              <lucide-icon [img]="typeIcons[k]" [size]="16"></lucide-icon>
+            </button>
+          }
+        </div>
+      </div>
+      <div class="sub-field">
+        <span>Status</span>
+        <div class="sub-radios">
+          <label><input type="radio" name="subStatus" value="Active" [(ngModel)]="f.status" /> Active</label>
+          <label><input type="radio" name="subStatus" value="Inactive" [(ngModel)]="f.status" /> Inactive</label>
+        </div>
+      </div>
+      <footer>
+        <button type="button" class="btn" (click)="subForm = null">Cancel</button>
+        <button type="submit" class="btn btn--primary">Save</button>
+      </footer>
+    </form>
+  </div>
+}

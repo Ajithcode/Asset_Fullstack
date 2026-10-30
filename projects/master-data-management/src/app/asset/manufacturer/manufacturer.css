@@ -1,0 +1,26 @@
+/* Brand badge: uploaded logo or the initials on the brand colour */
+.badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.badge img {
+  border-radius: 50%;
+}
+
+.mail {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.mail:hover {
+  text-decoration: underline;
+}
+
+.nowrap {
+  white-space: nowrap;
+}

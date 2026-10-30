@@ -1,0 +1,14 @@
+/* Shared by the Maintenance list pages */
+.desc {
+  max-width: 280px;
+  color: #334155;
+}
+
+.pill.sev[data-sev='Critical'] { background: #fde8e8; color: #dc2626; }
+.pill.sev[data-sev='Critical'] i { background: #ef4444; }
+.pill.sev[data-sev='High'] { background: #fff1e6; color: #c2410c; }
+.pill.sev[data-sev='High'] i { background: #f97316; }
+.pill.sev[data-sev='Medium'] { background: #fef7e0; color: #a16207; }
+.pill.sev[data-sev='Medium'] i { background: #eab308; }
+.pill.sev[data-sev='Low'] { background: #e8f0fe; color: #1d4ed8; }
+.pill.sev[data-sev='Low'] i { background: #3b82f6; }

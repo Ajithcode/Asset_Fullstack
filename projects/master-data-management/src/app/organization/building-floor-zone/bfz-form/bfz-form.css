@@ -1,0 +1,50 @@
+.section-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-top: 4px;
+}
+
+.radios label.disabled {
+  color: #9aa1b1;
+}
+
+.hint-inline {
+  color: #64748b !important;
+}
+
+.field input[readonly] {
+  background: #f6f7fa;
+  color: #475066;
+}
+
+.field select:disabled {
+  background: #f6f7fa;
+}
+
+.color-input {
+  padding: 3px !important;
+  cursor: pointer;
+}
+
+.inherited {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f7f6fd;
+  font-size: 13px;
+  color: #334155;
+}
+
+/* "Use site / building position" under the coordinates */
+.btn--small-link {
+  align-self: flex-start;
+  height: 30px;
+  min-width: 0;
+  padding: 0 12px;
+  font-size: 12px;
+  margin-top: -4px;
+}

@@ -1,0 +1,22 @@
+/* Shared by the System Configuration list pages */
+.desc {
+  max-width: 260px;
+  color: #334155;
+}
+
+.pill[data-status='Inactive'] {
+  background: #fde8e8;
+  color: #dc2626;
+}
+
+.pill[data-status='Inactive'] i {
+  background: #ef4444;
+}
+
+.swatch-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  vertical-align: middle;
+}

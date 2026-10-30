@@ -1,0 +1,95 @@
+<aside class="drawer" role="dialog" aria-labelledby="wt-form-title">
+  <header class="drawer__header">
+    <h2 id="wt-form-title">{{ isEdit ? 'Edit Work Type' : 'Add Work Type' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="field" [class.invalid]="errors['name']">
+          <label for="wt-name"><span class="req">*</span> Work Type Name</label>
+          <input id="wt-name" name="name" placeholder="Enter work type name" [(ngModel)]="form.name" />
+          @if (errors['name']) { <small>{{ errors['name'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['code']">
+          <label for="wt-code"><span class="req">*</span> Code</label>
+          <input id="wt-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+          @if (errors['code']) { <small>{{ errors['code'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['maintenanceType']">
+          <label for="wt-maintenanceType"><span class="req">*</span> Maintenance Type</label>
+          <select id="wt-maintenanceType" name="maintenanceType" [(ngModel)]="form.maintenanceType">
+            <option value="" disabled>Select maintenance type</option>
+            @for (o of typeOptions; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+          @if (errors['maintenanceType']) { <small>{{ errors['maintenanceType'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="wt-desc">Description</label>
+          <textarea id="wt-desc" name="description" rows="2" placeholder="Enter description" [(ngModel)]="form.description"></textarea>
+        </div>
+        <div class="field" [class.invalid]="errors['hours']">
+          <label for="wt-hours">Estimated Duration (Hours)</label>
+          <input id="wt-hours" name="durationHours" type="number" min="0.25" step="0.25" placeholder="Enter duration" [(ngModel)]="form.durationHours" />
+          @if (errors['hours']) { <small>{{ errors['hours'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="wt-status">Status</label>
+          <div class="status-select">
+            <i [attr.data-status]="form.status"></i>
+            <select id="wt-status" name="status" [(ngModel)]="form.status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('details') {
+        <div class="field" [class.invalid]="errors['defaultPriority']">
+          <label for="wt-defaultPriority">Default Priority</label>
+          <select id="wt-defaultPriority" name="defaultPriority" [(ngModel)]="form.defaultPriority">
+            <option value="">Select priority</option>
+            @for (o of priorityOptions; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+          @if (errors['defaultPriority']) { <small>{{ errors['defaultPriority'] }}</small> }
+        </div>
+        <div class="field" [class.invalid]="errors['requiredSkill']">
+          <label for="wt-requiredSkill">Required Skill</label>
+          <select id="wt-requiredSkill" name="requiredSkill" [(ngModel)]="form.requiredSkill">
+            <option value="">Any skill</option>
+            @for (o of skillOptions; track o) { <option [value]="o">{{ o }}</option> }
+          </select>
+          @if (errors['requiredSkill']) { <small>{{ errors['requiredSkill'] }}</small> }
+        </div>
+        <div class="field">
+          <label for="wt-checklist">Checklist</label>
+          <select id="wt-checklist" name="checklistCode" [(ngModel)]="form.checklistCode">
+            <option value="">No checklist</option>
+            @for (c of checklistOptions; track c.code) { <option [value]="c.code">{{ c.name }} ({{ c.items.length }} items)</option> }
+          </select>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Permit to work required</strong><small>A work permit must be approved before work starts.</small></span>
+            <input type="checkbox" name="permitRequired" [(ngModel)]="form.permitRequired" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

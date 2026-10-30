@@ -1,0 +1,161 @@
+<section class="card">
+  <div class="card-header">
+    <h1 class="page-title">{{ config.title }}</h1>
+
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none">
+        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
+        <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+      <input
+        type="text"
+        class="search-input"
+        placeholder="Search"
+        [(ngModel)]="searchTerm"
+        (ngModelChange)="onSearch()"
+      />
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-danger-outline" type="button" [disabled]="selected.size === 0" (click)="askDelete(selectedCodes())">
+        Delete{{ selected.size ? ' (' + selected.size + ')' : '' }}
+      </button>
+      <button class="btn btn-primary" type="button" (click)="openAdd()">+ Add {{ config.singular }}</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="mdm-table">
+      <thead>
+        <tr>
+          <th class="selection-col">
+            <input type="checkbox" [checked]="allPageSelected" (change)="togglePage()" aria-label="Select all on this page" />
+          </th>
+          <th>Code</th>
+          @for (field of tableFields; track field.key) {
+            <th>{{ field.label }}</th>
+          }
+          <th>Status</th>
+          <th class="actions-col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of pageRows; track row.code) {
+          <tr [class.row-selected]="selected.has(row.code)">
+            <td class="selection-col">
+              <input type="checkbox" [checked]="selected.has(row.code)" (change)="toggleRow(row.code)" [attr.aria-label]="'Select ' + row.code" />
+            </td>
+            <td class="mono">{{ row.code }}</td>
+            @for (field of tableFields; track field.key) {
+              <td>{{ display(row[field.key], field) }}</td>
+            }
+            <td><span class="badge" [attr.data-status]="row.status">{{ row.status }}</span></td>
+            <td class="actions-col">
+              <app-row-actions (edit)="openEdit(row)" (delete)="askDelete([row.code])"></app-row-actions>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td class="empty-row" [attr.colspan]="tableFields.length + 4">
+              {{ searchTerm ? 'No ' + config.title.toLowerCase() + ' match your search.' : 'No ' + config.title.toLowerCase() + ' yet.' }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager">
+    <span class="pager-range">{{ rangeLabel }}</span>
+    <button class="pager-btn" type="button" [disabled]="page === 0" (click)="goToPage(page - 1)" aria-label="Previous page">‹</button>
+    <span class="pager-page">Page {{ page + 1 }} / {{ pageCount }}</span>
+    <button class="pager-btn" type="button" [disabled]="page >= pageCount - 1" (click)="goToPage(page + 1)" aria-label="Next page">›</button>
+  </div>
+</section>
+
+@if (showForm) {
+  <div class="modal-overlay" (click)="closeForm()">
+    <div class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">{{ editingCode === null ? 'Add' : 'Edit' }} {{ config.singular }}</h2>
+        <button class="modal-close" type="button" (click)="closeForm()" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+        </button>
+      </div>
+
+      <form class="modal-form" (ngSubmit)="submitForm()">
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="mdm-code">Code</label>
+            <input id="mdm-code" type="text" name="code" placeholder="Auto-generated if left blank" [(ngModel)]="form.code" />
+          </div>
+
+          @for (field of config.fields; track field.key) {
+            <div class="form-field" [class.form-field-wide]="field.type === 'textarea'">
+              @if (field.type === 'boolean') {
+                <label class="checkbox-label">
+                  <input type="checkbox" [name]="field.key" [(ngModel)]="form[field.key]" />
+                  <span>{{ field.label }}</span>
+                </label>
+              } @else {
+                <label [for]="'mdm-' + field.key">
+                  {{ field.label }} @if (field.required) {<span class="required">*</span>}
+                </label>
+                @switch (field.type) {
+                  @case ('select') {
+                    <select [id]="'mdm-' + field.key" [name]="field.key" [(ngModel)]="form[field.key]">
+                      @for (option of field.options ?? []; track option) {
+                        <option [value]="option">{{ option }}</option>
+                      }
+                    </select>
+                  }
+                  @case ('textarea') {
+                    <textarea [id]="'mdm-' + field.key" [name]="field.key" rows="3" [(ngModel)]="form[field.key]"></textarea>
+                  }
+                  @default {
+                    <input [id]="'mdm-' + field.key" [type]="field.type ?? 'text'" [name]="field.key" [(ngModel)]="form[field.key]" />
+                  }
+                }
+              }
+            </div>
+          }
+
+          <div class="form-field">
+            <label for="mdm-status">Status</label>
+            <select id="mdm-status" name="status" [(ngModel)]="form.status">
+              @for (status of statuses; track status) {
+                <option [value]="status">{{ status }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        @if (formError) {
+          <p class="form-error">{{ formError }}</p>
+        }
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-cancel" (click)="closeForm()">Cancel</button>
+          <button type="submit" class="btn btn-primary">{{ editingCode === null ? 'Add' : 'Save' }} {{ config.singular }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (pendingDelete.length) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="modal modal-sm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">Delete {{ pendingDelete.length === 1 ? config.singular : pendingDelete.length + ' records' }}?</h2>
+      </div>
+      <p class="modal-text">
+        {{ pendingDelete.length === 1 ? pendingDelete[0] : 'The selected records' }} will be removed. This can't be undone.
+      </p>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-cancel" (click)="cancelDelete()">Cancel</button>
+        <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+}

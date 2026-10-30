@@ -1,0 +1,240 @@
+<aside class="drawer" role="dialog" aria-labelledby="mfr-form-title">
+  <header class="drawer__header">
+    <h2 id="mfr-form-title">{{ isEdit ? 'Edit Manufacturer' : 'Add Manufacturer' }}</h2>
+    <button type="button" class="drawer__close" (click)="cancelled.emit()" aria-label="Close">
+      <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
+    </button>
+  </header>
+
+  <nav class="drawer__tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" role="tab" [class.active]="tab === t.id" [attr.aria-selected]="tab === t.id" (click)="tab = t.id">{{ t.label }}</button>
+    }
+  </nav>
+
+  <form class="drawer__body" (ngSubmit)="submit()" novalidate>
+    @switch (tab) {
+      @case ('basic') {
+        <div class="basic-top">
+          <div class="logo-field">
+            <span class="field__label">Manufacturer Logo</span>
+            <label class="upload" [class.upload--filled]="form.logo" [class.invalid]="errors.logo">
+              <input type="file" accept="image/png,image/jpeg" (change)="onLogoPicked($event)" />
+              @if (form.logo) {
+                <img [src]="form.logo" alt="Manufacturer logo" class="logo-img" />
+                <button type="button" class="upload__remove" (click)="$event.preventDefault(); removeLogo()">Remove</button>
+              } @else {
+                @if (form.name.trim()) {
+                  <span class="brand-badge" [style.background]="form.brandColor" [style.color]="badgeInk(form.brandColor)">{{ badgeText(form.name.trim()) }}</span>
+                } @else {
+                  <span class="upload__icon"><lucide-icon [img]="icons.Factory" [size]="34" [strokeWidth]="1.8"></lucide-icon></span>
+                }
+                <span class="upload__title">Click to upload</span>
+                <span class="upload__hint">PNG, JPG (Max 2MB)</span>
+              }
+            </label>
+          </div>
+
+          <div class="basic-top__fields">
+            <div class="field" [class.invalid]="errors.name">
+              <label for="mfr-name"><span class="req">*</span> Manufacturer Name</label>
+              <input id="mfr-name" name="name" placeholder="Enter manufacturer name" [(ngModel)]="form.name" />
+              @if (errors.name) { <small>{{ errors.name }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.code">
+              <label for="mfr-code"><span class="req">*</span> Code</label>
+              <input id="mfr-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
+              @if (errors.code) { <small>{{ errors.code }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.country">
+              <label for="mfr-country"><span class="req">*</span> Country</label>
+              <select id="mfr-country" name="country" [ngModel]="form.country" (ngModelChange)="setCountry($event)">
+                <option value="" disabled>Select country</option>
+                @for (c of countries; track c.name) { <option [value]="c.name">{{ c.flag }} {{ c.name }}</option> }
+              </select>
+              @if (errors.country) { <small>{{ errors.country }}</small> }
+            </div>
+            <div class="field" [class.invalid]="errors.website">
+              <label for="mfr-web">Website</label>
+              <div class="with-icon">
+                <lucide-icon [img]="icons.Globe" [size]="15"></lucide-icon>
+                <input id="mfr-web" name="website" type="url" placeholder="Enter website URL" [(ngModel)]="form.website" />
+              </div>
+              @if (errors.website) { <small>{{ errors.website }}</small> }
+            </div>
+          </div>
+        </div>
+        @if (errors.logo) { <small class="upload-error">{{ errors.logo }}</small> }
+
+        <div class="field">
+          <label for="mfr-desc">Description</label>
+          <textarea id="mfr-desc" name="description" rows="4" placeholder="Enter description about the manufacturer" [(ngModel)]="form.description"></textarea>
+        </div>
+
+        @if (!form.logo) {
+          <div class="field">
+            <span class="field__label">Badge colour (used when there is no logo)</span>
+            <div class="swatches" role="radiogroup" aria-label="Badge colour">
+              @for (c of palette; track c) {
+                <button type="button" class="swatch" role="radio" [style.background]="c" [class.on]="form.brandColor === c" [attr.aria-checked]="form.brandColor === c" [attr.aria-label]="'Colour ' + c" (click)="form.brandColor = c"></button>
+              }
+              <label class="swatch swatch--custom" title="Custom colour">
+                <input type="color" name="brandColor" [(ngModel)]="form.brandColor" aria-label="Custom badge colour" />
+              </label>
+            </div>
+          </div>
+        }
+
+        <div class="field">
+          <span class="field__label">Status</span>
+          <div class="radios">
+            <label><input type="radio" name="status" value="Active" [(ngModel)]="form.status" /> Active</label>
+            <label><input type="radio" name="status" value="Inactive" [(ngModel)]="form.status" /> Inactive</label>
+          </div>
+        </div>
+      }
+
+      @case ('contact') {
+        <span class="section-title">Primary Contact</span>
+        <div class="grid">
+          <div class="field">
+            <label for="mfr-contact">Contact Person</label>
+            <div class="with-icon">
+              <lucide-icon [img]="icons.User" [size]="15"></lucide-icon>
+              <input id="mfr-contact" name="primaryContact" [(ngModel)]="form.primaryContact" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="mfr-desig">Designation</label>
+            <input id="mfr-desig" name="designation" [(ngModel)]="form.designation" />
+          </div>
+          <div class="field" [class.invalid]="errors.email">
+            <label for="mfr-email">Email</label>
+            <input id="mfr-email" name="email" type="email" [(ngModel)]="form.email" />
+            @if (errors.email) { <small>{{ errors.email }}</small> }
+          </div>
+          <div class="field">
+            <label for="mfr-phone">Phone</label>
+            <input id="mfr-phone" name="phone" type="tel" placeholder="+1 800 000 0000" [(ngModel)]="form.phone" />
+          </div>
+        </div>
+
+        <span class="section-title">Secondary Contact</span>
+        <div class="grid">
+          <div class="field">
+            <label for="mfr-contact2">Contact Person</label>
+            <input id="mfr-contact2" name="secondaryContact" [(ngModel)]="form.secondaryContact" />
+          </div>
+          <div class="field" [class.invalid]="errors.secondaryEmail">
+            <label for="mfr-email2">Email</label>
+            <input id="mfr-email2" name="secondaryEmail" type="email" [(ngModel)]="form.secondaryEmail" />
+            @if (errors.secondaryEmail) { <small>{{ errors.secondaryEmail }}</small> }
+          </div>
+          <div class="field">
+            <label for="mfr-phone2">Phone</label>
+            <input id="mfr-phone2" name="secondaryPhone" type="tel" [(ngModel)]="form.secondaryPhone" />
+          </div>
+        </div>
+
+        <span class="section-title">Headquarters Address</span>
+        <div class="grid">
+          <div class="field">
+            <label for="mfr-a1">Address Line 1</label>
+            <input id="mfr-a1" name="line1" [(ngModel)]="form.address.line1" />
+          </div>
+          <div class="field">
+            <label for="mfr-a2">Address Line 2</label>
+            <input id="mfr-a2" name="line2" [(ngModel)]="form.address.line2" />
+          </div>
+          <div class="field">
+            <label for="mfr-city">City</label>
+            <input id="mfr-city" name="city" [(ngModel)]="form.address.city" />
+          </div>
+          <div class="field">
+            <label for="mfr-state">State</label>
+            <input id="mfr-state" name="state" [(ngModel)]="form.address.state" />
+          </div>
+          <div class="field">
+            <label for="mfr-postal">Postal Code</label>
+            <input id="mfr-postal" name="postalCode" [(ngModel)]="form.address.postalCode" />
+          </div>
+          <div class="field">
+            <label for="mfr-hq-country">Country</label>
+            <select id="mfr-hq-country" name="hqCountry" [(ngModel)]="form.address.country">
+              <option value="">Select country</option>
+              @for (c of countries; track c.name) { <option [value]="c.name">{{ c.flag }} {{ c.name }}</option> }
+            </select>
+          </div>
+        </div>
+      }
+
+      @case ('support') {
+        <div class="grid">
+          <div class="field field--wide" [class.invalid]="errors.supportPortal">
+            <label for="mfr-portal">Support Portal</label>
+            <input id="mfr-portal" name="supportPortal" type="url" placeholder="https://" [(ngModel)]="form.supportPortal" />
+            @if (errors.supportPortal) { <small>{{ errors.supportPortal }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.supportEmail">
+            <label for="mfr-semail">Support Email</label>
+            <input id="mfr-semail" name="supportEmail" type="email" [(ngModel)]="form.supportEmail" />
+            @if (errors.supportEmail) { <small>{{ errors.supportEmail }}</small> }
+          </div>
+          <div class="field">
+            <label for="mfr-sphone">Support Phone</label>
+            <input id="mfr-sphone" name="supportPhone" type="tel" [(ngModel)]="form.supportPhone" />
+          </div>
+          <div class="field" [class.invalid]="errors.standardWarrantyMonths">
+            <label for="mfr-warranty">Standard Warranty (Months)</label>
+            <input id="mfr-warranty" name="standardWarrantyMonths" type="number" min="0" max="240" [(ngModel)]="form.standardWarrantyMonths" />
+            @if (errors.standardWarrantyMonths) { <small>{{ errors.standardWarrantyMonths }}</small> }
+          </div>
+          <div class="field" [class.invalid]="errors.slaResponseHours">
+            <label for="mfr-sla">SLA Response (Hours)</label>
+            <input id="mfr-sla" name="slaResponseHours" type="number" min="1" max="720" [(ngModel)]="form.slaResponseHours" />
+            @if (errors.slaResponseHours) { <small>{{ errors.slaResponseHours }}</small> }
+          </div>
+        </div>
+        <div>
+          <button type="button" class="btn btn--ghost" (click)="fillSupportFromContact()">Fill empty fields from website and contact</button>
+        </div>
+      }
+
+      @case ('defaults') {
+        <div class="grid">
+          <div class="field">
+            <label for="mfr-currency">Default Currency</label>
+            <select id="mfr-currency" name="defaultCurrency" [(ngModel)]="form.defaultCurrency">
+              @for (c of currencies; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="mfr-terms">Payment Terms</label>
+            <select id="mfr-terms" name="paymentTerms" [(ngModel)]="form.paymentTerms">
+              @for (t of paymentTerms; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="toggles">
+          <label class="toggle">
+            <span><strong>Preferred manufacturer</strong><small>Flag this OEM as preferred for purchasing.</small></span>
+            <input type="checkbox" name="preferred" [(ngModel)]="form.preferred" />
+          </label>
+          <label class="toggle">
+            <span><strong>Warranty registration required</strong><small>New assets must be registered with the manufacturer.</small></span>
+            <input type="checkbox" name="warrantyRegistration" [(ngModel)]="form.warrantyRegistration" />
+          </label>
+          <label class="toggle">
+            <span><strong>Create warranty automatically</strong><small>Start the standard warranty on the asset's purchase date.</small></span>
+            <input type="checkbox" name="autoCreateWarranty" [(ngModel)]="form.autoCreateWarranty" />
+          </label>
+        </div>
+      }
+    }
+
+    <footer class="drawer__footer">
+      <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
+      <button type="submit" class="btn btn--primary">Save</button>
+    </footer>
+  </form>
+</aside>

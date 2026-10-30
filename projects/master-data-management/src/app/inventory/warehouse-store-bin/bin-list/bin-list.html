@@ -1,0 +1,147 @@
+<div class="mdm-page" [class.mdm-page--with-form]="formOpen">
+  <section class="panel mdm-main">
+    <form class="filters" (ngSubmit)="apply()">
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input name="search" placeholder="Search bin by code or store..." aria-label="Search bins" [(ngModel)]="draft.search" />
+      </label>
+      <label class="filter">
+        <span>Store</span>
+        <select name="store" [(ngModel)]="draft.store">
+          <option value="">All</option>
+          @for (s of stores.all(); track s.code) { <option [value]="s.code">{{ s.name }}</option> }
+        </select>
+      </label>
+      <label class="filter">
+        <span>Bin Type</span>
+        <select name="binType" [(ngModel)]="draft.binType">
+          <option value="">All</option>
+          @for (t of binTypes; track t) { <option [value]="t">{{ t }}</option> }
+        </select>
+      </label>
+      <label class="filter">
+        <span>Status</span>
+        <select name="status" [(ngModel)]="draft.status">
+          <option value="">All</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn--link" (click)="clear()">Clear</button>
+      <button type="submit" class="btn btn--primary">Apply</button>
+    </form>
+
+    @if (selected.size) {
+      <div class="bulk">
+        <span>{{ selected.size }} selected</span>
+        <button type="button" class="btn btn--link" (click)="selected.clear()">Clear selection</button>
+        <button type="button" class="btn btn--danger" (click)="askDeleteSelected()">Delete selected</button>
+      </div>
+    }
+
+    <div class="table-wrap">
+      <table class="mdm-table">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" [checked]="allOnPageSelected" (change)="togglePage()" aria-label="Select all on this page" /></th>
+            <th>
+              <button type="button" class="sort" (click)="sortBy('code')" [class.sort--on]="sortKey === 'code'">
+                Bin Code @if (sortKey === 'code') { <lucide-icon [img]="sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon> }
+              </button>
+            </th>
+            <th>
+              <button type="button" class="sort" (click)="sortBy('store')" [class.sort--on]="sortKey === 'store'">
+                Store @if (sortKey === 'store') { <lucide-icon [img]="sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon> }
+              </button>
+            </th>
+            <th>Warehouse</th>
+            <th>Rack / Shelf</th>
+            <th>
+              <button type="button" class="sort" (click)="sortBy('binType')" [class.sort--on]="sortKey === 'binType'">
+                Bin Type @if (sortKey === 'binType') { <lucide-icon [img]="sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon> }
+              </button>
+            </th>
+            <th>Capacity</th>
+            <th>
+              <button type="button" class="sort" (click)="sortBy('items')" [class.sort--on]="sortKey === 'items'">
+                Items @if (sortKey === 'items') { <lucide-icon [img]="sortDir === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon> }
+              </button>
+            </th>
+            <th>Status</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of pageRows; track r.code) {
+            <tr [class.is-selected]="formMode === 'edit' && formRecord?.code === r.code">
+              <td class="col-check"><input type="checkbox" [checked]="selected.has(r.code)" (change)="toggleRow(r.code)" [attr.aria-label]="'Select bin ' + r.code" /></td>
+              <td><button type="button" class="name" (click)="openEdit(r)">{{ r.code }}</button></td>
+              <td>{{ storeName(r) }}</td>
+              <td>{{ warehouseName(r) || '-' }}</td>
+              <td>{{ r.rack || '-' }} / {{ r.shelf || '-' }}</td>
+              <td>{{ r.binType }}</td>
+              <td>{{ r.capacity ?? '-' }}</td>
+              <td>{{ itemCount(r) }}</td>
+              <td><span class="pill" [attr.data-status]="r.status"><i></i>{{ r.status }}</span></td>
+              <td class="col-actions">
+                <div class="row-menu">
+                  <button type="button" class="dots" [attr.aria-label]="'Actions for bin ' + r.code" [attr.aria-expanded]="menuFor === r.code" (click)="$event.stopPropagation(); toggleMenu(r.code)">
+                    <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon>
+                  </button>
+                  @if (menuFor === r.code) {
+                    <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                      <button type="button" role="menuitem" (click)="openEdit(r)">Edit</button>
+                      <button type="button" role="menuitem" (click)="toggleStatus(r)">Mark as {{ r.status === 'Active' ? 'Inactive' : 'Active' }}</button>
+                      <button type="button" role="menuitem" class="danger" (click)="askDelete([r])">Delete</button>
+                    </div>
+                  }
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="10" class="empty">No bins match these filters.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="pager">
+      <span>Showing {{ showingFrom }} to {{ showingTo }} of {{ rows.length }} records</span>
+      <div class="pager__pages">
+        <button type="button" class="page-btn" [disabled]="page === 0" (click)="goTo(page - 1)" aria-label="Previous page">
+          <lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon>
+        </button>
+        @for (p of pageNumbers; track p) {
+          <button type="button" class="page-btn" [class.active]="p === page" [attr.aria-current]="p === page ? 'page' : null" (click)="goTo(p)">{{ p + 1 }}</button>
+        }
+        <button type="button" class="page-btn" [disabled]="page >= pageCount - 1" (click)="goTo(page + 1)" aria-label="Next page">
+          <lucide-icon [img]="icons.ChevronRight" [size]="15"></lucide-icon>
+        </button>
+        <select class="page-size" name="pageSize" [(ngModel)]="pageSize" (ngModelChange)="page = 0" aria-label="Rows per page">
+          @for (s of pageSizes; track s) { <option [ngValue]="s">{{ s }} / page</option> }
+        </select>
+      </div>
+    </footer>
+  </section>
+
+  @if (formOpen) {
+    <app-bin-form #formEl class="mdm-form" [mode]="formMode" [bin]="formRecord" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-bin-form>
+  }
+</div>
+
+@if (pendingDelete.length) {
+  <div class="overlay" (click)="cancelDelete()">
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="bin-del-title" (click)="$event.stopPropagation()">
+      <h2 id="bin-del-title">Delete {{ pendingDelete.length === 1 ? 'bin ' + pendingDelete[0].code : pendingDelete.length + ' bins' }}?</h2>
+      <p>This can't be undone.</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
+        <button type="button" class="btn btn--danger" (click)="confirmDelete('bins')">Delete</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

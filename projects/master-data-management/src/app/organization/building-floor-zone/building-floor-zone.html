@@ -1,0 +1,216 @@
+<div class="mdm-page" [class.mdm-page--with-form]="formOpen">
+  <div class="mdm-main">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a [routerLink]="basePath">Master Data Management</a>
+      <span aria-hidden="true">›</span>
+      <a [routerLink]="basePath + '/organization'">Organization</a>
+      <span aria-hidden="true">›</span>
+      <strong>Building / Floor / Zone</strong>
+    </nav>
+
+    <header class="head">
+      <span class="head__icon"><lucide-icon [img]="icons.Building2" [size]="24"></lucide-icon></span>
+      <div class="head__text">
+        <h1>Building / Floor / Zone</h1>
+        <p>Manage buildings, floors and zones within your sites for better location tracking, asset assignment and visualization.</p>
+      </div>
+      <div class="split head__add">
+        <button type="button" class="btn btn--primary split__main" (click)="openAdd('Building')">
+          <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add Building / Floor / Zone
+        </button>
+        <button type="button" class="btn btn--primary split__caret" aria-label="Choose what to add" [attr.aria-expanded]="addMenuOpen" (click)="$event.stopPropagation(); addMenuOpen = !addMenuOpen">
+          <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+        </button>
+        @if (addMenuOpen) {
+          <div class="menu split__menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="openAdd('Building')">Add Building</button>
+            <button type="button" role="menuitem" (click)="openAdd('Floor')">Add Floor</button>
+            <button type="button" role="menuitem" (click)="openAdd('Zone')">Add Zone</button>
+          </div>
+        }
+      </div>
+    </header>
+
+    <section class="kpis kpis--3" aria-label="Summary">
+      <div class="kpi">
+        <span class="kpi__icon kpi__icon--blue"><lucide-icon [img]="icons.Building2" [size]="28"></lucide-icon></span>
+        <span><small>Total Buildings</small><strong>{{ stats.buildings }}</strong></span>
+      </div>
+      <div class="kpi">
+        <span class="kpi__icon kpi__icon--blue"><lucide-icon [img]="icons.Layers" [size]="28"></lucide-icon></span>
+        <span><small>Total Floors</small><strong>{{ stats.floors }}</strong></span>
+      </div>
+      <div class="kpi">
+        <span class="kpi__icon kpi__icon--blue"><lucide-icon [img]="icons.Hexagon" [size]="28"></lucide-icon></span>
+        <span><small>Total Zones</small><strong>{{ stats.zones }}</strong></span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <form class="filters" (ngSubmit)="apply()">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input name="search" placeholder="Search by name, code, site, description..." aria-label="Search" [(ngModel)]="draft.search" />
+        </label>
+        <label class="filter">
+          <span>Site</span>
+          <select name="site" [(ngModel)]="draft.siteId">
+            <option value="">All</option>
+            @for (s of service.sites(); track s.id) { <option [value]="s.id">{{ s.name }}</option> }
+          </select>
+        </label>
+        <label class="filter">
+          <span>Type</span>
+          <select name="type" [(ngModel)]="draft.type">
+            <option value="">All</option>
+            @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+          </select>
+        </label>
+        <label class="filter">
+          <span>Status</span>
+          <select name="status" [(ngModel)]="draft.status">
+            <option value="">All</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn--link" (click)="clear()">Clear</button>
+        <button type="submit" class="btn btn--primary">Apply</button>
+      </form>
+
+      @if (selected.size) {
+        <div class="bulk">
+          <span>{{ selected.size }} selected</span>
+          <button type="button" class="btn btn--link" (click)="selected.clear()">Clear selection</button>
+          <button type="button" class="btn btn--danger" (click)="askDeleteSelected()">Delete selected</button>
+        </div>
+      }
+
+      <div class="table-wrap">
+        <table class="mdm-table">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" [checked]="allOnPageSelected" (change)="togglePage()" aria-label="Select all on this page" /></th>
+              <th>
+                <button type="button" class="sort" (click)="sortByName()" [class.sort--on]="sortName !== null">
+                  Name <lucide-icon [img]="sortName === -1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon>
+                </button>
+              </th>
+              <th>Code</th>
+              <th>Type</th>
+              <th>Site</th>
+              <th>Parent Level</th>
+              <th>Capacity</th>
+              <th>Area (m²)</th>
+              <th>Status</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of pageRows; track row.record.code) {
+              <tr [class.is-selected]="row.record.code === selectedCode" (click)="open(row.record.code, false)">
+                <td class="col-check" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [checked]="selected.has(row.record.code)" (change)="toggleRow(row.record.code)" [attr.aria-label]="'Select ' + row.record.name" />
+                </td>
+                <td>
+                  <div class="tree-cell" [style.padding-left.px]="row.depth * 22">
+                    @if (row.hasChildren) {
+                      <button type="button" class="chev" (click)="$event.stopPropagation(); toggleExpand(row.record.code)" [attr.aria-label]="(expanded.has(row.record.code) ? 'Collapse ' : 'Expand ') + row.record.name">
+                        <lucide-icon [img]="expanded.has(row.record.code) ? icons.ChevronDown : icons.ChevronRight" [size]="14"></lucide-icon>
+                      </button>
+                    } @else {
+                      <span class="chev chev--none"></span>
+                    }
+                    <lucide-icon class="type-icon" [attr.data-type]="row.record.type" [img]="iconFor(row.record)" [size]="17"></lucide-icon>
+                    <button type="button" class="name" (click)="$event.stopPropagation(); open(row.record.code)">{{ service.label(row.record) }}</button>
+                  </div>
+                </td>
+                <td>{{ row.record.code }}</td>
+                <td>{{ row.record.type }}</td>
+                <td>{{ service.siteName(row.record.siteId) }}</td>
+                <td>{{ parentLabel(row.record) }}</td>
+                <td>{{ row.record.type === 'Building' || row.record.capacity === null ? '-' : (row.record.capacity | number) }}</td>
+                <td>{{ row.record.area === null ? '-' : (row.record.area | number) }}</td>
+                <td><span class="pill" [attr.data-status]="row.record.status"><i></i>{{ row.record.status }}</span></td>
+                <td class="col-actions" (click)="$event.stopPropagation()">
+                  <div class="row-menu">
+                    <button type="button" class="dots" [attr.aria-label]="'Actions for ' + row.record.name" [attr.aria-expanded]="menuFor === row.record.code" (click)="$event.stopPropagation(); toggleMenu(row.record.code)">
+                      <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon>
+                    </button>
+                    @if (menuFor === row.record.code) {
+                      <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                        <button type="button" role="menuitem" (click)="open(row.record.code)">View details</button>
+                        <button type="button" role="menuitem" (click)="openEdit(row.record)">Edit</button>
+                        @if (row.record.type !== 'Zone') {
+                          <button type="button" role="menuitem" (click)="addChild(row.record)">{{ row.record.type === 'Building' ? 'Add Floor' : 'Add Zone' }}</button>
+                        }
+                        <button type="button" role="menuitem" (click)="toggleStatus(row.record)">Mark as {{ row.record.status === 'Active' ? 'Inactive' : 'Active' }}</button>
+                        <button type="button" role="menuitem" class="danger" (click)="askDelete([row.record])">Delete</button>
+                      </div>
+                    }
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="10" class="empty">Nothing matches these filters.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pager">
+        <span>Showing {{ showingFrom }} to {{ showingTo }} of {{ rows.length | number }} records</span>
+        <div class="pager__pages">
+          <button type="button" class="page-btn" [disabled]="page === 0" (click)="goTo(page - 1)" aria-label="Previous page">
+            <lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon>
+          </button>
+          @for (p of pageNumbers; track p) {
+            <button type="button" class="page-btn" [class.active]="p === page" [attr.aria-current]="p === page ? 'page' : null" (click)="goTo(p)">{{ p + 1 }}</button>
+          }
+          <button type="button" class="page-btn" [disabled]="page >= pageCount - 1" (click)="goTo(page + 1)" aria-label="Next page">
+            <lucide-icon [img]="icons.ChevronRight" [size]="15"></lucide-icon>
+          </button>
+          <select class="page-size" name="pageSize" [(ngModel)]="pageSize" (ngModelChange)="page = 0" aria-label="Rows per page">
+            @for (s of pageSizes; track s) { <option [ngValue]="s">{{ s }} / page</option> }
+          </select>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  @if (formOpen) {
+    <app-bfz-form #formEl class="mdm-form" [mode]="formMode" [record]="formRecord" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-bfz-form>
+  }
+
+  <div class="bfz-detail" #detailEl>
+    @if (selectedRecord; as rec) {
+      <app-bfz-detail
+        [record]="rec"
+        (edit)="openEdit($event)"
+        (addChild)="addChild($event)"
+        (toggleStatus)="toggleStatus($event)"
+        (remove)="askDelete([$event])"
+        (select)="open($event)"
+        (addImage)="onAddImage($event)"
+        (imageError)="notify($event)"
+      ></app-bfz-detail>
+    }
+  </div>
+</div>
+
+@if (pendingDelete.length) {
+  <div class="overlay" (click)="cancelDelete()">
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="bfz-del-title" (click)="$event.stopPropagation()">
+      <h2 id="bfz-del-title">Delete {{ pendingDelete.length === 1 ? pendingDelete[0].name : pendingDelete.length + ' records' }}?</h2>
+      <p>This can't be undone.</p>
+      <div class="confirm__actions">
+        <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
+        <button type="button" class="btn btn--danger" (click)="confirmDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}
