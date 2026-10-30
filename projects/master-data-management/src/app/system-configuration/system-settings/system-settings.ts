@@ -26,7 +26,8 @@ import { ConditionService } from '../../asset/condition/condition.service';
 import { CriticalityService } from '../../asset/criticality/criticality.service';
 import { HEX_COLOR } from '../../asset/level-icons';
 import { CURRENCIES } from '../../organization/organization/organization.data';
-import { EMAIL, nowStamp, readPhoto } from '../../people/people.data';
+import { EMAIL, readPhoto } from '../../people/people.data';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import {
   BACKUP_FREQUENCIES,
   DATE_FORMATS,
@@ -174,7 +175,19 @@ export class SystemSettingsPage {
   form: SystemSettings = this.service.draft();
   errors: Partial<Record<string, string>> = {};
   toast = '';
+  saving = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    this.service.load().subscribe({
+      next: () => (this.form = this.service.draft()),
+      error: (err) => this.notify(`Settings could not be loaded: ${apiErrorMessage(err)}`)
+    });
+    // Choices for Default Values and Integration
+    this.sources.load().subscribe({ error: () => undefined });
+    this.charts.load().subscribe({ error: () => undefined });
+    this.syncStatuses.load().subscribe({ error: () => undefined });
+  }
 
   get currentTab() {
     return this.tabs.find((t) => t.id === this.tab)!;
@@ -251,9 +264,19 @@ export class SystemSettingsPage {
       this.notify('Some settings need fixing before they can be saved.');
       return;
     }
-    this.service.save(this.form, nowStamp());
-    this.form = this.service.draft();
-    this.notify('Settings saved.');
+    if (this.saving) return;
+    this.saving = true;
+    this.service.save(this.form).subscribe({
+      next: () => {
+        this.saving = false;
+        this.form = this.service.draft();
+        this.notify('Settings saved.');
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   private validate(f: SystemSettings): Record<string, string> {

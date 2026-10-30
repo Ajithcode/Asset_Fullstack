@@ -12,8 +12,8 @@ export interface BfzSite {
   city: string;
   state: string;
   country: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface BfzAddress {

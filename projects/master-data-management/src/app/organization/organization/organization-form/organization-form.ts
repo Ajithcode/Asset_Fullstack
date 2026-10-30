@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { COUNTRIES, CURRENCIES, DATE_FORMATS, LANGUAGES, TIME_ZONES, blankOrganization } from '../organization.data';
@@ -31,6 +31,7 @@ export class OrganizationForm implements OnChanges {
   // 'edit' changes `organization`; 'add' creates a new record, pre-filled from `organization` if given
   @Input() mode: 'add' | 'edit' = 'add';
   @Input() organization: OrganizationRecord | null = null;
+  @Input() saving = false;
   @Output() saved = new EventEmitter<{ record: OrganizationRecord; originalCode: string | null }>();
   @Output() cancelled = new EventEmitter<void>();
 
@@ -55,7 +56,9 @@ export class OrganizationForm implements OnChanges {
   // The stored record being edited; null when adding
   private original: OrganizationRecord | null = null;
 
-  ngOnChanges(): void {
+  ngOnChanges(changes: SimpleChanges): void {
+    // Only a new record (or mode) resets the form; `saving` flips must keep the user's edits
+    if (!changes['mode'] && !changes['organization']) return;
     this.original = this.mode === 'edit' ? this.organization : null;
     this.form = this.organization ? structuredClone(this.organization) : blankOrganization();
     this.errors = {};

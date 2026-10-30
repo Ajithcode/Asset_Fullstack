@@ -1,18 +1,36 @@
 import { Injectable } from '@angular/core';
-import { initialOrganizations } from './organization.data';
-import { OrganizationFilters, OrganizationRecord } from './organization.model';
+import { MdmAudit } from '../../shared/mdm-api';
+import { blankOrganization } from './organization.data';
+import { OrganizationFilters, OrganizationRecord, OrganizationStatus, OrganizationType } from './organization.model';
+import { StructureAddressDto, StructureContactDto, StructureReference, fromApiAddress, toLocalStamp } from '../structure-api';
+import { StructureStore } from '../structure-store';
 
-/** DEMO MODE: in-memory organizations; replace these methods with API calls when the backend is ready. */
+interface OrganizationDto extends MdmAudit {
+  organizationName: string;
+  code: string;
+  logoUrl: string | null;
+  type: string | null;
+  parentOrganization: StructureReference | null;
+  registrationNumber: string | null;
+  website: string | null;
+  description: string | null;
+  address: StructureAddressDto | null;
+  contact: StructureContactDto | null;
+  settings: OrganizationRecord['settings'] | null;
+}
+
+/** Organizations from `/api/master-data/organizations`, keyed by code; the parent is kept as a code too. */
 @Injectable({ providedIn: 'root' })
-export class OrganizationService {
-  private records: OrganizationRecord[] = initialOrganizations();
+export class OrganizationService extends StructureStore<OrganizationRecord, OrganizationDto> {
+  protected readonly resource = 'organizations';
 
-  all(): OrganizationRecord[] {
-    return this.records;
+  constructor() {
+    super();
   }
 
-  find(code: string | null): OrganizationRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+  /** Business unit and site counts come from those masters. */
+  applyCounts(businessUnits: (code: string) => number, sites: (code: string) => number): void {
+    this.records = this.records.map((r) => ({ ...r, businessUnits: businessUnits(r.code), sites: sites(r.code) }));
   }
 
   children(code: string): OrganizationRecord[] {
@@ -66,27 +84,63 @@ export class OrganizationService {
     };
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+  protected toRecord(dto: OrganizationDto): OrganizationRecord {
+    const blank = blankOrganization();
+    const c = dto.contact;
+    const s = dto.settings;
+    const known = this.find(dto.code);
+    return {
+      code: dto.code,
+      name: dto.organizationName,
+      type: (dto.type ?? '') as OrganizationType,
+      // Parent id for now; StructureStore swaps it for the code
+      parentCode: dto.parentOrganization?.id ?? null,
+      logo: dto.logoUrl,
+      registrationNumber: dto.registrationNumber ?? '',
+      website: dto.website ?? '',
+      description: dto.description ?? '',
+      businessUnits: known?.businessUnits ?? 0,
+      sites: known?.sites ?? 0,
+      status: (dto.status as OrganizationStatus) ?? 'Active',
+      address: fromApiAddress(dto.address),
+      contact: {
+        person: c?.name ?? '',
+        designation: c?.designation ?? '',
+        email: c?.email ?? '',
+        phoneCountry: c?.phoneCountry ?? blank.contact.phoneCountry,
+        phone: c?.phone ?? ''
+      },
+      settings: {
+        currency: s?.currency ?? '',
+        timeZone: s?.timeZone ?? '',
+        language: s?.language ?? '',
+        dateFormat: s?.dateFormat ?? '',
+        effectiveFrom: s?.effectiveFrom ?? '',
+        effectiveTo: s?.effectiveTo ?? '',
+        allowSubOrganizations: s?.allowSubOrganizations ?? false,
+        allowMultipleLocations: s?.allowMultipleLocations ?? false,
+        useForAssetNumbering: s?.useForAssetNumbering ?? false,
+        enableFinancialTracking: s?.enableFinancialTracking ?? false
+      },
+      createdOn: toLocalStamp(dto.createdAt),
+      updatedOn: toLocalStamp(dto.updatedAt ?? dto.createdAt)
+    };
   }
 
-  save(record: OrganizationRecord, originalCode: string | null): void {
-    const index = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    if (index >= 0) {
-      this.records[index] = record;
-      if (originalCode !== record.code) {
-        this.records.forEach((r) => {
-          if (r.parentCode === originalCode) r.parentCode = record.code;
-        });
-      }
-    } else {
-      this.records.push(record);
-    }
-    this.records = [...this.records];
-  }
-
-  remove(codes: string[]): void {
-    this.records = this.records.filter((r) => !codes.includes(r.code));
+  protected toRequest(r: OrganizationRecord): object {
+    return {
+      organizationName: r.name,
+      code: r.code,
+      logoUrl: r.logo,
+      type: r.type || null,
+      parentOrganization: this.refOf(r.parentCode),
+      registrationNumber: r.registrationNumber,
+      website: r.website,
+      description: r.description,
+      address: r.address,
+      contact: { name: r.contact.person, designation: r.contact.designation, email: r.contact.email, phoneCountry: r.contact.phoneCountry, phone: r.contact.phone },
+      settings: { ...r.settings, effectiveFrom: r.settings.effectiveFrom || null, effectiveTo: r.settings.effectiveTo || null },
+      status: r.status
+    };
   }
 }

@@ -1,41 +1,119 @@
 import { Injectable } from '@angular/core';
-import { initialShifts } from './shift.data';
-import { ShiftRecord } from './shift.model';
+import { Observable, map } from 'rxjs';
+import { ApiCodeStore } from '../../shared/code-store';
+import { MdmAudit } from '../../shared/mdm-api';
+import { LoadOnce } from '../load-once';
+import { MdmRef, apiDate, apiText, stampOf } from '../people.data';
+import { WEEK_DAYS } from './shift.data';
+import { ShiftBreak, ShiftRecord, ShiftStatus, ShiftType } from './shift.model';
 
-/** DEMO MODE: in-memory shifts; replace these methods with API calls when the backend is ready. */
+interface ShiftDto extends MdmAudit {
+  shiftName: string;
+  code: string;
+  shiftType: string | null;
+  startTime: string;
+  endTime: string;
+  workingDays: string[];
+  color: string | null;
+  description: string | null;
+  effectiveFrom: string | null;
+  graceMinutes: number;
+  rotationPattern: string | null;
+  breaks: { name: string; start: string | null; minutes: number }[];
+  overtimeAllowed: boolean;
+  nightAllowance: boolean;
+  attendanceRequired: boolean;
+}
+
+/** Shifts from /api/master-data/shifts. Teams point at their shift. */
 @Injectable({ providedIn: 'root' })
-export class ShiftService {
-  private records: ShiftRecord[] = initialShifts();
+export class ShiftService extends ApiCodeStore<ShiftRecord, ShiftDto> {
+  protected readonly resource = 'shifts';
+  private readonly loader = new LoadOnce(() => this.load());
 
-  all(): ShiftRecord[] {
-    return this.records;
+  constructor() {
+    super();
   }
 
-  find(code: string | null): ShiftRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+  /** Loads the list once, for pages and pickers that only read it. */
+  ensureLoaded(): void {
+    this.loader.ensure();
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+  /** Completes once the list has been loaded (at most one request). */
+  loadOnce(): Observable<unknown> {
+    return this.loader.once();
   }
 
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
+  /** Reloads the list from the API. */
+  refresh(): Observable<ShiftRecord[]> {
+    return this.loader.refresh();
   }
 
-  save(record: ShiftRecord, originalCode: string | null): void {
-    const index = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    if (index >= 0) {
-      this.records[index] = record;
-      this.records = [...this.records];
-    } else {
-      this.records = [...this.records, record];
-    }
+  /** `{ id, name }` link the API takes for the shift, or null. */
+  ref(code: string | null | undefined): MdmRef | null {
+    const shift = this.find(code);
+    const id = code ? this.idOf(code) : undefined;
+    return shift && id ? { id, name: shift.name } : null;
   }
 
-  remove(codes: string[]): void {
-    this.records = this.records.filter((r) => !codes.includes(r.code));
+  /** Code of the shift with this record id. */
+  codeOfId(id: string | null | undefined): string {
+    return id ? (this.records.find((r) => this.idOf(r.code) === id)?.code ?? '') : '';
+  }
+
+  setStatus(record: ShiftRecord, status: ShiftStatus): Observable<ShiftRecord> {
+    return this.api.setStatus<ShiftDto>(this.resource, this.idOf(record.code)!, status).pipe(
+      map((dto) => {
+        const saved = this.toRecord(dto);
+        this.save(saved, saved.code);
+        return saved;
+      })
+    );
+  }
+
+  protected toRecord(dto: ShiftDto): ShiftRecord {
+    return {
+      code: dto.code,
+      name: dto.shiftName,
+      shiftType: (dto.shiftType as ShiftType) || 'Regular',
+      startTime: dto.startTime ?? '',
+      endTime: dto.endTime ?? '',
+      color: (dto.color ?? '').toLowerCase(),
+      // The API keeps full day names; the page uses Mon, Tue...
+      workingDays: WEEK_DAYS.filter((d) => (dto.workingDays ?? []).some((w) => w.slice(0, 3) === d)),
+      description: dto.description ?? '',
+      status: (dto.status as ShiftStatus) || 'Active',
+      effectiveFrom: dto.effectiveFrom ?? '',
+      graceMinutes: dto.graceMinutes ?? 0,
+      rotationPattern: dto.rotationPattern ?? '',
+      breaks: (dto.breaks ?? []).map((b): ShiftBreak => ({ name: b.name, start: b.start ?? '', minutes: b.minutes })),
+      overtimeAllowed: dto.overtimeAllowed,
+      nightAllowance: dto.nightAllowance,
+      attendanceRequired: dto.attendanceRequired,
+      createdOn: stampOf(dto.createdAt),
+      updatedOn: stampOf(dto.updatedAt)
+    };
+  }
+
+  protected toRequest(r: ShiftRecord): object {
+    return {
+      shiftName: r.name,
+      code: r.code,
+      shiftType: r.shiftType,
+      startTime: apiText(r.startTime),
+      endTime: apiText(r.endTime),
+      workingDays: r.workingDays,
+      color: apiText(r.color),
+      description: apiText(r.description),
+      effectiveFrom: apiDate(r.effectiveFrom),
+      graceMinutes: r.graceMinutes,
+      rotationPattern: apiText(r.rotationPattern),
+      breaks: r.breaks.map((b) => ({ name: b.name, start: apiText(b.start), minutes: b.minutes })),
+      overtimeAllowed: r.overtimeAllowed,
+      nightAllowance: r.nightAllowance,
+      attendanceRequired: r.attendanceRequired,
+      status: r.status
+    };
   }
 }

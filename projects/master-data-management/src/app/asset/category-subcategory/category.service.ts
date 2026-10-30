@@ -1,21 +1,60 @@
 import { Injectable } from '@angular/core';
-import { initialCategories } from './category.data';
+import { Observable, map, throwError } from 'rxjs';
+import { MdmAudit, inSequence } from '../../shared/mdm-api';
+import { AssetModelIcon } from '../asset-model/asset-model.icons';
+import { AssetCondition, DepreciationMethod, TrackingMethod } from '../asset-model/asset-model.model';
+import { CustomField, CustomFieldType } from '../asset-type/asset-type.model';
+import { AssetStore, activeStatus, localStamp } from '../asset-store';
+import { blankCategory } from './category.data';
 import { CategoryFilters, CategoryRecord, SubcategoryRecord } from './category.model';
 
-/** DEMO MODE: in-memory categories and subcategories; replace these methods with API calls when the backend is ready. */
+/** Asset category as `/api/master-data/asset-categories` returns it. Subcategories are kept inside it. */
+interface CategoryDto extends MdmAudit {
+  categoryName: string;
+  code: string;
+  assetType: string | null;
+  description: string | null;
+  parentCategory: { id: string | null; name: string } | null;
+  icon: string | null;
+  color: string | null;
+  image: string | null;
+  subcategories: { code: string; name: string; icon: string | null; color: string | null; status: string | null }[] | null;
+  depreciationMethod: string | null;
+  usefulLifeYears: number | null;
+  costCenter: string | null;
+  tagPrefix: string | null;
+  trackingMethod: string | null;
+  defaultCondition: string | null;
+  customFields: { name: string; type: string | null; required: boolean }[] | null;
+  subcategoryRequired: boolean;
+  showInMobile: boolean;
+  includeInReports: boolean;
+  approvalForNewAssets: boolean;
+}
+
+/**
+ * Asset categories and their subcategories from the master data API. A category's parent is stored
+ * by id on the server and shown by code here; subcategories are saved by saving their category.
+ */
 @Injectable({ providedIn: 'root' })
-export class CategoryService {
-  private records: CategoryRecord[] = initialCategories();
+export class CategoryService extends AssetStore<CategoryRecord, CategoryDto> {
+  protected readonly resource = 'asset-categories';
 
-  all(): CategoryRecord[] {
-    return this.records;
+  constructor() {
+    super();
   }
 
-  find(code: string | null): CategoryRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+  /** Fills the list; parents are resolved from ids to codes once every category is known. */
+  override load(query: Record<string, string | number | boolean | null | undefined> = {}): Observable<CategoryRecord[]> {
+    return super.load(query).pipe(
+      map(() => {
+        this.records = this.records.map((r) => (r.parentCode && !this.find(r.parentCode) ? { ...r, parentCode: this.codeOfId(r.parentCode) } : r));
+        return this.records;
+      })
+    );
   }
 
-  /** A category's assets are the sum of its subcategories. */
+  /** A category's assets are the sum of its subcategories (counts owned by the Assets module). */
   assetsOf(category: CategoryRecord): number {
     return category.subcategories.reduce((sum, s) => sum + s.assets, 0);
   }
@@ -60,16 +99,6 @@ export class CategoryService {
     );
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
   // Subcategory codes are unique across all categories
   isSubCodeTaken(code: string, exceptCode: string | null): boolean {
     const wanted = code.trim().toLowerCase();
@@ -80,35 +109,104 @@ export class CategoryService {
     return new Set(this.records.flatMap((r) => r.subcategories.map((s) => s.code)));
   }
 
-  save(record: CategoryRecord, originalCode: string | null): void {
-    const index = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    if (index >= 0) {
-      const list = [...this.records];
-      list[index] = record;
-      // Child categories follow a code change
-      this.records = originalCode !== record.code ? list.map((r) => (r.parentCode === originalCode ? { ...r, parentCode: record.code } : r)) : list;
-    } else {
-      this.records = [record, ...this.records];
+  /** Stores a saved category locally; child categories follow a code change. */
+  override save(record: CategoryRecord, originalCode: string | null): void {
+    super.save(record, originalCode);
+    if (originalCode && originalCode !== record.code) {
+      this.records = this.records.map((r) => (r.parentCode === originalCode ? { ...r, parentCode: record.code } : r));
     }
   }
 
-  /** Removes categories; their child categories move up to the removed category's parent. */
-  remove(codes: string[]): void {
-    const parentOf = new Map(this.records.map((r) => [r.code, r.parentCode]));
-    const lift = (code: string | null): string | null => (code && codes.includes(code) ? lift(parentOf.get(code) ?? null) : code);
-    this.records = this.records.filter((r) => !codes.includes(r.code)).map((r) => ({ ...r, parentCode: lift(r.parentCode) }));
+  /** Deletes categories, children before their parents (the server refuses a parent that still has children). */
+  deleteCategories(codes: string[]): Observable<unknown> {
+    const depth = (code: string) => this.ancestry(code).length;
+    const ordered = [...codes].sort((a, b) => depth(b) - depth(a));
+    return inSequence(ordered.map((code) => this.delete([code])));
   }
 
-  saveSubcategory(categoryCode: string, sub: SubcategoryRecord, originalCode: string | null): void {
-    this.records = this.records.map((r) => {
-      if (r.code !== categoryCode) return r;
-      const index = originalCode ? r.subcategories.findIndex((s) => s.code === originalCode) : -1;
-      const subcategories = index >= 0 ? r.subcategories.map((s, i) => (i === index ? sub : s)) : [...r.subcategories, sub];
-      return { ...r, subcategories };
-    });
+  /** Adds or replaces a subcategory by saving its category. */
+  saveSubcategory(categoryCode: string, sub: SubcategoryRecord, originalCode: string | null): Observable<CategoryRecord> {
+    const category = this.find(categoryCode);
+    if (!category) return throwError(() => new Error(`Category ${categoryCode} not found.`));
+    const index = originalCode ? category.subcategories.findIndex((s) => s.code === originalCode) : -1;
+    const subcategories = index >= 0 ? category.subcategories.map((s, i) => (i === index ? sub : s)) : [...category.subcategories, sub];
+    return this.persist({ ...category, subcategories }, categoryCode);
   }
 
-  removeSubcategories(categoryCode: string, codes: string[]): void {
-    this.records = this.records.map((r) => (r.code === categoryCode ? { ...r, subcategories: r.subcategories.filter((s) => !codes.includes(s.code)) } : r));
+  removeSubcategories(categoryCode: string, codes: string[]): Observable<CategoryRecord> {
+    const category = this.find(categoryCode);
+    if (!category) return throwError(() => new Error(`Category ${categoryCode} not found.`));
+    return this.persist({ ...category, subcategories: category.subcategories.filter((s) => !codes.includes(s.code)) }, categoryCode);
+  }
+
+  private codeOfId(id: string | null | undefined): string | null {
+    return (id && this.records.find((r) => this.idOf(r.code) === id)?.code) || null;
+  }
+
+  protected toRecord(dto: CategoryDto): CategoryRecord {
+    const blank = blankCategory();
+    const parentId = dto.parentCategory?.id ?? null;
+    return {
+      ...blank,
+      code: dto.code,
+      name: dto.categoryName,
+      assetType: dto.assetType ?? '',
+      icon: (dto.icon as AssetModelIcon) ?? blank.icon,
+      color: dto.color ?? blank.color,
+      image: dto.image,
+      description: dto.description ?? '',
+      // Until every category is loaded the parent may still be its id; load() resolves it
+      parentCode: this.codeOfId(parentId) ?? parentId,
+      status: activeStatus(dto.status),
+      subcategories: (dto.subcategories ?? []).map((s) => ({
+        code: s.code,
+        name: s.name,
+        icon: (s.icon as AssetModelIcon) ?? blank.icon,
+        color: s.color ?? blank.color,
+        status: activeStatus(s.status),
+        assets: 0
+      })),
+      depreciationMethod: (dto.depreciationMethod as DepreciationMethod) ?? blank.depreciationMethod,
+      usefulLifeYears: dto.usefulLifeYears ?? blank.usefulLifeYears,
+      costCenter: dto.costCenter ?? '',
+      tagPrefix: dto.tagPrefix ?? '',
+      trackingMethod: (dto.trackingMethod as TrackingMethod) ?? blank.trackingMethod,
+      defaultCondition: (dto.defaultCondition as AssetCondition) ?? blank.defaultCondition,
+      customFields: (dto.customFields ?? []).map((f): CustomField => ({ name: f.name, type: (f.type as CustomFieldType) ?? 'Text', required: f.required })),
+      subcategoryRequired: dto.subcategoryRequired,
+      showInMobile: dto.showInMobile,
+      includeInReports: dto.includeInReports,
+      approvalForNewAssets: dto.approvalForNewAssets,
+      createdOn: localStamp(dto.createdAt),
+      createdBy: dto.createdBy ?? '',
+      updatedOn: localStamp(dto.updatedAt ?? dto.createdAt)
+    };
+  }
+
+  protected toRequest(r: CategoryRecord): object {
+    const parent = this.find(r.parentCode);
+    return {
+      categoryName: r.name,
+      code: r.code,
+      assetType: r.assetType,
+      description: r.description,
+      parentCategory: parent ? { id: this.idOf(parent.code) ?? null, name: parent.name } : null,
+      icon: r.icon,
+      color: r.color,
+      image: r.image,
+      subcategories: r.subcategories.map(({ code, name, icon, color, status }) => ({ code, name, icon, color, status })),
+      depreciationMethod: r.depreciationMethod,
+      usefulLifeYears: r.usefulLifeYears,
+      costCenter: r.costCenter,
+      tagPrefix: r.tagPrefix,
+      trackingMethod: r.trackingMethod,
+      defaultCondition: r.defaultCondition,
+      customFields: r.customFields,
+      subcategoryRequired: r.subcategoryRequired,
+      showInMobile: r.showInMobile,
+      includeInReports: r.includeInReports,
+      approvalForNewAssets: r.approvalForNewAssets,
+      status: r.status
+    };
   }
 }

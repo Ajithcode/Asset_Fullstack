@@ -1,28 +1,63 @@
-import { Injectable } from '@angular/core';
-import { initialDepartments } from './department.data';
-import { DepartmentFilters, DepartmentRecord } from './department.model';
+import { Injectable, inject } from '@angular/core';
+import { Observable, switchMap } from 'rxjs';
+import { MasterIcon } from '../../shared/master-icons';
+import { MdmAudit } from '../../shared/mdm-api';
+import { BusinessUnitService } from '../business-unit/business-unit.service';
+import { StructureReference, toLocalStamp } from '../structure-api';
+import { StructureStore } from '../structure-store';
+import { blankDepartment } from './department.data';
+import { DepartmentFilters, DepartmentRecord, DepartmentStatus, DepartmentType } from './department.model';
+
+interface DepartmentDto extends MdmAudit {
+  departmentName: string;
+  code: string;
+  businessUnit: StructureReference | null;
+  departmentHead: StructureReference | null;
+  employeeCount: number;
+  assetCount: number;
+  parentDepartment: StructureReference | null;
+  icon: string | null;
+  logoUrl: string | null;
+  type: string | null;
+  deputy: string | null;
+  costCenter: string | null;
+  description: string | null;
+  email: string | null;
+  phoneCountry: string | null;
+  phone: string | null;
+  annualBudget: number | null;
+  currency: string | null;
+  glCode: string | null;
+  approvalLimit: number | null;
+  allowAssetOwnership: boolean;
+  requireAssignmentApproval: boolean;
+  includeInCostAllocation: boolean;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+}
 
 /**
- * DEMO MODE: in-memory departments; replace these methods with API calls when the backend is
- * ready. Has no dependencies so the Business Unit and Site masters can use it.
+ * Departments from `/api/master-data/departments`, keyed by code. The business unit is kept as
+ * its code, so business units load first. Employee and asset counts come from the API.
  */
 @Injectable({ providedIn: 'root' })
-export class DepartmentService {
-  private records: DepartmentRecord[] = initialDepartments();
+export class DepartmentService extends StructureStore<DepartmentRecord, DepartmentDto> {
+  protected readonly resource = 'departments';
+  private readonly businessUnits = inject(BusinessUnitService);
 
-  all(): DepartmentRecord[] {
-    return this.records;
+  constructor() {
+    super();
   }
 
-  find(code: string | null): DepartmentRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+  override load(query: Record<string, string | number | boolean | null | undefined> = {}): Observable<DepartmentRecord[]> {
+    return this.businessUnits.ensureLoaded().pipe(switchMap(() => super.load(query)));
   }
 
   ofBusinessUnit(businessUnitCode: string): DepartmentRecord[] {
     return this.records.filter((r) => r.businessUnitCode === businessUnitCode);
   }
 
-  /** Department names for a business unit (by its name or code), for pickers on other masters. */
+  /** Department names for a business unit (by its code), for pickers on other masters. */
   names(businessUnitCode = ''): string[] {
     return this.records.filter((r) => !businessUnitCode || r.businessUnitCode === businessUnitCode).map((r) => r.name);
   }
@@ -62,40 +97,77 @@ export class DepartmentService {
     );
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
   /** Keeps departments attached when their business unit's code changes. */
   renameBusinessUnit(oldCode: string, newCode: string): void {
     if (oldCode === newCode) return;
     this.records = this.records.map((r) => (r.businessUnitCode === oldCode ? { ...r, businessUnitCode: newCode } : r));
   }
 
-  save(record: DepartmentRecord, originalCode: string | null): void {
-    const index = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    if (index >= 0) {
-      this.records[index] = record;
-      if (originalCode !== record.code) {
-        this.records.forEach((r) => {
-          if (r.parentCode === originalCode) r.parentCode = record.code;
-        });
-      }
-      this.records = [...this.records];
-    } else {
-      this.records = [...this.records, record];
-    }
+  protected toRecord(dto: DepartmentDto): DepartmentRecord {
+    const blank = blankDepartment();
+    const known = this.find(dto.code);
+    return {
+      code: dto.code,
+      name: dto.departmentName,
+      businessUnitCode: this.businessUnits.codeOf(dto.businessUnit?.id) ?? '',
+      // Parent id for now; StructureStore swaps it for the code
+      parentCode: dto.parentDepartment?.id ?? null,
+      icon: (dto.icon ?? blank.icon) as MasterIcon,
+      logo: dto.logoUrl,
+      type: (dto.type ?? '') as DepartmentType,
+      head: dto.departmentHead?.name ?? '',
+      deputy: dto.deputy ?? '',
+      costCenter: dto.costCenter ?? '',
+      description: dto.description ?? '',
+      status: (dto.status as DepartmentStatus) ?? 'Active',
+      employees: dto.employeeCount ?? 0,
+      assets: dto.assetCount ?? 0,
+      // Work orders live in another module; not counted here
+      openWorkOrders: known?.openWorkOrders ?? 0,
+      email: dto.email ?? '',
+      phoneCountry: dto.phoneCountry ?? blank.phoneCountry,
+      phone: dto.phone ?? '',
+      annualBudget: dto.annualBudget ?? null,
+      currency: dto.currency ?? '',
+      glCode: dto.glCode ?? '',
+      approvalLimit: dto.approvalLimit ?? null,
+      allowAssetOwnership: dto.allowAssetOwnership,
+      requireAssignmentApproval: dto.requireAssignmentApproval,
+      includeInCostAllocation: dto.includeInCostAllocation,
+      effectiveFrom: dto.effectiveFrom ?? '',
+      effectiveTo: dto.effectiveTo ?? '',
+      createdOn: toLocalStamp(dto.createdAt),
+      updatedOn: toLocalStamp(dto.updatedAt ?? dto.createdAt)
+    };
   }
 
-  remove(codes: string[]): void {
-    this.records = this.records
-      .filter((r) => !codes.includes(r.code))
-      .map((r) => (r.parentCode && codes.includes(r.parentCode) ? { ...r, parentCode: null } : r));
+  protected toRequest(r: DepartmentRecord): object {
+    return {
+      departmentName: r.name,
+      code: r.code,
+      businessUnit: this.businessUnits.refOf(r.businessUnitCode),
+      // The head is picked from a name list, so it is stored by name
+      departmentHead: r.head.trim() ? { id: null, name: r.head.trim() } : null,
+      parentDepartment: this.refOf(r.parentCode),
+      icon: r.icon,
+      logoUrl: r.logo,
+      type: r.type || null,
+      deputy: r.deputy,
+      costCenter: r.costCenter,
+      description: r.description,
+      email: r.email,
+      phoneCountry: r.phoneCountry,
+      phone: r.phone,
+      annualBudget: r.annualBudget,
+      currency: r.currency,
+      glCode: r.glCode,
+      approvalLimit: r.approvalLimit,
+      allowAssetOwnership: r.allowAssetOwnership,
+      requireAssignmentApproval: r.requireAssignmentApproval,
+      includeInCostAllocation: r.includeInCostAllocation,
+      effectiveFrom: r.effectiveFrom || null,
+      effectiveTo: r.effectiveTo || null,
+      status: r.status
+    };
   }
 }

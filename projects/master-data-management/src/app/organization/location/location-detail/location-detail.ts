@@ -12,7 +12,6 @@ import {
   MapPin,
   Pencil
 } from 'lucide-angular';
-import { BUILDINGS, ZONES } from '../location.data';
 import { formatArea, formatDateTime } from '../location.format';
 import { LocationRecord } from '../location.model';
 import { LocationService } from '../location.service';
@@ -129,7 +128,7 @@ export class LocationDetail implements OnChanges {
    */
   private buildTree(): void {
     const r = this.location;
-    const building = BUILDINGS.find((b) => b.code === r.buildingCode);
+    const building = this.service.findBuilding(r.buildingCode);
     if (!building) {
       this.tree = null;
       return;
@@ -158,7 +157,7 @@ export class LocationDetail implements OnChanges {
     };
 
     const floors = this.service.floors(building.code).map((floor): TreeNode => {
-      const zones = ZONES.filter((z) => z.buildingCode === building.code && z.floorCode === floor.code).map((zone): TreeNode => {
+      const zones = this.service.zonesOnFloor(building.code, floor.code).map((zone): TreeNode => {
         const inZone = this.service.inZone(building.code, floor.code, zone.code);
         let shown = inZone.slice(0, ZONE_PREVIEW);
         if (inZone.includes(top) && !shown.includes(top)) shown = [top, ...shown.slice(0, ZONE_PREVIEW - 1)];

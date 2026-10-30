@@ -19,7 +19,7 @@
     } @else if (lastSaved) {
       <span class="saved">Saved</span>
     }
-    <button type="button" class="btn btn--primary" [disabled]="!dirty" (click)="save()">
+    <button type="button" class="btn btn--primary" [disabled]="!dirty || saving" (click)="save()">
       <lucide-icon [img]="icons.Save" [size]="16"></lucide-icon> Save Settings
     </button>
   </div>

@@ -2,11 +2,13 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search, Users } from 'lucide-angular';
+import { Observable } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { ROLE_TYPES } from '../security.data';
 import { RoleRecord, RoleType, SecurityStatus } from '../security.model';
-import { RoleService, UserService } from '../security.service';
+import { RoleService, SecurityLoader, UserService } from '../security.service';
 import { RoleForm } from './role-form/role-form';
 
 type SortKey = 'name' | 'code' | 'type' | 'users';
@@ -29,9 +31,11 @@ export class RoleMasterPage extends ListPage<RoleRecord, Filters, SortKey> {
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly types = ROLE_TYPES;
   readonly icons = { Users, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+  saving = false;
 
   constructor() {
     super({ search: '', type: '', status: '' });
+    inject(SecurityLoader).load().subscribe({ error: (err) => this.notify(`Couldn't load roles: ${apiErrorMessage(err)}`) });
   }
 
   keyOf(r: RoleRecord): string {
@@ -55,8 +59,8 @@ export class RoleMasterPage extends ListPage<RoleRecord, Filters, SortKey> {
     return key === 'users' ? this.userCount(r) : r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   // System roles stay, and roles held by users can't be deleted
@@ -75,11 +79,21 @@ export class RoleMasterPage extends ListPage<RoleRecord, Filters, SortKey> {
   }
 
   onSaved(event: { record: RoleRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode) this.users.recodeRole(event.originalCode, event.record.code);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        if (event.originalCode) this.users.recodeRole(event.originalCode, saved.code);
+        this.carrySelection(event.originalCode, saved.code);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(r: RoleRecord): void {
@@ -89,8 +103,12 @@ export class RoleMasterPage extends ListPage<RoleRecord, Filters, SortKey> {
       return;
     }
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    const users = this.userCount(r);
-    this.notify(`${r.name} marked ${status}.${status === 'Inactive' && users ? ` ${users} users lose its access.` : ''}`);
+    this.service.setStatus(r.code, status).subscribe({
+      next: () => {
+        const users = this.userCount(r);
+        this.notify(`${r.name} marked ${status}.${status === 'Inactive' && users ? ` ${users} users lose its access.` : ''}`);
+      },
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

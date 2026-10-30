@@ -168,7 +168,7 @@
   </div>
 
   @if (formOpen) {
-    <app-dept-form #formEl class="mdm-form" [mode]="formMode" [department]="formRecord" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-dept-form>
+    <app-dept-form [saving]="saving" #formEl class="mdm-form" [mode]="formMode" [department]="formRecord" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-dept-form>
   }
 
   <div class="mdm-detail" #detailEl>
@@ -192,7 +192,7 @@
       <p>Sub-departments will move directly under their business unit. This can't be undone.</p>
       <div class="confirm__actions">
         <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
-        <button type="button" class="btn btn--danger" (click)="confirmDelete()">Delete</button>
+        <button type="button" class="btn btn--danger" [disabled]="deleting" (click)="confirmDelete()">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
       </div>
     </div>
   </div>

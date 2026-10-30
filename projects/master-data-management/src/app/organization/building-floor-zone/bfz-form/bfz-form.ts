@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, inject, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { COUNTRIES, FLOOR_NAMES, ZONE_COLORS, blankBfz } from '../bfz.data';
@@ -25,6 +25,7 @@ export class BfzForm implements OnChanges {
   // 'edit' changes `record`; 'add' creates a new one, pre-filled from `record` if given
   @Input() mode: 'add' | 'edit' = 'add';
   @Input() record: BfzRecord | null = null;
+  @Input() saving = false;
   @Output() saved = new EventEmitter<{ record: BfzRecord; originalCode: string | null }>();
   @Output() cancelled = new EventEmitter<void>();
 
@@ -46,7 +47,9 @@ export class BfzForm implements OnChanges {
   errors: Partial<Record<FieldKey, string>> = {};
   private original: BfzRecord | null = null;
 
-  ngOnChanges(): void {
+  ngOnChanges(changes: SimpleChanges): void {
+    // Only a new record (or mode) resets the form; `saving` flips must keep the user's edits
+    if (!changes['mode'] && !changes['record']) return;
     this.original = this.mode === 'edit' ? this.record : null;
     this.form = this.record ? structuredClone(this.record) : blankBfz();
     this.errors = {};
@@ -111,7 +114,7 @@ export class BfzForm implements OnChanges {
       return b && b.lat !== null && b.lng !== null ? { label: 'building', lat: b.lat, lng: b.lng } : null;
     }
     const site = this.service.sites().find((s) => s.id === this.form.siteId);
-    return site ? { label: 'site', lat: site.lat, lng: site.lng } : null;
+    return site && site.lat !== null && site.lng !== null ? { label: 'site', lat: site.lat, lng: site.lng } : null;
   }
 
   usePosition(): void {

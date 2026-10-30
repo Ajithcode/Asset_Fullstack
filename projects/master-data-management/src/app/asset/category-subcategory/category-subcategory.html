@@ -192,10 +192,10 @@
   <div class="overlay" (click)="cancelDelete()">
     <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="cat-del-title" (click)="$event.stopPropagation()">
       <h2 id="cat-del-title">Delete {{ pendingDelete.length === 1 ? pendingDelete[0].name : pendingDelete.length + ' categories' }}?</h2>
-      <p>Its subcategories are removed too, and child categories move up one level. This can't be undone.</p>
+      <p>Its subcategories are removed too. This can't be undone.</p>
       <div class="confirm__actions">
         <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
-        <button type="button" class="btn btn--danger" (click)="confirmDelete()">Delete</button>
+        <button type="button" class="btn btn--danger" [disabled]="deleting" (click)="confirmDelete()">{{ deleting ? 'Deleting...' : 'Delete' }}</button>
       </div>
     </div>
   </div>

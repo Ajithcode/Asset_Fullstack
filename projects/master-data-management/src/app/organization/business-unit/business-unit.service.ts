@@ -1,29 +1,54 @@
-import { Injectable } from '@angular/core';
-import { initialBusinessUnits } from './business-unit.data';
-import { BusinessUnitFilters, BusinessUnitRecord } from './business-unit.model';
+import { Injectable, inject } from '@angular/core';
+import { Observable, switchMap } from 'rxjs';
+import { MdmAudit } from '../../shared/mdm-api';
+import { OrganizationService } from '../organization/organization.service';
+import { StructureAddressDto, StructureReference, fromApiAddress, toLocalStamp } from '../structure-api';
+import { StructureStore } from '../structure-store';
+import { blankBusinessUnit } from './business-unit.data';
+import { BusinessUnitFilters, BusinessUnitIcon, BusinessUnitRecord, BusinessUnitStatus } from './business-unit.model';
+
+interface BusinessUnitDto extends MdmAudit {
+  businessUnitName: string;
+  code: string;
+  logoUrl: string | null;
+  parentOrganization: StructureReference | null;
+  parentBusinessUnit: StructureReference | null;
+  icon: string | null;
+  description: string | null;
+  head: string | null;
+  costCenter: string | null;
+  currency: string | null;
+  address: StructureAddressDto | null;
+  contactEmail: string | null;
+  phoneCountry: string | null;
+  phone: string | null;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  allowSites: boolean;
+  budgetTracking: boolean;
+  assetNumbering: boolean;
+  approvals: boolean;
+}
 
 /**
- * DEMO MODE: in-memory business units; replace these methods with API calls when the backend is
- * ready. Has no dependencies so the Site master can use it for its Business Unit lists.
+ * Business units from `/api/master-data/business-units`, keyed by code. The organization is kept
+ * as its code, so organizations load first. Departments and sites point at units themselves.
  */
 @Injectable({ providedIn: 'root' })
-export class BusinessUnitService {
-  private records: BusinessUnitRecord[] = initialBusinessUnits();
+export class BusinessUnitService extends StructureStore<BusinessUnitRecord, BusinessUnitDto> {
+  protected readonly resource = 'business-units';
+  private readonly organizations = inject(OrganizationService);
 
-  all(): BusinessUnitRecord[] {
-    return this.records;
+  constructor() {
+    super();
+  }
+
+  override load(query: Record<string, string | number | boolean | null | undefined> = {}): Observable<BusinessUnitRecord[]> {
+    return this.organizations.ensureLoaded().pipe(switchMap(() => super.load(query)));
   }
 
   names(): string[] {
     return this.records.map((r) => r.name);
-  }
-
-  find(code: string | null): BusinessUnitRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
-  }
-
-  findByName(name: string): BusinessUnitRecord | undefined {
-    return this.records.find((r) => r.name === name);
   }
 
   children(code: string): BusinessUnitRecord[] {
@@ -55,34 +80,60 @@ export class BusinessUnitService {
     );
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+  protected toRecord(dto: BusinessUnitDto): BusinessUnitRecord {
+    const blank = blankBusinessUnit();
+    const org = dto.parentOrganization;
+    return {
+      code: dto.code,
+      name: dto.businessUnitName,
+      organizationCode: this.organizations.codeOf(org?.id) ?? '',
+      // Parent id for now; StructureStore swaps it for the code
+      parentCode: dto.parentBusinessUnit?.id ?? null,
+      icon: (dto.icon ?? blank.icon) as BusinessUnitIcon,
+      logo: dto.logoUrl,
+      description: dto.description ?? '',
+      head: dto.head ?? '',
+      costCenter: dto.costCenter ?? '',
+      currency: dto.currency ?? '',
+      status: (dto.status as BusinessUnitStatus) ?? 'Active',
+      address: fromApiAddress(dto.address),
+      contactEmail: dto.contactEmail ?? '',
+      phoneCountry: dto.phoneCountry ?? blank.phoneCountry,
+      phone: dto.phone ?? '',
+      effectiveFrom: dto.effectiveFrom ?? '',
+      effectiveTo: dto.effectiveTo ?? '',
+      allowSites: dto.allowSites,
+      budgetTracking: dto.budgetTracking,
+      assetNumbering: dto.assetNumbering,
+      approvals: dto.approvals,
+      createdOn: toLocalStamp(dto.createdAt),
+      updatedOn: toLocalStamp(dto.updatedAt ?? dto.createdAt)
+    };
   }
 
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  save(record: BusinessUnitRecord, originalCode: string | null): void {
-    const index = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    if (index >= 0) {
-      this.records[index] = record;
-      if (originalCode !== record.code) {
-        this.records.forEach((r) => {
-          if (r.parentCode === originalCode) r.parentCode = record.code;
-        });
-      }
-      this.records = [...this.records];
-    } else {
-      this.records = [...this.records, record];
-    }
-  }
-
-  remove(codes: string[]): void {
-    this.records = this.records
-      .filter((r) => !codes.includes(r.code))
-      .map((r) => (r.parentCode && codes.includes(r.parentCode) ? { ...r, parentCode: null } : r));
+  protected toRequest(r: BusinessUnitRecord): object {
+    return {
+      businessUnitName: r.name,
+      code: r.code,
+      logoUrl: r.logo,
+      parentOrganization: this.organizations.refOf(r.organizationCode),
+      parentBusinessUnit: this.refOf(r.parentCode),
+      icon: r.icon,
+      description: r.description,
+      head: r.head,
+      costCenter: r.costCenter,
+      currency: r.currency,
+      address: r.address,
+      contactEmail: r.contactEmail,
+      phoneCountry: r.phoneCountry,
+      phone: r.phone,
+      effectiveFrom: r.effectiveFrom || null,
+      effectiveTo: r.effectiveTo || null,
+      allowSites: r.allowSites,
+      budgetTracking: r.budgetTracking,
+      assetNumbering: r.assetNumbering,
+      approvals: r.approvals,
+      status: r.status
+    };
   }
 }

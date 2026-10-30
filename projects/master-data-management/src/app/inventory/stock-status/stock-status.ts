@@ -3,7 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ClipboardCheck, Ellipsis, LucideAngularModule, Plus } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { Observable } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { RecordStatus, StockStatusRecord } from '../inventory.model';
 import { ItemService, StockStatusService } from '../inventory.service';
 import { StockStatusForm } from './stock-status-form/stock-status-form';
@@ -25,9 +27,17 @@ export class StockStatusPage extends ListPage<StockStatusRecord, Filters, SortKe
   private readonly items = inject(ItemService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly icons = { ClipboardCheck, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+  saving = false;
 
   constructor() {
     super({ status: '' });
+    this.refresh();
+  }
+
+  /** Loads the list from the API, with the masters it points at. */
+  refresh(): void {
+    this.service.load().subscribe({ error: (err) => this.notify(apiErrorMessage(err)) });
+    this.items.load().subscribe({ error: (err) => this.notify(apiErrorMessage(err)) });
   }
 
   keyOf(r: StockStatusRecord): string {
@@ -50,8 +60,8 @@ export class StockStatusPage extends ListPage<StockStatusRecord, Filters, SortKe
     return r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   // The default status and the four statuses items are graded with stay
@@ -67,15 +77,27 @@ export class StockStatusPage extends ListPage<StockStatusRecord, Filters, SortKe
       this.notify(`Activate ${r.name} before making it the default.`);
       return;
     }
-    this.service.save({ ...r, isDefault: true }, r.code);
-    this.notify(`${r.name} is now the system default.`);
+    this.service.persist({ ...r, isDefault: true }, r.code).subscribe({
+      next: () => this.notify(`${r.name} is now the system default.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   onSaved(event: { record: StockStatusRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: () => {
+        this.saving = false;
+        this.carrySelection(event.originalCode, event.record.code);
+        this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(r: StockStatusRecord): void {
@@ -85,7 +107,9 @@ export class StockStatusPage extends ListPage<StockStatusRecord, Filters, SortKe
       return;
     }
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

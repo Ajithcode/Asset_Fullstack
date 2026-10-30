@@ -182,7 +182,7 @@
   </div>
 
   @if (formOpen) {
-    <app-location-form
+    <app-location-form [saving]="saving"
       #formEl
       class="mdm-form"
       [mode]="formMode"
@@ -213,7 +213,7 @@
       <p>Child locations will be kept and moved to the top level. This can't be undone.</p>
       <div class="confirm__actions">
         <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
-        <button type="button" class="btn btn--danger" (click)="confirmDelete()">Delete</button>
+        <button type="button" class="btn btn--danger" [disabled]="deleting" (click)="confirmDelete()">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
       </div>
     </div>
   </div>

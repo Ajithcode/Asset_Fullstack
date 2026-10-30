@@ -1,31 +1,55 @@
 import { Injectable } from '@angular/core';
-import { initialManufacturers } from './manufacturer.data';
-import { ManufacturerFilters, ManufacturerRecord } from './manufacturer.model';
+import { MdmAudit } from '../../shared/mdm-api';
+import { AssetStore, activeStatus, localStamp } from '../asset-store';
+import { blankManufacturer } from './manufacturer.data';
+import { ManufacturerFilters, ManufacturerRecord, PaymentTerms } from './manufacturer.model';
+
+type Address = ManufacturerRecord['address'];
+
+/** Manufacturer as `/api/master-data/manufacturers` returns it. */
+interface ManufacturerDto extends MdmAudit {
+  manufacturerName: string;
+  code: string;
+  country: string | null;
+  website: string | null;
+  description: string | null;
+  contactPerson: string | null;
+  email: string | null;
+  phoneNumber: string | null;
+  logo: string | null;
+  brandColor: string | null;
+  designation: string | null;
+  secondaryContact: string | null;
+  secondaryEmail: string | null;
+  secondaryPhone: string | null;
+  address: { [K in keyof Address]: string | null } | null;
+  supportPortal: string | null;
+  supportEmail: string | null;
+  supportPhone: string | null;
+  standardWarrantyMonths: number | null;
+  slaResponseHours: number | null;
+  defaultCurrency: string | null;
+  paymentTerms: string | null;
+  preferred: boolean;
+  warrantyRegistration: boolean;
+  autoCreateWarranty: boolean;
+}
 
 /**
- * DEMO MODE: in-memory manufacturers; replace these methods with API calls when the backend is
- * ready. Has no dependencies so the Asset Model master can use it for its Manufacturer list.
+ * Manufacturers from the master data API. Has no dependencies so the Asset Model master can use it
+ * for its Manufacturer list. A manufacturer's models are not sent; each model points at its maker.
  */
 @Injectable({ providedIn: 'root' })
-export class ManufacturerService {
-  private records: ManufacturerRecord[] = initialManufacturers();
+export class ManufacturerService extends AssetStore<ManufacturerRecord, ManufacturerDto> {
+  protected readonly resource = 'manufacturers';
 
-  all(): ManufacturerRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null): ManufacturerRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
-  }
-
-  // Asset models refer to their manufacturer by name
-  findByName(name: string): ManufacturerRecord | undefined {
-    return this.records.find((r) => r.name === name);
+  constructor() {
+    super();
   }
 
   /** Active manufacturers A-Z, plus `keep` so an existing choice stays selectable. */
   activeNames(keep = ''): string[] {
-    return this.records
+    return this.all()
       .filter((r) => r.status === 'Active' || r.name === keep)
       .map((r) => r.name)
       .sort((a, b) => a.localeCompare(b));
@@ -42,27 +66,78 @@ export class ManufacturerService {
     );
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+  protected toRecord(dto: ManufacturerDto): ManufacturerRecord {
+    const blank = blankManufacturer();
+    const a = dto.address;
+    return {
+      ...blank,
+      code: dto.code,
+      name: dto.manufacturerName,
+      country: dto.country ?? '',
+      website: dto.website ?? '',
+      description: dto.description ?? '',
+      logo: dto.logo,
+      brandColor: dto.brandColor ?? blank.brandColor,
+      status: activeStatus(dto.status),
+      primaryContact: dto.contactPerson ?? '',
+      designation: dto.designation ?? '',
+      email: dto.email ?? '',
+      phone: dto.phoneNumber ?? '',
+      secondaryContact: dto.secondaryContact ?? '',
+      secondaryEmail: dto.secondaryEmail ?? '',
+      secondaryPhone: dto.secondaryPhone ?? '',
+      address: {
+        line1: a?.line1 ?? '',
+        line2: a?.line2 ?? '',
+        city: a?.city ?? '',
+        state: a?.state ?? '',
+        postalCode: a?.postalCode ?? '',
+        country: a?.country ?? ''
+      },
+      supportPortal: dto.supportPortal ?? '',
+      supportEmail: dto.supportEmail ?? '',
+      supportPhone: dto.supportPhone ?? '',
+      standardWarrantyMonths: dto.standardWarrantyMonths ?? blank.standardWarrantyMonths,
+      slaResponseHours: dto.slaResponseHours ?? blank.slaResponseHours,
+      defaultCurrency: dto.defaultCurrency ?? blank.defaultCurrency,
+      paymentTerms: (dto.paymentTerms as PaymentTerms) ?? blank.paymentTerms,
+      preferred: dto.preferred,
+      warrantyRegistration: dto.warrantyRegistration,
+      autoCreateWarranty: dto.autoCreateWarranty,
+      createdOn: localStamp(dto.createdAt),
+      createdBy: dto.createdBy ?? '',
+      updatedOn: localStamp(dto.updatedAt ?? dto.createdAt)
+    };
   }
 
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
-  save(record: ManufacturerRecord, originalCode: string | null): void {
-    const index = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    if (index >= 0) {
-      this.records[index] = record;
-      this.records = [...this.records];
-    } else {
-      this.records = [record, ...this.records];
-    }
-  }
-
-  remove(codes: string[]): void {
-    this.records = this.records.filter((r) => !codes.includes(r.code));
+  protected toRequest(r: ManufacturerRecord): object {
+    return {
+      manufacturerName: r.name,
+      code: r.code,
+      country: r.country,
+      website: r.website,
+      description: r.description,
+      contactPerson: r.primaryContact,
+      email: r.email,
+      phoneNumber: r.phone,
+      logo: r.logo,
+      brandColor: r.brandColor,
+      designation: r.designation,
+      secondaryContact: r.secondaryContact,
+      secondaryEmail: r.secondaryEmail,
+      secondaryPhone: r.secondaryPhone,
+      address: r.address,
+      supportPortal: r.supportPortal,
+      supportEmail: r.supportEmail,
+      supportPhone: r.supportPhone,
+      standardWarrantyMonths: r.standardWarrantyMonths,
+      slaResponseHours: r.slaResponseHours,
+      defaultCurrency: r.defaultCurrency,
+      paymentTerms: r.paymentTerms,
+      preferred: r.preferred,
+      warrantyRegistration: r.warrantyRegistration,
+      autoCreateWarranty: r.autoCreateWarranty,
+      status: r.status
+    };
   }
 }

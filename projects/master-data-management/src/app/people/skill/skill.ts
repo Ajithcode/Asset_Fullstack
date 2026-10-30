@@ -3,7 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, Hexagon, LucideAngularModule, Plus, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { Observable } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { EmployeeService } from '../employee/employee.service';
 import { TechnicianService } from '../technician/technician.service';
 import { SKILL_CATEGORIES } from './skill.data';
@@ -28,8 +30,13 @@ export class SkillPage extends ListPage<SkillRecord, SkillFilters, SortKey> {
   readonly categories = SKILL_CATEGORIES;
   readonly icons = { Hexagon, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
 
+  saving = false;
+
   constructor() {
     super({ search: '', category: '', type: '' });
+    this.service.refresh().subscribe({ error: (err) => this.notify(`Couldn't load skills: ${apiErrorMessage(err)}`) });
+    this.employees.ensureLoaded();
+    this.technicians.ensureLoaded();
   }
 
   keyOf(r: SkillRecord): string {
@@ -53,8 +60,8 @@ export class SkillPage extends ListPage<SkillRecord, SkillFilters, SortKey> {
     return r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   // Skills held by people can't be deleted; they can be marked inactive instead
@@ -76,21 +83,33 @@ export class SkillPage extends ListPage<SkillRecord, SkillFilters, SortKey> {
   }
 
   onSaved(event: { record: SkillRecord; originalCode: string | null; originalName: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    // People refer to skills by name
-    if (event.originalName) {
-      this.employees.renameSkill(event.originalName, event.record.name);
-      this.technicians.renameSkill(event.originalName, event.record.name);
-    }
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        // People refer to skills by name; the API renamed them, this keeps the loaded lists in step
+        if (event.originalName) {
+          this.employees.renameSkill(event.originalName, saved.name);
+          this.technicians.renameSkill(event.originalName, saved.name);
+        }
+        this.carrySelection(event.originalCode, saved.code);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(r: SkillRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

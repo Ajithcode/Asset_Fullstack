@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Boxes, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Network, Plus, Search, Users } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { apiErrorMessage, inParallel } from '../../shared/mdm-api';
 import { MASTER_ICONS } from '../../shared/master-icons';
 import { BusinessUnitService } from '../business-unit/business-unit.service';
 import { SiteService } from '../site/site.service';
@@ -46,14 +47,26 @@ export class DepartmentPage {
   selected = new Set<string>();
   menuFor: string | null = null;
 
-  selectedCode: string | null = 'ENG';
+  selectedCode: string | null = null;
   formOpen = false;
   formMode: 'add' | 'edit' = 'add';
   formRecord: DepartmentRecord | null = null;
 
   pendingDelete: DepartmentRecord[] = [];
+  saving = false;
+  deleting = false;
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    // Sites are needed for the site counts and the delete check
+    inParallel<unknown>([this.service.load(), this.sites.ensureLoaded()]).subscribe({
+      next: () => {
+        if (!this.service.find(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+      },
+      error: (err) => this.notify(`Could not load departments: ${apiErrorMessage(err)}`)
+    });
+  }
 
   get stats() {
     const all = this.service.all();
@@ -197,29 +210,48 @@ export class DepartmentPage {
   }
 
   onSaved(event: { record: DepartmentRecord; originalCode: string | null; originalName: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    // Sites refer to the department by name
-    if (event.originalName) this.sites.renameDepartment(event.originalName, event.record.name);
-    if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(event.record.code);
-    this.open(event.record.code, false);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        // Sites refer to the department by name
+        if (event.originalName) this.sites.renameDepartment(event.originalName, saved.name);
+        if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
+        this.open(saved.code, false);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(d: DepartmentRecord): void {
     this.menuFor = null;
     const status = d.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...d, status }, d.code);
-    this.notify(`${d.name} marked ${status}.`);
+    this.service.setStatus(d, status).subscribe({
+      next: () => this.notify(`${d.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
-  // Departments still used by sites can't be deleted; sub-departments move up to the business unit
+  // Departments still used by sites, or with sub-departments not being deleted too, can't be deleted
   askDelete(list: DepartmentRecord[]): void {
     this.menuFor = null;
     const blocked = list.find((d) => this.siteCount(d));
     if (blocked) {
       const count = this.siteCount(blocked);
       this.notify(`${blocked.name} is used by ${count} site${count === 1 ? '' : 's'}. Change ${count === 1 ? 'it' : 'them'} on the Site page first.`);
+      return;
+    }
+    const codes = new Set(list.map((d) => d.code));
+    const parent = list.find((d) => this.service.children(d.code).some((c) => !codes.has(c.code)));
+    if (parent) {
+      const count = this.service.children(parent.code).length;
+      this.notify(`${parent.name} has ${count} sub-department${count === 1 ? '' : 's'}. Move or delete ${count === 1 ? 'it' : 'them'} first.`);
       return;
     }
     this.pendingDelete = list;
@@ -230,14 +262,24 @@ export class DepartmentPage {
   }
 
   confirmDelete(): void {
-    const codes = this.pendingDelete.map((r) => r.code);
-    this.service.remove(codes);
-    codes.forEach((c) => this.selected.delete(c));
-    if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-    if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-    this.notify(codes.length === 1 ? `${this.pendingDelete[0].name} deleted.` : `${codes.length} departments deleted.`);
-    this.pendingDelete = [];
-    this.goTo(this.page);
+    if (this.deleting) return;
+    const list = this.pendingDelete;
+    const codes = list.map((r) => r.code);
+    const done = (message: string) => {
+      const remaining = new Set(this.service.all().map((r) => r.code));
+      codes.filter((c) => !remaining.has(c)).forEach((c) => this.selected.delete(c));
+      if (this.selectedCode && !remaining.has(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+      if (this.formMode === 'edit' && this.formRecord && !remaining.has(this.formRecord.code)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.deleteNested(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} departments deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
+    });
   }
 
   cancelDelete(): void {
