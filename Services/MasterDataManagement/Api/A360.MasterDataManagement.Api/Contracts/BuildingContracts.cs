@@ -10,6 +10,16 @@ public sealed record CreateBuildingRequest(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    List<string>? Images,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool RestrictedAccess,
+    bool ShowOnMap,
+    string? Category,
+    StructureAddressDto? Address,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -27,6 +37,16 @@ public sealed record CreateBuildingRequest(
             Capacity = Capacity,
             Area = Area,
 
+            ImageUrl = StructureText.Clean(ImageUrl),
+            Images = StructureText.CleanList(Images),
+            AllowAssetAssignment = AllowAssetAssignment,
+            EnableTracking = EnableTracking,
+            RestrictedAccess = RestrictedAccess,
+            ShowOnMap = ShowOnMap,
+            Category = StructureText.Clean(Category),
+            Address = Address?.ToValue(),
+            Latitude = Latitude,
+            Longitude = Longitude,
             CreatedBy = CreatedBy,
             ClientId = ClientId,
             TenantId = TenantId,
@@ -46,6 +66,16 @@ public sealed record UpdateBuildingRequest(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    List<string>? Images,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool RestrictedAccess,
+    bool ShowOnMap,
+    string? Category,
+    StructureAddressDto? Address,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? UpdatedBy)
 {
@@ -59,6 +89,16 @@ public sealed record UpdateBuildingRequest(
         building.Capacity = Capacity;
         building.Area = Area;
 
+        building.ImageUrl = StructureText.Clean(ImageUrl);
+        building.Images = StructureText.CleanList(Images);
+        building.AllowAssetAssignment = AllowAssetAssignment;
+        building.EnableTracking = EnableTracking;
+        building.RestrictedAccess = RestrictedAccess;
+        building.ShowOnMap = ShowOnMap;
+        building.Category = StructureText.Clean(Category);
+        building.Address = Address?.ToValue();
+        building.Latitude = Latitude;
+        building.Longitude = Longitude;
         building.UpdatedBy = UpdatedBy;
         building.UpdatedAt = DateTime.UtcNow;
 
@@ -82,6 +122,16 @@ public sealed record BuildingResponse(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    IReadOnlyList<string> Images,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool RestrictedAccess,
+    bool ShowOnMap,
+    string? Category,
+    StructureAddressDto? Address,
+    double? Latitude,
+    double? Longitude,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -104,6 +154,16 @@ public sealed record BuildingResponse(
             building.Description,
             building.Capacity,
             building.Area,
+            building.ImageUrl,
+            building.Images ?? [],
+            building.AllowAssetAssignment,
+            building.EnableTracking,
+            building.RestrictedAccess,
+            building.ShowOnMap,
+            building.Category,
+            StructureAddressDto.FromValue(building.Address),
+            building.Latitude,
+            building.Longitude,
             building.CreatedBy,
             building.CreatedAt,
             building.UpdatedBy,

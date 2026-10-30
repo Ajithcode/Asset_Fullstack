@@ -130,6 +130,9 @@ public static class SkillEndpoints
         string id,
         UpdateSkillRequest request,
         ISkillRepository repository,
+        IEmployeeRepository employees,
+        ITechnicianRepository technicians,
+        IServiceProviderRepository serviceProviders,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -155,6 +158,8 @@ public static class SkillEndpoints
             return Results.NotFound();
         }
 
+        var previousName = skill.SkillName;
+
         request.ApplyTo(skill);
 
         var existing = await repository.GetByCodeAsync(
@@ -176,6 +181,14 @@ public static class SkillEndpoints
         if (!updated)
         {
             return Results.NotFound();
+        }
+
+        // People and service providers hold skills by name.
+        if (previousName != skill.SkillName)
+        {
+            await employees.RenameSkillAsync(previousName, skill.SkillName, skill.ClientId, cancellationToken);
+            await technicians.RenameSkillAsync(previousName, skill.SkillName, skill.ClientId, cancellationToken);
+            await serviceProviders.RenameSkillAsync(previousName, skill.SkillName, skill.ClientId, cancellationToken);
         }
 
         await eventLogger.LogAsync(
@@ -244,6 +257,8 @@ public static class SkillEndpoints
     private static async Task<IResult> DeleteSkillAsync(
         string id,
         ISkillRepository repository,
+        IEmployeeRepository employees,
+        ITechnicianRepository technicians,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -260,6 +275,15 @@ public static class SkillEndpoints
         if (skill is null)
         {
             return Results.NotFound();
+        }
+
+        var holders = await employees.CountWithSkillAsync(skill.SkillName, skill.ClientId, cancellationToken)
+            + await technicians.CountWithSkillAsync(skill.SkillName, skill.ClientId, cancellationToken);
+
+        if (holders > 0)
+        {
+            return Results.Conflict(
+                new { message = $"{skill.SkillName} is held by {holders} people. Mark it Inactive instead." });
         }
 
         var deleted = await repository.DeleteAsync(

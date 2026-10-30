@@ -93,6 +93,7 @@ public static class SiteEndpoints
         ISiteRepository repository,
         IBusinessUnitRepository businessUnits,
         IDepartmentRepository departments,
+        IOrganizationRepository organizations,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -125,6 +126,17 @@ public static class SiteEndpoints
         if (referenceError is not null)
         {
             return referenceError;
+        }
+
+        var structureError = await ResolveStructureAsync(
+            site,
+            repository,
+            organizations,
+            cancellationToken);
+
+        if (structureError is not null)
+        {
+            return structureError;
         }
 
         site = await repository.CreateAsync(
@@ -202,6 +214,17 @@ public static class SiteEndpoints
         if (referenceError is not null)
         {
             return referenceError;
+        }
+
+        var structureError = await ResolveStructureAsync(
+            site,
+            repository,
+            organizations,
+            cancellationToken);
+
+        if (structureError is not null)
+        {
+            return structureError;
         }
 
         var updated = await repository.UpdateAsync(
@@ -412,6 +435,65 @@ public static class SiteEndpoints
         }
 
         site.Department.Name = department.DepartmentName;
+        return null;
+    }
+
+    /// <summary>
+    /// Checks the owning organization and the parent site (exists, not the site itself or one under it)
+    /// and copies their current names. Returns an error result, or null when valid.
+    /// </summary>
+    private static async Task<IResult?> ResolveStructureAsync(
+        SiteEntity site,
+        ISiteRepository repository,
+        IOrganizationRepository organizations,
+        CancellationToken cancellationToken)
+    {
+        var organizationError = await MasterDataReferenceResolver.ResolveOrganizationAsync(
+            site.Organization,
+            organizations,
+            cancellationToken);
+
+        if (organizationError is not null)
+        {
+            return organizationError;
+        }
+
+        var parentId = site.ParentSite?.Id;
+
+        if (parentId is null)
+        {
+            return null;
+        }
+
+        if (parentId == site.Id)
+        {
+            return Results.BadRequest(
+                new { message = "A site cannot be its own parent." });
+        }
+
+        var parentError = await MasterDataReferenceResolver.ResolveSiteAsync(
+            site.ParentSite,
+            repository,
+            cancellationToken);
+
+        if (parentError is not null || string.IsNullOrEmpty(site.Id))
+        {
+            return parentError;
+        }
+
+        var ancestor = await repository.GetByIdAsync(parentId, cancellationToken);
+
+        for (var depth = 0; ancestor?.ParentSite?.Id is not null && depth < 100; depth++)
+        {
+            if (ancestor.ParentSite.Id == site.Id)
+            {
+                return Results.BadRequest(
+                    new { message = "Parent site cannot be one of this site's own sub-sites." });
+            }
+
+            ancestor = await repository.GetByIdAsync(ancestor.ParentSite.Id, cancellationToken);
+        }
+
         return null;
     }
 }

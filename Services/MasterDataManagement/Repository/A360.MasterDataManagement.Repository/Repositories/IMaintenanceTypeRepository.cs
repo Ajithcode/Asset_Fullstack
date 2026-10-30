@@ -8,6 +8,8 @@ public interface IMaintenanceTypeRepository : IMongoRepository<MaintenanceTypeEn
     Task<IReadOnlyCollection<MaintenanceTypeEntity>> SearchAsync(MaintenanceTypeFilter filter, CancellationToken cancellationToken = default);
 
     Task<MaintenanceTypeEntity?> GetByCodeAsync(string code, string? clientId, CancellationToken cancellationToken = default);
+
+    Task UpdateDefaultPriorityAsync(string fromValue, string toValue, string? clientId, CancellationToken cancellationToken = default);
 }
 
 public sealed record MaintenanceTypeFilter(

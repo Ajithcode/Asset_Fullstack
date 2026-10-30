@@ -17,4 +17,18 @@ public class MaintenanceType : BaseEntity
     // Hex colour used to show the type, e.g. "#1565C0".
     [BsonElement("color")]
     public string? Color { get; set; }
+
+    // Planned (scheduled) work rather than reactive.
+    [BsonElement("planned")]
+    public bool Planned { get; set; }
+
+    [BsonElement("approval_required")]
+    public bool ApprovalRequired { get; set; }
+
+    [BsonElement("counts_as_downtime")]
+    public bool CountsAsDowntime { get; set; }
+
+    // Name of a Priority level from priority-severities.
+    [BsonElement("default_priority")]
+    public string? DefaultPriority { get; set; }
 }

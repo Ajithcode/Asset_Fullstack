@@ -28,7 +28,9 @@ public sealed class OrganizationRepository : MongoRepository<OrganizationEntity>
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             var pattern = new BsonRegularExpression(Regex.Escape(filter.Search.Trim()), "i");
-            filters.Add(builder.Regex(x => x.OrganizationName, pattern));
+            filters.Add(builder.Or(
+                builder.Regex(x => x.OrganizationName, pattern),
+                builder.Regex(x => x.Code, pattern)));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.Type))
@@ -76,6 +78,20 @@ public sealed class OrganizationRepository : MongoRepository<OrganizationEntity>
     {
         var builder = Builders<OrganizationEntity>.Filter;
         var filter = builder.Regex(x => x.OrganizationName, ExactIgnoreCase(organizationName))
+            & builder.Eq(x => x.ClientId, clientId);
+
+        return await Collection
+            .Find(filter)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<OrganizationEntity?> GetByCodeAsync(
+        string code,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<OrganizationEntity>.Filter;
+        var filter = builder.Regex(x => x.Code, ExactIgnoreCase(code))
             & builder.Eq(x => x.ClientId, clientId);
 
         return await Collection

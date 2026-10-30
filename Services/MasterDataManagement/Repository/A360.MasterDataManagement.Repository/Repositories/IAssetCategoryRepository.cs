@@ -9,6 +9,9 @@ public interface IAssetCategoryRepository : IMongoRepository<AssetCategoryEntity
 
     Task<AssetCategoryEntity?> GetByCodeAsync(string code, string? clientId, CancellationToken cancellationToken = default);
 
+    // First of `codes` already used as a subcategory code by another category of the client, or null.
+    Task<string?> FindSubcategoryCodeInUseAsync(IReadOnlyCollection<string> codes, string? clientId, string? exceptCategoryId, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyCollection<AssetCategoryEntity>> GetChildrenAsync(string parentCategoryId, CancellationToken cancellationToken = default);
 
     Task<bool> HasChildrenAsync(string parentCategoryId, CancellationToken cancellationToken = default);

@@ -9,6 +9,11 @@ public sealed record CreateStandardRequest(
     string? Category,
     string? Version,
     string? Description,
+    string? Title,
+    DateOnly? PublishedOn,
+    DateOnly? NextReview,
+    string? Url,
+    bool? Mandatory,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -24,6 +29,11 @@ public sealed record CreateStandardRequest(
             Category = Category!.Trim(),
             Version = string.IsNullOrWhiteSpace(Version) ? null : Version.Trim(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            Title = string.IsNullOrWhiteSpace(Title) ? null : Title.Trim(),
+            PublishedOn = PublishedOn,
+            NextReview = NextReview,
+            Url = string.IsNullOrWhiteSpace(Url) ? null : Url.Trim(),
+            Mandatory = Mandatory ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -43,6 +53,11 @@ public sealed record UpdateStandardRequest(
     string? Category,
     string? Version,
     string? Description,
+    string? Title,
+    DateOnly? PublishedOn,
+    DateOnly? NextReview,
+    string? Url,
+    bool? Mandatory,
     string? Status,
     string? UpdatedBy)
 {
@@ -54,6 +69,11 @@ public sealed record UpdateStandardRequest(
         standard.Category = Category!.Trim();
         standard.Version = string.IsNullOrWhiteSpace(Version) ? null : Version.Trim();
         standard.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        standard.Title = string.IsNullOrWhiteSpace(Title) ? null : Title.Trim();
+        standard.PublishedOn = PublishedOn;
+        standard.NextReview = NextReview;
+        standard.Url = string.IsNullOrWhiteSpace(Url) ? null : Url.Trim();
+        standard.Mandatory = Mandatory ?? false;
 
         standard.UpdatedBy = UpdatedBy;
         standard.UpdatedAt = DateTime.UtcNow;
@@ -77,6 +97,11 @@ public sealed record StandardResponse(
     string Category,
     string? Version,
     string? Description,
+    string? Title,
+    DateOnly? PublishedOn,
+    DateOnly? NextReview,
+    string? Url,
+    bool Mandatory,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -96,6 +121,11 @@ public sealed record StandardResponse(
             standard.Category ?? string.Empty,
             standard.Version,
             standard.Description,
+            standard.Title,
+            standard.PublishedOn,
+            standard.NextReview,
+            standard.Url,
+            standard.Mandatory,
             standard.CreatedBy,
             standard.CreatedAt,
             standard.UpdatedBy,

@@ -7,13 +7,17 @@ public static class AssetModelValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateAssetModelRequest request)
     {
-        return ValidateFields(request.ModelName, request.ModelCode, request.Manufacturer, request.AssetType, request.Category);
+        var errors = ValidateFields(request.ModelName, request.ModelCode, request.Manufacturer, request.AssetType, request.Category);
+        ValidateDetails(errors, request.Specs, request.LifecycleYears, request.WarrantyMonths, request.PurchasePrice, request.SalvagePercent);
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateAssetModelRequest request)
     {
-        return ValidateFields(request.ModelName, request.ModelCode, request.Manufacturer, request.AssetType, request.Category);
+        var errors = ValidateFields(request.ModelName, request.ModelCode, request.Manufacturer, request.AssetType, request.Category);
+        ValidateDetails(errors, request.Specs, request.LifecycleYears, request.WarrantyMonths, request.PurchasePrice, request.SalvagePercent);
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -71,5 +75,44 @@ public static class AssetModelValidationExtensions
         }
 
         return errors;
+    }
+
+    private static void ValidateDetails(
+        Dictionary<string, string[]> errors,
+        List<AssetModelSpecDto>? specs,
+        int? lifecycleYears,
+        int? warrantyMonths,
+        decimal? purchasePrice,
+        decimal? salvagePercent)
+    {
+        if (specs is not null && specs.Any(x => x is not null && string.IsNullOrWhiteSpace(x.Label) && !string.IsNullOrWhiteSpace(x.Value)))
+        {
+            errors["Specs"] =
+                ["Every specification value needs a name"];
+        }
+
+        if (lifecycleYears is < 1 or > 50)
+        {
+            errors["LifecycleYears"] =
+                ["LifecycleYears must be between 1 and 50"];
+        }
+
+        if (warrantyMonths is < 0 or > 240)
+        {
+            errors["WarrantyMonths"] =
+                ["WarrantyMonths must be between 0 and 240"];
+        }
+
+        if (purchasePrice < 0)
+        {
+            errors["PurchasePrice"] =
+                ["PurchasePrice cannot be negative"];
+        }
+
+        if (salvagePercent is < 0 or > 100)
+        {
+            errors["SalvagePercent"] =
+                ["SalvagePercent must be between 0 and 100"];
+        }
     }
 }

@@ -1,3 +1,4 @@
+using A360.MasterDataManagement.Domain.ValueObjects;
 using TeamEntity = A360.MasterDataManagement.Domain.Entities.Team;
 using A360.MasterDataManagement.Api.Contracts;
 using A360.MasterDataManagement.Api.Validation;
@@ -111,6 +112,8 @@ public static class TeamEndpoints
         ITeamRepository repository,
         IDepartmentRepository departments,
         ITechnicianRepository technicians,
+        IEmployeeRepository employees,
+        IShiftRepository shifts,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -141,6 +144,8 @@ public static class TeamEndpoints
             memberIds,
             departments,
             technicians,
+            employees,
+            shifts,
             cancellationToken);
 
         if (referenceError is not null)
@@ -179,6 +184,8 @@ public static class TeamEndpoints
         ITeamRepository repository,
         IDepartmentRepository departments,
         ITechnicianRepository technicians,
+        IEmployeeRepository employees,
+        IShiftRepository shifts,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -226,6 +233,8 @@ public static class TeamEndpoints
             memberIds,
             departments,
             technicians,
+            employees,
+            shifts,
             cancellationToken);
 
         if (referenceError is not null)
@@ -372,14 +381,16 @@ public static class TeamEndpoints
     }
 
     /// <summary>
-    /// Checks the department, team leader and every listed member exist, copying the department and leader
-    /// names onto the team. Returns an error result, or null when valid.
+    /// Checks the department, team leader, shift and every listed member exist, copying the department, leader,
+    /// shift and employee member names onto the team. Returns an error result, or null when valid.
     /// </summary>
     private static async Task<IResult?> ResolveReferencesAsync(
         TeamEntity team,
         IReadOnlyCollection<string>? memberIds,
         IDepartmentRepository departments,
         ITechnicianRepository technicians,
+        IEmployeeRepository employees,
+        IShiftRepository shifts,
         CancellationToken cancellationToken)
     {
         if (team.Department is not null)
@@ -395,14 +406,35 @@ public static class TeamEndpoints
             }
         }
 
-        var leaderError = await MasterDataReferenceResolver.ResolveTechnicianAsync(
+        var leaderError = await ResolveLeaderAsync(
             team.TeamLeader,
             technicians,
+            employees,
             cancellationToken);
 
         if (leaderError is not null)
         {
             return leaderError;
+        }
+
+        var shiftError = await ResolveShiftAsync(
+            team.Shift,
+            shifts,
+            cancellationToken);
+
+        if (shiftError is not null)
+        {
+            return shiftError;
+        }
+
+        var employeeMemberError = await ResolveEmployeeMembersAsync(
+            team.EmployeeMembers,
+            employees,
+            cancellationToken);
+
+        if (employeeMemberError is not null)
+        {
+            return employeeMemberError;
         }
 
         if (memberIds is null || memberIds.Count == 0)
@@ -425,6 +457,96 @@ public static class TeamEndpoints
             ? null
             : Results.BadRequest(
                 new { message = $"Technician '{invalid}' was not found." });
+    }
+
+    // The leader is a technician or an employee; the name is copied from whichever it is.
+    private static async Task<IResult?> ResolveLeaderAsync(
+        MasterDataReference? leader,
+        ITechnicianRepository technicians,
+        IEmployeeRepository employees,
+        CancellationToken cancellationToken)
+    {
+        if (leader is null || string.IsNullOrWhiteSpace(leader.Id))
+        {
+            return null;
+        }
+
+        if (MongoObjectId.IsValid(leader.Id))
+        {
+            var technician = await technicians.GetByIdAsync(leader.Id, cancellationToken);
+
+            if (technician is not null)
+            {
+                leader.Name = technician.TechnicianName;
+                return null;
+            }
+
+            var employee = await employees.GetByIdAsync(leader.Id, cancellationToken);
+
+            if (employee is not null)
+            {
+                leader.Name = employee.EmployeeName;
+                return null;
+            }
+        }
+
+        return Results.BadRequest(
+            new { message = $"Team leader '{leader.Id}' was not found among technicians or employees." });
+    }
+
+    private static async Task<IResult?> ResolveShiftAsync(
+        MasterDataReference? shift,
+        IShiftRepository shifts,
+        CancellationToken cancellationToken)
+    {
+        if (shift is null || string.IsNullOrWhiteSpace(shift.Id))
+        {
+            return null;
+        }
+
+        var found = MongoObjectId.IsValid(shift.Id)
+            ? await shifts.GetByIdAsync(shift.Id, cancellationToken)
+            : null;
+
+        if (found is null)
+        {
+            return Results.BadRequest(
+                new { message = $"Shift '{shift.Id}' was not found." });
+        }
+
+        shift.Name = found.ShiftName;
+        return null;
+    }
+
+    private static async Task<IResult?> ResolveEmployeeMembersAsync(
+        List<MasterDataReference> members,
+        IEmployeeRepository employees,
+        CancellationToken cancellationToken)
+    {
+        if (members.Count == 0)
+        {
+            return null;
+        }
+
+        var ids = members.Select(x => x.Id!).ToList();
+        var invalid = ids.FirstOrDefault(x => !MongoObjectId.IsValid(x));
+
+        if (invalid is null)
+        {
+            var found = (await employees.GetByIdsAsync(ids, cancellationToken))
+                .ToDictionary(x => x.Id, x => x.EmployeeName);
+
+            invalid = ids.FirstOrDefault(x => !found.ContainsKey(x));
+
+            if (invalid is null)
+            {
+                members.ForEach(x => x.Name = found[x.Id!]);
+                return null;
+            }
+        }
+
+        return Results.BadRequest(
+            new { message = $"Employee '{invalid}' was not found." });
     }
 
     private static async Task<TeamResponse> ToResponseAsync(

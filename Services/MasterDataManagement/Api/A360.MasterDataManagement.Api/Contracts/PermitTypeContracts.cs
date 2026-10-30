@@ -8,6 +8,12 @@ public sealed record CreatePermitTypeRequest(
     string? Category,
     int? ValidTillDays,
     string? Description,
+    int? ApprovalLevels,
+    List<string>? ApproverRoles,
+    int? MaxExtensionDays,
+    bool? IsolationRequired,
+    bool? GasTestRequired,
+    bool? CloseOutInspection,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -22,6 +28,12 @@ public sealed record CreatePermitTypeRequest(
             Category = Category!.Trim(),
             ValidTillDays = ValidTillDays,
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            ApprovalLevels = ApprovalLevels,
+            ApproverRoles = ApproverRoles?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [],
+            MaxExtensionDays = MaxExtensionDays,
+            IsolationRequired = IsolationRequired ?? false,
+            GasTestRequired = GasTestRequired ?? false,
+            CloseOutInspection = CloseOutInspection ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -40,6 +52,12 @@ public sealed record UpdatePermitTypeRequest(
     string? Category,
     int? ValidTillDays,
     string? Description,
+    int? ApprovalLevels,
+    List<string>? ApproverRoles,
+    int? MaxExtensionDays,
+    bool? IsolationRequired,
+    bool? GasTestRequired,
+    bool? CloseOutInspection,
     string? Status,
     string? UpdatedBy)
 {
@@ -50,6 +68,12 @@ public sealed record UpdatePermitTypeRequest(
         permitType.Category = Category!.Trim();
         permitType.ValidTillDays = ValidTillDays;
         permitType.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        permitType.ApprovalLevels = ApprovalLevels;
+        permitType.ApproverRoles = ApproverRoles?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [];
+        permitType.MaxExtensionDays = MaxExtensionDays;
+        permitType.IsolationRequired = IsolationRequired ?? false;
+        permitType.GasTestRequired = GasTestRequired ?? false;
+        permitType.CloseOutInspection = CloseOutInspection ?? false;
 
         permitType.UpdatedBy = UpdatedBy;
         permitType.UpdatedAt = DateTime.UtcNow;
@@ -72,6 +96,12 @@ public sealed record PermitTypeResponse(
     string Category,
     int? ValidTillDays,
     string? Description,
+    int? ApprovalLevels,
+    IReadOnlyList<string> ApproverRoles,
+    int? MaxExtensionDays,
+    bool IsolationRequired,
+    bool GasTestRequired,
+    bool CloseOutInspection,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -90,6 +120,12 @@ public sealed record PermitTypeResponse(
             permitType.Category ?? string.Empty,
             permitType.ValidTillDays,
             permitType.Description,
+            permitType.ApprovalLevels,
+            permitType.ApproverRoles ?? [],
+            permitType.MaxExtensionDays,
+            permitType.IsolationRequired,
+            permitType.GasTestRequired,
+            permitType.CloseOutInspection,
             permitType.CreatedBy,
             permitType.CreatedAt,
             permitType.UpdatedBy,

@@ -69,6 +69,15 @@ public sealed class UomRepository : MongoRepository<UomEntity>,
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> AnyWithBaseUomAsync(
+        string baseUomId,
+        CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(x => x.BaseUom!.Id == baseUomId)
+            .AnyAsync(cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(
         CancellationToken cancellationToken = default)
     {

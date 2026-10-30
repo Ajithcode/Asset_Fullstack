@@ -1,3 +1,4 @@
+using BusinessUnitEntity = A360.MasterDataManagement.Domain.Entities.BusinessUnit;
 using A360.MasterDataManagement.Api.Contracts;
 using A360.MasterDataManagement.Api.Validation;
 using A360.MasterDataManagement.Repository.Repositories;
@@ -124,6 +125,16 @@ public static class BusinessUnitEndpoints
             return parentError;
         }
 
+        var parentUnitError = await ResolveParentBusinessUnitAsync(
+            businessUnit,
+            repository,
+            cancellationToken);
+
+        if (parentUnitError is not null)
+        {
+            return parentUnitError;
+        }
+
         var departmentError = await MasterDataReferenceResolver.ResolveDepartmentsAsync(
             businessUnit.Departments,
             departments,
@@ -215,6 +226,16 @@ public static class BusinessUnitEndpoints
         if (parentError is not null)
         {
             return parentError;
+        }
+
+        var parentUnitError = await ResolveParentBusinessUnitAsync(
+            businessUnit,
+            repository,
+            cancellationToken);
+
+        if (parentUnitError is not null)
+        {
+            return parentUnitError;
         }
 
         var departmentError = await MasterDataReferenceResolver.ResolveDepartmentsAsync(
@@ -386,5 +407,52 @@ public static class BusinessUnitEndpoints
             cancellationToken);
 
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Checks the parent business unit (exists, not the unit itself or one of its sub-units) and copies its name.
+    /// </summary>
+    private static async Task<IResult?> ResolveParentBusinessUnitAsync(
+        BusinessUnitEntity businessUnit,
+        IBusinessUnitRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var parentId = businessUnit.ParentBusinessUnit?.Id;
+
+        if (parentId is null)
+        {
+            return null;
+        }
+
+        if (parentId == businessUnit.Id)
+        {
+            return Results.BadRequest(
+                new { message = "A business unit cannot be its own parent." });
+        }
+
+        var parentError = await MasterDataReferenceResolver.ResolveBusinessUnitAsync(
+            businessUnit.ParentBusinessUnit,
+            repository,
+            cancellationToken);
+
+        if (parentError is not null || string.IsNullOrEmpty(businessUnit.Id))
+        {
+            return parentError;
+        }
+
+        var ancestor = await repository.GetByIdAsync(parentId, cancellationToken);
+
+        for (var depth = 0; ancestor?.ParentBusinessUnit?.Id is not null && depth < 100; depth++)
+        {
+            if (ancestor.ParentBusinessUnit.Id == businessUnit.Id)
+            {
+                return Results.BadRequest(
+                    new { message = "Parent business unit cannot be one of this unit's own sub-units." });
+            }
+
+            ancestor = await repository.GetByIdAsync(ancestor.ParentBusinessUnit.Id, cancellationToken);
+        }
+
+        return null;
     }
 }

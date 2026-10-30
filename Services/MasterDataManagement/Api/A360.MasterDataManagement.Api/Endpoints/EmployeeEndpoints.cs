@@ -122,6 +122,16 @@ public static class EmployeeEndpoints
             return departmentError;
         }
 
+        var managerError = await MasterDataReferenceResolver.ResolveEmployeeAsync(
+            employee.ReportingManager,
+            repository,
+            cancellationToken);
+
+        if (managerError is not null)
+        {
+            return managerError;
+        }
+
         employee = await repository.CreateAsync(
             employee,
             cancellationToken);
@@ -144,6 +154,7 @@ public static class EmployeeEndpoints
         IEmployeeRepository repository,
         IDepartmentRepository departments,
         IWarehouseRepository warehouses,
+        ITeamRepository teams,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -194,6 +205,22 @@ public static class EmployeeEndpoints
             return departmentError;
         }
 
+        if (employee.ReportingManager?.Id == id)
+        {
+            return Results.BadRequest(
+                new { message = "An employee can't report to themselves." });
+        }
+
+        var managerError = await MasterDataReferenceResolver.ResolveEmployeeAsync(
+            employee.ReportingManager,
+            repository,
+            cancellationToken);
+
+        if (managerError is not null)
+        {
+            return managerError;
+        }
+
         var updated = await repository.UpdateAsync(
             id,
             employee,
@@ -212,6 +239,21 @@ public static class EmployeeEndpoints
                 cancellationToken);
 
             await warehouses.UpdateManagerNameAsync(
+                id,
+                employee.EmployeeName,
+                cancellationToken);
+
+            await repository.UpdateReportingManagerNameAsync(
+                id,
+                employee.EmployeeName,
+                cancellationToken);
+
+            await teams.UpdateTeamLeaderNameAsync(
+                id,
+                employee.EmployeeName,
+                cancellationToken);
+
+            await teams.UpdateEmployeeMemberNameAsync(
                 id,
                 employee.EmployeeName,
                 cancellationToken);
@@ -285,6 +327,7 @@ public static class EmployeeEndpoints
         IEmployeeRepository repository,
         IDepartmentRepository departments,
         IWarehouseRepository warehouses,
+        ITeamRepository teams,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -315,6 +358,18 @@ public static class EmployeeEndpoints
                 new { message = "This employee manages a warehouse. Choose another manager for that warehouse first." });
         }
 
+        if (await teams.AnyWithTeamLeaderAsync(id, cancellationToken))
+        {
+            return Results.Conflict(
+                new { message = "This employee leads a team. Choose another team leader first." });
+        }
+
+        if (await repository.AnyWithReportingManagerAsync(id, cancellationToken))
+        {
+            return Results.Conflict(
+                new { message = "Other employees report to this employee. Change their manager first." });
+        }
+
         var deleted = await repository.DeleteAsync(
             id,
             cancellationToken);
@@ -323,6 +378,10 @@ public static class EmployeeEndpoints
         {
             return Results.NotFound();
         }
+
+        await teams.RemoveEmployeeMemberAsync(
+            id,
+            cancellationToken);
 
         await eventLogger.LogAsync(
             "Employee",

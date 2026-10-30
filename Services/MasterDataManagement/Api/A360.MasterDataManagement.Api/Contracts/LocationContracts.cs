@@ -10,6 +10,19 @@ public sealed record CreateLocationRequest(
     string? Floor,
     string? Zone,
     string? ParentLocationId,
+    string? Environment,
+    MasterDataReferenceDto? Site,
+    double? Area,
+    int? Capacity,
+    string? Description,
+    string? ImageUrl,
+    double? Latitude,
+    double? Longitude,
+    bool RestrictedAccess,
+    bool TemperatureControlled,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool GeofenceAlerts,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -27,6 +40,19 @@ public sealed record CreateLocationRequest(
             Zone = Zone,
             ParentLocationId = string.IsNullOrWhiteSpace(ParentLocationId) ? null : ParentLocationId,
 
+            Environment = StructureText.Clean(Environment),
+            Site = Site?.ToReference(),
+            Area = Area,
+            Capacity = Capacity,
+            Description = StructureText.Clean(Description),
+            ImageUrl = StructureText.Clean(ImageUrl),
+            Latitude = Latitude,
+            Longitude = Longitude,
+            RestrictedAccess = RestrictedAccess,
+            TemperatureControlled = TemperatureControlled,
+            AllowAssetAssignment = AllowAssetAssignment,
+            EnableTracking = EnableTracking,
+            GeofenceAlerts = GeofenceAlerts,
             CreatedBy = CreatedBy,
             ClientId = ClientId,
             TenantId = TenantId,
@@ -46,6 +72,19 @@ public sealed record UpdateLocationRequest(
     string? Floor,
     string? Zone,
     string? ParentLocationId,
+    string? Environment,
+    MasterDataReferenceDto? Site,
+    double? Area,
+    int? Capacity,
+    string? Description,
+    string? ImageUrl,
+    double? Latitude,
+    double? Longitude,
+    bool RestrictedAccess,
+    bool TemperatureControlled,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool GeofenceAlerts,
     string? Status,
     string? UpdatedBy)
 {
@@ -59,6 +98,19 @@ public sealed record UpdateLocationRequest(
         location.Zone = Zone;
         location.ParentLocationId = string.IsNullOrWhiteSpace(ParentLocationId) ? null : ParentLocationId;
 
+        location.Environment = StructureText.Clean(Environment);
+        location.Site = Site?.ToReference();
+        location.Area = Area;
+        location.Capacity = Capacity;
+        location.Description = StructureText.Clean(Description);
+        location.ImageUrl = StructureText.Clean(ImageUrl);
+        location.Latitude = Latitude;
+        location.Longitude = Longitude;
+        location.RestrictedAccess = RestrictedAccess;
+        location.TemperatureControlled = TemperatureControlled;
+        location.AllowAssetAssignment = AllowAssetAssignment;
+        location.EnableTracking = EnableTracking;
+        location.GeofenceAlerts = GeofenceAlerts;
         location.UpdatedBy = UpdatedBy;
         location.UpdatedAt = DateTime.UtcNow;
 
@@ -83,6 +135,19 @@ public sealed record LocationResponse(
     string? Zone,
     string? ParentLocationId,
     string? ParentLocationName,
+    string? Environment,
+    MasterDataReferenceDto? Site,
+    double? Area,
+    int? Capacity,
+    string? Description,
+    string? ImageUrl,
+    double? Latitude,
+    double? Longitude,
+    bool RestrictedAccess,
+    bool TemperatureControlled,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool GeofenceAlerts,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -104,6 +169,19 @@ public sealed record LocationResponse(
             location.Zone,
             location.ParentLocationId,
             location.ParentLocationName,
+            location.Environment,
+            location.Site is null ? null : MasterDataReferenceDto.FromReference(location.Site),
+            location.Area,
+            location.Capacity,
+            location.Description,
+            location.ImageUrl,
+            location.Latitude,
+            location.Longitude,
+            location.RestrictedAccess,
+            location.TemperatureControlled,
+            location.AllowAssetAssignment,
+            location.EnableTracking,
+            location.GeofenceAlerts,
             location.CreatedBy,
             location.CreatedAt,
             location.UpdatedBy,

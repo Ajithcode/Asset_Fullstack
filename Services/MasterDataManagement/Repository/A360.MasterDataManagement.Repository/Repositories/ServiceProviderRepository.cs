@@ -75,6 +75,39 @@ public sealed class ServiceProviderRepository : MongoRepository<ServiceProviderE
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<long> CountWithSkillAsync(
+        string skillName,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<ServiceProviderEntity>.Filter;
+        var filter = (builder.AnyEq(x => x.Skills, skillName))
+            & builder.Eq(x => x.ClientId, clientId);
+
+        return await Collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+    }
+
+    public async Task RenameSkillAsync(
+        string oldName,
+        string newName,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<ServiceProviderEntity>.Filter;
+
+        await Collection.UpdateManyAsync(
+            builder.AnyEq(x => x.Skills, oldName) & builder.Eq(x => x.ClientId, clientId),
+            Builders<ServiceProviderEntity>.Update.Set("skills.$[skill]", newName),
+            new UpdateOptions
+            {
+                ArrayFilters =
+                [
+                    new BsonDocumentArrayFilterDefinition<BsonDocument>(new BsonDocument("skill", oldName))
+                ]
+            },
+            cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(
         CancellationToken cancellationToken = default)
     {

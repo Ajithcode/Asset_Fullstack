@@ -18,4 +18,18 @@ public class Store : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    // e.g. "Spare Parts", "Consumables" or "Tools".
+    [BsonElement("store_type")]
+    public string? StoreType { get; set; }
+
+    // Points at an employee in this service.
+    [BsonElement("keeper")]
+    public MasterDataReference? Keeper { get; set; }
+
+    [BsonElement("temperature_controlled")]
+    public bool TemperatureControlled { get; set; }
+
+    [BsonElement("restricted_access")]
+    public bool RestrictedAccess { get; set; }
 }

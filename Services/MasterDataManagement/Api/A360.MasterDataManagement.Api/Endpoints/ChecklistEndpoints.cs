@@ -130,6 +130,7 @@ public static class ChecklistEndpoints
         string id,
         UpdateChecklistRequest request,
         IChecklistRepository repository,
+        IWorkTypeRepository workTypes,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -155,6 +156,8 @@ public static class ChecklistEndpoints
             return Results.NotFound();
         }
 
+        var previousCode = checklist.Code;
+
         request.ApplyTo(checklist);
 
         var existing = await repository.GetByCodeAsync(
@@ -176,6 +179,16 @@ public static class ChecklistEndpoints
         if (!updated)
         {
             return Results.NotFound();
+        }
+
+        // Work types point at the checklist by code
+        if (previousCode != checklist.Code)
+        {
+            await workTypes.UpdateChecklistCodeAsync(
+                previousCode,
+                checklist.Code,
+                checklist.ClientId,
+                cancellationToken);
         }
 
         await eventLogger.LogAsync(

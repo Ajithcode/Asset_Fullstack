@@ -7,6 +7,10 @@ public sealed record CreateBinRequest(
     string? Code,
     MasterDataReferenceDto? Store,
     string? Description,
+    string? Rack,
+    string? Shelf,
+    string? BinType,
+    double? Capacity,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -20,6 +24,10 @@ public sealed record CreateBinRequest(
             Code = Code!.Trim(),
             Store = Store?.ToReference(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            Rack = string.IsNullOrWhiteSpace(Rack) ? null : Rack.Trim(),
+            Shelf = string.IsNullOrWhiteSpace(Shelf) ? null : Shelf.Trim(),
+            BinType = string.IsNullOrWhiteSpace(BinType) ? null : BinType.Trim(),
+            Capacity = Capacity,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -37,6 +45,10 @@ public sealed record UpdateBinRequest(
     string? Code,
     MasterDataReferenceDto? Store,
     string? Description,
+    string? Rack,
+    string? Shelf,
+    string? BinType,
+    double? Capacity,
     string? Status,
     string? UpdatedBy)
 {
@@ -46,6 +58,10 @@ public sealed record UpdateBinRequest(
         bin.Code = Code!.Trim();
         bin.Store = Store?.ToReference();
         bin.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        bin.Rack = string.IsNullOrWhiteSpace(Rack) ? null : Rack.Trim();
+        bin.Shelf = string.IsNullOrWhiteSpace(Shelf) ? null : Shelf.Trim();
+        bin.BinType = string.IsNullOrWhiteSpace(BinType) ? null : BinType.Trim();
+        bin.Capacity = Capacity;
 
         bin.UpdatedBy = UpdatedBy;
         bin.UpdatedAt = DateTime.UtcNow;
@@ -68,6 +84,10 @@ public sealed record BinResponse(
     MasterDataReferenceDto? Store,
     MasterDataReferenceDto? Warehouse,
     string? Description,
+    string? Rack,
+    string? Shelf,
+    string? BinType,
+    double? Capacity,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -90,6 +110,10 @@ public sealed record BinResponse(
                 ? null
                 : MasterDataReferenceDto.FromReference(bin.Warehouse),
             bin.Description,
+            bin.Rack,
+            bin.Shelf,
+            bin.BinType,
+            bin.Capacity,
             bin.CreatedBy,
             bin.CreatedAt,
             bin.UpdatedBy,

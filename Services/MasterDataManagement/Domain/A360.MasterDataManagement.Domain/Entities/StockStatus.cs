@@ -30,4 +30,24 @@ public class StockStatus : BaseEntity
     // At most one stock status per client is the default.
     [BsonElement("system_default")]
     public bool SystemDefault { get; set; }
+
+    // Stock in this status can be issued to work orders.
+    [BsonElement("can_issue")]
+    public bool CanIssue { get; set; }
+
+    [BsonElement("can_reserve")]
+    public bool CanReserve { get; set; }
+
+    // Counted in the available quantity.
+    [BsonElement("counts_as_available")]
+    public bool CountsAsAvailable { get; set; }
+
+    [BsonElement("triggers_reorder")]
+    public bool TriggersReorder { get; set; }
+
+    [BsonElement("show_in_reports")]
+    public bool ShowInReports { get; set; } = true;
+
+    [BsonElement("notify_storekeeper")]
+    public bool NotifyStorekeeper { get; set; }
 }

@@ -13,13 +13,13 @@ public static class PrioritySeverityValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreatePrioritySeverityRequest request)
     {
-        return ValidateFields(request.Name, request.Code, request.Type, request.Color);
+        return ValidateFields(request.Name, request.Code, request.Type, request.Color, request.EscalateAfterHours);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdatePrioritySeverityRequest request)
     {
-        return ValidateFields(request.Name, request.Code, request.Type, request.Color);
+        return ValidateFields(request.Name, request.Code, request.Type, request.Color, request.EscalateAfterHours);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -40,7 +40,8 @@ public static class PrioritySeverityValidationExtensions
         string? name,
         string? code,
         string? type,
-        string? color)
+        string? color,
+        int? escalateAfterHours)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -66,6 +67,12 @@ public static class PrioritySeverityValidationExtensions
         {
             errors["Color"] =
                 ["Color must be a hex colour such as #1565C0"];
+        }
+
+        if (escalateAfterHours < 1)
+        {
+            errors["EscalateAfterHours"] =
+                ["EscalateAfterHours must be at least 1, or left empty"];
         }
 
         return errors;

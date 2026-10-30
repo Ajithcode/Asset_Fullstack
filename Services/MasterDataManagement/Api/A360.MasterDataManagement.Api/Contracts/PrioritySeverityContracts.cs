@@ -20,6 +20,9 @@ public sealed record CreatePrioritySeverityRequest(
     string? Color,
     string? ResponseTime,
     string? Description,
+    List<string>? AppliesTo,
+    int? EscalateAfterHours,
+    bool? NotifyManager,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -35,6 +38,9 @@ public sealed record CreatePrioritySeverityRequest(
             Color = string.IsNullOrWhiteSpace(Color) ? null : Color.Trim().ToUpperInvariant(),
             ResponseTime = string.IsNullOrWhiteSpace(ResponseTime) ? null : ResponseTime.Trim(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            AppliesTo = AppliesTo?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [],
+            EscalateAfterHours = EscalateAfterHours,
+            NotifyManager = NotifyManager ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -54,6 +60,9 @@ public sealed record UpdatePrioritySeverityRequest(
     string? Color,
     string? ResponseTime,
     string? Description,
+    List<string>? AppliesTo,
+    int? EscalateAfterHours,
+    bool? NotifyManager,
     string? Status,
     string? UpdatedBy)
 {
@@ -65,6 +74,9 @@ public sealed record UpdatePrioritySeverityRequest(
         prioritySeverity.Color = string.IsNullOrWhiteSpace(Color) ? null : Color.Trim().ToUpperInvariant();
         prioritySeverity.ResponseTime = string.IsNullOrWhiteSpace(ResponseTime) ? null : ResponseTime.Trim();
         prioritySeverity.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        prioritySeverity.AppliesTo = AppliesTo?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [];
+        prioritySeverity.EscalateAfterHours = EscalateAfterHours;
+        prioritySeverity.NotifyManager = NotifyManager ?? false;
 
         prioritySeverity.UpdatedBy = UpdatedBy;
         prioritySeverity.UpdatedAt = DateTime.UtcNow;
@@ -88,6 +100,9 @@ public sealed record PrioritySeverityResponse(
     string? Color,
     string? ResponseTime,
     string? Description,
+    IReadOnlyList<string> AppliesTo,
+    int? EscalateAfterHours,
+    bool NotifyManager,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -107,6 +122,9 @@ public sealed record PrioritySeverityResponse(
             prioritySeverity.Color,
             prioritySeverity.ResponseTime,
             prioritySeverity.Description,
+            prioritySeverity.AppliesTo ?? [],
+            prioritySeverity.EscalateAfterHours,
+            prioritySeverity.NotifyManager,
             prioritySeverity.CreatedBy,
             prioritySeverity.CreatedAt,
             prioritySeverity.UpdatedBy,

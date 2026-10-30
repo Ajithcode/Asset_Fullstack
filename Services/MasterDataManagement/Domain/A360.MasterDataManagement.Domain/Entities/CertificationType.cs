@@ -29,4 +29,23 @@ public class CertificationType : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    [BsonElement("issuing_body")]
+    public string? IssuingBody { get; set; }
+
+    // Code of a standard in this service.
+    [BsonElement("standard_code")]
+    public string? StandardCode { get; set; }
+
+    [BsonElement("required_documents")]
+    public List<string> RequiredDocuments { get; set; } = [];
+
+    [BsonElement("inspection_required")]
+    public bool InspectionRequired { get; set; }
+
+    [BsonElement("block_when_expired")]
+    public bool BlockWhenExpired { get; set; }
+
+    [BsonElement("notify_owner")]
+    public bool NotifyOwner { get; set; }
 }

@@ -7,13 +7,13 @@ public static class WarehouseValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateWarehouseRequest request)
     {
-        return ValidateFields(request.WarehouseName, request.Code, request.Manager);
+        return ValidateFields(request.WarehouseName, request.Code, request.Manager, request.Email, request.AreaSqm);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateWarehouseRequest request)
     {
-        return ValidateFields(request.WarehouseName, request.Code, request.Manager);
+        return ValidateFields(request.WarehouseName, request.Code, request.Manager, request.Email, request.AreaSqm);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -33,7 +33,9 @@ public static class WarehouseValidationExtensions
     private static Dictionary<string, string[]> ValidateFields(
         string? warehouseName,
         string? code,
-        MasterDataReferenceDto? manager)
+        MasterDataReferenceDto? manager,
+        string? email,
+        double? areaSqm)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -53,6 +55,14 @@ public static class WarehouseValidationExtensions
         {
             errors["Manager"] =
                 ["Manager must have an employee id"];
+        }
+
+        ContactValidation.ValidateEmailAndPhone(errors, email, null);
+
+        if (areaSqm <= 0)
+        {
+            errors["AreaSqm"] =
+                ["AreaSqm must be greater than 0"];
         }
 
         return errors;

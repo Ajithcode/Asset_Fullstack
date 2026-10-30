@@ -8,13 +8,59 @@ public static class LocationValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateLocationRequest request)
     {
-        return ValidateFields(request.LocationName, request.Code, request.Type, request.ParentLocationId);
+        var errors = ValidateFields(request.LocationName, request.Code, request.Type, request.ParentLocationId);
+
+        // The site is a record in this service, so it is picked by id.
+        if (request.Site is not null && string.IsNullOrWhiteSpace(request.Site.Id))
+        {
+            errors["Site"] =
+                ["Site must have a site id"];
+        }
+
+        if (request.Area < 0)
+        {
+            errors["Area"] =
+                ["Area cannot be negative"];
+        }
+
+        if (request.Capacity < 0)
+        {
+            errors["Capacity"] =
+                ["Capacity cannot be negative"];
+        }
+
+        StructureValidation.ValidateCoordinates(errors, request.Latitude, request.Longitude);
+
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateLocationRequest request)
     {
-        return ValidateFields(request.LocationName, request.Code, request.Type, request.ParentLocationId);
+        var errors = ValidateFields(request.LocationName, request.Code, request.Type, request.ParentLocationId);
+
+        // The site is a record in this service, so it is picked by id.
+        if (request.Site is not null && string.IsNullOrWhiteSpace(request.Site.Id))
+        {
+            errors["Site"] =
+                ["Site must have a site id"];
+        }
+
+        if (request.Area < 0)
+        {
+            errors["Area"] =
+                ["Area cannot be negative"];
+        }
+
+        if (request.Capacity < 0)
+        {
+            errors["Capacity"] =
+                ["Capacity cannot be negative"];
+        }
+
+        StructureValidation.ValidateCoordinates(errors, request.Latitude, request.Longitude);
+
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(

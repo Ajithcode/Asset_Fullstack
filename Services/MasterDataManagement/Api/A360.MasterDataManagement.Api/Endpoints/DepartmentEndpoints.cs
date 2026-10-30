@@ -145,6 +145,16 @@ public static class DepartmentEndpoints
             return businessUnitError;
         }
 
+        var parentError = await ResolveParentDepartmentAsync(
+            department,
+            repository,
+            cancellationToken);
+
+        if (parentError is not null)
+        {
+            return parentError;
+        }
+
         var employeeIds = request.Employees?.Select(x => x.Id!.Trim()).ToList();
 
         var employeeError = await ResolveEmployeesAsync(
@@ -240,6 +250,16 @@ public static class DepartmentEndpoints
         if (businessUnitError is not null)
         {
             return businessUnitError;
+        }
+
+        var parentError = await ResolveParentDepartmentAsync(
+            department,
+            repository,
+            cancellationToken);
+
+        if (parentError is not null)
+        {
+            return parentError;
         }
 
         var employeeIds = request.Employees?.Select(x => x.Id!.Trim()).ToList();
@@ -392,6 +412,12 @@ public static class DepartmentEndpoints
             return Results.NotFound();
         }
 
+        if (await repository.AnyWithParentDepartmentAsync(id, cancellationToken))
+        {
+            return Results.Conflict(
+                new { message = "This department has sub-departments. Delete or move them first." });
+        }
+
         if (await sites.AnyWithDepartmentAsync(id, cancellationToken))
         {
             return Results.Conflict(
@@ -497,5 +523,52 @@ public static class DepartmentEndpoints
         return employees
             .Select(x => new MasterDataReferenceDto(x.Id, x.EmployeeName))
             .ToList();
+    }
+
+    /// <summary>
+    /// Checks the parent department (exists, not the department itself or one under it) and copies its name.
+    /// </summary>
+    private static async Task<IResult?> ResolveParentDepartmentAsync(
+        DepartmentEntity department,
+        IDepartmentRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var parentId = department.ParentDepartment?.Id;
+
+        if (parentId is null)
+        {
+            return null;
+        }
+
+        if (parentId == department.Id)
+        {
+            return Results.BadRequest(
+                new { message = "A department cannot be its own parent." });
+        }
+
+        var parentError = await MasterDataReferenceResolver.ResolveDepartmentAsync(
+            department.ParentDepartment,
+            repository,
+            cancellationToken);
+
+        if (parentError is not null || string.IsNullOrEmpty(department.Id))
+        {
+            return parentError;
+        }
+
+        var ancestor = await repository.GetByIdAsync(parentId, cancellationToken);
+
+        for (var depth = 0; ancestor?.ParentDepartment?.Id is not null && depth < 100; depth++)
+        {
+            if (ancestor.ParentDepartment.Id == department.Id)
+            {
+                return Results.BadRequest(
+                    new { message = "Parent department cannot be one of this department's own sub-departments." });
+            }
+
+            ancestor = await repository.GetByIdAsync(ancestor.ParentDepartment.Id, cancellationToken);
+        }
+
+        return null;
     }
 }

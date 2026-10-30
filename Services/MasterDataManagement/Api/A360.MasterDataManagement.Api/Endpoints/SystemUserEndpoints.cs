@@ -102,6 +102,20 @@ public static class SystemUserEndpoints
 
         var user = request.ToEntity();
 
+        if (!string.IsNullOrWhiteSpace(user.Code))
+        {
+            var sameCode = await repository.GetByCodeAsync(
+                user.Code,
+                user.ClientId,
+                cancellationToken);
+
+            if (sameCode is not null)
+            {
+                return Results.Conflict(
+                    new { message = $"A user with code '{user.Code}' already exists." });
+            }
+        }
+
         var existing = await repository.GetByUsernameAsync(
             user.Username,
             user.ClientId,
@@ -183,6 +197,20 @@ public static class SystemUserEndpoints
         }
 
         request.ApplyTo(user);
+
+        if (!string.IsNullOrWhiteSpace(user.Code))
+        {
+            var sameCode = await repository.GetByCodeAsync(
+                user.Code,
+                user.ClientId,
+                cancellationToken);
+
+            if (sameCode is not null && sameCode.Id != id)
+            {
+                return Results.Conflict(
+                    new { message = $"A user with code '{user.Code}' already exists." });
+            }
+        }
 
         var existing = await repository.GetByUsernameAsync(
             user.Username,
@@ -357,6 +385,19 @@ public static class SystemUserEndpoints
         if (primaryRoleError is not null)
         {
             return primaryRoleError;
+        }
+
+        foreach (var additionalRole in user.AdditionalRoles)
+        {
+            var additionalRoleError = await MasterDataReferenceResolver.ResolveRoleAsync(
+                additionalRole,
+                roles,
+                cancellationToken);
+
+            if (additionalRoleError is not null)
+            {
+                return additionalRoleError;
+            }
         }
 
         return null;

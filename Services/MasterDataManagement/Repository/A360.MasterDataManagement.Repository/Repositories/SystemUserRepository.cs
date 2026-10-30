@@ -28,6 +28,7 @@ public sealed class SystemUserRepository : MongoRepository<SystemUserEntity>,
         {
             var pattern = new BsonRegularExpression(Regex.Escape(filter.Search.Trim()), "i");
             filters.Add(builder.Or(
+                builder.Regex(x => x.Code, pattern),
                 builder.Regex(x => x.FullName, pattern),
                 builder.Regex(x => x.Username, pattern),
                 builder.Regex(x => x.Email, pattern)));
@@ -87,6 +88,41 @@ public sealed class SystemUserRepository : MongoRepository<SystemUserEntity>,
         return await Collection
             .Find(filter)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<SystemUserEntity?> GetByCodeAsync(
+        string code,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<SystemUserEntity>.Filter;
+        var filter = builder.Regex(x => x.Code, ExactIgnoreCase(code))
+            & builder.Eq(x => x.ClientId, clientId);
+
+        return await Collection
+            .Find(filter)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<bool> AnyWithAdditionalRoleAsync(
+        string roleId,
+        CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(Builders<SystemUserEntity>.Filter.ElemMatch(x => x.AdditionalRoles, r => r.Id == roleId))
+            .AnyAsync(cancellationToken);
+    }
+
+    public async Task UpdateAdditionalRoleNameAsync(
+        string roleId,
+        string roleName,
+        CancellationToken cancellationToken = default)
+    {
+        // Each user lists a role at most once, so the positional "$" update reaches it.
+        await Collection.UpdateManyAsync(
+            Builders<SystemUserEntity>.Filter.ElemMatch(x => x.AdditionalRoles, r => r.Id == roleId),
+            Builders<SystemUserEntity>.Update.Set("additional_roles.$.name", roleName),
+            cancellationToken: cancellationToken);
     }
 
     public async Task<bool> AnyWithDepartmentAsync(

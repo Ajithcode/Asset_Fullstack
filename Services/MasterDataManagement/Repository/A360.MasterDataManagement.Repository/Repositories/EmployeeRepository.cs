@@ -125,6 +125,26 @@ public sealed class EmployeeRepository : MongoRepository<EmployeeEntity>,
             .AnyAsync(cancellationToken);
     }
 
+    public async Task<bool> AnyWithReportingManagerAsync(
+        string employeeId,
+        CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(x => x.ReportingManager!.Id == employeeId)
+            .AnyAsync(cancellationToken);
+    }
+
+    public async Task UpdateReportingManagerNameAsync(
+        string employeeId,
+        string employeeName,
+        CancellationToken cancellationToken = default)
+    {
+        await Collection.UpdateManyAsync(
+            x => x.ReportingManager!.Id == employeeId,
+            Builders<EmployeeEntity>.Update.Set(x => x.ReportingManager!.Name, employeeName),
+            cancellationToken: cancellationToken);
+    }
+
     public async Task UpdateDepartmentNameAsync(
         string departmentId,
         string departmentName,
@@ -158,6 +178,39 @@ public sealed class EmployeeRepository : MongoRepository<EmployeeEntity>,
                     new MasterDataReference { Id = departmentId, Name = departmentName }),
                 cancellationToken: cancellationToken);
         }
+    }
+
+    public async Task<long> CountWithSkillAsync(
+        string skillName,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<EmployeeEntity>.Filter;
+        var filter = (builder.AnyEq(x => x.Skills, skillName))
+            & builder.Eq(x => x.ClientId, clientId);
+
+        return await Collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+    }
+
+    public async Task RenameSkillAsync(
+        string oldName,
+        string newName,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<EmployeeEntity>.Filter;
+
+        await Collection.UpdateManyAsync(
+            builder.AnyEq(x => x.Skills, oldName) & builder.Eq(x => x.ClientId, clientId),
+            Builders<EmployeeEntity>.Update.Set("skills.$[skill]", newName),
+            new UpdateOptions
+            {
+                ArrayFilters =
+                [
+                    new BsonDocumentArrayFilterDefinition<BsonDocument>(new BsonDocument("skill", oldName))
+                ]
+            },
+            cancellationToken);
     }
 
     public async Task CreateIndexesAsync(

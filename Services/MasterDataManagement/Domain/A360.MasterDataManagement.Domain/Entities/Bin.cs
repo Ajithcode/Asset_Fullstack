@@ -22,4 +22,18 @@ public class Bin : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    [BsonElement("rack")]
+    public string? Rack { get; set; }
+
+    [BsonElement("shelf")]
+    public string? Shelf { get; set; }
+
+    // e.g. "Shelf", "Pallet" or "Hazmat Cabinet".
+    [BsonElement("bin_type")]
+    public string? BinType { get; set; }
+
+    // Most units the bin holds; null when not tracked.
+    [BsonElement("capacity")]
+    public double? Capacity { get; set; }
 }

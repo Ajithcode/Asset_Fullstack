@@ -8,6 +8,16 @@ public sealed record CreateWarehouseRequest(
     string? Location,
     MasterDataReferenceDto? Manager,
     string? Description,
+    string? AddressLine1,
+    string? City,
+    string? State,
+    string? PostalCode,
+    string? Country,
+    string? Phone,
+    string? Email,
+    double? AreaSqm,
+    string? OperatingHours,
+    bool? AllowTransfersOut,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -22,6 +32,16 @@ public sealed record CreateWarehouseRequest(
             Location = string.IsNullOrWhiteSpace(Location) ? null : Location.Trim(),
             Manager = Manager?.ToReference(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            AddressLine1 = string.IsNullOrWhiteSpace(AddressLine1) ? null : AddressLine1.Trim(),
+            City = string.IsNullOrWhiteSpace(City) ? null : City.Trim(),
+            State = string.IsNullOrWhiteSpace(State) ? null : State.Trim(),
+            PostalCode = string.IsNullOrWhiteSpace(PostalCode) ? null : PostalCode.Trim(),
+            Country = string.IsNullOrWhiteSpace(Country) ? null : Country.Trim(),
+            Phone = string.IsNullOrWhiteSpace(Phone) ? null : Phone.Trim(),
+            Email = string.IsNullOrWhiteSpace(Email) ? null : Email.Trim().ToLowerInvariant(),
+            AreaSqm = AreaSqm,
+            OperatingHours = string.IsNullOrWhiteSpace(OperatingHours) ? null : OperatingHours.Trim(),
+            AllowTransfersOut = AllowTransfersOut ?? true,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -40,6 +60,16 @@ public sealed record UpdateWarehouseRequest(
     string? Location,
     MasterDataReferenceDto? Manager,
     string? Description,
+    string? AddressLine1,
+    string? City,
+    string? State,
+    string? PostalCode,
+    string? Country,
+    string? Phone,
+    string? Email,
+    double? AreaSqm,
+    string? OperatingHours,
+    bool? AllowTransfersOut,
     string? Status,
     string? UpdatedBy)
 {
@@ -50,6 +80,16 @@ public sealed record UpdateWarehouseRequest(
         warehouse.Location = string.IsNullOrWhiteSpace(Location) ? null : Location.Trim();
         warehouse.Manager = Manager?.ToReference();
         warehouse.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        warehouse.AddressLine1 = string.IsNullOrWhiteSpace(AddressLine1) ? null : AddressLine1.Trim();
+        warehouse.City = string.IsNullOrWhiteSpace(City) ? null : City.Trim();
+        warehouse.State = string.IsNullOrWhiteSpace(State) ? null : State.Trim();
+        warehouse.PostalCode = string.IsNullOrWhiteSpace(PostalCode) ? null : PostalCode.Trim();
+        warehouse.Country = string.IsNullOrWhiteSpace(Country) ? null : Country.Trim();
+        warehouse.Phone = string.IsNullOrWhiteSpace(Phone) ? null : Phone.Trim();
+        warehouse.Email = string.IsNullOrWhiteSpace(Email) ? null : Email.Trim().ToLowerInvariant();
+        warehouse.AreaSqm = AreaSqm;
+        warehouse.OperatingHours = string.IsNullOrWhiteSpace(OperatingHours) ? null : OperatingHours.Trim();
+        warehouse.AllowTransfersOut = AllowTransfersOut ?? true;
 
         warehouse.UpdatedBy = UpdatedBy;
         warehouse.UpdatedAt = DateTime.UtcNow;
@@ -73,6 +113,16 @@ public sealed record WarehouseResponse(
     MasterDataReferenceDto? Manager,
     string? Description,
     int StoreCount,
+    string? AddressLine1,
+    string? City,
+    string? State,
+    string? PostalCode,
+    string? Country,
+    string? Phone,
+    string? Email,
+    double? AreaSqm,
+    string? OperatingHours,
+    bool AllowTransfersOut,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -96,6 +146,16 @@ public sealed record WarehouseResponse(
                 : MasterDataReferenceDto.FromReference(warehouse.Manager),
             warehouse.Description,
             storeCount,
+            warehouse.AddressLine1,
+            warehouse.City,
+            warehouse.State,
+            warehouse.PostalCode,
+            warehouse.Country,
+            warehouse.Phone,
+            warehouse.Email,
+            warehouse.AreaSqm,
+            warehouse.OperatingHours,
+            warehouse.AllowTransfersOut,
             warehouse.CreatedBy,
             warehouse.CreatedAt,
             warehouse.UpdatedBy,

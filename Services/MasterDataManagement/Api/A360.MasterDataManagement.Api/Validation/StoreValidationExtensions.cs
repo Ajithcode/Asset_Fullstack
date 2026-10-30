@@ -7,13 +7,13 @@ public static class StoreValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateStoreRequest request)
     {
-        return ValidateFields(request.StoreName, request.Code, request.Warehouse);
+        return ValidateFields(request.StoreName, request.Code, request.Warehouse, request.Keeper);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateStoreRequest request)
     {
-        return ValidateFields(request.StoreName, request.Code, request.Warehouse);
+        return ValidateFields(request.StoreName, request.Code, request.Warehouse, request.Keeper);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -33,7 +33,8 @@ public static class StoreValidationExtensions
     private static Dictionary<string, string[]> ValidateFields(
         string? storeName,
         string? code,
-        MasterDataReferenceDto? warehouse)
+        MasterDataReferenceDto? warehouse,
+        MasterDataReferenceDto? keeper)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -53,6 +54,12 @@ public static class StoreValidationExtensions
         {
             errors["Warehouse"] =
                 ["Warehouse is required: pick a warehouse by id"];
+        }
+
+        if (keeper is not null && string.IsNullOrWhiteSpace(keeper.Id))
+        {
+            errors["Keeper"] =
+                ["Keeper must have an employee id"];
         }
 
         return errors;

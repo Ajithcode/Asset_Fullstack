@@ -11,6 +11,8 @@ public interface IDepartmentRepository : IMongoRepository<DepartmentEntity>
 
     Task<bool> AnyWithBusinessUnitAsync(string businessUnitId, CancellationToken cancellationToken = default);
 
+    Task<bool> AnyWithParentDepartmentAsync(string parentDepartmentId, CancellationToken cancellationToken = default);
+
     Task UpdateBusinessUnitNameAsync(string businessUnitId, string businessUnitName, CancellationToken cancellationToken = default);
 
     Task<bool> AnyWithDepartmentHeadAsync(string employeeId, CancellationToken cancellationToken = default);

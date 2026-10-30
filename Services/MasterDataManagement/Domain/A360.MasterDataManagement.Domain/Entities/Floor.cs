@@ -34,4 +34,34 @@ public class Floor : BaseEntity
 
     [BsonElement("area")]
     public double? Area { get; set; }
+
+    // Main photo (URL or data URL) and extra photos.
+    [BsonElement("image_url")]
+    public string? ImageUrl { get; set; }
+
+    [BsonElement("images")]
+    public List<string> Images { get; set; } = [];
+
+    [BsonElement("allow_asset_assignment")]
+    public bool AllowAssetAssignment { get; set; }
+
+    [BsonElement("enable_tracking")]
+    public bool EnableTracking { get; set; }
+
+    [BsonElement("restricted_access")]
+    public bool RestrictedAccess { get; set; }
+
+    [BsonElement("show_on_map")]
+    public bool ShowOnMap { get; set; }
+
+    // 0 = ground floor, negative = basement.
+    [BsonElement("level_number")]
+    public int? LevelNumber { get; set; }
+
+    // Optional own position; otherwise the building's is used.
+    [BsonElement("latitude")]
+    public double? Latitude { get; set; }
+
+    [BsonElement("longitude")]
+    public double? Longitude { get; set; }
 }

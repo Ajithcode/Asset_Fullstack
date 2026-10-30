@@ -26,4 +26,14 @@ public class PrioritySeverity : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    // Where the level is used, e.g. "Work Orders".
+    [BsonElement("applies_to")]
+    public List<string> AppliesTo { get; set; } = [];
+
+    [BsonElement("escalate_after_hours")]
+    public int? EscalateAfterHours { get; set; }
+
+    [BsonElement("notify_manager")]
+    public bool NotifyManager { get; set; }
 }

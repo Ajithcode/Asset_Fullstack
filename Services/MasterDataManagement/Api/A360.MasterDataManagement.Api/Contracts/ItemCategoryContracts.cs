@@ -7,6 +7,10 @@ public sealed record CreateItemCategoryRequest(
     string? Code,
     MasterDataReferenceDto? ParentCategory,
     string? Description,
+    MasterDataReferenceDto? DefaultUom,
+    string? ValuationMethod,
+    bool? InspectionOnReceipt,
+    bool? AllowNegativeStock,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -20,6 +24,10 @@ public sealed record CreateItemCategoryRequest(
             Code = Code!.Trim(),
             ParentCategory = ParentCategory?.ToReference(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            DefaultUom = DefaultUom?.ToReference(),
+            ValuationMethod = string.IsNullOrWhiteSpace(ValuationMethod) ? null : ValuationMethod.Trim(),
+            InspectionOnReceipt = InspectionOnReceipt ?? false,
+            AllowNegativeStock = AllowNegativeStock ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -37,6 +45,10 @@ public sealed record UpdateItemCategoryRequest(
     string? Code,
     MasterDataReferenceDto? ParentCategory,
     string? Description,
+    MasterDataReferenceDto? DefaultUom,
+    string? ValuationMethod,
+    bool? InspectionOnReceipt,
+    bool? AllowNegativeStock,
     string? Status,
     string? UpdatedBy)
 {
@@ -46,6 +58,10 @@ public sealed record UpdateItemCategoryRequest(
         itemCategory.Code = Code!.Trim();
         itemCategory.ParentCategory = ParentCategory?.ToReference();
         itemCategory.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        itemCategory.DefaultUom = DefaultUom?.ToReference();
+        itemCategory.ValuationMethod = string.IsNullOrWhiteSpace(ValuationMethod) ? null : ValuationMethod.Trim();
+        itemCategory.InspectionOnReceipt = InspectionOnReceipt ?? false;
+        itemCategory.AllowNegativeStock = AllowNegativeStock ?? false;
 
         itemCategory.UpdatedBy = UpdatedBy;
         itemCategory.UpdatedAt = DateTime.UtcNow;
@@ -67,6 +83,10 @@ public sealed record ItemCategoryResponse(
     string Code,
     MasterDataReferenceDto? ParentCategory,
     string? Description,
+    MasterDataReferenceDto? DefaultUom,
+    string? ValuationMethod,
+    bool InspectionOnReceipt,
+    bool AllowNegativeStock,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -86,6 +106,12 @@ public sealed record ItemCategoryResponse(
                 ? null
                 : MasterDataReferenceDto.FromReference(itemCategory.ParentCategory),
             itemCategory.Description,
+            itemCategory.DefaultUom is null
+                ? null
+                : MasterDataReferenceDto.FromReference(itemCategory.DefaultUom),
+            itemCategory.ValuationMethod,
+            itemCategory.InspectionOnReceipt,
+            itemCategory.AllowNegativeStock,
             itemCategory.CreatedBy,
             itemCategory.CreatedAt,
             itemCategory.UpdatedBy,

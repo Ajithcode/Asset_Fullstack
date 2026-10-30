@@ -13,13 +13,13 @@ public static class CriticalityValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateCriticalityRequest request)
     {
-        return ValidateFields(request.CriticalityName, request.Code, request.Color);
+        return ValidateFields(request.CriticalityName, request.Code, request.Color, request.ResponseTimeHours);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateCriticalityRequest request)
     {
-        return ValidateFields(request.CriticalityName, request.Code, request.Color);
+        return ValidateFields(request.CriticalityName, request.Code, request.Color, request.ResponseTimeHours);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -39,7 +39,8 @@ public static class CriticalityValidationExtensions
     private static Dictionary<string, string[]> ValidateFields(
         string? criticalityName,
         string? code,
-        string? color)
+        string? color,
+        int? responseTimeHours)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -59,6 +60,12 @@ public static class CriticalityValidationExtensions
         {
             errors["Color"] =
                 ["Color must be a hex colour such as #C62828"];
+        }
+
+        if (responseTimeHours is < 1 or > 720)
+        {
+            errors["ResponseTimeHours"] =
+                ["ResponseTimeHours must be between 1 and 720"];
         }
 
         return errors;

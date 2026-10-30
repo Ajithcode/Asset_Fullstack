@@ -88,6 +88,7 @@ public static class StoreEndpoints
         CreateStoreRequest request,
         IStoreRepository repository,
         IWarehouseRepository warehouses,
+        IEmployeeRepository employees,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -103,6 +104,7 @@ public static class StoreEndpoints
         var referenceError = await ResolveReferencesAsync(
             store,
             warehouses,
+            employees,
             cancellationToken);
 
         if (referenceError is not null)
@@ -143,7 +145,9 @@ public static class StoreEndpoints
         UpdateStoreRequest request,
         IStoreRepository repository,
         IWarehouseRepository warehouses,
+        IEmployeeRepository employees,
         IBinRepository bins,
+        IItemRepository items,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -177,6 +181,7 @@ public static class StoreEndpoints
         var referenceError = await ResolveReferencesAsync(
             store,
             warehouses,
+            employees,
             cancellationToken);
 
         if (referenceError is not null)
@@ -218,6 +223,11 @@ public static class StoreEndpoints
         if (previousWarehouseId != store.Warehouse?.Id)
         {
             await bins.SetWarehouseForStoreAsync(
+                id,
+                store.Warehouse,
+                cancellationToken);
+
+            await items.SetWarehouseForStoreAsync(
                 id,
                 store.Warehouse,
                 cancellationToken);
@@ -339,6 +349,7 @@ public static class StoreEndpoints
     private static async Task<IResult?> ResolveReferencesAsync(
         StoreEntity store,
         IWarehouseRepository warehouses,
+        IEmployeeRepository employees,
         CancellationToken cancellationToken)
     {
         var warehouseError = await MasterDataReferenceResolver.ResolveWarehouseAsync(
@@ -349,6 +360,16 @@ public static class StoreEndpoints
         if (warehouseError is not null)
         {
             return warehouseError;
+        }
+
+        var keeperError = await MasterDataReferenceResolver.ResolveEmployeeAsync(
+            store.Keeper,
+            employees,
+            cancellationToken);
+
+        if (keeperError is not null)
+        {
+            return keeperError;
         }
 
         return null;

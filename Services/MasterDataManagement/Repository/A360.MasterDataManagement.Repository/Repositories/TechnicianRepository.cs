@@ -160,6 +160,43 @@ public sealed class TechnicianRepository : MongoRepository<TechnicianEntity>,
         }
     }
 
+    public async Task<long> CountWithSkillAsync(
+        string skillName,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<TechnicianEntity>.Filter;
+        var filter = (builder.Eq(x => x.PrimarySkill, skillName) | builder.AnyEq(x => x.SecondarySkills, skillName))
+            & builder.Eq(x => x.ClientId, clientId);
+
+        return await Collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+    }
+
+    public async Task RenameSkillAsync(
+        string oldName,
+        string newName,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<TechnicianEntity>.Filter;
+        await Collection.UpdateManyAsync(
+            builder.Eq(x => x.PrimarySkill, oldName) & builder.Eq(x => x.ClientId, clientId),
+            Builders<TechnicianEntity>.Update.Set(x => x.PrimarySkill, newName),
+            cancellationToken: cancellationToken);
+
+        await Collection.UpdateManyAsync(
+            builder.AnyEq(x => x.SecondarySkills, oldName) & builder.Eq(x => x.ClientId, clientId),
+            Builders<TechnicianEntity>.Update.Set("secondary_skills.$[skill]", newName),
+            new UpdateOptions
+            {
+                ArrayFilters =
+                [
+                    new BsonDocumentArrayFilterDefinition<BsonDocument>(new BsonDocument("skill", oldName))
+                ]
+            },
+            cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(
         CancellationToken cancellationToken = default)
     {

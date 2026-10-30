@@ -13,8 +13,29 @@ public class Organization : BaseEntity
     [BsonElement("logo_url")]
     public string? LogoUrl { get; set; }
 
+    [BsonElement("code")]
+    public string? Code { get; set; }
+
     [BsonElement("type")]
     public string? Type { get; set; }
+
+    [BsonElement("registration_number")]
+    public string? RegistrationNumber { get; set; }
+
+    [BsonElement("website")]
+    public string? Website { get; set; }
+
+    [BsonElement("description")]
+    public string? Description { get; set; }
+
+    [BsonElement("address")]
+    public StructureAddress? Address { get; set; }
+
+    [BsonElement("contact")]
+    public StructureContact? Contact { get; set; }
+
+    [BsonElement("settings")]
+    public OrganizationSettings? Settings { get; set; }
 
     // Points at another organization in this collection.
     [BsonElement("parent_organization")]

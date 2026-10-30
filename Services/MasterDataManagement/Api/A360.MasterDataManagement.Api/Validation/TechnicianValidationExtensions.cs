@@ -8,14 +8,16 @@ public static class TechnicianValidationExtensions
         this CreateTechnicianRequest request)
     {
         return ValidateFields(
-            request.TechnicianName, request.TechnicianId, request.AssignedTeam, request.Email, request.PhoneNumber);
+            request.TechnicianName, request.TechnicianId, request.AssignedTeam, request.Email, request.PhoneNumber,
+            request.Employee, request.Certifications, request.HourlyRate, request.MaxOpenWorkOrders, request.EmergencyContactPhone);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateTechnicianRequest request)
     {
         return ValidateFields(
-            request.TechnicianName, request.TechnicianId, request.AssignedTeam, request.Email, request.PhoneNumber);
+            request.TechnicianName, request.TechnicianId, request.AssignedTeam, request.Email, request.PhoneNumber,
+            request.Employee, request.Certifications, request.HourlyRate, request.MaxOpenWorkOrders, request.EmergencyContactPhone);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -37,7 +39,12 @@ public static class TechnicianValidationExtensions
         string? technicianId,
         MasterDataReferenceDto? assignedTeam,
         string? email,
-        string? phoneNumber)
+        string? phoneNumber,
+        MasterDataReferenceDto? employee,
+        List<PersonCertificationDto>? certifications,
+        decimal? hourlyRate,
+        int? maxOpenWorkOrders,
+        string? emergencyContactPhone)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -60,7 +67,33 @@ public static class TechnicianValidationExtensions
                 ["AssignedTeam must have a team id"];
         }
 
+        // The linked employee is a record in this service, so it is picked by id.
+        if (employee is not null && string.IsNullOrWhiteSpace(employee.Id))
+        {
+            errors["Employee"] =
+                ["Employee must have an employee id"];
+        }
+
         ContactValidation.ValidateEmailAndPhone(errors, email, phoneNumber);
+        ContactValidation.ValidateEmailAndPhone(errors, null, emergencyContactPhone, "EmergencyContactPhone");
+
+        if (certifications is not null && certifications.Any(x => x is null || string.IsNullOrWhiteSpace(x.Name)))
+        {
+            errors["Certifications"] =
+                ["Every certification needs a name"];
+        }
+
+        if (hourlyRate < 0)
+        {
+            errors["HourlyRate"] =
+                ["HourlyRate cannot be negative"];
+        }
+
+        if (maxOpenWorkOrders is < 1 or > 50)
+        {
+            errors["MaxOpenWorkOrders"] =
+                ["MaxOpenWorkOrders must be between 1 and 50"];
+        }
 
         return errors;
     }

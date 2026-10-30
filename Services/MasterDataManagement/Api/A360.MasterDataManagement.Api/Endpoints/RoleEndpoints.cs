@@ -250,6 +250,11 @@ public static class RoleEndpoints
                 id,
                 role.RoleName,
                 cancellationToken);
+
+            await users.UpdateAdditionalRoleNameAsync(
+                id,
+                role.RoleName,
+                cancellationToken);
         }
 
         await eventLogger.LogAsync(
@@ -342,6 +347,12 @@ public static class RoleEndpoints
         {
             return Results.Conflict(
                 new { message = "Users still have this as their primary role. Change their role first." });
+        }
+
+        if (await users.AnyWithAdditionalRoleAsync(id, cancellationToken))
+        {
+            return Results.Conflict(
+                new { message = "Users still hold this as an additional role. Change their roles first." });
         }
 
         var deleted = await repository.DeleteAsync(

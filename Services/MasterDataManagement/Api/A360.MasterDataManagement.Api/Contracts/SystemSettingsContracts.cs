@@ -1,4 +1,5 @@
 using SystemSettingsEntity = A360.MasterDataManagement.Domain.Entities.SystemSettings;
+using System.Text.Json.Serialization;
 using A360.MasterDataManagement.Domain.Entities;
 
 namespace A360.MasterDataManagement.Api.Contracts;
@@ -19,7 +20,19 @@ public sealed record UpdateSystemSettingsRequest(
     string? ClientId,
     string? TenantId,
     string? UpdatedBy,
-    GeneralSettingsDto? General)
+    GeneralSettingsDto? General,
+    [property: JsonPropertyName("dateTime")] DateTimeSettings? DateAndTime,
+    BrandingSettings? Branding,
+    FileUploadSettings? FileUpload,
+    SessionSettings? Session,
+    DefaultValueSettings? Defaults,
+    SecuritySettings? Security,
+    EmailSettings? Email,
+    LocalizationSettings? Localization,
+    NumberingSettings? Numbering,
+    IntegrationSettings? Integration,
+    BackupSettings? Backup,
+    OtherSettings? Other)
 {
     public void ApplyTo(SystemSettingsEntity settings)
     {
@@ -27,6 +40,20 @@ public sealed record UpdateSystemSettingsRequest(
         {
             settings.General = General.ToSettings();
         }
+
+        // The other sections are stored as sent.
+        if (DateAndTime is not null) settings.DateAndTime = DateAndTime;
+        if (Branding is not null) settings.Branding = Branding;
+        if (FileUpload is not null) settings.FileUpload = FileUpload;
+        if (Session is not null) settings.Session = Session;
+        if (Defaults is not null) settings.Defaults = Defaults;
+        if (Security is not null) settings.Security = Security;
+        if (Email is not null) settings.Email = Email;
+        if (Localization is not null) settings.Localization = Localization;
+        if (Numbering is not null) settings.Numbering = Numbering;
+        if (Integration is not null) settings.Integration = Integration;
+        if (Backup is not null) settings.Backup = Backup;
+        if (Other is not null) settings.Other = Other;
 
         settings.TenantId ??= TenantId;
         settings.UpdatedBy = UpdatedBy;
@@ -89,6 +116,18 @@ public sealed record SystemSettingsResponse(
     string? ClientId,
     string? TenantId,
     GeneralSettingsDto General,
+    [property: JsonPropertyName("dateTime")] DateTimeSettings DateAndTime,
+    BrandingSettings Branding,
+    FileUploadSettings FileUpload,
+    SessionSettings Session,
+    DefaultValueSettings Defaults,
+    SecuritySettings Security,
+    EmailSettings Email,
+    LocalizationSettings Localization,
+    NumberingSettings Numbering,
+    IntegrationSettings Integration,
+    BackupSettings Backup,
+    OtherSettings Other,
     string? UpdatedBy,
     DateTime? UpdatedAt)
 {
@@ -99,6 +138,18 @@ public sealed record SystemSettingsResponse(
             settings.ClientId,
             settings.TenantId,
             GeneralSettingsDto.FromSettings(settings.General ?? new GeneralSettings()),
+            settings.DateAndTime ?? new DateTimeSettings(),
+            settings.Branding ?? new BrandingSettings(),
+            settings.FileUpload ?? new FileUploadSettings(),
+            settings.Session ?? new SessionSettings(),
+            settings.Defaults ?? new DefaultValueSettings(),
+            settings.Security ?? new SecuritySettings(),
+            settings.Email ?? new EmailSettings(),
+            settings.Localization ?? new LocalizationSettings(),
+            settings.Numbering ?? new NumberingSettings(),
+            settings.Integration ?? new IntegrationSettings(),
+            settings.Backup ?? new BackupSettings(),
+            settings.Other ?? new OtherSettings(),
             settings.UpdatedBy,
             settings.UpdatedAt);
     }

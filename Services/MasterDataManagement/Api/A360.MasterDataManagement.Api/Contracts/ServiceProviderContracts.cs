@@ -12,6 +12,29 @@ public sealed record CreateServiceProviderRequest(
     string? Country,
     string? Phone,
     string? Description,
+    string? Logo,
+    string? BrandColor,
+    StructureAddressDto? Address,
+    string? AlternateContact,
+    string? AlternateEmail,
+    string? AlternatePhone,
+    List<VendorDocumentDto>? Documents,
+    decimal? Rating,
+    List<string>? Services,
+    List<string>? Skills,
+    List<string>? Coverage,
+    int? Technicians,
+    int? ResponseHours,
+    string? LicenceNo,
+    DateOnly? LicenceExpiry,
+    string? InsurancePolicy,
+    DateOnly? InsuranceExpiry,
+    bool? IsoCertified,
+    bool? HseApproved,
+    bool? Preferred,
+    bool? Approved,
+    bool? PortalAccess,
+    bool? EmergencyCallout,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -30,6 +53,29 @@ public sealed record CreateServiceProviderRequest(
             Country = string.IsNullOrWhiteSpace(Country) ? null : Country.Trim(),
             Phone = string.IsNullOrWhiteSpace(Phone) ? null : Phone.Trim(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            Logo = StructureText.Clean(Logo),
+            BrandColor = StructureText.Clean(BrandColor),
+            Address = Address?.ToValue(),
+            AlternateContact = StructureText.Clean(AlternateContact),
+            AlternateEmail = StructureText.Clean(AlternateEmail),
+            AlternatePhone = StructureText.Clean(AlternatePhone),
+            Documents = VendorDocumentDto.ToValues(Documents),
+            Rating = Rating ?? 0,
+            Services = StructureText.CleanList(Services),
+            Skills = StructureText.CleanList(Skills),
+            Coverage = StructureText.CleanList(Coverage),
+            Technicians = Technicians ?? 0,
+            ResponseHours = ResponseHours ?? 24,
+            LicenceNo = StructureText.Clean(LicenceNo),
+            LicenceExpiry = LicenceExpiry,
+            InsurancePolicy = StructureText.Clean(InsurancePolicy),
+            InsuranceExpiry = InsuranceExpiry,
+            IsoCertified = IsoCertified ?? false,
+            HseApproved = HseApproved ?? false,
+            Preferred = Preferred ?? false,
+            Approved = Approved ?? false,
+            PortalAccess = PortalAccess ?? false,
+            EmergencyCallout = EmergencyCallout ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -52,6 +98,29 @@ public sealed record UpdateServiceProviderRequest(
     string? Country,
     string? Phone,
     string? Description,
+    string? Logo,
+    string? BrandColor,
+    StructureAddressDto? Address,
+    string? AlternateContact,
+    string? AlternateEmail,
+    string? AlternatePhone,
+    List<VendorDocumentDto>? Documents,
+    decimal? Rating,
+    List<string>? Services,
+    List<string>? Skills,
+    List<string>? Coverage,
+    int? Technicians,
+    int? ResponseHours,
+    string? LicenceNo,
+    DateOnly? LicenceExpiry,
+    string? InsurancePolicy,
+    DateOnly? InsuranceExpiry,
+    bool? IsoCertified,
+    bool? HseApproved,
+    bool? Preferred,
+    bool? Approved,
+    bool? PortalAccess,
+    bool? EmergencyCallout,
     string? Status,
     string? UpdatedBy)
 {
@@ -66,6 +135,29 @@ public sealed record UpdateServiceProviderRequest(
         serviceProvider.Country = string.IsNullOrWhiteSpace(Country) ? null : Country.Trim();
         serviceProvider.Phone = string.IsNullOrWhiteSpace(Phone) ? null : Phone.Trim();
         serviceProvider.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        serviceProvider.Logo = StructureText.Clean(Logo);
+        serviceProvider.BrandColor = StructureText.Clean(BrandColor);
+        serviceProvider.Address = Address?.ToValue();
+        serviceProvider.AlternateContact = StructureText.Clean(AlternateContact);
+        serviceProvider.AlternateEmail = StructureText.Clean(AlternateEmail);
+        serviceProvider.AlternatePhone = StructureText.Clean(AlternatePhone);
+        serviceProvider.Documents = VendorDocumentDto.ToValues(Documents);
+        serviceProvider.Rating = Rating ?? 0;
+        serviceProvider.Services = StructureText.CleanList(Services);
+        serviceProvider.Skills = StructureText.CleanList(Skills);
+        serviceProvider.Coverage = StructureText.CleanList(Coverage);
+        serviceProvider.Technicians = Technicians ?? 0;
+        serviceProvider.ResponseHours = ResponseHours ?? 24;
+        serviceProvider.LicenceNo = StructureText.Clean(LicenceNo);
+        serviceProvider.LicenceExpiry = LicenceExpiry;
+        serviceProvider.InsurancePolicy = StructureText.Clean(InsurancePolicy);
+        serviceProvider.InsuranceExpiry = InsuranceExpiry;
+        serviceProvider.IsoCertified = IsoCertified ?? false;
+        serviceProvider.HseApproved = HseApproved ?? false;
+        serviceProvider.Preferred = Preferred ?? false;
+        serviceProvider.Approved = Approved ?? false;
+        serviceProvider.PortalAccess = PortalAccess ?? false;
+        serviceProvider.EmergencyCallout = EmergencyCallout ?? false;
 
         serviceProvider.UpdatedBy = UpdatedBy;
         serviceProvider.UpdatedAt = DateTime.UtcNow;
@@ -92,6 +184,29 @@ public sealed record ServiceProviderResponse(
     string? Country,
     string? Phone,
     string? Description,
+    string? Logo,
+    string? BrandColor,
+    StructureAddressDto? Address,
+    string? AlternateContact,
+    string? AlternateEmail,
+    string? AlternatePhone,
+    IReadOnlyList<VendorDocumentDto> Documents,
+    decimal Rating,
+    IReadOnlyList<string> Services,
+    IReadOnlyList<string> Skills,
+    IReadOnlyList<string> Coverage,
+    int Technicians,
+    int ResponseHours,
+    string? LicenceNo,
+    DateOnly? LicenceExpiry,
+    string? InsurancePolicy,
+    DateOnly? InsuranceExpiry,
+    bool IsoCertified,
+    bool HseApproved,
+    bool Preferred,
+    bool Approved,
+    bool PortalAccess,
+    bool EmergencyCallout,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -114,6 +229,29 @@ public sealed record ServiceProviderResponse(
             serviceProvider.Country,
             serviceProvider.Phone,
             serviceProvider.Description,
+            serviceProvider.Logo,
+            serviceProvider.BrandColor,
+            StructureAddressDto.FromValue(serviceProvider.Address),
+            serviceProvider.AlternateContact,
+            serviceProvider.AlternateEmail,
+            serviceProvider.AlternatePhone,
+            VendorDocumentDto.FromValues(serviceProvider.Documents),
+            serviceProvider.Rating,
+            serviceProvider.Services ?? [],
+            serviceProvider.Skills ?? [],
+            serviceProvider.Coverage ?? [],
+            serviceProvider.Technicians,
+            serviceProvider.ResponseHours,
+            serviceProvider.LicenceNo,
+            serviceProvider.LicenceExpiry,
+            serviceProvider.InsurancePolicy,
+            serviceProvider.InsuranceExpiry,
+            serviceProvider.IsoCertified,
+            serviceProvider.HseApproved,
+            serviceProvider.Preferred,
+            serviceProvider.Approved,
+            serviceProvider.PortalAccess,
+            serviceProvider.EmergencyCallout,
             serviceProvider.CreatedBy,
             serviceProvider.CreatedAt,
             serviceProvider.UpdatedBy,

@@ -88,6 +88,7 @@ public static class TechnicianEndpoints
         CreateTechnicianRequest request,
         ITechnicianRepository repository,
         ITeamRepository teams,
+        IEmployeeRepository employees,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -121,6 +122,16 @@ public static class TechnicianEndpoints
             return teamError;
         }
 
+        var employeeError = await MasterDataReferenceResolver.ResolveEmployeeAsync(
+            technician.Employee,
+            employees,
+            cancellationToken);
+
+        if (employeeError is not null)
+        {
+            return employeeError;
+        }
+
         technician = await repository.CreateAsync(
             technician,
             cancellationToken);
@@ -142,6 +153,7 @@ public static class TechnicianEndpoints
         UpdateTechnicianRequest request,
         ITechnicianRepository repository,
         ITeamRepository teams,
+        IEmployeeRepository employees,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -190,6 +202,16 @@ public static class TechnicianEndpoints
         if (teamError is not null)
         {
             return teamError;
+        }
+
+        var employeeError = await MasterDataReferenceResolver.ResolveEmployeeAsync(
+            technician.Employee,
+            employees,
+            cancellationToken);
+
+        if (employeeError is not null)
+        {
+            return employeeError;
         }
 
         var updated = await repository.UpdateAsync(

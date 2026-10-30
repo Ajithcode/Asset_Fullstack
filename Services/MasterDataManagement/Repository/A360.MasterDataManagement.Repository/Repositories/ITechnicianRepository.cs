@@ -22,6 +22,12 @@ public interface ITechnicianRepository : IMongoRepository<TechnicianEntity>
 
     // Makes the team's members exactly the given technicians: listed ones are moved into it, others it had are cleared.
     Task SetTeamMembersAsync(string teamId, string teamName, IReadOnlyCollection<string> technicianIds, CancellationToken cancellationToken = default);
+
+    // Number of records holding the skill (by name) in the client's data.
+    Task<long> CountWithSkillAsync(string skillName, string? clientId, CancellationToken cancellationToken = default);
+
+    // Replaces the skill name wherever it is held, after the skill is renamed.
+    Task RenameSkillAsync(string oldName, string newName, string? clientId, CancellationToken cancellationToken = default);
 }
 
 public sealed record TechnicianFilter(

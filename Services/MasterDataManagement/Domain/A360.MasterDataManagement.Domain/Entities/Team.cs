@@ -23,4 +23,21 @@ public class Team : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    // Points at a shift in this service.
+    [BsonElement("shift")]
+    public MasterDataReference? Shift { get; set; }
+
+    // Employees in the team. Technician members are not stored here (see above).
+    [BsonElement("employee_members")]
+    public List<MasterDataReference> EmployeeMembers { get; set; } = [];
+
+    [BsonElement("responsibilities")]
+    public List<string> Responsibilities { get; set; } = [];
+
+    [BsonElement("notify_leader")]
+    public bool NotifyLeader { get; set; }
+
+    [BsonElement("auto_assign")]
+    public bool AutoAssign { get; set; }
 }

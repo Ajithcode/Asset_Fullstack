@@ -9,6 +9,9 @@ public sealed record CreateUomRequest(
     string? Symbol,
     double? ConversionFactor,
     string? Description,
+    MasterDataReferenceDto? BaseUom,
+    bool? AllowDecimals,
+    int? DecimalPlaces,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -24,6 +27,9 @@ public sealed record CreateUomRequest(
             Symbol = Symbol!.Trim(),
             ConversionFactor = ConversionFactor,
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            BaseUom = BaseUom?.ToReference(),
+            AllowDecimals = AllowDecimals ?? false,
+            DecimalPlaces = AllowDecimals == true ? DecimalPlaces ?? 0 : 0,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -43,6 +49,9 @@ public sealed record UpdateUomRequest(
     string? Symbol,
     double? ConversionFactor,
     string? Description,
+    MasterDataReferenceDto? BaseUom,
+    bool? AllowDecimals,
+    int? DecimalPlaces,
     string? Status,
     string? UpdatedBy)
 {
@@ -54,6 +63,9 @@ public sealed record UpdateUomRequest(
         uom.Symbol = Symbol!.Trim();
         uom.ConversionFactor = ConversionFactor;
         uom.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        uom.BaseUom = BaseUom?.ToReference();
+        uom.AllowDecimals = AllowDecimals ?? false;
+        uom.DecimalPlaces = AllowDecimals == true ? DecimalPlaces ?? 0 : 0;
 
         uom.UpdatedBy = UpdatedBy;
         uom.UpdatedAt = DateTime.UtcNow;
@@ -77,6 +89,9 @@ public sealed record UomResponse(
     string Symbol,
     double? ConversionFactor,
     string? Description,
+    MasterDataReferenceDto? BaseUom,
+    bool AllowDecimals,
+    int DecimalPlaces,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -96,6 +111,11 @@ public sealed record UomResponse(
             uom.Symbol ?? string.Empty,
             uom.ConversionFactor,
             uom.Description,
+            uom.BaseUom is null
+                ? null
+                : MasterDataReferenceDto.FromReference(uom.BaseUom),
+            uom.AllowDecimals,
+            uom.DecimalPlaces,
             uom.CreatedBy,
             uom.CreatedAt,
             uom.UpdatedBy,

@@ -7,13 +7,17 @@ public static class AssetTypeValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateAssetTypeRequest request)
     {
-        return ValidateFields(request.AssetTypeName, request.Code, request.Category, request.DefaultLifetime);
+        var errors = ValidateFields(request.AssetTypeName, request.Code, request.Category, request.DefaultLifetime);
+        ValidateDetails(errors, request.WarrantyMonths, request.UsefulLifeMonths, request.ResidualPercent, request.CapitalizationThreshold, request.CustomFields);
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateAssetTypeRequest request)
     {
-        return ValidateFields(request.AssetTypeName, request.Code, request.Category, request.DefaultLifetime);
+        var errors = ValidateFields(request.AssetTypeName, request.Code, request.Category, request.DefaultLifetime);
+        ValidateDetails(errors, request.WarrantyMonths, request.UsefulLifeMonths, request.ResidualPercent, request.CapitalizationThreshold, request.CustomFields);
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -64,5 +68,40 @@ public static class AssetTypeValidationExtensions
         }
 
         return errors;
+    }
+
+    private static void ValidateDetails(
+        Dictionary<string, string[]> errors,
+        int? warrantyMonths,
+        int? usefulLifeMonths,
+        decimal? residualPercent,
+        decimal? capitalizationThreshold,
+        List<AssetCustomFieldDto>? customFields)
+    {
+        if (warrantyMonths is < 0 or > 240)
+        {
+            errors["WarrantyMonths"] =
+                ["WarrantyMonths must be between 0 and 240"];
+        }
+
+        if (usefulLifeMonths is < 1 or > 600)
+        {
+            errors["UsefulLifeMonths"] =
+                ["UsefulLifeMonths must be between 1 and 600"];
+        }
+
+        if (residualPercent is < 0 or > 100)
+        {
+            errors["ResidualPercent"] =
+                ["ResidualPercent must be between 0 and 100"];
+        }
+
+        if (capitalizationThreshold < 0)
+        {
+            errors["CapitalizationThreshold"] =
+                ["CapitalizationThreshold cannot be negative"];
+        }
+
+        AssetCustomFieldValidation.ValidateList(errors, customFields);
     }
 }

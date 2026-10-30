@@ -18,10 +18,20 @@ public interface IEmployeeRepository : IMongoRepository<EmployeeEntity>
 
     Task<bool> AnyWithDepartmentAsync(string departmentId, CancellationToken cancellationToken = default);
 
+    Task<bool> AnyWithReportingManagerAsync(string employeeId, CancellationToken cancellationToken = default);
+
+    Task UpdateReportingManagerNameAsync(string employeeId, string employeeName, CancellationToken cancellationToken = default);
+
     Task UpdateDepartmentNameAsync(string departmentId, string departmentName, CancellationToken cancellationToken = default);
 
     // Makes the department's employees exactly the given ones: listed employees are moved into it, others it had are cleared.
     Task SetDepartmentEmployeesAsync(string departmentId, string departmentName, IReadOnlyCollection<string> employeeIds, CancellationToken cancellationToken = default);
+
+    // Number of records holding the skill (by name) in the client's data.
+    Task<long> CountWithSkillAsync(string skillName, string? clientId, CancellationToken cancellationToken = default);
+
+    // Replaces the skill name wherever it is held, after the skill is renamed.
+    Task RenameSkillAsync(string oldName, string newName, string? clientId, CancellationToken cancellationToken = default);
 }
 
 public sealed record EmployeeFilter(

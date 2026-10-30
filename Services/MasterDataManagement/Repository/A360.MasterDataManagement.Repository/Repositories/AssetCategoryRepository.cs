@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using AssetCategoryEntity = A360.MasterDataManagement.Domain.Entities.AssetCategory;
+using A360.MasterDataManagement.Domain.Entities;
 using A360.MasterDataManagement.Domain.ValueObjects;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -78,6 +79,37 @@ public sealed class AssetCategoryRepository : MongoRepository<AssetCategoryEntit
         return await Collection
             .Find(filter)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<string?> FindSubcategoryCodeInUseAsync(
+        IReadOnlyCollection<string> codes,
+        string? clientId,
+        string? exceptCategoryId,
+        CancellationToken cancellationToken = default)
+    {
+        if (codes.Count == 0)
+        {
+            return null;
+        }
+
+        var builder = Builders<AssetCategoryEntity>.Filter;
+        var codeFilter = Builders<AssetSubcategory>.Filter.Or(
+            codes.Select(code => Builders<AssetSubcategory>.Filter.Regex(x => x.Code, ExactIgnoreCase(code))));
+        var filter = builder.Eq(x => x.ClientId, clientId)
+            & builder.ElemMatch(x => x.Subcategories, codeFilter);
+
+        if (!string.IsNullOrEmpty(exceptCategoryId))
+        {
+            filter &= builder.Ne(x => x.Id, exceptCategoryId);
+        }
+
+        var owner = await Collection
+            .Find(filter)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return owner?.Subcategories
+            .Select(x => x.Code)
+            .FirstOrDefault(x => codes.Contains(x, StringComparer.OrdinalIgnoreCase));
     }
 
     public async Task<IReadOnlyCollection<AssetCategoryEntity>> GetChildrenAsync(

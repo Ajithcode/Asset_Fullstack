@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using ItemEntity = A360.MasterDataManagement.Domain.Entities.Item;
+using A360.MasterDataManagement.Domain.ValueObjects;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using A360.Repository.Repositories;
@@ -112,6 +113,31 @@ public sealed class ItemRepository : MongoRepository<ItemEntity>,
         await Collection.UpdateManyAsync(
             x => x.Uom!.Id == uomId,
             Builders<ItemEntity>.Update.Set(x => x.Uom!.Name, uomName),
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task SetWarehouseForStoreAsync(
+        string storeId,
+        MasterDataReference? warehouse,
+        CancellationToken cancellationToken = default)
+    {
+        await Collection.UpdateManyAsync(
+            x => x.Store!.Id == storeId,
+            Builders<ItemEntity>.Update.Set(x => x.Warehouse, warehouse),
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task SetStoreForBinAsync(
+        string binId,
+        MasterDataReference? store,
+        MasterDataReference? warehouse,
+        CancellationToken cancellationToken = default)
+    {
+        await Collection.UpdateManyAsync(
+            x => x.Bin!.Id == binId,
+            Builders<ItemEntity>.Update
+                .Set(x => x.Store, store)
+                .Set(x => x.Warehouse, warehouse),
             cancellationToken: cancellationToken);
     }
 

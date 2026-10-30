@@ -117,6 +117,15 @@ public sealed class DepartmentRepository : MongoRepository<DepartmentEntity>,
             .AnyAsync(cancellationToken);
     }
 
+    public async Task<bool> AnyWithParentDepartmentAsync(
+        string parentDepartmentId,
+        CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(x => x.ParentDepartment!.Id == parentDepartmentId)
+            .AnyAsync(cancellationToken);
+    }
+
     public async Task UpdateBusinessUnitNameAsync(
         string businessUnitId,
         string businessUnitName,

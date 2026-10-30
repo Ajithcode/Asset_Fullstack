@@ -11,11 +11,21 @@ public interface ITeamRepository : IMongoRepository<TeamEntity>
 
     Task<bool> AnyWithDepartmentAsync(string departmentId, CancellationToken cancellationToken = default);
 
-    Task<bool> AnyWithTeamLeaderAsync(string technicianId, CancellationToken cancellationToken = default);
+    // The leader is a technician or an employee.
+    Task<bool> AnyWithTeamLeaderAsync(string personId, CancellationToken cancellationToken = default);
+
+    Task<bool> AnyWithShiftAsync(string shiftId, CancellationToken cancellationToken = default);
+
+    Task UpdateShiftNameAsync(string shiftId, string shiftName, CancellationToken cancellationToken = default);
+
+    Task UpdateEmployeeMemberNameAsync(string employeeId, string employeeName, CancellationToken cancellationToken = default);
+
+    // Takes the employee out of every team's employee members.
+    Task RemoveEmployeeMemberAsync(string employeeId, CancellationToken cancellationToken = default);
 
     Task UpdateDepartmentNameAsync(string departmentId, string departmentName, CancellationToken cancellationToken = default);
 
-    Task UpdateTeamLeaderNameAsync(string technicianId, string technicianName, CancellationToken cancellationToken = default);
+    Task UpdateTeamLeaderNameAsync(string personId, string personName, CancellationToken cancellationToken = default);
 }
 
 public sealed record TeamFilter(

@@ -25,4 +25,20 @@ public class Standard : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    // Full title of the standard.
+    [BsonElement("title")]
+    public string? Title { get; set; }
+
+    [BsonElement("published_on")]
+    public DateOnly? PublishedOn { get; set; }
+
+    [BsonElement("next_review")]
+    public DateOnly? NextReview { get; set; }
+
+    [BsonElement("url")]
+    public string? Url { get; set; }
+
+    [BsonElement("mandatory")]
+    public bool Mandatory { get; set; }
 }

@@ -3,7 +3,9 @@ using TeamEntity = A360.MasterDataManagement.Domain.Entities.Team;
 namespace A360.MasterDataManagement.Api.Contracts;
 
 // Members are technicians picked by id; each one's assigned team is set to this team.
-// On update, leaving Members out keeps the current members, while an empty list removes them all.
+// EmployeeMembers are employees picked by id and are stored on the team.
+// The team leader is a technician or an employee, picked by id.
+// On update, leaving Members or EmployeeMembers out keeps the current ones, while an empty list removes them all.
 public sealed record CreateTeamRequest(
     string? TeamName,
     string? Code,
@@ -11,6 +13,11 @@ public sealed record CreateTeamRequest(
     MasterDataReferenceDto? TeamLeader,
     string? Description,
     List<MasterDataReferenceDto>? Members,
+    List<MasterDataReferenceDto>? EmployeeMembers,
+    MasterDataReferenceDto? Shift,
+    List<string>? Responsibilities,
+    bool? NotifyLeader,
+    bool? AutoAssign,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -25,6 +32,11 @@ public sealed record CreateTeamRequest(
             Department = Department?.ToReference(),
             TeamLeader = TeamLeader?.ToReference(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            EmployeeMembers = EmployeeMembers?.Select(x => x.ToReference()).ToList() ?? [],
+            Shift = Shift?.ToReference(),
+            Responsibilities = StructureText.CleanList(Responsibilities),
+            NotifyLeader = NotifyLeader ?? false,
+            AutoAssign = AutoAssign ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -44,6 +56,11 @@ public sealed record UpdateTeamRequest(
     MasterDataReferenceDto? TeamLeader,
     string? Description,
     List<MasterDataReferenceDto>? Members,
+    List<MasterDataReferenceDto>? EmployeeMembers,
+    MasterDataReferenceDto? Shift,
+    List<string>? Responsibilities,
+    bool? NotifyLeader,
+    bool? AutoAssign,
     string? Status,
     string? UpdatedBy)
 {
@@ -54,6 +71,16 @@ public sealed record UpdateTeamRequest(
         team.Department = Department?.ToReference();
         team.TeamLeader = TeamLeader?.ToReference();
         team.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+
+        team.Shift = Shift?.ToReference();
+        team.Responsibilities = StructureText.CleanList(Responsibilities);
+        team.NotifyLeader = NotifyLeader ?? false;
+        team.AutoAssign = AutoAssign ?? false;
+
+        if (EmployeeMembers is not null)
+        {
+            team.EmployeeMembers = EmployeeMembers.Select(x => x.ToReference()).ToList();
+        }
 
         team.UpdatedBy = UpdatedBy;
         team.UpdatedAt = DateTime.UtcNow;
@@ -77,7 +104,13 @@ public sealed record TeamResponse(
     MasterDataReferenceDto? TeamLeader,
     string? Description,
     IReadOnlyList<MasterDataReferenceDto> Members,
+    IReadOnlyList<MasterDataReferenceDto> EmployeeMembers,
+    // Technicians and employees together.
     int MemberCount,
+    MasterDataReferenceDto? Shift,
+    IReadOnlyList<string> Responsibilities,
+    bool NotifyLeader,
+    bool AutoAssign,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -91,6 +124,10 @@ public sealed record TeamResponse(
         TeamEntity team,
         IReadOnlyList<MasterDataReferenceDto> members)
     {
+        var employeeMembers = (team.EmployeeMembers ?? [])
+            .Select(MasterDataReferenceDto.FromReference)
+            .ToList();
+
         return new TeamResponse(
             team.Id ?? string.Empty,
             team.TeamName ?? string.Empty,
@@ -103,7 +140,12 @@ public sealed record TeamResponse(
                 : MasterDataReferenceDto.FromReference(team.TeamLeader),
             team.Description,
             members,
-            members.Count,
+            employeeMembers,
+            members.Count + employeeMembers.Count,
+            team.Shift is null ? null : MasterDataReferenceDto.FromReference(team.Shift),
+            team.Responsibilities ?? [],
+            team.NotifyLeader,
+            team.AutoAssign,
             team.CreatedBy,
             team.CreatedAt,
             team.UpdatedBy,

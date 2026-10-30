@@ -1,4 +1,5 @@
 using ItemEntity = A360.MasterDataManagement.Domain.Entities.Item;
+using A360.MasterDataManagement.Domain.ValueObjects;
 using A360.Repository.Repositories;
 
 namespace A360.MasterDataManagement.Repository.Repositories;
@@ -16,6 +17,10 @@ public interface IItemRepository : IMongoRepository<ItemEntity>
     Task<bool> AnyWithUomAsync(string uomId, CancellationToken cancellationToken = default);
 
     Task UpdateUomNameAsync(string uomId, string uomName, CancellationToken cancellationToken = default);
+
+    Task SetWarehouseForStoreAsync(string storeId, MasterDataReference? warehouse, CancellationToken cancellationToken = default);
+
+    Task SetStoreForBinAsync(string binId, MasterDataReference? store, MasterDataReference? warehouse, CancellationToken cancellationToken = default);
 }
 
 public sealed record ItemFilter(

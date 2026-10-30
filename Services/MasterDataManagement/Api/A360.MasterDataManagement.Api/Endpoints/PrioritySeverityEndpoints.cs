@@ -129,6 +129,8 @@ public static class PrioritySeverityEndpoints
         string id,
         UpdatePrioritySeverityRequest request,
         IPrioritySeverityRepository repository,
+        IWorkTypeRepository workTypes,
+        IMaintenanceTypeRepository maintenanceTypes,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -154,6 +156,9 @@ public static class PrioritySeverityEndpoints
             return Results.NotFound();
         }
 
+        var previousName = prioritySeverity.Name;
+        var previousType = prioritySeverity.Type;
+
         request.ApplyTo(prioritySeverity);
 
         var existing = await repository.GetByCodeAsync(
@@ -175,6 +180,22 @@ public static class PrioritySeverityEndpoints
         if (!updated)
         {
             return Results.NotFound();
+        }
+
+        // Work types and maintenance types keep their default priority by name
+        if (previousType == "Priority" && previousName != prioritySeverity.Name)
+        {
+            await workTypes.UpdateDefaultPriorityAsync(
+                previousName,
+                prioritySeverity.Name,
+                prioritySeverity.ClientId,
+                cancellationToken);
+
+            await maintenanceTypes.UpdateDefaultPriorityAsync(
+                previousName,
+                prioritySeverity.Name,
+                prioritySeverity.ClientId,
+                cancellationToken);
         }
 
         await eventLogger.LogAsync(

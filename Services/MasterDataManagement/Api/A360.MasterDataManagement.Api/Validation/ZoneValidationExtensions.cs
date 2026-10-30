@@ -7,15 +7,23 @@ public static class ZoneValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateZoneRequest request)
     {
-        return ValidateFields(
+        var errors = ValidateFields(
             request.Name, request.Code, request.Site, request.BuildingId, request.FloorId, request.Capacity, request.Area);
+
+        StructureValidation.ValidateCoordinates(errors, request.Latitude, request.Longitude);
+
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateZoneRequest request)
     {
-        return ValidateFields(
+        var errors = ValidateFields(
             request.Name, request.Code, request.Site, request.BuildingId, request.FloorId, request.Capacity, request.Area);
+
+        StructureValidation.ValidateCoordinates(errors, request.Latitude, request.Longitude);
+
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(

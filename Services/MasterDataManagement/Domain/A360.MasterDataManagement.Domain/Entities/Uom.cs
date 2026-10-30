@@ -1,5 +1,6 @@
 using MongoDB.Bson.Serialization.Attributes;
 using A360.Domain.Entities;
+using A360.MasterDataManagement.Domain.ValueObjects;
 
 namespace A360.MasterDataManagement.Domain.Entities;
 
@@ -26,4 +27,14 @@ public class Uom : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    // Points at another unit of the same type; null for a base unit.
+    [BsonElement("base_uom")]
+    public MasterDataReference? BaseUom { get; set; }
+
+    [BsonElement("allow_decimals")]
+    public bool AllowDecimals { get; set; }
+
+    [BsonElement("decimal_places")]
+    public int DecimalPlaces { get; set; }
 }

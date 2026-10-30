@@ -116,6 +116,7 @@ public static class LocationEndpoints
     private static async Task<IResult> CreateLocationAsync(
         CreateLocationRequest request,
         ILocationRepository repository,
+        ISiteRepository sites,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -149,6 +150,16 @@ public static class LocationEndpoints
             return parentError;
         }
 
+        var siteError = await MasterDataReferenceResolver.ResolveSiteAsync(
+            location.Site,
+            sites,
+            cancellationToken);
+
+        if (siteError is not null)
+        {
+            return siteError;
+        }
+
         location = await repository.CreateAsync(
             location,
             cancellationToken);
@@ -169,6 +180,7 @@ public static class LocationEndpoints
         string id,
         UpdateLocationRequest request,
         ILocationRepository repository,
+        ISiteRepository sites,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -217,6 +229,16 @@ public static class LocationEndpoints
         if (parentError is not null)
         {
             return parentError;
+        }
+
+        var siteError = await MasterDataReferenceResolver.ResolveSiteAsync(
+            location.Site,
+            sites,
+            cancellationToken);
+
+        if (siteError is not null)
+        {
+            return siteError;
         }
 
         var updated = await repository.UpdateAsync(

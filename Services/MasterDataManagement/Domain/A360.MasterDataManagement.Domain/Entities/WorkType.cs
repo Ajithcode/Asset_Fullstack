@@ -22,4 +22,19 @@ public class WorkType : BaseEntity
     // In hours, e.g. 1.5.
     [BsonElement("estimated_duration")]
     public double? EstimatedDuration { get; set; }
+
+    // Name of a Priority level from priority-severities.
+    [BsonElement("default_priority")]
+    public string? DefaultPriority { get; set; }
+
+    // Skill name from the skills master.
+    [BsonElement("required_skill")]
+    public string? RequiredSkill { get; set; }
+
+    // Code of a checklist in this service.
+    [BsonElement("checklist_code")]
+    public string? ChecklistCode { get; set; }
+
+    [BsonElement("permit_required")]
+    public bool PermitRequired { get; set; }
 }

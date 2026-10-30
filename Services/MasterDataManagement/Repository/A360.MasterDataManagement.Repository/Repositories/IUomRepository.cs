@@ -8,6 +8,8 @@ public interface IUomRepository : IMongoRepository<UomEntity>
     Task<IReadOnlyCollection<UomEntity>> SearchAsync(UomFilter filter, CancellationToken cancellationToken = default);
 
     Task<UomEntity?> GetByCodeAsync(string code, string? clientId, CancellationToken cancellationToken = default);
+
+    Task<bool> AnyWithBaseUomAsync(string baseUomId, CancellationToken cancellationToken = default);
 }
 
 public sealed record UomFilter(

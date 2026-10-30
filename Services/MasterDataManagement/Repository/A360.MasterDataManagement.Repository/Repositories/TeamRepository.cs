@@ -89,11 +89,11 @@ public sealed class TeamRepository : MongoRepository<TeamEntity>,
     }
 
     public async Task<bool> AnyWithTeamLeaderAsync(
-        string technicianId,
+        string personId,
         CancellationToken cancellationToken = default)
     {
         return await Collection
-            .Find(x => x.TeamLeader!.Id == technicianId)
+            .Find(x => x.TeamLeader!.Id == personId)
             .AnyAsync(cancellationToken);
     }
 
@@ -109,13 +109,61 @@ public sealed class TeamRepository : MongoRepository<TeamEntity>,
     }
 
     public async Task UpdateTeamLeaderNameAsync(
-        string technicianId,
-        string technicianName,
+        string personId,
+        string personName,
         CancellationToken cancellationToken = default)
     {
         await Collection.UpdateManyAsync(
-            x => x.TeamLeader!.Id == technicianId,
-            Builders<TeamEntity>.Update.Set(x => x.TeamLeader!.Name, technicianName),
+            x => x.TeamLeader!.Id == personId,
+            Builders<TeamEntity>.Update.Set(x => x.TeamLeader!.Name, personName),
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task<bool> AnyWithShiftAsync(
+        string shiftId,
+        CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(x => x.Shift!.Id == shiftId)
+            .AnyAsync(cancellationToken);
+    }
+
+    public async Task UpdateShiftNameAsync(
+        string shiftId,
+        string shiftName,
+        CancellationToken cancellationToken = default)
+    {
+        await Collection.UpdateManyAsync(
+            x => x.Shift!.Id == shiftId,
+            Builders<TeamEntity>.Update.Set(x => x.Shift!.Name, shiftName),
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task UpdateEmployeeMemberNameAsync(
+        string employeeId,
+        string employeeName,
+        CancellationToken cancellationToken = default)
+    {
+        await Collection.UpdateManyAsync(
+            Builders<TeamEntity>.Filter.ElemMatch(x => x.EmployeeMembers, m => m.Id == employeeId),
+            Builders<TeamEntity>.Update.Set("employee_members.$[member].name", employeeName),
+            new UpdateOptions
+            {
+                ArrayFilters =
+                [
+                    new BsonDocumentArrayFilterDefinition<BsonDocument>(new BsonDocument("member.id", employeeId))
+                ]
+            },
+            cancellationToken);
+    }
+
+    public async Task RemoveEmployeeMemberAsync(
+        string employeeId,
+        CancellationToken cancellationToken = default)
+    {
+        await Collection.UpdateManyAsync(
+            Builders<TeamEntity>.Filter.ElemMatch(x => x.EmployeeMembers, m => m.Id == employeeId),
+            Builders<TeamEntity>.Update.PullFilter(x => x.EmployeeMembers, m => m.Id == employeeId),
             cancellationToken: cancellationToken);
     }
 

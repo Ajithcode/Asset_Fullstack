@@ -74,6 +74,23 @@ public sealed class CertificationTypeRepository : MongoRepository<CertificationT
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    // Follows a standard whose code changed.
+    public async Task UpdateStandardCodeAsync(
+        string fromValue,
+        string toValue,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<CertificationTypeEntity>.Filter;
+        var filter = builder.Eq(x => x.StandardCode, fromValue)
+            & builder.Eq(x => x.ClientId, clientId);
+
+        await Collection.UpdateManyAsync(
+            filter,
+            Builders<CertificationTypeEntity>.Update.Set(x => x.StandardCode, toValue),
+            cancellationToken: cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(
         CancellationToken cancellationToken = default)
     {

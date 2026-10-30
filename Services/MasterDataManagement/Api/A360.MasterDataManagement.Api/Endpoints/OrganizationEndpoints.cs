@@ -140,6 +140,17 @@ public static class OrganizationEndpoints
                 new { message = $"An organization named '{organization.OrganizationName}' already exists." });
         }
 
+        var sameCode = await repository.GetByCodeAsync(
+            organization.Code!,
+            organization.ClientId,
+            cancellationToken);
+
+        if (sameCode is not null)
+        {
+            return Results.Conflict(
+                new { message = $"An organization with code '{organization.Code}' already exists." });
+        }
+
         var referenceError = await ResolveReferencesAsync(
             organization,
             repository,
@@ -212,6 +223,17 @@ public static class OrganizationEndpoints
         {
             return Results.Conflict(
                 new { message = $"An organization named '{organization.OrganizationName}' already exists." });
+        }
+
+        var sameCode = await repository.GetByCodeAsync(
+            organization.Code!,
+            organization.ClientId,
+            cancellationToken);
+
+        if (sameCode is not null && sameCode.Id != id)
+        {
+            return Results.Conflict(
+                new { message = $"An organization with code '{organization.Code}' already exists." });
         }
 
         var referenceError = await ResolveReferencesAsync(

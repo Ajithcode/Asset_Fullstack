@@ -7,13 +7,13 @@ public static class PermitTypeValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreatePermitTypeRequest request)
     {
-        return ValidateFields(request.PermitTypeName, request.Code, request.Category, request.ValidTillDays);
+        return ValidateFields(request.PermitTypeName, request.Code, request.Category, request.ValidTillDays, request.ApprovalLevels, request.ApproverRoles, request.MaxExtensionDays);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdatePermitTypeRequest request)
     {
-        return ValidateFields(request.PermitTypeName, request.Code, request.Category, request.ValidTillDays);
+        return ValidateFields(request.PermitTypeName, request.Code, request.Category, request.ValidTillDays, request.ApprovalLevels, request.ApproverRoles, request.MaxExtensionDays);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -34,7 +34,10 @@ public static class PermitTypeValidationExtensions
         string? permitTypeName,
         string? code,
         string? category,
-        int? validTillDays)
+        int? validTillDays,
+        int? approvalLevels,
+        List<string>? approverRoles,
+        int? maxExtensionDays)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -60,6 +63,23 @@ public static class PermitTypeValidationExtensions
         {
             errors["ValidTillDays"] =
                 ["ValidTillDays must be at least 1"];
+        }
+
+        if (approvalLevels is < 1 or > 5)
+        {
+            errors["ApprovalLevels"] =
+                ["ApprovalLevels must be between 1 and 5"];
+        }
+        else if (approvalLevels is not null && (approverRoles?.Count(x => !string.IsNullOrWhiteSpace(x)) ?? 0) < approvalLevels)
+        {
+            errors["ApproverRoles"] =
+                ["ApproverRoles needs at least one role per approval level"];
+        }
+
+        if (maxExtensionDays < 0 || (validTillDays is not null && maxExtensionDays > validTillDays * 2))
+        {
+            errors["MaxExtensionDays"] =
+                ["MaxExtensionDays must be between 0 and twice ValidTillDays"];
         }
 
         return errors;

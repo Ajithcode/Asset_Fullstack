@@ -11,6 +11,12 @@ public interface ISystemUserRepository : IMongoRepository<SystemUserEntity>
 
     Task<SystemUserEntity?> GetByUsernameAsync(string username, string? clientId, CancellationToken cancellationToken = default);
 
+    Task<SystemUserEntity?> GetByCodeAsync(string code, string? clientId, CancellationToken cancellationToken = default);
+
+    Task<bool> AnyWithAdditionalRoleAsync(string roleId, CancellationToken cancellationToken = default);
+
+    Task UpdateAdditionalRoleNameAsync(string roleId, string roleName, CancellationToken cancellationToken = default);
+
     Task<bool> AnyWithDepartmentAsync(string departmentId, CancellationToken cancellationToken = default);
 
     Task UpdateDepartmentNameAsync(string departmentId, string departmentName, CancellationToken cancellationToken = default);

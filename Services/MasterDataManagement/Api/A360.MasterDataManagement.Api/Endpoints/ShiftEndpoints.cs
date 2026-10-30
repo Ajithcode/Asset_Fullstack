@@ -144,6 +144,7 @@ public static class ShiftEndpoints
         string id,
         UpdateShiftRequest request,
         IShiftRepository repository,
+        ITeamRepository teams,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -169,6 +170,8 @@ public static class ShiftEndpoints
             return Results.NotFound();
         }
 
+        var previousName = shift.ShiftName;
+
         request.ApplyTo(shift);
 
         var existing = await repository.GetByCodeAsync(
@@ -190,6 +193,14 @@ public static class ShiftEndpoints
         if (!updated)
         {
             return Results.NotFound();
+        }
+
+        if (previousName != shift.ShiftName)
+        {
+            await teams.UpdateShiftNameAsync(
+                id,
+                shift.ShiftName,
+                cancellationToken);
         }
 
         await eventLogger.LogAsync(
@@ -258,6 +269,7 @@ public static class ShiftEndpoints
     private static async Task<IResult> DeleteShiftAsync(
         string id,
         IShiftRepository repository,
+        ITeamRepository teams,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -274,6 +286,12 @@ public static class ShiftEndpoints
         if (shift is null)
         {
             return Results.NotFound();
+        }
+
+        if (await teams.AnyWithShiftAsync(id, cancellationToken))
+        {
+            return Results.Conflict(
+                new { message = "Teams are still on this shift. Move them to another shift first." });
         }
 
         var deleted = await repository.DeleteAsync(

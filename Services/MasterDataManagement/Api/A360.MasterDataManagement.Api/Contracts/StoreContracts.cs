@@ -7,6 +7,10 @@ public sealed record CreateStoreRequest(
     string? Code,
     MasterDataReferenceDto? Warehouse,
     string? Description,
+    string? StoreType,
+    MasterDataReferenceDto? Keeper,
+    bool? TemperatureControlled,
+    bool? RestrictedAccess,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -20,6 +24,10 @@ public sealed record CreateStoreRequest(
             Code = Code!.Trim(),
             Warehouse = Warehouse?.ToReference(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            StoreType = string.IsNullOrWhiteSpace(StoreType) ? null : StoreType.Trim(),
+            Keeper = Keeper?.ToReference(),
+            TemperatureControlled = TemperatureControlled ?? false,
+            RestrictedAccess = RestrictedAccess ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -37,6 +45,10 @@ public sealed record UpdateStoreRequest(
     string? Code,
     MasterDataReferenceDto? Warehouse,
     string? Description,
+    string? StoreType,
+    MasterDataReferenceDto? Keeper,
+    bool? TemperatureControlled,
+    bool? RestrictedAccess,
     string? Status,
     string? UpdatedBy)
 {
@@ -46,6 +58,10 @@ public sealed record UpdateStoreRequest(
         store.Code = Code!.Trim();
         store.Warehouse = Warehouse?.ToReference();
         store.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        store.StoreType = string.IsNullOrWhiteSpace(StoreType) ? null : StoreType.Trim();
+        store.Keeper = Keeper?.ToReference();
+        store.TemperatureControlled = TemperatureControlled ?? false;
+        store.RestrictedAccess = RestrictedAccess ?? false;
 
         store.UpdatedBy = UpdatedBy;
         store.UpdatedAt = DateTime.UtcNow;
@@ -67,6 +83,10 @@ public sealed record StoreResponse(
     string Code,
     MasterDataReferenceDto? Warehouse,
     string? Description,
+    string? StoreType,
+    MasterDataReferenceDto? Keeper,
+    bool TemperatureControlled,
+    bool RestrictedAccess,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -86,6 +106,12 @@ public sealed record StoreResponse(
                 ? null
                 : MasterDataReferenceDto.FromReference(store.Warehouse),
             store.Description,
+            store.StoreType,
+            store.Keeper is null
+                ? null
+                : MasterDataReferenceDto.FromReference(store.Keeper),
+            store.TemperatureControlled,
+            store.RestrictedAccess,
             store.CreatedBy,
             store.CreatedAt,
             store.UpdatedBy,

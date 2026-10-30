@@ -9,6 +9,10 @@ public interface IWorkTypeRepository : IMongoRepository<WorkTypeEntity>
 
     Task<WorkTypeEntity?> GetByCodeAsync(string code, string? clientId, CancellationToken cancellationToken = default);
 
+    Task UpdateChecklistCodeAsync(string fromValue, string toValue, string? clientId, CancellationToken cancellationToken = default);
+
+    Task UpdateDefaultPriorityAsync(string fromValue, string toValue, string? clientId, CancellationToken cancellationToken = default);
+
     Task<bool> AnyWithMaintenanceTypeAsync(string maintenanceTypeId, CancellationToken cancellationToken = default);
 
     Task UpdateMaintenanceTypeNameAsync(string maintenanceTypeId, string maintenanceTypeName, CancellationToken cancellationToken = default);

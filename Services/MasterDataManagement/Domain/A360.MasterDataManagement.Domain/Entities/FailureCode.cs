@@ -21,4 +21,15 @@ public class FailureCode : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    // Asset category names the failure applies to.
+    [BsonElement("asset_categories")]
+    public List<string> AssetCategories { get; set; } = [];
+
+    [BsonElement("causes")]
+    public List<string> Causes { get; set; } = [];
+
+    // Recommended corrective actions.
+    [BsonElement("actions")]
+    public List<string> Actions { get; set; } = [];
 }

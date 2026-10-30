@@ -1,5 +1,6 @@
 using ItemEntity = A360.MasterDataManagement.Domain.Entities.Item;
 using A360.MasterDataManagement.Api.Contracts;
+using A360.MasterDataManagement.Domain.ValueObjects;
 using A360.MasterDataManagement.Api.Validation;
 using A360.MasterDataManagement.Repository.Repositories;
 using A360.Domain.Entities;
@@ -90,6 +91,9 @@ public static class ItemEndpoints
         IItemRepository repository,
         IItemCategoryRepository itemCategories,
         IUomRepository uoms,
+        IWarehouseRepository warehouses,
+        IStoreRepository stores,
+        IBinRepository bins,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -117,6 +121,9 @@ public static class ItemEndpoints
             item,
             itemCategories,
             uoms,
+            warehouses,
+            stores,
+            bins,
             cancellationToken);
 
         if (referenceError is not null)
@@ -146,6 +153,9 @@ public static class ItemEndpoints
         IItemRepository repository,
         IItemCategoryRepository itemCategories,
         IUomRepository uoms,
+        IWarehouseRepository warehouses,
+        IStoreRepository stores,
+        IBinRepository bins,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -188,6 +198,9 @@ public static class ItemEndpoints
             item,
             itemCategories,
             uoms,
+            warehouses,
+            stores,
+            bins,
             cancellationToken);
 
         if (referenceError is not null)
@@ -315,6 +328,9 @@ public static class ItemEndpoints
         ItemEntity item,
         IItemCategoryRepository itemCategories,
         IUomRepository uoms,
+        IWarehouseRepository warehouses,
+        IStoreRepository stores,
+        IBinRepository bins,
         CancellationToken cancellationToken)
     {
         var categoryError = await MasterDataReferenceResolver.ResolveItemCategoryAsync(
@@ -337,6 +353,77 @@ public static class ItemEndpoints
             return uomError;
         }
 
-        return null;
+        return await ResolveLocationAsync(
+            item,
+            warehouses,
+            stores,
+            bins,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// The bin decides the item's store and warehouse, and a store without a bin decides the warehouse.
+    /// Returns an error result, or null when valid.
+    /// </summary>
+    private static async Task<IResult?> ResolveLocationAsync(
+        ItemEntity item,
+        IWarehouseRepository warehouses,
+        IStoreRepository stores,
+        IBinRepository bins,
+        CancellationToken cancellationToken)
+    {
+        var binId = item.Bin?.Id;
+
+        if (!string.IsNullOrWhiteSpace(binId))
+        {
+            var bin = MongoObjectId.IsValid(binId)
+                ? await bins.GetByIdAsync(binId, cancellationToken)
+                : null;
+
+            if (bin is null)
+            {
+                return Results.BadRequest(
+                    new { message = $"Bin '{binId}' was not found." });
+            }
+
+            item.Bin!.Name = bin.BinName;
+            item.Store = CopyOf(bin.Store);
+            item.Warehouse = CopyOf(bin.Warehouse);
+            return null;
+        }
+
+        var storeError = await MasterDataReferenceResolver.ResolveStoreAsync(
+            item.Store,
+            stores,
+            cancellationToken);
+
+        if (storeError is not null)
+        {
+            return storeError;
+        }
+
+        var storeId = item.Store?.Id;
+
+        if (!string.IsNullOrWhiteSpace(storeId))
+        {
+            var store = await stores.GetByIdAsync(
+                storeId,
+                cancellationToken);
+
+            item.Warehouse = CopyOf(store?.Warehouse);
+            return null;
+        }
+
+        return await MasterDataReferenceResolver.ResolveWarehouseAsync(
+            item.Warehouse,
+            warehouses,
+            cancellationToken);
+    }
+
+    private static MasterDataReference? CopyOf(MasterDataReference? reference)
+    {
+        return reference is null
+            ? null
+            : new MasterDataReference { Id = reference.Id, Name = reference.Name };
     }
 }

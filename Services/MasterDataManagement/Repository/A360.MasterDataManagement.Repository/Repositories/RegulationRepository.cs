@@ -74,6 +74,23 @@ public sealed class RegulationRepository : MongoRepository<RegulationEntity>,
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    // Follows a standard whose code changed.
+    public async Task UpdateStandardCodeAsync(
+        string fromValue,
+        string toValue,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<RegulationEntity>.Filter;
+        var filter = builder.AnyEq(x => x.StandardCodes, fromValue)
+            & builder.Eq(x => x.ClientId, clientId);
+
+        await Collection.UpdateManyAsync(
+            filter,
+            Builders<RegulationEntity>.Update.Set("standard_codes.$", toValue),
+            cancellationToken: cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(
         CancellationToken cancellationToken = default)
     {

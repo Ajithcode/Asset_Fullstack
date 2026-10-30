@@ -69,6 +69,12 @@ public static class TaskTemplateValidationExtensions
                 ["Every entry in Tasks needs a name"];
         }
 
+        if (tasks?.Any(x => x is not null && x.DurationMinutes is not null && x.DurationMinutes <= 0) == true)
+        {
+            errors["Tasks"] =
+                ["Task minutes must be above 0"];
+        }
+
         return errors;
     }
 }

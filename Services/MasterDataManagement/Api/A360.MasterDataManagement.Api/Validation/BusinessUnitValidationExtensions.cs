@@ -7,23 +7,35 @@ public static class BusinessUnitValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateBusinessUnitRequest request)
     {
-        return ValidateFields(
+        var errors = ValidateFields(
             request.BusinessUnitName,
             request.Code,
             request.ParentOrganization,
             request.Departments,
             request.Sites);
+
+        StructureValidation.ValidateParent(errors, "ParentBusinessUnit", request.ParentBusinessUnit);
+        StructureValidation.ValidateEmail(errors, "ContactEmail", request.ContactEmail);
+        StructureValidation.ValidateEffectiveDates(errors, request.EffectiveFrom, request.EffectiveTo);
+
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateBusinessUnitRequest request)
     {
-        return ValidateFields(
+        var errors = ValidateFields(
             request.BusinessUnitName,
             request.Code,
             request.ParentOrganization,
             request.Departments,
             request.Sites);
+
+        StructureValidation.ValidateParent(errors, "ParentBusinessUnit", request.ParentBusinessUnit);
+        StructureValidation.ValidateEmail(errors, "ContactEmail", request.ContactEmail);
+        StructureValidation.ValidateEffectiveDates(errors, request.EffectiveFrom, request.EffectiveTo);
+
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(

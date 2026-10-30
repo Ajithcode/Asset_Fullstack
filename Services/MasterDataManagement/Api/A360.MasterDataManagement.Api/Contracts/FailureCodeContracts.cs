@@ -19,6 +19,9 @@ public sealed record CreateFailureCodeRequest(
     string? Category,
     string? Severity,
     string? Description,
+    List<string>? AssetCategories,
+    List<string>? Causes,
+    List<string>? Actions,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -33,6 +36,9 @@ public sealed record CreateFailureCodeRequest(
             Category = Category!.Trim(),
             Severity = FailureCodeSeverities.Normalize(Severity)!,
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            AssetCategories = AssetCategories?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [],
+            Causes = Causes?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [],
+            Actions = Actions?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [],
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -51,6 +57,9 @@ public sealed record UpdateFailureCodeRequest(
     string? Category,
     string? Severity,
     string? Description,
+    List<string>? AssetCategories,
+    List<string>? Causes,
+    List<string>? Actions,
     string? Status,
     string? UpdatedBy)
 {
@@ -61,6 +70,9 @@ public sealed record UpdateFailureCodeRequest(
         failureCode.Category = Category!.Trim();
         failureCode.Severity = FailureCodeSeverities.Normalize(Severity)!;
         failureCode.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        failureCode.AssetCategories = AssetCategories?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [];
+        failureCode.Causes = Causes?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [];
+        failureCode.Actions = Actions?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [];
 
         failureCode.UpdatedBy = UpdatedBy;
         failureCode.UpdatedAt = DateTime.UtcNow;
@@ -83,6 +95,9 @@ public sealed record FailureCodeResponse(
     string Category,
     string Severity,
     string? Description,
+    IReadOnlyList<string> AssetCategories,
+    IReadOnlyList<string> Causes,
+    IReadOnlyList<string> Actions,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -101,6 +116,9 @@ public sealed record FailureCodeResponse(
             failureCode.Category ?? string.Empty,
             failureCode.Severity ?? string.Empty,
             failureCode.Description,
+            failureCode.AssetCategories ?? [],
+            failureCode.Causes ?? [],
+            failureCode.Actions ?? [],
             failureCode.CreatedBy,
             failureCode.CreatedAt,
             failureCode.UpdatedBy,

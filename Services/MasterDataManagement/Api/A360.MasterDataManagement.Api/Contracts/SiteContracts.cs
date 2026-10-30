@@ -10,6 +10,23 @@ public sealed record CreateSiteRequest(
     string? SiteType,
     string? City,
     string? Country,
+    MasterDataReferenceDto? Organization,
+    MasterDataReferenceDto? ParentSite,
+    string? TimeZone,
+    string? Description,
+    string? ImageUrl,
+    List<string>? Images,
+    StructureAddressDto? Address,
+    double? Latitude,
+    double? Longitude,
+    StructureContactDto? Manager,
+    StructureContactDto? Emergency,
+    string? OpenTime,
+    string? CloseTime,
+    List<string>? WorkingDays,
+    bool Open24x7,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -27,6 +44,23 @@ public sealed record CreateSiteRequest(
             City = string.IsNullOrWhiteSpace(City) ? null : City.Trim(),
             Country = string.IsNullOrWhiteSpace(Country) ? null : Country.Trim(),
 
+            Organization = Organization?.ToReference(),
+            ParentSite = ParentSite?.ToReference(),
+            TimeZone = StructureText.Clean(TimeZone),
+            Description = StructureText.Clean(Description),
+            ImageUrl = StructureText.Clean(ImageUrl),
+            Images = StructureText.CleanList(Images),
+            Address = Address?.ToValue(),
+            Latitude = Latitude,
+            Longitude = Longitude,
+            Manager = Manager?.ToValue(),
+            Emergency = Emergency?.ToValue(),
+            OpenTime = StructureText.Clean(OpenTime),
+            CloseTime = StructureText.Clean(CloseTime),
+            WorkingDays = StructureText.CleanList(WorkingDays),
+            Open24x7 = Open24x7,
+            AllowAssetAssignment = AllowAssetAssignment,
+            EnableTracking = EnableTracking,
             CreatedBy = CreatedBy,
             ClientId = ClientId,
             TenantId = TenantId,
@@ -46,6 +80,23 @@ public sealed record UpdateSiteRequest(
     string? SiteType,
     string? City,
     string? Country,
+    MasterDataReferenceDto? Organization,
+    MasterDataReferenceDto? ParentSite,
+    string? TimeZone,
+    string? Description,
+    string? ImageUrl,
+    List<string>? Images,
+    StructureAddressDto? Address,
+    double? Latitude,
+    double? Longitude,
+    StructureContactDto? Manager,
+    StructureContactDto? Emergency,
+    string? OpenTime,
+    string? CloseTime,
+    List<string>? WorkingDays,
+    bool Open24x7,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
     string? Status,
     string? UpdatedBy)
 {
@@ -59,6 +110,23 @@ public sealed record UpdateSiteRequest(
         site.City = string.IsNullOrWhiteSpace(City) ? null : City.Trim();
         site.Country = string.IsNullOrWhiteSpace(Country) ? null : Country.Trim();
 
+        site.Organization = Organization?.ToReference();
+        site.ParentSite = ParentSite?.ToReference();
+        site.TimeZone = StructureText.Clean(TimeZone);
+        site.Description = StructureText.Clean(Description);
+        site.ImageUrl = StructureText.Clean(ImageUrl);
+        site.Images = StructureText.CleanList(Images);
+        site.Address = Address?.ToValue();
+        site.Latitude = Latitude;
+        site.Longitude = Longitude;
+        site.Manager = Manager?.ToValue();
+        site.Emergency = Emergency?.ToValue();
+        site.OpenTime = StructureText.Clean(OpenTime);
+        site.CloseTime = StructureText.Clean(CloseTime);
+        site.WorkingDays = StructureText.CleanList(WorkingDays);
+        site.Open24x7 = Open24x7;
+        site.AllowAssetAssignment = AllowAssetAssignment;
+        site.EnableTracking = EnableTracking;
         site.UpdatedBy = UpdatedBy;
         site.UpdatedAt = DateTime.UtcNow;
 
@@ -82,6 +150,23 @@ public sealed record SiteResponse(
     string? SiteType,
     string? City,
     string? Country,
+    MasterDataReferenceDto? Organization,
+    MasterDataReferenceDto? ParentSite,
+    string? TimeZone,
+    string? Description,
+    string? ImageUrl,
+    IReadOnlyList<string> Images,
+    StructureAddressDto? Address,
+    double? Latitude,
+    double? Longitude,
+    StructureContactDto? Manager,
+    StructureContactDto? Emergency,
+    string? OpenTime,
+    string? CloseTime,
+    IReadOnlyList<string> WorkingDays,
+    bool Open24x7,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -106,6 +191,23 @@ public sealed record SiteResponse(
             site.SiteType,
             site.City,
             site.Country,
+            site.Organization is null ? null : MasterDataReferenceDto.FromReference(site.Organization),
+            site.ParentSite is null ? null : MasterDataReferenceDto.FromReference(site.ParentSite),
+            site.TimeZone,
+            site.Description,
+            site.ImageUrl,
+            site.Images ?? [],
+            StructureAddressDto.FromValue(site.Address),
+            site.Latitude,
+            site.Longitude,
+            StructureContactDto.FromValue(site.Manager),
+            StructureContactDto.FromValue(site.Emergency),
+            site.OpenTime,
+            site.CloseTime,
+            site.WorkingDays ?? [],
+            site.Open24x7,
+            site.AllowAssetAssignment,
+            site.EnableTracking,
             site.CreatedBy,
             site.CreatedAt,
             site.UpdatedBy,

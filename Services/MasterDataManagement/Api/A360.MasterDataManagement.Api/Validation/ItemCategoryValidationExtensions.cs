@@ -7,13 +7,13 @@ public static class ItemCategoryValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateItemCategoryRequest request)
     {
-        return ValidateFields(request.CategoryName, request.Code, request.ParentCategory);
+        return ValidateFields(request.CategoryName, request.Code, request.ParentCategory, request.DefaultUom);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateItemCategoryRequest request)
     {
-        return ValidateFields(request.CategoryName, request.Code, request.ParentCategory);
+        return ValidateFields(request.CategoryName, request.Code, request.ParentCategory, request.DefaultUom);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -33,7 +33,8 @@ public static class ItemCategoryValidationExtensions
     private static Dictionary<string, string[]> ValidateFields(
         string? categoryName,
         string? code,
-        MasterDataReferenceDto? parentCategory)
+        MasterDataReferenceDto? parentCategory,
+        MasterDataReferenceDto? defaultUom)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -53,6 +54,12 @@ public static class ItemCategoryValidationExtensions
         {
             errors["ParentCategory"] =
                 ["ParentCategory must have an item category id"];
+        }
+
+        if (defaultUom is not null && string.IsNullOrWhiteSpace(defaultUom.Id))
+        {
+            errors["DefaultUom"] =
+                ["DefaultUom must have a unit of measure id"];
         }
 
         return errors;

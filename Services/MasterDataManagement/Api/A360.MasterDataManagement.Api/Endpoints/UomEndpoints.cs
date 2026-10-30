@@ -1,3 +1,4 @@
+using UomEntity = A360.MasterDataManagement.Domain.Entities.Uom;
 using A360.MasterDataManagement.Api.Contracts;
 using A360.MasterDataManagement.Api.Validation;
 using A360.MasterDataManagement.Repository.Repositories;
@@ -109,6 +110,16 @@ public static class UomEndpoints
                 new { message = $"A unit of measure with code '{uom.Code}' already exists." });
         }
 
+        var referenceError = await ResolveReferencesAsync(
+            uom,
+            repository,
+            cancellationToken);
+
+        if (referenceError is not null)
+        {
+            return referenceError;
+        }
+
         uom = await repository.CreateAsync(
             uom,
             cancellationToken);
@@ -168,6 +179,22 @@ public static class UomEndpoints
         {
             return Results.Conflict(
                 new { message = $"A unit of measure with code '{uom.Code}' already exists." });
+        }
+
+        var referenceError = await ResolveReferencesAsync(
+            uom,
+            repository,
+            cancellationToken);
+
+        if (referenceError is not null)
+        {
+            return referenceError;
+        }
+
+        if (uom.BaseUom is not null && await repository.AnyWithBaseUomAsync(id, cancellationToken))
+        {
+            return Results.BadRequest(
+                new { message = "Other units are based on this one, so it must stay a base unit." });
         }
 
         var updated = await repository.UpdateAsync(
@@ -279,6 +306,12 @@ public static class UomEndpoints
                 new { message = "Items still use this unit of measure. Change or delete them first." });
         }
 
+        if (await repository.AnyWithBaseUomAsync(id, cancellationToken))
+        {
+            return Results.Conflict(
+                new { message = "Other units are based on this one. Change their base unit first." });
+        }
+
         var deleted = await repository.DeleteAsync(
             id,
             cancellationToken);
@@ -296,5 +329,52 @@ public static class UomEndpoints
             cancellationToken);
 
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Checks the base unit exists, is a base unit itself, has the same type and is not this unit, copying its current name across. Returns an error result, or null when valid.
+    /// </summary>
+    private static async Task<IResult?> ResolveReferencesAsync(
+        UomEntity uom,
+        IUomRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var baseId = uom.BaseUom?.Id;
+
+        if (baseId is null)
+        {
+            return null;
+        }
+
+        if (baseId == uom.Id)
+        {
+            return Results.BadRequest(
+                new { message = "A unit of measure cannot be its own base unit." });
+        }
+
+        var baseUom = MongoObjectId.IsValid(baseId)
+            ? await repository.GetByIdAsync(baseId, cancellationToken)
+            : null;
+
+        if (baseUom is null)
+        {
+            return Results.BadRequest(
+                new { message = $"Unit of measure '{baseId}' was not found." });
+        }
+
+        if (baseUom.BaseUom is not null)
+        {
+            return Results.BadRequest(
+                new { message = $"{baseUom.UomName} is based on another unit, so it cannot be a base unit." });
+        }
+
+        if (!string.Equals(baseUom.Type, uom.Type, StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.BadRequest(
+                new { message = $"The base unit must be a {uom.Type} unit." });
+        }
+
+        uom.BaseUom!.Name = baseUom.UomName;
+        return null;
     }
 }

@@ -7,13 +7,15 @@ public static class TeamValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateTeamRequest request)
     {
-        return ValidateFields(request.TeamName, request.Code, request.Department, request.TeamLeader, request.Members);
+        return ValidateFields(request.TeamName, request.Code, request.Department, request.TeamLeader, request.Members,
+            request.EmployeeMembers, request.Shift);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateTeamRequest request)
     {
-        return ValidateFields(request.TeamName, request.Code, request.Department, request.TeamLeader, request.Members);
+        return ValidateFields(request.TeamName, request.Code, request.Department, request.TeamLeader, request.Members,
+            request.EmployeeMembers, request.Shift);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -35,7 +37,9 @@ public static class TeamValidationExtensions
         string? code,
         MasterDataReferenceDto? department,
         MasterDataReferenceDto? teamLeader,
-        List<MasterDataReferenceDto>? members)
+        List<MasterDataReferenceDto>? members,
+        List<MasterDataReferenceDto>? employeeMembers,
+        MasterDataReferenceDto? shift)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -51,17 +55,38 @@ public static class TeamValidationExtensions
                 ["Code is required"];
         }
 
-        // Department, leader and members are records in this service, so they are picked by id.
-        if (department is not null && string.IsNullOrWhiteSpace(department.Id))
+        // The department is normally picked by id; a name alone is kept as typed.
+        if (department is not null && string.IsNullOrWhiteSpace(department.Id) && string.IsNullOrWhiteSpace(department.Name))
         {
             errors["Department"] =
-                ["Department must have a department id"];
+                ["Department must have a department id or name"];
         }
 
+        // Leader, members and shift are records in this service, so they are picked by id.
         if (teamLeader is not null && string.IsNullOrWhiteSpace(teamLeader.Id))
         {
             errors["TeamLeader"] =
-                ["TeamLeader must have a technician id"];
+                ["TeamLeader must have a technician or employee id"];
+        }
+
+        if (shift is not null && string.IsNullOrWhiteSpace(shift.Id))
+        {
+            errors["Shift"] =
+                ["Shift must have a shift id"];
+        }
+
+        if (employeeMembers is not null)
+        {
+            if (employeeMembers.Any(x => x is null || string.IsNullOrWhiteSpace(x.Id)))
+            {
+                errors["EmployeeMembers"] =
+                    ["Every entry in EmployeeMembers needs an employee id"];
+            }
+            else if (employeeMembers.GroupBy(x => x.Id!.Trim()).Any(x => x.Count() > 1))
+            {
+                errors["EmployeeMembers"] =
+                    ["EmployeeMembers contains duplicate entries"];
+            }
         }
 
         if (members is not null)

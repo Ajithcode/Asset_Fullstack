@@ -145,6 +145,7 @@ public static class BinEndpoints
         UpdateBinRequest request,
         IBinRepository repository,
         IStoreRepository stores,
+        IItemRepository items,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -169,6 +170,9 @@ public static class BinEndpoints
         {
             return Results.NotFound();
         }
+
+        var previousStoreId = bin.Store?.Id;
+        var previousWarehouseId = bin.Warehouse?.Id;
 
         request.ApplyTo(bin);
 
@@ -202,6 +206,16 @@ public static class BinEndpoints
         if (!updated)
         {
             return Results.NotFound();
+        }
+
+        // Items kept in this bin move with it.
+        if (previousStoreId != bin.Store?.Id || previousWarehouseId != bin.Warehouse?.Id)
+        {
+            await items.SetStoreForBinAsync(
+                id,
+                bin.Store,
+                bin.Warehouse,
+                cancellationToken);
         }
 
         await eventLogger.LogAsync(

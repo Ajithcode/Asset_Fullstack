@@ -1,3 +1,4 @@
+using A360.MasterDataManagement.Domain.ValueObjects;
 using System.Globalization;
 using ShiftEntity = A360.MasterDataManagement.Domain.Entities.Shift;
 
@@ -21,11 +22,21 @@ public static class ShiftTimes
         return TimeOnly.TryParseExact(value?.Trim(), Format, CultureInfo.InvariantCulture, DateTimeStyles.None, out time);
     }
 
-    /// <summary>Minutes from start to end; an end before the start runs past midnight.</summary>
-    public static int DurationMinutes(string startTime, string endTime)
+    /// <summary>Shift types without fixed hours or working days.</summary>
+    public static readonly string[] OpenTypes = ["Flexible", "On Call"];
+
+    public static bool HasFixedHours(string? shiftType)
     {
-        TryParseTime(startTime, out var start);
-        TryParseTime(endTime, out var end);
+        return !OpenTypes.Contains(shiftType?.Trim(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Minutes from start to end; an end before the start runs past midnight. 0 without both times.</summary>
+    public static int DurationMinutes(string? startTime, string? endTime)
+    {
+        if (!TryParseTime(startTime, out var start) || !TryParseTime(endTime, out var end))
+        {
+            return 0;
+        }
 
         var minutes = (end.Hour * 60 + end.Minute) - (start.Hour * 60 + start.Minute);
         return minutes <= 0 ? minutes + MinutesPerDay : minutes;
@@ -74,6 +85,14 @@ public sealed record CreateShiftRequest(
     List<string>? WorkingDays,
     string? Color,
     string? Description,
+    string? ShiftType,
+    DateOnly? EffectiveFrom,
+    int? GraceMinutes,
+    string? RotationPattern,
+    List<ShiftBreakDto>? Breaks,
+    bool? OvertimeAllowed,
+    bool? NightAllowance,
+    bool? AttendanceRequired,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -86,12 +105,20 @@ public sealed record CreateShiftRequest(
             ShiftName = ShiftName!.Trim(),
             Code = Code!.Trim(),
             ShiftTime = string.IsNullOrWhiteSpace(ShiftTime) ? null : ShiftTime.Trim(),
-            StartTime = StartTime!.Trim(),
-            EndTime = EndTime!.Trim(),
-            Duration = ShiftTimes.DurationMinutes(StartTime!, EndTime!),
+            StartTime = StructureText.Clean(StartTime),
+            EndTime = StructureText.Clean(EndTime),
+            Duration = ShiftTimes.DurationMinutes(StartTime, EndTime),
             WorkingDays = ShiftTimes.NormalizeDays(WorkingDays),
             Color = string.IsNullOrWhiteSpace(Color) ? null : Color.Trim().ToUpperInvariant(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            ShiftType = StructureText.Clean(ShiftType),
+            EffectiveFrom = EffectiveFrom,
+            GraceMinutes = GraceMinutes ?? 0,
+            RotationPattern = StructureText.Clean(RotationPattern),
+            Breaks = ShiftBreakDto.ToValues(Breaks),
+            OvertimeAllowed = OvertimeAllowed ?? false,
+            NightAllowance = NightAllowance ?? false,
+            AttendanceRequired = AttendanceRequired ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -113,6 +140,14 @@ public sealed record UpdateShiftRequest(
     List<string>? WorkingDays,
     string? Color,
     string? Description,
+    string? ShiftType,
+    DateOnly? EffectiveFrom,
+    int? GraceMinutes,
+    string? RotationPattern,
+    List<ShiftBreakDto>? Breaks,
+    bool? OvertimeAllowed,
+    bool? NightAllowance,
+    bool? AttendanceRequired,
     string? Status,
     string? UpdatedBy)
 {
@@ -121,12 +156,20 @@ public sealed record UpdateShiftRequest(
         shift.ShiftName = ShiftName!.Trim();
         shift.Code = Code!.Trim();
         shift.ShiftTime = string.IsNullOrWhiteSpace(ShiftTime) ? null : ShiftTime.Trim();
-        shift.StartTime = StartTime!.Trim();
-        shift.EndTime = EndTime!.Trim();
-        shift.Duration = ShiftTimes.DurationMinutes(StartTime!, EndTime!);
+        shift.StartTime = StructureText.Clean(StartTime);
+        shift.EndTime = StructureText.Clean(EndTime);
+        shift.Duration = ShiftTimes.DurationMinutes(StartTime, EndTime);
         shift.WorkingDays = ShiftTimes.NormalizeDays(WorkingDays);
         shift.Color = string.IsNullOrWhiteSpace(Color) ? null : Color.Trim().ToUpperInvariant();
         shift.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        shift.ShiftType = StructureText.Clean(ShiftType);
+        shift.EffectiveFrom = EffectiveFrom;
+        shift.GraceMinutes = GraceMinutes ?? 0;
+        shift.RotationPattern = StructureText.Clean(RotationPattern);
+        shift.Breaks = ShiftBreakDto.ToValues(Breaks);
+        shift.OvertimeAllowed = OvertimeAllowed ?? false;
+        shift.NightAllowance = NightAllowance ?? false;
+        shift.AttendanceRequired = AttendanceRequired ?? false;
 
         shift.UpdatedBy = UpdatedBy;
         shift.UpdatedAt = DateTime.UtcNow;
@@ -142,7 +185,7 @@ public sealed record UpdateShiftStatusRequest(
     string? Status,
     string? UpdatedBy);
 
-// Duration is in minutes.
+// Duration is in minutes; 0 (and empty times) for shifts without fixed hours.
 public sealed record ShiftResponse(
     string Id,
     string ShiftName,
@@ -154,6 +197,14 @@ public sealed record ShiftResponse(
     IReadOnlyList<string> WorkingDays,
     string? Color,
     string? Description,
+    string? ShiftType,
+    DateOnly? EffectiveFrom,
+    int GraceMinutes,
+    string? RotationPattern,
+    IReadOnlyList<ShiftBreakDto> Breaks,
+    bool OvertimeAllowed,
+    bool NightAllowance,
+    bool AttendanceRequired,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -176,6 +227,14 @@ public sealed record ShiftResponse(
             shift.WorkingDays ?? [],
             shift.Color,
             shift.Description,
+            shift.ShiftType,
+            shift.EffectiveFrom,
+            shift.GraceMinutes,
+            shift.RotationPattern,
+            ShiftBreakDto.FromValues(shift.Breaks),
+            shift.OvertimeAllowed,
+            shift.NightAllowance,
+            shift.AttendanceRequired,
             shift.CreatedBy,
             shift.CreatedAt,
             shift.UpdatedBy,
@@ -185,5 +244,31 @@ public sealed record ShiftResponse(
             shift.Status,
             shift.IsDeleted
         );
+    }
+}
+
+public sealed record ShiftBreakDto(
+    string? Name,
+    string? Start,
+    int? Minutes)
+{
+    public ShiftBreak ToValue()
+    {
+        return new ShiftBreak
+        {
+            Name = Name?.Trim() ?? string.Empty,
+            Start = StructureText.Clean(Start),
+            Minutes = Minutes ?? 0
+        };
+    }
+
+    public static List<ShiftBreak> ToValues(IEnumerable<ShiftBreakDto>? breaks)
+    {
+        return breaks?.Select(x => x.ToValue()).ToList() ?? [];
+    }
+
+    public static IReadOnlyList<ShiftBreakDto> FromValues(IEnumerable<ShiftBreak>? breaks)
+    {
+        return breaks?.Select(x => new ShiftBreakDto(x.Name, x.Start, x.Minutes)).ToList() ?? [];
     }
 }

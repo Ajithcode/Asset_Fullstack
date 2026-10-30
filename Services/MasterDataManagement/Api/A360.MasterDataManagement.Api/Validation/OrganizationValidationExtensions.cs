@@ -8,21 +8,29 @@ public static class OrganizationValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateOrganizationRequest request)
     {
-        return ValidateFields(
+        var errors = ValidateFields(
             request.OrganizationName,
             request.ParentOrganization,
             request.BusinessUnits,
             request.Sites);
+
+        ValidateDetails(errors, request.Code, request.Website, request.Contact, request.Settings);
+
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateOrganizationRequest request)
     {
-        return ValidateFields(
+        var errors = ValidateFields(
             request.OrganizationName,
             request.ParentOrganization,
             request.BusinessUnits,
             request.Sites);
+
+        ValidateDetails(errors, request.Code, request.Website, request.Contact, request.Settings);
+
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -37,6 +45,24 @@ public static class OrganizationValidationExtensions
         }
 
         return errors;
+    }
+
+    private static void ValidateDetails(
+        Dictionary<string, string[]> errors,
+        string? code,
+        string? website,
+        StructureContactDto? contact,
+        OrganizationSettingsDto? settings)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            errors["Code"] =
+                ["Code is required"];
+        }
+
+        StructureValidation.ValidateWebsite(errors, website);
+        StructureValidation.ValidateEmail(errors, "Email", contact?.Email);
+        StructureValidation.ValidateEffectiveDates(errors, settings?.EffectiveFrom, settings?.EffectiveTo);
     }
 
     private static Dictionary<string, string[]> ValidateFields(

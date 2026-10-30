@@ -7,13 +7,13 @@ public static class RegulationValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateRegulationRequest request)
     {
-        return ValidateFields(request.RegulationName, request.Code, request.Country, request.Category);
+        return ValidateFields(request.RegulationName, request.Code, request.Country, request.Category, request.ReviewMonths);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateRegulationRequest request)
     {
-        return ValidateFields(request.RegulationName, request.Code, request.Country, request.Category);
+        return ValidateFields(request.RegulationName, request.Code, request.Country, request.Category, request.ReviewMonths);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -34,7 +34,8 @@ public static class RegulationValidationExtensions
         string? regulationName,
         string? code,
         string? country,
-        string? category)
+        string? category,
+        int? reviewMonths)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -60,6 +61,12 @@ public static class RegulationValidationExtensions
         {
             errors["Category"] =
                 ["Category is required"];
+        }
+
+        if (reviewMonths is < 1 or > 120)
+        {
+            errors["ReviewMonths"] =
+                ["ReviewMonths must be between 1 and 120"];
         }
 
         return errors;

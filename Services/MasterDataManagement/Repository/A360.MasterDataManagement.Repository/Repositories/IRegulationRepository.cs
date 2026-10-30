@@ -8,6 +8,8 @@ public interface IRegulationRepository : IMongoRepository<RegulationEntity>
     Task<IReadOnlyCollection<RegulationEntity>> SearchAsync(RegulationFilter filter, CancellationToken cancellationToken = default);
 
     Task<RegulationEntity?> GetByCodeAsync(string code, string? clientId, CancellationToken cancellationToken = default);
+
+    Task UpdateStandardCodeAsync(string fromValue, string toValue, string? clientId, CancellationToken cancellationToken = default);
 }
 
 public sealed record RegulationFilter(

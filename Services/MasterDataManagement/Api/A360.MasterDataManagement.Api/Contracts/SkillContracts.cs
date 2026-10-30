@@ -9,6 +9,11 @@ public sealed record CreateSkillRequest(
     string? Type,
     string? Description,
     string? Icon,
+    List<string>? Levels,
+    List<string>? RelatedRoles,
+    bool? CertificationRequired,
+    int? CertificationValidityMonths,
+    bool? AssessmentRequired,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -24,6 +29,11 @@ public sealed record CreateSkillRequest(
             Type = string.IsNullOrWhiteSpace(Type) ? null : Type.Trim(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
             Icon = string.IsNullOrWhiteSpace(Icon) ? null : Icon.Trim(),
+            Levels = StructureText.CleanList(Levels),
+            RelatedRoles = StructureText.CleanList(RelatedRoles),
+            CertificationRequired = CertificationRequired ?? false,
+            CertificationValidityMonths = CertificationValidityMonths,
+            AssessmentRequired = AssessmentRequired ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -43,6 +53,11 @@ public sealed record UpdateSkillRequest(
     string? Type,
     string? Description,
     string? Icon,
+    List<string>? Levels,
+    List<string>? RelatedRoles,
+    bool? CertificationRequired,
+    int? CertificationValidityMonths,
+    bool? AssessmentRequired,
     string? Status,
     string? UpdatedBy)
 {
@@ -54,6 +69,11 @@ public sealed record UpdateSkillRequest(
         skill.Type = string.IsNullOrWhiteSpace(Type) ? null : Type.Trim();
         skill.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
         skill.Icon = string.IsNullOrWhiteSpace(Icon) ? null : Icon.Trim();
+        skill.Levels = StructureText.CleanList(Levels);
+        skill.RelatedRoles = StructureText.CleanList(RelatedRoles);
+        skill.CertificationRequired = CertificationRequired ?? false;
+        skill.CertificationValidityMonths = CertificationValidityMonths;
+        skill.AssessmentRequired = AssessmentRequired ?? false;
 
         skill.UpdatedBy = UpdatedBy;
         skill.UpdatedAt = DateTime.UtcNow;
@@ -77,6 +97,11 @@ public sealed record SkillResponse(
     string? Type,
     string? Description,
     string? Icon,
+    IReadOnlyList<string> Levels,
+    IReadOnlyList<string> RelatedRoles,
+    bool CertificationRequired,
+    int? CertificationValidityMonths,
+    bool AssessmentRequired,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -96,6 +121,11 @@ public sealed record SkillResponse(
             skill.Type,
             skill.Description,
             skill.Icon,
+            skill.Levels ?? [],
+            skill.RelatedRoles ?? [],
+            skill.CertificationRequired,
+            skill.CertificationValidityMonths,
+            skill.AssessmentRequired,
             skill.CreatedBy,
             skill.CreatedAt,
             skill.UpdatedBy,

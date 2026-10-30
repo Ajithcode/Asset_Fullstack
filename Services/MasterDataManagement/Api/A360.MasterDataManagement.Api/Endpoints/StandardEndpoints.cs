@@ -130,6 +130,8 @@ public static class StandardEndpoints
         string id,
         UpdateStandardRequest request,
         IStandardRepository repository,
+        ICertificationTypeRepository certificationTypes,
+        IRegulationRepository regulations,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -155,6 +157,8 @@ public static class StandardEndpoints
             return Results.NotFound();
         }
 
+        var previousCode = standard.Code;
+
         request.ApplyTo(standard);
 
         var existing = await repository.GetByCodeAsync(
@@ -176,6 +180,22 @@ public static class StandardEndpoints
         if (!updated)
         {
             return Results.NotFound();
+        }
+
+        // Certification types and regulations point at the standard by code
+        if (previousCode != standard.Code)
+        {
+            await certificationTypes.UpdateStandardCodeAsync(
+                previousCode,
+                standard.Code,
+                standard.ClientId,
+                cancellationToken);
+
+            await regulations.UpdateStandardCodeAsync(
+                previousCode,
+                standard.Code,
+                standard.ClientId,
+                cancellationToken);
         }
 
         await eventLogger.LogAsync(

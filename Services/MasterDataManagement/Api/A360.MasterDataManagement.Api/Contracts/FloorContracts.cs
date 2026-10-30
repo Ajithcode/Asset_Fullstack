@@ -12,6 +12,15 @@ public sealed record CreateFloorRequest(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    List<string>? Images,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool RestrictedAccess,
+    bool ShowOnMap,
+    int? LevelNumber,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -31,6 +40,15 @@ public sealed record CreateFloorRequest(
             Capacity = Capacity,
             Area = Area,
 
+            ImageUrl = StructureText.Clean(ImageUrl),
+            Images = StructureText.CleanList(Images),
+            AllowAssetAssignment = AllowAssetAssignment,
+            EnableTracking = EnableTracking,
+            RestrictedAccess = RestrictedAccess,
+            ShowOnMap = ShowOnMap,
+            LevelNumber = LevelNumber,
+            Latitude = Latitude,
+            Longitude = Longitude,
             CreatedBy = CreatedBy,
             ClientId = ClientId,
             TenantId = TenantId,
@@ -51,6 +69,15 @@ public sealed record UpdateFloorRequest(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    List<string>? Images,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool RestrictedAccess,
+    bool ShowOnMap,
+    int? LevelNumber,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? UpdatedBy)
 {
@@ -65,6 +92,15 @@ public sealed record UpdateFloorRequest(
         floor.Capacity = Capacity;
         floor.Area = Area;
 
+        floor.ImageUrl = StructureText.Clean(ImageUrl);
+        floor.Images = StructureText.CleanList(Images);
+        floor.AllowAssetAssignment = AllowAssetAssignment;
+        floor.EnableTracking = EnableTracking;
+        floor.RestrictedAccess = RestrictedAccess;
+        floor.ShowOnMap = ShowOnMap;
+        floor.LevelNumber = LevelNumber;
+        floor.Latitude = Latitude;
+        floor.Longitude = Longitude;
         floor.UpdatedBy = UpdatedBy;
         floor.UpdatedAt = DateTime.UtcNow;
 
@@ -90,6 +126,15 @@ public sealed record FloorResponse(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    IReadOnlyList<string> Images,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool RestrictedAccess,
+    bool ShowOnMap,
+    int? LevelNumber,
+    double? Latitude,
+    double? Longitude,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -114,6 +159,15 @@ public sealed record FloorResponse(
             floor.Description,
             floor.Capacity,
             floor.Area,
+            floor.ImageUrl,
+            floor.Images ?? [],
+            floor.AllowAssetAssignment,
+            floor.EnableTracking,
+            floor.RestrictedAccess,
+            floor.ShowOnMap,
+            floor.LevelNumber,
+            floor.Latitude,
+            floor.Longitude,
             floor.CreatedBy,
             floor.CreatedAt,
             floor.UpdatedBy,

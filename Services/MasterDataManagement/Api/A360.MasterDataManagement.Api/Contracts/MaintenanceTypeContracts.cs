@@ -7,6 +7,10 @@ public sealed record CreateMaintenanceTypeRequest(
     string? Code,
     string? Description,
     string? Color,
+    bool? Planned,
+    bool? ApprovalRequired,
+    bool? CountsAsDowntime,
+    string? DefaultPriority,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -20,6 +24,10 @@ public sealed record CreateMaintenanceTypeRequest(
             Code = Code!.Trim(),
             Description = Description!.Trim(),
             Color = string.IsNullOrWhiteSpace(Color) ? null : Color.Trim().ToUpperInvariant(),
+            Planned = Planned ?? false,
+            ApprovalRequired = ApprovalRequired ?? false,
+            CountsAsDowntime = CountsAsDowntime ?? false,
+            DefaultPriority = string.IsNullOrWhiteSpace(DefaultPriority) ? null : DefaultPriority.Trim(),
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -37,6 +45,10 @@ public sealed record UpdateMaintenanceTypeRequest(
     string? Code,
     string? Description,
     string? Color,
+    bool? Planned,
+    bool? ApprovalRequired,
+    bool? CountsAsDowntime,
+    string? DefaultPriority,
     string? Status,
     string? UpdatedBy)
 {
@@ -46,6 +58,10 @@ public sealed record UpdateMaintenanceTypeRequest(
         maintenanceType.Code = Code!.Trim();
         maintenanceType.Description = Description!.Trim();
         maintenanceType.Color = string.IsNullOrWhiteSpace(Color) ? null : Color.Trim().ToUpperInvariant();
+        maintenanceType.Planned = Planned ?? false;
+        maintenanceType.ApprovalRequired = ApprovalRequired ?? false;
+        maintenanceType.CountsAsDowntime = CountsAsDowntime ?? false;
+        maintenanceType.DefaultPriority = string.IsNullOrWhiteSpace(DefaultPriority) ? null : DefaultPriority.Trim();
 
         maintenanceType.UpdatedBy = UpdatedBy;
         maintenanceType.UpdatedAt = DateTime.UtcNow;
@@ -67,6 +83,10 @@ public sealed record MaintenanceTypeResponse(
     string Code,
     string Description,
     string? Color,
+    bool Planned,
+    bool ApprovalRequired,
+    bool CountsAsDowntime,
+    string? DefaultPriority,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -84,6 +104,10 @@ public sealed record MaintenanceTypeResponse(
             maintenanceType.Code ?? string.Empty,
             maintenanceType.Description ?? string.Empty,
             maintenanceType.Color,
+            maintenanceType.Planned,
+            maintenanceType.ApprovalRequired,
+            maintenanceType.CountsAsDowntime,
+            maintenanceType.DefaultPriority,
             maintenanceType.CreatedBy,
             maintenanceType.CreatedAt,
             maintenanceType.UpdatedBy,

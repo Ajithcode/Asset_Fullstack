@@ -21,4 +21,22 @@ public class PermitType : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    [BsonElement("approval_levels")]
+    public int? ApprovalLevels { get; set; }
+
+    [BsonElement("approver_roles")]
+    public List<string> ApproverRoles { get; set; } = [];
+
+    [BsonElement("max_extension_days")]
+    public int? MaxExtensionDays { get; set; }
+
+    [BsonElement("isolation_required")]
+    public bool IsolationRequired { get; set; }
+
+    [BsonElement("gas_test_required")]
+    public bool GasTestRequired { get; set; }
+
+    [BsonElement("close_out_inspection")]
+    public bool CloseOutInspection { get; set; }
 }

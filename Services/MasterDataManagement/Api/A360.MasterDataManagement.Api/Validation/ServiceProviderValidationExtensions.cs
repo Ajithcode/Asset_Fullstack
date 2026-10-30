@@ -7,13 +7,15 @@ public static class ServiceProviderValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateServiceProviderRequest request)
     {
-        return ValidateFields(request.ServiceProviderName, request.Code, request.Website, request.Email, request.Phone);
+        return ValidateFields(request.ServiceProviderName, request.Code, request.Website, request.Email, request.Phone,
+            request.AlternateEmail, request.AlternatePhone, request.Documents, request.Rating, request.Technicians, request.ResponseHours);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateServiceProviderRequest request)
     {
-        return ValidateFields(request.ServiceProviderName, request.Code, request.Website, request.Email, request.Phone);
+        return ValidateFields(request.ServiceProviderName, request.Code, request.Website, request.Email, request.Phone,
+            request.AlternateEmail, request.AlternatePhone, request.Documents, request.Rating, request.Technicians, request.ResponseHours);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -35,7 +37,13 @@ public static class ServiceProviderValidationExtensions
         string? code,
         string? website,
         string? email,
-        string? phone)
+        string? phone,
+        string? alternateEmail,
+        string? alternatePhone,
+        List<VendorDocumentDto>? documents,
+        decimal? rating,
+        int? technicians,
+        int? responseHours)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -60,6 +68,11 @@ public static class ServiceProviderValidationExtensions
         }
 
         ContactValidation.ValidateEmailAndPhone(errors, email, phone, "Phone");
+
+        VendorValidation.ValidateExtras(errors, alternateEmail, alternatePhone, documents);
+        VendorValidation.ValidateRange(errors, "Rating", rating, 0, 5);
+        VendorValidation.ValidateRange(errors, "Technicians", technicians, 0);
+        VendorValidation.ValidateRange(errors, "ResponseHours", responseHours, 1, 720);
 
         return errors;
     }

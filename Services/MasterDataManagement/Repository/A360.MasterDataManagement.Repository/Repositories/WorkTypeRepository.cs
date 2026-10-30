@@ -88,6 +88,40 @@ public sealed class WorkTypeRepository : MongoRepository<WorkTypeEntity>,
             cancellationToken: cancellationToken);
     }
 
+    // Follows a checklist whose code changed.
+    public async Task UpdateChecklistCodeAsync(
+        string fromValue,
+        string toValue,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<WorkTypeEntity>.Filter;
+        var filter = builder.Eq(x => x.ChecklistCode, fromValue)
+            & builder.Eq(x => x.ClientId, clientId);
+
+        await Collection.UpdateManyAsync(
+            filter,
+            Builders<WorkTypeEntity>.Update.Set(x => x.ChecklistCode, toValue),
+            cancellationToken: cancellationToken);
+    }
+
+    // Follows a priority whose name changed.
+    public async Task UpdateDefaultPriorityAsync(
+        string fromValue,
+        string toValue,
+        string? clientId,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<WorkTypeEntity>.Filter;
+        var filter = builder.Eq(x => x.DefaultPriority, fromValue)
+            & builder.Eq(x => x.ClientId, clientId);
+
+        await Collection.UpdateManyAsync(
+            filter,
+            Builders<WorkTypeEntity>.Update.Set(x => x.DefaultPriority, toValue),
+            cancellationToken: cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(
         CancellationToken cancellationToken = default)
     {

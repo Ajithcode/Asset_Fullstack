@@ -28,19 +28,25 @@ public sealed record MasterDataReferenceDto(
 
 public sealed record MasterDataStepDto(
     string? Name,
-    string? Description)
+    string? Description,
+    int? DurationMinutes = null,
+    string? ResponseType = null,
+    bool? IsRequired = null)
 {
     public MasterDataStep ToStep()
     {
         return new MasterDataStep
         {
             Name = Name!.Trim(),
-            Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim()
+            Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            DurationMinutes = DurationMinutes,
+            ResponseType = string.IsNullOrWhiteSpace(ResponseType) ? null : ResponseType.Trim(),
+            IsRequired = IsRequired ?? false
         };
     }
 
     public static MasterDataStepDto FromStep(MasterDataStep step)
     {
-        return new MasterDataStepDto(step.Name, step.Description);
+        return new MasterDataStepDto(step.Name, step.Description, step.DurationMinutes, step.ResponseType, step.IsRequired);
     }
 }

@@ -14,14 +14,16 @@ public static class ShiftValidationExtensions
         this CreateShiftRequest request)
     {
         return ValidateFields(
-            request.ShiftName, request.Code, request.StartTime, request.EndTime, request.WorkingDays, request.Color);
+            request.ShiftName, request.Code, request.StartTime, request.EndTime, request.WorkingDays, request.Color,
+            request.ShiftType, request.GraceMinutes, request.Breaks);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateShiftRequest request)
     {
         return ValidateFields(
-            request.ShiftName, request.Code, request.StartTime, request.EndTime, request.WorkingDays, request.Color);
+            request.ShiftName, request.Code, request.StartTime, request.EndTime, request.WorkingDays, request.Color,
+            request.ShiftType, request.GraceMinutes, request.Breaks);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -44,7 +46,10 @@ public static class ShiftValidationExtensions
         string? startTime,
         string? endTime,
         List<string>? workingDays,
-        string? color)
+        string? color,
+        string? shiftType,
+        int? graceMinutes,
+        List<ShiftBreakDto>? breaks)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -63,13 +68,18 @@ public static class ShiftValidationExtensions
         var startValid = ShiftTimes.TryParseTime(startTime, out var start);
         var endValid = ShiftTimes.TryParseTime(endTime, out var end);
 
-        if (!startValid)
+        // Flexible and on-call shifts may leave both times empty.
+        var openHours = !ShiftTimes.HasFixedHours(shiftType)
+            && string.IsNullOrWhiteSpace(startTime)
+            && string.IsNullOrWhiteSpace(endTime);
+
+        if (!startValid && !openHours)
         {
             errors["StartTime"] =
                 [$"StartTime is required as a 24-hour time ({ShiftTimes.Format}), e.g. 06:00"];
         }
 
-        if (!endValid)
+        if (!endValid && !openHours)
         {
             errors["EndTime"] =
                 [$"EndTime is required as a 24-hour time ({ShiftTimes.Format}), e.g. 14:00"];
@@ -79,6 +89,23 @@ public static class ShiftValidationExtensions
         {
             errors["EndTime"] =
                 ["EndTime must be different from StartTime"];
+        }
+
+        if (graceMinutes is < 0 or > 120)
+        {
+            errors["GraceMinutes"] =
+                ["GraceMinutes must be between 0 and 120"];
+        }
+
+        if (breaks is not null && breaks.Any(x => x is null || string.IsNullOrWhiteSpace(x.Name) || x.Minutes is not > 0))
+        {
+            errors["Breaks"] =
+                ["Every break needs a name and minutes"];
+        }
+        else if (breaks is not null && breaks.Any(x => !string.IsNullOrWhiteSpace(x.Start) && !ShiftTimes.TryParseTime(x.Start, out _)))
+        {
+            errors["Breaks"] =
+                [$"Break start times must be 24-hour times ({ShiftTimes.Format})"];
         }
 
         var invalidDays = (workingDays ?? [])

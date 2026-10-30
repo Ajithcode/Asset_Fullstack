@@ -29,6 +29,12 @@ public sealed record CreateCertificationTypeRequest(
     int? ValidityMonths,
     int? RenewalReminderDays,
     string? Description,
+    string? IssuingBody,
+    string? StandardCode,
+    List<string>? RequiredDocuments,
+    bool? InspectionRequired,
+    bool? BlockWhenExpired,
+    bool? NotifyOwner,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -45,6 +51,12 @@ public sealed record CreateCertificationTypeRequest(
             ValidityMonths = ValidityMonths,
             RenewalReminderDays = RenewalReminderDays,
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            IssuingBody = string.IsNullOrWhiteSpace(IssuingBody) ? null : IssuingBody.Trim(),
+            StandardCode = string.IsNullOrWhiteSpace(StandardCode) ? null : StandardCode.Trim(),
+            RequiredDocuments = RequiredDocuments?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [],
+            InspectionRequired = InspectionRequired ?? false,
+            BlockWhenExpired = BlockWhenExpired ?? false,
+            NotifyOwner = NotifyOwner ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -65,6 +77,12 @@ public sealed record UpdateCertificationTypeRequest(
     int? ValidityMonths,
     int? RenewalReminderDays,
     string? Description,
+    string? IssuingBody,
+    string? StandardCode,
+    List<string>? RequiredDocuments,
+    bool? InspectionRequired,
+    bool? BlockWhenExpired,
+    bool? NotifyOwner,
     string? Status,
     string? UpdatedBy)
 {
@@ -77,6 +95,12 @@ public sealed record UpdateCertificationTypeRequest(
         certificationType.ValidityMonths = ValidityMonths;
         certificationType.RenewalReminderDays = RenewalReminderDays;
         certificationType.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        certificationType.IssuingBody = string.IsNullOrWhiteSpace(IssuingBody) ? null : IssuingBody.Trim();
+        certificationType.StandardCode = string.IsNullOrWhiteSpace(StandardCode) ? null : StandardCode.Trim();
+        certificationType.RequiredDocuments = RequiredDocuments?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [];
+        certificationType.InspectionRequired = InspectionRequired ?? false;
+        certificationType.BlockWhenExpired = BlockWhenExpired ?? false;
+        certificationType.NotifyOwner = NotifyOwner ?? false;
 
         certificationType.UpdatedBy = UpdatedBy;
         certificationType.UpdatedAt = DateTime.UtcNow;
@@ -101,6 +125,12 @@ public sealed record CertificationTypeResponse(
     int? ValidityMonths,
     int? RenewalReminderDays,
     string? Description,
+    string? IssuingBody,
+    string? StandardCode,
+    IReadOnlyList<string> RequiredDocuments,
+    bool InspectionRequired,
+    bool BlockWhenExpired,
+    bool NotifyOwner,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -121,6 +151,12 @@ public sealed record CertificationTypeResponse(
             certificationType.ValidityMonths,
             certificationType.RenewalReminderDays,
             certificationType.Description,
+            certificationType.IssuingBody,
+            certificationType.StandardCode,
+            certificationType.RequiredDocuments ?? [],
+            certificationType.InspectionRequired,
+            certificationType.BlockWhenExpired,
+            certificationType.NotifyOwner,
             certificationType.CreatedBy,
             certificationType.CreatedAt,
             certificationType.UpdatedBy,

@@ -137,6 +137,16 @@ public static class AssetCategoryEndpoints
                 new { message = $"An asset category with code '{category.Code}' already exists." });
         }
 
+        var subcategoryConflict = await FindSubcategoryConflictAsync(
+            category,
+            repository,
+            cancellationToken);
+
+        if (subcategoryConflict is not null)
+        {
+            return subcategoryConflict;
+        }
+
         var parentError = await ResolveParentAsync(
             category,
             repository,
@@ -207,6 +217,16 @@ public static class AssetCategoryEndpoints
         {
             return Results.Conflict(
                 new { message = $"An asset category with code '{category.Code}' already exists." });
+        }
+
+        var subcategoryConflict = await FindSubcategoryConflictAsync(
+            category,
+            repository,
+            cancellationToken);
+
+        if (subcategoryConflict is not null)
+        {
+            return subcategoryConflict;
         }
 
         var parentError = await ResolveParentAsync(
@@ -368,6 +388,28 @@ public static class AssetCategoryEndpoints
             cancellationToken);
 
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Subcategory codes are unique across all categories of the client. Returns a conflict result, or null.
+    /// </summary>
+    private static async Task<IResult?> FindSubcategoryConflictAsync(
+        AssetCategoryEntity category,
+        IAssetCategoryRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var codes = category.Subcategories.Select(x => x.Code).ToList();
+
+        var taken = await repository.FindSubcategoryCodeInUseAsync(
+            codes,
+            category.ClientId,
+            category.Id,
+            cancellationToken);
+
+        return taken is null
+            ? null
+            : Results.Conflict(
+                new { message = $"Subcategory code '{taken}' is already used by another category." });
     }
 
     /// <summary>

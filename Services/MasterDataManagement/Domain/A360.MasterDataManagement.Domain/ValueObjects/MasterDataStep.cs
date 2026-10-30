@@ -12,4 +12,15 @@ public class MasterDataStep
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    // Time the step takes, in minutes (task template tasks).
+    [BsonElement("duration_minutes")]
+    public int? DurationMinutes { get; set; }
+
+    // How the step is answered, e.g. "Pass / Fail" or "Number" (checklist items).
+    [BsonElement("response_type")]
+    public string? ResponseType { get; set; }
+
+    [BsonElement("is_required")]
+    public bool IsRequired { get; set; }
 }

@@ -13,13 +13,13 @@ public static class ConditionValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateConditionRequest request)
     {
-        return ValidateFields(request.ConditionName, request.Code, request.Color, request.HealthScore);
+        return ValidateFields(request.ConditionName, request.Code, request.Color, request.HealthScore, request.DisplayOrder);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateConditionRequest request)
     {
-        return ValidateFields(request.ConditionName, request.Code, request.Color, request.HealthScore);
+        return ValidateFields(request.ConditionName, request.Code, request.Color, request.HealthScore, request.DisplayOrder);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -40,7 +40,8 @@ public static class ConditionValidationExtensions
         string? conditionName,
         string? code,
         string? color,
-        int? healthScore)
+        int? healthScore,
+        int? displayOrder)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -66,6 +67,12 @@ public static class ConditionValidationExtensions
         {
             errors["HealthScore"] =
                 ["HealthScore must be between 0 and 100"];
+        }
+
+        if (displayOrder is < 1)
+        {
+            errors["DisplayOrder"] =
+                ["DisplayOrder must be 1 or more"];
         }
 
         return errors;

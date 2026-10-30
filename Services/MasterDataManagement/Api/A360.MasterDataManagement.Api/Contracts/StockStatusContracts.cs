@@ -10,6 +10,12 @@ public sealed record CreateStockStatusRequest(
     string? Description,
     string? Usage,
     bool? SystemDefault,
+    bool? CanIssue,
+    bool? CanReserve,
+    bool? CountsAsAvailable,
+    bool? TriggersReorder,
+    bool? ShowInReports,
+    bool? NotifyStorekeeper,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -26,6 +32,12 @@ public sealed record CreateStockStatusRequest(
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
             Usage = string.IsNullOrWhiteSpace(Usage) ? null : Usage.Trim(),
             SystemDefault = SystemDefault ?? false,
+            CanIssue = CanIssue ?? false,
+            CanReserve = CanReserve ?? false,
+            CountsAsAvailable = CountsAsAvailable ?? false,
+            TriggersReorder = TriggersReorder ?? false,
+            ShowInReports = ShowInReports ?? true,
+            NotifyStorekeeper = NotifyStorekeeper ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -46,6 +58,12 @@ public sealed record UpdateStockStatusRequest(
     string? Description,
     string? Usage,
     bool? SystemDefault,
+    bool? CanIssue,
+    bool? CanReserve,
+    bool? CountsAsAvailable,
+    bool? TriggersReorder,
+    bool? ShowInReports,
+    bool? NotifyStorekeeper,
     string? Status,
     string? UpdatedBy)
 {
@@ -58,6 +76,12 @@ public sealed record UpdateStockStatusRequest(
         stockStatus.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
         stockStatus.Usage = string.IsNullOrWhiteSpace(Usage) ? null : Usage.Trim();
         stockStatus.SystemDefault = SystemDefault ?? false;
+        stockStatus.CanIssue = CanIssue ?? false;
+        stockStatus.CanReserve = CanReserve ?? false;
+        stockStatus.CountsAsAvailable = CountsAsAvailable ?? false;
+        stockStatus.TriggersReorder = TriggersReorder ?? false;
+        stockStatus.ShowInReports = ShowInReports ?? true;
+        stockStatus.NotifyStorekeeper = NotifyStorekeeper ?? false;
 
         stockStatus.UpdatedBy = UpdatedBy;
         stockStatus.UpdatedAt = DateTime.UtcNow;
@@ -82,6 +106,12 @@ public sealed record StockStatusResponse(
     string? Description,
     string? Usage,
     bool SystemDefault,
+    bool CanIssue,
+    bool CanReserve,
+    bool CountsAsAvailable,
+    bool TriggersReorder,
+    bool ShowInReports,
+    bool NotifyStorekeeper,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -102,6 +132,12 @@ public sealed record StockStatusResponse(
             stockStatus.Description,
             stockStatus.Usage,
             stockStatus.SystemDefault,
+            stockStatus.CanIssue,
+            stockStatus.CanReserve,
+            stockStatus.CountsAsAvailable,
+            stockStatus.TriggersReorder,
+            stockStatus.ShowInReports,
+            stockStatus.NotifyStorekeeper,
             stockStatus.CreatedBy,
             stockStatus.CreatedAt,
             stockStatus.UpdatedBy,

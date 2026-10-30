@@ -112,6 +112,7 @@ public static class ItemCategoryEndpoints
     private static async Task<IResult> CreateItemCategoryAsync(
         CreateItemCategoryRequest request,
         IItemCategoryRepository repository,
+        IUomRepository uoms,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -138,6 +139,7 @@ public static class ItemCategoryEndpoints
         var referenceError = await ResolveReferencesAsync(
             itemCategory,
             repository,
+            uoms,
             cancellationToken);
 
         if (referenceError is not null)
@@ -165,6 +167,7 @@ public static class ItemCategoryEndpoints
         string id,
         UpdateItemCategoryRequest request,
         IItemCategoryRepository repository,
+        IUomRepository uoms,
         IItemRepository items,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -209,6 +212,7 @@ public static class ItemCategoryEndpoints
         var referenceError = await ResolveReferencesAsync(
             itemCategory,
             repository,
+            uoms,
             cancellationToken);
 
         if (referenceError is not null)
@@ -356,13 +360,24 @@ public static class ItemCategoryEndpoints
     }
 
     /// <summary>
-    /// Checks the parent category exists and is not this category or one of its sub-categories, copying the parent's current name across. Returns an error result, or null when valid.
+    /// Checks the default unit exists, and the parent category exists and is not this category or one of its sub-categories, copying the parent's current name across. Returns an error result, or null when valid.
     /// </summary>
     private static async Task<IResult?> ResolveReferencesAsync(
         ItemCategoryEntity itemCategory,
         IItemCategoryRepository repository,
+        IUomRepository uoms,
         CancellationToken cancellationToken)
     {
+        var uomError = await MasterDataReferenceResolver.ResolveUomAsync(
+            itemCategory.DefaultUom,
+            uoms,
+            cancellationToken);
+
+        if (uomError is not null)
+        {
+            return uomError;
+        }
+
         var parentId = itemCategory.ParentCategory?.Id;
 
         if (parentId is not null)

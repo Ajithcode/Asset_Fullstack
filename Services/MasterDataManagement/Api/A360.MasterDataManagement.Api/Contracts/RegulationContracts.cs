@@ -9,6 +9,11 @@ public sealed record CreateRegulationRequest(
     string? Category,
     string? IssuingAuthority,
     string? Description,
+    List<string>? AssetCategories,
+    List<string>? StandardCodes,
+    DateOnly? EffectiveDate,
+    int? ReviewMonths,
+    string? Penalties,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -24,6 +29,11 @@ public sealed record CreateRegulationRequest(
             Category = Category!.Trim(),
             IssuingAuthority = string.IsNullOrWhiteSpace(IssuingAuthority) ? null : IssuingAuthority.Trim(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            AssetCategories = AssetCategories?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [],
+            StandardCodes = StandardCodes?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [],
+            EffectiveDate = EffectiveDate,
+            ReviewMonths = ReviewMonths,
+            Penalties = string.IsNullOrWhiteSpace(Penalties) ? null : Penalties.Trim(),
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -43,6 +53,11 @@ public sealed record UpdateRegulationRequest(
     string? Category,
     string? IssuingAuthority,
     string? Description,
+    List<string>? AssetCategories,
+    List<string>? StandardCodes,
+    DateOnly? EffectiveDate,
+    int? ReviewMonths,
+    string? Penalties,
     string? Status,
     string? UpdatedBy)
 {
@@ -54,6 +69,11 @@ public sealed record UpdateRegulationRequest(
         regulation.Category = Category!.Trim();
         regulation.IssuingAuthority = string.IsNullOrWhiteSpace(IssuingAuthority) ? null : IssuingAuthority.Trim();
         regulation.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        regulation.AssetCategories = AssetCategories?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [];
+        regulation.StandardCodes = StandardCodes?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList() ?? [];
+        regulation.EffectiveDate = EffectiveDate;
+        regulation.ReviewMonths = ReviewMonths;
+        regulation.Penalties = string.IsNullOrWhiteSpace(Penalties) ? null : Penalties.Trim();
 
         regulation.UpdatedBy = UpdatedBy;
         regulation.UpdatedAt = DateTime.UtcNow;
@@ -77,6 +97,11 @@ public sealed record RegulationResponse(
     string Category,
     string? IssuingAuthority,
     string? Description,
+    IReadOnlyList<string> AssetCategories,
+    IReadOnlyList<string> StandardCodes,
+    DateOnly? EffectiveDate,
+    int? ReviewMonths,
+    string? Penalties,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -96,6 +121,11 @@ public sealed record RegulationResponse(
             regulation.Category ?? string.Empty,
             regulation.IssuingAuthority,
             regulation.Description,
+            regulation.AssetCategories ?? [],
+            regulation.StandardCodes ?? [],
+            regulation.EffectiveDate,
+            regulation.ReviewMonths,
+            regulation.Penalties,
             regulation.CreatedBy,
             regulation.CreatedAt,
             regulation.UpdatedBy,

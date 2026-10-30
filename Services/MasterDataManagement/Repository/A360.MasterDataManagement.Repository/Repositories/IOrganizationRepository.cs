@@ -9,6 +9,11 @@ public interface IOrganizationRepository : IMongoRepository<OrganizationEntity>
 
     Task<OrganizationEntity?> GetByNameAsync(string organizationName, string? clientId, CancellationToken cancellationToken = default);
 
+    Task<OrganizationEntity?> GetByCodeAsync(
+        string code,
+        string? clientId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyCollection<OrganizationEntity>> GetChildrenAsync(string parentOrganizationId, CancellationToken cancellationToken = default);
 
     Task<bool> HasChildrenAsync(string parentOrganizationId, CancellationToken cancellationToken = default);

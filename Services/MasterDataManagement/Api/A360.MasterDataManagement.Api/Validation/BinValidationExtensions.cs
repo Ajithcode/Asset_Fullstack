@@ -7,13 +7,13 @@ public static class BinValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateBinRequest request)
     {
-        return ValidateFields(request.BinName, request.Code, request.Store);
+        return ValidateFields(request.BinName, request.Code, request.Store, request.Capacity);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateBinRequest request)
     {
-        return ValidateFields(request.BinName, request.Code, request.Store);
+        return ValidateFields(request.BinName, request.Code, request.Store, request.Capacity);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -33,7 +33,8 @@ public static class BinValidationExtensions
     private static Dictionary<string, string[]> ValidateFields(
         string? binName,
         string? code,
-        MasterDataReferenceDto? store)
+        MasterDataReferenceDto? store,
+        double? capacity)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -53,6 +54,12 @@ public static class BinValidationExtensions
         {
             errors["Store"] =
                 ["Store is required: pick a store by id"];
+        }
+
+        if (capacity <= 0)
+        {
+            errors["Capacity"] =
+                ["Capacity must be greater than 0"];
         }
 
         return errors;

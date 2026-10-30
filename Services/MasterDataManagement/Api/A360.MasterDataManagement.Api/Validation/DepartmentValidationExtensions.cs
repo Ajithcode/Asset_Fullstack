@@ -7,25 +7,41 @@ public static class DepartmentValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateDepartmentRequest request)
     {
-        return ValidateFields(
+        var errors = ValidateFields(
             request.DepartmentName,
             request.Code,
             request.BusinessUnit,
             request.DepartmentHead,
             request.Employees,
             request.Assets);
+
+        StructureValidation.ValidateParent(errors, "ParentDepartment", request.ParentDepartment);
+        StructureValidation.ValidateEmail(errors, "Email", request.Email);
+        StructureValidation.ValidateNotNegative(errors, "AnnualBudget", request.AnnualBudget);
+        StructureValidation.ValidateNotNegative(errors, "ApprovalLimit", request.ApprovalLimit);
+        StructureValidation.ValidateEffectiveDates(errors, request.EffectiveFrom, request.EffectiveTo);
+
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateDepartmentRequest request)
     {
-        return ValidateFields(
+        var errors = ValidateFields(
             request.DepartmentName,
             request.Code,
             request.BusinessUnit,
             request.DepartmentHead,
             request.Employees,
             request.Assets);
+
+        StructureValidation.ValidateParent(errors, "ParentDepartment", request.ParentDepartment);
+        StructureValidation.ValidateEmail(errors, "Email", request.Email);
+        StructureValidation.ValidateNotNegative(errors, "AnnualBudget", request.AnnualBudget);
+        StructureValidation.ValidateNotNegative(errors, "ApprovalLimit", request.ApprovalLimit);
+        StructureValidation.ValidateEffectiveDates(errors, request.EffectiveFrom, request.EffectiveTo);
+
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(

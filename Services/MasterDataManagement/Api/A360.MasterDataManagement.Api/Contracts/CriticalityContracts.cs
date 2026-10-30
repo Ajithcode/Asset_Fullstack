@@ -1,3 +1,4 @@
+using A360.MasterDataManagement.Domain.Entities;
 using CriticalityEntity = A360.MasterDataManagement.Domain.Entities.Criticality;
 
 namespace A360.MasterDataManagement.Api.Contracts;
@@ -10,6 +11,20 @@ public sealed record CreateCriticalityRequest(
     string? Color,
     bool? DefaultCriticality,
     string? Description,
+    string? Icon,
+    string? Image,
+    string? Likelihood,
+    string? Impact,
+    CriticalityBusinessImpactDto? BusinessImpact,
+    string? RecommendedStrategy,
+    string? InspectionFrequency,
+    string? ConditionMonitoring,
+    string? SparePartsPriority,
+    int? ResponseTimeHours,
+    bool? EscalateOnFailure,
+    bool? RootCauseRequired,
+    bool? ApprovalForDisposal,
+    bool? ShowInReports,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -26,6 +41,20 @@ public sealed record CreateCriticalityRequest(
             Color = string.IsNullOrWhiteSpace(Color) ? null : Color.Trim().ToUpperInvariant(),
             DefaultCriticality = DefaultCriticality ?? false,
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            Icon = string.IsNullOrWhiteSpace(Icon) ? null : Icon.Trim(),
+            Image = string.IsNullOrWhiteSpace(Image) ? null : Image,
+            Likelihood = string.IsNullOrWhiteSpace(Likelihood) ? null : Likelihood.Trim(),
+            Impact = string.IsNullOrWhiteSpace(Impact) ? null : Impact.Trim(),
+            BusinessImpact = BusinessImpact?.ToEntity() ?? new CriticalityBusinessImpact(),
+            RecommendedStrategy = string.IsNullOrWhiteSpace(RecommendedStrategy) ? null : RecommendedStrategy.Trim(),
+            InspectionFrequency = string.IsNullOrWhiteSpace(InspectionFrequency) ? null : InspectionFrequency.Trim(),
+            ConditionMonitoring = string.IsNullOrWhiteSpace(ConditionMonitoring) ? null : ConditionMonitoring.Trim(),
+            SparePartsPriority = string.IsNullOrWhiteSpace(SparePartsPriority) ? null : SparePartsPriority.Trim(),
+            ResponseTimeHours = ResponseTimeHours,
+            EscalateOnFailure = EscalateOnFailure ?? false,
+            RootCauseRequired = RootCauseRequired ?? false,
+            ApprovalForDisposal = ApprovalForDisposal ?? false,
+            ShowInReports = ShowInReports ?? true,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -46,6 +75,20 @@ public sealed record UpdateCriticalityRequest(
     string? Color,
     bool? DefaultCriticality,
     string? Description,
+    string? Icon,
+    string? Image,
+    string? Likelihood,
+    string? Impact,
+    CriticalityBusinessImpactDto? BusinessImpact,
+    string? RecommendedStrategy,
+    string? InspectionFrequency,
+    string? ConditionMonitoring,
+    string? SparePartsPriority,
+    int? ResponseTimeHours,
+    bool? EscalateOnFailure,
+    bool? RootCauseRequired,
+    bool? ApprovalForDisposal,
+    bool? ShowInReports,
     string? Status,
     string? UpdatedBy)
 {
@@ -58,6 +101,20 @@ public sealed record UpdateCriticalityRequest(
         criticality.Color = string.IsNullOrWhiteSpace(Color) ? null : Color.Trim().ToUpperInvariant();
         criticality.DefaultCriticality = DefaultCriticality ?? false;
         criticality.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+        criticality.Icon = string.IsNullOrWhiteSpace(Icon) ? null : Icon.Trim();
+        criticality.Image = string.IsNullOrWhiteSpace(Image) ? null : Image;
+        criticality.Likelihood = string.IsNullOrWhiteSpace(Likelihood) ? null : Likelihood.Trim();
+        criticality.Impact = string.IsNullOrWhiteSpace(Impact) ? null : Impact.Trim();
+        criticality.BusinessImpact = BusinessImpact?.ToEntity() ?? new CriticalityBusinessImpact();
+        criticality.RecommendedStrategy = string.IsNullOrWhiteSpace(RecommendedStrategy) ? null : RecommendedStrategy.Trim();
+        criticality.InspectionFrequency = string.IsNullOrWhiteSpace(InspectionFrequency) ? null : InspectionFrequency.Trim();
+        criticality.ConditionMonitoring = string.IsNullOrWhiteSpace(ConditionMonitoring) ? null : ConditionMonitoring.Trim();
+        criticality.SparePartsPriority = string.IsNullOrWhiteSpace(SparePartsPriority) ? null : SparePartsPriority.Trim();
+        criticality.ResponseTimeHours = ResponseTimeHours;
+        criticality.EscalateOnFailure = EscalateOnFailure ?? false;
+        criticality.RootCauseRequired = RootCauseRequired ?? false;
+        criticality.ApprovalForDisposal = ApprovalForDisposal ?? false;
+        criticality.ShowInReports = ShowInReports ?? true;
 
         criticality.UpdatedBy = UpdatedBy;
         criticality.UpdatedAt = DateTime.UtcNow;
@@ -73,6 +130,39 @@ public sealed record UpdateCriticalityStatusRequest(
     string? Status,
     string? UpdatedBy);
 
+public sealed record CriticalityBusinessImpactDto(
+    string? Safety,
+    string? Operational,
+    string? Financial,
+    string? Regulatory,
+    string? Reputation,
+    string? Environmental)
+{
+    public CriticalityBusinessImpact ToEntity()
+    {
+        return new CriticalityBusinessImpact
+        {
+            Safety = string.IsNullOrWhiteSpace(Safety) ? null : Safety.Trim(),
+            Operational = string.IsNullOrWhiteSpace(Operational) ? null : Operational.Trim(),
+            Financial = string.IsNullOrWhiteSpace(Financial) ? null : Financial.Trim(),
+            Regulatory = string.IsNullOrWhiteSpace(Regulatory) ? null : Regulatory.Trim(),
+            Reputation = string.IsNullOrWhiteSpace(Reputation) ? null : Reputation.Trim(),
+            Environmental = string.IsNullOrWhiteSpace(Environmental) ? null : Environmental.Trim()
+        };
+    }
+
+    public static CriticalityBusinessImpactDto FromEntity(CriticalityBusinessImpact? impact)
+    {
+        return new CriticalityBusinessImpactDto(
+            impact?.Safety,
+            impact?.Operational,
+            impact?.Financial,
+            impact?.Regulatory,
+            impact?.Reputation,
+            impact?.Environmental);
+    }
+}
+
 public sealed record CriticalityResponse(
     string Id,
     string CriticalityName,
@@ -82,6 +172,20 @@ public sealed record CriticalityResponse(
     string? Color,
     bool DefaultCriticality,
     string? Description,
+    string? Icon,
+    string? Image,
+    string? Likelihood,
+    string? Impact,
+    CriticalityBusinessImpactDto BusinessImpact,
+    string? RecommendedStrategy,
+    string? InspectionFrequency,
+    string? ConditionMonitoring,
+    string? SparePartsPriority,
+    int? ResponseTimeHours,
+    bool EscalateOnFailure,
+    bool RootCauseRequired,
+    bool ApprovalForDisposal,
+    bool ShowInReports,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -102,6 +206,20 @@ public sealed record CriticalityResponse(
             criticality.Color,
             criticality.DefaultCriticality,
             criticality.Description,
+            criticality.Icon,
+            criticality.Image,
+            criticality.Likelihood,
+            criticality.Impact,
+            CriticalityBusinessImpactDto.FromEntity(criticality.BusinessImpact),
+            criticality.RecommendedStrategy,
+            criticality.InspectionFrequency,
+            criticality.ConditionMonitoring,
+            criticality.SparePartsPriority,
+            criticality.ResponseTimeHours,
+            criticality.EscalateOnFailure,
+            criticality.RootCauseRequired,
+            criticality.ApprovalForDisposal,
+            criticality.ShowInReports,
             criticality.CreatedBy,
             criticality.CreatedAt,
             criticality.UpdatedBy,

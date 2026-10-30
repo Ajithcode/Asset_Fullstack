@@ -8,6 +8,10 @@ public sealed record CreateWorkTypeRequest(
     MasterDataReferenceDto? MaintenanceType,
     string? Description,
     double? EstimatedDuration,
+    string? DefaultPriority,
+    string? RequiredSkill,
+    string? ChecklistCode,
+    bool? PermitRequired,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -22,6 +26,10 @@ public sealed record CreateWorkTypeRequest(
             MaintenanceType = MaintenanceType?.ToReference(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
             EstimatedDuration = EstimatedDuration,
+            DefaultPriority = string.IsNullOrWhiteSpace(DefaultPriority) ? null : DefaultPriority.Trim(),
+            RequiredSkill = string.IsNullOrWhiteSpace(RequiredSkill) ? null : RequiredSkill.Trim(),
+            ChecklistCode = string.IsNullOrWhiteSpace(ChecklistCode) ? null : ChecklistCode.Trim(),
+            PermitRequired = PermitRequired ?? false,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -40,6 +48,10 @@ public sealed record UpdateWorkTypeRequest(
     MasterDataReferenceDto? MaintenanceType,
     string? Description,
     double? EstimatedDuration,
+    string? DefaultPriority,
+    string? RequiredSkill,
+    string? ChecklistCode,
+    bool? PermitRequired,
     string? Status,
     string? UpdatedBy)
 {
@@ -50,6 +62,10 @@ public sealed record UpdateWorkTypeRequest(
         workType.MaintenanceType = MaintenanceType?.ToReference();
         workType.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
         workType.EstimatedDuration = EstimatedDuration;
+        workType.DefaultPriority = string.IsNullOrWhiteSpace(DefaultPriority) ? null : DefaultPriority.Trim();
+        workType.RequiredSkill = string.IsNullOrWhiteSpace(RequiredSkill) ? null : RequiredSkill.Trim();
+        workType.ChecklistCode = string.IsNullOrWhiteSpace(ChecklistCode) ? null : ChecklistCode.Trim();
+        workType.PermitRequired = PermitRequired ?? false;
 
         workType.UpdatedBy = UpdatedBy;
         workType.UpdatedAt = DateTime.UtcNow;
@@ -72,6 +88,10 @@ public sealed record WorkTypeResponse(
     MasterDataReferenceDto? MaintenanceType,
     string? Description,
     double? EstimatedDuration,
+    string? DefaultPriority,
+    string? RequiredSkill,
+    string? ChecklistCode,
+    bool PermitRequired,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -92,6 +112,10 @@ public sealed record WorkTypeResponse(
                 : MasterDataReferenceDto.FromReference(workType.MaintenanceType),
             workType.Description,
             workType.EstimatedDuration,
+            workType.DefaultPriority,
+            workType.RequiredSkill,
+            workType.ChecklistCode,
+            workType.PermitRequired,
             workType.CreatedBy,
             workType.CreatedAt,
             workType.UpdatedBy,

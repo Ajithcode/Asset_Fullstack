@@ -8,6 +8,8 @@ public interface ICertificationTypeRepository : IMongoRepository<CertificationTy
     Task<IReadOnlyCollection<CertificationTypeEntity>> SearchAsync(CertificationTypeFilter filter, CancellationToken cancellationToken = default);
 
     Task<CertificationTypeEntity?> GetByCodeAsync(string code, string? clientId, CancellationToken cancellationToken = default);
+
+    Task UpdateStandardCodeAsync(string fromValue, string toValue, string? clientId, CancellationToken cancellationToken = default);
 }
 
 public sealed record CertificationTypeFilter(

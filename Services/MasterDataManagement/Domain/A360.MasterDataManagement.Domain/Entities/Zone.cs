@@ -41,4 +41,38 @@ public class Zone : BaseEntity
 
     [BsonElement("area")]
     public double? Area { get; set; }
+
+    // Main photo (URL or data URL) and extra photos.
+    [BsonElement("image_url")]
+    public string? ImageUrl { get; set; }
+
+    [BsonElement("images")]
+    public List<string> Images { get; set; } = [];
+
+    [BsonElement("allow_asset_assignment")]
+    public bool AllowAssetAssignment { get; set; }
+
+    [BsonElement("enable_tracking")]
+    public bool EnableTracking { get; set; }
+
+    [BsonElement("restricted_access")]
+    public bool RestrictedAccess { get; set; }
+
+    [BsonElement("show_on_map")]
+    public bool ShowOnMap { get; set; }
+
+    // Zone category, e.g. Production, Storage.
+    [BsonElement("category")]
+    public string? Category { get; set; }
+
+    // Fill colour on floor plans, e.g. #22c55e.
+    [BsonElement("color")]
+    public string? Color { get; set; }
+
+    // Optional own position; otherwise the building's is used.
+    [BsonElement("latitude")]
+    public double? Latitude { get; set; }
+
+    [BsonElement("longitude")]
+    public double? Longitude { get; set; }
 }

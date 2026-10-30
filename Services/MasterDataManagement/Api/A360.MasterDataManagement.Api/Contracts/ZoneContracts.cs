@@ -14,6 +14,16 @@ public sealed record CreateZoneRequest(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    List<string>? Images,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool RestrictedAccess,
+    bool ShowOnMap,
+    string? Category,
+    string? Color,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -34,6 +44,16 @@ public sealed record CreateZoneRequest(
             Capacity = Capacity,
             Area = Area,
 
+            ImageUrl = StructureText.Clean(ImageUrl),
+            Images = StructureText.CleanList(Images),
+            AllowAssetAssignment = AllowAssetAssignment,
+            EnableTracking = EnableTracking,
+            RestrictedAccess = RestrictedAccess,
+            ShowOnMap = ShowOnMap,
+            Category = StructureText.Clean(Category),
+            Color = StructureText.Clean(Color),
+            Latitude = Latitude,
+            Longitude = Longitude,
             CreatedBy = CreatedBy,
             ClientId = ClientId,
             TenantId = TenantId,
@@ -55,6 +75,16 @@ public sealed record UpdateZoneRequest(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    List<string>? Images,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool RestrictedAccess,
+    bool ShowOnMap,
+    string? Category,
+    string? Color,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? UpdatedBy)
 {
@@ -71,6 +101,16 @@ public sealed record UpdateZoneRequest(
         zone.Capacity = Capacity;
         zone.Area = Area;
 
+        zone.ImageUrl = StructureText.Clean(ImageUrl);
+        zone.Images = StructureText.CleanList(Images);
+        zone.AllowAssetAssignment = AllowAssetAssignment;
+        zone.EnableTracking = EnableTracking;
+        zone.RestrictedAccess = RestrictedAccess;
+        zone.ShowOnMap = ShowOnMap;
+        zone.Category = StructureText.Clean(Category);
+        zone.Color = StructureText.Clean(Color);
+        zone.Latitude = Latitude;
+        zone.Longitude = Longitude;
         zone.UpdatedBy = UpdatedBy;
         zone.UpdatedAt = DateTime.UtcNow;
 
@@ -98,6 +138,16 @@ public sealed record ZoneResponse(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    IReadOnlyList<string> Images,
+    bool AllowAssetAssignment,
+    bool EnableTracking,
+    bool RestrictedAccess,
+    bool ShowOnMap,
+    string? Category,
+    string? Color,
+    double? Latitude,
+    double? Longitude,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -124,6 +174,16 @@ public sealed record ZoneResponse(
             zone.Description,
             zone.Capacity,
             zone.Area,
+            zone.ImageUrl,
+            zone.Images ?? [],
+            zone.AllowAssetAssignment,
+            zone.EnableTracking,
+            zone.RestrictedAccess,
+            zone.ShowOnMap,
+            zone.Category,
+            zone.Color,
+            zone.Latitude,
+            zone.Longitude,
             zone.CreatedBy,
             zone.CreatedAt,
             zone.UpdatedBy,

@@ -24,4 +24,21 @@ public class Regulation : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    // Asset category names in scope.
+    [BsonElement("asset_categories")]
+    public List<string> AssetCategories { get; set; } = [];
+
+    // Codes of standards in this service.
+    [BsonElement("standard_codes")]
+    public List<string> StandardCodes { get; set; } = [];
+
+    [BsonElement("effective_date")]
+    public DateOnly? EffectiveDate { get; set; }
+
+    [BsonElement("review_months")]
+    public int? ReviewMonths { get; set; }
+
+    [BsonElement("penalties")]
+    public string? Penalties { get; set; }
 }

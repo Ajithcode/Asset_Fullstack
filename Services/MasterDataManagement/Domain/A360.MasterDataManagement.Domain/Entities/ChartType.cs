@@ -22,4 +22,8 @@ public class ChartType : BaseEntity
     // URL of a preview image uploaded through /api/media/upload.
     [BsonElement("icon_url")]
     public string? IconUrl { get; set; }
+
+    // Built-in preview drawing, e.g. "column", "pie" or "gauge".
+    [BsonElement("preview_type")]
+    public string? PreviewType { get; set; }
 }
