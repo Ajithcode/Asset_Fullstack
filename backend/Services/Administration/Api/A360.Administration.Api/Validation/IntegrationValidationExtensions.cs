@@ -12,43 +12,90 @@ public static partial class IntegrationValidationExtensions
 
     public static Dictionary<string, string[]> Validate(this CreateIntegrationRequest request)
     {
+        var errors = ValidateSettings(
+            request.IntegrationName,
+            request.IntegrationCode,
+            request.Provider,
+            request.Environment,
+            request.BaseUrl,
+            request.AuthenticationMethod,
+            request.AuthClientId,
+            request.SyncFrequency,
+            request.TimeoutSeconds,
+            request.RetryPolicy,
+            request.Status);
+
+        Require(errors, nameof(request.SecretKey), request.SecretKey);
+
+        return errors;
+    }
+
+    // SecretKey is optional on update: blank keeps the stored secret.
+    public static Dictionary<string, string[]> Validate(this UpdateIntegrationRequest request)
+    {
+        return ValidateSettings(
+            request.IntegrationName,
+            request.IntegrationCode,
+            request.Provider,
+            request.Environment,
+            request.BaseUrl,
+            request.AuthenticationMethod,
+            request.AuthClientId,
+            request.SyncFrequency,
+            request.TimeoutSeconds,
+            request.RetryPolicy,
+            request.Status);
+    }
+
+    private static Dictionary<string, string[]> ValidateSettings(
+        string? integrationName,
+        string? integrationCode,
+        string? provider,
+        string? environment,
+        string? baseUrl,
+        string? authenticationMethod,
+        string? authClientId,
+        string? syncFrequency,
+        int? timeoutSeconds,
+        string? retryPolicy,
+        string? status)
+    {
         var errors = new Dictionary<string, string[]>();
 
-        Require(errors, nameof(request.IntegrationName), request.IntegrationName);
-        Require(errors, nameof(request.IntegrationCode), request.IntegrationCode);
-        Require(errors, nameof(request.Provider), request.Provider);
-        Require(errors, nameof(request.Environment), request.Environment);
-        Require(errors, nameof(request.BaseUrl), request.BaseUrl);
-        Require(errors, nameof(request.AuthenticationMethod), request.AuthenticationMethod);
-        Require(errors, nameof(request.AuthClientId), request.AuthClientId);
-        Require(errors, nameof(request.SecretKey), request.SecretKey);
-        Require(errors, nameof(request.SyncFrequency), request.SyncFrequency);
-        Require(errors, nameof(request.RetryPolicy), request.RetryPolicy);
-        Require(errors, nameof(request.Status), request.Status);
+        Require(errors, "IntegrationName", integrationName);
+        Require(errors, "IntegrationCode", integrationCode);
+        Require(errors, "Provider", provider);
+        Require(errors, "Environment", environment);
+        Require(errors, "BaseUrl", baseUrl);
+        Require(errors, "AuthenticationMethod", authenticationMethod);
+        Require(errors, "AuthClientId", authClientId);
+        Require(errors, "SyncFrequency", syncFrequency);
+        Require(errors, "RetryPolicy", retryPolicy);
+        Require(errors, "Status", status);
 
-        if (!string.IsNullOrWhiteSpace(request.IntegrationCode) && !CodePattern().IsMatch(request.IntegrationCode.Trim()))
+        if (!string.IsNullOrWhiteSpace(integrationCode) && !CodePattern().IsMatch(integrationCode.Trim()))
         {
-            errors[nameof(request.IntegrationCode)] = ["IntegrationCode may only contain letters, digits, hyphens and underscores"];
+            errors["IntegrationCode"] = ["IntegrationCode may only contain letters, digits, hyphens and underscores"];
         }
 
-        if (!string.IsNullOrWhiteSpace(request.BaseUrl)
-            && (!Uri.TryCreate(request.BaseUrl.Trim(), UriKind.Absolute, out var baseUrl)
-                || (baseUrl.Scheme != Uri.UriSchemeHttps && baseUrl.Scheme != Uri.UriSchemeHttp)))
+        if (!string.IsNullOrWhiteSpace(baseUrl)
+            && (!Uri.TryCreate(baseUrl.Trim(), UriKind.Absolute, out var parsedBaseUrl)
+                || (parsedBaseUrl.Scheme != Uri.UriSchemeHttps && parsedBaseUrl.Scheme != Uri.UriSchemeHttp)))
         {
-            errors[nameof(request.BaseUrl)] = ["BaseUrl must be an absolute http(s) URL"];
+            errors["BaseUrl"] = ["BaseUrl must be an absolute http(s) URL"];
         }
 
-        if (request.TimeoutSeconds is null)
+        if (timeoutSeconds is null)
         {
-            errors[nameof(request.TimeoutSeconds)] = ["TimeoutSeconds is required"];
+            errors["TimeoutSeconds"] = ["TimeoutSeconds is required"];
         }
-        else if (request.TimeoutSeconds is < 1 or > MaxTimeoutSeconds)
+        else if (timeoutSeconds is < 1 or > MaxTimeoutSeconds)
         {
-            errors[nameof(request.TimeoutSeconds)] = [$"TimeoutSeconds must be between 1 and {MaxTimeoutSeconds}"];
+            errors["TimeoutSeconds"] = [$"TimeoutSeconds must be between 1 and {MaxTimeoutSeconds}"];
         }
 
-        AllowOnly(errors, nameof(request.Environment), request.Environment, AllowedEnvironments);
-        AllowOnly(errors, nameof(request.Status), request.Status, AllowedStatuses);
+        AllowOnly(errors, "Environment", environment, AllowedEnvironments);
+        AllowOnly(errors, "Status", status, AllowedStatuses);
 
         return errors;
     }

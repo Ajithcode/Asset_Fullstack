@@ -16,5 +16,10 @@ public interface IRoleRepository : IMongoRepository<Role>
         string? status,
         CancellationToken cancellationToken = default);
 
-    Task<bool> RoleCodeExistsAsync(string roleCode, string? tenantId, CancellationToken cancellationToken = default);
+    // excludeRoleId is the role being updated, so it does not clash with itself.
+    Task<bool> RoleCodeExistsAsync(
+        string roleCode,
+        string? tenantId,
+        string? excludeRoleId = null,
+        CancellationToken cancellationToken = default);
 }

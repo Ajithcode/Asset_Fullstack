@@ -62,12 +62,30 @@ public sealed class AccessPolicyRepository : MongoRepository<AccessPolicy>, IAcc
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<bool> PolicyCodeExistsAsync(string policyCode, string? tenantId, CancellationToken cancellationToken = default)
+    public async Task<bool> PolicyCodeExistsAsync(
+        string policyCode,
+        string? tenantId,
+        string? excludePolicyId = null,
+        CancellationToken cancellationToken = default)
     {
         var builder = Builders<AccessPolicy>.Filter;
         var filter = builder.Eq(policy => policy.PolicyCode, policyCode)
             & builder.Eq(policy => policy.IsDeleted, false)
             & builder.Eq(policy => policy.TenantId, tenantId);
+
+        if (!string.IsNullOrWhiteSpace(excludePolicyId))
+        {
+            filter &= builder.Ne(policy => policy.PolicyId, excludePolicyId);
+        }
+
+        return await Collection.Find(filter).AnyAsync(cancellationToken);
+    }
+
+    public async Task<bool> AnyAssignedToRoleAsync(string roleId, CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<AccessPolicy>.Filter;
+        var filter = builder.AnyEq(policy => policy.AssignedRoleIds, roleId)
+            & builder.Eq(policy => policy.IsDeleted, false);
 
         return await Collection.Find(filter).AnyAsync(cancellationToken);
     }

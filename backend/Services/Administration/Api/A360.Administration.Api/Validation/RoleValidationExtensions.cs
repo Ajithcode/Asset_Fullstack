@@ -10,20 +10,30 @@ public static partial class RoleValidationExtensions
 
     public static Dictionary<string, string[]> Validate(this CreateRoleRequest request)
     {
+        return ValidateRole(request.RoleName, request.RoleCode, request.RoleType, request.Status);
+    }
+
+    public static Dictionary<string, string[]> Validate(this UpdateRoleRequest request)
+    {
+        return ValidateRole(request.RoleName, request.RoleCode, request.RoleType, request.Status);
+    }
+
+    private static Dictionary<string, string[]> ValidateRole(string? roleName, string? roleCode, string? roleType, string? status)
+    {
         var errors = new Dictionary<string, string[]>();
 
-        Require(errors, nameof(request.RoleName), request.RoleName);
-        Require(errors, nameof(request.RoleCode), request.RoleCode);
-        Require(errors, nameof(request.RoleType), request.RoleType);
-        Require(errors, nameof(request.Status), request.Status);
+        Require(errors, "RoleName", roleName);
+        Require(errors, "RoleCode", roleCode);
+        Require(errors, "RoleType", roleType);
+        Require(errors, "Status", status);
 
-        if (!string.IsNullOrWhiteSpace(request.RoleCode) && !RoleCodePattern().IsMatch(request.RoleCode.Trim()))
+        if (!string.IsNullOrWhiteSpace(roleCode) && !RoleCodePattern().IsMatch(roleCode.Trim()))
         {
-            errors[nameof(request.RoleCode)] = ["RoleCode may only contain letters, digits and underscores"];
+            errors["RoleCode"] = ["RoleCode may only contain letters, digits and underscores"];
         }
 
-        AllowOnly(errors, nameof(request.RoleType), request.RoleType, AllowedRoleTypes);
-        AllowOnly(errors, nameof(request.Status), request.Status, AllowedStatuses);
+        AllowOnly(errors, "RoleType", roleType, AllowedRoleTypes);
+        AllowOnly(errors, "Status", status, AllowedStatuses);
 
         return errors;
     }

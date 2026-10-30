@@ -12,6 +12,14 @@ public sealed record CreateRoleRequest(
     string? TenantId,
     string? ClientId);
 
+// RoleId, audit and tenant/client fields are fixed once the role is created.
+public sealed record UpdateRoleRequest(
+    string? RoleName,
+    string? RoleCode,
+    string? Description,
+    string? RoleType,
+    string? Status);
+
 public sealed record RoleResponse(
     string RoleId,
     string RoleName,

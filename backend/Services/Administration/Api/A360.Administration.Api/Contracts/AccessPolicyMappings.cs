@@ -16,17 +16,34 @@ internal static class AccessPolicyMappings
             Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
             PolicyType = request.PolicyType!.Trim(),
             Status = request.Status!.Trim(),
-            AssignedRoleIds = request.AssignedRoles?
-                .Where(roleId => !string.IsNullOrWhiteSpace(roleId))
-                .Select(roleId => roleId.Trim())
-                .Distinct()
-                .ToList() ?? [],
+            AssignedRoleIds = NormalizeRoleIds(request.AssignedRoles),
             CreatedBy = FirstNonEmpty(request.CreatedBy, currentUser?.UserName),
             CreatedAt = DateTime.UtcNow,
             TenantId = FirstNonEmpty(request.TenantId, currentUser?.TenantId),
             ClientId = FirstNonEmpty(request.ClientId, currentUser?.ClientId),
             IsDeleted = false
         };
+    }
+
+    public static void ApplyTo(this UpdateAccessPolicyRequest request, AccessPolicy policy, CurrentUser? currentUser)
+    {
+        policy.PolicyName = request.PolicyName!.Trim();
+        policy.PolicyCode = request.PolicyCode!.Trim().ToUpperInvariant();
+        policy.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        policy.PolicyType = request.PolicyType!.Trim();
+        policy.Status = request.Status!.Trim();
+        policy.AssignedRoleIds = NormalizeRoleIds(request.AssignedRoles);
+        policy.UpdatedBy = currentUser?.UserName;
+        policy.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static List<string> NormalizeRoleIds(List<string>? roleIds)
+    {
+        return roleIds?
+            .Where(roleId => !string.IsNullOrWhiteSpace(roleId))
+            .Select(roleId => roleId.Trim())
+            .Distinct()
+            .ToList() ?? [];
     }
 
     private static string? FirstNonEmpty(string? requested, string? fallback)

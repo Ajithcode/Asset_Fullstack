@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using MongoDB.Driver;
 using A360.Repository.Repositories;
 using A360.Administration.Domain.Entities;
@@ -25,20 +26,73 @@ public sealed class UserRepository : MongoRepository<User>, IUserRepository, IMo
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public Task<bool> UsernameExistsAsync(string username, string? tenantId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<User>> GetAsync(
+        string? tenantId,
+        string? clientId,
+        string? accountStatus,
+        string? primaryRole,
+        CancellationToken cancellationToken = default)
     {
-        return ExistsAsync(Builders<User>.Filter.Eq(user => user.Username, username), tenantId, cancellationToken);
+        var builder = Builders<User>.Filter;
+        var filter = builder.Eq(user => user.IsDeleted, false);
+
+        if (!string.IsNullOrWhiteSpace(tenantId))
+        {
+            filter &= builder.Eq(user => user.TenantId, tenantId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(clientId))
+        {
+            filter &= builder.Eq(user => user.ClientId, clientId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(accountStatus))
+        {
+            filter &= builder.Regex(user => user.Status, ExactIgnoreCase(accountStatus));
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryRole))
+        {
+            filter &= builder.Regex(user => user.PrimaryRole, ExactIgnoreCase(primaryRole));
+        }
+
+        return await Collection
+            .Find(filter)
+            .SortByDescending(user => user.CreatedAt)
+            .ToListAsync(cancellationToken);
     }
 
-    public Task<bool> EmailExistsAsync(string email, string? tenantId, CancellationToken cancellationToken = default)
+    public Task<bool> UsernameExistsAsync(
+        string username,
+        string? tenantId,
+        string? excludeUserId = null,
+        CancellationToken cancellationToken = default)
     {
-        return ExistsAsync(Builders<User>.Filter.Eq(user => user.Email, email), tenantId, cancellationToken);
+        return ExistsAsync(Builders<User>.Filter.Eq(user => user.Username, username), tenantId, excludeUserId, cancellationToken);
     }
 
-    private async Task<bool> ExistsAsync(FilterDefinition<User> filter, string? tenantId, CancellationToken cancellationToken)
+    public Task<bool> EmailExistsAsync(
+        string email,
+        string? tenantId,
+        string? excludeUserId = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ExistsAsync(Builders<User>.Filter.Eq(user => user.Email, email), tenantId, excludeUserId, cancellationToken);
+    }
+
+    private async Task<bool> ExistsAsync(
+        FilterDefinition<User> filter,
+        string? tenantId,
+        string? excludeUserId,
+        CancellationToken cancellationToken)
     {
         var builder = Builders<User>.Filter;
         filter &= builder.Eq(user => user.IsDeleted, false) & builder.Eq(user => user.TenantId, tenantId);
+
+        if (!string.IsNullOrWhiteSpace(excludeUserId))
+        {
+            filter &= builder.Ne(user => user.UserId, excludeUserId);
+        }
 
         return await Collection.Find(filter).AnyAsync(cancellationToken);
     }
@@ -63,5 +117,10 @@ public sealed class UserRepository : MongoRepository<User>, IUserRepository, IMo
         };
 
         await Collection.Indexes.CreateManyAsync(indexes, cancellationToken);
+    }
+
+    private static BsonRegularExpression ExactIgnoreCase(string value)
+    {
+        return new BsonRegularExpression($"^{System.Text.RegularExpressions.Regex.Escape(value.Trim())}$", "i");
     }
 }

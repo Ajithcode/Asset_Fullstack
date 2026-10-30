@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using MongoDB.Driver;
 using A360.Administration.Domain.Entities;
 using A360.Repository.Repositories;
@@ -14,15 +15,69 @@ public sealed class NumberingSequenceRepository
     {
     }
 
+    public async Task<NumberingSequence?> GetBySequenceIdAsync(string sequenceId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sequenceId))
+        {
+            return null;
+        }
+
+        return await Collection
+            .Find(sequence => sequence.SequenceId == sequenceId && !sequence.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<NumberingSequence>> GetAsync(
+        string? tenantId,
+        string? clientId,
+        string? module,
+        string? status,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<NumberingSequence>.Filter;
+        var filter = builder.Eq(sequence => sequence.IsDeleted, false);
+
+        if (!string.IsNullOrWhiteSpace(tenantId))
+        {
+            filter &= builder.Eq(sequence => sequence.TenantId, tenantId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(clientId))
+        {
+            filter &= builder.Eq(sequence => sequence.ClientId, clientId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(module))
+        {
+            filter &= builder.Regex(sequence => sequence.Module, ExactIgnoreCase(module));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            filter &= builder.Regex(sequence => sequence.Status, ExactIgnoreCase(status));
+        }
+
+        return await Collection
+            .Find(filter)
+            .SortBy(sequence => sequence.SequenceName)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> SequenceCodeExistsAsync(
         string sequenceCode,
         string? tenantId,
+        string? excludeSequenceId = null,
         CancellationToken cancellationToken = default)
     {
         var builder = Builders<NumberingSequence>.Filter;
         var filter = builder.Eq(sequence => sequence.SequenceCode, sequenceCode)
             & builder.Eq(sequence => sequence.IsDeleted, false)
             & builder.Eq(sequence => sequence.TenantId, tenantId);
+
+        if (!string.IsNullOrWhiteSpace(excludeSequenceId))
+        {
+            filter &= builder.Ne(sequence => sequence.SequenceId, excludeSequenceId);
+        }
 
         return await Collection.Find(filter).AnyAsync(cancellationToken);
     }
@@ -47,5 +102,10 @@ public sealed class NumberingSequenceRepository
         };
 
         await Collection.Indexes.CreateManyAsync(indexes, cancellationToken);
+    }
+
+    private static BsonRegularExpression ExactIgnoreCase(string value)
+    {
+        return new BsonRegularExpression($"^{System.Text.RegularExpressions.Regex.Escape(value.Trim())}$", "i");
     }
 }

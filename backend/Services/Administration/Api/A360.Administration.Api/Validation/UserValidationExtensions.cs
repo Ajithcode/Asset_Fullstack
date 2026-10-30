@@ -9,23 +9,34 @@ public static class UserValidationExtensions
 
     public static Dictionary<string, string[]> Validate(this CreateUserRequest request)
     {
+        var errors = ValidateUser(request.Name, request.Email, request.PrimaryRole, request.AccountStatus);
+        Require(errors, nameof(request.Username), request.Username);
+        return errors;
+    }
+
+    public static Dictionary<string, string[]> Validate(this UpdateUserRequest request)
+    {
+        return ValidateUser(request.Name, request.Email, request.PrimaryRole, request.AccountStatus);
+    }
+
+    private static Dictionary<string, string[]> ValidateUser(string? name, string? email, string? primaryRole, string? accountStatus)
+    {
         var errors = new Dictionary<string, string[]>();
 
-        Require(errors, nameof(request.Name), request.Name);
-        Require(errors, nameof(request.Username), request.Username);
-        Require(errors, nameof(request.Email), request.Email);
-        Require(errors, nameof(request.PrimaryRole), request.PrimaryRole);
-        Require(errors, nameof(request.AccountStatus), request.AccountStatus);
+        Require(errors, "Name", name);
+        Require(errors, "Email", email);
+        Require(errors, "PrimaryRole", primaryRole);
+        Require(errors, "AccountStatus", accountStatus);
 
-        if (!string.IsNullOrWhiteSpace(request.Email) && !IsValidEmail(request.Email.Trim()))
+        if (!string.IsNullOrWhiteSpace(email) && !IsValidEmail(email.Trim()))
         {
-            errors[nameof(request.Email)] = ["Email is not a valid email address"];
+            errors["Email"] = ["Email is not a valid email address"];
         }
 
-        if (!string.IsNullOrWhiteSpace(request.AccountStatus)
-            && !AllowedStatuses.Contains(request.AccountStatus.Trim(), StringComparer.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(accountStatus)
+            && !AllowedStatuses.Contains(accountStatus.Trim(), StringComparer.OrdinalIgnoreCase))
         {
-            errors[nameof(request.AccountStatus)] = [$"AccountStatus must be one of: {string.Join(", ", AllowedStatuses)}"];
+            errors["AccountStatus"] = [$"AccountStatus must be one of: {string.Join(", ", AllowedStatuses)}"];
         }
 
         return errors;

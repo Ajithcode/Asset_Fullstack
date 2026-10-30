@@ -13,6 +13,15 @@ public sealed record CreateAccessPolicyRequest(
     string? TenantId,
     string? ClientId);
 
+// PolicyId, audit and tenant/client fields are fixed once the policy is created.
+public sealed record UpdateAccessPolicyRequest(
+    string? PolicyName,
+    string? PolicyCode,
+    string? Description,
+    string? PolicyType,
+    string? Status,
+    List<string>? AssignedRoles);
+
 public sealed record AssignedRoleResponse(
     string RoleId,
     string RoleCode,

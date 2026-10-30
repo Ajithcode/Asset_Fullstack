@@ -18,6 +18,21 @@ public sealed record CreateChecklistItemRequest(
     string? TenantId,
     string? ClientId);
 
+// Tenant/client and creation audit are immutable, so they are not part of an update.
+public sealed record UpdateChecklistItemRequest(
+    string? ItemText,
+    string? Section,
+    string? ResponseType,
+    bool? IsRequired,
+    bool? IsCritical,
+    string? HelpText,
+    string? ExpectedValue,
+    bool? AttachmentRequired,
+    int? ScoreValue,
+    string? FailureAction,
+    bool? EscalateIssue,
+    string? UpdatedBy);
+
 public sealed record ChecklistItemResponse(
     string ItemId,
     string ItemText,

@@ -77,12 +77,21 @@ public sealed class RoleRepository : MongoRepository<Role>, IRoleRepository, IMo
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<bool> RoleCodeExistsAsync(string roleCode, string? tenantId, CancellationToken cancellationToken = default)
+    public async Task<bool> RoleCodeExistsAsync(
+        string roleCode,
+        string? tenantId,
+        string? excludeRoleId = null,
+        CancellationToken cancellationToken = default)
     {
         var builder = Builders<Role>.Filter;
         var filter = builder.Eq(role => role.RoleCode, roleCode)
             & builder.Eq(role => role.IsDeleted, false)
             & builder.Eq(role => role.TenantId, tenantId);
+
+        if (!string.IsNullOrWhiteSpace(excludeRoleId))
+        {
+            filter &= builder.Ne(role => role.RoleId, excludeRoleId);
+        }
 
         return await Collection.Find(filter).AnyAsync(cancellationToken);
     }

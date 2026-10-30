@@ -14,5 +14,13 @@ public interface IAccessPolicyRepository : IMongoRepository<AccessPolicy>
         string? status,
         CancellationToken cancellationToken = default);
 
-    Task<bool> PolicyCodeExistsAsync(string policyCode, string? tenantId, CancellationToken cancellationToken = default);
+    // excludePolicyId is the policy being updated, so it does not clash with itself.
+    Task<bool> PolicyCodeExistsAsync(
+        string policyCode,
+        string? tenantId,
+        string? excludePolicyId = null,
+        CancellationToken cancellationToken = default);
+
+    // True when any non-deleted policy lists the role in its assigned roles.
+    Task<bool> AnyAssignedToRoleAsync(string roleId, CancellationToken cancellationToken = default);
 }

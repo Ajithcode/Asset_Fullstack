@@ -14,45 +14,79 @@ public static class DataImportJobValidationExtensions
 
     public static Dictionary<string, string[]> Validate(this CreateDataImportJobRequest request)
     {
+        return ValidateJob(
+            request.JobName,
+            request.DataObject,
+            request.Operation,
+            request.SourceFile,
+            request.FileFormat,
+            request.BatchSize,
+            request.NotificationRecipients,
+            request.Status);
+    }
+
+    public static Dictionary<string, string[]> Validate(this UpdateDataImportJobRequest request)
+    {
+        return ValidateJob(
+            request.JobName,
+            request.DataObject,
+            request.Operation,
+            request.SourceFile,
+            request.FileFormat,
+            request.BatchSize,
+            request.NotificationRecipients,
+            request.Status);
+    }
+
+    private static Dictionary<string, string[]> ValidateJob(
+        string? jobName,
+        string? dataObject,
+        string? operation,
+        string? sourceFile,
+        string? requestedFileFormat,
+        int? batchSize,
+        List<string>? notificationRecipients,
+        string? status)
+    {
         var errors = new Dictionary<string, string[]>();
 
-        Require(errors, nameof(request.JobName), request.JobName);
-        Require(errors, nameof(request.DataObject), request.DataObject);
-        Require(errors, nameof(request.Operation), request.Operation);
-        Require(errors, nameof(request.SourceFile), request.SourceFile);
-        Require(errors, nameof(request.Status), request.Status);
+        Require(errors, "JobName", jobName);
+        Require(errors, "DataObject", dataObject);
+        Require(errors, "Operation", operation);
+        Require(errors, "SourceFile", sourceFile);
+        Require(errors, "Status", status);
 
-        AllowOnly(errors, nameof(request.Operation), request.Operation, AllowedOperations);
-        AllowOnly(errors, nameof(request.Status), request.Status, AllowedStatuses);
+        AllowOnly(errors, "Operation", operation, AllowedOperations);
+        AllowOnly(errors, "Status", status, AllowedStatuses);
 
-        var fileFormat = string.IsNullOrWhiteSpace(request.FileFormat) ? null : request.FileFormat.Trim();
-        var fileExtensionFormat = FormatFromFile(request.SourceFile);
+        var fileFormat = string.IsNullOrWhiteSpace(requestedFileFormat) ? null : requestedFileFormat.Trim();
+        var fileExtensionFormat = FormatFromFile(sourceFile);
         if (fileFormat is not null)
         {
-            AllowOnly(errors, nameof(request.FileFormat), fileFormat, AllowedFileFormats);
+            AllowOnly(errors, "FileFormat", fileFormat, AllowedFileFormats);
         }
-        else if (!string.IsNullOrWhiteSpace(request.SourceFile) && fileExtensionFormat is null)
+        else if (!string.IsNullOrWhiteSpace(sourceFile) && fileExtensionFormat is null)
         {
-            errors[nameof(request.SourceFile)] = ["SourceFile must be an .xlsx or .csv file"];
+            errors["SourceFile"] = ["SourceFile must be an .xlsx or .csv file"];
         }
 
         if (fileFormat is not null && fileExtensionFormat is not null
             && !string.Equals(fileFormat, fileExtensionFormat, StringComparison.OrdinalIgnoreCase))
         {
-            errors[nameof(request.FileFormat)] = [$"FileFormat {fileFormat} does not match the source file extension"];
+            errors["FileFormat"] = [$"FileFormat {fileFormat} does not match the source file extension"];
         }
 
-        if (request.BatchSize is < 1 or > MaxBatchSize)
+        if (batchSize is < 1 or > MaxBatchSize)
         {
-            errors[nameof(request.BatchSize)] = [$"BatchSize must be between 1 and {MaxBatchSize}"];
+            errors["BatchSize"] = [$"BatchSize must be between 1 and {MaxBatchSize}"];
         }
 
-        var invalidRecipients = request.NotificationRecipients?
+        var invalidRecipients = notificationRecipients?
             .Where(recipient => !string.IsNullOrWhiteSpace(recipient) && !IsValidEmail(recipient.Trim()))
             .ToList() ?? [];
         if (invalidRecipients.Count > 0)
         {
-            errors[nameof(request.NotificationRecipients)] = [$"Invalid email addresses: {string.Join(", ", invalidRecipients)}"];
+            errors["NotificationRecipients"] = [$"Invalid email addresses: {string.Join(", ", invalidRecipients)}"];
         }
 
         return errors;

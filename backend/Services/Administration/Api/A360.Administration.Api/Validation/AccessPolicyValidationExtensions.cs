@@ -12,25 +12,40 @@ public static partial class AccessPolicyValidationExtensions
 
     public static Dictionary<string, string[]> Validate(this CreateAccessPolicyRequest request)
     {
+        return ValidatePolicy(request.PolicyName, request.PolicyCode, request.Description, request.PolicyType, request.Status);
+    }
+
+    public static Dictionary<string, string[]> Validate(this UpdateAccessPolicyRequest request)
+    {
+        return ValidatePolicy(request.PolicyName, request.PolicyCode, request.Description, request.PolicyType, request.Status);
+    }
+
+    private static Dictionary<string, string[]> ValidatePolicy(
+        string? policyName,
+        string? policyCode,
+        string? description,
+        string? policyType,
+        string? status)
+    {
         var errors = new Dictionary<string, string[]>();
 
-        Require(errors, nameof(request.PolicyName), request.PolicyName);
-        Require(errors, nameof(request.PolicyCode), request.PolicyCode);
-        Require(errors, nameof(request.PolicyType), request.PolicyType);
-        Require(errors, nameof(request.Status), request.Status);
+        Require(errors, "PolicyName", policyName);
+        Require(errors, "PolicyCode", policyCode);
+        Require(errors, "PolicyType", policyType);
+        Require(errors, "Status", status);
 
-        if (!string.IsNullOrWhiteSpace(request.PolicyCode) && !PolicyCodePattern().IsMatch(request.PolicyCode.Trim()))
+        if (!string.IsNullOrWhiteSpace(policyCode) && !PolicyCodePattern().IsMatch(policyCode.Trim()))
         {
-            errors[nameof(request.PolicyCode)] = ["PolicyCode may only contain letters, digits, hyphens and underscores"];
+            errors["PolicyCode"] = ["PolicyCode may only contain letters, digits, hyphens and underscores"];
         }
 
-        if (request.Description?.Trim().Length > DescriptionMaxLength)
+        if (description?.Trim().Length > DescriptionMaxLength)
         {
-            errors[nameof(request.Description)] = [$"Description must be at most {DescriptionMaxLength} characters"];
+            errors["Description"] = [$"Description must be at most {DescriptionMaxLength} characters"];
         }
 
-        AllowOnly(errors, nameof(request.PolicyType), request.PolicyType, AllowedPolicyTypes);
-        AllowOnly(errors, nameof(request.Status), request.Status, AllowedStatuses);
+        AllowOnly(errors, "PolicyType", policyType, AllowedPolicyTypes);
+        AllowOnly(errors, "Status", status, AllowedStatuses);
 
         return errors;
     }

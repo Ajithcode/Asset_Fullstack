@@ -35,6 +35,32 @@ internal static class UserMappings
         };
     }
 
+    public static void ApplyTo(this UpdateUserRequest request, User user, CurrentUser? currentUser)
+    {
+        user.Name = request.Name!.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Username))
+        {
+            user.Username = request.Username.Trim().ToLowerInvariant();
+        }
+
+        user.Image = Optional(request.Image);
+        user.Email = request.Email!.Trim().ToLowerInvariant();
+        user.EmployeeId = Optional(request.EmployeeId);
+        user.Department = Optional(request.Department);
+        user.JobTitle = Optional(request.JobTitle);
+        user.Phone = Optional(request.Phone);
+        user.Location = Optional(request.Location);
+        user.TimeZone = Optional(request.TimeZone);
+        user.PrimaryRole = request.PrimaryRole!.Trim();
+        user.SecondaryRoles = CleanList(request.SecondaryRoles);
+        user.AccessScope = Optional(request.AccessScope);
+        user.MfaEnabled = request.MfaEnabled ?? user.MfaEnabled;
+        user.ModuleAccess = CleanList(request.ModuleAccess);
+        user.Status = request.AccountStatus!.Trim();
+        user.UpdatedBy = currentUser?.UserName;
+        user.UpdatedAt = DateTime.UtcNow;
+    }
+
     private static string? Optional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();

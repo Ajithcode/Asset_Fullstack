@@ -24,6 +24,17 @@ internal static class RoleMappings
         };
     }
 
+    public static void ApplyTo(this UpdateRoleRequest request, Role role, CurrentUser? currentUser)
+    {
+        role.RoleName = request.RoleName!.Trim();
+        role.RoleCode = request.RoleCode!.Trim().ToUpperInvariant();
+        role.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        role.RoleType = request.RoleType!.Trim();
+        role.Status = request.Status!.Trim();
+        role.UpdatedBy = currentUser?.UserName;
+        role.UpdatedAt = DateTime.UtcNow;
+    }
+
     private static string? FirstNonEmpty(string? requested, string? fallback)
     {
         return string.IsNullOrWhiteSpace(requested) ? fallback : requested.Trim();

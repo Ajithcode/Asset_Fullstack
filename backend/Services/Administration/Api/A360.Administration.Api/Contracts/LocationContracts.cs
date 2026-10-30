@@ -17,6 +17,19 @@ public sealed record CreateLocationRequest(
     string? TenantId,
     string? ClientId);
 
+// LocationId, audit and tenant/client fields are fixed once the location is created.
+public sealed record UpdateLocationRequest(
+    string? LocationCode,
+    string? LocationName,
+    string? LocationType,
+    string? ParentLocationId,
+    string? Address,
+    string? Country,
+    string? City,
+    string? TimeZone,
+    string? LocationManager,
+    string? Status);
+
 public sealed record ParentLocationResponse(
     string LocationId,
     string LocationCode,

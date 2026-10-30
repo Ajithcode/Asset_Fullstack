@@ -18,6 +18,8 @@ public static class RoleEndpoints
         group.MapGet("", GetRolesAsync).WithName("GetRoles");
         group.MapGet("/{roleId}", GetRoleByIdAsync).WithName("GetRoleById");
         group.MapPost("", CreateRoleAsync).WithName("CreateRole");
+        group.MapPut("/{roleId}", UpdateRoleAsync).WithName("UpdateRole");
+        group.MapDelete("/{roleId}", DeleteRoleAsync).WithName("DeleteRole");
 
         return group;
     }
@@ -67,7 +69,7 @@ public static class RoleEndpoints
 
         var role = request.ToEntity(currentUserAccessor.GetCurrentUser());
 
-        if (await repository.RoleCodeExistsAsync(role.RoleCode, role.TenantId, cancellationToken))
+        if (await repository.RoleCodeExistsAsync(role.RoleCode, role.TenantId, cancellationToken: cancellationToken))
         {
             return Results.Conflict(new { message = $"Role code '{role.RoleCode}' already exists" });
         }
@@ -77,5 +79,86 @@ public static class RoleEndpoints
         await eventLogger.LogAsync(EntityType, role.Id, role.RoleName, EventAction.Created, cancellationToken);
 
         return Results.Created($"/api/roles/{role.RoleId}", RoleResponse.FromEntity(role));
+    }
+
+    private static async Task<IResult> UpdateRoleAsync(
+        string roleId,
+        UpdateRoleRequest request,
+        IRoleRepository repository,
+        ICurrentUserAccessor currentUserAccessor,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var validationErrors = request.Validate();
+        if (validationErrors.Count > 0)
+        {
+            return Results.ValidationProblem(validationErrors);
+        }
+
+        var role = await repository.GetByRoleIdAsync(roleId, cancellationToken);
+        if (role is null)
+        {
+            return NotFound(roleId);
+        }
+
+        request.ApplyTo(role, currentUserAccessor.GetCurrentUser());
+
+        if (await repository.RoleCodeExistsAsync(role.RoleCode, role.TenantId, role.RoleId, cancellationToken))
+        {
+            return Results.Conflict(new { message = $"Role code '{role.RoleCode}' already exists" });
+        }
+
+        if (!await repository.UpdateAsync(role.Id, role, cancellationToken))
+        {
+            return NotFound(roleId);
+        }
+
+        await eventLogger.LogAsync(EntityType, role.Id, role.RoleName, EventAction.Updated, cancellationToken);
+
+        return Results.Ok(RoleResponse.FromEntity(role));
+    }
+
+    // Soft delete: the role stays in the collection with IsDeleted set.
+    private static async Task<IResult> DeleteRoleAsync(
+        string roleId,
+        IRoleRepository repository,
+        IAccessPolicyRepository accessPolicyRepository,
+        ICurrentUserAccessor currentUserAccessor,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var role = await repository.GetByRoleIdAsync(roleId, cancellationToken);
+        if (role is null)
+        {
+            return NotFound(roleId);
+        }
+
+        if (string.Equals(role.RoleType, "System", StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.Conflict(new { message = $"Role '{role.RoleName}' is a system role and can't be deleted." });
+        }
+
+        if (await accessPolicyRepository.AnyAssignedToRoleAsync(role.RoleId, cancellationToken))
+        {
+            return Results.Conflict(new { message = $"Role '{role.RoleName}' is assigned to access policies. Remove it from them first." });
+        }
+
+        role.IsDeleted = true;
+        role.UpdatedBy = currentUserAccessor.GetCurrentUser()?.UserName;
+        role.UpdatedAt = DateTime.UtcNow;
+
+        if (!await repository.UpdateAsync(role.Id, role, cancellationToken))
+        {
+            return NotFound(roleId);
+        }
+
+        await eventLogger.LogAsync(EntityType, role.Id, role.RoleName, EventAction.Deleted, cancellationToken);
+
+        return Results.NoContent();
+    }
+
+    private static IResult NotFound(string roleId)
+    {
+        return Results.NotFound(new { message = $"Role '{roleId}' was not found." });
     }
 }

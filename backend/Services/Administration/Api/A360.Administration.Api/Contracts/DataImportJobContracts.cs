@@ -20,6 +20,23 @@ public sealed record CreateDataImportJobRequest(
     string? TenantId,
     string? ClientId);
 
+// JobId, TenantId and ClientId are fixed at creation.
+public sealed record UpdateDataImportJobRequest(
+    string? JobName,
+    string? DataObject,
+    string? Operation,
+    string? SourceFile,
+    string? FileFormat,
+    string? DuplicateHandling,
+    string? DateFormat,
+    string? Delimiter,
+    string? Encoding,
+    int? BatchSize,
+    string? Schedule,
+    List<string>? NotificationRecipients,
+    string? Status,
+    string? UpdatedBy);
+
 public sealed record DataImportJobResponse(
     string JobId,
     string JobName,

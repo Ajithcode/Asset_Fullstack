@@ -23,6 +23,26 @@ public sealed record CreateUserRequest(
     string? TenantId,
     string? ClientId);
 
+// UserId, audit and tenant/client fields are fixed once the user is created.
+// A blank Username keeps the existing one.
+public sealed record UpdateUserRequest(
+    string? Name,
+    string? Username,
+    string? Image,
+    string? Email,
+    string? EmployeeId,
+    string? Department,
+    string? JobTitle,
+    string? Phone,
+    string? Location,
+    string? TimeZone,
+    string? PrimaryRole,
+    List<string>? SecondaryRoles,
+    string? AccessScope,
+    bool? MfaEnabled,
+    List<string>? ModuleAccess,
+    string? AccountStatus);
+
 public sealed record UserResponse(
     string UserId,
     string Name,

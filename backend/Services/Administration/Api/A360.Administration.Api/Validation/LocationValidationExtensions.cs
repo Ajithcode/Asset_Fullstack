@@ -11,27 +11,64 @@ public static class LocationValidationExtensions
 
     public static Dictionary<string, string[]> Validate(this CreateLocationRequest request)
     {
+        return ValidateLocation(
+            request.LocationCode,
+            request.LocationName,
+            request.LocationType,
+            request.ParentLocationId,
+            request.Country,
+            request.City,
+            request.TimeZone,
+            request.LocationManager,
+            request.Status);
+    }
+
+    public static Dictionary<string, string[]> Validate(this UpdateLocationRequest request)
+    {
+        return ValidateLocation(
+            request.LocationCode,
+            request.LocationName,
+            request.LocationType,
+            request.ParentLocationId,
+            request.Country,
+            request.City,
+            request.TimeZone,
+            request.LocationManager,
+            request.Status);
+    }
+
+    private static Dictionary<string, string[]> ValidateLocation(
+        string? locationCode,
+        string? locationName,
+        string? locationType,
+        string? parentLocationId,
+        string? country,
+        string? city,
+        string? timeZone,
+        string? locationManager,
+        string? status)
+    {
         var errors = new Dictionary<string, string[]>();
 
-        Require(errors, nameof(request.LocationCode), request.LocationCode);
-        Require(errors, nameof(request.LocationName), request.LocationName);
-        Require(errors, nameof(request.LocationType), request.LocationType);
-        Require(errors, nameof(request.Country), request.Country);
-        Require(errors, nameof(request.City), request.City);
-        Require(errors, nameof(request.TimeZone), request.TimeZone);
-        Require(errors, nameof(request.LocationManager), request.LocationManager);
-        Require(errors, nameof(request.Status), request.Status);
+        Require(errors, "LocationCode", locationCode);
+        Require(errors, "LocationName", locationName);
+        Require(errors, "LocationType", locationType);
+        Require(errors, "Country", country);
+        Require(errors, "City", city);
+        Require(errors, "TimeZone", timeZone);
+        Require(errors, "LocationManager", locationManager);
+        Require(errors, "Status", status);
 
-        var isRoot = string.Equals(request.LocationType?.Trim(), RootLocationType, StringComparison.OrdinalIgnoreCase);
-        if (!isRoot && string.IsNullOrWhiteSpace(request.ParentLocationId))
+        var isRoot = string.Equals(locationType?.Trim(), RootLocationType, StringComparison.OrdinalIgnoreCase);
+        if (!isRoot && string.IsNullOrWhiteSpace(parentLocationId))
         {
-            errors[nameof(request.ParentLocationId)] = ["ParentLocationId is required"];
+            errors["ParentLocationId"] = ["ParentLocationId is required"];
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Status)
-            && !AllowedStatuses.Contains(request.Status.Trim(), StringComparer.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(status)
+            && !AllowedStatuses.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase))
         {
-            errors[nameof(request.Status)] = [$"Status must be one of: {string.Join(", ", AllowedStatuses)}"];
+            errors["Status"] = [$"Status must be one of: {string.Join(", ", AllowedStatuses)}"];
         }
 
         return errors;

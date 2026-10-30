@@ -10,34 +10,66 @@ public static partial class NotificationTemplateValidationExtensions
 
     public static Dictionary<string, string[]> Validate(this CreateNotificationTemplateRequest request)
     {
+        return ValidateTemplate(
+            request.TemplateName,
+            request.TemplateCode,
+            request.Category,
+            request.TriggerEvent,
+            request.DeliveryChannels,
+            request.Language,
+            request.Status);
+    }
+
+    public static Dictionary<string, string[]> Validate(this UpdateNotificationTemplateRequest request)
+    {
+        return ValidateTemplate(
+            request.TemplateName,
+            request.TemplateCode,
+            request.Category,
+            request.TriggerEvent,
+            request.DeliveryChannels,
+            request.Language,
+            request.Status);
+    }
+
+    // Shared by the create and update requests so both report identical error keys.
+    private static Dictionary<string, string[]> ValidateTemplate(
+        string? templateName,
+        string? templateCode,
+        string? category,
+        string? triggerEvent,
+        List<string>? deliveryChannels,
+        string? language,
+        string? status)
+    {
         var errors = new Dictionary<string, string[]>();
 
-        Require(errors, nameof(request.TemplateName), request.TemplateName);
-        Require(errors, nameof(request.TemplateCode), request.TemplateCode);
-        Require(errors, nameof(request.Category), request.Category);
-        Require(errors, nameof(request.TriggerEvent), request.TriggerEvent);
-        Require(errors, nameof(request.Language), request.Language);
-        Require(errors, nameof(request.Status), request.Status);
+        Require(errors, "TemplateName", templateName);
+        Require(errors, "TemplateCode", templateCode);
+        Require(errors, "Category", category);
+        Require(errors, "TriggerEvent", triggerEvent);
+        Require(errors, "Language", language);
+        Require(errors, "Status", status);
 
-        if (!string.IsNullOrWhiteSpace(request.TemplateCode) && !TemplateCodePattern().IsMatch(request.TemplateCode.Trim()))
+        if (!string.IsNullOrWhiteSpace(templateCode) && !TemplateCodePattern().IsMatch(templateCode.Trim()))
         {
-            errors[nameof(request.TemplateCode)] = ["TemplateCode may only contain letters, digits, hyphens and underscores"];
+            errors["TemplateCode"] = ["TemplateCode may only contain letters, digits, hyphens and underscores"];
         }
 
-        var channels = request.DeliveryChannels?.Where(channel => !string.IsNullOrWhiteSpace(channel)).ToList() ?? [];
+        var channels = deliveryChannels?.Where(channel => !string.IsNullOrWhiteSpace(channel)).ToList() ?? [];
         if (channels.Count == 0)
         {
-            errors[nameof(request.DeliveryChannels)] = ["At least one delivery channel is required"];
+            errors["DeliveryChannels"] = ["At least one delivery channel is required"];
         }
         else if (channels.Any(channel => NormalizeChannel(channel) is null))
         {
-            errors[nameof(request.DeliveryChannels)] = [$"DeliveryChannels must be from: {string.Join(", ", AllowedChannels)}"];
+            errors["DeliveryChannels"] = [$"DeliveryChannels must be from: {string.Join(", ", AllowedChannels)}"];
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Status)
-            && !AllowedStatuses.Contains(request.Status.Trim(), StringComparer.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(status)
+            && !AllowedStatuses.Contains(status.Trim(), StringComparer.OrdinalIgnoreCase))
         {
-            errors[nameof(request.Status)] = [$"Status must be one of: {string.Join(", ", AllowedStatuses)}"];
+            errors["Status"] = [$"Status must be one of: {string.Join(", ", AllowedStatuses)}"];
         }
 
         return errors;
