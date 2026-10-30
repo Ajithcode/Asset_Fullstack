@@ -25,7 +25,7 @@
 .mono { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 12.5px; }
 
 .crumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ti-text-2); }
-.crumbs .sep { color: #9ca3af; }
+.crumbs .sep { font-size: 1.35em; line-height: 1; color: #9ca3af; }
 .crumbs strong { font-weight: 600; color: var(--ti-ink); }
 .ti-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
 .ti-head .btn { flex: 0 0 auto; }

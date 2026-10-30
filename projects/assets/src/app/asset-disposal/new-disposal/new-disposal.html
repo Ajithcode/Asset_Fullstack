@@ -1,0 +1,496 @@
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a routerLink="/assets/list">Assets</a><span class="sep" aria-hidden="true">›</span><a routerLink="/assets/disposal">Disposal</a><span class="sep" aria-hidden="true">›</span><span class="crumb-current">New Disposal Request</span>
+</nav>
+
+<section class="aa-page">
+  <div class="card page-head">
+    <span class="head-ic"><lucide-icon [img]="icons.Recycle" [size]="24"></lucide-icon></span>
+    <div class="grow">
+      <h1>New Disposal Request</h1>
+      <p>{{ step === 5 ? 'Review the details below and submit the disposal request.' : 'Create a disposal request for end-of-life or unwanted assets.' }}</p>
+    </div>
+  </div>
+
+  <ol class="card stepper stepper--5">
+    <li *ngFor="let st of steps; let i = index" [class.is-current]="step === i + 1" [class.is-done]="step > i + 1">
+      <button type="button" (click)="openStep(i + 1)" [attr.aria-current]="step === i + 1 ? 'step' : null">
+        <span class="step-no"><lucide-icon *ngIf="step > i + 1; else stepNo" [img]="icons.Check" [size]="20"></lucide-icon><ng-template #stepNo>{{ i + 1 }}</ng-template></span>
+        <span class="step-text"><strong>{{ st.title }}</strong><small>{{ stepSub(i) }}</small></span>
+      </button>
+    </li>
+  </ol>
+
+  <div class="wz-grid" [class.nd-full]="step === 5">
+    <div class="card wz-main">
+      <div class="wz-body">
+        <!-- ===== Step 1: request details ===== -->
+        <ng-container *ngIf="step === 1">
+          <div class="wz-head">
+            <span class="wz-ic"><lucide-icon [img]="icons.FileText" [size]="22"></lucide-icon></span>
+            <div><h2>1. Request Details</h2><p>Provide basic information about this disposal request.</p></div>
+          </div>
+          <fieldset class="group">
+            <legend><lucide-icon [img]="icons.Info" [size]="18"></lucide-icon>Request Information</legend>
+            <div class="form-grid">
+              <label class="field"><span class="field-label">Request Title <em>*</em></span><input class="control" name="title" [(ngModel)]="title" placeholder="e.g. Disposal of Old Laptops - IT Dept" /></label>
+              <label class="field"><span class="field-label">Request Date <em>*</em></span><input class="control" type="date" name="reqDate" [(ngModel)]="requestDate" /></label>
+              <label class="field"><span class="field-label">Requested By</span><select class="control" name="by" [(ngModel)]="requestedBy"><option *ngFor="let p of people" [value]="p">{{ p }}</option></select></label>
+              <label class="field"><span class="field-label">Reason for Disposal <em>*</em></span><select class="control" name="reason" [(ngModel)]="reason"><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+              <label class="field"><span class="field-label">Disposal Category</span><select class="control" name="cat" [(ngModel)]="category"><option value="">Select category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+              <label class="field"><span class="field-label">Priority</span>
+                <span class="nd-priority" [ngClass]="'nd-priority--' + priority.toLowerCase()">
+                  <select class="control" name="priority" [(ngModel)]="priority"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+          <fieldset class="group">
+            <legend><lucide-icon [img]="icons.Pencil" [size]="18"></lucide-icon>Justification</legend>
+            <label class="field"><span class="field-label">Justification / Remarks <em>*</em></span><textarea class="control remarks" rows="3" name="just" [(ngModel)]="justification" maxlength="500" placeholder="Why should these assets be disposed of?"></textarea><small class="counter">{{ justification.length }}/500</small></label>
+          </fieldset>
+        </ng-container>
+
+        <!-- ===== Step 2: assets ===== -->
+        <ng-container *ngIf="step === 2">
+          <div class="wz-head">
+            <span class="wz-ic"><lucide-icon [img]="icons.Hexagon" [size]="22"></lucide-icon></span>
+            <div class="grow"><h2>2. Select Assets</h2><p>Choose the assets to be included in this disposal request.</p></div>
+            <button type="button" class="btn btn-outline btn-sm" (click)="openTagDialog()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Add by Tag</button>
+            <label class="btn btn-outline btn-sm nd-upload"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon>Import from Excel<input #xls type="file" accept=".xlsx,.xls,.csv" (change)="importExcel(xls)" /></label>
+            <button type="button" class="btn btn-outline btn-sm" [class.is-on]="moreFilters" (click)="moreFilters = !moreFilters" [attr.aria-expanded]="moreFilters"><lucide-icon [img]="icons.Funnel" [size]="16"></lucide-icon>Advanced Filters</button>
+          </div>
+
+          <div class="nd-filters">
+            <label class="search nd-search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" name="assetSearch" [(ngModel)]="assetSearch" (ngModelChange)="onFilter()" placeholder="Search assets by name, tag, serial number..." aria-label="Search assets" /></label>
+            <label class="field"><span class="field-label">Category</span><select class="control" name="fCat" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Location</span><select class="control" name="fLoc" [(ngModel)]="locationFilter" (ngModelChange)="onFilter()"><option value="">All Locations</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
+            <label class="field"><span class="field-label">Condition</span><select class="control" name="fCond" [(ngModel)]="conditionFilter" (ngModelChange)="onFilter()"><option value="">All Conditions</option><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Status</span><select class="control" name="fStatus" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All Status</option><option *ngFor="let st of assetStatuses" [value]="st">{{ st }}</option></select></label>
+            <button type="button" class="btn btn-outline" [class.is-on]="moreFilters" (click)="moreFilters = !moreFilters" [attr.aria-expanded]="moreFilters"><lucide-icon [img]="icons.Funnel" [size]="16"></lucide-icon>More Filters</button>
+            <div *ngIf="moreFilters" class="nd-more">
+              <label class="field"><span class="field-label">Manufacturer</span><select class="control" name="fMaker" [(ngModel)]="manufacturerFilter" (ngModelChange)="onFilter()"><option value="">All Manufacturers</option><option *ngFor="let m of manufacturers" [value]="m">{{ m }}</option></select></label>
+              <label class="field"><span class="field-label">Min. Value (AED)</span><input class="control" type="number" min="0" name="fMin" [(ngModel)]="minValue" (ngModelChange)="onFilter()" /></label>
+              <label class="field"><span class="field-label">Max. Value (AED)</span><input class="control" type="number" min="0" name="fMax" [(ngModel)]="maxValue" (ngModelChange)="onFilter()" /></label>
+              <button type="button" class="link-btn" (click)="resetFilters()">Reset filters</button>
+            </div>
+          </div>
+
+          <div class="sub-tabs sub-tabs--flush" role="tablist">
+            <button type="button" role="tab" [class.is-on]="listTab === 'all'" [attr.aria-selected]="listTab === 'all'" (click)="setListTab('all')">Asset List</button>
+            <button type="button" role="tab" [class.is-on]="listTab === 'selected'" [attr.aria-selected]="listTab === 'selected'" (click)="setListTab('selected')">Selected Assets ({{ chosen.length }})</button>
+          </div>
+
+          <div class="table-wrap">
+            <table class="aa-table">
+              <thead>
+                <tr>
+                  <th class="ck"><input type="checkbox" [checked]="allPageIncluded" (change)="togglePage($any($event.target).checked)" aria-label="Select all on this page" /></th>
+                  <th>#</th>
+                  <th><button type="button" class="th-sort" [class.is-on]="sortKey === 'assetName'" (click)="sortBy('assetName')">Asset Name<lucide-icon [img]="icons.ArrowUpDown" [size]="13"></lucide-icon></button></th>
+                  <th><button type="button" class="th-sort" [class.is-on]="sortKey === 'tag'" (click)="sortBy('tag')">Asset Tag<lucide-icon [img]="icons.ArrowUpDown" [size]="13"></lucide-icon></button></th>
+                  <th><button type="button" class="th-sort" [class.is-on]="sortKey === 'category'" (click)="sortBy('category')">Category<lucide-icon [img]="icons.ArrowUpDown" [size]="13"></lucide-icon></button></th>
+                  <th>Model</th>
+                  <th><button type="button" class="th-sort" [class.is-on]="sortKey === 'serial'" (click)="sortBy('serial')">Serial Number<lucide-icon [img]="icons.ArrowUpDown" [size]="13"></lucide-icon></button></th>
+                  <th>Location</th><th>Condition</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let a of pageRows; let i = index" class="nd-row" [class.is-selected]="included.has(a.tag)" (click)="toggleIncluded(a.tag)">
+                  <td class="ck" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="included.has(a.tag)" (change)="toggleIncluded(a.tag)" [attr.aria-label]="'Select ' + a.tag" /></td>
+                  <td>{{ page * pageSize + i + 1 }}</td>
+                  <td>{{ a.assetName }}</td>
+                  <td class="nowrap">{{ a.tag }}</td>
+                  <td class="nowrap">{{ a.category }}</td>
+                  <td class="nowrap">{{ a.model }}</td>
+                  <td class="nowrap">{{ a.serial }}</td>
+                  <td class="nowrap">{{ a.location }}</td>
+                  <td><span [ngClass]="conditionClass(a.condition)">{{ a.condition }}</span></td>
+                  <td><span class="cond" [ngClass]="a.status === 'Active' ? 'cond--good' : 'cond--muted'">{{ a.status }}</span></td>
+                </tr>
+                <tr *ngIf="!pageRows.length"><td colspan="10" class="empty">{{ listTab === 'selected' && !chosen.length ? 'No assets selected yet.' : 'No assets match the filters.' }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <span>Show</span>
+            <select class="control pager-size" [(ngModel)]="pageSize" (ngModelChange)="onFilter()" aria-label="Records per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select>
+            <span>records per page</span>
+            <span class="grow"></span>
+            <span class="showing">{{ showingLabel }}</span>
+            <button type="button" class="pg-btn" [disabled]="page === 0" (click)="page = page - 1" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+            <ng-container *ngFor="let p of pages">
+              <button *ngIf="p !== null; else gap" type="button" class="pg-btn" [class.is-on]="p === page" (click)="page = p" [attr.aria-current]="p === page ? 'page' : null">{{ p + 1 }}</button>
+              <ng-template #gap><span class="pg-gap">…</span></ng-template>
+            </ng-container>
+            <button type="button" class="pg-btn" [disabled]="page >= pageCount - 1" (click)="page = page + 1" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+          </div>
+        </ng-container>
+
+        <!-- ===== Step 3: method ===== -->
+        <ng-container *ngIf="step === 3">
+          <div class="wz-head">
+            <div><h2>3. Disposal Method</h2><p>Select the appropriate disposal method and provide the required details.</p></div>
+          </div>
+          <div class="nd-methods" role="radiogroup" aria-label="Disposal method">
+            <button *ngFor="let c of methodCards" type="button" role="radio" class="nd-method" [ngClass]="'nd-method--' + c.tone" [class.is-on]="method === c.method" [attr.aria-checked]="method === c.method" (click)="setMethod(c.method)">
+              <span class="nd-method-ic"><lucide-icon [img]="methodIcons[c.method]" [size]="22"></lucide-icon></span>
+              <span class="grow"><strong>{{ c.method }}</strong><small>{{ c.text }}</small></span>
+              <span class="nd-radio"><lucide-icon *ngIf="method === c.method" [img]="icons.Check" [size]="13"></lucide-icon></span>
+            </button>
+          </div>
+          <fieldset class="group">
+            <legend>Method Details</legend>
+            <div class="form-grid form-grid--2">
+              <label class="field"><span class="field-label">Disposal Method <em>*</em></span><select class="control" name="method" [ngModel]="method" (ngModelChange)="setMethod($event)"><option *ngFor="let m of methods" [value]="m">{{ m }}</option></select></label>
+              <label class="field"><span class="field-label">Expected Disposal Date <em>*</em></span><input class="control" type="date" name="expDate" [(ngModel)]="expectedDate" [min]="requestDate" /></label>
+            </div>
+            <div class="form-grid nd-vendor-grid">
+              <label class="field"><span class="field-label">Vendor <em>*</em></span><select class="control" name="vendor" [ngModel]="vendor" (ngModelChange)="setVendor($event)"><option value="">Select vendor</option><option *ngFor="let v of vendors" [value]="v.name">{{ v.name }}</option></select></label>
+              <label class="field"><span class="field-label">Contact Person</span><input class="control" name="contact" [(ngModel)]="contactPerson" /></label>
+              <label class="field"><span class="field-label">Contact Number</span><input class="control" type="tel" name="phone" [(ngModel)]="contactNumber" /></label>
+            </div>
+            <div *ngIf="vendorDetails as v" class="nd-vendor">
+              <span class="nd-vendor-ic"><lucide-icon [img]="icons.Building2" [size]="20"></lucide-icon></span>
+              <span><strong>{{ v.name }}</strong><small>{{ v.address }}</small><small>Trade License: {{ v.license }}</small></span>
+            </div>
+            <label class="field"><span class="field-label nd-label-strong">Disposal Instructions</span><textarea class="control remarks" rows="3" name="instr" [(ngModel)]="instructions" maxlength="500" placeholder="Handling, data wiping, pickup or certificate requirements for the vendor"></textarea><small class="counter">{{ instructions.length }}/500</small></label>
+          </fieldset>
+          <section>
+            <h3 class="nd-sub">Selected Assets ({{ chosen.length }})</h3>
+            <div class="table-wrap">
+              <table class="aa-table nd-static">
+                <thead><tr><th>#</th><th><span class="sr-only">Image</span></th><th>Asset Name</th><th>Asset Tag</th><th>Category</th><th>Model</th><th>Serial Number</th><th>Location</th><th>Condition</th><th>Est. Value (AED)</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let a of chosen; let i = index">
+                    <td>{{ i + 1 }}</td>
+                    <td><span class="nd-thumb"><img *ngIf="imageOf(a) as src; else tIcon" [src]="src" [alt]="a.assetName" /><ng-template #tIcon><lucide-icon [img]="icons.Package" [size]="18"></lucide-icon></ng-template></span></td>
+                    <td>{{ a.assetName }}</td><td class="nowrap">{{ a.tag }}</td><td class="nowrap">{{ a.category }}</td><td class="nowrap">{{ a.model }}</td><td class="nowrap">{{ a.serial }}</td><td class="nowrap">{{ a.location }}</td>
+                    <td><span [ngClass]="conditionClass(a.condition)">{{ a.condition }}</span></td><td>{{ a.value | number: '1.2-2' }}</td>
+                  </tr>
+                  <tr *ngIf="!chosen.length"><td colspan="10" class="empty">No assets selected yet. <button type="button" class="link-btn link-btn--accent" (click)="openStep(2)">Select assets</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </ng-container>
+
+        <!-- ===== Step 4: approval & attachments ===== -->
+        <ng-container *ngIf="step === 4">
+          <section class="nd-section">
+            <div class="wz-head">
+              <div><h2>4. Approval Workflow</h2><p>Select the required approvers and define the approval sequence for this disposal request.</p></div>
+            </div>
+            <div class="table-wrap">
+              <table class="aa-table nd-static nd-approvals">
+                <thead><tr><th class="nd-grip-col"><span class="sr-only">Reorder</span></th><th>#</th><th>Approval Level</th><th>Approver</th><th>Role / Department</th><th>Approval Type</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let a of approvals; let i = index" [class.is-dragging]="dragRow === i" (dragover)="$event.preventDefault()" (drop)="onRowDrop($event, i)">
+                    <td><button type="button" class="nd-grip" draggable="true" (dragstart)="dragRow = i" (dragend)="dragRow = null" (keydown.arrowup)="moveApprover(i, i - 1); $event.preventDefault()" (keydown.arrowdown)="moveApprover(i, i + 1); $event.preventDefault()" [attr.aria-label]="'Reorder ' + a.level + ' (drag, or use arrow keys)'"><lucide-icon [img]="icons.GripVertical" [size]="16"></lucide-icon></button></td>
+                    <td>{{ i + 1 }}</td>
+                    <td><input class="nd-plain" [name]="'lvl' + i" [(ngModel)]="a.level" [attr.aria-label]="'Approval level ' + (i + 1)" /></td>
+                    <td>
+                      <span class="nd-person">
+                        <span class="avatar" [style.background]="approverOf(a.approver)?.color ?? '#9ca3af'">{{ a.approver ? initials(a.approver) : '?' }}</span>
+                        <select class="nd-plain" [name]="'appr' + i" [(ngModel)]="a.approver" [attr.aria-label]="'Approver for ' + a.level"><option value="">Select approver</option><option *ngFor="let p of approverOptions(a)" [value]="p.name">{{ p.name }}</option></select>
+                      </span>
+                    </td>
+                    <td class="nowrap">{{ approverOf(a.approver)?.role ?? '—' }}</td>
+                    <td><select class="control nd-type" [name]="'type' + i" [(ngModel)]="a.type" [attr.aria-label]="'Approval type for ' + a.level"><option *ngFor="let t of approvalTypes" [value]="t">{{ t }}</option></select></td>
+                    <td><span class="status nd-pending">Pending</span></td>
+                    <td><button type="button" class="icon-btn nd-del" (click)="removeApprover(i)" [attr.aria-label]="'Remove ' + a.level"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button></td>
+                  </tr>
+                  <tr *ngIf="!approvals.length"><td colspan="8" class="empty">No approvers yet. Add at least one approver.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="nd-approval-foot">
+              <button type="button" class="btn btn-outline" (click)="addApprover()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Add Approver</button>
+              <label class="nd-switch"><input type="checkbox" name="notify" [(ngModel)]="notifyApprovers" /><span class="nd-switch-track" aria-hidden="true"></span>Send approval notifications automatically</label>
+            </div>
+          </section>
+
+          <section class="nd-section">
+            <div class="wz-head">
+              <div><h2>5. Attachments</h2><p>Upload supporting documents for this disposal request.</p></div>
+            </div>
+            <label class="drop nd-drop" [class.is-over]="dragging" (dragover)="$event.preventDefault(); dragging = true" (dragleave)="dragging = false" (drop)="onDrop($event)">
+              <lucide-icon [img]="icons.Upload" [size]="26"></lucide-icon>
+              <span><strong>Drag &amp; drop files here or click to upload</strong><small>Supports PDF, DOC, XLS, JPG, PNG (Max 10 MB each)</small></span>
+              <input #up type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip" (change)="addFiles(up.files); up.value = ''" />
+            </label>
+            <div class="table-wrap">
+              <table class="aa-table nd-static">
+                <thead><tr><th>#</th><th>File Name</th><th>Type</th><th>Size</th><th>Uploaded By</th><th>Date</th><th>Description</th><th class="nd-center">Actions</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let f of files; let i = index">
+                    <td>{{ i + 1 }}</td>
+                    <td><span class="nd-file"><lucide-icon class="file-ic" [ngClass]="'file-ic--' + ext(f.name)" [img]="fileIcon(f.name)" [size]="18"></lucide-icon><span class="nd-file-name">{{ f.name }}</span></span></td>
+                    <td>{{ ext(f.name).toUpperCase() }}</td>
+                    <td class="nowrap">{{ fileSize(f.size) }}</td>
+                    <td class="nowrap">{{ f.by }}</td>
+                    <td class="nowrap">{{ f.added | date: 'dd MMM yyyy' }}</td>
+                    <td><input class="nd-plain" [name]="'desc' + i" [(ngModel)]="f.description" maxlength="100" placeholder="Add a description" [attr.aria-label]="'Description for ' + f.name" /></td>
+                    <td class="nd-center"><button type="button" class="icon-btn nd-del" (click)="removeFile(f)" [attr.aria-label]="'Remove ' + f.name"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button></td>
+                  </tr>
+                  <tr *ngIf="!files.length"><td colspan="8" class="empty">No documents attached yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="nd-section">
+            <div class="wz-head">
+              <div><h2>6. Additional Remarks</h2><p>Any additional information for the approvers.</p></div>
+            </div>
+            <label class="field"><textarea class="control remarks" rows="3" name="remarks" [(ngModel)]="remarks" maxlength="500" aria-label="Additional remarks" placeholder="Anything the approvers should know about this request"></textarea><small class="counter">{{ remarks.length }}/500</small></label>
+          </section>
+        </ng-container>
+
+        <!-- ===== Step 5: review ===== -->
+        <div *ngIf="step === 5" class="review nd-review">
+          <section>
+            <h3>1. Request Details<button type="button" class="link-btn" (click)="openStep(1)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+            <dl class="kv nd-kv">
+              <dt>Request Title</dt><dd>{{ title || '—' }}</dd>
+              <dt>Request Date</dt><dd>{{ requestDate ? (requestDate | date: 'dd MMM yyyy') : '—' }}</dd>
+              <dt>Requested By</dt><dd>{{ requestedBy }}</dd>
+              <dt>Reason</dt><dd>{{ reason }}</dd>
+              <dt>Category</dt><dd>{{ category || '—' }}</dd>
+              <dt>Priority</dt><dd><span class="nd-priority-dot" [ngClass]="'nd-priority--' + priority.toLowerCase()">{{ priority }}</span></dd>
+              <dt>Justification / Remarks</dt><dd class="nd-pre">{{ justification || '—' }}</dd>
+            </dl>
+          </section>
+
+          <section>
+            <h3>2. Selected Assets ({{ chosen.length }})<button type="button" class="link-btn" (click)="openStep(2)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+            <div class="table-wrap">
+              <table class="aa-table nd-static">
+                <thead><tr><th>#</th><th><span class="sr-only">Image</span></th><th>Asset Name</th><th>Asset Tag</th><th>Category</th><th>Model</th><th>Condition</th><th>Est. Value (AED)</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let a of chosen; let i = index">
+                    <td>{{ i + 1 }}</td>
+                    <td><span class="nd-thumb"><img *ngIf="imageOf(a) as src; else rIcon" [src]="src" [alt]="a.assetName" /><ng-template #rIcon><lucide-icon [img]="icons.Package" [size]="18"></lucide-icon></ng-template></span></td>
+                    <td class="nowrap">{{ a.assetName }}</td><td class="nowrap">{{ a.tag }}</td><td class="nowrap">{{ a.category }}</td><td class="nowrap">{{ a.model }}</td>
+                    <td><span [ngClass]="conditionClass(a.condition)">{{ a.condition }}</span></td><td>{{ a.value | number: '1.2-2' }}</td>
+                  </tr>
+                  <tr *ngIf="!chosen.length"><td colspan="8" class="empty">No assets selected.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="nd-total"><span>Total Estimated Value (AED)</span><strong>{{ totalValue | number: '1.2-2' }}</strong></p>
+          </section>
+
+          <section>
+            <h3>3. Disposal Method<button type="button" class="link-btn" (click)="openStep(3)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+            <div class="nd-chosen nd-chosen--box">
+              <span class="nd-method-ic" [ngClass]="'nd-method--' + methodTone(method)"><lucide-icon [img]="methodIcons[method]" [size]="22"></lucide-icon></span>
+              <span><strong>{{ method }}</strong><small>{{ methodText(method) }}</small></span>
+            </div>
+            <dl class="kv nd-kv">
+              <dt>Vendor</dt><dd>{{ vendor || '—' }}</dd>
+              <dt>Contact Person</dt><dd>{{ contactPerson || '—' }}</dd>
+              <dt>Contact Number</dt><dd>{{ contactNumber || '—' }}</dd>
+              <dt>Expected Disposal Date</dt><dd>{{ expectedDate ? (expectedDate | date: 'dd MMM yyyy') : '—' }}</dd>
+              <dt>Disposal Instructions</dt><dd class="nd-pre">{{ instructions || '—' }}</dd>
+            </dl>
+          </section>
+
+          <section>
+            <h3>4. Approval Workflow<button type="button" class="link-btn" (click)="openStep(4)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+            <ol *ngIf="approvals.length; else noChain" class="nd-timeline">
+              <li *ngFor="let a of approvals; let i = index">
+                <span class="nd-step-no">{{ i + 1 }}</span>
+                <strong class="nd-level">{{ a.level }}</strong>
+                <span class="grow">{{ a.approver || '—' }}<small *ngIf="approverOf(a.approver) as p"> ({{ p.role }})</small><small *ngIf="a.type === 'Optional'" class="nd-optional">Optional</small></span>
+                <span class="status nd-pending">Pending</span>
+              </li>
+            </ol>
+            <ng-template #noChain><p class="muted">No approvers added.</p></ng-template>
+            <p class="nd-notify muted">{{ notifyApprovers ? 'Approvers will be notified automatically.' : 'Automatic approval notifications are off.' }}</p>
+          </section>
+
+          <section>
+            <h3>5. Attachments ({{ files.length }})<button type="button" class="link-btn" (click)="openStep(4)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+            <div class="table-wrap">
+              <table class="aa-table nd-static">
+                <thead><tr><th>#</th><th>File Name</th><th>Type</th><th>Size</th><th>Description</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let f of files; let i = index">
+                    <td>{{ i + 1 }}</td>
+                    <td><span class="nd-file"><lucide-icon class="file-ic" [ngClass]="'file-ic--' + ext(f.name)" [img]="fileIcon(f.name)" [size]="18"></lucide-icon><span class="nd-file-name">{{ f.name }}</span></span></td>
+                    <td>{{ ext(f.name).toUpperCase() }}</td><td class="nowrap">{{ fileSize(f.size) }}</td><td>{{ f.description || '—' }}</td>
+                  </tr>
+                  <tr *ngIf="!files.length"><td colspan="5" class="empty">No documents attached.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section>
+            <h3>6. Additional Remarks<button type="button" class="link-btn" (click)="openStep(4)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+            <p class="nd-remarks">{{ remarks || 'No additional remarks.' }}</p>
+          </section>
+        </div>
+
+        <p *ngIf="error" class="form-error" role="alert">{{ error }}</p>
+      </div>
+
+      <div class="wz-foot">
+        <button type="button" class="btn btn-outline" (click)="back()"><lucide-icon *ngIf="step > 1" [img]="icons.ArrowLeft" [size]="17"></lucide-icon>{{ step === 1 ? 'Cancel' : 'Back' }}</button>
+        <span class="foot-actions">
+          <button type="button" class="btn btn-outline" (click)="saveDraft()"><lucide-icon [img]="icons.Save" [size]="17"></lucide-icon>Save as Draft</button>
+          <button *ngIf="step < steps.length" type="button" class="btn btn-primary" (click)="next()">Next: {{ steps[step].title }}<lucide-icon [img]="icons.ArrowRight" [size]="17"></lucide-icon></button>
+          <button *ngIf="step === steps.length" type="button" class="btn btn-primary" (click)="submit()"><lucide-icon [img]="icons.Check" [size]="17"></lucide-icon>Submit Request</button>
+        </span>
+      </div>
+    </div>
+
+    <aside *ngIf="step !== 5" class="wz-side">
+      <!-- First selected asset -->
+      <section *ngIf="featured as a" class="card panel">
+        <div class="sum-asset">
+          <span class="pick-sel-img">
+            <img *ngIf="imageOf(a) as src; else picIcon" [src]="src" [alt]="a.assetName" />
+            <ng-template #picIcon><lucide-icon [img]="icons.Package" [size]="36"></lucide-icon></ng-template>
+          </span>
+          <span class="grow">
+            <strong>{{ a.tag }}</strong>
+            <small>{{ a.manufacturer.split(' ')[0] }} {{ a.model }}</small>
+            <span class="cat-pill">{{ a.category }}</span>
+          </span>
+        </div>
+        <dl class="kv kv--tight">
+          <dt>Location</dt><dd>{{ a.locationDetail }}</dd>
+          <dt>Manufacturer</dt><dd>{{ a.manufacturer }}</dd>
+          <dt>Status</dt><dd><span class="status status--assigned">Active</span></dd>
+        </dl>
+      </section>
+
+      <!-- Step 2: running totals and the picked assets -->
+      <section *ngIf="step === 2" class="card panel">
+        <div class="panel-head"><h3 class="grow">Selection Summary</h3></div>
+        <dl class="kv kv--tight">
+          <dt>Total Assets</dt><dd>{{ chosen.length }}</dd>
+          <dt>Estimated Value (AED)</dt><dd class="nd-value">{{ totalValue | number: '1.2-2' }}<lucide-icon class="info-ic" [img]="icons.Info" [size]="15" title="Sum of the estimated recovery value of the selected assets"></lucide-icon></dd>
+        </dl>
+        <p class="nd-note"><lucide-icon [img]="icons.Info" [size]="18"></lucide-icon>These assets will be included in the disposal request.</p>
+      </section>
+
+      <section *ngIf="step === 2" class="card panel">
+        <div class="panel-head">
+          <h3 class="grow">Selected Assets ({{ chosen.length }})</h3>
+          <button *ngIf="chosen.length" type="button" class="link-btn link-btn--accent" (click)="clearAssets()">Clear All</button>
+        </div>
+        <ul *ngIf="chosen.length; else noneChosen" class="picked">
+          <li *ngFor="let a of chosen">
+            <span class="picked-ic">
+              <img *ngIf="imageOf(a) as src; else pIcon" [src]="src" [alt]="a.assetName" />
+              <ng-template #pIcon><lucide-icon [img]="icons.Package" [size]="22"></lucide-icon></ng-template>
+            </span>
+            <span class="grow"><strong>{{ a.assetName }}</strong><small>{{ a.tag }}</small></span>
+            <button type="button" class="icon-btn nd-del" (click)="removeAsset(a)" [attr.aria-label]="'Remove ' + a.tag"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button>
+          </li>
+        </ul>
+        <ng-template #noneChosen><p class="muted">No assets selected yet.</p></ng-template>
+      </section>
+
+      <!-- Step 3: request summary, chosen method and the policy note -->
+      <ng-container *ngIf="step === 3">
+        <section class="card panel summary">
+          <div class="panel-head"><h3 class="grow">Request Summary</h3></div>
+          <dl class="kv kv--tight">
+            <dt>Request Title</dt><dd>{{ title || '—' }}</dd>
+            <dt>Request Date</dt><dd>{{ requestDate ? (requestDate | date: 'dd MMM yyyy') : '—' }}</dd>
+            <dt>Requested By</dt><dd>{{ requestedBy }}</dd>
+            <dt>Reason</dt><dd>{{ reason }}</dd>
+            <dt>Category</dt><dd>{{ category || '—' }}</dd>
+            <dt>Total Assets</dt><dd>{{ chosen.length }}</dd>
+            <dt>Estimated Value (AED)</dt><dd>{{ totalValue | number: '1.2-2' }}</dd>
+          </dl>
+        </section>
+        <section class="card panel">
+          <div class="panel-head"><h3 class="grow">Selected Disposal Method</h3></div>
+          <div class="nd-chosen">
+            <span class="nd-method-ic nd-method-ic--lg" [ngClass]="'nd-method--' + (methodTone(method))"><lucide-icon [img]="methodIcons[method]" [size]="22"></lucide-icon></span>
+            <span><strong>{{ method }}</strong><small>{{ vendor || 'No vendor selected' }}</small></span>
+          </div>
+          <dl class="kv kv--tight">
+            <dt>Expected Date</dt><dd>{{ expectedDate ? (expectedDate | date: 'dd MMM yyyy') : '—' }}</dd>
+          </dl>
+        </section>
+        <section class="card panel">
+          <div class="panel-head"><h3 class="grow">Supporting Information</h3></div>
+          <p class="nd-note"><lucide-icon [img]="icons.Info" [size]="18"></lucide-icon>{{ methodNote }}</p>
+        </section>
+      </ng-container>
+
+      <!-- Step 4: request summary and the assets going to the approvers -->
+      <ng-container *ngIf="step === 4">
+        <section class="card panel summary">
+          <div class="panel-head"><h3 class="grow">Request Summary</h3><button type="button" class="link-btn link-btn--accent" (click)="openStep(1)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></div>
+          <dl class="kv kv--tight">
+            <dt>Request Title</dt><dd>{{ title || '—' }}</dd>
+            <dt>Request Date</dt><dd>{{ requestDate ? (requestDate | date: 'dd MMM yyyy') : '—' }}</dd>
+            <dt>Requested By</dt><dd>{{ requestedBy }}</dd>
+            <dt>Reason</dt><dd>{{ reason }}</dd>
+            <dt>Category</dt><dd>{{ category || '—' }}</dd>
+            <dt>Disposal Method</dt><dd>{{ method }}</dd>
+            <dt>Vendor</dt><dd>{{ vendor || '—' }}</dd>
+            <dt>Total Assets</dt><dd>{{ chosen.length }}</dd>
+            <dt>Estimated Value (AED)</dt><dd>{{ totalValue | number: '1.2-2' }}</dd>
+          </dl>
+        </section>
+        <section class="card panel">
+          <div class="panel-head"><h3 class="grow">Selected Assets ({{ chosen.length }})</h3><button type="button" class="link-btn link-btn--accent" (click)="openStep(2); setListTab('selected')">View All</button></div>
+          <ul *ngIf="chosen.length; else noneYet" class="picked">
+            <li *ngFor="let a of chosen">
+              <span class="picked-ic">
+                <img *ngIf="imageOf(a) as src; else sIcon" [src]="src" [alt]="a.assetName" />
+                <ng-template #sIcon><lucide-icon [img]="icons.Package" [size]="22"></lucide-icon></ng-template>
+              </span>
+              <span class="grow"><strong>{{ a.assetName }}</strong><small>{{ a.tag }}</small></span>
+            </li>
+          </ul>
+          <ng-template #noneYet><p class="muted">No assets selected yet.</p></ng-template>
+        </section>
+      </ng-container>
+
+      <section *ngIf="step === 1" class="card panel summary">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.CalendarDays" [size]="20"></lucide-icon><h3 class="grow">Request Summary</h3></div>
+        <dl class="kv kv--tight">
+          <dt>Request Title</dt><dd>{{ title || '—' }}</dd>
+          <dt>Request Date</dt><dd>{{ requestDate ? (requestDate | date: 'dd MMM yyyy') : '—' }}</dd>
+          <dt>Requested By</dt><dd>{{ requestedBy }}</dd>
+          <dt>Reason</dt><dd>{{ reason }}</dd>
+          <dt>Category</dt><dd>{{ category || '—' }}</dd>
+          <dt>Total Assets</dt><dd>{{ chosen.length }}</dd>
+          <dt>Estimated Value</dt><dd>AED {{ totalValue | number: '1.2-2' }}</dd>
+          <dt>Disposal Method</dt><dd>{{ method }}</dd>
+          <dt>Vendor</dt><dd>{{ vendor || '—' }}</dd>
+          <dt>Expected Date</dt><dd>{{ expectedDate ? (expectedDate | date: 'dd MMM yyyy') : '—' }}</dd>
+          <dt>Status</dt><dd><span class="status nd-draft">Draft</span></dd>
+        </dl>
+      </section>
+
+    </aside>
+  </div>
+</section>
+
+<!-- ===== Add by Tag dialog ===== -->
+<div *ngIf="tagDialog" class="overlay" (click)="tagDialog = false">
+  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="nd-tag-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="nd-tag-title">Add by Tag</h2>
+      <button type="button" class="icon-btn" (click)="tagDialog = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="confirmTags()">
+      <label class="field"><span class="field-label">Asset Tags</span><textarea class="control remarks" rows="5" name="tags" [(ngModel)]="tagText" placeholder="One per line, or separated by commas&#10;e.g. LT-000125, PR-000089"></textarea></label>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="tagDialog = false">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="!tagText.trim()"><lucide-icon [img]="icons.Tag" [size]="16"></lucide-icon>Select Assets</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

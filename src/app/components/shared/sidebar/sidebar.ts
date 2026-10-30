@@ -31,6 +31,8 @@ export interface NavItem {
   children?: NavItem[];
   // The item has its own page: clicking it opens that page as well as its submenu
   hasPage?: boolean;
+  // Page opened (with the submenu expanded) when the item is clicked from outside its section
+  landing?: string;
   // Expand inline under the item even though the submenu has a second level
   inline?: boolean;
 }
@@ -60,7 +62,17 @@ export class Sidebar {
   flyoutPosition: { top: number; left: number } | null = null;
 
   navItems: NavItem[] = [
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    {
+      label: 'Dashboard',
+      path: '/dashboard',
+      icon: LayoutDashboard,
+      landing: '/dashboard/iot-tracking-overview',
+      children: [
+        { label: 'IoT & Tracking Overview', path: '/dashboard/iot-tracking-overview' },
+        { label: 'Asset Overview', path: '/dashboard/asset-overview' },
+        { label: 'Reports', path: '/dashboard/reports' },
+      ],
+    },
     {
       label: 'Assets',
       path: '/assets',
@@ -211,6 +223,12 @@ export class Sidebar {
   toggleInline(item: NavItem, triggerEl: EventTarget | null): void {
     if (this.collapsed) {
       this.toggleDropdown(item.label, triggerEl);
+      return;
+    }
+    // Items with a landing page open it and expand; clicking again inside the section collapses
+    if (item.landing && !this.isSectionActive(item)) {
+      this.openInline.add(item.label);
+      this.router.navigateByUrl(item.landing);
       return;
     }
     // Items with their own page open it and expand; clicking again while on that page collapses

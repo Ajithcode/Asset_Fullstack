@@ -24,7 +24,7 @@
 .nowrap { white-space: nowrap; }
 
 .crumbs { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ai-text-2); }
-.crumbs .sep { color: #9ca3af; }
+.crumbs .sep { font-size: 1.35em; line-height: 1; color: #9ca3af; }
 .crumbs strong { font-weight: 600; color: var(--ai-ink); }
 .ai-head h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.3px; }
 .ai-head p { margin: 4px 0 0; font-size: 14.5px; color: var(--ai-text-2); }
