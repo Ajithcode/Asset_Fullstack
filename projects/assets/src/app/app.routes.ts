@@ -1,5 +1,4 @@
 import { Routes } from '@angular/router';
-import { ModulePlaceholder } from 'shared-ui';
 import { AssetRegistration } from './asset-registration/asset-registration';
 import { AssetList } from './asset-list/asset-list';
 import { AssetCategories } from './asset-categories/asset-categories';
@@ -15,9 +14,18 @@ import { AssetStatusCondition } from './asset-status-condition/asset-status-cond
 import { AssetCriticality } from './asset-criticality/asset-criticality';
 import { AssetHealthScore } from './asset-health-score/asset-health-score';
 import { AssetBulk } from './asset-bulk/asset-bulk';
+import { BulkAssignment } from './asset-bulk/bulk-assignment/bulk-assignment';
 import { AssetMerge } from './asset-merge/asset-merge';
 import { LocationHistory } from './asset-location-history/location-history';
+import { AssetAssignment } from './asset-assignment/asset-assignment';
+import { AssignAsset } from './asset-assignment/assign-asset/assign-asset';
 import { AssetMaintenance } from './asset-maintenance/asset-maintenance';
+import { ServiceRequest } from './service-request/service-request/service-request';
+import { NewServiceRequest } from './service-request/new-service-request/new-service-request';
+import { AssetAudit } from './asset-audit/asset-audit/asset-audit';
+import { NewassetAudit } from './asset-audit/newasset-audit/newasset-audit';
+import { AssetDisposal } from './asset-disposal/asset-disposal/asset-disposal';
+import { NewDisposal } from './asset-disposal/new-disposal/new-disposal';
 import { AssetLifecycle } from './asset-lifecycle/asset-lifecycle';
 
 // Mounted by the shell at /assets; paths match the Assets menu in the shell's sidebar
@@ -35,11 +43,19 @@ export const routes: Routes = [
   { path: 'hierarchy', component: AssetHierarchy },
   { path: 'components', component: AssetComponents },
   { path: 'location-history', component: LocationHistory },
-  { path: 'assignment', component: ModulePlaceholder, data: { title: 'Assignment' } },
+  { path: 'assignment', component: AssetAssignment },
+  // ?type= preselects the assignee kind, ?assets= the asset tags
+  { path: 'assignment/assign-asset', component: AssignAsset },
+  { path: 'assignment/bulk-assignment', component: BulkAssignment },
   { path: 'maintenance', component: AssetMaintenance },
-  { path: 'service-requests', component: ModulePlaceholder, data: { title: 'Service Requests' } },
-  { path: 'audit', component: ModulePlaceholder, data: { title: 'Asset Audit' } },
-  { path: 'disposal', component: ModulePlaceholder, data: { title: 'Disposal' } },
+  // ?tag= the asset, ?tab= details | updates | attachments | related; without an id the asset's latest request opens
+  { path: 'service-requests', component: ServiceRequest },
+  { path: 'service-requests/new', component: NewServiceRequest },
+  { path: 'service-requests/:id', component: ServiceRequest },
+  { path: 'audit', component: AssetAudit },
+  { path: 'audit/new-audit', component: NewassetAudit },
+  { path: 'disposal', component: AssetDisposal },
+  { path: 'disposal/new-disposal', component: NewDisposal },
   { path: 'custom-fields', component: AssetCustomFields },
   { path: 'lifecycle', component: AssetLifecycle },
   { path: 'documents', component: AssetDocuments },

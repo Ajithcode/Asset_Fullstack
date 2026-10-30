@@ -16,7 +16,12 @@ import { join } from 'node:path';
 // Key = remote name used by the shell, value = Angular project name.
 const REMOTES = {
   dashboard: 'dashboard',
+  assets: 'assets',
   locating: 'locating',
+  trackingIot: 'tracking-iot',
+  wipOperations: 'wip-operations',
+  reports: 'reports',
+  administration: 'administration',
   masterDataManagement: 'master-data-management',
 };
 
