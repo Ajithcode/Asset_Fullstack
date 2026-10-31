@@ -1,10 +1,9 @@
 import { Routes } from '@angular/router';
-import { Administration } from './administration/administration';
 
 // Mounted by the shell at /administration; paths match ADMINISTRATION_MENU in shared-ui, which the shell's
-// sidebar is built from
+// sidebar is built from. There is no landing page: the bare path redirects to the first module.
 export const routes: Routes = [
-  { path: '', component: Administration },
+  { path: '', redirectTo: 'organization', pathMatch: 'full' },
   {
     path: 'organization',
     loadComponent: () => import('./organization/organization').then((m) => m.OrganizationPage)

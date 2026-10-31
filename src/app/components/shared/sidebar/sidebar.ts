@@ -159,19 +159,16 @@ export class Sidebar {
       label: 'Administration',
       path: ADMINISTRATION_BASE_PATH,
       icon: Settings,
-      hasPage: true,
       children: ADMINISTRATION_MENU.map((m) => ({ label: m.label, path: `${ADMINISTRATION_BASE_PATH}/${m.slug}` }))
     },
     {
       label: 'Master Data Management',
       path: MASTER_DATA_BASE_PATH,
       icon: Database,
-      hasPage: true,
       inline: true,
       children: MASTER_DATA_MENU.map((group) => ({
         label: group.label,
         path: `${MASTER_DATA_BASE_PATH}/${group.slug}`,
-        hasPage: true,
         children: group.items.map((item) => ({
           label: item.label,
           path: `${MASTER_DATA_BASE_PATH}/${group.slug}/${item.slug}`
@@ -219,7 +216,8 @@ export class Sidebar {
     return !this.collapsed && this.openInline.has(label);
   }
 
-  // Inline items expand in place; when the sidebar is collapsed there is no room, so they use the flyout
+  // Inline items expand in place without navigating; when the sidebar is collapsed there is no room,
+  // so they use the flyout
   toggleInline(item: NavItem, triggerEl: EventTarget | null): void {
     if (this.collapsed) {
       this.toggleDropdown(item.label, triggerEl);
@@ -248,17 +246,10 @@ export class Sidebar {
     return this.openInlineGroup === group.path;
   }
 
-  // Second-level groups (e.g. Master Data Management > Asset): one open at a time. Clicking a
-  // closed group opens it and its overview page; clicking an open group just closes it.
+  // Second-level groups (e.g. Master Data Management > Asset): one open at a time. Clicking only
+  // expands or collapses the group; navigation happens only from its leaf items.
   toggleInlineGroup(group: NavItem): void {
-    if (this.isInlineGroupOpen(group)) {
-      this.openInlineGroup = null;
-      return;
-    }
-    this.openInlineGroup = group.path;
-    if (group.hasPage && this.router.url.split('?')[0] !== group.path) {
-      this.router.navigate([group.path]);
-    }
+    this.openInlineGroup = this.isInlineGroupOpen(group) ? null : group.path;
   }
 
   private assetUrl(fileName: string): string {
