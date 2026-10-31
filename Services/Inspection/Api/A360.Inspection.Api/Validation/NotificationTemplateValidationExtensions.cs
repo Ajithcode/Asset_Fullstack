@@ -13,16 +13,6 @@ public static class NotificationTemplateValidationExtensions
             errors["TemplateName"] = ["TemplateName is required"];
         }
 
-        if (string.IsNullOrWhiteSpace(request.Event))
-        {
-            errors["Event"] = ["Event is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Channel))
-        {
-            errors["Channel"] = ["Channel is required"];
-        }
-
         return errors;
     }
 
@@ -33,16 +23,6 @@ public static class NotificationTemplateValidationExtensions
         if (string.IsNullOrWhiteSpace(request.TemplateName))
         {
             errors["TemplateName"] = ["TemplateName is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Event))
-        {
-            errors["Event"] = ["Event is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Channel))
-        {
-            errors["Channel"] = ["Channel is required"];
         }
 
         return errors;

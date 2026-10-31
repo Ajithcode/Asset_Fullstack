@@ -32,4 +32,34 @@ public sealed class InspectionType : BaseEntity
 
     [BsonElement("is_active")]
     public bool IsActive { get; set; } = true;
+
+    [BsonElement("category")]
+    public string Category { get; set; } = string.Empty;
+
+    [BsonElement("default_checklist_code")]
+    public string DefaultChecklistCode { get; set; } = string.Empty;
+
+    [BsonElement("default_checklist_name")]
+    public string DefaultChecklistName { get; set; } = string.Empty;
+
+    [BsonElement("default_frequency")]
+    public string DefaultFrequency { get; set; } = string.Empty;
+
+    [BsonElement("applicable_assets")]
+    public string ApplicableAssets { get; set; } = string.Empty;
+
+    [BsonElement("responsible_role")]
+    public string ResponsibleRole { get; set; } = string.Empty;
+
+    [BsonElement("photo_evidence_on_failure")]
+    public bool PhotoEvidenceOnFailure { get; set; }
+
+    [BsonElement("signature_required")]
+    public bool SignatureRequired { get; set; }
+
+    [BsonElement("corrective_action_on_failure")]
+    public bool CorrectiveActionOnFailure { get; set; }
+
+    [BsonElement("permit_required")]
+    public bool PermitRequired { get; set; }
 }

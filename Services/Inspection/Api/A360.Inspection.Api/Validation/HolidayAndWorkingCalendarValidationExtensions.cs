@@ -13,11 +13,6 @@ public static class HolidayAndWorkingCalendarValidationExtensions
             errors["CalendarName"] = ["CalendarName is required"];
         }
 
-        if (string.IsNullOrWhiteSpace(request.Country))
-        {
-            errors["Country"] = ["Country is required"];
-        }
-
         return errors;
     }
 
@@ -28,11 +23,6 @@ public static class HolidayAndWorkingCalendarValidationExtensions
         if (string.IsNullOrWhiteSpace(request.CalendarName))
         {
             errors["CalendarName"] = ["CalendarName is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Country))
-        {
-            errors["Country"] = ["Country is required"];
         }
 
         return errors;

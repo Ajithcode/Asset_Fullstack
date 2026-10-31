@@ -8,16 +8,6 @@ public static class InspectionTypeValidationExtensions
     {
         var errors = new Dictionary<string, string[]>();
 
-        if (string.IsNullOrWhiteSpace(request.AssetId))
-        {
-            errors["AssetId"] = ["AssetId is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.AssetName))
-        {
-            errors["AssetName"] = ["AssetName is required"];
-        }
-
         if (string.IsNullOrWhiteSpace(request.InspectionTypeName))
         {
             errors["InspectionTypeName"] = ["InspectionTypeName is required"];
@@ -29,16 +19,6 @@ public static class InspectionTypeValidationExtensions
     public static Dictionary<string, string[]> Validate(this UpdateInspectionTypeRequest request)
     {
         var errors = new Dictionary<string, string[]>();
-
-        if (string.IsNullOrWhiteSpace(request.AssetId))
-        {
-            errors["AssetId"] = ["AssetId is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.AssetName))
-        {
-            errors["AssetName"] = ["AssetName is required"];
-        }
 
         if (string.IsNullOrWhiteSpace(request.InspectionTypeName))
         {

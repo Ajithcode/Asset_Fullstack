@@ -1,98 +1,88 @@
+using A360.Inspection.Domain.Entities;
 using ChecklistEntity = A360.Inspection.Domain.Entities.Checklist;
-using ChecklistSectionEntity = A360.Inspection.Domain.Entities.ChecklistSection;
-using ChecklistTaskItemEntity = A360.Inspection.Domain.Entities.ChecklistTaskItem;
 
 namespace A360.Inspection.Api.Contracts;
 
-public sealed record ChecklistTaskItemRequest(
-    string? TaskId,
-    string? TaskTitle,
-    bool? IsMandatory,
-    int? Order)
+/// <summary>Editable fields shared by the create and update requests for Checklist.</summary>
+public abstract record ChecklistFields
 {
-    public ChecklistTaskItemEntity ToEntity()
+    public string? TemplateName { get; init; }
+
+    public string? InspectionTypeId { get; init; }
+
+    public string? InspectionTypeName { get; init; }
+
+    public string? AssetCategory { get; init; }
+
+    public string? AssetType { get; init; }
+
+    public List<string>? Modules { get; init; }
+
+    public string? Scoring { get; init; }
+
+    public string? Owner { get; init; }
+
+    public int? Version { get; init; }
+
+    public string? VersionLabel { get; init; }
+
+    public string? EffectiveDate { get; init; }
+
+    public List<ChecklistSection>? Sections { get; init; }
+
+    public bool? AllMandatoryRequired { get; init; }
+
+    public bool? PhotoOnFailedItems { get; init; }
+
+    public bool? InspectorSignatureRequired { get; init; }
+
+    public bool? CriticalFailureOverridesScore { get; init; }
+
+    public bool? CreateFindingOnFailure { get; init; }
+
+    public bool? RouteCorrectiveAction { get; init; }
+
+    public bool? IsActive { get; init; }
+
+    public string? Status { get; init; }
+
+    protected void ApplyFields(ChecklistEntity checklist)
     {
-        return new ChecklistTaskItemEntity
-        {
-            TaskId = TaskId ?? string.Empty,
-            TaskTitle = TaskTitle ?? string.Empty,
-            IsMandatory = IsMandatory ?? false,
-            Order = Order ?? 0
-        };
+        checklist.TemplateName = TemplateName ?? checklist.TemplateName;
+        checklist.InspectionTypeId = InspectionTypeId ?? checklist.InspectionTypeId;
+        checklist.InspectionTypeName = InspectionTypeName ?? checklist.InspectionTypeName;
+        checklist.AssetCategory = AssetCategory ?? checklist.AssetCategory;
+        checklist.AssetType = AssetType ?? checklist.AssetType;
+        checklist.Modules = Modules ?? checklist.Modules;
+        checklist.Scoring = Scoring ?? checklist.Scoring;
+        checklist.Owner = Owner ?? checklist.Owner;
+        checklist.Version = Version ?? checklist.Version;
+        checklist.VersionLabel = VersionLabel ?? checklist.VersionLabel;
+        checklist.EffectiveDate = ContractDates.ParseDate(EffectiveDate);
+        checklist.Sections = Sections ?? checklist.Sections;
+        checklist.AllMandatoryRequired = AllMandatoryRequired ?? checklist.AllMandatoryRequired;
+        checklist.PhotoOnFailedItems = PhotoOnFailedItems ?? checklist.PhotoOnFailedItems;
+        checklist.InspectorSignatureRequired = InspectorSignatureRequired ?? checklist.InspectorSignatureRequired;
+        checklist.CriticalFailureOverridesScore = CriticalFailureOverridesScore ?? checklist.CriticalFailureOverridesScore;
+        checklist.CreateFindingOnFailure = CreateFindingOnFailure ?? checklist.CreateFindingOnFailure;
+        checklist.RouteCorrectiveAction = RouteCorrectiveAction ?? checklist.RouteCorrectiveAction;
+        checklist.IsActive = IsActive ?? checklist.IsActive;
     }
 }
 
-public sealed record ChecklistSectionRequest(
-    string? SectionName,
-    int? Order,
-    List<ChecklistTaskItemRequest>? Tasks)
+public sealed record CreateChecklistRequest : ChecklistFields
 {
-    public ChecklistSectionEntity ToEntity()
-    {
-        return new ChecklistSectionEntity
-        {
-            SectionName = SectionName ?? string.Empty,
-            Order = Order ?? 0,
-            Tasks = Tasks?.Select(task => task.ToEntity()).ToList() ?? []
-        };
-    }
-}
+    public string? CreatedBy { get; init; }
 
-public sealed record ChecklistTaskItemResponse(
-    string TaskId,
-    string TaskTitle,
-    bool IsMandatory,
-    int Order)
-{
-    public static ChecklistTaskItemResponse FromEntity(ChecklistTaskItemEntity task)
-    {
-        return new ChecklistTaskItemResponse(task.TaskId, task.TaskTitle, task.IsMandatory, task.Order);
-    }
-}
+    public string? ClientId { get; init; }
 
-public sealed record ChecklistSectionResponse(
-    string SectionName,
-    int Order,
-    List<ChecklistTaskItemResponse> Tasks)
-{
-    public static ChecklistSectionResponse FromEntity(ChecklistSectionEntity section)
-    {
-        return new ChecklistSectionResponse(
-            section.SectionName,
-            section.Order,
-            section.Tasks.Select(ChecklistTaskItemResponse.FromEntity).ToList());
-    }
-}
+    public string? TenantId { get; init; }
 
-public sealed record CreateChecklistRequest(
-    string? TemplateName,
-    string? InspectionTypeId,
-    string? InspectionTypeName,
-    string? AssetCategory,
-    string? AssetType,
-    List<ChecklistSectionRequest>? Sections,
-    int? Version,
-    DateTime? EffectiveDate,
-    bool? IsActive,
-    string? Status,
-    string? CreatedBy,
-    string? ClientId,
-    string? TenantId)
-{
     public ChecklistEntity ToEntity(string checklistCode)
     {
-        return new ChecklistEntity
+        var checklist = new ChecklistEntity
         {
             ChecklistCode = checklistCode,
-            TemplateName = TemplateName ?? string.Empty,
-            InspectionTypeId = InspectionTypeId ?? string.Empty,
-            InspectionTypeName = InspectionTypeName ?? string.Empty,
-            AssetCategory = AssetCategory ?? string.Empty,
-            AssetType = AssetType ?? string.Empty,
-            Sections = Sections?.Select(section => section.ToEntity()).ToList() ?? [],
-            Version = Version ?? 1,
-            EffectiveDate = EffectiveDate,
-            IsActive = IsActive ?? true,
             Status = Status,
             CreatedBy = CreatedBy,
             CreatedAt = DateTime.UtcNow,
@@ -100,81 +90,96 @@ public sealed record CreateChecklistRequest(
             TenantId = TenantId,
             IsDeleted = false
         };
+
+        ApplyFields(checklist);
+        return checklist;
     }
 }
 
-public sealed record UpdateChecklistRequest(
-    string? TemplateName,
-    string? InspectionTypeId,
-    string? InspectionTypeName,
-    string? AssetCategory,
-    string? AssetType,
-    List<ChecklistSectionRequest>? Sections,
-    int? Version,
-    DateTime? EffectiveDate,
-    bool? IsActive,
-    string? Status,
-    string? UpdatedBy)
+public sealed record UpdateChecklistRequest : ChecklistFields
 {
+    public string? UpdatedBy { get; init; }
+
     public void ApplyTo(ChecklistEntity checklist)
     {
-        checklist.TemplateName = TemplateName ?? string.Empty;
-        checklist.InspectionTypeId = InspectionTypeId ?? string.Empty;
-        checklist.InspectionTypeName = InspectionTypeName ?? string.Empty;
-        checklist.AssetCategory = AssetCategory ?? string.Empty;
-        checklist.AssetType = AssetType ?? string.Empty;
-        checklist.Sections = Sections?.Select(section => section.ToEntity()).ToList() ?? checklist.Sections;
-        checklist.Version = Version ?? checklist.Version;
-        checklist.EffectiveDate = EffectiveDate ?? checklist.EffectiveDate;
-        checklist.IsActive = IsActive ?? checklist.IsActive;
-        checklist.Status = Status;
+        ApplyFields(checklist);
+        checklist.Status = Status ?? checklist.Status;
         checklist.UpdatedBy = UpdatedBy;
         checklist.UpdatedAt = DateTime.UtcNow;
     }
 }
 
-public sealed record ChecklistResponse(
-    string Id,
-    string ChecklistCode,
-    string TemplateName,
-    string InspectionTypeId,
-    string InspectionTypeName,
-    string AssetCategory,
-    string AssetType,
-    List<ChecklistSectionResponse> Sections,
-    int Version,
-    DateTime? EffectiveDate,
-    bool IsActive,
-    string? Status,
-    string? CreatedBy,
-    DateTime? CreatedAt,
-    string? UpdatedBy,
-    DateTime? UpdatedAt,
-    string? ClientId,
-    string? TenantId,
-    bool IsDeleted)
+public sealed record ChecklistResponse : AuditResponse
 {
+    private ChecklistResponse(ChecklistEntity checklist)
+        : base(checklist)
+    {
+    }
+
+    public string ChecklistCode { get; init; } = string.Empty;
+
+    public string TemplateName { get; init; } = default!;
+
+    public string InspectionTypeId { get; init; } = default!;
+
+    public string InspectionTypeName { get; init; } = default!;
+
+    public string AssetCategory { get; init; } = default!;
+
+    public string AssetType { get; init; } = default!;
+
+    public List<string> Modules { get; init; } = default!;
+
+    public string Scoring { get; init; } = default!;
+
+    public string Owner { get; init; } = default!;
+
+    public int Version { get; init; }
+
+    public string VersionLabel { get; init; } = default!;
+
+    public string? EffectiveDate { get; init; }
+
+    public List<ChecklistSection> Sections { get; init; } = default!;
+
+    public bool AllMandatoryRequired { get; init; }
+
+    public bool PhotoOnFailedItems { get; init; }
+
+    public bool InspectorSignatureRequired { get; init; }
+
+    public bool CriticalFailureOverridesScore { get; init; }
+
+    public bool CreateFindingOnFailure { get; init; }
+
+    public bool RouteCorrectiveAction { get; init; }
+
+    public bool IsActive { get; init; }
+
     public static ChecklistResponse FromEntity(ChecklistEntity checklist)
     {
-        return new ChecklistResponse(
-            checklist.Id,
-            checklist.ChecklistCode,
-            checklist.TemplateName,
-            checklist.InspectionTypeId,
-            checklist.InspectionTypeName,
-            checklist.AssetCategory,
-            checklist.AssetType,
-            checklist.Sections.Select(ChecklistSectionResponse.FromEntity).ToList(),
-            checklist.Version,
-            checklist.EffectiveDate,
-            checklist.IsActive,
-            checklist.Status,
-            checklist.CreatedBy,
-            checklist.CreatedAt,
-            checklist.UpdatedBy,
-            checklist.UpdatedAt,
-            checklist.ClientId,
-            checklist.TenantId,
-            checklist.IsDeleted);
+        return new ChecklistResponse(checklist)
+        {
+            ChecklistCode = checklist.ChecklistCode,
+            TemplateName = checklist.TemplateName,
+            InspectionTypeId = checklist.InspectionTypeId,
+            InspectionTypeName = checklist.InspectionTypeName,
+            AssetCategory = checklist.AssetCategory,
+            AssetType = checklist.AssetType,
+            Modules = checklist.Modules,
+            Scoring = checklist.Scoring,
+            Owner = checklist.Owner,
+            Version = checklist.Version,
+            VersionLabel = checklist.VersionLabel,
+            EffectiveDate = ContractDates.ToDateString(checklist.EffectiveDate),
+            Sections = checklist.Sections,
+            AllMandatoryRequired = checklist.AllMandatoryRequired,
+            PhotoOnFailedItems = checklist.PhotoOnFailedItems,
+            InspectorSignatureRequired = checklist.InspectorSignatureRequired,
+            CriticalFailureOverridesScore = checklist.CriticalFailureOverridesScore,
+            CreateFindingOnFailure = checklist.CreateFindingOnFailure,
+            RouteCorrectiveAction = checklist.RouteCorrectiveAction,
+            IsActive = checklist.IsActive
+        };
     }
 }

@@ -1,36 +1,83 @@
+using A360.Inspection.Domain.Entities;
 using NotificationTemplateEntity = A360.Inspection.Domain.Entities.NotificationTemplate;
 
 namespace A360.Inspection.Api.Contracts;
 
-public sealed record CreateNotificationTemplateRequest(
-    string? TemplateName,
-    string? Event,
-    string? Channel,
-    string? Subject,
-    string? MessageBody,
-    List<string>? Recipients,
-    List<string>? CcRecipients,
-    List<string>? EscalationRecipients,
-    bool? IsActive,
-    string? Status,
-    string? CreatedBy,
-    string? ClientId,
-    string? TenantId)
+/// <summary>Editable fields shared by the create and update requests for NotificationTemplate.</summary>
+public abstract record NotificationTemplateFields
 {
+    public string? TemplateName { get; init; }
+
+    public string? Event { get; init; }
+
+    public List<string>? Channels { get; init; }
+
+    public string? Subject { get; init; }
+
+    public string? MessageBody { get; init; }
+
+    public List<string>? Recipients { get; init; }
+
+    public List<string>? CcRecipients { get; init; }
+
+    public string? ButtonLabel { get; init; }
+
+    public string? Timing { get; init; }
+
+    public bool? RespectUserLocale { get; init; }
+
+    public bool? PreventDuplicates { get; init; }
+
+    public bool? IsActive { get; init; }
+
+    public string? Channel { get; init; }
+
+    public List<string>? EscalationRecipients { get; init; }
+
+    public string? Status { get; init; }
+
+    protected void ApplyFields(NotificationTemplateEntity template)
+    {
+        template.TemplateName = TemplateName ?? template.TemplateName;
+        template.Event = Event ?? template.Event;
+        template.Channels = Channels ?? template.Channels;
+        template.Subject = Subject ?? template.Subject;
+        template.MessageBody = MessageBody ?? template.MessageBody;
+        template.Recipients = Recipients ?? template.Recipients;
+        template.CcRecipients = CcRecipients ?? template.CcRecipients;
+        template.ButtonLabel = ButtonLabel ?? template.ButtonLabel;
+        template.Timing = Timing ?? template.Timing;
+        template.RespectUserLocale = RespectUserLocale ?? template.RespectUserLocale;
+        template.PreventDuplicates = PreventDuplicates ?? template.PreventDuplicates;
+        template.IsActive = IsActive ?? template.IsActive;
+        template.Channel = Channel ?? template.Channel;
+        template.EscalationRecipients = EscalationRecipients ?? template.EscalationRecipients;
+
+        // Older records stored a single comma-separated `channel`; keep both shapes in step.
+        if (Channels is not null)
+        {
+            template.Channel = string.Join(", ", template.Channels);
+        }
+        else if (template.Channels.Count == 0 && !string.IsNullOrWhiteSpace(template.Channel))
+        {
+            template.Channels = NotificationChannels.Split(template.Channel);
+        }
+    }
+}
+
+public sealed record CreateNotificationTemplateRequest : NotificationTemplateFields
+{
+    public string? CreatedBy { get; init; }
+
+    public string? ClientId { get; init; }
+
+    public string? TenantId { get; init; }
+
     public NotificationTemplateEntity ToEntity(string templateCode)
     {
-        return new NotificationTemplateEntity
+        var template = new NotificationTemplateEntity
         {
             TemplateCode = templateCode,
-            TemplateName = TemplateName ?? string.Empty,
-            Event = Event ?? string.Empty,
-            Channel = Channel ?? string.Empty,
-            Subject = Subject ?? string.Empty,
-            MessageBody = MessageBody ?? string.Empty,
-            Recipients = Recipients ?? [],
-            CcRecipients = CcRecipients ?? [],
-            EscalationRecipients = EscalationRecipients ?? [],
-            IsActive = IsActive ?? true,
             Status = Status,
             CreatedBy = CreatedBy,
             CreatedAt = DateTime.UtcNow,
@@ -38,81 +85,81 @@ public sealed record CreateNotificationTemplateRequest(
             TenantId = TenantId,
             IsDeleted = false
         };
+
+        ApplyFields(template);
+        return template;
     }
 }
 
-public sealed record UpdateNotificationTemplateRequest(
-    string? TemplateName,
-    string? Event,
-    string? Channel,
-    string? Subject,
-    string? MessageBody,
-    List<string>? Recipients,
-    List<string>? CcRecipients,
-    List<string>? EscalationRecipients,
-    bool? IsActive,
-    string? Status,
-    string? UpdatedBy)
+public sealed record UpdateNotificationTemplateRequest : NotificationTemplateFields
 {
+    public string? UpdatedBy { get; init; }
+
     public void ApplyTo(NotificationTemplateEntity template)
     {
-        template.TemplateName = TemplateName ?? string.Empty;
-        template.Event = Event ?? string.Empty;
-        template.Channel = Channel ?? string.Empty;
-        template.Subject = Subject ?? string.Empty;
-        template.MessageBody = MessageBody ?? string.Empty;
-        template.Recipients = Recipients ?? [];
-        template.CcRecipients = CcRecipients ?? [];
-        template.EscalationRecipients = EscalationRecipients ?? [];
-        template.IsActive = IsActive ?? template.IsActive;
-        template.Status = Status;
+        ApplyFields(template);
+        template.Status = Status ?? template.Status;
         template.UpdatedBy = UpdatedBy;
         template.UpdatedAt = DateTime.UtcNow;
     }
 }
 
-public sealed record NotificationTemplateResponse(
-    string Id,
-    string TemplateCode,
-    string TemplateName,
-    string Event,
-    string Channel,
-    string Subject,
-    string MessageBody,
-    List<string> Recipients,
-    List<string> CcRecipients,
-    List<string> EscalationRecipients,
-    bool IsActive,
-    string? Status,
-    string? CreatedBy,
-    DateTime? CreatedAt,
-    string? UpdatedBy,
-    DateTime? UpdatedAt,
-    string? ClientId,
-    string? TenantId,
-    bool IsDeleted)
+public sealed record NotificationTemplateResponse : AuditResponse
 {
+    private NotificationTemplateResponse(NotificationTemplateEntity template)
+        : base(template)
+    {
+    }
+
+    public string TemplateCode { get; init; } = string.Empty;
+
+    public string TemplateName { get; init; } = default!;
+
+    public string Event { get; init; } = default!;
+
+    public List<string> Channels { get; init; } = default!;
+
+    public string Subject { get; init; } = default!;
+
+    public string MessageBody { get; init; } = default!;
+
+    public List<string> Recipients { get; init; } = default!;
+
+    public List<string> CcRecipients { get; init; } = default!;
+
+    public string ButtonLabel { get; init; } = default!;
+
+    public string Timing { get; init; } = default!;
+
+    public bool RespectUserLocale { get; init; }
+
+    public bool PreventDuplicates { get; init; }
+
+    public bool IsActive { get; init; }
+
+    public string Channel { get; init; } = default!;
+
+    public List<string> EscalationRecipients { get; init; } = default!;
+
     public static NotificationTemplateResponse FromEntity(NotificationTemplateEntity template)
     {
-        return new NotificationTemplateResponse(
-            template.Id,
-            template.TemplateCode,
-            template.TemplateName,
-            template.Event,
-            template.Channel,
-            template.Subject,
-            template.MessageBody,
-            template.Recipients,
-            template.CcRecipients,
-            template.EscalationRecipients,
-            template.IsActive,
-            template.Status,
-            template.CreatedBy,
-            template.CreatedAt,
-            template.UpdatedBy,
-            template.UpdatedAt,
-            template.ClientId,
-            template.TenantId,
-            template.IsDeleted);
+        return new NotificationTemplateResponse(template)
+        {
+            TemplateCode = template.TemplateCode,
+            TemplateName = template.TemplateName,
+            Event = template.Event,
+            Channels = template.Channels.Count > 0 ? template.Channels : NotificationChannels.Split(template.Channel),
+            Subject = template.Subject,
+            MessageBody = template.MessageBody,
+            Recipients = template.Recipients,
+            CcRecipients = template.CcRecipients,
+            ButtonLabel = template.ButtonLabel,
+            Timing = template.Timing,
+            RespectUserLocale = template.RespectUserLocale,
+            PreventDuplicates = template.PreventDuplicates,
+            IsActive = template.IsActive,
+            Channel = template.Channel,
+            EscalationRecipients = template.EscalationRecipients
+        };
     }
 }

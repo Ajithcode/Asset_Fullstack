@@ -1,28 +1,46 @@
+using A360.Inspection.Domain.Entities;
 using TaskCategoryEntity = A360.Inspection.Domain.Entities.TaskCategory;
 
 namespace A360.Inspection.Api.Contracts;
 
-public sealed record CreateTaskCategoryRequest(
-    string? AssetId,
-    string? AssetName,
-    string? CategoryName,
-    string? Description,
-    int? DisplayOrder,
-    string? Status,
-    string? CreatedBy,
-    string? ClientId,
-    string? TenantId)
+/// <summary>Editable fields shared by the create and update requests for TaskCategory.</summary>
+public abstract record TaskCategoryFields
 {
+    public string? CategoryName { get; init; }
+
+    public string? Description { get; init; }
+
+    public int? DisplayOrder { get; init; }
+
+    public string? AssetId { get; init; }
+
+    public string? AssetName { get; init; }
+
+    public string? Status { get; init; }
+
+    protected void ApplyFields(TaskCategoryEntity taskCategory)
+    {
+        taskCategory.CategoryName = CategoryName ?? taskCategory.CategoryName;
+        taskCategory.Description = Description ?? taskCategory.Description;
+        taskCategory.DisplayOrder = DisplayOrder ?? taskCategory.DisplayOrder;
+        taskCategory.AssetId = AssetId ?? taskCategory.AssetId;
+        taskCategory.AssetName = AssetName ?? taskCategory.AssetName;
+    }
+}
+
+public sealed record CreateTaskCategoryRequest : TaskCategoryFields
+{
+    public string? CreatedBy { get; init; }
+
+    public string? ClientId { get; init; }
+
+    public string? TenantId { get; init; }
+
     public TaskCategoryEntity ToEntity(string categoryCode)
     {
-        return new TaskCategoryEntity
+        var taskCategory = new TaskCategoryEntity
         {
             CategoryCode = categoryCode,
-            AssetId = AssetId ?? string.Empty,
-            AssetName = AssetName ?? string.Empty,
-            CategoryName = CategoryName ?? string.Empty,
-            Description = Description ?? string.Empty,
-            DisplayOrder = DisplayOrder ?? 0,
             Status = Status,
             CreatedBy = CreatedBy,
             CreatedAt = DateTime.UtcNow,
@@ -30,65 +48,54 @@ public sealed record CreateTaskCategoryRequest(
             TenantId = TenantId,
             IsDeleted = false
         };
+
+        ApplyFields(taskCategory);
+        return taskCategory;
     }
 }
 
-public sealed record UpdateTaskCategoryRequest(
-    string? AssetId,
-    string? AssetName,
-    string? CategoryName,
-    string? Description,
-    int? DisplayOrder,
-    string? Status,
-    string? UpdatedBy)
+public sealed record UpdateTaskCategoryRequest : TaskCategoryFields
 {
+    public string? UpdatedBy { get; init; }
+
     public void ApplyTo(TaskCategoryEntity taskCategory)
     {
-        taskCategory.AssetId = AssetId ?? string.Empty;
-        taskCategory.AssetName = AssetName ?? string.Empty;
-        taskCategory.CategoryName = CategoryName ?? string.Empty;
-        taskCategory.Description = Description ?? string.Empty;
-        taskCategory.DisplayOrder = DisplayOrder ?? taskCategory.DisplayOrder;
-        taskCategory.Status = Status;
+        ApplyFields(taskCategory);
+        taskCategory.Status = Status ?? taskCategory.Status;
         taskCategory.UpdatedBy = UpdatedBy;
         taskCategory.UpdatedAt = DateTime.UtcNow;
     }
 }
 
-public sealed record TaskCategoryResponse(
-    string Id,
-    string CategoryCode,
-    string AssetId,
-    string AssetName,
-    string CategoryName,
-    string Description,
-    int DisplayOrder,
-    string? Status,
-    string? CreatedBy,
-    DateTime? CreatedAt,
-    string? UpdatedBy,
-    DateTime? UpdatedAt,
-    string? ClientId,
-    string? TenantId,
-    bool IsDeleted)
+public sealed record TaskCategoryResponse : AuditResponse
 {
+    private TaskCategoryResponse(TaskCategoryEntity taskCategory)
+        : base(taskCategory)
+    {
+    }
+
+    public string CategoryCode { get; init; } = string.Empty;
+
+    public string CategoryName { get; init; } = default!;
+
+    public string Description { get; init; } = default!;
+
+    public int DisplayOrder { get; init; }
+
+    public string AssetId { get; init; } = default!;
+
+    public string AssetName { get; init; } = default!;
+
     public static TaskCategoryResponse FromEntity(TaskCategoryEntity taskCategory)
     {
-        return new TaskCategoryResponse(
-            taskCategory.Id,
-            taskCategory.CategoryCode,
-            taskCategory.AssetId,
-            taskCategory.AssetName,
-            taskCategory.CategoryName,
-            taskCategory.Description,
-            taskCategory.DisplayOrder,
-            taskCategory.Status,
-            taskCategory.CreatedBy,
-            taskCategory.CreatedAt,
-            taskCategory.UpdatedBy,
-            taskCategory.UpdatedAt,
-            taskCategory.ClientId,
-            taskCategory.TenantId,
-            taskCategory.IsDeleted);
+        return new TaskCategoryResponse(taskCategory)
+        {
+            CategoryCode = taskCategory.CategoryCode,
+            CategoryName = taskCategory.CategoryName,
+            Description = taskCategory.Description,
+            DisplayOrder = taskCategory.DisplayOrder,
+            AssetId = taskCategory.AssetId,
+            AssetName = taskCategory.AssetName
+        };
     }
 }

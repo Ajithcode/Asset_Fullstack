@@ -10,7 +10,7 @@ namespace A360.Inspection.Api.Endpoints;
 
 public static class NumberingSequenceEndpoints
 {
-    private const string SequenceName = "numbering_sequence";
+    private const string SequenceName = InspectionCodes.NumberingSequenceSequence;
     private const string SequenceCodePrefix = "NS";
 
     public static RouteGroupBuilder MapNumberingSequenceEndpoints(this IEndpointRouteBuilder routes)
@@ -68,8 +68,7 @@ public static class NumberingSequenceEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var nextSequence = await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken);
-        var sequenceCode = $"{SequenceCodePrefix}{nextSequence:D6}";
+        var sequenceCode = await InspectionCodes.NextAsync(sequenceGenerator, SequenceName, SequenceCodePrefix, cancellationToken);
 
         var sequence = await repository.CreateAsync(request.ToEntity(sequenceCode), cancellationToken);
 

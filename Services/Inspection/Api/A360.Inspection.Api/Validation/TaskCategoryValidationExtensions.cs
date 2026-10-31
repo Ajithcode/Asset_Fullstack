@@ -8,16 +8,6 @@ public static class TaskCategoryValidationExtensions
     {
         var errors = new Dictionary<string, string[]>();
 
-        if (string.IsNullOrWhiteSpace(request.AssetId))
-        {
-            errors["AssetId"] = ["AssetId is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.AssetName))
-        {
-            errors["AssetName"] = ["AssetName is required"];
-        }
-
         if (string.IsNullOrWhiteSpace(request.CategoryName))
         {
             errors["CategoryName"] = ["CategoryName is required"];
@@ -29,16 +19,6 @@ public static class TaskCategoryValidationExtensions
     public static Dictionary<string, string[]> Validate(this UpdateTaskCategoryRequest request)
     {
         var errors = new Dictionary<string, string[]>();
-
-        if (string.IsNullOrWhiteSpace(request.AssetId))
-        {
-            errors["AssetId"] = ["AssetId is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.AssetName))
-        {
-            errors["AssetName"] = ["AssetName is required"];
-        }
 
         if (string.IsNullOrWhiteSpace(request.CategoryName))
         {

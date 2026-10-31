@@ -8,9 +8,9 @@ public static class NumberingSequenceValidationExtensions
     {
         var errors = new Dictionary<string, string[]>();
 
-        if (string.IsNullOrWhiteSpace(request.NumberType))
+        if (string.IsNullOrWhiteSpace(request.SequenceName))
         {
-            errors["NumberType"] = ["NumberType is required"];
+            errors["SequenceName"] = ["SequenceName is required"];
         }
 
         return errors;
@@ -20,9 +20,9 @@ public static class NumberingSequenceValidationExtensions
     {
         var errors = new Dictionary<string, string[]>();
 
-        if (string.IsNullOrWhiteSpace(request.NumberType))
+        if (string.IsNullOrWhiteSpace(request.SequenceName))
         {
-            errors["NumberType"] = ["NumberType is required"];
+            errors["SequenceName"] = ["SequenceName is required"];
         }
 
         return errors;

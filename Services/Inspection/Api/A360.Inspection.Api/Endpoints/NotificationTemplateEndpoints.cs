@@ -10,7 +10,7 @@ namespace A360.Inspection.Api.Endpoints;
 
 public static class NotificationTemplateEndpoints
 {
-    private const string SequenceName = "notification_template";
+    private const string SequenceName = InspectionCodes.NotificationTemplateSequence;
     private const string TemplateCodePrefix = "NT";
 
     public static RouteGroupBuilder MapNotificationTemplateEndpoints(this IEndpointRouteBuilder routes)
@@ -68,8 +68,7 @@ public static class NotificationTemplateEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var nextSequence = await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken);
-        var templateCode = $"{TemplateCodePrefix}{nextSequence:D6}";
+        var templateCode = await InspectionCodes.NextAsync(sequenceGenerator, SequenceName, TemplateCodePrefix, cancellationToken);
 
         var template = await repository.CreateAsync(request.ToEntity(templateCode), cancellationToken);
 

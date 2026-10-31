@@ -10,8 +10,8 @@ namespace A360.Inspection.Api.Endpoints;
 
 public static class SignatureAndStampEndpoints
 {
-    private const string SequenceName = "signature_and_stamp";
     private const string SignatureCodePrefix = "SIG";
+    private const string StampCodePrefix = "STP";
 
     public static RouteGroupBuilder MapSignatureAndStampEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -68,8 +68,12 @@ public static class SignatureAndStampEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var nextSequence = await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken);
-        var signatureCode = $"{SignatureCodePrefix}{nextSequence:D6}";
+        var isStamp = SignatureAndStampKinds.IsStamp(request.Kind);
+        var signatureCode = await InspectionCodes.NextAsync(
+            sequenceGenerator,
+            isStamp ? InspectionCodes.StampSequence : InspectionCodes.SignatureSequence,
+            isStamp ? StampCodePrefix : SignatureCodePrefix,
+            cancellationToken);
 
         var signature = await repository.CreateAsync(request.ToEntity(signatureCode), cancellationToken);
 

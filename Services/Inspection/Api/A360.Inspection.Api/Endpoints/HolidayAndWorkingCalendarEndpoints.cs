@@ -10,7 +10,7 @@ namespace A360.Inspection.Api.Endpoints;
 
 public static class HolidayAndWorkingCalendarEndpoints
 {
-    private const string SequenceName = "holiday_and_working_calendar";
+    private const string SequenceName = InspectionCodes.CalendarSequence;
     private const string CalendarCodePrefix = "CAL";
 
     public static RouteGroupBuilder MapHolidayAndWorkingCalendarEndpoints(this IEndpointRouteBuilder routes)
@@ -68,8 +68,7 @@ public static class HolidayAndWorkingCalendarEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var nextSequence = await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken);
-        var calendarCode = $"{CalendarCodePrefix}{nextSequence:D6}";
+        var calendarCode = await InspectionCodes.NextAsync(sequenceGenerator, SequenceName, CalendarCodePrefix, cancellationToken);
 
         var calendar = await repository.CreateAsync(request.ToEntity(calendarCode), cancellationToken);
 

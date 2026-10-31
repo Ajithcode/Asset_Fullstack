@@ -13,16 +13,6 @@ public static class ChecklistValidationExtensions
             errors["TemplateName"] = ["TemplateName is required"];
         }
 
-        if (string.IsNullOrWhiteSpace(request.InspectionTypeId))
-        {
-            errors["InspectionTypeId"] = ["InspectionTypeId is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.AssetCategory))
-        {
-            errors["AssetCategory"] = ["AssetCategory is required"];
-        }
-
         return errors;
     }
 
@@ -33,16 +23,6 @@ public static class ChecklistValidationExtensions
         if (string.IsNullOrWhiteSpace(request.TemplateName))
         {
             errors["TemplateName"] = ["TemplateName is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.InspectionTypeId))
-        {
-            errors["InspectionTypeId"] = ["InspectionTypeId is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(request.AssetCategory))
-        {
-            errors["AssetCategory"] = ["AssetCategory is required"];
         }
 
         return errors;

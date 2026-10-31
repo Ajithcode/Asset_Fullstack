@@ -32,6 +32,10 @@ public static class InspectionApplicationBuilderExtensions
         app.MapNumberingSequenceEndpoints();
         app.MapHolidayAndWorkingCalendarEndpoints();
         app.MapChecklistEndpoints();
+        app.MapInspectionPlanEndpoints();
+        app.MapInspectionEndpoints();
+        app.MapInspectionFindingEndpoints();
+        app.MapCalibrationInstrumentEndpoints();
 
         return app;
     }
