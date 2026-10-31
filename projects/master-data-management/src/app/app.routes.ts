@@ -1,6 +1,4 @@
 import { Routes } from '@angular/router';
-import { MasterDataHome } from './home/home';
-import { GroupHome } from './home/group-home';
 import { OrganizationPage } from './organization/organization/organization';
 import { BusinessUnitPage } from './organization/business-unit/business-unit';
 import { DepartmentPage } from './organization/department/department';
@@ -45,13 +43,14 @@ import { ModuleAccessMasterPage } from './security/module-access-master/module-a
 import { RoleMasterPage } from './security/role-master/role-master';
 import { UserManagementPage } from './security/user-management/user-management';
 
-// Paths match MASTER_DATA_MENU in shared-ui, which the shell's sidebar is built from
+// Paths match MASTER_DATA_MENU in shared-ui, which the shell's sidebar is built from.
+// There are no module or group landing pages: bare paths redirect to the group's first master.
 export const routes: Routes = [
-  { path: '', component: MasterDataHome },
+  { path: '', redirectTo: 'organization/organization', pathMatch: 'full' },
   {
     path: 'organization',
     children: [
-      { path: '', component: GroupHome, data: { group: 'organization' } },
+      { path: '', redirectTo: 'organization', pathMatch: 'full' },
       { path: 'organization', component: OrganizationPage },
       { path: 'business-unit', component: BusinessUnitPage },
       { path: 'department', component: DepartmentPage },
@@ -63,7 +62,7 @@ export const routes: Routes = [
   {
     path: 'asset',
     children: [
-      { path: '', component: GroupHome, data: { group: 'asset' } },
+      { path: '', redirectTo: 'category-subcategory', pathMatch: 'full' },
       { path: 'category-subcategory', component: CategorySubcategoryPage },
       { path: 'asset-type', component: AssetTypePage },
       { path: 'asset-model', component: AssetModelPage },
@@ -75,7 +74,7 @@ export const routes: Routes = [
   {
     path: 'people',
     children: [
-      { path: '', component: GroupHome, data: { group: 'people' } },
+      { path: '', redirectTo: 'employee', pathMatch: 'full' },
       { path: 'employee', component: EmployeePage },
       { path: 'technician', component: TechnicianPage },
       { path: 'skill', component: SkillPage },
@@ -86,7 +85,7 @@ export const routes: Routes = [
   {
     path: 'vendor',
     children: [
-      { path: '', component: GroupHome, data: { group: 'vendor' } },
+      { path: '', redirectTo: 'supplier', pathMatch: 'full' },
       { path: 'supplier', component: SupplierPage },
       { path: 'service-provider', component: ServiceProviderPage },
       { path: 'amc-vendor', component: AmcVendorPage }
@@ -95,7 +94,7 @@ export const routes: Routes = [
   {
     path: 'maintenance',
     children: [
-      { path: '', component: GroupHome, data: { group: 'maintenance' } },
+      { path: '', redirectTo: 'maintenance-type', pathMatch: 'full' },
       { path: 'maintenance-type', component: MaintenanceTypePage },
       { path: 'work-type', component: WorkTypePage },
       { path: 'failure-code', component: FailureCodePage },
@@ -107,7 +106,7 @@ export const routes: Routes = [
   {
     path: 'inventory',
     children: [
-      { path: '', component: GroupHome, data: { group: 'inventory' } },
+      { path: '', redirectTo: 'item', pathMatch: 'full' },
       { path: 'item', component: ItemPage },
       { path: 'item-category', component: ItemCategoryPage },
       { path: 'uom', component: UomPage },
@@ -118,7 +117,7 @@ export const routes: Routes = [
   {
     path: 'compliance',
     children: [
-      { path: '', component: GroupHome, data: { group: 'compliance' } },
+      { path: '', redirectTo: 'certification-type', pathMatch: 'full' },
       { path: 'certification-type', component: CertificationTypePage },
       { path: 'regulation', component: RegulationPage },
       { path: 'standard', component: StandardPage },
@@ -128,7 +127,7 @@ export const routes: Routes = [
   {
     path: 'system-configuration',
     children: [
-      { path: '', component: GroupHome, data: { group: 'system-configuration' } },
+      { path: '', redirectTo: 'api-sync-status', pathMatch: 'full' },
       { path: 'api-sync-status', component: ApiSyncStatusPage },
       { path: 'update-source', component: UpdateSourcePage },
       { path: 'chart-type', component: ChartTypePage },
@@ -138,7 +137,7 @@ export const routes: Routes = [
   {
     path: 'security',
     children: [
-      { path: '', component: GroupHome, data: { group: 'security' } },
+      { path: '', redirectTo: 'permission-master', pathMatch: 'full' },
       { path: 'permission-master', component: PermissionMasterPage },
       { path: 'module-access-master', component: ModuleAccessMasterPage },
       { path: 'role-master', component: RoleMasterPage },
