@@ -175,6 +175,26 @@ public sealed class AssetRegistrationRepository
         return new AssetRegistrationQueryResult(items, totalCount, statusCounts);
     }
 
+    public async Task<IReadOnlyCollection<AssetRegistration>> GetFilterFieldsAsync(CancellationToken cancellationToken = default)
+    {
+        var projection = Builders<AssetRegistration>.Projection
+            .Include(asset => asset.BasicInformation.Status)
+            .Include(asset => asset.BasicInformation.Condition)
+            .Include(asset => asset.Classification.Category)
+            .Include(asset => asset.Classification.AssetType)
+            .Include(asset => asset.Classification.Department)
+            .Include(asset => asset.Classification.Criticality)
+            .Include(asset => asset.LocationAssignment.Location)
+            .Include(asset => asset.LocationAssignment.Assignment.AssignedToUserId)
+            .Include(asset => asset.LocationAssignment.Assignment.AssignedToName)
+            .Include(asset => asset.PurchaseWarranty.Purchase.Manufacturer);
+
+        return await Collection
+            .Find(asset => !asset.IsDeleted)
+            .Project<AssetRegistration>(projection)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<AssetRegistration>> FindInScopeAsync(AssetScopeQuery query, int limit, CancellationToken cancellationToken = default)
     {
         var filters = new List<FilterDefinition<AssetRegistration>>

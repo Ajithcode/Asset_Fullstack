@@ -16,6 +16,12 @@ public interface IAssetRegistrationRepository : IMongoRepository<AssetRegistrati
     Task<IReadOnlyCollection<AssetRegistration>> FindInScopeAsync(AssetScopeQuery query, int limit, CancellationToken cancellationToken = default);
 
     Task<AssetRegistrationQueryResult> QueryAsync(AssetRegistrationQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every registered asset with only the fields the asset list filters on (category, type, status, location,
+    /// department, custodian, criticality, manufacturer, condition), for building the filter dropdowns.
+    /// </summary>
+    Task<IReadOnlyCollection<AssetRegistration>> GetFilterFieldsAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>An audit scope. Empty values mean "all"; names are matched exactly, as in the asset list filters.</summary>

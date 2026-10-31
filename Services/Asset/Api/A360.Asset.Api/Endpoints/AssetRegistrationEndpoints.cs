@@ -27,6 +27,9 @@ public static class AssetRegistrationEndpoints
     {
         var group = routes.MapGroup("/api/asset-registrations").WithTags("Asset Registration");
 
+        // Fixed dropdown choices for all five steps; master data dropdowns use their own Master Management lists.
+        group.MapGet("/options", () => Results.Ok(AssetRegistrationOptionsResponse.Instance)).WithName("GetAssetRegistrationOptions");
+
         // Drafts: every step is saved here; submitting after step 5 moves the whole draft into AssetRegistration.
         group.MapPost("/drafts", CreateDraftAsync).WithName("CreateAssetRegistrationDraft");
         group.MapGet("/drafts", GetDraftsAsync).WithName("GetAssetRegistrationDrafts");
@@ -53,6 +56,7 @@ public static class AssetRegistrationEndpoints
 
         // Registered assets.
         group.MapGet("/", GetAssetRegistrationsAsync).WithName("GetAssetRegistrations");
+        group.MapGet("/filters", GetAssetListFiltersAsync).WithName("GetAssetRegistrationListFilters");
         group.MapGet("/{assetRegistrationId}", GetAssetRegistrationAsync).WithName("GetAssetRegistration");
 
         return group;
@@ -343,6 +347,14 @@ public static class AssetRegistrationEndpoints
         return Results.Created(
             $"/api/asset-registrations/{asset.AssetRegistrationId}",
             AssetRegistrationResponse.FromEntity(asset));
+    }
+
+    private static async Task<IResult> GetAssetListFiltersAsync(
+        IAssetRegistrationRepository assetRegistrationRepository,
+        CancellationToken cancellationToken)
+    {
+        var assets = await assetRegistrationRepository.GetFilterFieldsAsync(cancellationToken);
+        return Results.Ok(AssetListFilterOptionsResponse.FromAssets(assets));
     }
 
     private static async Task<IResult> GetAssetRegistrationsAsync(

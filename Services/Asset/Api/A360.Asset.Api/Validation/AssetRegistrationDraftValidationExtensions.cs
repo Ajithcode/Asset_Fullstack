@@ -10,20 +10,14 @@ namespace A360.Asset.Api.Validation;
 public static class AssetRegistrationDraftValidationExtensions
 {
     // Options shown as radio buttons on the Classification step.
-    private static readonly HashSet<string> TaggingMethods = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Barcode",
-        "RFID",
-        "BLE",
-        "QR Code"
-    };
+    private static readonly OptionList TaggingMethods = AssetRegistrationOptions.TaggingMethods;
 
     private const int RemarksMaxLength = 500;
 
     /// <summary>Returns the tagging method spelled as listed (e.g. "qr code" → "QR Code"), or the value unchanged if it is not listed.</summary>
     public static string? NormalizeTaggingMethod(string? taggingMethod)
     {
-        return taggingMethod is not null && TaggingMethods.TryGetValue(taggingMethod, out var listed) ? listed : taggingMethod;
+        return TaggingMethods.Normalize(taggingMethod) ?? taggingMethod;
     }
 
     public static Dictionary<string, string[]> Validate(this AssetBasicInformationDto? request, bool saveAsDraft)
@@ -57,9 +51,9 @@ public static class AssetRegistrationDraftValidationExtensions
             Require(errors, "LifecycleStage", request?.LifecycleStage);
         }
 
-        if (!string.IsNullOrWhiteSpace(request?.TaggingMethod) && !TaggingMethods.Contains(request.TaggingMethod.Trim()))
+        if (!string.IsNullOrWhiteSpace(request?.TaggingMethod) && !TaggingMethods.IsValid(request.TaggingMethod))
         {
-            errors["TaggingMethod"] = [$"TaggingMethod must be one of: {string.Join(", ", TaggingMethods)}"];
+            errors["TaggingMethod"] = [$"TaggingMethod must be one of: {string.Join(", ", TaggingMethods.All)}"];
         }
 
         return errors;
