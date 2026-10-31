@@ -1,0 +1,374 @@
+<section class="sc-page">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <a routerLink="/assets/list">Asset List</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span>{{ asset.tag }}</span>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">{{ view === 'maintenance' ? 'Maintenance' : 'Service History' }}</span>
+  </nav>
+
+  <!-- Unknown or missing ?tag= -->
+  <div *ngIf="notFound" class="card not-found">
+    <h2>Asset not found</h2>
+    <p>No asset with the tag <strong>{{ requestedTag }}</strong> exists in the register.</p>
+    <a class="btn btn-primary" routerLink="/assets/list">Go to Asset List</a>
+  </div>
+
+  <ng-container *ngIf="!notFound">
+  <!-- Asset header -->
+  <div class="card asset-head">
+    <img *ngIf="asset.image; else headerIcon" class="asset-img" [src]="asset.image" [alt]="asset.name" />
+    <ng-template #headerIcon>
+      <span class="asset-img asset-img--icon"><lucide-icon [img]="typeIcons[asset.icon]" [size]="34" [strokeWidth]="1.6"></lucide-icon></span>
+    </ng-template>
+    <div class="asset-title">
+      <h1>{{ asset.tag }}</h1>
+      <p>{{ asset.name }}</p>
+    </div>
+    <div class="chips">
+      <div class="chip"><span>Category</span><strong>{{ asset.category }}</strong></div>
+      <div class="chip"><span>Type / Model</span><strong>{{ asset.model }}</strong></div>
+      <div class="chip"><span>Location</span><strong>{{ asset.location }}</strong></div>
+      <div class="chip chip--sm"><span>Status</span>
+        <span class="pill" [ngClass]="'pill--' + statusTone(asset.status)"><span class="dot"></span>{{ asset.status }}</span>
+      </div>
+      <div class="chip chip--sm"><span>Condition</span>
+        <span class="pill" [ngClass]="'pill--' + conditionTone(asset.condition)"><span class="dot"></span>{{ asset.condition }}</span>
+      </div>
+      <div class="chip chip--sm"><span>Criticality</span>
+        <span class="pill" [ngClass]="'pill--' + criticalityTone(asset.criticality)"><span class="dot"></span>{{ asset.criticality }}</span>
+      </div>
+    </div>
+    <div class="menu-wrap">
+      <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
+        Actions
+        <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+      </button>
+      <div *ngIf="actionsOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
+        <button type="button" role="menuitem" (click)="openModule('workOrders')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Create Work Order</button>
+        <button type="button" role="menuitem" (click)="newRequest()"><lucide-icon [img]="icons.MessageSquarePlus" [size]="15"></lucide-icon>New Service Request</button>
+        <button type="button" role="menuitem" (click)="openModule()"><lucide-icon [img]="icons.ExternalLink" [size]="15"></lucide-icon>Open Maintenance Module</button>
+        <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export {{ view === 'maintenance' ? 'Work Orders' : 'Service History' }} (CSV)</button>
+        <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset tabs -->
+  <nav class="card tabs" aria-label="Asset sections">
+    <ng-container *ngFor="let t of tabs">
+      <a *ngIf="t.path; else plainTab" class="tab" [routerLink]="t.path" [queryParams]="{ tag: asset.tag }">{{ t.label }}</a>
+      <ng-template #plainTab>
+        <button type="button" class="tab" [class.is-active]="t.active" [attr.aria-current]="t.active ? 'page' : null" (click)="tabClick(t)">{{ t.label }}</button>
+      </ng-template>
+    </ng-container>
+  </nav>
+
+  <!-- ===================== Maintenance ===================== -->
+  <ng-container *ngIf="view === 'maintenance'">
+    <div class="kpis">
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.CalendarClock" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Next Maintenance</h3>
+          <ng-container *ngIf="nextPm as n; else noPm">
+            <strong class="kpi-date" [class.text-danger]="daysTo(n.nextDue) < 0">{{ n.nextDue | date: 'dd MMM yyyy' }}</strong>
+            <p>{{ daysTo(n.nextDue) < 0 ? 'Overdue by ' + -daysTo(n.nextDue) + ' days' : 'in ' + daysTo(n.nextDue) + ' days' }} · {{ n.name }}</p>
+          </ng-container>
+          <ng-template #noPm><strong class="kpi-date">-</strong><p>{{ loading ? 'Loading schedules…' : 'No schedule' }}</p></ng-template>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.CalendarCheck" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Last Maintenance</h3>
+          <ng-container *ngIf="completed[0] as w; else noWo">
+            <strong class="kpi-date">{{ w.date | date: 'dd MMM yyyy' }}</strong>
+            <p>{{ w.type }} · {{ w.description }}</p>
+          </ng-container>
+          <ng-template #noWo><strong class="kpi-date">-</strong><p>No completed work orders</p></ng-template>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.ClipboardList" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Open Work Orders</h3>
+          <strong class="kpi-value">{{ openOrders.length }}</strong>
+          <p><span [class.text-danger]="overdueOrders">{{ overdueOrders }} overdue</span></p>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.CircleCheck" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>PM Compliance</h3>
+          <strong class="kpi-value">{{ pmCompliance }}%</strong>
+          <span class="meter" role="meter" aria-label="PM compliance" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="pmCompliance">
+            <span class="meter-fill meter-fill--blue" [style.width.%]="pmCompliance"></span>
+          </span>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.Coins" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Maintenance Cost ({{ data.year }})</h3>
+          <strong class="kpi-value">{{ costYtd | currency: 'USD' : 'symbol' : '1.0-0' }}</strong>
+          <p>Last year {{ data.lastYear.cost | currency: 'USD' : 'symbol' : '1.0-0' }}</p>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.Timer" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Downtime ({{ data.year }})</h3>
+          <strong class="kpi-value">{{ downtimeYtdHours }} h</strong>
+          <p>Last year {{ Math.round(data.lastYear.downtimeMin / 6) / 10 }} h</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-row">
+      <!-- Preventive maintenance schedule -->
+      <div class="card panel">
+        <div class="card-head">
+          <lucide-icon class="head-icon" [img]="icons.CalendarClock" [size]="20"></lucide-icon>
+          <h3 class="grow">Preventive Maintenance Schedule <span class="count">({{ pm.length }})</span></h3>
+          <button type="button" class="link-btn" (click)="openModule('pm')">Manage</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Task</th><th>Component</th><th>Frequency</th><th>Last Performed</th><th>Next Due</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let s of schedules" class="row-link" (click)="openModule('pm')" [title]="s.description">
+                <td><strong>{{ s.name }}</strong><small class="sub">{{ s.category }} · {{ s.assignedTo }}</small></td>
+                <td>{{ s.component }}</td>
+                <td class="nowrap">{{ s.frequency }}</td>
+                <td class="nowrap">{{ s.lastPerformed ? (s.lastPerformed | date: 'dd MMM yyyy') : '-' }}</td>
+                <td class="nowrap">{{ s.nextDue | date: 'dd MMM yyyy' }}</td>
+                <td><span class="pill pill--xs" [style.color]="pmColors[pmStatus(s)]" [style.background]="pmColors[pmStatus(s)] + '1a'"><span class="dot" [style.background]="pmColors[pmStatus(s)]"></span>{{ pmStatus(s) }}</span></td>
+              </tr>
+              <tr *ngIf="!pm.length"><td colspan="6" class="empty-line">{{ loading ? 'Loading schedules…' : 'No preventive maintenance is scheduled for this asset.' }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Open & upcoming work orders -->
+      <div class="card panel">
+        <div class="card-head">
+          <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+          <h3 class="grow">Open &amp; Upcoming Work Orders <span class="count">({{ openOrders.length }})</span></h3>
+          <button type="button" class="btn btn-primary btn-sm" (click)="openModule('workOrders')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Work Order</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Work Order</th><th>Date</th><th>Type</th><th>Priority</th><th>Technician</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let w of openOrders" class="row-link" (click)="openWorkOrder(w)" title="Open work order">
+                <td><strong>{{ w.id }}</strong><small class="sub">{{ w.description }}</small></td>
+                <td class="nowrap" [class.text-danger]="isOverdue(w)">{{ w.date | date: 'dd MMM yyyy' }}</td>
+                <td><span class="tag" [ngClass]="'tag--' + woTone(w.type)">{{ w.type }}</span></td>
+                <td><span class="tag" [ngClass]="'tag--' + priorityTone(w.priority)">{{ w.priority ?? '-' }}</span></td>
+                <td>{{ w.technician || '-' }}</td>
+                <td class="nowrap">{{ isOverdue(w) ? 'Overdue' : w.status }}</td>
+              </tr>
+              <tr *ngIf="!openOrders.length"><td colspan="6" class="empty-line">No open work orders.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Maintenance history -->
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.History" [size]="20"></lucide-icon>
+        <h3 class="grow">Maintenance History <span class="count">({{ completed.length }} completed)</span></h3>
+        <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Work Order</th><th>Date</th><th>Type</th><th>Description</th><th>Technician</th><th class="num">Cost</th><th class="num">Downtime</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let w of historyRows" class="row-link" (click)="openWorkOrder(w)" title="Open work order">
+              <td class="nowrap"><strong>{{ w.id }}</strong></td>
+              <td class="nowrap">{{ w.date | date: 'dd MMM yyyy' }}</td>
+              <td><span class="tag" [ngClass]="'tag--' + woTone(w.type)">{{ w.type }}</span></td>
+              <td class="wrap">{{ w.description }}<small *ngIf="w.reason" class="sub">{{ w.reason }}</small></td>
+              <td>{{ w.technician }}</td>
+              <td class="num">{{ cost(w) | currency: 'USD' : 'symbol' : '1.0-0' }}</td>
+              <td class="num">{{ w.downtimeMin ? (w.downtimeMin / 60 | number: '1.0-1') + ' h' : '-' }}</td>
+            </tr>
+            <tr *ngIf="!completed.length"><td colspan="7" class="empty-line">No maintenance has been recorded yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button *ngIf="completed.length > historyRows.length || historyAll" type="button" class="link-btn more" (click)="historyAll = !historyAll">
+        {{ historyAll ? 'Show less' : 'View all ' + completed.length + ' records' }}</button>
+    </div>
+
+    <!-- Component maintenance -->
+    <ng-container *ngTemplateOutlet="componentSection; context: { title: 'Component Maintenance' }"></ng-container>
+    <app-component-maintenance *ngIf="component as c" [component]="c"></app-component-maintenance>
+  </ng-container>
+
+  <!-- ===================== Service History ===================== -->
+  <ng-container *ngIf="view === 'service'">
+    <div class="kpis">
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.History" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Service Records</h3>
+          <strong class="kpi-value">{{ serviceEvents.length }}</strong>
+          <p>Work orders &amp; resolved requests</p>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.CalendarCheck" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Last Service</h3>
+          <ng-container *ngIf="lastService as e; else noService">
+            <strong class="kpi-date">{{ e.date | date: 'dd MMM yyyy' }}</strong>
+            <p>{{ e.description }}</p>
+          </ng-container>
+          <ng-template #noService><strong class="kpi-date">-</strong><p>No service recorded</p></ng-template>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.MessageSquarePlus" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Open Service Requests</h3>
+          <strong class="kpi-value">{{ openRequests }}</strong>
+          <p>of {{ data.serviceRequests.length }} requests</p>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.Clock" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Avg Response</h3>
+          <strong class="kpi-value">{{ srFigures.responseHours | number: '1.0-1' }} h</strong>
+          <p>Time to first response</p>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.Wrench" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Avg Resolution</h3>
+          <strong class="kpi-value">{{ srFigures.resolutionDays | number: '1.0-1' }} d</strong>
+          <p>Request to resolved</p>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.Star" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Satisfaction</h3>
+          <strong class="kpi-value">{{ srFigures.rating | number: '1.0-1' }} / 5</strong>
+          <p>Requester rating</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service requests -->
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.MessageSquarePlus" [size]="20"></lucide-icon>
+        <h3 class="grow">Service Requests <span class="count">({{ requests.length }})</span></h3>
+        <button type="button" class="btn btn-primary btn-sm" (click)="newRequest()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Service Request</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Request</th><th>Category</th><th>Priority</th><th>Status</th><th>Raised</th><th>Resolved</th><th>Assigned To</th><th>Work Order</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let r of requests" class="row-link" (click)="openRequest(r)" title="Open service request">
+              <td><strong>{{ r.id }}</strong><small class="sub">{{ r.title }}</small></td>
+              <td>{{ r.category }}</td>
+              <td><span class="tag" [ngClass]="'tag--' + priorityTone(r.priority)">{{ r.priority }}</span></td>
+              <td><span class="pill pill--xs" [style.color]="srColors[r.status]" [style.background]="srColors[r.status] + '1a'"><span class="dot" [style.background]="srColors[r.status]"></span>{{ r.status }}</span></td>
+              <td class="nowrap">{{ r.createdAt | date: 'dd MMM yyyy' }}</td>
+              <td class="nowrap">{{ r.resolvedAt ? (r.resolvedAt | date: 'dd MMM yyyy') : '-' }}</td>
+              <td>{{ r.assignedTo || '-' }}</td>
+              <td class="nowrap">{{ r.workOrder || '-' }}</td>
+            </tr>
+            <tr *ngIf="!requests.length"><td colspan="8" class="empty-line">No service requests have been raised for this asset.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Asset service history -->
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.History" [size]="20"></lucide-icon>
+        <h3 class="grow">Service History <span class="count">({{ serviceEvents.length }})</span></h3>
+        <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Source</th><th>Reference</th><th>Type</th><th>Description</th><th>Performed By</th><th class="num">Cost</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let e of serviceRows" class="row-link" (click)="openEvent(e)" [title]="'Open ' + e.source.toLowerCase()">
+              <td class="nowrap">{{ e.date | date: 'dd MMM yyyy' }}</td>
+              <td><span class="tag" [ngClass]="e.source === 'Work Order' ? 'tag--good' : 'tag--warn'">{{ e.source }}</span></td>
+              <td class="nowrap"><strong>{{ e.ref }}</strong></td>
+              <td>{{ e.kind }}</td>
+              <td class="wrap">{{ e.description }}</td>
+              <td>{{ e.by || '-' }}</td>
+              <td class="num">{{ e.cost === null ? '-' : (e.cost | currency: 'USD' : 'symbol' : '1.0-0') }}</td>
+            </tr>
+            <tr *ngIf="!serviceEvents.length"><td colspan="7" class="empty-line">No service has been recorded yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button *ngIf="serviceEvents.length > serviceRows.length || historyAll" type="button" class="link-btn more" (click)="historyAll = !historyAll">
+        {{ historyAll ? 'Show less' : 'View all ' + serviceEvents.length + ' records' }}</button>
+    </div>
+
+    <!-- Component service history -->
+    <ng-container *ngTemplateOutlet="componentSection; context: { title: 'Component Service History' }"></ng-container>
+    <app-component-service-history *ngIf="component as c" [component]="c" [location]="componentLocation"></app-component-service-history>
+  </ng-container>
+
+  <!-- Components summary: picking a row shows that component's records below -->
+  <ng-template #componentSection let-title="title">
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.Puzzle" [size]="20"></lucide-icon>
+        <h3 class="grow">{{ title }} <span class="count">({{ components.length }} components)</span></h3>
+        <button type="button" class="link-btn" (click)="openComponents()">Manage components</button>
+      </div>
+      <div *ngIf="components.length; else noComponents" class="table-wrap">
+        <table class="data-table">
+          <thead *ngIf="view === 'maintenance'"><tr><th>Component</th><th>Status</th><th class="num">Running Hours</th><th>Next Task</th><th>Next Due</th><th>Last Maintained</th></tr></thead>
+          <thead *ngIf="view === 'service'"><tr><th>Component</th><th>Status</th><th class="num">Services</th><th>Last Service</th><th>Health</th><th>Next Service</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let c of components" class="row-link" [class.is-picked]="c.id === componentId" (click)="pickComponent(c)" [attr.aria-selected]="c.id === componentId">
+              <td><strong>{{ c.name }}</strong><small class="sub">{{ c.tag }}</small></td>
+              <td><span class="pill pill--xs" [ngClass]="'pill--' + componentTone(c.status)"><span class="dot"></span>{{ c.status }}</span></td>
+              <ng-container *ngIf="view === 'maintenance'">
+                <td class="num">{{ c.maintenance?.runningHours | number }}</td>
+                <td>{{ nextTask(c)?.task ?? '-' }}</td>
+                <td class="nowrap" [class.text-danger]="nextTask(c) && nextTask(c)!.nextDue < today">{{ nextTask(c) ? (nextTask(c)!.nextDue | date: 'dd MMM yyyy') : '-' }}</td>
+                <td class="nowrap">{{ lastDone(c) ? (lastDone(c) | date: 'dd MMM yyyy') : '-' }}</td>
+              </ng-container>
+              <ng-container *ngIf="view === 'service'">
+                <td class="num">{{ serviceCount(c) }}</td>
+                <td class="nowrap">{{ lastServiceOf(c) ? (lastServiceOf(c)!.date | date: 'dd MMM yyyy') : '-' }}</td>
+                <td><span *ngIf="lastServiceOf(c) as s; else dash" class="tag" [ngClass]="'tag--' + healthTone(s.health)">{{ s.health }} · {{ s.healthScore }}</span></td>
+                <td class="nowrap">{{ lastServiceOf(c)?.nextDue ? (lastServiceOf(c)!.nextDue | date: 'dd MMM yyyy') : '-' }}</td>
+              </ng-container>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p *ngIf="component as c" class="picked-note">Showing {{ view === 'maintenance' ? 'maintenance' : 'service history' }} of <strong>{{ c.name }} ({{ c.tag }})</strong> below. Pick another component to switch.</p>
+      <ng-template #noComponents>
+        <p class="empty-line">No components are recorded for {{ asset.tag }}. Add them on the Components tab to track their {{ view === 'maintenance' ? 'maintenance' : 'service history' }} here.</p>
+      </ng-template>
+    </div>
+  </ng-template>
+  <ng-template #dash>-</ng-template>
+  </ng-container>
+</section>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

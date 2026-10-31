@@ -156,7 +156,8 @@ const SEEDS: Seed[] = [
   ['category', 'load_capacity_kg', 'Load Capacity (kg)', 'Number', G_OPERATIONAL, true, { appliesTo: 'Material Handling' }],
 ];
 
-function buildMockFields(): CustomField[] {
+/** The sample field definitions; the asset detail Custom Fields tab shows an asset's values for them. */
+export function buildMockFields(): CustomField[] {
   const counters = new Map<string, number>();
   return SEEDS.map(([scope, name, label, type, group, required, extra = {}]) => {
     const key = `${scope}|${group}`;

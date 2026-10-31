@@ -268,6 +268,45 @@ function buildMockAssets(): AssetRecord[] {
   ];
 }
 
+/**
+ * Components of every asset, shared by the Components page and the asset Maintenance / Service History tabs so
+ * both show the same parts and records. DEMO MODE: kept in memory for the session.
+ */
+const SHARED_ASSETS = buildMockAssets();
+
+/** The asset's top-level components (assemblies hold their parts in `children`); empty when none are recorded. */
+export function componentTreeOf(tag: string): AssetComponent[] {
+  return SHARED_ASSETS.find((a) => a.tag === tag)?.components ?? [];
+}
+
+/** The asset's components, assemblies followed by their parts; empty when none are recorded. */
+export function componentsOf(tag: string): AssetComponent[] {
+  const flat = (list: AssetComponent[]): AssetComponent[] => list.flatMap((c) => [c, ...flat(c.children)]);
+  return flat(componentTreeOf(tag));
+}
+
+/** Icon of each component kind (AssetComponent['icon']). */
+export const COMPONENT_ICONS = {
+  generator: Zap,
+  engine: Settings,
+  filter: Cylinder,
+  fuel: Fuel,
+  oil: Droplets,
+  turbo: Fan,
+  alternator: CircleGauge,
+  board: CircuitBoard,
+  cooling: Snowflake,
+  radiator: Waves,
+  fan: Wind,
+  control: Gauge,
+  panel: Thermometer,
+  cpu: Cpu,
+  battery: Battery,
+  enclosure: Box,
+  cable: Cable,
+  generic: Cog,
+};
+
 const EMPTY_FORM: ComponentForm = {
   name: '',
   tag: '',
@@ -301,26 +340,7 @@ export class AssetComponents {
     Plus, Puzzle, Search, SquarePen, Trash2, Wrench, X, ComponentIcon,
   };
 
-  readonly componentIcons = {
-    generator: Zap,
-    engine: Settings,
-    filter: Cylinder,
-    fuel: Fuel,
-    oil: Droplets,
-    turbo: Fan,
-    alternator: CircleGauge,
-    board: CircuitBoard,
-    cooling: Snowflake,
-    radiator: Waves,
-    fan: Wind,
-    control: Gauge,
-    panel: Thermometer,
-    cpu: Cpu,
-    battery: Battery,
-    enclosure: Box,
-    cable: Cable,
-    generic: Cog,
-  };
+  readonly componentIcons = COMPONENT_ICONS;
 
   readonly tabs: { key: AssetTab; label: string; icon: typeof CirclePlus }[] = [
     { key: 'overview', label: 'Overview', icon: CirclePlus },
@@ -334,7 +354,7 @@ export class AssetComponents {
   readonly statusOptions: ComponentStatus[] = ['Active', 'Under Maintenance', 'Needs Replacement', 'Inactive'];
   readonly pageSizeOptions = [10, 25, 50];
 
-  assets: AssetRecord[] = buildMockAssets();
+  assets: AssetRecord[] = SHARED_ASSETS;
   assetTag: string;
   activeTab: AssetTab = 'components';
 

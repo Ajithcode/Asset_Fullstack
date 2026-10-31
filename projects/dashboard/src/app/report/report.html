@@ -29,41 +29,43 @@
     </div>
   </header>
 
+  <!-- One 6-column grid for the KPI cards and every widget, so all edges line up with the KPI cards -->
+  <div class="io-grid io-grid--6">
   <!-- ===== KPIs ===== -->
-  <div class="io-kpis ao-kpis" *ngIf="kpis as k">
-    <div class="card io-kpi">
+  <ng-container *ngIf="kpis as k">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('total')" (keydown.enter)="openKpi('total')">
       <span class="io-kpi-ic ic--blue"><lucide-icon [img]="icons.FileText" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Total Reports</span><strong>{{ k.total | number }}</strong></span>
       <ng-container *ngTemplateOutlet="trend; context: { v: k.totalChange, goodUp: true }"></ng-container>
     </div>
-    <div class="card io-kpi">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('scheduled')" (keydown.enter)="openKpi('scheduled')">
       <span class="io-kpi-ic ic--green"><lucide-icon [img]="icons.CalendarDays" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Scheduled Reports</span><strong>{{ k.scheduled | number }}</strong></span>
       <span class="io-kpi-side"><b class="up">{{ k.scheduledPct }}%</b><small>of all reports</small></span>
     </div>
-    <div class="card io-kpi">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('generated')" (keydown.enter)="openKpi('generated')">
       <span class="io-kpi-ic ic--sky"><lucide-icon [img]="icons.ChartColumn" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Reports Generated</span><strong>{{ k.generated | number }}</strong></span>
       <ng-container *ngTemplateOutlet="trend; context: { v: k.generatedChange, goodUp: true }"></ng-container>
     </div>
-    <div class="card io-kpi">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="k.top && openReport(k.top)" (keydown.enter)="k.top && openReport(k.top)">
       <span class="io-kpi-ic ic--amber"><lucide-icon [img]="icons.Star" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Most Viewed Report</span>
-        <button *ngIf="k.top as t; else noTop" type="button" class="rp-kpi-link" (click)="select(t)" [title]="t.name">{{ t.name }}</button>
+        <button *ngIf="k.top as t; else noTop" type="button" class="rp-kpi-link" (click)="$event.stopPropagation(); openReport(t)" [title]="t.name">{{ t.name }}</button>
         <ng-template #noTop><strong>-</strong></ng-template>
         <small class="muted" *ngIf="k.top">{{ k.top.views | number }} views</small></span>
     </div>
-    <div class="card io-kpi">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('freshness')" (keydown.enter)="openKpi('freshness')">
       <span class="io-kpi-ic ic--blue"><lucide-icon [img]="icons.Database" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Data Freshness</span><strong>{{ k.freshness }}%</strong></span>
       <span class="io-kpi-side"><b [class.up]="k.freshness >= 95" [class.down]="k.freshness < 95">{{ k.freshness >= 95 ? 'On SLA' : 'Below SLA' }}</b><small>target 95%</small></span>
     </div>
-    <div class="card io-kpi rp-click" (click)="openInsight('approval')" title="Show reports awaiting approval">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('pending')" (keydown.enter)="openKpi('pending')" title="Show reports awaiting approval">
       <span class="io-kpi-ic ic--violet"><lucide-icon [img]="icons.Clock" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Pending Approvals</span><strong>{{ k.pending | number }}</strong></span>
       <span class="io-kpi-side"><small>awaiting review</small></span>
     </div>
-  </div>
+  </ng-container>
   <!-- change vs. the previous period; colour says whether the move is good -->
   <ng-template #trend let-v="v" let-goodUp="goodUp">
     <span *ngIf="v !== null && v !== 0" class="io-kpi-side"><b [class.up]="(v > 0) === goodUp" [class.down]="(v > 0) !== goodUp">
@@ -71,13 +73,12 @@
   </ng-template>
 
   <!-- ===== Row 1: activity, modules, insights ===== -->
-  <div class="rp-row rp-row--1">
-    <section class="card io-pad" aria-labelledby="rp-act">
+    <section class="card io-pad io-span-3 io-full-md" aria-labelledby="rp-act">
       <div class="io-sub-head"><h2 id="rp-act" class="io-title"><lucide-icon [img]="icons.ChartColumn" [size]="18"></lucide-icon>Reporting Activity</h2>
         <p class="io-series rp-series">
           <button *ngFor="let s of series" type="button" [class.is-off]="hiddenSeries.has(s.key)" (click)="toggleSeries(s.key)" [attr.aria-pressed]="!hiddenSeries.has(s.key)"><i [style.background]="s.color"></i>{{ s.label }}</button>
         </p></div>
-      <div class="io-chart" *ngIf="activity as a" (mouseleave)="hoverDay = null">
+      <div #chartEl class="io-chart" *ngIf="activity as a" (mouseleave)="hoverDay = null">
         <svg [attr.viewBox]="'0 0 ' + cw + ' ' + ch" role="img" [attr.aria-label]="'Report activity per day, ' + periodLabel">
           <g class="grid"><line *ngFor="let t of a.ticks" [attr.x1]="cp.l" [attr.x2]="cw - cp.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
           <g class="axis"><text *ngFor="let t of a.ticks" [attr.x]="cp.l - 5" [attr.y]="t.y + 3" text-anchor="end">{{ t.label }}</text>
@@ -86,7 +87,7 @@
           <rect *ngFor="let r of a.rects" [attr.x]="r.x" [attr.y]="r.y" [attr.width]="r.w" [attr.height]="r.h" [attr.fill]="r.color" rx="0.8"></rect>
           <path *ngIf="a.line" [attr.d]="a.line" fill="none" stroke="#f59e0b" stroke-width="1.6" stroke-linejoin="round"></path>
           <circle *ngFor="let p of a.pts" [attr.cx]="p.x" [attr.cy]="p.y" r="2.2" fill="#fff" stroke="#f59e0b" stroke-width="1.2"></circle>
-          <rect *ngFor="let v of a.vals; let i = index" class="hit" [attr.x]="a.x(i) - a.slot / 2" [attr.y]="cp.t" [attr.width]="a.slot" [attr.height]="ch - cp.t - cp.b" (mouseenter)="hoverDay = i"></rect>
+          <rect *ngFor="let v of a.vals; let i = index" class="hit" [attr.x]="a.x(i) - a.slot / 2" [attr.y]="cp.t" [attr.width]="a.slot" [attr.height]="ch - cp.t - cp.b" (mouseenter)="hoverDay = i" (click)="openDay(i)"></rect>
         </svg>
         <div *ngIf="hoverDay !== null && a.vals[hoverDay] as v" class="io-tip" [style.left.%]="(a.x(hoverDay) / cw) * 100">
           <strong>{{ fmtDate(v.date) }}</strong>
@@ -95,29 +96,29 @@
       </div>
     </section>
 
-    <section class="card io-pad" aria-labelledby="rp-mod">
+    <section class="card io-pad io-span-2" aria-labelledby="rp-mod">
       <h2 id="rp-mod" class="io-title"><lucide-icon [img]="icons.PieChart" [size]="18"></lucide-icon>Reports by Module</h2>
       <div class="ao-health rp-donut" *ngIf="byModule as b">
         <svg viewBox="0 0 140 140" role="img" [attr.aria-label]="b.total + ' reports by module'" (mouseleave)="hoverModule = null">
           <ng-container *ngFor="let r of b.rows">
             <circle *ngIf="r.count" cx="70" cy="70" r="46" fill="none" [attr.stroke]="r.color" [attr.stroke-width]="hoverModule === r.name || module === r.name ? 30 : 26"
-              [attr.stroke-dasharray]="r.dash" [attr.stroke-dashoffset]="r.offset" transform="rotate(-90 70 70)" (mouseenter)="hoverModule = r.name" (click)="pickModule(r.name)" class="rp-click"></circle>
+              [attr.stroke-dasharray]="r.dash" [attr.stroke-dashoffset]="r.offset" transform="rotate(-90 70 70)" (mouseenter)="hoverModule = r.name" (click)="openModule(r.name)" class="rp-click"></circle>
           </ng-container>
           <text x="70" y="70" class="ao-health-num">{{ (hoverModule ? moduleCount(hoverModule) : b.total) | number }}</text>
           <text x="70" y="84" class="io-donut-cap">{{ hoverModule ?? 'Total Reports' }}</text>
         </svg>
         <ul class="rp-mod-legend">
-          <li *ngFor="let r of b.rows" [class.is-on]="module === r.name" (mouseenter)="hoverModule = r.name" (mouseleave)="hoverModule = null" (click)="pickModule(r.name)" title="Filter to this module">
+          <li *ngFor="let r of b.rows" [class.is-on]="module === r.name" (mouseenter)="hoverModule = r.name" (mouseleave)="hoverModule = null" (click)="openModule(r.name)" title="Show module details">
             <i [style.background]="r.color"></i><span class="grow">{{ r.name }}</span><b>{{ r.count }}</b><small>({{ r.pct }}%)</small></li>
         </ul>
       </div>
     </section>
 
-    <section class="card io-pad" aria-labelledby="rp-in">
+    <section class="card io-pad io-span-1" aria-labelledby="rp-in">
       <h2 id="rp-in" class="io-title"><lucide-icon [img]="icons.Lightbulb" [size]="18"></lucide-icon>Quick Insights</h2>
       <ul class="ao-insights rp-insights">
         <li *ngFor="let i of insights">
-          <button type="button" [class.is-on]="insight === i.key" (click)="openInsight(i.key)" [attr.aria-pressed]="insight === i.key">
+          <button type="button" [class.is-on]="insight === i.key" (click)="openInsightDrill(i.key)" [attr.aria-pressed]="insight === i.key">
             <span class="ao-in-ic" [ngClass]="'tone--' + i.tone"><lucide-icon [img]="i.icon" [size]="18"></lucide-icon></span>
             <span class="grow"><strong>{{ i.count | number }}</strong><small>{{ i.label }}</small></span>
             <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
@@ -125,11 +126,9 @@
         </li>
       </ul>
     </section>
-  </div>
 
   <!-- ===== Row 2: library, schedules, actions & preview ===== -->
-  <div class="rp-row rp-row--2">
-    <section class="card io-pad rp-lib" aria-labelledby="rp-lib">
+    <section class="card io-pad rp-lib io-span-3 io-full-md" aria-labelledby="rp-lib">
       <div class="io-sub-head rp-lib-head"><h2 id="rp-lib" class="io-title"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon>Report Library</h2>
         <nav class="rp-tabs" role="tablist" aria-label="Report library">
           <button type="button" role="tab" [class.is-active]="tab === 'all'" [attr.aria-selected]="tab === 'all'" (click)="setTab('all')">All Reports</button>
@@ -148,7 +147,7 @@
         <table class="io-table rp-table">
           <thead><tr><th class="rp-star-col"><span class="sr-only">Favorite</span></th><th>Report Name</th><th>Module</th><th>Last Updated</th><th>Owner</th><th>Type</th><th class="num">Views</th><th class="num">Actions</th></tr></thead>
           <tbody>
-            <tr *ngFor="let r of pageRows" class="ao-click" [class.is-selected]="selectedId === r.id" (click)="select(r)">
+            <tr *ngFor="let r of pageRows" class="ao-click" [class.is-selected]="selectedId === r.id" (click)="openReport(r)">
               <td><button type="button" class="rp-star" [class.is-on]="r.favorite" (click)="$event.stopPropagation(); toggleFavorite(r)" [attr.aria-pressed]="r.favorite" [attr.aria-label]="(r.favorite ? 'Remove ' : 'Add ') + r.name + ' to favorites'">
                 <lucide-icon [img]="icons.Star" [size]="15"></lucide-icon></button></td>
               <td><span class="rp-name"><span class="rp-name-ic" [style.color]="moduleColor[r.module]" [style.background]="moduleColor[r.module] + '1c'"><lucide-icon [img]="icons.FileText" [size]="14"></lucide-icon></span>{{ r.name }}</span></td>
@@ -176,16 +175,16 @@
       </div>
     </section>
 
-    <section class="card io-pad" aria-labelledby="rp-sch">
+    <section class="card io-pad io-span-2" aria-labelledby="rp-sch">
       <div class="io-sub-head"><h2 id="rp-sch" class="io-title"><lucide-icon [img]="icons.Clock" [size]="18"></lucide-icon>Scheduled Reports</h2>
         <button type="button" class="io-link" (click)="showAllSchedules = !showAllSchedules">{{ showAllSchedules ? 'Show Less' : 'View All' }}</button></div>
       <ul class="rp-sched">
-        <li *ngFor="let s of scheduleRows" [class.is-paused]="!s.active">
+        <li *ngFor="let s of scheduleRows" class="io-click" [class.is-paused]="!s.active" (click)="openSchedule(s)">
           <span class="ao-in-ic" [ngClass]="'tone--' + s.tone"><lucide-icon [img]="scheduleIcons[s.icon]" [size]="18"></lucide-icon></span>
           <span class="grow"><strong>{{ s.name }}</strong>
             <span class="rp-sched-meta"><small>{{ s.cadence }}</small><small><lucide-icon [img]="icons.Users" [size]="12"></lucide-icon>{{ s.recipients }} recipients</small></span></span>
           <span class="rp-next"><small>Next run</small>{{ s.active ? fmtDate(s.nextRun) : '-' }}</span>
-          <label class="rp-switch" [title]="s.active ? 'Pause schedule' : 'Resume schedule'">
+          <label class="rp-switch" [title]="s.active ? 'Pause schedule' : 'Resume schedule'" (click)="$event.stopPropagation()">
             <input type="checkbox" [checked]="s.active" (change)="toggleSchedule(s)" [attr.aria-label]="(s.active ? 'Pause ' : 'Resume ') + s.name" /><i></i>
             <small [class.up]="s.active">{{ s.active ? 'Active' : 'Paused' }}</small></label>
         </li>
@@ -193,7 +192,7 @@
       </ul>
     </section>
 
-    <aside class="rp-side">
+    <aside class="rp-side io-span-1">
       <section class="card io-pad" aria-labelledby="rp-qa">
         <h2 id="rp-qa" class="io-title"><lucide-icon [img]="icons.Settings" [size]="18"></lucide-icon>Quick Actions</h2>
         <div class="io-actions">
@@ -221,26 +220,24 @@
         <ng-template #noSel><p class="muted">Select a report in the library to preview it.</p></ng-template>
       </section>
     </aside>
-  </div>
 
   <!-- ===== Row 3: performance, delivery, recent ===== -->
-  <div class="rp-row rp-row--3">
-    <section class="card io-pad" aria-labelledby="rp-perf">
+    <section class="card io-pad io-span-2" aria-labelledby="rp-perf">
       <h2 id="rp-perf" class="io-title"><lucide-icon [img]="icons.ChartColumn" [size]="18"></lucide-icon>Report Performance</h2>
       <h3 class="rp-h3">Most Viewed Reports</h3>
       <ul class="rp-perf">
-        <li *ngFor="let r of topViewed" (click)="select(r)" class="ao-click" [class.is-on]="selectedId === r.id">
+        <li *ngFor="let r of topViewed" (click)="openReport(r)" class="ao-click" [class.is-on]="selectedId === r.id">
           <i [style.background]="moduleColor[r.module]"></i><span class="rp-perf-name" [title]="r.name">{{ r.name }}</span>
           <span class="ao-st-bar"><i [style.width.%]="(r.views / topMax) * 100" [style.background]="moduleColor[r.module]"></i></span><b>{{ r.views | number }}</b></li>
         <li *ngIf="!topViewed.length" class="io-empty">No reports match.</li>
       </ul>
     </section>
 
-    <section class="card io-pad" aria-labelledby="rp-del">
+    <section class="card io-pad io-span-2 io-full-md" aria-labelledby="rp-del">
       <h2 id="rp-del" class="io-title"><lucide-icon [img]="icons.Upload" [size]="18"></lucide-icon>Export &amp; Delivery</h2>
       <div class="rp-del" *ngIf="delivery as d">
         <ul class="rp-rings">
-          <li *ngFor="let c of d.rows">
+          <li *ngFor="let c of d.rows" class="io-click" (click)="openDelivery(c.channel)" [title]="c.channel + ' delivery details'">
             <svg viewBox="0 0 40 40" role="img" [attr.aria-label]="c.channel + ' ' + c.rate + '% successful'">
               <circle cx="20" cy="20" r="16" fill="none" stroke="#eef0f4" stroke-width="4"></circle>
               <circle cx="20" cy="20" r="16" fill="none" [attr.stroke]="c.color" stroke-width="4" [attr.stroke-dasharray]="c.dash" stroke-linecap="round" transform="rotate(-90 20 20)"></circle>
@@ -248,7 +245,7 @@
             </svg>
             <b>{{ c.ok | number }}</b><small>successful</small></li>
         </ul>
-        <div class="rp-del-total">
+        <div class="rp-del-total io-click" (click)="openDelivery()" title="Delivery details">
           <small>Delivery Success Rate</small>
           <svg viewBox="0 0 80 80" role="img" [attr.aria-label]="'Overall ' + d.rate + '% delivered'">
             <circle cx="40" cy="40" r="30" fill="none" stroke="#eef0f4" stroke-width="8"></circle>
@@ -260,11 +257,11 @@
       </div>
     </section>
 
-    <section class="card io-pad" aria-labelledby="rp-rec">
+    <section class="card io-pad io-span-2" aria-labelledby="rp-rec">
       <div class="io-sub-head"><h2 id="rp-rec" class="io-title"><lucide-icon [img]="icons.History" [size]="18"></lucide-icon>Recent Activity</h2>
         <button type="button" class="io-link" (click)="showAllRecent = !showAllRecent">{{ showAllRecent ? 'Show Less' : 'View All' }}</button></div>
       <ul class="rp-recent">
-        <li *ngFor="let e of recent"><span class="rp-av" [ngClass]="avatarTone(e.owner)">{{ initials(e.owner) }}</span>
+        <li *ngFor="let e of recent" class="io-click" (click)="openRecent(e)"><span class="rp-av" [ngClass]="avatarTone(e.owner)">{{ initials(e.owner) }}</span>
           <span class="grow"><strong>{{ e.owner }}</strong><small>{{ e.action }} "{{ e.report }}"</small></span><small class="muted nowrap">{{ ago(e.at) }}</small></li>
       </ul>
     </section>
@@ -272,3 +269,4 @@
 </section>
 
 <div *ngIf="toast" class="io-toast" role="status">{{ toast }}</div>
+<app-drill-dialog [drill]="drill" (closed)="drill = null"></app-drill-dialog>

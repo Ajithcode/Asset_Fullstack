@@ -6,10 +6,7 @@
 .rp-kpi-link { overflow: hidden; padding: 0; border: 0; background: none; font: inherit; font-size: 16px; font-weight: 800; color: var(--io-navy); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .rp-kpi-link:hover { color: var(--io-accent); }
 
-.rp-row { display: grid; align-items: stretch; gap: 12px; }
-.rp-row--1 { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) 290px; }
-.rp-row--2 { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) 290px; }
-.rp-row--3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 0.9fr); }
+/* Layout: the 6-column io-grid--6 from ../asset-overview styles */
 .rp-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .rp-side > :last-child { flex: 1 1 auto; }
 
@@ -120,15 +117,21 @@
 .rp-recent strong { display: block; font-size: 13px; color: var(--io-navy); }
 .rp-recent small { font-size: 11.5px; color: var(--io-text-2); }
 
-@media (max-width: 1400px) {
-  .rp-row--1, .rp-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .rp-row--1 > :first-child, .rp-row--2 > :first-child { grid-column: 1 / -1; }
-  .rp-row--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .rp-row--3 > :nth-child(2) { grid-column: 1 / -1; grid-row: 1; }
+/* ===== Drill-down hover ===== */
+.rp-sched li.io-click:hover { border-color: var(--io-accent-border); background: var(--io-accent-soft); }
+.rp-recent li.io-click { padding: 2px 4px; border-radius: 6px; }
+.rp-recent li.io-click:hover, .rp-del-total.io-click:hover { background: var(--io-accent-soft); }
+.rp-rings li.io-click { padding: 2px 0; border-radius: 6px; }
+.rp-rings li.io-click:hover { background: var(--io-accent-soft); }
+.rp-del-total.io-click { border-radius: 6px; }
+
+/* one-column cards (insights, quick actions & preview) */
+@container (max-width: 320px) {
+  .rp-pv-stats { grid-template-columns: minmax(0, 1fr); }
+  .rp-pv-btns { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 800px) {
-  .rp-row--1, .rp-row--2, .rp-row--3 { grid-template-columns: minmax(0, 1fr); }
   .rp-del { flex-direction: column; }
   .rp-del-total { padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--io-border); }
   .rp-rings { grid-template-columns: repeat(3, minmax(0, 1fr)); }

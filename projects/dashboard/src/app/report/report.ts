@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -41,6 +41,8 @@ import {
   ACTIVITY, ActivityDay, CHANNELS, CURRENT_USER, FILE_TYPES, FileType, LIBRARY, LibraryReport, MODULES, OWNERS, PREVIEW_STATS, RECENT, SCHEDULES, SERIES, SITES,
   ScheduledReport, isoDate,
 } from './report-data';
+import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
+import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
 
 type Period = '7' | '30' | '90';
 type LibraryTab = 'all' | 'favorites' | 'shared' | 'mine';
@@ -49,20 +51,23 @@ type SeriesKey = keyof Omit<ActivityDay, 'date'>;
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAY = 86_400_000;
-// Activity chart geometry (SVG user units)
+// Activity chart geometry (SVG user units); the width follows the card's width (1 unit = 1px)
 const CW = 640;
+const CW_MIN = 280;
 const CH = 200;
 const CP = { l: 30, r: 8, t: 10, b: 22 };
+const TYPE_COLORS: Record<string, string> = { PDF: '#dc2626', XLS: '#15803d', CSV: '#1d4ed8' };
+const DATA_COLORS: Record<string, string> = { Fresh: '#16a34a', Stale: '#dc2626' };
 
 @Component({
   selector: 'app-report',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, DrillDialog],
   templateUrl: './report.html',
   // header, filters, KPI cards, menus, tables and charts come from the IoT and Asset overviews
   styleUrls: ['../iot-tracking-overview/iot-tracking-overview.css', '../iot-tracking-overview/iot-tracking-overview-panels.css', '../asset-overview/asset-overview.css', './report.css'],
 })
-export class Report implements OnDestroy {
+export class Report implements AfterViewInit, OnDestroy {
   readonly icons = {
     ArrowDown, ArrowUp, Box, CalendarClock, CalendarDays, ChartColumn, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Clock, Database, Download, Ellipsis, Eye, FilePlus,
     FileText, Heart, History, House, LayoutTemplate, Lightbulb, PieChart, Plus, Search, Settings, ShieldCheck, Star, TriangleAlert, Upload, Users,
@@ -75,7 +80,7 @@ export class Report implements OnDestroy {
   readonly owners = OWNERS;
   readonly fileTypes = FILE_TYPES;
   readonly series = SERIES;
-  readonly cw = CW;
+  cw = CW;
   readonly ch = CH;
   readonly cp = CP;
 
@@ -109,17 +114,36 @@ export class Report implements OnDestroy {
   showAllRecent = false;
 
   toast = '';
+  /** Drill-down popup for the clicked widget element. */
+  drill: Drill | null = null;
   private toastTimer?: ReturnType<typeof setTimeout>;
   private readonly library: LibraryReport[] = LIBRARY.map((r) => ({ ...r }));
+  @ViewChild('chartEl') private chartEl?: ElementRef<HTMLDivElement>;
+  private chartResize?: ResizeObserver;
   private readonly router = inject(Router);
+  private readonly zone = inject(NgZone);
   private readonly today = new Date();
 
   constructor() {
     this.selectedId = [...this.library].sort((a, b) => b.views - a.views)[0]?.id ?? '';
   }
 
+  /** Redraws the activity chart at its card's width as the grid columns change (window, breakpoints, sidebar). */
+  ngAfterViewInit(): void {
+    const el = this.chartEl?.nativeElement;
+    if (!el) return;
+    this.chartResize = new ResizeObserver(() => {
+      if (!el.clientWidth) return;
+      const cw = Math.max(CW_MIN, Math.round(el.clientWidth));
+      // ResizeObserver callbacks run outside Angular's zone
+      if (cw !== this.cw) this.zone.run(() => (this.cw = cw));
+    });
+    this.chartResize.observe(el);
+  }
+
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
+    this.chartResize?.disconnect();
   }
 
   // ===== Filters =====
@@ -197,7 +221,7 @@ export class Report implements OnDestroy {
     const step = max > 200 ? 50 : max > 80 ? 20 : max > 40 ? 10 : 5;
     const top = Math.ceil(max / step) * step;
     const plotH = CH - CP.t - CP.b;
-    const slot = (CW - CP.l - CP.r) / vals.length;
+    const slot = (this.cw - CP.l - CP.r) / vals.length;
     const groupW = slot * 0.78;
     const barW = bars.length ? groupW / bars.length : 0;
     const x = (i: number) => CP.l + slot * i + slot / 2;
@@ -352,6 +376,204 @@ export class Report implements OnDestroy {
   get recent() {
     const list = [...RECENT].sort((a, b) => b.at.localeCompare(a.at));
     return this.showAllRecent ? list : list.slice(0, 3);
+  }
+
+  // ===== Drill-down popup =====
+
+  private get scope(): string {
+    return `${this.periodLabel} · ${[this.module, this.fileType, this.site, this.owner].filter(Boolean).join(' · ') || 'All modules, types, sites and owners'}`;
+  }
+
+  private reportColumns(...extra: DrillColumn[]): DrillColumn[] {
+    return [
+      { key: 'id', label: 'Report ID' }, { key: 'name', label: 'Report Name' }, { key: 'module', label: 'Module' }, { key: 'site', label: 'Site' },
+      { key: 'owner', label: 'Owner' }, { key: 'type', label: 'Type', pill: TYPE_COLORS }, ...extra, { key: 'views', label: 'Views', num: true }, { key: 'updated', label: 'Last Updated' },
+    ];
+  }
+
+  private reportRows(list: LibraryReport[], extra: (r: LibraryReport) => Record<string, DrillValue> = () => ({})): DrillRow[] {
+    return list.map((r) => ({
+      cells: { id: r.id, name: r.name, module: r.module, site: r.site, owner: r.owner, type: r.type, views: r.views, updated: r.updated.replace('T', ' ').slice(0, 16), ...extra(r) },
+      open: () => this.reportDrill(r),
+    }));
+  }
+
+  private reportDrill(r: LibraryReport): Drill {
+    return {
+      title: r.name,
+      subtitle: `${r.id} · ${r.module} · ${r.site}`,
+      stats: [
+        { label: 'Views', value: r.views.toLocaleString() },
+        { label: 'Type', value: r.type, color: TYPE_COLORS[r.type] },
+        { label: 'Approval', value: r.pendingApproval ? 'Pending' : 'Approved', color: r.pendingApproval ? '#d97706' : '#16a34a' },
+        { label: 'Data', value: r.stale ? 'Stale' : 'Fresh', color: DATA_COLORS[r.stale ? 'Stale' : 'Fresh'] },
+        ...this.previewStats(r).map((s) => ({ label: s.label, value: s.value })),
+      ],
+      fields: [
+        { label: 'Owner', value: r.owner }, { label: 'Scheduled', value: r.scheduled ? 'Yes' : 'No' },
+        { label: 'Created', value: this.fmtDate(r.created.slice(0, 10)) }, { label: 'Last Updated', value: this.fmtDateTime(r.updated) },
+        { label: 'Favorite', value: r.favorite ? 'Yes' : 'No' }, { label: 'Shared with me', value: r.sharedWithMe ? 'Yes' : 'No' },
+      ],
+      actions: [
+        { label: `Download ${r.type}`, run: () => this.download(r) },
+        { label: 'Show in Preview', run: () => this.select(r) },
+        { label: 'View Report', run: () => this.viewReport(r) },
+      ],
+    };
+  }
+
+  private dayDrill(v: ActivityDay): Drill {
+    const updated = this.reports.filter((r) => r.updated.startsWith(v.date)).sort((a, b) => b.updated.localeCompare(a.updated));
+    return {
+      title: `Reporting Activity · ${this.fmtDate(v.date)}`, subtitle: this.scope,
+      stats: SERIES.map((s) => ({ label: s.label, value: v[s.key], color: s.color })),
+      tableTitle: 'Reports updated this day', columns: this.reportColumns(), rows: this.reportRows(updated), empty: 'No reports were updated this day.',
+    };
+  }
+
+  private channelRows() {
+    const k = this.share;
+    return CHANNELS.map((c) => {
+      const ok = Math.round(c.ok * k);
+      const failed = Math.round(c.failed * k);
+      return { channel: c.channel, color: c.color, ok, failed, recent: Math.round(c.failed * k * 0.09), rate: pct(ok, ok + failed) };
+    });
+  }
+
+  openKpi(kind: 'total' | 'scheduled' | 'generated' | 'freshness' | 'pending'): void {
+    const list = this.reports;
+    const k = this.kpis;
+    if (kind === 'total') {
+      this.drill = {
+        title: 'Total Reports', subtitle: this.scope,
+        stats: [{ label: 'Reports', value: k.total }, ...FILE_TYPES.map((t) => ({ label: t, value: list.filter((r) => r.type === t).length, color: TYPE_COLORS[t] }))],
+        columns: this.reportColumns(), rows: this.reportRows(list),
+      };
+    } else if (kind === 'scheduled') {
+      const sch = list.filter((r) => r.scheduled);
+      this.drill = {
+        title: 'Scheduled Reports', subtitle: this.scope,
+        stats: [{ label: 'Scheduled', value: k.scheduled, color: '#16a34a' }, { label: 'Of all reports', value: `${k.scheduledPct}%` }, { label: 'Active schedules', value: this.schedules.filter((s) => s.active).length }],
+        columns: this.reportColumns(), rows: this.reportRows(sch),
+        actions: [{ label: 'Show in library', run: () => this.showInsight('scheduled') }],
+      };
+    } else if (kind === 'generated') {
+      const vals = this.activity.vals;
+      const sum = (key: SeriesKey) => vals.reduce((s, v) => s + v[key], 0);
+      this.drill = {
+        title: 'Reports Generated', subtitle: this.scope,
+        stats: SERIES.map((s) => ({ label: s.label, value: sum(s.key).toLocaleString(), color: s.color })),
+        tableTitle: 'Per day',
+        columns: [{ key: 'date', label: 'Date' }, ...SERIES.map((s) => ({ key: s.key, label: s.label, num: true }))],
+        rows: [...vals].reverse().map((v) => ({ cells: { date: v.date, generated: v.generated, viewed: v.viewed, exported: v.exported, scheduled: v.scheduled }, open: () => this.dayDrill(v) })),
+      };
+    } else if (kind === 'freshness') {
+      this.drill = {
+        title: 'Data Freshness', subtitle: `Reports whose source data is within SLA · ${this.scope}`,
+        stats: [{ label: 'Freshness', value: `${k.freshness}%` }, { label: 'Fresh', value: list.filter((r) => !r.stale).length, color: '#16a34a' }, { label: 'Stale', value: list.filter((r) => r.stale).length, color: '#dc2626' }, { label: 'Target', value: '95%' }],
+        columns: this.reportColumns({ key: 'data', label: 'Data', pill: DATA_COLORS }),
+        rows: this.reportRows([...list].sort((a, b) => Number(b.stale) - Number(a.stale)), (r) => ({ data: r.stale ? 'Stale' : 'Fresh' })),
+      };
+    } else {
+      const pending = list.filter((r) => r.pendingApproval);
+      this.drill = {
+        title: 'Pending Approvals', subtitle: this.scope,
+        stats: [{ label: 'Awaiting review', value: k.pending, color: '#d97706' }, { label: 'Of all reports', value: `${pct(k.pending, k.total)}%` }],
+        columns: this.reportColumns(), rows: this.reportRows(pending), empty: 'No reports awaiting approval.',
+        actions: [{ label: 'Show in library', run: () => this.showInsight('approval') }],
+      };
+    }
+  }
+
+  openDay(i: number): void {
+    const v = this.activity.vals[i];
+    if (v) this.drill = this.dayDrill(v);
+  }
+
+  openModule(name: string): void {
+    const list = this.reports.filter((r) => r.module === name);
+    const on = this.module === name;
+    this.drill = {
+      title: `${name} Reports`, subtitle: `Reports by module · ${this.scope}`,
+      stats: [
+        { label: 'Reports', value: list.length, color: this.moduleColor[name] }, { label: 'Of all reports', value: `${pct(list.length, this.reports.length)}%` },
+        { label: 'Views', value: list.reduce((s, r) => s + r.views, 0).toLocaleString() }, { label: 'Schedules', value: this.schedules.filter((s) => s.module === name).length },
+      ],
+      columns: this.reportColumns(), rows: this.reportRows([...list].sort((a, b) => b.views - a.views)),
+      actions: [{ label: on ? 'Clear module filter' : `Filter dashboard to ${name}`, run: () => this.pickModule(name) }],
+    };
+  }
+
+  openInsightDrill(key: Insight): void {
+    if (key === 'failed') {
+      this.openDelivery('', true);
+      return;
+    }
+    const i = this.insights.find((x) => x.key === key);
+    const list = this.reports.filter((r) => (key === 'approval' ? r.pendingApproval : key === 'scheduled' ? r.scheduled : r.stale));
+    this.drill = {
+      title: (i?.label ?? '').replace(/^./, (c) => c.toUpperCase()), subtitle: this.scope,
+      stats: [{ label: 'Reports', value: list.length }, { label: 'Of all reports', value: `${pct(list.length, this.reports.length)}%` }],
+      columns: this.reportColumns(), rows: this.reportRows(list),
+      actions: [{ label: this.insight === key ? 'Clear library filter' : 'Show in library', run: () => this.openInsight(key) }],
+    };
+  }
+
+  /** Export & Delivery: one channel, or all channels (failed: the failed deliveries in the period). */
+  openDelivery(channel = '', failed = false): void {
+    const rows = this.channelRows();
+    const c = rows.find((r) => r.channel === channel);
+    const ok = c ? c.ok : rows.reduce((s, r) => s + r.ok, 0);
+    const bad = c ? c.failed : rows.reduce((s, r) => s + r.failed, 0);
+    this.drill = {
+      title: failed ? 'Failed Deliveries' : c ? `${c.channel} Delivery` : 'Export & Delivery',
+      subtitle: this.scope,
+      stats: failed
+        ? [{ label: `Failed in the ${this.periodLabel.toLowerCase()}`, value: this.failedDeliveries, color: '#dc2626' }, { label: 'Failed overall', value: bad.toLocaleString() }]
+        : [{ label: 'Successful', value: ok.toLocaleString(), color: '#16a34a' }, { label: 'Failed', value: bad.toLocaleString(), color: '#dc2626' }, { label: 'Success rate', value: `${pct(ok, ok + bad)}%` }],
+      tableTitle: 'By channel',
+      columns: [
+        { key: 'channel', label: 'Channel' }, { key: 'ok', label: 'Successful', num: true }, { key: 'failed', label: 'Failed', num: true },
+        ...(failed ? [{ key: 'recent', label: 'Failed in period', num: true }] : []), { key: 'rate', label: 'Success %', num: true },
+      ],
+      rows: rows.map((r) => ({ cells: { channel: r.channel, ok: r.ok, failed: r.failed, recent: r.recent, rate: r.rate } })),
+    };
+  }
+
+  openSchedule(s: ScheduledReport): void {
+    const list = this.reports.filter((r) => r.module === s.module && r.scheduled);
+    this.drill = {
+      title: s.name, subtitle: `${s.module} · ${s.cadence}`,
+      stats: [
+        { label: 'Status', value: s.active ? 'Active' : 'Paused', color: s.active ? '#16a34a' : '#6b7280' },
+        { label: 'Next run', value: s.active ? this.fmtDate(s.nextRun) : '-' }, { label: 'Recipients', value: s.recipients },
+      ],
+      tableTitle: `Scheduled ${s.module} reports`, columns: this.reportColumns(), rows: this.reportRows(list), empty: 'No scheduled reports in this module.',
+      actions: [{ label: s.active ? 'Pause schedule' : 'Resume schedule', run: () => this.toggleSchedule(s) }],
+    };
+  }
+
+  openRecent(e: { owner: string; action: string; report: string; at: string }): void {
+    // the report itself first, then the user's other reports
+    const report = this.library.filter((r) => r.name === e.report);
+    const owned = this.library.filter((r) => r.owner === e.owner && r.name !== e.report).sort((a, b) => b.updated.localeCompare(a.updated));
+    this.drill = {
+      title: `${e.action} "${e.report}"`, subtitle: `${e.owner} · ${this.ago(e.at)}`,
+      fields: [
+        { label: 'User', value: e.owner }, { label: 'Action', value: e.action },
+        { label: 'Report', value: e.report }, { label: 'When', value: this.fmtDateTime(e.at) },
+      ],
+      tableTitle: `Related reports (${e.report} and other reports by ${e.owner})`, columns: this.reportColumns(), rows: this.reportRows([...report, ...owned]),
+    };
+  }
+
+  openReport(r: LibraryReport): void {
+    this.select(r);
+    this.drill = this.reportDrill(r);
+  }
+
+  private showInsight(key: Insight): void {
+    if (this.insight !== key) this.openInsight(key);
   }
 
   // ===== Actions =====

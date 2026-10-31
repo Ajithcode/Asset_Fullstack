@@ -27,12 +27,18 @@ import { NewassetAudit } from './asset-audit/newasset-audit/newasset-audit';
 import { AssetDisposal } from './asset-disposal/asset-disposal/asset-disposal';
 import { NewDisposal } from './asset-disposal/new-disposal/new-disposal';
 import { AssetLifecycle } from './asset-lifecycle/asset-lifecycle';
+import { AssetMaintenanceTab } from './asset-maintenance-tab/asset-maintenance-tab';
+import { AssetDetailTab } from './asset-detail-tab/asset-detail-tab';
 
 // Mounted by the shell at /assets; paths match the Assets menu in the shell's sidebar
 export const routes: Routes = [
   // The Assets menu only expands its submenu; a direct visit to /assets lands on the Asset List
   { path: '', redirectTo: 'list', pathMatch: 'full' },
-  // Asset detail tabs take the asset as ?tag=, e.g. /assets/relationships?tag=GEN-00045
+  // Asset detail tabs take the asset as ?tag=, e.g. /assets/relationships?tag=GEN-00045, and show only that asset
+  { path: 'overview', component: AssetDetailTab, data: { view: 'overview' } },
+  { path: 'component-details', component: AssetDetailTab, data: { view: 'components' } },
+  { path: 'field-values', component: AssetDetailTab, data: { view: 'fields' } },
+  { path: 'history', component: AssetDetailTab, data: { view: 'history' } },
   { path: 'relationships', component: AssetRelationship },
   // Menu page: relationships users create between a main asset and a sub asset
   { path: 'asset-relationships', component: AssetRelationshipList },
@@ -48,6 +54,9 @@ export const routes: Routes = [
   { path: 'assignment/assign-asset', component: AssignAsset },
   { path: 'assignment/bulk-assignment', component: BulkAssignment },
   { path: 'maintenance', component: AssetMaintenance },
+  // Asset detail tabs (?tag=): the asset's and its components' maintenance and service history, inside the detail page
+  { path: 'maintenance-details', component: AssetMaintenanceTab, data: { view: 'maintenance' } },
+  { path: 'service-history', component: AssetMaintenanceTab, data: { view: 'service' } },
   // ?tag= the asset, ?tab= details | updates | attachments | related; without an id the asset's latest request opens
   { path: 'service-requests', component: ServiceRequest },
   { path: 'service-requests/new', component: NewServiceRequest },

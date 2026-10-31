@@ -876,6 +876,82 @@ select.control {
   margin-bottom: 12px;
 }
 
+.table-tools--3 {
+  grid-template-columns: minmax(0, 1fr) 240px 180px;
+}
+
+/* ============ Page tabs ============ */
+.page-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 10px;
+  overflow-x: auto;
+}
+
+.page-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 16px 11px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: #1f2937;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.page-tab:hover {
+  color: var(--tm-accent);
+}
+
+.page-tab.is-active {
+  border-bottom-color: var(--tm-accent);
+  font-weight: 700;
+  color: var(--tm-accent);
+}
+
+.tab-count {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #f1f2f6;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  color: #4b5563;
+}
+
+.page-tab.is-active .tab-count {
+  background: var(--tm-accent-soft);
+  color: var(--tm-accent);
+}
+
+/* Models count in the types table: opens the Models tab for that type */
+.count-link {
+  min-width: 28px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--tm-accent-soft);
+  font: inherit;
+  font-weight: 700;
+  color: var(--tm-accent);
+  cursor: pointer;
+}
+
+.count-link:hover {
+  background: var(--tm-accent-border);
+}
+
+.thumb--sm {
+  width: 28px;
+  height: 24px;
+}
+
 .bulk {
   display: flex;
   align-items: center;

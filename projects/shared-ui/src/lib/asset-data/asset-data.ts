@@ -162,18 +162,18 @@ export function criticalityPill(criticality: Criticality): string {
  */
 export function assetTabs(active: string): AssetTabLink[] {
   const tabs: AssetTabLink[] = [
-    { label: 'Overview', path: '/assets/list' },
-    { label: 'Components', path: '/assets/components' },
+    { label: 'Overview', path: '/assets/overview' },
+    { label: 'Components', path: '/assets/component-details' },
     { label: 'Relationships', path: '/assets/relationships' },
-    { label: 'Maintenance', path: '/assets/maintenance' },
-    { label: 'Service History' },
+    { label: 'Maintenance', path: '/assets/maintenance-details' },
+    { label: 'Service History', path: '/assets/service-history' },
     { label: 'Documents', path: '/assets/documents' },
     { label: 'Images', path: '/assets/images' },
-    { label: 'Custom Fields', path: '/assets/custom-fields' },
+    { label: 'Custom Fields', path: '/assets/field-values' },
     { label: 'Status & Condition', path: '/assets/status-condition' },
     { label: 'Criticality', path: '/assets/criticality' },
     { label: 'Asset Lifecycle', path: '/assets/lifecycle' },
-    { label: 'History' },
+    { label: 'History', path: '/assets/history' },
     { label: 'Asset Health Score', path: '/assets/health-score' },
   ];
   return tabs.map((t) => (t.label === active ? { label: t.label, active: true } : t));

@@ -30,6 +30,9 @@
 .crumbs strong { font-weight: 600; color: var(--io-ink); }
 
 .card { border: 1px solid var(--io-border); border-radius: 12px; background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); }
+/* opens the drill-down popup */
+.io-click { cursor: pointer; }
+.card.io-click:hover, .card.io-click:focus-visible { border-color: var(--io-accent-border); box-shadow: 0 2px 10px rgba(79, 43, 216, 0.1); outline: none; }
 
 /* ===== Header & filters ===== */
 .io-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
@@ -61,7 +64,6 @@
 .io-menu-left { right: auto; left: 0; }
 
 /* ===== KPIs ===== */
-.io-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .io-kpi { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 14px; }
 .io-kpi-ic { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 58px; height: 58px; border-radius: 12px; }
 .ic--blue { background: #e3eeff; color: #1d4ed8; }
@@ -80,24 +82,32 @@
 .up { color: var(--io-good); }
 .down { color: var(--io-bad); }
 
-/* ===== Grid ===== */
-.io-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 300px;
-  grid-template-areas:
-    'map map side'
-    'health events side'
-    'alerts alerts quick';
-  align-items: stretch;
-  gap: 12px;
+/* ===== Grid =====
+   One grid holds the KPI cards and every widget, one column per KPI card (io-grid--5 here, io-grid--6 on
+   Asset Overview and Reports); widgets span whole columns so their edges line up with the KPI cards.
+   io-grid--5: 1024-1439px 2 columns, below 1024px 1 column. */
+.io-grid { display: grid; align-items: stretch; gap: 12px; }
+.io-grid--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.io-span-1 { grid-column: span 1; }
+.io-span-2 { grid-column: span 2; }
+.io-span-3 { grid-column: span 3; }
+/* cards adapt their content to their own width (narrow one-column widgets) */
+.io-grid .card { container-type: inline-size; }
+/* KPI cards in a narrow column keep one row: the side figure shrinks beside the value and the card tightens */
+.io-grid > .io-kpi { gap: 12px; }
+.io-grid > .io-kpi .io-kpi-side { flex: 0 1 auto; min-width: 0; }
+@container (max-width: 320px) {
+  .io-kpi .io-kpi-ic { width: 44px; height: 44px; border-radius: 10px; }
+  .io-kpi .io-kpi-ic ::ng-deep svg { width: 22px; height: 22px; }
+  .io-kpi .io-kpi-body strong { font-size: 22px; }
+  .io-kpi .io-kpi-side b { font-size: 12.5px; }
+  .io-kpi .io-kpi-side b.big { font-size: 15px; }
+  .io-kpi .io-kpi-side small { font-size: 10.5px; }
+  .io-kpi .io-kpi-side--rule { padding-left: 8px; }
 }
-.io-map-card { grid-area: map; align-self: start; display: flex; flex-direction: column; padding: 12px 14px 14px; }
-.io-side { grid-area: side; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.io-map-card { display: flex; flex-direction: column; min-width: 0; padding: 12px 14px 14px; }
+.io-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .io-side > :last-child { flex: 1 1 auto; }
-.io-health { grid-area: health; }
-.io-events { grid-area: events; }
-.io-alerts { grid-area: alerts; }
-.io-quick { grid-area: quick; }
 .io-pad { min-width: 0; padding: 12px 14px 14px; }
 
 .io-title { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 15px; font-weight: 800; color: var(--io-navy); }
@@ -123,22 +133,22 @@ h3 lucide-icon { color: var(--io-accent); }
 :host ::ng-deep .iot-zone-label { padding: 3px 9px; border: 0; border-radius: 4px; background: #fff; font-size: 12px; font-weight: 700; color: #111827; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2); }
 :host ::ng-deep .iot-zone-label::before { display: none; }
 
-@media (max-width: 1500px) {
-  .io-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1439px) {
+  .io-grid--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .io-grid--5 > * { grid-column: span 1; }
+  .io-grid--5 > .io-full-md, .io-grid--5 > .io-kpi:nth-child(5) { grid-column: 1 / -1; }
 }
 
-@media (max-width: 1280px) {
-  .io-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'map map' 'side quick' 'health events' 'alerts alerts'; }
+@media (max-width: 1023px) {
+  .io-grid--5 { grid-template-columns: minmax(0, 1fr); }
+  .io-grid--5 > *, .io-grid--5 > .io-full-md, .io-grid--5 > .io-kpi:nth-child(5) { grid-column: 1 / -1; }
 }
 
 @media (max-width: 900px) {
-  .io-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .io-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'map' 'side' 'health' 'events' 'alerts' 'quick'; }
   .io-map-row { grid-template-columns: minmax(0, 1fr); height: auto; }
   .io-map-wrap { min-height: 260px; }
 }
 
 @media (max-width: 560px) {
-  .io-kpis { grid-template-columns: minmax(0, 1fr); }
   .io-filter, .io-filter .control, .io-period, .io-filters .menu-wrap, .io-filters .btn { width: 100%; }
 }

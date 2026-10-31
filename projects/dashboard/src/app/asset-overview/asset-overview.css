@@ -1,19 +1,22 @@
 /* Asset Overview cards. Page frame, KPIs, tables and quick view: ../iot-tracking-overview styles. */
 .ao-asof { width: 160px; }
-.ao-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.ao-kpis .io-kpi { gap: 10px; padding: 12px; }
-.ao-kpis .io-kpi-ic { width: 52px; height: 52px; }
-.ao-kpis .io-kpi-body strong { font-size: 24px; }
 .ic--amber { background: #fff1dc; color: #ea8a00; }
 
-.ao-row { display: grid; align-items: stretch; gap: 12px; }
-.ao-row--1 { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr) minmax(0, 0.95fr) 290px; }
-.ao-row--2 { grid-template-columns: minmax(0, 1fr) minmax(0, 0.55fr) minmax(0, 1.05fr) 290px; }
+/* ===== Grid =====
+   6 columns, one per KPI card (Reports uses it too); widgets span whole columns (io-span-N) so their edges
+   line up with the KPI cards. 1024-1699px: KPIs 3 per row, widgets half width (io-full-md: full);
+   640-1023px: KPIs 2 per row, widgets full width; below 640px: one column. */
+.io-grid--6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.io-grid--6 > .io-kpi { gap: 10px; padding: 12px; }
+/* narrow KPI cards use the compact sizes from the IoT stylesheet */
+@container (min-width: 321px) {
+  .io-grid--6 > .io-kpi .io-kpi-ic { width: 52px; height: 52px; }
+  .io-grid--6 > .io-kpi .io-kpi-body strong { font-size: 24px; }
+}
 .ao-side { display: flex; flex-direction: column; min-width: 0; }
 .ao-side > .card { flex: 1 1 auto; }
-.ao-row--1 > .card { display: flex; flex-direction: column; }
-.ao-row--1 > .card > :last-child { flex: 1 1 auto; }
-.ao-row--2 > .io-quick { grid-area: auto; }
+.ao-fill { display: flex; flex-direction: column; }
+.ao-fill > :last-child { flex: 1 1 auto; }
 .ao-click { cursor: pointer; }
 .ao-red { color: var(--io-bad) !important; }
 .num { text-align: right !important; white-space: nowrap; }
@@ -37,7 +40,8 @@
 .ao-health-num { font-size: 18px; font-weight: 800; fill: var(--io-navy); text-anchor: middle; }
 .ao-seg-label { font-size: 8px; font-weight: 700; }
 .ao-health-legend { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
-.ao-health-legend li { display: flex; align-items: flex-start; gap: 8px; cursor: default; }
+.ao-health-legend li { display: flex; align-items: flex-start; gap: 8px; }
+.ao-health-legend li:hover strong, .ao-age-keys li:hover strong { color: var(--io-accent); }
 .ao-health-legend i { flex: 0 0 auto; width: 12px; height: 12px; margin-top: 3px; border-radius: 50%; }
 .ao-health-legend strong { display: block; font-weight: 600; }
 .ao-hl-row { display: flex; gap: 10px; }
@@ -113,15 +117,29 @@
 .st--under-maintenance { color: #c2410c; }
 .st--retired, .st--disposed { color: #475569; }
 
-@media (max-width: 1600px) {
-  .ao-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* ===== One-column cards ===== */
+@container (max-width: 320px) {
+  .ao-health { flex-direction: column; }
+  .ao-insights { grid-template-columns: minmax(0, 1fr); }
+  .ao-age-keys { margin-left: 0; font-size: 10.5px; }
 }
 
-@media (max-width: 1400px) {
-  .ao-row--1, .ao-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1699px) {
+  .io-grid--6 { grid-auto-flow: row dense; }
+  .io-grid--6 > .io-kpi { grid-column: span 2; }
+  .io-grid--6 > :not(.io-kpi) { grid-column: span 3; }
+  .io-grid--6 > .io-full-md { grid-column: 1 / -1; }
+}
+
+@media (max-width: 1023px) {
+  .io-grid--6 > .io-kpi { grid-column: span 3; }
+  .io-grid--6 > :not(.io-kpi) { grid-column: 1 / -1; }
+}
+
+@media (max-width: 639px) {
+  .io-grid--6 > .io-kpi { grid-column: 1 / -1; }
 }
 
 @media (max-width: 800px) {
-  .ao-kpis, .ao-row--1, .ao-row--2 { grid-template-columns: minmax(0, 1fr); }
   .ao-health { flex-direction: column; }
 }

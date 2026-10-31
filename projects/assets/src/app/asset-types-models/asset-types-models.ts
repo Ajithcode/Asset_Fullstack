@@ -76,6 +76,14 @@ interface AssetType {
   models: AssetModel[];
 }
 
+/** A model with the asset type it belongs to, as listed on the Models tab. */
+interface ModelRow {
+  m: AssetModel;
+  t: AssetType;
+}
+
+type PageTab = 'types' | 'models';
+
 interface TypeForm {
   name: string;
   code: string;
@@ -261,6 +269,8 @@ export class AssetTypesModels {
 
   types: AssetType[] = buildMockTypes();
   selectedTypeId: number;
+  /** Asset Types tab (types table + details) or Models tab (models of every type). */
+  tab: PageTab = 'types';
 
   // Types table
   typeSearch = '';
@@ -275,6 +285,8 @@ export class AssetTypesModels {
 
   // Models table
   modelSearch = '';
+  /** Asset type filter (type id), '' for all types. */
+  modelType: number | '' = '';
   modelStatus: '' | Status = '';
   modelPager = new Pager();
   checkedModels = new Set<number>();
@@ -289,6 +301,8 @@ export class AssetTypesModels {
   modelModalOpen = false;
   editingModel: AssetModel | null = null;
   modelModal: ModelForm = { ...EMPTY_MODEL };
+  /** Asset type the model in the modal belongs to. */
+  modelModalTypeId: number | null = null;
   modelModalSubmitted = false;
 
   openMenu: string | null = null;
@@ -344,11 +358,33 @@ export class AssetTypesModels {
     if (this.editing && !confirm('Discard unsaved changes to this asset type?')) return;
     this.selectedTypeId = t.id;
     this.editing = false;
+    this.loadDetailForm();
+  }
+
+  // ===== Tabs =====
+
+  setTab(tab: PageTab): void {
+    if (tab === this.tab) return;
+    if (this.editing && !confirm('Discard unsaved changes to this asset type?')) return;
+    this.editing = false;
+    this.loadDetailForm();
+    this.tab = tab;
+    this.openMenu = null;
+  }
+
+  /** Opens the Models tab filtered to one asset type. */
+  showModelsOf(t: AssetType): void {
+    this.openMenu = null;
+    this.setTab('models');
+    if (this.tab !== 'models') return;
+    this.modelType = t.id;
     this.modelSearch = '';
     this.modelStatus = '';
-    this.modelPager.page = 1;
-    this.checkedModels.clear();
-    this.loadDetailForm();
+    this.onModelFilterChange();
+  }
+
+  get modelCount(): number {
+    return this.types.reduce((sum, t) => sum + t.models.length, 0);
   }
 
   get allTypesChecked(): boolean {
@@ -500,41 +536,55 @@ export class AssetTypesModels {
 
   // ===== Models table =====
 
-  get filteredModels(): AssetModel[] {
-    const t = this.selectedType;
-    if (!t) return [];
+  /** Every model with its asset type, in type order. */
+  private get modelRows(): ModelRow[] {
+    return this.types.flatMap((t) => t.models.map((m) => ({ m, t })));
+  }
+
+  get filteredModels(): ModelRow[] {
     const q = this.modelSearch.trim().toLowerCase();
-    return t.models.filter(
-      (m) =>
-        (!q || [m.name, m.code, m.manufacturer].some((v) => v.toLowerCase().includes(q))) &&
+    return this.modelRows.filter(
+      ({ m, t }) =>
+        (this.modelType === '' || t.id === this.modelType) &&
+        (!q || [m.name, m.code, m.manufacturer, t.name].some((v) => v.toLowerCase().includes(q))) &&
         (!this.modelStatus || m.status === this.modelStatus),
     );
   }
 
-  get pageModels(): AssetModel[] {
+  get pageModels(): ModelRow[] {
     return this.modelPager.slice(this.filteredModels);
+  }
+
+  /** The type the Models tab is filtered to, if any. */
+  get modelFilterType(): AssetType | null {
+    return this.modelType === '' ? null : (this.types.find((t) => t.id === this.modelType) ?? null);
   }
 
   onModelFilterChange(): void {
     this.modelPager.page = 1;
   }
 
+  /** Asset type a model belongs to. */
+  typeOf(m: AssetModel): AssetType | null {
+    return this.types.find((t) => t.models.includes(m)) ?? null;
+  }
+
   get allModelsChecked(): boolean {
-    return this.pageModels.length > 0 && this.pageModels.every((m) => this.checkedModels.has(m.id));
+    return this.pageModels.length > 0 && this.pageModels.every((r) => this.checkedModels.has(r.m.id));
   }
 
   get someModelsChecked(): boolean {
-    return !this.allModelsChecked && this.pageModels.some((m) => this.checkedModels.has(m.id));
+    return !this.allModelsChecked && this.pageModels.some((r) => this.checkedModels.has(r.m.id));
   }
 
   toggleAllModels(): void {
     const on = !this.allModelsChecked;
-    this.pageModels.forEach((m) => (on ? this.checkedModels.add(m.id) : this.checkedModels.delete(m.id)));
+    this.pageModels.forEach((r) => (on ? this.checkedModels.add(r.m.id) : this.checkedModels.delete(r.m.id)));
   }
 
   setModelStatusForChecked(status: Status): void {
-    const rows = (this.selectedType?.models ?? []).filter((m) => this.checkedModels.has(m.id));
-    rows.forEach((m) => (m.status = status));
+    const rows = this.modelRows.filter((r) => this.checkedModels.has(r.m.id));
+    rows.forEach((r) => (r.m.status = status));
     this.checkedModels.clear();
     this.showToast(`${rows.length} model${rows.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`);
   }
@@ -547,36 +597,54 @@ export class AssetTypesModels {
 
   viewModelAssets(m: AssetModel): void {
     this.openMenu = null;
-    this.router.navigate(['/assets/list'], { queryParams: { type: this.selectedType?.code, model: m.code } });
+    this.router.navigate(['/assets/list'], { queryParams: { type: this.typeOf(m)?.code, model: m.code } });
   }
 
   // ===== Add / edit model modal =====
+
+  get modalType(): AssetType | null {
+    return this.types.find((t) => t.id === this.modelModalTypeId) ?? null;
+  }
 
   openModelModal(m?: AssetModel): void {
     this.openMenu = null;
     this.editingModel = m ?? null;
     this.modelModal = m ? { name: m.name, code: m.code, manufacturer: m.manufacturer, status: m.status } : { ...EMPTY_MODEL };
+    // a new model goes to the type the table is filtered to, else the selected type
+    this.modelModalTypeId = m ? (this.typeOf(m)?.id ?? null) : this.modelType === '' ? this.selectedTypeId : this.modelType;
     this.modelModalSubmitted = false;
     this.modelModalOpen = true;
   }
 
+  /** Model codes are unique within their asset type. */
   isModelCodeTaken(code: string): boolean {
     const c = code.trim().toUpperCase();
-    return !!c && (this.selectedType?.models ?? []).some((m) => m !== this.editingModel && m.code.toUpperCase() === c);
+    return !!c && (this.modalType?.models ?? []).some((m) => m !== this.editingModel && m.code.toUpperCase() === c);
   }
 
   saveModelModal(): void {
     this.modelModalSubmitted = true;
     const f = this.modelModal;
-    const t = this.selectedType;
+    const t = this.modalType;
     if (!t || !f.name.trim() || !f.code.trim() || !f.manufacturer.trim() || this.isModelCodeTaken(f.code)) return;
 
     const values = { name: f.name.trim(), code: f.code.trim().toUpperCase(), manufacturer: f.manufacturer.trim(), status: f.status };
-    if (this.editingModel) {
-      Object.assign(this.editingModel, values);
+    const m = this.editingModel;
+    if (m) {
+      Object.assign(m, values);
+      // moved to another asset type
+      const from = this.typeOf(m);
+      if (from && from !== t) {
+        from.models.splice(from.models.indexOf(m), 1);
+        t.models.push(m);
+      }
       this.showToast(`${values.name} updated.`);
     } else {
       t.models.push({ id: nextId++, assetCount: 0, ...values });
+      // show the new model: filter to its type and go to the last page
+      this.modelType = t.id;
+      this.modelSearch = '';
+      this.modelStatus = '';
       this.modelPager.page = this.modelPager.totalPages(t.models.length);
       this.showToast(`${values.name} added to ${t.name}.`);
     }
@@ -610,13 +678,14 @@ export class AssetTypesModels {
     if (target.kind === 'type') {
       this.types = this.types.filter((t) => t !== target.item);
       this.checkedTypes.delete(target.item.id);
+      if (this.modelType === target.item.id) this.modelType = '';
       if (target.item.id === this.selectedTypeId) {
         this.selectedTypeId = this.filteredTypes[0]?.id ?? this.types[0]?.id ?? -1;
         this.editing = false;
         this.loadDetailForm();
       }
     } else {
-      const models = this.selectedType?.models ?? [];
+      const models = this.typeOf(target.item)?.models ?? [];
       models.splice(models.indexOf(target.item), 1);
       this.checkedModels.delete(target.item.id);
     }

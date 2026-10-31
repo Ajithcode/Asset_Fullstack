@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -55,6 +55,8 @@ import {
   STATUS_COLORS,
   healthBand,
 } from './iot-overview-data';
+import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
+import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
 
 type Period = '7' | '30' | '90';
 type QuickTab = 'overview' | 'location' | 'telemetry' | 'maintenance';
@@ -71,18 +73,21 @@ const TYPE_IMAGES: Record<string, string> = {
   'HVAC Units': '/asset-images/ahu-overview.svg',
   Compressors: '/asset-images/chiller-compressor.svg',
 };
-// Event timeline geometry (SVG user units)
+// Event timeline geometry (SVG user units); the width follows the card's width (1 unit = 1px)
 const TW = 520;
+const TW_MIN = 280;
 const TH = 170;
 const TP = { l: 30, r: 8, t: 10, b: 22 };
 /** Coverage: located within the last day. Freshness: reporting devices that updated within the hour. */
 const COVERAGE_MIN = 24 * 60;
 const FRESH_MIN = 60;
+const SEVERITY_COLORS: Record<string, string> = { Critical: '#dc2626', Warning: '#d97706', Info: '#2563eb' };
+const YES_NO: Record<string, string> = { Yes: '#16a34a', No: '#dc2626' };
 
 @Component({
   selector: 'app-iot-tracking-overview',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, DrillDialog],
   templateUrl: './iot-tracking-overview.html',
   styleUrls: ['./iot-tracking-overview.css', './iot-tracking-overview-panels.css'],
 })
@@ -99,7 +104,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   readonly series = SERIES;
   readonly latestFirmware = LATEST_FIRMWARE;
   readonly healthBand = healthBand;
-  readonly tw = TW;
+  tw = TW;
   readonly th = TH;
   readonly tp = TP;
   readonly Math = Math;
@@ -127,13 +132,18 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   selectedId = '';
   quickTab: QuickTab = 'overview';
   toast = '';
+  /** Drill-down popup for the clicked widget element. */
+  drill: Drill | null = null;
 
   @ViewChild('mapEl') private mapEl?: ElementRef<HTMLDivElement>;
+  @ViewChild('chartEl') private chartEl?: ElementRef<HTMLDivElement>;
+  private resizeObserver?: ResizeObserver;
   private map?: L.Map;
   private markerLayer?: L.LayerGroup;
   private selectedRing?: L.CircleMarker;
   private toastTimer?: ReturnType<typeof setTimeout>;
   private readonly router = inject(Router);
+  private readonly zone = inject(NgZone);
   private readonly now = new Date();
 
   /** Filtered fleet; rebuilt by apply() whenever a filter changes. */
@@ -147,11 +157,27 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.initMap();
+    this.observeSizes();
   }
 
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
+    this.resizeObserver?.disconnect();
     this.map?.remove();
+  }
+
+  /** The grid columns change width on window resize, breakpoints and sidebar collapse: keep the map tiles and the timeline in step. */
+  private observeSizes(): void {
+    this.resizeObserver = new ResizeObserver(() => {
+      this.map?.invalidateSize();
+      const width = this.chartEl?.nativeElement.clientWidth;
+      if (!width) return;
+      const tw = Math.max(TW_MIN, Math.round(width));
+      // ResizeObserver callbacks run outside Angular's zone
+      if (tw !== this.tw) this.zone.run(() => (this.tw = tw));
+    });
+    if (this.mapEl) this.resizeObserver.observe(this.mapEl.nativeElement);
+    if (this.chartEl) this.resizeObserver.observe(this.chartEl.nativeElement);
   }
 
   apply(): void {
@@ -265,11 +291,6 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     return this.devices.filter((d) => d.abnormal).length;
   }
 
-  showAttention(): void {
-    const d = this.devices.find((x) => x.abnormal);
-    if (d) this.select(d.id, true);
-  }
-
   // ===== Asset health & utilization =====
 
   get health() {
@@ -309,7 +330,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     const max = Math.max(10, ...vals.flatMap((v) => visible.map((s) => v[s.key])));
     const step = max > 150 ? 50 : max > 60 ? 20 : 10;
     const top = Math.ceil(max / step) * step;
-    const plotW = TW - TP.l - TP.r;
+    const plotW = this.tw - TP.l - TP.r;
     const plotH = TH - TP.t - TP.b;
     const x = (i: number) => TP.l + (vals.length > 1 ? (i / (vals.length - 1)) * plotW : plotW / 2);
     const y = (v: number) => TH - TP.b - (v / top) * plotH;
@@ -405,7 +426,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
       L.polygon(s.zone, { color: s.color, weight: 2, dashArray: '6 5', fillColor: s.color, fillOpacity: 0.16 })
         .addTo(this.map)
         .bindTooltip(s.name, { permanent: true, direction: 'center', className: 'iot-zone-label' })
-        .on('click', () => this.filterSite(s.name));
+        .on('click', () => this.openSite(s.name));
     }
     this.markerLayer = L.layerGroup().addTo(this.map);
     this.drawMarkers();
@@ -424,7 +445,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
         radius: alert ? 7 : 5, weight: alert ? 2 : 1.5, color: '#fff', fillColor: alert ? '#f59e0b' : STATUS_COLORS[d.status], fillOpacity: 1,
       })
         .bindTooltip(`<strong>${d.assetId}</strong><br>${d.name}<br>${d.status}${alert ? ' · Alert' : ''}`, { direction: 'top' })
-        .on('click', () => this.select(d.id))
+        .on('click', () => this.openDevice(d.id))
         .addTo(this.markerLayer);
     }
     this.markSelected(false);
@@ -456,6 +477,241 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   get legend() {
     const alerts = new Set(this.periodAlerts.filter((a) => a.status !== 'Resolved' && a.severity === 'Critical').map((a) => a.deviceId)).size;
     return [...(['Online', 'Idle', 'Offline'] as DeviceStatus[]).map((s) => ({ label: s, count: this.devices.filter((d) => d.status === s).length, color: STATUS_COLORS[s], alert: false })), { label: 'Alert', count: alerts, color: '#f59e0b', alert: true }];
+  }
+
+  // ===== Drill-down popup =====
+
+  private get scope(): string {
+    return `${this.periodLabel} · ${[this.site, this.type, this.status].filter(Boolean).join(' · ') || 'All sites, types and statuses'}`;
+  }
+
+  private deviceColumns(...extra: DrillColumn[]): DrillColumn[] {
+    return [
+      { key: 'id', label: 'Asset ID' }, { key: 'name', label: 'Asset Name' }, { key: 'type', label: 'Type' }, { key: 'site', label: 'Site' },
+      { key: 'status', label: 'Status', pill: STATUS_COLORS }, ...extra, { key: 'updated', label: 'Last Update' },
+    ];
+  }
+
+  private deviceRows(list: Device[], extra: (d: Device) => Record<string, DrillValue> = () => ({})): DrillRow[] {
+    return list.map((d) => ({
+      cells: { id: d.assetId, name: d.name, type: d.type, site: d.site, status: d.status, updated: d.lastUpdate.replace('T', ' '), ...extra(d) },
+      open: () => this.deviceDrill(d),
+    }));
+  }
+
+  private statusStats(list: Device[]) {
+    return STATUSES.map((s) => ({ label: s, value: list.filter((d) => d.status === s).length, color: STATUS_COLORS[s] }));
+  }
+
+  private alertColumns(withAsset: boolean): DrillColumn[] {
+    return [
+      { key: 'time', label: 'Time' },
+      ...(withAsset ? [{ key: 'id', label: 'Asset ID' }, { key: 'name', label: 'Asset Name' }, { key: 'site', label: 'Site' }] : []),
+      { key: 'event', label: 'Event Type' }, { key: 'severity', label: 'Severity', pill: SEVERITY_COLORS }, { key: 'status', label: 'Status' },
+    ];
+  }
+
+  private alertRowsOf(list: AlertRow[]): DrillRow[] {
+    return [...list].sort((a, b) => b.at.localeCompare(a.at)).map((a) => ({
+      cells: { time: a.at.replace('T', ' '), id: a.device.assetId, name: a.device.name, site: a.device.site, event: a.event, severity: a.severity, status: a.status },
+      open: () => this.alertDrill(a),
+    }));
+  }
+
+  private alertStats(list: AlertRow[]) {
+    return [
+      { label: 'Alerts', value: list.length },
+      ...(['Critical', 'Warning', 'Info'] as const).map((s) => ({ label: s, value: list.filter((a) => a.severity === s).length, color: SEVERITY_COLORS[s] })),
+      { label: 'Unresolved', value: list.filter((a) => a.status !== 'Resolved').length },
+    ];
+  }
+
+  private deviceDrill(d: Device): Drill {
+    const alerts = this.alertsOf(d);
+    return {
+      title: `${d.assetId} · ${d.name}`,
+      subtitle: `${d.type} · ${d.site}`,
+      stats: [
+        { label: 'Status', value: d.status, color: STATUS_COLORS[d.status] },
+        { label: 'Health Score', value: d.health === null ? '-' : `${d.health}%`, color: HEALTH_COLORS[healthBand(d.health)] },
+        { label: 'Utilization', value: `${d.utilization}%` },
+        { label: 'Alerts', value: alerts.length },
+      ],
+      fields: [
+        { label: 'Manufacturer', value: d.manufacturer }, { label: 'Model', value: d.model },
+        { label: 'Serial Number', value: d.serial }, { label: 'Firmware', value: `${d.firmware}${d.firmwareLatest ? ' (latest)' : ' (update available)'}`, color: d.firmwareLatest ? undefined : '#dc2626' },
+        { label: 'Temperature', value: `${d.temperature} °C` }, { label: 'Vibration', value: `${d.vibration} mm/s`, color: d.abnormal ? '#dc2626' : undefined },
+        { label: 'Battery', value: `${d.battery}%` }, { label: 'Signal', value: d.signal ? `${d.signal} dBm` : '-' },
+        { label: 'Last Update', value: this.fmtDateTime(d.lastUpdate) }, { label: 'Commissioned', value: this.fmtDate(d.commissioned) },
+        { label: 'Last Service', value: this.fmtDate(d.lastService) }, { label: 'Next Service', value: this.fmtDate(d.nextService) },
+      ],
+      tableTitle: 'Alert history',
+      columns: this.alertColumns(false),
+      rows: this.alertRowsOf(alerts),
+      empty: 'No alerts recorded.',
+      actions: [{ label: 'Show on map', run: () => this.locate(d) }],
+    };
+  }
+
+  private alertDrill(a: AlertRow): Drill {
+    const d = a.device;
+    return {
+      title: a.event,
+      subtitle: `${d.assetId} · ${d.name} · ${d.site}`,
+      stats: [
+        { label: 'Severity', value: a.severity, color: SEVERITY_COLORS[a.severity] },
+        { label: 'Status', value: a.status },
+        { label: 'Raised', value: this.ago(a.at) },
+      ],
+      fields: [
+        { label: 'Time', value: this.fmtDateTime(a.at) }, { label: 'Asset Type', value: d.type },
+        { label: 'Device Status', value: d.status, color: STATUS_COLORS[d.status] }, { label: 'Health Score', value: d.health === null ? '-' : `${d.health}%` },
+        { label: 'Temperature', value: `${d.temperature} °C` }, { label: 'Vibration', value: `${d.vibration} mm/s`, color: d.abnormal ? '#dc2626' : undefined },
+      ],
+      tableTitle: `Other alerts on ${d.assetId}`,
+      columns: this.alertColumns(false),
+      rows: this.alertRowsOf(this.alertsOf(d).filter((x) => x.id !== a.id)),
+      empty: 'No other alerts on this asset.',
+      actions: [
+        ...(a.status !== 'Resolved' ? [{ label: 'Mark resolved', run: () => this.setAlertStatus(a, 'Resolved') }] : []),
+        { label: 'Show asset', run: () => this.select(d.id, true) },
+      ],
+    };
+  }
+
+  openKpi(kind: 'connected' | 'online' | 'alerts' | 'coverage' | 'freshness'): void {
+    const list = this.devices;
+    const k = this.kpis;
+    if (kind === 'connected') {
+      this.drill = { title: 'Connected Assets', subtitle: this.scope, stats: [{ label: 'Connected', value: k.connected }, ...this.statusStats(list)], columns: this.deviceColumns(), rows: this.deviceRows(list) };
+    } else if (kind === 'online') {
+      const online = list.filter((d) => d.status === 'Online');
+      this.drill = {
+        title: 'Online Now', subtitle: this.scope,
+        stats: [{ label: 'Online', value: k.online, color: STATUS_COLORS.Online }, { label: 'Of connected assets', value: `${k.onlinePct}%` }, ...this.statusStats(list).slice(1)],
+        columns: this.deviceColumns({ key: 'util', label: 'Utilization %', num: true }), rows: this.deviceRows(online, (d) => ({ util: d.utilization })),
+      };
+    } else if (kind === 'alerts') {
+      this.drill = { title: 'Alerts', subtitle: this.scope, stats: this.alertStats(this.periodAlerts), columns: this.alertColumns(true), rows: this.alertRowsOf(this.periodAlerts), empty: 'No alerts in this period.' };
+    } else if (kind === 'coverage') {
+      const located = (d: Device) => this.minutesSince(d.lastUpdate) <= COVERAGE_MIN;
+      const n = list.filter(located).length;
+      this.drill = {
+        title: 'Coverage', subtitle: `Assets located within the last 24 hours · ${this.scope}`,
+        stats: [{ label: 'Coverage', value: `${k.coverage}%` }, { label: 'Located', value: n, color: '#16a34a' }, { label: 'Not located', value: list.length - n, color: '#dc2626' }],
+        columns: this.deviceColumns({ key: 'located', label: 'Located', pill: YES_NO }),
+        rows: this.deviceRows([...list].sort((a, b) => Number(located(a)) - Number(located(b))), (d) => ({ located: located(d) ? 'Yes' : 'No' })),
+      };
+    } else {
+      const reporting = list.filter((d) => d.status === 'Online' || d.status === 'Idle');
+      const fresh = (d: Device) => this.minutesSince(d.lastUpdate) <= FRESH_MIN;
+      const n = reporting.filter(fresh).length;
+      this.drill = {
+        title: 'Data Freshness', subtitle: `Reporting assets updated within the last hour · ${this.scope}`,
+        stats: [{ label: 'Freshness', value: `${k.freshness}%` }, { label: 'Fresh', value: n, color: '#16a34a' }, { label: 'Stale', value: reporting.length - n, color: '#dc2626' }],
+        columns: this.deviceColumns({ key: 'fresh', label: 'Within SLA', pill: YES_NO }),
+        rows: this.deviceRows([...reporting].sort((a, b) => Number(fresh(a)) - Number(fresh(b))), (d) => ({ fresh: fresh(d) ? 'Yes' : 'No' })),
+      };
+    }
+  }
+
+  openSite(name: string): void {
+    const list = this.devices.filter((d) => d.site === name);
+    const on = this.site === name;
+    this.drill = {
+      title: name, subtitle: `Site · ${this.scope}`,
+      stats: [{ label: 'Assets', value: list.length }, ...this.statusStats(list), { label: 'Online %', value: `${pct(list.filter((d) => d.status === 'Online').length, list.length)}%` }],
+      columns: this.deviceColumns({ key: 'health', label: 'Health %', num: true }),
+      rows: this.deviceRows(list, (d) => ({ health: d.health ?? '' })),
+      actions: [{ label: on ? 'Clear site filter' : `Filter dashboard to ${name}`, run: () => this.filterSite(name) }],
+    };
+  }
+
+  openStatus(s: DeviceStatus): void {
+    const list = this.devices.filter((d) => d.status === s);
+    const on = this.status === s;
+    this.drill = {
+      title: `${s} Devices`, subtitle: this.scope,
+      stats: [{ label: s, value: list.length, color: STATUS_COLORS[s] }, { label: 'Of connected assets', value: `${pct(list.length, this.devices.length)}%` }],
+      columns: this.deviceColumns({ key: 'battery', label: 'Battery %', num: true }),
+      rows: this.deviceRows(list, (d) => ({ battery: d.battery })),
+      actions: [{ label: on ? 'Clear status filter' : `Filter dashboard to ${s}`, run: () => { this.status = on ? '' : s; this.apply(); } }],
+    };
+  }
+
+  /** Map legend "Alert": devices with an unresolved critical alert in the period. */
+  openAlerting(): void {
+    const list = this.periodAlerts.filter((a) => a.status !== 'Resolved' && a.severity === 'Critical');
+    this.drill = { title: 'Unresolved Critical Alerts', subtitle: this.scope, stats: this.alertStats(list), columns: this.alertColumns(true), rows: this.alertRowsOf(list), empty: 'No unresolved critical alerts.' };
+  }
+
+  openFirmware(): void {
+    const f = this.firmware;
+    this.drill = {
+      title: 'Firmware Updates', subtitle: `Latest firmware ${LATEST_FIRMWARE} · ${this.scope}`,
+      stats: [{ label: 'On latest', value: f.latest, color: '#16a34a' }, { label: 'Update available', value: f.total - f.latest, color: '#dc2626' }, { label: 'Up to date', value: `${f.pct}%` }],
+      columns: this.deviceColumns({ key: 'firmware', label: 'Firmware' }, { key: 'latest', label: 'Latest', pill: YES_NO }),
+      rows: this.deviceRows([...this.devices].sort((a, b) => Number(a.firmwareLatest) - Number(b.firmwareLatest)), (d) => ({ firmware: d.firmware, latest: d.firmwareLatest ? 'Yes' : 'No' })),
+    };
+  }
+
+  openAttention(): void {
+    const list = this.devices.filter((d) => d.abnormal);
+    this.drill = {
+      title: 'Sensors Requiring Attention', subtitle: `Sensors with abnormal readings · ${this.scope}`,
+      stats: [{ label: 'Sensors', value: list.length, color: '#ea580c' }],
+      columns: this.deviceColumns({ key: 'temp', label: 'Temp °C', num: true }, { key: 'vib', label: 'Vibration mm/s', num: true }),
+      rows: this.deviceRows(list, (d) => ({ temp: d.temperature, vib: d.vibration })),
+      empty: 'No sensors with abnormal readings.',
+    };
+  }
+
+  openHealth(band: HealthBand): void {
+    const list = this.devices.filter((d) => healthBand(d.health) === band);
+    this.drill = {
+      title: `${band} Assets`, subtitle: `Asset health score · ${this.scope}`,
+      stats: [{ label: band, value: list.length, color: HEALTH_COLORS[band] }, { label: 'Of connected assets', value: `${pct(list.length, this.devices.length)}%` }],
+      columns: this.deviceColumns({ key: 'health', label: 'Health %', num: true }),
+      rows: this.deviceRows([...list].sort((a, b) => (a.health ?? 0) - (b.health ?? 0)), (d) => ({ health: d.health ?? '' })),
+    };
+  }
+
+  openType(t: string): void {
+    const u = this.utilization.find((x) => x.type === t);
+    const list = this.devices.filter((d) => d.type === t);
+    const on = this.type === t;
+    this.drill = {
+      title: t, subtitle: `Utilization by asset type · ${this.scope}`,
+      stats: [{ label: 'Assets', value: list.length }, { label: 'Running', value: `${u?.running ?? 0}%`, color: '#2f6fe4' }, { label: 'Idle', value: `${u?.idle ?? 0}%`, color: '#d97706' }],
+      columns: this.deviceColumns({ key: 'util', label: 'Utilization %', num: true }),
+      rows: this.deviceRows([...list].sort((a, b) => b.utilization - a.utilization), (d) => ({ util: d.utilization })),
+      actions: [{ label: on ? 'Clear type filter' : `Filter dashboard to ${t}`, run: () => { this.type = on ? '' : t; this.apply(); } }],
+    };
+  }
+
+  openDay(i: number): void {
+    const v = this.timeline.vals[i];
+    if (!v) return;
+    const ids = new Set(this.devices.map((d) => d.id));
+    const byId = new Map(DEVICES.map((d) => [d.id, d]));
+    const alerts = ALERTS.filter((a) => a.at.startsWith(v.date) && ids.has(a.deviceId)).map((a) => ({ ...a, device: byId.get(a.deviceId)! }));
+    this.drill = {
+      title: `IoT Events · ${this.fmtDate(v.date)}`, subtitle: this.scope,
+      stats: SERIES.map((s) => ({ label: s.label, value: v[s.key], color: s.color })),
+      tableTitle: 'Alerts raised this day', columns: this.alertColumns(true), rows: this.alertRowsOf(alerts), empty: 'No alerts raised this day.',
+    };
+  }
+
+  openDevice(id: string): void {
+    const d = DEVICES.find((x) => x.id === id);
+    if (!d) return;
+    this.select(id);
+    this.drill = this.deviceDrill(d);
+  }
+
+  openAlert(a: AlertRow): void {
+    this.select(a.deviceId);
+    this.drill = this.alertDrill(a);
   }
 
   // ===== Navigation, export =====

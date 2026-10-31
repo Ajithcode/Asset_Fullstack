@@ -17,7 +17,17 @@
     </div>
   </div>
 
-  <div class="tm-body">
+  <!-- Tabs: each shows its own table -->
+  <nav class="card page-tabs" role="tablist" aria-label="Asset types and models">
+    <button type="button" role="tab" class="page-tab" [class.is-active]="tab === 'types'" [attr.aria-selected]="tab === 'types'" (click)="setTab('types')">
+      <lucide-icon [img]="icons.FileStack" [size]="17"></lucide-icon>Asset Types<span class="tab-count">{{ types.length }}</span>
+    </button>
+    <button type="button" role="tab" class="page-tab" [class.is-active]="tab === 'models'" [attr.aria-selected]="tab === 'models'" (click)="setTab('models')">
+      <lucide-icon [img]="icons.Layers" [size]="17"></lucide-icon>Models<span class="tab-count">{{ modelCount }}</span>
+    </button>
+  </nav>
+
+  <div *ngIf="tab === 'types'" class="tm-body" role="tabpanel">
     <!-- ===== Left: asset types ===== -->
     <div class="card panel">
       <div class="card-head">
@@ -91,7 +101,9 @@
               </td>
               <td>{{ t.category }}</td>
               <td class="desc">{{ t.description || '–' }}</td>
-              <td class="col-count">{{ t.models.length }}</td>
+              <td class="col-count" (click)="$event.stopPropagation()">
+                <button type="button" class="count-link" (click)="showModelsOf(t)" [attr.aria-label]="'Show the ' + t.models.length + ' models of ' + t.name">{{ t.models.length }}</button>
+              </td>
               <td>
                 <span class="pill" [class.pill--active]="t.status === 'Active'" [class.pill--inactive]="t.status === 'Inactive'">
                   <span class="dot"></span>{{ t.status }}
@@ -108,6 +120,9 @@
                     </button>
                     <button type="button" role="menuitem" (click)="startEdit(t)">
                       <lucide-icon [img]="icons.SquarePen" [size]="15"></lucide-icon>Edit
+                    </button>
+                    <button type="button" role="menuitem" (click)="showModelsOf(t)">
+                      <lucide-icon [img]="icons.Layers" [size]="15"></lucide-icon>View Models
                     </button>
                     <button type="button" role="menuitem" (click)="toggleTypeStatus(t)">
                       <lucide-icon [img]="t.status === 'Active' ? icons.PowerOff : icons.Power" [size]="15"></lucide-icon>
@@ -145,6 +160,10 @@
             </div>
             <div class="head-actions">
               <ng-container *ngIf="!editing; else editActions">
+                <button type="button" class="btn btn-outline" (click)="showModelsOf(t)">
+                  <lucide-icon [img]="icons.Layers" [size]="15"></lucide-icon>
+                  Models ({{ t.models.length }})
+                </button>
                 <button type="button" class="btn btn-soft" (click)="startEdit()">
                   <lucide-icon [img]="icons.SquarePen" [size]="15"></lucide-icon>
                   Edit
@@ -228,105 +247,126 @@
         </ng-template>
       </div>
 
-      <div *ngIf="selectedType as t" class="card panel">
-        <div class="card-head">
-          <span class="icon-tile"><lucide-icon [img]="icons.Layers" [size]="18"></lucide-icon></span>
-          <div class="card-head-text">
-            <h2>Models ({{ t.models.length }})</h2>
-            <p>Manage models for {{ t.name }}</p>
-          </div>
-          <button type="button" class="btn btn-primary" (click)="openModelModal()">
-            <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
-            Add Model
-          </button>
-        </div>
+    </div>
+  </div>
 
-        <div class="table-tools">
-          <div class="search-box">
-            <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
-            <input type="search" placeholder="Search models..." [(ngModel)]="modelSearch" (ngModelChange)="onModelFilterChange()" aria-label="Search models" />
-          </div>
-          <select class="control" [(ngModel)]="modelStatus" (ngModelChange)="onModelFilterChange()" aria-label="Filter by status">
-            <option value="">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
+  <!-- ===== Models tab: models of every asset type ===== -->
+  <div *ngIf="tab === 'models'" class="card panel" role="tabpanel">
+    <div class="card-head">
+      <span class="icon-tile"><lucide-icon [img]="icons.Layers" [size]="18"></lucide-icon></span>
+      <div class="card-head-text">
+        <h2>Models ({{ filteredModels.length }})</h2>
+        <p>{{ modelFilterType ? 'Models of ' + modelFilterType.name : 'Manage the models of every asset type' }}</p>
+      </div>
+      <button type="button" class="btn btn-primary" (click)="openModelModal()" [disabled]="!types.length">
+        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
+        Add Model
+      </button>
+    </div>
 
-        <div *ngIf="checkedModels.size" class="bulk">
-          <span><strong>{{ checkedModels.size }}</strong> selected</span>
-          <button type="button" class="link-btn" (click)="setModelStatusForChecked('Active')">Activate</button>
-          <button type="button" class="link-btn" (click)="setModelStatusForChecked('Inactive')">Deactivate</button>
-          <button type="button" class="link-btn link-btn--muted" (click)="checkedModels.clear()">Clear</button>
-        </div>
+    <div class="table-tools table-tools--3">
+      <div class="search-box">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input type="search" placeholder="Search models, codes, manufacturers..." [(ngModel)]="modelSearch" (ngModelChange)="onModelFilterChange()" aria-label="Search models" />
+        <button *ngIf="modelSearch" type="button" class="search-clear" (click)="modelSearch = ''; onModelFilterChange()" aria-label="Clear search">
+          <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
+        </button>
+      </div>
+      <select class="control" [(ngModel)]="modelType" (ngModelChange)="onModelFilterChange()" aria-label="Filter by asset type">
+        <option [ngValue]="''">All Asset Types</option>
+        <option *ngFor="let t of types" [ngValue]="t.id">{{ t.name }} ({{ t.models.length }})</option>
+      </select>
+      <select class="control" [(ngModel)]="modelStatus" (ngModelChange)="onModelFilterChange()" aria-label="Filter by status">
+        <option value="">All Status</option>
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+    </div>
 
-        <div class="table-wrap">
-          <table class="data-table data-table--compact">
-            <thead>
-              <tr>
-                <th class="col-check">
-                  <input type="checkbox" [checked]="allModelsChecked" [indeterminate]="someModelsChecked" (change)="toggleAllModels()" aria-label="Select all models on this page" />
-                </th>
-                <th class="col-num">#</th>
-                <th>Model Name</th>
-                <th>Model Code</th>
-                <th>Manufacturer</th>
-                <th class="col-count">Asset Count</th>
-                <th>Status</th>
-                <th class="col-actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let m of pageModels; let i = index; trackBy: trackById" [class.is-checked]="checkedModels.has(m.id)">
-                <td class="col-check">
-                  <input type="checkbox" [checked]="checkedModels.has(m.id)" (change)="toggleChecked(checkedModels, m.id)" [attr.aria-label]="'Select ' + m.name" />
-                </td>
-                <td class="col-num">{{ modelPager.start(filteredModels.length) + i }}</td>
-                <td class="name">{{ m.name }}</td>
-                <td class="mono">{{ m.code }}</td>
-                <td>{{ m.manufacturer }}</td>
-                <td class="col-count">{{ m.assetCount }}</td>
-                <td>
-                  <span class="pill" [class.pill--active]="m.status === 'Active'" [class.pill--inactive]="m.status === 'Inactive'">
-                    <span class="dot"></span>{{ m.status }}
-                  </span>
-                </td>
-                <td class="col-actions">
-                  <div class="menu-wrap">
-                    <button type="button" class="icon-btn" (click)="toggleMenu('m' + m.id, $event)" [attr.aria-expanded]="openMenu === 'm' + m.id" aria-label="Actions">
-                      <lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon>
-                    </button>
-                    <div *ngIf="openMenu === 'm' + m.id" class="menu" role="menu" (click)="$event.stopPropagation()">
-                      <button type="button" role="menuitem" (click)="openModelModal(m)">
-                        <lucide-icon [img]="icons.SquarePen" [size]="15"></lucide-icon>Edit
-                      </button>
-                      <button type="button" role="menuitem" (click)="viewModelAssets(m)">
-                        <lucide-icon [img]="icons.ExternalLink" [size]="15"></lucide-icon>View Assets
-                      </button>
-                      <button type="button" role="menuitem" (click)="toggleModelStatus(m)">
-                        <lucide-icon [img]="m.status === 'Active' ? icons.PowerOff : icons.Power" [size]="15"></lucide-icon>
-                        {{ m.status === 'Active' ? 'Deactivate' : 'Activate' }}
-                      </button>
-                      <hr />
-                      <button type="button" role="menuitem" class="danger" (click)="askDeleteModel(m)">
-                        <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete
-                      </button>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div *ngIf="!pageModels.length" class="empty">
-            <lucide-icon [img]="icons.Inbox" [size]="32"></lucide-icon>
-            <h3>{{ t.models.length ? 'No models match' : 'No models yet' }}</h3>
-            <p>{{ t.models.length ? 'Try a different search or status.' : 'Add the first model for ' + t.name + '.' }}</p>
-          </div>
-        </div>
+    <div *ngIf="checkedModels.size" class="bulk">
+      <span><strong>{{ checkedModels.size }}</strong> selected</span>
+      <button type="button" class="link-btn" (click)="setModelStatusForChecked('Active')">Activate</button>
+      <button type="button" class="link-btn" (click)="setModelStatusForChecked('Inactive')">Deactivate</button>
+      <button type="button" class="link-btn link-btn--muted" (click)="checkedModels.clear()">Clear</button>
+    </div>
 
-        <ng-container *ngTemplateOutlet="pagerTpl; context: { pager: modelPager, count: filteredModels.length, noun: 'models' }"></ng-container>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="col-check">
+              <input type="checkbox" [checked]="allModelsChecked" [indeterminate]="someModelsChecked" (change)="toggleAllModels()" aria-label="Select all models on this page" />
+            </th>
+            <th class="col-num">#</th>
+            <th>Model Name</th>
+            <th>Model Code</th>
+            <th>Asset Type</th>
+            <th>Category</th>
+            <th>Manufacturer</th>
+            <th class="col-count">Asset Count</th>
+            <th>Status</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of pageModels; let i = index" [class.is-checked]="checkedModels.has(r.m.id)">
+            <td class="col-check">
+              <input type="checkbox" [checked]="checkedModels.has(r.m.id)" (change)="toggleChecked(checkedModels, r.m.id)" [attr.aria-label]="'Select ' + r.m.name" />
+            </td>
+            <td class="col-num">{{ modelPager.start(filteredModels.length) + i }}</td>
+            <td class="name">{{ r.m.name }}</td>
+            <td class="mono">{{ r.m.code }}</td>
+            <td>
+              <span class="name-cell">
+                <span class="thumb thumb--sm">
+                  <img *ngIf="r.t.image; else modelTypeIcon" [src]="r.t.image" alt="" />
+                  <ng-template #modelTypeIcon><lucide-icon [img]="typeIcons[r.t.icon]" [size]="15"></lucide-icon></ng-template>
+                </span>
+                {{ r.t.name }}
+              </span>
+            </td>
+            <td>{{ r.t.category }}</td>
+            <td>{{ r.m.manufacturer }}</td>
+            <td class="col-count">{{ r.m.assetCount }}</td>
+            <td>
+              <span class="pill" [class.pill--active]="r.m.status === 'Active'" [class.pill--inactive]="r.m.status === 'Inactive'">
+                <span class="dot"></span>{{ r.m.status }}
+              </span>
+            </td>
+            <td class="col-actions">
+              <div class="menu-wrap">
+                <button type="button" class="icon-btn" (click)="toggleMenu('m' + r.m.id, $event)" [attr.aria-expanded]="openMenu === 'm' + r.m.id" aria-label="Actions">
+                  <lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon>
+                </button>
+                <div *ngIf="openMenu === 'm' + r.m.id" class="menu" role="menu" (click)="$event.stopPropagation()">
+                  <button type="button" role="menuitem" (click)="openModelModal(r.m)">
+                    <lucide-icon [img]="icons.SquarePen" [size]="15"></lucide-icon>Edit
+                  </button>
+                  <button type="button" role="menuitem" (click)="viewModelAssets(r.m)">
+                    <lucide-icon [img]="icons.ExternalLink" [size]="15"></lucide-icon>View Assets
+                  </button>
+                  <button type="button" role="menuitem" (click)="toggleModelStatus(r.m)">
+                    <lucide-icon [img]="r.m.status === 'Active' ? icons.PowerOff : icons.Power" [size]="15"></lucide-icon>
+                    {{ r.m.status === 'Active' ? 'Deactivate' : 'Activate' }}
+                  </button>
+                  <hr />
+                  <button type="button" role="menuitem" class="danger" (click)="askDeleteModel(r.m)">
+                    <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div *ngIf="!pageModels.length" class="empty">
+        <lucide-icon [img]="icons.Inbox" [size]="32"></lucide-icon>
+        <h3>{{ modelCount ? 'No models match' : 'No models yet' }}</h3>
+        <p>{{ modelCount ? 'Try a different search, asset type or status.' : 'Add the first model.' }}</p>
       </div>
     </div>
+
+    <ng-container *ngTemplateOutlet="pagerTpl; context: { pager: modelPager, count: filteredModels.length, noun: 'models' }"></ng-container>
   </div>
 
   <!-- Shared pagination footer -->
@@ -422,12 +462,20 @@
   <div *ngIf="modelModalOpen" class="overlay" (click)="modelModalOpen = false">
     <form class="modal" role="dialog" aria-modal="true" aria-labelledby="model-title" (click)="$event.stopPropagation()" (ngSubmit)="saveModelModal()">
       <div class="modal-head">
-        <h2 id="model-title">{{ editingModel ? 'Edit Model' : 'Add Model' }} &middot; <span class="muted">{{ selectedType?.name }}</span></h2>
+        <h2 id="model-title">{{ editingModel ? 'Edit Model' : 'Add Model' }}<ng-container *ngIf="modalType"> &middot; <span class="muted">{{ modalType.name }}</span></ng-container></h2>
         <button type="button" class="icon-btn" (click)="modelModalOpen = false" aria-label="Close">
           <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
         </button>
       </div>
       <div class="modal-body">
+        <label class="field">
+          <span class="field-label">Asset Type <em>*</em></span>
+          <select class="control" name="typeId" [(ngModel)]="modelModalTypeId" [class.is-invalid]="modelModalSubmitted && !modalType">
+            <option [ngValue]="null" disabled>Select asset type</option>
+            <option *ngFor="let t of types" [ngValue]="t.id">{{ t.name }} ({{ t.category }})</option>
+          </select>
+          <span *ngIf="modelModalSubmitted && !modalType" class="error">Asset type is required.</span>
+        </label>
         <div class="field-pair">
           <label class="field">
             <span class="field-label">Model Name <em>*</em></span>
@@ -480,7 +528,7 @@
         <p *ngIf="deleteTarget.kind === 'type'">
           This permanently removes the asset type<ng-container *ngIf="deleteTarget.item.models.length"> and its {{ deleteTarget.item.models.length }} model{{ deleteTarget.item.models.length === 1 ? '' : 's' }}</ng-container>.
         </p>
-        <p *ngIf="deleteTarget.kind === 'model'">This permanently removes the model from {{ selectedType?.name }}.</p>
+        <p *ngIf="deleteTarget.kind === 'model'">This permanently removes the model from {{ typeOf($any(deleteTarget.item))?.name }}.</p>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="deleteTarget = null">Cancel</button>

@@ -1,0 +1,331 @@
+<section class="sc-page">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <a routerLink="/assets/list">Asset List</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span>{{ asset.tag }}</span>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">{{ title }}</span>
+  </nav>
+
+  <!-- Unknown or missing ?tag= -->
+  <div *ngIf="notFound" class="card not-found">
+    <h2>Asset not found</h2>
+    <p>No asset with the tag <strong>{{ requestedTag }}</strong> exists in the register.</p>
+    <a class="btn btn-primary" routerLink="/assets/list">Go to Asset List</a>
+  </div>
+
+  <ng-container *ngIf="!notFound">
+  <!-- Asset header -->
+  <div class="card asset-head">
+    <img *ngIf="asset.image; else headerIcon" class="asset-img" [src]="asset.image" [alt]="asset.name" />
+    <ng-template #headerIcon>
+      <span class="asset-img asset-img--icon"><lucide-icon [img]="typeIcons[asset.icon]" [size]="34" [strokeWidth]="1.6"></lucide-icon></span>
+    </ng-template>
+    <div class="asset-title">
+      <h1>{{ asset.tag }}</h1>
+      <p>{{ asset.name }}</p>
+    </div>
+    <div class="chips">
+      <div class="chip"><span>Category</span><strong>{{ asset.category }}</strong></div>
+      <div class="chip"><span>Type / Model</span><strong>{{ asset.model }}</strong></div>
+      <div class="chip"><span>Location</span><strong>{{ asset.location }}</strong></div>
+      <div class="chip chip--sm"><span>Status</span>
+        <span class="pill" [ngClass]="'pill--' + statusTone(asset.status)"><span class="dot"></span>{{ asset.status }}</span>
+      </div>
+      <div class="chip chip--sm"><span>Condition</span>
+        <span class="pill" [ngClass]="'pill--' + conditionTone(asset.condition)"><span class="dot"></span>{{ asset.condition }}</span>
+      </div>
+      <div class="chip chip--sm"><span>Criticality</span>
+        <span class="pill" [ngClass]="'pill--' + criticalityTone(asset.criticality)"><span class="dot"></span>{{ asset.criticality }}</span>
+      </div>
+    </div>
+    <div class="menu-wrap">
+      <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
+        Actions
+        <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+      </button>
+      <div *ngIf="actionsOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
+        <button *ngIf="view === 'components'" type="button" role="menuitem" (click)="go('/assets/components')"><lucide-icon [img]="icons.Puzzle" [size]="15"></lucide-icon>Manage Components</button>
+        <button *ngIf="view === 'fields'" type="button" role="menuitem" (click)="go('/assets/custom-fields')"><lucide-icon [img]="icons.LayoutGrid" [size]="15"></lucide-icon>Manage Field Definitions</button>
+        <button *ngIf="view !== 'overview'" type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export (CSV)</button>
+        <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Asset tabs -->
+  <nav class="card tabs" aria-label="Asset sections">
+    <ng-container *ngFor="let t of tabs">
+      <a *ngIf="t.path; else plainTab" class="tab" [routerLink]="t.path" [queryParams]="{ tag: asset.tag }">{{ t.label }}</a>
+      <ng-template #plainTab>
+        <button type="button" class="tab" [class.is-active]="t.active" [attr.aria-current]="t.active ? 'page' : null" (click)="tabClick(t)">{{ t.label }}</button>
+      </ng-template>
+    </ng-container>
+  </nav>
+
+  <!-- ===================== Overview ===================== -->
+  <ng-container *ngIf="view === 'overview'">
+    <div class="kpis">
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.HeartPulse" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Health Score</h3>
+          <strong class="kpi-value">{{ detail ? detail.health.score + '%' : '-' }}</strong>
+          <span *ngIf="detail" class="pill pill--xs" [ngClass]="'pill--' + healthTone(detail.health.status)"><span class="dot"></span>{{ detail.health.status }}</span>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.Activity" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Condition</h3>
+          <span class="pill pill--lg" [ngClass]="'pill--' + conditionTone(latestAssessment?.overall ?? asset.condition)"><span class="dot"></span>{{ latestAssessment?.overall ?? asset.condition }}</span>
+          <p *ngIf="latestAssessment as a">Assessed {{ a.date | date: 'dd MMM yyyy' }}</p>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.ShieldAlert" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Criticality</h3>
+          <span class="pill pill--lg" [ngClass]="'pill--' + criticalityTone(detail?.criticality?.level ?? asset.criticality)"><span class="dot"></span>{{ detail?.criticality?.level ?? asset.criticality }}</span>
+          <p *ngIf="detail">Score {{ detail.criticality.score }} / 100</p>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.Timer" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Availability</h3>
+          <strong class="kpi-value">{{ detail ? detail.status.availability + '%' : '-' }}</strong>
+          <p *ngIf="detail">Utilization {{ detail.status.utilization }}%</p>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.CalendarClock" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Next Maintenance</h3>
+          <strong class="kpi-date" [class.text-danger]="nextMaintenance && nextMaintenance < today">{{ nextMaintenance ? (nextMaintenance | date: 'dd MMM yyyy') : '-' }}</strong>
+          <p *ngIf="detail?.status?.lastMaintenance as last">Last {{ last | date: 'dd MMM yyyy' }}</p>
+        </div>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-icon"><lucide-icon [img]="icons.Wrench" [size]="22"></lucide-icon></span>
+        <div class="kpi-body">
+          <h3>Open Work Orders</h3>
+          <strong class="kpi-value">{{ openWorkOrders }}</strong>
+          <p>{{ openRequests }} open service request{{ openRequests === 1 ? '' : 's' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-row">
+      <div class="card panel">
+        <div class="card-head">
+          <lucide-icon class="head-icon" [img]="icons.Info" [size]="20"></lucide-icon>
+          <h3 class="grow">Asset Information</h3>
+        </div>
+        <dl class="info-grid">
+          <dt>Asset Tag</dt><dd>{{ record.tag }}</dd>
+          <dt>Asset Name</dt><dd>{{ record.name }}</dd>
+          <dt>Category</dt><dd>{{ record.category }}</dd>
+          <dt>Type</dt><dd>{{ record.type }}</dd>
+          <dt>Manufacturer</dt><dd>{{ record.manufacturer }}</dd>
+          <dt>Model</dt><dd>{{ record.model }}</dd>
+          <dt>Serial Number</dt><dd>{{ maintenance.overview.serialNumber }}</dd>
+          <dt>Purchase Date</dt><dd>{{ record.purchaseDate ? (record.purchaseDate | date: 'dd MMM yyyy') : '-' }}</dd>
+          <dt>Location</dt><dd>{{ location }}</dd>
+          <dt>Department</dt><dd>{{ record.department }}</dd>
+          <dt>Custodian</dt><dd>{{ record.custodian }}</dd>
+          <dt>AMC Vendor</dt><dd>{{ maintenance.overview.amcVendor }}</dd>
+        </dl>
+      </div>
+
+      <div class="card panel">
+        <div class="card-head">
+          <lucide-icon class="head-icon" [img]="icons.Power" [size]="20"></lucide-icon>
+          <h3 class="grow">Operational Details</h3>
+          <button type="button" class="link-btn" (click)="go('/assets/status-condition')">Status &amp; Condition</button>
+        </div>
+        <dl *ngIf="detail?.status as s; else loadingTpl" class="info-grid">
+          <dt>Operational Status</dt><dd>{{ s.operational.status }} <small class="sub-inline">since {{ s.operational.statusSince | date: 'dd MMM yyyy' }}</small></dd>
+          <dt>Operating Mode</dt><dd>{{ s.operational.operatingMode }}</dd>
+          <dt>{{ s.operational.loadLabel }}</dt><dd>{{ s.operational.currentLoad | number }} {{ s.operational.loadUnit }}</dd>
+          <dt>{{ s.operational.capacityLabel }}</dt><dd>{{ s.operational.ratedCapacity | number }} {{ s.operational.ratedUnit }}</dd>
+          <dt>Running Hours</dt><dd>{{ s.operational.runningHours | number }} hrs</dd>
+          <dt>Controlled By</dt><dd>{{ s.operational.controlledBy }}</dd>
+          <dt>Lifecycle Stage</dt><dd>{{ s.lifecycle.stage }}</dd>
+          <dt>Commissioned On</dt><dd>{{ s.lifecycle.commissionedOn | date: 'dd MMM yyyy' }}</dd>
+          <dt>Expected Life</dt><dd>{{ s.lifecycle.expectedLifeYears }} years</dd>
+          <dt>Next Assessment</dt><dd>{{ s.lifecycle.nextAssessment ? (s.lifecycle.nextAssessment | date: 'dd MMM yyyy') : '-' }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- At a glance: counts that open the other tabs -->
+    <div class="glance">
+      <button *ngFor="let g of glance" type="button" class="card glance-item" (click)="go(g.path)" [title]="'Open ' + g.label">
+        <span class="kpi-icon"><lucide-icon [img]="g.icon" [size]="20"></lucide-icon></span>
+        <span class="grow"><strong>{{ g.value }}</strong><small>{{ g.label }}</small></span>
+      </button>
+    </div>
+
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.History" [size]="20"></lucide-icon>
+        <h3 class="grow">Recent Activity</h3>
+        <button type="button" class="link-btn" (click)="go('/assets/history')">View full history</button>
+      </div>
+      <ng-container *ngTemplateOutlet="historyTable; context: { rows: recentHistory }"></ng-container>
+    </div>
+  </ng-container>
+
+  <!-- ===================== Components ===================== -->
+  <ng-container *ngIf="view === 'components'">
+    <div *ngIf="!tree.length" class="card not-found">
+      <h2>No components recorded</h2>
+      <p>No components, parts or sub-assets are recorded for <strong>{{ asset.tag }}</strong> ({{ asset.name }}).</p>
+      <button type="button" class="btn btn-primary" (click)="go('/assets/components')">Add Components</button>
+    </div>
+
+    <ng-container *ngIf="tree.length">
+      <app-component-overview
+        [components]="tree"
+        [assetName]="asset.name"
+        [assetTag]="asset.tag"
+        [iconFor]="iconFor"
+        (openComponent)="selectedComponent = $event"
+        (openTab)="onComponentTab($event)"
+      ></app-component-overview>
+
+      <div class="card panel">
+        <div class="card-head">
+          <lucide-icon class="head-icon" [img]="icons.Puzzle" [size]="20"></lucide-icon>
+          <h3 class="grow">All Components of {{ asset.tag }} <span class="count">({{ components.length }})</span></h3>
+          <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Component</th><th>Part Of</th><th>Status</th><th>Manufacturer / Model</th><th>Serial Number</th><th>Installed</th><th>Life Used</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of components" class="row-link" [class.is-picked]="c === selectedComponent" (click)="pickComponent(c)">
+                <td><span class="cmp-name"><lucide-icon [img]="iconFor(c)" [size]="16"></lucide-icon><span><strong>{{ c.name }}</strong><small class="sub">{{ c.tag }}</small></span></span></td>
+                <td>{{ parentOf(c)?.name ?? asset.name }}</td>
+                <td><span class="pill pill--xs" [ngClass]="'pill--' + componentTone(c.status)"><span class="dot"></span>{{ c.status }}</span></td>
+                <td>{{ c.manufacturer || '-' }}<small class="sub">{{ c.model }}</small></td>
+                <td class="nowrap">{{ c.serialNumber || '-' }}</td>
+                <td class="nowrap">{{ c.installedDate ? (c.installedDate | date: 'dd MMM yyyy') : '-' }}</td>
+                <td class="nowrap">
+                  <ng-container *ngIf="c.lifeTotal; else dash">
+                    <span class="life"><span [style.width.%]="lifePct(c)" [class.is-high]="lifePct(c) >= 80"></span></span>{{ lifePct(c) }}%
+                  </ng-container>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Picked component -->
+      <div *ngIf="selectedComponent as c" class="card panel">
+        <div class="card-head">
+          <lucide-icon class="head-icon" [img]="iconFor(c)" [size]="20"></lucide-icon>
+          <h3 class="grow">{{ c.name }} <span class="count">{{ c.tag }}</span></h3>
+          <button type="button" class="link-btn" (click)="go('/assets/maintenance-details')">Maintenance</button>
+          <button type="button" class="link-btn" (click)="go('/assets/service-history')">Service History</button>
+          <button type="button" class="icon-btn" (click)="selectedComponent = null" aria-label="Close component details"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+        </div>
+        <dl class="info-grid">
+          <dt>Status</dt><dd><span class="pill pill--xs" [ngClass]="'pill--' + componentTone(c.status)"><span class="dot"></span>{{ c.status }}</span></dd>
+          <dt>Part Of</dt><dd>{{ parentOf(c)?.name ?? asset.name }}</dd>
+          <dt>Manufacturer</dt><dd>{{ c.manufacturer || '-' }}</dd>
+          <dt>Model</dt><dd>{{ c.model || '-' }}</dd>
+          <dt>Part Number</dt><dd>{{ c.partNumber || '-' }}</dd>
+          <dt>Serial Number</dt><dd>{{ c.serialNumber || '-' }}</dd>
+          <dt>Installed</dt><dd>{{ c.installedDate ? (c.installedDate | date: 'dd MMM yyyy') : '-' }}</dd>
+          <dt>Expected Replacement</dt><dd>{{ c.expectedReplacement ? (c.expectedReplacement | date: 'dd MMM yyyy') : '-' }}</dd>
+          <dt>Life Used</dt><dd>{{ c.lifeTotal ? (c.lifeUsed | number) + ' / ' + (c.lifeTotal | number) + ' ' + c.lifeUnit + ' (' + lifePct(c) + '%)' : 'Not tracked' }}</dd>
+          <dt>Sub-components</dt><dd>{{ c.children.length }}</dd>
+          <dt>Description</dt><dd class="span-3">{{ c.description || '-' }}</dd>
+        </dl>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <!-- ===================== Custom Fields ===================== -->
+  <ng-container *ngIf="view === 'fields'">
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.LayoutGrid" [size]="20"></lucide-icon>
+        <h3 class="grow">Custom Field Values <span class="count">{{ filledCount }} of {{ fieldCount }} filled</span></h3>
+        <span *ngIf="missingRequired" class="tag tag--critical">{{ missingRequired }} required missing</span>
+        <label class="check"><input type="checkbox" [(ngModel)]="emptyOnly" />Show empty only</label>
+        <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+      </div>
+      <p class="hint">Values recorded for {{ asset.tag }}. The fields themselves are defined for all assets, plus the {{ record.category }} category, in
+        <a routerLink="/assets/custom-fields">Assets › Custom Fields</a>.</p>
+      <p *ngIf="loading" class="hint">Loading asset data…</p>
+    </div>
+
+    <div class="field-groups">
+      <div *ngFor="let g of shownGroups" class="card panel">
+        <div class="card-head"><h3 class="grow">{{ g.name }}</h3><span class="count">{{ g.rows.length }}</span></div>
+        <dl class="field-list">
+          <ng-container *ngFor="let r of g.rows">
+            <dt>{{ r.field.label }}<em *ngIf="r.field.required" title="Required">*</em></dt>
+            <dd [class.is-empty]="!r.value">
+              <ng-container *ngIf="r.value; else notSet">{{ r.field.type === 'Date' ? (r.value | date: 'dd MMM yyyy') : displayValue(r) }}</ng-container>
+              <ng-template #notSet><span [class.text-danger]="r.field.required">{{ r.field.required ? 'Missing' : 'Not set' }}</span></ng-template>
+            </dd>
+          </ng-container>
+        </dl>
+      </div>
+      <div *ngIf="!shownGroups.length" class="card not-found"><p>All custom fields have a value for {{ asset.tag }}.</p></div>
+    </div>
+  </ng-container>
+
+  <!-- ===================== History ===================== -->
+  <ng-container *ngIf="view === 'history'">
+    <div class="card panel">
+      <div class="card-head">
+        <lucide-icon class="head-icon" [img]="icons.History" [size]="20"></lucide-icon>
+        <h3 class="grow">Asset History <span class="count">({{ filteredHistory.length }} of {{ history.length }} events)</span></h3>
+        <input type="search" class="control control--sm search" placeholder="Search history..." [(ngModel)]="search" (ngModelChange)="historyLimit = 15" aria-label="Search history" />
+        <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+      </div>
+      <div class="kind-chips" role="group" aria-label="Filter by type">
+        <button type="button" class="kind-chip" [class.is-on]="!kindFilter" (click)="kindFilter = ''; historyLimit = 15">All <b>{{ history.length }}</b></button>
+        <ng-container *ngFor="let k of kinds">
+          <button *ngIf="kindCount(k)" type="button" class="kind-chip" [class.is-on]="kindFilter === k" (click)="kindFilter = k; historyLimit = 15">{{ k }} <b>{{ kindCount(k) }}</b></button>
+        </ng-container>
+      </div>
+      <p *ngIf="loading" class="hint">Loading asset data…</p>
+      <ng-container *ngTemplateOutlet="historyTable; context: { rows: shownHistory }"></ng-container>
+      <button *ngIf="filteredHistory.length > shownHistory.length" type="button" class="link-btn more" (click)="historyLimit = historyLimit + 15">
+        Show more ({{ filteredHistory.length - shownHistory.length }} older)</button>
+    </div>
+  </ng-container>
+
+  <ng-template #historyTable let-rows="rows">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Event</th><th>By</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let e of rows" class="row-link" (click)="go(e.path)" title="Open the related tab">
+            <td class="nowrap">{{ e.at | date: (e.at.length > 10 ? 'dd MMM yyyy, HH:mm' : 'dd MMM yyyy') }}</td>
+            <td><span class="tag" [ngClass]="'tag--' + kindTone(e.kind)">{{ e.kind }}</span></td>
+            <td class="wrap"><strong>{{ e.title }}</strong><small *ngIf="e.detail" class="sub">{{ e.detail }}</small></td>
+            <td>{{ e.by || '-' }}</td>
+          </tr>
+          <tr *ngIf="!rows.length"><td colspan="4" class="empty-line">{{ loading ? 'Loading…' : 'No history recorded.' }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-template>
+
+  <ng-template #loadingTpl><p class="empty-line">{{ loading ? 'Loading…' : 'No operational data recorded.' }}</p></ng-template>
+  <ng-template #dash>-</ng-template>
+  </ng-container>
+</section>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

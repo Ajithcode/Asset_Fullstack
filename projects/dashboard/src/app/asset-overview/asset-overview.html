@@ -28,39 +28,41 @@
     </div>
   </header>
 
+  <!-- One 6-column grid for the KPI cards and every widget, so all edges line up with the KPI cards -->
+  <div class="io-grid io-grid--6">
   <!-- ===== KPIs ===== -->
-  <div class="io-kpis ao-kpis" *ngIf="kpis as k">
-    <div class="card io-kpi">
+  <ng-container *ngIf="kpis as k">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('total')" (keydown.enter)="openKpi('total')">
       <span class="io-kpi-ic ic--blue"><lucide-icon [img]="icons.Box" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Total Assets</span><strong>{{ k.total | number }}</strong></span>
       <ng-container *ngTemplateOutlet="trend; context: { v: k.totalChange, goodUp: true }"></ng-container>
     </div>
-    <div class="card io-kpi">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('active')" (keydown.enter)="openKpi('active')">
       <span class="io-kpi-ic ic--green"><lucide-icon [img]="icons.Power" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Active Assets</span><strong>{{ k.active | number }}</strong></span>
       <span class="io-kpi-side io-kpi-side--rule"><b class="up big">{{ k.activePct }}%</b><small>of total assets</small></span>
     </div>
-    <div class="card io-kpi">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('maintenance')" (keydown.enter)="openKpi('maintenance')">
       <span class="io-kpi-ic ic--amber"><lucide-icon [img]="icons.Wrench" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Assets Under Maintenance</span><strong>{{ k.maintenance | number }}</strong></span>
       <ng-container *ngTemplateOutlet="trend; context: { v: k.maintenanceChange, goodUp: false }"></ng-container>
     </div>
-    <div class="card io-kpi">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('critical')" (keydown.enter)="openKpi('critical')">
       <span class="io-kpi-ic ic--red"><lucide-icon [img]="icons.TriangleAlert" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Critical Assets</span><strong>{{ k.critical | number }}</strong></span>
       <ng-container *ngTemplateOutlet="trend; context: { v: k.criticalChange, goodUp: false }"></ng-container>
     </div>
-    <div class="card io-kpi">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('health')" (keydown.enter)="openKpi('health')">
       <span class="io-kpi-ic ic--sky"><lucide-icon [img]="icons.HeartPulse" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Avg Asset Health Score</span><strong>{{ k.health }}%</strong></span>
       <ng-container *ngTemplateOutlet="trend; context: { v: k.healthChange, goodUp: true }"></ng-container>
     </div>
-    <div class="card io-kpi">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('value')" (keydown.enter)="openKpi('value')">
       <span class="io-kpi-ic ic--violet"><lucide-icon [img]="icons.Database" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Lifecycle Value</span><strong>{{ money(k.value) }}</strong></span>
       <ng-container *ngTemplateOutlet="trend; context: { v: k.valueChange, goodUp: true }"></ng-container>
     </div>
-  </div>
+  </ng-container>
   <!-- change vs. 30 days earlier; colour says whether the move is good -->
   <ng-template #trend let-v="v" let-goodUp="goodUp">
     <span *ngIf="v !== null && v !== 0" class="io-kpi-side"><b [class.up]="(v > 0) === goodUp" [class.down]="(v > 0) !== goodUp">
@@ -68,13 +70,12 @@
   </ng-template>
 
   <!-- ===== Row 1 ===== -->
-  <div class="ao-row ao-row--1">
-    <section class="card io-pad" aria-labelledby="ao-cat">
+    <section class="card io-pad ao-fill io-span-2" aria-labelledby="ao-cat">
       <h2 id="ao-cat" class="io-title"><lucide-icon [img]="icons.ClipboardList" [size]="18"></lucide-icon>Asset Portfolio by Category</h2>
       <table class="ao-cat">
         <thead><tr><th>Category</th><th></th><th class="num">Asset Count</th><th class="num">Percentage</th></tr></thead>
         <tbody>
-          <tr *ngFor="let c of byCategory" [class.is-on]="category === c.name" (click)="pickCategory(c.name)" title="Filter to this category">
+          <tr *ngFor="let c of byCategory" [class.is-on]="category === c.name" (click)="openCategory(c.name)" title="Show category details">
             <td><span class="ao-cat-name"><span class="ao-cat-ic" [style.color]="c.color" [style.background]="c.color + '1f'"><lucide-icon [img]="categoryIcons[c.icon]" [size]="15"></lucide-icon></span>{{ c.name }}</span></td>
             <td class="ao-cat-bar"><span><i [style.width.%]="c.bar" [style.background]="c.color"></i></span></td>
             <td class="num">{{ c.count | number }}</td>
@@ -84,29 +85,29 @@
       </table>
     </section>
 
-    <section class="card io-pad" aria-labelledby="ao-hd">
+    <section class="card io-pad ao-fill io-span-1" aria-labelledby="ao-hd">
       <h2 id="ao-hd" class="io-title"><lucide-icon [img]="icons.Heart" [size]="18"></lucide-icon>Asset Health Distribution</h2>
       <div class="ao-health" *ngIf="health as h">
         <svg viewBox="0 0 140 140" role="img" [attr.aria-label]="h.total + ' assets by health'" (mouseleave)="hoverHealth = null">
           <ng-container *ngFor="let r of h.rows">
             <circle *ngIf="r.count" cx="70" cy="70" r="46" fill="none" [attr.stroke]="r.color" [attr.stroke-width]="hoverHealth === r.band ? 26 : 22"
-              [attr.stroke-dasharray]="r.dash" [attr.stroke-dashoffset]="r.offset" transform="rotate(-90 70 70)" (mouseenter)="hoverHealth = r.band"></circle>
+              [attr.stroke-dasharray]="r.dash" [attr.stroke-dashoffset]="r.offset" transform="rotate(-90 70 70)" (mouseenter)="hoverHealth = r.band" (click)="openHealthBand(r.band)" class="io-click"></circle>
             <text *ngIf="r.count" class="ao-seg-label" [attr.x]="r.lx" [attr.y]="r.ly" text-anchor="middle" [attr.fill]="r.band === 'Healthy' ? '#15803d' : r.color">{{ r.pct }}%</text>
           </ng-container>
           <text x="70" y="70" class="ao-health-num">{{ hoverHealth ? (h.rows[['Healthy', 'Warning', 'Critical', 'Unknown'].indexOf(hoverHealth)].count | number) : (h.total | number) }}</text>
           <text x="70" y="84" class="io-donut-cap">{{ hoverHealth ?? 'Total Assets' }}</text>
         </svg>
         <ul class="ao-health-legend">
-          <li *ngFor="let r of h.rows" (mouseenter)="hoverHealth = r.band" (mouseleave)="hoverHealth = null"><i [style.background]="r.color"></i>
+          <li *ngFor="let r of h.rows" class="io-click" (mouseenter)="hoverHealth = r.band" (mouseleave)="hoverHealth = null" (click)="openHealthBand(r.band)"><i [style.background]="r.color"></i>
             <span><strong>{{ r.band }}</strong><span class="ao-hl-row"><b>{{ r.count | number }}</b><small [style.color]="r.band === 'Unknown' ? '#6b7280' : r.color">{{ r.pct }}%</small></span></span></li>
         </ul>
       </div>
     </section>
 
-    <section class="card io-pad" aria-labelledby="ao-st">
+    <section class="card io-pad ao-fill io-span-2" aria-labelledby="ao-st">
       <h2 id="ao-st" class="io-title"><lucide-icon [img]="icons.PieChart" [size]="18"></lucide-icon>Asset Status Overview</h2>
       <ul class="ao-status">
-        <li *ngFor="let s of byStatus" [class.is-on]="status === s.status" (click)="pickStatus(s.status)" title="Filter to this status">
+        <li *ngFor="let s of byStatus" [class.is-on]="status === s.status" (click)="openStatus(s.status)" title="Show status details">
           <span class="ao-st-ic" [style.color]="s.color" [style.background]="s.color + '1c'"><lucide-icon [img]="statusIcons[s.status]" [size]="15"></lucide-icon></span>
           <span class="ao-st-name">{{ s.status }}</span>
           <span class="ao-st-bar"><i [style.width.%]="s.pct" [style.background]="s.color"></i></span>
@@ -115,12 +116,12 @@
       </ul>
     </section>
 
-    <aside class="ao-side">
+    <aside class="ao-side io-span-1">
       <section class="card io-pad" aria-labelledby="ao-in">
         <h2 id="ao-in" class="io-title"><lucide-icon [img]="icons.Lightbulb" [size]="18"></lucide-icon>Quick Insights</h2>
         <ul class="ao-insights">
           <li *ngFor="let i of insights">
-            <button type="button" [class.is-on]="insight === i.key" (click)="openInsight(i.key)" [attr.aria-pressed]="insight === i.key">
+            <button type="button" [class.is-on]="insight === i.key" (click)="openInsightDrill(i.key)" [attr.aria-pressed]="insight === i.key">
               <span class="ao-in-ic" [ngClass]="'tone--' + i.tone"><lucide-icon [img]="i.icon" [size]="18"></lucide-icon></span>
               <span class="grow"><strong>{{ i.count | number }}</strong><small>{{ i.label }}</small></span>
               <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
@@ -135,39 +136,37 @@
         </div>
       </section>
     </aside>
-  </div>
 
   <!-- ===== Row 2 ===== -->
-  <div class="ao-row ao-row--2">
-    <section class="card io-pad ao-map-card" aria-labelledby="ao-map">
+    <section class="card io-pad ao-map-card io-span-2" aria-labelledby="ao-map">
       <div class="io-sub-head"><h2 id="ao-map" class="io-title"><lucide-icon [img]="icons.MapPin" [size]="18"></lucide-icon>Asset Distribution by Site</h2>
         <button type="button" class="io-link" (click)="showAllSites = !showAllSites">{{ showAllSites ? 'Show Map' : 'View All Sites' }}</button></div>
       <div class="ao-map-wrap" [hidden]="showAllSites"><div #mapEl class="ao-map" role="application" aria-label="Asset distribution map"></div></div>
       <table *ngIf="showAllSites" class="io-table">
         <thead><tr><th>Site</th><th class="num">Assets</th><th class="num">Healthy</th></tr></thead>
-        <tbody><tr *ngFor="let s of siteStats" (click)="pickSite(s.site.name)" [class.is-selected]="site === s.site.name" class="ao-click">
+        <tbody><tr *ngFor="let s of siteStats" (click)="openSite(s.site.name)" [class.is-selected]="site === s.site.name" class="ao-click">
           <td>{{ s.site.name }}</td><td class="num">{{ s.total | number }}</td><td class="num">{{ s.healthyPct }}%</td></tr></tbody>
       </table>
     </section>
 
-    <section class="card io-pad" aria-labelledby="ao-age">
+    <section class="card io-pad io-span-1" aria-labelledby="ao-age">
       <h2 id="ao-age" class="io-title"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon>Asset Lifecycle Aging</h2>
-      <div class="ao-aging" *ngIf="aging as g" (mouseleave)="hoverAge = null">
+      <div #agingEl class="ao-aging" *ngIf="aging as g" (mouseleave)="hoverAge = null">
         <svg [attr.viewBox]="'0 0 ' + aw + ' ' + ah" role="img" aria-label="Assets by age">
           <g class="grid"><line *ngFor="let t of g.ticks" [attr.x1]="ap.l" [attr.x2]="aw - ap.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
           <g class="axis"><text *ngFor="let t of g.ticks" [attr.x]="ap.l - 5" [attr.y]="t.y + 3" text-anchor="end">{{ t.label }}</text></g>
-          <g *ngFor="let b of g.bars; let i = index" (mouseenter)="hoverAge = i" [class.is-dim]="hoverAge !== null && hoverAge !== i">
+          <g *ngFor="let b of g.bars; let i = index" class="io-click" (click)="openAge(i)" (mouseenter)="hoverAge = i" [class.is-dim]="hoverAge !== null && hoverAge !== i">
             <rect [attr.x]="b.x" [attr.y]="b.y" [attr.width]="g.barW" [attr.height]="b.h" [attr.fill]="b.color" rx="2"></rect>
             <text class="ao-bar-val" [attr.x]="b.x + g.barW / 2" [attr.y]="b.y - 5" text-anchor="middle">{{ b.count | number }}</text>
           </g>
         </svg>
         <ul class="ao-age-keys">
-          <li *ngFor="let b of g.bars"><strong>{{ b.band }}</strong><small>{{ b.label }}</small><b [style.color]="b.color">{{ b.pct }}%</b></li>
+          <li *ngFor="let b of g.bars; let i = index" class="io-click" (click)="openAge(i)"><strong>{{ b.band }}</strong><small>{{ b.label }}</small><b [style.color]="b.color">{{ b.pct }}%</b></li>
         </ul>
       </div>
     </section>
 
-    <section class="card io-pad ao-table-card" aria-labelledby="ao-tb">
+    <section class="card io-pad ao-table-card io-span-2 io-full-md" aria-labelledby="ao-tb">
       <div class="io-sub-head"><h2 id="ao-tb" class="io-title"><lucide-icon class="ao-red" [img]="icons.TriangleAlert" [size]="18"></lucide-icon>{{ tableTitle }} <small class="muted">({{ tableRows.length | number }})</small></h2>
         <span class="ao-tb-links">
           <button *ngIf="insight" type="button" class="io-link" (click)="openInsight('')">Clear</button>
@@ -176,8 +175,8 @@
         <table class="io-table ao-table">
           <thead><tr><th>Asset ID</th><th>Asset Name</th><th>Category</th><th>Site</th><th>Health</th><th class="num">Value</th><th>Status</th></tr></thead>
           <tbody>
-            <tr *ngFor="let a of pageRows" class="ao-click" [class.is-selected]="selectedId === a.id" (click)="select(a)">
-              <td><button type="button" class="io-id" (click)="$event.stopPropagation(); select(a)">{{ a.id }}</button></td>
+            <tr *ngFor="let a of pageRows" class="ao-click" [class.is-selected]="selectedId === a.id" (click)="openAsset(a)">
+              <td><button type="button" class="io-id" (click)="$event.stopPropagation(); openAsset(a)">{{ a.id }}</button></td>
               <td>{{ a.name }}</td><td>{{ a.category }}</td><td>{{ a.site }}</td>
               <td><span class="io-sev" [ngClass]="sevClass(a)"><lucide-icon *ngIf="healthBand(a.hp) === 'Critical' || healthBand(a.hp) === 'Warning'" [img]="icons.TriangleAlert" [size]="11"></lucide-icon>{{ a.hp === null ? 'Unknown' : healthBand(a.hp) === 'Healthy' ? a.hp + '%' : healthBand(a.hp) }}</span></td>
               <td class="num">{{ money(a.value) }}</td>
@@ -194,7 +193,7 @@
       </div>
     </section>
 
-    <section class="card io-pad io-quick" aria-labelledby="ao-qv">
+    <section class="card io-pad io-quick io-span-1 io-full-md" aria-labelledby="ao-qv">
       <div class="io-sub-head"><h2 id="ao-qv" class="io-title"><lucide-icon [img]="icons.Box" [size]="18"></lucide-icon>Asset Quick View</h2>
         <button type="button" class="icon-btn" (click)="go('/assets/list')" aria-label="Open asset list" title="Open asset list"><lucide-icon [img]="icons.ExternalLink" [size]="16"></lucide-icon></button></div>
       <ng-container *ngIf="selected as d; else noSel">
@@ -239,3 +238,5 @@
     </section>
   </div>
 </section>
+
+<app-drill-dialog [drill]="drill" (closed)="drill = null"></app-drill-dialog>
