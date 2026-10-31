@@ -10,8 +10,8 @@ namespace A360.Inspection.Api.Endpoints;
 
 public static class InspectionTypeEndpoints
 {
-    private const string SequenceName = "inspection_type";
-    private const string InspectionTypeCodePrefix = "INS";
+    private const string SequenceName = InspectionCodes.InspectionTypeSequence;
+    private const string InspectionTypeCodePrefix = "IT";
 
     public static RouteGroupBuilder MapInspectionTypeEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -68,8 +68,7 @@ public static class InspectionTypeEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var nextSequence = await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken);
-        var inspectionTypeCode = $"{InspectionTypeCodePrefix}{nextSequence:D6}";
+        var inspectionTypeCode = await InspectionCodes.NextAsync(sequenceGenerator, SequenceName, InspectionTypeCodePrefix, cancellationToken);
 
         var inspectionType = await repository.CreateAsync(request.ToEntity(inspectionTypeCode), cancellationToken);
 

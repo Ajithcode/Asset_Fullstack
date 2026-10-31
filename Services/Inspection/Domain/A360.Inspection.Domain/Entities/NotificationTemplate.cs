@@ -35,4 +35,19 @@ public sealed class NotificationTemplate : BaseEntity
 
     [BsonElement("is_active")]
     public bool IsActive { get; set; } = true;
+
+    [BsonElement("channels")]
+    public List<string> Channels { get; set; } = [];
+
+    [BsonElement("button_label")]
+    public string ButtonLabel { get; set; } = string.Empty;
+
+    [BsonElement("timing")]
+    public string Timing { get; set; } = string.Empty;
+
+    [BsonElement("respect_user_locale")]
+    public bool RespectUserLocale { get; set; }
+
+    [BsonElement("prevent_duplicates")]
+    public bool PreventDuplicates { get; set; }
 }

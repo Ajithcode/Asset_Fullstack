@@ -10,7 +10,7 @@ namespace A360.Inspection.Api.Endpoints;
 
 public static class TaskCategoryEndpoints
 {
-    private const string SequenceName = "task_category";
+    private const string SequenceName = InspectionCodes.TaskCategorySequence;
     private const string CategoryCodePrefix = "TC";
 
     public static RouteGroupBuilder MapTaskCategoryEndpoints(this IEndpointRouteBuilder routes)
@@ -68,8 +68,7 @@ public static class TaskCategoryEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var nextSequence = await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken);
-        var categoryCode = $"{CategoryCodePrefix}{nextSequence:D6}";
+        var categoryCode = await InspectionCodes.NextAsync(sequenceGenerator, SequenceName, CategoryCodePrefix, cancellationToken);
 
         var taskCategory = await repository.CreateAsync(request.ToEntity(categoryCode), cancellationToken);
 

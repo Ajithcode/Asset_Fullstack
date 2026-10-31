@@ -10,7 +10,7 @@ namespace A360.Inspection.Api.Endpoints;
 
 public static class ReportTemplateEndpoints
 {
-    private const string SequenceName = "report_template";
+    private const string SequenceName = InspectionCodes.ReportTemplateSequence;
     private const string ReportTemplateCodePrefix = "RT";
 
     public static RouteGroupBuilder MapReportTemplateEndpoints(this IEndpointRouteBuilder routes)
@@ -68,8 +68,7 @@ public static class ReportTemplateEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var nextSequence = await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken);
-        var reportTemplateCode = $"{ReportTemplateCodePrefix}{nextSequence:D6}";
+        var reportTemplateCode = await InspectionCodes.NextAsync(sequenceGenerator, SequenceName, ReportTemplateCodePrefix, cancellationToken);
 
         var template = await repository.CreateAsync(request.ToEntity(reportTemplateCode), cancellationToken);
 

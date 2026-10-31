@@ -10,8 +10,8 @@ namespace A360.Inspection.Api.Endpoints;
 
 public static class InspectionTaskEndpoints
 {
-    private const string SequenceName = "inspection_task";
-    private const string TaskCodePrefix = "TASK";
+    private const string SequenceName = InspectionCodes.InspectionTaskSequence;
+    private const string TaskCodePrefix = "ITK";
 
     public static RouteGroupBuilder MapInspectionTaskEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -68,8 +68,7 @@ public static class InspectionTaskEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var nextSequence = await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken);
-        var taskCode = $"{TaskCodePrefix}{nextSequence:D6}";
+        var taskCode = await InspectionCodes.NextAsync(sequenceGenerator, SequenceName, TaskCodePrefix, cancellationToken);
 
         var task = await repository.CreateAsync(request.ToEntity(taskCode), cancellationToken);
 

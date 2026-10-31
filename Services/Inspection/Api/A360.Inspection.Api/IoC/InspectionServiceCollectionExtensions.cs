@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using MongoDB.Driver;
+using A360.Inspection.Api.Seed;
 using A360.Inspection.Repository.Repositories;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
@@ -93,7 +95,27 @@ public static class InspectionServiceCollectionExtensions
         services.AddScoped<IChecklistRepository>(serviceProvider => serviceProvider.GetRequiredService<ChecklistRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<ChecklistRepository>());
 
+        services.AddScoped<InspectionPlanRepository>();
+        services.AddScoped<IInspectionPlanRepository>(serviceProvider => serviceProvider.GetRequiredService<InspectionPlanRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<InspectionPlanRepository>());
+
+        services.AddScoped<InspectionRepository>();
+        services.AddScoped<IInspectionRepository>(serviceProvider => serviceProvider.GetRequiredService<InspectionRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<InspectionRepository>());
+
+        services.AddScoped<InspectionFindingRepository>();
+        services.AddScoped<IInspectionFindingRepository>(serviceProvider => serviceProvider.GetRequiredService<InspectionFindingRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<InspectionFindingRepository>());
+
+        services.AddScoped<CalibrationInstrumentRepository>();
+        services.AddScoped<ICalibrationInstrumentRepository>(serviceProvider => serviceProvider.GetRequiredService<CalibrationInstrumentRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<CalibrationInstrumentRepository>());
+
         services.AddHostedService<MongoIndexHostedService>();
+        services.AddHostedService<InspectionSeedHostedService>();
+        // Lets numeric fields arrive as strings from form inputs ("12" as well as 12).
+        services.ConfigureHttpJsonOptions(options =>
+            options.SerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString);
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
 

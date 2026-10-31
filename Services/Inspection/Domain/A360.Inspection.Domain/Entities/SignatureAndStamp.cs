@@ -72,4 +72,28 @@ public sealed class SignatureAndStamp : BaseEntity
 
     [BsonElement("signature_usage_log")]
     public List<SignatureUsageLogEntry> SignatureUsageLog { get; set; } = [];
+
+    [BsonElement("kind")]
+    public string Kind { get; set; } = string.Empty;
+
+    [BsonElement("role")]
+    public string Role { get; set; } = string.Empty;
+
+    [BsonElement("department")]
+    public string Department { get; set; } = string.Empty;
+
+    [BsonElement("authorized_role")]
+    public string AuthorizedRole { get; set; } = string.Empty;
+
+    [BsonElement("assigned_stamp_code")]
+    public string AssignedStampCode { get; set; } = string.Empty;
+
+    [BsonElement("signature_position")]
+    public string SignaturePosition { get; set; } = string.Empty;
+
+    [BsonElement("stamp_position")]
+    public string StampPosition { get; set; } = string.Empty;
+
+    [BsonElement("include_signer_name_date")]
+    public bool IncludeSignerNameDate { get; set; }
 }

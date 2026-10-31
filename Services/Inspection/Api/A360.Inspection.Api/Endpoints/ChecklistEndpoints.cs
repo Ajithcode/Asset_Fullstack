@@ -10,7 +10,7 @@ namespace A360.Inspection.Api.Endpoints;
 
 public static class ChecklistEndpoints
 {
-    private const string SequenceName = "checklist";
+    private const string SequenceName = InspectionCodes.ChecklistSequence;
     private const string ChecklistCodePrefix = "CHK";
 
     public static RouteGroupBuilder MapChecklistEndpoints(this IEndpointRouteBuilder routes)
@@ -68,8 +68,7 @@ public static class ChecklistEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var nextSequence = await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken);
-        var checklistCode = $"{ChecklistCodePrefix}{nextSequence:D6}";
+        var checklistCode = await InspectionCodes.NextAsync(sequenceGenerator, SequenceName, ChecklistCodePrefix, cancellationToken);
 
         var checklist = await repository.CreateAsync(request.ToEntity(checklistCode), cancellationToken);
 

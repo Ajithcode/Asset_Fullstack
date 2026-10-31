@@ -17,6 +17,18 @@ public sealed class ChecklistTaskItem
 
     [BsonElement("order")]
     public int Order { get; set; }
+
+    [BsonElement("task_code")]
+    public string TaskCode { get; set; } = string.Empty;
+
+    [BsonElement("response_type")]
+    public string ResponseType { get; set; } = string.Empty;
+
+    [BsonElement("weight")]
+    public double Weight { get; set; }
+
+    [BsonElement("acceptance_criteria")]
+    public string AcceptanceCriteria { get; set; } = string.Empty;
 }
 
 [BsonIgnoreExtraElements]
@@ -64,4 +76,34 @@ public sealed class Checklist : BaseEntity
 
     [BsonElement("is_active")]
     public bool IsActive { get; set; } = true;
+
+    [BsonElement("modules")]
+    public List<string> Modules { get; set; } = [];
+
+    [BsonElement("scoring")]
+    public string Scoring { get; set; } = string.Empty;
+
+    [BsonElement("owner")]
+    public string Owner { get; set; } = string.Empty;
+
+    [BsonElement("version_label")]
+    public string VersionLabel { get; set; } = string.Empty;
+
+    [BsonElement("all_mandatory_required")]
+    public bool AllMandatoryRequired { get; set; }
+
+    [BsonElement("photo_on_failed_items")]
+    public bool PhotoOnFailedItems { get; set; }
+
+    [BsonElement("inspector_signature_required")]
+    public bool InspectorSignatureRequired { get; set; }
+
+    [BsonElement("critical_failure_overrides_score")]
+    public bool CriticalFailureOverridesScore { get; set; }
+
+    [BsonElement("create_finding_on_failure")]
+    public bool CreateFindingOnFailure { get; set; }
+
+    [BsonElement("route_corrective_action")]
+    public bool RouteCorrectiveAction { get; set; }
 }

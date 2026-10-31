@@ -113,4 +113,47 @@ public sealed class ReportTemplate : BaseEntity
 
     [BsonElement("is_active")]
     public bool IsActive { get; set; } = true;
+
+    [BsonElement("inspection_type_name")]
+    public string InspectionTypeName { get; set; } = string.Empty;
+
+    [BsonElement("format")]
+    public string Format { get; set; } = string.Empty;
+
+    [BsonElement("language")]
+    public string Language { get; set; } = string.Empty;
+
+    [BsonElement("accent_color")]
+    public string AccentColor { get; set; } = string.Empty;
+
+    [BsonElement("version_label")]
+    public string VersionLabel { get; set; } = string.Empty;
+
+    [BsonElement("sections")]
+    public List<ReportSection> Sections { get; set; } = [];
+
+    [BsonElement("include_passed_items")]
+    public bool IncludePassedItems { get; set; }
+
+    [BsonElement("show_acceptance_criteria")]
+    public bool ShowAcceptanceCriteria { get; set; }
+
+    [BsonElement("show_finding_status")]
+    public bool ShowFindingStatus { get; set; }
+
+    [BsonElement("include_internal_notes")]
+    public bool IncludeInternalNotes { get; set; }
+}
+
+[BsonIgnoreExtraElements]
+public sealed class ReportSection
+{
+    [BsonElement("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [BsonElement("enabled")]
+    public bool Enabled { get; set; }
+
+    [BsonElement("order")]
+    public int Order { get; set; }
 }
