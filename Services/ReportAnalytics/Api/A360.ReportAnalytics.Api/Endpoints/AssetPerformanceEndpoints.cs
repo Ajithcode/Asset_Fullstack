@@ -20,6 +20,7 @@ public static class AssetPerformanceEndpoints
     internal const string EntityType = "AssetPerformanceView";
     private const string BasePath = "/api/asset-performance";
     private const string SequenceName = "asset_performance_view";
+    private const string Page = AssetPerformanceViewRepository.AssetPerformancePage;
 
     public static RouteGroupBuilder MapAssetPerformanceEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -94,7 +95,7 @@ public static class AssetPerformanceEndpoints
         var viewerId = CustomReportAccess.ViewerId(currentUser);
         IReadOnlyList<AssetPerformanceView> views = viewerId is null
             ? []
-            : await repository.GetOwnedAsync(viewerId, Tenant(tenantId, currentUser), Client(clientId, currentUser), cancellationToken);
+            : await repository.GetOwnedAsync(Page, viewerId, Tenant(tenantId, currentUser), Client(clientId, currentUser), cancellationToken);
 
         return Results.Ok(new[] { AssetPerformanceViewResponse.AllAssets(views.All(view => !view.IsDefault)) }
             .Concat(views.Select(AssetPerformanceViewResponse.FromEntity))
@@ -135,6 +136,7 @@ public static class AssetPerformanceEndpoints
         {
             ViewId = $"APV-{await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken):D4}",
             ViewName = request.ViewName!.Trim(),
+            Page = Page,
             OwnerId = viewerId,
             OwnerName = currentUser?.UserName,
             IsDefault = request.IsDefault ?? false,
@@ -152,7 +154,7 @@ public static class AssetPerformanceEndpoints
         view = await repository.CreateAsync(view, cancellationToken);
         if (view.IsDefault)
         {
-            await repository.ClearDefaultAsync(viewerId, tenantId, clientId, view.Id, cancellationToken);
+            await repository.ClearDefaultAsync(Page, viewerId, tenantId, clientId, view.Id, cancellationToken);
         }
 
         await eventLogger.LogAsync(EntityType, view.Id, view.ViewName, EventAction.Created, cancellationToken);
@@ -171,7 +173,7 @@ public static class AssetPerformanceEndpoints
         var currentUser = currentUserAccessor.GetCurrentUser();
         var viewerId = CustomReportAccess.ViewerId(currentUser);
         var view = await repository.GetByViewIdAsync(viewId, cancellationToken);
-        if (view is null || view.OwnerId != viewerId)
+        if (view is null || view.OwnerId != viewerId || !IsOnPage(view))
         {
             return Results.NotFound();
         }
@@ -200,7 +202,7 @@ public static class AssetPerformanceEndpoints
 
         if (view.IsDefault)
         {
-            await repository.ClearDefaultAsync(viewerId, view.TenantId, view.ClientId, view.Id, cancellationToken);
+            await repository.ClearDefaultAsync(Page, viewerId, view.TenantId, view.ClientId, view.Id, cancellationToken);
         }
 
         await eventLogger.LogAsync(EntityType, view.Id, view.ViewName, EventAction.Updated, cancellationToken);
@@ -216,7 +218,7 @@ public static class AssetPerformanceEndpoints
         CancellationToken cancellationToken)
     {
         var view = await repository.GetByViewIdAsync(viewId, cancellationToken);
-        if (view is null || view.OwnerId != CustomReportAccess.ViewerId(currentUserAccessor.GetCurrentUser())
+        if (view is null || view.OwnerId != CustomReportAccess.ViewerId(currentUserAccessor.GetCurrentUser()) || !IsOnPage(view)
             || !await repository.DeleteAsync(view.Id, cancellationToken))
         {
             return Results.NotFound();
@@ -537,7 +539,7 @@ public static class AssetPerformanceEndpoints
         if (!string.IsNullOrWhiteSpace(query.ViewId) && !query.ViewId.Trim().Equals(AssetPerformanceOptions.AllAssetsViewId, StringComparison.OrdinalIgnoreCase))
         {
             var view = await request.ViewRepository.GetByViewIdAsync(query.ViewId, request.CancellationToken);
-            if (view is null || view.OwnerId != CustomReportAccess.ViewerId(currentUser))
+            if (view is null || view.OwnerId != CustomReportAccess.ViewerId(currentUser) || !IsOnPage(view))
             {
                 return (null, null, Results.ValidationProblem(new Dictionary<string, string[]> { ["ViewId"] = [$"View '{query.ViewId}' was not found"] }));
             }
@@ -618,7 +620,7 @@ public static class AssetPerformanceEndpoints
         string name,
         string? exceptId,
         CancellationToken cancellationToken) =>
-        (await repository.GetOwnedAsync(ownerId, tenantId, clientId, cancellationToken))
+        (await repository.GetOwnedAsync(Page, ownerId, tenantId, clientId, cancellationToken))
             .Any(view => view.Id != exceptId && string.Equals(view.ViewName, name.Trim(), StringComparison.OrdinalIgnoreCase));
 
     private static IEnumerable<T> Sort<T>(IEnumerable<T> rows, Func<T, object?> key, bool descending)
@@ -676,6 +678,8 @@ public static class AssetPerformanceEndpoints
     }
 
     private static int Clamp(int value, int max) => Math.Clamp(value, 0, max);
+
+    private static bool IsOnPage(AssetPerformanceView view) => view.Page is null || view.Page == Page;
 
     private static string? Tenant(string? tenantId, CurrentUser? currentUser) => string.IsNullOrWhiteSpace(tenantId) ? currentUser?.TenantId : tenantId;
 

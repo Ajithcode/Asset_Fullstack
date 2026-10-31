@@ -8,17 +8,23 @@ public interface IAssetPerformanceViewRepository : IMongoRepository<AssetPerform
 {
     Task<AssetPerformanceView?> GetByViewIdAsync(string viewId, CancellationToken cancellationToken = default);
 
-    /// <summary>The owner's views in the tenant, default first then by name.</summary>
-    Task<IReadOnlyList<AssetPerformanceView>> GetOwnedAsync(string? ownerId, string? tenantId, string? clientId, CancellationToken cancellationToken = default);
+    /// <summary>The owner's views of one page in the tenant, default first then by name.</summary>
+    Task<IReadOnlyList<AssetPerformanceView>> GetOwnedAsync(string page, string? ownerId, string? tenantId, string? clientId, CancellationToken cancellationToken = default);
 
-    /// <summary>Clears the default flag on the owner's other views.</summary>
-    Task ClearDefaultAsync(string? ownerId, string? tenantId, string? clientId, string exceptId, CancellationToken cancellationToken = default);
+    /// <summary>Clears the default flag on the owner's other views of the page.</summary>
+    Task ClearDefaultAsync(string page, string? ownerId, string? tenantId, string? clientId, string exceptId, CancellationToken cancellationToken = default);
 }
 
 public sealed class AssetPerformanceViewRepository
     : MongoRepository<AssetPerformanceView>, IAssetPerformanceViewRepository, IMongoIndexConfigurator
 {
     public const string CollectionName = "AssetPerformanceView";
+
+    // Saved views of every analytics page share this collection; views saved before pages existed belong to Asset Performance.
+    public const string AssetPerformancePage = "asset-performance";
+    public const string MaintenanceAnalyticsPage = "maintenance-analytics";
+    public const string InspectionAnalyticsPage = "inspection-analytics";
+    public const string ProductionAnalyticsPage = "production-analytics";
 
     public AssetPerformanceViewRepository(IMongoDatabase database)
         : base(database.GetCollection<AssetPerformanceView>(CollectionName))
@@ -38,20 +44,21 @@ public sealed class AssetPerformanceViewRepository
     }
 
     public async Task<IReadOnlyList<AssetPerformanceView>> GetOwnedAsync(
+        string page,
         string? ownerId,
         string? tenantId,
         string? clientId,
         CancellationToken cancellationToken = default)
     {
         return await Collection
-            .Find(OwnedFilter(ownerId, tenantId, clientId))
+            .Find(OwnedFilter(page, ownerId, tenantId, clientId))
             .Sort(Builders<AssetPerformanceView>.Sort.Descending(view => view.IsDefault).Ascending(view => view.ViewName))
             .ToListAsync(cancellationToken);
     }
 
-    public async Task ClearDefaultAsync(string? ownerId, string? tenantId, string? clientId, string exceptId, CancellationToken cancellationToken = default)
+    public async Task ClearDefaultAsync(string page, string? ownerId, string? tenantId, string? clientId, string exceptId, CancellationToken cancellationToken = default)
     {
-        var filter = OwnedFilter(ownerId, tenantId, clientId) & Builders<AssetPerformanceView>.Filter.Ne(view => view.Id, exceptId);
+        var filter = OwnedFilter(page, ownerId, tenantId, clientId) & Builders<AssetPerformanceView>.Filter.Ne(view => view.Id, exceptId);
         await Collection.UpdateManyAsync(filter, Builders<AssetPerformanceView>.Update.Set(view => view.IsDefault, false), cancellationToken: cancellationToken);
     }
 
@@ -73,10 +80,13 @@ public sealed class AssetPerformanceViewRepository
         await Collection.Indexes.CreateManyAsync(indexes, cancellationToken);
     }
 
-    private static FilterDefinition<AssetPerformanceView> OwnedFilter(string? ownerId, string? tenantId, string? clientId)
+    private static FilterDefinition<AssetPerformanceView> OwnedFilter(string page, string? ownerId, string? tenantId, string? clientId)
     {
         var builder = Builders<AssetPerformanceView>.Filter;
         var filter = builder.Eq(view => view.IsDeleted, false) & builder.Eq(view => view.OwnerId, ownerId);
+        filter &= page == AssetPerformancePage
+            ? builder.Or(builder.Eq(view => view.Page, page), builder.Eq(view => view.Page, null))
+            : builder.Eq(view => view.Page, page);
 
         if (!string.IsNullOrWhiteSpace(tenantId))
         {

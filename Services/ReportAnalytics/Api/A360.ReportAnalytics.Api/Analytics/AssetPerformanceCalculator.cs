@@ -624,7 +624,7 @@ public sealed class AssetPerformanceCalculator
     /// <summary>
     /// Calendar months (in the period's zone) covering the range up to the current month, at most the last 24, each clipped to the range.
     /// </summary>
-    private static List<(DateOnly Month, DateTime StartUtc, DateTime EndUtc)> Months(DashboardPeriod period, DateTime utcNow)
+    internal static List<(DateOnly Month, DateTime StartUtc, DateTime EndUtc)> Months(DashboardPeriod period, DateTime utcNow)
     {
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utcNow, period.Zone));
         var lastDay = period.To < today ? period.To : today;

@@ -45,7 +45,123 @@ public sealed record DashboardAsset(
     }
 }
 
-public sealed record DashboardWorkOrder(string? AssetId, string? AssetName, string? Status, string? Priority, string? WorkType, DateTime? ScheduledDate, DateTime? CreatedAt);
+public sealed record DashboardWorkOrder(
+    string? AssetId,
+    string? AssetName,
+    string? Status,
+    string? Priority,
+    string? WorkType,
+    DateTime? ScheduledDate,
+    DateTime? CreatedAt,
+    string? Id = null,
+    string? WorkOrderId = null,
+    string? AssignedTechnician = null,
+    DateTime? UpdatedAt = null);
+
+/// <summary>A maintenance cost record. MaintenanceType and WorkOrderId are read when a record carries them.</summary>
+public sealed record DashboardCostRecord(
+    string? AssetId,
+    DateTime? CreatedAt,
+    double Total,
+    double LaborCost,
+    double SparePartsCost,
+    double? BudgetAllocation,
+    string? WorkOrderId,
+    string? MaintenanceType);
+
+/// <summary>An SLA from the WIP service; WorkType and Priority are null when the SLA applies to all.</summary>
+public sealed record DashboardSlaRule(string? WorkType, string? Priority, double? ResponseMinutes, double? ResolutionMinutes);
+
+public sealed record DashboardTechnician(string? TechnicianId, string? Name);
+
+/// <summary>
+/// An inspection from the Maintenance service's compliance_inspections. ScheduledDate is read from scheduled_date or inspection_date
+/// when a record carries one.
+/// </summary>
+public sealed record DashboardInspectionRecord(
+    string Id,
+    string? InspectionId,
+    string? AssetId,
+    string? AssetName,
+    string? InspectionType,
+    string? InspectorName,
+    string? Result,
+    string? Status,
+    DateTime? ScheduledDate,
+    DateTime? NextInspectionDate,
+    DateTime? CreatedAt,
+    DateTime? UpdatedAt);
+
+/// <summary>
+/// An inspection finding, read from the Maintenance service's issue_reports (issue_type is the category).
+/// InspectionId, DueDate and Owner are read when a record carries them (inspection_id, due_date, assigned_to or owner).
+/// </summary>
+public sealed record DashboardFinding(
+    string Id,
+    string? FindingId,
+    string? AssetId,
+    string? AssetName,
+    string? Category,
+    string? Severity,
+    string? Status,
+    string? Description,
+    string? ReportedBy,
+    string? Owner,
+    string? InspectionId,
+    DateTime? DueDate,
+    DateTime? CreatedAt,
+    DateTime? UpdatedAt);
+
+/// <summary>A severity from the Inspection service master data; ResolutionSla is text such as "24 hours" or "3 days".</summary>
+public sealed record DashboardSeverityRule(string? Name, int Score, string? ResolutionSla);
+
+/// <summary>
+/// A production order: a job from the WIP service's job_masters. Product, line, work centre, plant, stage, quantities, WIP value and
+/// actual dates are read when a job carries them (product_name / product, production_line / line, work_center, plant, stage,
+/// planned_quantity / quantity, completed_quantity, rejected_quantity / scrap_quantity, unit, wip_value, actual_start_date,
+/// actual_end_date / completed_date).
+/// </summary>
+public sealed record DashboardJob(
+    string Id,
+    string? JobId,
+    string? JobName,
+    string? AssetId,
+    string? AssetCategory,
+    string? LocationId,
+    string? WorkType,
+    string? Priority,
+    string? Status,
+    double? ProgressPercentage,
+    DateTime? PlannedStartDate,
+    DateTime? PlannedEndDate,
+    DateTime? ActualStartDate,
+    DateTime? ActualEndDate,
+    string? Product,
+    string? ProductionLine,
+    string? WorkCenter,
+    string? Plant,
+    string? Stage,
+    double? PlannedQuantity,
+    double? CompletedQuantity,
+    double? RejectedQuantity,
+    string? Unit,
+    double? WipValue,
+    DateTime? CreatedAt,
+    DateTime? UpdatedAt);
+
+public sealed record DashboardJobTask(string? JobId, string? AssetId, DateTime? ActualStart, DateTime? ActualEnd, DateTime? PlannedStart, DateTime? PlannedEnd);
+
+public sealed record DashboardMaterialUse(string? JobId, string? AssetId, double QuantityPlanned, double QuantityUsed, double Cost, DateTime? CreatedAt);
+
+/// <summary>An issue raised against a job (WIP issue_masters).</summary>
+public sealed record DashboardJobIssue(string? JobId, string? AssetId, string? IssueType, string? Severity, string? Description, DateTime? ReportedDate, DateTime? ClosedDate);
+
+/// <summary>A configured WIP status; IsClosed marks statuses that finish a job.</summary>
+public sealed record DashboardWipStatus(string? Name, string? Code, bool IsClosed);
+
+public sealed record DashboardLocationMaster(string? LocationId, string? Site, string? Building, string? Floor, string? Zone);
+
+public sealed record DashboardInspectionFilterOptions(IReadOnlyList<DashboardOption> InspectionTypes, IReadOnlyList<DashboardOption> Inspectors);
 
 public sealed record DashboardCost(string? AssetId, double Total);
 
@@ -60,7 +176,13 @@ public sealed record DashboardDowntime(string? AssetId, DateTime Start, DateTime
 
 public sealed record DashboardPredictiveAlert(string? AssetId, string? RiskLevel);
 
-public sealed record DashboardSparePart(string? AssetId, double QuantityInStock, double UnitCost);
+public sealed record DashboardSparePart(
+    string? AssetId,
+    double QuantityInStock,
+    double UnitCost,
+    string? PartId = null,
+    string? PartName = null,
+    double? MinimumStockLevel = null);
 
 public sealed record DashboardOption(string Value, string Label);
 
@@ -106,6 +228,43 @@ public interface IDashboardDataRepository
     Task<IReadOnlyList<DashboardDowntime>> GetDowntimeAsync(
         DashboardDataScope scope, IReadOnlyCollection<string>? assetKeys, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
 
+    /// <summary>Maintenance cost records created in [fromUtc, toUtc), with their cost breakdown.</summary>
+    Task<IReadOnlyList<DashboardCostRecord>> GetCostRecordsAsync(
+        DashboardDataScope scope, IReadOnlyCollection<string>? assetKeys, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DashboardSlaRule>> GetSlaRulesAsync(DashboardDataScope scope, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DashboardTechnician>> GetTechniciansAsync(DashboardDataScope scope, CancellationToken cancellationToken = default);
+
+    /// <summary>Every inspection of the selected assets (history is needed for compliance as of past dates).</summary>
+    Task<IReadOnlyList<DashboardInspectionRecord>> GetInspectionRecordsAsync(
+        DashboardDataScope scope, IReadOnlyCollection<string>? assetKeys, CancellationToken cancellationToken = default);
+
+    /// <summary>Every finding of the selected assets.</summary>
+    Task<IReadOnlyList<DashboardFinding>> GetFindingsAsync(
+        DashboardDataScope scope, IReadOnlyCollection<string>? assetKeys, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DashboardSeverityRule>> GetSeverityRulesAsync(DashboardDataScope scope, CancellationToken cancellationToken = default);
+
+    Task<DashboardInspectionFilterOptions> GetInspectionFilterOptionsAsync(string? tenantId, string? clientId, CancellationToken cancellationToken = default);
+
+    /// <summary>Every job of the selected assets (jobs without an asset only when no asset filter is applied).</summary>
+    Task<IReadOnlyList<DashboardJob>> GetJobsAsync(
+        DashboardDataScope scope, IReadOnlyCollection<string>? assetKeys, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DashboardJobTask>> GetJobTasksAsync(
+        DashboardDataScope scope, IReadOnlyCollection<string> jobIds, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DashboardMaterialUse>> GetMaterialUsesAsync(
+        DashboardDataScope scope, IReadOnlyCollection<string> jobIds, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DashboardJobIssue>> GetJobIssuesAsync(
+        DashboardDataScope scope, IReadOnlyCollection<string> jobIds, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DashboardWipStatus>> GetWipStatusesAsync(DashboardDataScope scope, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DashboardLocationMaster>> GetLocationMastersAsync(DashboardDataScope scope, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<DashboardPredictiveAlert>> GetPredictiveAlertsAsync(
         DashboardDataScope scope, IReadOnlyCollection<string>? assetKeys, CancellationToken cancellationToken = default);
 
@@ -124,6 +283,16 @@ public sealed class DashboardDataRepository : IDashboardDataRepository
     public const string OrganizationCollection = "master_organizations";
     public const string DowntimeCollection = "downtime_records";
     public const string PredictiveCollection = "predictive_maintenance_alerts";
+    public const string SlaCollection = "sla_masters";
+    public const string TechnicianCollection = "technicians";
+    public const string FindingCollection = "issue_reports";
+    public const string SeverityCollection = "severities";
+    public const string JobCollection = "job_masters";
+    public const string TaskCollection = "task_masters";
+    public const string MaterialCollection = "material_consumptions";
+    public const string JobIssueCollection = "issue_masters";
+    public const string WipStatusCollection = "wip_status_masters";
+    public const string LocationMasterCollection = "location_masters";
 
     private static readonly BsonRegularExpression ClosedStatus = new("^\\s*(completed|closed|cancelled|canceled)\\s*$", "i");
 
@@ -248,7 +417,11 @@ public sealed class DashboardDataRepository : IDashboardDataRepository
 
         var documents = await _database.GetCollection<BsonDocument>(WorkOrderCollection)
             .Find(match)
-            .Project(new BsonDocument { { "asset_id", 1 }, { "asset_name", 1 }, { "status", 1 }, { "priority", 1 }, { "work_type", 1 }, { "scheduled_date", 1 }, { "created_at", 1 } })
+            .Project(new BsonDocument
+            {
+                { "work_order_id", 1 }, { "asset_id", 1 }, { "asset_name", 1 }, { "status", 1 }, { "priority", 1 }, { "work_type", 1 },
+                { "scheduled_date", 1 }, { "assigned_technician", 1 }, { "created_at", 1 }, { "updated_at", 1 }
+            })
             .ToListAsync(cancellationToken);
 
         return documents.Select(document => new DashboardWorkOrder(
@@ -258,7 +431,11 @@ public sealed class DashboardDataRepository : IDashboardDataRepository
             Text(document, "priority"),
             Text(document, "work_type"),
             Date(document, "scheduled_date"),
-            Date(document, "created_at"))).ToList();
+            Date(document, "created_at"),
+            document["_id"].ToString(),
+            Text(document, "work_order_id"),
+            Text(document, "assigned_technician"),
+            Date(document, "updated_at"))).ToList();
     }
 
     public async Task<IReadOnlyList<DashboardCost>> GetMaintenanceCostsAsync(
@@ -367,13 +544,16 @@ public sealed class DashboardDataRepository : IDashboardDataRepository
 
         var documents = await _database.GetCollection<BsonDocument>(SparePartCollection)
             .Find(match)
-            .Project(new BsonDocument { { "asset_id", 1 }, { "quantity_in_stock", 1 }, { "unit_cost", 1 } })
+            .Project(new BsonDocument { { "asset_id", 1 }, { "part_id", 1 }, { "part_name", 1 }, { "quantity_in_stock", 1 }, { "minimum_stock_level", 1 }, { "unit_cost", 1 } })
             .ToListAsync(cancellationToken);
 
         return documents.Select(document => new DashboardSparePart(
             Text(document, "asset_id"),
             Number(document, "quantity_in_stock") ?? 0,
-            Number(document, "unit_cost") ?? 0)).ToList();
+            Number(document, "unit_cost") ?? 0,
+            Text(document, "part_id"),
+            Text(document, "part_name"),
+            Number(document, "minimum_stock_level"))).ToList();
     }
 
     public async Task<IReadOnlyList<DashboardDowntime>> GetDowntimeAsync(
@@ -405,6 +585,283 @@ public sealed class DashboardDataRepository : IDashboardDataRepository
                 Text(document, "reason_for_downtime"),
                 Text(document, "impact_level")))
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardCostRecord>> GetCostRecordsAsync(
+        DashboardDataScope scope,
+        IReadOnlyCollection<string>? assetKeys,
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var match = LinkedMatch(scope, assetKeys, "asset_id");
+        match["created_at"] = Range(fromUtc, toUtc);
+
+        var documents = await _database.GetCollection<BsonDocument>(CostCollection)
+            .Find(match)
+            .Project(new BsonDocument
+            {
+                { "asset_id", 1 }, { "created_at", 1 }, { "total_maintenance_cost", 1 }, { "labor_cost", 1 }, { "spare_parts_cost", 1 },
+                { "budget_allocation", 1 }, { "work_order_id", 1 }, { "maintenance_type", 1 }, { "work_type", 1 }
+            })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardCostRecord(
+            Text(document, "asset_id"),
+            Date(document, "created_at"),
+            Number(document, "total_maintenance_cost") ?? 0,
+            Number(document, "labor_cost") ?? 0,
+            Number(document, "spare_parts_cost") ?? 0,
+            Number(document, "budget_allocation"),
+            Text(document, "work_order_id"),
+            Text(document, "maintenance_type") ?? Text(document, "work_type"))).ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardSlaRule>> GetSlaRulesAsync(DashboardDataScope scope, CancellationToken cancellationToken = default)
+    {
+        var documents = await _database.GetCollection<BsonDocument>(SlaCollection)
+            .Find(TenantMatch(scope.TenantId, scope.ClientId))
+            .Project(new BsonDocument { { "work_type", 1 }, { "priority", 1 }, { "response_time_minutes", 1 }, { "resolution_time_minutes", 1 } })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardSlaRule(
+            Text(document, "work_type"),
+            Text(document, "priority"),
+            Number(document, "response_time_minutes"),
+            Number(document, "resolution_time_minutes"))).ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardTechnician>> GetTechniciansAsync(DashboardDataScope scope, CancellationToken cancellationToken = default)
+    {
+        var documents = await _database.GetCollection<BsonDocument>(TechnicianCollection)
+            .Find(TenantMatch(scope.TenantId, scope.ClientId))
+            .Project(new BsonDocument { { "technician_id", 1 }, { "name", 1 } })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardTechnician(Text(document, "technician_id"), Text(document, "name"))).ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardInspectionRecord>> GetInspectionRecordsAsync(
+        DashboardDataScope scope,
+        IReadOnlyCollection<string>? assetKeys,
+        CancellationToken cancellationToken = default)
+    {
+        var documents = await _database.GetCollection<BsonDocument>(InspectionCollection)
+            .Find(LinkedMatch(scope, assetKeys, "asset_id"))
+            .Project(new BsonDocument
+            {
+                { "inspection_id", 1 }, { "asset_id", 1 }, { "asset_name", 1 }, { "inspection_type", 1 }, { "inspector_name", 1 }, { "result", 1 },
+                { "status", 1 }, { "scheduled_date", 1 }, { "inspection_date", 1 }, { "next_inspection_date", 1 }, { "created_at", 1 }, { "updated_at", 1 }
+            })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardInspectionRecord(
+            document["_id"].ToString()!,
+            Text(document, "inspection_id"),
+            Text(document, "asset_id"),
+            Text(document, "asset_name"),
+            Text(document, "inspection_type"),
+            Text(document, "inspector_name"),
+            Text(document, "result"),
+            Text(document, "status"),
+            Date(document, "scheduled_date") ?? Date(document, "inspection_date"),
+            Date(document, "next_inspection_date"),
+            Date(document, "created_at"),
+            Date(document, "updated_at"))).ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardFinding>> GetFindingsAsync(
+        DashboardDataScope scope,
+        IReadOnlyCollection<string>? assetKeys,
+        CancellationToken cancellationToken = default)
+    {
+        var documents = await _database.GetCollection<BsonDocument>(FindingCollection)
+            .Find(LinkedMatch(scope, assetKeys, "asset_id"))
+            .Project(new BsonDocument
+            {
+                { "issue_id", 1 }, { "asset_id", 1 }, { "asset_name", 1 }, { "issue_type", 1 }, { "severity", 1 }, { "status", 1 }, { "description", 1 },
+                { "reported_by", 1 }, { "assigned_to", 1 }, { "owner", 1 }, { "inspection_id", 1 }, { "due_date", 1 }, { "created_at", 1 }, { "updated_at", 1 }
+            })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardFinding(
+            document["_id"].ToString()!,
+            Text(document, "issue_id"),
+            Text(document, "asset_id"),
+            Text(document, "asset_name"),
+            Text(document, "issue_type"),
+            Text(document, "severity"),
+            Text(document, "status"),
+            Text(document, "description"),
+            Text(document, "reported_by"),
+            Text(document, "assigned_to") ?? Text(document, "owner"),
+            Text(document, "inspection_id"),
+            Date(document, "due_date"),
+            Date(document, "created_at"),
+            Date(document, "updated_at"))).ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardSeverityRule>> GetSeverityRulesAsync(DashboardDataScope scope, CancellationToken cancellationToken = default)
+    {
+        var documents = await _database.GetCollection<BsonDocument>(SeverityCollection)
+            .Find(TenantMatch(scope.TenantId, scope.ClientId))
+            .Project(new BsonDocument { { "severity_name", 1 }, { "score", 1 }, { "resolution_sla", 1 } })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardSeverityRule(
+            Text(document, "severity_name"),
+            (int)(Number(document, "score") ?? 0),
+            Text(document, "resolution_sla"))).ToList();
+    }
+
+    public async Task<DashboardInspectionFilterOptions> GetInspectionFilterOptionsAsync(string? tenantId, string? clientId, CancellationToken cancellationToken = default)
+    {
+        var inspections = _database.GetCollection<BsonDocument>(InspectionCollection);
+        var types = await DistinctTextAsync(inspections, "inspection_type", TenantMatch(tenantId, clientId), cancellationToken);
+        var inspectors = await DistinctTextAsync(inspections, "inspector_name", TenantMatch(tenantId, clientId), cancellationToken);
+
+        return new DashboardInspectionFilterOptions(
+            types.Select(type => new DashboardOption(type, type)).ToList(),
+            inspectors.Select(inspector => new DashboardOption(inspector, inspector)).ToList());
+    }
+
+    public async Task<IReadOnlyList<DashboardJob>> GetJobsAsync(
+        DashboardDataScope scope,
+        IReadOnlyCollection<string>? assetKeys,
+        CancellationToken cancellationToken = default)
+    {
+        var documents = await _database.GetCollection<BsonDocument>(JobCollection)
+            .Find(LinkedMatch(scope, assetKeys, "asset_id"))
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardJob(
+            document["_id"].ToString()!,
+            Text(document, "job_id"),
+            Text(document, "job_name"),
+            Text(document, "asset_id"),
+            Text(document, "asset_category"),
+            Text(document, "location_id"),
+            Text(document, "work_type"),
+            Text(document, "priority"),
+            Text(document, "status"),
+            Number(document, "progress_percentage"),
+            Date(document, "planned_start_date"),
+            Date(document, "planned_end_date"),
+            Date(document, "actual_start_date"),
+            Date(document, "actual_end_date") ?? Date(document, "completed_date"),
+            Text(document, "product_name") ?? Text(document, "product"),
+            Text(document, "production_line") ?? Text(document, "line"),
+            Text(document, "work_center"),
+            Text(document, "plant"),
+            Text(document, "stage"),
+            Number(document, "planned_quantity") ?? Number(document, "quantity"),
+            Number(document, "completed_quantity"),
+            Number(document, "rejected_quantity") ?? Number(document, "scrap_quantity"),
+            Text(document, "unit"),
+            Number(document, "wip_value"),
+            Date(document, "created_at"),
+            Date(document, "updated_at"))).ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardJobTask>> GetJobTasksAsync(
+        DashboardDataScope scope,
+        IReadOnlyCollection<string> jobIds,
+        CancellationToken cancellationToken = default)
+    {
+        var match = TenantMatch(scope.TenantId, scope.ClientId);
+        match["job_id"] = new BsonDocument("$in", new BsonArray(jobIds));
+
+        var documents = await _database.GetCollection<BsonDocument>(TaskCollection)
+            .Find(match)
+            .Project(new BsonDocument
+            {
+                { "job_id", 1 }, { "asset_id", 1 }, { "actual_start_time", 1 }, { "actual_end_time", 1 }, { "planned_start_time", 1 }, { "planned_end_time", 1 }
+            })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardJobTask(
+            Text(document, "job_id"),
+            Text(document, "asset_id"),
+            Date(document, "actual_start_time"),
+            Date(document, "actual_end_time"),
+            Date(document, "planned_start_time"),
+            Date(document, "planned_end_time"))).ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardMaterialUse>> GetMaterialUsesAsync(
+        DashboardDataScope scope,
+        IReadOnlyCollection<string> jobIds,
+        CancellationToken cancellationToken = default)
+    {
+        var match = TenantMatch(scope.TenantId, scope.ClientId);
+        match["job_id"] = new BsonDocument("$in", new BsonArray(jobIds));
+
+        var documents = await _database.GetCollection<BsonDocument>(MaterialCollection)
+            .Find(match)
+            .Project(new BsonDocument { { "job_id", 1 }, { "asset_id", 1 }, { "quantity_planned", 1 }, { "quantity_used", 1 }, { "cost", 1 }, { "created_at", 1 } })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardMaterialUse(
+            Text(document, "job_id"),
+            Text(document, "asset_id"),
+            Number(document, "quantity_planned") ?? 0,
+            Number(document, "quantity_used") ?? 0,
+            Number(document, "cost") ?? 0,
+            Date(document, "created_at"))).ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardJobIssue>> GetJobIssuesAsync(
+        DashboardDataScope scope,
+        IReadOnlyCollection<string> jobIds,
+        CancellationToken cancellationToken = default)
+    {
+        var match = TenantMatch(scope.TenantId, scope.ClientId);
+        match["job_id"] = new BsonDocument("$in", new BsonArray(jobIds));
+
+        var documents = await _database.GetCollection<BsonDocument>(JobIssueCollection)
+            .Find(match)
+            .Project(new BsonDocument
+            {
+                { "job_id", 1 }, { "asset_id", 1 }, { "issue_type", 1 }, { "severity", 1 }, { "description", 1 }, { "reported_date", 1 }, { "closed_date", 1 }
+            })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardJobIssue(
+            Text(document, "job_id"),
+            Text(document, "asset_id"),
+            Text(document, "issue_type"),
+            Text(document, "severity"),
+            Text(document, "description"),
+            Date(document, "reported_date"),
+            Date(document, "closed_date"))).ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardWipStatus>> GetWipStatusesAsync(DashboardDataScope scope, CancellationToken cancellationToken = default)
+    {
+        var documents = await _database.GetCollection<BsonDocument>(WipStatusCollection)
+            .Find(TenantMatch(scope.TenantId, scope.ClientId))
+            .Project(new BsonDocument { { "status_name", 1 }, { "status_code", 1 }, { "is_closed_status", 1 } })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardWipStatus(
+            Text(document, "status_name"),
+            Text(document, "status_code"),
+            document.TryGetValue("is_closed_status", out var closed) && closed.IsBoolean && closed.AsBoolean)).ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardLocationMaster>> GetLocationMastersAsync(DashboardDataScope scope, CancellationToken cancellationToken = default)
+    {
+        var documents = await _database.GetCollection<BsonDocument>(LocationMasterCollection)
+            .Find(TenantMatch(scope.TenantId, scope.ClientId))
+            .Project(new BsonDocument { { "location_id", 1 }, { "site", 1 }, { "building", 1 }, { "floor", 1 }, { "zone", 1 } })
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(document => new DashboardLocationMaster(
+            Text(document, "location_id"),
+            Text(document, "site"),
+            Text(document, "building"),
+            Text(document, "floor"),
+            Text(document, "zone"))).ToList();
     }
 
     public async Task<IReadOnlyList<DashboardPredictiveAlert>> GetPredictiveAlertsAsync(

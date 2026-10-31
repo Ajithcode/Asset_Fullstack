@@ -25,6 +25,9 @@ public static class ReportAnalyticsApplicationBuilderExtensions
         app.MapInteractiveDashboardEndpoints();
         app.MapInteractiveDashboardDataEndpoints();
         app.MapAssetPerformanceEndpoints();
+        app.MapMaintenanceAnalyticsEndpoints();
+        app.MapInspectionAnalyticsEndpoints();
+        app.MapProductionAnalyticsEndpoints();
 
         return app;
     }
