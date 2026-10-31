@@ -1,0 +1,172 @@
+@let f = finding();
+<section class="card panel">
+  <div class="p-head">
+    <div class="grow">
+      <h2>{{ f.title }}</h2>
+      <div class="muted">{{ f.findingCode }}</div>
+    </div>
+    <span [class]="pillClass(f.severity)"><span class="dot"></span>{{ f.severity }}</span>
+    <span [class]="pillClass(f.status)">{{ f.status }}</span>
+    <div class="menu-wrap">
+      <button type="button" class="icon-btn" aria-label="More" (click)="menuOpen.set(!menuOpen())"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
+      @if (menuOpen()) {
+        <div class="menu">
+          <button type="button" (click)="menuOpen.set(false); edit.emit()">Edit finding</button>
+          <button type="button" (click)="menuOpen.set(false); setTab('Activity')">View activity</button>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="tabs">
+    @for (t of ['Overview', 'Actions', 'Activity']; track t) {
+      <button type="button" [class.on]="tab() === t" (click)="setTab($any(t))">{{ t }}</button>
+    }
+  </div>
+
+  <div class="p-body">
+    @switch (tab()) {
+      @case ('Overview') {
+        <dl class="kv">
+          <dt>Inspection</dt>
+          <dd>@if (f.inspectionCode) { <a class="link u" routerLink="/inspection/execution" [queryParams]="{ code: f.inspectionCode }">{{ f.inspectionCode }}</a> } @else { — }</dd>
+          <dt>Asset</dt>
+          <dd>@if (f.assetCode) { <a class="link u" routerLink="/assets/list" [queryParams]="{ tag: f.assetCode }">{{ f.assetName ? f.assetName + ' (' + f.assetCode + ')' : f.assetCode }}</a> } @else { — }</dd>
+          <dt>Source task</dt>
+          <dd>{{ f.sourceTask || '—' }}</dd>
+        </dl>
+
+        <div class="sub-box sub-box--soft obs">
+          <h3 class="section-title">Observation</h3>
+          <div class="obs-grid">
+            <div><div class="muted">Recorded</div><div class="big">{{ f.recordedValue || '—' }}</div></div>
+            <div><div class="muted">Acceptance</div><div class="mid">{{ f.acceptance || '—' }}</div></div>
+            <p class="obs-text">{{ f.observation || 'No observation recorded.' }}</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="section-title">Evidence</h3>
+          <div class="evidence">
+            @for (e of evidence(); track $index) {
+              @if (isImage(e)) {
+                <button type="button" class="thumb" (click)="preview.set(e)"><img [src]="e" alt="Evidence {{ $index + 1 }}" /></button>
+              } @else {
+                <div class="thumb tile" [title]="e"><lucide-icon [img]="icons.Image" [size]="22"></lucide-icon><span>{{ evidenceLabel(e) }}</span></div>
+              }
+            } @empty {
+              <span class="muted">No evidence attached.</span>
+            }
+            @if (f.evidence.length > 2) {
+              <button type="button" class="link u" (click)="showAllEvidence.set(!showAllEvidence())">
+                <lucide-icon [img]="icons.Image" [size]="16"></lucide-icon>{{ showAllEvidence() ? 'Show less' : 'View evidence (' + f.evidence.length + ')' }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div>
+          <h3 class="section-title">Corrective Action</h3>
+          <dl class="kv sub-box sub-box--soft ca">
+            <dt>Action</dt><dd>{{ f.correctiveAction || 'Not defined yet' }}</dd>
+            <dt>Assigned to</dt><dd><span class="u">{{ f.assignedTo || 'Unassigned' }}</span></dd>
+            <dt>Due date</dt><dd [class.c-bad]="overdue()">{{ fmtDate(f.dueDate) || '—' }}</dd>
+            <dt>Work order</dt>
+            <dd>@if (f.workOrder) { <span class="wo">{{ f.workOrder }}</span> <span [class]="pillClass(f.workOrderStatus)">{{ f.workOrderStatus || 'Open' }}</span> } @else { <span class="muted">None</span> }</dd>
+          </dl>
+        </div>
+      }
+
+      @case ('Actions') {
+        @if (actionFormReady()) {
+          <div class="form-grid">
+            <label class="field span-2"><span class="field-label">Corrective action</span>
+              <textarea class="control" rows="3" [(ngModel)]="actionForm.correctiveAction" placeholder="Describe the action that fixes the finding"></textarea></label>
+            <label class="field"><span class="field-label">Assigned to</span>
+              <select class="control" [(ngModel)]="actionForm.assignedTo">
+                <option value="">Unassigned</option>
+                @for (p of people(); track p) { <option [value]="p">{{ p }}</option> }
+                @if (actionForm.assignedTo && !people().includes(actionForm.assignedTo)) { <option [value]="actionForm.assignedTo">{{ actionForm.assignedTo }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">Due date</span><input class="control" type="date" [(ngModel)]="actionForm.dueDate" /></label>
+            <label class="field"><span class="field-label">Work order</span><input class="control" [(ngModel)]="actionForm.workOrder" placeholder="e.g. WO-00847" /></label>
+            <label class="field"><span class="field-label">Work order status</span>
+              <select class="control" [(ngModel)]="actionForm.workOrderStatus">
+                <option value="">—</option>
+                @for (s of woStatuses; track s) { <option [value]="s">{{ s }}</option> }
+              </select></label>
+          </div>
+          <div class="row-end">
+            <button type="button" class="btn btn-outline btn-sm" (click)="resetActionForm()">Reset</button>
+            <button type="button" class="btn btn-primary btn-sm" [disabled]="saving()" (click)="saveAction()">Save Action</button>
+          </div>
+        }
+      }
+
+      @case ('Activity') {
+        <div class="comment">
+          <input class="control" placeholder="Add a comment..." [(ngModel)]="comment" (keyup.enter)="addComment()" />
+          <button type="button" class="btn btn-primary btn-sm" [disabled]="!comment.trim() || saving()" (click)="addComment()">Add</button>
+        </div>
+        <ol class="timeline">
+          @for (a of activity(); track $index) {
+            <li>
+              <span class="av">{{ initials(a.by) || '?' }}</span>
+              <div><div>{{ a.text }}</div><div class="muted">{{ a.by }} • {{ fmtDateTime(a.at) }}</div></div>
+            </li>
+          } @empty {
+            <li class="muted">No activity yet.</li>
+          }
+        </ol>
+      }
+    }
+
+    <div>
+      <h3 class="section-title">Workflow Progress</h3>
+      <ol class="stepper">
+        @for (s of steps; track s; let i = $index) {
+          <li [class.done]="i < stepIndex()" [class.cur]="i === stepIndex()">
+            <span class="node">@if (i < stepIndex()) { <lucide-icon [img]="icons.Check" [size]="12"></lucide-icon> }</span>
+            <span class="lbl">{{ s }}</span>
+          </li>
+        }
+      </ol>
+      <div class="wf-actions">
+        @if (stepIndex() > 0) {
+          <button type="button" class="btn btn-outline btn-sm" [disabled]="saving()" (click)="stepBack()">{{ stepIndex() === 3 ? 'Reopen' : 'Send Back' }}</button>
+        }
+        @if (advanceLabel()) {
+          <button type="button" class="btn btn-accent-outline btn-sm" [disabled]="saving()" (click)="advance()">{{ advanceLabel() }}</button>
+        }
+      </div>
+    </div>
+
+    @if (reassigning()) {
+      <div class="reassign">
+        <select class="control" [(ngModel)]="newOwner" aria-label="New owner">
+          <option value="">Select owner</option>
+          @for (p of people(); track p) { <option [value]="p">{{ p }}</option> }
+        </select>
+        <button type="button" class="btn btn-outline btn-sm" (click)="reassigning.set(false)">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="!newOwner || saving()" (click)="reassign()">Save</button>
+      </div>
+    }
+    <div class="foot-actions">
+      <button type="button" class="btn btn-accent-outline" (click)="startReassign()">Reassign</button>
+      @if (f.workOrder) {
+        <a class="btn btn-primary" routerLink="/maintenance" [queryParams]="{ workOrder: f.workOrder }">View Work Order <lucide-icon [img]="icons.ExternalLink" [size]="16"></lucide-icon></a>
+      } @else {
+        <button type="button" class="btn btn-primary" (click)="setTab('Actions')">Add Work Order</button>
+      }
+    </div>
+    <div class="note"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>Closure requires corrective action completion and independent verification.</div>
+  </div>
+</section>
+
+@if (preview(); as src) {
+  <div class="backdrop" (click)="preview.set(null)"></div>
+  <div class="lightbox">
+    <button type="button" class="icon-btn close" aria-label="Close" (click)="preview.set(null)"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    <img [src]="src" alt="Evidence" />
+  </div>
+}

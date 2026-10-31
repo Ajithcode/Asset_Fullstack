@@ -1,0 +1,227 @@
+<section class="ip-page">
+  <!-- ===== Header ===== -->
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span aria-hidden="true">/</span>
+        <span>Configuration</span><span aria-hidden="true">/</span>
+        <span class="current">Report Templates</span>
+      </nav>
+      <h1>Report Templates</h1>
+      <p class="subtitle">Design consistent inspection reports with reusable sections, evidence and sign-off.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-accent-outline" [disabled]="!draft" (click)="previewPdf()"><lucide-icon [img]="icons.FileText" [size]="17"></lucide-icon>Preview PDF</button>
+      <button type="button" class="btn btn-primary" (click)="openNew()"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>New Template</button>
+    </div>
+  </div>
+
+  @if (store.error()) { <div class="alert" role="alert">{{ store.error() }}</div> }
+
+  <div class="split-3">
+    <!-- ===== Library + sections ===== -->
+    <div class="card col">
+      <div class="card-head"><h3>Template Library</h3></div>
+      <div class="pad">
+        <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" placeholder="Search templates..." aria-label="Search templates" [(ngModel)]="search" /></label>
+        <div class="lib">
+          @for (t of filtered(); track t.id) {
+            <div class="lib-item" [class.is-selected]="selected()?.id === t.id" role="button" tabindex="0" (click)="select(t.id)" (keydown.enter)="select(t.id)">
+              <span class="lib-ic"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon></span>
+              <span class="grow lib-main"><strong>{{ t.reportTitle }}</strong>
+                <span class="lib-sub"><span [class]="pillClass(t.status)"><span class="dot"></span>{{ t.status || 'Draft' }}</span><span class="muted">v{{ t.versionLabel }}</span></span></span>
+              <span class="menu-wrap">
+                <button type="button" class="icon-btn" aria-label="Template actions" (click)="toggleMenu($event, 't' + t.id)"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
+                @if (menuKey === 't' + t.id) {
+                  <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                    @if (confirmId === t.id) {
+                      <p class="menu-confirm">Delete {{ t.reportTitle }} v{{ t.versionLabel }}?</p>
+                      <div class="menu-confirm-actions">
+                        <button type="button" class="btn btn-sm btn-outline" (click)="confirmId = ''">Cancel</button>
+                        <button type="button" class="btn btn-sm btn-danger" (click)="remove(t)">Delete</button>
+                      </div>
+                    } @else {
+                      <button type="button" role="menuitem" (click)="duplicate(t)"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon>Duplicate</button>
+                      <button type="button" role="menuitem" class="danger" (click)="askDelete($event, t)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete</button>
+                    }
+                  </div>
+                }
+              </span>
+            </div>
+          } @empty {
+            <div class="empty">{{ store.loading() ? 'Loading templates…' : 'No templates found.' }}</div>
+          }
+        </div>
+      </div>
+
+      <div class="card-head sec-head"><h3 class="grow">Report Sections</h3>
+        <button type="button" class="link" [disabled]="!draft || locked" (click)="newSection = ''"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Add Section</button></div>
+      <div class="pad">
+        <ul class="secs">
+          @for (s of sections; track $index; let i = $index) {
+            <li [class.dragging]="dragIndex === i" [attr.draggable]="!locked" (dragstart)="onDragStart($event, i)" (dragover)="$event.preventDefault()" (drop)="onDrop($event, i)" (dragend)="dragIndex = -1">
+              <lucide-icon class="grip" [img]="icons.GripVertical" [size]="16"></lucide-icon>
+              <span class="grow">{{ s.name }}</span>
+              <label class="toggle" [title]="s.enabled ? 'Shown in report' : 'Hidden from report'"><input type="checkbox" [attr.aria-label]="'Include ' + s.name" [(ngModel)]="s.enabled" [disabled]="locked" /><span></span></label>
+              <span class="menu-wrap">
+                <button type="button" class="icon-btn" aria-label="Section actions" [disabled]="locked" (click)="toggleMenu($event, 's' + i)"><lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon></button>
+                @if (menuKey === 's' + i) {
+                  <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                    <button type="button" role="menuitem" [disabled]="i === 0" (click)="moveSection(i, -1)"><lucide-icon [img]="icons.ArrowUp" [size]="15"></lucide-icon>Move up</button>
+                    <button type="button" role="menuitem" [disabled]="i === sections.length - 1" (click)="moveSection(i, 1)"><lucide-icon [img]="icons.ArrowDown" [size]="15"></lucide-icon>Move down</button>
+                    <button type="button" role="menuitem" class="danger" (click)="removeSection(i)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Remove</button>
+                  </div>
+                }
+              </span>
+            </li>
+          }
+        </ul>
+        @if (newSection !== null) {
+          <div class="inline-add">
+            <input class="control" placeholder="Section name" aria-label="New section name" [(ngModel)]="newSection" (keyup.enter)="addSection()" (keyup.escape)="newSection = null" />
+            <button type="button" class="btn btn-primary btn-sm" (click)="addSection()">Add</button>
+            <button type="button" class="icon-btn" aria-label="Cancel" (click)="newSection = null"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon></button>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- ===== Settings ===== -->
+    <div class="card">
+      <div class="card-head"><h3>Template Settings</h3></div>
+      @if (draft; as d) {
+        <div class="card-body settings">
+          <label class="field"><span class="field-label">Template name</span><input class="control" [(ngModel)]="d.reportTitle" [disabled]="locked" /></label>
+          <div class="form-grid">
+            <label class="field"><span class="field-label">Inspection type</span>
+              <select class="control" [(ngModel)]="d.inspectionTypeName" [disabled]="locked">
+                <option value="">Any</option>
+                @for (t of api.types.items(); track t.id) { <option [value]="t.inspectionTypeName">{{ t.inspectionTypeName }}</option> }
+                @if (d.inspectionTypeName && !api.types.items().length) { <option [value]="d.inspectionTypeName">{{ d.inspectionTypeName }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">Format</span>
+              <select class="control" [(ngModel)]="d.format" [disabled]="locked">@for (o of formats; track o) { <option [value]="o">{{ o }}</option> }</select></label>
+            <label class="field"><span class="field-label">Page size</span>
+              <select class="control" [(ngModel)]="d.pageSize" [disabled]="locked">@for (o of pageSizes; track o) { <option [value]="o">{{ o }}</option> }</select></label>
+            <label class="field"><span class="field-label">Orientation</span>
+              <select class="control" [(ngModel)]="d.orientation" [disabled]="locked">@for (o of orientations; track o) { <option [value]="o">{{ o }}</option> }</select></label>
+            <label class="field span-2"><span class="field-label">Language</span>
+              <select class="control" [(ngModel)]="d.language" [disabled]="locked">@for (o of languages; track o) { <option [value]="o">{{ o }}</option> }</select></label>
+          </div>
+
+          <h4 class="section-title">Branding</h4>
+          <div class="form-grid">
+            <div class="field"><span class="field-label">Logo</span>
+              <div class="logo"><span class="hex" [style.color]="d.accentColor">⬢</span><span><strong>asset360</strong><small>by Purple IQ</small></span></div></div>
+            <label class="field"><span class="field-label">Accent color</span>
+              <span class="color"><input type="color" aria-label="Accent color picker" [(ngModel)]="d.accentColor" [disabled]="locked" />
+                <input class="control" aria-label="Accent color hex" maxlength="7" [(ngModel)]="d.accentColor" [disabled]="locked" /></span></label>
+          </div>
+
+          <h4 class="section-title">Display Options</h4>
+          <div class="opts">
+            <label class="check"><input type="checkbox" [(ngModel)]="d.includePassedItems" [disabled]="locked" />Include passed checklist items</label>
+            <label class="check"><input type="checkbox" [(ngModel)]="d.includePhotos" [disabled]="locked" />Include photographs</label>
+            <label class="check"><input type="checkbox" [(ngModel)]="d.showAcceptanceCriteria" [disabled]="locked" />Show acceptance criteria</label>
+            <label class="check"><input type="checkbox" [(ngModel)]="d.showFindingStatus" [disabled]="locked" />Show finding status</label>
+            <label class="check"><input type="checkbox" [(ngModel)]="d.includeSignatures" [disabled]="locked" />Include signatures &amp; stamp</label>
+            <label class="check"><input type="checkbox" [(ngModel)]="d.includeInternalNotes" [disabled]="locked" />Include internal notes</label>
+          </div>
+
+          <label class="field"><span class="field-label">Document numbering</span>
+            <span class="numfmt"><input class="control" [(ngModel)]="d.reportNumberFormat" [disabled]="locked" placeholder="INSR-{YYYY}-{SEQ}" />
+              <span class="tip" tabindex="0" aria-label="Numbering tokens"><lucide-icon [img]="icons.Info" [size]="17"></lucide-icon>
+                <span class="tip-body" role="tooltip">Tokens: <b>{{ '{YYYY}' }}</b> year, <b>{{ '{YY}' }}</b> short year, <b>{{ '{MM}' }}</b> month, <b>{{ '{DD}' }}</b> day, <b>{{ '{SEQ}' }}</b> running number (4 digits). Example: INSR-2026-0148.</span></span></span></label>
+        </div>
+      } @else {
+        <div class="empty">{{ store.loading() ? 'Loading…' : 'Create a template to configure it.' }}</div>
+      }
+    </div>
+
+    <!-- ===== Live preview ===== -->
+    <div class="card pv-card" [class.expanded]="expanded">
+      <div class="card-head"><h3 class="grow">Live Report Preview</h3>
+        @if (expanded) { <button type="button" class="icon-btn" aria-label="Close full screen" (click)="expanded = false"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button> }</div>
+      <div class="pv-tools">
+        <button type="button" class="icon-btn" aria-label="Zoom out" [disabled]="zoom <= zooms[0]!" (click)="zoomBy(-1)"><lucide-icon [img]="icons.ZoomOut" [size]="17"></lucide-icon></button>
+        <button type="button" class="icon-btn" aria-label="Zoom in" [disabled]="zoom >= zooms[zooms.length - 1]!" (click)="zoomBy(1)"><lucide-icon [img]="icons.ZoomIn" [size]="17"></lucide-icon></button>
+        <select class="control zoom-sel" aria-label="Zoom" [(ngModel)]="zoom">@for (z of zooms; track z) { <option [ngValue]="z">{{ z }}%</option> }</select>
+        <span class="grow"></span>
+        <button type="button" class="icon-btn" aria-label="Previous page" [disabled]="page <= 1" (click)="page = page - 1"><lucide-icon [img]="icons.ChevronLeft" [size]="17"></lucide-icon></button>
+        <span class="pg"><span class="pg-box">{{ page }}</span> / {{ pageCount() }}</span>
+        <button type="button" class="icon-btn" aria-label="Next page" [disabled]="page >= pageCount()" (click)="page = page + 1"><lucide-icon [img]="icons.ChevronRight" [size]="17"></lucide-icon></button>
+        <span class="grow"></span>
+        <button type="button" class="icon-btn" aria-label="Download PDF" title="Preview PDF" (click)="previewPdf()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon></button>
+        <button type="button" class="icon-btn" aria-label="Full screen" (click)="expanded = !expanded"><lucide-icon [img]="icons.Maximize2" [size]="17"></lucide-icon></button>
+      </div>
+      <div class="pv-canvas">
+        @if (draft; as d) {
+          <app-report-preview [template]="d" [inspection]="sampleInspection()" [findings]="sampleFindings()" [zoom]="zoom" />
+        } @else {
+          <div class="empty">No template selected.</div>
+        }
+      </div>
+      @if (draft) {
+        <p class="muted pv-src">Sample data: {{ sampleInspection()?.inspectionCode || 'placeholders (no completed inspection yet)' }}</p>
+      }
+    </div>
+  </div>
+
+  <!-- ===== Footer ===== -->
+  @if (draft; as d) {
+    <div class="footer-bar">
+      <span [class]="pillClass(d.status)"><span class="dot"></span>v{{ d.versionLabel }} {{ d.status || 'Draft' }}</span>
+      <span class="grow">{{ locked ? 'Create a new version to make changes.' : dirty ? 'Unsaved changes.' : 'Draft — editable until published.' }}</span>
+      <button type="button" class="btn btn-outline btn-sm" (click)="historyOpen = true"><lucide-icon [img]="icons.History" [size]="15"></lucide-icon>View Version History</button>
+      @if (locked) {
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="busy" (click)="createNewVersion()">{{ busy ? 'Creating…' : 'Create New Version' }}</button>
+      } @else {
+        @if (dirty) { <button type="button" class="btn btn-outline btn-sm" (click)="discard()">Discard</button> }
+        <button type="button" class="btn btn-accent-outline btn-sm" [disabled]="busy || !dirty" (click)="save()">Save</button>
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="busy" (click)="save(true)">Publish</button>
+      }
+    </div>
+  }
+</section>
+
+<!-- ===== Version history ===== -->
+@if (historyOpen && selected(); as cur) {
+  <app-report-version-history [current]="cur" [versions]="versions()" (open)="select($event)" (closed)="historyOpen = false" />
+}
+
+<!-- ===== New template drawer ===== -->
+@if (form; as f) {
+  <div class="backdrop" (click)="closeForm()"></div>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="rt-form-title">
+    <div class="drawer-head"><h2 id="rt-form-title" class="grow">New Template</h2>
+      <button type="button" class="icon-btn" aria-label="Close" (click)="closeForm()"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="drawer-body">
+      @if (formError) { <div class="alert" role="alert">{{ formError }}</div> }
+      <div class="form-grid">
+        <label class="field span-2"><span class="field-label">Template name <span class="req">*</span></span>
+          <input class="control" [(ngModel)]="f.reportTitle" placeholder="e.g. Equipment Safety Report" /></label>
+        <label class="field span-2"><span class="field-label">Inspection type</span>
+          <select class="control" [(ngModel)]="f.inspectionTypeName">
+            <option value="">Any</option>
+            @for (t of api.types.items(); track t.id) { <option [value]="t.inspectionTypeName">{{ t.inspectionTypeName }}</option> }
+          </select></label>
+        <label class="field"><span class="field-label">Format</span>
+          <select class="control" [(ngModel)]="f.format">@for (o of formats; track o) { <option [value]="o">{{ o }}</option> }</select></label>
+        <label class="field"><span class="field-label">Page size</span>
+          <select class="control" [(ngModel)]="f.pageSize">@for (o of pageSizes; track o) { <option [value]="o">{{ o }}</option> }</select></label>
+        <label class="field"><span class="field-label">Orientation</span>
+          <select class="control" [(ngModel)]="f.orientation">@for (o of orientations; track o) { <option [value]="o">{{ o }}</option> }</select></label>
+        <label class="field"><span class="field-label">Language</span>
+          <select class="control" [(ngModel)]="f.language">@for (o of languages; track o) { <option [value]="o">{{ o }}</option> }</select></label>
+      </div>
+      <div class="note">The template starts as Draft v1.0 with the standard report sections. Adjust settings, then publish it.</div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn btn-outline" (click)="closeForm()">Cancel</button>
+      <button type="button" class="btn btn-primary" [disabled]="busy" (click)="saveForm()">{{ busy ? 'Creating…' : 'Create Draft' }}</button>
+    </div>
+  </aside>
+}
+
+@if (toast()) { <div class="toast" role="status">{{ toast() }}</div> }

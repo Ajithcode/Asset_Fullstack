@@ -1,0 +1,247 @@
+<section class="ip-page">
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span>/</span><span>Configuration</span><span>/</span>
+        <span class="current">Notification Templates</span>
+      </nav>
+      <h1>Notification Templates</h1>
+      <p class="subtitle">Configure inspection alerts, reminders and escalation messages.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-accent-outline" [disabled]="!draft" (click)="sendTest()">
+        <lucide-icon [img]="icons.Send" [size]="17"></lucide-icon>Send Test
+      </button>
+      <button type="button" class="btn btn-primary" (click)="newTemplate()">
+        <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>New Template
+      </button>
+    </div>
+  </div>
+
+  <nav class="subtabs" role="tablist" aria-label="Notification sections">
+    @for (t of subtabs; track t.key) {
+      <button type="button" role="tab" [class.on]="tab === t.key" [attr.aria-selected]="tab === t.key" (click)="tab = t.key">{{ t.label }}</button>
+    }
+  </nav>
+
+  @if (store.error(); as err) {
+    <div class="alert">{{ err }}</div>
+  }
+
+  @switch (tab) {
+    @case ('templates') {
+      <div class="split-3">
+        <!-- ===== Library ===== -->
+        <div class="card">
+          <div class="card-head"><h2>Template Library</h2></div>
+          <div class="filters">
+            <label class="search">
+              <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+              <input type="search" placeholder="Search templates..." [ngModel]="search()" (ngModelChange)="search.set($event)" aria-label="Search templates" />
+            </label>
+            <span class="fwrap">
+              <button type="button" class="fbtn" [class.on]="statusFilter() !== 'All'" aria-label="Filter" (click)="showFilter = !showFilter">
+                <lucide-icon [img]="icons.SlidersHorizontal" [size]="17"></lucide-icon></button>
+              @if (showFilter) {
+                <div class="menu">
+                  @for (s of ['All', 'Active', 'Draft']; track s) {
+                    <button type="button" [class.sel]="statusFilter() === s" (click)="statusFilter.set($any(s)); showFilter = false">{{ s === 'All' ? 'All templates' : s }}</button>
+                  }
+                </div>
+              }
+            </span>
+          </div>
+          <div class="lib">
+            @if (store.loading()) { <div class="empty">Loading templates…</div> }
+            @for (t of filtered(); track t.id) {
+              @let ev = eventIcon(t.event);
+              <div class="lib-item" [class.is-selected]="selectedId() === t.id">
+                <button type="button" class="lib-main" (click)="select(t)">
+                  <span [class]="ev.cls"><lucide-icon [img]="ev.icon" [size]="20"></lucide-icon></span>
+                  <span class="grow">
+                    <span class="lib-name">{{ t.templateName }}</span>
+                    <span class="chs">
+                      <lucide-icon [img]="icons.Mail" [size]="15" [class.off]="!t.channels.includes('Email')"></lucide-icon>
+                      <lucide-icon [img]="icons.Monitor" [size]="15" [class.off]="!t.channels.includes('In-app')"></lucide-icon>
+                      <lucide-icon [img]="icons.Bell" [size]="15" [class.off]="!t.channels.includes('Push')"></lucide-icon>
+                    </span>
+                  </span>
+                  <span [class]="pillClass(statusOf(t))">{{ statusOf(t) }}</span>
+                </button>
+                <button type="button" class="icon-btn" aria-label="More actions" (click)="menuFor = menuFor === t.id ? null : t.id; confirmDelete = null">
+                  <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
+                @if (menuFor === t.id) {
+                  <div class="menu">
+                    @if (confirmDelete === t.id) {
+                      <span class="muted">Delete this template?</span>
+                      <button type="button" class="danger" (click)="remove(t)">Yes, delete</button>
+                      <button type="button" (click)="confirmDelete = null">Keep</button>
+                    } @else {
+                      <button type="button" (click)="duplicate(t)">Duplicate</button>
+                      <button type="button" class="danger" (click)="confirmDelete = t.id">Delete</button>
+                    }
+                  </div>
+                }
+              </div>
+            } @empty {
+              @if (!store.loading()) { <div class="empty">No templates found.</div> }
+            }
+          </div>
+        </div>
+
+        <!-- ===== Editor ===== -->
+        <div class="card">
+          @if (draft; as d) {
+            <div class="card-head">
+              <h2 class="grow">Template Editor</h2>
+              <label class="toggle"><input type="checkbox" [(ngModel)]="d.isActive" (ngModelChange)="touch()" aria-label="Active" /><span></span></label>
+              <span class="strong">{{ d.isActive ? 'Active' : 'Inactive' }}</span>
+            </div>
+            <div class="card-body ed">
+              <div class="form-grid">
+                <label class="field"><span class="field-label">Template name <span class="req">*</span></span>
+                  <input class="control" [(ngModel)]="d.templateName" (ngModelChange)="touch()" /></label>
+                <label class="field"><span class="field-label">Event</span>
+                  <select class="control" [(ngModel)]="d.event" (ngModelChange)="touch()">
+                    @for (e of events(); track e) { <option [value]="e">{{ e }}</option> }
+                  </select></label>
+              </div>
+              <div class="field"><span class="field-label">Channels</span>
+                <div class="chans">
+                  @for (c of channels; track c) {
+                    <label class="chan" [class.on]="hasChannel(c)"><input type="checkbox" [checked]="hasChannel(c)" (change)="toggleChannel(c)" />
+                      <lucide-icon [img]="c === 'Email' ? icons.Mail : c === 'In-app' ? icons.Monitor : icons.Bell" [size]="15"></lucide-icon>{{ c }}</label>
+                  }
+                </div>
+              </div>
+              <h3 class="section-title rec">Recipients</h3>
+              <div class="form-grid">
+                <label class="field"><span class="field-label">Send to</span>
+                  <select class="control" [ngModel]="d.recipients[0] || ''" (ngModelChange)="setSendTo($event)">
+                    <option value="">Select recipient</option>
+                    @for (r of recipientOptions; track r) { <option [value]="r">{{ r }}</option> }
+                  </select></label>
+                <div class="field"><span class="field-label">CC (optional)</span>
+                  <span class="cc">
+                    <select class="control" [ngModel]="d.ccRecipients[0] || ''" (ngModelChange)="setCc($event)" aria-label="CC">
+                      <option value="">None</option>
+                      @for (r of recipientOptions; track r) { <option [value]="r">{{ r }}</option> }
+                    </select>
+                    <button type="button" class="icon-btn" aria-label="Clear CC" [disabled]="!d.ccRecipients.length" (click)="setCc('')"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+                  </span>
+                </div>
+              </div>
+              <label class="field"><span class="field-label">Subject <span class="req">*</span></span>
+                <input #subject class="control" [(ngModel)]="d.subject" (ngModelChange)="touch()" (focus)="lastField = 'subject'" /></label>
+              <div class="field">
+                <span class="body-head"><span class="field-label grow">Message body</span>
+                  <span class="vwrap">
+                    <button type="button" class="link" (click)="showVarMenu = !showVarMenu"><lucide-icon [img]="icons.Braces" [size]="15"></lucide-icon>Insert variable</button>
+                    @if (showVarMenu) {
+                      <div class="menu">
+                        @for (v of variables; track v) { <button type="button" (mousedown)="$event.preventDefault()" (click)="insertVariable(v)">{{ varLabel(v) }}</button> }
+                      </div>
+                    }
+                  </span>
+                </span>
+                <div class="rte">
+                  <div class="tb" role="toolbar" aria-label="Formatting">
+                    <button type="button" aria-label="Bold" (click)="format('bold')"><lucide-icon [img]="icons.Bold" [size]="15"></lucide-icon></button>
+                    <button type="button" aria-label="Italic" (click)="format('italic')"><lucide-icon [img]="icons.Italic" [size]="15"></lucide-icon></button>
+                    <button type="button" aria-label="Underline" (click)="format('underline')"><lucide-icon [img]="icons.Underline" [size]="15"></lucide-icon></button>
+                    <button type="button" aria-label="Bulleted list" (click)="format('ul')"><lucide-icon [img]="icons.List" [size]="15"></lucide-icon></button>
+                    <button type="button" aria-label="Numbered list" (click)="format('ol')"><lucide-icon [img]="icons.ListOrdered" [size]="15"></lucide-icon></button>
+                    <button type="button" aria-label="Insert link" (click)="format('link')"><lucide-icon [img]="icons.Link" [size]="15"></lucide-icon></button>
+                  </div>
+                  <textarea #body class="area" rows="7" [(ngModel)]="d.messageBody" (ngModelChange)="touch()" (focus)="lastField = 'body'" aria-label="Message body"></textarea>
+                </div>
+              </div>
+              <div class="bl">
+                <label class="field"><span class="field-label">Button label</span>
+                  <input class="control" [(ngModel)]="d.buttonLabel" (ngModelChange)="touch()" /></label>
+                <div class="field"><span class="field-label">Available Variables</span>
+                  <span class="chips">
+                    @for (v of variables; track v) { <button type="button" class="chip" (mousedown)="$event.preventDefault()" (click)="insertVariable(v)">{{ varLabel(v) }}</button> }
+                  </span>
+                </div>
+              </div>
+              <div class="timing">
+                <span class="field-label">Notification Timing &amp; Options</span>
+                <div class="timing-row">
+                  <select class="control" [(ngModel)]="d.timing" (ngModelChange)="touch()" aria-label="Notification timing">
+                    @if (d.timing && !timings.includes(d.timing)) { <option [value]="d.timing">{{ d.timing }}</option> }
+                    @for (t of timings; track t) { <option [value]="t">{{ t }}</option> }
+                  </select>
+                  <label class="check"><input type="checkbox" [(ngModel)]="d.respectUserLocale" (ngModelChange)="touch()" />Respect user language and site timezone</label>
+                  <label class="check" title="Skip sending when the same notification was sent for this record in the last 24 hours"><input type="checkbox" [(ngModel)]="d.preventDuplicates" (ngModelChange)="touch()" />Prevent duplicate notifications</label>
+                </div>
+              </div>
+            </div>
+          } @else {
+            <div class="card-head"><h2>Template Editor</h2></div>
+            <div class="empty">Select a template or create a new one.</div>
+          }
+        </div>
+
+        <!-- ===== Preview ===== -->
+        @if (draft; as d) {
+          <app-insp-notification-preview [template]="d" [sample]="sample()" (refresh)="refreshPreview()" />
+        } @else {
+          <div class="card empty">Nothing to preview.</div>
+        }
+      </div>
+
+      @if (draft; as d) {
+        <div class="footer-bar">
+          <lucide-icon [img]="icons.FilePen" [size]="16"></lucide-icon>
+          <span class="grow">
+            @if (lastEdited(d)) { Last edited {{ lastEdited(d) }} } @else { Not saved yet }
+            @if (dirty) { <span class="dirty">• Draft changes</span> }
+          </span>
+          <button type="button" class="btn btn-outline" (click)="cancel()" [disabled]="!dirty">Cancel</button>
+          <button type="button" class="btn btn-accent-outline" (click)="save(false)" [disabled]="saving">Save Draft</button>
+          <button type="button" class="btn btn-primary" (click)="save(true)" [disabled]="saving">{{ saving ? 'Saving…' : 'Save & Activate' }}</button>
+        </div>
+      }
+    }
+
+    @case ('rules') {
+      <div class="card">
+        <div class="card-head"><h2>Delivery Rules</h2><span class="muted">When each template fires, through which channels and to whom.</span></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Event</th><th>Template</th><th>Channels</th><th>Timing</th><th>Send to</th><th>CC</th><th>Options</th><th>Status</th></tr></thead>
+            <tbody>
+              @for (t of store.items(); track t.id) {
+                <tr (click)="select(t); tab = 'templates'">
+                  <td class="strong">{{ t.event }}</td><td>{{ t.templateName }}</td><td>{{ t.channels.join(', ') || '—' }}</td>
+                  <td>{{ t.timing }}</td><td>{{ t.recipients.join(', ') || '—' }}</td><td>{{ t.ccRecipients.join(', ') || '—' }}</td>
+                  <td class="muted">{{ t.preventDuplicates ? 'No duplicates' : '' }}{{ t.preventDuplicates && t.respectUserLocale ? ' · ' : '' }}{{ t.respectUserLocale ? 'User locale' : '' }}</td>
+                  <td><span [class]="pillClass(statusOf(t))">{{ statusOf(t) }}</span></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="8" class="empty">{{ store.loading() ? 'Loading…' : 'No templates configured.' }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="pad"></div>
+      </div>
+    }
+
+    @case ('history') {
+      <div class="card">
+        <div class="card-head"><h2>Delivery History</h2></div>
+        <div class="hist-empty">
+          <span class="ev ev--purple"><lucide-icon [img]="icons.Inbox" [size]="26"></lucide-icon></span>
+          <h3>No notifications delivered yet</h3>
+          <p class="muted">Once the notification service starts sending messages, every email, in-app and push delivery will be listed here with its status.</p>
+        </div>
+      </div>
+    }
+  }
+
+  @if (toast(); as t) {
+    <div class="toast" role="status">{{ t }}</div>
+  }
+</section>

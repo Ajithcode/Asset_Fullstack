@@ -1,0 +1,273 @@
+<section class="ip-page">
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span aria-hidden="true">/</span>
+        <span class="current">{{ editing ? 'Edit Draft' : 'New Inspection' }}</span>
+      </nav>
+      <h1>{{ editing ? 'Edit Inspection Draft' : 'New Inspection' }}</h1>
+      <p class="subtitle">Define the inspection scope, checklist and assignment.</p>
+    </div>
+    <div class="head-actions">
+      <a class="btn btn-outline" routerLink="/inspection/overview">Cancel</a>
+      <button type="button" class="btn btn-accent-outline" [disabled]="saving()" (click)="saveDraft()"><lucide-icon [img]="icons.Save" [size]="17"></lucide-icon>Save as Draft</button>
+    </div>
+  </div>
+
+  @if (draftMissing()) { <div class="alert">The draft you opened was not found. You are creating a new inspection.</div> }
+  @if (inspections.error(); as err) { <div class="alert">Inspections: {{ err }}</div> }
+  @if (types.error(); as err) { <div class="alert">Inspection types: {{ err }}</div> }
+  @if (saveError) { <div class="alert" role="alert">{{ saveError }}</div> }
+
+  <!-- Stepper -->
+  <ol class="stepper">
+    @for (s of steps; track s; let n = $index) {
+      <li [class.done]="n + 1 < step" [class.on]="n + 1 === step">
+        <button type="button" [disabled]="n + 1 > visited" (click)="goTo(n + 1)">
+          <span class="num">
+            @if (n + 1 < step) {
+              <lucide-icon [img]="icons.Check" [size]="14"></lucide-icon>
+            } @else {
+              <span>{{ n + 1 }}</span>
+            }
+          </span>
+          <span class="lbl">{{ s }}</span>
+        </button>
+      </li>
+    }
+  </ol>
+
+  <div class="split">
+    <div class="card">
+      <div class="card-body">
+        @for (e of errors; track e) { <div class="alert mb">{{ e }}</div> }
+
+        @switch (step) {
+          @case (1) {
+            <h2 class="h">Inspection Details</h2>
+            <div class="form-grid">
+              <label class="field"><span class="field-label">Inspection Title <span class="req">*</span></span>
+                <input class="control" [class.invalid]="bad('title')" [(ngModel)]="form.title" maxlength="160" placeholder="e.g. Monthly Equipment Safety Inspection" /></label>
+              <label class="field"><span class="field-label">Inspection Type <span class="req">*</span></span>
+                <select class="control" [class.invalid]="bad('inspectionTypeName')" [ngModel]="form.inspectionTypeName" (ngModelChange)="onTypeChange($event)">
+                  <option value="">Select type</option>
+                  @for (t of activeTypes(); track t.id) { <option [value]="t.inspectionTypeName">{{ t.inspectionTypeName }}</option> }
+                </select></label>
+              <label class="field"><span class="field-label">Inspection Reference</span>
+                <input class="control" readonly [value]="editing?.inspectionCode || 'Automatically generated'" />
+                <span class="field-hint">Automatically generated</span></label>
+              <label class="field"><span class="field-label">Priority <span class="req">*</span></span>
+                <span class="with-dot"><span [class]="priorityClass(form.priority)"></span>
+                  <select class="control" [class.invalid]="bad('priority')" [(ngModel)]="form.priority">
+                    @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
+                  </select></span></label>
+              <label class="field"><span class="field-label">Site <span class="req">*</span></span>
+                <input class="control" list="ni-sites" [class.invalid]="bad('siteName')" [(ngModel)]="form.siteName" placeholder="Select or type a site" />
+                <datalist id="ni-sites">@for (s of sites(); track s) { <option [value]="s"></option> }</datalist></label>
+              <label class="field"><span class="field-label">Department</span>
+                <select class="control" [(ngModel)]="form.department">
+                  <option value="">Select department</option>
+                  @for (d of departments(); track d) { <option [value]="d">{{ d }}</option> }
+                </select></label>
+              <label class="field"><span class="field-label">Inspection Plan <span class="muted">(Optional)</span></span>
+                <select class="control" [ngModel]="form.planCode" (ngModelChange)="onPlanChange($event)">
+                  <option value="">No plan</option>
+                  @for (p of plans.items(); track p.id) { <option [value]="p.planCode">{{ p.planName }}</option> }
+                </select></label>
+              <label class="field"><span class="field-label">Trigger</span>
+                <select class="control" [(ngModel)]="form.trigger">
+                  @for (t of triggers; track t) { <option [value]="t">{{ t }}</option> }
+                </select></label>
+              <label class="field span-2"><span class="field-label">Description <span class="req">*</span></span>
+                <textarea class="control" [class.invalid]="bad('description')" [(ngModel)]="form.description" maxlength="1000" rows="3"></textarea>
+                <span class="field-hint right">{{ form.description.length }}/1000</span></label>
+            </div>
+
+            <hr />
+            <h2 class="h">Scope &amp; Requirements</h2>
+            <div class="scope-grid">
+              <div class="field">
+                <span class="field-label">Inspection Scope <span class="req">*</span></span>
+                <label class="radio"><input type="radio" name="scope" value="Asset-based" [(ngModel)]="form.scope" />
+                  <span><span class="strong">Asset-based</span><br /><span class="muted">Select specific assets to include in this inspection.</span></span></label>
+                <label class="radio"><input type="radio" name="scope" value="Location-based" [(ngModel)]="form.scope" />
+                  <span><span class="strong">Location-based</span><br /><span class="muted">Select a location or area to include all relevant assets.</span></span></label>
+              </div>
+              <div class="form-grid">
+                <label class="field"><span class="field-label">Inspection Category <span class="req">*</span></span>
+                  <select class="control" [class.invalid]="bad('category')" [(ngModel)]="form.category">
+                    @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+                  </select></label>
+                <label class="field"><span class="field-label">Reference Standard <span class="muted">(Optional)</span></span>
+                  <input class="control" [(ngModel)]="form.referenceStandard" placeholder="e.g. Company Equipment Safety Procedure" /></label>
+                <div class="field"><span class="field-label">Permit Required</span>
+                  <span class="tg"><label class="toggle"><input type="checkbox" [(ngModel)]="form.permitRequired" aria-label="Permit required" /><span></span></label>
+                    <span class="muted">A work permit is required to perform this inspection.</span></span></div>
+                <div class="field"><span class="field-label">Evidence Required</span>
+                  <span class="tg"><label class="toggle"><input type="checkbox" [(ngModel)]="form.evidenceRequired" aria-label="Evidence required" /><span></span></label>
+                    <span class="muted">Require photos for failed checklist items.</span></span></div>
+                <div class="field span-2"><span class="field-label">Attachments <span class="muted">(Optional)</span></span>
+                  <label class="drop" [class.over]="dragOver" (dragover)="$event.preventDefault(); dragOver = true" (dragleave)="dragOver = false" (drop)="onDrop($event)">
+                    <input type="file" multiple hidden #fileIn (change)="addFiles(fileIn.files); fileIn.value = ''" />
+                    <span class="drop-ic"><lucide-icon [img]="icons.Paperclip" [size]="18"></lucide-icon></span>
+                    <span><span class="strong">Upload reference documents</span><br /><span class="muted">PDF, DOCX, JPG up to 20 MB</span></span>
+                  </label>
+                  @for (a of attachments; track a; let n = $index) {
+                    <span class="file">{{ a }}<button type="button" class="icon-btn" aria-label="Remove" (click)="attachments.splice(n, 1)"><lucide-icon [img]="icons.X" [size]="14"></lucide-icon></button></span>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+
+          @case (2) {
+            <h2 class="h">Assets &amp; Scope</h2>
+            <p class="muted">Scope: <span class="strong">{{ form.scope }}</span>. {{ form.scope === 'Asset-based' ? 'Identify the asset to inspect.' : 'Identify the location or area to inspect.' }}</p>
+            <div class="form-grid">
+              @if (form.scope === 'Asset-based') {
+                <label class="field"><span class="field-label">Asset Code <span class="req">*</span></span>
+                  <input class="control" [class.invalid]="bad('assetCode')" [(ngModel)]="form.assetCode" placeholder="e.g. CNC-00123" /></label>
+                <label class="field"><span class="field-label">Asset Name <span class="req">*</span></span>
+                  <input class="control" [class.invalid]="bad('assetName')" [(ngModel)]="form.assetName" placeholder="e.g. CNC Machine" /></label>
+              }
+              <label class="field span-2"><span class="field-label">Location @if (form.scope === 'Location-based') { <span class="req">*</span> }</span>
+                <input class="control" [class.invalid]="bad('location')" [(ngModel)]="form.location" placeholder="e.g. Production Hall A" /></label>
+            </div>
+          }
+
+          @case (3) {
+            <h2 class="h">Checklist</h2>
+            <label class="field"><span class="field-label">Checklist Template <span class="req">*</span></span>
+              <select class="control" [class.invalid]="bad('checklistCode')" [(ngModel)]="form.checklistCode">
+                <option value="">Select checklist</option>
+                @for (c of checklistOptions(); track c.id) {
+                  <option [value]="c.checklistCode">{{ c.templateName }} {{ c.versionLabel }} ({{ c.checklistCode }}){{ c.checklistCode === defaultChecklistCode ? ' – type default' : '' }}</option>
+                }
+              </select></label>
+            @if (checklists.error(); as err) { <div class="alert mt">Checklists: {{ err }}</div> }
+            @if (selectedChecklist; as c) {
+              <div class="sub-box sub-box--soft mt">
+                <div class="chk-head">
+                  <lucide-icon [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+                  <span class="grow"><span class="strong">{{ c.templateName }}</span> <span class="muted">{{ c.versionLabel }} · {{ c.inspectionTypeName }}</span></span>
+                  <span [class]="pillClass(c.status)">{{ c.status }}</span>
+                </div>
+                <p class="muted">{{ c.sections.length }} sections · {{ taskCount(c) }} tasks · {{ mandatoryCount(c) }} mandatory@if (estimatedMinutes(c)) { · ~{{ estimatedMinutes(c) }} min }</p>
+                @for (s of c.sections; track s.sectionName) {
+                  <details class="sec">
+                    <summary><span class="grow strong">{{ s.sectionName }}</span><span class="muted">{{ s.tasks.length }} tasks</span></summary>
+                    <ol>
+                      @for (t of s.tasks; track t.taskCode) {
+                        <li>{{ t.taskTitle }} <span class="muted">· {{ t.responseType }}</span>@if (t.isMandatory) { <span class="pill pill--purple">Required</span> }</li>
+                      }
+                    </ol>
+                  </details>
+                }
+              </div>
+            } @else if (!checklistOptions().length) {
+              <div class="empty">{{ checklists.loading() ? 'Loading checklists…' : 'No published checklists yet.' }} <a class="link" routerLink="/inspection/checklists">Manage checklists</a></div>
+            }
+          }
+
+          @case (4) {
+            <h2 class="h">Assign &amp; Schedule</h2>
+            <div class="form-grid">
+              <label class="field"><span class="field-label">Assignee <span class="req">*</span></span>
+                @if (people().length) {
+                  <select class="control" [class.invalid]="bad('assignedTo')" [(ngModel)]="form.assignedTo">
+                    <option value="">Select inspector</option>
+                    @for (p of people(); track p) { <option [value]="p">{{ p }}</option> }
+                  </select>
+                } @else {
+                  <input class="control" [class.invalid]="bad('assignedTo')" [(ngModel)]="form.assignedTo" placeholder="Inspector name" />
+                }</label>
+              <label class="field"><span class="field-label">Team</span>
+                <select class="control" [(ngModel)]="form.assignedTeam">
+                  <option value="">Select team</option>
+                  @for (t of teams(); track t) { <option [value]="t">{{ t }}</option> }
+                </select></label>
+              <label class="field"><span class="field-label">Due Date <span class="req">*</span></span>
+                <input type="date" class="control" [class.invalid]="bad('dueDate')" [(ngModel)]="form.dueDate" /></label>
+              <div class="form-grid">
+                <label class="field"><span class="field-label">Start Time</span><input type="time" class="control" [(ngModel)]="form.startTime" /></label>
+                <label class="field"><span class="field-label">End Time</span><input type="time" class="control" [(ngModel)]="form.endTime" /></label>
+              </div>
+            </div>
+          }
+
+          @case (5) {
+            <h2 class="h">Review &amp; Submit</h2>
+            <div class="review">
+              <div class="sub-box">
+                <h3 class="section-title">Details <button type="button" class="link" (click)="goTo(1)">Edit</button></h3>
+                <dl class="kv">
+                  <dt>Title</dt><dd>{{ form.title }}</dd>
+                  <dt>Type</dt><dd>{{ form.inspectionTypeName }}</dd>
+                  <dt>Priority</dt><dd>{{ form.priority }}</dd>
+                  <dt>Site / Department</dt><dd>{{ form.siteName }}{{ form.department ? ' · ' + form.department : '' }}</dd>
+                  <dt>Trigger</dt><dd>{{ form.trigger }}</dd>
+                  <dt>Category</dt><dd>{{ form.category }}</dd>
+                  <dt>Requirements</dt><dd>{{ form.permitRequired ? 'Permit' : 'No permit' }} · {{ form.evidenceRequired ? 'Evidence on failure' : 'No evidence' }}</dd>
+                </dl>
+              </div>
+              <div class="sub-box">
+                <h3 class="section-title">Scope &amp; Checklist <button type="button" class="link" (click)="goTo(2)">Edit</button></h3>
+                <dl class="kv">
+                  <dt>Scope</dt><dd>{{ form.scope }}</dd>
+                  <dt>Assets</dt><dd>{{ assetsSummary }}</dd>
+                  <dt>Location</dt><dd>{{ form.location || '—' }}</dd>
+                  <dt>Checklist</dt><dd>{{ selectedChecklist?.templateName || 'Not selected' }}@if (selectedChecklist; as c) { <span class="muted"> · {{ taskCount(c) }} tasks</span> }</dd>
+                </dl>
+              </div>
+              <div class="sub-box">
+                <h3 class="section-title">Assignment <button type="button" class="link" (click)="goTo(4)">Edit</button></h3>
+                <dl class="kv">
+                  <dt>Assignee</dt><dd>{{ form.assignedTo }}{{ form.assignedTeam ? ' · ' + form.assignedTeam : '' }}</dd>
+                  <dt>Schedule</dt><dd>{{ scheduleSummary }}</dd>
+                </dl>
+              </div>
+            </div>
+            <p class="note mt"><lucide-icon [img]="icons.Lightbulb" [size]="16"></lucide-icon>Submitting schedules the inspection and creates one response per checklist task for the inspector.</p>
+          }
+        }
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="side">
+      <div class="card">
+        <div class="card-head"><h3>Inspection Summary</h3></div>
+        <div class="card-body pt0">
+          <dl class="kv sum">
+            <dt>Status</dt><dd><span class="pill">{{ editing?.status || 'Draft' }}</span></dd>
+            <dt>Type</dt><dd>{{ form.inspectionTypeName || 'Not selected' }}</dd>
+            <dt>Priority</dt><dd><span [class]="priorityClass(form.priority)"></span> {{ form.priority }}</dd>
+            <dt>Site</dt><dd>{{ form.siteName || 'Not selected' }}</dd>
+            <dt>Assets</dt><dd>{{ assetsSummary }}</dd>
+            <dt>Checklist</dt><dd>{{ selectedChecklist?.templateName || 'Not selected' }}</dd>
+            <dt>Schedule</dt><dd>{{ scheduleSummary }}</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><lucide-icon class="c-accent" [img]="icons.Lightbulb" [size]="20"></lucide-icon><h3>Next steps</h3></div>
+        <ol class="next card-body pt0">
+          <li [class.on]="step === 2"><span class="n">1</span><span><span class="strong">Select assets or locations</span><br /><span class="muted">Define the scope by selecting specific assets or a location/area.</span></span></li>
+          <li [class.on]="step === 3"><span class="n">2</span><span><span class="strong">Choose a checklist template</span><br /><span class="muted">Use a template or create a custom checklist for this inspection.</span></span></li>
+          <li [class.on]="step === 4"><span class="n">3</span><span><span class="strong">Assign inspector and schedule</span><br /><span class="muted">Assign a team member and set the inspection date and time.</span></span></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar sticky">
+    <span class="strong">Step {{ step }} of {{ steps.length }}</span><span class="sep"></span>
+    <span class="grow">All required fields are marked with an asterisk.</span>
+    @if (step > 1) { <button type="button" class="btn btn-outline" (click)="back()"><lucide-icon [img]="icons.ArrowLeft" [size]="16"></lucide-icon>Back</button> }
+    @if (step < steps.length) {
+      <button type="button" class="btn btn-primary" (click)="next()">Next: {{ steps[step] }}<lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon></button>
+    } @else {
+      <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="submit()">{{ saving() ? 'Submitting…' : 'Submit Inspection' }}<lucide-icon [img]="icons.Check" [size]="16"></lucide-icon></button>
+    }
+  </div>
+</section>

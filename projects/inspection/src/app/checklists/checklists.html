@@ -1,0 +1,124 @@
+<section class="ip-page">
+  <!-- ===== Header ===== -->
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span aria-hidden="true">/</span>
+        <span>Configuration</span><span aria-hidden="true">/</span>
+        <span class="current">Central Checklists</span>
+      </nav>
+      <h1>Central Checklist Library <span class="shared-chip"><lucide-icon [img]="icons.Share2" [size]="15"></lucide-icon>Shared across modules</span></h1>
+      <p class="subtitle">Build once and reuse across Inspection, Maintenance, WIP and Audit.</p>
+    </div>
+    <div class="head-actions">
+      <input #fileInput type="file" accept=".json,application/json" hidden (change)="importFile(fileInput)" />
+      <button type="button" class="btn btn-outline" title="Import a checklist from a JSON file" (click)="fileInput.click()"><lucide-icon [img]="icons.Upload" [size]="17"></lucide-icon>Import</button>
+      <button type="button" class="btn btn-accent-outline" [disabled]="!selected()" (click)="previewOpen = true"><lucide-icon [img]="icons.Eye" [size]="17"></lucide-icon>Preview</button>
+      <button type="button" class="btn btn-primary" (click)="openNew()"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>New Checklist</button>
+    </div>
+  </div>
+
+  @if (store.error()) { <div class="alert" role="alert">{{ store.error() }}</div> }
+
+  <div class="layout">
+    <!-- ===== Checklist cards ===== -->
+    <div class="card">
+      <div class="card-head"><h2>Checklists</h2></div>
+      <div class="filters col">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" placeholder="Search checklists by name or code..." aria-label="Search checklists" [(ngModel)]="search" (ngModelChange)="resetPage()" />
+        </label>
+        <select class="control" aria-label="Module" [(ngModel)]="moduleFilter" (ngModelChange)="resetPage()">
+          <option value="All">All Modules</option>
+          @for (m of modules; track m) { <option [value]="m">{{ m }}</option> }
+        </select>
+      </div>
+      <div class="cards">
+        @for (c of pager.slice(filtered()); track c.id) {
+          <button type="button" class="cl-card" [class.is-selected]="selected()?.id === c.id" [attr.aria-pressed]="selected()?.id === c.id" (click)="select(c.id)">
+            <span class="cl-icon"><lucide-icon [img]="checklistIcon(c)" [size]="22"></lucide-icon></span>
+            <span class="cl-main">
+              <span class="cl-top"><strong class="cl-name">{{ c.templateName }} v{{ c.versionLabel }}</strong>
+                <span [class]="pillClass(c.status)"><span class="dot"></span>{{ c.status || 'Draft' }}</span></span>
+              <span class="muted">{{ c.checklistCode }}</span>
+              <span class="cl-bottom">
+                <span class="tags">@for (m of mods(c); track m) { <span class="tag" [attr.data-m]="m">{{ m }}</span> }</span>
+                <span class="muted">{{ taskCount(c) }} tasks</span>
+              </span>
+            </span>
+            <lucide-icon class="cl-chev" [img]="icons.ChevronRight" [size]="18"></lucide-icon>
+          </button>
+        } @empty {
+          <div class="empty">{{ store.loading() ? 'Loading checklists…' : 'No checklists found.' }}</div>
+        }
+      </div>
+      <div class="pager">
+        <span class="grow">Showing {{ pager.slice(filtered()).length }} of {{ filtered().length }} checklists</span>
+        <button type="button" aria-label="Previous page" [disabled]="pager.page <= 1" (click)="pager.page = pager.page - 1"><lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon></button>
+        @for (p of pager.pageList(filtered().length); track p) {
+          <button type="button" [class.is-active]="p === pager.page" (click)="pager.page = p">{{ p }}</button>
+        }
+        <button type="button" aria-label="Next page" [disabled]="pager.page >= pager.pages(filtered().length)" (click)="pager.page = pager.page + 1"><lucide-icon [img]="icons.ChevronRight" [size]="15"></lucide-icon></button>
+      </div>
+    </div>
+
+    <!-- ===== Selected checklist ===== -->
+    @if (selected(); as c) {
+      <app-checklist-detail [checklist]="c" (selectId)="select($event)" (notify)="flash($event)" />
+    } @else {
+      <div class="card"><div class="empty">{{ store.loading() ? 'Loading…' : 'Create or import a checklist to get started.' }}</div></div>
+    }
+  </div>
+</section>
+
+@if (previewOpen && selected(); as c) {
+  <app-checklist-preview [checklist]="c" (closed)="previewOpen = false" />
+}
+
+<!-- ===== New checklist drawer ===== -->
+@if (form; as f) {
+  <div class="backdrop" (click)="closeForm()"></div>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="cl-form-title">
+    <div class="drawer-head">
+      <h2 id="cl-form-title" class="grow">New Checklist</h2>
+      <button type="button" class="icon-btn" aria-label="Close" (click)="closeForm()"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="drawer-body">
+      @if (formError) { <div class="alert" role="alert">{{ formError }}</div> }
+      <div class="form-grid">
+        <label class="field span-2"><span class="field-label">Checklist name <span class="req">*</span></span>
+          <input class="control" [(ngModel)]="f.templateName" placeholder="e.g. Equipment Safety" /></label>
+        <label class="field span-2"><span class="field-label">Inspection type</span>
+          <select class="control" [ngModel]="f.inspectionTypeId" (ngModelChange)="pickType($event)">
+            <option value="">— None —</option>
+            @for (t of api.types.items(); track t.id) { <option [value]="t.id">{{ t.inspectionTypeName }}</option> }
+          </select></label>
+        <label class="field"><span class="field-label">Applicable assets (category)</span>
+          <input class="control" [(ngModel)]="f.assetCategory" placeholder="e.g. Production Equipment" /></label>
+        <label class="field"><span class="field-label">Asset type</span>
+          <input class="control" [(ngModel)]="f.assetType" placeholder="e.g. CNC Machine" /></label>
+        <div class="field span-2"><span class="field-label">Modules <span class="req">*</span></span>
+          <div class="mods">
+            @for (m of modules; track m) {
+              <label class="check"><input type="checkbox" [checked]="f.modules?.includes(m)" (change)="toggleModule(m, $any($event.target).checked)" />{{ m }}</label>
+            }
+          </div>
+        </div>
+        <label class="field"><span class="field-label">Scoring</span>
+          <select class="control" [(ngModel)]="f.scoring">
+            @for (s of scoringMethods; track s) { <option [value]="s">{{ s }}</option> }
+          </select></label>
+        <label class="field"><span class="field-label">Owner</span>
+          <input class="control" [(ngModel)]="f.owner" placeholder="e.g. Safety Team" /></label>
+      </div>
+      <div class="note">The checklist is created as Draft v1.0. Add sections and tasks, then publish it.</div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn btn-outline" (click)="closeForm()">Cancel</button>
+      <button type="button" class="btn btn-primary" [disabled]="saving" (click)="saveForm()">{{ saving ? 'Creating…' : 'Create Draft' }}</button>
+    </div>
+  </aside>
+}
+
+@if (toast()) { <div class="toast" role="status">{{ toast() }}</div> }

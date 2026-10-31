@@ -1,0 +1,117 @@
+@let i = instrument();
+<section class="card panel">
+  <div class="top">
+    <div class="grow">
+      <h2>{{ i.instrumentName }} <span [class]="pillClass(status())">{{ status() }}</span></h2>
+      <div class="muted code">{{ i.instrumentCode }}</div>
+      <div class="tabs">
+        @for (t of tabs; track t) { <button type="button" [class.on]="tab() === t" (click)="tab.set(t)">{{ t }}</button> }
+      </div>
+    </div>
+    <div class="pic" aria-hidden="true"><lucide-icon [img]="icons.Gauge" [size]="54" [strokeWidth]="1.4"></lucide-icon></div>
+  </div>
+
+  <div class="body">
+    @switch (tab()) {
+      @case ('Overview') {
+        <dl class="kv">
+          <dt>Serial number</dt><dd>{{ i.serialNumber || '—' }}</dd>
+          <dt>Location</dt><dd>{{ i.location || '—' }}</dd>
+          <dt>Interval</dt><dd>{{ i.intervalMonths }} months</dd>
+          <dt>Provider</dt><dd>{{ i.provider || '—' }}@if (i.providerType) { <span class="muted"> ({{ i.providerType }})</span> }</dd>
+        </dl>
+
+        <div class="block">
+          <h3 class="section-title">Calibration Summary</h3>
+          <div class="summary">
+            <dl class="kv"><dt>Range</dt><dd>{{ i.range || '—' }}</dd><dt>Tolerance</dt><dd>{{ i.tolerance || '—' }}</dd></dl>
+            <dl class="kv">
+              <dt>Last result</dt><dd>@if (i.lastResult) { <span [class]="pillClass(i.lastResult)">{{ i.lastResult }}</span> } @else { — }</dd>
+              <dt>Next due</dt><dd [class.c-bad]="status() === 'Overdue'">{{ fmtDate(i.nextDue) || '—' }}</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="block">
+          <h3 class="section-title">Last Calibration Results @if (i.unit) { <span class="muted">(units: {{ i.unit }})</span> }</h3>
+          <ng-container *ngTemplateOutlet="results"></ng-container>
+        </div>
+
+        <div class="trace">
+          <div class="grow">
+            <h3 class="section-title">Traceability</h3>
+            <dl class="kv small">
+              <dt>Reference standard</dt><dd>{{ i.referenceStandard || '—' }}</dd>
+              <dt>Reference certificate</dt><dd>{{ i.referenceCertificate || '—' }}</dd>
+              <dt>Valid at calibration</dt>
+              <dd class="yn">
+                @if (i.validAtCalibration) { <lucide-icon [img]="icons.CircleCheck" [size]="16" class="c-good"></lucide-icon> Yes }
+                @else { <lucide-icon [img]="icons.CircleX" [size]="16" class="c-bad"></lucide-icon> No }
+              </dd>
+            </dl>
+          </div>
+          <div class="cert">
+            <div class="strong">Certificate</div>
+            @if (i.certificate) {
+              <div class="cert-file"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon><span class="grow">{{ certLabel(i.certificate) }}</span>
+                @if (certHref(i.certificate); as href) { <a class="icon-btn" [href]="href" download aria-label="Download certificate"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon></a> }
+              </div>
+              @if (certHref(i.certificate); as href) {
+                <a class="link small-link" [href]="href" target="_blank" rel="noopener">View Certificate <lucide-icon [img]="icons.ExternalLink" [size]="13"></lucide-icon></a>
+              }
+            } @else {
+              <span class="muted">Pending</span>
+            }
+          </div>
+        </div>
+      }
+
+      @case ('Results') {
+        <ng-container *ngTemplateOutlet="results"></ng-container>
+        <div class="muted">Calibrated {{ fmtDate(i.lastCalibration) || '—' }} • Tolerance {{ i.tolerance || '—' }}</div>
+        <button type="button" class="btn btn-accent-outline" (click)="record.emit()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Record Result</button>
+      }
+
+      @case ('History') {
+        <div class="tbl">
+          <table class="table">
+            <thead><tr><th>Date</th><th>Result</th><th>Certificate</th><th>Performed by</th></tr></thead>
+            <tbody>
+              @for (h of history(i); track $index) {
+                <tr>
+                  <td class="nowrap">{{ fmtDate(h.date) }}</td>
+                  <td><span [class]="pillClass(h.result)">{{ h.result }}</span></td>
+                  <td>@if (certHref(h.certificate); as href) { <a class="link" [href]="href" target="_blank" rel="noopener">{{ certLabel(h.certificate) }}</a> } @else { {{ h.certificate || '—' }} }</td>
+                  <td>{{ h.performedBy || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (!i.history.length) { <div class="empty">No calibration history yet.</div> }
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" (click)="edit.emit()"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit Instrument</button>
+      }
+    }
+
+    <button type="button" class="btn btn-primary full" (click)="schedule.emit()"><lucide-icon [img]="icons.CalendarDays" [size]="17"></lucide-icon>Schedule Calibration</button>
+  </div>
+</section>
+
+<ng-template #results>
+  <div class="tbl">
+    <table class="table">
+      <thead><tr><th>Reference</th><th>As-found</th><th>As-left</th><th>Result</th></tr></thead>
+      <tbody>
+        @for (r of instrument().results; track $index) {
+          <tr>
+            <td>{{ fixed(r.reference) }}</td>
+            <td>{{ fixed(r.asFound) }}</td>
+            <td>{{ fixed(r.asLeft) }}</td>
+            <td><span [class]="pillClass(r.result)">{{ r.result || '—' }}</span></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    @if (!instrument().results.length) { <div class="empty">No results recorded.</div> }
+  </div>
+</ng-template>

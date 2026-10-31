@@ -1,0 +1,35 @@
+.subtabs { display: flex; gap: 6px; border-bottom: 1px solid var(--ip-border); overflow-x: auto; }
+.subtabs button { padding: 10px 16px; border: 0; border-bottom: 2px solid transparent; background: none; font: inherit; font-size: 14px; color: var(--ip-muted); cursor: pointer; white-space: nowrap; }
+.subtabs button.on { color: var(--ip-accent); border-bottom-color: var(--ip-accent); font-weight: 700; }
+.col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.sm { font-size: 12.5px; }
+.list { display: flex; flex-direction: column; gap: 8px; padding: 0 18px 16px; }
+.item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--ip-border); border-radius: 10px; background: #fff; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.item:hover { border-color: var(--ip-accent-border); }
+.item.is-selected { border-color: var(--ip-accent-border); background: var(--ip-accent-soft); }
+.item .grow { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.item > lucide-icon { color: var(--ip-muted); }
+.fit { align-self: flex-start; }
+.av { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; background: #e4e0f5; color: #3b2ea8; font-weight: 700; font-size: 14px; }
+.av-lg { width: 52px; height: 52px; font-size: 18px; }
+.add { display: flex; align-items: center; justify-content: center; gap: 8px; height: 44px; border: 1.5px dashed var(--ip-accent-border); border-radius: 10px; background: #fff; color: var(--ip-accent); font: inherit; font-weight: 600; cursor: pointer; }
+.prof { display: flex; flex-direction: column; gap: 14px; padding-top: 0; }
+.who { display: flex; align-items: center; gap: 14px; }
+.who div { display: flex; flex-direction: column; font-size: 16px; }
+.spec { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(150px, 1fr); gap: 14px; padding-top: 12px; border-top: 1px solid var(--ip-border); }
+.specimen { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 120px; padding: 10px; border-radius: 8px; background: var(--ip-bg-soft); }
+.specimen img { max-width: 100%; max-height: 90px; object-fit: contain; }
+.cursive { font-family: 'Brush Script MT', 'Segoe Script', 'Lucida Handwriting', cursive; font-size: 40px; line-height: 1.2; color: #1b1640; }
+.spec-side { display: flex; flex-direction: column; gap: 8px; padding-top: 28px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--ip-accent-border); border-radius: 8px; overflow: hidden; }
+.seg button { height: 36px; border: 0; background: #fff; font: inherit; font-size: 13.5px; cursor: pointer; }
+.seg button.on { background: var(--ip-accent-soft); color: var(--ip-accent); font-weight: 700; }
+.seg-wide button { height: 40px; }
+.assign { display: flex; gap: 14px; align-items: center; }
+.seal-box { display: flex; align-items: center; justify-content: center; width: 104px; height: 104px; flex: 0 0 auto; border-radius: 10px; background: var(--ip-bg-soft); }
+.tg { display: inline-flex; align-items: center; gap: 10px; height: 38px; font-size: 13.5px; }
+.stamp-up { display: flex; gap: 16px; align-items: center; }
+.up-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.danger-zone { display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--ip-border); font-size: 13px; }
+.btn-danger { background: var(--ip-bad); color: #fff; }
+@media (max-width: 600px) { .spec { grid-template-columns: minmax(0, 1fr); } .spec-side { padding-top: 0; } .footer-bar { flex-wrap: wrap; } }

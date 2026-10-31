@@ -1,0 +1,113 @@
+@let t = task();
+@let r = t.r;
+@let ev = evaluate(r);
+<div class="card">
+  <div class="card-head">
+    <lucide-icon class="muted" [img]="icons.Settings" [size]="22"></lucide-icon>
+    <h2 class="grow">{{ r.sectionName || 'Checklist' }}</h2>
+    <span class="muted">Task {{ t.i + 1 }} of {{ total() }}</span>
+  </div>
+
+  <div class="card-body pt0">
+    <div class="task">
+      <div class="task-head">
+        <span class="no">{{ t.i + 1 }}</span>
+        <span class="grow"><span class="ttl">{{ r.taskTitle }}</span>
+          @if (r.required) { <span class="pill pill--red">Required</span> }</span>
+      </div>
+      @if (r.procedure) { <p class="proc">{{ r.procedure }}</p> }
+      @if (range(r)) { <p class="proc"><span class="strong">Acceptance range</span>&nbsp;&nbsp;{{ range(r) }}</p> }
+
+      <div class="rows">
+        @if (needsReading(r)) {
+          <span class="lab">Reading @if (isNumeric(r)) { <span class="req">*</span> }</span>
+          <div class="reading">
+            @if (isYesNo(r)) {
+              <div class="opts">
+                @for (o of ['Yes', 'No']; track o) {
+                  <label class="opt" [class.sel]="r.reading === o"><input type="radio" [name]="'rd' + t.i" [value]="o" [disabled]="readOnly()" [ngModel]="r.reading" (ngModelChange)="onReading(r, $event)" />{{ o }}</label>
+                }
+              </div>
+            } @else {
+              <input class="control rd-in" [class.bad]="ev && !ev.pass" [type]="isNumeric(r) ? 'number' : 'text'" step="any" aria-label="Reading"
+                [disabled]="readOnly()" [ngModel]="r.reading" (ngModelChange)="onReading(r, ($event ?? '') + '')" />
+              @if (r.unit) { <span class="unit">{{ r.unit }}</span> }
+            }
+            @if (ev) {
+              <span class="eval" [class.ok]="ev.pass"><lucide-icon [img]="ev.pass ? icons.CircleCheck : icons.CircleAlert" [size]="18"></lucide-icon>{{ ev.text }}</span>
+            }
+          </div>
+        }
+
+        <span class="lab">Response <span class="req">*</span></span>
+        <div class="opts">
+          @for (o of results; track o) {
+            <label class="opt" [class.sel]="r.result === o" [class.fail]="o === 'Fail' && r.result === o">
+              <input type="radio" [name]="'res' + t.i" [value]="o" [disabled]="readOnly()" [ngModel]="r.result" (ngModelChange)="setResult(r, $event)" />{{ o }}
+            </label>
+          }
+        </div>
+
+        <span class="lab">Notes @if (r.result === 'Fail') { <span class="req">*</span> }</span>
+        <div class="notes">
+          <textarea class="control" rows="3" maxlength="500" placeholder="Add observations…" [disabled]="readOnly()" [(ngModel)]="r.notes" (ngModelChange)="changed.emit()"></textarea>
+          <span class="cnt">{{ (r.notes || '').length }}/500</span>
+        </div>
+
+        <span class="lab">Evidence @if (r.result === 'Fail' && evidenceRequired()) { <span class="req">*</span> }</span>
+        <div>
+          <div class="ev">
+            @for (e of r.evidence; track $index; let n = $index) {
+              <div class="tile">
+                @if (e.startsWith('data:image/')) { <img [src]="e" alt="Evidence photo" /> }
+                @else { <span class="ph"><lucide-icon [img]="isImage(e) ? icons.ImageIcon : icons.FileText" [size]="22"></lucide-icon>{{ evidenceLabel(e) }}</span> }
+                @if (!readOnly()) { <button type="button" class="x" aria-label="Remove evidence" (click)="removeEvidence(r, n)"><lucide-icon [img]="icons.X" [size]="12"></lucide-icon></button> }
+              </div>
+            }
+            @if (!readOnly()) {
+              <label class="tile add"><input type="file" hidden multiple accept="image/*,.pdf,.doc,.docx" #fileIn (change)="addEvidence(r, fileIn.files); fileIn.value = ''" />
+                <lucide-icon [img]="icons.Plus" [size]="20"></lucide-icon>Add Photo / File</label>
+            }
+          </div>
+          @if (evidenceRequired()) { <p class="muted">Photo required for failed tasks.</p> }
+        </div>
+      </div>
+
+      @if (r.result === 'Fail' && !readOnly()) {
+        <div class="fail-bar">
+          @if (hasFinding(r)) { <span class="pill pill--amber">Finding created</span> }
+          @else {
+            <span class="grow">This task failed. Raise a finding so a corrective action can be tracked.</span>
+            <button type="button" class="btn btn-sm btn-accent-outline" (click)="createFinding.emit(t)">Create finding</button>
+          }
+        </div>
+      }
+    </div>
+
+    @for (o of sectionTasks(); track o.i) {
+      @if (o.i !== t.i) {
+        <div class="other">
+          <button type="button" class="other-head" [attr.aria-expanded]="open() === o.i" (click)="toggle(o.i)">
+            <span class="no">{{ o.i + 1 }}</span>
+            <span class="grow ttl">{{ o.r.taskTitle }}</span>
+            @if (o.r.reading) { <span class="pill">{{ o.r.reading }}{{ o.r.unit && isNumeric(o.r) ? ' ' + o.r.unit : '' }}</span> }
+            <span [class]="pillClass(o.r.result || 'Pending')">{{ o.r.result || 'Pending' }}</span>
+            <lucide-icon [img]="open() === o.i ? icons.ChevronUp : icons.ChevronDown" [size]="16"></lucide-icon>
+          </button>
+          @if (open() === o.i) {
+            <div class="other-body">
+              @if (o.r.procedure) { <p>{{ o.r.procedure }}</p> }
+              @if (o.r.notes) { <p class="muted">Notes: {{ o.r.notes }}</p> }
+              <button type="button" class="link" (click)="go.emit(o.i)">Go to task<lucide-icon [img]="icons.ArrowRight" [size]="14"></lucide-icon></button>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <div class="nav">
+      <button type="button" class="btn btn-accent-outline" [disabled]="t.i === 0" (click)="go.emit(t.i - 1)"><lucide-icon [img]="icons.ArrowLeft" [size]="16"></lucide-icon>Previous Task</button>
+      <button type="button" class="btn btn-primary" [disabled]="t.i >= total() - 1" (click)="go.emit(t.i + 1)">Next Task<lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon></button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,90 @@
+<div class="backdrop" (click)="closed.emit()"></div>
+<aside class="drawer" role="dialog" aria-label="Calibration">
+  <div class="drawer-head">
+    <h2 class="grow">{{ current() === 'result' ? 'Record Calibration Result' : form.id ? 'Edit Instrument' : 'New Calibration' }}</h2>
+    <button type="button" class="icon-btn" aria-label="Close" (click)="closed.emit()"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+  </div>
+  <div class="drawer-body">
+    <div class="seg">
+      <button type="button" [class.on]="current() === 'instrument'" (click)="setMode('instrument')">{{ form.id ? 'Instrument details' : 'Register instrument' }}</button>
+      <button type="button" [class.on]="current() === 'result'" (click)="setMode('result')">Record result</button>
+    </div>
+    @if (error()) { <div class="alert">{{ error() }}</div> }
+
+    @if (current() === 'instrument') {
+      <div class="form-grid">
+        <label class="field"><span class="field-label">Instrument ID <span class="req">*</span></span>
+          <input class="control" [(ngModel)]="form.instrumentCode" placeholder="e.g. PG-001" /></label>
+        <label class="field"><span class="field-label">Instrument name <span class="req">*</span></span>
+          <input class="control" [(ngModel)]="form.instrumentName" placeholder="e.g. Digital Pressure Gauge" /></label>
+        <label class="field"><span class="field-label">Serial number</span><input class="control" [(ngModel)]="form.serialNumber" /></label>
+        <label class="field"><span class="field-label">Location</span><input class="control" [(ngModel)]="form.location" /></label>
+        <label class="field"><span class="field-label">Range</span><input class="control" [(ngModel)]="form.range" placeholder="e.g. 0 – 10 bar" /></label>
+        <label class="field"><span class="field-label">Unit</span><input class="control" [(ngModel)]="form.unit" placeholder="e.g. bar" /></label>
+        <label class="field"><span class="field-label">Tolerance</span><input class="control" [(ngModel)]="form.tolerance" placeholder="e.g. ±0.05 bar or ±1 %" /></label>
+        <label class="field"><span class="field-label">Interval (months)</span><input class="control" type="number" min="1" [(ngModel)]="form.intervalMonths" /></label>
+        <label class="field"><span class="field-label">Provider</span><input class="control" [(ngModel)]="form.provider" /></label>
+        <label class="field"><span class="field-label">Provider type</span>
+          <select class="control" [(ngModel)]="form.providerType"><option value="In-house">In-house</option><option value="Service Provider">Service Provider</option></select></label>
+        <label class="field"><span class="field-label">Assigned to</span>
+          <input class="control" list="cal-people" [(ngModel)]="form.assignedTo" /></label>
+        <label class="field"><span class="field-label">Certificate</span><input class="control" [(ngModel)]="form.certificate" placeholder="CERT-0148 or URL" /></label>
+        <label class="field"><span class="field-label">Last calibration</span><input class="control" type="date" [(ngModel)]="form.lastCalibration" /></label>
+        <label class="field"><span class="field-label">Next due</span><input class="control" type="date" [(ngModel)]="form.nextDue" />
+          <span class="field-hint">Leave blank to use last calibration + interval.</span></label>
+        <label class="field"><span class="field-label">Reference standard</span><input class="control" [(ngModel)]="form.referenceStandard" /></label>
+        <label class="field"><span class="field-label">Reference certificate</span><input class="control" [(ngModel)]="form.referenceCertificate" /></label>
+        <label class="check span-2"><input type="checkbox" [(ngModel)]="form.validAtCalibration" /> Reference standard valid at calibration</label>
+      </div>
+    } @else {
+      <div class="form-grid">
+        <label class="field span-2"><span class="field-label">Instrument <span class="req">*</span></span>
+          <select class="control" [ngModel]="result.instrumentId" (ngModelChange)="pickInstrument($event)">
+            <option value="">Select instrument</option>
+            @for (i of api.instruments.items(); track i.id) { <option [value]="i.id">{{ i.instrumentCode }} — {{ i.instrumentName }}</option> }
+          </select></label>
+        @if (selectedInstrument(); as inst) {
+          <div class="span-2 muted">Range {{ inst.range || '—' }} • Tolerance {{ inst.tolerance || '—' }} • Interval {{ inst.intervalMonths }} months</div>
+        }
+        <label class="field"><span class="field-label">Calibration date</span><input class="control" type="date" [max]="today" [(ngModel)]="result.date" /></label>
+        <label class="field"><span class="field-label">Performed by</span><input class="control" list="cal-people" [(ngModel)]="result.performedBy" /></label>
+        <label class="field"><span class="field-label">Certificate</span><input class="control" [(ngModel)]="result.certificate" placeholder="CERT-0149 or URL" /></label>
+        <label class="field"><span class="field-label">Reference standard</span><input class="control" [(ngModel)]="result.referenceStandard" /></label>
+        <label class="field"><span class="field-label">Reference certificate</span><input class="control" [(ngModel)]="result.referenceCertificate" /></label>
+        <label class="check"><input type="checkbox" [(ngModel)]="result.validAtCalibration" /> Reference valid at calibration</label>
+      </div>
+
+      <div>
+        <div class="pts-head"><span class="section-title grow">Measurement points</span>
+          <button type="button" class="btn btn-outline btn-sm" (click)="addPoint()"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>Add point</button></div>
+        <table class="pts">
+          <thead><tr><th>Reference</th><th>As-found</th><th>As-left</th><th>Result</th><th></th></tr></thead>
+          <tbody>
+            @for (p of points; track $index; let k = $index) {
+              <tr>
+                <td><input class="control" type="number" step="any" [(ngModel)]="p.reference" (ngModelChange)="autoResult(p)" /></td>
+                <td><input class="control" type="number" step="any" [(ngModel)]="p.asFound" (ngModelChange)="autoResult(p)" /></td>
+                <td><input class="control" type="number" step="any" [(ngModel)]="p.asLeft" (ngModelChange)="autoResult(p)" /></td>
+                <td><select class="control" [(ngModel)]="p.result"><option value="">—</option><option value="Pass">Pass</option><option value="Fail">Fail</option></select></td>
+                <td><button type="button" class="icon-btn" aria-label="Remove point" (click)="removePoint(k)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon></button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <p class="field-hint">
+          {{ canAuto() ? 'Result is set automatically from the tolerance; you can override it.' : 'Tolerance could not be read — choose Pass / Fail for each point.' }}
+          Next due is set to the calibration date + interval.
+        </p>
+      </div>
+    }
+    <datalist id="cal-people">
+      @for (p of people(); track p) { <option [value]="p"></option> }
+    </datalist>
+  </div>
+  <div class="drawer-foot">
+    <button type="button" class="btn btn-outline" (click)="closed.emit()">Cancel</button>
+    <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">
+      {{ saving() ? 'Saving...' : current() === 'result' ? 'Save Result' : 'Save Instrument' }}
+    </button>
+  </div>
+</aside>

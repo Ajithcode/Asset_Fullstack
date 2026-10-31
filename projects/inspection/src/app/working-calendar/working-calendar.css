@@ -1,0 +1,28 @@
+.col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.stack { display: flex; flex-direction: column; gap: 12px; padding-top: 0; }
+.pad { height: 14px; }
+.week-title { margin: 6px 0 0; padding-top: 10px; border-top: 1px solid var(--ip-border); }
+.week { border: 1px solid var(--ip-border); border-radius: 8px; }
+.wd { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; padding: 4px 10px; font-size: 13px; }
+.wd + .wd { border-top: 1px solid var(--ip-border); }
+.wd.off .check { color: var(--ip-muted); }
+.times { display: flex; gap: 4px; }
+.control.t { height: 30px; width: 96px; padding: 0 6px; font-size: 12.5px; }
+.brk { flex-direction: row; align-items: center; gap: 12px; }
+.brk .field-label { white-space: nowrap; }
+.ex-head { padding-top: 4px; flex-wrap: wrap; }
+.ex-head .section-title { margin: 0; }
+.tg { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13.5px; }
+.impact { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px; border-radius: 10px; background: var(--ip-bg-soft); }
+.impact div { display: flex; flex-direction: column; gap: 2px; }
+.impact b { font-size: 19px; font-weight: 800; }
+.aff { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ip-border); border-radius: 8px; max-height: 260px; overflow-y: auto; }
+.aff li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 10px; font-size: 13px; }
+.aff li + li { border-top: 1px solid var(--ip-border); }
+.assigned { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 32px; padding: 14px 18px; }
+.assigned h2 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 18px; font-weight: 800; flex: 1 1 160px; }
+.as { display: flex; align-items: center; gap: 12px; padding-right: 32px; border-right: 1px solid var(--ip-border); }
+.as > span:last-child { display: flex; flex-direction: column; }
+.as b { font-size: 20px; font-weight: 800; }
+.as-ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: var(--ip-accent-soft); color: var(--ip-accent); }
+@media (max-width: 700px) { .as { border-right: 0; padding-right: 0; } .footer-bar { flex-wrap: wrap; } }

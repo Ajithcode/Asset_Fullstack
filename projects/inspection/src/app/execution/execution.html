@@ -1,0 +1,171 @@
+<section class="ip-page">
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span aria-hidden="true">/</span>
+        @if (work) { <span>{{ work.inspectionCode }}</span><span aria-hidden="true">/</span> }
+        <span class="current">Execute</span>
+      </nav>
+      <h1>Inspection Execution @if (work) { <span [class]="pillClass(work.status)"><span class="dot"></span>{{ work.status }}</span> }
+        @if (paused) { <span class="pill">Paused</span> }</h1>
+      @if (work) {
+        <p class="subtitle sub-lg">{{ work.title }}@if (work.assetCode) { &nbsp;•&nbsp; {{ work.assetCode }} }@if (work.location) { &nbsp;•&nbsp; {{ work.location }} }</p>
+      }
+    </div>
+    <div class="head-actions">
+      @if (choices().length) {
+        <select class="control pick" aria-label="Switch inspection" [ngModel]="work?.inspectionCode ?? ''" (ngModelChange)="switchTo($event)">
+          @if (!work) { <option value="">Select inspection</option> }
+          @for (i of choices(); track i.id) { <option [value]="i.inspectionCode">{{ i.inspectionCode }} – {{ i.title }}</option> }
+        </select>
+      }
+      @if (work && !readOnly) {
+        <button type="button" class="btn btn-outline" (click)="togglePause()"><lucide-icon [img]="paused ? icons.Play : icons.Pause" [size]="17"></lucide-icon>{{ paused ? 'Resume' : 'Pause' }}</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()"><lucide-icon [img]="icons.Save" [size]="17"></lucide-icon>Save Progress</button>
+      }
+    </div>
+  </div>
+
+  @if (inspections.error(); as err) { <div class="alert">Inspections: {{ err }}</div> }
+  @if (findingsStore.error(); as err) { <div class="alert">Findings: {{ err }}</div> }
+  @if (error) { <div class="alert" role="alert">{{ error }}</div> }
+
+  @if (!work) {
+    <div class="card"><div class="empty">
+      @if (inspections.loading()) { Loading inspections… }
+      @else { No inspection to execute. Pick one above or <a class="link" routerLink="/inspection/new">create a new inspection</a>. }
+    </div></div>
+  } @else {
+    @let req = requirements();
+    @let c = counts();
+
+    @if (work.status === 'Draft') {
+      <div class="note">This inspection is still a draft. <a class="link" routerLink="/inspection/new" [queryParams]="{ id: work.id }">Finish the setup</a> to schedule it.</div>
+    }
+
+    <!-- Info strip -->
+    <div class="card strip">
+      <div><lucide-icon [img]="icons.ClipboardList" [size]="24"></lucide-icon><span><span class="muted">Inspection</span><b>{{ work.inspectionCode }}</b></span></div>
+      <div><lucide-icon [img]="icons.User" [size]="24"></lucide-icon><span><span class="muted">Inspector</span><b>{{ work.assignedTo || '—' }}</b></span></div>
+      <div><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon><span><span class="muted">Checklist</span><b>{{ work.checklistName || work.checklistCode || '—' }}</b></span></div>
+      <div><lucide-icon [img]="icons.Calendar" [size]="24"></lucide-icon><span><span class="muted">Started</span><b>{{ fmtDateTime(work.startedAt) || 'Not started' }}</b></span></div>
+      <div><lucide-icon [img]="icons.Clock" [size]="24"></lucide-icon><span><span class="muted">Elapsed</span><b>{{ elapsed }}</b></span></div>
+    </div>
+
+    <div class="split-3">
+      <!-- Left: progress -->
+      <div class="col">
+        <div class="card">
+          <div class="card-head"><h2 class="grow">Checklist Progress</h2><span class="muted">{{ c.done }} of {{ c.total }} tasks completed</span></div>
+          <div class="card-body pt0">
+            <div class="bar-row"><div class="bar"><span [style.width.%]="c.pct"></span></div><b class="c-accent">{{ c.pct }}%</b></div>
+            @for (s of sections(); track s.name) {
+              <button type="button" class="sec" [class.on]="currentSection()?.name === s.name" (click)="goToSection(s)">
+                <lucide-icon [class]="s.pct === 100 ? 'c-good' : 'c-accent'" [img]="sectionIcon(s)" [size]="22"></lucide-icon>
+                <span class="grow"><b>{{ s.name }}</b><br /><span class="muted">{{ s.done }} of {{ s.tasks.length }} tasks completed</span></span>
+                <b>{{ s.pct }}%</b>
+                <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+              </button>
+            }
+            <ul class="legend">
+              <li><span class="lg lg-pass"></span>Passed<b>{{ c.pass }}</b></li>
+              <li><span class="lg lg-fail"></span>Failed<b>{{ c.fail }}</b></li>
+              <li><span class="lg lg-na"></span>Not Applicable (N/A)<b>{{ c.na }}</b></li>
+              <li><span class="lg"></span>Pending<b>{{ c.pending }}</b></li>
+            </ul>
+          </div>
+        </div>
+        @if (work.assetCode || work.assetName || work.location) {
+          <div class="card asset">
+            <span class="asset-img"><lucide-icon [img]="icons.Box" [size]="34"></lucide-icon></span>
+            <span class="grow">
+              <b>{{ work.assetName || 'Location inspection' }}</b><br />
+              <span class="muted">{{ work.assetCode }}</span><br />
+              @if (work.location) { <span class="loc"><lucide-icon [img]="icons.MapPin" [size]="14"></lucide-icon>{{ work.location }}</span> }
+              @if (work.siteName) { <br /><span class="muted">{{ work.siteName }}</span> }
+            </span>
+          </div>
+        }
+      </div>
+
+      <!-- Center: current task -->
+      <div class="col">
+        @if (currentTask(); as t) {
+          <app-insp-exec-task [task]="t" [sectionTasks]="currentSection()?.tasks ?? []" [total]="c.total" [readOnly]="readOnly"
+            [evidenceRequired]="work.evidenceRequired" [findingTasks]="findingTasks()"
+            (changed)="onChanged()" (go)="go($event)" (createFinding)="createFinding($event)" />
+        } @else {
+          <div class="card"><div class="empty">
+            This inspection has no checklist responses yet.
+            @if (checklistAvailable && !readOnly) { <br /><button type="button" class="btn btn-primary mt" (click)="loadChecklistTasks()">Load tasks from {{ work.checklistName || work.checklistCode }}</button> }
+          </div></div>
+        }
+      </div>
+
+      <!-- Right: findings, evidence, requirements -->
+      <div class="col">
+        <div class="card">
+          <div class="card-head"><h2>Findings &amp; Actions</h2>
+            @if (findings().length) { <span class="badge">{{ findings().length }}</span><span class="c-bad small">{{ findings().length }} finding{{ findings().length > 1 ? 's' : '' }} created</span> }
+          </div>
+          <div class="card-body pt0">
+            @for (f of findings(); track f.id) {
+              <div class="fnd">
+                <div class="fnd-head">
+                  <lucide-icon class="c-bad" [img]="icons.CircleAlert" [size]="22"></lucide-icon>
+                  <span class="grow"><a class="code-link" routerLink="/inspection/findings" [queryParams]="{ code: f.findingCode }">{{ f.findingCode }}</a><br /><b>{{ f.title }}</b></span>
+                  <span [class]="pillClass(f.severity)">{{ f.severity }}</span><span [class]="pillClass(f.status)">{{ f.status }}</span>
+                </div>
+                <dl class="kv small">
+                  @if (f.assetCode) { <dt>Asset</dt><dd>{{ f.assetCode }}</dd> }
+                  <dt>Linked task</dt><dd>{{ f.sourceTask }}</dd>
+                  @if (f.recordedValue) { <dt>Recorded</dt><dd>{{ f.recordedValue }}@if (f.acceptance) { <span class="muted"> (limit {{ f.acceptance }})</span> }</dd> }
+                  @if (f.observation) { <dt>Description</dt><dd>{{ f.observation }}</dd> }
+                  <dt>Created</dt><dd>{{ fmtDateTime(f.createdAt) }}@if (f.createdBy) { <br /><span class="muted">by {{ f.createdBy }}</span> }</dd>
+                </dl>
+                <a class="btn btn-accent-outline btn-sm full" routerLink="/inspection/findings" [queryParams]="{ code: f.findingCode }">View Finding</a>
+              </div>
+            } @empty {
+              <div class="empty">No findings raised for this inspection.</div>
+            }
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Evidence Summary</h2></div>
+          <div class="card-body pt0 ev-sum">
+            <div><lucide-icon class="c-accent" [img]="icons.ImageIcon" [size]="22"></lucide-icon>Photos<b>{{ evidence().photos }}</b></div>
+            <div><lucide-icon class="c-accent" [img]="icons.FileText" [size]="22"></lucide-icon>Documents<b>{{ evidence().documents }}</b></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Completion Requirements</h2></div>
+          <ul class="card-body pt0 reqs">
+            <li><lucide-icon [class]="req.answered === req.mandatory ? 'c-good' : 'muted'" [img]="req.answered === req.mandatory ? icons.CircleCheck : icons.Circle" [size]="18"></lucide-icon>
+              <span class="grow">Mandatory responses</span><b>{{ req.answered }} / {{ req.mandatory }}</b></li>
+            <li><lucide-icon [class]="!req.evidenceNeeded || req.withEvidence === req.failed ? 'c-good' : 'muted'" [img]="!req.evidenceNeeded || req.withEvidence === req.failed ? icons.CircleCheck : icons.Circle" [size]="18"></lucide-icon>
+              <span class="grow">Failure evidence attached</span><b>{{ req.evidenceNeeded ? req.withEvidence + ' / ' + req.failed : 'Not required' }}</b></li>
+            <li><lucide-icon [class]="req.signed ? 'c-good' : 'muted'" [img]="req.signed ? icons.CircleCheck : icons.Circle" [size]="18"></lucide-icon>
+              <span class="grow">Inspector signature</span><b>{{ req.signed ? 'Signed' : 'Pending' }}</b></li>
+          </ul>
+          @if (!req.signed && !readOnly) { <p class="muted hint">The inspector signs off when the inspection is completed.</p> }
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bar sticky">
+      <lucide-icon class="c-accent" [img]="icons.CloudCheck" [size]="22"></lucide-icon>
+      <span class="grow">{{ syncLabel }}</span>
+      <button type="button" class="btn btn-accent-outline" [disabled]="saving()" (click)="saveAndExit()">{{ readOnly ? 'Back to Overview' : 'Save & Exit' }}</button>
+      @if (!readOnly) {
+        <button type="button" class="btn btn-primary done" [disabled]="req.remaining > 0 || !c.total || saving()" (click)="complete()">
+          <span>Review &amp; Complete</span>
+          @if (req.remaining > 0) { <small>{{ req.remaining }} mandatory task{{ req.remaining > 1 ? 's' : '' }} remaining</small> }
+        </button>
+      }
+    </div>
+  }
+
+  @if (toast) { <div class="toast" role="status">{{ toast }}</div> }
+</section>

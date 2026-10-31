@@ -1,0 +1,178 @@
+<section class="ip-page" (click)="menuId.set(null)">
+  <header class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span>/</span><span class="current">Calibration</span>
+      </nav>
+      <h1>Calibration Management</h1>
+      <p class="subtitle">Plan calibrations, record measurement results and maintain traceable certificates.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-outline" (click)="export()" [title]="checked().size ? 'Export selected instruments' : 'Export filtered instruments'">
+        <lucide-icon [img]="icons.Upload" [size]="17"></lucide-icon>Export{{ checked().size ? ' (' + checked().size + ')' : '' }}
+      </button>
+      <button type="button" class="btn btn-outline" (click)="openSchedule(activeId())"><lucide-icon [img]="icons.CalendarDays" [size]="17"></lucide-icon>Schedule Calibration</button>
+      <button type="button" class="btn btn-primary" (click)="openDrawer('instrument')"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>New Calibration</button>
+    </div>
+  </header>
+
+  @if (instruments.error(); as err) { <div class="alert">{{ err }}</div> }
+
+  <div class="split">
+    <div class="cal-main">
+      <div class="kpis">
+        <button type="button" class="kpi" (click)="setFilter('statusFilter', '')">
+          <span class="kpi-ic kpi-ic--blue"><lucide-icon [img]="icons.Gauge" [size]="24"></lucide-icon></span>
+          <span class="kpi-body"><span class="kpi-label">Instruments</span><span class="kpi-value">{{ kpis().total }}</span></span>
+        </button>
+        <button type="button" class="kpi kpi--warn" (click)="setFilter('statusFilter', 'Due Soon')">
+          <span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.Clock" [size]="24"></lucide-icon></span>
+          <span class="kpi-body"><span class="kpi-label">Due in 30 Days</span><span class="kpi-value c-warn">{{ kpis().dueSoon }}</span></span>
+        </button>
+        <button type="button" class="kpi kpi--bad" (click)="setFilter('statusFilter', 'Overdue')">
+          <span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.TriangleAlert" [size]="24"></lucide-icon></span>
+          <span class="kpi-body"><span class="kpi-label">Overdue</span><span class="kpi-value c-bad">{{ kpis().overdue }}</span></span>
+        </button>
+        <button type="button" class="kpi kpi--bad" (click)="setFilter('statusFilter', 'Out of Tolerance')">
+          <span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.ChartColumn" [size]="24"></lucide-icon></span>
+          <span class="kpi-body"><span class="kpi-label">Out of Tolerance</span><span class="kpi-value c-bad">{{ kpis().oot }}</span></span>
+        </button>
+      </div>
+
+      <section class="card">
+        <div class="card-head"><h2>Instrument Register</h2></div>
+        <div class="filters">
+          <label class="search">
+            <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+            <input type="search" placeholder="Search instrument or serial number" [ngModel]="search()" (ngModelChange)="setFilter('search', $event)" />
+          </label>
+          <select class="control sel" [ngModel]="statusFilter()" (ngModelChange)="setFilter('statusFilter', $event)" aria-label="Status">
+            <option value="">All Statuses</option>
+            @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+          </select>
+          <select class="control sel" [ngModel]="locationFilter()" (ngModelChange)="setFilter('locationFilter', $event)" aria-label="Location">
+            <option value="">All Locations</option>
+            @for (l of locations(); track l) { <option [value]="l">{{ l }}</option> }
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th class="ck"><input type="checkbox" aria-label="Select page" [checked]="allPageChecked()" (change)="togglePage($any($event.target).checked)" /></th>
+                @for (c of columns; track c.key) {
+                  <th>
+                    <button type="button" class="sort" [class.on]="sortKey() === c.key" (click)="sortBy(c.key)">
+                      {{ c.label }}
+                      <lucide-icon [img]="sortKey() !== c.key ? icons.ArrowUpDown : sortDir() === 1 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon>
+                    </button>
+                  </th>
+                }
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (i of rows(); track i.id) {
+                @let st = status(i);
+                <tr [class.is-selected]="i.id === activeId()" (click)="activeId.set(i.id)">
+                  <td class="ck" (click)="$event.stopPropagation()"><input type="checkbox" [attr.aria-label]="'Select ' + i.instrumentCode" [checked]="checked().has(i.id)" (change)="toggleCheck(i.id)" /></td>
+                  <td><div class="strong">{{ i.instrumentName }}</div><div class="muted">{{ i.instrumentCode }}</div></td>
+                  <td class="nowrap">{{ i.range }}</td>
+                  <td class="nowrap">{{ fmtDate(i.lastCalibration) || '—' }}</td>
+                  <td class="nowrap" [class.c-bad]="st === 'Overdue'">{{ st === 'Out of Tolerance' ? 'Review Required' : fmtDate(i.nextDue) || '—' }}</td>
+                  <td><span [class]="pillClass(st)">{{ st }}</span></td>
+                  <td (click)="$event.stopPropagation()">
+                    @if (certHref(i.certificate); as href) {
+                      <a class="link u" [href]="href" target="_blank" rel="noopener">{{ certLabel(i.certificate) }}</a>
+                    } @else if (i.certificate) {
+                      <span class="u">{{ i.certificate }}</span>
+                    } @else { <span class="muted">Pending</span> }
+                  </td>
+                  <td class="menu-cell">
+                    <button type="button" class="icon-btn" aria-label="Instrument actions" (click)="toggleMenu(i.id, $event)"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
+                    @if (menuId() === i.id) {
+                      <div class="menu" (click)="$event.stopPropagation()">
+                        <button type="button" (click)="openDrawer('result', i)">Record result</button>
+                        <button type="button" (click)="openSchedule(i.id)">Schedule calibration</button>
+                        <button type="button" (click)="openDrawer('instrument', i)">Edit instrument</button>
+                        <button type="button" class="c-bad" (click)="askDelete(i)">Delete</button>
+                      </div>
+                    }
+                  </td>
+                </tr>
+                @if (confirmDeleteId() === i.id) {
+                  <tr class="confirm-row" (click)="$event.stopPropagation()">
+                    <td colspan="8">
+                      <div class="confirm">
+                        <span class="grow">Delete {{ i.instrumentCode }} – {{ i.instrumentName }}? This cannot be undone.</span>
+                        <button type="button" class="btn btn-sm btn-outline" (click)="confirmDeleteId.set(null)">Cancel</button>
+                        <button type="button" class="btn btn-sm btn-danger" (click)="remove(i)">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+          @if (instruments.loading()) {
+            <div class="empty">Loading instruments...</div>
+          } @else if (!rows().length) {
+            <div class="empty">{{ instruments.items().length ? 'No instruments match the current filters.' : 'No instruments registered yet. Add one with New Calibration.' }}</div>
+          }
+        </div>
+
+        <div class="pager">
+          <span class="grow">{{ pager.label(filtered().length, 'instruments') }}</span>
+          <button type="button" aria-label="Previous page" [disabled]="page() <= 1" (click)="goPage(page() - 1)"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+          @for (p of pager.pageList(filtered().length); track p) {
+            <button type="button" [class.is-active]="p === pager.page" (click)="goPage(p)">{{ p }}</button>
+          }
+          <button type="button" aria-label="Next page" [disabled]="page() >= pageCount()" (click)="goPage(page() + 1)"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+        </div>
+      </section>
+    </div>
+
+    @if (active(); as a) {
+      <app-insp-instrument-detail
+        [instrument]="a"
+        [status]="status(a)"
+        (schedule)="openSchedule(a.id)"
+        (record)="openDrawer('result', a)"
+        (edit)="openDrawer('instrument', a)"
+      ></app-insp-instrument-detail>
+    } @else {
+      <section class="card"><div class="empty">Select an instrument to see its calibration details.</div></section>
+    }
+  </div>
+
+  <footer class="footer-bar upcoming">
+    <span class="up-title"><lucide-icon [img]="icons.CalendarDays" [size]="20" class="c-accent"></lucide-icon>Upcoming Calibrations
+      <lucide-icon [img]="icons.Info" [size]="15" title="Next three instruments by due date"></lucide-icon></span>
+    @for (u of upcoming(); track u.i.id) {
+      <button type="button" class="up-item" (click)="activeId.set(u.i.id)">
+        <span class="up-date"><b>{{ u.day }}</b>{{ u.month }}</span>
+        <span><b class="txt">{{ u.i.instrumentCode }}</b><br />{{ u.i.instrumentName }}</span>
+        <span class="up-who"><lucide-icon [img]="icons.User" [size]="15"></lucide-icon><span><span class="txt">{{ u.i.assignedTo || u.i.provider || '—' }}</span><br />{{ u.i.providerType }}</span></span>
+      </button>
+    } @empty {
+      <span>No upcoming calibrations.</span>
+    }
+    <button type="button" class="link up-all" (click)="viewAllCalibrations()">View all calibrations <lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon></button>
+  </footer>
+
+  @if (drawer(); as d) {
+    <app-insp-calibration-drawer
+      [mode]="d.mode"
+      [instrument]="d.instrument"
+      [people]="people()"
+      (saved)="onSaved($event.instrument, $event.message)"
+      (closed)="drawer.set(null)"
+    ></app-insp-calibration-drawer>
+  }
+  @if (scheduleFor() !== undefined) {
+    <app-insp-schedule-dialog [instrumentId]="scheduleFor() ?? null" (saved)="onSaved($event, 'Calibration scheduled.')" (closed)="scheduleFor.set(undefined)"></app-insp-schedule-dialog>
+  }
+
+  @if (toast(); as t) { <div class="toast">{{ t }}</div> }
+</section>

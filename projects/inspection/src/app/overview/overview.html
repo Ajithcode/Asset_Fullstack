@@ -1,0 +1,198 @@
+<section class="ip-page" (click)="menuFor = null">
+  <!-- Header -->
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span aria-hidden="true">/</span><span class="current">Overview</span>
+      </nav>
+      <h1>Inspection</h1>
+      <p class="subtitle">Plan inspections, capture findings and verify corrective actions.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export</button>
+      <a class="btn btn-primary" routerLink="/inspection/new"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>New Inspection</a>
+    </div>
+  </div>
+
+  @if (inspections.error(); as err) { <div class="alert">Inspections: {{ err }}</div> }
+  @if (findings.error(); as err) { <div class="alert">Findings: {{ err }}</div> }
+  @if (actionError) { <div class="alert">{{ actionError }}</div> }
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <button type="button" class="kpi" [class.kpi-on]="status() === 'Scheduled'" (click)="showStatus('Scheduled')">
+      <span class="kpi-ic"><lucide-icon [img]="icons.CalendarDays" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Scheduled</span><strong class="kpi-value">{{ kpi().scheduled }}</strong></span>
+    </button>
+    <button type="button" class="kpi" [class.kpi-on]="status() === 'In Progress'" (click)="showStatus('In Progress')">
+      <span class="kpi-ic kpi-ic--blue"><lucide-icon [img]="icons.CirclePlay" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">In Progress</span><strong class="kpi-value">{{ kpi().inProgress }}</strong></span>
+    </button>
+    <button type="button" class="kpi" [class.kpi-on]="status() === 'Overdue'" (click)="showStatus('Overdue')">
+      <span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.CircleAlert" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Overdue</span><strong class="kpi-value" [class.c-bad]="kpi().overdue > 0">{{ kpi().overdue }}</strong></span>
+    </button>
+    <a class="kpi" routerLink="/inspection/findings">
+      <span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Open Findings</span><strong class="kpi-value">{{ kpi().openFindings }}</strong></span>
+    </a>
+  </div>
+
+  <div class="split">
+    <!-- Register -->
+    <div class="card">
+      <div class="card-head">
+        <h2 class="grow">Inspection Register</h2>
+        <div class="seg" role="group" aria-label="View">
+          <button type="button" [class.on]="view() === 'list'" (click)="view.set('list')"><lucide-icon [img]="icons.List" [size]="16"></lucide-icon>List</button>
+          <button type="button" [class.on]="view() === 'calendar'" (click)="view.set('calendar')"><lucide-icon [img]="icons.Calendar" [size]="16"></lucide-icon>Calendar</button>
+        </div>
+      </div>
+      <div class="filters">
+        <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" placeholder="Search by ID, asset, location..." aria-label="Search inspections" [ngModel]="search()" (ngModelChange)="setFilter('search', $event)" /></label>
+        <select class="control w-sel" aria-label="Site" [ngModel]="site()" (ngModelChange)="setFilter('site', $event)">
+          <option value="">All Sites</option>
+          @for (s of sites(); track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+        <select class="control w-sel" aria-label="Inspection type" [ngModel]="type()" (ngModelChange)="setFilter('type', $event)">
+          <option value="">Inspection Type</option>
+          @for (t of types(); track t) { <option [value]="t">{{ t }}</option> }
+        </select>
+        <select class="control w-sel" aria-label="Status" [ngModel]="status()" (ngModelChange)="setFilter('status', $event)">
+          <option value="">Status</option>
+          @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+        <span class="range">
+          <input type="date" class="control" aria-label="Due from" [ngModel]="from()" (ngModelChange)="setFilter('from', $event)" />
+          <span class="muted">–</span>
+          <input type="date" class="control" aria-label="Due to" [ngModel]="to()" (ngModelChange)="setFilter('to', $event)" />
+        </span>
+      </div>
+
+      @if (view() === 'list') {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Inspection ID</th><th>Asset / Location</th><th>Type</th><th>Assigned To</th><th>Due Date</th><th>Status</th><th>Findings</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              @for (i of pager.slice(rows()); track i.id) {
+                <tr (click)="open(i)">
+                  <td class="code nowrap">{{ i.inspectionCode || 'Draft' }}</td>
+                  <td>
+                    <div class="who">
+                      <span class="thumb"><lucide-icon [img]="icons.Box" [size]="18"></lucide-icon></span>
+                      <span><span class="strong">{{ i.assetName || i.title }}</span><br /><span class="muted">{{ i.location || i.siteName }}</span></span>
+                    </div>
+                  </td>
+                  <td><span [class]="typeClass(i)">{{ typeLabel(i) }}</span></td>
+                  <td>
+                    <div class="who">
+                      <span class="avatar">{{ initials(i.assignedTo) }}</span>
+                      <span><span>{{ i.assignedTo || '—' }}</span><br /><span class="muted">{{ i.assignedTeam }}</span></span>
+                    </div>
+                  </td>
+                  <td class="nowrap">{{ fmtDate(i.dueDate) }}</td>
+                  <td><span [class]="pillClass(statusOf(i))"><span class="dot"></span>{{ statusOf(i) }}</span></td>
+                  <td>{{ i.findingsCount }}</td>
+                  <td class="nowrap acts" (click)="$event.stopPropagation()">
+                    <button type="button" class="icon-btn bordered" title="Open" aria-label="Open inspection" (click)="open(i)"><lucide-icon [img]="icons.Eye" [size]="16"></lucide-icon></button>
+                    <button type="button" class="icon-btn bordered" aria-label="More actions" (click)="toggleMenu(i, $event)"><lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon></button>
+                    @if (menuFor === i.id) {
+                      <div class="menu" role="menu">
+                        @if (i.status === 'Draft') { <button type="button" role="menuitem" (click)="editDraft(i)">Edit draft</button> }
+                        @else { <button type="button" role="menuitem" (click)="execute(i)">Open execution</button> }
+                        @if (i.status !== 'Completed' && i.status !== 'Cancelled') {
+                          <button type="button" role="menuitem" class="c-bad" (click)="cancel(i)">Cancel inspection</button>
+                        }
+                      </div>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="8" class="empty">{{ inspections.loading() ? 'Loading inspections…' : 'No inspections match the filters.' }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <span class="grow">{{ pager.label(rows().length, 'inspections') }}</span>
+          <button type="button" aria-label="Previous page" [disabled]="pager.page === 1" (click)="pager.page = pager.page - 1"><lucide-icon [img]="icons.ChevronLeft" [size]="14"></lucide-icon></button>
+          @for (p of pager.pageList(rows().length); track p) {
+            <button type="button" [class.is-active]="p === pager.page" (click)="pager.page = p">{{ p }}</button>
+          }
+          <button type="button" aria-label="Next page" [disabled]="pager.page >= pager.pages(rows().length)" (click)="pager.page = pager.page + 1"><lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon></button>
+        </div>
+      } @else {
+        <app-insp-overview-calendar [rows]="rows()" [statusOf]="statusFn" (open)="open($event)" />
+      }
+    </div>
+
+    <div class="side">
+      <!-- Today's schedule -->
+      <div class="card">
+        <div class="card-head">
+          <h3 class="grow">{{ schedule().isToday ? "Today's Schedule" : 'Next Scheduled' }}</h3>
+          <button type="button" class="link" (click)="view.set('calendar')">View all</button>
+        </div>
+        <div class="card-body pt0">
+          <p class="day-label">{{ schedule().label }}</p>
+          @for (i of schedule().items; track i.id) {
+            <button type="button" class="sched" (click)="open(i)">
+              <span class="sched-dot"></span>
+              <span class="sched-time">{{ i.scheduledStart ? fmtTime(i.scheduledStart) + ' – ' + fmtTime(i.scheduledEnd) : 'All day' }}</span>
+              <span class="thumb"><lucide-icon [img]="icons.Box" [size]="18"></lucide-icon></span>
+              <span class="grow">
+                <span class="strong small">{{ i.inspectionCode }}</span><br />
+                <span>{{ i.assetName || i.title }}</span><br />
+                <span class="muted">{{ i.location || i.siteName }} · {{ i.inspectionTypeName }}</span>
+              </span>
+              <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+            </button>
+          } @empty {
+            <div class="empty">No upcoming inspections scheduled.</div>
+          }
+        </div>
+      </div>
+
+      <!-- Corrective actions -->
+      <div class="card">
+        <div class="card-head">
+          <h3 class="grow">Corrective Actions</h3>
+          <a class="link" routerLink="/inspection/findings">View all</a>
+        </div>
+        <div class="card-body pt0">
+          @for (f of actions(); track f.id) {
+            <a [class]="severityClass(f)" routerLink="/inspection/findings" [queryParams]="{ code: f.findingCode }">
+              <span class="grow">
+                <span class="strong">{{ f.correctiveAction || f.title }}</span><br />
+                <span class="muted">{{ f.inspectionCode }} · {{ f.assetName }}</span>
+                @if (f.workOrder) { <br /><span class="wo"><lucide-icon [img]="icons.ExternalLink" [size]="12"></lucide-icon>{{ f.workOrder }}</span> }
+              </span>
+              <span [class]="pillClass(f.status)">{{ f.status }}</span>
+            </a>
+          } @empty {
+            <div class="empty">No open corrective actions.</div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lifecycle -->
+  <div class="card">
+    <div class="card-head"><h3>Inspection lifecycle</h3></div>
+    <ol class="life">
+      @for (s of lifecycle(); track s.label; let n = $index) {
+        <li>
+          <span class="life-n" [class.first]="n === 0">{{ n + 1 }}</span>
+          <lucide-icon [img]="s.icon" [size]="20"></lucide-icon>
+          <span><span class="strong">{{ s.label }}</span> <span class="life-c">{{ s.count }}</span><br /><span class="muted">{{ s.hint }}</span></span>
+        </li>
+      }
+    </ol>
+  </div>
+
+  @if (toast) { <div class="toast" role="status">{{ toast }}</div> }
+</section>

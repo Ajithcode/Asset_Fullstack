@@ -1,0 +1,248 @@
+<section class="ip-page">
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span>/</span><span>Configuration</span><span>/</span>
+        <span class="current">Signature &amp; Stamp</span>
+      </nav>
+      <h1>Signature &amp; Stamp</h1>
+      <p class="subtitle">Manage authorized signatures, organization stamps and inspection sign-off requirements.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-accent-outline" (click)="tab = 'history'">
+        <lucide-icon [img]="icons.History" [size]="17"></lucide-icon>View Audit Trail
+      </button>
+      <button type="button" class="btn btn-primary" (click)="openAdd('Signature')">
+        <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>Add Signature / Stamp
+      </button>
+    </div>
+  </div>
+
+  <nav class="subtabs" role="tablist" aria-label="Signature sections">
+    @for (t of subtabs; track t.key) {
+      <button type="button" role="tab" [class.on]="tab === t.key" [attr.aria-selected]="tab === t.key" (click)="tab = t.key">{{ t.label }}</button>
+    }
+  </nav>
+
+  @if (store.error(); as err) {
+    <div class="alert">{{ err }}</div>
+  }
+
+  @switch (tab) {
+    @case ('signatures') {
+      <div class="split-3">
+        <!-- ===== Left: signatures + stamps ===== -->
+        <div class="col">
+          <div class="card">
+            <div class="card-head"><h2>Authorized Signatures</h2></div>
+            <div class="filters">
+              <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+                <input type="search" placeholder="Search by name, role or department..." [ngModel]="search()" (ngModelChange)="search.set($event)" aria-label="Search signatures" /></label>
+            </div>
+            <div class="list">
+              @if (store.loading()) { <div class="empty">Loading signatures…</div> }
+              @for (s of filtered(); track s.id) {
+                <button type="button" class="item" [class.is-selected]="selectedId() === s.id" (click)="select(s)">
+                  <span class="av">{{ initials(displayName(s)) }}</span>
+                  <span class="grow"><b>{{ displayName(s) }}</b><span class="muted">{{ s.authorizedRole || s.role }}</span></span>
+                  <span [class]="pillClass(s.isActive ? 'Active' : 'Inactive')">{{ s.isActive ? 'Active' : 'Inactive' }}</span>
+                  <lucide-icon [img]="icons.ChevronRight" [size]="17"></lucide-icon>
+                </button>
+              } @empty {
+                @if (!store.loading()) { <div class="empty">No signatures found.</div> }
+              }
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Organization Stamps</h2></div>
+            <div class="list">
+              @for (st of stamps(); track st.id) {
+                <button type="button" class="item stamp" (click)="editStamp(st)">
+                  <app-insp-stamp-seal [name]="st.signatureName" [image]="st.stampImage" [caption]="st.department" [size]="84" />
+                  <span class="grow"><b>{{ st.signatureName }}</b>
+                    <span [class]="pillClass(st.isActive ? 'Active' : 'Inactive')" class="fit">{{ st.isActive ? 'Active' : 'Inactive' }}</span></span>
+                  <lucide-icon [img]="icons.ChevronRight" [size]="17"></lucide-icon>
+                </button>
+              } @empty {
+                @if (!store.loading()) { <div class="empty">No stamps yet.</div> }
+              }
+              <button type="button" class="add" (click)="openAdd('Stamp')"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Add Stamp</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Middle: profile ===== -->
+        <div class="card">
+          @if (draft; as d) {
+            <div class="card-head">
+              <h2 class="grow">Signature Profile</h2>
+              <button type="button" class="btn btn-accent-outline btn-sm" (click)="editProfile()"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit Profile</button>
+            </div>
+            <div class="card-body prof">
+              <div class="who">
+                <span class="av av-lg">{{ initials(displayName(d)) }}</span>
+                <div><b>{{ displayName(d) }}</b><span class="muted">{{ d.role || d.authorizedRole }}</span></div>
+                <span [class]="pillClass(d.isActive ? 'Active' : 'Inactive')">{{ d.isActive ? 'Active' : 'Inactive' }}</span>
+              </div>
+              <dl class="kv">
+                <dt>Signature ID</dt><dd>{{ d.signatureCode || '—' }}</dd>
+                <dt>User</dt><dd>{{ d.user || '—' }}</dd>
+                <dt>Department</dt><dd>{{ d.department || '—' }}</dd>
+                <dt>Authorized role</dt><dd>{{ d.authorizedRole || '—' }}</dd>
+                <dt>Valid until</dt><dd>{{ d.expiryDate ? fmtDate(d.expiryDate) : 'No expiry' }}</dd>
+              </dl>
+
+              <div class="spec">
+                <div class="spec-main">
+                  <h3 class="section-title">Signature Preview</h3>
+                  @if (padOpen) {
+                    <app-insp-signature-pad (signed)="onDrawn($event)" />
+                  } @else {
+                    <div class="specimen">
+                      @if (d.signatureImage) {
+                        <img [src]="d.signatureImage" alt="Stored signature specimen" />
+                      } @else {
+                        <span class="cursive">{{ d.signatureName || d.user }}</span>
+                      }
+                      <span class="muted">{{ d.signatureImage ? 'Stored signature specimen' : 'Typed specimen (no image stored)' }}</span>
+                    </div>
+                  }
+                </div>
+                <div class="spec-side">
+                  <div class="seg" role="group" aria-label="Specimen source">
+                    <button type="button" [class.on]="mode === 'draw'" (click)="setMode('draw')">Draw</button>
+                    <button type="button" [class.on]="mode === 'upload'" (click)="setMode('upload')">Upload</button>
+                  </div>
+                  <input #file type="file" accept="image/png,image/svg+xml" hidden (change)="readImage($event, draft, 'signatureImage')" />
+                  <button type="button" class="btn btn-accent-outline" (click)="replace(file)">
+                    <lucide-icon [img]="mode === 'draw' ? icons.PenLine : icons.Upload" [size]="16"></lucide-icon>Replace Signature</button>
+                  <span class="field-hint">Accepted format: PNG / SVG</span>
+                  @if (d.signatureImage) { <button type="button" class="link sm" (click)="clearSpecimen()">Remove image</button> }
+                </div>
+              </div>
+
+              <div class="assign">
+                <label class="field grow"><span class="section-title">Stamp Assignment</span>
+                  <select class="control" [(ngModel)]="d.assignedStampCode" (ngModelChange)="touch()">
+                    <option value="">No stamp</option>
+                    @for (st of stamps(); track st.id) { <option [value]="st.signatureCode">{{ st.signatureName }}</option> }
+                  </select>
+                  <span class="field-hint">This stamp will be applied to inspection reports signed by this user.</span></label>
+                <div class="seal-box">
+                  @if (stampFor(d.assignedStampCode); as st) {
+                    <app-insp-stamp-seal [name]="st.signatureName" [image]="st.stampImage" [caption]="st.department" [size]="88" />
+                  } @else { <span class="muted">No stamp</span> }
+                </div>
+              </div>
+              <div class="note"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>
+                <span>Signature images are visual specimens. Signing requires authenticated confirmation.</span></div>
+            </div>
+          } @else {
+            <div class="card-head"><h2>Signature Profile</h2></div>
+            <div class="empty">Select a signature, or add one.</div>
+          }
+        </div>
+
+        <!-- ===== Right: sign-off ===== -->
+        <app-insp-signoff-panel [inspection]="signOffInspection()" [loading]="api.inspections.loading()" (history)="tab = 'history'" />
+      </div>
+
+      @if (draft; as d) {
+        <app-insp-report-placement [record]="d" [stamp]="stampFor(d.assignedStampCode)" (changed)="touch()" />
+        <div class="footer-bar">
+          <span class="grow">
+            @if (dirty) { <b class="c-warn">Unsaved changes</b> } @else { All changes saved · Last synced {{ lastSynced }} }
+          </span>
+          <button type="button" class="btn btn-outline" (click)="cancel()" [disabled]="!dirty">Cancel</button>
+          <button type="button" class="btn btn-primary" (click)="save()" [disabled]="saving || !dirty">{{ saving ? 'Saving…' : 'Save Changes' }}</button>
+        </div>
+      }
+    }
+    @case ('rules') {
+      <app-insp-signoff-rules [source]="signOffInspection()" />
+    }
+    @case ('history') {
+      <app-insp-signing-history [inspections]="api.inspections.items()" [loading]="api.inspections.loading()" />
+    }
+  }
+
+  @if (form; as f) {
+    <div class="backdrop" (click)="form = null"></div>
+    <aside class="drawer" role="dialog" aria-modal="true" [attr.aria-label]="formTitle">
+      <div class="drawer-head">
+        <h2 class="grow">{{ formTitle }}</h2>
+        <button type="button" class="icon-btn" aria-label="Close" (click)="form = null"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <div class="drawer-body">
+        @if (!f.id) {
+          <div class="seg seg-wide" role="group" aria-label="Kind">
+            <button type="button" [class.on]="f.kind !== 'Stamp'" (click)="setFormKind('Signature')">Signature</button>
+            <button type="button" [class.on]="f.kind === 'Stamp'" (click)="setFormKind('Stamp')">Stamp</button>
+          </div>
+        }
+        <div class="form-grid">
+          <label class="field"><span class="field-label">Code</span><input class="control" [(ngModel)]="f.signatureCode" /></label>
+          <div class="field"><span class="field-label">Status</span>
+            <span class="tg"><label class="toggle"><input type="checkbox" [(ngModel)]="f.isActive" /><span></span></label>{{ f.isActive ? 'Active' : 'Inactive' }}</span></div>
+          @if (f.kind === 'Stamp') {
+            <label class="field span-2"><span class="field-label">Stamp name <span class="req">*</span></span>
+              <input class="control" [(ngModel)]="f.signatureName" placeholder="e.g. Quality Department Stamp" /></label>
+            <label class="field span-2"><span class="field-label">Department / seal caption</span>
+              <input class="control" [(ngModel)]="f.department" placeholder="e.g. Dubai Manufacturing" /></label>
+          } @else {
+            <label class="field"><span class="field-label">User <span class="req">*</span></span><input class="control" [(ngModel)]="f.user" /></label>
+            <label class="field"><span class="field-label">Signature name</span><input class="control" [(ngModel)]="f.signatureName" placeholder="Name as signed" /></label>
+            <label class="field"><span class="field-label">Role</span>
+              <select class="control" [(ngModel)]="f.role">
+                @if (f.role && !roles.includes(f.role)) { <option [value]="f.role">{{ f.role }}</option> }
+                @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">Authorized role</span>
+              <select class="control" [(ngModel)]="f.authorizedRole">
+                @if (f.authorizedRole && !roles.includes(f.authorizedRole)) { <option [value]="f.authorizedRole">{{ f.authorizedRole }}</option> }
+                @for (r of roles; track r) { <option [value]="r">{{ r }}</option> }
+              </select></label>
+            <label class="field span-2"><span class="field-label">Department</span><input class="control" [(ngModel)]="f.department" /></label>
+          }
+          <label class="field"><span class="field-label">Effective from</span><input class="control" type="date" [(ngModel)]="f.effectiveDate" /></label>
+          <label class="field"><span class="field-label">Valid until</span><input class="control" type="date" [(ngModel)]="f.expiryDate" /></label>
+        </div>
+        @if (f.kind === 'Stamp') {
+          <div class="field"><span class="field-label">Stamp image (optional)</span>
+            <div class="stamp-up">
+              <app-insp-stamp-seal [name]="f.signatureName || 'Stamp'" [image]="f.stampImage" [caption]="f.department" [size]="96" />
+              <div class="up-actions">
+                <input #sfile type="file" accept="image/png,image/svg+xml" hidden (change)="readImage($event, f, 'stampImage')" />
+                <button type="button" class="btn btn-outline btn-sm" (click)="sfile.click()"><lucide-icon [img]="icons.Upload" [size]="14"></lucide-icon>Upload PNG / SVG</button>
+                @if (f.stampImage) { <button type="button" class="link sm" (click)="f.stampImage = ''">Use generated seal</button> }
+                <span class="field-hint">Without an image, a seal is drawn from the stamp name.</span>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <label class="check"><input type="checkbox" [(ngModel)]="f.requirePasswordConfirmationBeforeSigning" />Require password confirmation before signing</label>
+        }
+        @if (f.id) {
+          <div class="danger-zone">
+            @if (confirmDelete) {
+              <span class="grow">Delete {{ f.signatureName || f.user }}? This cannot be undone.</span>
+              <button type="button" class="btn btn-sm btn-danger" (click)="removeForm()">Delete</button>
+              <button type="button" class="btn btn-sm btn-outline" (click)="confirmDelete = false">Keep</button>
+            } @else {
+              <button type="button" class="link c-bad" (click)="confirmDelete = true"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon>Delete this {{ f.kind === 'Stamp' ? 'stamp' : 'signature' }}</button>
+            }
+          </div>
+        }
+      </div>
+      <div class="drawer-foot">
+        <button type="button" class="btn btn-outline" (click)="form = null">Cancel</button>
+        <button type="button" class="btn btn-primary" [disabled]="!formValid(f) || saving" (click)="saveForm()">{{ saving ? 'Saving…' : f.id ? 'Save' : 'Add' }}</button>
+      </div>
+    </aside>
+  }
+
+  @if (toast(); as t) {
+    <div class="toast" role="status">{{ t }}</div>
+  }
+</section>

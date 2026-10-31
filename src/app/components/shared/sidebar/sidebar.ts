@@ -111,7 +111,26 @@ export class Sidebar {
     },
     { label: 'Movement & Custody', path: '/movement-custody', icon: ArrowLeftRight },
     { label: 'Maintenance', path: '/maintenance', icon: Wrench },
-    { label: 'Inspection', path: '/inspection', icon: ClipboardCheck },
+    {
+      label: 'Inspection',
+      path: '/inspection',
+      icon: ClipboardCheck,
+      children: [
+        { label: 'Overview', path: '/inspection/overview' },
+        { label: 'Inspection Type', path: '/inspection/inspection-types' },
+        { label: 'Inspection Plan & Schedule', path: '/inspection/plans-schedules' },
+        { label: 'Inspection Task', path: '/inspection/tasks' },
+        { label: 'Checklist (Central)', path: '/inspection/checklists' },
+        { label: 'Inspection Execution', path: '/inspection/execution' },
+        { label: 'Inspection Findings', path: '/inspection/findings' },
+        { label: 'Signature & Stamp', path: '/inspection/signatures-stamps' },
+        { label: 'Notification Template', path: '/inspection/notification-templates' },
+        { label: 'Report Template', path: '/inspection/report-templates' },
+        { label: 'Numbering Sequence', path: '/inspection/numbering-sequences' },
+        { label: 'Holiday & Working Calendar', path: '/inspection/working-calendar' },
+        { label: 'Calibration Management', path: '/inspection/calibration' }
+      ]
+    },
     { label: 'Inventory', path: '/inventory', icon: Warehouse },
     {
       label: 'WIP / Operations',

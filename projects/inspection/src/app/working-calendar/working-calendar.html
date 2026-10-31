@@ -1,0 +1,237 @@
+<section class="ip-page">
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span>/</span><span>Configuration</span><span>/</span>
+        <span class="current">Holiday &amp; Working Calendar</span>
+      </nav>
+      <h1>Holiday &amp; Working Calendar</h1>
+      <p class="subtitle">Define working days, shifts and exceptions for inspection scheduling.</p>
+    </div>
+    <div class="head-actions">
+      <input #csv type="file" accept=".csv,text/csv" hidden (change)="importHolidays($event)" />
+      <button type="button" class="btn btn-accent-outline" [disabled]="!draft" (click)="csv.click()" title="CSV with columns: date, description">
+        <lucide-icon [img]="icons.Upload" [size]="17"></lucide-icon>Import Holidays
+      </button>
+      <button type="button" class="btn btn-primary" [disabled]="!draft" (click)="openException()">
+        <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>Add Exception
+      </button>
+    </div>
+  </div>
+
+  @if (store.error(); as err) {
+    <div class="alert">{{ err }}</div>
+  }
+  @if (store.loading()) {
+    <div class="card empty">Loading calendars…</div>
+  } @else if (!draft) {
+    <div class="card empty">No working calendars configured yet.</div>
+  }
+
+  @if (draft; as d) {
+    @let aff = affected(d);
+    <div class="split-3">
+      <!-- ===== Settings ===== -->
+      <div class="card">
+        <div class="card-head"><h2>Calendar Settings</h2></div>
+        <div class="card-body stack">
+          @if (store.items().length > 1) {
+            <label class="field"><span class="field-label">Calendar</span>
+              <select class="control" [ngModel]="d.id" (ngModelChange)="switchTo($event)">
+                @for (c of store.items(); track c.id) { <option [value]="c.id">{{ c.calendarName }}</option> }
+              </select></label>
+          }
+          <label class="field"><span class="field-label">Calendar name</span>
+            <input class="control" [(ngModel)]="d.calendarName" (ngModelChange)="touch()" /></label>
+          <label class="field"><span class="field-label">Site</span>
+            <select class="control" [(ngModel)]="d.siteName" (ngModelChange)="touch()">
+              @for (s of sites(); track s) { <option [value]="s">{{ s }}</option> }
+            </select></label>
+          <label class="field"><span class="field-label">Timezone</span>
+            <select class="control" [(ngModel)]="d.timezone" (ngModelChange)="touch()">
+              @for (t of timezones; track t) { <option [value]="t">{{ t }}</option> }
+            </select></label>
+          <label class="field"><span class="field-label">Effective from</span>
+            <input class="control" type="date" [(ngModel)]="d.effectiveFrom" (ngModelChange)="touch()" /></label>
+
+          <h3 class="section-title week-title">Working Week</h3>
+          <div class="week">
+            @for (w of d.workingWeek; track w.day) {
+              <div class="wd" [class.off]="!w.working">
+                <label class="check"><input type="checkbox" [(ngModel)]="w.working" (ngModelChange)="touch()" [disabled]="!editHours" />{{ w.day }}</label>
+                @if (!w.working) {
+                  <span class="muted">Non-working</span>
+                } @else if (editHours) {
+                  <span class="times">
+                    <input class="control t" type="time" [(ngModel)]="w.start" (ngModelChange)="touch()" [attr.aria-label]="w.day + ' start'" />
+                    <input class="control t" type="time" [(ngModel)]="w.end" (ngModelChange)="touch()" [attr.aria-label]="w.day + ' end'" />
+                  </span>
+                } @else {
+                  <span>{{ w.start }} – {{ w.end }}</span>
+                }
+              </div>
+            }
+          </div>
+          <span class="field-hint">Organization-specific schedule.</span>
+          <label class="field brk"><span class="field-label">Break period</span>
+            <input class="control" [(ngModel)]="d.breakPeriod" (ngModelChange)="touch()" [readonly]="!editHours" placeholder="12:00 – 13:00" /></label>
+          <button type="button" class="btn btn-accent-outline" (click)="editHours = !editHours">
+            <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>{{ editHours ? 'Done Editing Hours' : 'Edit Working Hours' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ===== Preview + exceptions ===== -->
+      <div class="card">
+        <div class="card-head"><h2>Calendar Preview</h2></div>
+        <div class="card-body">
+          <app-insp-calendar-month [calendar]="d" />
+        </div>
+        <div class="card-head ex-head">
+          <h3 class="section-title">Calendar Exceptions</h3>
+          <span class="muted grow">Site-specific exceptions and holidays.</span>
+          <button type="button" class="btn btn-outline btn-sm" (click)="openException()"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>Add</button>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Date</th><th>Description</th><th>Time / Duration</th><th>Type</th><th>Actions</th></tr></thead>
+            <tbody>
+              @for (row of sortedExceptions(d); track row.index) {
+                <tr>
+                  <td class="nowrap">{{ fmtDate(row.ex.date) }}</td>
+                  <td>{{ row.ex.description }}</td>
+                  <td class="nowrap">{{ row.ex.duration }}</td>
+                  <td><span [class]="typePill(row.ex.type)">{{ row.ex.type }}</span></td>
+                  <td class="nowrap">
+                    @if (confirmDelete === row.index) {
+                      <button type="button" class="link c-bad" (click)="deleteException(row.index)">Delete</button> ·
+                      <button type="button" class="link" (click)="confirmDelete = null">Keep</button>
+                    } @else {
+                      <button type="button" class="icon-btn" aria-label="Edit exception" (click)="openException(row.index)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon></button>
+                      <button type="button" class="icon-btn" aria-label="Delete exception" (click)="confirmDelete = row.index"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon></button>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="5" class="empty">No exceptions. Add one or import holidays.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="pad"></div>
+      </div>
+
+      <!-- ===== Rules + impact ===== -->
+      <div class="col">
+        <div class="card">
+          <div class="card-head"><h2>Scheduling Rules</h2></div>
+          <div class="card-body stack">
+            <label class="field"><span class="field-label">If inspection falls on non-working day</span>
+              <select class="control" [(ngModel)]="d.nonWorkingDayRule" (ngModelChange)="touch()">
+                @for (r of rules; track r) { <option [value]="r">{{ r }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">Due-date calculation</span>
+              <select class="control" [(ngModel)]="d.dueDateCalculation" (ngModelChange)="touch()">
+                @for (r of dueCalcs; track r) { <option [value]="r">{{ r }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">SLA calendar</span>
+              <select class="control" [(ngModel)]="d.slaCalendar" (ngModelChange)="touch()">
+                @for (r of slaOptions(d); track r) { <option [value]="r">{{ r }}</option> }
+              </select></label>
+            <div class="tg"><span>Skip holidays</span><label class="toggle"><input type="checkbox" [(ngModel)]="d.skipHolidays" (ngModelChange)="touch()" /><span></span></label></div>
+            <div class="tg"><span>Respect inspector shift</span><label class="toggle"><input type="checkbox" [(ngModel)]="d.respectInspectorShift" (ngModelChange)="touch()" /><span></span></label></div>
+            <div class="tg"><span>Allow manual override</span><label class="toggle"><input type="checkbox" [(ngModel)]="d.allowManualOverride" (ngModelChange)="touch()" /><span></span></label></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Impact Preview</h2></div>
+          <div class="card-body stack">
+            @if (aff[0]; as first) {
+              <div class="impact">
+                <div><span class="muted">Inspection due</span><b>{{ first.due }}</b></div>
+                <lucide-icon [img]="icons.ArrowRight" [size]="20"></lucide-icon>
+                <div><span class="muted">Rescheduled to</span><b class="c-accent">{{ first.moved }}</b></div>
+              </div>
+              <div class="note"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>
+                <span>{{ first.inspection.inspectionCode }} · Reason: {{ first.reason }}.<br />
+                  {{ aff.length }} upcoming inspection{{ aff.length === 1 ? '' : 's' }} affected.</span></div>
+              <button type="button" class="link" (click)="showAffected = !showAffected">
+                {{ showAffected ? 'Hide affected inspections' : 'Review affected inspections' }}
+                <lucide-icon [img]="showAffected ? icons.ChevronUp : icons.ChevronDown" [size]="15"></lucide-icon>
+              </button>
+              @if (showAffected) {
+                <ul class="aff">
+                  @for (a of aff; track a.inspection.id) {
+                    <li>
+                      <a class="link" routerLink="/inspection/execution" [queryParams]="{ code: a.inspection.inspectionCode }">{{ a.inspection.inspectionCode }}</a>
+                      <span class="grow">{{ a.inspection.title }}</span>
+                      <span class="muted nowrap">{{ a.due }} → {{ a.moved }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+            } @else {
+              <div class="note"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>
+                <span>{{ api.inspections.loading() ? 'Checking upcoming inspections…' : 'No upcoming inspections are affected.' }}</span></div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card assigned">
+      <h2>Assigned To <lucide-icon [img]="icons.Info" [size]="15" title="Plans, inspectors and sites scheduled with this calendar"></lucide-icon></h2>
+      <div class="as"><span class="as-ic"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon></span><span><span class="muted">Inspection Plans</span><b>{{ d.assignedPlans }}</b></span></div>
+      <div class="as"><span class="as-ic"><lucide-icon [img]="icons.User" [size]="20"></lucide-icon></span><span><span class="muted">Inspectors</span><b>{{ d.assignedInspectors }}</b></span></div>
+      <div class="as"><span class="as-ic"><lucide-icon [img]="icons.MapPin" [size]="20"></lucide-icon></span><span><span class="muted">Sites</span><b>{{ d.assignedSites }}</b></span></div>
+      <a class="link" routerLink="/inspection/plans-schedules">Manage assignments <lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></a>
+    </div>
+
+    <div class="footer-bar">
+      <lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>
+      <span class="grow">Changes apply to future scheduling. Existing bookings require review.
+        @if (dirty) { <b class="c-warn"> · Unsaved changes</b> }</span>
+      <button type="button" class="btn btn-outline" (click)="cancel()" [disabled]="!dirty">Cancel</button>
+      <button type="button" class="btn btn-primary" (click)="save()" [disabled]="saving || !dirty">{{ saving ? 'Saving…' : 'Save Calendar' }}</button>
+    </div>
+  }
+
+  @if (form; as f) {
+    <div class="backdrop" (click)="form = null"></div>
+    <aside class="drawer" role="dialog" aria-modal="true" aria-label="Calendar exception">
+      <div class="drawer-head">
+        <h2 class="grow">{{ f.index === null ? 'Add Exception' : 'Edit Exception' }}</h2>
+        <button type="button" class="icon-btn" aria-label="Close" (click)="form = null"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <div class="drawer-body">
+        <label class="field"><span class="field-label">Date <span class="req">*</span></span>
+          <input class="control" type="date" [(ngModel)]="f.date" /></label>
+        <label class="field"><span class="field-label">Description <span class="req">*</span></span>
+          <input class="control" [(ngModel)]="f.description" placeholder="e.g. National Day" /></label>
+        <label class="field"><span class="field-label">Type</span>
+          <select class="control" [(ngModel)]="f.type">
+            @for (t of exceptionTypes; track t) { <option [value]="t">{{ t }}</option> }
+          </select></label>
+        <label class="check"><input type="checkbox" [(ngModel)]="f.fullDay" />Full day</label>
+        @if (!f.fullDay) {
+          <div class="form-grid">
+            <label class="field"><span class="field-label">Start</span><input class="control" type="time" [(ngModel)]="f.start" /></label>
+            <label class="field"><span class="field-label">End</span><input class="control" type="time" [(ngModel)]="f.end" /></label>
+          </div>
+        }
+        <div class="note"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>
+          <span>Holidays and site exceptions close the day; working overrides open a normally non-working day.</span></div>
+      </div>
+      <div class="drawer-foot">
+        <button type="button" class="btn btn-outline" (click)="form = null">Cancel</button>
+        <button type="button" class="btn btn-primary" [disabled]="!f.date || !f.description.trim()" (click)="saveException()">
+          {{ f.index === null ? 'Add Exception' : 'Update Exception' }}</button>
+      </div>
+    </aside>
+  }
+
+  @if (toast(); as t) {
+    <div class="toast" role="status">{{ t }}</div>
+  }
+</section>

@@ -8,5 +8,6 @@
 	"masterDataManagement": "http://localhost:4207/remoteEntry.json",
 	"assets": "http://localhost:4208/remoteEntry.json",
 	"trackingIot": "http://localhost:4209/remoteEntry.json",
-	"wipOperations": "http://localhost:4210/remoteEntry.json"
+	"wipOperations": "http://localhost:4210/remoteEntry.json",
+	"inspection": "http://localhost:4211/remoteEntry.json"
 }

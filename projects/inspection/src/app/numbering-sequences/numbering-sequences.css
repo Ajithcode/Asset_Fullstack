@@ -1,0 +1,50 @@
+.col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.mono { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+.pad { height: 14px; }
+
+.lib { display: flex; flex-direction: column; gap: 8px; padding: 0 18px 16px; }
+.lib-item { position: relative; display: flex; align-items: center; gap: 4px; padding-right: 6px; border: 1px solid var(--ip-border); border-radius: 10px; background: #fff; }
+.lib-item.is-selected { border-color: var(--ip-accent-border); background: var(--ip-accent-soft); }
+.lib-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 12px; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.lib-main .grow { display: flex; flex-direction: column; gap: 2px; }
+.lib-name { font-weight: 700; font-size: 14px; }
+.lib-ic { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 8px; background: var(--ip-bg-soft); color: var(--ip-muted); }
+.menu { position: absolute; right: 6px; top: calc(100% - 6px); z-index: 20; display: flex; flex-direction: column; min-width: 160px; padding: 6px; background: #fff; border: 1px solid var(--ip-border); border-radius: 8px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); }
+.menu button { padding: 8px 10px; border: 0; background: none; font: inherit; font-size: 13px; text-align: left; border-radius: 6px; cursor: pointer; }
+.menu button:hover { background: var(--ip-bg-soft); }
+.menu .menu-danger { color: var(--ip-bad); }
+.menu .muted { padding: 6px 10px; }
+
+.cfg { display: flex; flex-direction: column; gap: 14px; padding-top: 0; }
+.cfg-title { display: flex; align-items: center; gap: 12px; }
+.cfg-title h3 { margin: 0; font-size: 18px; font-weight: 800; }
+.pill-btn { border: 0; cursor: pointer; font-family: inherit; }
+.tokens { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tok { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.tok--p { background: var(--ip-accent-soft); color: var(--ip-accent); }
+.tok--y { background: var(--ip-blue-soft); color: var(--ip-blue); }
+.tok--s { background: #ede9fe; color: #4c1d95; }
+.tok-help { position: relative; font-size: 12.5px; }
+.tip { position: absolute; left: 0; top: 24px; z-index: 10; width: 260px; padding: 10px 12px; border-radius: 8px; background: #1f1b2e; color: #fff; font-size: 12px; line-height: 1.6; }
+.tip code { color: #d8ccff; }
+.cfg-bottom { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; }
+.counter { font-size: 17px; font-weight: 700; }
+
+.pv { display: flex; flex-direction: column; gap: 8px; padding-top: 0; }
+.big-ref { padding: 14px; border-radius: 8px; background: var(--ip-accent-soft); color: var(--ip-accent); font-size: 26px; font-weight: 800; text-align: center; letter-spacing: 0.02em; overflow-wrap: anywhere; }
+.next3 { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ip-border); border-radius: 8px; }
+.next3 li { display: flex; gap: 16px; padding: 6px 12px; font-size: 13.5px; }
+.next3 li + li { border-top: 1px solid var(--ip-border); }
+.next3 b { color: var(--ip-accent); }
+.reset { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px; border-radius: 8px; background: var(--ip-bg-soft); font-size: 13.5px; }
+.reset b { color: var(--ip-accent); }
+
+.val { display: flex; flex-direction: column; gap: 6px; padding-top: 0; }
+.val-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; background: var(--ip-good-soft); color: var(--ip-text); font-size: 13px; }
+.val-row lucide-icon { color: var(--ip-good); }
+.val-row.bad { background: var(--ip-bad-soft); }
+.val-row.bad lucide-icon { color: var(--ip-bad); }
+
+.modal { position: fixed; z-index: 901; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(820px, calc(100vw - 32px)); max-height: 80vh; display: flex; flex-direction: column; background: #fff; border-radius: 12px; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2); }
+.modal-body { overflow: auto; padding: 12px 20px 20px; }
+@media (max-width: 600px) { .cfg-bottom { grid-template-columns: minmax(0, 1fr); } .footer-bar { flex-wrap: wrap; } }

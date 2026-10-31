@@ -1,0 +1,43 @@
+:host { display: block; }
+.zoom { width: max-content; margin: 0 auto; }
+.rp { box-sizing: border-box; min-height: 600px; padding: 28px 32px; background: #fff; color: #161427; font: 11px/1.45 'Red Hat Display', Arial, sans-serif; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; gap: 12px; }
+.rp-head { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 10px; border-bottom: 2px solid var(--acc); }
+.rp-logo { display: flex; align-items: center; gap: 6px; }
+.rp-logo .hex { font-size: 26px; color: var(--acc); line-height: 1; }
+.rp-logo span:last-child { display: flex; flex-direction: column; }
+.rp-logo strong { font-size: 17px; }
+.rp-logo small, .rp small { font-size: 9px; color: #6b6880; }
+.rp-no { display: flex; flex-direction: column; align-items: flex-end; font-size: 11px; }
+.rp-no strong { font-size: 13px; }
+.rp-title { margin: 0 0 6px; font-size: 17px; }
+.rp h2 { margin: 0 0 6px; font-size: 12.5px; color: var(--acc); }
+.rp-meta { display: grid; grid-template-columns: 70px 1fr 70px 1fr; gap: 2px 10px; }
+.rp-meta span { color: #6b6880; }
+.lnk { color: var(--acc); text-decoration: underline; }
+.rp-banner { display: flex; gap: 10px; align-items: center; margin-top: 10px; padding: 8px 10px; border-radius: 6px; background: #eef2ff; }
+.rp-banner span:last-child { display: flex; flex-direction: column; }
+.rp-banner .ic { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; color: #fff; font-weight: 800; }
+.rp-banner[data-tone='warn'] { background: #fff1d6; }
+.rp-banner[data-tone='warn'] strong { color: #b45309; }
+.rp-banner[data-tone='warn'] .ic { background: #f59e0b; }
+.rp-banner[data-tone='good'] { background: #e3f6ea; }
+.rp-banner[data-tone='good'] .ic { background: #16a34a; }
+.rp table { width: 100%; border-collapse: collapse; }
+.rp th { text-align: left; padding: 5px 6px; background: #f3f1f9; font-size: 10.5px; }
+.rp td { padding: 5px 6px; border-bottom: 1px solid #ebe9f2; vertical-align: top; }
+.muted { color: #6b6880; }
+.obs { display: block; }
+.res, .sev { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; background: #f0eff4; color: #6b6880; }
+.res[data-r='Pass'] { background: #e3f6ea; color: #16a34a; }
+.res[data-r='Fail'], .sev[data-s='Critical'] { background: #fde2e2; color: #dc2626; }
+.sev[data-s='High'], .sev[data-s='Medium'] { background: #fff1d6; color: #d97706; }
+.gallery { display: flex; gap: 10px; flex-wrap: wrap; }
+.gallery img, .ph { width: 140px; height: 90px; border-radius: 4px; object-fit: cover; }
+.ph { display: inline-flex; align-items: center; justify-content: center; padding: 6px; box-sizing: border-box; background: linear-gradient(135deg, #e9e7f1, #d7d4e3); color: #6b6880; font-size: 10px; text-align: center; overflow: hidden; word-break: break-all; }
+.signs { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; }
+.sign { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
+.sig { font: italic 20px 'Brush Script MT', cursive; border-bottom: 1px solid #6b6880; padding-bottom: 2px; }
+.sig--pending { font: 11px 'Red Hat Display', Arial, sans-serif; color: #9a97a8; text-align: center; padding: 10px 0 4px; }
+.stamp { margin-left: auto; width: 74px; height: 74px; border: 2px solid var(--acc); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--acc); font-size: 9px; font-weight: 800; text-align: center; transform: rotate(-12deg); }
+.rp-foot { margin-top: auto; display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid #ebe9f2; font-size: 9.5px; color: #6b6880; }
+@media print { .rp { box-shadow: none; width: auto !important; min-height: 0; } }

@@ -1,0 +1,233 @@
+<section class="ip-page">
+  <!-- ===== Header ===== -->
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span aria-hidden="true">/</span>
+        <span>Configuration</span><span aria-hidden="true">/</span>
+        <span class="current">Inspection Types</span>
+      </nav>
+      <h1>Inspection Types</h1>
+      <p class="subtitle">Configure reusable inspection categories and their default requirements.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-outline" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export</button>
+      <button type="button" class="btn btn-primary" (click)="openNew()"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>New Inspection Type</button>
+    </div>
+  </div>
+
+  @if (store.error()) { <div class="alert" role="alert">{{ store.error() }}</div> }
+
+  <!-- ===== KPIs ===== -->
+  <div class="kpis">
+    <button type="button" class="kpi" (click)="statusFilter.set('All'); resetPage()">
+      <span class="kpi-ic"><lucide-icon [img]="icons.FileText" [size]="22"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Total Types</span><strong class="kpi-value">{{ kpis().total }}</strong></span>
+    </button>
+    <button type="button" class="kpi" (click)="statusFilter.set('Active'); resetPage()">
+      <span class="kpi-ic kpi-ic--green"><lucide-icon [img]="icons.CircleCheck" [size]="22"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Active</span><strong class="kpi-value">{{ kpis().active }}</strong></span>
+    </button>
+    <button type="button" class="kpi" (click)="statusFilter.set('Inactive'); resetPage()">
+      <span class="kpi-ic kpi-ic--grey"><lucide-icon [img]="icons.CircleMinus" [size]="22"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Inactive</span><strong class="kpi-value">{{ kpis().inactive }}</strong></span>
+    </button>
+    <div class="kpi">
+      <span class="kpi-ic"><lucide-icon [img]="icons.Layers" [size]="22"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Used in Plans</span><strong class="kpi-value">{{ kpis().usedInPlans }}</strong></span>
+    </div>
+  </div>
+
+  <div class="split">
+    <!-- ===== Register ===== -->
+    <div class="card">
+      <div class="card-head"><h2>Inspection Type Register</h2></div>
+      <div class="filters">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" placeholder="Search by name or code..." aria-label="Search inspection types" [(ngModel)]="search" (ngModelChange)="resetPage()" />
+        </label>
+        <label class="field flt">
+          <span class="field-label">Status</span>
+          <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="resetPage()">
+            <option value="All">All</option><option value="Active">Active</option><option value="Inactive">Inactive</option>
+          </select>
+        </label>
+        <label class="field flt">
+          <span class="field-label">Category</span>
+          <select class="control" [(ngModel)]="categoryFilter" (ngModelChange)="resetPage()">
+            <option value="All">All</option>
+            @for (c of categories(); track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+        </label>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th><button type="button" class="th-sort" (click)="sortBy('inspectionTypeCode')">Code <lucide-icon [img]="sortIcon('inspectionTypeCode')" [size]="13" [class.on]="sortKey() === 'inspectionTypeCode'"></lucide-icon></button></th>
+              <th><button type="button" class="th-sort" (click)="sortBy('inspectionTypeName')">Inspection Type <lucide-icon [img]="sortIcon('inspectionTypeName')" [size]="13" [class.on]="sortKey() === 'inspectionTypeName'"></lucide-icon></button></th>
+              <th><button type="button" class="th-sort" (click)="sortBy('category')">Category <lucide-icon [img]="sortIcon('category')" [size]="13" [class.on]="sortKey() === 'category'"></lucide-icon></button></th>
+              <th><button type="button" class="th-sort" (click)="sortBy('defaultChecklistName')">Checklist <lucide-icon [img]="sortIcon('defaultChecklistName')" [size]="13" [class.on]="sortKey() === 'defaultChecklistName'"></lucide-icon></button></th>
+              <th><button type="button" class="th-sort" (click)="sortBy('status')">Status <lucide-icon [img]="sortIcon('status')" [size]="13" [class.on]="sortKey() === 'status'"></lucide-icon></button></th>
+              <th class="th-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of pager.slice(filtered()); track t.id) {
+              <tr [class.is-selected]="selected()?.id === t.id" (click)="selectedId.set(t.id)">
+                <td class="nowrap">{{ t.inspectionTypeCode }}</td>
+                <td>{{ t.inspectionTypeName }}</td>
+                <td>{{ t.category }}</td>
+                <td>{{ t.defaultChecklistName || '—' }}</td>
+                <td class="nowrap"><span class="status" [class.status--off]="!t.isActive"><span class="dot"></span>{{ statusLabel(t) }}</span></td>
+                <td class="row-actions">
+                  <button type="button" class="icon-btn" aria-label="Edit" title="Edit" (click)="openEdit(t, $event)"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon></button>
+                  <span class="menu-wrap">
+                    <button type="button" class="icon-btn" aria-label="More actions" [attr.aria-expanded]="menuId() === t.id" (click)="toggleMenu($event, t.id)"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
+                    @if (menuId() === t.id) {
+                      <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                        @if (confirmId() === t.id) {
+                          <p class="menu-confirm">Delete {{ t.inspectionTypeName }}?</p>
+                          <div class="menu-confirm-actions">
+                            <button type="button" class="btn btn-sm btn-outline" (click)="confirmId.set(null)">Cancel</button>
+                            <button type="button" class="btn btn-sm btn-danger" (click)="remove(t)">Delete</button>
+                          </div>
+                        } @else {
+                          <button type="button" role="menuitem" (click)="setActive(t, !t.isActive)"><lucide-icon [img]="icons.Power" [size]="15"></lucide-icon>{{ t.isActive ? 'Deactivate' : 'Activate' }}</button>
+                          <button type="button" role="menuitem" (click)="duplicate(t)"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon>Duplicate</button>
+                          <button type="button" role="menuitem" class="danger" (click)="askDelete($event, t)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete</button>
+                        }
+                      </div>
+                    }
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty">{{ store.loading() ? 'Loading inspection types…' : 'No inspection types found.' }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <span class="grow">{{ pager.label(filtered().length, 'types') }}</span>
+        <button type="button" aria-label="Previous page" [disabled]="pager.page <= 1" (click)="pager.page = pager.page - 1"><lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon></button>
+        @for (p of pager.pageList(filtered().length); track p) {
+          <button type="button" [class.is-active]="p === pager.page" (click)="pager.page = p">{{ p }}</button>
+        }
+        <button type="button" aria-label="Next page" [disabled]="pager.page >= pager.pages(filtered().length)" (click)="pager.page = pager.page + 1"><lucide-icon [img]="icons.ChevronRight" [size]="15"></lucide-icon></button>
+      </div>
+    </div>
+
+    <!-- ===== Detail panel ===== -->
+    <aside class="card detail">
+      @if (selected(); as t) {
+        <div class="card-body detail-body">
+          <div class="detail-head">
+            <div class="grow">
+              <h2>{{ t.inspectionTypeName }}</h2>
+              <div class="detail-sub"><span>{{ t.inspectionTypeCode }}</span><span [class]="pillClass(statusLabel(t))"><span class="dot"></span>{{ statusLabel(t) }}</span></div>
+            </div>
+            <button type="button" class="btn btn-accent-outline btn-sm" (click)="openEdit(t)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Type</button>
+          </div>
+          @if (t.description) { <p class="muted desc">{{ t.description }}</p> }
+
+          <dl class="kv kv-lines">
+            <dt>Category</dt><dd>{{ t.category || '—' }}</dd>
+            <dt>Default checklist</dt><dd>{{ t.defaultChecklistName || '—' }}</dd>
+            <dt>Default priority</dt><dd><span class="prio-dot" [attr.data-p]="t.defaultPriority"></span>{{ t.defaultPriority || '—' }}</dd>
+            <dt>Default frequency</dt><dd>{{ t.defaultFrequency || '—' }}</dd>
+            <dt>Applicable assets</dt><dd>{{ t.applicableAssets || '—' }}</dd>
+            <dt>Responsible role</dt><dd>{{ t.responsibleRole || '—' }}</dd>
+          </dl>
+
+          <div>
+            <h3 class="section-title">Requirements</h3>
+            <ul class="reqs">
+              <li [class.off]="!t.photoEvidenceOnFailure"><lucide-icon [img]="t.photoEvidenceOnFailure ? icons.CircleCheck : icons.CircleMinus" [size]="18"></lucide-icon>Photo evidence on failure<span class="opt">{{ t.photoEvidenceOnFailure ? '' : 'Optional' }}</span></li>
+              <li [class.off]="!t.signatureRequired"><lucide-icon [img]="t.signatureRequired ? icons.CircleCheck : icons.CircleMinus" [size]="18"></lucide-icon>Signature required<span class="opt">{{ t.signatureRequired ? '' : 'Optional' }}</span></li>
+              <li [class.off]="!t.correctiveActionOnFailure"><lucide-icon [img]="t.correctiveActionOnFailure ? icons.CircleCheck : icons.CircleMinus" [size]="18"></lucide-icon>Corrective action on failure<span class="opt">{{ t.correctiveActionOnFailure ? '' : 'Optional' }}</span></li>
+              <li [class.off]="!t.permitRequired"><lucide-icon [img]="t.permitRequired ? icons.CircleCheck : icons.CircleMinus" [size]="18"></lucide-icon>Permit required<span class="opt">{{ t.permitRequired ? '' : 'Optional' }}</span></li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 class="section-title">Linked Usage</h3>
+            <div class="usage">
+              <div class="usage-tile"><span class="kpi-ic"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon></span><span><span class="muted">Inspection plans</span><strong>{{ usage().plans }}</strong></span></div>
+              <div class="usage-tile"><span class="kpi-ic"><lucide-icon [img]="icons.Search" [size]="18"></lucide-icon></span><span><span class="muted">Active inspections</span><strong>{{ usage().inspections }}</strong></span></div>
+            </div>
+            <a class="link view-linked" routerLink="/inspection/plans-schedules">View linked records <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></a>
+          </div>
+
+          <div class="note"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon><span>Changes apply to future inspections. Existing inspection records retain their original configuration.</span></div>
+        </div>
+      } @else {
+        <div class="empty">{{ store.loading() ? 'Loading…' : 'Select an inspection type to see its details.' }}</div>
+      }
+    </aside>
+  </div>
+</section>
+
+<!-- ===== New / edit drawer ===== -->
+@if (form; as f) {
+  <div class="backdrop" (click)="closeForm()"></div>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="it-form-title">
+    <div class="drawer-head">
+      <h2 id="it-form-title" class="grow">{{ f.id ? 'Edit Inspection Type' : 'New Inspection Type' }}</h2>
+      <button type="button" class="icon-btn" aria-label="Close" (click)="closeForm()"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="drawer-body">
+      @if (formError) { <div class="alert" role="alert">{{ formError }}</div> }
+      <div class="form-grid">
+        <label class="field span-2"><span class="field-label">Inspection type name <span class="req">*</span></span>
+          <input class="control" [(ngModel)]="f.inspectionTypeName" placeholder="e.g. Safety Inspection" /></label>
+        <label class="field"><span class="field-label">Code</span>
+          <input class="control" [value]="f.inspectionTypeCode || 'Assigned on save'" readonly /></label>
+        <label class="field"><span class="field-label">Category <span class="req">*</span></span>
+          <select class="control" [(ngModel)]="f.category">
+            @for (c of categories(); track c) { <option [value]="c">{{ c }}</option> }
+          </select></label>
+        <label class="field span-2"><span class="field-label">Description</span>
+          <textarea class="control" rows="3" [(ngModel)]="f.description"></textarea></label>
+        <label class="field span-2"><span class="field-label">Default checklist</span>
+          <select class="control" [ngModel]="f.defaultChecklistCode" (ngModelChange)="pickChecklist($event)">
+            <option value="">— None —</option>
+            @for (c of api.checklists.items(); track c.id) { <option [value]="c.checklistCode">{{ c.templateName }} v{{ c.versionLabel }} ({{ c.checklistCode }})</option> }
+          </select>
+          @if (f.defaultChecklistCode) { <span class="field-hint">{{ f.defaultChecklistCode }} · {{ f.defaultChecklistName }}</span> }
+        </label>
+        <label class="field"><span class="field-label">Default priority</span>
+          <select class="control" [(ngModel)]="f.defaultPriority">
+            @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
+          </select></label>
+        <label class="field"><span class="field-label">Default frequency</span>
+          <select class="control" [(ngModel)]="f.defaultFrequency">
+            @for (p of frequencies; track p) { <option [value]="p">{{ p }}</option> }
+          </select></label>
+        <label class="field"><span class="field-label">Applicable assets</span>
+          <input class="control" [(ngModel)]="f.applicableAssets" placeholder="e.g. All equipment" /></label>
+        <label class="field"><span class="field-label">Responsible role</span>
+          <input class="control" [(ngModel)]="f.responsibleRole" placeholder="e.g. Safety Inspector" /></label>
+      </div>
+      <div>
+        <h3 class="section-title">Requirements</h3>
+        <div class="checks">
+          <label class="check"><input type="checkbox" [(ngModel)]="f.photoEvidenceOnFailure" />Photo evidence on failure</label>
+          <label class="check"><input type="checkbox" [(ngModel)]="f.signatureRequired" />Signature required</label>
+          <label class="check"><input type="checkbox" [(ngModel)]="f.correctiveActionOnFailure" />Corrective action on failure</label>
+          <label class="check"><input type="checkbox" [(ngModel)]="f.permitRequired" />Permit required</label>
+        </div>
+      </div>
+      <label class="active-row"><span class="toggle"><input type="checkbox" [(ngModel)]="f.isActive" /><span></span></span><span>Active</span></label>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn btn-outline" (click)="closeForm()">Cancel</button>
+      <button type="button" class="btn btn-primary" [disabled]="saving" (click)="saveForm()">{{ saving ? 'Saving…' : f.id ? 'Save Changes' : 'Create Type' }}</button>
+    </div>
+  </aside>
+}
+
+@if (toast()) { <div class="toast" role="status">{{ toast() }}</div> }
