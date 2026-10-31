@@ -1,52 +1,121 @@
 import { Injectable } from '@angular/core';
-import { initialSkills } from './skill.data';
-import { SkillRecord } from './skill.model';
+import { Observable, map } from 'rxjs';
+import { ApiCodeStore } from '../../shared/code-store';
+import { MdmAudit } from '../../shared/mdm-api';
+import { AssetModelIcon } from '../../asset/asset-model/asset-model.icons';
+import { LoadOnce } from '../load-once';
+import { apiText, stampOf } from '../people.data';
+import { SkillRecord, SkillStatus, SkillType } from './skill.model';
+
+interface SkillDto extends MdmAudit {
+  skillName: string;
+  code: string;
+  category: string | null;
+  type: string | null;
+  description: string | null;
+  icon: string | null;
+  levels: string[];
+  relatedRoles: string[];
+  certificationRequired: boolean;
+  certificationValidityMonths: number | null;
+  assessmentRequired: boolean;
+}
 
 /**
- * DEMO MODE: in-memory skills; replace these methods with API calls when the backend is ready.
- * Employees and technicians refer to skills by name.
+ * Skills from /api/master-data/skills. Employees, technicians and service providers refer to skills by
+ * name; the API renames them there when a skill is renamed.
  */
 @Injectable({ providedIn: 'root' })
-export class SkillService {
-  private records: SkillRecord[] = initialSkills();
+export class SkillService extends ApiCodeStore<SkillRecord, SkillDto> {
+  protected readonly resource = 'skills';
+  private readonly loader = new LoadOnce(() => this.load());
 
-  all(): SkillRecord[] {
+  constructor() {
+    super();
+  }
+
+  /** All skills; the first read starts loading them. */
+  override all(): SkillRecord[] {
+    this.loadOnFirstRead();
     return this.records;
   }
 
-  find(code: string | null): SkillRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+  private autoLoad = true;
+
+  // Deferred: reads happen while templates render, where the loading signal can't be written
+  private loadOnFirstRead(): void {
+    if (!this.autoLoad) return;
+    this.autoLoad = false;
+    queueMicrotask(() => this.ensureLoaded());
+  }
+
+  /** Loads the list once, for pages and pickers that only read it. */
+  ensureLoaded(): void {
+    this.loader.ensure();
+  }
+
+  /** Completes once the list has been loaded (at most one request). */
+  loadOnce(): Observable<unknown> {
+    return this.loader.once();
+  }
+
+  /** Reloads the list from the API. */
+  refresh(): Observable<SkillRecord[]> {
+    return this.loader.refresh();
   }
 
   /** Active skill names A-Z, plus `keep` so existing choices stay selectable. */
   activeNames(keep: string[] = []): string[] {
+    this.loadOnFirstRead();
     return this.records
       .filter((r) => r.status === 'Active' || keep.includes(r.name))
       .map((r) => r.name)
       .sort((a, b) => a.localeCompare(b));
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+  setStatus(record: SkillRecord, status: SkillStatus): Observable<SkillRecord> {
+    return this.api.setStatus<SkillDto>(this.resource, this.idOf(record.code)!, status).pipe(map((dto) => this.replace(dto)));
   }
 
-  isNameTaken(name: string, exceptCode: string | null): boolean {
-    const wanted = name.trim().toLowerCase();
-    return this.records.some((r) => r.name.toLowerCase() === wanted && r.code !== exceptCode);
+  private replace(dto: SkillDto): SkillRecord {
+    const record = this.toRecord(dto);
+    this.save(record, record.code);
+    return record;
   }
 
-  save(record: SkillRecord, originalCode: string | null): void {
-    const index = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    if (index >= 0) {
-      this.records[index] = record;
-      this.records = [...this.records];
-    } else {
-      this.records = [record, ...this.records];
-    }
+  protected toRecord(dto: SkillDto): SkillRecord {
+    return {
+      code: dto.code,
+      name: dto.skillName,
+      category: dto.category ?? '',
+      type: (dto.type as SkillType) || 'Hard Skill',
+      description: dto.description ?? '',
+      icon: (dto.icon as AssetModelIcon) || 'wrench',
+      status: (dto.status as SkillStatus) || 'Active',
+      levels: dto.levels ?? [],
+      relatedRoles: dto.relatedRoles ?? [],
+      certificationRequired: dto.certificationRequired,
+      certificationValidityMonths: dto.certificationValidityMonths ?? 0,
+      assessmentRequired: dto.assessmentRequired,
+      createdOn: stampOf(dto.createdAt),
+      updatedOn: stampOf(dto.updatedAt)
+    };
   }
 
-  remove(codes: string[]): void {
-    this.records = this.records.filter((r) => !codes.includes(r.code));
+  protected toRequest(r: SkillRecord): object {
+    return {
+      skillName: r.name,
+      code: r.code,
+      category: apiText(r.category),
+      type: r.type,
+      description: apiText(r.description),
+      icon: r.icon,
+      levels: r.levels,
+      relatedRoles: r.relatedRoles,
+      certificationRequired: r.certificationRequired,
+      certificationValidityMonths: r.certificationRequired ? r.certificationValidityMonths : null,
+      assessmentRequired: r.assessmentRequired,
+      status: r.status
+    };
   }
 }

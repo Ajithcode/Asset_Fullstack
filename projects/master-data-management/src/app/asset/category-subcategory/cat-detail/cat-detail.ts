@@ -3,6 +3,7 @@ import { DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ArrowRight, ArrowUp, Box, Building2, ChevronDown, Copy, Ellipsis, Layers, LucideAngularModule, Pencil, Plus, Wrench, X } from 'lucide-angular';
 import { formatDateTime } from '../../../organization/location/location.format';
+import { apiErrorMessage } from '../../../shared/mdm-api';
 import { MODEL_ICONS, MODEL_ICON_KEYS } from '../../asset-model/asset-model.icons';
 import { subcategoryCode } from '../category.data';
 import { CategoryRecord, SubcategoryRecord } from '../category.model';
@@ -69,6 +70,7 @@ export class CatDetail implements OnChanges {
   subForm: SubcategoryRecord | null = null;
   subOriginal: string | null = null;
   subErrors: { name?: string; code?: string } = {};
+  subSaving = false;
 
   ngOnChanges(): void {
     this.moreOpen = false;
@@ -180,17 +182,28 @@ export class CatDetail implements OnChanges {
     if (!f.code.trim()) errors.code = 'Enter a code.';
     else if (this.service.isSubCodeTaken(f.code, this.subOriginal)) errors.code = `${f.code.trim()} is already used.`;
     this.subErrors = errors;
-    if (errors.name || errors.code) return;
-    this.service.saveSubcategory(this.category.code, { ...f, name, code: f.code.trim().toUpperCase() }, this.subOriginal);
-    this.notify.emit(`${name} ${this.subOriginal ? 'updated' : 'added'}.`);
-    this.subForm = null;
+    if (errors.name || errors.code || this.subSaving) return;
+    this.subSaving = true;
+    this.service.saveSubcategory(this.category.code, { ...f, name, code: f.code.trim().toUpperCase() }, this.subOriginal).subscribe({
+      next: () => {
+        this.subSaving = false;
+        this.notify.emit(`${name} ${this.subOriginal ? 'updated' : 'added'}.`);
+        this.subForm = null;
+      },
+      error: (err) => {
+        this.subSaving = false;
+        this.notify.emit(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleSubStatus(s: SubcategoryRecord): void {
     this.subMenuFor = null;
     const status = s.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.saveSubcategory(this.category.code, { ...s, status }, s.code);
-    this.notify.emit(`${s.name} marked ${status}.`);
+    this.service.saveSubcategory(this.category.code, { ...s, status }, s.code).subscribe({
+      next: () => this.notify.emit(`${s.name} marked ${status}.`),
+      error: (err) => this.notify.emit(apiErrorMessage(err))
+    });
   }
 
   // Subcategories with assets can't be deleted
@@ -201,9 +214,13 @@ export class CatDetail implements OnChanges {
       this.notify.emit(`${used.name} has ${used.assets} assets. Mark it Inactive instead.`);
       return;
     }
-    this.service.removeSubcategories(this.category.code, codes);
-    codes.forEach((c) => this.picked.delete(c));
-    this.notify.emit(codes.length === 1 ? 'Subcategory deleted.' : `${codes.length} subcategories deleted.`);
+    this.service.removeSubcategories(this.category.code, codes).subscribe({
+      next: () => {
+        codes.forEach((c) => this.picked.delete(c));
+        this.notify.emit(codes.length === 1 ? 'Subcategory deleted.' : `${codes.length} subcategories deleted.`);
+      },
+      error: (err) => this.notify.emit(apiErrorMessage(err))
+    });
   }
 
   removePicked(): void {

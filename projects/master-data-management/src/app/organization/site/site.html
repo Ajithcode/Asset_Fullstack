@@ -180,7 +180,7 @@
   </div>
 
   @if (formOpen) {
-    <app-site-form #formEl class="mdm-form" [mode]="formMode" [site]="formRecord" [initialTab]="formTab" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-site-form>
+    <app-site-form [saving]="saving" #formEl class="mdm-form" [mode]="formMode" [site]="formRecord" [initialTab]="formTab" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-site-form>
   }
 
   <div class="site-detail" #detailEl>
@@ -205,7 +205,7 @@
       <p>Sites under it will move to the top level. This can't be undone.</p>
       <div class="confirm__actions">
         <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
-        <button type="button" class="btn btn--danger" (click)="confirmDelete()">Delete</button>
+        <button type="button" class="btn btn--danger" [disabled]="deleting" (click)="confirmDelete()">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
       </div>
     </div>
   </div>

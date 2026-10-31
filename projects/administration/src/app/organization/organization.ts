@@ -1,6 +1,7 @@
-import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { EMPTY, catchError, concatMap, finalize, from, tap } from 'rxjs';
 import {
   ArrowUpDown,
   Box,
@@ -34,7 +35,7 @@ import { AdminPage } from '../shared/admin-common';
 import { CHILD_TYPE, LOCATION_TYPES, PARENT_TYPE, TYPE_TONES } from './organization.data';
 import { downloadCsv, parseCsv } from './organization-csv';
 import { LocationType, OrgLocation, OrgTabId, RecordStatus } from './organization.model';
-import { OrganizationService } from './organization.service';
+import { OrganizationService, apiErrorMessage } from './organization.service';
 import { LocationForm } from './location-form/location-form';
 import { LocationTree } from './location-tree/location-tree';
 import { SummaryTabView } from './summary-tab/summary-tab';
@@ -81,8 +82,7 @@ export class OrganizationPage extends AdminPage {
 
   activeTab: OrgTabId = 'location';
 
-  // Opened on Zone 2A with its details in the drawer, as in the design
-  selectedNode: string | null = 'LOC-004';
+  selectedNode: string | null = null;
   search = '';
   filterOpen = false;
   typeFilter: '' | LocationType = '';
@@ -95,9 +95,18 @@ export class OrganizationPage extends AdminPage {
   checked = new Set<string>();
   menuFor: string | null = null;
 
-  formRecord: OrgLocation | null = this.service.find('LOC-004') ?? null;
+  formRecord: OrgLocation | null = null;
   formMode: 'add' | 'edit' = 'edit';
   pendingDelete: OrgLocation[] = [];
+
+  constructor() {
+    super();
+    // Load failures from the Administration API show up as a toast
+    effect(() => {
+      const error = this.service.error();
+      if (error) this.notify(error);
+    });
+  }
 
   /* ===== Tabs ===== */
 
@@ -321,7 +330,8 @@ export class OrganizationPage extends AdminPage {
   duplicate(l: OrgLocation): void {
     this.menuFor = null;
     this.formMode = 'add';
-    this.formRecord = { ...l, code: this.service.nextCode(), name: `${l.name} (Copy)` };
+    const { id, ...copy } = l;
+    this.formRecord = { ...copy, code: this.service.nextCode(), name: `${l.name} (Copy)` };
   }
 
   closeForm(): void {
@@ -330,13 +340,26 @@ export class OrganizationPage extends AdminPage {
 
   onSaved(event: { record: OrgLocation; originalCode: string | null }): void {
     const { record, originalCode } = event;
-    this.service.save(record, originalCode);
-    if (originalCode) {
-      if (this.selectedNode === originalCode) this.selectedNode = record.code;
-      if (this.checked.delete(originalCode)) this.checked.add(record.code);
+    if (originalCode === null) {
+      this.service.create(record).subscribe({
+        next: (saved) => this.afterSave(saved, `${saved.name} (${saved.code}) added.`),
+        error: (err) => this.notify(apiErrorMessage(err, `${record.name} could not be added.`))
+      });
+      return;
     }
+    this.service.update(record, originalCode).subscribe({
+      next: (saved) => {
+        if (this.selectedNode === originalCode) this.selectedNode = saved.code;
+        if (this.checked.delete(originalCode)) this.checked.add(saved.code);
+        this.afterSave(saved, `${saved.name} updated.`);
+      },
+      error: (err) => this.notify(apiErrorMessage(err, `${record.name} could not be updated.`))
+    });
+  }
+
+  private afterSave(record: OrgLocation, message: string): void {
     this.tree?.reveal(record.code);
-    this.notify(originalCode ? `${record.name} updated.` : `${record.name} (${record.code}) added.`);
+    this.notify(message);
     this.formMode = 'edit';
     this.formRecord = this.service.find(record.code) ?? null;
   }
@@ -344,9 +367,13 @@ export class OrganizationPage extends AdminPage {
   toggleStatus(l: OrgLocation): void {
     this.menuFor = null;
     const status: RecordStatus = l.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...l, status }, l.code);
-    if (this.formRecord?.code === l.code && this.formMode === 'edit') this.formRecord = this.service.find(l.code) ?? null;
-    this.notify(`${l.name} is now ${status.toLowerCase()}.`);
+    this.service.update({ ...l, status }, l.code).subscribe({
+      next: (saved) => {
+        if (this.formRecord?.code === l.code && this.formMode === 'edit') this.formRecord = this.service.find(saved.code) ?? null;
+        this.notify(`${saved.name} is now ${status.toLowerCase()}.`);
+      },
+      error: (err) => this.notify(apiErrorMessage(err, `${l.name} could not be updated.`))
+    });
   }
 
   /* ===== Delete ===== */
@@ -385,13 +412,27 @@ export class OrganizationPage extends AdminPage {
   doDelete(): void {
     const codes = this.pendingDelete.map((l) => l.code);
     const label = codes.length === 1 ? this.pendingDelete[0].name : `${codes.length} locations`;
-    this.service.remove(codes);
-    for (const c of codes) this.checked.delete(c);
-    if (this.selectedNode && codes.includes(this.selectedNode)) this.selectedNode = null;
-    if (this.formRecord && this.formMode === 'edit' && codes.includes(this.formRecord.code)) this.formRecord = null;
     this.pendingDelete = [];
-    this.goTo(this.page);
-    this.notify(`${label} deleted.`);
+    // Clears whatever the server already removed, also when a later delete in the batch fails
+    const tidy = () => {
+      for (const c of codes) {
+        if (this.service.find(c)) continue;
+        this.checked.delete(c);
+        if (this.selectedNode === c) this.selectedNode = null;
+        if (this.formRecord && this.formMode === 'edit' && this.formRecord.code === c) this.formRecord = null;
+      }
+      this.goTo(this.page);
+    };
+    this.service.remove(codes).subscribe({
+      next: () => {
+        tidy();
+        this.notify(`${label} deleted.`);
+      },
+      error: (err) => {
+        tidy();
+        this.notify(apiErrorMessage(err, `${label} could not be deleted.`));
+      }
+    });
   }
 
   /* ===== Import / Export ===== */
@@ -423,12 +464,15 @@ export class OrganizationPage extends AdminPage {
     file.text().then((text) => this.importRows(parseCsv(text)));
   }
 
+  /** Valid rows are created one by one so a parent earlier in the file exists before its children. */
   private importRows([header, ...lines]: string[][]): void {
     const idx = EXPORT_HEADER.map((name) => (header ?? []).findIndex((h) => h.toLowerCase() === name.toLowerCase()));
     if (idx[0] < 0 || idx[1] < 0 || idx[2] < 0) {
       this.notify('The file needs Location Code, Location Name and Type columns.');
       return;
     }
+    const records: OrgLocation[] = [];
+    const inFile = (code: string | null) => records.find((r) => r.code === code);
     let added = 0;
     let skipped = 0;
     for (const cells of lines) {
@@ -436,30 +480,45 @@ export class OrganizationPage extends AdminPage {
       const code = get(0).toUpperCase();
       const name = get(1);
       const type = LOCATION_TYPES.find((t) => t.toLowerCase() === get(2).toLowerCase());
-      // Parents may come earlier in the same file, so look them up as rows are added
-      const parent = this.service.find(get(3).toUpperCase() || null);
+      // Parents may come earlier in the same file
+      const parentCode = get(3).toUpperCase() || null;
+      const parent = this.service.find(parentCode) ?? inFile(parentCode);
       const parentOk = !!type && (PARENT_TYPE[type] ? parent?.type === PARENT_TYPE[type] : !parent);
-      if (!code || !name || !type || !parentOk || this.service.codeTaken(code, null) || this.service.nameTaken(name, parent?.code ?? null, null)) {
+      const nameClash = (n: string, p: string | null) =>
+        this.service.nameTaken(n, p, null) || records.some((r) => r.parent === p && r.name.toLowerCase() === n.trim().toLowerCase());
+      const contact = get(8) || parent?.contact || '';
+      if (!code || !name || !type || !parentOk || !contact || this.service.codeTaken(code, null) || inFile(code) || nameClash(name, parent?.code ?? null)) {
         skipped++;
         continue;
       }
-      this.service.save(
-        {
-          code,
-          name,
-          type,
-          parent: parent?.code ?? null,
-          address: get(4),
-          country: get(5) || parent?.country || '',
-          city: get(6) || parent?.city || '',
-          timeZone: get(7) || parent?.timeZone || '',
-          contact: get(8),
-          status: get(9) === 'Inactive' ? 'Inactive' : 'Active'
-        },
-        null
-      );
-      added++;
+      records.push({
+        code,
+        name,
+        type,
+        parent: parent?.code ?? null,
+        address: get(4),
+        country: get(5) || parent?.country || '',
+        city: get(6) || parent?.city || '',
+        timeZone: get(7) || parent?.timeZone || '',
+        contact,
+        status: get(9) === 'Inactive' ? 'Inactive' : 'Active'
+      });
     }
-    this.notify(`Imported ${added} location${added === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} (duplicate code, missing fields or wrong parent)` : ''}.`);
+    from(records)
+      .pipe(
+        concatMap((r) =>
+          this.service.create(r).pipe(
+            tap(() => added++),
+            catchError(() => {
+              skipped++;
+              return EMPTY;
+            })
+          )
+        ),
+        finalize(() =>
+          this.notify(`Imported ${added} location${added === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} (duplicate code, missing fields, wrong parent or rejected by the server)` : ''}.`)
+        )
+      )
+      .subscribe();
   }
 }

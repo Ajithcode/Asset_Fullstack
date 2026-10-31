@@ -26,6 +26,11 @@ export class MaintenanceTypeForm extends MasterForm<MaintenanceTypeRecord, Tab> 
     { id: 'settings', label: 'Settings' }
   ];
 
+  constructor() {
+    super();
+    this.priorities.ensureLoaded();
+  }
+
   protected blank(): MaintenanceTypeRecord {
     return blankMaintenanceType();
   }

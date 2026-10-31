@@ -2,9 +2,10 @@ import { Component, OnChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Camera, LucideAngularModule, X } from 'lucide-angular';
 import { MasterForm } from '../../../maintenance/form-base';
+import { SiteService } from '../../../organization/site/site.service';
 import { EmployeeService } from '../../../people/employee/employee.service';
 import { EMAIL, readPhoto } from '../../../people/people.data';
-import { ACCESS_SITES, DATE_FORMATS, LANGUAGES, TIME_ZONES, USER_DEPARTMENTS, blankUser } from '../../security.data';
+import { DATE_FORMATS, LANGUAGES, TIME_ZONES, blankUser } from '../../security.data';
 import { UserRecord } from '../../security.model';
 import { RoleService, UserService } from '../../security.service';
 
@@ -24,8 +25,7 @@ export class UserForm extends MasterForm<UserRecord, Tab> implements OnChanges {
   readonly roles = inject(RoleService);
   private readonly employees = inject(EmployeeService);
   readonly icons = { X, Camera };
-  readonly departments = USER_DEPARTMENTS;
-  readonly sites = ACCESS_SITES;
+  private readonly siteMaster = inject(SiteService);
   readonly languages = LANGUAGES;
   readonly timeZones = TIME_ZONES;
   readonly dateFormats = DATE_FORMATS;
@@ -34,6 +34,17 @@ export class UserForm extends MasterForm<UserRecord, Tab> implements OnChanges {
     { id: 'access', label: 'Roles & Access' },
     { id: 'preferences', label: 'Preferences' }
   ];
+
+  constructor() {
+    super();
+    this.siteMaster.ensureLoaded().subscribe({ error: () => undefined });
+  }
+
+  /** Active sites from the Site master, plus any the user already holds so they can be unticked. */
+  get sites(): string[] {
+    const names = this.siteMaster.all().filter((s) => s.status === 'Active').map((s) => s.name);
+    return [...names, ...(this.form?.sites ?? []).filter((s) => !names.includes(s))];
+  }
 
   // Username and email follow the name until typed by hand
   private usernameTouched = false;
@@ -47,6 +58,11 @@ export class UserForm extends MasterForm<UserRecord, Tab> implements OnChanges {
 
   protected blank(): UserRecord {
     return { ...blankUser(), code: this.store.nextCode() };
+  }
+
+  // Departments from the department master, plus the one the user already has
+  get departments(): string[] {
+    return this.store.departmentNames(this.original?.department ?? '');
   }
 
   get isSelf(): boolean {

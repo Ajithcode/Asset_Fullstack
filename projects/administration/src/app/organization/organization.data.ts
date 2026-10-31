@@ -1,7 +1,7 @@
 import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS, ADMIN_PEOPLE, formatDate } from '../shared/admin-common';
-import { LocationType, OrgLocation, SummaryRow, SummaryTab } from './organization.model';
+import { LocationType, SummaryRow, SummaryTab } from './organization.model';
 
-// DEMO MODE: seed data for Administration > Organization, generated deterministically (no randomness)
+// Lookup lists for the location hierarchy. DEMO MODE: the master data summary tabs below are still generated in memory (no randomness)
 
 export const LOCATION_TYPES: LocationType[] = ['Location', 'Building', 'Floor', 'Zone'];
 
@@ -44,122 +44,6 @@ export const TIME_ZONES = [
   '(GMT+04:00) Muscat',
   '(GMT+08:00) Singapore'
 ];
-
-interface SiteSeed {
-  name: string;
-  address: string;
-  country: string;
-  city: string;
-  timeZone: string;
-  contact: string;
-  status?: 'Inactive';
-}
-
-// The six offices of the design first, then the smaller sites
-const SITES: SiteSeed[] = [
-  { name: 'Dubai HQ', address: 'Sheikh Zayed Road, Trade Centre 1', country: 'United Arab Emirates', city: 'Dubai', timeZone: '(GMT+04:00) Dubai', contact: 'Ahmed Al Marri' },
-  { name: 'Abu Dhabi Office', address: 'Al Maryah Island, Tower 2', country: 'United Arab Emirates', city: 'Abu Dhabi', timeZone: '(GMT+04:00) Dubai', contact: 'Omar Hassan' },
-  { name: 'Sharjah Facility', address: 'Industrial Area 13, Plot 42', country: 'United Arab Emirates', city: 'Sharjah', timeZone: '(GMT+04:00) Dubai', contact: 'Mohammed Ali' },
-  { name: 'Riyadh Office', address: 'King Fahd Road, Olaya District', country: 'Saudi Arabia', city: 'Riyadh', timeZone: '(GMT+03:00) Riyadh', contact: 'Ahmed Khan' },
-  { name: 'London Office', address: '25 Canada Square, Canary Wharf', country: 'United Kingdom', city: 'London', timeZone: '(GMT+00:00) London', contact: 'James Wilson' },
-  { name: 'Singapore Office', address: '8 Marina View, Asia Square', country: 'Singapore', city: 'Singapore', timeZone: '(GMT+08:00) Singapore', contact: 'Lisa Wong' },
-  { name: 'Jebel Ali Warehouse', address: 'Jebel Ali Free Zone, South 5', country: 'United Arab Emirates', city: 'Dubai', timeZone: '(GMT+04:00) Dubai', contact: 'Rahul Mehta' },
-  { name: 'Al Ain Depot', address: 'Al Sanaiya, Street 18', country: 'United Arab Emirates', city: 'Al Ain', timeZone: '(GMT+04:00) Dubai', contact: 'Fatima Ali' },
-  { name: 'Jeddah Office', address: 'Prince Sultan Street, Al Rawdah', country: 'Saudi Arabia', city: 'Jeddah', timeZone: '(GMT+03:00) Riyadh', contact: 'Omar Khalid' },
-  { name: 'Dammam Yard', address: '2nd Industrial City, Gate 4', country: 'Saudi Arabia', city: 'Dammam', timeZone: '(GMT+03:00) Riyadh', contact: 'Priya Nair', status: 'Inactive' },
-  { name: 'Doha Office', address: 'West Bay, Tornado Tower', country: 'Qatar', city: 'Doha', timeZone: '(GMT+03:00) Doha', contact: 'Daniel Kim' },
-  { name: 'Muscat Office', address: 'Al Khuwair, Way 3013', country: 'Oman', city: 'Muscat', timeZone: '(GMT+04:00) Muscat', contact: 'Priya Sharma' }
-];
-
-/** Buildings with their floor labels; `prefix` keeps zone names distinct between buildings. */
-const BUILDINGS = [
-  { name: 'Building A', site: 'Dubai HQ', contact: 'Sarah Khan', prefix: '', floors: ['Ground', '1', '2', '3', '4'] },
-  { name: 'Building B', site: 'Dubai HQ', contact: 'James Tan', prefix: 'B', floors: ['Ground', '1', '2', '3'] },
-  { name: 'Abu Dhabi Tower', site: 'Abu Dhabi Office', contact: 'Daniel Tan', prefix: 'T', floors: ['Ground', '1', '2', '3', '4', '5'] },
-  { name: 'Warehouse Block', site: 'Sharjah Facility', contact: 'Mohammed Ali', prefix: 'W', floors: ['Ground', 'Mezzanine', '1'] }
-];
-
-function floorName(label: string): string {
-  return label === 'Ground' || label === 'Mezzanine' ? `${label} Floor` : `Floor ${label}`;
-}
-
-function floorShort(label: string): string {
-  return label === 'Ground' ? 'G' : label === 'Mezzanine' ? 'M' : label;
-}
-
-/**
- * 12 locations, 4 buildings, 18 floors and 67 zones (the first 13 floors have four zones, the rest three).
- * The Dubai HQ > Building A > Floor 2 > Zone 2A chain gets LOC-001..004 as in the design.
- */
-function buildLocations(): OrgLocation[] {
-  // Records are built with a reference to their parent record, then numbered
-  type Draft = Omit<OrgLocation, 'code' | 'parent'> & { parentRef: Draft | null };
-  const out: Draft[] = [];
-  const add = (r: Draft): Draft => {
-    out.push(r);
-    return r;
-  };
-  const designChain: Draft[] = [];
-  let floorIndex = 0;
-  let zoneIndex = 0;
-  const sites = new Map<string, Draft>();
-  for (const s of SITES) {
-    const { status, ...rest } = s;
-    sites.set(s.name, add({ ...rest, type: 'Location', parentRef: null, status: status ?? 'Active' }));
-  }
-  designChain.push(sites.get('Dubai HQ')!);
-  for (const b of BUILDINGS) {
-    const site = sites.get(b.site)!;
-    const building = add({ ...site, name: b.name, type: 'Building', parentRef: site, address: `${b.name}, ${site.name}`, contact: b.contact, status: 'Active' });
-    if (b.name === 'Building A') designChain.push(building);
-    for (const label of b.floors) {
-      const fName = floorName(label);
-      const isDesignFloor = b.name === 'Building A' && label === '2';
-      const floor = add({
-        ...site,
-        name: fName,
-        type: 'Floor',
-        parentRef: building,
-        address: `${fName}, ${b.name}, ${site.name}`,
-        contact: isDesignFloor ? 'Michael Chen' : ADMIN_PEOPLE[(floorIndex * 5 + 3) % ADMIN_PEOPLE.length],
-        status: 'Active'
-      });
-      if (isDesignFloor) designChain.push(floor);
-      const zones = floorIndex < 13 ? 4 : 3;
-      for (let z = 0; z < zones; z++) {
-        const zName = `Zone ${b.prefix}${floorShort(label)}${'ABCD'[z]}`;
-        const zone = add({
-          ...site,
-          name: zName,
-          type: 'Zone',
-          parentRef: floor,
-          address: `${zName}, ${fName}, ${b.name}, ${site.name}`,
-          contact: isDesignFloor && z === 0 ? 'Fatima Noor' : ADMIN_PEOPLE[(zoneIndex * 7 + 1) % ADMIN_PEOPLE.length],
-          status: zoneIndex % 11 === 10 ? 'Inactive' : 'Active'
-        });
-        if (isDesignFloor && z === 0) designChain.push(zone);
-        zoneIndex++;
-      }
-      floorIndex++;
-    }
-  }
-
-  const codeOf = new Map<Draft, string>();
-  const code = (n: number) => `LOC-${String(n).padStart(3, '0')}`;
-  designChain.forEach((r, i) => codeOf.set(r, code(i + 1)));
-  let next = designChain.length + 1;
-  for (const r of out) if (!codeOf.has(r)) codeOf.set(r, code(next++));
-
-  return out.map((d) => {
-    const { parentRef, ...r } = d;
-    return { ...r, code: codeOf.get(d)!, parent: parentRef ? codeOf.get(parentRef)! : null };
-  });
-}
-
-export function seedLocations(): OrgLocation[] {
-  return buildLocations();
-}
-
 /* ===== Summary tabs ===== */
 
 const STATUS_TONES = { Active: 'green', Inactive: 'grey' } as const;

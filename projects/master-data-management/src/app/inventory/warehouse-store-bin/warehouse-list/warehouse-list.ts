@@ -2,7 +2,9 @@ import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Search } from 'lucide-angular';
 import { EmployeeService } from '../../../people/employee/employee.service';
+import { Observable } from 'rxjs';
 import { ListPage } from '../../../shared/list-page';
+import { apiErrorMessage } from '../../../shared/mdm-api';
 import { RecordStatus, WarehouseRecord } from '../../inventory.model';
 import { ItemService, StoreService, WarehouseService } from '../../inventory.service';
 import { WarehouseForm } from '../warehouse-form/warehouse-form';
@@ -28,9 +30,16 @@ export class WarehouseList extends ListPage<WarehouseRecord, Filters, SortKey> {
   private readonly items = inject(ItemService);
   private readonly employees = inject(EmployeeService);
   readonly icons = { Search, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+  saving = false;
 
   constructor() {
     super({ search: '', status: '' });
+    this.refresh();
+  }
+
+  /** Loads the list from the API, with the masters it points at. */
+  refresh(): void {
+    this.items.load().subscribe({ error: (err) => this.notify(apiErrorMessage(err)) });
   }
 
   keyOf(r: WarehouseRecord): string {
@@ -54,8 +63,8 @@ export class WarehouseList extends ListPage<WarehouseRecord, Filters, SortKey> {
     return key === 'stores' ? this.storeCount(r) : r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   // Warehouses with stores or stock can't be deleted
@@ -79,21 +88,33 @@ export class WarehouseList extends ListPage<WarehouseRecord, Filters, SortKey> {
   }
 
   onSaved(event: { record: WarehouseRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    // Stores and items follow a code change
-    if (event.originalCode && event.originalCode !== event.record.code) {
-      this.stores.moveWarehouse(event.originalCode, event.record.code);
-      this.items.recode('warehouseCode', event.originalCode, event.record.code);
-    }
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: () => {
+        this.saving = false;
+        // Stores and items follow a code change
+        if (event.originalCode && event.originalCode !== event.record.code) {
+          this.stores.moveWarehouse(event.originalCode, event.record.code);
+          this.items.recode('warehouseCode', event.originalCode, event.record.code);
+        }
+        this.carrySelection(event.originalCode, event.record.code);
+        this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(r: WarehouseRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

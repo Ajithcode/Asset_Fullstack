@@ -1,4 +1,6 @@
 import { Directive, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { Observable, isObservable } from 'rxjs';
+import { apiErrorMessage } from './mdm-api';
 
 /**
  * List + side drawer behaviour shared by the People masters: filters, sorting, paging, row
@@ -25,6 +27,7 @@ export abstract class ListPage<T, F extends object, S extends string = string> {
   formRecord: T | null = null;
 
   pendingDelete: T[] = [];
+  deleting = false;
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
@@ -40,7 +43,8 @@ export abstract class ListPage<T, F extends object, S extends string = string> {
   protected abstract all(): T[];
   protected abstract matches(record: T, filters: F): boolean;
   protected abstract sortValue(record: T, key: S): string | number;
-  protected abstract removeRecords(keys: string[]): void;
+  /** Removes the records; return the API call when the delete is remote so the page waits for it. */
+  protected abstract removeRecords(keys: string[]): void | Observable<unknown>;
 
   get rows(): T[] {
     const rows = this.all().filter((r) => this.matches(r, this.applied));
@@ -181,13 +185,30 @@ export abstract class ListPage<T, F extends object, S extends string = string> {
   }
 
   confirmDelete(noun: string): void {
-    const keys = this.pendingDelete.map((r) => this.keyOf(r));
-    this.removeRecords(keys);
-    keys.forEach((k) => this.selected.delete(k));
-    if (this.formMode === 'edit' && this.formRecord && keys.includes(this.keyOf(this.formRecord))) this.closeForm();
-    this.notify(keys.length === 1 ? `${this.nameOf(this.pendingDelete[0])} deleted.` : `${keys.length} ${noun} deleted.`);
-    this.pendingDelete = [];
-    this.goTo(this.page);
+    if (this.deleting) return;
+    const list = this.pendingDelete;
+    const keys = list.map((r) => this.keyOf(r));
+    const done = (message: string) => {
+      // Records already removed before a failure leave the selection too
+      const remaining = new Set(this.all().map((r) => this.keyOf(r)));
+      keys.filter((k) => !remaining.has(k)).forEach((k) => this.selected.delete(k));
+      if (this.formMode === 'edit' && this.formRecord && !remaining.has(this.keyOf(this.formRecord))) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    const success = keys.length === 1 ? `${this.nameOf(list[0])} deleted.` : `${keys.length} ${noun} deleted.`;
+    const call = this.removeRecords(keys);
+    if (!isObservable(call)) {
+      done(success);
+      return;
+    }
+    this.deleting = true;
+    call.subscribe({
+      complete: () => done(success),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
+    });
   }
 
   cancelDelete(): void {

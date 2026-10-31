@@ -1,9 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, ClipboardList, LucideAngularModule, Plus, Search } from 'lucide-angular';
+import { Observable, finalize } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { CHECKLIST_TYPES } from './checklist.data';
 import { WorkTypeService } from '../work-type/work-type.service';
 import { ChecklistForm } from './checklist-form/checklist-form';
@@ -19,8 +21,9 @@ type SortKey = 'name' | 'code' | 'category' | 'items';
   templateUrl: './checklist.html',
   styleUrls: ['../../shared/styles/mdm-page.css', '../../people/people.css', '../maintenance.css']
 })
-export class ChecklistPage extends ListPage<ChecklistRecord, ChecklistFilters, SortKey> {
+export class ChecklistPage extends ListPage<ChecklistRecord, ChecklistFilters, SortKey> implements OnInit {
   readonly service = inject(ChecklistService);
+  saving = false;
   private readonly workTypes = inject(WorkTypeService);
   readonly types = CHECKLIST_TYPES;
   readonly basePath = MASTER_DATA_BASE_PATH;
@@ -29,6 +32,11 @@ export class ChecklistPage extends ListPage<ChecklistRecord, ChecklistFilters, S
 
   constructor() {
     super({ search: '', checklistType: '', status: '' });
+  }
+
+  ngOnInit(): void {
+    this.service.refresh((message) => this.notify(`Could not load checklists: ${message}`));
+    this.workTypes.ensureLoaded();
   }
 
   keyOf(r: ChecklistRecord): string {
@@ -52,8 +60,8 @@ export class ChecklistPage extends ListPage<ChecklistRecord, ChecklistFilters, S
     return key === 'items' ? r.items.length : r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   // Checklists attached to work types can't be deleted
@@ -67,17 +75,28 @@ export class ChecklistPage extends ListPage<ChecklistRecord, ChecklistFilters, S
   }
 
   onSaved(event: { record: ChecklistRecord; originalCode: string | null; originalName: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode) this.workTypes.renameChecklist(event.originalCode, event.record.code);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service
+      .persist(event.record, event.originalCode)
+      .pipe(finalize(() => (this.saving = false)))
+      .subscribe({
+        next: () => {
+          if (event.originalCode) this.workTypes.renameChecklist(event.originalCode, event.record.code);
+          this.carrySelection(event.originalCode, event.record.code);
+          this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
+          this.closeForm();
+        },
+        error: (err) => this.notify(apiErrorMessage(err))
+      });
   }
 
   toggleStatus(r: ChecklistRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.service.setStatus(r.code, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

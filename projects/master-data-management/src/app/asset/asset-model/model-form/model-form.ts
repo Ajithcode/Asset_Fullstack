@@ -196,7 +196,7 @@ export class ModelForm implements OnChanges {
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a model name.';
-    else if (f.manufacturer && this.service.isNameTaken(f.name, f.manufacturer, this.original?.code ?? null)) {
+    else if (f.manufacturer && this.service.isModelNameTaken(f.name, f.manufacturer, this.original?.code ?? null)) {
       errors.name = `${f.manufacturer} already has a model named ${f.name.trim()}.`;
     }
     if (!f.code.trim()) errors.code = 'Enter a model code.';

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, inject, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, User, X } from 'lucide-angular';
 import { COUNTRIES, CURRENCIES } from '../../organization/organization.data';
@@ -26,6 +26,7 @@ export class BuForm implements OnChanges {
   // 'edit' changes `unit`; 'add' creates a new one, pre-filled from `unit` if given
   @Input() mode: 'add' | 'edit' = 'add';
   @Input() unit: BusinessUnitRecord | null = null;
+  @Input() saving = false;
   @Output() saved = new EventEmitter<{ record: BusinessUnitRecord; originalCode: string | null; originalName: string | null }>();
   @Output() cancelled = new EventEmitter<void>();
 
@@ -51,7 +52,9 @@ export class BuForm implements OnChanges {
   errors: Partial<Record<FieldKey, string>> = {};
   private original: BusinessUnitRecord | null = null;
 
-  ngOnChanges(): void {
+  ngOnChanges(changes: SimpleChanges): void {
+    // Only a new record (or mode) resets the form; `saving` flips must keep the user's edits
+    if (!changes['mode'] && !changes['unit']) return;
     this.original = this.mode === 'edit' ? this.unit : null;
     this.form = this.unit ? structuredClone(this.unit) : blankBusinessUnit();
     this.errors = {};

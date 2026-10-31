@@ -1,8 +1,7 @@
-import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, inject, SimpleChanges } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Building2, LucideAngularModule, X } from 'lucide-angular';
-import { positionFor } from '../location.data';
 import { LOCATION_TYPES, LocationRecord } from '../location.model';
 import { LocationService } from '../location.service';
 
@@ -22,6 +21,7 @@ export class LocationForm implements OnChanges {
   // 'edit' changes `location`; 'add' creates a new record, pre-filled from `location` if given
   @Input() mode: 'add' | 'edit' = 'add';
   @Input() location: LocationRecord | null = null;
+  @Input() saving = false;
   @Output() saved = new EventEmitter<{ record: LocationRecord; originalCode: string | null }>();
   @Output() cancelled = new EventEmitter<void>();
 
@@ -42,7 +42,9 @@ export class LocationForm implements OnChanges {
   // Coordinates follow the chosen zone until the user types their own
   private coordsEdited = false;
 
-  ngOnChanges(): void {
+  ngOnChanges(changes: SimpleChanges): void {
+    // Only a new record (or mode) resets the form; `saving` flips must keep the user's edits
+    if (!changes['mode'] && !changes['location']) return;
     this.form = this.location ? { ...this.location } : this.blank();
     this.coordsEdited = !!this.location;
     this.original = this.mode === 'edit' ? this.location : null;
@@ -178,7 +180,7 @@ export class LocationForm implements OnChanges {
 
   private followZone(): void {
     if (this.coordsEdited || !this.form.buildingCode || !this.form.floorCode) return;
-    const pos = positionFor(this.form.code || 'NEW', this.form.buildingCode, this.form.floorCode, this.form.zoneCode);
+    const pos = this.service.positionFor(this.form.code || 'NEW', this.form.buildingCode, this.form.floorCode, this.form.zoneCode);
     this.form.lat = Number(pos.lat.toFixed(6));
     this.form.lng = Number(pos.lng.toFixed(6));
   }

@@ -179,7 +179,7 @@
   </div>
 
   @if (formOpen) {
-    <app-bfz-form #formEl class="mdm-form" [mode]="formMode" [record]="formRecord" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-bfz-form>
+    <app-bfz-form [saving]="saving" #formEl class="mdm-form" [mode]="formMode" [record]="formRecord" (saved)="onSaved($event)" (cancelled)="closeForm()"></app-bfz-form>
   }
 
   <div class="bfz-detail" #detailEl>
@@ -205,7 +205,7 @@
       <p>This can't be undone.</p>
       <div class="confirm__actions">
         <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
-        <button type="button" class="btn btn--danger" (click)="confirmDelete()">Delete</button>
+        <button type="button" class="btn btn--danger" [disabled]="deleting" (click)="confirmDelete()">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
       </div>
     </div>
   </div>

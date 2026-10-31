@@ -2,11 +2,13 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Box, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search } from 'lucide-angular';
+import { Observable } from 'rxjs';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { MODULE_CATEGORIES } from '../security.data';
 import { ModuleRecord, SecurityStatus } from '../security.model';
-import { ModuleService, PermissionService, RoleService } from '../security.service';
+import { ModuleService, PermissionService, RoleService, SecurityLoader } from '../security.service';
 import { ModuleForm } from './module-form/module-form';
 
 type SortKey = 'name' | 'code' | 'category';
@@ -30,9 +32,11 @@ export class ModuleAccessMasterPage extends ListPage<ModuleRecord, Filters, Sort
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly categories = MODULE_CATEGORIES;
   readonly icons = { Box, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
+  saving = false;
 
   constructor() {
     super({ search: '', category: '', status: '' });
+    inject(SecurityLoader).load().subscribe({ error: (err) => this.notify(`Couldn't load modules: ${apiErrorMessage(err)}`) });
   }
 
   keyOf(r: ModuleRecord): string {
@@ -56,8 +60,8 @@ export class ModuleAccessMasterPage extends ListPage<ModuleRecord, Filters, Sort
     return r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
   }
 
   // Modules with permissions or granted to roles can't be deleted
@@ -73,20 +77,32 @@ export class ModuleAccessMasterPage extends ListPage<ModuleRecord, Filters, Sort
   }
 
   onSaved(event: { record: ModuleRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode) {
-      this.permissions.recodeModule(event.originalCode, event.record.code);
-      this.roles.recode('modules', event.originalCode, event.record.code);
-    }
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        if (event.originalCode) {
+          this.permissions.recodeModule(event.originalCode, saved.code);
+          this.roles.recode('modules', event.originalCode, saved.code);
+        }
+        this.carrySelection(event.originalCode, saved.code);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(r: ModuleRecord): void {
     this.menuFor = null;
     const status = r.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.${status === 'Inactive' ? ' It is hidden from every role.' : ''}`);
+    this.service.setStatus(r.code, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.${status === 'Inactive' ? ' It is hidden from every role.' : ''}`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

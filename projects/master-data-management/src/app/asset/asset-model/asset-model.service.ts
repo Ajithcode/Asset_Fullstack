@@ -1,22 +1,72 @@
-import { Injectable } from '@angular/core';
-import { initialAssetModels } from './asset-model.data';
-import { AssetModelFilters, AssetModelRecord } from './asset-model.model';
+import { Injectable, inject } from '@angular/core';
+import { MdmAudit } from '../../shared/mdm-api';
+import { AssetStore, activeStatus, localStamp } from '../asset-store';
+import { AssetTypeService } from '../asset-type/asset-type.service';
+import { CategoryService } from '../category-subcategory/category.service';
+import { ManufacturerService } from '../manufacturer/manufacturer.service';
+import { blankAssetModel } from './asset-model.data';
+import {
+  AssetCondition,
+  AssetModelFilters,
+  AssetModelRecord,
+  Criticality,
+  DepreciationMethod,
+  MaintenanceStrategy,
+  PmFrequency,
+  ProcurementType,
+  TrackingMethod
+} from './asset-model.model';
 
-/** DEMO MODE: in-memory asset models; replace these methods with API calls when the backend is ready. */
+type Reference = { id: string | null; name: string } | null;
+
+/** Asset model as `/api/master-data/asset-models` returns it. */
+interface AssetModelDto extends MdmAudit {
+  modelName: string;
+  modelCode: string;
+  manufacturer: Reference;
+  assetType: Reference;
+  category: Reference;
+  description: string | null;
+  image: string | null;
+  specs: { label: string; value: string | null }[] | null;
+  lifecycleYears: number | null;
+  warrantyMonths: number | null;
+  pmFrequency: string | null;
+  maintenanceStrategy: string | null;
+  criticality: string | null;
+  calibrationRequired: boolean;
+  costCenter: string | null;
+  currency: string | null;
+  purchasePrice: number | null;
+  includeInDepreciation: boolean;
+  depreciationMethod: string | null;
+  salvagePercent: number | null;
+  procurementType: string | null;
+  subcategories: string[] | null;
+  taggingFormat: string | null;
+  trackingMethod: string | null;
+  defaultCondition: string | null;
+  serialRequired: boolean;
+  assignable: boolean;
+}
+
+/**
+ * Asset models from the master data API. Manufacturer, asset type and category are shown by name
+ * here and sent by id; the server renames them on models when the master is renamed.
+ */
 @Injectable({ providedIn: 'root' })
-export class AssetModelService {
-  private records: AssetModelRecord[] = initialAssetModels();
+export class AssetModelService extends AssetStore<AssetModelRecord, AssetModelDto> {
+  protected readonly resource = 'asset-models';
+  private readonly typeStore = inject(AssetTypeService);
+  private readonly makerStore = inject(ManufacturerService);
+  private readonly categoryStore = inject(CategoryService);
 
-  all(): AssetModelRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null): AssetModelRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
+  constructor() {
+    super();
   }
 
   ofType(typeName: string): AssetModelRecord[] {
-    return this.records.filter((r) => r.assetType === typeName);
+    return this.all().filter((r) => r.assetType === typeName);
   }
 
   /** Registered assets across every model of a type. */
@@ -25,9 +75,10 @@ export class AssetModelService {
   }
 
   ofManufacturer(name: string): AssetModelRecord[] {
-    return this.records.filter((r) => r.manufacturer === name);
+    return this.all().filter((r) => r.manufacturer === name);
   }
 
+  /** Keeps the local list in step after a manufacturer rename (the server does the same). */
   renameManufacturer(from: string, to: string): void {
     if (from === to) return;
     this.records = this.records.map((r) => (r.manufacturer === from ? { ...r, manufacturer: to } : r));
@@ -40,11 +91,11 @@ export class AssetModelService {
 
   /** Manufacturers that have at least one model, A-Z. */
   manufacturers(): string[] {
-    return [...new Set(this.records.map((r) => r.manufacturer))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(this.all().map((r) => r.manufacturer))].sort((a, b) => a.localeCompare(b));
   }
 
   usedTypes(): string[] {
-    return [...new Set(this.records.map((r) => r.assetType))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(this.all().map((r) => r.assetType))].sort((a, b) => a.localeCompare(b));
   }
 
   filter(f: AssetModelFilters): AssetModelRecord[] {
@@ -58,28 +109,84 @@ export class AssetModelService {
     );
   }
 
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
-  }
-
   // Model names only need to be unique per manufacturer
-  isNameTaken(name: string, manufacturer: string, exceptCode: string | null): boolean {
+  isModelNameTaken(name: string, manufacturer: string, exceptCode: string | null): boolean {
     const wanted = name.trim().toLowerCase();
     return this.records.some((r) => r.manufacturer === manufacturer && r.name.toLowerCase() === wanted && r.code !== exceptCode);
   }
 
-  save(record: AssetModelRecord, originalCode: string | null): void {
-    const index = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    if (index >= 0) {
-      this.records[index] = record;
-      this.records = [...this.records];
-    } else {
-      this.records = [record, ...this.records];
-    }
+  protected toRecord(dto: AssetModelDto): AssetModelRecord {
+    const blank = blankAssetModel();
+    return {
+      ...blank,
+      code: dto.modelCode,
+      name: dto.modelName,
+      manufacturer: dto.manufacturer?.name ?? '',
+      assetType: dto.assetType?.name ?? '',
+      category: dto.category?.name ?? '',
+      description: dto.description ?? '',
+      image: dto.image,
+      status: activeStatus(dto.status),
+      specs: (dto.specs ?? []).map((s) => ({ label: s.label, value: s.value ?? '' })),
+      lifecycleYears: dto.lifecycleYears ?? blank.lifecycleYears,
+      warrantyMonths: dto.warrantyMonths ?? blank.warrantyMonths,
+      pmFrequency: (dto.pmFrequency as PmFrequency) ?? blank.pmFrequency,
+      maintenanceStrategy: (dto.maintenanceStrategy as MaintenanceStrategy) ?? blank.maintenanceStrategy,
+      criticality: (dto.criticality as Criticality) ?? blank.criticality,
+      calibrationRequired: dto.calibrationRequired,
+      costCenter: dto.costCenter ?? '',
+      currency: dto.currency ?? blank.currency,
+      purchasePrice: dto.purchasePrice,
+      includeInDepreciation: dto.includeInDepreciation,
+      depreciationMethod: (dto.depreciationMethod as DepreciationMethod) ?? blank.depreciationMethod,
+      salvagePercent: dto.salvagePercent ?? blank.salvagePercent,
+      procurementType: (dto.procurementType as ProcurementType) ?? blank.procurementType,
+      subcategories: dto.subcategories ?? [],
+      taggingFormat: dto.taggingFormat ?? '',
+      trackingMethod: (dto.trackingMethod as TrackingMethod) ?? blank.trackingMethod,
+      defaultCondition: (dto.defaultCondition as AssetCondition) ?? blank.defaultCondition,
+      serialRequired: dto.serialRequired,
+      assignable: dto.assignable,
+      createdOn: localStamp(dto.createdAt),
+      updatedOn: localStamp(dto.updatedAt ?? dto.createdAt)
+    };
   }
 
-  remove(codes: string[]): void {
-    this.records = this.records.filter((r) => !codes.includes(r.code));
+  protected toRequest(r: AssetModelRecord): object {
+    const ref = (name: string, code: string | undefined, id: (code: string) => string | undefined) => {
+      const resolved = code ? id(code) : undefined;
+      return resolved ? { id: resolved, name } : null;
+    };
+    return {
+      modelName: r.name,
+      modelCode: r.code,
+      manufacturer: ref(r.manufacturer, this.makerStore.findByName(r.manufacturer)?.code, (c) => this.makerStore.idOf(c)),
+      assetType: ref(r.assetType, this.typeStore.findByName(r.assetType)?.code, (c) => this.typeStore.idOf(c)),
+      // Left out when unknown; the server then uses the asset type's category
+      category: ref(r.category, this.categoryStore.findByName(r.category)?.code, (c) => this.categoryStore.idOf(c)),
+      description: r.description,
+      image: r.image,
+      specs: r.specs,
+      lifecycleYears: r.lifecycleYears,
+      warrantyMonths: r.warrantyMonths,
+      pmFrequency: r.pmFrequency,
+      maintenanceStrategy: r.maintenanceStrategy,
+      criticality: r.criticality,
+      calibrationRequired: r.calibrationRequired,
+      costCenter: r.costCenter,
+      currency: r.currency,
+      purchasePrice: r.purchasePrice,
+      includeInDepreciation: r.includeInDepreciation,
+      depreciationMethod: r.depreciationMethod,
+      salvagePercent: r.salvagePercent,
+      procurementType: r.procurementType,
+      subcategories: r.subcategories,
+      taggingFormat: r.taggingFormat,
+      trackingMethod: r.trackingMethod,
+      defaultCondition: r.defaultCondition,
+      serialRequired: r.serialRequired,
+      assignable: r.assignable,
+      status: r.status
+    };
   }
 }

@@ -1,8 +1,9 @@
-import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Box, ChevronLeft, ChevronRight, Ellipsis, Factory, Layers, LucideAngularModule, Plus, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { apiErrorMessage } from '../../shared/mdm-api';
 import { AssetTypeService } from '../asset-type/asset-type.service';
 import { MODEL_ICONS } from './asset-model.icons';
 import { AssetModelFilters, AssetModelRecord } from './asset-model.model';
@@ -21,7 +22,7 @@ const EMPTY_FILTERS: AssetModelFilters = { search: '', manufacturer: '', assetTy
   templateUrl: './asset-model.html',
   styleUrls: ['../../shared/styles/mdm-page.css', './asset-model.css']
 })
-export class AssetModelPage {
+export class AssetModelPage implements OnInit {
   readonly service = inject(AssetModelService);
   readonly types = inject(AssetTypeService);
   readonly basePath = MASTER_DATA_BASE_PATH;
@@ -43,13 +44,15 @@ export class AssetModelPage {
   selected = new Set<string>();
   menuFor: string | null = null;
 
-  selectedCode: string | null = 'MOD-DELL-7440';
+  selectedCode: string | null = null;
   formOpen = false;
   formMode: 'add' | 'edit' = 'add';
   formRecord: AssetModelRecord | null = null;
   formTab: ModelFormTab = 'basic';
 
   pendingDelete: AssetModelRecord[] = [];
+  saving = false;
+  deleting = false;
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
@@ -59,8 +62,17 @@ export class AssetModelPage {
     if (manufacturer) {
       this.draft.manufacturer = manufacturer;
       this.apply();
-      this.selectedCode = this.rows[0]?.code ?? this.selectedCode;
     }
+  }
+
+  ngOnInit(): void {
+    this.service.reload().subscribe({
+      next: (list) => {
+        // With the ?manufacturer= filter, open its first model
+        if (!this.service.find(this.selectedCode)) this.selectedCode = this.rows[0]?.code ?? list[0]?.code ?? null;
+      },
+      error: (err) => this.notify(`Could not load asset models: ${apiErrorMessage(err)}`)
+    });
   }
 
   get stats() {
@@ -206,18 +218,31 @@ export class AssetModelPage {
   }
 
   onSaved(event: { record: AssetModelRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(event.record.code);
-    this.open(event.record.code, false);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
+        this.open(saved.code, false);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
+
 
   toggleStatus(m: AssetModelRecord): void {
     this.menuFor = null;
     const status = m.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.save({ ...m, status }, m.code);
-    this.notify(`${m.name} marked ${status}.`);
+    this.service.setStatus(m, status).subscribe({
+      next: () => this.notify(`${m.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
   // Models with registered assets can't be deleted; they can be marked inactive instead
@@ -237,15 +262,27 @@ export class AssetModelPage {
   }
 
   confirmDelete(): void {
-    const codes = this.pendingDelete.map((r) => r.code);
-    this.service.remove(codes);
-    codes.forEach((c) => this.selected.delete(c));
-    if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-    if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-    this.notify(codes.length === 1 ? `${this.pendingDelete[0].name} deleted.` : `${codes.length} models deleted.`);
-    this.pendingDelete = [];
-    this.goTo(this.page);
+    if (this.deleting) return;
+    const list = this.pendingDelete;
+    const codes = list.map((r) => r.code);
+    const done = (message: string) => {
+      // Records deleted before a failure are gone too
+      const gone = codes.filter((c) => !this.service.find(c));
+      gone.forEach((c) => this.selected.delete(c));
+      if (this.selectedCode && gone.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+      if (this.formMode === 'edit' && this.formRecord && gone.includes(this.formRecord.code)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.delete(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} models deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
+    });
   }
+
 
   cancelDelete(): void {
     this.pendingDelete = [];

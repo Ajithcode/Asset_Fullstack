@@ -172,6 +172,7 @@
       class="mdm-form"
       [mode]="formMode"
       [organization]="formRecord"
+      [saving]="saving"
       (saved)="onSaved($event)"
       (cancelled)="closeForm()"
     ></app-organization-form>
@@ -185,7 +186,7 @@
       <p>This can't be undone.</p>
       <div class="confirm__actions">
         <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Cancel</button>
-        <button type="button" class="btn btn--danger" (click)="confirmDelete()">Delete</button>
+        <button type="button" class="btn btn--danger" [disabled]="deleting" (click)="confirmDelete()">{{ deleting ? 'Deleting…' : 'Delete' }}</button>
       </div>
     </div>
   </div>

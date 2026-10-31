@@ -3,7 +3,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search, Users } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { Observable } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
+import { ShiftService } from '../shift/shift.service';
 import { EmployeeService } from '../employee/employee.service';
 import { PEOPLE_DEPARTMENTS } from '../people.data';
 import { TechnicianService } from '../technician/technician.service';
@@ -24,13 +27,18 @@ export class TeamPage extends ListPage<TeamRecord, TeamFilters, SortKey> {
   readonly service = inject(TeamService);
   private readonly employees = inject(EmployeeService);
   private readonly technicians = inject(TechnicianService);
+  private readonly shifts = inject(ShiftService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly departments = PEOPLE_DEPARTMENTS;
   readonly statuses: TeamRecord['status'][] = ['Active', 'On Leave', 'Inactive'];
   readonly icons = { Users, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
 
+  saving = false;
+
   constructor() {
     super({ search: '', department: '', status: '' });
+    this.service.refresh().subscribe({ error: (err) => this.notify(`Couldn't load teams: ${apiErrorMessage(err)}`) });
+    this.shifts.ensureLoaded();
   }
 
   keyOf(r: TeamRecord): string {
@@ -58,8 +66,14 @@ export class TeamPage extends ListPage<TeamRecord, TeamFilters, SortKey> {
     return key === 'members' ? r.members.length : r[key];
   }
 
-  protected removeRecords(codes: string[]): void {
-    this.service.remove(codes);
+  protected removeRecords(codes: string[]): Observable<unknown> {
+    return this.service.delete(codes);
+  }
+
+  // The API keeps technicians on their team, so a team with technicians can't be deleted
+  protected override deleteBlocker(r: TeamRecord): string | null {
+    const count = this.service.technicianMembers(r).length;
+    return count ? `${r.name} still has ${count} technician${count === 1 ? '' : 's'}. Move them to another team first.` : null;
   }
 
   /** Name of an employee (EMP…) or technician (TECH…). */
@@ -76,15 +90,27 @@ export class TeamPage extends ListPage<TeamRecord, TeamFilters, SortKey> {
   }
 
   onSaved(event: { record: TeamRecord; originalCode: string | null }): void {
-    this.service.save(event.record, event.originalCode);
-    this.carrySelection(event.originalCode, event.record.code);
-    this.notify(`${event.record.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persistTeam(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.carrySelection(event.originalCode, saved.code);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   setStatus(r: TeamRecord, status: TeamRecord['status']): void {
     this.menuFor = null;
-    this.service.save({ ...r, status }, r.code);
-    this.notify(`${r.name} marked ${status}.`);
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }

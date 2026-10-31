@@ -95,7 +95,9 @@ export class LocationForm implements OnChanges {
     else if (this.service.nameTaken(f.name, f.parent, original)) e['name'] = 'Another location under the same parent has this name.';
     if (PARENT_TYPE[f.type] && !f.parent) e['parent'] = `Choose the ${PARENT_TYPE[f.type]!.toLowerCase()} this ${f.type.toLowerCase()} belongs to.`;
     if (!f.country) e['country'] = 'Country is required.';
-    if (f.contact.trim() && !this.people.includes(f.contact.trim())) e['contact'] = 'Pick a person from the list.';
+    // The Administration API requires a location manager
+    if (!f.contact.trim()) e['contact'] = 'Contact person is required.';
+    else if (!this.people.includes(f.contact.trim())) e['contact'] = 'Pick a person from the list.';
     this.errors = e;
     return Object.keys(e).length === 0;
   }

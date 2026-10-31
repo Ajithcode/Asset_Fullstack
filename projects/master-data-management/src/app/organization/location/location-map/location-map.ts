@@ -9,7 +9,6 @@ import {
   inject
 } from '@angular/core';
 import { LucideAngularModule, Maximize2, Minimize2 } from 'lucide-angular';
-import { findBuilding, zonesOnFloor } from '../location.data';
 import { Bounds, buildingBounds, locationBounds, zoneCells } from '../location.geometry';
 import { LocationRecord } from '../location.model';
 import { LocationService } from '../location.service';
@@ -100,12 +99,12 @@ export class LocationMap implements AfterViewInit, OnChanges, OnDestroy {
     }
     this.layers.clearLayers();
 
-    const building = findBuilding(this.location.buildingCode);
+    const building = this.service.findBuilding(this.location.buildingCode);
     if (!building) return;
     const outline = buildingBounds(building);
     L.rectangle(this.toLatLngs(outline), { color: '#2563eb', weight: 2, fillOpacity: 0.04 }).addTo(this.layers);
 
-    const zones = zonesOnFloor(building.code, this.location.floorCode);
+    const zones = this.service.zonesOnFloor(building.code, this.location.floorCode);
     const cells = zoneCells(building, zones);
     zones.forEach((zone, i) => {
       const cell = cells.get(zone.code)!;
@@ -143,7 +142,7 @@ export class LocationMap implements AfterViewInit, OnChanges, OnDestroy {
 
   // Same layout as the map, drawn into a 400 x 260 SVG floor plan
   private buildPlan(): void {
-    const building = this.location && findBuilding(this.location.buildingCode);
+    const building = this.location && this.service.findBuilding(this.location.buildingCode);
     if (!building) {
       this.plan = { building: null, zones: [], location: null };
       return;
@@ -155,7 +154,7 @@ export class LocationMap implements AfterViewInit, OnChanges, OnDestroy {
       const sy = (260 - pad * 2) / (outline[2] - outline[0]);
       return { x: pad + (b[1] - outline[1]) * sx, y: pad + (outline[2] - b[2]) * sy, w: (b[3] - b[1]) * sx, h: (b[2] - b[0]) * sy, label, color };
     };
-    const zones = zonesOnFloor(building.code, this.location.floorCode);
+    const zones = this.service.zonesOnFloor(building.code, this.location.floorCode);
     const cells = zoneCells(building, zones);
     const cell = cells.get(this.location.zoneCode);
     this.plan = {

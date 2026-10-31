@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, inject, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, User, X } from 'lucide-angular';
 import { MASTER_ICONS, MASTER_ICON_KEYS } from '../../../shared/master-icons';
@@ -26,6 +26,7 @@ export class DeptForm implements OnChanges {
   // 'edit' changes `department`; 'add' creates a new one, pre-filled from `department` if given
   @Input() mode: 'add' | 'edit' = 'add';
   @Input() department: DepartmentRecord | null = null;
+  @Input() saving = false;
   @Output() saved = new EventEmitter<{ record: DepartmentRecord; originalCode: string | null; originalName: string | null }>();
   @Output() cancelled = new EventEmitter<void>();
 
@@ -51,7 +52,9 @@ export class DeptForm implements OnChanges {
   errors: Partial<Record<FieldKey, string>> = {};
   private original: DepartmentRecord | null = null;
 
-  ngOnChanges(): void {
+  ngOnChanges(changes: SimpleChanges): void {
+    // Only a new record (or mode) resets the form; `saving` flips must keep the user's edits
+    if (!changes['mode'] && !changes['department']) return;
     this.original = this.mode === 'edit' ? this.department : null;
     this.form = this.department ? structuredClone(this.department) : blankDepartment();
     this.errors = {};

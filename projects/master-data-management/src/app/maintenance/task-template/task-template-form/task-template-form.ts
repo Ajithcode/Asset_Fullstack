@@ -25,6 +25,11 @@ export class TaskTemplateForm extends MasterForm<TaskTemplateRecord, Tab> {
     { id: 'tasks', label: 'Tasks' }
   ];
 
+  constructor() {
+    super();
+    this.types.ensureLoaded();
+  }
+
   protected blank(): TaskTemplateRecord {
     return blankTaskTemplate();
   }

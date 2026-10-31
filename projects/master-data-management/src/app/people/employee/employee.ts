@@ -3,7 +3,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Plus, Search, Users } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { Observable, finalize } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
+import { apiErrorMessage } from '../../shared/mdm-api';
+import { SkillService } from '../skill/skill.service';
 import { PEOPLE_DEPARTMENTS, avatarColor, initials } from '../people.data';
 import { TeamService } from '../team/team.service';
 import { blankEmployee } from './employee.data';
@@ -23,6 +26,7 @@ type SortKey = 'id' | 'name' | 'department' | 'designation';
 export class EmployeePage extends ListPage<EmployeeRecord, EmployeeFilters, SortKey> {
   readonly service = inject(EmployeeService);
   private readonly teams = inject(TeamService);
+  private readonly skills = inject(SkillService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly departments = PEOPLE_DEPARTMENTS;
   readonly statuses: EmployeeStatus[] = ['Active', 'On Leave', 'Inactive'];
@@ -30,9 +34,14 @@ export class EmployeePage extends ListPage<EmployeeRecord, EmployeeFilters, Sort
   readonly avatarColor = avatarColor;
   readonly icons = { Users, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
 
+  saving = false;
+
   constructor() {
     super({ search: '', department: '', status: '' });
     this.sortKey = 'id';
+    this.service.refresh().subscribe({ error: (err) => this.notify(`Couldn't load employees: ${apiErrorMessage(err)}`) });
+    this.teams.ensureLoaded();
+    this.skills.ensureLoaded();
   }
 
   keyOf(r: EmployeeRecord): string {
@@ -60,9 +69,9 @@ export class EmployeePage extends ListPage<EmployeeRecord, EmployeeFilters, Sort
     return r[key];
   }
 
-  protected removeRecords(ids: string[]): void {
-    this.service.remove(ids);
-    this.teams.removeMembers(ids);
+  protected removeRecords(ids: string[]): Observable<unknown> {
+    // The API takes deleted employees out of their teams
+    return this.service.delete(ids).pipe(finalize(() => this.teams.removeMembers(ids.filter((id) => !this.service.find(id)))));
   }
 
   // Team leaders and managers with reports must be replaced first
@@ -78,16 +87,28 @@ export class EmployeePage extends ListPage<EmployeeRecord, EmployeeFilters, Sort
   }
 
   onSaved(event: { record: EmployeeRecord; originalId: string | null }): void {
-    this.service.save(event.record, event.originalId);
-    if (event.originalId) this.teams.renameMember(event.originalId, event.record.id);
-    this.carrySelection(event.originalId, event.record.id);
-    this.notify(`${event.record.name} ${event.originalId ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalId).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        if (event.originalId) this.teams.renameMember(event.originalId, saved.id);
+        this.carrySelection(event.originalId, saved.id);
+        this.notify(`${saved.name} ${event.originalId ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   setStatus(r: EmployeeRecord, status: EmployeeStatus): void {
     this.menuFor = null;
-    this.service.save({ ...r, status }, r.id);
-    this.notify(`${r.name} marked ${status}.`);
+    this.service.setStatus(r, status).subscribe({
+      next: () => this.notify(`${r.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 }
