@@ -9,5 +9,6 @@
 	"assets": "http://localhost:4208/remoteEntry.json",
 	"trackingIot": "http://localhost:4209/remoteEntry.json",
 	"wipOperations": "http://localhost:4210/remoteEntry.json",
-	"inspection": "http://localhost:4211/remoteEntry.json"
+	"inspection": "http://localhost:4211/remoteEntry.json",
+	"maintenance": "http://localhost:4212/remoteEntry.json"
 }

@@ -9,5 +9,6 @@
 	"assets": "https://assets360-assets.madheshsiva28.workers.dev/remoteEntry.json",
 	"trackingIot": "https://assets360-tracking-iot.madheshsiva28.workers.dev/remoteEntry.json",
 	"wipOperations": "https://assets360-wip-operations.madheshsiva28.workers.dev/remoteEntry.json",
-	"inspection": "https://assets360-inspection.madheshsiva28.workers.dev/remoteEntry.json"
+	"inspection": "https://assets360-inspection.madheshsiva28.workers.dev/remoteEntry.json",
+	"maintenance": "https://assets360-maintenance.madheshsiva28.workers.dev/remoteEntry.json"
 }

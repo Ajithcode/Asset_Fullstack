@@ -110,7 +110,18 @@ export class Sidebar {
       ]
     },
     { label: 'Movement & Custody', path: '/movement-custody', icon: ArrowLeftRight },
-    { label: 'Maintenance', path: '/maintenance', icon: Wrench },
+    {
+      label: 'Maintenance',
+      path: '/maintenance',
+      icon: Wrench,
+      children: [
+        { label: 'Maintenance', path: '/maintenance/overview' },
+        { label: 'Predictive Maintenance', path: '/maintenance/predictive' },
+        { label: 'Preventive Maintenance', path: '/maintenance/preventive' },
+        { label: 'Service Requests', path: '/maintenance/service-requests' },
+        { label: 'Work Orders', path: '/maintenance/work-orders' }
+      ]
+    },
     {
       label: 'Inspection',
       path: '/inspection',

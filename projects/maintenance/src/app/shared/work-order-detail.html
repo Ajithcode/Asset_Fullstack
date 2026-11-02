@@ -1,0 +1,240 @@
+@let w = workOrder();
+<div class="backdrop" (click)="closed.emit()"></div>
+<aside class="wo-panel" role="dialog" [attr.aria-label]="'Work order ' + w.workOrderId">
+  <div class="wo-in">
+    <div class="wo-top">
+      <h2>{{ w.workOrderId }}</h2>
+      <span [class]="pillClass(status())">{{ status() }}</span>
+      <span class="grow"></span>
+      <button type="button" class="icon-btn" aria-label="Close" (click)="closed.emit()"><lucide-icon [img]="icons.X" [size]="20"></lucide-icon></button>
+    </div>
+    <div>
+      <p class="wo-title">{{ w.title }}</p>
+      @if (w.description) { <p class="wo-desc">{{ w.description }}</p> }
+    </div>
+
+    <div class="wo-actions">
+      <button type="button" class="btn btn-primary" (click)="edit.emit(w)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit</button>
+      <span class="dd">
+        <button type="button" class="btn btn-accent-outline" [disabled]="busy()" (click)="toggleMenu('status', $event)">Change Status<lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon></button>
+        @if (menu() === 'status') {
+          <div class="menu" (click)="$event.stopPropagation()">
+            @for (s of statuses; track s) { @if (s !== w.status) { <button type="button" (click)="setStatus(s)">{{ s }}</button> } }
+          </div>
+        }
+      </span>
+      <span class="dd">
+        <button type="button" class="btn btn-accent-outline" (click)="toggleMenu('more', $event)">More Actions<lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon></button>
+        @if (menu() === 'more') {
+          <div class="menu" (click)="$event.stopPropagation()">
+            <button type="button" (click)="menu.set(null); duplicate.emit(w)">Duplicate</button>
+            <button type="button" (click)="exportOne()">Export (CSV)</button>
+            <button type="button" (click)="print()">Print</button>
+            <button type="button" class="c-bad" (click)="menu.set(null); confirmDelete.set(true)">Delete</button>
+          </div>
+        }
+      </span>
+    </div>
+    @if (confirmDelete()) {
+      <div class="confirm">
+        <span class="grow">Delete {{ w.workOrderId }}? This cannot be undone.</span>
+        <button type="button" class="btn btn-sm btn-outline" (click)="confirmDelete.set(false)">Cancel</button>
+        <button type="button" class="btn btn-sm btn-danger" (click)="remove()">Delete</button>
+      </div>
+    }
+
+    <div class="wo-cards">
+      <div class="box asset-box">
+        @if (asset()?.image; as img) { <img class="asset-img" [src]="img" [alt]="w.assetName" /> }
+        @else { <div class="asset-img"><lucide-icon [img]="icons.Wrench" [size]="28"></lucide-icon></div> }
+        <div>
+          <p class="lbl">Asset</p>
+          <p class="val"><a routerLink="/assets/list" [queryParams]="{ tag: w.assetId }">{{ w.assetName }} ({{ w.assetId }})</a></p>
+          <p class="lbl">Location</p>
+          <p class="val"><lucide-icon [img]="icons.MapPin" [size]="14"></lucide-icon>{{ location() }}</p>
+          <p class="lbl">Department</p>
+          <p class="val"><lucide-icon [img]="icons.Building2" [size]="14"></lucide-icon>{{ w.department || '—' }}</p>
+        </div>
+      </div>
+      <div class="box">
+        <dl class="kv">
+          <dt>Priority</dt><dd><span [class]="pillClass(w.priority)">{{ w.priority }}</span></dd>
+          <dt>Type</dt><dd class="c-accent">{{ w.workType }}</dd>
+          <dt>Due Date</dt><dd><lucide-icon [img]="icons.CalendarDays" [size]="13"></lucide-icon> {{ fmtDate(w.dueDate ?? w.scheduledDate) || '—' }}</dd>
+          <dt>Assigned To</dt><dd><lucide-icon [img]="icons.UserRound" [size]="13"></lucide-icon> {{ w.assignedTechnician || 'Unassigned' }}</dd>
+          <dt>Status</dt><dd><span [class]="pillClass(status())">{{ status() }}</span></dd>
+          <dt>Progress</dt><dd><span class="progress"><span class="progress-bar"><span [style.width.%]="w.progress"></span></span>{{ w.progress }}%</span></dd>
+          <dt>Created Date</dt><dd>{{ fmtDate(w.createdAt) || '—' }}</dd>
+          <dt>Created By</dt><dd>{{ w.createdBy || '—' }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <nav class="dtabs">
+      <button type="button" class="dtab" [class.is-active]="tab() === 'details'" (click)="tab.set('details')">Details</button>
+      <button type="button" class="dtab" [class.is-active]="tab() === 'tasks'" (click)="tab.set('tasks')">Tasks ({{ w.tasks.length }})</button>
+      <button type="button" class="dtab" [class.is-active]="tab() === 'parts'" (click)="tab.set('parts')">Parts ({{ w.parts.length }})</button>
+      <button type="button" class="dtab" [class.is-active]="tab() === 'labour'" (click)="tab.set('labour')">Labour ({{ w.labour.length }})</button>
+      <button type="button" class="dtab" [class.is-active]="tab() === 'cost'" (click)="tab.set('cost')">Cost</button>
+      <button type="button" class="dtab" [class.is-active]="tab() === 'documents'" (click)="tab.set('documents')">Documents ({{ w.documents.length }})</button>
+      <button type="button" class="dtab" [class.is-active]="tab() === 'history'" (click)="tab.set('history')">History</button>
+    </nav>
+
+    @switch (tab()) {
+      @case ('details') {
+        <div class="sec-grid">
+          <section class="sec">
+            <h4>Work Order Information</h4>
+            <dl class="kv">
+              <dt>Work Order #</dt><dd>{{ w.workOrderId }}</dd>
+              <dt>Title</dt><dd>{{ w.title }}</dd>
+              <dt>Description</dt><dd>{{ w.description || '—' }}</dd>
+              <dt>Maintenance Type</dt><dd class="c-accent">{{ w.workType }}</dd>
+              <dt>Category</dt><dd>{{ w.category || '—' }}</dd>
+              <dt>Priority</dt><dd><span [class]="pillClass(w.priority)">{{ w.priority }}</span></dd>
+              <dt>Status</dt><dd><span [class]="pillClass(status())">{{ status() }}</span></dd>
+              <dt>Planned Start Date</dt><dd>{{ fmtDateTime(w.plannedStartDate) || '—' }}</dd>
+              <dt>Planned End Date</dt><dd>{{ fmtDateTime(w.plannedEndDate) || '—' }}</dd>
+              <dt>Actual Start Date</dt><dd>{{ fmtDateTime(w.actualStartDate) || '-' }}</dd>
+              <dt>Actual End Date</dt><dd>{{ fmtDateTime(w.actualEndDate) || '-' }}</dd>
+              <dt>Duration</dt><dd>{{ duration() }}</dd>
+              <dt>Work Order Source</dt><dd>{{ sourceText() }}</dd>
+            </dl>
+          </section>
+          <div>
+            <section class="sec">
+              <h4>Asset Information</h4>
+              <dl class="kv">
+                <dt>Asset Name</dt><dd>{{ w.assetName }}</dd>
+                <dt>Asset Tag</dt><dd>{{ w.assetId }}</dd>
+                <dt>Model</dt><dd>{{ asset()?.model || '—' }}</dd>
+                <dt>Manufacturer</dt><dd>{{ asset()?.manufacturer || '—' }}</dd>
+                <dt>Serial Number</dt><dd>{{ asset()?.serial || '—' }}</dd>
+              </dl>
+            </section>
+            <section class="sec">
+              <h4>Location Information</h4>
+              <dl class="kv">
+                <dt>Site</dt><dd>{{ w.site || '—' }}</dd>
+                <dt>Building</dt><dd>{{ w.building || '—' }}</dd>
+                <dt>Room / Area</dt><dd>{{ w.area || '—' }}</dd>
+                <dt>Department</dt><dd>{{ w.department || '—' }}</dd>
+              </dl>
+            </section>
+            <section class="sec">
+              <h4>Assignment</h4>
+              <dl class="kv">
+                <dt>Assigned To</dt><dd>{{ w.assignedTechnician || '—' }}</dd>
+                <dt>Team</dt><dd>{{ w.team || '—' }}</dd>
+                <dt>Vendor</dt><dd>{{ w.vendor || '-' }}</dd>
+              </dl>
+            </section>
+          </div>
+        </div>
+        <section class="sec">
+          <h4>Notes</h4>
+          <p class="notes">{{ w.notes || 'No notes.' }}</p>
+        </section>
+      }
+      @case ('tasks') {
+        <section class="sec">
+          @for (t of w.tasks; track $index; let i = $index) {
+            <div class="task" [class.done]="t.isDone">
+              <input type="checkbox" [checked]="t.isDone" [disabled]="busy()" (change)="toggleTask(i)" [attr.aria-label]="'Mark ' + t.title" />
+              <span class="grow t-title">{{ t.title }}</span>
+              <span class="muted">{{ t.assignedTo || '' }}</span>
+              <button type="button" class="icon-btn" aria-label="Remove task" (click)="removeTask(i)"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon></button>
+            </div>
+          } @empty { <p class="muted">No tasks yet.</p> }
+          <form class="add-row" style="grid-template-columns: 1fr auto" (ngSubmit)="addTask()">
+            <input class="control" name="newTask" [(ngModel)]="newTask" placeholder="Add a task step" />
+            <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Add</button>
+          </form>
+        </section>
+      }
+      @case ('parts') {
+        <section class="sec">
+          <table class="mini">
+            <thead><tr><th>Part #</th><th>Part</th><th class="r">Qty</th><th class="r">Unit Cost</th><th class="r">Total</th><th></th></tr></thead>
+            <tbody>
+              @for (p of w.parts; track $index; let i = $index) {
+                <tr><td>{{ p.partNumber || '—' }}</td><td>{{ p.partName }}</td><td class="r">{{ p.quantity }}</td><td class="r">{{ p.unitCost.toFixed(2) }}</td><td class="r">{{ (p.quantity * p.unitCost).toFixed(2) }}</td>
+                  <td><button type="button" class="icon-btn" aria-label="Remove part" (click)="removePart(i)"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon></button></td></tr>
+              } @empty { <tr><td colspan="6" class="muted">No parts used.</td></tr> }
+            </tbody>
+          </table>
+          <form class="add-row" style="grid-template-columns: 0.8fr 1.4fr 0.5fr 0.7fr auto" (ngSubmit)="addPart()">
+            <input class="control" name="pn" [(ngModel)]="newPart.partNumber" placeholder="Part #" />
+            <input class="control" name="pname" [(ngModel)]="newPart.partName" placeholder="Part name" />
+            <input class="control" name="qty" type="number" min="0" step="any" [(ngModel)]="newPart.quantity" aria-label="Quantity" />
+            <input class="control" name="cost" type="number" min="0" step="any" [(ngModel)]="newPart.unitCost" aria-label="Unit cost" />
+            <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Add</button>
+          </form>
+        </section>
+      }
+      @case ('labour') {
+        <section class="sec">
+          <table class="mini">
+            <thead><tr><th>Technician</th><th>Role</th><th class="r">Hours</th><th class="r">Rate</th><th class="r">Total</th><th></th></tr></thead>
+            <tbody>
+              @for (l of w.labour; track $index; let i = $index) {
+                <tr><td>{{ l.technician }}</td><td>{{ l.role || '—' }}</td><td class="r">{{ l.hours }}</td><td class="r">{{ l.hourlyRate.toFixed(2) }}</td><td class="r">{{ (l.hours * l.hourlyRate).toFixed(2) }}</td>
+                  <td><button type="button" class="icon-btn" aria-label="Remove labour" (click)="removeLabour(i)"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon></button></td></tr>
+              } @empty { <tr><td colspan="6" class="muted">No labour logged.</td></tr> }
+            </tbody>
+          </table>
+          <form class="add-row" style="grid-template-columns: 1.2fr 1fr 0.5fr 0.6fr auto" (ngSubmit)="addLabour()">
+            <input class="control" name="tech" [(ngModel)]="newLabour.technician" placeholder="Technician" />
+            <input class="control" name="role" [(ngModel)]="newLabour.role" placeholder="Role" />
+            <input class="control" name="hours" type="number" min="0" step="0.25" [(ngModel)]="newLabour.hours" aria-label="Hours" />
+            <input class="control" name="rate" type="number" min="0" step="any" [(ngModel)]="newLabour.hourlyRate" aria-label="Hourly rate" />
+            <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Add</button>
+          </form>
+        </section>
+      }
+      @case ('cost') {
+        <section class="sec">
+          <div class="cost-row"><span>Parts ({{ w.parts.length }})</span><span>{{ w.partsCost.toFixed(2) }}</span></div>
+          <div class="cost-row"><span>Labour ({{ w.labour.length }})</span><span>{{ w.labourCost.toFixed(2) }}</span></div>
+          <div class="cost-row"><span>Additional (contractor, rental, freight)</span><span>{{ w.additionalCost.toFixed(2) }}</span></div>
+          <div class="cost-row total"><span>Total Cost</span><span>{{ w.totalCost.toFixed(2) }}</span></div>
+          <form class="add-row" style="grid-template-columns: 1fr auto" (ngSubmit)="saveAdditionalCost()">
+            <input class="control" name="addl" type="number" min="0" step="any" [(ngModel)]="additionalCost" placeholder="Set additional cost" />
+            <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Save</button>
+          </form>
+        </section>
+      }
+      @case ('documents') {
+        <section class="sec">
+          <table class="mini">
+            <thead><tr><th>Document</th><th>Type</th><th>Added</th><th></th></tr></thead>
+            <tbody>
+              @for (d of w.documents; track $index; let i = $index) {
+                <tr>
+                  <td><lucide-icon [img]="icons.FileText" [size]="13"></lucide-icon> @if (d.url) { <a class="link" [href]="d.url" target="_blank" rel="noopener">{{ d.name }}</a> } @else { {{ d.name }} }</td>
+                  <td>{{ d.fileType || '—' }}</td>
+                  <td>{{ fmtDate(d.uploadedAt) }}@if (d.uploadedBy) { · {{ d.uploadedBy }} }</td>
+                  <td><button type="button" class="icon-btn" aria-label="Remove document" (click)="removeDocument(i)"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon></button></td>
+                </tr>
+              } @empty { <tr><td colspan="4" class="muted">No documents attached.</td></tr> }
+            </tbody>
+          </table>
+          <form class="add-row" style="grid-template-columns: 1fr 1.2fr auto" (ngSubmit)="addDocument()">
+            <input class="control" name="dname" [(ngModel)]="newDoc.name" placeholder="File name, e.g. Report.pdf" />
+            <input class="control" name="durl" [(ngModel)]="newDoc.url" placeholder="Link (optional)" />
+            <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Add</button>
+          </form>
+        </section>
+      }
+      @case ('history') {
+        <section class="sec">
+          <ul class="timeline">
+            @for (h of w.history; track $index) {
+              <li><strong>{{ h.action }}</strong> · <span class="muted">{{ fmtDateTime(h.at) }}@if (h.by) { · {{ h.by }} }</span><div>{{ h.details }}</div></li>
+            } @empty { <li class="muted">No history yet.</li> }
+          </ul>
+        </section>
+      }
+    }
+  </div>
+</aside>

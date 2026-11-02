@@ -40,12 +40,12 @@ export const routes: Routes = [
       { path: 'tracking-iot', loadChildren: remoteRoutes('trackingIot') },
       { path: 'wip-operations', loadChildren: remoteRoutes('wipOperations') },
       { path: 'inspection', loadChildren: remoteRoutes('inspection') },
+      { path: 'maintenance', loadChildren: remoteRoutes('maintenance') },
       { path: 'reports-analytics', loadChildren: remoteRoutes('reports') },
       { path: 'administration', loadChildren: remoteRoutes('administration') },
       { path: 'master-data-management', loadChildren: remoteRoutes('masterDataManagement') },
       // New UI modules: placeholder pages until their screens are built
       { path: 'movement-custody', component: ModulePlaceholder, data: { title: 'Movement & Custody' } },
-      { path: 'maintenance', component: ModulePlaceholder, data: { title: 'Maintenance' } },
       { path: 'inventory', component: ModulePlaceholder, data: { title: 'Inventory' } },
       { path: 'audit-compliance', component: ModulePlaceholder, data: { title: 'Audit & Compliance' } },
       { path: 'contracts-warranty', component: ModulePlaceholder, data: { title: 'Contracts & Warranty' } },
