@@ -1,5 +1,6 @@
 
 using MongoDB.Driver;
+using A360.Maintenance.Api.Seed;
 using A360.Maintenance.Repository.Repositories;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
@@ -200,6 +201,10 @@ public static class MaintenanceServiceCollectionExtensions
         // Mongo Index Hosted Service
 
         services.AddHostedService<MongoIndexHostedService>();
+
+        // Sample data from the module mockups (only into empty collections)
+
+        services.AddHostedService<MaintenanceSeedHostedService>();
 
         // Swagger
 

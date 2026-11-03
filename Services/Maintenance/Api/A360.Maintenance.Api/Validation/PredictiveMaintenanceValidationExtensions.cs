@@ -28,6 +28,16 @@ public static class PredictiveMaintenanceValidationExtensions
                 ["RiskLevel is required"];
         }
 
+        if (request.HealthScore is < 0 or > 100)
+        {
+            errors["HealthScore"] = ["HealthScore must be between 0 and 100"];
+        }
+
+        if (request.Confidence is < 0 or > 100)
+        {
+            errors["Confidence"] = ["Confidence must be between 0 and 100"];
+        }
+
         return errors;
     }
 
@@ -52,6 +62,16 @@ public static class PredictiveMaintenanceValidationExtensions
         {
             errors["RiskLevel"] =
                 ["RiskLevel is required"];
+        }
+
+        if (request.HealthScore is < 0 or > 100)
+        {
+            errors["HealthScore"] = ["HealthScore must be between 0 and 100"];
+        }
+
+        if (request.Confidence is < 0 or > 100)
+        {
+            errors["Confidence"] = ["Confidence must be between 0 and 100"];
         }
 
         return errors;

@@ -10,6 +10,11 @@ fi
 export MongoDb__ConnectionString="$MONGODB_URI"
 export ASPNETCORE_ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Production}"
 
+# 13 .NET processes share one container: workstation GC keeps each one's memory small (server GC reserves
+# heaps per CPU core), so the whole backend fits hosts with little RAM such as Render.
+export DOTNET_gcServer="${DOTNET_gcServer:-0}"
+export DOTNET_GCConserveMemory="${DOTNET_GCConserveMemory:-5}"
+
 # The Jwt:SigningKey in appsettings.json is committed to git, so it is only fit for local development.
 if [ "$ASPNETCORE_ENVIRONMENT" = "Production" ] && [ -z "${Jwt__SigningKey:-}" ]; then
   echo "Jwt__SigningKey is not set (required in Production)" >&2
@@ -45,5 +50,6 @@ done
 sleep 3
 
 cd /app/apigateway
-export ASPNETCORE_URLS="http://0.0.0.0:5296"
+# Hosts like Render say which public port to listen on in PORT; locally it stays 5296.
+export ASPNETCORE_URLS="http://0.0.0.0:${PORT:-5296}"
 exec dotnet A360.ApiGateway.dll
