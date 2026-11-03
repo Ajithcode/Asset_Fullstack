@@ -15,6 +15,13 @@
     <button type="button" class="btn btn-outline" (click)="openRules()"><lucide-icon [img]="icons.Settings" [size]="17"></lucide-icon>Deduplication Rules</button>
   </div>
 
+  <!-- ===== Loading / load error ===== -->
+  <div *ngIf="loading" class="card panel load-state" role="status">Loading duplicate assets…</div>
+  <div *ngIf="loadError" class="card panel load-state load-state--error" role="alert">
+    <span class="grow">Could not load duplicate assets: {{ loadError }}</span>
+    <button type="button" class="btn btn-outline" (click)="load()"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Retry</button>
+  </div>
+
   <!-- ===== KPIs and settings ===== -->
   <div class="kpi-row">
     <div class="card kpi">
@@ -25,7 +32,7 @@
       <button type="button" class="btn btn-primary btn-block" [disabled]="scanning" (click)="scan()">
         <lucide-icon [img]="icons.RefreshCw" [size]="15" [class.spin]="scanning"></lucide-icon>{{ scanning ? 'Scanning…' : 'Scan for Duplicates' }}
       </button>
-      <small class="muted">Last scan {{ lastScan | date: 'dd MMM yyyy, HH:mm' }}</small>
+      <small class="muted">Last scan {{ lastScan ? (lastScan | date: 'dd MMM yyyy, HH:mm') : 'never' }}</small>
     </div>
     <div class="card kpi">
       <div class="kpi-top">
@@ -231,7 +238,7 @@
           <small class="counter">{{ notes.length }}/500</small>
         </label>
         <button type="button" class="btn btn-outline btn-lg" (click)="cancelMerge()">Cancel</button>
-        <button type="button" class="btn btn-primary btn-lg" [disabled]="mergeCount < 1" (click)="askMerge()"><lucide-icon [img]="icons.GitMerge" [size]="17"></lucide-icon>Merge Assets</button>
+        <button type="button" class="btn btn-primary btn-lg" [disabled]="mergeCount < 1 || saving" (click)="askMerge()"><lucide-icon [img]="icons.GitMerge" [size]="17"></lucide-icon>{{ saving ? 'Merging…' : 'Merge Assets' }}</button>
       </div>
     </ng-container>
 
@@ -258,7 +265,7 @@
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="confirmOpen = false">Cancel</button>
-      <button type="button" class="btn btn-primary" (click)="merge()">Merge Assets</button>
+      <button type="button" class="btn btn-primary" [disabled]="saving" (click)="merge()">Merge Assets</button>
     </div>
   </div>
 </div>

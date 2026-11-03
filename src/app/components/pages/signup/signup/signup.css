@@ -1,332 +1,50 @@
-:host {
-  display: block;
-  min-height: 100vh;
-  font-family: 'Red Hat Display', sans-serif;
-}
+/* Sign-up form parts. The page layout, branding, card, inputs, button and footer come from the sign-in page's
+   login.css (loaded first), so both pages look the same. */
 
-.login-shell {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  min-height: 100vh;
-  width: 100%;
-}
+/* tighter rhythm than sign-in: the sign-up card holds seven fields */
+.form { gap: 14px; }
 
-.branding-panel {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 3rem;
-  background: radial-gradient(circle at top left, rgba(99, 102, 241, 0.25), transparent 28%),
-    linear-gradient(180deg, #4f2bd8 0%, #7c3aed 48%, #a855f7 100%);
-  color: white;
-  gap: 2rem;
-}
+/* two fields side by side */
+.field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.field-row .field { min-width: 0; }
 
-.brand-mark {
-  width: 54px;
-  height: 54px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 50%;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: white;
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(10px);
-}
+.field-label em { font-style: normal; color: #dc2626; }
 
-.brand-top h1 {
-  margin: 1.5rem 0 0.75rem;
-  font-size: clamp(2rem, 4vw, 3.2rem);
-  line-height: 1.05;
-}
-
-.brand-subtitle {
-  margin: 0;
-  font-size: 0.85rem;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.brand-features {
-  display: grid;
-  gap: 1rem;
-}
-
-.feature-item {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  color: white;
-  padding: 1rem 1.25rem;
-  font-size: 0.96rem;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-
-.login-panel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  background: #f8fafc;
-}
-
-.login-card {
-  width: 100%;
-  max-width: 430px;
-  background: white;
-  border-radius: 32px;
-  border: var(--piq-card-border);
-  padding: 2.25rem;
-  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
-}
-
-.icon-shell {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  margin: 0 auto 1.5rem;
-  color: white;
-  background: linear-gradient(135deg, #7c3aed, #9333ea);
-  box-shadow: 0 18px 35px rgba(124, 58, 237, 0.24);
-  font-size: 1.9rem;
-}
-
-.login-card h2 {
-  margin: 0;
-  text-align: center;
-  font-size: 2rem;
-  color: #111827;
-}
-
-.login-subtitle {
-  margin: 0.75rem auto 1.8rem;
-  text-align: center;
-  color: #4b5563;
-  font-size: 0.96rem;
-}
-
-.login-form {
-  display: grid;
-  gap: 1rem;
-}
-
-.field-label {
-  display: grid;
-  gap: 0.5rem;
-  font-size: 0.92rem;
-  color: #4b5563;
-}
-
-.field-label input {
-  width: 100%;
-  min-height: 48px;
-  border-radius: 16px;
-  border: 1px solid #d1d5db;
-  padding: 0.95rem 1rem;
-  font-size: 0.95rem;
-  background: #f8fafc;
-  color: #111827;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.field-label input:focus {
-  outline: none;
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.14);
-}
-
-.login-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 0.92rem;
-  color: #4b5563;
-}
-
-.checkbox-label input {
-  width: 16px;
-  height: 16px;
-}
-
-.forgot-link {
-  color: #7c3aed;
-  text-decoration: none;
-  font-size: 0.92rem;
-}
-
-.error-msg {
-  margin: 0;
-  color: #dc2626;
-  font-size: 0.92rem;
-}
-
-.popup-overlay {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
-  background: rgba(15, 23, 42, 0.55);
-  z-index: 1000;
-}
-
-.popup-card {
-  width: min(420px, 100%);
-  background: white;
-  border-radius: 24px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
-  overflow: hidden;
-  border: 1px solid #e5e7eb;
-}
-
-.popup-card.error {
-  border-color: #f87171;
-}
-
-.popup-card.success {
-  border-color: #34d399;
-}
-
-.popup-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.25rem 1.5rem;
-  background: #f9fafb;
-}
-
-.popup-header h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  color: #111827;
-}
-
-.popup-close {
-  border: none;
-  background: transparent;
-  font-size: 1.4rem;
-  cursor: pointer;
-  line-height: 1;
-  color: #6b7280;
-}
-
-.popup-body {
-  padding: 1rem 1.5rem;
-  color: #374151;
-  font-size: 0.95rem;
-}
-
-.popup-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding: 1rem 1.5rem 1.5rem;
-}
-
-.btn-close {
-  border: none;
-  border-radius: 999px;
-  padding: 0.8rem 1.3rem;
-  background: #7c3aed;
-  color: white;
-  cursor: pointer;
-  font-size: 0.95rem;
-}
-
-.submit-button {
-  width: 100%;
-  min-height: 52px;
-  border: none;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #7c3aed, #a855f7);
-  color: white;
-  font-size: 0.98rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease;
-}
-
-.submit-button:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.04);
-}
-
-.secure-note {
-  margin-top: 1.5rem;
-  text-align: center;
-  color: #6b7280;
-  font-size: 0.88rem;
-}
-
-@media (max-width: 960px) {
-  .login-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .branding-panel,
-  .login-panel {
-    padding: 2rem;
-  }
-
-  .brand-top h1 {
-    font-size: 2.3rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .branding-panel {
-    border-radius: 0 0 20px 20px;
-  }
-
-  .login-card {
-    border-radius: 24px;
-    padding: 1.75rem;
-  }
-}
-
-/* Asset360 logo (white-background JPEG): a white badge on the dark panel, full width in the form card */
-.brand-mark.brand-logo {
-  width: auto;
-  height: 64px;
-  padding: 8px 16px;
-  border: 0;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
-}
-
-.brand-mark.brand-logo img {
-  width: auto;
+/* Role: a select styled like the text inputs */
+.input--select { position: relative; }
+.input--select select {
+  flex: 1;
+  min-width: 0;
   height: 100%;
-  object-fit: contain;
-}
-
-.icon-shell.logo-shell {
-  width: auto;
-  height: auto;
-  margin: 0 auto 0.5rem;
-  border-radius: 0;
+  padding-right: 28px;
+  border: 0;
+  outline: none;
   background: none;
+  font: inherit;
+  font-size: 17px;
+  color: var(--lg-text);
+  appearance: none;
+  cursor: pointer;
 }
+.input--select select:invalid,
+.input--select select:has(option[value='']:checked) { color: #9ca3af; }
+.input--select select:disabled { cursor: default; }
+.select-caret { position: absolute; right: 16px; color: #6b7280; pointer-events: none; }
 
-.icon-shell.logo-shell img,
-.icon-shell.logo-shell img:nth-child(1) {
-  width: min(240px, 100%);
-  height: auto;
-  object-fit: contain;
-  mix-blend-mode: multiply;
+.hint { font-size: 13px; color: var(--lg-muted); }
+.hint--error { color: #b91c1c; }
+.link-btn { padding: 0; border: 0; background: none; font: inherit; color: var(--lg-primary); text-decoration: underline; cursor: pointer; }
+
+.submit { margin-top: 4px; }
+
+.card-foot--switch { margin-top: 16px; font-size: 15px; }
+.card-foot--switch .link { font-weight: 700; }
+
+/* desktop: the taller form starts a little higher in the card */
+.is-scaled .card { padding-top: 28px; padding-bottom: 22px; }
+.is-scaled .card-sub { margin-bottom: 14px; }
+
+/* phones: one field per row */
+@container (max-width: 440px) {
+  .field-row { grid-template-columns: minmax(0, 1fr); }
 }

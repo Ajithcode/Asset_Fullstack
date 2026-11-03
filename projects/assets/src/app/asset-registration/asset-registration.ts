@@ -321,7 +321,7 @@ const LOCATION_KIND_LABELS: Record<LocationKind, string> = {
 const MAP_LEVEL_KINDS: LocationKind[] = ['floor', 'zone', 'outdoorZone', 'subZone'];
 
 /** Floor plan the Locating module shows when a level has no uploaded map. */
-const DEFAULT_MAP_IMAGE = 'mapp.png';
+const DEFAULT_MAP_IMAGE = 'map1.png';
 
 /**
  * Same shape as the Locating tree: Project -> Country -> Area -> (Outdoor Zone | Building) -> Floor -> Zone -> Sub Zone.

@@ -6,7 +6,10 @@ import { Report } from './report/report';
 
 // Mounted by the shell at /dashboard; paths match the Dashboard menu in the shell's sidebar
 export const routes: Routes = [
-  { path: '', component: Dashboard },
+  // IoT & Tracking Overview is the dashboard's landing page (after login and from any /dashboard link)
+  { path: '', redirectTo: 'iot-tracking-overview', pathMatch: 'full' },
+  // previous widget dashboard, kept reachable
+  { path: 'widgets', component: Dashboard },
   { path: 'iot-tracking-overview', component: IotTrackingOverview },
   { path: 'asset-overview', component: AssetOverview },
   { path: 'reports', component: Report }

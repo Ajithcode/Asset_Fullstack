@@ -106,13 +106,14 @@ export class Login {
     this.router.navigateByUrl(returnUrl || this.startPage());
   }
 
-  /** Start page chosen in Preferences (account menu), else the dashboard. */
+  /** Start page chosen in Preferences (account menu), else the IoT & Tracking Overview dashboard. */
   private startPage(): string {
+    const home = '/dashboard/iot-tracking-overview';
     try {
       const landing = JSON.parse(localStorage.getItem('a360.prefs') ?? '{}').landing;
-      return typeof landing === 'string' && landing.startsWith('/') ? landing : '/dashboard';
+      return typeof landing === 'string' && landing.startsWith('/') ? landing : home;
     } catch {
-      return '/dashboard';
+      return home;
     }
   }
 

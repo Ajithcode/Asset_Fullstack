@@ -1,88 +1,118 @@
-<div class="login-shell">
-  <aside class="branding-panel">
-    <div class="brand-top">
-      <div class="brand-mark brand-logo">
-        <img src="/purple360-logo.jpeg" alt="Asset360 by Purple IQ" />
-      </div>
-      <h1>Welcome to Assets 360</h1>
-      <p class="brand-subtitle">TRACK. MANAGE. OPTIMIZE. PROTECT.</p>
-    </div>
+<div class="login-shell" [class.is-scaled]="scaled" [style.--s]="scale">
+<div class="design">
+  <div class="stage">
+    <div class="stage-bg" aria-hidden="true"></div>
+    <!-- ===== Branding (same as the sign-in page) ===== -->
+    <aside class="brand">
+      <img class="brand-logo" src="/purple360-logo.jpeg" alt="Asset360 by Purple IQ" />
+      <h1 class="brand-title">Complete Asset Management<br />for a <span>Smarter Tomorrow</span></h1>
+      <p class="brand-tagline"><span>Track</span><i>|</i><span>Maintain</span><i>|</i><span>Optimize</span><i>|</i><span>Extend</span></p>
 
-    <div class="brand-features">
-      <div class="feature-item">Asset Tracking & Inventory</div>
-      <div class="feature-item">Real-time Location</div>
-      <div class="feature-item">Maintenance Scheduling</div>
-      <div class="feature-item">Asset Lifecycle Management</div>
-    </div>
-  </aside>
+      <ul class="features">
+        <li *ngFor="let f of features">
+          <span [class]="'feature-ic feature-ic--' + f.tone"><lucide-icon [img]="f.icon" [size]="40" [strokeWidth]="1.8"></lucide-icon></span>
+          <span class="feature-label">{{ f.label }}</span>
+        </li>
+      </ul>
+    </aside>
 
-  <section class="login-panel">
-    <div class="login-card">
-      <div class="icon-shell logo-shell">
-        <img src="/purple360-logo.jpeg" alt="Asset360 by Purple IQ" />
-      </div>
+    <!-- ===== Sign-up card ===== -->
+    <section class="card" aria-labelledby="signup-title">
+      <h2 id="signup-title">Join Asset<span>360</span></h2>
+      <p class="card-sub">Create your account</p>
 
-      <p class="login-subtitle">Create your Assets 360 account</p>
+      <form (ngSubmit)="signup()" class="form" novalidate>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Full Name <em>*</em></span>
+            <span class="input">
+              <lucide-icon [img]="icons.User" [size]="22"></lucide-icon>
+              <input type="text" [(ngModel)]="form.fullName" name="fullName" placeholder="Enter your full name" autocomplete="name" maxlength="100" />
+            </span>
+          </label>
+          <label class="field">
+            <span class="field-label">Username <em>*</em></span>
+            <span class="input">
+              <lucide-icon [img]="icons.AtSign" [size]="22"></lucide-icon>
+              <input type="text" [(ngModel)]="form.userName" name="userName" placeholder="Choose a username" autocomplete="username" maxlength="50" />
+            </span>
+          </label>
+        </div>
 
-      <form (ngSubmit)="signup()" class="login-form" novalidate>
-        <label class="field-label">
-          <span>Full Name *</span>
-          <input type="text" [(ngModel)]="form.fullName" name="fullName" placeholder="Enter your full name" autocomplete="name" maxlength="100" />
-        </label>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Email <em>*</em></span>
+            <span class="input">
+              <lucide-icon [img]="icons.Mail" [size]="22"></lucide-icon>
+              <input type="email" [(ngModel)]="form.email" name="email" placeholder="you@company.com" autocomplete="email" maxlength="120" />
+            </span>
+          </label>
+          <label class="field">
+            <span class="field-label">Contact Number</span>
+            <span class="input">
+              <lucide-icon [img]="icons.Phone" [size]="22"></lucide-icon>
+              <input type="tel" [(ngModel)]="form.contactNo" name="contactNo" placeholder="Optional" autocomplete="tel" maxlength="20" />
+            </span>
+          </label>
+        </div>
 
-        <label class="field-label">
-          <span>Username *</span>
-          <input type="text" [(ngModel)]="form.userName" name="userName" placeholder="Choose a username" autocomplete="username" maxlength="50" />
-        </label>
-
-        <label class="field-label">
-          <span>Email *</span>
-          <input type="email" [(ngModel)]="form.email" name="email" placeholder="you@company.com" autocomplete="email" maxlength="120" />
-        </label>
-
-        <label class="field-label">
-          <span>Contact Number</span>
-          <input type="tel" [(ngModel)]="form.contactNo" name="contactNo" placeholder="Optional" autocomplete="tel" maxlength="20" />
-        </label>
-
-        <label class="field-label">
-          <span>Role *</span>
-          <select [(ngModel)]="form.userRoleId" name="userRoleId" [disabled]="rolesLoading || !roles.length">
-            <option value="" disabled>{{ rolesLoading ? 'Loading roles...' : roles.length ? 'Select a role' : 'No roles available' }}</option>
-            <option *ngFor="let r of roles" [value]="r.roleId">{{ r.roleName }}</option>
-          </select>
-          <small *ngIf="selectedRole?.description" class="field-hint">{{ selectedRole?.description }}</small>
-          <small *ngIf="rolesError" class="field-hint field-hint--error">
-            {{ rolesError }} <button type="button" class="link-button" (click)="loadRoles()">Retry</button>
+        <label class="field">
+          <span class="field-label">Role <em>*</em></span>
+          <span class="input input--select">
+            <lucide-icon [img]="icons.BadgeCheck" [size]="22"></lucide-icon>
+            <select [(ngModel)]="form.userRoleId" name="userRoleId" [disabled]="rolesLoading || !roles.length">
+              <option value="" disabled>{{ rolesLoading ? 'Loading roles...' : roles.length ? 'Select a role' : 'No roles available' }}</option>
+              <option *ngFor="let r of roles" [value]="r.roleId">{{ r.roleName }}</option>
+            </select>
+            <lucide-icon class="select-caret" [img]="icons.ChevronDown" [size]="18"></lucide-icon>
+          </span>
+          <small *ngIf="selectedRole?.description" class="hint">{{ selectedRole?.description }}</small>
+          <small *ngIf="rolesError" class="hint hint--error">
+            {{ rolesError }} <button type="button" class="link-btn" (click)="loadRoles()">Retry</button>
           </small>
-          <small *ngIf="!rolesLoading && !rolesError && !roles.length" class="field-hint field-hint--error">
+          <small *ngIf="!rolesLoading && !rolesError && !roles.length" class="hint hint--error">
             No roles exist yet. An administrator needs to create one first.
           </small>
         </label>
 
-        <label class="field-label">
-          <span>Password *</span>
-          <input type="password" [(ngModel)]="form.password" name="password" placeholder="At least 8 characters" autocomplete="new-password" />
-        </label>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Password <em>*</em></span>
+            <span class="input">
+              <lucide-icon [img]="icons.Lock" [size]="22"></lucide-icon>
+              <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="form.password" name="password" placeholder="At least 8 characters" autocomplete="new-password" />
+              <button type="button" class="eye" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" [attr.aria-pressed]="showPassword">
+                <lucide-icon [img]="showPassword ? icons.EyeOff : icons.Eye" [size]="22"></lucide-icon>
+              </button>
+            </span>
+          </label>
+          <label class="field">
+            <span class="field-label">Confirm Password <em>*</em></span>
+            <span class="input">
+              <lucide-icon [img]="icons.Lock" [size]="22"></lucide-icon>
+              <input [type]="showConfirm ? 'text' : 'password'" [(ngModel)]="confirmPassword" name="confirmPassword" placeholder="Re-enter your password" autocomplete="new-password" />
+              <button type="button" class="eye" (click)="showConfirm = !showConfirm" [attr.aria-label]="showConfirm ? 'Hide password' : 'Show password'" [attr.aria-pressed]="showConfirm">
+                <lucide-icon [img]="showConfirm ? icons.EyeOff : icons.Eye" [size]="22"></lucide-icon>
+              </button>
+            </span>
+          </label>
+        </div>
 
-        <label class="field-label">
-          <span>Confirm Password *</span>
-          <input type="password" [(ngModel)]="confirmPassword" name="confirmPassword" placeholder="Re-enter your password" autocomplete="new-password" />
-        </label>
+        <p *ngIf="errorMsg" class="msg msg--error" role="alert">{{ errorMsg }}</p>
 
-        <p *ngIf="errorMsg" class="error-msg" role="alert">{{ errorMsg }}</p>
-
-        <button type="submit" class="submit-button" [disabled]="isLoading">
-          {{ isLoading ? 'Creating Account...' : 'Sign Up' }}
+        <button type="submit" class="submit" [disabled]="isLoading">
+          {{ isLoading ? 'Creating Account...' : 'Create Account' }}
+          <lucide-icon [img]="icons.ArrowRight" [size]="19"></lucide-icon>
         </button>
       </form>
 
-      <p class="switch-auth">
-        Already have an account?
-        <a routerLink="/login">Sign In</a>
-      </p>
+      <p class="card-foot card-foot--switch">Already have an account? <a class="link" routerLink="/login">Sign In</a></p>
+    </section>
+  </div>
 
-      <div class="secure-note">Secured &amp; Encrypted Connection</div>
-    </div>
-  </section>
+  <footer class="footer">
+    <nav class="footer-links" aria-label="Legal"><a href="#" (click)="$event.preventDefault()">Privacy Policy</a><i>|</i><a href="#" (click)="$event.preventDefault()">Terms of Service</a><i>|</i><a href="#" (click)="$event.preventDefault()">Support</a></nav>
+    <span>© {{ year }} Purple IQ. All rights reserved.</span>
+  </footer>
+</div>
 </div>

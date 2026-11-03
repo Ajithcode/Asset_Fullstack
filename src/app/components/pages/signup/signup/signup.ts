@@ -1,32 +1,79 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgFor, NgIf } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import {
+  ArrowRight,
+  AtSign,
+  BadgeCheck,
+  Box,
+  ChartColumn,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Lock,
+  LucideAngularModule,
+  Mail,
+  Phone,
+  ShieldCheck,
+  User,
+  Wrench,
+} from 'lucide-angular';
 import { AuthService, DEMO_ROLES, RegisterData, SignupRole } from 'shared-ui';
 
 const USER_NAME_PATTERN = /^[A-Za-z0-9._-]{3,50}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
+/** Same design canvas as the sign-in page, so both pages scale the same way. */
+const DESIGN_H = 940;
+const DESIGN_MIN_W = 1280;
 
 /** DEMO MODE: sign-up is validated and kept in the browser only; afterwards the user signs in. */
 @Component({
   standalone: true,
   selector: 'app-signup',
-  imports: [FormsModule, NgIf, NgFor, RouterLink],
+  imports: [FormsModule, NgIf, NgFor, RouterLink, LucideAngularModule],
   templateUrl: './signup.html',
-  styleUrls: ['../../login/login/login.css']
+  // The sign-in page's layout, branding and controls, plus the sign-up form's own parts
+  styleUrls: ['../../login/login/login.css', './signup.css']
 })
 export class Signup {
+  readonly icons = { ArrowRight, AtSign, BadgeCheck, ChevronDown, Eye, EyeOff, Lock, Mail, Phone, User };
+  readonly features = [
+    { label: 'Asset\nVisibility', icon: Box, tone: 'purple' },
+    { label: 'Maintenance\nManagement', icon: Wrench, tone: 'teal' },
+    { label: 'Operational\nEfficiency', icon: ChartColumn, tone: 'blue' },
+    { label: 'Compliance\n& Governance', icon: ShieldCheck, tone: 'green' },
+  ];
+  readonly year = new Date().getFullYear();
+
   form: RegisterData = { fullName: '', userName: '', email: '', contactNo: '', password: '', userRoleId: '' };
   confirmPassword = '';
   errorMsg = '';
   isLoading = false;
+  showPassword = false;
+  showConfirm = false;
 
   roles: SignupRole[] = DEMO_ROLES;
   rolesLoading = false;
   rolesError = '';
 
-  constructor(private auth: AuthService, private router: Router) {}
+  /** Desktop / laptop: laid out at the design size and scaled to fit, as on the sign-in page. */
+  scaled = false;
+  scale = 1;
+
+  constructor(private auth: AuthService, private router: Router) {
+    this.fit();
+  }
+
+  @HostListener('window:resize')
+  fit(): void {
+    if (typeof window === 'undefined') return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.scaled = w >= 1000 && w >= h;
+    this.scale = this.scaled ? Math.min(h / DESIGN_H, w / DESIGN_MIN_W) : 1;
+  }
 
   get selectedRole(): SignupRole | undefined {
     return this.roles.find((r) => r.roleId === this.form.userRoleId);

@@ -110,7 +110,6 @@ export class Sidebar {
         { label: 'Tag Management', path: '/tracking-iot/tag-management' },
         { label: 'IoT Device Management', path: '/tracking-iot/device-management' },
         { label: 'Device Type & Model', path: '/tracking-iot/device-type-model' },
-        { label: 'Gateways', path: '/tracking-iot/gateways' },
         { label: 'Device Configuration', path: '/tracking-iot/device-configuration' },
         { label: 'Device Health & Status', path: '/tracking-iot/device-health' },
         { label: 'Firmware & Connectivity', path: '/tracking-iot/firmware-connectivity' },
