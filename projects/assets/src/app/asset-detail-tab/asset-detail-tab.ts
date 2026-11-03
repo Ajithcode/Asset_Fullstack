@@ -28,14 +28,24 @@ import {
   Wrench,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetHeader, AssetRecord, AssetTabLink, TODAY, assetHeader, assetLocation, assetTabs, findAsset, toIsoDate } from 'shared-ui';
+import { Subject, catchError, forkJoin, of, switchMap, tap } from 'rxjs';
+import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetCondition, AssetHeader, AssetRecord, AssetTabLink, TODAY, assetHeader, assetLocation, assetTabs, findAsset, toIsoDate } from 'shared-ui';
 import { AssetDetail, Assessment, loadAssetDetail } from '../asset-details/asset-details';
+import {
+  AssetDetailsService,
+  AssetRegistrationDto,
+  customFieldValue,
+  isoDay,
+} from '../asset-details/asset-details.service';
+import { ServiceRequestApiService, ServiceRequestListItemDto, localStamp } from '../service-request/service-request-api.service';
+import { AssetComponentsService } from '../asset-components/asset-components.service';
 import { MaintenanceData, dataFor } from '../asset-maintenance/asset-maintenance';
 import { isOpen } from '../asset-maintenance/maintenance-sr';
-import { AssetComponent, COMPONENT_ICONS, componentTreeOf, componentsOf } from '../asset-components/asset-components';
+import { AssetComponent, COMPONENT_ICONS, componentTreeOf, componentsOf, loadComponentTree } from '../asset-components/asset-components';
 import { ComponentOverview } from '../asset-components/component-overview/component-overview';
 import { buildMockFields } from '../asset-custom-fields/asset-custom-fields';
 import { CustomField } from '../asset-custom-fields/custom-fields.model';
+import { CustomFieldDto, toCustomField } from '../asset-custom-fields/custom-fields.service';
 
 /** Which asset detail tab this page is: route data { view }. */
 type View = 'overview' | 'components' | 'fields' | 'history';
@@ -64,8 +74,9 @@ const KIND_TONES: Record<HistoryKind, string> = {
 };
 const HISTORY_KINDS = Object.keys(KIND_TONES) as HistoryKind[];
 const HISTORY_PAGE = 15;
-/** Field definitions, shared by every asset (DEMO MODE: the Custom Fields page keeps its own editable copy). */
-const FIELDS = buildMockFields();
+/** Field definitions used until (or when) /api/asset-custom-fields returns none. */
+const MOCK_FIELDS = buildMockFields();
+
 
 /**
  * Overview, Components, Custom Fields and History tabs of the asset detail page. Every figure comes from the one asset
@@ -115,6 +126,13 @@ export class AssetDetailTab implements OnDestroy {
   search = '';
   historyLimit = HISTORY_PAGE;
 
+  /** The asset's registration from the Asset API; null when not registered (demo record only). */
+  registration: AssetRegistrationDto | null = null;
+  /** The asset's service requests from the API; null until loaded (the demo maintenance data is used meanwhile). */
+  private apiRequests: ServiceRequestListItemDto[] | null = null;
+  /** Field definitions: from the API when it has any, otherwise the demo set. */
+  private fields: CustomField[] = MOCK_FIELDS;
+
   // Custom fields
   fieldGroups: { name: string; rows: FieldRow[] }[] = [];
   emptyOnly = false;
@@ -123,13 +141,27 @@ export class AssetDetailTab implements OnDestroy {
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
   private readonly router = inject(Router);
+  private readonly assetsApi = inject(AssetDetailsService);
+  private readonly componentsApi = inject(AssetComponentsService);
+  private readonly requestsApi = inject(ServiceRequestApiService);
+  private readonly load$ = new Subject<string | null>();
 
   constructor() {
     const route = inject(ActivatedRoute);
     const v = route.snapshot.data['view'] as View;
     this.view = v in VIEW_TABS ? v : 'overview';
     this.tabs = assetTabs(VIEW_TABS[this.view]);
-    route.queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe((p) => this.load(p.get('tag')));
+    const destroyRef = inject(DestroyRef);
+    this.assetsApi.getCustomFieldDefinitions().pipe(takeUntilDestroyed(destroyRef)).subscribe({
+      next: (defs) => {
+        if (!defs.length) return;
+        this.fields = defs.map((d) => toCustomField(d as unknown as CustomFieldDto));
+        this.fieldGroups = this.buildFields();
+      },
+      error: () => undefined, // keep the demo definitions
+    });
+    this.load$.pipe(switchMap((tag) => this.loadApi(tag)), takeUntilDestroyed(destroyRef)).subscribe();
+    route.queryParamMap.pipe(takeUntilDestroyed(destroyRef)).subscribe((p) => this.load(p.get('tag')));
   }
 
   ngOnDestroy(): void {
@@ -142,13 +174,25 @@ export class AssetDetailTab implements OnDestroy {
     tag ??= ASSET_RECORDS[0].tag; // opened without an asset: show the first one
     const record = findAsset(tag);
     this.requestedTag = tag;
-    this.notFound = !record;
-    if (!record) return;
+    this.registration = null;
+    this.apiRequests = null;
+    this.notFound = false;
+    this.load$.next(tag); // the Asset API record replaces the demo one when it arrives
+    if (!record) {
+      this.loading = true;
+      return;
+    }
+    this.setRecord(record);
+  }
+
+  /** Shows a register record: header, demo maintenance data, components and the demo detail file. */
+  private setRecord(record: AssetRecord): void {
     this.record = record;
     this.asset = assetHeader(record);
     this.maintenance = dataFor(record);
     this.tree = componentTreeOf(record.tag);
     this.components = componentsOf(record.tag);
+    if (this.registration) this.applyCondition();
     this.selectedComponent = null;
     this.kindFilter = '';
     this.search = '';
@@ -163,6 +207,64 @@ export class AssetDetailTab implements OnDestroy {
       this.detail = d;
       this.rebuild();
     });
+  }
+
+  /**
+   * Reads the asset from the Asset API by tag (registration, components, service requests). A tag that is in
+   * neither the API nor the demo register shows "not found".
+   */
+  private loadApi(tag: string | null) {
+    if (!tag) return of(null);
+    const fallback = findAsset(tag);
+    return this.assetsApi.getByTag(tag, fallback).pipe(
+      catchError(() => of(null)),
+      tap((a) => {
+        if (this.requestedTag !== tag) return;
+        if (!a) {
+          if (!fallback) {
+            this.loading = false;
+            this.notFound = true;
+          }
+          return;
+        }
+        this.registration = a.registration;
+        if (fallback) {
+          // same asset: keep the demo detail data already loading, refresh the register values
+          this.record = a.record;
+          this.asset = assetHeader(a.record);
+          this.applyCondition();
+          this.rebuild();
+        } else {
+          this.setRecord(a.record);
+        }
+      }),
+      switchMap((a) => {
+        if (!a || this.requestedTag !== tag) return of(null);
+        return forkJoin({
+          tree: loadComponentTree(this.componentsApi, tag).pipe(catchError(() => of(null))),
+          requests: this.requestsApi.list({ assetRegistrationId: a.registration.assetRegistrationId, pageSize: 200 }).pipe(catchError(() => of(null))),
+        }).pipe(
+          tap((r) => {
+            if (this.requestedTag !== tag) return;
+            if (r.tree) {
+              this.tree = r.tree;
+              this.components = componentsOf(tag);
+              this.selectedComponent = null;
+            }
+            if (r.requests) {
+              this.apiRequests = r.requests.items.filter((x) => x.status !== 'Draft');
+              this.rebuild();
+            }
+          }),
+        );
+      }),
+    );
+  }
+
+  /** The registration's condition, when it is one the header knows. */
+  private applyCondition(): void {
+    const c = this.registration?.basicInformation?.condition;
+    if (c === 'Good' || c === 'Fair' || c === 'Poor') this.asset = { ...this.asset, condition: c as AssetCondition };
   }
 
   private rebuild(): void {
@@ -216,6 +318,7 @@ export class AssetDetailTab implements OnDestroy {
   }
 
   get openRequests(): number {
+    if (this.apiRequests) return this.apiRequests.filter((r) => !/closed|cancelled/i.test(r.status ?? '')).length;
     return this.maintenance.serviceRequests.filter(isOpen).length;
   }
 
@@ -236,7 +339,7 @@ export class AssetDetailTab implements OnDestroy {
       { label: 'Documents', value: d?.documents.length ?? 0, icon: FileText, path: '/assets/documents' },
       { label: 'Images', value: d?.images.length ?? 0, icon: Images, path: '/assets/images' },
       { label: 'Work Orders', value: this.maintenance.workOrders.length, icon: Wrench, path: '/assets/maintenance-details' },
-      { label: 'Service Requests', value: this.maintenance.serviceRequests.length, icon: MessageSquarePlus, path: '/assets/service-history' },
+      { label: 'Service Requests', value: this.apiRequests?.length ?? this.maintenance.serviceRequests.length, icon: MessageSquarePlus, path: '/assets/service-history' },
       { label: 'Open Alerts', value: this.openAlerts, icon: TriangleAlert, path: '/assets/status-condition' },
     ];
   }
@@ -268,6 +371,8 @@ export class AssetDetailTab implements OnDestroy {
 
   /** The asset's value for a field, from its record and detail data; '' when it has none. */
   private valueOf(f: CustomField): string {
+    const fromApi = customFieldValue(this.registration, f.name) ?? this.registrationValue(f.name);
+    if (fromApi !== undefined && fromApi !== null && fromApi !== '') return String(fromApi);
     const r = this.record;
     const d = this.detail;
     const op = d?.status.operational;
@@ -303,8 +408,40 @@ export class AssetDetailTab implements OnDestroy {
     return v === undefined || v === null || v === '' ? f.defaultValue : String(v);
   }
 
+  /** Values the registration holds for the standard field names. */
+  private registrationValue(name: string): string | number | undefined {
+    const reg = this.registration;
+    if (!reg) return undefined;
+    const b = reg.basicInformation;
+    const w = reg.purchaseWarranty?.warranty;
+    const p = reg.purchaseWarranty?.purchase;
+    const op = reg.additionalInformation?.operational;
+    const loc = reg.locationAssignment?.location;
+    const values: Record<string, string | number | null | undefined> = {
+      serial_number: b?.serialNumber,
+      manufacturer: b?.manufacturer ?? p?.manufacturer,
+      model: b?.model,
+      asset_condition: b?.condition,
+      criticality: b?.criticality ?? reg.classification?.criticality,
+      purchase_date: isoDay(p?.purchaseDate),
+      warranty_expiry: isoDay(w?.warrantyEndDate),
+      warranty_period: w?.warrantyPeriod != null ? (/year/i.test(w.warrantyPeriodUnit ?? '') ? w.warrantyPeriod * 12 : w.warrantyPeriod) : undefined,
+      warranty_provider: w?.serviceProvider,
+      service_provider: w?.serviceProvider,
+      assigned_department: reg.locationAssignment?.assignment?.custodianDepartment ?? reg.classification?.department,
+      custodian: reg.locationAssignment?.assignment?.assignedToName,
+      location_zone: loc?.siteName,
+      building_floor: [loc?.buildingName, loc?.floorName].filter(Boolean).join(', '),
+      last_service_date: isoDay(op?.lastMaintenanceDate),
+      next_service_date: isoDay(op?.nextMaintenanceDate),
+      maintenance_frequency: op?.maintenanceFrequency != null ? `${op.maintenanceFrequency} ${op.maintenanceFrequencyUnit ?? ''}`.trim() : undefined,
+    };
+    const v = values[name];
+    return v === null || v === '' ? undefined : v;
+  }
+
   private buildFields(): { name: string; rows: FieldRow[] }[] {
-    const fields = FIELDS.filter(
+    const fields = this.fields.filter(
       (f) => f.status === 'Active' && (f.scope === 'asset' || (f.scope === 'category' && f.appliesTo === this.record.category)),
     );
     const groups = new Map<string, FieldRow[]>();
@@ -363,9 +500,15 @@ export class AssetDetailTab implements OnDestroy {
     for (const w of this.maintenance.workOrders) {
       add(w.date, 'Maintenance', `${w.id} · ${w.type} ${w.status.toLowerCase()}`, w.description, w.technician, '/assets/maintenance-details');
     }
-    for (const r of this.maintenance.serviceRequests) {
-      add(r.createdAt, 'Service Request', `${r.id} raised`, r.title, r.requestedBy, '/assets/service-history');
-      add(r.resolvedAt, 'Service Request', `${r.id} resolved`, r.title, r.assignedTo, '/assets/service-history');
+    if (this.apiRequests) {
+      for (const r of this.apiRequests) {
+        add(localStamp(r.requestedDate), 'Service Request', `${r.requestNumber} raised`, `${r.title}${r.status ? ' · ' + r.status : ''}`, r.requestedBy ?? '', '/assets/service-history');
+      }
+    } else {
+      for (const r of this.maintenance.serviceRequests) {
+        add(r.createdAt, 'Service Request', `${r.id} raised`, r.title, r.requestedBy, '/assets/service-history');
+        add(r.resolvedAt, 'Service Request', `${r.id} resolved`, r.title, r.assignedTo, '/assets/service-history');
+      }
     }
     return out.sort((a, b) => b.at.localeCompare(a.at));
   }

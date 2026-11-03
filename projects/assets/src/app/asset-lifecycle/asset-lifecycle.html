@@ -10,6 +10,9 @@
     <span class="breadcrumb-current">Asset Lifecycle</span>
   </nav>
 
+  <p *ngIf="loading" class="load-note" role="status">Loading the lifecycle of {{ registrationTag || asset.tag }}…</p>
+  <p *ngIf="loadError && !loading" class="load-error" role="alert">{{ loadError }} <button type="button" class="btn btn-outline btn-sm" (click)="load(registrationTag || asset.tag)">Retry</button></p>
+
   <!-- Asset header -->
   <div class="card asset-head">
     <img class="asset-img" [src]="image" [alt]="asset.name" />
@@ -554,7 +557,7 @@
         <span class="hint">The latest assessment updates the current condition and sets the next assessment six months later.</span>
         <span *ngIf="submitted && (!conditionDraft.date || conditionDraft.date > todayIso)" class="error">Pick an assessment date that isn't in the future.</span>
       </div>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Record</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Record</button></div>
     </form>
 
     <!-- Lifecycle event -->
@@ -571,7 +574,7 @@
         </div>
         <span *ngIf="submitted && (!eventDraft.title.trim() || !eventDraft.date)" class="error">Event and date are required.</span>
       </div>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Add Event</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Add Event</button></div>
     </form>
 
     <!-- Stage -->
@@ -589,7 +592,7 @@
         <span *ngIf="stageDraft.status === 'Current' && currentStage && currentStage.key !== stageDraft.key" class="hint">{{ currentStage.label }} will be marked Completed.</span>
         <span *ngIf="submitted && stageError" class="error">{{ stageError }}</span>
       </div>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Save</button></div>
     </form>
 
     <!-- Advance stage -->
@@ -598,7 +601,7 @@
       <div class="modal-body">
         <p>{{ currentStage?.label ?? 'The current stage' }} will be marked Completed and {{ nextStage.label }} becomes the current stage from today ({{ fmt(todayIso) }}).</p>
       </div>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="button" class="btn btn-primary" (click)="confirmAdvance()">Move Stage</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="button" class="btn btn-primary" [disabled]="saving" (click)="confirmAdvance()">Move Stage</button></div>
     </div>
   </div>
 

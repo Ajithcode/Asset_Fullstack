@@ -59,6 +59,11 @@
         </button>
       </div>
 
+      <p *ngIf="loadError" class="tree-empty error" role="alert">
+        {{ loadError }}
+        <button type="button" class="link-btn" (click)="reload()">Retry</button>
+      </p>
+      <p *ngIf="loading && !root.children.length" class="tree-empty">Loading hierarchy…</p>
       <ul class="tree" role="tree">
         <ng-container *ngTemplateOutlet="treeNode; context: { $implicit: root, depth: 0 }"></ng-container>
       </ul>
@@ -317,12 +322,12 @@
         <div class="field-pair">
           <label class="field">
             <span class="field-label">Name <em>*</em></span>
-            <input class="control" name="name" [(ngModel)]="form.name" [class.is-invalid]="formSubmitted && !form.name.trim()" maxlength="80" />
+            <input class="control" name="name" [(ngModel)]="form.name" [class.is-invalid]="formSubmitted && !form.name.trim()" maxlength="100" />
             <span *ngIf="formSubmitted && !form.name.trim()" class="error">Name is required.</span>
           </label>
           <label class="field">
             <span class="field-label">{{ form.kind === 'asset' ? 'Asset Tag' : 'Code' }} <em>*</em></span>
-            <input class="control mono" name="tag" [(ngModel)]="form.tag" [class.is-invalid]="formSubmitted && (!form.tag.trim() || isTagTaken(form.tag))" maxlength="20" />
+            <input class="control mono" name="tag" [(ngModel)]="form.tag" [class.is-invalid]="formSubmitted && (!form.tag.trim() || isTagTaken(form.tag))" maxlength="50" />
             <span *ngIf="formSubmitted && !form.tag.trim()" class="error">Required.</span>
             <span *ngIf="isTagTaken(form.tag)" class="error">Already in use.</span>
           </label>
@@ -331,18 +336,24 @@
           <div class="field-pair field-pair--even">
             <label class="field">
               <span class="field-label">Asset Type <em>*</em></span>
-              <input class="control" name="type" [(ngModel)]="form.type" [class.is-invalid]="formSubmitted && !form.type.trim()" placeholder="e.g. Chiller" maxlength="60" />
-              <span *ngIf="formSubmitted && !form.type.trim()" class="error">Asset type is required.</span>
+              <select class="control" name="typeId" [ngModel]="form.typeId" (ngModelChange)="onTypeChange($event)" [class.is-invalid]="formSubmitted && !form.typeId">
+                <option value="">Select asset type</option>
+                <option *ngFor="let t of assetTypes" [value]="t.id">{{ t.name }}</option>
+              </select>
+              <span *ngIf="formSubmitted && !form.typeId" class="error">Asset type is required.</span>
             </label>
             <label class="field">
               <span class="field-label">Model</span>
-              <input class="control" name="model" [(ngModel)]="form.model" maxlength="60" />
+              <select class="control" name="modelId" [ngModel]="form.modelId" (ngModelChange)="onModelChange($event)">
+                <option value="">None</option>
+                <option *ngFor="let m of modelOptions" [value]="m.id">{{ m.name }}</option>
+              </select>
             </label>
           </div>
           <div class="field-pair field-pair--even">
             <label class="field">
               <span class="field-label">Manufacturer</span>
-              <input class="control" name="manufacturer" [(ngModel)]="form.manufacturer" maxlength="60" />
+              <input class="control" name="manufacturer" [(ngModel)]="form.manufacturer" maxlength="100" />
             </label>
             <label class="field">
               <span class="field-label">Status</span>
@@ -352,10 +363,11 @@
             </label>
           </div>
         </ng-container>
+        <p *ngIf="formError" class="error" role="alert">{{ formError }}</p>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="formOpen = false">Cancel</button>
-        <button type="submit" class="btn btn-primary">{{ editingNode ? 'Save Changes' : 'Add' }}</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : editingNode ? 'Save Changes' : 'Add' }}</button>
       </div>
     </form>
   </div>
@@ -378,7 +390,7 @@
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="moveTarget = null">Cancel</button>
-        <button type="button" class="btn btn-primary" [disabled]="moveParentId === null" (click)="confirmMove()">Move</button>
+        <button type="button" class="btn btn-primary" [disabled]="moveParentId === null || saving" (click)="confirmMove()">Move</button>
       </div>
     </div>
   </div>
@@ -410,7 +422,7 @@
       <div class="modal-foot">
         <span class="hint grow">{{ assignChecked.size }} selected &middot; moving an asset also moves its sub-components</span>
         <button type="button" class="btn btn-outline" (click)="assignOpen = false">Cancel</button>
-        <button type="button" class="btn btn-primary" [disabled]="!assignChecked.size" (click)="confirmAssign()">Assign</button>
+        <button type="button" class="btn btn-primary" [disabled]="!assignChecked.size || saving" (click)="confirmAssign()">Assign</button>
       </div>
     </div>
   </div>
@@ -424,7 +436,7 @@
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="deleteTarget = null">Cancel</button>
-        <button type="button" class="btn btn-danger" (click)="confirmDelete()">Remove</button>
+        <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">Remove</button>
       </div>
     </div>
   </div>

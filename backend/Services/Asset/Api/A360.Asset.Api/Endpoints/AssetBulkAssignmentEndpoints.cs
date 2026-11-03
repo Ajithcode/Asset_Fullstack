@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using ClosedXML.Excel;
 using A360.Asset.Api.Contracts;
@@ -798,6 +798,8 @@ public static class AssetBulkAssignmentEndpoints
         var check = await AssetBulkAssignmentRowChecker.CheckAsync(batch, assetRepository, assignmentRepository, masterDataRepository, cancellationToken);
         var common = batch.CommonDetails;
         var overrideExisting = common?.OverrideExistingAssignment == true;
+        var includeWarnings = request?.IncludeWarnings ?? true;
+        var excludedRows = (request?.ExcludedRowNumbers ?? []).ToHashSet();
 
         var assignable = new List<AssetBulkAssignmentRow>();
         foreach (var row in batch.Rows.OrderBy(row => row.RowNumber))
@@ -806,7 +808,11 @@ public static class AssetBulkAssignmentEndpoints
             row.AssignmentNumber = null;
             row.SkippedReason = null;
 
-            if (row.Status == AssetBulkAssignmentRowStatuses.Error)
+            if (excludedRows.Contains(row.RowNumber))
+            {
+                row.SkippedReason = "Excluded";
+            }
+            else if (row.Status == AssetBulkAssignmentRowStatuses.Error)
             {
                 var error = row.Issues.First(issue => issue.Severity == AssetBulkAssignmentSeverities.Error);
                 row.SkippedReason = error.Details ?? error.Message;
@@ -814,6 +820,11 @@ public static class AssetBulkAssignmentEndpoints
             else if (row.Resolved?.CurrentAssignmentNumber is { } current && !overrideExisting)
             {
                 row.SkippedReason = $"Already assigned in {current}";
+            }
+            else if (row.Status == AssetBulkAssignmentRowStatuses.Warning && !includeWarnings)
+            {
+                var warning = row.Issues.First(issue => issue.Severity == AssetBulkAssignmentSeverities.Warning);
+                row.SkippedReason = $"Has warnings: {warning.Details ?? warning.Message}";
             }
             else
             {

@@ -5,7 +5,10 @@ export type SrPriority = 'High' | 'Medium' | 'Low';
 export type SrCategory = 'Mechanical' | 'Electrical' | 'General' | 'Others';
 
 export interface ServiceRequest {
+  /** Request number, e.g. SR-2026-121. */
   id: string;
+  /** Record id in the Asset API (set once saved there); the request page is opened with it. */
+  apiId?: string;
   /** yyyy-MM-dd of createdAt (used by the activity feed). */
   date: string;
   title: string;

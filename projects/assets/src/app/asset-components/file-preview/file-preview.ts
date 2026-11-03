@@ -79,7 +79,7 @@ export class FilePreview implements OnChanges {
   readonly formatIcons = FORMAT_ICONS;
 
   @Input({ required: true }) fileName = '';
-  /** blob: URL of an uploaded file; absent for sample entries. */
+  /** Url of the file (Media service url or blob: url); absent for sample entries. */
   @Input() url?: string;
   @Input() pages = 1;
   /** Title shown on the sample title page. */
@@ -118,7 +118,7 @@ export class FilePreview implements OnChanges {
     if (!this.url) return null;
     let safe = this.safeUrlCache.get(this.url);
     if (!safe) {
-      // Only blob: URLs created from the user's own uploaded file reach here.
+      // blob: URLs of the user's own upload, or stored file URLs from the Media service.
       safe = this.sanitizer.bypassSecurityTrustResourceUrl(this.url);
       this.safeUrlCache.set(this.url, safe);
     }

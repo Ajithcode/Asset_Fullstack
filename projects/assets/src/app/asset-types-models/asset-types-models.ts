@@ -2,6 +2,7 @@ import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import {
   LucideAngularModule,
   AirVent,
@@ -51,27 +52,38 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-
-type Status = 'Active' | 'Inactive';
+import { apiErrorMessage } from '../services/asset-api';
+import {
+  AppAssetModel,
+  AppAssetType,
+  AssetTypeFormValue,
+  AssetTypesModelsService,
+  CategoryOption,
+  Status,
+} from './asset-types-models.service';
 
 interface AssetModel {
-  id: number;
+  id: string;
   name: string;
   code: string;
+  manufacturerId: string | null;
   manufacturer: string;
+  /** Registered assets of this model; the asset list API does not expose a model, so this stays 0. */
   assetCount: number;
   status: Status;
 }
 
 interface AssetType {
-  id: number;
+  id: string;
   name: string;
   code: string;
+  categoryId: string;
+  /** Category name, for display and search. */
   category: string;
   description: string;
   status: Status;
   icon: keyof AssetTypesModels['typeIcons'];
-  /** Uploaded image as a data URL; the icon is shown when absent. */
+  /** Image (URL or data URL) stored on the type; the icon is shown when absent. */
   image?: string;
   models: AssetModel[];
 }
@@ -87,7 +99,7 @@ type PageTab = 'types' | 'models';
 interface TypeForm {
   name: string;
   code: string;
-  category: string;
+  categoryId: string;
   description: string;
   status: Status;
 }
@@ -137,87 +149,46 @@ class Pager {
   }
 }
 
-let nextId = 1;
-
-interface TypeSeed {
-  name: string;
-  code: string;
-  category: string;
-  description: string;
-  icon: AssetType['icon'];
-  manufacturers: string[];
-  modelCount: number;
-  status?: Status;
-}
-
-const TYPE_SEEDS: TypeSeed[] = [
-  { name: 'Generator', code: 'GEN', category: 'Power Generation', description: 'Diesel / Gas Generators', icon: 'generator', manufacturers: ['Caterpillar', 'Cummins', 'Perkins', 'Kohler'], modelCount: 8 },
-  { name: 'Transformer', code: 'TRF', category: 'Power Generation', description: 'Power transformers and distribution transformers used in electrical power systems.', icon: 'transformer', manufacturers: [], modelCount: 0 },
-  { name: 'UPS', code: 'UPS', category: 'Electrical Equipment', description: 'Uninterruptible Power Supply', icon: 'ups', manufacturers: ['APC', 'Eaton', 'Vertiv'], modelCount: 5 },
-  { name: 'Switchgear', code: 'SWG', category: 'Electrical Equipment', description: 'LV / MV Switchgear', icon: 'switchgear', manufacturers: ['ABB', 'Schneider', 'Siemens'], modelCount: 7 },
-  { name: 'Control Panel', code: 'CP', category: 'Electrical Equipment', description: 'Electrical Control Panels', icon: 'panel', manufacturers: ['Rittal', 'Schneider', 'ABB'], modelCount: 5 },
-  { name: 'Chiller', code: 'CHL', category: 'HVAC', description: 'Chillers', icon: 'chiller', manufacturers: ['Carrier', 'Trane', 'York'], modelCount: 6 },
-  { name: 'AHU', code: 'AHU', category: 'HVAC', description: 'Air Handling Units', icon: 'ahu', manufacturers: ['Trane', 'Daikin'], modelCount: 4 },
-  { name: 'Split AC', code: 'SAC', category: 'HVAC', description: 'Split Air Conditioners', icon: 'ac', manufacturers: ['Daikin', 'LG', 'Mitsubishi'], modelCount: 6 },
-  { name: 'CCTV Camera', code: 'CCTV', category: 'Security & Safety', description: 'Security Cameras', icon: 'cctv', manufacturers: ['Hikvision', 'Axis'], modelCount: 4 },
-  { name: 'Laptop', code: 'LAP', category: 'IT Equipment', description: 'Laptops', icon: 'laptop', manufacturers: ['Dell', 'HP', 'Lenovo', 'Apple'], modelCount: 12 },
-  { name: 'Desktop', code: 'DSK', category: 'IT Equipment', description: 'Desktop Computers and Workstations', icon: 'desktop', manufacturers: ['Dell', 'HP', 'Lenovo'], modelCount: 6 },
-  { name: 'Server', code: 'SRV', category: 'IT Equipment', description: 'Rack and Tower Servers', icon: 'server', manufacturers: ['Dell', 'HPE'], modelCount: 4 },
-  { name: 'Network Switch', code: 'NSW', category: 'IT Equipment', description: 'Managed / Unmanaged Switches', icon: 'network', manufacturers: ['Cisco', 'Aruba'], modelCount: 5 },
-  { name: 'Printer', code: 'PRN', category: 'IT Equipment', description: 'Printers, Scanners and MFPs', icon: 'printer', manufacturers: ['HP', 'Canon', 'Ricoh'], modelCount: 3 },
-  { name: 'Fire Alarm Panel', code: 'FAP', category: 'Security & Safety', description: 'Fire Alarm Control Panels', icon: 'alarm', manufacturers: ['Honeywell', 'Siemens'], modelCount: 3 },
-  { name: 'Access Controller', code: 'ACC', category: 'Security & Safety', description: 'Door Controllers and Card Readers', icon: 'access', manufacturers: ['HID', 'Suprema'], modelCount: 4 },
-  { name: 'Fire Pump', code: 'FP', category: 'Security & Safety', description: 'Fire Fighting Pumps', icon: 'fire', manufacturers: ['Grundfos', 'Xylem'], modelCount: 2 },
-  { name: 'Forklift', code: 'FLT', category: 'Material Handling', description: 'Electric / Diesel Forklifts', icon: 'forklift', manufacturers: ['Toyota', 'Linde', 'Jungheinrich'], modelCount: 5 },
-  { name: 'Conveyor', code: 'CNV', category: 'Material Handling', description: 'Belt and Roller Conveyors', icon: 'conveyor', manufacturers: ['Interroll', 'Dorner'], modelCount: 3 },
-  { name: 'Crane', code: 'CRN', category: 'Material Handling', description: 'Overhead and Gantry Cranes', icon: 'crane', manufacturers: ['Konecranes', 'Demag'], modelCount: 2, status: 'Inactive' },
-  { name: 'Car', code: 'CAR', category: 'Vehicles & Fleet', description: 'Passenger Cars and SUVs', icon: 'car', manufacturers: ['Toyota', 'Nissan', 'Hyundai'], modelCount: 6 },
-  { name: 'Truck', code: 'TRK', category: 'Vehicles & Fleet', description: 'Light and Heavy Trucks', icon: 'truck', manufacturers: ['Isuzu', 'Volvo'], modelCount: 4 },
-  { name: 'Power Drill', code: 'PDR', category: 'Tools & Instruments', description: 'Cordless and Corded Drills', icon: 'drill', manufacturers: ['Bosch', 'Makita', 'DeWalt'], modelCount: 5 },
-  { name: 'Multimeter', code: 'MLT', category: 'Tools & Instruments', description: 'Digital Multimeters', icon: 'meter', manufacturers: ['Fluke', 'Keysight'], modelCount: 3 },
-  { name: 'Filing Cabinet', code: 'CAB', category: 'Furniture & Fixtures', description: 'Filing and Storage Cabinets', icon: 'cabinet', manufacturers: ['Steelcase', 'Herman Miller'], modelCount: 2 },
+/** Icon picked from keywords in the type name (the API stores no icon). */
+const ICON_KEYWORDS: [RegExp, AssetType['icon']][] = [
+  [/generat/i, 'generator'],
+  [/transformer/i, 'transformer'],
+  [/\bups\b|battery/i, 'ups'],
+  [/switchgear|switch gear/i, 'switchgear'],
+  [/panel/i, 'panel'],
+  [/chiller|cool|refrig/i, 'chiller'],
+  [/\bahu\b|air handling|fan/i, 'ahu'],
+  [/\bac\b|air condition/i, 'ac'],
+  [/vrf|ventilat/i, 'vrf'],
+  [/cctv|camera/i, 'cctv'],
+  [/laptop|notebook/i, 'laptop'],
+  [/desktop|monitor|workstation/i, 'desktop'],
+  [/server/i, 'server'],
+  [/network|router|switch/i, 'network'],
+  [/printer|scanner/i, 'printer'],
+  [/alarm|detector/i, 'alarm'],
+  [/access|door|card/i, 'access'],
+  [/fire/i, 'fire'],
+  [/forklift/i, 'forklift'],
+  [/conveyor/i, 'conveyor'],
+  [/crane/i, 'crane'],
+  [/truck|van|lorry/i, 'truck'],
+  [/car\b|vehicle|suv/i, 'car'],
+  [/drill|tool/i, 'drill'],
+  [/meter|gauge|measur|instrument/i, 'meter'],
+  [/cabinet|storage|filing/i, 'cabinet'],
+  [/furniture|chair|desk|table/i, 'furniture'],
 ];
 
-/** Models shown for Transformer in the design mock. */
-const TRANSFORMER_MODELS: Omit<AssetModel, 'id'>[] = [
-  { name: 'TX-500', code: 'TX500', manufacturer: 'ABB', assetCount: 12, status: 'Active' },
-  { name: 'TX-1000', code: 'TX1000', manufacturer: 'Siemens', assetCount: 8, status: 'Active' },
-  { name: 'TX-2000', code: 'TX2000', manufacturer: 'Schneider', assetCount: 6, status: 'Active' },
-  { name: 'DTR-315', code: 'DTR315', manufacturer: 'Eaton', assetCount: 4, status: 'Active' },
-  { name: 'DTR-630', code: 'DTR630', manufacturer: 'GE', assetCount: 3, status: 'Active' },
-  { name: 'TX-3000', code: 'TX3000', manufacturer: 'Hitachi', assetCount: 2, status: 'Inactive' },
-];
-
-function buildMockTypes(): AssetType[] {
-  return TYPE_SEEDS.map((s, ti) => {
-    const models: AssetModel[] =
-      s.code === 'TRF'
-        ? TRANSFORMER_MODELS.map((m) => ({ ...m, id: nextId++ }))
-        : Array.from({ length: s.modelCount }, (_, k) => {
-            const series = 100 * (k + 1) + ((ti * 17) % 50);
-            return {
-              id: nextId++,
-              name: `${s.code}-${series}`,
-              code: `${s.code}${series}`,
-              manufacturer: s.manufacturers[k % s.manufacturers.length],
-              assetCount: (ti * 7 + k * 5) % 15,
-              status: k === s.modelCount - 1 && k > 2 ? 'Inactive' : 'Active',
-            };
-          });
-    return {
-      id: nextId++,
-      name: s.name,
-      code: s.code,
-      category: s.category,
-      description: s.description,
-      status: s.status ?? 'Active',
-      icon: s.icon,
-      models,
-    };
-  });
+function iconFor(name: string): AssetType['icon'] {
+  return ICON_KEYWORDS.find(([re]) => re.test(name))?.[1] ?? 'pallet';
 }
 
-const EMPTY_TYPE: TypeForm = { name: '', code: '', category: '', description: '', status: 'Active' };
+function toModel(m: AppAssetModel): AssetModel {
+  return { id: m.id, name: m.name, code: m.code, manufacturerId: m.manufacturerId, manufacturer: m.manufacturer, assetCount: 0, status: m.status };
+}
+
+const EMPTY_TYPE: TypeForm = { name: '', code: '', categoryId: '', description: '', status: 'Active' };
 const EMPTY_MODEL: ModelForm = { name: '', code: '', manufacturer: '', status: 'Active' };
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
@@ -267,16 +238,26 @@ export class AssetTypesModels {
 
   readonly pageSizeOptions = [10, 25, 50];
 
-  types: AssetType[] = buildMockTypes();
-  selectedTypeId: number;
+  types: AssetType[] = [];
+  /** Every asset category, for the category picker and filter. */
+  categories: CategoryOption[] = [];
+  selectedTypeId = '';
   /** Asset Types tab (types table + details) or Models tab (models of every type). */
   tab: PageTab = 'types';
 
+  /** True while types, models and categories are being fetched. */
+  loading = false;
+  /** Set when the page data could not be loaded. */
+  loadError = '';
+  /** True while a create/update/delete request is in flight (guards double submits). */
+  saving = false;
+
   // Types table
   typeSearch = '';
+  /** Category filter (category id), '' for all categories. */
   typeCategory = '';
   typePager = new Pager();
-  checkedTypes = new Set<number>();
+  checkedTypes = new Set<string>();
 
   // Type details (read-only until "Edit")
   editing = false;
@@ -286,10 +267,10 @@ export class AssetTypesModels {
   // Models table
   modelSearch = '';
   /** Asset type filter (type id), '' for all types. */
-  modelType: number | '' = '';
+  modelType: string = '';
   modelStatus: '' | Status = '';
   modelPager = new Pager();
-  checkedModels = new Set<number>();
+  checkedModels = new Set<string>();
 
   // Add-type modal
   typeModalOpen = false;
@@ -302,7 +283,7 @@ export class AssetTypesModels {
   editingModel: AssetModel | null = null;
   modelModal: ModelForm = { ...EMPTY_MODEL };
   /** Asset type the model in the modal belongs to. */
-  modelModalTypeId: number | null = null;
+  modelModalTypeId: string | null = null;
   modelModalSubmitted = false;
 
   openMenu: string | null = null;
@@ -311,15 +292,100 @@ export class AssetTypesModels {
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  constructor(private readonly router: Router) {
-    this.selectedTypeId = this.types.find((t) => t.code === 'TRF')?.id ?? this.types[0].id;
-    this.loadDetailForm();
+  constructor(
+    private readonly router: Router,
+    private readonly api: AssetTypesModelsService,
+  ) {
+    this.load();
+  }
+
+  // ===== Loading =====
+
+  /** Fetches categories, types and models; keeps the current selection when it still exists. */
+  load(): void {
+    this.loading = true;
+    this.loadError = '';
+    forkJoin({ categories: this.api.getCategories(), types: this.api.getTypes(), models: this.api.getModels() }).subscribe({
+      next: ({ categories, types, models }) => {
+        this.loading = false;
+        this.categories = categories;
+        this.types = this.buildTypes(types, models);
+        if (!this.selectedType) {
+          this.selectedTypeId = this.types[0]?.id ?? '';
+          this.editing = false;
+        }
+        if (this.modelType && !this.types.some((t) => t.id === this.modelType)) this.modelType = '';
+        if (!this.editing) this.loadDetailForm();
+      },
+      error: (err) => {
+        this.loading = false;
+        this.loadError = apiErrorMessage(err, 'Could not load asset types and models.');
+      },
+    });
+  }
+
+  private buildTypes(types: AppAssetType[], models: AppAssetModel[]): AssetType[] {
+    const byType = new Map<string, AssetModel[]>();
+    for (const m of models) {
+      const list = byType.get(m.assetTypeId) ?? [];
+      list.push(toModel(m));
+      byType.set(m.assetTypeId, list);
+    }
+    return types.map((t) => this.toType(t, byType.get(t.id) ?? []));
+  }
+
+  private toType(t: AppAssetType, models: AssetModel[]): AssetType {
+    return {
+      id: t.id,
+      name: t.name,
+      code: t.code,
+      categoryId: t.categoryId,
+      category: t.categoryName || this.categoryName(t.categoryId),
+      description: t.description,
+      status: t.status,
+      icon: iconFor(t.name),
+      image: t.imageUrl ?? undefined,
+      models,
+    };
+  }
+
+  private typeRequest(t: AssetType, overrides: Partial<AssetTypeFormValue> = {}): AssetTypeFormValue {
+    return {
+      categoryId: t.categoryId,
+      name: t.name,
+      code: t.code,
+      description: t.description,
+      status: t.status,
+      imageUrl: t.image ?? null,
+      ...overrides,
+    };
+  }
+
+  private modelRequest(m: AssetModel, typeId: string, status: Status = m.status) {
+    return { assetTypeId: typeId, name: m.name, code: m.code, manufacturerId: m.manufacturerId, manufacturer: m.manufacturer, status };
   }
 
   // ===== Lookups =====
 
-  get categoryOptions(): string[] {
-    return [...new Set(this.types.map((t) => t.category))].sort((a, b) => a.localeCompare(b));
+  /** Categories for the pickers, labelled with their parent path ("Parent › Child"). */
+  get categoryOptions(): { id: string; label: string }[] {
+    const byId = new Map(this.categories.map((c) => [c.id, c]));
+    const label = (c: CategoryOption): string => {
+      const names: string[] = [];
+      const seen = new Set<string>();
+      let current: CategoryOption | undefined = c;
+      while (current && !seen.has(current.id)) {
+        seen.add(current.id);
+        names.unshift(current.name);
+        current = current.parentId ? byId.get(current.parentId) : undefined;
+      }
+      return names.join(' › ');
+    };
+    return this.categories.map((c) => ({ id: c.id, label: label(c) })).sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  categoryName(id: string): string {
+    return this.categories.find((c) => c.id === id)?.name ?? '';
   }
 
   get selectedType(): AssetType | null {
@@ -327,7 +393,7 @@ export class AssetTypesModels {
   }
 
   get manufacturerOptions(): string[] {
-    return [...new Set(this.types.flatMap((t) => t.models.map((m) => m.manufacturer)))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(this.types.flatMap((t) => t.models.map((m) => m.manufacturer)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   }
 
   typeAssetCount(t: AssetType): number {
@@ -341,7 +407,7 @@ export class AssetTypesModels {
     return this.types.filter(
       (t) =>
         (!q || [t.name, t.code, t.category, t.description].some((v) => v.toLowerCase().includes(q))) &&
-        (!this.typeCategory || t.category === this.typeCategory),
+        (!this.typeCategory || t.categoryId === this.typeCategory),
     );
   }
 
@@ -400,17 +466,26 @@ export class AssetTypesModels {
     this.pageTypes.forEach((t) => (on ? this.checkedTypes.add(t.id) : this.checkedTypes.delete(t.id)));
   }
 
-  toggleChecked(set: Set<number>, id: number): void {
+  toggleChecked(set: Set<string>, id: string): void {
     if (set.has(id)) set.delete(id);
     else set.add(id);
   }
 
   setTypeStatusForChecked(status: Status): void {
     const rows = this.types.filter((t) => this.checkedTypes.has(t.id));
-    rows.forEach((t) => (t.status = status));
-    this.checkedTypes.clear();
-    this.showToast(`${rows.length} asset type${rows.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`);
-    this.loadDetailForm();
+    if (!rows.length) return;
+    forkJoin(rows.map((t) => this.api.updateType(t.id, this.typeRequest(t, { status })))).subscribe({
+      next: () => {
+        rows.forEach((t) => (t.status = status));
+        this.checkedTypes.clear();
+        this.showToast(`${rows.length} asset type${rows.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`);
+        if (!this.editing) this.loadDetailForm();
+      },
+      error: (err) => {
+        this.showToast(apiErrorMessage(err, 'Could not update the status of every selected asset type.'));
+        this.load();
+      },
+    });
   }
 
   // ===== Type details =====
@@ -418,7 +493,7 @@ export class AssetTypesModels {
   private loadDetailForm(): void {
     const t = this.selectedType;
     this.detailForm = t
-      ? { name: t.name, code: t.code, category: t.category, description: t.description, status: t.status }
+      ? { name: t.name, code: t.code, categoryId: t.categoryId, description: t.description, status: t.status }
       : { ...EMPTY_TYPE };
     this.detailSubmitted = false;
   }
@@ -436,32 +511,42 @@ export class AssetTypesModels {
 
   saveDetails(): void {
     const t = this.selectedType;
-    if (!t) return;
+    if (!t || this.saving) return;
     this.detailSubmitted = true;
     const error = this.validateType(this.detailForm, t.id);
     if (error) {
       this.showToast(error);
       return;
     }
-    Object.assign(t, this.cleanType(this.detailForm));
-    this.editing = false;
-    this.loadDetailForm();
-    this.showToast(`${t.name} updated.`);
+    this.saving = true;
+    this.api.updateType(t.id, this.typeRequest(t, this.cleanType(this.detailForm))).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        Object.assign(t, this.toType(saved, t.models));
+        this.editing = false;
+        this.loadDetailForm();
+        this.showToast(`${t.name} updated.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.showToast(apiErrorMessage(err, 'Could not save the asset type.'));
+      },
+    });
   }
 
   private cleanType(f: TypeForm): TypeForm {
-    return { ...f, name: f.name.trim(), code: f.code.trim().toUpperCase(), category: f.category.trim(), description: f.description.trim() };
+    return { ...f, name: f.name.trim(), code: f.code.trim().toUpperCase(), categoryId: f.categoryId.trim(), description: f.description.trim() };
   }
 
-  isTypeCodeTaken(code: string, exceptId: number | null): boolean {
+  isTypeCodeTaken(code: string, exceptId: string | null): boolean {
     const c = code.trim().toUpperCase();
     return !!c && this.types.some((t) => t.id !== exceptId && t.code.toUpperCase() === c);
   }
 
-  private validateType(f: TypeForm, exceptId: number | null): string | null {
+  private validateType(f: TypeForm, exceptId: string | null): string | null {
     if (!f.name.trim()) return 'Type name is required.';
     if (!f.code.trim()) return 'Type code is required.';
-    if (!f.category.trim()) return 'Category is required.';
+    if (!f.categoryId.trim()) return 'Category is required.';
     if (this.isTypeCodeTaken(f.code, exceptId)) return `Code "${f.code.trim().toUpperCase()}" is already used by another type.`;
     return null;
   }
@@ -481,28 +566,42 @@ export class AssetTypesModels {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
-      target.image = reader.result as string;
-      this.showToast('Type image updated.');
-    };
+    reader.onload = () => this.saveImage(target, reader.result as string, 'Type image updated.');
     reader.readAsDataURL(file);
   }
 
   removeImage(): void {
-    if (this.selectedType) this.selectedType.image = undefined;
+    if (this.selectedType) this.saveImage(this.selectedType, null, 'Type image removed.');
+  }
+
+  /** The image is stored on the type itself (PUT with imageUrl); other fields keep their saved values. */
+  private saveImage(target: AssetType, image: string | null, message: string): void {
+    this.api.updateType(target.id, this.typeRequest(target, { imageUrl: image })).subscribe({
+      next: (saved) => {
+        target.image = saved.imageUrl ?? undefined;
+        this.showToast(message);
+      },
+      error: (err) => this.showToast(apiErrorMessage(err, 'Could not update the type image.')),
+    });
   }
 
   toggleTypeStatus(t: AssetType): void {
     this.openMenu = null;
-    t.status = t.status === 'Active' ? 'Inactive' : 'Active';
-    if (t.id === this.selectedTypeId) this.loadDetailForm();
-    this.showToast(`${t.name} is now ${t.status.toLowerCase()}.`);
+    const status: Status = t.status === 'Active' ? 'Inactive' : 'Active';
+    this.api.updateType(t.id, this.typeRequest(t, { status })).subscribe({
+      next: (saved) => {
+        t.status = saved.status;
+        if (t.id === this.selectedTypeId && !this.editing) this.loadDetailForm();
+        this.showToast(`${t.name} is now ${t.status.toLowerCase()}.`);
+      },
+      error: (err) => this.showToast(apiErrorMessage(err, `Could not change the status of ${t.name}.`)),
+    });
   }
 
   // ===== Add type modal =====
 
   openTypeModal(): void {
-    this.typeModal = { ...EMPTY_TYPE, category: this.typeCategory };
+    this.typeModal = { ...EMPTY_TYPE, categoryId: this.typeCategory };
     this.typeModalSubmitted = false;
     this.typeCodeTouched = false;
     this.typeModalOpen = true;
@@ -523,15 +622,27 @@ export class AssetTypesModels {
 
   saveTypeModal(): void {
     this.typeModalSubmitted = true;
-    if (this.validateType(this.typeModal, null)) return;
-    const created: AssetType = { id: nextId++, ...this.cleanType(this.typeModal), icon: 'pallet', models: [] };
-    this.types.push(created);
-    this.typeModalOpen = false;
-    this.typeSearch = '';
-    this.typeCategory = '';
-    this.typePager.page = this.typePager.totalPages(this.types.length);
-    this.selectType(created);
-    this.showToast(`${created.name} added.`);
+    if (this.validateType(this.typeModal, null) || this.saving) return;
+    this.saving = true;
+    this.api.createType(this.cleanType(this.typeModal)).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        const created = this.toType(saved, []);
+        this.types.push(created);
+        this.types.sort((a, b) => a.name.localeCompare(b.name));
+        this.typeModalOpen = false;
+        this.typeSearch = '';
+        this.typeCategory = '';
+        const index = this.types.indexOf(created);
+        this.typePager.page = Math.floor(index / this.typePager.size) + 1;
+        this.selectType(created);
+        this.showToast(`${created.name} added.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.showToast(apiErrorMessage(err, 'Could not add the asset type.'));
+      },
+    });
   }
 
   // ===== Models table =====
@@ -584,15 +695,32 @@ export class AssetTypesModels {
 
   setModelStatusForChecked(status: Status): void {
     const rows = this.modelRows.filter((r) => this.checkedModels.has(r.m.id));
-    rows.forEach((r) => (r.m.status = status));
-    this.checkedModels.clear();
-    this.showToast(`${rows.length} model${rows.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`);
+    if (!rows.length) return;
+    forkJoin(rows.map((r) => this.api.updateModel(r.m.id, this.modelRequest(r.m, r.t.id, status)))).subscribe({
+      next: () => {
+        rows.forEach((r) => (r.m.status = status));
+        this.checkedModels.clear();
+        this.showToast(`${rows.length} model${rows.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`);
+      },
+      error: (err) => {
+        this.showToast(apiErrorMessage(err, 'Could not update the status of every selected model.'));
+        this.load();
+      },
+    });
   }
 
   toggleModelStatus(m: AssetModel): void {
     this.openMenu = null;
-    m.status = m.status === 'Active' ? 'Inactive' : 'Active';
-    this.showToast(`${m.name} is now ${m.status.toLowerCase()}.`);
+    const t = this.typeOf(m);
+    if (!t) return;
+    const status: Status = m.status === 'Active' ? 'Inactive' : 'Active';
+    this.api.updateModel(m.id, this.modelRequest(m, t.id, status)).subscribe({
+      next: (saved) => {
+        m.status = saved.status;
+        this.showToast(`${m.name} is now ${m.status.toLowerCase()}.`);
+      },
+      error: (err) => this.showToast(apiErrorMessage(err, `Could not change the status of ${m.name}.`)),
+    });
   }
 
   viewModelAssets(m: AssetModel): void {
@@ -611,7 +739,7 @@ export class AssetTypesModels {
     this.editingModel = m ?? null;
     this.modelModal = m ? { name: m.name, code: m.code, manufacturer: m.manufacturer, status: m.status } : { ...EMPTY_MODEL };
     // a new model goes to the type the table is filtered to, else the selected type
-    this.modelModalTypeId = m ? (this.typeOf(m)?.id ?? null) : this.modelType === '' ? this.selectedTypeId : this.modelType;
+    this.modelModalTypeId = m ? (this.typeOf(m)?.id ?? null) : this.modelType === '' ? this.selectedTypeId || null : this.modelType;
     this.modelModalSubmitted = false;
     this.modelModalOpen = true;
   }
@@ -626,29 +754,53 @@ export class AssetTypesModels {
     this.modelModalSubmitted = true;
     const f = this.modelModal;
     const t = this.modalType;
-    if (!t || !f.name.trim() || !f.code.trim() || !f.manufacturer.trim() || this.isModelCodeTaken(f.code)) return;
+    if (!t || !f.name.trim() || !f.code.trim() || !f.manufacturer.trim() || this.isModelCodeTaken(f.code) || this.saving) return;
 
     const values = { name: f.name.trim(), code: f.code.trim().toUpperCase(), manufacturer: f.manufacturer.trim(), status: f.status };
     const m = this.editingModel;
+    // Keep the manufacturer id only while the manufacturer name is unchanged.
+    const manufacturerId = m && m.manufacturer === values.manufacturer ? m.manufacturerId : null;
+    const request = { assetTypeId: t.id, manufacturerId, ...values };
+    this.saving = true;
+
     if (m) {
-      Object.assign(m, values);
-      // moved to another asset type
-      const from = this.typeOf(m);
-      if (from && from !== t) {
-        from.models.splice(from.models.indexOf(m), 1);
-        t.models.push(m);
-      }
-      this.showToast(`${values.name} updated.`);
+      this.api.updateModel(m.id, request).subscribe({
+        next: (saved) => {
+          this.saving = false;
+          Object.assign(m, { ...toModel(saved), assetCount: m.assetCount });
+          // moved to another asset type
+          const from = this.typeOf(m);
+          if (from && from !== t) {
+            from.models.splice(from.models.indexOf(m), 1);
+            t.models.push(m);
+          }
+          this.modelModalOpen = false;
+          this.showToast(`${values.name} updated.`);
+        },
+        error: (err) => {
+          this.saving = false;
+          this.showToast(apiErrorMessage(err, 'Could not save the model.'));
+        },
+      });
     } else {
-      t.models.push({ id: nextId++, assetCount: 0, ...values });
-      // show the new model: filter to its type and go to the last page
-      this.modelType = t.id;
-      this.modelSearch = '';
-      this.modelStatus = '';
-      this.modelPager.page = this.modelPager.totalPages(t.models.length);
-      this.showToast(`${values.name} added to ${t.name}.`);
+      this.api.createModel(request).subscribe({
+        next: (saved) => {
+          this.saving = false;
+          t.models.push(toModel(saved));
+          // show the new model: filter to its type and go to the last page
+          this.modelType = t.id;
+          this.modelSearch = '';
+          this.modelStatus = '';
+          this.modelPager.page = this.modelPager.totalPages(t.models.length);
+          this.modelModalOpen = false;
+          this.showToast(`${values.name} added to ${t.name}.`);
+        },
+        error: (err) => {
+          this.saving = false;
+          this.showToast(apiErrorMessage(err, 'Could not add the model.'));
+        },
+      });
     }
-    this.modelModalOpen = false;
   }
 
   // ===== Delete =====
@@ -674,23 +826,35 @@ export class AssetTypesModels {
 
   confirmDelete(): void {
     const target = this.deleteTarget;
-    if (!target) return;
-    if (target.kind === 'type') {
-      this.types = this.types.filter((t) => t !== target.item);
-      this.checkedTypes.delete(target.item.id);
-      if (this.modelType === target.item.id) this.modelType = '';
-      if (target.item.id === this.selectedTypeId) {
-        this.selectedTypeId = this.filteredTypes[0]?.id ?? this.types[0]?.id ?? -1;
-        this.editing = false;
-        this.loadDetailForm();
-      }
-    } else {
-      const models = this.typeOf(target.item)?.models ?? [];
-      models.splice(models.indexOf(target.item), 1);
-      this.checkedModels.delete(target.item.id);
-    }
-    this.showToast(`${target.item.name} deleted.`);
-    this.deleteTarget = null;
+    if (!target || this.saving) return;
+    this.saving = true;
+    const request = target.kind === 'type' ? this.api.deleteType(target.item.id) : this.api.deleteModel(target.item.id);
+    request.subscribe({
+      next: () => {
+        this.saving = false;
+        if (target.kind === 'type') {
+          this.types = this.types.filter((t) => t !== target.item);
+          this.checkedTypes.delete(target.item.id);
+          if (this.modelType === target.item.id) this.modelType = '';
+          if (target.item.id === this.selectedTypeId) {
+            this.selectedTypeId = this.filteredTypes[0]?.id ?? this.types[0]?.id ?? '';
+            this.editing = false;
+            this.loadDetailForm();
+          }
+        } else {
+          const models = this.typeOf(target.item)?.models ?? [];
+          models.splice(models.indexOf(target.item), 1);
+          this.checkedModels.delete(target.item.id);
+        }
+        this.showToast(`${target.item.name} deleted.`);
+        this.deleteTarget = null;
+      },
+      error: (err) => {
+        this.saving = false;
+        this.deleteTarget = null;
+        this.showToast(apiErrorMessage(err, `Could not delete ${target.item.name}.`));
+      },
+    });
   }
 
   // ===== Menus =====
@@ -713,7 +877,7 @@ export class AssetTypesModels {
     this.deleteTarget = null;
   }
 
-  trackById(_: number, row: { id: number }): number {
+  trackById(_: number, row: { id: string }): string {
     return row.id;
   }
 

@@ -28,8 +28,16 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetHeader, AssetTabLink, assetHeader, assetTabs, findAsset } from 'shared-ui';
-import { HealthData, HealthRecord, HealthStatus, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
+import { Subscription, forkJoin, from } from 'rxjs';
+import { ASSET_TYPE_ICONS, AssetHeader, AssetTabLink, AuthService, Criticality, assetTabs } from 'shared-ui';
+import { HealthData, HealthRecord, HealthStatus, MaintenanceTask, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
+import { apiErrorMessage } from '../services/asset-api';
+import { AssetLookupService, EMPTY_HEADER } from '../asset-status-condition/asset-lookup.service';
+import { ConditionAssessment } from '../asset-status-condition/asset-condition.service';
+import { CriticalityAssessment } from '../asset-criticality/asset-criticality.service';
+import { AssetHealthScoreService, HealthOverrides, buildHealth, healthStatus } from './asset-health-score.service';
+
+export { healthStatus } from './asset-health-score.service';
 
 type Range = 6 | 12;
 
@@ -41,7 +49,6 @@ interface TrendPoint {
   r: HealthRecord;
 }
 
-const CURRENT_USER = 'Rex Kumar';
 
 /** Trend chart geometry in SVG user units; the SVG scales to its container. */
 const CHART = { w: 600, h: 230, left: 40, right: 20, top: 20, bottom: 30 };
@@ -58,8 +65,8 @@ const STATUS_ADVICE: Record<HealthStatus, string> = {
   Critical: 'Immediate action required',
 };
 
-/** Health of each asset, kept in memory so edits survive moving between tabs (DEMO MODE). */
-const HEALTH = new Map<string, HealthData>();
+/** Method / next assessment edited on the page; the Asset API has no field for them, so they are kept in memory per asset. */
+const OVERRIDES = new Map<string, HealthOverrides>();
 
 function toIsoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -70,14 +77,6 @@ function parseDate(iso: string): Date {
   return new Date(y, m - 1, d);
 }
 
-function addMonths(iso: string, months: number): string {
-  const d = parseDate(iso);
-  return toIsoDate(new Date(d.getFullYear(), d.getMonth() + months, d.getDate()));
-}
-
-export function healthStatus(score: number): HealthStatus {
-  return score >= 85 ? 'Healthy' : score >= 70 ? 'Good' : score >= 55 ? 'Fair' : score >= 40 ? 'Poor' : 'Critical';
-}
 
 @Component({
   selector: 'app-asset-health-score',
@@ -106,9 +105,24 @@ export class AssetHealthScore implements OnDestroy {
 
   @ViewChild('historyEl') private historyEl?: ElementRef<HTMLElement>;
 
+  private readonly lookup = inject(AssetLookupService);
+  private readonly api = inject(AssetHealthScoreService);
+  private readonly auth = inject(AuthService);
+  private loadSub?: Subscription;
+
   /** The asset named by ?tag=; when it is missing or unknown the page shows a "not found" message. */
-  asset: AssetHeader = assetHeader(ASSET_RECORDS[0]);
+  asset: AssetHeader = EMPTY_HEADER;
+  /** assetRegistrationId of the asset, the key of the Asset API. */
+  assetId = '';
   notFound = false;
+  /** Set when the Asset API could not be read. */
+  loadError = '';
+  saving = false;
+  /** Data the health is worked out from. */
+  private assessments: ConditionAssessment[] = [];
+  private criticality: CriticalityAssessment | null = null;
+  /** DEMO MODE: no maintenance plan API in this module; from the asset's sample data file when there is one. */
+  private maintenancePlan: MaintenanceTask[] = [];
   requestedTag = '';
   readonly tabs: AssetTabLink[] = assetTabs('Asset Health Score');
 
@@ -142,51 +156,76 @@ export class AssetHealthScore implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.loadSub?.unsubscribe();
     clearTimeout(this.toastTimer);
   }
 
   // ===== Loading =====
 
   private load(tag: string | null): void {
-    tag ??= ASSET_RECORDS[0].tag; // opened from the menu without an asset: show the first one
-    const record = findAsset(tag);
     this.requestedTag = tag ?? '';
-    this.notFound = !record;
-    if (!record) return;
-    this.asset = assetHeader(record);
-    this.health = HEALTH.get(record.tag) ?? null;
+    this.notFound = false;
+    this.loadError = '';
+    this.health = null;
     this.historyAll = this.insightsAll = false;
     this.hoverIndex = null;
     this.detailsForm = null;
     this.planOpen = false;
     this.closeMenus();
     this.loading = true;
-    loadAssetDetail(record.tag).then((detail) => {
-      if (this.requestedTag !== record.tag) return; // the user moved on to another asset
-      this.loading = false;
-      if (detail) this.health = this.stateFor(record.tag, detail.health);
+    this.loadSub?.unsubscribe();
+    this.loadSub = this.lookup.resolve(tag).subscribe({
+      next: (found) => {
+        if (!found) {
+          this.loading = false;
+          this.notFound = true;
+          return;
+        }
+        this.asset = found.header;
+        this.assetId = found.id;
+        this.loadSub = forkJoin({ source: this.api.load(found.id), detail: from(loadAssetDetail(found.header.tag)) }).subscribe({
+          next: ({ source, detail }) => {
+            this.loading = false;
+            this.assessments = source.assessments;
+            this.criticality = source.criticality;
+            if (source.criticality) this.asset = { ...this.asset, criticality: source.criticality.level as Criticality };
+            this.maintenancePlan = detail ? cloneDetail(detail.health.maintenancePlan) : [];
+            this.rebuild();
+          },
+          error: (err) => this.failLoad(err),
+        });
+      },
+      error: (err) => this.failLoad(err),
     });
   }
 
-  private stateFor(tag: string, fromFile: HealthData): HealthData {
-    let state = HEALTH.get(tag);
-    if (!state) {
-      state = cloneDetail(fromFile);
-      HEALTH.set(tag, state);
-    }
-    return state;
+  private failLoad(err: unknown): void {
+    this.loading = false;
+    this.loadError = apiErrorMessage(err, 'Could not load the health data.');
+    this.showToast(this.loadError);
   }
 
-  /** Loads every asset's health once, for the Health Index card. */
+  /** Works the health out again from the loaded assessments. */
+  private rebuild(): void {
+    this.health = buildHealth(this.assessments, this.criticality, this.maintenancePlan, OVERRIDES.get(this.assetId) ?? {}, this.today);
+  }
+
+  /** Latest condition assessment (by date). */
+  private get latest(): ConditionAssessment | undefined {
+    return [...this.assessments].sort((a, b) => b.date.localeCompare(a.date))[0];
+  }
+
+  /** Health Index card, from the latest assessment of every asset. */
   private loadIndex(): void {
-    Promise.all(ASSET_RECORDS.map((a) => loadAssetDetail(a.tag).then((d) => (d ? this.stateFor(a.tag, d.health) : null)))).then(() => {
-      this.refreshIndex();
-    });
+    this.api.healthIndex().subscribe({ next: (v) => (this.healthIndex = v), error: () => (this.healthIndex = null) });
   }
 
   private refreshIndex(): void {
-    const all = ASSET_RECORDS.map((a) => HEALTH.get(a.tag)).filter((h): h is HealthData => !!h);
-    this.healthIndex = all.length ? Math.round((all.filter((h) => h.status === 'Healthy' || h.status === 'Good').length / all.length) * 100) : null;
+    this.loadIndex();
+  }
+
+  private get currentUser(): string {
+    return this.auth.getUserEmail() ?? '';
   }
 
   // ===== Tones =====
@@ -313,17 +352,31 @@ export class AssetHealthScore implements OnDestroy {
   runHealthCheck(): void {
     this.closeMenus();
     const h = this.health;
-    if (!h) return;
+    const latest = this.latest;
+    if (!h || !latest || this.saving) return;
     if (this.asset.status === 'Disposed') {
       this.showToast('This asset has been disposed; health checks are no longer recorded.');
       return;
     }
     const score = Math.round(h.breakdown.reduce((s, c) => s + (c.score * c.weight) / 100, 0));
     const status = healthStatus(score);
-    h.history = [{ date: this.today, score, status, trigger: 'Manual', comments: 'Manual health check', assessedBy: CURRENT_USER }, ...h.history];
-    Object.assign(h, { score, status, assessmentDate: this.today, nextAssessment: addMonths(this.today, 1), assessedBy: CURRENT_USER });
-    this.refreshIndex();
-    this.showToast(`Health check recorded: ${score} / 100 (${status}).`);
+    this.saving = true;
+    this.api.recordHealthCheck(this.assetId, latest, score, this.currentUser, this.today).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.assessments = [...this.assessments, saved];
+        // A new assessment is scheduled from this one
+        const o = OVERRIDES.get(this.assetId);
+        if (o) delete o.nextAssessment;
+        this.rebuild();
+        this.refreshIndex();
+        this.showToast(`Health check recorded: ${score} / 100 (${status}).`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.showToast(apiErrorMessage(err, 'The health check could not be recorded.'));
+      },
+    });
   }
 
   openDetailsEdit(): void {
@@ -336,14 +389,38 @@ export class AssetHealthScore implements OnDestroy {
 
   saveDetails(): void {
     const f = this.detailsForm;
-    if (!f || !this.health) return;
+    const latest = this.latest;
+    if (!f || !this.health || !latest || this.saving) return;
     if (!f.method.trim() || !f.assessedBy.trim()) {
       this.formError = 'Enter the assessment method and who assessed the asset.';
       return;
     }
-    Object.assign(this.health, { method: f.method.trim(), assessedBy: f.assessedBy.trim(), nextAssessment: f.nextAssessment, remarks: f.remarks.trim() });
-    this.detailsForm = null;
-    this.showToast('Asset health details saved.');
+    const done = () => {
+      OVERRIDES.set(this.assetId, { method: f.method.trim(), nextAssessment: f.nextAssessment });
+      this.rebuild();
+      this.detailsForm = null;
+      this.showToast('Asset health details saved.');
+    };
+    const assessedBy = f.assessedBy.trim();
+    const remarks = f.remarks.trim();
+    if (assessedBy === latest.assessedBy && remarks === latest.remarks) {
+      done();
+      return;
+    }
+    // Assessed By and Remarks belong to the latest condition assessment
+    this.saving = true;
+    this.formError = '';
+    this.api.updateLatest(latest, assessedBy, remarks).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.assessments = this.assessments.map((a) => (a.id === saved.id ? saved : a));
+        done();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.formError = apiErrorMessage(err, 'The health details could not be saved.');
+      },
+    });
   }
 
   openPlan(): void {

@@ -1,4 +1,5 @@
 import { Component, DestroyRef, HostListener, OnDestroy, ViewChild, inject } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -45,6 +46,9 @@ import { ServiceRequest, SrKpis, srKpis } from './maintenance-sr';
 import { ServiceRequests, SrWorkOrderRequest } from './service-requests/service-requests';
 import { PartReservation, PartUsage, SparePart, isStocked } from './maintenance-parts';
 import { SpareParts } from './spare-parts/spare-parts';
+import { MaintenanceApiService, buildMaintenanceData, emptyMaintenanceData } from './maintenance-api.service';
+import { AssetLookupService, toAssetRecord } from './asset-lookup.service';
+import { apiErrorMessage } from '../services/asset-api';
 
 type Tab = 'overview' | 'workOrders' | 'pm' | 'predictive' | 'requests' | 'history' | 'costs' | 'parts' | 'documents';
 type WoType = 'Preventive' | 'Corrective' | 'Inspection' | 'Service';
@@ -52,6 +56,8 @@ type WoStatus = 'Completed' | 'In Progress' | 'Scheduled' | 'Open';
 
 export interface WorkOrder {
   id: string;
+  /** Record id in the Maintenance service (set once saved there). */
+  apiId?: string;
   date: string;
   type: WoType;
   description: string;
@@ -229,7 +235,20 @@ export class AssetMaintenance implements OnDestroy {
   readonly Math = Math;
 
   asset: AssetRecord = findAsset('GEN-00045') ?? ASSET_RECORDS[0];
-  data: MaintenanceData = dataFor(this.asset);
+  /** The asset's records from the Maintenance service and the Asset API (empty until loaded). */
+  data: MaintenanceData = emptyMaintenanceData(this.asset);
+  loading = false;
+  /** Sources that could not be loaded; the rest of the page still shows. */
+  loadError = '';
+  /** Asset registration id in the Asset API (service requests are kept against it). */
+  registrationId = '';
+  private loadSub?: Subscription;
+  /** Tag whose records are loaded (or loading). */
+  private loadedTag = '';
+  /** ?wo= work order to open once the records are in. */
+  private pendingWo = '';
+  private readonly api = inject(MaintenanceApiService);
+  private readonly lookup = inject(AssetLookupService);
   health: number | null = null;
   plan: MaintenanceTask[] = [];
   tab: Tab = 'overview';
@@ -279,23 +298,71 @@ export class AssetMaintenance implements OnDestroy {
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef)))
       .subscribe((p) => {
-        this.setAsset(findAsset(p.get('tag')) ?? this.asset);
+        const tag = p.get('tag');
+        const known = findAsset(tag);
+        if (known || !tag) this.setAsset(known ?? this.asset);
+        else this.openRegistered(tag);
         // ?tab=costs opens a section directly
         const tab = p.get('tab') as Tab | null;
         if (tab && this.tabs.some((t) => t.key === tab)) this.tab = tab;
         // ?wo=WO-2026-081 opens that work order (from a service request)
         const wo = p.get('wo');
-        if (wo) this.showWorkOrder(wo);
+        if (wo) {
+          if (this.loading || !this.data.workOrders.length) this.pendingWo = wo;
+          else this.showWorkOrder(wo);
+        }
       });
   }
 
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
+    this.loadSub?.unsubscribe();
+  }
+
+  /** A tag that is only in the Asset API (not in the sample register). */
+  private openRegistered(tag: string): void {
+    this.lookup.byTag(tag).subscribe({
+      next: (item) => (item ? this.setAsset(toAssetRecord(item)) : this.showToast(`Asset ${tag} was not found.`)),
+      error: (err) => this.showToast(apiErrorMessage(err)),
+    });
+  }
+
+  /** (Re)loads the asset's maintenance records. */
+  reload(): void {
+    const a = this.asset;
+    this.loadedTag = a.tag;
+    this.loadSub?.unsubscribe();
+    this.loading = true;
+    this.loadError = '';
+    this.loadSub = this.api.load(a).subscribe({
+      next: (load) => {
+        if (this.asset.tag !== a.tag) return;
+        this.loading = false;
+        if (load.registration) {
+          this.registrationId = load.registration.assetRegistrationId;
+          this.asset = toAssetRecord(load.registration);
+        }
+        this.data = buildMaintenanceData(this.asset, load);
+        this.loadError = load.errors.length ? `Some records could not be loaded. ${load.errors.join(' · ')}` : '';
+        if (this.pendingWo) this.showWorkOrder(this.pendingWo);
+        this.pendingWo = '';
+      },
+      error: (err) => {
+        this.loading = false;
+        this.pendingWo = '';
+        this.loadError = apiErrorMessage(err);
+      },
+    });
   }
 
   private setAsset(a: AssetRecord): void {
+    // switching tabs (?tab=) keeps the loaded records
+    if (a.tag === this.loadedTag) return;
+    this.loadedTag = a.tag;
     this.asset = a;
-    this.data = dataFor(a);
+    this.data = emptyMaintenanceData(a);
+    this.registrationId = '';
+    this.reload();
     this.health = null;
     this.plan = [];
     this.commissioned = '';
@@ -1035,26 +1102,44 @@ export class AssetMaintenance implements OnDestroy {
     const f = this.woForm;
     if (!f) return;
     if (!f.description.trim() || !f.date) return void (this.woError = 'Enter the description and the date.');
-    const n = Math.max(0, ...this.data.workOrders.map((w) => Number(w.id.split('-')[2]) || 0)) + 1;
-    const id = `WO-${this.data.year}-${String(n).padStart(3, '0')}`;
-    this.data.workOrders = [
-      { id, date: f.date, type: f.type, description: f.description.trim(), labor: 0, parts: 0, service: 0, downtimeMin: 0, reason: '', status: 'Open', technician: f.technician.trim() || CURRENT_USER },
-      ...this.data.workOrders,
-    ];
-    this.woForm = null;
-    if (this.pendingRequest) {
-      this.srTab?.linkWorkOrder(this.pendingRequest, id, f.technician.trim() || CURRENT_USER);
-      this.pendingRequest = null;
-    }
-    this.logActivity(`${id} created (${f.type})`, 'created');
-    this.showToast(`${id} created for ${this.asset.tag}.`);
+    const head = `WO-${this.data.year}-`;
+    const n = Math.max(0, ...this.data.workOrders.filter((w) => w.id.startsWith(head)).map((w) => Number(w.id.split('-')[2]) || 0)) + 1;
+    const id = `${head}${String(n).padStart(3, '0')}`;
+    const technician = f.technician.trim() || this.api.user || CURRENT_USER;
+    const pending = this.pendingRequest;
+    this.woSaving = true;
+    this.api.createWorkOrder(this.asset, { id, type: f.type, description: f.description.trim(), date: f.date, technician, priority: pending ? 'High' : 'Medium' }).subscribe({
+      next: (wo) => {
+        this.woSaving = false;
+        this.data.workOrders = [wo, ...this.data.workOrders];
+        this.woForm = null;
+        if (pending) {
+          this.srTab?.linkWorkOrder(pending, wo.id, technician);
+          this.pendingRequest = null;
+        }
+        this.logActivity(`${wo.id} created (${f.type})`, 'created');
+        this.showToast(`${wo.id} created for ${this.asset.tag}.`);
+      },
+      error: (err) => {
+        this.woSaving = false;
+        this.woError = apiErrorMessage(err, 'The work order could not be created.');
+      },
+    });
   }
 
+  /** True while a new work order is being saved. */
+  woSaving = false;
+
   complete(w: WorkOrder): void {
-    w.status = 'Completed';
     this.menuOpen = '';
-    this.logActivity(`${w.id} marked as Completed`, 'done');
-    this.showToast(`${w.id} marked completed. Add its costs from the work order.`);
+    this.api.setWorkOrderStatus(w, 'Completed').subscribe({
+      next: () => {
+        w.status = 'Completed';
+        this.logActivity(`${w.id} marked as Completed`, 'done');
+        this.showToast(`${w.id} marked completed. Add its costs from the work order.`);
+      },
+      error: (err) => this.showToast(apiErrorMessage(err, `${w.id} could not be updated.`)),
+    });
   }
 
   export(kind: 'xlsx' | 'csv' = 'xlsx'): void {

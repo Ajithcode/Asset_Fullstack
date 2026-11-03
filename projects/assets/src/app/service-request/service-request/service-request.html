@@ -40,8 +40,11 @@
     </div>
   </div>
 
-  <div *ngIf="!request" class="card panel srd-missing">
-    <p>Service request <strong>{{ requestId }}</strong> was not found for {{ asset.tag }}.</p>
+  <div *ngIf="loading" class="card panel srd-missing"><p>Loading service request…</p></div>
+
+  <div *ngIf="!request && !loading" class="card panel srd-missing">
+    <p *ngIf="loadError; else notFoundMsg">{{ loadError }}</p>
+    <ng-template #notFoundMsg><p>Service request <strong>{{ requestId || '(latest)' }}</strong> was not found for {{ asset.tag }}.</p></ng-template>
     <button type="button" class="btn btn-outline btn-sm" (click)="back()"><lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon>Back to Service Requests</button>
   </div>
 
@@ -62,13 +65,12 @@
             </span></span>
           <span class="menu-wrap"><button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('more', $event)" aria-haspopup="menu">More Actions<lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon></button>
             <span *ngIf="menuOpen === 'more'" class="menu" role="menu" (click)="$event.stopPropagation()">
-              <button type="button" role="menuitem" (click)="openEdit()" [disabled]="r.status === 'Closed'">Edit / assign</button>
-              <button *ngIf="r.status === 'Open' || r.status === 'In Progress'" type="button" role="menuitem" (click)="setStatus('Resolved')">Mark resolved</button>
-              <button *ngIf="r.status !== 'Closed'" type="button" role="menuitem" (click)="setStatus('Closed')">Close request</button>
-              <button *ngIf="r.status === 'Resolved' || r.status === 'Closed'" type="button" role="menuitem" (click)="reopen()">Reopen</button>
-              <button type="button" role="menuitem" class="danger" (click)="remove()">Delete</button>
+              <button type="button" role="menuitem" (click)="openEdit()" [disabled]="isLocked(r) || busy">Edit / assign</button>
+              <button *ngIf="r.status === 'Draft'" type="button" role="menuitem" (click)="submitDraft()" [disabled]="busy">Submit request</button>
+              <button *ngFor="let a of statusActions(r)" type="button" role="menuitem" [class.danger]="a.status === 'Cancelled'" (click)="setStatus(a.status)" [disabled]="busy">{{ a.label }}</button>
+              <button *ngIf="r.status === 'Draft'" type="button" role="menuitem" class="danger" (click)="remove()" [disabled]="busy">Delete</button>
             </span></span>
-          <button type="button" class="btn btn-primary btn-sm" (click)="convert()" [disabled]="!r.workOrder && (r.status === 'Resolved' || r.status === 'Closed')">
+          <button type="button" class="btn btn-primary btn-sm" (click)="convert()" [disabled]="busy || (!r.workOrder && (isLocked(r) || r.status === 'Draft'))">
             <lucide-icon [img]="icons.Wrench" [size]="15"></lucide-icon>{{ r.workOrder ? 'View ' + r.workOrder : 'Convert to Work Order' }}</button>
         </div>
       </div>
@@ -123,14 +125,14 @@
         </ol>
         <form class="srd-comment" (ngSubmit)="addComment()">
           <textarea class="control sr-textarea" [(ngModel)]="comment" name="comment" rows="2" placeholder="Add a comment or update..." aria-label="Comment"></textarea>
-          <button type="submit" class="btn btn-primary btn-sm" [disabled]="!comment.trim()">Post Update</button>
+          <button type="submit" class="btn btn-primary btn-sm" [disabled]="!comment.trim() || busy || r.status === 'Draft' || r.status === 'Cancelled'">Post Update</button>
         </form>
       </div>
 
       <!-- ===== Attachments ===== -->
       <div *ngIf="tab === 'attachments'" class="srd-body">
-        <div class="srd-sec-head"><h3 class="srd-h grow">Attachments ({{ r.attachments.length }})</h3>
-          <button type="button" class="btn btn-primary btn-sm" (click)="picker.click()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Attachment</button>
+        <div class="srd-sec-head"><h3 class="srd-h grow">Attachments ({{ attachments.length }})</h3>
+          <button type="button" class="btn btn-primary btn-sm" (click)="picker.click()" [disabled]="busy || r.status === 'Cancelled'"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Attachment</button>
           <span class="menu-wrap"><button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('files', $event)" aria-haspopup="menu">More Actions<lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon></button>
             <span *ngIf="menuOpen === 'files'" class="menu" role="menu" (click)="$event.stopPropagation()">
               <button type="button" role="menuitem" class="danger" (click)="removeChecked()" [disabled]="!checked.size">Remove selected{{ checked.size ? ' (' + checked.size + ')' : '' }}</button>
@@ -157,7 +159,7 @@
             </tr></thead>
             <tbody>
               <tr *ngFor="let a of filePage; let i = index">
-                <td class="col-check"><input type="checkbox" [checked]="checked.has(a.name)" (change)="toggleCheck(a.name, $any($event.target).checked)" [attr.aria-label]="'Select ' + a.name" /></td>
+                <td class="col-check"><input type="checkbox" [checked]="checked.has(a.key)" (change)="toggleCheck(a.key, $any($event.target).checked)" [attr.aria-label]="'Select ' + a.name" /></td>
                 <td>{{ page * pageSize + i + 1 }}</td>
                 <td><span class="srd-file">
                   <img *ngIf="a.url && a.kind === 'Image'; else fileIc" class="srd-thumb" [src]="a.url" alt="" />
@@ -169,8 +171,8 @@
                 <td class="nowrap">{{ fmtDateTime(a.at) }}</td>
                 <td class="nowrap">{{ a.size }}</td>
                 <td class="col-act"><span class="menu-wrap">
-                  <button type="button" class="icon-btn" (click)="toggleMenu('file-' + a.name, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + a.name"><lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon></button>
-                  <span *ngIf="menuOpen === 'file-' + a.name" class="menu" role="menu" (click)="$event.stopPropagation()">
+                  <button type="button" class="icon-btn" (click)="toggleMenu('file-' + a.key, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + a.name"><lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon></button>
+                  <span *ngIf="menuOpen === 'file-' + a.key" class="menu" role="menu" (click)="$event.stopPropagation()">
                     <button type="button" role="menuitem" (click)="openFile(a)">Open</button>
                     <button type="button" role="menuitem" class="danger" (click)="removeFile(a)">Remove</button>
                   </span></span></td>
@@ -226,7 +228,7 @@
                   <button type="button" class="icon-btn" (click)="toggleMenu('wo-' + w.id, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + w.id"><lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon></button>
                   <span *ngIf="menuOpen === 'wo-' + w.id" class="menu" role="menu" (click)="$event.stopPropagation()">
                     <button type="button" role="menuitem" (click)="goWorkOrders()">View work orders</button>
-                    <button type="button" role="menuitem" class="danger" (click)="unlinkWorkOrder()">Unlink</button>
+                    <button type="button" role="menuitem" class="danger" (click)="unlinkWorkOrder(w.id)">Unlink</button>
                   </span></span></td>
               </tr>
               <tr *ngIf="!relatedWorkOrders.length"><td colspan="9" class="empty">No work order linked yet.</td></tr>
@@ -240,7 +242,7 @@
             <thead><tr><th>#</th><th>Asset / Component #</th><th>Name</th><th>Type</th><th>Relationship</th></tr></thead>
             <tbody>
               <tr *ngFor="let c of components; let i = index">
-                <td>{{ i + 1 }}</td><td class="sr-id">{{ c.link.tag }}</td><td>{{ c.part?.name ?? '-' }}</td><td>{{ c.link.type }}</td><td>Part of {{ asset.tag }}</td>
+                <td>{{ i + 1 }}</td><td class="sr-id">{{ c.tag }}</td><td>{{ c.name }}</td><td>{{ c.type }}</td><td>{{ c.relationship }}</td>
               </tr>
               <tr *ngIf="!components.length"><td colspan="5" class="empty">No components recorded for this asset.</td></tr>
             </tbody>
@@ -257,23 +259,23 @@
                 <td>{{ i + 1 }}</td><td class="sr-id">{{ p.partNo }}</td><td>{{ p.name }}</td><td class="num">{{ p.qty }}</td><td class="nowrap">{{ fmtDate(p.date) }}</td>
                 <td><button type="button" class="sr-link" (click)="goWorkOrders(p.wo)">{{ p.wo }}</button></td>
               </tr>
-              <tr *ngIf="!relatedParts.length"><td colspan="6" class="empty">No parts issued against the linked work order.</td></tr>
+              <tr *ngIf="!relatedParts.length"><td colspan="6" class="empty">No spare parts linked to this request.</td></tr>
             </tbody>
           </table></div>
         </div>
 
         <div class="srd-rel">
-          <div class="srd-sec-head"><span class="srd-rel-ic"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon></span><h3 class="srd-h grow">Related Documents ({{ attachments.length }})</h3>
+          <div class="srd-sec-head"><span class="srd-rel-ic"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon></span><h3 class="srd-h grow">Related Documents ({{ relatedDocs.length }})</h3>
             <button type="button" class="btn btn-outline btn-sm" (click)="setTab('attachments')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Document</button></div>
           <div class="table-wrap"><table class="dt">
             <thead><tr><th>#</th><th>Document Name</th><th>Type</th><th>Uploaded Date</th><th>Uploaded By</th><th>Related To</th></tr></thead>
             <tbody>
-              <tr *ngFor="let a of attachments; let i = index">
+              <tr *ngFor="let a of relatedDocs; let i = index">
                 <td>{{ i + 1 }}</td><td><button type="button" class="sr-link" (click)="openFile(a)">{{ a.name }}</button></td>
                 <td><span class="srd-kind" [ngClass]="'f--' + a.kind.toLowerCase()">{{ a.kind }}</span></td>
-                <td class="nowrap">{{ fmtDate(a.at.slice(0, 10)) }}</td><td>{{ a.by }}</td><td>Service Request</td>
+                <td class="nowrap">{{ fmtDate(a.at.slice(0, 10)) }}</td><td>{{ a.by }}</td><td>{{ a.relatedTo }}</td>
               </tr>
-              <tr *ngIf="!attachments.length"><td colspan="6" class="empty">No documents.</td></tr>
+              <tr *ngIf="!relatedDocs.length"><td colspan="6" class="empty">No documents.</td></tr>
             </tbody>
           </table></div>
         </div>
@@ -284,7 +286,7 @@
     <aside class="srd-side">
       <section class="card panel" aria-labelledby="srd-sum">
         <div class="srd-sec-head"><h3 id="srd-sum" class="srd-h grow">Request Summary</h3>
-          <button type="button" class="srd-edit" (click)="openEdit()" [disabled]="r.status === 'Closed'"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></div>
+          <button type="button" class="srd-edit" (click)="openEdit()" [disabled]="isLocked(r) || busy"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></div>
         <dl class="srd-kv srd-kv--side">
           <dt>Service Request #</dt><dd>{{ r.id }}</dd>
           <dt>Asset</dt><dd>{{ asset.tag }} ({{ asset.name }})</dd>
@@ -306,7 +308,7 @@
           <dt>Assigned To</dt><dd>{{ r.assignedTo || '-' }}</dd>
           <dt>Work Order</dt><dd><button *ngIf="r.workOrder; else noWo" type="button" class="sr-link" (click)="goWorkOrders(r.workOrder)">{{ r.workOrder }}</button><ng-template #noWo>-</ng-template></dd>
           <dt *ngIf="workOrder">Work Order Status</dt><dd *ngIf="workOrder as w">{{ w.status }}</dd>
-          <dt>Estimated Downtime</dt><dd>{{ r.downtimeHours ? r.downtimeHours + ' Hours' : workOrder?.downtimeMin ? (workOrder!.downtimeMin / 60 | number: '1.0-1') + ' Hours' : '-' }}</dd>
+          <dt>Estimated Downtime</dt><dd>{{ r.downtimeHours ? r.downtimeHours + ' Hours' : workOrder?.downtimeMin ? ((workOrder?.downtimeMin ?? 0) / 60 | number: '1.0-1') + ' Hours' : '-' }}</dd>
           <dt>Planned Start</dt><dd>{{ r.plannedStart ? fmtDateTime(r.plannedStart) : fmtDate(workOrder?.date) }}</dd>
           <dt>Planned End</dt><dd>{{ fmtDateTime(r.plannedEnd) }}</dd>
           <dt>Actual Start</dt><dd>{{ fmtDateTime(r.respondedAt) }}</dd>
@@ -318,9 +320,9 @@
         <h3 id="srd-rel" class="srd-h">Related Information</h3>
         <div class="srd-links">
           <button type="button" (click)="goAsset()"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon>View Asset</button>
-          <button type="button" (click)="goParts()"><lucide-icon [img]="icons.Package" [size]="18"></lucide-icon><span>View Spare Parts<small>{{ relatedParts.length }} Parts</small></span></button>
+          <button type="button" (click)="goParts()"><lucide-icon [img]="icons.Package" [size]="18"></lucide-icon><span>View Spare Parts<small>{{ relatedPartsQty }} Parts</small></span></button>
           <button type="button" (click)="r.workOrder ? goWorkOrders(r.workOrder) : setTab('related')"><lucide-icon [img]="icons.Wrench" [size]="18"></lucide-icon>View Work Order</button>
-          <button type="button" (click)="setTab('attachments')"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon><span>View Documents<small>{{ r.attachments.length }} Documents</small></span></button>
+          <button type="button" (click)="setTab('attachments')"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon><span>View Documents<small>{{ relatedDocs.length }} Documents</small></span></button>
         </div>
       </section>
     </aside>
@@ -337,11 +339,11 @@
       <div class="two">
         <label class="field"><span class="field-label">Request Type</span><select class="control" [(ngModel)]="f.category" name="cat"><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
         <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="f.priority" name="prio"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
-        <label class="field"><span class="field-label">Assigned To</span><select class="control" [(ngModel)]="f.assignedTo" name="assigned"><option value="">Not assigned</option><option *ngFor="let t of technicians" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Assigned To</span><select class="control" [(ngModel)]="f.assignedTo" name="assigned"><option value="">Not assigned</option><option *ngFor="let t of assignees" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Target Date <em>*</em></span><input class="control" type="date" [(ngModel)]="f.targetDate" name="target" /></label>
       </div>
       <p *ngIf="editError" class="form-error" role="alert">{{ editError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="edit = null">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="edit = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="busy">Save</button></div>
     </form>
   </div>
 </div>

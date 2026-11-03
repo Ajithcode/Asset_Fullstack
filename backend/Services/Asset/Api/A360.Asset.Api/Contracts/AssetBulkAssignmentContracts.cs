@@ -1,4 +1,4 @@
-using A360.Asset.Domain.Entities;
+﻿using A360.Asset.Domain.Entities;
 
 namespace A360.Asset.Api.Contracts;
 
@@ -250,7 +250,12 @@ public sealed record SaveAssetBulkAssignmentDetailsRequest(
 }
 
 /// <param name="SendNotifications">"Send assignment notifications after completion" on step 5.</param>
-public sealed record ConfirmAssetBulkAssignmentRequest(bool SendNotifications);
+/// <param name="IncludeWarnings">False skips the rows with warnings; null or true assigns them.</param>
+/// <param name="ExcludedRowNumbers">Rows left out with Exclude on step 3; they are skipped.</param>
+public sealed record ConfirmAssetBulkAssignmentRequest(
+    bool SendNotifications,
+    bool? IncludeWarnings = null,
+    IReadOnlyCollection<int>? ExcludedRowNumbers = null);
 
 // ---- Responses ----
 

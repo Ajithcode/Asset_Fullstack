@@ -191,7 +191,7 @@
               </td>
             </tr>
             <tr *ngIf="!pageRows.length" class="empty-row">
-              <td [attr.colspan]="allAssets ? 13 : 11">{{ loading ? "Loading documents…" : "No documents match the current filters." }}</td>
+              <td [attr.colspan]="allAssets ? 13 : 11">{{ loading ? "Loading documents…" : loadError || "No documents match the current filters." }}</td>
             </tr>
           </tbody>
         </table>
@@ -225,7 +225,7 @@
             <span class="pill pill--xs" [ngClass]="'pill--' + statusOf(d).toLowerCase()"><span class="dot"></span>{{ statusOf(d) }}</span>
           </div>
         </article>
-        <p *ngIf="!pageRows.length" class="empty-line">{{ loading ? "Loading documents…" : "No documents match the current filters." }}</p>
+        <p *ngIf="!pageRows.length" class="empty-line">{{ loading ? "Loading documents…" : loadError || "No documents match the current filters." }}</p>
       </div>
 
       <!-- Paging -->
@@ -542,7 +542,7 @@
       <p *ngIf="uploadError" class="form-error" role="alert">{{ uploadError }}</p>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="upload = null">Cancel</button>
-        <button type="submit" class="btn btn-primary">Upload</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Uploading…' : 'Upload' }}</button>
       </div>
     </form>
   </div>
@@ -596,7 +596,7 @@
       <p *ngIf="editError" class="form-error" role="alert">{{ editError }}</p>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="edit = null">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save Changes' }}</button>
       </div>
     </form>
   </div>
@@ -646,7 +646,7 @@
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="deleteIds = null">Cancel</button>
-      <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
+      <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">{{ saving ? 'Deleting…' : 'Delete' }}</button>
     </div>
   </div>
 </div>

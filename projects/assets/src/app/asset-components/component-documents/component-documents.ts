@@ -1,4 +1,5 @@
-import { Component, HostListener, Input } from '@angular/core';
+import { Component, HostListener, Input, inject } from '@angular/core';
+import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -23,6 +24,8 @@ import {
 } from 'lucide-angular';
 import type { AssetComponent } from '../asset-components';
 import { FORMAT_ICONS, FilePreview, type FileFormat, formatOf, formatSize, saveBlob } from '../file-preview/file-preview';
+import { AssetComponentsService, isoLocalDateTime, type AssetDocumentDto, type ComponentFileDetails, type UploadedFile } from '../asset-components.service';
+import { apiErrorMessage } from '../../services/asset-api';
 
 export type DocumentType =
   | 'Manual'
@@ -51,9 +54,12 @@ export interface ComponentDocument {
   /** Page count for the preview pager; 1 for images and single-sheet files. */
   pages: number;
   description: string;
-  /** Present only for files uploaded in this session; sample documents have no file behind them. */
+  /** Present only for files uploaded in this session. */
   file?: File;
+  /** Stored file url (from the Media service). */
   url?: string;
+  /** The asset document behind this row (/api/asset-documents). */
+  dto?: AssetDocumentDto;
 }
 
 interface UploadForm {
@@ -65,16 +71,8 @@ interface UploadForm {
 }
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
-const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.csv';
-const CURRENT_USER = 'Rex Kumar';
-
+const ACCEPT = '.pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx';
 let nextId = 1;
-
-function nowIso(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 /** Bumps the last number of a "v2.1"-style version: v2.1 → v2.2, v3 → v4. */
 function bumpVersion(v: string): string {
@@ -82,46 +80,26 @@ function bumpVersion(v: string): string {
   return m ? `${m[1]}${Number(m[2]) + 1}` : `${v.trim() || 'v1'}.1`;
 }
 
-type Seed = [name: string, type: DocumentType, version: string, monthsAgo: number, by: string, ext: string, pages: number, sizeKb: number, description: string];
+/** UI status ↔ API status (asset documents are Active / Inactive). */
+const toApiStatus = (s: DocumentStatus): ComponentFileDetails['status'] => (s === 'Archived' ? 'Inactive' : 'Active');
 
-/** Sample document set; dated relative to today so the list stays plausible. */
-function seedsFor(c: AssetComponent): Seed[] {
-  const model = c.model || c.tag;
-  return [
-    ['Technical Manual', 'Manual', 'v2.1', 9, CURRENT_USER, 'pdf', 52, 5530, `Operation and maintenance manual for ${model}. Includes safety instructions, operating procedures and maintenance guidelines.`],
-    ['Installation Guide', 'Installation', 'v1.3', 9, 'DCS Service', 'pdf', 18, 2140, 'Site preparation, mounting and commissioning steps.'],
-    ['Wiring Diagram', 'Drawing', 'v1.0', 8, 'Supplier', 'pdf', 4, 860, 'Control and power wiring schematic.'],
-    ['Spare Parts List', 'Parts List', 'v1.2', 7, 'DCS Service', 'pdf', 12, 640, 'Recommended spares with part numbers and quantities.'],
-    ['Maintenance Schedule', 'Schedule', 'v1.0', 7, CURRENT_USER, 'xlsx', 1, 96, 'Planned maintenance intervals by running hours.'],
-    ['Certificate of Compliance', 'Certificate', 'v1.0', 9, 'Supplier', 'pdf', 2, 310, 'Manufacturer compliance certificate.'],
-    ['Warranty Document', 'Warranty', 'v1.0', 9, 'Supplier', 'pdf', 3, 280, 'Warranty terms, coverage period and claim procedure.'],
-    ['Site Photo', 'Image', 'v1.0', 8, CURRENT_USER, 'jpg', 1, 2380, 'Installed unit at site.'],
-    ['Test Report', 'Test Report', 'v1.1', 7, 'DCS Service', 'pdf', 6, 720, 'Factory and site acceptance test results.'],
-    ['Installation Report', 'Report', 'v1.0', 6, 'DCS Service', 'docx', 5, 410, 'Installation sign-off report.'],
-    ['Load Bank Test Certificate', 'Certificate', 'v1.0', 5, 'DCS Service', 'pdf', 2, 190, 'Load bank test at 100% rated load.'],
-    ['Old Wiring Diagram', 'Drawing', 'v0.9', 11, 'Supplier', 'pdf', 4, 820, 'Superseded by v1.0.'],
-  ];
-}
-
-export function buildMockDocuments(c: AssetComponent): ComponentDocument[] {
-  const base = new Date();
-  return seedsFor(c).map(([name, type, version, monthsAgo, by, ext, pages, sizeKb, description], i) => {
-    const d = new Date(base.getFullYear(), base.getMonth() - monthsAgo, 1 + ((i * 7 + c.id) % 27), 9 + (i % 7), (i * 13) % 60);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return {
-      id: nextId++,
-      name,
-      fileName: `${(c.model || c.tag).replace(/\s+/g, '')}_${name.replace(/\s+/g, '_')}_${version}.${ext}`,
-      type,
-      version,
-      uploadedAt: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
-      uploadedBy: by,
-      status: name.startsWith('Old ') ? 'Archived' : 'Active',
-      size: sizeKb * 1024,
-      pages,
-      description,
-    };
-  });
+/** Maps an asset document (tagged to a component) to a Documents-tab row. */
+export function toDocument(dto: AssetDocumentDto): ComponentDocument {
+  return {
+    id: nextId++,
+    name: dto.documentName,
+    fileName: dto.fileName,
+    type: dto.documentType as DocumentType,
+    version: dto.version,
+    uploadedAt: isoLocalDateTime(dto.uploadDate),
+    uploadedBy: dto.uploadedBy ?? '',
+    status: (dto.status ?? '').toLowerCase() === 'inactive' ? 'Archived' : 'Active',
+    size: dto.fileSize ?? 0,
+    pages: 1,
+    description: dto.description ?? '',
+    url: dto.fileUrl || undefined,
+    dto,
+  };
 }
 
 @Component({
@@ -151,11 +129,21 @@ export class ComponentDocuments {
 
   private comp!: AssetComponent;
 
-  /** Sample documents are created on first view and kept on the component, so they survive tab switches. */
+  private readonly api = inject(AssetComponentsService);
+
+  loading = false;
+  loadError = '';
+  saving = false;
+  formError = '';
+
+  /** Documents are loaded from the API on first view and kept on the component, so they survive tab switches. */
   @Input({ required: true })
   set component(c: AssetComponent) {
-    c.documents ??= buildMockDocuments(c);
     this.comp = c;
+    if (!c.documents) {
+      c.documents = [];
+      this.load();
+    }
     this.search = '';
     this.typeFilter = '';
     this.statusFilter = '';
@@ -170,7 +158,42 @@ export class ComponentDocuments {
   }
 
   get docs(): ComponentDocument[] {
-    return this.comp.documents!;
+    return this.comp.documents ?? [];
+  }
+
+  /** Loads the component's documents from the API. */
+  load(): void {
+    const c = this.comp;
+    if (!c.apiId || !c.assetRegistrationId) return;
+    this.loading = true;
+    this.loadError = '';
+    this.api.listComponentFiles('document', c.assetRegistrationId, c.apiId).subscribe({
+      next: (dtos) => {
+        this.loading = false;
+        c.documents = dtos.map(toDocument);
+        if (c === this.comp && !this.selected) this.selectedId = this.sorted[0]?.id ?? null;
+      },
+      error: (err) => {
+        this.loading = false;
+        c.documents = undefined;
+        this.loadError = apiErrorMessage(err, 'Could not load documents.');
+      },
+    });
+  }
+
+  private details(d: Pick<ComponentDocument, 'name' | 'type' | 'version' | 'status' | 'description'>): ComponentFileDetails {
+    return { documentName: d.name, documentType: d.type, version: d.version, status: toApiStatus(d.status), description: d.description };
+  }
+
+  /** Saves a document's details (and optionally a new file) and updates the row from the response. */
+  private saveDetails(d: ComponentDocument, changes: Partial<ComponentDocument>, file?: UploadedFile): Observable<ComponentDocument> {
+    if (!d.dto) return of(Object.assign(d, changes));
+    return this.api.updateComponentFile(d.dto, this.details({ ...d, ...changes }), file).pipe(
+      map((dto) => {
+        this.releaseFile(d);
+        return Object.assign(d, { ...toDocument(dto), id: d.id, file: undefined });
+      }),
+    );
   }
 
   search = '';
@@ -273,9 +296,20 @@ export class ComponentDocuments {
 
   setStatusForChecked(status: DocumentStatus): void {
     const rows = this.docs.filter((d) => this.checked.has(d.id));
-    rows.forEach((d) => (d.status = status));
-    this.checked.clear();
-    this.showToast(`${rows.length} document${rows.length === 1 ? '' : 's'} ${status === 'Archived' ? 'archived' : 'restored'}.`);
+    if (!rows.length || this.saving) return;
+    this.saving = true;
+    forkJoin(rows.map((d) => this.saveDetails(d, { status }))).subscribe({
+      next: () => {
+        this.saving = false;
+        this.checked.clear();
+        this.showToast(`${rows.length} document${rows.length === 1 ? '' : 's'} ${status === 'Archived' ? 'archived' : 'restored'}.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.showToast(apiErrorMessage(err, 'Could not change the status.'));
+        this.load();
+      },
+    });
   }
 
   exportList(): void {
@@ -302,11 +336,19 @@ export class ComponentDocuments {
 
   download(d: ComponentDocument): void {
     this.openMenu = null;
-    if (!d.file) {
-      this.showToast('This is a sample document with no file attached. Upload a file to download it.');
+    if (d.file) {
+      saveBlob(d.file, d.fileName);
       return;
     }
-    saveBlob(d.file, d.fileName);
+    if (!d.url) {
+      this.showToast('No file is stored for this document.');
+      return;
+    }
+    this.api.fetchFile(d.url).subscribe({
+      next: (blob) => saveBlob(blob, d.fileName),
+      // Fall back to letting the browser open the stored file.
+      error: () => window.open(d.url, '_blank', 'noopener'),
+    });
   }
 
   openInNewTab(d: ComponentDocument): void {
@@ -316,8 +358,19 @@ export class ComponentDocuments {
 
   toggleArchive(d: ComponentDocument): void {
     this.openMenu = null;
-    d.status = d.status === 'Active' ? 'Archived' : 'Active';
-    this.showToast(`${d.name} ${d.status === 'Archived' ? 'archived' : 'restored'}.`);
+    if (this.saving) return;
+    const status: DocumentStatus = d.status === 'Active' ? 'Archived' : 'Active';
+    this.saving = true;
+    this.saveDetails(d, { status }).subscribe({
+      next: () => {
+        this.saving = false;
+        this.showToast(`${d.name} ${status === 'Archived' ? 'archived' : 'restored'}.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.showToast(apiErrorMessage(err, `Could not update ${d.name}.`));
+      },
+    });
   }
 
   // ===== Menus =====
@@ -353,6 +406,7 @@ export class ComponentDocuments {
     this.pendingFile = null;
     this.fileError = '';
     this.formSubmitted = false;
+    this.formError = '';
     this.formOpen = true;
   }
 
@@ -364,6 +418,7 @@ export class ComponentDocuments {
     this.pendingFile = null;
     this.fileError = '';
     this.formSubmitted = false;
+    this.formError = '';
     this.formOpen = true;
   }
 
@@ -375,6 +430,7 @@ export class ComponentDocuments {
     this.pendingFile = null;
     this.fileError = '';
     this.formSubmitted = false;
+    this.formError = '';
     this.formOpen = true;
   }
 
@@ -406,41 +462,57 @@ export class ComponentDocuments {
 
   saveForm(): void {
     this.formSubmitted = true;
+    this.formError = '';
     const f = this.form;
-    if (!f.name.trim() || !f.version.trim() || (this.needsFile && !this.pendingFile)) return;
+    if (this.saving || !f.name.trim() || !f.version.trim() || (this.needsFile && !this.pendingFile)) return;
     const details = { name: f.name.trim(), type: f.type, version: f.version.trim(), status: f.status, description: f.description.trim() };
+    const c = this.comp;
+    const target = this.target;
+    const mode = this.formMode;
+    const file = this.pendingFile;
 
-    if (this.formMode === 'edit' && this.target) {
-      Object.assign(this.target, details);
-      this.showToast(`${details.name} updated.`);
-    } else if (this.pendingFile) {
-      const fileFields = {
-        fileName: this.pendingFile.name,
-        size: this.pendingFile.size,
-        pages: 1,
-        uploadedAt: nowIso(),
-        uploadedBy: CURRENT_USER,
-        file: this.pendingFile,
-        url: URL.createObjectURL(this.pendingFile),
-      };
-      if (this.formMode === 'version' && this.target) {
-        this.releaseFile(this.target);
-        Object.assign(this.target, details, fileFields);
-        this.selectedId = this.target.id;
-        this.showToast(`${details.name} updated to ${details.version}.`);
-      } else {
-        const created: ComponentDocument = { id: nextId++, ...details, ...fileFields };
-        this.docs.push(created);
-        this.selectedId = created.id;
-        this.page = 1;
-        this.showToast(`${details.name} uploaded.`);
-      }
+    if (mode === 'new' && (!c.apiId || !c.assetRegistrationId)) {
+      this.formError = 'This component is not saved yet.';
+      return;
     }
-    this.formOpen = false;
+
+    const upload$: Observable<UploadedFile | undefined> = file && mode !== 'edit' ? this.api.uploadFile(file) : of(undefined);
+    const save$: Observable<ComponentDocument> = upload$.pipe(
+      switchMap((uploaded) => {
+        if (mode === 'edit' && target) return this.saveDetails(target, details);
+        if (mode === 'version' && target) return this.saveDetails(target, details, uploaded);
+        return this.api
+          .createComponentFile('document', c.assetRegistrationId!, c.apiId!, this.details(details), uploaded!)
+          .pipe(map((dto) => toDocument(dto)));
+      }),
+    );
+
+    this.saving = true;
+    save$.subscribe({
+      next: (doc) => {
+        this.saving = false;
+        this.formOpen = false;
+        if (mode === 'edit') {
+          this.showToast(`${details.name} updated.`);
+        } else if (mode === 'version') {
+          this.selectedId = doc.id;
+          this.showToast(`${details.name} updated to ${details.version}.`);
+        } else {
+          c.documents = [...(c.documents ?? []), doc];
+          this.selectedId = doc.id;
+          this.page = 1;
+          this.showToast(`${details.name} uploaded.`);
+        }
+      },
+      error: (err) => {
+        this.saving = false;
+        this.formError = apiErrorMessage(err, mode === 'edit' ? 'Could not save the document.' : 'Could not upload the document.');
+      },
+    });
   }
 
   private releaseFile(d: ComponentDocument): void {
-    if (d.url) {
+    if (d.url?.startsWith('blob:')) {
       URL.revokeObjectURL(d.url);
     }
   }
@@ -454,15 +526,27 @@ export class ComponentDocuments {
 
   confirmDelete(): void {
     const d = this.deleteTarget;
-    if (!d) return;
-    this.releaseFile(d);
-    this.comp.documents = this.docs.filter((x) => x !== d);
-    this.checked.delete(d.id);
-    if (this.selectedId === d.id) {
-      this.selectedId = this.sorted[0]?.id ?? null;
-    }
-    this.deleteTarget = null;
-    this.showToast(`${d.name} deleted.`);
+    if (!d || this.saving) return;
+    const c = this.comp;
+    this.saving = true;
+    (d.dto ? this.api.deleteComponentFile(d.dto.id) : of(undefined)).subscribe({
+      next: () => {
+        this.saving = false;
+        this.releaseFile(d);
+        c.documents = (c.documents ?? []).filter((x) => x !== d);
+        this.checked.delete(d.id);
+        if (this.selectedId === d.id) {
+          this.selectedId = this.sorted[0]?.id ?? null;
+        }
+        this.deleteTarget = null;
+        this.showToast(`${d.name} deleted.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.deleteTarget = null;
+        this.showToast(apiErrorMessage(err, `Could not delete ${d.name}.`));
+      },
+    });
   }
 
   trackById(_: number, row: { id: number }): number {

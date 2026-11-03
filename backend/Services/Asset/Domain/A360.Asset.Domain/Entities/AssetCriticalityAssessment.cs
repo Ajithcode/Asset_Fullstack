@@ -68,6 +68,20 @@ public sealed class AssetCriticalityAssessment : BaseEntity
 
     [BsonElement("remarks")]
     public string? Remarks { get; set; }
+
+    // Additional Information panel; carried over to the next assessment unless changed.
+    [BsonElement("assessment_method")]
+    public string? AssessmentMethod { get; set; }
+
+    // e.g. "Every 6 Months".
+    [BsonElement("review_frequency")]
+    public string? ReviewFrequency { get; set; }
+
+    [BsonElement("department")]
+    public string? Department { get; set; }
+
+    [BsonElement("asset_group")]
+    public string? AssetGroup { get; set; }
 }
 
 /// <summary>One row of the criteria table, e.g. Operational Impact, weight 25, score 5, weighted 25.0.</summary>

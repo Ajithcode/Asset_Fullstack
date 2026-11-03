@@ -32,18 +32,18 @@ import {
   X,
 } from 'lucide-angular';
 import {
-  ASSET_RECORDS,
   ASSET_TYPE_ICONS,
   AssetHeader,
   AssetTabLink,
-  assetHeader,
   assetTabs,
   conditionPill,
   criticalityPill,
-  findAsset,
   statusPill,
 } from 'shared-ui';
-import { AssetDetail, AssetDocument, DocVersion, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
+import { Observable, Subscription, finalize, of, switchMap } from 'rxjs';
+import { apiErrorMessage } from '../services/asset-api';
+import { AssetLookupService, AssetOption } from './asset-lookup.service';
+import { ApiDocVersion, ApiDocument, AssetDocumentsService, DocumentFormValue, StoredFile } from './asset-documents.service';
 
 type DocStatus = 'Active' | 'Expired' | 'Draft';
 type ViewMode = 'list' | 'grid';
@@ -77,7 +77,6 @@ interface EditForm {
   tags: string;
 }
 
-const CURRENT_USER = 'Rex Kumar';
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const ACCEPTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
 const ZOOM_MIN = 50;
@@ -100,35 +99,6 @@ const STAGE_TONES: Record<string, string> = {
 
 const MB = 1024 * 1024;
 
-/** One asset's documents, kept in memory so its Documents tab and the all-assets page show the same list (DEMO MODE). */
-interface DocStore {
-  docs: AssetDocument[];
-  previewId: number | null;
-}
-
-const DOC_STORE = new Map<string, DocStore>();
-/** Document ids are unique across assets so documents of several assets can be listed together. */
-let nextDocId = 1;
-
-/** The stored documents of an asset, created from its data file the first time. */
-function storeFor(tag: string, detail: AssetDetail | null): DocStore {
-  let store = DOC_STORE.get(tag);
-  if (!store) {
-    const docs = detail ? cloneDetail(detail.documents) : [];
-    let previewId: number | null = null;
-    for (const d of docs) {
-      const id = nextDocId++;
-      if (d.id === detail?.previewDocumentId) previewId = id;
-      d.id = id;
-      d.assetTag = tag;
-    }
-    store = { docs, previewId: previewId ?? docs[0]?.id ?? null };
-    // A failed download is not stored, so a later visit tries again
-    if (detail) DOC_STORE.set(tag, store);
-  }
-  return store;
-}
-
 @Component({
   selector: 'app-asset-documents',
   standalone: true,
@@ -145,7 +115,10 @@ export class AssetDocuments implements OnDestroy {
   };
 
   /** The asset named by ?tag=; when it is missing or unknown the page shows a "not found" message. */
-  asset: AssetHeader = assetHeader(ASSET_RECORDS[0]);
+  asset: AssetHeader = EMPTY_HEADER;
+  /** The registered asset behind `asset` (per-asset page). */
+  private currentAsset: AssetOption | null = null;
+  private loadSub?: Subscription;
   notFound = false;
   requestedTag = '';
   readonly tabs: AssetTabLink[] = assetTabs('Documents');
@@ -154,6 +127,10 @@ export class AssetDocuments implements OnDestroy {
   sampleImage = '';
   /** True while the asset's documents are being fetched. */
   loading = false;
+  /** Shown in the list when the documents could not be loaded. */
+  loadError = '';
+  /** True while an upload, edit or delete is being saved. */
+  saving = false;
   readonly statusPill = statusPill;
   readonly conditionPill = conditionPill;
   readonly criticalityPill = criticalityPill;
@@ -168,11 +145,12 @@ export class AssetDocuments implements OnDestroy {
   readonly statuses: DocStatus[] = ['Active', 'Expired', 'Draft'];
   readonly pageSizes = [10, 20, 50];
 
-  documents: AssetDocument[] = [];
+  documents: ApiDocument[] = [];
 
   /** Asset Documents menu page: documents of every asset, with their asset name and ID. */
   allAssets = false;
-  readonly assetOptions = ASSET_RECORDS;
+  /** Registered assets for the asset filter and the upload dialog's asset picker. */
+  assetOptions: AssetOption[] = [];
   assetFilter = '';
   /** Asset dropdown in the upload dialog. */
   assetPickerOpen = false;
@@ -220,6 +198,10 @@ export class AssetDocuments implements OnDestroy {
   /** Today as yyyy-MM-dd in local time, for expiry checks. */
   private readonly today = toIsoDate(new Date());
 
+  private readonly api = inject(AssetDocumentsService);
+  private readonly lookup = inject(AssetLookupService);
+  private readonly destroyRef = inject(DestroyRef);
+
   constructor(private readonly sanitizer: DomSanitizer) {
     const route = inject(ActivatedRoute);
     this.allAssets = route.snapshot.data['allAssets'] === true;
@@ -227,50 +209,67 @@ export class AssetDocuments implements OnDestroy {
       this.loadAll();
       return;
     }
-    route.queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe((params) => this.load(params.get('tag')));
+    route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => this.load(params.get('tag')));
   }
 
-  /** Lists the documents of every asset in the register. */
+  /** Lists the documents of every asset, and the registered assets for the picker and filter. */
   private loadAll(): void {
     this.reset();
     this.loading = true;
-    Promise.all(ASSET_RECORDS.map((a) => loadAssetDetail(a.tag).then((d) => storeFor(a.tag, d)))).then((stores) => {
-      this.loading = false;
-      this.documents = stores.flatMap((s) => s.docs);
-      this.previewId = stores.find((s) => s.previewId !== null)?.previewId ?? null;
-      this.refreshFileUrl();
+    this.loadError = '';
+    this.lookup.listAssets().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (assets) => (this.assetOptions = assets),
+      error: (err) => this.showToast(apiErrorMessage(err, 'Could not load the asset list.')),
+    });
+    this.api.list().pipe(takeUntilDestroyed(this.destroyRef), finalize(() => (this.loading = false))).subscribe({
+      next: (docs) => {
+        this.documents = docs;
+        this.previewId = docs[0]?.id ?? null;
+        this.refreshFileUrl();
+      },
+      error: (err) => (this.loadError = apiErrorMessage(err, 'Could not load the documents.')),
     });
   }
 
-  /** Writes uploads and deletes back to each asset's stored documents. */
-  private persist(): void {
-    for (const tag of this.allAssets ? ASSET_RECORDS.map((a) => a.tag) : [this.asset.tag]) {
-      const store = DOC_STORE.get(tag);
-      if (store) store.docs = this.documents.filter((d) => d.assetTag === tag);
-    }
-  }
-
-  /** Shows the asset named in the URL, with the documents from its data file. */
+  /** Shows the asset named in the URL (asset tag or registration id), with its documents. */
   private load(tag: string | null): void {
-    tag ??= ASSET_RECORDS[0].tag; // opened from the menu without an asset: show the first one
-    const record = findAsset(tag);
+    this.loadSub?.unsubscribe(); // the user moved on to another asset
     this.requestedTag = tag ?? '';
-    this.notFound = !record;
-    if (!record) return;
-    this.asset = assetHeader(record);
-    this.sampleImage = record.image;
+    this.notFound = false;
     this.documents = [];
     this.previewId = null;
+    this.currentAsset = null;
     this.reset();
     this.loading = true;
-    loadAssetDetail(record.tag).then((detail) => {
-      if (this.requestedTag !== record.tag) return; // the user moved on to another asset
-      this.loading = false;
-      const store = storeFor(record.tag, detail);
-      this.documents = store.docs;
-      this.previewId = store.previewId;
-      this.refreshFileUrl();
-    });
+    this.loadError = '';
+    this.loadSub = this.lookup
+      .findAsset(tag)
+      .pipe(
+        switchMap((asset) => {
+          if (!asset) {
+            this.notFound = true;
+            return of(null);
+          }
+          this.currentAsset = asset;
+          this.asset = asset.header;
+          this.sampleImage = asset.header.image ?? '';
+          this.assetOptions = [asset];
+          return this.api.list(asset.id);
+        }),
+        finalize(() => (this.loading = false)),
+      )
+      .subscribe({
+        next: (docs) => {
+          if (!docs) return;
+          this.documents = docs;
+          this.previewId = docs[0]?.id ?? null;
+          this.refreshFileUrl();
+        },
+        error: (err) => {
+          this.loadError = apiErrorMessage(err, 'Could not load the documents.');
+          this.showToast(this.loadError);
+        },
+      });
   }
 
   /** Clears the per-asset view state. */
@@ -286,27 +285,28 @@ export class AssetDocuments implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.loadSub?.unsubscribe();
     this.revokeFileUrl();
     clearTimeout(this.toastTimer);
   }
 
   // ===== Lookups =====
 
-  assetName(doc: AssetDocument): string {
-    return findAsset(doc.assetTag)?.name ?? '-';
+  assetName(doc: ApiDocument): string {
+    return doc.assetName || this.assetOptions.find((a) => a.id === doc.assetRegistrationId)?.name || '-';
   }
 
-  /** Picture for the mock-up pages of a sample manual: the photo of the document's asset. */
-  imageFor(doc: AssetDocument): string {
-    return findAsset(doc.assetTag)?.image ?? this.sampleImage;
+  /** Picture for the mock-up pages of a document without a file: the photo of the document's asset. */
+  imageFor(doc: ApiDocument): string {
+    return this.assetOptions.find((a) => a.id === doc.assetRegistrationId)?.header.image ?? this.sampleImage;
   }
 
-  current(doc: AssetDocument): DocVersion | undefined {
+  current(doc: ApiDocument): ApiDocVersion | undefined {
     return doc.versions[doc.versions.length - 1];
   }
 
   /** Drafts stay drafts; otherwise a past expiry date means Expired. */
-  statusOf(doc: AssetDocument): DocStatus {
+  statusOf(doc: ApiDocument): DocStatus {
     if (doc.draft) return 'Draft';
     return doc.expiryDate && doc.expiryDate < this.today ? 'Expired' : 'Active';
   }
@@ -315,15 +315,15 @@ export class AssetDocuments implements OnDestroy {
     return STAGE_TONES[stage] ?? 'violet';
   }
 
-  isImage(doc: AssetDocument): boolean {
-    return /\.(jpe?g|png)$/i.test(doc.name);
+  isImage(doc: ApiDocument): boolean {
+    return /\.(jpe?g|png)$/i.test(this.current(doc)?.fileName ?? doc.name);
   }
 
   formatSize(bytes: number): string {
     return bytes >= MB ? `${(bytes / MB).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
   }
 
-  get filtered(): AssetDocument[] {
+  get filtered(): ApiDocument[] {
     const q = this.search.trim().toLowerCase();
     return this.documents.filter(
       (d) =>
@@ -345,7 +345,7 @@ export class AssetDocuments implements OnDestroy {
     return Array.from({ length: this.pageCount }, (_, i) => i + 1);
   }
 
-  get pageRows(): AssetDocument[] {
+  get pageRows(): ApiDocument[] {
     const start = (this.safePage - 1) * this.pageSize;
     return this.filtered.slice(start, start + this.pageSize);
   }
@@ -453,30 +453,33 @@ export class AssetDocuments implements OnDestroy {
 
   // ===== Preview =====
 
-  get previewDoc(): AssetDocument | undefined {
+  get previewDoc(): ApiDocument | undefined {
     return this.documents.find((d) => d.id === this.previewId);
   }
 
-  /** The previewed document's real file, when one was uploaded in this session. */
-  get previewFile(): File | undefined {
+  /** The previewed document's stored file (current version). */
+  get previewFile(): ApiDocVersion | undefined {
     const doc = this.previewDoc;
-    return doc ? this.current(doc)?.file : undefined;
+    const version = doc ? this.current(doc) : undefined;
+    return version?.url ? version : undefined;
   }
 
   get previewIsPdfFile(): boolean {
-    return !!this.previewFile && /\.pdf$/i.test(this.previewFile.name);
+    const f = this.previewFile;
+    return !!f && (/\.pdf$/i.test(f.fileName) || f.contentType === 'application/pdf');
   }
 
   get previewIsImageFile(): boolean {
-    return !!this.previewFile && this.previewFile.type.startsWith('image/');
+    const f = this.previewFile;
+    return !!f && (/\.(jpe?g|png|webp|gif|bmp)$/i.test(f.fileName) || !!f.contentType?.startsWith('image/'));
   }
 
-  /** Raw blob URL, for <img> (Angular allows blob: image URLs). */
+  /** URL of the stored file, for <img>. */
   get previewFileUrl(): string | null {
     return this.fileUrl;
   }
 
-  openPreview(doc: AssetDocument): void {
+  openPreview(doc: ApiDocument): void {
     this.closeMenus();
     this.previewOpen = true;
     if (this.previewId === doc.id) return;
@@ -526,7 +529,7 @@ export class AssetDocuments implements OnDestroy {
   openInNewTab(): void {
     this.closeMenus();
     if (this.fileUrl) window.open(this.fileUrl, '_blank', 'noopener');
-    else this.showToast('This is a sample record with no stored file to open.');
+    else this.showToast('This document has no stored file to open.');
   }
 
   printPreview(): void {
@@ -535,7 +538,7 @@ export class AssetDocuments implements OnDestroy {
       // The browser's own viewer prints the real file
       window.open(this.fileUrl, '_blank', 'noopener');
     } else {
-      this.showToast('This is a sample record with no stored file to print.');
+      this.showToast('This document has no stored file to print.');
     }
   }
 
@@ -543,31 +546,26 @@ export class AssetDocuments implements OnDestroy {
     this.revokeFileUrl();
     const file = this.previewFile;
     if (!file) return;
-    this.fileUrl = URL.createObjectURL(file);
-    // Blob URL created here from the user's own file, so it is safe to frame
+    this.fileUrl = file.url;
+    // URL of a file stored by the Media service for this document, so it is trusted for the viewer frame
     this.fileResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.fileUrl);
   }
 
   private revokeFileUrl(): void {
-    if (this.fileUrl) URL.revokeObjectURL(this.fileUrl);
     this.fileUrl = null;
     this.fileResourceUrl = null;
   }
 
   // ===== Download / export =====
 
-  download(doc: AssetDocument, version?: DocVersion): void {
+  download(doc: ApiDocument, version?: ApiDocVersion): void {
     this.closeMenus();
     const v = version ?? this.current(doc);
-    if (!v) {
-      this.showToast(`${doc.name} is a draft with no file uploaded yet.`);
+    if (!v?.url) {
+      this.showToast(`${doc.name} has no stored file to download.`);
       return;
     }
-    if (!v.file) {
-      this.showToast(`${doc.name} is a sample record with no stored file to download.`);
-      return;
-    }
-    saveBlob(v.file, doc.name);
+    this.lookup.download(v.url, downloadName(doc.name, v.fileName));
   }
 
   downloadSelected(): void {
@@ -577,13 +575,13 @@ export class AssetDocuments implements OnDestroy {
       this.showToast('Select documents first.');
       return;
     }
-    const withFiles = docs.filter((d) => this.current(d)?.file);
-    withFiles.forEach((d) => saveBlob(this.current(d)!.file!, d.name));
+    const withFiles = docs.filter((d) => this.current(d)?.url);
+    withFiles.forEach((d) => this.lookup.download(this.current(d)!.url, downloadName(d.name, this.current(d)!.fileName)));
     const skipped = docs.length - withFiles.length;
     this.showToast(
       withFiles.length
-        ? `Downloading ${withFiles.length} file(s).${skipped ? ` ${skipped} sample/draft record(s) have no file.` : ''}`
-        : 'The selected documents are sample or draft records with no stored files.',
+        ? `Downloading ${withFiles.length} file(s).${skipped ? ` ${skipped} record(s) have no file.` : ''}`
+        : 'The selected documents have no stored files.',
     );
   }
 
@@ -606,7 +604,7 @@ export class AssetDocuments implements OnDestroy {
 
   // ===== Upload (new document or new version) =====
 
-  openUpload(doc?: AssetDocument): void {
+  openUpload(doc?: ApiDocument): void {
     this.closeMenus();
     this.uploadError = '';
     this.upload = doc
@@ -616,7 +614,7 @@ export class AssetDocuments implements OnDestroy {
           description: doc.description, tags: doc.tags.join(', '), note: '',
         }
       : {
-          mode: 'new', assets: this.allAssets ? [] : [this.asset.tag], docId: null, file: null, name: '', type: '', stage: '', version: '1.0', expiryDate: '',
+          mode: 'new', assets: this.allAssets || !this.currentAsset ? [] : [this.currentAsset.tag], docId: null, file: null, name: '', type: '', stage: '', version: '1.0', expiryDate: '',
           draft: false, description: '', tags: '', note: '',
         };
   }
@@ -629,9 +627,9 @@ export class AssetDocuments implements OnDestroy {
     this.assetPickerSearch = '';
   }
 
-  get pickerAssets(): typeof ASSET_RECORDS {
+  get pickerAssets(): AssetOption[] {
     const q = this.assetPickerSearch.trim().toLowerCase();
-    return q ? ASSET_RECORDS.filter((a) => a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q)) : ASSET_RECORDS;
+    return q ? this.assetOptions.filter((a) => a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q)) : this.assetOptions;
   }
 
   toggleUploadAsset(tag: string): void {
@@ -656,7 +654,7 @@ export class AssetDocuments implements OnDestroy {
   get uploadAssetsLabel(): string {
     const tags = this.upload?.assets ?? [];
     if (!tags.length) return 'Select assets';
-    if (tags.length === 1) return `${findAsset(tags[0])?.name} (${tags[0]})`;
+    if (tags.length === 1) return `${this.assetOptions.find((a) => a.tag === tags[0])?.name ?? tags[0]} (${tags[0]})`;
     return `${tags.length} assets selected`;
   }
 
@@ -691,7 +689,7 @@ export class AssetDocuments implements OnDestroy {
 
   saveUpload(): void {
     const u = this.upload;
-    if (!u) return;
+    if (!u || this.saving) return;
     if (!u.file) {
       this.uploadError = 'Choose a file to upload.';
       return;
@@ -708,57 +706,69 @@ export class AssetDocuments implements OnDestroy {
       this.uploadError = 'Enter the version.';
       return;
     }
-    const version: DocVersion = {
-      version: u.version.trim(),
-      uploadedAt: toIsoDateTime(new Date()),
-      uploadedBy: CURRENT_USER,
-      size: u.file.size,
-      note: u.note.trim() || (u.mode === 'new' ? 'Initial upload' : 'New version'),
-      file: u.file,
+    const value: DocumentFormValue = {
+      name: u.name, type: u.type, stage: u.stage, version: u.version, expiryDate: u.expiryDate, draft: u.draft,
+      description: u.description, tags: splitTags(u.tags),
     };
+    const note = u.note.trim() || (u.mode === 'new' ? 'Initial upload' : 'New version');
 
     if (u.mode === 'version') {
       const doc = this.documents.find((d) => d.id === u.docId);
       if (!doc) return;
-      doc.versions = [...doc.versions, version];
-      doc.draft = false;
-      this.showToast(`${doc.name} updated to version ${version.version}.`);
-      this.upload = null;
-      if (this.previewId === doc.id) this.refreshFileUrl();
-      else this.openPreview(doc);
+      // A new version is no longer a draft
+      this.runSave(
+        this.api.uploadFile(u.file).pipe(switchMap((file: StoredFile) => this.api.update(doc, { ...value, draft: false }, file))),
+        (updated) => {
+          const latest = updated.versions[updated.versions.length - 1];
+          if (latest) latest.note = note;
+          // The API keeps only the current file; earlier versions seen in this session stay listed
+          updated.versions = [...doc.versions, ...updated.versions];
+          this.replaceDoc(updated);
+          this.showToast(`${updated.name} updated to version ${latest?.version ?? value.version}.`);
+          this.upload = null;
+          if (this.previewId === updated.id) this.refreshFileUrl();
+          else this.openPreview(updated);
+        },
+        (message) => (this.uploadError = message),
+      );
       return;
     }
 
     // One document per selected asset; they share the uploaded file
-    const created: AssetDocument[] = u.assets.map((assetTag) => ({
-      id: nextDocId++,
-      assetTag,
-      name: u.name.trim(),
-      type: u.type,
-      stage: u.stage,
-      description: u.description.trim(),
-      tags: splitTags(u.tags),
-      expiryDate: u.expiryDate,
-      draft: u.draft,
-      versions: [{ ...version }],
-      pages: 1,
-      issuer: '',
-      coverTitle: '',
-      coverSubtitle: '',
-      showAssetImage: false,
-    }));
-    this.documents = [...this.documents, ...created];
-    this.persist();
-    this.upload = null;
-    this.clearFilters();
-    this.page = this.pageCount;
-    this.openPreview(created[0]);
-    this.showToast(created.length === 1 ? `${created[0].name} uploaded.` : `${created[0].name} uploaded to ${created.length} assets.`);
+    const ids = u.assets.map((tag) => this.assetOptions.find((a) => a.tag === tag)?.id ?? tag);
+    this.runSave(
+      this.api.uploadFile(u.file).pipe(switchMap((file: StoredFile) => this.api.create(ids, value, file))),
+      (created) => {
+        if (!created.length) return;
+        created.forEach((d) => d.versions.forEach((v) => (v.note = note)));
+        this.documents = [...created, ...this.documents];
+        this.upload = null;
+        this.clearFilters();
+        this.page = 1;
+        this.openPreview(created[0]);
+        this.showToast(created.length === 1 ? `${created[0].name} uploaded.` : `${created[0].name} uploaded to ${created.length} assets.`);
+      },
+      (message) => (this.uploadError = message),
+    );
+  }
+
+  /** Runs a save request with the saving flag set, reporting errors through `onError`. */
+  private runSave<T>(request: Observable<T>, onDone: (result: T) => void, onError: (message: string) => void): void {
+    this.saving = true;
+    request.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => (this.saving = false))).subscribe({
+      next: onDone,
+      error: (err) => onError(apiErrorMessage(err)),
+    });
+  }
+
+  /** Puts an updated document in place of the one with the same local id. */
+  private replaceDoc(updated: ApiDocument): void {
+    this.documents = this.documents.map((d) => (d.id === updated.id ? updated : d));
   }
 
   // ===== Edit details =====
 
-  openEdit(doc: AssetDocument): void {
+  openEdit(doc: ApiDocument): void {
     this.closeMenus();
     this.editError = '';
     this.edit = {
@@ -780,27 +790,37 @@ export class AssetDocuments implements OnDestroy {
       this.editError = 'Upload a file before marking this document Active.';
       return;
     }
-    Object.assign(doc, {
-      name: e.name.trim(), type: e.type, stage: e.stage, expiryDate: e.expiryDate, draft: e.draft,
-      description: e.description.trim(), tags: splitTags(e.tags),
-    });
-    this.edit = null;
-    this.showToast('Document details saved.');
+    if (this.saving) return;
+    const value: DocumentFormValue = {
+      name: e.name, type: e.type, stage: e.stage, version: this.current(doc)?.version ?? '1.0', expiryDate: e.expiryDate,
+      draft: e.draft, description: e.description, tags: splitTags(e.tags),
+    };
+    this.runSave(
+      this.api.update(doc, value),
+      (updated) => {
+        // Keep the version list (and notes) seen in this session
+        updated.versions = doc.versions;
+        this.replaceDoc(updated);
+        this.edit = null;
+        this.showToast('Document details saved.');
+      },
+      (message) => (this.editError = message),
+    );
   }
 
   // ===== History =====
 
-  openHistory(doc: AssetDocument): void {
+  openHistory(doc: ApiDocument): void {
     this.closeMenus();
     this.historyId = doc.id;
   }
 
-  get historyDoc(): AssetDocument | undefined {
+  get historyDoc(): ApiDocument | undefined {
     return this.documents.find((d) => d.id === this.historyId);
   }
 
   /** Newest first for the history list. */
-  get historyVersions(): DocVersion[] {
+  get historyVersions(): ApiDocVersion[] {
     return [...(this.historyDoc?.versions ?? [])].reverse();
   }
 
@@ -825,17 +845,32 @@ export class AssetDocuments implements OnDestroy {
   }
 
   confirmDelete(): void {
+    if (this.saving) return;
     const ids = new Set(this.deleteIds ?? []);
-    this.documents = this.documents.filter((d) => !ids.has(d.id));
-    this.persist();
-    ids.forEach((id) => this.checked.delete(id));
-    if (this.previewId !== null && ids.has(this.previewId)) {
-      this.previewId = this.documents[0]?.id ?? null;
-      this.previewPage = 1;
-      this.refreshFileUrl();
+    const apiIds = this.documents.filter((d) => ids.has(d.id)).map((d) => d.apiId);
+    if (!apiIds.length) {
+      this.deleteIds = null;
+      return;
     }
-    this.showToast(ids.size === 1 ? 'Document deleted.' : `${ids.size} documents deleted.`);
-    this.deleteIds = null;
+    const request: Observable<unknown> = apiIds.length === 1 ? this.api.delete(apiIds[0]) : this.api.deleteMany(apiIds);
+    this.runSave(
+      request,
+      () => {
+        this.documents = this.documents.filter((d) => !ids.has(d.id));
+        ids.forEach((id) => this.checked.delete(id));
+        if (this.previewId !== null && ids.has(this.previewId)) {
+          this.previewId = this.documents[0]?.id ?? null;
+          this.previewPage = 1;
+          this.refreshFileUrl();
+        }
+        this.showToast(ids.size === 1 ? 'Document deleted.' : `${ids.size} documents deleted.`);
+        this.deleteIds = null;
+      },
+      (message) => {
+        this.deleteIds = null;
+        this.showToast(message);
+      },
+    );
   }
 
   private showToast(message: string): void {
@@ -855,8 +890,16 @@ function toIsoDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function toIsoDateTime(d: Date): string {
-  return `${toIsoDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/** Header shown until the asset is loaded. */
+const EMPTY_HEADER: AssetHeader = {
+  tag: '', name: '', category: '-', model: '-', location: '-', status: 'Active', condition: 'Good', criticality: 'Medium',
+  image: null, icon: 'transformer',
+};
+
+/** Download name: the document name, with the stored file's extension when the name has none. */
+function downloadName(name: string, fileName: string): string {
+  const ext = /\.[^.]+$/.exec(fileName)?.[0] ?? '';
+  return ext && !name.toLowerCase().endsWith(ext.toLowerCase()) ? `${name}${ext}` : name;
 }
 
 /** "1.0" -> "1.1", "2.9" -> "2.10"; anything unparseable -> "1.0". */

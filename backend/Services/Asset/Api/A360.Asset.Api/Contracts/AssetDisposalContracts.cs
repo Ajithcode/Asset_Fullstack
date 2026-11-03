@@ -309,6 +309,7 @@ public sealed record AssetDisposalRequestResponse(
 
 /// <summary>One row of the disposal request list.</summary>
 /// <param name="PendingWith">The current approver's name and level, while awaiting approval.</param>
+/// <param name="FirstAsset">The first selected asset (name, tag, category, location) shown in the list row.</param>
 public sealed record AssetDisposalRequestListItemResponse(
     string Id,
     string RequestNumber,
@@ -324,7 +325,10 @@ public sealed record AssetDisposalRequestListItemResponse(
     decimal TotalEstimatedValue,
     string Currency,
     string? Status,
-    string? PendingWith)
+    string? PendingWith,
+    string? DisposalCategory,
+    AssetDisposalAsset? FirstAsset,
+    DateTime? CreatedAt)
 {
     public static AssetDisposalRequestListItemResponse FromEntity(AssetDisposalRequest request)
     {
@@ -344,7 +348,10 @@ public sealed record AssetDisposalRequestListItemResponse(
             request.Assets.Sum(asset => asset.EstimatedValue),
             request.Currency,
             request.Status,
-            current is null ? null : $"{current.Approver.Name} ({current.ApprovalLevel})");
+            current is null ? null : $"{current.Approver.Name} ({current.ApprovalLevel})",
+            request.DisposalCategory,
+            request.Assets.FirstOrDefault(),
+            request.CreatedAt);
     }
 }
 

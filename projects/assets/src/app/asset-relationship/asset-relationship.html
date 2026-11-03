@@ -120,8 +120,8 @@
         </button>
       </div>
 
-      <p *ngIf="!dg" class="empty-line">Loading relationships…</p>
-      <div class="diagram-scroll" *ngIf="dg">
+      <p *ngIf="!dg || (active && loading)" class="empty-line">Loading relationships…</p>
+      <div class="diagram-scroll" *ngIf="dg && !(active && loading)">
         <div class="diagram" [style.width.px]="dg.width" [style.height.px]="dg.height">
           <svg class="edges" [attr.width]="dg.width" [attr.height]="dg.height" aria-hidden="true">
             <defs>
@@ -357,43 +357,43 @@
             <option *ngFor="let t of relTypes" [value]="t">{{ t }}</option>
           </select>
         </label>
-        <label class="field">
+        <label *ngIf="!apiMode" class="field">
           <span class="field-label">Direction <em>*</em></span>
           <select class="control" [(ngModel)]="form.direction" name="direction">
             <option *ngFor="let d of directions" [value]="d">{{ d }}</option>
           </select>
         </label>
-        <label class="field">
+        <label *ngIf="!apiMode" class="field">
           <span class="field-label">Since Date <em>*</em></span>
           <input type="date" class="control" [(ngModel)]="form.since" name="since" />
         </label>
-        <label class="field">
+        <label *ngIf="!apiMode" class="field">
           <span class="field-label">To Date</span>
           <input type="date" class="control" [(ngModel)]="form.to" name="to" />
         </label>
-        <label class="field">
+        <label *ngIf="!apiMode" class="field">
           <span class="field-label">Status</span>
           <select class="control" [(ngModel)]="form.status" name="status">
             <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
           </select>
         </label>
-        <label class="field">
+        <label *ngIf="!apiMode" class="field">
           <span class="field-label">Reference</span>
           <input type="text" class="control" [(ngModel)]="form.reference" name="reference" placeholder="e.g. Installation Drawing" maxlength="100" />
         </label>
       </div>
-      <label class="field">
+      <label *ngIf="!apiMode" class="field">
         <span class="field-label">Description</span>
         <textarea class="control" rows="2" [(ngModel)]="form.description" name="description" maxlength="300"></textarea>
       </label>
-      <label class="field">
+      <label *ngIf="!apiMode" class="field">
         <span class="field-label">Remarks</span>
         <textarea class="control" rows="2" [(ngModel)]="form.remarks" name="remarks" maxlength="300"></textarea>
       </label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="formOpen = false">Cancel</button>
-        <button type="submit" class="btn btn-primary">{{ editingId !== null ? 'Save Changes' : 'Add Relationship' }}</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : editingId !== null ? 'Save Changes' : 'Add Relationship' }}</button>
       </div>
     </form>
   </div>
@@ -411,7 +411,7 @@
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="removeIds = null">Cancel</button>
-      <button type="button" class="btn btn-danger" (click)="confirmRemove()">Remove</button>
+      <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmRemove()">Remove</button>
     </div>
   </div>
 </div>

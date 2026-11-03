@@ -1,8 +1,9 @@
-import { Component, HostListener, OnDestroy, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
-import * as XLSX from 'xlsx';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { Observable, concatMap, defer, from, last, map, of, tap } from 'rxjs';
+import { AuthService } from 'shared-ui';
 import {
   LucideAngularModule,
   ArrowLeft,
@@ -39,95 +40,56 @@ import {
   Upload,
   X,
 } from 'lucide-angular';
-import {
-  CATEGORIES,
-  DISPOSALS,
-  DISPOSAL_IMAGES,
-  DISPOSAL_METHODS,
-  DisposalItem,
-  DisposalMethod,
-  DisposalRequest,
-  DisposalStatus,
-  REASONS,
-  nextDisposalReference,
-  nowStamp,
-} from '../asset-disposal/asset-disposal';
+import { CATEGORIES, DISPOSAL_IMAGES, DISPOSAL_METHODS, DisposalItem, DisposalMethod, REASONS, nowStamp } from '../asset-disposal/asset-disposal';
 import { CURRENT_USER, EMPLOYEES, isoDate } from '../../asset-assignment/asset-assignment-data';
+import {
+  AssetDisposalService,
+  AssetRegistrationListItemDto,
+  DisposalAddAssetsResult,
+  DisposalApprovalBody,
+  DisposalDetailsBody,
+  DisposalMethodBody,
+  DisposalRequestDto,
+  dateOnly,
+} from '../asset-disposal.service';
+import { apiErrorMessage } from '../../services/asset-api';
 
-/** DEMO MODE: asset register shown in the Select Assets step until the Asset API serves it. */
+/** A registered asset offered in the Select Assets step (GET /api/asset-registrations). */
 interface CandidateAsset extends DisposalItem {
+  /** Asset registration id sent to the Asset API. */
+  id: string;
   locationDetail: string;
   manufacturer: string;
-  status: AssetStatus;
+  status: string;
 }
 
-type AssetStatus = 'Active' | 'Inactive' | 'In Store';
-type Candidate = [string, string, string, string, string, string, string, string, string, number];
+/** Condition filter values; the asset list endpoint filters on condition server-side. */
+const CONDITIONS = ['New', 'Good', 'Fair', 'Poor', 'Damaged', 'End of Life', 'Obsolete', 'Under Repair'];
 
-const LOCATION_DETAIL: Record<string, string> = {
-  'Head Office': 'Head Office - IT Department',
-  'Block A': 'Block A - Control Room',
-  'Block B': 'Block B - Design Studio',
-  'Data Centre': 'Data Centre - Rack 4',
-  'Training Room': 'Training Room - Hall 1',
-  'Main Building': 'Main Building - 2nd Floor',
-  'Finance Dept': 'Finance Dept - Ground Floor',
-  Warehouse: 'Warehouse - Store 1',
-};
-
-// name, tag, category, model, serial, location, manufacturer, condition, status, value (AED)
-const DESIGN_ROWS: Candidate[] = [
-  ['Laptop', 'LT-000125', 'IT Equipment', 'Latitude 7420', '5CD1234ABC', 'Head Office', 'Dell Technologies', 'End of Life', 'Active', 2000],
-  ['Laptop', 'LT-000126', 'IT Equipment', 'Latitude 7420', '5CD1234ABD', 'Head Office', 'Dell Technologies', 'End of Life', 'Active', 2000],
-  ['Monitor', 'MN-000089', 'IT Equipment', 'UltraSharp 27', '8FG5678XYZ', 'Block A', 'Dell Technologies', 'Good', 'Active', 600],
-  ['Desktop PC', 'PC-000334', 'IT Equipment', 'OptiPlex 7090', '9HJ6789KLM', 'Data Centre', 'Dell Technologies', 'End of Life', 'Active', 900],
-  ['Projector', 'PR-000089', 'Audio Visual', 'EB-L530U', 'PR12345678', 'Training Room', 'Epson', 'End of Life', 'Active', 2500],
-  ['Server', 'SR-000012', 'IT Equipment', 'PowerEdge R740', 'SR98765432', 'Data Centre', 'Dell Technologies', 'Under Repair', 'Active', 6500],
-  ['Office Chair', 'CH-000156', 'Furniture', 'Ergonomic Pro', 'CH55667788', 'Main Building', 'Herman Miller', 'End of Life', 'Active', 1700],
-  ['Air Conditioner', 'AC-000034', 'HVAC', 'Split AC 2.0T', 'AC33445566', 'Block A', 'Daikin', 'Good', 'Active', 1500],
-  ['Network Switch', 'SW-000078', 'Networking', 'Catalyst 9300', 'SW77889900', 'Data Centre', 'Cisco', 'End of Life', 'Active', 1200],
-  ['Printer', 'PRN-000221', 'IT Equipment', 'LaserJet Pro', 'PR11223344', 'Finance Dept', 'HP', 'Good', 'Active', 400],
-];
-
-// Extra rows so filters, sorting and paging have something to work with
-const TEMPLATES: [string, string, string, string, string, number][] = [
-  ['LT', 'Laptop', 'IT Equipment', 'Latitude 7420', 'Dell Technologies', 1800],
-  ['MN', 'Monitor', 'IT Equipment', 'P2419H', 'Dell Technologies', 350],
-  ['PC', 'Desktop PC', 'IT Equipment', 'OptiPlex 7070', 'Dell Technologies', 700],
-  ['UPS', 'UPS', 'Electrical', 'Smart-UPS 3000', 'APC', 900],
-  ['TB', 'Meeting Table', 'Furniture', 'Boardroom 2400', 'Steelcase', 800],
-  ['AC', 'Air Conditioner', 'HVAC', 'FTKF50', 'Daikin', 1200],
-  ['SW', 'Access Switch', 'Networking', 'Catalyst 2960', 'Cisco', 500],
-  ['PR', 'Projector', 'Audio Visual', 'EB-X51', 'Epson', 900],
-];
-const GEN_CONDITIONS = ['Good', 'Fair', 'End of Life', 'Damaged', 'Obsolete', 'Under Repair'];
-const GEN_STATUSES: AssetStatus[] = ['Active', 'Active', 'Active', 'In Store', 'Inactive'];
-const GEN_LOCATIONS = Object.keys(LOCATION_DETAIL);
-
-function generated(count: number): Candidate[] {
-  return Array.from({ length: count }, (_, i) => {
-    const [prefix, name, category, model, maker, value] = TEMPLATES[i % TEMPLATES.length];
-    const tag = `${prefix}-${String(400 + i).padStart(6, '0')}`;
-    return [name, tag, category, model, `SN${(73519 * (i + 3)).toString(36).toUpperCase().padStart(8, '0')}`, GEN_LOCATIONS[i % GEN_LOCATIONS.length],
-      maker, GEN_CONDITIONS[i % GEN_CONDITIONS.length], GEN_STATUSES[i % GEN_STATUSES.length], value - (i % 5) * 50];
-  });
+/** Candidate row from an asset list item. */
+function fromAssetItem(a: AssetRegistrationListItemDto, condition = ''): CandidateAsset {
+  const location = a.siteName || a.buildingName || a.locationPath || '';
+  const detail = a.locationPath || [a.siteName, a.buildingName, a.floorName, a.zoneName, a.roomName].filter(Boolean).join(' - ');
+  return {
+    id: a.assetRegistrationId,
+    assetName: a.assetName ?? a.assetRegistrationId,
+    tag: a.assetTag || a.assetRegistrationId,
+    category: a.category ?? '',
+    model: a.assetType ?? '',
+    serial: '',
+    location,
+    locationDetail: detail || location,
+    manufacturer: a.manufacturer ?? '',
+    condition,
+    status: a.status ?? '',
+    value: 0,
+  };
 }
-
-const POOL: CandidateAsset[] = [...DESIGN_ROWS, ...generated(58)].map(
-  ([assetName, tag, category, model, serial, location, manufacturer, condition, status, value]) => ({
-    assetName, tag, category, model, serial, location, locationDetail: LOCATION_DETAIL[location] ?? location, manufacturer, condition,
-    status: status as AssetStatus, value,
-  }),
-);
-
-const CONDITIONS = [...new Set(POOL.map((a) => a.condition))];
-const ASSET_STATUSES: AssetStatus[] = ['Active', 'Inactive', 'In Store'];
-const MANUFACTURERS = [...new Set(POOL.map((a) => a.manufacturer))].sort();
 
 type SortKey = 'assetName' | 'tag' | 'category' | 'serial';
 
-const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'] as const;
-type Priority = (typeof PRIORITIES)[number];
+const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
+type Priority = string;
 
 interface Vendor {
   name: string;
@@ -143,13 +105,13 @@ interface Vendor {
 const VENDORS: Vendor[] = [
   { name: 'Green Recycle LLC', methods: ['Recycle'], address: 'P.O. Box 12345, Dubai, UAE', license: 'TRN-123456789', contact: 'Mohammed Al Hassan', phone: '+971 50 123 4567' },
   { name: 'EcoTech Disposal', methods: ['Recycle', 'Scrap'], address: 'Industrial Area 4, Sharjah, UAE', license: 'TRN-234567891', contact: 'Priya Nair', phone: '+971 55 234 5678' },
-  { name: 'Gulf Scrap Traders', methods: ['Scrap', 'Sell', 'Auction'], address: 'Al Quoz Industrial 3, Dubai, UAE', license: 'TRN-345678912', contact: 'Imran Qureshi', phone: '+971 52 345 6789' },
+  { name: 'Gulf Scrap Traders', methods: ['Scrap', 'Sell / Auction'], address: 'Al Quoz Industrial 3, Dubai, UAE', license: 'TRN-345678912', contact: 'Imran Qureshi', phone: '+971 52 345 6789' },
   { name: 'Dell Asset Recovery', methods: ['Return to Vendor'], address: 'Dubai Internet City, Dubai, UAE', license: 'TRN-456789123', contact: 'Sarah Thompson', phone: '+971 4 456 7890' },
   { name: 'Emirates Charity Foundation', methods: ['Donate'], address: 'Al Barsha 1, Dubai, UAE', license: 'TRN-567891234', contact: 'Fatima Al Mansoori', phone: '+971 56 567 8901' },
-  { name: 'Emirates Auction House', methods: ['Sell', 'Auction'], address: 'Al Aweer, Dubai, UAE', license: 'TRN-678912345', contact: 'Khalid Rahman', phone: '+971 50 678 9012' },
+  { name: 'Emirates Auction House', methods: ['Sell / Auction'], address: 'Al Aweer, Dubai, UAE', license: 'TRN-678912345', contact: 'Khalid Rahman', phone: '+971 50 678 9012' },
 ];
 
-/** Method cards on the Disposal Method step; Sell and Auction stay in the dropdown. */
+/** Method cards on the Disposal Method step; Sell / Auction stays in the dropdown. */
 const METHOD_CARDS: { method: DisposalMethod; text: string; tone: string }[] = [
   { method: 'Recycle', text: 'Send to certified recycler for environmentally responsible disposal.', tone: 'green' },
   { method: 'Scrap', text: 'Dispose as scrap (material recovery).', tone: 'red' },
@@ -158,13 +120,12 @@ const METHOD_CARDS: { method: DisposalMethod; text: string; tone: string }[] = [
 ];
 
 /** Supporting information shown beside the Disposal Method step. */
-const METHOD_NOTES: Record<DisposalMethod, string> = {
+const METHOD_NOTES: Record<string, string> = {
   Recycle: 'Assets will be processed as per company e-waste policy. A certificate of recycling will be obtained from the vendor.',
   Scrap: 'Assets will be stripped of reusable parts and data before scrapping. A scrap receipt will be obtained from the vendor.',
   'Return to Vendor': 'Assets will be returned under the purchase or lease agreement. A return acknowledgement will be obtained from the vendor.',
   Donate: 'Assets will be wiped and handed over to the approved organization. A donation receipt will be obtained.',
-  Sell: 'Assets will be sold at or above the estimated value. A sale invoice will be obtained from the buyer.',
-  Auction: 'Assets will be listed with the auction house. The final bid and settlement will be recorded against this request.',
+  'Sell / Auction': 'Assets will be sold or listed with the auction house at or above the estimated value. A sale invoice will be obtained from the buyer.',
 };
 
 type ApprovalType = 'Mandatory' | 'Optional';
@@ -215,6 +176,8 @@ interface PendingFile {
   added: string;
   by: string;
   description: string;
+  /** Media URL once the file is stored on the request; files without one are not sent to the API. */
+  url?: string;
 }
 
 @Component({
@@ -228,28 +191,37 @@ interface PendingFile {
     './new-disposal.css',
   ],
 })
-export class NewDisposal implements OnDestroy {
+export class NewDisposal implements OnInit, OnDestroy {
   readonly icons = {
     ArrowLeft, ArrowRight, ArrowUpDown, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, CloudUpload, EllipsisVertical, FileSpreadsheet,
     FileText, Funnel, GripVertical, HandHeart, Hexagon, Image, Info, MapPin, Package, Paperclip, Pencil, Plus, Recycle, RefreshCw, Save, Search, Send, ShieldCheck, Tag, Trash2, Upload, X,
   };
   readonly steps = STEPS;
-  readonly reasons = REASONS;
-  readonly categories = CATEGORIES;
-  readonly priorities = PRIORITIES;
-  readonly methods = DISPOSAL_METHODS;
+  reasons: string[] = REASONS;
+  priorities: string[] = [...PRIORITIES];
+  methods: DisposalMethod[] = DISPOSAL_METHODS;
   readonly methodCards = METHOD_CARDS;
-  readonly methodIcons: Record<DisposalMethod, typeof Recycle> = {
-    Recycle, Scrap: Trash2, 'Return to Vendor': RefreshCw, Donate: HandHeart, Sell: Tag, Auction: Tag,
+  readonly methodIcons: Record<string, typeof Recycle> = {
+    Recycle, Scrap: Trash2, 'Return to Vendor': RefreshCw, Donate: HandHeart, 'Sell / Auction': Tag, Sell: Tag, Auction: Tag,
   };
-  readonly approverChoices = APPROVERS;
+  /** Approver directory (demo list plus anyone already on a loaded request). */
+  approverChoices: Approver[] = [...APPROVERS];
   readonly approvalTypes: ApprovalType[] = ['Mandatory', 'Optional'];
-  readonly people = EMPLOYEES.map((e) => e.name).concat(EMPLOYEES.some((e) => e.name === CURRENT_USER) ? [] : [CURRENT_USER]);
+  people = EMPLOYEES.map((e) => e.name).concat(EMPLOYEES.some((e) => e.name === CURRENT_USER) ? [] : [CURRENT_USER]);
   readonly pageSizes = [10, 25, 50];
 
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly api = inject(AssetDisposalService);
+  private readonly auth = inject(AuthService);
 
   step = 1;
+
+  /** Asset API id of the request; set when step 1 is first saved, or from ?id= when editing. */
+  requestId: string | null = null;
+  requestNumber = '';
+  saving = false;
+  loadingRequest = false;
 
   // 1. Request details
   title = '';
@@ -261,12 +233,19 @@ export class NewDisposal implements OnDestroy {
   justification = '';
 
   // 2. Assets: the register, filtered and sorted, and the tags picked for disposal
+  /** Registered assets from GET /api/asset-registrations. */
+  pool: CandidateAsset[] = [];
+  loadingAssets = false;
+  assetsError = '';
+  private loadedCondition = '';
   included = new Set<string>();
+  /** Picked assets by tag, kept even when they drop out of the loaded list. */
+  private picked = new Map<string, CandidateAsset>();
   assetSearch = '';
   categoryFilter = '';
   locationFilter = '';
   conditionFilter = '';
-  statusFilter: AssetStatus | '' = 'Active';
+  statusFilter = 'Active';
   manufacturerFilter = '';
   minValue: number | null = null;
   maxValue: number | null = null;
@@ -283,6 +262,8 @@ export class NewDisposal implements OnDestroy {
 
   // 3. Method
   method: DisposalMethod = 'Recycle';
+  /** Demo vendor register plus vendors already saved on a loaded request. */
+  vendorList: Vendor[] = [...VENDORS];
   vendor = VENDORS[0].name;
   contactPerson = VENDORS[0].contact;
   contactNumber = VENDORS[0].phone;
@@ -302,8 +283,140 @@ export class NewDisposal implements OnDestroy {
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
+  ngOnInit(): void {
+    const user = this.auth.getUser()?.userName;
+    if (user) {
+      this.requestedBy = user;
+      if (!this.people.includes(user)) this.people = [...this.people, user];
+    }
+    this.api.options().subscribe({
+      next: (o) => {
+        if (o?.reasons?.length) this.reasons = o.reasons;
+        if (o?.priorities?.length) this.priorities = o.priorities;
+        if (o?.methods?.length) this.methods = o.methods.map((m) => m.method);
+      },
+      error: () => undefined,
+    });
+    this.loadAssets();
+    const id = this.route.snapshot.queryParamMap.get('id');
+    if (id) this.loadRequest(id);
+  }
+
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
+  }
+
+  // ===== Load =====
+
+  /** Edit mode: fills every step from GET /api/asset-disposals/{id}. */
+  private loadRequest(id: string): void {
+    this.loadingRequest = true;
+    this.api.get(id).subscribe({
+      next: (d) => {
+        this.loadingRequest = false;
+        this.fill(d);
+      },
+      error: (err) => {
+        this.loadingRequest = false;
+        this.error = apiErrorMessage(err, 'Could not load the disposal request.');
+      },
+    });
+  }
+
+  private fill(d: DisposalRequestDto): void {
+    this.requestId = d.id;
+    this.requestNumber = d.requestNumber;
+    this.title = d.requestTitle ?? '';
+    this.requestDate = dateOnly(d.requestDate) || this.requestDate;
+    if (d.requestedBy?.name) {
+      this.requestedBy = d.requestedBy.name;
+      if (!this.people.includes(d.requestedBy.name)) this.people = [...this.people, d.requestedBy.name];
+    }
+    this.reason = d.reason ?? '';
+    this.category = d.disposalCategory ?? '';
+    this.priority = d.priority || 'Normal';
+    this.justification = d.justification ?? '';
+    this.syncAssets(d);
+
+    const m = d.method ?? {};
+    if (m.method) this.method = m.method;
+    this.expectedDate = dateOnly(m.expectedDisposalDate);
+    if (m.vendor?.name) {
+      const name = m.vendor.name;
+      const known = this.vendorList.find((v) => v.name === name);
+      if (known) {
+        if (!known.methods.includes(this.method)) known.methods = [...known.methods, this.method];
+      } else {
+        this.vendorList = [...this.vendorList, {
+          name, methods: [this.method], address: m.vendor.address ?? '', license: m.vendor.tradeLicense ?? '', contact: m.contactPerson ?? '', phone: m.contactNumber ?? '',
+        }];
+      }
+      this.vendor = name;
+    } else {
+      this.vendor = '';
+    }
+    this.contactPerson = m.contactPerson ?? '';
+    this.contactNumber = m.contactNumber ?? '';
+    this.instructions = m.instructions ?? '';
+
+    if (d.approvers?.length) {
+      this.approvals = [...d.approvers].sort((a, b) => a.level - b.level).map((a) => {
+        if (a.approver?.name && !this.approverChoices.some((p) => p.name === a.approver.name)) {
+          this.approverChoices = [...this.approverChoices, { name: a.approver.name, role: a.approver.roleDepartment ?? '', color: '#6b7cc9' }];
+        }
+        return { level: a.approvalLevel, approver: a.approver?.name ?? '', type: a.approvalType === 'Optional' ? 'Optional' : 'Mandatory' };
+      });
+    }
+    this.notifyApprovers = d.notifyApprovers ?? true;
+    this.files = (d.attachments ?? []).map((f) => ({
+      name: f.fileName, size: f.fileSize ?? 0, added: f.uploadedAt ?? '', by: f.uploadedBy ?? '', description: f.description ?? '', url: f.fileUrl,
+    }));
+    this.remarks = d.remarks ?? '';
+  }
+
+  /** Replaces the picked assets with the ones saved on the request (the API fills model, serial and condition). */
+  private syncAssets(d: DisposalRequestDto): void {
+    this.picked.clear();
+    this.included.clear();
+    for (const x of d.assets ?? []) {
+      const tag = x.assetTag || x.assetRegistrationId;
+      const known = this.pool.find((a) => a.id === x.assetRegistrationId);
+      this.picked.set(tag, {
+        id: x.assetRegistrationId,
+        assetName: x.assetName ?? known?.assetName ?? tag,
+        tag,
+        category: x.category ?? known?.category ?? '',
+        model: x.model ?? known?.model ?? '',
+        serial: x.serialNumber ?? '',
+        location: x.location ?? known?.location ?? '',
+        locationDetail: [x.location, x.department].filter(Boolean).join(' - ') || known?.locationDetail || '',
+        manufacturer: x.manufacturer ?? known?.manufacturer ?? '',
+        condition: x.condition ?? '',
+        status: x.status ?? known?.status ?? '',
+        value: x.estimatedValue ?? 0,
+      });
+      this.included.add(tag);
+    }
+    if (!this.category) this.category = this.chosen[0]?.category ?? '';
+  }
+
+  /** Registered assets for the picker; the condition filter is applied by the API. */
+  loadAssets(): void {
+    this.loadingAssets = true;
+    this.assetsError = '';
+    const condition = this.conditionFilter;
+    this.api.listAssets({ condition: condition || undefined, pageSize: 200 }).subscribe({
+      next: (items) => {
+        this.loadingAssets = false;
+        this.loadedCondition = condition;
+        this.pool = items.map((a) => fromAssetItem(a, condition));
+      },
+      error: (err) => {
+        this.loadingAssets = false;
+        this.assetsError = apiErrorMessage(err, 'Could not load the asset list.');
+        this.showToast(this.assetsError);
+      },
+    });
   }
 
   // ===== Steps =====
@@ -329,6 +442,7 @@ export class NewDisposal implements OnDestroy {
         if (!this.approvals.length) return 'Add at least one approver.';
         if (this.approvals.some((a) => !a.approver)) return 'Choose an approver for every approval level.';
         if (this.approvals.some((a) => !a.level.trim())) return 'Name every approval level.';
+        if (!this.approvals.some((a) => a.type === 'Mandatory')) return 'At least one approval level must be Mandatory.';
         return '';
       default:
         return '';
@@ -361,14 +475,20 @@ export class NewDisposal implements OnDestroy {
     this.step = step;
   }
 
-  /** Stepper click: open any step directly; Next and Submit still validate. */
+  /** Stepper click: open any step directly; Next and Submit still validate and save. */
   openStep(step: number): void {
     this.error = '';
     this.step = step;
   }
 
+  /** Validates and saves the current step (creating the draft on step 1), then moves on. */
   next(): void {
-    if (this.step < STEPS.length) this.goStep(this.step + 1);
+    if (this.step >= STEPS.length || this.saving) return;
+    const err = this.stepError(this.step);
+    if (err) return void (this.error = err);
+    this.error = '';
+    const from = this.step;
+    this.run(this.saveStep(from, false), () => (this.step = from + 1));
   }
 
   back(): void {
@@ -381,11 +501,11 @@ export class NewDisposal implements OnDestroy {
 
   /** Vendors that handle the chosen method. */
   get vendors(): Vendor[] {
-    return VENDORS.filter((v) => v.methods.includes(this.method));
+    return this.vendorList.filter((v) => v.methods.includes(this.method));
   }
 
   get vendorDetails(): Vendor | null {
-    return VENDORS.find((v) => v.name === this.vendor) ?? null;
+    return this.vendorList.find((v) => v.name === this.vendor) ?? null;
   }
 
   methodTone(m: DisposalMethod): string {
@@ -394,11 +514,11 @@ export class NewDisposal implements OnDestroy {
 
   /** One-line description of a method, from its card or its supporting note. */
   methodText(m: DisposalMethod): string {
-    return METHOD_CARDS.find((c) => c.method === m)?.text ?? METHOD_NOTES[m];
+    return METHOD_CARDS.find((c) => c.method === m)?.text ?? METHOD_NOTES[m] ?? '';
   }
 
   get methodNote(): string {
-    return METHOD_NOTES[this.method];
+    return METHOD_NOTES[this.method] ?? '';
   }
 
   setMethod(m: DisposalMethod): void {
@@ -416,22 +536,37 @@ export class NewDisposal implements OnDestroy {
 
   // ===== Assets =====
 
-  readonly locations = GEN_LOCATIONS;
   readonly conditions = CONDITIONS;
-  readonly assetStatuses = ASSET_STATUSES;
-  readonly manufacturers = MANUFACTURERS;
+
+  get locations(): string[] {
+    return [...new Set(this.pool.map((a) => a.location).filter(Boolean))].sort();
+  }
+
+  get categories(): string[] {
+    return [...new Set([...CATEGORIES, ...this.pool.map((a) => a.category).filter(Boolean)])];
+  }
+
+  get assetStatuses(): string[] {
+    return [...new Set(['Active', ...this.pool.map((a) => a.status).filter(Boolean)])];
+  }
+
+  get manufacturers(): string[] {
+    return [...new Set(this.pool.map((a) => a.manufacturer).filter(Boolean))].sort();
+  }
 
   get chosen(): CandidateAsset[] {
-    return POOL.filter((a) => this.included.has(a.tag));
+    return [...this.picked.values()];
   }
 
   get filteredAssets(): CandidateAsset[] {
     const q = this.assetSearch.trim().toLowerCase();
-    const rows = (this.listTab === 'selected' ? this.chosen : POOL).filter(
+    const condition = this.conditionFilter;
+    const rows = (this.listTab === 'selected' ? this.chosen : this.pool).filter(
       (a) =>
         (!this.categoryFilter || a.category === this.categoryFilter) &&
         (!this.locationFilter || a.location === this.locationFilter) &&
-        (!this.conditionFilter || a.condition === this.conditionFilter) &&
+        // The loaded list is already filtered by condition; picked assets know their own
+        (!condition || this.listTab === 'all' || a.condition === condition) &&
         (!this.statusFilter || a.status === this.statusFilter) &&
         (!this.manufacturerFilter || a.manufacturer === this.manufacturerFilter) &&
         (this.minValue == null || a.value >= this.minValue) &&
@@ -464,6 +599,8 @@ export class NewDisposal implements OnDestroy {
   }
 
   get showingLabel(): string {
+    if (this.loadingAssets && this.listTab === 'all') return 'Loading assets...';
+    if (this.assetsError && this.listTab === 'all') return this.assetsError;
     const n = this.filteredAssets.length;
     if (!n) return 'No records';
     return `Showing ${this.page * this.pageSize + 1} to ${Math.min(n, (this.page + 1) * this.pageSize)} of ${n} records`;
@@ -476,22 +613,32 @@ export class NewDisposal implements OnDestroy {
   togglePage(on: boolean): void {
     for (const a of this.pageRows) {
       if (on) this.select(a.tag);
-      else this.included.delete(a.tag);
+      else this.unselect(a.tag);
     }
   }
 
   toggleIncluded(tag: string): void {
-    if (!this.included.delete(tag)) this.select(tag);
+    if (this.included.has(tag)) this.unselect(tag);
+    else this.select(tag);
   }
 
   private select(tag: string): void {
+    const asset = this.picked.get(tag) ?? this.pool.find((a) => a.tag === tag);
+    if (!asset) return;
     this.included.add(tag);
+    this.picked.set(tag, asset);
     // The first asset picked sets the category when none was chosen
-    if (!this.category) this.category = POOL.find((a) => a.tag === tag)?.category ?? '';
+    if (!this.category) this.category = asset.category;
+  }
+
+  private unselect(tag: string): void {
+    this.included.delete(tag);
+    this.picked.delete(tag);
   }
 
   onFilter(): void {
     this.page = 0;
+    if (this.conditionFilter !== this.loadedCondition && !this.loadingAssets) this.loadAssets();
   }
 
   resetFilters(): void {
@@ -516,21 +663,46 @@ export class NewDisposal implements OnDestroy {
 
   clearAssets(): void {
     this.included.clear();
+    this.picked.clear();
     this.onFilter();
   }
 
   removeAsset(a: CandidateAsset): void {
-    this.included.delete(a.tag);
+    this.unselect(a.tag);
     this.page = Math.min(this.page, this.pageCount - 1);
   }
 
-  /** Selects the register assets whose tags are listed and reports any that weren't found. */
-  private selectTags(tags: string[]): void {
-    const wanted = new Set(tags.map((t) => t.trim().toUpperCase()).filter(Boolean));
-    const found = POOL.filter((a) => wanted.has(a.tag));
-    found.forEach((a) => this.select(a.tag));
-    const missing = wanted.size - found.length;
-    this.showToast(`${found.length} asset${found.length === 1 ? '' : 's'} selected${missing ? `, ${missing} tag${missing === 1 ? '' : 's'} not found` : ''}.`);
+  /**
+   * Add by Tag / Import from Excel go through the API, which needs a saved request: the draft is created (or
+   * updated) with the current selection first, then the API adds the matching assets and reports the rest.
+   */
+  private addThroughApi(call: (id: string) => Observable<DisposalAddAssetsResult>): void {
+    if (!this.title.trim()) {
+      this.showToast('Enter the request title on step 1 first; the request is saved as a draft before assets are added.');
+      return;
+    }
+    if (this.saving) return;
+    const work = this.ensureRequest().pipe(
+      concatMap((id) => this.api.updateAssets(id, this.assetsBody(), true).pipe(map(() => id))),
+      concatMap((id) => call(id)),
+    );
+    this.saving = true;
+    work.subscribe({
+      next: (res) => {
+        this.saving = false;
+        this.syncAssets(res.request);
+        const notFound = res.notFound?.length ?? 0;
+        const rejected = Object.entries(res.rejected ?? {});
+        const parts = [`${res.addedCount} asset${res.addedCount === 1 ? '' : 's'} added`];
+        if (notFound) parts.push(`${notFound} tag${notFound === 1 ? '' : 's'} not found`);
+        if (rejected.length) parts.push(`${rejected.length} not available (${rejected.map(([t, why]) => `${t}: ${why}`).join('; ')})`);
+        this.showToast(parts.join(', ') + '.');
+      },
+      error: (err) => {
+        this.saving = false;
+        this.showToast(apiErrorMessage(err));
+      },
+    });
   }
 
   // Add by Tag dialog
@@ -541,26 +713,23 @@ export class NewDisposal implements OnDestroy {
   }
 
   confirmTags(): void {
-    this.selectTags(this.tagText.split(/[\s,;]+/));
+    const tags = [...new Set(this.tagText.split(/[\s,;]+/).map((t) => t.trim()).filter(Boolean))];
     this.tagDialog = false;
+    if (tags.length) this.addThroughApi((id) => this.api.addAssetsByTag(id, tags));
   }
 
-  /** Reads asset tags from the column named "Asset Tag" (or the first column) of the sheet. */
+  /** Sends the sheet to the API, which reads the "Asset Tag" column (or the first column). */
   importExcel(input: HTMLInputElement): void {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    file.arrayBuffer().then((buf) => {
-      const book = XLSX.read(buf);
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(book.Sheets[book.SheetNames[0]]);
-      this.selectTags(rows.map((r) => String(r['Asset Tag'] ?? r['Tag'] ?? Object.values(r)[0] ?? '')));
-    });
+    this.addThroughApi((id) => this.api.importAssets(id, file));
   }
 
   // ===== Approvers =====
 
   approverOf(name: string): Approver | null {
-    return APPROVERS.find((a) => a.name === name) ?? null;
+    return this.approverChoices.find((a) => a.name === name) ?? null;
   }
 
   initials(name: string): string {
@@ -569,11 +738,11 @@ export class NewDisposal implements OnDestroy {
 
   /** Approvers not already used on another level, plus the row's own. */
   approverOptions(row: ApprovalStep): Approver[] {
-    return APPROVERS.filter((a) => a.name === row.approver || !this.approvals.some((r) => r.approver === a.name));
+    return this.approverChoices.filter((a) => a.name === row.approver || !this.approvals.some((r) => r.approver === a.name));
   }
 
   addApprover(): void {
-    const free = APPROVERS.find((a) => !this.approvals.some((r) => r.approver === a.name));
+    const free = this.approverChoices.find((a) => !this.approvals.some((r) => r.approver === a.name));
     this.approvals.push({ level: `Approval Level ${this.approvals.length + 1}`, approver: free?.name ?? '', type: 'Mandatory' });
   }
 
@@ -594,11 +763,14 @@ export class NewDisposal implements OnDestroy {
   }
 
   // ===== Attachments =====
+  // The API stores attachments already uploaded to the Media service (file URL). There is no upload here yet,
+  // so new files are listed for this session only and are not sent; files loaded from the request are kept.
 
   addFiles(list: FileList | null | undefined): void {
     const tooBig = Array.from(list ?? []).filter((f) => f.size > 10 * 1024 * 1024);
+    const by = this.auth.getUser()?.userName || this.api.currentUser() || CURRENT_USER;
     for (const f of Array.from(list ?? [])) {
-      if (f.size <= 10 * 1024 * 1024) this.files.push({ name: f.name, size: f.size, added: nowStamp(), by: CURRENT_USER, description: '' });
+      if (f.size <= 10 * 1024 * 1024) this.files.push({ name: f.name, size: f.size, added: nowStamp(), by, description: '' });
     }
     if (tooBig.length) this.showToast(`${tooBig.map((f) => f.name).join(', ')} is over 10 MB and was skipped.`);
   }
@@ -641,26 +813,140 @@ export class NewDisposal implements OnDestroy {
   }
 
   get totalValue(): number {
-    return this.chosen.reduce((n, a) => n + a.value, 0);
+    return this.chosen.reduce((n, a) => n + (a.value || 0), 0);
   }
 
   conditionClass(c: string): string {
     if (/end of life|damaged|under repair/i.test(c)) return 'cond cond--bad';
-    return /good/i.test(c) ? 'cond cond--good' : 'cond cond--warn';
+    return /good|new/i.test(c) ? 'cond cond--good' : 'cond cond--warn';
+  }
+
+  // ===== API bodies =====
+
+  private detailsBody(): DisposalDetailsBody {
+    const employee = EMPLOYEES.find((e) => e.name === this.requestedBy);
+    return {
+      requestTitle: this.title.trim(),
+      requestDate: this.requestDate || null,
+      requestedBy: this.requestedBy ? { userId: employee?.id ?? null, name: this.requestedBy, roleDepartment: employee?.department ?? null } : null,
+      reason: this.reason || null,
+      disposalCategory: this.category || null,
+      priority: this.priority || null,
+      justification: this.justification.trim() || null,
+      currency: 'AED',
+    };
+  }
+
+  private assetsBody() {
+    return this.chosen.map((a) => ({ assetRegistrationId: a.id, estimatedValue: a.value || 0 }));
+  }
+
+  private methodBody(): DisposalMethodBody {
+    const v = this.vendorDetails;
+    return {
+      method: this.method || null,
+      expectedDisposalDate: this.expectedDate || null,
+      vendor: this.vendor ? { name: this.vendor, address: v?.address || null, tradeLicense: v?.license || null } : null,
+      contactPerson: this.contactPerson.trim() || null,
+      contactNumber: this.contactNumber.trim() || null,
+      instructions: this.instructions.trim() || null,
+    };
+  }
+
+  private approvalBody(): DisposalApprovalBody {
+    return {
+      approvers: this.approvals
+        .filter((a) => a.approver)
+        .map((a) => ({
+          approvalLevel: a.level.trim(),
+          approver: { name: a.approver, roleDepartment: this.approverOf(a.approver)?.role || null },
+          approvalType: a.type,
+        })),
+      notifyApprovers: this.notifyApprovers,
+      attachments: this.files
+        .filter((f) => f.url)
+        .map((f) => ({
+          fileName: f.name, fileUrl: f.url!, fileType: this.ext(f.name).toUpperCase() || null, fileSize: f.size || null,
+          description: f.description.trim() || null, uploadedBy: f.by || null, uploadedAt: f.added || null,
+        })),
+      remarks: this.remarks.trim() || null,
+    };
   }
 
   // ===== Save =====
 
+  /** The request id, creating the draft from step 1 when there is none yet. */
+  private ensureRequest(): Observable<string> {
+    return defer(() =>
+      this.requestId
+        ? of(this.requestId)
+        : this.api.create(this.detailsBody(), true).pipe(
+            tap((d) => {
+              this.requestId = d.id;
+              this.requestNumber = d.requestNumber;
+            }),
+            map((d) => d.id),
+          ),
+    );
+  }
+
+  /** Saves one wizard step: POST on the first save of step 1, otherwise PUT /{id}/{step}. */
+  private saveStep(step: number, draft: boolean): Observable<DisposalRequestDto | null> {
+    return defer(() => {
+      if (step === 1) {
+        if (!this.requestId) {
+          return this.api.create(this.detailsBody(), draft).pipe(
+            tap((d) => {
+              this.requestId = d.id;
+              this.requestNumber = d.requestNumber;
+            }),
+          );
+        }
+        return this.api.updateDetails(this.requestId, this.detailsBody(), draft);
+      }
+      if (step > 4) return of(null);
+      return this.ensureRequest().pipe(
+        concatMap((id) => {
+          if (step === 2) return this.api.updateAssets(id, this.assetsBody(), draft).pipe(tap((d) => this.syncAssets(d)));
+          if (step === 3) return this.api.updateMethod(id, this.methodBody(), draft);
+          return this.api.updateApproval(id, this.approvalBody(), draft);
+        }),
+      );
+    });
+  }
+
+  /** Saves steps 1 to 4 in order. */
+  private saveAll(draft: boolean): Observable<DisposalRequestDto | null> {
+    return from([1, 2, 3, 4]).pipe(concatMap((s) => this.saveStep(s, draft)), last());
+  }
+
+  private run<T>(work: Observable<T>, done: (result: T) => void): void {
+    this.saving = true;
+    work.subscribe({
+      next: (result) => {
+        this.saving = false;
+        done(result);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.error = apiErrorMessage(err);
+      },
+    });
+  }
+
   saveDraft(): void {
+    if (this.saving) return;
     if (!this.title.trim()) {
       this.step = 1;
       this.error = 'Enter the request title before saving a draft.';
       return;
     }
-    this.save('Draft');
+    this.error = '';
+    this.run(this.saveAll(true), () => this.router.navigate(['/assets/disposal']));
   }
 
   submit(): void {
+    if (this.saving) return;
     for (let s = 1; s < STEPS.length; s++) {
       const err = this.stepError(s);
       if (err) {
@@ -669,40 +955,11 @@ export class NewDisposal implements OnDestroy {
         return;
       }
     }
-    this.save('Pending');
-  }
-
-  private save(status: DisposalStatus): void {
-    const first = this.chosen[0];
-    const items: DisposalItem[] = this.chosen.map(({ assetName, tag, category, model, serial, location, condition, value }) => ({
-      assetName, tag, category, model, serial, location, condition, value,
-    }));
-    const created: DisposalRequest = {
-      id: DISPOSALS.reduce((n, r) => Math.max(n, r.id), 0) + 1,
-      reference: nextDisposalReference(DISPOSALS),
-      assetName: this.title.trim(),
-      tag: first ? first.tag + (items.length > 1 ? ` +${items.length - 1}` : '') : '-',
-      category: this.category || first?.category || '-',
-      location: first?.location ?? '-',
-      locationDetail: first?.locationDetail ?? '-',
-      method: this.method,
-      status,
-      requested: `${this.requestDate}T${nowStamp().slice(11)}`,
-      requestedBy: this.requestedBy,
-      reason: this.reason,
-      serial: first?.serial ?? '',
-      model: first?.model ?? '',
-      manufacturer: first?.manufacturer ?? '',
-      value: this.totalValue,
-      attachments: this.files.map(({ name, size, added }) => ({ name, size, added })),
-      notes: [this.justification, this.instructions, this.remarks]
-        .map((t) => t.trim())
-        .filter(Boolean)
-        .map((text) => ({ text, by: this.requestedBy, at: nowStamp() })),
-      items,
-    };
-    DISPOSALS.unshift(created);
-    this.router.navigate(['/assets/disposal']);
+    this.error = '';
+    this.run(
+      this.saveAll(false).pipe(concatMap(() => this.api.submit(this.requestId!))),
+      () => this.router.navigate(['/assets/disposal']),
+    );
   }
 
   // ===== Keys =====
