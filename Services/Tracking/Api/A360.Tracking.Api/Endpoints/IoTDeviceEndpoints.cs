@@ -22,7 +22,7 @@ public static class IoTDeviceEndpoints
         // Literal segments take precedence over /{deviceId}, so these are not read as device ids.
         group.MapGet("/device-types", GetDeviceTypesAsync).WithName("GetIoTDeviceTypes");
         group.MapGet("/models", GetModelsAsync).WithName("GetIoTDeviceModelOptions");
-        group.MapGet("/connectivities", () => Results.Ok(DeviceModelConnectivity.All)).WithName("GetIoTDeviceConnectivities");
+        group.MapGet("/connectivities", GetConnectivitiesAsync).WithName("GetIoTDeviceConnectivities");
         group.MapGet("/gateways", GetGatewaysAsync).WithName("GetIoTDeviceGateways");
         group.MapGet("/{deviceId}", GetIoTDeviceAsync).WithName("GetIoTDeviceById");
         group.MapPost("", CreateIoTDeviceAsync).WithName("CreateIoTDevice");
@@ -72,11 +72,42 @@ public static class IoTDeviceEndpoints
         return Results.Ok(models.Select(DeviceModelOptionResponse.FromEntity));
     }
 
+    /// <summary>
+    /// Connectivity dropdown. With model, that model's protocol (e.g. BLE 5.0) and connectivity come first;
+    /// then the protocols of the other selectable models and the generic connectivity types.
+    /// </summary>
+    private static async Task<IResult> GetConnectivitiesAsync(
+        string? model,
+        string? deviceType,
+        IDeviceModelRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var options = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(model)
+            && await repository.GetByModelNumberAsync(model.Trim(), cancellationToken) is { } selected)
+        {
+            options.Add(selected.Protocol ?? string.Empty);
+            options.Add(selected.Connectivity);
+        }
+
+        var models = await repository.GetSelectableAsync(deviceType, cancellationToken);
+        options.AddRange(models.Select(x => x.Protocol ?? string.Empty).Order(StringComparer.OrdinalIgnoreCase));
+        options.AddRange(DeviceModelConnectivity.All);
+
+        return Results.Ok(options
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Gateway dropdown; with siteId, only gateways installed at that site.</summary>
     private static async Task<IResult> GetGatewaysAsync(
+        string? siteId,
         IIoTDeviceRepository repository,
         CancellationToken cancellationToken)
     {
-        var gateways = await repository.GetGatewaysAsync(cancellationToken);
+        var gateways = await repository.GetGatewaysAsync(siteId, cancellationToken);
         return Results.Ok(gateways.Select(GatewayOptionResponse.FromEntity));
     }
 
@@ -94,6 +125,7 @@ public static class IoTDeviceEndpoints
     private static async Task<IResult> CreateIoTDeviceAsync(
         CreateIoTDeviceRequest request,
         IIoTDeviceRepository repository,
+        IDeviceModelRepository models,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -104,11 +136,17 @@ public static class IoTDeviceEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var device = request.ToEntity(currentUserAccessor.GetCurrentUser());
+        var model = await models.GetByModelNumberAsync(request.Model!.Trim(), cancellationToken);
+        var device = request.ToEntity(currentUserAccessor.GetCurrentUser(), model?.PowerSource);
 
         if (await repository.DeviceIdExistsAsync(device.DeviceId, cancellationToken))
         {
             return Results.Conflict(new { message = $"IoT device '{device.DeviceId}' is already registered." });
+        }
+
+        if (await repository.SerialNumberExistsAsync(device.SerialNumber!, null, cancellationToken))
+        {
+            return Results.Conflict(new { message = $"Serial number '{device.SerialNumber}' is already registered to another device." });
         }
 
         await repository.CreateAsync(device, cancellationToken);
@@ -122,6 +160,7 @@ public static class IoTDeviceEndpoints
         string deviceId,
         CreateIoTDeviceRequest request,
         IIoTDeviceRepository repository,
+        IDeviceModelRepository models,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -143,8 +182,16 @@ public static class IoTDeviceEndpoints
             return NotFound(deviceId);
         }
 
+        if (await repository.SerialNumberExistsAsync(request.SerialNumber!.Trim(), existing.Id, cancellationToken))
+        {
+            return Results.Conflict(new { message = $"Serial number '{request.SerialNumber!.Trim()}' is already registered to another device." });
+        }
+
+        // Without a PowerSource in the body, keep the device's current one rather than re-deriving it.
+        var model = await models.GetByModelNumberAsync(request.Model!.Trim(), cancellationToken);
         var currentUser = currentUserAccessor.GetCurrentUser();
-        var device = request.ToEntity(currentUser).Replacing(existing, currentUser);
+        var device = request.ToEntity(currentUser, string.IsNullOrWhiteSpace(existing.PowerSource) ? model?.PowerSource : existing.PowerSource)
+            .Replacing(existing, currentUser);
         device.DeviceId = existing.DeviceId;
 
         if (!await repository.UpdateAsync(existing.Id, device, cancellationToken))

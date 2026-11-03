@@ -155,7 +155,9 @@ public sealed record AssetLocationDto(
     string? ZoneName,
     string? RoomId,
     string? RoomName,
-    string? LocationPath)
+    string? LocationPath,
+    double? Latitude = null,
+    double? Longitude = null)
 {
     public static readonly AssetLocationDto Empty =
         new(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
@@ -176,7 +178,9 @@ public sealed record AssetLocationDto(
             ZoneId = ContractText.TrimOrNull(ZoneId),
             ZoneName = ContractText.TrimOrNull(ZoneName),
             RoomId = ContractText.TrimOrNull(RoomId),
-            RoomName = ContractText.TrimOrNull(RoomName)
+            RoomName = ContractText.TrimOrNull(RoomName),
+            Latitude = Latitude is >= -90 and <= 90 ? Latitude : null,
+            Longitude = Longitude is >= -180 and <= 180 ? Longitude : null
         };
 
         // The path is derived from the selected levels; any value sent by the client is ignored.
@@ -204,7 +208,9 @@ public sealed record AssetLocationDto(
             section.ZoneName,
             section.RoomId,
             section.RoomName,
-            section.LocationPath);
+            section.LocationPath,
+            section.Latitude,
+            section.Longitude);
     }
 }
 

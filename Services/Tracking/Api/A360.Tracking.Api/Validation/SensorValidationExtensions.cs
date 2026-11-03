@@ -13,10 +13,53 @@ public static class SensorValidationExtensions
     {
         var errors = new Dictionary<string, string[]>();
 
-        RequireText(errors, "SensorId", request.SensorId, CodeMaxLength);
-        RequireText(errors, "Name", request.Name, NameMaxLength);
+        if (string.IsNullOrWhiteSpace(request.SensorId) && string.IsNullOrWhiteSpace(request.SensorNumber))
+        {
+            errors["SensorNumber"] = ["SensorNumber (or SensorId) is required"];
+        }
+        else
+        {
+            MaxLength(errors, "SensorId", request.ResolvedSensorId(), CodeMaxLength);
+        }
+
         RequireText(errors, "SensorType", request.SensorType, NameMaxLength);
-        RequireText(errors, "MeasuredParameter", request.MeasuredParameter, NameMaxLength);
+        RequireText(errors, "SerialNumber", request.SerialNumber, CodeMaxLength);
+        RequireText(errors, "DeviceId", request.DeviceId, CodeMaxLength);
+        RequireText(errors, "MeasurementPoint", request.MeasurementPoint, NameMaxLength);
+
+        MaxLength(errors, "Name", request.Name, NameMaxLength);
+        MaxLength(errors, "MeasuredParameter", request.MeasuredParameter, NameMaxLength);
+        MaxLength(errors, "SensorNumber", request.SensorNumber, CodeMaxLength);
+        MaxLength(errors, "AssetCode", request.AssetCode, CodeMaxLength);
+        MaxLength(errors, "SiteId", request.SiteId, CodeMaxLength);
+        MaxLength(errors, "SiteName", request.SiteName, NameMaxLength);
+
+        if (string.IsNullOrWhiteSpace(request.AssetRegistrationId)
+            && string.IsNullOrWhiteSpace(request.AssetCode)
+            && string.IsNullOrWhiteSpace(request.AssetName))
+        {
+            errors["Asset"] = ["Asset is required: send AssetRegistrationId, AssetCode or AssetName"];
+        }
+
+        if (request.CalibrationDueDate is null)
+        {
+            errors["CalibrationDueDate"] = ["CalibrationDueDate is required"];
+        }
+
+        if (request.Channel is < 1)
+        {
+            errors["Channel"] = ["Channel must be 1 or more"];
+        }
+
+        if (request.SamplingIntervalSeconds is { } interval && !TelemetrySamplingInterval.Seconds.Contains(interval))
+        {
+            errors["SamplingIntervalSeconds"] = [$"SamplingIntervalSeconds must be one of: {string.Join(", ", TelemetrySamplingInterval.Seconds)}"];
+        }
+
+        if (request.LowAlarm is { } low && request.HighAlarm is { } high && low >= high)
+        {
+            errors["HighAlarm"] = ["HighAlarm must be greater than LowAlarm"];
+        }
 
         MaxLength(errors, "Unit", request.Unit, UnitMaxLength);
         MaxLength(errors, "DeviceId", request.DeviceId, CodeMaxLength);

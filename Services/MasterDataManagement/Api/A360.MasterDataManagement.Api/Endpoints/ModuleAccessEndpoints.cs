@@ -1,4 +1,6 @@
+using ModuleAccessEntity = A360.MasterDataManagement.Domain.Entities.ModuleAccess;
 using A360.MasterDataManagement.Api.Contracts;
+using A360.MasterDataManagement.Domain.ValueObjects;
 using A360.MasterDataManagement.Api.Validation;
 using A360.MasterDataManagement.Repository.Repositories;
 using A360.Domain.Entities;
@@ -17,6 +19,9 @@ public static class ModuleAccessEndpoints
 
         group.MapGet("", GetModuleAccessesAsync)
             .WithName("GetModuleAccesses");
+
+        group.MapPost("/seed-defaults", SeedDefaultModulesAsync)
+            .WithName("SeedDefaultModules");
 
         group.MapGet("/{id}", GetModuleAccessByIdAsync)
             .WithName("GetModuleAccessById");
@@ -50,6 +55,80 @@ public static class ModuleAccessEndpoints
 
         return Results.Ok(
             moduleAccesses.Select(ModuleAccessResponse.FromEntity));
+    }
+
+    // The modules shown in the role permission matrix, with the actions each one supports.
+    private static readonly (string Name, string Code, string Category, string Icon, string[] Actions)[] DefaultModules =
+    [
+        ("Dashboard", "DASHBOARD", "General", "home", [ModuleActions.View, ModuleActions.Export]),
+        ("Assets", "ASSETS", "Asset Management", "database", [.. ModuleActions.All]),
+        ("Tracking & IoT", "TRACKING_IOT", "Asset Management", "wifi", [.. ModuleActions.All]),
+        ("Movement & Custody", "MOVEMENT_CUSTODY", "Asset Management", "arrows", [.. ModuleActions.All]),
+        ("Maintenance", "MAINTENANCE", "Operations", "wrench", [.. ModuleActions.All]),
+        ("Inspection", "INSPECTION", "Operations", "clipboard", [.. ModuleActions.All]),
+        ("Inventory", "INVENTORY", "Operations", "box", [.. ModuleActions.All]),
+        ("Compliance", "COMPLIANCE", "Governance", "shield", [.. ModuleActions.All]),
+        ("Contracts & Warranty", "CONTRACTS_WARRANTY", "Governance", "file-text", [.. ModuleActions.All]),
+        ("Financial", "FINANCIAL", "Finance", "dollar", [.. ModuleActions.All]),
+        ("Reports & Analytics", "REPORTS_ANALYTICS", "Insights", "bar-chart",
+            [ModuleActions.View, ModuleActions.Create, ModuleActions.Edit, ModuleActions.Delete, ModuleActions.Export]),
+        ("Administration", "ADMINISTRATION", "Administration", "settings",
+            [ModuleActions.View, ModuleActions.Create, ModuleActions.Edit, ModuleActions.Delete, ModuleActions.Export]),
+    ];
+
+    /// <summary>Creates any of the standard permission-matrix modules that do not exist yet (matched by code).</summary>
+    private static async Task<IResult> SeedDefaultModulesAsync(
+        SeedDefaultModulesRequest? request,
+        IModuleAccessRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var created = 0;
+        var skipped = 0;
+
+        for (var i = 0; i < DefaultModules.Length; i++)
+        {
+            var module = DefaultModules[i];
+
+            var existing = await repository.GetByCodeAsync(
+                module.Code,
+                request?.ClientId,
+                cancellationToken);
+
+            if (existing is not null)
+            {
+                skipped++;
+                continue;
+            }
+
+            await repository.CreateAsync(
+                new ModuleAccessEntity
+                {
+                    ModuleName = module.Name,
+                    Code = module.Code,
+                    Category = module.Category,
+                    Icon = module.Icon,
+                    AvailableActions = [.. module.Actions],
+                    SortOrder = i + 1,
+                    CreatedBy = request?.CreatedBy,
+                    ClientId = request?.ClientId,
+                    TenantId = request?.TenantId,
+                    Status = MasterDataStatuses.Active,
+                    CreatedAt = DateTime.UtcNow,
+                    IsDeleted = false
+                },
+                cancellationToken);
+
+            created++;
+        }
+
+        var modules = await repository.SearchAsync(
+            new ModuleAccessFilter(null, null, null, request?.ClientId),
+            cancellationToken);
+
+        return Results.Ok(new SeedDefaultModulesResponse(
+            created,
+            skipped,
+            modules.Select(ModuleAccessResponse.FromEntity).ToList()));
     }
 
     private static async Task<IResult> GetModuleAccessByIdAsync(

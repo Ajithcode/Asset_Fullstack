@@ -169,6 +169,7 @@ public static class AssetCategoryEndpoints
         IAssetCategoryRepository repository,
         IAssetTypeRepository assetTypes,
         IAssetModelRepository assetModels,
+        IAssetSubCategoryRepository subCategories,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -245,6 +246,11 @@ public static class AssetCategoryEndpoints
                 id,
                 category.CategoryName,
                 cancellationToken);
+
+            await subCategories.UpdateCategoryNameAsync(
+                id,
+                category.CategoryName,
+                cancellationToken);
         }
 
         await eventLogger.LogAsync(
@@ -315,6 +321,7 @@ public static class AssetCategoryEndpoints
         IAssetCategoryRepository repository,
         IAssetTypeRepository assetTypes,
         IAssetModelRepository assetModels,
+        IAssetSubCategoryRepository subCategories,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -334,6 +341,12 @@ public static class AssetCategoryEndpoints
         }
 
         if (await repository.HasChildrenAsync(id, cancellationToken))
+        {
+            return Results.Conflict(
+                new { message = "This asset category has sub-categories. Delete or move them first." });
+        }
+
+        if (await subCategories.AnyWithCategoryAsync(id, cancellationToken))
         {
             return Results.Conflict(
                 new { message = "This asset category has sub-categories. Delete or move them first." });

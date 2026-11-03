@@ -40,6 +40,7 @@ public static class AssetApplicationBuilderExtensions
         app.MapAssetAuditEndpoints();
         app.MapAssetDisposalEndpoints();
         app.MapAssetServiceRequestEndpoints();
+        app.MapAssetDashboardEndpoints();
 
         return app;
     }

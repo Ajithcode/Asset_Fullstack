@@ -1,4 +1,5 @@
 using A360.MasterDataManagement.Api.Contracts;
+using A360.MasterDataManagement.Domain.ValueObjects;
 
 namespace A360.MasterDataManagement.Api.Validation;
 
@@ -7,13 +8,33 @@ public static class RoleValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateRoleRequest request)
     {
-        return ValidateFields(request.RoleName, request.Code, request.Type, request.Permissions, request.ModuleAccess);
+        var errors = ValidateFields(request.RoleName, request.Code, request.Permissions, request.ModuleAccess);
+        ValidateAccess(errors, request.ModulePermissions, request.DataScope, request.Locations, request.Departments, request.ApprovalLimit);
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateRoleRequest request)
     {
-        return ValidateFields(request.RoleName, request.Code, request.Type, request.Permissions, request.ModuleAccess);
+        var errors = ValidateFields(request.RoleName, request.Code, request.Permissions, request.ModuleAccess);
+        ValidateAccess(errors, request.ModulePermissions, request.DataScope, request.Locations, request.Departments, request.ApprovalLimit);
+        return errors;
+    }
+
+    public static Dictionary<string, string[]> Validate(
+        this UpdateRolePermissionMatrixRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        if (request.ModulePermissions is null)
+        {
+            errors["ModulePermissions"] =
+                ["ModulePermissions is required"];
+            return errors;
+        }
+
+        ValidateModulePermissions(errors, request.ModulePermissions);
+        return errors;
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -33,7 +54,6 @@ public static class RoleValidationExtensions
     private static Dictionary<string, string[]> ValidateFields(
         string? roleName,
         string? code,
-        string? type,
         List<MasterDataReferenceDto>? permissions,
         List<MasterDataReferenceDto>? moduleAccess)
     {
@@ -49,12 +69,6 @@ public static class RoleValidationExtensions
         {
             errors["Code"] =
                 ["Code is required"];
-        }
-
-        if (string.IsNullOrWhiteSpace(type))
-        {
-            errors["Type"] =
-                ["Type is required"];
         }
 
         if (permissions is not null)
@@ -86,5 +100,82 @@ public static class RoleValidationExtensions
         }
 
         return errors;
+    }
+
+    // Type is optional and defaults to "Custom Role".
+    private static void ValidateAccess(
+        Dictionary<string, string[]> errors,
+        List<RoleModulePermissionDto>? modulePermissions,
+        string? dataScope,
+        List<MasterDataReferenceDto>? locations,
+        List<MasterDataReferenceDto>? departments,
+        decimal? approvalLimit)
+    {
+        if (modulePermissions is not null)
+        {
+            ValidateModulePermissions(errors, modulePermissions);
+        }
+
+        var scope = RoleContractDefaults.DataScope(dataScope);
+
+        if (!RoleDataScopes.All.Contains(scope))
+        {
+            errors["DataScope"] =
+                [$"DataScope must be one of: {string.Join(", ", RoleDataScopes.All)}"];
+        }
+
+        if (scope == RoleDataScopes.AssignedLocations && (locations is null || locations.Count == 0))
+        {
+            errors["Locations"] =
+                ["Select at least one location when DataScope is 'Assigned Locations'"];
+        }
+
+        ValidateIdList(errors, "Locations", "location", locations);
+        ValidateIdList(errors, "Departments", "department", departments);
+
+        if (approvalLimit is < 0)
+        {
+            errors["ApprovalLimit"] =
+                ["ApprovalLimit cannot be negative"];
+        }
+    }
+
+    private static void ValidateModulePermissions(
+        Dictionary<string, string[]> errors,
+        List<RoleModulePermissionDto> modulePermissions)
+    {
+        if (modulePermissions.Any(x => x is null || string.IsNullOrWhiteSpace(x.ModuleId)))
+        {
+            errors["ModulePermissions"] =
+                ["Every entry in ModulePermissions needs a module id"];
+        }
+        else if (modulePermissions.GroupBy(x => x.ModuleId!.Trim()).Any(x => x.Count() > 1))
+        {
+            errors["ModulePermissions"] =
+                ["ModulePermissions contains the same module more than once"];
+        }
+    }
+
+    private static void ValidateIdList(
+        Dictionary<string, string[]> errors,
+        string field,
+        string label,
+        List<MasterDataReferenceDto>? references)
+    {
+        if (references is null)
+        {
+            return;
+        }
+
+        if (references.Any(x => x is null || string.IsNullOrWhiteSpace(x.Id)))
+        {
+            errors[field] =
+                [$"Every entry in {field} needs a {label} id"];
+        }
+        else if (references.GroupBy(x => x.Id!.Trim()).Any(x => x.Count() > 1))
+        {
+            errors[field] =
+                [$"{field} contains duplicate entries"];
+        }
     }
 }

@@ -33,6 +33,19 @@ public sealed class IoTDeviceRepository
             .AnyAsync(cancellationToken);
     }
 
+    public async Task<bool> SerialNumberExistsAsync(string serialNumber, string? exceptId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<IoTDevice>.Filter.Eq(device => device.SerialNumber, serialNumber);
+        if (!string.IsNullOrEmpty(exceptId))
+        {
+            filter &= Builders<IoTDevice>.Filter.Ne(device => device.Id, exceptId);
+        }
+
+        return await Collection
+            .Find(filter, new FindOptions { Collation = CaseInsensitive })
+            .AnyAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<IoTDevice>> SearchAsync(string? search, int limit, CancellationToken cancellationToken = default)
     {
         var filter = Builders<IoTDevice>.Filter.Where(device => !device.IsDeleted);
@@ -41,7 +54,10 @@ public sealed class IoTDeviceRepository
             var pattern = new BsonRegularExpression(Regex.Escape(search.Trim()), "i");
             filter &= Builders<IoTDevice>.Filter.Or(
                 Builders<IoTDevice>.Filter.Regex(device => device.DeviceId, pattern),
-                Builders<IoTDevice>.Filter.Regex(device => device.DeviceName, pattern));
+                Builders<IoTDevice>.Filter.Regex(device => device.DeviceName, pattern),
+                Builders<IoTDevice>.Filter.Regex(device => device.SerialNumber, pattern),
+                Builders<IoTDevice>.Filter.Regex(device => device.AssetCode, pattern),
+                Builders<IoTDevice>.Filter.Regex(device => device.AssetName, pattern));
         }
 
         return await Collection
@@ -51,10 +67,16 @@ public sealed class IoTDeviceRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<IoTDevice>> GetGatewaysAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<IoTDevice>> GetGatewaysAsync(string? siteId = null, CancellationToken cancellationToken = default)
     {
+        var filter = Builders<IoTDevice>.Filter.Where(device => device.DeviceType == IoTDeviceType.Gateway && !device.IsDeleted);
+        if (!string.IsNullOrWhiteSpace(siteId))
+        {
+            filter &= Builders<IoTDevice>.Filter.Eq(device => device.SiteId, siteId.Trim());
+        }
+
         return await Collection
-            .Find(device => device.DeviceType == IoTDeviceType.Gateway && !device.IsDeleted, new FindOptions { Collation = CaseInsensitive })
+            .Find(filter, new FindOptions { Collation = CaseInsensitive })
             .SortBy(device => device.DeviceId)
             .ToListAsync(cancellationToken);
     }
@@ -65,7 +87,14 @@ public sealed class IoTDeviceRepository
         {
             new CreateIndexModel<IoTDevice>(
                 Builders<IoTDevice>.IndexKeys.Ascending(device => device.DeviceId),
-                new CreateIndexOptions { Name = "ix_iot_device_device_id", Unique = true, Collation = CaseInsensitive })
+                new CreateIndexOptions { Name = "ix_iot_device_device_id", Unique = true, Collation = CaseInsensitive }),
+            // Older devices have no serial number, so uniqueness is enforced in the API rather than by a unique index.
+            new CreateIndexModel<IoTDevice>(
+                Builders<IoTDevice>.IndexKeys.Ascending(device => device.SerialNumber),
+                new CreateIndexOptions { Name = "ix_iot_device_serial_number", Collation = CaseInsensitive }),
+            new CreateIndexModel<IoTDevice>(
+                Builders<IoTDevice>.IndexKeys.Ascending(device => device.SiteId),
+                new CreateIndexOptions { Name = "ix_iot_device_site_id" })
         };
 
         await Collection.Indexes.CreateManyAsync(indexes, cancellationToken);
