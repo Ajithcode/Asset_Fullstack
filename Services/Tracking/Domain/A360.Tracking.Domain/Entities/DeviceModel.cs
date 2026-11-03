@@ -129,3 +129,37 @@ public static class DeviceModelStatus
 
     public static readonly IReadOnlyList<string> All = [Draft, PendingReview, Active, Inactive];
 }
+
+/// <summary>Suggested protocol/version values per connectivity, for the Protocol field.</summary>
+public static class DeviceModelProtocol
+{
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> ByConnectivity =
+        new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            [DeviceModelConnectivity.LoRaWan] = ["LoRaWAN 1.0.2", "LoRaWAN 1.0.3", "LoRaWAN 1.0.4", "LoRaWAN 1.1"],
+            [DeviceModelConnectivity.Ble] = ["BLE 4.2", "BLE 5.0", "BLE 5.1", "BLE 5.2", "BLE 5.3"],
+            [DeviceModelConnectivity.WiFi] = ["Wi-Fi 4 (802.11n)", "Wi-Fi 5 (802.11ac)", "Wi-Fi 6 (802.11ax)"],
+            [DeviceModelConnectivity.Cellular] = ["LTE Cat-M1", "NB-IoT", "LTE Cat-1", "LTE Cat-4", "4G LTE", "5G"],
+            [DeviceModelConnectivity.Ethernet] = ["Ethernet 10/100", "Gigabit Ethernet", "Modbus TCP"],
+        };
+}
+
+/// <summary>Suggested frequency bands per connectivity, for the Frequency bands field.</summary>
+public static class DeviceModelFrequencyBand
+{
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> ByConnectivity =
+        new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            [DeviceModelConnectivity.LoRaWan] = ["EU868", "US915", "AU915", "AS923", "KR920", "IN865", "CN470", "RU864"],
+            [DeviceModelConnectivity.Ble] = ["2.4 GHz"],
+            [DeviceModelConnectivity.WiFi] = ["2.4 GHz", "5 GHz", "6 GHz"],
+            [DeviceModelConnectivity.Cellular] = ["B1", "B2", "B3", "B4", "B5", "B8", "B12", "B13", "B20", "B28", "B66"],
+            [DeviceModelConnectivity.Ethernet] = [],
+        };
+}
+
+/// <summary>Common ingress protection ratings, for the IP rating field.</summary>
+public static class DeviceModelIpRating
+{
+    public static readonly IReadOnlyList<string> All = ["IP20", "IP40", "IP54", "IP65", "IP66", "IP67", "IP68", "IP69K"];
+}

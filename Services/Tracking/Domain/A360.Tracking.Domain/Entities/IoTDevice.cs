@@ -24,7 +24,21 @@ public sealed class IoTDevice : BaseEntity
     [BsonElement("model")]
     public string Model { get; set; } = string.Empty;
 
-    /// <summary>One of <see cref="DeviceConnectivity.All"/>.</summary>
+    /// <summary>Manufacturer serial number, e.g. SN-BL-29901. Unique, ignoring case.</summary>
+    [BsonElement("serial_number")]
+    public string? SerialNumber { get; set; }
+
+    /// <summary>Master-data site id the device is installed at (MasterDataManagement /api/master-data/sites).</summary>
+    [BsonElement("site_id")]
+    public string? SiteId { get; set; }
+
+    [BsonElement("site_name")]
+    public string? SiteName { get; set; }
+
+    /// <summary>
+    /// How the device communicates, e.g. BLE 5.0, LoRaWAN 1.0.3, Cellular (see <see cref="DeviceModelConnectivity.All"/>
+    /// and the model's protocol). Older records may hold a <see cref="DeviceConnectivity"/> value.
+    /// </summary>
     [BsonElement("connectivity")]
     public string Connectivity { get; set; } = string.Empty;
 
@@ -33,6 +47,10 @@ public sealed class IoTDevice : BaseEntity
 
     [BsonElement("asset_name")]
     public string? AssetName { get; set; }
+
+    /// <summary>Code of the linked asset, e.g. FL-008, as entered in "Link to asset".</summary>
+    [BsonElement("asset_code")]
+    public string? AssetCode { get; set; }
 
     /// <summary>The gateway the device reports through, e.g. GW-DXB-04, or "Cellular".</summary>
     [BsonElement("gateway")]

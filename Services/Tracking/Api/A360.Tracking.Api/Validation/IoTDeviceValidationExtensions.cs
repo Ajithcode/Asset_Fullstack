@@ -16,22 +16,23 @@ public static class IoTDeviceValidationExtensions
         RequireText(errors, "DeviceName", request.DeviceName, NameMaxLength);
         RequireText(errors, "DeviceType", request.DeviceType, NameMaxLength);
         RequireText(errors, "Model", request.Model, NameMaxLength);
+        RequireText(errors, "SerialNumber", request.SerialNumber, CodeMaxLength);
+        RequireText(errors, "Connectivity", request.Connectivity, CodeMaxLength);
 
         MaxLength(errors, "AssetRegistrationId", request.AssetRegistrationId, CodeMaxLength);
+        MaxLength(errors, "AssetCode", request.AssetCode, CodeMaxLength);
         MaxLength(errors, "AssetName", request.AssetName, NameMaxLength);
+        MaxLength(errors, "SiteId", request.SiteId, CodeMaxLength);
+        MaxLength(errors, "SiteName", request.SiteName, NameMaxLength);
         MaxLength(errors, "Gateway", request.Gateway, CodeMaxLength);
         MaxLength(errors, "FirmwareVersion", request.FirmwareVersion, CodeMaxLength);
 
-        OneOf(errors, "Connectivity", request.Connectivity, DeviceConnectivity.All, required: true);
-        OneOf(errors, "PowerSource", request.PowerSource, DevicePowerSource.All, required: true);
+        // PowerSource is optional: when left out it comes from the model.
+        OneOf(errors, "PowerSource", request.PowerSource, DevicePowerSource.All, required: false);
         OneOf(errors, "Health", request.Health, IoTDeviceHealth.All, required: false);
 
-        var isBattery = string.Equals(request.PowerSource?.Trim(), DevicePowerSource.Battery, StringComparison.OrdinalIgnoreCase);
-        if (isBattery && request.BatteryLevel is null)
-        {
-            errors["BatteryLevel"] = ["BatteryLevel is required when PowerSource is Battery"];
-        }
-        else if (request.BatteryLevel is < 0 or > 100)
+        // A newly added device has not reported a battery level yet, so it is optional.
+        if (request.BatteryLevel is < 0 or > 100)
         {
             errors["BatteryLevel"] = ["BatteryLevel must be between 0 and 100"];
         }

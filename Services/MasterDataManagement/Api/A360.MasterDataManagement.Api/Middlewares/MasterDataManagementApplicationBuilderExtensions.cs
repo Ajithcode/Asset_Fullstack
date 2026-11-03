@@ -29,6 +29,7 @@ public static class MasterDataManagementApplicationBuilderExtensions
         app.MapFloorEndpoints();
         app.MapZoneEndpoints();
         app.MapAssetCategoryEndpoints();
+        app.MapAssetSubCategoryEndpoints();
         app.MapAssetTypeEndpoints();
         app.MapAssetModelEndpoints();
         app.MapManufacturerEndpoints();

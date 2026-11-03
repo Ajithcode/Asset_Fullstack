@@ -62,6 +62,13 @@ public sealed class AssetLocation
     // Built on the server from the level names, e.g. "UAE > Oman > Street One > Third Right > Second Colony".
     [BsonElement("location_path")]
     public string? LocationPath { get; set; }
+
+    /// <summary>GPS position of the asset (WGS84), used for the map pins; null when not known.</summary>
+    [BsonElement("latitude")]
+    public double? Latitude { get; set; }
+
+    [BsonElement("longitude")]
+    public double? Longitude { get; set; }
 }
 
 [BsonIgnoreExtraElements]

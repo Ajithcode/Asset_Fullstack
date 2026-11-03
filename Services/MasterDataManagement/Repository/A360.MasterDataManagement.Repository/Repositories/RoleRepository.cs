@@ -109,6 +109,11 @@ public sealed class RoleRepository : MongoRepository<RoleEntity>,
             Builders<RoleEntity>.Filter.ElemMatch(x => x.ModuleAccess, r => r.Id == moduleId),
             Builders<RoleEntity>.Update.Set("module_access.$.name", moduleName),
             cancellationToken: cancellationToken);
+
+        await Collection.UpdateManyAsync(
+            Builders<RoleEntity>.Filter.ElemMatch(x => x.ModulePermissions, r => r.ModuleId == moduleId),
+            Builders<RoleEntity>.Update.Set("module_permissions.$.module_name", moduleName),
+            cancellationToken: cancellationToken);
     }
 
     public async Task CreateIndexesAsync(

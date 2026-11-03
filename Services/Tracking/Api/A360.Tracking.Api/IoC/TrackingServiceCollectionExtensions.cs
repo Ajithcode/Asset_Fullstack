@@ -98,6 +98,18 @@ public static class TrackingServiceCollectionExtensions
         services.AddScoped<IDeviceConfigurationRepository>(serviceProvider => serviceProvider.GetRequiredService<DeviceConfigurationRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DeviceConfigurationRepository>());
 
+        services.AddScoped<IoTAlertRepository>();
+        services.AddScoped<IIoTAlertRepository>(serviceProvider => serviceProvider.GetRequiredService<IoTAlertRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<IoTAlertRepository>());
+
+        services.AddScoped<AssetUtilizationRepository>();
+        services.AddScoped<IAssetUtilizationRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetUtilizationRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetUtilizationRepository>());
+
+        services.AddScoped<TelemetryReadingRepository>();
+        services.AddScoped<ITelemetryReadingRepository>(serviceProvider => serviceProvider.GetRequiredService<TelemetryReadingRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<TelemetryReadingRepository>());
+
         services.AddScoped<DeviceConfigurationDependencies>();
 
         services.AddHostedService<MongoIndexHostedService>();

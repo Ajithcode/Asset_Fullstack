@@ -25,6 +25,11 @@ public static class DeviceModelEndpoints
         group.MapGet("/measurements", () => Results.Ok(DeviceMeasurement.All)).WithName("GetDeviceModelMeasurements");
         group.MapGet("/configurable-attributes", () => Results.Ok(DeviceModelAttribute.All)).WithName("GetDeviceModelConfigurableAttributes");
         group.MapGet("/statuses", () => Results.Ok(DeviceModelStatus.All)).WithName("GetDeviceModelStatuses");
+        group.MapGet("/protocols", GetProtocolsAsync).WithName("GetDeviceModelProtocols");
+        group.MapGet("/frequency-bands", GetFrequencyBandsAsync).WithName("GetDeviceModelFrequencyBands");
+        group.MapGet("/ip-ratings", GetIpRatingsAsync).WithName("GetDeviceModelIpRatings");
+        group.MapGet("/manufacturers", GetManufacturersAsync).WithName("GetDeviceModelManufacturers");
+        group.MapGet("/form-options", GetFormOptionsAsync).WithName("GetDeviceModelFormOptions");
         group.MapGet("/{modelNumber}", GetDeviceModelAsync).WithName("GetDeviceModelByModelNumber");
         group.MapPost("", CreateDeviceModelAsync).WithName("CreateDeviceModel");
         group.MapPut("/{modelNumber}", UpdateDeviceModelAsync).WithName("UpdateDeviceModel");
@@ -54,6 +59,106 @@ public static class DeviceModelEndpoints
             .Select(type => new DeviceTypeOptionResponse(
                 type,
                 counts.Where(count => string.Equals(count.Key, type, StringComparison.OrdinalIgnoreCase)).Sum(count => count.Value))));
+    }
+
+    /// <summary>Protocol suggestions: the standard ones for the connectivity, then any other already used by a model.</summary>
+    private static async Task<IResult> GetProtocolsAsync(
+        string? connectivity,
+        IDeviceModelRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var models = await repository.GetAllAsync(cancellationToken);
+        return Results.Ok(Suggestions(DeviceModelProtocol.ByConnectivity, connectivity, TrackingRecords.Listed(models), model => [model.Protocol]));
+    }
+
+    /// <summary>Frequency band suggestions: the standard ones for the connectivity, then any other already used by a model.</summary>
+    private static async Task<IResult> GetFrequencyBandsAsync(
+        string? connectivity,
+        IDeviceModelRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var models = await repository.GetAllAsync(cancellationToken);
+        return Results.Ok(Suggestions(DeviceModelFrequencyBand.ByConnectivity, connectivity, TrackingRecords.Listed(models), model => model.FrequencyBands));
+    }
+
+    private static async Task<IResult> GetIpRatingsAsync(
+        IDeviceModelRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var models = await repository.GetAllAsync(cancellationToken);
+        return Results.Ok(MergeDistinct(DeviceModelIpRating.All, TrackingRecords.Listed(models).Select(model => model.IpRating)));
+    }
+
+    /// <summary>Manufacturers already used by models, for type-ahead. The full master list is GET /api/master-data/manufacturers.</summary>
+    private static async Task<IResult> GetManufacturersAsync(
+        IDeviceModelRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var models = await repository.GetAllAsync(cancellationToken);
+        return Results.Ok(MergeDistinct([], TrackingRecords.Listed(models).Select(model => model.Manufacturer)));
+    }
+
+    private static async Task<IResult> GetFormOptionsAsync(
+        IDeviceModelRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var models = TrackingRecords.Listed(await repository.GetAllAsync(cancellationToken)).ToList();
+        var counts = await repository.CountByDeviceTypeAsync(cancellationToken);
+        var usedTypes = counts.Keys.Where(type => !DeviceModelType.All.Contains(type, StringComparer.OrdinalIgnoreCase));
+
+        var deviceTypes = DeviceModelType.All
+            .Concat(usedTypes.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase))
+            .Select(type => new DeviceTypeOptionResponse(
+                type,
+                counts.Where(count => string.Equals(count.Key, type, StringComparison.OrdinalIgnoreCase)).Sum(count => count.Value)))
+            .ToList();
+
+        return Results.Ok(new DeviceModelFormOptionsResponse(
+            deviceTypes,
+            MergeDistinct([], models.Select(model => model.Manufacturer)),
+            DeviceModelConnectivity.All,
+            DeviceModelConnectivity.All.ToDictionary(
+                c => c,
+                c => Suggestions(DeviceModelProtocol.ByConnectivity, c, models, model => [model.Protocol])),
+            DeviceModelConnectivity.All.ToDictionary(
+                c => c,
+                c => Suggestions(DeviceModelFrequencyBand.ByConnectivity, c, models, model => model.FrequencyBands)),
+            DeviceModelPowerSource.All,
+            DeviceMeasurement.All,
+            MergeDistinct(DeviceModelIpRating.All, models.Select(model => model.IpRating)),
+            DeviceModelAttribute.All,
+            DeviceModelStatus.All));
+    }
+
+    /// <summary>
+    /// The standard values for one connectivity (or all connectivities when none is given),
+    /// followed by values already saved on models of that connectivity.
+    /// </summary>
+    private static IReadOnlyList<string> Suggestions(
+        IReadOnlyDictionary<string, IReadOnlyList<string>> standard,
+        string? connectivity,
+        IEnumerable<DeviceModel> models,
+        Func<DeviceModel, IEnumerable<string?>> used)
+    {
+        var hasConnectivity = !string.IsNullOrWhiteSpace(connectivity);
+
+        var defaults = hasConnectivity
+            ? standard.GetValueOrDefault(connectivity!.Trim()) ?? []
+            : standard.Values.SelectMany(values => values);
+
+        var saved = models
+            .Where(model => !hasConnectivity || string.Equals(model.Connectivity, connectivity!.Trim(), StringComparison.OrdinalIgnoreCase))
+            .SelectMany(used);
+
+        return MergeDistinct(defaults, saved);
+    }
+
+    private static IReadOnlyList<string> MergeDistinct(IEnumerable<string> first, IEnumerable<string?> then)
+    {
+        return first
+            .Concat(then.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!.Trim()).Order(StringComparer.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static async Task<IResult> GetDeviceModelAsync(

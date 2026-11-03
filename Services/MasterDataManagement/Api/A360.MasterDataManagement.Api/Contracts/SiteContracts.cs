@@ -117,3 +117,6 @@ public sealed record SiteResponse(
         );
     }
 }
+
+/// <summary>One option of the Country dropdown, taken from the sites' country field.</summary>
+public sealed record SiteCountryResponse(string Country, int SiteCount);

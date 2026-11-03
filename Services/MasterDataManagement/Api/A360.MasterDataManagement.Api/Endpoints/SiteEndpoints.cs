@@ -19,6 +19,9 @@ public static class SiteEndpoints
         group.MapGet("", GetSitesAsync)
             .WithName("GetSites");
 
+        group.MapGet("/countries", GetSiteCountriesAsync)
+            .WithName("GetSiteCountries");
+
         group.MapGet("/{id}", GetSiteByIdAsync)
             .WithName("GetSiteById");
 
@@ -55,6 +58,28 @@ public static class SiteEndpoints
 
         return Results.Ok(
             sites.Select(SiteResponse.FromEntity));
+    }
+
+    /// <summary>
+    /// The Country dropdown: every distinct country used by the sites (case-insensitive, sorted), with how many sites
+    /// each has. Pick one, then load its sites with GET /api/master-data/sites?country={name}.
+    /// </summary>
+    private static async Task<IResult> GetSiteCountriesAsync(
+        string? status,
+        string? clientId,
+        ISiteRepository repository,
+        CancellationToken cancellationToken)
+    {
+        var sites = await repository.SearchAsync(
+            new SiteFilter(null, status, null, null, null, null, null, clientId),
+            cancellationToken);
+
+        return Results.Ok(sites
+            .Where(site => !string.IsNullOrWhiteSpace(site.Country))
+            .GroupBy(site => site.Country!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(group => new SiteCountryResponse(group.First().Country!.Trim(), group.Count()))
+            .OrderBy(country => country.Country, StringComparer.OrdinalIgnoreCase)
+            .ToList());
     }
 
     private static async Task<IResult> GetSiteByIdAsync(

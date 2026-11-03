@@ -122,3 +122,16 @@ public sealed record DeviceModelResponse(
 
 /// <summary>A Device Type list entry, with how many models it has.</summary>
 public sealed record DeviceTypeOptionResponse(string DeviceType, int ModelCount);
+
+/// <summary>Every dropdown of the Add Device Model form in one response.</summary>
+public sealed record DeviceModelFormOptionsResponse(
+    IReadOnlyList<DeviceTypeOptionResponse> DeviceTypes,
+    IReadOnlyList<string> Manufacturers,
+    IReadOnlyList<string> Connectivities,
+    IReadOnlyDictionary<string, IReadOnlyList<string>> ProtocolsByConnectivity,
+    IReadOnlyDictionary<string, IReadOnlyList<string>> FrequencyBandsByConnectivity,
+    IReadOnlyList<string> PowerSources,
+    IReadOnlyList<DeviceMeasurement> Measurements,
+    IReadOnlyList<string> IpRatings,
+    IReadOnlyList<string> ConfigurableAttributes,
+    IReadOnlyList<string> Statuses);

@@ -7,13 +7,13 @@ public static class ModuleAccessValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateModuleAccessRequest request)
     {
-        return ValidateFields(request.ModuleName, request.Code, request.Category);
+        return ValidateFields(request.ModuleName, request.Code, request.Category, request.AvailableActions);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateModuleAccessRequest request)
     {
-        return ValidateFields(request.ModuleName, request.Code, request.Category);
+        return ValidateFields(request.ModuleName, request.Code, request.Category, request.AvailableActions);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -33,7 +33,8 @@ public static class ModuleAccessValidationExtensions
     private static Dictionary<string, string[]> ValidateFields(
         string? moduleName,
         string? code,
-        string? category)
+        string? category,
+        List<string>? availableActions)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -53,6 +54,14 @@ public static class ModuleAccessValidationExtensions
         {
             errors["Category"] =
                 ["Category is required"];
+        }
+
+        var unknownActions = ModuleActionList.Unknown(availableActions);
+
+        if (unknownActions.Count > 0)
+        {
+            errors["AvailableActions"] =
+                [$"Unknown actions: {string.Join(", ", unknownActions)}. Allowed: View, Create, Edit, Delete, Approve, Export"];
         }
 
         return errors;

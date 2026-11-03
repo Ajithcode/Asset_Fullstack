@@ -33,6 +33,10 @@ public static class TrackingApplicationBuilderExtensions
         app.MapZoneDrawingEndpoints();
         app.MapDeviceDrawingEndpoints();
         app.MapDeviceConfigurationEndpoints();
+        app.MapIoTAlertEndpoints();
+        app.MapAssetUtilizationEndpoints();
+        app.MapTelemetryReadingEndpoints();
+        app.MapIoTEventEndpoints();
 
         return app;
     }

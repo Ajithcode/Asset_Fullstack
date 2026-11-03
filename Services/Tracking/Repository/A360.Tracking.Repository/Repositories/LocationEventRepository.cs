@@ -24,6 +24,11 @@ public sealed class LocationEventRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public Task<IReadOnlyList<DailyCount>> CountPerDayByTypeAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
+    {
+        return DailyCounts.CountAsync(Collection, "event_time", fromUtc, toUtc, "event_type", cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
     {
         var indexes = new[]

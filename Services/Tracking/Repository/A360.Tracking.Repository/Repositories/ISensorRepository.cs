@@ -9,4 +9,10 @@ public interface ISensorRepository : IMongoRepository<Sensor>
 
     /// <summary>Sensor ids are unique, ignoring case.</summary>
     Task<bool> SensorIdExistsAsync(string sensorId, CancellationToken cancellationToken = default);
+
+    /// <summary>Serial numbers are unique, ignoring case; exceptId skips the sensor being updated.</summary>
+    Task<bool> SerialNumberExistsAsync(string serialNumber, string? exceptId, CancellationToken cancellationToken = default);
+
+    /// <summary>Non-deleted sensors on a device, ignoring case of the device id.</summary>
+    Task<IReadOnlyList<Sensor>> GetByDeviceAsync(string deviceId, CancellationToken cancellationToken = default);
 }

@@ -129,6 +129,9 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetServiceRequestRepository>());
         services.AddScoped<IMaintenanceLookupRepository, MaintenanceLookupRepository>();
 
+        // Read-only: the dashboard reads tracking records from the shared database, so it needs no indexes of its own.
+        services.AddScoped<A360.Asset.Repository.Dashboard.IAssetDashboardRepository, A360.Asset.Repository.Dashboard.AssetDashboardRepository>();
+
         services.AddHostedService<MongoIndexHostedService>();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();

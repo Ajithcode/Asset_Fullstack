@@ -14,6 +14,14 @@ public sealed class Sensor : BaseEntity
     [BsonElement("sensor_id")]
     public string SensorId { get; set; } = string.Empty;
 
+    /// <summary>The number part of the sensor id, e.g. 80900 in SEN-T-80900.</summary>
+    [BsonElement("sensor_number")]
+    public string? SensorNumber { get; set; }
+
+    /// <summary>Manufacturer serial number, e.g. TS300-80214-7765. Unique, ignoring case.</summary>
+    [BsonElement("serial_number")]
+    public string? SerialNumber { get; set; }
+
     [BsonElement("name")]
     public string Name { get; set; } = string.Empty;
 
@@ -34,6 +42,33 @@ public sealed class Sensor : BaseEntity
 
     [BsonElement("device_model")]
     public string? DeviceModel { get; set; }
+
+    /// <summary>Channel of the linked device this sensor reads from; a device can expose several channels.</summary>
+    [BsonElement("channel")]
+    public int? Channel { get; set; }
+
+    /// <summary>One of <see cref="TelemetrySamplingInterval.Seconds"/>.</summary>
+    [BsonElement("sampling_interval_seconds")]
+    public int? SamplingIntervalSeconds { get; set; }
+
+    /// <summary>Reading below this (in <see cref="Unit"/>) raises a low alarm.</summary>
+    [BsonElement("low_alarm")]
+    public decimal? LowAlarm { get; set; }
+
+    /// <summary>Reading above this (in <see cref="Unit"/>) raises a high alarm.</summary>
+    [BsonElement("high_alarm")]
+    public decimal? HighAlarm { get; set; }
+
+    /// <summary>Master-data site id (MasterDataManagement /api/master-data/sites).</summary>
+    [BsonElement("site_id")]
+    public string? SiteId { get; set; }
+
+    [BsonElement("site_name")]
+    public string? SiteName { get; set; }
+
+    /// <summary>Code of the linked asset, e.g. CR-03.</summary>
+    [BsonElement("asset_code")]
+    public string? AssetCode { get; set; }
 
     [BsonElement("asset_registration_id")]
     public string? AssetRegistrationId { get; set; }
@@ -64,6 +99,25 @@ public sealed record SensorTypeOption(string SensorType, string IdPrefix, string
         new("Pressure Transmitter", "SEN-P", "Pressure", "bar"),
         new("Current Sensor", "SEN-C", "Current", "A")
     ];
+
+    public static SensorTypeOption? Find(string? sensorType)
+    {
+        return All.FirstOrDefault(option => string.Equals(option.SensorType, sensorType?.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+}
+
+/// <summary>Common measurement points per sensor type, suggested in the Measurement point field.</summary>
+public static class SensorMeasurementPoint
+{
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> BySensorType =
+        new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Temperature Probe"] = ["Supply Air", "Return Air", "Ambient", "Product Core", "Evaporator", "Condenser", "Bearing", "Winding"],
+            ["Humidity Sensor"] = ["Supply Air", "Return Air", "Ambient", "Storage Area"],
+            ["Vibration Sensor"] = ["Motor DE", "Motor NDE", "Pump DE", "Pump NDE", "Gearbox", "Fan Bearing"],
+            ["Pressure Transmitter"] = ["Suction", "Discharge", "Inlet", "Outlet", "Header", "Filter Differential"],
+            ["Current Sensor"] = ["Output L1", "Output L2", "Output L3", "Neutral", "Motor Feed"],
+        };
 }
 
 public static class SensorStatus

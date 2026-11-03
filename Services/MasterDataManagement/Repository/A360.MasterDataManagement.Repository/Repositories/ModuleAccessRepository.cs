@@ -51,7 +51,8 @@ public sealed class ModuleAccessRepository : MongoRepository<ModuleAccessEntity>
 
         return await Collection
             .Find(combined)
-            .SortBy(x => x.ModuleName)
+            .SortBy(x => x.SortOrder)
+            .ThenBy(x => x.ModuleName)
             .ToListAsync(cancellationToken);
     }
 
