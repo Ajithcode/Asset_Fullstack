@@ -36,10 +36,16 @@
         </button>
       </div>
 
+      <p *ngIf="loading && !tree.length" class="tree-empty">Loading categories…</p>
+      <p *ngIf="loadError" class="tree-empty">
+        {{ loadError }}
+        <button type="button" class="link-btn" (click)="loadCategories()">Retry</button>
+      </p>
+      <p *ngIf="!loading && !loadError && !tree.length" class="tree-empty">No categories yet. Use + to add one.</p>
       <ul class="tree" role="tree">
         <ng-container *ngTemplateOutlet="treeLevel; context: { $implicit: tree, depth: 0 }"></ng-container>
       </ul>
-      <p *ngIf="!treeHasResults" class="tree-empty">No categories match "{{ treeSearch }}".</p>
+      <p *ngIf="tree.length && !treeHasResults" class="tree-empty">No categories match "{{ treeSearch }}".</p>
     </aside>
 
     <ng-template #treeLevel let-nodes let-depth="depth">
@@ -64,11 +70,41 @@
           <ng-template #leafSpacer><span class="caret caret--spacer"></span></ng-template>
           <lucide-icon
             class="node-icon"
-            [class.node-icon--folder]="n.children.length"
-            [img]="n.children.length ? (isExpanded(n) ? icons.FolderOpen : icons.Folder) : icons.FileText"
+            [class.node-icon--folder]="n.children.length || depth === 0"
+            [img]="n.children.length || depth === 0 ? (n.children.length && isExpanded(n) ? icons.FolderOpen : icons.Folder) : icons.FileText"
             [size]="17"
           ></lucide-icon>
           <span class="node-name">{{ n.name }}</span>
+          <button
+            *ngIf="depth === 0"
+            type="button"
+            class="row-edit row-edit--first"
+            (click)="$event.stopPropagation(); openAddModal(n.id)"
+            [title]="'Add subcategory under ' + n.name"
+            [attr.aria-label]="'Add subcategory under ' + n.name"
+          >
+            <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
+          </button>
+          <button
+            *ngIf="depth === 0"
+            type="button"
+            class="row-edit"
+            (click)="openEditModal(n, $event)"
+            [title]="'Edit ' + n.name"
+            [attr.aria-label]="'Edit ' + n.name"
+          >
+            <lucide-icon [img]="icons.SquarePen" [size]="15"></lucide-icon>
+          </button>
+          <button
+            *ngIf="depth === 0"
+            type="button"
+            class="row-edit row-edit--danger"
+            (click)="$event.stopPropagation(); askDelete(n)"
+            [title]="'Delete ' + n.name"
+            [attr.aria-label]="'Delete ' + n.name"
+          >
+            <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+          </button>
         </div>
         <ul *ngIf="n.children.length && isExpanded(n)" class="tree-children" role="group">
           <ng-container *ngTemplateOutlet="treeLevel; context: { $implicit: n.children, depth: depth + 1 }"></ng-container>
@@ -77,93 +113,7 @@
     </ng-template>
 
     <!-- ===== Right: details + tabs ===== -->
-    <div class="detail-col">
-      <div class="card details-card">
-        <div class="card-head">
-          <span class="icon-tile"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon></span>
-          <div class="card-head-text">
-            <h2>Category Details</h2>
-            <p>{{ editing ? 'Editing' : 'View and edit' }} selected category information &middot; <span class="path">{{ selectedPath }}</span></p>
-          </div>
-          <div class="head-actions">
-            <ng-container *ngIf="!editing; else editActions">
-              <button type="button" class="btn btn-soft" (click)="startEdit()">
-                <lucide-icon [img]="icons.SquarePen" [size]="15"></lucide-icon>
-                Edit
-              </button>
-              <button type="button" class="btn btn-danger-outline" (click)="askDelete(selected)">
-                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
-                Delete
-              </button>
-            </ng-container>
-            <ng-template #editActions>
-              <button type="button" class="btn btn-outline" (click)="cancelEdit()">Cancel</button>
-              <button type="button" class="btn btn-primary" (click)="saveDetails()">
-                <lucide-icon [img]="icons.Check" [size]="15"></lucide-icon>
-                Save
-              </button>
-            </ng-template>
-          </div>
-        </div>
-
-        <div class="details-grid">
-          <div class="details-fields">
-            <label class="field">
-              <span class="field-label">Category Name <em>*</em></span>
-              <input
-                class="control"
-                [(ngModel)]="detailForm.name"
-                [readonly]="!editing"
-                [class.is-invalid]="submitted && !detailForm.name.trim()"
-                maxlength="80"
-              />
-            </label>
-            <label class="field">
-              <span class="field-label">Category Code <em>*</em></span>
-              <input
-                class="control mono"
-                [(ngModel)]="detailForm.code"
-                [readonly]="!editing"
-                [class.is-invalid]="submitted && (!detailForm.code.trim() || isCodeTaken(detailForm.code, selectedId))"
-                maxlength="10"
-              />
-            </label>
-            <label *ngIf="editing" class="field">
-              <span class="field-label">Status</span>
-              <select class="control" [(ngModel)]="detailForm.status">
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </label>
-            <label class="field field--wide">
-              <span class="field-label">Description</span>
-              <textarea class="control" rows="2" [(ngModel)]="detailForm.description" [readonly]="!editing" maxlength="300"></textarea>
-            </label>
-          </div>
-
-          <div class="image-block">
-            <span class="field-label">Category Image</span>
-            <div class="image-row">
-              <div class="image-preview">
-                <img *ngIf="selected.image; else iconPreview" [src]="selected.image" [alt]="selected.name" />
-                <ng-template #iconPreview>
-                  <lucide-icon [img]="categoryIcons[selected.icon]" [size]="54" [strokeWidth]="1.5"></lucide-icon>
-                </ng-template>
-              </div>
-              <div class="image-actions">
-                <label class="btn btn-soft">
-                  <lucide-icon [img]="icons.ImageUp" [size]="15"></lucide-icon>
-                  Change Image
-                  <input type="file" accept="image/png,image/jpeg" hidden (change)="onImageSelected($event)" />
-                </label>
-                <span class="hint">JPG, PNG (Max 2 MB)</span>
-                <button *ngIf="selected.image" type="button" class="link-btn" (click)="removeImage()">Remove image</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div class="detail-col" *ngIf="selected">
       <div class="card tabs-card">
         <div class="tabs-row">
           <div class="tabs" role="tablist">
@@ -177,32 +127,24 @@
               Attributes ({{ attributeRows.length }})
             </button>
             <button type="button" role="tab" [class.is-active]="activeTab === 'assets'" (click)="activeTab = 'assets'">
-              Related Assets ({{ assetCount(selected) | number }})
+              Related Assets
             </button>
           </div>
-          <button *ngIf="activeTab === 'subcategories'" type="button" class="btn btn-primary" (click)="openAddModal(selectedId)">
-            <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
-            Add Subcategory
-          </button>
+          <div *ngIf="activeTab === 'subcategories'" class="search-box search-box--table">
+            <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+            <input type="search" placeholder="Search subcategories..." [(ngModel)]="subSearch" (ngModelChange)="onSubFilterChange()" aria-label="Search subcategories" />
+          </div>
         </div>
 
         <!-- ===== Subcategories ===== -->
         <ng-container *ngIf="activeTab === 'subcategories'">
           <div class="table-tools">
-            <div class="search-box search-box--table">
-              <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
-              <input type="search" placeholder="Search subcategories..." [(ngModel)]="subSearch" (ngModelChange)="onSubFilterChange()" aria-label="Search subcategories" />
-            </div>
             <div *ngIf="selectedRows.size" class="bulk">
               <span><strong>{{ selectedRows.size }}</strong> selected</span>
               <button type="button" class="link-btn" (click)="setStatusForSelected('Active')">Activate</button>
               <button type="button" class="link-btn" (click)="setStatusForSelected('Inactive')">Deactivate</button>
             </div>
-            <select class="control status-select" [(ngModel)]="subStatus" (ngModelChange)="onSubFilterChange()" aria-label="Filter by status">
-              <option value="">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
+            <app-filter-select class="status-select" [(ngModel)]="subStatus" (ngModelChange)="onSubFilterChange()" [options]="statusChoices" allLabel="All Status" ariaLabel="Filter by status"></app-filter-select>
           </div>
 
           <div class="table-wrap">
@@ -220,7 +162,6 @@
                   </th>
                   <th>Code</th>
                   <th>Description</th>
-                  <th>Asset Count</th>
                   <th>Status</th>
                   <th class="col-actions">Actions</th>
                 </tr>
@@ -243,36 +184,19 @@
                   </td>
                   <td class="mono">{{ c.code }}</td>
                   <td class="desc">{{ c.description || '–' }}</td>
-                  <td>{{ assetCount(c) | number }}</td>
                   <td>
                     <span class="pill" [class.pill--active]="c.status === 'Active'" [class.pill--inactive]="c.status === 'Inactive'">
                       <span class="dot"></span>{{ c.status }}
                     </span>
                   </td>
                   <td class="col-actions">
-                    <div class="menu-wrap">
-                      <button type="button" class="icon-btn" (click)="toggleMenu(c.id, $event)" [attr.aria-expanded]="openMenuId === c.id" aria-label="Actions">
-                        <lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon>
+                    <div class="row-actions">
+                      <button type="button" class="icon-btn" (click)="editSub(c)" [title]="'Edit ' + c.name" [attr.aria-label]="'Edit ' + c.name">
+                        <lucide-icon [img]="icons.SquarePen" [size]="16"></lucide-icon>
                       </button>
-                      <div *ngIf="openMenuId === c.id" class="menu" role="menu" (click)="$event.stopPropagation()">
-                        <button type="button" role="menuitem" (click)="openMenuId = null; selectCategory(c)">
-                          <lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>View
-                        </button>
-                        <button type="button" role="menuitem" (click)="editSub(c)">
-                          <lucide-icon [img]="icons.SquarePen" [size]="15"></lucide-icon>Edit
-                        </button>
-                        <button type="button" role="menuitem" (click)="openMenuId = null; openAddModal(c.id)">
-                          <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Child Category
-                        </button>
-                        <button type="button" role="menuitem" (click)="toggleStatus(c)">
-                          <lucide-icon [img]="c.status === 'Active' ? icons.PowerOff : icons.Power" [size]="15"></lucide-icon>
-                          {{ c.status === 'Active' ? 'Deactivate' : 'Activate' }}
-                        </button>
-                        <hr />
-                        <button type="button" role="menuitem" class="danger" (click)="askDelete(c)">
-                          <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete
-                        </button>
-                      </div>
+                      <button type="button" class="icon-btn icon-btn--danger" (click)="askDelete(c)" [title]="'Delete ' + c.name" [attr.aria-label]="'Delete ' + c.name">
+                        <lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -287,18 +211,13 @@
           </div>
 
           <div class="pager">
-            <label class="page-size">
-              Show
-              <select class="control" [(ngModel)]="pageSize" (ngModelChange)="onSubFilterChange()">
-                <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
-              </select>
-              per page
-            </label>
+            <select class="control page-size-select" [(ngModel)]="pageSize" (ngModelChange)="onSubFilterChange()" aria-label="Rows per page">
+              <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+            </select>
             <div class="pager-right">
-              <span class="range">Showing {{ rangeStart }} - {{ rangeEnd }} of {{ filteredSubs.length }} subcategories</span>
               <nav class="pages" aria-label="Pagination">
                 <button type="button" class="page-btn" [disabled]="page === 1" (click)="goToPage(page - 1)" aria-label="Previous page">
-                  <lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon>
+                  <lucide-icon [img]="icons.ChevronLeft" [size]="13"></lucide-icon>
                 </button>
                 <button
                   *ngFor="let p of pageList"
@@ -309,7 +228,7 @@
                   (click)="goToPage(p)"
                 >{{ p }}</button>
                 <button type="button" class="page-btn" [disabled]="page === totalPages" (click)="goToPage(page + 1)" aria-label="Next page">
-                  <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+                  <lucide-icon [img]="icons.ChevronRight" [size]="13"></lucide-icon>
                 </button>
               </nav>
             </div>
@@ -326,27 +245,25 @@
               </thead>
               <tbody>
                 <tr *ngFor="let r of fieldRows">
-                  <td>{{ r.item.name }}</td>
-                  <td><span class="tag">{{ r.item.type }}</span></td>
-                  <td>{{ r.item.required ? 'Yes' : 'No' }}</td>
-                  <td [class.muted]="r.inherited">{{ r.inherited ? 'Inherited from ' + r.from : 'This category' }}</td>
+                  <td>{{ r.fieldName }}</td>
+                  <td><span class="tag">{{ fieldTypeLabels[r.type] || r.type }}</span></td>
+                  <td>{{ r.required ? 'Yes' : 'No' }}</td>
+                  <td [class.muted]="r.inherited">{{ r.inherited ? 'Inherited from ' + r.definedOnCategoryName : 'This category' }}</td>
                   <td class="col-actions">
-                    <button *ngIf="!r.inherited" type="button" class="icon-btn icon-btn--danger" (click)="removeField(r.item)" [attr.aria-label]="'Remove ' + r.item.name">
+                    <button *ngIf="!r.inherited" type="button" class="icon-btn icon-btn--danger" [disabled]="saving" (click)="removeField(r)" [attr.aria-label]="'Remove ' + r.fieldName">
                       <lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>
                     </button>
                   </td>
                 </tr>
                 <tr class="add-row">
-                  <td><input class="control" placeholder="New field name" [(ngModel)]="newField.name" (keydown.enter)="addField()" /></td>
+                  <td><input class="control" placeholder="New field name" [(ngModel)]="newField.name" (keydown.enter)="addField()" maxlength="100" /></td>
                   <td>
-                    <select class="control" [(ngModel)]="newField.type">
-                      <option *ngFor="let t of fieldTypes" [value]="t">{{ t }}</option>
-                    </select>
+                    <app-filter-select [(ngModel)]="newField.type" [options]="fieldTypeChoices" [includeAll]="false" ariaLabel="Field type"></app-filter-select>
                   </td>
                   <td><label class="check"><input type="checkbox" [(ngModel)]="newField.required" /> Required</label></td>
                   <td class="muted">This category</td>
                   <td class="col-actions">
-                    <button type="button" class="btn btn-primary btn-sm" [disabled]="!newField.name.trim()" (click)="addField()">Add</button>
+                    <button type="button" class="btn btn-primary btn-sm" [disabled]="!newField.name.trim() || saving" (click)="addField()">Add</button>
                   </td>
                 </tr>
               </tbody>
@@ -364,23 +281,23 @@
               </thead>
               <tbody>
                 <tr *ngFor="let r of attributeRows">
-                  <td>{{ r.item.name }}</td>
-                  <td>{{ r.item.unit || '–' }}</td>
-                  <td>{{ r.item.example ? r.item.example + (r.item.unit ? ' ' + r.item.unit : '') : '–' }}</td>
-                  <td [class.muted]="r.inherited">{{ r.inherited ? 'Inherited from ' + r.from : 'This category' }}</td>
+                  <td>{{ r.attribute }}</td>
+                  <td>{{ r.unit || '–' }}</td>
+                  <td>{{ r.exampleValue ? r.exampleValue + (r.unit ? ' ' + r.unit : '') : '–' }}</td>
+                  <td [class.muted]="r.inherited">{{ r.inherited ? 'Inherited from ' + r.definedOnCategoryName : 'This category' }}</td>
                   <td class="col-actions">
-                    <button *ngIf="!r.inherited" type="button" class="icon-btn icon-btn--danger" (click)="removeAttribute(r.item)" [attr.aria-label]="'Remove ' + r.item.name">
+                    <button *ngIf="!r.inherited" type="button" class="icon-btn icon-btn--danger" [disabled]="saving" (click)="removeAttribute(r)" [attr.aria-label]="'Remove ' + r.attribute">
                       <lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>
                     </button>
                   </td>
                 </tr>
                 <tr class="add-row">
-                  <td><input class="control" placeholder="New attribute" [(ngModel)]="newAttribute.name" (keydown.enter)="addAttribute()" /></td>
-                  <td><input class="control" placeholder="e.g. kW" [(ngModel)]="newAttribute.unit" /></td>
+                  <td><input class="control" placeholder="New attribute" [(ngModel)]="newAttribute.name" (keydown.enter)="addAttribute()" maxlength="100" /></td>
+                  <td><input class="control" placeholder="e.g. kW" [(ngModel)]="newAttribute.unit" maxlength="50" /></td>
                   <td><input class="control" placeholder="e.g. 250" [(ngModel)]="newAttribute.example" (keydown.enter)="addAttribute()" /></td>
                   <td class="muted">This category</td>
                   <td class="col-actions">
-                    <button type="button" class="btn btn-primary btn-sm" [disabled]="!newAttribute.name.trim()" (click)="addAttribute()">Add</button>
+                    <button type="button" class="btn btn-primary btn-sm" [disabled]="!newAttribute.name.trim() || saving" (click)="addAttribute()">Add</button>
                   </td>
                 </tr>
               </tbody>
@@ -391,52 +308,31 @@
         <!-- ===== Related assets ===== -->
         <ng-container *ngIf="activeTab === 'assets'">
           <div class="assets-head">
-            <p class="tab-intro">{{ assetCount(selected) | number }} assets are classified under <strong>{{ selected.name }}</strong>.</p>
+            <p class="tab-intro">See the assets classified under <strong>{{ selected.name }}</strong> in the Asset List.</p>
             <button type="button" class="btn btn-outline" (click)="openAssetList()">
               <lucide-icon [img]="icons.ExternalLink" [size]="15"></lucide-icon>
               Open in Asset List
             </button>
           </div>
-          <div *ngIf="assetBreakdown.length; else noAssets" class="breakdown">
-            <div *ngFor="let row of assetBreakdown" class="breakdown-row">
-              <span class="thumb"><lucide-icon [img]="categoryIcons[row.node.icon]" [size]="18"></lucide-icon></span>
-              <div class="breakdown-label">
-                <strong>{{ row.node.name }}</strong>
-                <small>{{ row.path || 'Assigned directly' }}</small>
-              </div>
-              <div class="bar"><span [style.width.%]="(row.count / assetCount(selected)) * 100"></span></div>
-              <span class="breakdown-count">{{ row.count | number }}</span>
-            </div>
-          </div>
-          <ng-template #noAssets>
-            <div class="empty">
-              <lucide-icon [img]="icons.Inbox" [size]="32"></lucide-icon>
-              <h3>No assets yet</h3>
-              <p>Assets registered under this category will appear here.</p>
-            </div>
-          </ng-template>
         </ng-container>
       </div>
     </div>
   </div>
 
   <!-- ===== Add category modal ===== -->
-  <div *ngIf="modalOpen" class="overlay" (click)="closeModal()">
+  <div *ngIf="modalOpen" class="overlay" [class.is-closing]="modalClosing" (click)="closeModal()">
     <form class="modal" role="dialog" aria-modal="true" aria-labelledby="add-cat-title" (click)="$event.stopPropagation()" (ngSubmit)="saveModal()">
       <div class="modal-head">
-        <h2 id="add-cat-title">{{ modalForm.parentId ? 'Add Subcategory' : 'Add Category' }}</h2>
+        <h2 id="add-cat-title">{{ modalEditId ? (modalIsSub ? 'Edit Subcategory' : 'Edit Category') : modalIsSub ? 'Add Subcategory' : 'Add Category' }}</h2>
         <button type="button" class="icon-btn" (click)="closeModal()" aria-label="Close">
           <lucide-icon [img]="icons.X" [size]="18"></lucide-icon>
         </button>
       </div>
       <div class="modal-body">
-        <label class="field">
-          <span class="field-label">Parent Category</span>
-          <select class="control" name="parentId" [(ngModel)]="modalForm.parentId">
-            <option [ngValue]="null">— None (top-level) —</option>
-            <option *ngFor="let o of parentOptions" [ngValue]="o.id">{{ o.label }}</option>
-          </select>
-        </label>
+        <div *ngIf="modalIsSub" class="field">
+          <span class="field-label">Parent Category <em>*</em></span>
+          <app-filter-select name="parentId" [(ngModel)]="modalForm.parentId" [options]="parentOptions" [includeAll]="false" placeholder="Select parent category" ariaLabel="Parent Category"></app-filter-select>
+        </div>
         <div class="field-pair">
           <label class="field">
             <span class="field-label">Name <em>*</em></span>
@@ -446,7 +342,7 @@
               [(ngModel)]="modalForm.name"
               (ngModelChange)="onModalNameChange()"
               [class.is-invalid]="modalSubmitted && !modalForm.name.trim()"
-              maxlength="80"
+              maxlength="100"
               autofocus
             />
             <span *ngIf="modalSubmitted && !modalForm.name.trim()" class="error">Name is required.</span>
@@ -458,47 +354,49 @@
               name="code"
               [(ngModel)]="modalForm.code"
               (input)="modalCodeTouched = true"
-              [class.is-invalid]="modalSubmitted && (!modalForm.code.trim() || isCodeTaken(modalForm.code, null))"
-              maxlength="10"
+              [class.is-invalid]="modalSubmitted && (!modalForm.code.trim() || isCodeTaken(modalForm.code, modalEditId))"
+              maxlength="50"
             />
             <span *ngIf="modalSubmitted && !modalForm.code.trim()" class="error">Code is required.</span>
-            <span *ngIf="isCodeTaken(modalForm.code, null)" class="error">This code is already in use.</span>
+            <span *ngIf="isCodeTaken(modalForm.code, modalEditId)" class="error">This code is already in use.</span>
           </label>
         </div>
         <label class="field">
           <span class="field-label">Description</span>
-          <textarea class="control" name="description" rows="3" [(ngModel)]="modalForm.description" maxlength="300"></textarea>
+          <textarea class="control" name="description" rows="3" [(ngModel)]="modalForm.description" maxlength="500"></textarea>
         </label>
-        <label class="field">
+        <div class="field">
           <span class="field-label">Status</span>
-          <select class="control" name="status" [(ngModel)]="modalForm.status">
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </label>
+          <app-filter-select name="status" [(ngModel)]="modalForm.status" [options]="statusChoices" [includeAll]="false" ariaLabel="Status"></app-filter-select>
+        </div>
       </div>
       <div class="modal-foot">
+        <button *ngIf="modalEditId" type="button" class="btn btn-danger-outline modal-delete" [disabled]="saving" (click)="deleteFromModal()">
+          <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+          Delete
+        </button>
         <button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : modalEditId ? 'Update' : 'Save' }}</button>
       </div>
     </form>
   </div>
 
   <!-- ===== Delete confirmation ===== -->
-  <div *ngIf="deleteTarget" class="overlay" (click)="deleteTarget = null">
+  <div *ngIf="deleteTarget" class="overlay" [class.is-closing]="deleteClosing" (click)="closeDelete()">
     <div class="modal modal--sm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
       <div class="modal-head">
         <h2>Delete {{ deleteTarget.name }}?</h2>
       </div>
       <div class="modal-body">
-        <p>
-          This permanently removes the category
-          <ng-container *ngIf="deleteTarget.children.length"> and its {{ deleteTarget.children.length }} subcategor{{ deleteTarget.children.length === 1 ? 'y' : 'ies' }}</ng-container>.
+        <p *ngIf="!deleteTarget.children.length">This permanently removes the category.</p>
+        <p *ngIf="deleteTarget.children.length">
+          {{ deleteTarget.name }} has {{ deleteTarget.children.length }} subcategor{{ deleteTarget.children.length === 1 ? 'y' : 'ies' }}.
+          Move or delete them first &mdash; the server will refuse this delete.
         </p>
       </div>
       <div class="modal-foot">
-        <button type="button" class="btn btn-outline" (click)="deleteTarget = null">Cancel</button>
-        <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
+        <button type="button" class="btn btn-outline" (click)="closeDelete()">Cancel</button>
+        <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">{{ saving ? 'Deleting…' : 'Delete' }}</button>
       </div>
     </div>
   </div>

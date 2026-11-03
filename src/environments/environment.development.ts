@@ -10,6 +10,8 @@ export const environment = {
   authApiUrl: 'http://localhost:5296/',
   administrationApiUrl: 'http://localhost:5296/',
   masterDataApiUrl: 'http://localhost:5296/',
+  assetRegistrationApiUrl: 'http://172.16.100.29:5401/',
+  assetMasterDataApiUrl: 'http://172.16.100.29:5500/',
   supportEmail: 'support@assets360.com',
   clientId: 'CLT-1001',
   tenantId: 'TENANT-DEFAULT'

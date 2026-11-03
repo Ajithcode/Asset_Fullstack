@@ -56,3 +56,13 @@ body {
 @media print {
   .piq-reveal-pending, .piq-reveal-play { opacity: 1 !important; animation: none !important; }
 }
+
+/* Hide scrollbar visuals app-wide; scrolling (wheel, touch, keyboard) still works */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}

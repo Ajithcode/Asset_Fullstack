@@ -1,9 +1,16 @@
-import { Component, ElementRef, HostListener, ViewChild, computed, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { Coords, HierarchyNode, Project, SiteHierarchyService } from 'shared-ui';
-import { SiteHierarchyLoader } from '../services/site-hierarchy-loader.service';
+import { Coords } from 'shared-ui';
+import {
+  AssetAdditionalInformation, AssetBasicInformation, AssetClassification, AssetLocationAssignment, AssetPurchaseWarranty, AssetRegistrationSection,
+  AssetRegistrationSectionBody, AssetRegistrationService,
+} from '../services/asset-registration/asset-registration';
+import {
+  AssetDropdownService, AssetRegistrationOptions, DropdownOption, LocationHierarchy, textOptions,
+} from '../services/asset-dropdowns/asset-dropdown';
+import { Observable, concat, defer, forkJoin, last, map, of, shareReplay, switchMap } from 'rxjs';
 import {
   LucideAngularModule,
   ArrowLeft,
@@ -88,6 +95,32 @@ interface Person extends Option {
   department: string;
 }
 
+/** A team; parentId is its department's id when the list comes from master data. */
+interface TeamOption extends Option {
+  parentId?: string;
+}
+
+/** Default badge colors by label, for statuses, conditions and criticalities that have no color of their own. */
+const BADGE_COLORS: Record<string, string> = {
+  active: '#16a34a',
+  inactive: '#94a3b8',
+  'in storage': '#3b82f6',
+  'under maintenance': '#f59e0b',
+  'in repair': '#f97316',
+  'out of service': '#dc2626',
+  disposed: '#64748b',
+  retired: '#64748b',
+  excellent: '#15803d',
+  good: '#16a34a',
+  fair: '#f59e0b',
+  poor: '#dc2626',
+  critical: '#dc2626',
+  high: '#f97316',
+  medium: '#f59e0b',
+  low: '#16a34a',
+};
+const DEFAULT_BADGE_COLOR = '#94a3b8';
+
 /** Form fields that hold a location, top to bottom. */
 type LocationLevelKey = 'country' | 'site' | 'building' | 'floor' | 'zone' | 'room';
 
@@ -95,7 +128,7 @@ type LocationLevelKey = 'country' | 'site' | 'building' | 'floor' | 'zone' | 'ro
 type LocationKind = 'project' | 'country' | 'site' | 'building' | 'outdoorZone' | 'floor' | 'zone' | 'subZone';
 
 interface LocationNode {
-  /** Id of the node in the shared SiteHierarchyService. */
+  /** Master-data record id; countries, which have no record, use their name. */
   id: string;
   label: string;
   kind: LocationKind;
@@ -267,7 +300,7 @@ interface AssetForm {
   warrantyType: string;
   warrantyStart: string;
   warrantyPeriod: string;
-  warrantyPeriodUnit: 'years' | 'months';
+  warrantyPeriodUnit: string;
   amcIncluded: boolean;
   supportCoverage: string;
   serviceProvider: string;
@@ -309,12 +342,12 @@ const LEVEL_OF_KIND: Record<LocationKind, LocationLevelKey | null> = {
 const LOCATION_KIND_LABELS: Record<LocationKind, string> = {
   project: 'Project',
   country: 'Country',
-  site: 'Area',
+  site: 'Site',
   building: 'Building',
   outdoorZone: 'Outdoor Zone',
   floor: 'Floor',
   zone: 'Zone',
-  subZone: 'Sub Zone',
+  subZone: 'Room',
 };
 
 /** Levels that can carry their own map image. */
@@ -323,39 +356,58 @@ const MAP_LEVEL_KINDS: LocationKind[] = ['floor', 'zone', 'outdoorZone', 'subZon
 /** Floor plan the Locating module shows when a level has no uploaded map. */
 const DEFAULT_MAP_IMAGE = 'mapp.png';
 
+/** Master data has no map coordinates yet; the floor plan lays pins with equal coordinates out on a grid. */
+const NO_COORDS: Coords = { lat: 0, lng: 0, zoom: 0 };
+
+const sameName = (a?: string, b?: string) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+
 /**
- * Same shape as the Locating tree: Project -> Country -> Area -> (Outdoor Zone | Building) -> Floor -> Zone -> Sub Zone.
- * Buildings of the backend's Outer Zones sit directly under their Area.
+ * Builds the step 3 tree from the master-data location APIs: Country -> Site -> Building -> Floor -> Zone -> Room.
+ * Countries come from each site's country name. A zone without a floor hangs off its building, or off its site as an
+ * outdoor zone. Rooms (master "locations") name their zone / floor / building instead of linking by id.
  */
-function toLocationNode(node: HierarchyNode, parentKind?: LocationKind): LocationNode {
-  const base = { id: node.id, label: node.name, coords: node.coords };
-  switch (node.kind) {
-    case 'project':
-      return { ...base, kind: 'project', children: node.areas.map((a) => toLocationNode(a, 'project')) };
-    case 'area':
-      return { ...base, kind: 'country', children: node.states.map((s) => toLocationNode(s, 'country')) };
-    case 'state':
-      return {
-        ...base,
-        kind: 'site',
-        children: [...node.zones, ...node.outerZones.flatMap((o) => o.buildings)].map((c) => toLocationNode(c, 'site')),
-      };
-    case 'outerZone':
-    case 'building': {
-      const floors = node.kind === 'building' ? node.floors : node.buildings.flatMap((b) => b.floors);
-      return { ...base, kind: 'building', children: floors.map((f) => toLocationNode(f, 'building')) };
-    }
-    case 'floor':
-      return { ...base, kind: 'floor', mapImage: node.mapImage, children: node.zones.map((z) => toLocationNode(z, 'floor')) };
-    case 'zone': {
-      const kind: LocationKind = parentKind === 'floor' ? 'zone' : parentKind === 'site' ? 'outdoorZone' : 'subZone';
-      return { ...base, kind, mapImage: node.mapImage, children: node.zones.map((z) => toLocationNode(z, kind)) };
-    }
+function buildMasterLocationTree(h: LocationHierarchy): LocationNode[] {
+  const node = (id: string, label: string, kind: LocationKind): LocationNode => ({ id, label, kind, children: [], coords: NO_COORDS });
+  const byId: Record<string, LocationNode> = {};
+  const add = (parent: LocationNode | undefined, child: LocationNode) => {
+    byId[child.id] = child;
+    parent?.children.push(child);
+  };
+
+  const countries: LocationNode[] = [];
+  for (const site of h.sites) {
+    const countryName = site.country?.trim() || 'Unspecified';
+    let country = countries.find((c) => sameName(c.label, countryName));
+    if (!country) countries.push((country = node(countryName, countryName, 'country')));
+    add(country, node(site.value, site.label, 'site'));
   }
+  for (const b of h.buildings) if (b.parentId && byId[b.parentId]) add(byId[b.parentId], node(b.value, b.label, 'building'));
+  for (const f of h.floors) if (f.parentId && byId[f.parentId]) add(byId[f.parentId], node(f.value, f.label, 'floor'));
+  for (const z of h.zones) {
+    const floor = z.parentId ? byId[z.parentId] : undefined;
+    const building = z.buildingId ? byId[z.buildingId] : undefined;
+    const site = z.siteId ? byId[z.siteId] : undefined;
+    if (floor) add(floor, node(z.value, z.label, 'zone'));
+    else if (building) add(building, node(z.value, z.label, 'zone'));
+    else if (site) add(site, node(z.value, z.label, 'outdoorZone'));
+  }
+
+  // Rooms: find the parent by name, narrowing by building and floor when given
+  const all = Object.values(byId);
+  const named = (kind: LocationKind[], name?: string) => all.filter((n) => kind.includes(n.kind) && sameName(n.label, name));
+  const under = (n: LocationNode, ancestor?: LocationNode[]) => !ancestor?.length || ancestor.some((a) => contains(a, n));
+  const contains = (a: LocationNode, n: LocationNode): boolean => a === n || a.children.some((c) => contains(c, n));
+  for (const room of h.rooms) {
+    const buildings = room.buildingName ? named(['building'], room.buildingName) : undefined;
+    const floors = room.floorName ? named(['floor'], room.floorName).filter((f) => under(f, buildings)) : undefined;
+    const parent =
+      named(['zone', 'outdoorZone'], room.zoneName).find((z) => under(z, floors) && under(z, buildings)) ?? floors?.[0] ?? buildings?.[0];
+    if (parent) add(parent, node(room.value, room.label, 'subZone'));
+  }
+  return countries;
 }
 
-function buildLocationModel(projects: Project[]): LocationModel {
-  const tree = projects.map((project) => toLocationNode(project));
+function buildLocationModel(tree: LocationNode[]): LocationModel {
   const index: Record<string, LocationNode> = {};
   const parentOf: Record<string, string> = {};
   const walk = (nodes: LocationNode[], parentId?: string) =>
@@ -409,23 +461,23 @@ export class AssetRegistration {
     assetTag: 'GEN-00045',
     barcode: 'DG250-2026-00045',
     rfidTag: 'E28011606000020B3C4F8E9A',
-    category: 'machinery',
-    subCategory: 'power-generation',
-    assetType: 'generator',
+    category: '',
+    subCategory: '',
+    assetType: '',
     model: 'C250D6E',
-    manufacturer: 'caterpillar',
+    manufacturer: '',
     serialNumber: 'CAT2026G45001',
     status: 'active',
     condition: 'good',
-    criticality: 'critical',
+    criticality: '',
     description: '250 kVA diesel generator for main plant backup power. Installed at Building A.',
-    assetSubType: 'diesel',
-    functionPurpose: 'backup-power',
+    assetSubType: '',
+    functionPurpose: '',
     costCenter: 'fm-001',
-    businessUnit: 'head-office',
-    taggingMethod: 'barcode',
-    complianceCategory: 'safety-critical',
-    lifecycleStage: 'in-use',
+    businessUnit: '',
+    taggingMethod: '',
+    complianceCategory: '',
+    lifecycleStage: '',
     keywords: ['generator', 'diesel', 'backup power', 'critical'],
     country: '',
     site: '',
@@ -433,130 +485,81 @@ export class AssetRegistration {
     floor: '',
     zone: '',
     room: '',
-    department: 'facilities',
-    assignedTo: 'ahmed-basim',
-    ownershipType: 'company-owned',
-    responsibleTeam: 'mep',
+    department: '',
+    assignedTo: '',
+    ownershipType: '',
+    responsibleTeam: '',
     assignmentStart: '2026-09-01',
     assignmentEnd: '',
     setAsCurrent: true,
     purchaseOrder: 'PO-2026-00458',
     invoiceNumber: 'INV-2026-0789',
-    vendor: 'al-futtaim',
+    vendor: '',
     purchaseDate: '2026-06-15',
     deliveryDate: '2026-06-28',
     purchaseCost: '250000',
     quantity: '1',
-    unit: 'units',
+    unit: '',
     currency: 'AED',
     taxRate: '5',
-    paymentTerms: '30-days',
-    procurementMethod: 'direct',
+    paymentTerms: '',
+    procurementMethod: '',
     projectReference: 'Main Plant Expansion 2026',
     remarks: 'Procured as part of main plant expansion. Includes commissioning and operator training.',
-    warrantyType: 'manufacturer',
+    warrantyType: '',
     warrantyStart: '2026-06-28',
     warrantyPeriod: '5',
-    warrantyPeriodUnit: 'years',
+    warrantyPeriodUnit: '',
     amcIncluded: true,
-    supportCoverage: '24x7',
-    serviceProvider: 'caterpillar-uae',
+    supportCoverage: '',
+    serviceProvider: '',
     warrantyReference: 'WARR-2026-CAT-001',
     specs: {
       powerRating: '250',
-      powerUnit: 'kVA',
+      powerUnit: '',
       voltage: '400',
-      voltageUnit: 'V',
+      voltageUnit: '',
       frequency: '50',
-      frequencyUnit: 'Hz',
-      phase: '3-phase',
-      fuelType: 'diesel',
+      frequencyUnit: '',
+      phase: '',
+      fuelType: '',
       fuelTankCapacity: '500',
-      fuelTankUnit: 'liters',
+      fuelTankUnit: '',
       length: '3200',
       width: '1100',
       height: '1800',
-      dimensionUnit: 'mm',
+      dimensionUnit: '',
       weight: '2500',
-      weightUnit: 'kg',
+      weightUnit: '',
       temperatureRange: '-10 to 50',
-      temperatureUnit: 'C',
-      ipRating: 'IP23',
+      temperatureUnit: '',
+      ipRating: '',
       noiseLevel: '75',
-      noiseUnit: 'dBA',
+      noiseUnit: '',
       lifespan: '20',
-      lifespanUnit: 'years',
+      lifespanUnit: '',
       remarks: 'Air cooled diesel generator with automatic transfer switch. Suitable for continuous operation.',
     },
     operations: {
       operatingHours: '8',
-      operatingHoursUnit: 'hours',
-      operatingShift: '24x7',
-      utilization: 'primary',
+      operatingHoursUnit: '',
+      operatingShift: '',
+      utilization: '',
       maintenanceFrequency: '500',
-      maintenanceFrequencyUnit: 'hours',
+      maintenanceFrequencyUnit: '',
       lastMaintenance: '2026-09-01',
       nextMaintenance: '2027-03-01',
-      complianceStandards: ['iso-8528', 'uae-civil-defence', 'manufacturer'],
+      complianceStandards: [],
     },
   };
 
-  readonly categories: Option[] = [
-    { label: 'Machinery & Equipment', value: 'machinery' },
-    { label: 'IT & Electronics', value: 'it' },
-    { label: 'Vehicles', value: 'vehicles' },
-    { label: 'Furniture & Fixtures', value: 'furniture' },
-  ];
+  readonly categories: Option[] = [];
 
-  readonly subCategoriesByCategory: Record<string, Option[]> = {
-    machinery: [
-      { label: 'Power Generation', value: 'power-generation' },
-      { label: 'HVAC', value: 'hvac' },
-      { label: 'Pumps & Compressors', value: 'pumps' },
-    ],
-    it: [
-      { label: 'Laptops', value: 'laptops' },
-      { label: 'Servers', value: 'servers' },
-      { label: 'Network Devices', value: 'network' },
-    ],
-    vehicles: [
-      { label: 'Trucks', value: 'trucks' },
-      { label: 'Forklifts', value: 'forklifts' },
-    ],
-    furniture: [
-      { label: 'Office Furniture', value: 'office' },
-      { label: 'Storage', value: 'storage' },
-    ],
-  };
+  readonly subCategoriesByCategory: Record<string, Option[]> = {};
 
-  readonly assetTypesBySubCategory: Record<string, Option[]> = {
-    'power-generation': [
-      { label: 'Generator', value: 'generator' },
-      { label: 'Transformer', value: 'transformer' },
-      { label: 'UPS', value: 'ups' },
-      { label: 'Switchgear', value: 'switchgear' },
-      { label: 'Control Panel', value: 'control-panel' },
-      { label: 'Others', value: 'others' },
-    ],
-    hvac: [
-      { label: 'Chiller', value: 'chiller' },
-      { label: 'Air Handling Unit', value: 'ahu' },
-      { label: 'Cooling Tower', value: 'cooling-tower' },
-    ],
-    pumps: [
-      { label: 'Compressor', value: 'compressor' },
-      { label: 'Pump', value: 'pump' },
-      { label: 'Motor', value: 'motor' },
-    ],
-    laptops: [{ label: 'Laptop', value: 'laptop' }],
-    servers: [{ label: 'Rack Server', value: 'rack-server' }, { label: 'Blade Server', value: 'blade-server' }],
-    network: [{ label: 'Switch', value: 'switch' }, { label: 'Router', value: 'router' }],
-    trucks: [{ label: 'Truck', value: 'truck' }],
-    forklifts: [{ label: 'Forklift', value: 'forklift' }],
-    office: [{ label: 'Desk', value: 'desk' }, { label: 'Chair', value: 'chair' }],
-    storage: [{ label: 'Cabinet', value: 'cabinet' }, { label: 'Rack', value: 'rack' }],
-  };
+  readonly assetTypesBySubCategory: Record<string, Option[]> = {};
 
+  /** Built-in (no API list yet), keyed by asset type name in lower case. */
   readonly assetSubTypesByType: Record<string, SubTypeOption[]> = {
     generator: [
       { label: 'Diesel Generator', value: 'diesel', image: 'subtype-diesel-generator.svg' },
@@ -575,12 +578,8 @@ export class AssetRegistration {
     ],
   };
 
-  readonly manufacturers: Option[] = [
-    { label: 'Caterpillar', value: 'caterpillar' },
-    { label: 'Cummins', value: 'cummins' },
-    { label: 'Kohler', value: 'kohler' },
-    { label: 'Siemens', value: 'siemens' },
-  ];
+  /** From GET master-data/manufacturers (value = record id), loaded when the page opens. */
+  readonly manufacturers: Option[] = [];
 
   readonly statuses: StatusOption[] = [
     { label: 'Active', value: 'active', color: '#16a34a' },
@@ -596,19 +595,9 @@ export class AssetRegistration {
     { label: 'Poor', value: 'poor', color: '#dc2626' },
   ];
 
-  readonly criticalities: StatusOption[] = [
-    { label: 'Critical', value: 'critical', color: '#dc2626' },
-    { label: 'High', value: 'high', color: '#f97316' },
-    { label: 'Medium', value: 'medium', color: '#f59e0b' },
-    { label: 'Low', value: 'low', color: '#16a34a' },
-  ];
+  readonly criticalities: StatusOption[] = [];
 
-  readonly functionPurposes: Option[] = [
-    { label: 'Backup Power', value: 'backup-power' },
-    { label: 'Primary Power', value: 'primary-power' },
-    { label: 'Production', value: 'production' },
-    { label: 'Support / Utility', value: 'utility' },
-  ];
+  readonly functionPurposes: Option[] = [];
 
   readonly costCenters: Option[] = [
     { label: 'FM-001 - Building Operations', value: 'fm-001' },
@@ -616,44 +605,23 @@ export class AssetRegistration {
     { label: 'MT-020 - Maintenance', value: 'mt-020' },
   ];
 
-  readonly businessUnits: Option[] = [
-    { label: 'Head Office', value: 'head-office' },
-    { label: 'Manufacturing', value: 'manufacturing' },
-    { label: 'Logistics', value: 'logistics' },
-  ];
+  readonly businessUnits: Option[] = [];
 
-  readonly taggingMethods: Option[] = [
-    { label: 'Barcode', value: 'barcode' },
-    { label: 'RFID', value: 'rfid' },
-    { label: 'BLE', value: 'ble' },
-    { label: 'QR Code', value: 'qr' },
-  ];
+  readonly taggingMethods: Option[] = [];
 
-  readonly complianceCategories: Option[] = [
-    { label: 'Safety Critical Equipment', value: 'safety-critical' },
-    { label: 'Environmental', value: 'environmental' },
-    { label: 'Regulatory Inspection', value: 'regulatory' },
-    { label: 'Not Applicable', value: 'none' },
-  ];
+  readonly complianceCategories: Option[] = [];
 
-  readonly lifecycleStages: Option[] = [
-    { label: 'Planned', value: 'planned' },
-    { label: 'Procured', value: 'procured' },
-    { label: 'In Use', value: 'in-use' },
-    { label: 'Under Repair', value: 'under-repair' },
-    { label: 'Retired', value: 'retired' },
-  ];
+  readonly lifecycleStages: Option[] = [];
 
   /** Text typed into the keywords input before it becomes a chip. */
   keywordDraft = '';
 
   // ===== Step 3: Location & Assignment =====
 
-  private readonly hierarchy = inject(SiteHierarchyService);
-  private readonly hierarchyLoader = inject(SiteHierarchyLoader);
+  private readonly registrationApi = inject(AssetRegistrationService);
 
-  /** The Locating module's hierarchy, reshaped for the tree, the dropdowns and the map. */
-  private readonly locationModel = computed(() => buildLocationModel(this.hierarchy.projects()));
+  /** Master-data locations, shaped for the tree, the dropdowns and the map; filled when step 3 first opens. */
+  private readonly locationModel = signal<LocationModel>(buildLocationModel([]));
 
   readonly locationLevels: LocationLevel[] = [
     { key: 'country', label: 'Country', placeholder: 'Select country', required: true },
@@ -671,103 +639,38 @@ export class AssetRegistration {
   planZoom = PLAN_ZOOM_MIN;
   isPlanFullscreen = false;
 
-  readonly departments: Option[] = [
-    { label: 'Facilities Management', value: 'facilities' },
-    { label: 'Operations', value: 'operations' },
-    { label: 'Maintenance', value: 'maintenance' },
-  ];
-  readonly people: Person[] = [
-    { label: 'Ahmed Basim', value: 'ahmed-basim', initials: 'AB', department: 'facilities' },
-    { label: 'Rex Kumar', value: 'rex-kumar', initials: 'RK', department: 'facilities' },
-    { label: 'Priya Nair', value: 'priya-nair', initials: 'PN', department: 'operations' },
-    { label: 'Omar Haddad', value: 'omar-haddad', initials: 'OH', department: 'maintenance' },
-  ];
+  readonly departments: Option[] = [];
+  readonly people: Person[] = [];
 
-  readonly ownershipTypes: Option[] = [
-    { label: 'Company Owned', value: 'company-owned' },
-    { label: 'Leased', value: 'leased' },
-    { label: 'Rented', value: 'rented' },
-    { label: 'Customer Owned', value: 'customer-owned' },
-  ];
+  readonly ownershipTypes: Option[] = [];
 
-  readonly teams: Option[] = [
-    { label: 'MEP Team', value: 'mep' },
-    { label: 'Electrical Team', value: 'electrical' },
-    { label: 'HVAC Team', value: 'hvac' },
-    { label: 'Operations Team', value: 'operations' },
-    { label: 'Maintenance Team', value: 'maintenance' },
-  ];
+  readonly teams: TeamOption[] = [];
 
-  private readonly defaultTeamByDepartment: Record<string, string> = {
-    facilities: 'mep',
-    operations: 'operations',
-    maintenance: 'maintenance',
-  };
 
   // ===== Step 4: Purchase & Warranty =====
 
   readonly remarksMax = REMARKS_MAX;
 
-  readonly vendors: Option[] = [
-    { label: 'Al-Futtaim Power Systems LLC', value: 'al-futtaim' },
-    { label: 'PowerGen Solutions LLC', value: 'powergen' },
-    { label: 'Emirates Electrical Supplies', value: 'emirates-electrical' },
-  ];
+  readonly vendors: Option[] = [];
 
-  readonly units: Option[] = [
-    { label: 'Unit(s)', value: 'units' },
-    { label: 'Set(s)', value: 'sets' },
-    { label: 'Lot(s)', value: 'lots' },
-  ];
+  readonly units: Option[] = [];
 
-  readonly currencies: Option[] = [
-    { label: 'AED - UAE Dirham', value: 'AED' },
-    { label: 'SAR - Saudi Riyal', value: 'SAR' },
-    { label: 'USD - US Dollar', value: 'USD' },
-    { label: 'EUR - Euro', value: 'EUR' },
-  ];
+  readonly currencies: Option[] = [];
 
   /** Standard VAT per currency's country, used by the tax reset button. */
   private readonly defaultVatByCurrency: Record<string, string> = { AED: '5', SAR: '15', USD: '0', EUR: '0' };
 
-  readonly paymentTermsOptions: Option[] = [
-    { label: 'Advance Payment', value: 'advance' },
-    { label: '15 Days', value: '15-days' },
-    { label: '30 Days', value: '30-days' },
-    { label: '45 Days', value: '45-days' },
-    { label: '60 Days', value: '60-days' },
-  ];
+  readonly paymentTermsOptions: Option[] = [];
 
-  readonly procurementMethods: Option[] = [
-    { label: 'Direct Purchase', value: 'direct' },
-    { label: 'Tender', value: 'tender' },
-    { label: 'Lease', value: 'lease' },
-    { label: 'Internal Transfer', value: 'transfer' },
-  ];
+  readonly procurementMethods: Option[] = [];
 
-  readonly warrantyTypes: Option[] = [
-    { label: 'Manufacturer Warranty', value: 'manufacturer' },
-    { label: 'Extended Warranty', value: 'extended' },
-    { label: 'Vendor Warranty', value: 'vendor' },
-    { label: 'No Warranty', value: 'none' },
-  ];
+  readonly warrantyTypes: Option[] = [];
 
-  readonly warrantyPeriodUnits: Option[] = [
-    { label: 'Year(s)', value: 'years' },
-    { label: 'Month(s)', value: 'months' },
-  ];
+  readonly warrantyPeriodUnits: Option[] = [];
 
-  readonly supportCoverages: Option[] = [
-    { label: '24x7', value: '24x7' },
-    { label: 'Business Hours (8x5)', value: '8x5' },
-    { label: 'On-Call', value: 'on-call' },
-  ];
+  readonly supportCoverages: Option[] = [];
 
-  readonly serviceProviders: Option[] = [
-    { label: 'Caterpillar (UAE)', value: 'caterpillar-uae' },
-    { label: 'Al-Futtaim Power Systems LLC', value: 'al-futtaim' },
-    { label: 'In-house Maintenance', value: 'in-house' },
-  ];
+  readonly serviceProviders: Option[] = [];
 
   /** True while the cost box has focus, so it shows the raw number instead of "250,000.00". */
   costEditing = false;
@@ -797,68 +700,43 @@ export class AssetRegistration {
   readonly notesMax = NOTES_MAX;
 
   readonly specFields: SpecField[] = [
-    { label: 'Power Rating', kind: 'unit', key: 'powerRating', unitKey: 'powerUnit', units: units('kVA', 'kW', 'HP') },
-    { label: 'Voltage', kind: 'unit', key: 'voltage', unitKey: 'voltageUnit', units: units('V', 'kV') },
-    { label: 'Frequency', kind: 'unit', key: 'frequency', unitKey: 'frequencyUnit', units: units('Hz') },
+    { label: 'Power Rating', kind: 'unit', key: 'powerRating', unitKey: 'powerUnit', units: [] },
+    { label: 'Voltage', kind: 'unit', key: 'voltage', unitKey: 'voltageUnit', units: [] },
+    { label: 'Frequency', kind: 'unit', key: 'frequency', unitKey: 'frequencyUnit', units: [] },
     {
       label: 'Phase', kind: 'select', key: 'phase',
-      options: [{ label: 'Single Phase', value: '1-phase' }, { label: '3 Phase', value: '3-phase' }],
+      options: [],
     },
     {
       label: 'Fuel Type', kind: 'select', key: 'fuelType',
-      options: [
-        { label: 'Diesel', value: 'diesel' },
-        { label: 'Petrol', value: 'petrol' },
-        { label: 'Natural Gas', value: 'gas' },
-        { label: 'Electric', value: 'electric' },
-        { label: 'Not Applicable', value: 'na' },
-      ],
+      options: [],
     },
     {
       label: 'Fuel Tank Capacity', kind: 'unit', key: 'fuelTankCapacity', unitKey: 'fuelTankUnit',
-      units: [{ label: 'Liters', value: 'liters' }, { label: 'Gallons', value: 'gallons' }],
+      units: [],
     },
-    { label: 'Dimensions (L × W × H)', kind: 'dimensions', key: 'length', unitKey: 'dimensionUnit', units: units('mm', 'cm', 'm') },
-    { label: 'Weight', kind: 'unit', key: 'weight', unitKey: 'weightUnit', units: units('kg', 'ton') },
+    { label: 'Dimensions (L × W × H)', kind: 'dimensions', key: 'length', unitKey: 'dimensionUnit', units: [] },
+    { label: 'Weight', kind: 'unit', key: 'weight', unitKey: 'weightUnit', units: [] },
     {
       label: 'Operating Temperature Range', kind: 'unit', key: 'temperatureRange', inputType: 'text', unitKey: 'temperatureUnit',
-      units: [{ label: '°C', value: 'C' }, { label: '°F', value: 'F' }],
+      units: [],
     },
     {
       label: 'IP Rating', kind: 'select', key: 'ipRating',
-      options: units('IP20', 'IP23', 'IP44', 'IP54', 'IP55', 'IP65', 'IP66', 'IP67'),
+      options: [],
     },
-    { label: 'Noise Level', kind: 'unit', key: 'noiseLevel', unitKey: 'noiseUnit', units: [{ label: 'dB(A)', value: 'dBA' }] },
+    { label: 'Noise Level', kind: 'unit', key: 'noiseLevel', unitKey: 'noiseUnit', units: [] },
     {
       label: 'Expected Lifespan', kind: 'unit', key: 'lifespan', unitKey: 'lifespanUnit',
-      units: [{ label: 'Year(s)', value: 'years' }, { label: 'Month(s)', value: 'months' }],
+      units: [],
     },
   ];
 
-  readonly hourUnits: Option[] = [{ label: 'Hours', value: 'hours' }];
-  readonly maintenanceUnits: Option[] = [
-    { label: 'Hours', value: 'hours' },
-    { label: 'Days', value: 'days' },
-    { label: 'Months', value: 'months' },
-  ];
-  readonly operatingShifts: Option[] = [
-    { label: '24x7', value: '24x7' },
-    { label: 'Day Shift', value: 'day' },
-    { label: 'Night Shift', value: 'night' },
-    { label: 'Two Shifts', value: 'two-shifts' },
-  ];
-  readonly utilizations: Option[] = [
-    { label: 'Primary', value: 'primary' },
-    { label: 'Standby', value: 'standby' },
-    { label: 'Backup', value: 'backup' },
-  ];
-  readonly complianceOptions: Option[] = [
-    { label: 'ISO 8528', value: 'iso-8528' },
-    { label: 'UAE Civil Defence', value: 'uae-civil-defence' },
-    { label: 'Manufacturer Standard', value: 'manufacturer' },
-    { label: 'IEC 60034', value: 'iec-60034' },
-    { label: 'NFPA 110', value: 'nfpa-110' },
-  ];
+  readonly hourUnits: Option[] = [];
+  readonly maintenanceUnits: Option[] = [];
+  readonly operatingShifts: Option[] = [];
+  readonly utilizations: Option[] = [];
+  readonly complianceOptions: Option[] = [];
 
   customFields: CustomField[] = [
     {
@@ -907,7 +785,261 @@ export class AssetRegistration {
   constructor(private readonly router: Router) {
     this.generateQr();
     this.ensureLocationSelection();
+    this.loadStepDropdowns(0);
+  }
+
+  // ===== Dropdown data =====
+
+  private readonly dropdownApi = inject(AssetDropdownService);
+
+  /** Parent ids whose dependent list has already been fetched, so switching back does not refetch. */
+  private readonly loadedSubCategories = new Set<string>();
+  private readonly loadedAssetTypes = new Set<string>();
+  /** Parent ids with a request in flight, so the same list is not requested twice at once. */
+  private readonly pendingLists = new Set<string>();
+
+  /** Steps whose dropdown APIs have been called, so revisiting a step does not call them again. */
+  private readonly loadedSteps = new Set<number>();
+  /** GET /options serves the fixed lists of every step; requested once, on the first step that needs it. */
+  private registrationOptions$?: Observable<AssetRegistrationOptions>;
+  private departmentsLoaded = false;
+
+  private get options$(): Observable<AssetRegistrationOptions> {
+    return (this.registrationOptions$ ??= this.dropdownApi.getRegistrationOptions().pipe(shareReplay(1)));
+  }
+
+  /**
+   * Calls a step's APIs the first time that step is shown: only Criticality when the page opens, the rest as
+   * the user moves through the steps. Sub Category, Asset Type, Assigned To and Responsible Team load when their parent
+   * is chosen. A value already in the form is kept when the loaded list has it (by value or label), otherwise cleared.
+   */
+  private loadStepDropdowns(step: number): void {
+    if (this.loadedSteps.has(step)) return;
+    const loaders = [
+      () => this.loadBasicInformationDropdowns(),
+      () => this.loadClassificationDropdowns(),
+      () => this.loadLocationAssignmentDropdowns(),
+      () => this.loadPurchaseWarrantyDropdowns(),
+      () => this.loadAdditionalInformationDropdowns(),
+    ];
+    if (!loaders[step]) return;
+    this.loadedSteps.add(step);
+    loaders[step]();
+  }
+
+  /** Step 1: Criticality and Manufacturer from master data (Manufacturer is also shown on step 4). Status and Condition are built-in. */
+  private loadBasicInformationDropdowns(): void {
+    const f = this.form;
+    this.dropdownApi.getManufacturers().subscribe((list) =>
+      this.swapOptions(this.manufacturers, list, (re) => (f.manufacturer = re(f.manufacturer))),
+    );
+    this.dropdownApi.getCriticalities().subscribe((list) => {
+      this.swapOptions(this.criticalities, this.withColors(list), (re) => (f.criticality = re(f.criticality)));
+      // Nothing chosen yet: preselect the record marked defaultCriticality
+      f.criticality ||= list.find((c) => c.isDefault)?.value ?? '';
+    });
+  }
+
+  /** Step 2: Category, Business Unit, Department (master data) and the classification lists from /options. */
+  private loadClassificationDropdowns(): void {
+    const f = this.form;
+    // Only top-level categories here; sub-categories load when a category is chosen
+    this.dropdownApi.getAssetCategories().subscribe((list) => {
+      this.swapOptions(this.categories, list.filter((c) => !c.parentId), (re) => (f.category = re(f.category)));
+      this.loadSubCategories();
+    });
+    this.dropdownApi.getBusinessUnits().subscribe((list) =>
+      this.swapOptions(this.businessUnits, list, (re) => (f.businessUnit = re(f.businessUnit))),
+    );
+    this.loadDepartments();
+    this.options$.subscribe(({ classification: c = {} }) => {
+      this.swapOptions(this.functionPurposes, textOptions(c.functionPurposes), (re) => (f.functionPurpose = re(f.functionPurpose)));
+      this.swapOptions(this.taggingMethods, textOptions(c.taggingMethods), (re) => (f.taggingMethod = re(f.taggingMethod)));
+      this.swapOptions(this.complianceCategories, textOptions(c.complianceCategories), (re) => (f.complianceCategory = re(f.complianceCategory)));
+      this.swapOptions(this.lifecycleStages, textOptions(c.lifecycleStages), (re) => (f.lifecycleStage = re(f.lifecycleStage)));
+    });
+  }
+
+  /** Step 3: location tree (country ... room), Department (people and teams follow it) and Ownership Type from /options. */
+  private loadLocationAssignmentDropdowns(): void {
+    const f = this.form;
     this.loadLocations();
+    this.loadDepartments();
+    this.options$.subscribe(({ locationAssignment: l = {} }) =>
+      this.swapOptions(this.ownershipTypes, textOptions(l.ownershipTypes), (re) => (f.ownershipType = re(f.ownershipType))),
+    );
+  }
+
+  /** Step 4: Vendor, Service Provider (master data) and the purchase / warranty lists from /options. */
+  private loadPurchaseWarrantyDropdowns(): void {
+    const f = this.form;
+    this.dropdownApi.getSuppliers().subscribe((list) => this.swapOptions(this.vendors, list, (re) => (f.vendor = re(f.vendor))));
+    this.dropdownApi.getServiceProviders().subscribe((list) =>
+      this.swapOptions(this.serviceProviders, list, (re) => (f.serviceProvider = re(f.serviceProvider))),
+    );
+    this.options$.subscribe(({ purchaseWarranty: p = {} }) => {
+      this.swapOptions(this.units, textOptions(p.quantityUnits), (re) => (f.unit = re(f.unit)));
+      // "AED - UAE Dirham" keeps the currency code as its value; VAT defaults and amounts are keyed by it
+      const currencies = (p.currencies ?? []).map((label) => ({ label, value: label.split(' - ')[0].trim() }));
+      this.swapOptions(this.currencies, currencies, (re) => (f.currency = re(f.currency)));
+      this.swapOptions(this.paymentTermsOptions, textOptions(p.paymentTerms), (re) => (f.paymentTerms = re(f.paymentTerms)));
+      this.swapOptions(this.procurementMethods, textOptions(p.procurementMethods), (re) => (f.procurementMethod = re(f.procurementMethod)));
+      this.swapOptions(this.warrantyTypes, textOptions(p.warrantyTypes), (re) => (f.warrantyType = re(f.warrantyType)));
+      this.swapOptions(this.warrantyPeriodUnits, textOptions(p.warrantyPeriodUnits), (re) => (f.warrantyPeriodUnit = re(f.warrantyPeriodUnit)));
+      this.swapOptions(this.supportCoverages, textOptions(p.supportCoverages), (re) => (f.supportCoverage = re(f.supportCoverage)));
+    });
+  }
+
+  /** Step 5: spec units and selects, operational lists and compliance standards, all from /options. */
+  private loadAdditionalInformationDropdowns(): void {
+    const f = this.form;
+    this.options$.subscribe(({ additionalInformation: a = {} }) => {
+      const specLists: Partial<Record<keyof TechnicalSpecs, { units?: string[]; options?: string[] }>> = {
+        powerRating: { units: a.powerRatingUnits },
+        voltage: { units: a.voltageUnits },
+        frequency: { units: a.frequencyUnits },
+        phase: { options: a.phases },
+        fuelType: { options: a.fuelTypes },
+        fuelTankCapacity: { units: a.capacityUnits },
+        length: { units: a.dimensionUnits },
+        weight: { units: a.weightUnits },
+        temperatureRange: { units: a.temperatureUnits },
+        ipRating: { options: a.ipRatings },
+        noiseLevel: { units: a.noiseLevelUnits },
+        lifespan: { units: a.lifespanUnits },
+      };
+      for (const spec of this.specFields) {
+        const lists = specLists[spec.key];
+        const unitKey = spec.unitKey;
+        if (lists?.units && unitKey) this.swapOptions((spec.units ??= []), textOptions(lists.units), (re) => (f.specs[unitKey] = re(f.specs[unitKey])));
+        if (lists?.options) this.swapOptions((spec.options ??= []), textOptions(lists.options), (re) => (f.specs[spec.key] = re(f.specs[spec.key])));
+      }
+      const o = f.operations;
+      this.swapOptions(this.hourUnits, textOptions(a.operatingHoursUnits), (re) => (o.operatingHoursUnit = re(o.operatingHoursUnit)));
+      this.swapOptions(this.operatingShifts, textOptions(a.operatingShifts), (re) => (o.operatingShift = re(o.operatingShift)));
+      this.swapOptions(this.utilizations, textOptions(a.utilizations), (re) => (o.utilization = re(o.utilization)));
+      this.swapOptions(this.maintenanceUnits, textOptions(a.maintenanceFrequencyUnits), (re) => (o.maintenanceFrequencyUnit = re(o.maintenanceFrequencyUnit)));
+      this.swapOptions(this.complianceOptions, textOptions(a.complianceStandards), (re) => {
+        o.complianceStandards = o.complianceStandards.map(re).filter(Boolean);
+      });
+    });
+  }
+
+  /** Departments are shown on steps 2 and 3; whichever opens first loads them, then people and teams follow. */
+  private loadDepartments(): void {
+    if (this.departmentsLoaded) return;
+    this.departmentsLoaded = true;
+    const f = this.form;
+    this.dropdownApi.getDepartments().subscribe((list) => {
+      this.swapOptions(this.departments, list, (re) => (f.department = re(f.department)));
+      this.loadDepartmentMembers();
+    });
+  }
+
+  // ===== Dependent dropdowns (fetched when the parent changes) =====
+
+  /** Category chosen: GET asset-categories/{id}/children, then keep the sub-category (matched by name) or pick the first. */
+  private loadSubCategories(): void {
+    const categoryId = this.form.category;
+    if (!categoryId) return;
+    if (this.loadedSubCategories.has(categoryId)) return this.pickSubCategory(categoryId, []);
+    if (this.pendingLists.has(`category:${categoryId}`)) return;
+    this.pendingLists.add(`category:${categoryId}`);
+    const previous = Object.values(this.subCategoriesByCategory).flat();
+    this.dropdownApi.getSubCategories(categoryId).subscribe((list) => {
+      this.pendingLists.delete(`category:${categoryId}`);
+      this.loadedSubCategories.add(categoryId);
+      this.subCategoriesByCategory[categoryId] = list.map(({ label, value }) => ({ label, value }));
+      this.pickSubCategory(categoryId, previous);
+    });
+  }
+
+  private pickSubCategory(categoryId: string, previous: Option[]): void {
+    if (this.form.category !== categoryId) return; // user moved on while the request was running
+    const list = this.subCategories;
+    this.form.subCategory = this.relabel(previous, list, this.form.subCategory) || (list[0]?.value ?? '');
+    this.loadAssetTypes();
+  }
+
+  /** Sub category chosen: GET asset-types?categoryId={id}, then keep the type (matched by name) or pick the first. */
+  private loadAssetTypes(): void {
+    const subCategoryId = this.form.subCategory;
+    if (!subCategoryId) return;
+    if (this.loadedAssetTypes.has(subCategoryId)) return this.pickAssetType(subCategoryId, []);
+    if (this.pendingLists.has(`subCategory:${subCategoryId}`)) return;
+    this.pendingLists.add(`subCategory:${subCategoryId}`);
+    const previous = Object.values(this.assetTypesBySubCategory).flat();
+    const categoryId = this.form.category;
+    // Types linked to the sub-category; when it has none, those linked to its parent category
+    this.dropdownApi
+      .getAssetTypes(subCategoryId)
+      .pipe(switchMap((list) => (list.length || !categoryId ? of(list) : this.dropdownApi.getAssetTypes(categoryId))))
+      .subscribe((list) => {
+        this.pendingLists.delete(`subCategory:${subCategoryId}`);
+        this.loadedAssetTypes.add(subCategoryId);
+        this.assetTypesBySubCategory[subCategoryId] = list.map(({ label, value }) => ({ label, value }));
+        this.pickAssetType(subCategoryId, previous);
+      });
+  }
+
+  private pickAssetType(subCategoryId: string, previous: Option[]): void {
+    if (this.form.subCategory !== subCategoryId) return;
+    const list = this.assetTypes;
+    this.form.assetType = this.relabel(previous, list, this.form.assetType) || (list[0]?.value ?? '');
+    this.onAssetTypeChange();
+  }
+
+  /** Department chosen: GET employees?departmentId= and teams?departmentId=, then keep the person/team if still listed. */
+  private loadDepartmentMembers(): void {
+    const departmentId = this.form.department;
+    if (!departmentId) return;
+    forkJoin({
+      employees: this.dropdownApi.getEmployees(departmentId),
+      teams: this.dropdownApi.getTeams(departmentId),
+    }).subscribe(({ employees, teams }) => {
+      if (this.form.department !== departmentId) return;
+      const f = this.form;
+      const people: Person[] = employees.map((e) => ({ label: e.label, value: e.value, initials: this.initialsOf(e.label), department: departmentId }));
+      this.people.splice(0, this.people.length, ...people);
+      if (!people.some((p) => p.value === f.assignedTo)) f.assignedTo = '';
+      this.teams.splice(0, this.teams.length, ...teams);
+      if (!teams.some((t) => t.value === f.responsibleTeam)) f.responsibleTeam = teams[0]?.value ?? '';
+    });
+  }
+
+  onDepartmentChange(): void {
+    this.loadDepartmentMembers();
+  }
+
+  /** Swaps a list's entries in place (so template bindings keep working), then lets the caller remap form values. */
+  private swapOptions<T extends Option>(list: T[], next: T[], remap: (re: (value: string) => string) => void): void {
+    const old = [...list];
+    list.splice(0, list.length, ...next);
+    remap((value) => this.relabel(old, list, value));
+  }
+
+  /** The value in `next` for `value`: itself if listed, else the entry with the same label as in `old`, else ''. */
+  private relabel(old: Option[], next: Option[], value: string): string {
+    if (!value || next.some((o) => o.value === value)) return value;
+    const label = old.find((o) => o.value === value)?.label ?? value;
+    return next.find((o) => this.sameLabel(o.label, label))?.value ?? '';
+  }
+
+  private sameLabel(a: string, b: string): boolean {
+    return a.trim().toLowerCase() === b.trim().toLowerCase();
+  }
+
+  /** Gives each option a badge color: its own from the API, else a default for its label. */
+  private withColors(next: DropdownOption[]): StatusOption[] {
+    return next.map((o) => ({
+      label: o.label,
+      value: o.value,
+      color: o.color || BADGE_COLORS[o.label.trim().toLowerCase()] || DEFAULT_BADGE_COLOR,
+    }));
+  }
+
+  private initialsOf(name: string): string {
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
   }
 
   // ===== Lookups for the template =====
@@ -922,7 +1054,8 @@ export class AssetRegistration {
   }
 
   get assetSubTypes(): SubTypeOption[] {
-    return this.form.assetType ? (this.assetSubTypesByType[this.form.assetType] ??= []) : [];
+    const typeName = this.assetTypes.find((t) => t.value === this.form.assetType)?.label.trim().toLowerCase();
+    return typeName ? (this.assetSubTypesByType[typeName] ??= []) : [];
   }
 
   /** Sub types that have a picture, shown as tiles in the Category Reference card. */
@@ -953,11 +1086,13 @@ export class AssetRegistration {
   onCategoryChange(): void {
     this.form.subCategory = this.subCategories[0]?.value ?? '';
     this.onSubCategoryChange();
+    this.loadSubCategories();
   }
 
   onSubCategoryChange(): void {
     this.form.assetType = this.assetTypes[0]?.value ?? '';
     this.onAssetTypeChange();
+    this.loadAssetTypes();
   }
 
   onAssetTypeChange(): void {
@@ -983,11 +1118,14 @@ export class AssetRegistration {
     return this.locationModel().tree;
   }
 
-  /** Refreshes the shared hierarchy from the backend, the same data the Locating module shows. */
+  /** GET master-data sites, buildings, floors, zones and locations (rooms), then builds the tree and dropdowns. */
   private loadLocations(): void {
-    this.hierarchyLoader.load().subscribe({
-      next: () => this.ensureLocationSelection(),
-      error: () => this.showToast('Could not load locations from the server. Showing the locations already loaded.'),
+    this.dropdownApi.getLocationHierarchy().subscribe((hierarchy) => {
+      const tree = buildMasterLocationTree(hierarchy);
+      this.locationModel.set(buildLocationModel(tree));
+      tree.forEach((country) => this.expandedLocations.add(country.id));
+      if (!tree.length) this.showToast('No locations found in master data.');
+      this.ensureLocationSelection();
     });
   }
 
@@ -1024,7 +1162,7 @@ export class AssetRegistration {
     const { index, tree } = this.locationModel();
     let parent: LocationNode | undefined;
     for (let i = levelIndex - 1; i >= 0 && !parent; i--) parent = index[this.form[LOCATION_LEVELS[i]]];
-    const pool = parent ? parent.children : tree.flatMap((project) => project.children);
+    const pool = parent ? parent.children : tree.flatMap((root) => (root.kind === 'project' ? root.children : [root]));
     return pool.filter((node) => LEVEL_OF_KIND[node.kind] === LOCATION_LEVELS[levelIndex]);
   }
 
@@ -1226,7 +1364,9 @@ export class AssetRegistration {
   }
 
   resetResponsibleTeam(): void {
-    this.form.responsibleTeam = this.defaultTeamByDepartment[this.form.department] ?? '';
+    const department = this.form.department;
+    this.form.responsibleTeam =
+      this.teams.find((t) => t.parentId === department)?.value ?? this.teams[0]?.value ?? '';
     const team = this.labelOf(this.teams, this.form.responsibleTeam);
     this.showToast(this.form.responsibleTeam ? `Responsible team reset to ${team}.` : 'No default team for this department.');
   }
@@ -1273,10 +1413,14 @@ export class AssetRegistration {
   get warrantyEnd(): string {
     const period = parseInt(this.form.warrantyPeriod, 10);
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(this.form.warrantyStart);
-    if (!match || !(period > 0) || this.form.warrantyType === 'none') return '';
+    const type = this.optionLabel(this.warrantyTypes, this.form.warrantyType).toLowerCase();
+    if (!match || !(period > 0) || type === 'none' || type === 'no warranty') return '';
     const [year, month, day] = match.slice(1).map(Number);
-    const months = this.form.warrantyPeriodUnit === 'years' ? period * 12 : period;
-    const end = new Date(year, month - 1 + months, day - 1);
+    // Unit is matched by label so both the built-in values ("years") and the API's ("Year(s)") work
+    const unit = this.optionLabel(this.warrantyPeriodUnits, this.form.warrantyPeriodUnit).toLowerCase();
+    const months = unit.startsWith('year') ? period * 12 : unit.startsWith('month') ? period : 0;
+    const days = unit.startsWith('day') ? period : 0;
+    const end = new Date(year, month - 1 + months, day - 1 + days);
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
   }
@@ -1445,14 +1589,32 @@ export class AssetRegistration {
       return;
     }
     this.currentStep = index;
+    this.loadStepDropdowns(index);
   }
 
+  /** Next saves the step to the draft before moving on; the last step's Submit registers the asset. */
   next(): void {
     if (this.isLastStep) {
       this.register();
       return;
     }
-    this.goToStep(this.currentStep + 1);
+    if (this.registering) return;
+    const step = this.currentStep;
+    if (!this.stepValid(step)) {
+      this.goToStep(step + 1);
+      return;
+    }
+    this.registering = true;
+    this.saveStep(step).subscribe({
+      next: () => {
+        this.registering = false;
+        this.goToStep(step + 1);
+      },
+      error: (err) => {
+        this.registering = false;
+        this.showApiError('This step could not be saved', err);
+      },
+    });
   }
 
   previous(): void {
@@ -1464,11 +1626,199 @@ export class AssetRegistration {
       this.goToStep(this.steps.length);
       return;
     }
-    this.showToast(`${this.form.assetName} (${this.form.assetTag}) registered.`);
+    if (this.registering) return;
+    this.registering = true;
+    // Steps already saved by Next are skipped unless they changed since; a retry after a failure resumes where it stopped
+    concat(...this.steps.map((_, step) => this.saveStep(step)))
+      .pipe(
+        last(),
+        switchMap(() => this.registrationApi.submit(this.draftId)),
+      )
+      .subscribe({
+        next: (r) => {
+          this.registering = false;
+          this.draftId = '';
+          this.savedSteps = {};
+          this.showToast(`${this.form.assetName} (${this.form.assetTag}) registered as ${r.assetRegistrationId}.`);
+        },
+        error: (err) => {
+          this.registering = false;
+          this.showApiError('The asset could not be registered', err);
+        },
+      });
   }
 
+  /** Draft holding the steps saved so far; created by the first step's Next (its asset tag is then reserved). */
+  private draftId = '';
+  /** Body last saved for each step, so unchanged steps are not sent again. */
+  private savedSteps: Partial<Record<number, string>> = {};
+
+  private readonly stepSections: readonly AssetRegistrationSection[] = ['basic-information', 'classification', 'location-assignment', 'purchase-warranty', 'additional-information'];
+
+  private stepBody(step: number): AssetRegistrationSectionBody[AssetRegistrationSection] {
+    return [
+      () => this.toBasicInformation(),
+      () => this.toClassification(),
+      () => this.toLocationAssignment(),
+      () => this.toPurchaseWarranty(),
+      () => this.toAdditionalInformation(),
+    ][step]();
+  }
+
+  /** Saves one step to the draft (creating the draft on first save); emits once, without a request when nothing changed. */
+  private saveStep(step: number, saveAsDraft = false): Observable<void> {
+    return defer(() => {
+      if (!this.draftId && step !== 0) return this.saveStep(0, true).pipe(switchMap(() => this.saveStep(step, saveAsDraft)));
+      const body = this.stepBody(step);
+      const json = JSON.stringify(body);
+      if (this.draftId && this.savedSteps[step] === json) return of(undefined);
+      const request$ = this.draftId
+        ? this.registrationApi.saveSection(this.draftId, this.stepSections[step], body, saveAsDraft)
+        : this.registrationApi.createDraft(body as AssetBasicInformation, saveAsDraft);
+      return request$.pipe(
+        map((r) => {
+          this.draftId ||= r.assetRegistrationId;
+          this.savedSteps[step] = json;
+        }),
+      );
+    });
+  }
+
+  private showApiError(stage: string, err: { error?: { errors?: Record<string, string[]>; message?: string; title?: string } }): void {
+    const fieldErrors = Object.entries(err?.error?.errors ?? {}).map(([field, messages]) => `${field}: ${messages.join(' ')}`);
+    this.showToast(`${stage}. ${fieldErrors.join(' ') || err?.error?.message || err?.error?.title || 'Please try again.'}`);
+  }
+
+  /** Label of an option, or the raw value when it is not listed; '' stays ''. */
+  private optionLabel(options: Option[], value: string): string {
+    return value ? options.find((o) => o.value === value)?.label ?? value : '';
+  }
+
+  private numOrNull(value: string): number | null {
+    return value.trim() === '' || isNaN(Number(value)) ? null : Number(value);
+  }
+
+  private toBasicInformation(): AssetBasicInformation {
+    const f = this.form;
+    return {
+      assetName: f.assetName, assetTag: f.assetTag, barcode: f.barcode, rfidTagId: f.rfidTag, model: f.model,
+      manufacturer: this.optionLabel(this.manufacturers, f.manufacturer), serialNumber: f.serialNumber,
+      status: this.optionLabel(this.statuses, f.status), condition: this.optionLabel(this.conditions, f.condition),
+      criticality: this.optionLabel(this.criticalities, f.criticality), description: f.description,
+    };
+  }
+
+  private toClassification(): AssetClassification {
+    const f = this.form;
+    return {
+      category: this.optionLabel(this.categories, f.category), subCategory: this.optionLabel(this.subCategories, f.subCategory),
+      assetType: this.optionLabel(this.assetTypes, f.assetType), assetSubType: this.optionLabel(this.assetSubTypes, f.assetSubType),
+      functionPurpose: this.optionLabel(this.functionPurposes, f.functionPurpose), criticality: this.optionLabel(this.criticalities, f.criticality),
+      department: this.optionLabel(this.departments, f.department), costCenter: this.optionLabel(this.costCenters, f.costCenter),
+      businessUnit: this.optionLabel(this.businessUnits, f.businessUnit), taggingMethod: this.optionLabel(this.taggingMethods, f.taggingMethod),
+      complianceCategory: this.optionLabel(this.complianceCategories, f.complianceCategory), lifecycleStage: this.optionLabel(this.lifecycleStages, f.lifecycleStage),
+      keywords: [...f.keywords],
+    };
+  }
+
+  private toLocationAssignment(): AssetLocationAssignment {
+    const f = this.form;
+    const { index } = this.locationModel();
+    const name = (id: string) => index[id]?.label ?? '';
+    const deepest = [...LOCATION_LEVELS].reverse().map((level) => index[f[level]]).find(Boolean);
+    const chain = deepest ? this.ancestorsOf(deepest) : [];
+    const person = this.assignedPerson;
+    return {
+      location: {
+        projectId: chain[0]?.kind === 'project' ? chain[0].id : '',
+        countryId: f.country, countryName: name(f.country), siteId: f.site, siteName: name(f.site), buildingId: f.building, buildingName: name(f.building),
+        floorId: f.floor, floorName: name(f.floor), zoneId: f.zone, zoneName: name(f.zone), roomId: f.room, roomName: name(f.room),
+        locationPath: chain.map((n) => n.label).join(' > '),
+      },
+      assignment: {
+        custodianDepartment: this.optionLabel(this.departments, f.department), assignedToUserId: person?.value ?? '', assignedToName: person?.label ?? '',
+        ownershipType: this.optionLabel(this.ownershipTypes, f.ownershipType), costCenter: this.optionLabel(this.costCenters, f.costCenter),
+        responsibleTeam: this.optionLabel(this.teams, f.responsibleTeam), assignmentStartDate: this.isoOrNull(f.assignmentStart),
+        assignmentEndDate: this.isoOrNull(f.assignmentEnd), isCurrent: f.setAsCurrent,
+      },
+    };
+  }
+
+  // Documents need the url returned by the media upload, which this page does not call yet, so none are sent
+  private toPurchaseWarranty(): AssetPurchaseWarranty {
+    const f = this.form;
+    const total = this.totalCost;
+    return {
+      purchase: {
+        purchaseOrderNumber: f.purchaseOrder, invoiceNumber: f.invoiceNumber, supplierVendor: this.optionLabel(this.vendors, f.vendor),
+        manufacturer: this.optionLabel(this.manufacturers, f.manufacturer), purchaseDate: this.isoOrNull(f.purchaseDate), deliveryDate: this.isoOrNull(f.deliveryDate),
+        purchaseCost: this.numOrNull(f.purchaseCost), quantity: this.numOrNull(f.quantity), quantityUnit: this.optionLabel(this.units, f.unit), currency: f.currency,
+        taxPercent: this.numOrNull(f.taxRate), totalCost: total === '' ? null : total, paymentTerms: this.optionLabel(this.paymentTermsOptions, f.paymentTerms),
+        procurementMethod: this.optionLabel(this.procurementMethods, f.procurementMethod), projectReference: f.projectReference, remarks: f.remarks,
+      },
+      documents: [],
+      warranty: {
+        warrantyType: this.optionLabel(this.warrantyTypes, f.warrantyType), warrantyStartDate: this.isoOrNull(f.warrantyStart),
+        warrantyPeriod: this.numOrNull(f.warrantyPeriod), warrantyPeriodUnit: f.warrantyPeriod ? this.optionLabel(this.warrantyPeriodUnits, f.warrantyPeriodUnit) : '',
+        amcIncluded: f.amcIncluded, supportCoverage: this.optionLabel(this.supportCoverages, f.supportCoverage),
+        serviceProvider: this.optionLabel(this.serviceProviders, f.serviceProvider), warrantyReference: f.warrantyReference,
+      },
+    };
+  }
+
+  private toAdditionalInformation(): AssetAdditionalInformation {
+    const { specs, operations: o } = this.form;
+    const lifespanUnits = this.specFields.find((s) => s.key === 'lifespan')?.units ?? [];
+    // Dimensions, weight and lifespan have their own fields; the rest go in the specifications list
+    const specifications = this.specFields
+      .filter((s) => s.kind !== 'dimensions' && s.key !== 'weight' && s.key !== 'lifespan' && String(specs[s.key]).trim())
+      .map((s) => ({
+        name: s.label,
+        value: s.options ? this.optionLabel(s.options, String(specs[s.key])) : String(specs[s.key]),
+        unit: s.unitKey ? this.optionLabel(s.units ?? [], String(specs[s.unitKey])) : '',
+      }));
+    return {
+      technical: {
+        specifications, dimensionLength: this.numOrNull(specs.length), dimensionWidth: this.numOrNull(specs.width), dimensionHeight: this.numOrNull(specs.height),
+        dimensionUnit: specs.dimensionUnit, weight: this.numOrNull(specs.weight), weightUnit: specs.weightUnit,
+        expectedLifespan: this.numOrNull(specs.lifespan), expectedLifespanUnit: this.optionLabel(lifespanUnits, specs.lifespanUnit), technicalRemarks: specs.remarks,
+      },
+      operational: {
+        operatingHoursPerDay: this.numOrNull(o.operatingHours), operatingHoursUnit: this.optionLabel(this.hourUnits, o.operatingHoursUnit),
+        operatingShift: this.optionLabel(this.operatingShifts, o.operatingShift), utilization: this.optionLabel(this.utilizations, o.utilization),
+        maintenanceFrequency: this.numOrNull(o.maintenanceFrequency), maintenanceFrequencyUnit: this.optionLabel(this.maintenanceUnits, o.maintenanceFrequencyUnit),
+        lastMaintenanceDate: this.isoOrNull(o.lastMaintenance), nextMaintenanceDate: this.isoOrNull(o.nextMaintenance),
+        complianceStandards: o.complianceStandards.map((c) => this.optionLabel(this.complianceOptions, c)),
+      },
+      customFields: this.customFields
+        .filter((c) => c.label.trim())
+        .map((c) => ({ fieldName: c.label.trim(), fieldType: c.type, value: c.options ? this.optionLabel(c.options, c.value) : c.value })),
+      attachments: [],
+    };
+  }
+
+  /** True while a Next, Save as Draft or Submit request is in flight. */
+  registering = false;
+
+  /** "yyyy-mm-dd" as an ISO timestamp, or null when empty. */
+  private isoOrNull(d: string): string | null {
+    return d ? new Date(`${d}T00:00:00`).toISOString() : null;
+  }
+
+  /** Saves the current step as a draft; required fields are not enforced. */
   saveDraft(): void {
-    this.showToast('Draft saved.');
+    if (this.registering) return;
+    this.registering = true;
+    this.saveStep(this.currentStep, true).subscribe({
+      next: () => {
+        this.registering = false;
+        this.showToast(`Draft saved${this.draftId ? ` (${this.draftId})` : ''}.`);
+      },
+      error: (err) => {
+        this.registering = false;
+        this.showApiError('The draft could not be saved', err);
+      },
+    });
   }
 
   backToList(): void {

@@ -1169,3 +1169,181 @@ select.control {
     display: none;
   }
 }
+
+/* ===== Tree row edit icon (top-level categories) ===== */
+.row-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+/* First icon pushes the icon group to the right edge */
+.row-edit--first {
+  margin-left: auto;
+}
+
+.row-edit:hover {
+  background: #ece8fd;
+  color: var(--ac-accent);
+}
+
+.modal-delete {
+  margin-right: auto;
+}
+
+/* ============ Full-height layout ============
+ * Page fills the screen under the shell top bar; both columns stretch to the bottom
+ * and scroll inside (the tree list and the tabs card), so left and right always line up.
+ */
+.cat-page {
+  height: calc(100vh - 73px);
+  min-height: 480px;
+}
+
+.cat-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.tree-card {
+  position: static;
+  max-height: none;
+  min-height: 0;
+}
+
+.tree {
+  min-height: 0;
+}
+
+.detail-col {
+  min-height: 0;
+}
+
+.tabs-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Stacked (narrow screens): normal page scroll */
+@media (max-width: 1100px) {
+  .cat-page {
+    height: auto;
+  }
+
+  .cat-body {
+    flex: 0 0 auto;
+    grid-template-rows: auto;
+  }
+
+  .tabs-card {
+    overflow-y: visible;
+  }
+}
+
+/* Subcategory search sits right after the tabs; status filter stays at the right of the tools row */
+.tabs-row {
+  justify-content: flex-start;
+}
+
+.table-tools {
+  justify-content: flex-end;
+}
+
+/* Pager: rows-per-page dropdown on the left, page buttons on the right */
+select.control.page-size-select {
+  width: 54px;
+  height: 26px;
+  padding: 0 20px 0 8px;
+  font-size: 12px;
+  border-radius: 5px;
+  background-position: right 5px center;
+  background-size: 12px;
+}
+
+/* Smaller page buttons (‹ 1 2 ›) */
+.pages {
+  gap: 4px;
+}
+
+.page-btn {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+/* ===== Popup open / close animation ===== */
+.overlay {
+  animation: popup-fade-in 0.2s ease-out both;
+}
+
+.overlay > .modal {
+  animation: popup-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.overlay.is-closing {
+  animation: popup-fade-out 0.18s ease-in both;
+  pointer-events: none;
+}
+
+.overlay.is-closing > .modal {
+  animation: popup-out 0.18s ease-in both;
+}
+
+@keyframes popup-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popup-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes popup-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes popup-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(8px) scale(0.97); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .overlay > .modal,
+  .overlay.is-closing,
+  .overlay.is-closing > .modal {
+    animation-duration: 1ms;
+  }
+}
+
+/* Subcategory row actions: edit + delete side by side */
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.col-actions {
+  width: 88px;
+}
+
+/* Tree row delete icon */
+.row-edit--danger:hover {
+  background: #fdecee;
+  color: var(--ac-danger);
+}
