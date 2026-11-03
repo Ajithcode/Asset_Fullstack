@@ -8,7 +8,7 @@ import {
 import { AdminPage, CURRENT_USER } from '../shared/admin-common';
 import { CATEGORY_PREFIX, LIBRARY, SORT_OPTIONS, TEMPLATE_CATEGORIES } from './notification-templates.data';
 import { Channel, CHANNEL_LABELS, CHANNELS, NotificationTemplate, TemplateStatus } from './notification-templates.model';
-import { NotificationTemplateService } from './notification-templates.service';
+import { NotificationTemplateService, apiErrorMessage } from './notification-templates.service';
 import { TemplateEditor } from './template-editor/template-editor';
 import { relativeTime, validateTemplate } from './template-render';
 import { TemplateSettings } from './template-settings/template-settings';
@@ -47,14 +47,22 @@ export class NotificationTemplatesPage extends AdminPage {
   // Selected template: `draft` is the editable copy shared by the editor and the settings drawer
   draft: NotificationTemplate | null = null;
   submitted = false;
+  /** True while a save or delete request is in flight. */
+  saving = false;
   headMenuOpen = false;
   libraryOpen = false;
   confirm: { kind: ConfirmKind; title: string; message: string; payload: string } | null = null;
 
   constructor() {
     super();
-    const first = this.visible()[0];
-    if (first) this.load(first.id);
+    this.service.load().subscribe({
+      next: () => {
+        if (this.draft) return;
+        const first = this.visible()[0];
+        if (first) this.load(first.id);
+      },
+      error: (err) => this.notify(`Could not load templates: ${apiErrorMessage(err)}`)
+    });
   }
 
   // ===== Stats =====
@@ -169,14 +177,26 @@ export class NotificationTemplatesPage extends AdminPage {
     return true;
   }
 
+  /** New drafts are created through the API on their first save (POST); stored templates are updated (PUT). */
   private persist(message: string): void {
-    if (!this.draft) return;
+    if (!this.draft || this.saving) return;
     this.draft.name = this.draft.name.trim();
     this.draft.code = this.draft.code.trim();
     this.draft.updated = new Date().toISOString();
-    this.service.save(this.draft);
-    this.submitted = false;
-    this.notify(message);
+    this.saving = true;
+    const request = this.service.isPersisted(this.draft.id) ? this.service.update(this.draft) : this.service.create(this.draft);
+    request.subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.draft = structuredClone(saved);
+        this.submitted = false;
+        this.notify(message);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(`Could not save: ${apiErrorMessage(err)}`);
+      }
+    });
   }
 
   saveDraft(): void {
@@ -312,11 +332,20 @@ export class NotificationTemplatesPage extends AdminPage {
       return;
     }
     const name = this.service.get(c.payload)?.name ?? 'Template';
-    this.service.remove(c.payload);
-    const next = this.visible()[0];
-    if (next) this.load(next.id);
-    else this.draft = null;
-    this.notify(`${name} deleted.`);
+    this.saving = true;
+    this.service.remove(c.payload).subscribe({
+      next: () => {
+        this.saving = false;
+        const next = this.visible()[0];
+        if (next) this.load(next.id);
+        else this.draft = null;
+        this.notify(`${name} deleted.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(`Could not delete: ${apiErrorMessage(err)}`);
+      }
+    });
   }
 
   // ===== Import / export =====

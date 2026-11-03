@@ -1,6 +1,10 @@
 import { ADMIN_LOCATIONS, ADMIN_PEOPLE } from '../shared/admin-common';
 
-// DEMO MODE: seed data for Administration > System Configuration
+/*
+ * Setting catalogue for Administration > System Configuration. The General Settings that the
+ * Administration API stores (see API_SETTING_KEYS in the service) are loaded from and saved to
+ * the API; the defaults and the remaining settings here are still client-side only.
+ */
 
 export type ConfigFieldType = 'text' | 'number' | 'select' | 'toggle' | 'email' | 'url' | 'logo';
 export type ConfigValue = string | number | boolean;
@@ -106,7 +110,8 @@ const TIME_ZONES = [
   '(GMT+05:30) Kolkata',
   '(GMT+00:00) UTC'
 ];
-const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'DD MMM YYYY'];
+// Formats accepted by the Administration API
+const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY', 'DD.MM.YYYY'];
 const CURRENCIES = ['AED (د.إ)', 'SAR (﷼)', 'QAR (ر.ق)', 'USD ($)', 'GBP (£)', 'EUR (€)'];
 const LANGUAGES = ['English', 'Arabic', 'French', 'Hindi'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -183,7 +188,8 @@ export function buildSections(): ConfigSection[] {
                 'DD/MM/YYYY': 'Example: 31/12/2024',
                 'MM/DD/YYYY': 'Example: 12/31/2024',
                 'YYYY-MM-DD': 'Example: 2024-12-31',
-                'DD MMM YYYY': 'Example: 31 Dec 2024'
+                'DD-MM-YYYY': 'Example: 31-12-2024',
+                'DD.MM.YYYY': 'Example: 31.12.2024'
               },
               description: 'How dates are displayed in lists, forms and reports.'
             }),
@@ -615,91 +621,3 @@ export function buildSections(): ConfigSection[] {
     }
   ];
 }
-
-/** Recent changes; the three "Pending" ones are the changes awaiting review. */
-export const SEED_CHANGES: ConfigChange[] = [
-  {
-    id: 'CHG-0107',
-    key: 'timeZone',
-    setting: 'Default Time Zone',
-    section: 'General Settings',
-    oldValue: '(GMT+00:00) UTC',
-    newValue: '(GMT+04:00) Dubai',
-    updatedBy: 'Sarah Ahmed',
-    date: '2024-01-12T06:24:00.000Z',
-    reason: 'Align with organizational regional settings for UAE operations.',
-    status: 'Applied'
-  },
-  {
-    id: 'CHG-0106',
-    key: 'theme',
-    setting: 'Theme',
-    section: 'General Settings',
-    oldValue: 'Light',
-    newValue: 'System',
-    updatedBy: 'Omar Khalid',
-    date: '2024-01-10T09:12:00.000Z',
-    reason: 'Follow the operating system theme to reduce eye strain for night shifts.',
-    status: 'Pending'
-  },
-  {
-    id: 'CHG-0105',
-    key: 'autoSaveInterval',
-    setting: 'Auto-save Interval',
-    section: 'General Settings',
-    oldValue: '1 minute',
-    newValue: '30 seconds',
-    updatedBy: 'Sarah Ahmed',
-    date: '2024-01-08T11:40:00.000Z',
-    reason: 'Reduce lost work on long inspection forms.',
-    status: 'Applied'
-  },
-  {
-    id: 'CHG-0104',
-    key: 'defaultStatus',
-    setting: 'Default Status',
-    section: 'General Settings',
-    oldValue: 'Draft',
-    newValue: 'Active',
-    updatedBy: 'Fatima Ali',
-    date: '2024-01-05T07:05:00.000Z',
-    reason: 'New records are reviewed at creation time.',
-    status: 'Applied'
-  },
-  {
-    id: 'CHG-0103',
-    key: 'enableTooltips',
-    setting: 'Enable Tooltips',
-    section: 'General Settings',
-    oldValue: false,
-    newValue: true,
-    updatedBy: 'Omar Khalid',
-    date: '2024-01-02T13:30:00.000Z',
-    reason: 'Help new users during the roll-out.',
-    status: 'Applied'
-  },
-  {
-    id: 'CHG-0102',
-    key: 'passwordExpiry',
-    setting: 'Password Expiry',
-    section: 'Security & Authentication',
-    oldValue: 90,
-    newValue: 60,
-    updatedBy: 'Ahmed Khan',
-    date: '2023-12-28T10:00:00.000Z',
-    reason: 'Internal security audit recommendation SEC-2023-14.',
-    status: 'Pending'
-  },
-  {
-    id: 'CHG-0101',
-    key: 'auditRetention',
-    setting: 'Audit Log Retention',
-    section: 'Audit & Compliance',
-    oldValue: 365,
-    newValue: 730,
-    updatedBy: 'Fatima Ali',
-    date: '2023-12-20T08:45:00.000Z',
-    reason: 'ISO 55001 surveillance audit requires two years of history.',
-    status: 'Pending'
-  }
-];

@@ -1,12 +1,14 @@
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { catchError, concatMap, defer, from, of, toArray } from 'rxjs';
 import {
   BadgeCheck, Box, Building2, ChevronRight, Coins, Copy, Download, Ellipsis, Eye, Funnel, Hammer, List, Lock, LucideAngularModule, LucideIconData,
   Plus, Search, Server, Shield, Upload, User, Users, Wrench, X
 } from 'lucide-angular';
 import { ASSET360_MODULES, AdminPage } from '../shared/admin-common';
 import { demoUsers } from '../role-access-control/role-access.data';
+import { RoleAccessService, adminApiError } from '../role-access-control/role-access.service';
 import { UsersDialog } from '../role-access-control/users-dialog/users-dialog';
 import { ExceptionList } from './exception-list/exception-list';
 import { FeatureList } from './feature-list/feature-list';
@@ -45,6 +47,7 @@ const POLICY_ICONS: Record<PolicyIcon, LucideIconData> = {
 })
 export class ModuleAccessPage extends AdminPage {
   private readonly service = inject(ModuleAccessService);
+  private readonly roles = inject(RoleAccessService);
 
   readonly icons = { Box, List, Lock, Users, Plus, Copy, Upload, Download, Search, Funnel, ChevronRight, Ellipsis, X };
   readonly modules = ASSET360_MODULES;
@@ -72,8 +75,16 @@ export class ModuleAccessPage extends AdminPage {
 
   constructor() {
     super();
-    const all = this.service.all();
-    this.load(all.find((p) => p.code === 'OPS-MGR-001') ?? all[0]);
+    this.service.load().subscribe({
+      next: (all) => this.load(all.find((p) => p.code === 'OPS-MGR-001') ?? all[0]),
+      error: (err) => this.notify(`Couldn't load access policies: ${adminApiError(err, 'access policy')}`)
+    });
+    // Role options for the policy drawer
+    this.roles.ensureLoaded().subscribe({ error: (err) => this.notify(`Couldn't load roles: ${adminApiError(err, 'roles')}`) });
+  }
+
+  get loading(): boolean {
+    return this.service.loading();
   }
 
   // ===== Stats =====
@@ -227,18 +238,31 @@ export class ModuleAccessPage extends AdminPage {
         this.notify('Import failed: the file is not valid JSON.');
         return;
       }
-      let added = 0;
-      for (const row of rows) {
-        if (!row || typeof row.name !== 'string' || typeof row.code !== 'string') continue;
-        const base = blankPolicy();
-        // Only take module grants that line up with the 13 Asset360 modules
-        const grants = Array.isArray(row.grants) && row.grants.length === base.grants.length ? row.grants : base.grants;
-        const policy = { ...base, ...row, grants, id: '', users: 0 } as PolicyRecord;
-        policy.code = this.service.uniqueCode(policy.code.toUpperCase());
-        this.service.save(policy);
-        added++;
+      const valid = rows.filter((row) => row && typeof row.name === 'string' && typeof row.code === 'string');
+      if (!valid.length) {
+        this.notify('No policies found in the file (each needs a name and code).');
+        return;
       }
-      this.notify(added ? `Imported ${added} polic${added === 1 ? 'y' : 'ies'}.` : 'No policies found in the file (each needs a name and code).');
+      // One POST at a time so each unique code sees the policies created before it
+      from(valid)
+        .pipe(
+          concatMap((row) =>
+            defer(() => {
+              const base = blankPolicy();
+              // Only take module grants that line up with the 13 Asset360 modules
+              const grants = Array.isArray(row.grants) && row.grants.length === base.grants.length ? row.grants : base.grants;
+              const policy = { ...base, ...row, grants, id: '', users: 0 } as PolicyRecord;
+              policy.code = this.service.uniqueCode(policy.code.toUpperCase());
+              return this.service.save(policy);
+            }).pipe(catchError(() => of(null)))
+          ),
+          toArray()
+        )
+        .subscribe((saved) => {
+          const added = saved.filter(Boolean).length;
+          const failed = saved.length - added;
+          this.notify(`Imported ${added} polic${added === 1 ? 'y' : 'ies'}.` + (failed ? ` ${failed} failed (check names and codes).` : ''));
+        });
     });
   }
 
@@ -255,9 +279,13 @@ export class ModuleAccessPage extends AdminPage {
     this.draft.name = this.draft.name.trim();
     this.draft.code = this.draft.code.trim();
     const wasNew = this.isNew;
-    const stored = this.service.save(this.draft);
-    this.load(stored);
-    this.notify(`${stored.name} ${wasNew ? 'created' : 'saved'}.`);
+    this.service.save(this.draft).subscribe({
+      next: (stored) => {
+        this.load(stored);
+        this.notify(`${stored.name} ${wasNew ? 'created' : 'saved'}.`);
+      },
+      error: (err) => this.notify(`Couldn't save ${this.draft.name}: ${adminApiError(err, 'access policy')}`)
+    });
   }
 
   cancelEdit(): void {
@@ -271,10 +299,25 @@ export class ModuleAccessPage extends AdminPage {
     if (wasDirty) this.notify('Changes discarded.');
   }
 
+  /** Saved policies: PUT the stored copy with the new status, keeping any other unsaved edits in the draft. */
   toggleStatus(): void {
     this.menuOpen = false;
-    this.draft.status = this.draft.status === 'Active' ? 'Inactive' : 'Active';
-    this.notify(`${this.draft.name} set to ${this.draft.status}. Save the policy to apply it.`);
+    const stored = this.service.byId(this.selectedId);
+    const status: PolicyStatus = this.draft.status === 'Active' ? 'Inactive' : 'Active';
+    if (this.isNew || !stored) {
+      this.draft.status = status;
+      this.notify(`${this.draft.name || 'The new policy'} set to ${status}. Save the policy to apply it.`);
+      return;
+    }
+    const wasDirty = this.dirty;
+    this.service.save({ ...structuredClone(stored), status }).subscribe({
+      next: (saved) => {
+        if (wasDirty) this.draft.status = saved.status;
+        else this.load(saved);
+        this.notify(`${saved.name} set to ${saved.status}.`);
+      },
+      error: (err) => this.notify(`Couldn't update ${stored.name}: ${adminApiError(err, 'access policy')}`)
+    });
   }
 
   askDelete(): void {
@@ -287,11 +330,14 @@ export class ModuleAccessPage extends AdminPage {
         ? `${p.users} user${p.users === 1 ? '' : 's'} lose the module access this policy grants. This can't be undone.`
         : "No users are covered by this policy. This can't be undone.",
       action: 'Delete Policy',
-      run: () => {
-        this.service.remove(p.id);
-        this.load(this.policies[0]);
-        this.notify(`${p.name} deleted.`);
-      }
+      run: () =>
+        this.service.remove(p.id).subscribe({
+          next: () => {
+            this.load(this.policies[0]);
+            this.notify(`${p.name} deleted.`);
+          },
+          error: (err) => this.notify(`Couldn't delete ${p.name}: ${adminApiError(err, 'access policy')}`)
+        })
     };
   }
 

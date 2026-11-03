@@ -1,0 +1,55 @@
+<div *ngIf="current as d" class="dd-backdrop" (click)="close()">
+  <section class="dd" role="dialog" aria-modal="true" [attr.aria-label]="d.title" (click)="$event.stopPropagation()">
+    <header class="dd-head">
+      <button *ngIf="stack.length > 1" type="button" class="dd-icon-btn" (click)="back()" aria-label="Back"><lucide-icon [img]="icons.ChevronLeft" [size]="18"></lucide-icon></button>
+      <div class="dd-grow"><h2>{{ d.title }}</h2><p *ngIf="d.subtitle">{{ d.subtitle }}</p></div>
+      <button type="button" class="dd-icon-btn" (click)="close()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </header>
+
+    <div class="dd-body">
+      <ul *ngIf="d.stats?.length" class="dd-stats">
+        <li *ngFor="let s of d.stats"><small>{{ s.label }}</small><b [style.color]="s.color">{{ s.value }}</b></li>
+      </ul>
+
+      <dl *ngIf="d.fields?.length" class="dd-fields">
+        <ng-container *ngFor="let f of d.fields"><dt>{{ f.label }}</dt><dd [style.color]="f.color">{{ f.value }}</dd></ng-container>
+      </dl>
+
+      <ng-container *ngIf="d.columns?.length">
+        <div class="dd-tools">
+          <h3 *ngIf="d.tableTitle">{{ d.tableTitle }}</h3>
+          <label class="dd-search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+            <input type="search" placeholder="Search..." [(ngModel)]="search" (ngModelChange)="page = 0" aria-label="Search records" /></label>
+          <span class="dd-count">{{ rows.length | number }} record{{ rows.length === 1 ? '' : 's' }}</span>
+        </div>
+        <div class="dd-table-wrap">
+          <table class="dd-table">
+            <thead><tr>
+              <th *ngFor="let c of d.columns" [class.num]="c.num"><button type="button" (click)="sort(c)">{{ c.label }}<lucide-icon [img]="sortKey === c.key ? (sortDesc ? icons.ArrowDown : icons.ArrowUp) : icons.ArrowUpDown" [size]="12"></lucide-icon></button></th>
+            </tr></thead>
+            <tbody>
+              <tr *ngFor="let r of pageRows" [class.dd-open]="!!r.open" (click)="openRow(r)" [attr.title]="r.open ? 'Open details' : null">
+                <td *ngFor="let c of d.columns" [class.num]="c.num">
+                  <span *ngIf="c.pill && c.pill[r.cells[c.key]] as color; else plain" class="dd-pill" [style.color]="color" [style.background]="color + '1c'">{{ r.cells[c.key] }}</span>
+                  <ng-template #plain>{{ c.num && r.cells[c.key] !== '' ? (r.cells[c.key] | number) : r.cells[c.key] }}</ng-template>
+                </td>
+              </tr>
+              <tr *ngIf="!pageRows.length"><td [attr.colspan]="d.columns!.length" class="dd-empty">{{ d.empty ?? 'No records.' }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div *ngIf="pages > 1" class="dd-pager">
+          <span class="dd-grow">Page {{ page + 1 }} of {{ pages }}</span>
+          <button type="button" class="dd-icon-btn" [disabled]="page === 0" (click)="page = page - 1" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+          <button type="button" class="dd-icon-btn" [disabled]="page >= pages - 1" (click)="page = page + 1" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+        </div>
+      </ng-container>
+    </div>
+
+    <footer *ngIf="d.actions?.length || d.columns?.length" class="dd-foot">
+      <button *ngIf="d.columns?.length && rows.length" type="button" class="dd-btn" (click)="exportRows()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export</button>
+      <span class="dd-grow"></span>
+      <button *ngFor="let a of d.actions" type="button" class="dd-btn dd-btn--primary" (click)="run(a)">{{ a.label }}</button>
+    </footer>
+  </section>
+</div>

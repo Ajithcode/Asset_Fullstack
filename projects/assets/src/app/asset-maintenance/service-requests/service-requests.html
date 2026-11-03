@@ -3,7 +3,7 @@
     <section class="card panel" aria-labelledby="sr-title">
       <div class="sr-head">
         <h3 id="sr-title" class="grow">Service Requests ({{ asset.tag }})</h3>
-        <button type="button" class="btn btn-primary btn-sm" (click)="openForm()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>New Service Request</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="newRequest()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>New Service Request</button>
         <span class="menu-wrap"><button type="button" class="icon-btn" (click)="toggleMenu('sr', $event)" aria-haspopup="menu" aria-label="More service request actions"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
           <span *ngIf="menuOpen === 'sr'" class="menu" role="menu" (click)="$event.stopPropagation()">
             <button type="button" role="menuitem" (click)="export()">Export to Excel{{ checked.size ? ' · ' + checked.size + ' selected' : '' }}</button>
@@ -29,7 +29,7 @@
             <th>#</th><th>SR Number</th><th>Subject</th><th>Category</th><th>Priority</th><th>Status</th><th>Created Date</th><th>Requested By</th><th>Assigned To</th><th>Target Date</th><th class="col-act">Actions</th>
           </tr></thead>
           <tbody>
-            <tr *ngFor="let r of pageRows; let i = index" [class.is-selected]="selected?.id === r.id" (click)="select(r)" (keydown.enter)="select(r)" tabindex="0">
+            <tr *ngFor="let r of pageRows; let i = index" [class.is-selected]="selected?.id === r.id" (click)="open(r)" (keydown.enter)="open(r)" tabindex="0">
               <td class="col-check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="checked.has(r.id)" (change)="toggleCheck(r.id, $any($event.target).checked)" [attr.aria-label]="'Select ' + r.id" /></td>
               <td>{{ page * pageSize + i + 1 }}</td>
               <td class="nowrap sr-id">{{ r.id }}</td>
@@ -126,6 +126,7 @@
   <aside *ngIf="selected as r" class="sr-side">
     <section class="card sr-detail" aria-labelledby="sr-sel">
       <div class="sr-detail-head"><lucide-icon class="sr-head-ic" [img]="icons.Wrench" [size]="20"></lucide-icon><h3 id="sr-sel">{{ r.id }}</h3><span class="sr-st" [ngClass]="statusClass(r.status)">{{ r.status }}</span><span class="grow"></span>
+        <button type="button" class="icon-btn" (click)="open(r, detailTab)" aria-label="Open full page" title="Open full page"><lucide-icon [img]="icons.ExternalLink" [size]="17"></lucide-icon></button>
         <button type="button" class="icon-btn" (click)="panelOpen = false" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
       <p class="sr-subject">{{ r.title }}</p>
       <p class="muted sr-desc">{{ r.description }}</p>
@@ -187,7 +188,7 @@
 </div>
 
 <ng-template #srActions let-r>
-  <button type="button" role="menuitem" (click)="select(r)">View details</button>
+  <button type="button" role="menuitem" (click)="open(r)">View details</button>
   <button type="button" role="menuitem" (click)="openForm(r)" [disabled]="r.status === 'Closed'">Edit / assign</button>
   <button *ngIf="!r.workOrder && (r.status === 'Open' || r.status === 'In Progress')" type="button" role="menuitem" (click)="convertToWorkOrder(r)">Convert to work order</button>
   <button *ngIf="r.status === 'Open' || r.status === 'In Progress'" type="button" role="menuitem" (click)="startClose(r, 'Resolved')">Mark resolved</button>

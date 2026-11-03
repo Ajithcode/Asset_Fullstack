@@ -3,10 +3,9 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@shared/*": [
-        "src/app/components/shared/*"
+        "./src/app/components/shared/*"
       ],
       "shared-ui": [
         "./projects/shared-ui/src/public-api.ts"

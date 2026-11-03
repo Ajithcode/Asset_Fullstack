@@ -1,0 +1,74 @@
+/* Asset Maintenance / Service History tabs. The header, tabs, KPI cards, panels, tables, pills and tags come from
+   ../asset-status-condition styles (loaded first). */
+
+.mt-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sc-text-muted);
+}
+
+.sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--sc-text-muted);
+}
+
+.data-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.data-table td.wrap {
+  min-width: 180px;
+}
+
+.row-link {
+  cursor: pointer;
+}
+
+.row-link:hover td {
+  background: var(--sc-accent-soft);
+}
+
+.row-link.is-picked td {
+  background: var(--sc-accent-soft);
+}
+
+.row-link.is-picked td:first-child {
+  box-shadow: inset 3px 0 0 var(--sc-accent);
+}
+
+.link-btn.more {
+  margin-top: 10px;
+}
+
+.picked-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--sc-text-muted);
+}
+
+.kpi-body p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 1200px) {
+  .mt-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media print {
+  .row-link:hover td {
+    background: none;
+  }
+}

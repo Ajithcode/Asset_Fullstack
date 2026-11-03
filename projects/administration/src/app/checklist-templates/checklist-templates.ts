@@ -1,5 +1,6 @@
 import { Component, ElementRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Observable, forkJoin, of } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import {
   BookOpen, Building2, ChartNoAxesColumnIncreasing, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleCheck,
@@ -23,6 +24,12 @@ interface DrawerState {
   sectionId: string;
   item: ChecklistItem;
   isNew: boolean;
+}
+
+/** Persisted items grouped by their section name, offered in the Template Library. */
+interface SavedSection {
+  title: string;
+  items: ChecklistItem[];
 }
 
 interface ConfirmState {
@@ -86,6 +93,7 @@ export class ChecklistTemplatesPage extends AdminPage {
   previewOpen = false;
   libraryOpen = false;
   confirm: ConfirmState | null = null;
+  savingItem = false;
 
   constructor() {
     super();
@@ -95,6 +103,7 @@ export class ChecklistTemplatesPage extends AdminPage {
     // Open the item shown in the design: "Inspect battery terminals for corrosion."
     const electrical = this.draft.sections[2];
     if (electrical?.items[0]) this.drawer = { sectionId: electrical.id, item: electrical.items[0], isNew: false };
+    this.service.loadItems().subscribe({ error: (err: Error) => this.notify(`Saved checklist items could not be loaded. ${err.message}`) });
   }
 
   // ===== Stats =====
@@ -362,6 +371,38 @@ export class ChecklistTemplatesPage extends AdminPage {
     this.notify(`${entry.name} added from the library as a draft. Save Draft to keep it.`);
   }
 
+  /** Server-backed items grouped by section, in the order the API returns them. */
+  get savedSections(): SavedSection[] {
+    const groups = new Map<string, SavedSection>();
+    for (const { section, item } of this.service.savedItems()) {
+      const key = section.toLowerCase();
+      if (!groups.has(key)) groups.set(key, { title: section, items: [] });
+      groups.get(key)!.items.push(item);
+    }
+    return [...groups.values()];
+  }
+
+  /** Adds a saved section's items to the current draft, merging into a section with the same title. */
+  useSavedSection(saved: SavedSection): void {
+    this.libraryOpen = false;
+    this.tab = 'items';
+    const present = new Set(this.draft.sections.flatMap((s) => s.items.map((i) => i.id)));
+    const items = saved.items.filter((i) => !present.has(i.id)).map((i) => ({ ...i }));
+    if (!items.length) {
+      this.notify(`All items from ${saved.title} are already in this template.`);
+      return;
+    }
+    let section = this.draft.sections.find((s) => s.title.trim().toLowerCase() === saved.title.toLowerCase());
+    if (section) section.items.push(...items);
+    else {
+      section = { id: this.service.newId('S'), title: saved.title, items };
+      this.draft.sections.push(section);
+    }
+    this.markDirty();
+    this.sectionsView?.expand(section.id);
+    this.notify(`${items.length} saved ${items.length === 1 ? 'item' : 'items'} added to ${section.title}. Save Draft or Publish to keep them in this template.`);
+  }
+
   // ===== Items & sections =====
   openItem(ref: ItemRef): void {
     const section = this.draft.sections.find((s) => s.id === ref.sectionId);
@@ -383,7 +424,34 @@ export class ChecklistTemplatesPage extends AdminPage {
     this.sectionsView?.expand(target);
   }
 
+  /**
+   * New items are created through the API; edits to server-backed items go through PUT. Items seeded
+   * with the demo templates have no server itemId, so their edits stay in the draft.
+   */
   onItemSave(e: ItemSave): void {
+    const target = this.draft.sections.find((s) => s.id === e.sectionId);
+    if (!target) return;
+    const isNew = !!this.drawer?.isNew;
+    if (!isNew && !this.service.isPersisted(e.item.id)) {
+      this.storeItem(e, false);
+      return;
+    }
+    if (this.savingItem) return;
+    this.savingItem = true;
+    const request = isNew ? this.service.createItem(e.item, target.title) : this.service.updateItem(e.item, target.title);
+    request.subscribe({
+      next: (saved) => {
+        this.savingItem = false;
+        this.storeItem({ ...e, item: saved }, isNew);
+      },
+      error: (err: Error) => {
+        this.savingItem = false;
+        this.notify(`${isNew ? 'Item not added' : 'Item not updated'}. ${err.message}`);
+      }
+    });
+  }
+
+  private storeItem(e: ItemSave, wasNew: boolean): void {
     const target = this.draft.sections.find((s) => s.id === e.sectionId);
     if (!target) return;
     const from = this.draft.sections.find((s) => s.items.some((i) => i.id === e.item.id));
@@ -394,10 +462,9 @@ export class ChecklistTemplatesPage extends AdminPage {
       if (from) from.items = from.items.filter((i) => i.id !== e.item.id);
       target.items.push(e.item);
     }
-    const wasNew = this.drawer?.isNew;
     this.drawer = { sectionId: target.id, item: e.item, isNew: false };
     this.markDirty();
-    this.notify(wasNew ? 'Item added. Save Draft or Publish to keep it.' : 'Item updated. Save Draft or Publish to keep it.');
+    this.notify(wasNew ? 'Item created. Save Draft or Publish to keep it in this template.' : 'Item updated. Save Draft or Publish to keep it.');
   }
 
   duplicateItem(ref: ItemRef): void {
@@ -415,9 +482,12 @@ export class ChecklistTemplatesPage extends AdminPage {
     const section = this.draft.sections.find((s) => s.id === ref.sectionId);
     if (!section) return;
     if (ref.kind === 'section') {
+      const saved = section.items.filter((i) => this.service.isPersisted(i.id)).length;
       this.confirm = {
         title: 'Delete section?',
-        message: `"${section.title}" and its ${section.items.length} items will be removed from this template.`,
+        message:
+          `"${section.title}" and its ${section.items.length} items will be removed from this template.` +
+          (saved ? ` ${saved} saved ${saved === 1 ? 'item is' : 'items are'} deleted permanently.` : ''),
         action: 'section',
         ref
       };
@@ -442,45 +512,60 @@ export class ChecklistTemplatesPage extends AdminPage {
     }
     const ref = c.ref;
     if (!ref) return;
-    if (c.action === 'section') {
-      this.draft.sections = this.draft.sections.filter((s) => s.id !== ref.sectionId);
-      if (this.drawer?.sectionId === ref.sectionId) this.drawer = null;
-      this.notify('Section deleted.');
-    } else {
-      const section = this.draft.sections.find((s) => s.id === ref.sectionId);
-      if (section) section.items = section.items.filter((i) => i.id !== ref.itemId);
-      if (this.drawer?.item.id === ref.itemId) this.drawer = null;
-      this.notify('Item deleted.');
-    }
-    this.markDirty();
+    const section = this.draft.sections.find((s) => s.id === ref.sectionId);
+    if (!section) return;
+    // Server-backed items are deleted through the API first; the draft only changes once that succeeds.
+    const ids = c.action === 'section' ? section.items.map((i) => i.id) : [ref.itemId ?? ''];
+    this.deleteSaved(ids).subscribe({
+      next: () => {
+        if (c.action === 'section') {
+          this.draft.sections = this.draft.sections.filter((s) => s.id !== ref.sectionId);
+          if (this.drawer?.sectionId === ref.sectionId) this.drawer = null;
+          this.notify('Section deleted.');
+        } else {
+          section.items = section.items.filter((i) => i.id !== ref.itemId);
+          if (this.drawer?.item.id === ref.itemId) this.drawer = null;
+          this.notify('Item deleted.');
+        }
+        this.markDirty();
+      },
+      error: (err: Error) => this.notify(`${c.action === 'section' ? 'Section' : 'Item'} not deleted. ${err.message}`)
+    });
+  }
+
+  /** DELETE every server-backed id in the list; completes immediately when none are. */
+  private deleteSaved(ids: string[]): Observable<unknown> {
+    const saved = ids.filter((id) => this.service.isPersisted(id));
+    return saved.length ? forkJoin(saved.map((id) => this.service.deleteItem(id))) : of(null);
   }
 
   // ===== Bulk actions / scoring =====
   bulk(action: 'required' | 'optional' | 'clearCritical' | 'score10' | 'collapse' | 'expand'): void {
     this.bulkOpen = false;
-    const all = this.draft.sections.flatMap((s) => s.items);
-    switch (action) {
-      case 'collapse':
-        this.sectionsView?.collapseAll();
-        return;
-      case 'expand':
-        this.sectionsView?.expandAll();
-        return;
-      case 'required':
-        all.forEach((i) => (i.required = true));
-        break;
-      case 'optional':
-        all.forEach((i) => (i.required = false));
-        break;
-      case 'clearCritical':
-        all.forEach((i) => (i.critical = false));
-        break;
-      case 'score10':
-        all.forEach((i) => (i.score = 10));
-        break;
+    if (action === 'collapse') {
+      this.sectionsView?.collapseAll();
+      return;
     }
-    this.markDirty();
-    this.notify(`Applied to ${all.length} items.`);
+    if (action === 'expand') {
+      this.sectionsView?.expandAll();
+      return;
+    }
+    const change: Partial<ChecklistItem> =
+      action === 'required' ? { required: true } : action === 'optional' ? { required: false } : action === 'clearCritical' ? { critical: false } : { score: 10 };
+    const all = this.draft.sections.flatMap((s) => s.items);
+    // Server-backed items are updated through PUT; the rest only change in the draft.
+    const updates = this.draft.sections.flatMap((s) =>
+      s.items.filter((i) => this.service.isPersisted(i.id)).map((i) => this.service.updateItem({ ...i, ...change }, s.title))
+    );
+    const done: Observable<unknown> = updates.length ? forkJoin(updates) : of(null);
+    done.subscribe({
+      next: () => {
+        all.forEach((i) => Object.assign(i, change));
+        this.markDirty();
+        this.notify(`Applied to ${all.length} items.`);
+      },
+      error: (err: Error) => this.notify(`Bulk change not applied. ${err.message}`)
+    });
   }
 
   toggleBulk(): void {

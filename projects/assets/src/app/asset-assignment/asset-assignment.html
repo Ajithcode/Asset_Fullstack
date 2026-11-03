@@ -1,0 +1,271 @@
+<section class="aa-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a><span class="sep" aria-hidden="true">›</span><span class="crumb-current">Assignment</span>
+  </nav>
+
+  <!-- ===== Page header ===== -->
+  <div class="card page-head">
+    <span class="head-ic"><lucide-icon [img]="icons.UserRound" [size]="24"></lucide-icon></span>
+    <div class="grow">
+      <h1>Asset Assignment</h1>
+      <p>View and manage asset assignments to employees, departments, locations or other entities.</p>
+    </div>
+    <span class="split menu-wrap">
+      <button type="button" class="btn btn-primary split-main" (click)="goAssign()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Assign Asset</button>
+      <button type="button" class="btn btn-primary split-caret" (click)="toggleMenu('assign', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'assign'" aria-label="Assign to"><lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon></button>
+      <span *ngIf="menuOpen === 'assign'" class="menu" role="menu" (click)="$event.stopPropagation()">
+        <button *ngFor="let t of assignmentTypes" type="button" role="menuitem" (click)="goAssign(t)">Assign to {{ targetLabels[t] }}</button>
+      </span>
+    </span>
+    <button type="button" class="btn btn-outline" routerLink="/assets/assignment/bulk-assignment"><lucide-icon [img]="icons.Layers" [size]="17"></lucide-icon>Bulk Assignment</button>
+  </div>
+
+  <!-- ===== Summary ===== -->
+  <div class="stats">
+    <div class="card stat">
+      <span class="stat-ic"><lucide-icon [img]="icons.Layers" [size]="26"></lucide-icon></span>
+      <div><span class="stat-label">Total Assigned Assets</span><span class="stat-row"><strong>{{ active.length | number }}</strong><span class="trend"><lucide-icon [img]="icons.ArrowUp" [size]="13"></lucide-icon>{{ trends.total }}%</span></span><span class="stat-sub">Currently assigned</span></div>
+    </div>
+    <div class="card stat">
+      <span class="stat-ic stat-ic--blue"><lucide-icon [img]="icons.UserRound" [size]="26"></lucide-icon></span>
+      <div><span class="stat-label">Assigned to Employees</span><span class="stat-row"><strong>{{ countOf('Employee') | number }}</strong><span class="trend"><lucide-icon [img]="icons.ArrowUp" [size]="13"></lucide-icon>{{ trends.Employee }}%</span></span></div>
+    </div>
+    <div class="card stat">
+      <span class="stat-ic"><lucide-icon [img]="icons.Building2" [size]="26"></lucide-icon></span>
+      <div><span class="stat-label">Assigned to Departments</span><span class="stat-row"><strong>{{ countOf('Department') | number }}</strong><span class="trend"><lucide-icon [img]="icons.ArrowUp" [size]="13"></lucide-icon>{{ trends.Department }}%</span></span></div>
+    </div>
+    <div class="card stat">
+      <span class="stat-ic"><lucide-icon [img]="icons.MapPin" [size]="26"></lucide-icon></span>
+      <div><span class="stat-label">Assigned to Locations/Sites</span><span class="stat-row"><strong>{{ countOf('Location') | number }}</strong><span class="trend"><lucide-icon [img]="icons.ArrowUp" [size]="13"></lucide-icon>{{ trends.Location }}%</span></span></div>
+    </div>
+  </div>
+
+  <!-- ===== Filters ===== -->
+  <form class="card filters" (ngSubmit)="onFilter()">
+    <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" name="q" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by asset name, tag, serial number, assignee..." aria-label="Search assignments" /></label>
+    <label class="field"><span class="field-label">Assignment Type</span><select class="control" name="type" [(ngModel)]="typeFilter" (ngModelChange)="onTypeFilter()"><option value="">All Types</option><option *ngFor="let t of assignmentTypes" [value]="t">{{ targetLabels[t] }}</option></select></label>
+    <label class="field"><span class="field-label">Assignee Type</span><select class="control" name="assignee" [(ngModel)]="assigneeFilter" (ngModelChange)="onFilter()"><option value="">All</option><option *ngFor="let a of assigneeOptions" [value]="a">{{ a }}</option></select></label>
+    <label class="field"><span class="field-label">Department</span><select class="control" name="dept" [(ngModel)]="departmentFilter" (ngModelChange)="onFilter()"><option value="">All Departments</option><option *ngFor="let d of departments" [value]="d">{{ d }}</option></select></label>
+    <label class="field"><span class="field-label">Location</span><select class="control" name="loc" [(ngModel)]="locationFilter" (ngModelChange)="onFilter()"><option value="">All Locations</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
+    <label class="field"><span class="field-label">Status</span><select class="control" name="status" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
+    <div class="filter-actions">
+      <button type="button" class="btn btn-outline" [class.is-on]="moreFilters" (click)="moreFilters = !moreFilters" [attr.aria-expanded]="moreFilters"><lucide-icon [img]="icons.SlidersHorizontal" [size]="16"></lucide-icon>More Filters</button>
+      <button type="button" class="link-btn" (click)="resetFilters()">Reset</button>
+      <button type="submit" class="btn btn-primary"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>Search</button>
+    </div>
+    <div *ngIf="moreFilters" class="more">
+      <label class="field"><span class="field-label">Assigned From</span><input class="control" type="date" name="fromDate" [(ngModel)]="fromDate" (ngModelChange)="onFilter()" /></label>
+      <label class="field"><span class="field-label">Assigned Until</span><input class="control" type="date" name="toDate" [(ngModel)]="toDate" (ngModelChange)="onFilter()" /></label>
+    </div>
+  </form>
+
+  <div class="aa-grid" [class.has-detail]="selected">
+    <!-- ===== Table ===== -->
+    <section class="card panel" aria-labelledby="aa-list">
+      <div class="panel-head">
+        <lucide-icon class="head-icon" [img]="icons.UserRound" [size]="20"></lucide-icon>
+        <h3 id="aa-list" class="grow">Asset Assignments</h3>
+        <button type="button" class="btn btn-outline btn-sm" (click)="export()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export</button>
+        <span class="menu-wrap">
+          <button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('columns', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'columns'"><lucide-icon [img]="icons.Columns3" [size]="16"></lucide-icon>Columns</button>
+          <span *ngIf="menuOpen === 'columns'" class="menu" (click)="$event.stopPropagation()">
+            <label *ngFor="let c of columns" class="menu-check"><input type="checkbox" [checked]="show(c.key)" (change)="toggleColumn(c.key)" />{{ c.label }}</label>
+          </span>
+        </span>
+        <span class="menu-wrap">
+          <button type="button" class="btn btn-outline btn-icon btn-sm" (click)="toggleMenu('table', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'table'" aria-label="Table actions"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button>
+          <span *ngIf="menuOpen === 'table'" class="menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="openBulk()" [disabled]="!checked.size">Bulk reassign ({{ checked.size }})</button>
+            <button type="button" role="menuitem" (click)="checked.clear(); menuOpen = ''" [disabled]="!checked.size">Clear selection</button>
+            <button type="button" role="menuitem" (click)="resetFilters(); menuOpen = ''">Reset filters</button>
+          </span>
+        </span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="aa-table">
+          <thead>
+            <tr>
+              <th class="ck"><input type="checkbox" [checked]="allPageChecked" (change)="togglePage($any($event.target).checked)" aria-label="Select all on this page" /></th>
+              <th>#</th>
+              <th>Asset</th>
+              <th *ngIf="show('tag')">Asset Tag / Serial</th>
+              <th *ngIf="show('type')">Assignment Type</th>
+              <th *ngIf="show('assignee')">Assigned To</th>
+              <th *ngIf="show('from')">From Date</th>
+              <th *ngIf="show('to')">To Date</th>
+              <th *ngIf="show('status')">Status</th>
+              <th class="center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of pageRows; let i = index" [class.is-selected]="a.id === selectedId" (click)="select(a)" tabindex="0" (keydown.enter)="select(a)">
+              <td class="ck" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="checked.has(a.id)" (change)="toggleCheck(a.id)" [attr.aria-label]="'Select ' + a.tag" /></td>
+              <td>{{ rowNo(i) }}</td>
+              <td>
+                <span class="asset">
+                  <span class="asset-ic"><lucide-icon [img]="kindIcons[a.kind]" [size]="20"></lucide-icon></span>
+                  <span><strong>{{ a.assetName }}</strong><small>{{ a.assetType }}</small></span>
+                </span>
+              </td>
+              <td *ngIf="show('tag')" class="nowrap">{{ a.tag }}<small>SN: {{ a.serial }}</small></td>
+              <td *ngIf="show('type')"><span class="type-pill" [ngClass]="'type-pill--' + a.type.toLowerCase()">{{ a.type }}</span></td>
+              <td *ngIf="show('assignee')">
+                <span class="who">
+                  <span *ngIf="a.type === 'Employee'; else entityIc" class="avatar" [style.background]="'hsl(' + avatarHue(a.assignee) + ' 55% 42%)'">{{ initials(a.assignee) }}</span>
+                  <ng-template #entityIc><span class="avatar avatar--entity"><lucide-icon [img]="a.type === 'Location' ? icons.MapPin : icons.Building2" [size]="17"></lucide-icon></span></ng-template>
+                  <span><strong>{{ a.assignee }}</strong><small *ngIf="a.type !== 'Department'">{{ a.assigneeSub }}</small></span>
+                </span>
+              </td>
+              <td *ngIf="show('from')" class="nowrap">{{ a.from | date: 'dd MMM yyyy' }}</td>
+              <td *ngIf="show('to')" class="nowrap">{{ a.to ? (a.to | date: 'dd MMM yyyy') : '—' }}</td>
+              <td *ngIf="show('status')"><span class="status" [ngClass]="'status--' + a.status.toLowerCase()">{{ a.status }}</span></td>
+              <td class="center" (click)="$event.stopPropagation()">
+                <button type="button" class="btn btn-outline btn-icon btn-sm" (click)="openRowMenu(a, $event)" aria-haspopup="menu" [attr.aria-expanded]="rowMenu?.row === a" [attr.aria-label]="'Actions for ' + a.tag"><lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon></button>
+              </td>
+            </tr>
+            <tr *ngIf="!pageRows.length"><td [attr.colspan]="visibleColumnCount" class="empty">No assignments match the filters.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <span *ngIf="rowMenu as m" class="menu menu--fixed" role="menu" [style.top.px]="m.top" [style.right.px]="m.right" (click)="$event.stopPropagation()">
+        <button type="button" role="menuitem" (click)="select(m.row); closeMenus()">View details</button>
+        <button type="button" role="menuitem" [disabled]="m.row.status === 'Returned'" (click)="openReassign(m.row)">Reassign</button>
+        <button type="button" role="menuitem" [disabled]="m.row.status === 'Returned'" (click)="openExtend(m.row)">Extend</button>
+        <button type="button" role="menuitem" class="danger" [disabled]="m.row.status === 'Returned'" (click)="openEnd(m.row)">End assignment</button>
+      </span>
+
+      <div class="pager">
+        <label class="pager-size">Show <select class="control" [(ngModel)]="pageSize" (ngModelChange)="onFilter()" aria-label="Rows per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select> per page</label>
+        <span class="grow"></span>
+        <span class="showing">{{ showingLabel }}</span>
+        <button type="button" class="pg-btn" [disabled]="page === 0" (click)="page = page - 1" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+        <button *ngFor="let p of pages" type="button" class="pg-btn" [class.is-on]="p === page" (click)="page = p" [attr.aria-current]="p === page ? 'page' : null">{{ p + 1 }}</button>
+        <button type="button" class="pg-btn" [disabled]="page >= pageCount - 1" (click)="page = page + 1" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+      </div>
+    </section>
+
+    <!-- ===== Details ===== -->
+    <aside *ngIf="selected as s" class="card panel detail" aria-labelledby="aa-detail">
+      <div class="detail-inner">
+      <div class="panel-head">
+        <lucide-icon class="head-icon" [img]="icons.UserRound" [size]="20"></lucide-icon>
+        <h3 id="aa-detail" class="grow">Assignment Details</h3>
+        <button type="button" class="icon-btn" (click)="selectedId = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+
+      <div class="d-asset">
+        <span class="d-img"><lucide-icon [img]="kindIcons[s.kind]" [size]="44"></lucide-icon></span>
+        <div class="grow">
+          <div class="d-title"><strong>{{ s.assetName }}</strong><span class="status" [ngClass]="'status--' + s.status.toLowerCase()">{{ s.status }}</span></div>
+          <span class="d-type">{{ s.assetType }}</span>
+          <small>Asset Tag: {{ s.tag }}</small>
+          <small>Serial Number: {{ s.serial }}</small>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" [class.is-on]="tab === 'assignment'" [attr.aria-selected]="tab === 'assignment'" (click)="tab = 'assignment'">Assignment</button>
+        <button type="button" role="tab" [class.is-on]="tab === 'history'" [attr.aria-selected]="tab === 'history'" (click)="tab = 'history'">History</button>
+        <button type="button" role="tab" [class.is-on]="tab === 'related'" [attr.aria-selected]="tab === 'related'" (click)="tab = 'related'">Related</button>
+      </div>
+
+      <dl *ngIf="tab === 'assignment'" class="kv">
+        <dt>Assignment Type</dt><dd>{{ s.type }}</dd>
+        <dt>Assigned To</dt>
+        <dd>
+          <span class="who">
+            <span *ngIf="s.type === 'Employee'; else dEntity" class="avatar" [style.background]="'hsl(' + avatarHue(s.assignee) + ' 55% 42%)'">{{ initials(s.assignee) }}</span>
+            <ng-template #dEntity><span class="avatar avatar--entity"><lucide-icon [img]="s.type === 'Location' ? icons.MapPin : icons.Building2" [size]="17"></lucide-icon></span></ng-template>
+            <span><strong>{{ s.assignee }}</strong><small>{{ s.assigneeSub }}</small></span>
+          </span>
+        </dd>
+        <dt>Department</dt><dd>{{ s.department || '—' }}</dd>
+        <dt>Location</dt><dd>{{ s.location || '—' }}</dd>
+        <dt>From Date</dt><dd><input class="control" type="date" [(ngModel)]="s.from" (change)="onDatesChange(s)" [disabled]="s.status === 'Returned'" aria-label="From date" /></dd>
+        <dt>To Date</dt><dd><input class="control" type="date" [(ngModel)]="s.to" (change)="onDatesChange(s)" [disabled]="s.status === 'Returned'" aria-label="To date" /></dd>
+        <dt>Status</dt><dd><span class="status" [ngClass]="'status--' + s.status.toLowerCase()">{{ s.status }}</span></dd>
+        <dt>Assigned By</dt>
+        <dd><span class="who"><span class="avatar avatar--me">{{ initials(s.assignedBy) }}</span><span><strong>{{ s.assignedBy }}</strong><small>{{ s.assignedByRole }}</small></span></span></dd>
+        <dt>Assigned On</dt><dd>{{ s.assignedOn | date: 'dd MMM yyyy HH:mm' }}</dd>
+        <ng-container *ngFor="let x of s.extra"><dt>{{ x.label }}</dt><dd>{{ x.value }}</dd></ng-container>
+        <dt>Remarks</dt><dd><textarea class="control remarks" rows="3" [(ngModel)]="s.remarks" placeholder="Add remarks" aria-label="Remarks"></textarea></dd>
+      </dl>
+
+      <ol *ngIf="tab === 'history'" class="timeline">
+        <li *ngFor="let h of s.history.slice().reverse()">
+          <span class="tl-dot"></span>
+          <div><strong>{{ h.action }}</strong><span class="muted">{{ h.note }}</span><span class="muted">{{ h.at | date: 'dd MMM yyyy HH:mm' }} · {{ h.by }}</span></div>
+        </li>
+      </ol>
+
+      <ul *ngIf="tab === 'related'" class="related">
+        <li *ngFor="let r of related">
+          <button type="button" (click)="select(r)">
+            <span class="asset-ic"><lucide-icon [img]="kindIcons[r.kind]" [size]="18"></lucide-icon></span>
+            <span class="grow"><strong>{{ r.assetName }}</strong><small>{{ r.tag }} · {{ r.assignee }}</small></span>
+            <span class="status" [ngClass]="'status--' + r.status.toLowerCase()">{{ r.status }}</span>
+          </button>
+        </li>
+        <li *ngIf="!related.length" class="muted">No other assignments for this asset or assignee.</li>
+      </ul>
+
+      <div class="d-actions">
+        <button type="button" class="btn btn-outline btn-sm" [disabled]="s.status === 'Returned'" (click)="openReassign(s)"><lucide-icon [img]="icons.Repeat" [size]="16"></lucide-icon>Reassign</button>
+        <button type="button" class="btn btn-outline btn-sm" [disabled]="s.status === 'Returned'" (click)="openExtend(s)"><lucide-icon [img]="icons.CalendarPlus" [size]="16"></lucide-icon>Extend</button>
+        <button type="button" class="btn btn-danger btn-sm" [disabled]="s.status === 'Returned'" (click)="openEnd(s)"><lucide-icon [img]="icons.CircleStop" [size]="16"></lucide-icon>End Assignment</button>
+      </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ===== Assign / reassign / bulk ===== -->
+<div *ngIf="assignForm as f" class="overlay" (click)="assignForm = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aa-form-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="aa-form-title">{{ f.mode === 'bulk' ? 'Bulk Reassign · ' + f.ids.length + ' assets' : 'Reassign · ' + f.tag }}</h2>
+      <button type="button" class="icon-btn" (click)="assignForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveAssign()">
+      <p *ngIf="f.mode === 'reassign'" class="muted">{{ f.assetName }} · SN {{ f.serial }}</p>
+      <div class="two">
+        <label class="field"><span class="field-label">Assignment Type</span><select class="control" [(ngModel)]="f.type" name="type" (ngModelChange)="onFormType()"><option *ngFor="let t of assignmentTypes" [value]="t">{{ targetLabels[t] }}</option></select></label>
+        <label class="field"><span class="field-label">Assign To <em>*</em></span><select class="control" [(ngModel)]="f.assignee" name="assignee"><option value="" disabled>Select {{ targetLabels[f.type].toLowerCase() }}</option><option *ngFor="let c of assigneeChoices(f.type)" [value]="c">{{ c }}</option></select></label>
+      </div>
+      <div class="two">
+        <label class="field"><span class="field-label">From Date <em>*</em></span><input class="control" type="date" [(ngModel)]="f.from" name="from" /></label>
+        <label class="field"><span class="field-label">To Date</span><input class="control" type="date" [(ngModel)]="f.to" name="to" /></label>
+      </div>
+      <label class="field"><span class="field-label">Remarks</span><input class="control" [(ngModel)]="f.remarks" name="remarks" /></label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="assignForm = null">Cancel</button><button type="submit" class="btn btn-primary">Reassign</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Extend ===== -->
+<div *ngIf="extendTarget as t" class="overlay" (click)="extendTarget = null">
+  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="aa-ext-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="aa-ext-title">Extend Assignment</h2><button type="button" class="icon-btn" (click)="extendTarget = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="saveExtend()">
+      <label class="field"><span class="field-label">New To Date <em>*</em></span><input class="control" type="date" [(ngModel)]="t.to" name="to" /></label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="extendTarget = null">Cancel</button><button type="submit" class="btn btn-primary">Extend</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== End ===== -->
+<div *ngIf="endTarget as e" class="overlay" (click)="endTarget = null">
+  <div class="modal modal--sm" role="alertdialog" aria-modal="true" aria-labelledby="aa-end-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="aa-end-title">End Assignment</h2><button type="button" class="icon-btn" (click)="endTarget = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <p>End the assignment of <strong>{{ e.assetName }} ({{ e.tag }})</strong> to <strong>{{ e.assignee }}</strong>? The asset will be marked as returned today.</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="endTarget = null">Cancel</button><button type="button" class="btn btn-danger-solid" (click)="confirmEnd()">End Assignment</button></div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

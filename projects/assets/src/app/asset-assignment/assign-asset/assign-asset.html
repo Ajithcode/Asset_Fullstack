@@ -1,0 +1,718 @@
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a routerLink="/assets/list">Assets</a><span class="sep" aria-hidden="true">›</span><a routerLink="/assets/assignment">Assignment</a><span class="sep" aria-hidden="true">›</span><span class="crumb-current">Assign Asset</span>
+</nav>
+
+<section *ngIf="wizard as w" class="aa-page">
+  <div class="card page-head">
+    <span class="head-ic"><lucide-icon [img]="icons.UserRound" [size]="24"></lucide-icon></span>
+    <div class="grow">
+      <h1>Assign Asset</h1>
+      <p>Assign one or more assets to an employee, department, location or other entity.</p>
+    </div>
+  </div>
+
+  <ol class="card stepper">
+    <li *ngFor="let st of steps; let i = index" [class.is-current]="w.step === i + 1" [class.is-done]="w.step > i + 1">
+      <button type="button" (click)="goStep(i + 1, false)" [attr.aria-current]="w.step === i + 1 ? 'step' : null">
+        <span class="step-no"><lucide-icon *ngIf="w.step > i + 1; else stepNo" [img]="icons.Check" [size]="20"></lucide-icon><ng-template #stepNo>{{ i + 1 }}</ng-template></span>
+        <span class="step-text"><strong>{{ st.title }}</strong><small>{{ stepSub(i) }}</small></span>
+      </button>
+    </li>
+  </ol>
+
+  <div class="wz-grid">
+    <div class="card wz-main">
+      <div class="wz-body">
+        <!-- ===== Step 1: asset selection ===== -->
+        <ng-container *ngIf="w.step === 1">
+          <div class="wz-head">
+            <span class="wz-ic"><lucide-icon [img]="icons.Hexagon" [size]="22"></lucide-icon></span>
+            <div>
+              <h2>1. Asset Selection</h2>
+              <p *ngIf="w.selectMode === 'single'">Search for an asset by name, tag or serial number and add it to the selection.</p>
+              <p *ngIf="w.selectMode === 'multiple'">Select multiple assets to assign. You can search, filter and select assets from the list.</p>
+              <p *ngIf="w.selectMode === 'scan'">Scan asset tags or barcodes using camera or connected scanner.</p>
+            </div>
+          </div>
+
+          <div class="sub-tabs sub-tabs--flush" role="tablist" aria-label="Selection method">
+            <button *ngFor="let m of selectModes" type="button" role="tab" [class.is-on]="w.selectMode === m.key" [attr.aria-selected]="w.selectMode === m.key" (click)="setSelectMode(m.key)">{{ m.label }}</button>
+            <button *ngIf="w.selectMode === 'single'" type="button" class="tab-link" (click)="setSelectMode('multiple')"><lucide-icon [img]="icons.ArrowLeftRight" [size]="14"></lucide-icon>Search &amp; Select</button>
+          </div>
+
+          <!-- Single: search field, then the picked asset -->
+          <div *ngIf="w.selectMode === 'single'" class="single-pick">
+            <div class="field">
+              <span class="field-label">Search Asset <em>*</em></span>
+              <div class="search-drop">
+                <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input #singleSearch type="search" [(ngModel)]="w.assetSearch" placeholder="Search by asset name, tag, serial number or model..." aria-label="Search assets" /></label>
+                <ul *ngIf="w.assetSearch.trim()" class="matches drop-list">
+                  <li *ngFor="let p of singleMatches">
+                    <button type="button" [class.is-on]="singlePicked?.tag === p.tag" (click)="pickSingle(p)">
+                      <span class="asset-ic"><lucide-icon [img]="kindIcons[p.kind]" [size]="18"></lucide-icon></span>
+                      <span class="grow"><strong>{{ p.assetName }}</strong><small>{{ p.tag }} · SN {{ p.serial }}</small></span>
+                      <span class="status" [ngClass]="p.current ? 'status--overdue' : 'status--assigned'">{{ p.current ? 'Assigned' : 'Available' }}</span>
+                    </button>
+                  </li>
+                  <li *ngIf="!singleMatches.length" class="muted drop-empty">No assets match "{{ w.assetSearch.trim() }}".</li>
+                </ul>
+              </div>
+            </div>
+
+            <div *ngIf="singlePicked as f; else noPick" class="pick-sel">
+              <span class="pick-sel-img"><lucide-icon [img]="kindIcons[f.kind]" [size]="44"></lucide-icon></span>
+              <div class="grow">
+                <p class="pick-sel-title"><strong>{{ f.assetName }}</strong><span class="status" [ngClass]="f.current ? 'status--overdue' : 'status--assigned'">{{ f.current ? 'Assigned' : 'Available' }}</span></p>
+                <p class="pick-sel-ids"><span>Asset Tag: {{ f.tag }}</span><span>Serial Number: {{ f.serial }}</span></p>
+                <p class="pick-sel-meta"><span>{{ f.assetType }}</span><span>{{ f.brand }}</span><span>{{ f.model }}</span></p>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm" (click)="changeAsset(singleSearch)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Change Asset</button>
+            </div>
+            <ng-template #noPick><p class="muted">Start typing to find an asset, then pick it from the results.</p></ng-template>
+          </div>
+
+          <!-- Multiple: filters, selection bar, paged checkbox table -->
+          <ng-container *ngIf="w.selectMode === 'multiple'">
+            <div class="pool-filters">
+              <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="w.assetSearch" (ngModelChange)="page = 0" placeholder="Search by asset name, tag, serial number, category..." aria-label="Search assets" /></label>
+              <label class="field"><span class="field-label">Category</span><select class="control" [(ngModel)]="poolCategory" (ngModelChange)="page = 0"><option value="">All Categories</option><option *ngFor="let c of poolCategories" [value]="c">{{ c }}</option></select></label>
+              <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="poolLocation" (ngModelChange)="page = 0"><option value="">All Locations</option><option *ngFor="let l of poolLocations" [value]="l">{{ l }}</option></select></label>
+              <label class="field"><span class="field-label">Status</span><select class="control" [(ngModel)]="poolStatus" (ngModelChange)="page = 0"><option value="">All Statuses</option><option value="Available">Available</option><option value="Assigned">Assigned</option></select></label>
+              <button type="button" class="btn btn-outline" [class.is-on]="moreFilters" [attr.aria-expanded]="moreFilters" (click)="moreFilters = !moreFilters"><lucide-icon [img]="icons.ListFilter" [size]="16"></lucide-icon>More Filters</button>
+            </div>
+            <div *ngIf="moreFilters" class="pool-filters pool-filters--more">
+              <label class="field"><span class="field-label">Asset Type</span><select class="control" [(ngModel)]="poolType" (ngModelChange)="page = 0"><option value="">All Types</option><option *ngFor="let t of poolTypes" [value]="t">{{ t }}</option></select></label>
+              <button type="button" class="link-btn link-btn--accent" [disabled]="!filtersOn" (click)="resetFilters()">Reset Filters</button>
+            </div>
+
+            <div class="pool-bar">
+              <input type="checkbox" [checked]="allPoolChosen" [indeterminate]="!!w.tags.length && !allPoolChosen" (change)="toggleAllPool($any($event.target).checked)" aria-label="Select all matching assets" />
+              <strong>{{ w.tags.length }} asset{{ w.tags.length === 1 ? '' : 's' }} selected</strong>
+              <button type="button" class="link-btn link-btn--accent" [disabled]="!poolFiltered.length || allPoolChosen" (click)="toggleAllPool(true)">Select All ({{ poolFiltered.length }})</button>
+              <span class="grow"></span>
+              <button type="button" class="btn btn-outline btn-sm" [disabled]="!w.tags.length" (click)="clearSelection()"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon>Clear Selection</button>
+              <button type="button" class="btn btn-primary btn-sm" [disabled]="!w.tags.length" (click)="goStep(2)">Add Selected ({{ w.tags.length }})<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
+            </div>
+
+            <div class="table-wrap">
+              <table class="aa-table pool-table">
+                <thead><tr><th class="ck"><input type="checkbox" [checked]="allPageChosen" (change)="togglePagePool($any($event.target).checked)" aria-label="Select all on this page" /></th><th>#</th><th>Asset</th><th>Asset Tag / Serial</th><th>Category</th><th>Location</th><th>Current Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let p of poolPage; let i = index" [class.is-selected]="isChosen(p.tag)" (click)="toggleAsset(p.tag)">
+                    <td class="ck" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isChosen(p.tag)" (change)="toggleAsset(p.tag)" [attr.aria-label]="'Select ' + p.tag" /></td>
+                    <td class="muted">{{ pageFrom + i }}</td>
+                    <td><span class="asset"><span class="asset-ic"><lucide-icon [img]="kindIcons[p.kind]" [size]="20"></lucide-icon></span><span><strong>{{ p.assetName }}</strong><small>{{ p.assetType }}</small></span></span></td>
+                    <td class="nowrap">{{ p.tag }}<small>SN: {{ p.serial }}</small></td>
+                    <td><span class="cat-pill">{{ p.category }}</span></td>
+                    <td><span class="loc"><lucide-icon [img]="icons.MapPin" [size]="16"></lucide-icon><span>{{ locationMain(p.location) }}<small *ngIf="locationSub(p.location)">{{ locationSub(p.location) }}</small></span></span></td>
+                    <td><span class="status" [ngClass]="p.current ? 'status--returned' : 'status--assigned'" [title]="p.current ? 'Assigned to ' + p.current.assignee : ''">{{ poolStatusOf(p) }}</span></td>
+                    <td class="row-act" (click)="$event.stopPropagation()"><button type="button" class="kebab" [class.is-on]="rowMenu?.tag === p.tag" (click)="openRowMenu(p.tag, $event)" [attr.aria-label]="'Actions for ' + p.tag" aria-haspopup="menu" [attr.aria-expanded]="rowMenu?.tag === p.tag"><lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon></button></td>
+                  </tr>
+                  <tr *ngIf="!poolPage.length"><td colspan="8" class="empty">No assets match the search and filters.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="pager">
+              <label class="pager-size">Show <select class="control" [(ngModel)]="pageSize" (ngModelChange)="page = 0" aria-label="Rows per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select> per page</label>
+              <span class="grow"></span>
+              <span class="muted">Showing {{ pageFrom }} - {{ pageTo }} of {{ poolFiltered.length }} records</span>
+              <button type="button" class="pg-btn" [disabled]="page === 0" (click)="page = page - 1" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+              <button *ngFor="let n of pages" type="button" class="pg-btn" [class.is-on]="n === page" (click)="page = n" [attr.aria-current]="n === page ? 'page' : null">{{ n + 1 }}</button>
+              <button type="button" class="pg-btn" [disabled]="page >= pageCount - 1" (click)="page = page + 1" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+            </div>
+
+            <div *ngIf="rowMenu as m" class="menu menu--fixed" role="menu" [style.top.px]="m.top" [style.right.px]="m.right" (click)="$event.stopPropagation()">
+              <button type="button" role="menuitem" (click)="toggleAsset(m.tag); rowMenu = null">{{ isChosen(m.tag) ? 'Remove from Selection' : 'Add to Selection' }}</button>
+              <button type="button" role="menuitem" (click)="assignOnly(m.tag)">Assign Only This Asset</button>
+            </div>
+          </ng-container>
+
+          <!-- Scan: input on the left, result card on the right -->
+          <div *ngIf="w.selectMode === 'scan'" class="pick-grid">
+            <div class="pick-card pick-card--scan">
+              <ng-container *ngIf="w.selectMode === 'scan'">
+                <div class="scan-tabs" role="tablist" aria-label="Scanner">
+                  <button type="button" role="tab" [class.is-on]="scanSource === 'camera'" [attr.aria-selected]="scanSource === 'camera'" (click)="setScanSource('camera')"><lucide-icon [img]="icons.Camera" [size]="17"></lucide-icon>Camera Scan</button>
+                  <button type="button" role="tab" [class.is-on]="scanSource === 'external'" [attr.aria-selected]="scanSource === 'external'" (click)="setScanSource('external')"><lucide-icon [img]="icons.Barcode" [size]="17"></lucide-icon>External Scanner</button>
+                </div>
+                <div class="pick-pad">
+                  <div *ngIf="scanSource === 'camera'" class="viewfinder">
+                    <video #scanVideo muted playsinline [hidden]="!cameraOn"></video>
+                    <ng-container *ngIf="cameraOn; else cameraOff">
+                      <span class="frame" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                      <button *ngIf="torchSupported" type="button" class="torch" [class.is-on]="torchOn" (click)="toggleTorch()" [attr.aria-pressed]="torchOn" aria-label="Flashlight"><lucide-icon [img]="icons.Zap" [size]="16"></lucide-icon></button>
+                      <span class="hint-pill">Position the barcode or QR code within the frame</span>
+                    </ng-container>
+                    <ng-template #cameraOff>
+                      <div class="camera-off">
+                        <lucide-icon [img]="icons.Camera" [size]="34"></lucide-icon>
+                        <span>{{ cameraStarting ? 'Starting camera...' : 'Camera is off' }}</span>
+                        <button *ngIf="!cameraStarting" type="button" class="btn btn-outline btn-sm" (click)="startCamera()">Start Camera</button>
+                      </div>
+                    </ng-template>
+                  </div>
+
+                  <div *ngIf="scanSource === 'external'" class="external">
+                    <lucide-icon [img]="icons.ScanLine" [size]="40"></lucide-icon>
+                    <p>Click the field below and scan with your handheld or RFID scanner. The asset tag is read as soon as the scanner sends it.</p>
+                    <form class="inline-form" (ngSubmit)="submitExternal()">
+                      <input class="control" name="external" [(ngModel)]="externalTag" placeholder="Waiting for scan..." aria-label="Scanned asset tag" autocomplete="off" />
+                      <button type="submit" class="btn btn-primary btn-sm">Find</button>
+                    </form>
+                  </div>
+
+                  <div class="or" aria-hidden="true"><span>OR</span></div>
+                  <div class="alt-actions">
+                    <label class="btn btn-outline"><lucide-icon [img]="icons.ImageIcon" [size]="17"></lucide-icon>Upload Image<input type="file" accept="image/*" class="sr-only" (change)="scanImage($event)" /></label>
+                    <button type="button" class="btn btn-outline" [class.is-on]="manualOpen" (click)="manualOpen = !manualOpen"><lucide-icon [img]="icons.Keyboard" [size]="17"></lucide-icon>Enter Asset Tag Manually</button>
+                  </div>
+                  <form *ngIf="manualOpen" class="inline-form" (ngSubmit)="submitManual()">
+                    <input class="control" name="manual" [(ngModel)]="manualTag" placeholder="e.g. IT-000456 or serial number" aria-label="Asset tag" autocomplete="off" />
+                    <button type="submit" class="btn btn-primary btn-sm">Find</button>
+                  </form>
+                  <p class="muted">Supports barcode, QR code and RFID (via connected scanner)</p>
+                </div>
+              </ng-container>
+            </div>
+
+            <div class="pick-card result">
+              <p *ngIf="scanError" class="form-error" role="alert">{{ scanError }}</p>
+              <ng-container *ngIf="found as f; else nothingFound">
+                <p class="found-head"><lucide-icon [img]="icons.CircleCheck" [size]="20"></lucide-icon>{{ w.selectMode === 'scan' ? 'Asset Scanned Successfully' : 'Asset Found' }}</p>
+                <div class="found-asset">
+                  <span class="found-ic"><lucide-icon [img]="kindIcons[f.kind]" [size]="38"></lucide-icon></span>
+                  <div>
+                    <strong>{{ f.assetName }}</strong>
+                    <small>{{ f.assetType }}</small>
+                    <span class="status" [ngClass]="f.current ? 'status--overdue' : 'status--assigned'">{{ f.current ? 'Assigned' : 'Available' }}</span>
+                  </div>
+                </div>
+                <dl class="kv found-kv">
+                  <dt>Asset Tag</dt><dd>{{ f.tag }}</dd>
+                  <dt>Serial Number</dt><dd>{{ f.serial }}</dd>
+                  <dt>Model</dt><dd>{{ f.model }}</dd>
+                  <dt>Brand</dt><dd>{{ f.brand }}</dd>
+                  <dt>Category</dt><dd>{{ f.category }}</dd>
+                  <dt>Current Location</dt><dd>{{ f.location }}</dd>
+                  <dt>Current Status</dt><dd><span class="status" [ngClass]="f.current ? 'status--overdue' : 'status--assigned'">{{ f.current ? 'Assigned to ' + f.current.assignee : 'Available' }}</span></dd>
+                </dl>
+                <div class="found-actions">
+                  <button type="button" class="btn btn-outline" [disabled]="isChosen(f.tag)" (click)="addFound()"><lucide-icon [img]="isChosen(f.tag) ? icons.Check : icons.Plus" [size]="17"></lucide-icon>{{ isChosen(f.tag) ? 'Added' : 'Add to Selection' }}</button>
+                  <button *ngIf="w.selectMode === 'scan'" type="button" class="btn btn-primary" (click)="scanNext()"><lucide-icon [img]="icons.ScanLine" [size]="17"></lucide-icon>Scan Next</button>
+                </div>
+              </ng-container>
+              <ng-template #nothingFound>
+                <div *ngIf="!scanError" class="result-empty">
+                  <lucide-icon [img]="w.selectMode === 'scan' ? icons.ScanLine : icons.Search" [size]="34"></lucide-icon>
+                  <span>{{ w.selectMode === 'scan' ? 'Scan an asset tag to see its details here.' : 'Pick an asset from the results to see its details here.' }}</span>
+                </div>
+              </ng-template>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- ===== Step 2: assignment details ===== -->
+        <ng-container *ngIf="w.step === 2">
+          <div class="wz-head">
+            <span class="wz-ic"><lucide-icon [img]="w.target === 'Location' || w.target === 'Other' ? icons.MapPin : icons.UserRound" [size]="22"></lucide-icon></span>
+            <div><h2>2. Assignment Details</h2><p>Specify who the assets are assigned to and for what period.</p></div>
+          </div>
+          <div class="radios" role="radiogroup" aria-label="Assign to">
+            <label *ngFor="let t of assignmentTypes" class="radio" [class.is-on]="w.target === t"><input type="radio" name="target" [checked]="w.target === t" (change)="setTarget(t)" />Assign to {{ targetLabels[t] }}</label>
+          </div>
+
+          <!-- Shared: assignment type and period -->
+          <ng-template #period>
+            <label class="field"><span class="field-label">Assignment Type <em>*</em></span><select class="control" [(ngModel)]="w.transfer"><option *ngFor="let t of transferTypes" [value]="t">{{ t }}</option></select></label>
+            <label class="field"><span class="field-label">From Date <em>*</em></span><input class="control" type="date" [(ngModel)]="w.from" /></label>
+            <div class="period-to">
+              <label class="field"><span class="field-label">To Date <em *ngIf="!w.openEnded">*</em></span><input class="control" type="date" [(ngModel)]="w.to" [disabled]="w.openEnded" /></label>
+              <label class="check"><input type="checkbox" [(ngModel)]="w.openEnded" (ngModelChange)="onOpenEnded()" />Open Ended</label>
+            </div>
+          </ng-template>
+
+          <!-- Shared: site fields -->
+          <ng-template #siteFields>
+            <label class="field"><span class="field-label">Cost Center</span><select class="control" [(ngModel)]="w.costCenter"><option value="">Select cost center</option><option *ngFor="let c of costCenters" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Location / Site</span><select class="control" [(ngModel)]="w.site"><option value="">Select site</option><option *ngFor="let c of sites" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Building</span><select class="control" [(ngModel)]="w.building"><option value="">Select building</option><option *ngFor="let c of buildings" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Floor</span><select class="control" [(ngModel)]="w.floor"><option value="">Select floor</option><option *ngFor="let c of floors" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Room / Space</span><select class="control" [(ngModel)]="w.room"><option value="">Select room</option><option *ngFor="let c of rooms" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Purpose / Reason</span><select class="control" [(ngModel)]="w.reason"><option value="">Select reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+          </ng-template>
+
+          <!-- Shared: a person with initials avatar -->
+          <ng-template #personCard let-p>
+            <span class="person"><span class="avatar avatar--fill">{{ initials(p.name) }}</span><span><strong>{{ p.name }}</strong><small>{{ p.id }} | {{ p.title }}</small></span></span>
+          </ng-template>
+
+          <!-- ===== Employee ===== -->
+          <ng-container *ngIf="w.target === 'Employee'">
+            <fieldset class="group">
+              <legend><lucide-icon [img]="icons.UserRound" [size]="18"></lucide-icon>Employee Details</legend>
+              <div class="emp-row">
+                <div class="field grow"><span class="field-label">Employee <em>*</em></span>
+                  <div *ngIf="employee as e; else pickEmployee" class="person-box">
+                    <ng-container *ngTemplateOutlet="personCard; context: { $implicit: e }"></ng-container>
+                    <button type="button" class="icon-btn" (click)="onAssignee(''); profileOpen = false" aria-label="Clear employee"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+                  </div>
+                  <ng-template #pickEmployee>
+                    <select class="control" [ngModel]="w.assignee" (ngModelChange)="onAssignee($event)"><option value="">Select employee</option><option *ngFor="let c of assigneeChoices('Employee')" [value]="c">{{ c }}</option></select>
+                  </ng-template>
+                </div>
+                <button type="button" class="btn btn-outline" [disabled]="!employee" [class.is-on]="profileOpen" (click)="profileOpen = !profileOpen">View Profile</button>
+              </div>
+              <dl *ngIf="profileOpen && employee as e" class="kv kv--tight profile">
+                <dt>Employee ID</dt><dd>{{ e.id }}</dd>
+                <dt>Designation</dt><dd>{{ e.title }}</dd>
+                <dt>Department</dt><dd>{{ e.department }}</dd>
+                <dt>Work Location</dt><dd>{{ e.location }}</dd>
+              </dl>
+              <div class="form-grid form-grid--2">
+                <label class="field"><span class="field-label">Department</span><input class="control" [value]="employee?.department || ''" placeholder="Filled from the employee" disabled /></label>
+                <div class="field"><span class="field-label">Manager</span>
+                  <div class="person-box" [class.is-empty]="!manager">
+                    <ng-container *ngIf="manager as m; else noMgr"><ng-container *ngTemplateOutlet="personCard; context: { $implicit: m }"></ng-container></ng-container>
+                    <ng-template #noMgr><span class="muted">Filled from the employee</span></ng-template>
+                  </div>
+                </div>
+              </div>
+              <div class="form-grid"><ng-container *ngTemplateOutlet="period"></ng-container></div>
+            </fieldset>
+
+            <fieldset class="group">
+              <legend><lucide-icon [img]="icons.Settings" [size]="18"></lucide-icon>Assignment Conditions</legend>
+              <div class="form-grid">
+                <ng-container *ngTemplateOutlet="siteFields"></ng-container>
+                <label class="field"><span class="field-label">Approval Reference</span><input class="control" [(ngModel)]="w.approvalRef" placeholder="e.g. HR-2025-0012" /></label>
+                <div class="field"><span class="field-label">Status</span><span><span class="status status--assigned">Active</span></span></div>
+              </div>
+            </fieldset>
+
+            <fieldset class="group">
+              <legend><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon>Assignment Notes</legend>
+              <label class="field"><span class="field-label">Remarks</span><textarea class="control remarks" rows="2" [(ngModel)]="w.remarks" [maxlength]="remarksMax"></textarea><small class="counter">{{ w.remarks.length }}/{{ remarksMax }}</small></label>
+            </fieldset>
+          </ng-container>
+
+          <!-- ===== Department ===== -->
+          <ng-container *ngIf="w.target === 'Department'">
+            <fieldset class="group">
+              <legend><lucide-icon [img]="icons.UserRound" [size]="18"></lucide-icon>Department Details</legend>
+              <div class="form-grid form-grid--2">
+                <label class="field"><span class="field-label">Department <em>*</em></span>
+                  <select class="control" [ngModel]="w.assignee" (ngModelChange)="onAssignee($event)"><option value="">Select department</option><option *ngFor="let c of assigneeChoices('Department')" [value]="c">{{ c }}</option></select></label>
+                <div class="field"><span class="field-label">Department Manager</span>
+                  <div class="person-box" [class.is-empty]="!manager">
+                    <ng-container *ngIf="manager as m; else noDeptMgr"><ng-container *ngTemplateOutlet="personCard; context: { $implicit: m }"></ng-container></ng-container>
+                    <ng-template #noDeptMgr><span class="muted">Filled from the department</span></ng-template>
+                  </div>
+                </div>
+              </div>
+              <div class="form-grid"><ng-container *ngTemplateOutlet="period"></ng-container></div>
+            </fieldset>
+
+            <fieldset class="group">
+              <legend><lucide-icon [img]="icons.Hexagon" [size]="18"></lucide-icon>Department Assignment Details</legend>
+              <div class="form-grid">
+                <ng-container *ngTemplateOutlet="siteFields"></ng-container>
+                <label class="field span-3"><span class="field-label">Remarks</span><textarea class="control remarks" rows="3" [(ngModel)]="w.remarks" [maxlength]="remarksMax"></textarea><small class="counter">{{ w.remarks.length }}/{{ remarksMax }}</small></label>
+              </div>
+            </fieldset>
+          </ng-container>
+
+          <!-- ===== Location / site ===== -->
+          <ng-container *ngIf="w.target === 'Location'">
+            <fieldset class="group">
+              <legend><lucide-icon [img]="icons.MapPin" [size]="18"></lucide-icon>Location / Site Details</legend>
+              <div class="loc-grid">
+                <div class="loc-pick">
+                  <div class="sub-tabs sub-tabs--flush" role="tablist" aria-label="Find location">
+                    <button type="button" role="tab" [class.is-on]="siteTab === 'tree'" [attr.aria-selected]="siteTab === 'tree'" (click)="siteTab = 'tree'">Site Hierarchy</button>
+                    <button type="button" role="tab" [class.is-on]="siteTab === 'search'" [attr.aria-selected]="siteTab === 'search'" (click)="siteTab = 'search'">Search &amp; Select</button>
+                  </div>
+
+                  <ul *ngIf="siteTab === 'tree'" class="tree" role="tree">
+                    <li role="treeitem" [attr.aria-expanded]="openNodes.has('All Locations')">
+                      <button type="button" class="tree-row" (click)="toggleNode('All Locations')">
+                        <lucide-icon class="tree-caret" [img]="openNodes.has('All Locations') ? icons.ChevronDown : icons.ChevronRight" [size]="14"></lucide-icon>
+                        <lucide-icon [img]="icons.Building2" [size]="16"></lucide-icon>All Locations
+                      </button>
+                      <ng-container *ngIf="openNodes.has('All Locations')">
+                        <ng-container *ngTemplateOutlet="treeLevel; context: { $implicit: siteTree, path: [] }"></ng-container>
+                      </ng-container>
+                    </li>
+                  </ul>
+                  <ng-template #treeLevel let-nodes let-path="path">
+                    <ul class="tree" role="group">
+                      <li *ngFor="let n of nodes" role="treeitem" [attr.aria-expanded]="n.children ? openNodes.has(path.concat(n.name).join('/')) : null">
+                        <div class="tree-row" [class.is-on]="w.assignee === (n.kind === 'Building' ? path[path.length - 1] + ' - ' + n.name : n.name) && (n.kind === 'Site' || n.kind === 'Building')">
+                          <button *ngIf="n.children; else leafGap" type="button" class="tree-caret-btn" (click)="toggleNode(path.concat(n.name).join('/'))" [attr.aria-label]="(openNodes.has(path.concat(n.name).join('/')) ? 'Collapse ' : 'Expand ') + n.name">
+                            <lucide-icon [img]="openNodes.has(path.concat(n.name).join('/')) ? icons.ChevronDown : icons.ChevronRight" [size]="14"></lucide-icon>
+                          </button>
+                          <ng-template #leafGap><span class="tree-caret-btn"></span></ng-template>
+                          <button type="button" class="tree-label" (click)="n.kind === 'Site' || n.kind === 'Building' ? pickSite(n, path.concat(n.name)) : toggleNode(path.concat(n.name).join('/'))">
+                            <lucide-icon [img]="icons.Building2" [size]="16"></lucide-icon>{{ n.name }}
+                          </button>
+                        </div>
+                        <ng-container *ngIf="n.children && openNodes.has(path.concat(n.name).join('/'))">
+                          <ng-container *ngTemplateOutlet="treeLevel; context: { $implicit: n.children, path: path.concat(n.name) }"></ng-container>
+                        </ng-container>
+                      </li>
+                    </ul>
+                  </ng-template>
+
+                  <div *ngIf="siteTab === 'search'" class="site-search">
+                    <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="siteQuery" placeholder="Search site or building..." aria-label="Search locations" /></label>
+                    <ul class="matches">
+                      <li *ngFor="let r of siteRows">
+                        <button type="button" [class.is-on]="w.assignee === (r.node.kind === 'Building' ? r.path[r.path.length - 2] + ' - ' + r.node.name : r.node.name)" (click)="pickSite(r.node, r.path)">
+                          <span class="asset-ic"><lucide-icon [img]="icons.Building2" [size]="16"></lucide-icon></span>
+                          <span class="grow"><strong>{{ r.node.name }}</strong><small>{{ r.path.slice(0, -1).join(' › ') }}</small></span>
+                        </button>
+                      </li>
+                      <li *ngIf="!siteRows.length" class="muted drop-empty">No locations match "{{ siteQuery.trim() }}".</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="loc-side">
+                  <section class="loc-card">
+                    <div class="loc-card-head">
+                      <lucide-icon class="head-icon" [img]="icons.Hexagon" [size]="18"></lucide-icon>
+                      <h3 class="grow">Selected Location / Site</h3>
+                      <button *ngIf="pickedSite" type="button" class="btn btn-outline btn-sm" (click)="changeLocation()"><lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon>Change Location</button>
+                    </div>
+                    <div *ngIf="pickedSite as ps; else noSite" class="site-info">
+                      <span class="site-img"><lucide-icon [img]="icons.Building2" [size]="38"></lucide-icon></span>
+                      <div class="grow">
+                        <p class="pick-sel-title"><strong>{{ ps.node.name }}</strong><span class="status status--assigned">Active</span></p>
+                        <small class="muted">{{ ps.path.slice(0, -1).concat(ps.node.name).join(' › ') }}<ng-container *ngIf="w.building && w.building !== ps.node.building"> › {{ w.building }}</ng-container></small>
+                        <dl class="site-kv">
+                          <dt>Site Code</dt><dd>{{ ps.node.code }}</dd><dt>Parent Location</dt><dd>{{ ps.path[ps.path.length - 2] }}</dd>
+                          <dt>Site Type</dt><dd>{{ ps.node.type }}</dd><dt>Building</dt><dd>{{ w.building || ps.node.building }}</dd>
+                          <dt>Address</dt><dd>{{ ps.node.address }}</dd><dt>Total Floors</dt><dd>{{ ps.node.floors }}</dd>
+                        </dl>
+                      </div>
+                    </div>
+                    <ng-template #noSite><p class="muted">Pick a site or building from the hierarchy.</p></ng-template>
+                  </section>
+
+                  <section class="loc-card">
+                    <div class="loc-card-head"><lucide-icon class="head-icon" [img]="icons.CalendarDays" [size]="18"></lucide-icon><h3 class="grow">Assignment Details</h3></div>
+                    <div class="form-grid">
+                      <ng-container *ngTemplateOutlet="period"></ng-container>
+                      <label class="field"><span class="field-label">Floor</span><select class="control" [(ngModel)]="w.floor"><option value="">Select floor</option><option *ngFor="let c of floors" [value]="c">{{ c }}</option></select></label>
+                      <label class="field"><span class="field-label">Room / Space</span><select class="control" [(ngModel)]="w.room"><option value="">Select room</option><option *ngFor="let c of rooms" [value]="c">{{ c }}</option></select></label>
+                      <label class="field"><span class="field-label">Cost Center</span><select class="control" [(ngModel)]="w.costCenter"><option value="">Select cost center</option><option *ngFor="let c of costCenters" [value]="c">{{ c }}</option></select></label>
+                      <label class="field span-3"><span class="field-label">Purpose / Reason</span><textarea class="control remarks" rows="2" [(ngModel)]="w.remarks" [maxlength]="remarksMax" placeholder="e.g. Assets moved to Head Office - IT Store for operational use."></textarea><small class="counter">{{ w.remarks.length }}/{{ remarksMax }}</small></label>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </fieldset>
+          </ng-container>
+
+          <!-- ===== Other entity ===== -->
+          <ng-container *ngIf="w.target === 'Other'">
+            <fieldset class="group">
+              <legend><lucide-icon [img]="icons.Building2" [size]="18"></lucide-icon>Other Entity Details</legend>
+              <div class="sub-tabs" role="tablist">
+                <button *ngFor="let k of entityKinds" type="button" role="tab" [class.is-on]="w.entityKind === k" [attr.aria-selected]="w.entityKind === k" (click)="setEntityKind(k)">{{ k }}</button>
+              </div>
+              <div class="form-grid">
+                <label class="field"><span class="field-label">{{ w.entityKind }} <em>*</em></span>
+                  <select class="control" [ngModel]="w.entity" (ngModelChange)="onEntity($event)"><option value="">Select {{ w.entityKind.toLowerCase() }}</option><option *ngFor="let e of entityOptions" [value]="e.name">{{ e.name }}</option></select></label>
+                <label class="field"><span class="field-label">Contact Person</span><input class="control" [(ngModel)]="w.contact" /></label>
+                <div class="field"><span class="field-label">Contact Details</span>
+                  <div class="contact-pair">
+                    <label class="icon-input"><lucide-icon [img]="icons.Phone" [size]="15"></lucide-icon><input class="control" [(ngModel)]="w.phone" type="tel" placeholder="Phone" aria-label="Contact phone" /></label>
+                    <label class="icon-input"><lucide-icon [img]="icons.Mail" [size]="15"></lucide-icon><input class="control" [(ngModel)]="w.email" type="email" placeholder="Email" aria-label="Contact email" /></label>
+                  </div>
+                </div>
+                <label class="field"><span class="field-label">Agreement / PO Reference</span><input class="control" [(ngModel)]="w.agreement" placeholder="e.g. PO-2025-0187" /></label>
+                <label class="field"><span class="field-label">Reason for Assignment</span><select class="control" [(ngModel)]="w.reason"><option value="">Select reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+                <ng-container *ngTemplateOutlet="period"></ng-container>
+              </div>
+            </fieldset>
+
+            <fieldset class="group">
+              <legend><lucide-icon [img]="icons.Wrench" [size]="18"></lucide-icon>Service / Work Details</legend>
+              <div class="form-grid">
+                <label class="field"><span class="field-label">Service Type</span><select class="control" [(ngModel)]="w.serviceType"><option value="">Select service type</option><option *ngFor="let t of serviceTypes" [value]="t">{{ t }}</option></select></label>
+                <label class="field"><span class="field-label">Service Request / Work Order</span><input class="control" [(ngModel)]="w.workOrder" placeholder="e.g. SR-2025-0043" /></label>
+                <label class="field"><span class="field-label">Service Location</span><span class="icon-input"><lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon><input class="control" [(ngModel)]="w.serviceLocation" /></span></label>
+                <label class="field"><span class="field-label">Expected Return Date</span><input class="control" type="date" [(ngModel)]="w.expectedReturn" /></label>
+                <label class="field"><span class="field-label">Return Condition</span><select class="control" [(ngModel)]="w.returnCondition"><option *ngFor="let c of returnConditions" [value]="c">{{ c }}</option></select></label>
+                <label class="field"><span class="field-label">Responsible Person (at {{ w.entityKind.split(' ')[0] }}) <em>*</em></span><input class="control" [(ngModel)]="w.responsible" list="aa-people" /><datalist id="aa-people"><option *ngFor="let p of entityPeople" [value]="p"></option></datalist></label>
+                <label class="field span-3"><span class="field-label">Remarks</span><textarea class="control remarks" rows="2" [(ngModel)]="w.remarks" [maxlength]="remarksMax"></textarea><small class="counter">{{ w.remarks.length }}/{{ remarksMax }}</small></label>
+              </div>
+            </fieldset>
+          </ng-container>
+        </ng-container>
+
+        <!-- ===== Step 3: additional information ===== -->
+        <ng-container *ngIf="w.step === 3">
+          <div class="wz-head">
+            <span class="wz-ic"><lucide-icon [img]="icons.Info" [size]="22"></lucide-icon></span>
+            <div><h2>3. Additional Information</h2><p>Add optional information, documents and notifications for this assignment.</p></div>
+          </div>
+
+          <fieldset class="group">
+            <legend><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon>Assignment Notes</legend>
+            <label class="field"><span class="field-label">Notes / Remarks</span><textarea class="control remarks" rows="2" [(ngModel)]="w.notes" [maxlength]="remarksMax" placeholder="Handover notes, accessories included, condition at handover..."></textarea><small class="counter">{{ w.notes.length }}/{{ remarksMax }}</small></label>
+          </fieldset>
+
+          <fieldset class="group">
+            <legend><lucide-icon [img]="icons.Paperclip" [size]="18"></lucide-icon>Attachments / Documents</legend>
+            <div class="attach-grid">
+              <label class="drop" [class.is-over]="dragOver" (dragover)="$event.preventDefault(); dragOver = true" (dragleave)="dragOver = false" (drop)="onDrop($event)">
+                <lucide-icon [img]="icons.CloudUpload" [size]="30"></lucide-icon>
+                <span>Drag and drop files here, or click to upload</span>
+                <small>Supports PDF, DOC, XLS, JPG, PNG (Max 10 MB per file)</small>
+                <input type="file" multiple [accept]="acceptAttr" (change)="addFiles($event)" />
+              </label>
+              <ul class="files">
+                <li *ngFor="let f of w.files">
+                  <lucide-icon class="file-ic" [ngClass]="'file-ic--' + ext(f.name)" [img]="fileIcon(f.name)" [size]="22"></lucide-icon>
+                  <span class="grow"><span class="file-name">{{ f.name }}</span><small>{{ ext(f.name).toUpperCase() }} · {{ fileSize(f.size) }} · {{ fileDate(f.added) }}</small></span>
+                  <button type="button" class="icon-btn" (click)="downloadFile(f)" [attr.aria-label]="'Download ' + f.name"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon></button>
+                  <button type="button" class="icon-btn" (click)="removeFile(f.name)" [attr.aria-label]="'Remove ' + f.name"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+                </li>
+                <li *ngIf="!w.files.length" class="files-empty muted">No documents attached yet.</li>
+              </ul>
+            </div>
+            <p *ngIf="fileError" class="form-error" role="alert">{{ fileError }}</p>
+          </fieldset>
+
+          <fieldset class="group">
+            <legend><lucide-icon [img]="icons.Bell" [size]="18"></lucide-icon>Notification</legend>
+            <div class="notify-grid">
+              <label class="check"><input type="checkbox" [(ngModel)]="w.notify" />Notify assignee(s)</label>
+              <label class="field"><textarea class="control remarks" rows="2" [(ngModel)]="w.notifyMessage" [maxlength]="remarksMax" [disabled]="!w.notify" aria-label="Message to the assignee"></textarea><small class="counter">{{ w.notifyMessage.length }}/{{ remarksMax }}</small></label>
+              <div class="notify-others">
+                <label class="check"><input type="checkbox" [(ngModel)]="w.notifyManager" />Notify manager</label>
+                <label class="check"><input type="checkbox" [(ngModel)]="w.notifyDepartment" />Notify department</label>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="group">
+            <legend><lucide-icon [img]="icons.CalendarClock" [size]="18"></lucide-icon>Follow-up / Reminder</legend>
+            <div class="reminder-grid">
+              <label class="check"><input type="checkbox" [(ngModel)]="w.reminder" />Set a reminder</label>
+              <label class="field"><span class="field-label">Reminder Date</span><input class="control" type="date" [(ngModel)]="w.reminderDate" [disabled]="!w.reminder" /></label>
+              <label class="field"><span class="field-label">Reminder Message</span><input class="control" [(ngModel)]="w.reminderMessage" [maxlength]="remarksMax" [disabled]="!w.reminder" placeholder="Enter reminder message (optional)" /><small class="counter">{{ w.reminderMessage.length }}/{{ remarksMax }}</small></label>
+            </div>
+          </fieldset>
+
+          <fieldset class="group">
+            <legend><lucide-icon [img]="icons.LayoutGrid" [size]="18"></lucide-icon>Custom Fields (Optional)</legend>
+            <div class="form-grid form-grid--4">
+              <label class="field"><span class="field-label">Assignment Reference</span><input class="control" [(ngModel)]="w.reference" /></label>
+              <label class="field"><span class="field-label">Requestor</span><select class="control" [(ngModel)]="w.requestor"><option *ngFor="let r of requestors" [value]="r">{{ r }}</option></select></label>
+              <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="w.priority"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
+              <label class="field"><span class="field-label">Assignment Reason</span><select class="control" [(ngModel)]="w.customReason"><option value="">Select reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+            </div>
+          </fieldset>
+        </ng-container>
+
+        <!-- ===== Step 4: review ===== -->
+        <ng-container *ngIf="w.step === 4">
+          <div class="wz-head">
+            <span class="wz-ic"><lucide-icon [img]="icons.Hexagon" [size]="22"></lucide-icon></span>
+            <div><h2>4. Review &amp; Confirm</h2><p>Please review the assignment details below and confirm to assign the selected asset(s).</p></div>
+          </div>
+
+          <div class="review review--top">
+            <section>
+              <h3><span><lucide-icon [img]="icons.Hexagon" [size]="18"></lucide-icon>Selected Assets ({{ chosen.length }})</span><button type="button" class="link-btn" (click)="goStep(1)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+              <div class="table-wrap">
+                <table class="aa-table side-table">
+                  <thead><tr><th>#</th><th>Asset</th><th>Asset Tag / Serial</th><th>Category</th><th>Current Location</th></tr></thead>
+                  <tbody>
+                    <tr *ngFor="let p of chosen; let i = index">
+                      <td>{{ i + 1 }}</td>
+                      <td><span class="asset"><span class="asset-ic"><lucide-icon [img]="kindIcons[p.kind]" [size]="18"></lucide-icon></span><span><strong>{{ p.assetName }}</strong><small>{{ p.assetType }}</small></span></span></td>
+                      <td class="nowrap">{{ p.tag }}<small>SN: {{ p.serial }}</small></td>
+                      <td>{{ p.category }}</td>
+                      <td>{{ p.location }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section>
+              <h3><span><lucide-icon [img]="icons.CalendarDays" [size]="18"></lucide-icon>Assignment Details</span><button type="button" class="link-btn" (click)="goStep(2)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+              <dl class="kv"><ng-container *ngFor="let r of reviewRows"><dt>{{ r.label }}</dt><dd>{{ r.value }}</dd></ng-container><dt>Status</dt><dd><span class="status status--assigned">Active</span></dd></dl>
+            </section>
+          </div>
+
+          <div class="review review--3">
+            <section>
+              <h3><span><lucide-icon [img]="icons.Building2" [size]="18"></lucide-icon>Department Details</span><button type="button" class="link-btn" (click)="goStep(2)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+              <dl class="kv">
+                <dt>Department</dt><dd>{{ reviewDepartment?.name || '—' }}</dd>
+                <dt>Department Manager</dt>
+                <dd>
+                  <span *ngIf="reviewDepartment?.manager as m; else noManager" class="person">
+                    <span class="avatar">{{ initials(m.name) }}</span>
+                    <span><strong>{{ m.name }}</strong><small>{{ m.id }} | {{ m.title }}</small></span>
+                  </span>
+                  <ng-template #noManager>—</ng-template>
+                </dd>
+              </dl>
+            </section>
+            <section>
+              <h3><span><lucide-icon [img]="icons.MapPin" [size]="18"></lucide-icon>Location / Site Details</span><button type="button" class="link-btn" (click)="goStep(2)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+              <dl class="kv">
+                <dt>Site</dt><dd>{{ reviewLocation?.site || (w.target === 'Other' && w.serviceLocation) || '—' }}</dd>
+                <dt>Building</dt><dd>{{ reviewLocation?.building || '—' }}</dd>
+                <dt>Floor</dt><dd>{{ reviewLocation?.floor || '—' }}</dd>
+                <dt>Room / Space</dt><dd>{{ reviewLocation?.room || '—' }}</dd>
+                <dt>Cost Center</dt><dd>{{ reviewLocation?.costCenter || '—' }}</dd>
+              </dl>
+            </section>
+            <section>
+              <h3><span><lucide-icon [img]="icons.UserRound" [size]="18"></lucide-icon>Other Entity Details</span><button type="button" class="link-btn" (click)="goStep(2)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+              <dl class="kv">
+                <dt>Type</dt><dd>{{ w.target === 'Other' ? w.entityKind : '—' }}</dd>
+                <dt>Name</dt><dd>{{ (w.target === 'Other' && w.entity) || '—' }}</dd>
+                <dt>Contact Person</dt><dd>{{ (w.target === 'Other' && w.contact) || '—' }}</dd>
+                <dt>Contact Details</dt><dd>{{ otherContact || '—' }}</dd>
+                <dt>Agreement / PO</dt><dd>{{ (w.target === 'Other' && w.agreement) || '—' }}</dd>
+              </dl>
+            </section>
+          </div>
+
+          <div class="review review--3">
+            <section>
+              <h3><span><lucide-icon [img]="icons.Info" [size]="18"></lucide-icon>Additional Information</span><button type="button" class="link-btn" (click)="goStep(3)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+              <dl class="kv">
+                <dt>Remarks</dt><dd><p class="remarks-box">{{ w.notes || w.remarks || '—' }}</p></dd>
+                <dt>Attachments</dt>
+                <dd>
+                  <ul *ngIf="w.files.length; else noFiles" class="att-list">
+                    <li *ngFor="let f of w.files"><span class="grow">{{ f.name }}</span><small>{{ fileSize(f.size) }}</small></li>
+                  </ul>
+                  <ng-template #noFiles>—</ng-template>
+                </dd>
+              </dl>
+            </section>
+            <section>
+              <h3><span><lucide-icon [img]="icons.Bell" [size]="18"></lucide-icon>Notifications</span><button type="button" class="link-btn" (click)="goStep(3)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+              <dl class="kv">
+                <dt>Notify Assignee(s)</dt><dd>{{ w.notify ? 'Yes' : 'No' }}</dd>
+                <dt>Notify Manager</dt><dd>{{ w.notifyManager ? 'Yes' : 'No' }}</dd>
+                <dt>Notify Department</dt><dd>{{ w.notifyDepartment ? 'Yes' : 'No' }}</dd>
+                <dt>Reminder</dt><dd>{{ w.reminder && w.reminderDate ? fileDate(w.reminderDate) : 'Not set' }}</dd>
+              </dl>
+            </section>
+            <section>
+              <h3><span><lucide-icon [img]="icons.LayoutGrid" [size]="18"></lucide-icon>Custom Fields</span><button type="button" class="link-btn" (click)="goStep(3)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
+              <dl class="kv">
+                <dt>Assignment Reference</dt><dd>{{ w.reference || '—' }}</dd>
+                <dt>Requestor</dt><dd>{{ w.requestor || '—' }}</dd>
+                <dt>Priority</dt><dd>{{ w.priority }}</dd>
+                <dt>Assignment Reason</dt><dd>{{ w.customReason || '—' }}</dd>
+              </dl>
+            </section>
+          </div>
+          <p *ngIf="handovers" class="note">{{ handovers }} of the selected asset{{ handovers === 1 ? ' is' : 's are' }} currently assigned elsewhere; {{ handovers === 1 ? 'that assignment ends' : 'those assignments end' }} when you confirm.</p>
+        </ng-container>
+
+        <p *ngIf="wizardError" class="form-error" role="alert">{{ wizardError }}</p>
+      </div>
+
+      <div class="wz-foot" [class.wz-foot--end]="w.step === 1">
+        <button type="button" class="btn btn-outline" (click)="wizardBack()"><lucide-icon *ngIf="w.step > 1" [img]="icons.ArrowLeft" [size]="17"></lucide-icon>{{ w.step === 1 ? 'Cancel' : 'Back' }}</button>
+        <button *ngIf="w.step < 4" type="button" class="btn btn-primary" (click)="goStep(w.step + 1)">Next<lucide-icon [img]="icons.ArrowRight" [size]="17"></lucide-icon></button>
+        <span *ngIf="w.step === 4" class="foot-actions">
+          <button type="button" class="btn btn-outline" (click)="saveDraft()">Save as Draft</button>
+          <button type="button" class="btn btn-primary" [disabled]="saving" (click)="confirmWizard()"><lucide-icon [img]="icons.Check" [size]="17"></lucide-icon>Confirm Assignment</button>
+        </span>
+      </div>
+    </div>
+
+    <aside class="wz-side">
+      <!-- Step 1, single asset: full details of the picked asset -->
+      <section *ngIf="w.step === 1 && w.selectMode === 'single' && singlePicked as f" class="card panel">
+        <div class="panel-head">
+          <lucide-icon class="head-icon" [img]="icons.Hexagon" [size]="20"></lucide-icon>
+          <h3 class="grow">Asset Summary</h3>
+        </div>
+        <div class="sum-asset">
+          <span class="pick-sel-img"><lucide-icon [img]="kindIcons[f.kind]" [size]="40"></lucide-icon></span>
+          <div>
+            <span class="status" [ngClass]="f.current ? 'status--overdue' : 'status--assigned'">{{ f.current ? 'Assigned' : 'Available' }}</span>
+            <strong>{{ f.assetName }}</strong>
+            <small>{{ f.assetType }}</small>
+          </div>
+        </div>
+        <dl class="kv kv--tight">
+          <dt>Asset Tag</dt><dd>{{ f.tag }}</dd>
+          <dt>Serial Number</dt><dd>{{ f.serial }}</dd>
+          <dt>Model</dt><dd>{{ f.model }}</dd>
+          <dt>Brand</dt><dd>{{ f.brand }}</dd>
+          <dt>Category</dt><dd>{{ f.category }}</dd>
+          <dt>Current Location</dt><dd>{{ f.location }}</dd>
+          <dt>Current Status</dt><dd><span class="status" [ngClass]="f.current ? 'status--overdue' : 'status--assigned'">{{ f.current ? 'Assigned to ' + f.current.assignee : 'Available' }}</span></dd>
+        </dl>
+      </section>
+
+      <!-- Step 1: compact list with remove buttons -->
+      <section *ngIf="w.step === 1 && !(w.selectMode === 'single' && singlePicked)" class="card panel">
+        <div class="panel-head">
+          <lucide-icon class="head-icon" [img]="icons.Hexagon" [size]="20"></lucide-icon>
+          <h3 class="grow">{{ w.selectMode === 'scan' ? 'Scanned' : 'Selected' }} Assets ({{ chosen.length }})</h3>
+          <button *ngIf="chosen.length" type="button" class="link-btn link-btn--accent" (click)="clearSelection()">Clear All</button>
+        </div>
+        <ul *ngIf="chosen.length; else noneChosen" class="picked">
+          <li *ngFor="let p of chosen">
+            <span class="picked-ic"><lucide-icon [img]="kindIcons[p.kind]" [size]="22"></lucide-icon></span>
+            <span class="grow"><strong>{{ p.assetName }}</strong><small>{{ p.tag }}</small></span>
+            <button type="button" class="icon-btn" (click)="removeAsset(p.tag)" [attr.aria-label]="'Remove ' + p.tag"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+          </li>
+        </ul>
+        <ng-template #noneChosen><p class="muted">No assets selected yet.</p></ng-template>
+        <p *ngIf="w.selectMode === 'multiple' && chosen.length" class="picked-count"><lucide-icon [img]="icons.Hexagon" [size]="16"></lucide-icon>{{ chosen.length }} asset{{ chosen.length === 1 ? '' : 's' }} selected</p>
+      </section>
+
+      <section *ngIf="w.step === 2 || w.step === 3" class="card panel">
+        <div class="panel-head">
+          <lucide-icon class="head-icon" [img]="icons.Hexagon" [size]="20"></lucide-icon>
+          <h3 class="grow">Selected Assets ({{ chosen.length }})</h3>
+          <button type="button" class="link-btn link-btn--accent" (click)="goStep(1)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit Selection</button>
+        </div>
+        <table class="aa-table side-table">
+          <thead><tr><th>#</th><th>Asset</th><th>Asset Tag / Serial</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let p of chosen; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td><span class="asset"><span class="asset-ic"><lucide-icon [img]="kindIcons[p.kind]" [size]="18"></lucide-icon></span><span><strong>{{ p.assetName }}</strong><small>{{ p.assetType }}</small></span></span></td>
+              <td class="nowrap">{{ p.tag }}<small>SN: {{ p.serial }}</small></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section *ngIf="w.step === 2 && (w.target === 'Employee' || w.target === 'Department')" class="card panel summary period">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.CalendarDays" [size]="20"></lucide-icon><h3 class="grow">Assignment Period</h3></div>
+        <dl class="kv kv--tight">
+          <ng-container *ngFor="let r of periodRows"><dt>{{ r.label }}</dt><dd>: {{ r.value }}</dd></ng-container>
+        </dl>
+      </section>
+
+      <section *ngIf="(w.step > 1 || wizardAssignee) && !(w.step === 2 && (w.target === 'Employee' || w.target === 'Department'))" class="card panel summary">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.CalendarDays" [size]="20"></lucide-icon><h3 class="grow">Assignment Summary</h3></div>
+        <dl class="kv kv--tight">
+          <ng-container *ngFor="let r of summaryRows"><dt>{{ r.label }}</dt><dd>{{ r.value }}</dd></ng-container>
+          <ng-container *ngIf="w.step === 4"><dt>Status</dt><dd><span class="status status--assigned">Active</span></dd></ng-container>
+        </dl>
+      </section>
+
+      <p *ngIf="w.step === 4" class="card verify-note"><lucide-icon [img]="icons.Info" [size]="20"></lucide-icon>Please verify all the details before confirming. You can go back to edit any section if required.</p>
+    </aside>
+  </div>
+</section>

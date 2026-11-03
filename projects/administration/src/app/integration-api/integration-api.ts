@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -28,7 +28,7 @@ import { AdminPage } from '../shared/admin-common';
 import { ApiKeyDialog, ApiKeyRequest } from './api-key-dialog';
 import { IntegrationCredentialsTab } from './credentials-tab';
 import { AUTH_METHODS, ENVIRONMENTS, Environment, Integration, PROVIDERS, RETRY_POLICIES, STATUSES, SYNC_FREQUENCIES } from './integration-api.data';
-import { IntegrationApiService, IntegrationForm } from './integration-api.service';
+import { IntegrationApiService, IntegrationForm, apiErrorMessage } from './integration-api.service';
 import { HTTPS_URL, slug, stampLabel, statusTone } from './integration-format';
 import { IntegrationSettingsDrawer } from './integration-settings-drawer';
 import { IntegrationLogsTab } from './logs-tab';
@@ -59,7 +59,7 @@ type TabId = 'overview' | 'mapping' | 'credentials' | 'webhooks' | 'logs';
   templateUrl: './integration-api.html',
   styleUrls: ['../shared/admin-workspace.css', './integration-api.css']
 })
-export class IntegrationApiPage extends AdminPage {
+export class IntegrationApiPage extends AdminPage implements OnInit {
   private readonly service = inject(IntegrationApiService);
 
   readonly icons = {
@@ -102,6 +102,15 @@ export class IntegrationApiPage extends AdminPage {
   showKeyDialog = false;
   secret: { title: string; value: string } | null = null;
   confirmDisable = false;
+
+  ngOnInit(): void {
+    this.service.load().subscribe({
+      next: (list) => {
+        if (!this.service.byId(this.selectedId)) this.selectedId = list[0]?.id ?? null;
+      },
+      error: (err) => this.notify(apiErrorMessage(err, 'Could not load integrations.'))
+    });
+  }
 
   // ----- Derived data -----
 
@@ -219,8 +228,10 @@ export class IntegrationApiPage extends AdminPage {
     const i = this.selected;
     if (!i) return;
     if (i.status === 'Disabled') {
-      this.service.setEnabled(i.id, true);
-      this.notify(`${i.name} enabled.`);
+      this.service.setEnabled(i.id, true).subscribe({
+        next: () => this.notify(`${i.name} enabled.`),
+        error: (err) => this.notify(apiErrorMessage(err, `Could not enable ${i.name}.`))
+      });
     } else {
       this.confirmDisable = true;
     }
@@ -230,8 +241,10 @@ export class IntegrationApiPage extends AdminPage {
     const i = this.selected;
     this.confirmDisable = false;
     if (!i) return;
-    this.service.setEnabled(i.id, false);
-    this.notify(`${i.name} disabled. Scheduled syncs are paused.`);
+    this.service.setEnabled(i.id, false).subscribe({
+      next: () => this.notify(`${i.name} disabled. Scheduled syncs are paused.`),
+      error: (err) => this.notify(apiErrorMessage(err, `Could not disable ${i.name}.`))
+    });
   }
 
   // ----- API keys -----
@@ -274,7 +287,10 @@ export class IntegrationApiPage extends AdminPage {
     this.notify(`Exported ${this.integrations.length} integrations (credentials excluded).`);
   }
 
-  /** Imports integrations from a JSON export. They arrive disabled until credentials are entered. */
+  /**
+   * Imports integrations from a JSON export. They arrive disabled and stay unsaved (the API requires a
+   * secret key) until a secret key is entered in Edit.
+   */
   importIntegrations(input: HTMLInputElement): void {
     const file = input.files?.[0];
     input.value = '';
@@ -302,10 +318,10 @@ export class IntegrationApiPage extends AdminPage {
           skipped++;
           continue;
         }
-        this.service.create(form, '');
+        this.service.addDraft(form);
         added++;
       }
-      this.notify(`Imported ${added} integration(s)${skipped ? `, skipped ${skipped} (invalid or duplicate code)` : ''}. Add credentials to enable them.`);
+      this.notify(`Imported ${added} integration(s)${skipped ? `, skipped ${skipped} (invalid or duplicate code)` : ''}. Add a secret key in Edit to save them.`);
     };
     reader.readAsText(file);
   }

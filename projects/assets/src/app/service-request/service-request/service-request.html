@@ -1,0 +1,349 @@
+<section class="mt-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a><span class="sep">›</span><span class="crumb-current">Service Requests</span>
+  </nav>
+
+  <!-- ===== Asset header ===== -->
+  <div class="card head">
+    <img *ngIf="asset.image; else typeIcon" class="head-img" [src]="asset.image" [alt]="asset.name" />
+    <ng-template #typeIcon><span class="head-img head-img--icon"><lucide-icon [img]="typeIcons[asset.icon]" [size]="40"></lucide-icon></span></ng-template>
+    <div class="head-main">
+      <div class="head-title"><h1>{{ asset.tag }}</h1><span class="pill" [class.pill--green]="asset.status === 'Active'" [class.pill--amber]="asset.status !== 'Active'">{{ asset.status === 'Active' ? 'In Service' : asset.status }}</span></div>
+      <p class="head-name">{{ asset.name }}</p>
+      <p class="head-meta">
+        <span><lucide-icon [img]="icons.Folder" [size]="15"></lucide-icon>{{ asset.category }}</span>
+        <span><lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon>{{ location }}</span>
+        <span><lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>{{ asset.department }} Department</span>
+      </p>
+    </div>
+    <div class="head-side">
+      <div class="head-actions">
+        <button type="button" class="btn btn-outline" (click)="goAsset()"><lucide-icon [img]="icons.FileText" [size]="16"></lucide-icon>View Asset</button>
+        <button type="button" class="btn btn-primary" (click)="newRequest()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>New Service Request</button>
+      </div>
+      <div class="health" aria-label="Health score">
+        <span class="health-label">Health<br />Score</span>
+        <svg class="gauge" viewBox="0 0 84 84" role="img" [attr.aria-label]="health === null ? 'Health score loading' : 'Health score ' + health + ' out of 100, ' + healthBand">
+          <circle cx="42" cy="42" r="34" class="gauge-track" [attr.stroke-dasharray]="gaugeTrack" transform="rotate(135 42 42)" />
+          <circle *ngIf="health !== null" cx="42" cy="42" r="34" class="gauge-fill" [class.g-excellent]="health >= 70" [class.g-good]="health >= 50 && health < 70" [class.g-fair]="health >= 30 && health < 50" [class.g-poor]="health < 30"
+            [attr.stroke-dasharray]="gaugeDash(health)" transform="rotate(135 42 42)" />
+          <text x="42" y="44" class="gauge-num">{{ health ?? '…' }}</text>
+          <text x="42" y="57" class="gauge-of">/100</text>
+        </svg>
+        <ul class="health-legend">
+          <li [class.is-on]="healthBand === 'Excellent'"><i class="g-excellent"></i>Excellent<span>70-100</span></li>
+          <li [class.is-on]="healthBand === 'Good'"><i class="g-good"></i>Good<span>50-69</span></li>
+          <li [class.is-on]="healthBand === 'Fair'"><i class="g-fair"></i>Fair<span>30-49</span></li>
+          <li [class.is-on]="healthBand === 'Poor'"><i class="g-poor"></i>Poor<span>0-29</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="!request" class="card panel srd-missing">
+    <p>Service request <strong>{{ requestId }}</strong> was not found for {{ asset.tag }}.</p>
+    <button type="button" class="btn btn-outline btn-sm" (click)="back()"><lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon>Back to Service Requests</button>
+  </div>
+
+  <div *ngIf="request as r" class="srd-layout">
+    <!-- ===== Request ===== -->
+    <section class="card srd-main" aria-labelledby="srd-id">
+      <div class="srd-top">
+        <div class="grow">
+          <button type="button" class="srd-back" (click)="back()"><lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon>Back to Service Requests</button>
+          <div class="srd-title"><h2 id="srd-id">{{ r.id }}</h2><span class="sr-st" [ngClass]="statusClass(r.status)">{{ r.status }}</span></div>
+          <p class="srd-subject">{{ r.title }}</p>
+        </div>
+        <div class="srd-actions">
+          <span class="menu-wrap"><button type="button" class="icon-btn" (click)="toggleMenu('kebab', $event)" aria-haspopup="menu" aria-label="More options"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button>
+            <span *ngIf="menuOpen === 'kebab'" class="menu" role="menu" (click)="$event.stopPropagation()">
+              <button type="button" role="menuitem" (click)="copyLink()">Copy link</button>
+              <button type="button" role="menuitem" (click)="print()">Print</button>
+            </span></span>
+          <span class="menu-wrap"><button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('more', $event)" aria-haspopup="menu">More Actions<lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon></button>
+            <span *ngIf="menuOpen === 'more'" class="menu" role="menu" (click)="$event.stopPropagation()">
+              <button type="button" role="menuitem" (click)="openEdit()" [disabled]="r.status === 'Closed'">Edit / assign</button>
+              <button *ngIf="r.status === 'Open' || r.status === 'In Progress'" type="button" role="menuitem" (click)="setStatus('Resolved')">Mark resolved</button>
+              <button *ngIf="r.status !== 'Closed'" type="button" role="menuitem" (click)="setStatus('Closed')">Close request</button>
+              <button *ngIf="r.status === 'Resolved' || r.status === 'Closed'" type="button" role="menuitem" (click)="reopen()">Reopen</button>
+              <button type="button" role="menuitem" class="danger" (click)="remove()">Delete</button>
+            </span></span>
+          <button type="button" class="btn btn-primary btn-sm" (click)="convert()" [disabled]="!r.workOrder && (r.status === 'Resolved' || r.status === 'Closed')">
+            <lucide-icon [img]="icons.Wrench" [size]="15"></lucide-icon>{{ r.workOrder ? 'View ' + r.workOrder : 'Convert to Work Order' }}</button>
+        </div>
+      </div>
+
+      <nav class="tabs srd-tabs" role="tablist" aria-label="Service request sections">
+        <button *ngFor="let t of tabs" type="button" role="tab" class="tab" [class.is-active]="tab === t" [attr.aria-selected]="tab === t" (click)="setTab(t)">{{ tabLabel(t, r) }}</button>
+      </nav>
+
+      <!-- ===== Details ===== -->
+      <div *ngIf="tab === 'details'" class="srd-body">
+        <h3 class="srd-h">Request Details</h3>
+        <dl class="srd-kv">
+          <dt>Service Request #</dt><dd>{{ r.id }}</dd>
+          <dt>Subject</dt><dd>{{ r.title }}</dd>
+          <dt>Description</dt><dd>{{ r.description || '-' }}</dd>
+          <dt>Request Type</dt><dd>{{ r.category }}</dd>
+          <dt>Priority</dt><dd><span class="prio" [ngClass]="prioClass(r.priority)">{{ r.priority }}</span></dd>
+          <dt>Status</dt><dd><span class="sr-st" [ngClass]="statusClass(r.status)">{{ r.status }}</span></dd>
+          <dt>Requested By</dt><dd>{{ r.requestedBy }}{{ r.requesterDept ? ' (' + r.requesterDept + ')' : '' }}</dd>
+          <dt>Requested Date</dt><dd>{{ fmtDateTime(r.createdAt) }}</dd>
+          <dt>Target Date</dt><dd>{{ fmtDate(r.targetDate) }}</dd>
+          <dt>First Response</dt><dd>{{ fmtDateTime(r.respondedAt) }}</dd>
+          <dt>Resolved</dt><dd>{{ fmtDateTime(r.resolvedAt) }}</dd>
+          <dt>Assigned To</dt><dd>{{ r.assignedTo || '-' }}</dd>
+          <dt>Location</dt><dd>{{ location }}</dd>
+          <dt>Asset</dt><dd>{{ asset.tag }} ({{ asset.name }})</dd>
+          <dt>Requester Rating</dt><dd>{{ r.rating ? r.rating + ' / 5' : '-' }}</dd>
+          <dt>Related Request</dt><dd>{{ r.relatedRequest || '-' }}</dd>
+          <dt>Tags</dt><dd>{{ r.tags?.length ? r.tags!.join(', ') : '-' }}</dd>
+          <dt>Reference No.</dt><dd>{{ r.reference || '-' }}</dd>
+        </dl>
+      </div>
+
+      <!-- ===== Updates ===== -->
+      <div *ngIf="tab === 'updates'" class="srd-body">
+        <div class="srd-sec-head"><h3 class="srd-h grow">Service Request Updates</h3>
+          <select class="control srd-filter" [(ngModel)]="updateFilter" aria-label="Show updates">
+            <option value="">All Updates</option><option value="comment">Comments</option><option value="status">Status Changes</option>
+          </select></div>
+        <ol class="srd-tl">
+          <li *ngFor="let u of updates; let last = last" [class.is-last]="last">
+            <span class="srd-tl-when">{{ fmtDate(u.at.slice(0, 10)) }}<small>{{ u.at.slice(11, 16) }}</small></span>
+            <span class="srd-tl-ic" [ngClass]="'k--' + u.kind"><lucide-icon [img]="updateIcon(u.kind)" [size]="16"></lucide-icon></span>
+            <span class="srd-av" [ngClass]="avatarClass(u.by)">{{ initials(u.by) }}</span>
+            <div class="srd-tl-card">
+              <div class="srd-tl-head"><strong>{{ u.by }}</strong><span class="grow">{{ u.action }}</span>
+                <span *ngIf="u.status" class="sr-st" [ngClass]="statusClass(u.status)">Status: {{ u.status }}</span></div>
+              <p>{{ u.text }}</p>
+            </div>
+          </li>
+          <li *ngIf="!updates.length" class="muted srd-empty">No updates match.</li>
+        </ol>
+        <form class="srd-comment" (ngSubmit)="addComment()">
+          <textarea class="control sr-textarea" [(ngModel)]="comment" name="comment" rows="2" placeholder="Add a comment or update..." aria-label="Comment"></textarea>
+          <button type="submit" class="btn btn-primary btn-sm" [disabled]="!comment.trim()">Post Update</button>
+        </form>
+      </div>
+
+      <!-- ===== Attachments ===== -->
+      <div *ngIf="tab === 'attachments'" class="srd-body">
+        <div class="srd-sec-head"><h3 class="srd-h grow">Attachments ({{ r.attachments.length }})</h3>
+          <button type="button" class="btn btn-primary btn-sm" (click)="picker.click()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Attachment</button>
+          <span class="menu-wrap"><button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('files', $event)" aria-haspopup="menu">More Actions<lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon></button>
+            <span *ngIf="menuOpen === 'files'" class="menu" role="menu" (click)="$event.stopPropagation()">
+              <button type="button" role="menuitem" class="danger" (click)="removeChecked()" [disabled]="!checked.size">Remove selected{{ checked.size ? ' (' + checked.size + ')' : '' }}</button>
+            </span></span>
+        </div>
+        <input #picker type="file" multiple hidden [accept]="uploadAccept" (change)="onPick(picker)" />
+
+        <div class="srd-filters">
+          <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="fileSearch" (ngModelChange)="onFileFilter()" placeholder="Search attachments by name, type, or description..." aria-label="Search attachments" /></label>
+          <select class="control" [(ngModel)]="kindFilter" (ngModelChange)="onFileFilter()" aria-label="File type"><option value="">All File Types</option><option *ngFor="let k of kinds" [value]="k">{{ k }}</option></select>
+          <select class="control" [(ngModel)]="byFilter" (ngModelChange)="onFileFilter()" aria-label="Uploaded by"><option value="">All Uploaded By</option><option *ngFor="let b of uploaders" [value]="b">{{ b }}</option></select>
+          <select class="control" [(ngModel)]="dateOrder" aria-label="Uploaded date order"><option value="desc">Uploaded Date: Newest</option><option value="asc">Uploaded Date: Oldest</option></select>
+          <span class="srd-view">
+            <button type="button" class="icon-btn" [class.is-on]="fileView === 'list'" (click)="fileView = 'list'" aria-label="List view"><lucide-icon [img]="icons.List" [size]="17"></lucide-icon></button>
+            <button type="button" class="icon-btn" [class.is-on]="fileView === 'grid'" (click)="fileView = 'grid'" aria-label="Grid view"><lucide-icon [img]="icons.LayoutGrid" [size]="17"></lucide-icon></button>
+          </span>
+        </div>
+
+        <div *ngIf="fileView === 'list'" class="table-wrap">
+          <table class="dt">
+            <thead><tr>
+              <th class="col-check"><input type="checkbox" [checked]="allChecked" (change)="toggleAll($any($event.target).checked)" aria-label="Select all on this page" /></th>
+              <th>#</th><th>File Name</th><th>Type</th><th>Description</th><th>Uploaded By</th><th>Uploaded Date</th><th>File Size</th><th class="col-act">Actions</th>
+            </tr></thead>
+            <tbody>
+              <tr *ngFor="let a of filePage; let i = index">
+                <td class="col-check"><input type="checkbox" [checked]="checked.has(a.name)" (change)="toggleCheck(a.name, $any($event.target).checked)" [attr.aria-label]="'Select ' + a.name" /></td>
+                <td>{{ page * pageSize + i + 1 }}</td>
+                <td><span class="srd-file">
+                  <img *ngIf="a.url && a.kind === 'Image'; else fileIc" class="srd-thumb" [src]="a.url" alt="" />
+                  <ng-template #fileIc><span class="srd-thumb srd-thumb--ic" [ngClass]="'f--' + a.kind.toLowerCase()"><lucide-icon [img]="kindIcon(a.kind)" [size]="20"></lucide-icon></span></ng-template>
+                  <button type="button" class="sr-link" (click)="openFile(a)">{{ a.name }}</button></span></td>
+                <td><span class="srd-kind" [ngClass]="'f--' + a.kind.toLowerCase()">{{ a.kind }}</span></td>
+                <td class="srd-desc-col">{{ a.description || '-' }}</td>
+                <td>{{ a.by }}</td>
+                <td class="nowrap">{{ fmtDateTime(a.at) }}</td>
+                <td class="nowrap">{{ a.size }}</td>
+                <td class="col-act"><span class="menu-wrap">
+                  <button type="button" class="icon-btn" (click)="toggleMenu('file-' + a.name, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + a.name"><lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon></button>
+                  <span *ngIf="menuOpen === 'file-' + a.name" class="menu" role="menu" (click)="$event.stopPropagation()">
+                    <button type="button" role="menuitem" (click)="openFile(a)">Open</button>
+                    <button type="button" role="menuitem" class="danger" (click)="removeFile(a)">Remove</button>
+                  </span></span></td>
+              </tr>
+              <tr *ngIf="!filePage.length"><td colspan="9" class="empty">No attachments match.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul *ngIf="fileView === 'grid'" class="srd-grid">
+          <li *ngFor="let a of filePage">
+            <img *ngIf="a.url && a.kind === 'Image'; else gridIc" class="srd-grid-img" [src]="a.url" alt="" />
+            <ng-template #gridIc><span class="srd-grid-img srd-thumb--ic" [ngClass]="'f--' + a.kind.toLowerCase()"><lucide-icon [img]="kindIcon(a.kind)" [size]="30"></lucide-icon></span></ng-template>
+            <button type="button" class="sr-link" (click)="openFile(a)">{{ a.name }}</button>
+            <small class="muted">{{ a.kind }} · {{ a.size }} · {{ a.by }}</small>
+          </li>
+          <li *ngIf="!filePage.length" class="muted">No attachments match.</li>
+        </ul>
+
+        <div class="pager">
+          <label class="pager-size">Show <select class="control" [(ngModel)]="pageSize" (ngModelChange)="onFileFilter()" aria-label="Rows per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select> records per page</label>
+          <span class="grow"></span><span class="muted">{{ showing }}</span>
+          <button type="button" class="pg-btn" [disabled]="page === 0" (click)="page = page - 1" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon></button>
+          <button *ngFor="let p of pages" type="button" class="pg-btn" [class.is-on]="p === page" (click)="page = p">{{ p + 1 }}</button>
+          <button type="button" class="pg-btn" [disabled]="page >= pageCount - 1" (click)="page = page + 1" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="15"></lucide-icon></button>
+        </div>
+
+        <h3 class="srd-h srd-upload-h">Upload Attachment</h3>
+        <div class="srd-drop" [class.is-over]="dragging" role="button" tabindex="0" (click)="picker.click()" (keydown.enter)="picker.click()"
+          (dragover)="$event.preventDefault(); dragging = true" (dragleave)="dragging = false" (drop)="onDrop($event)">
+          <lucide-icon [img]="icons.Upload" [size]="28"></lucide-icon>
+          <strong>Drag and drop files here or click to upload</strong>
+          <span class="muted">Supports: PDF, JPG, PNG, DOC, XLS, MP4 (Max 50 MB each)</span>
+        </div>
+      </div>
+
+      <!-- ===== Related ===== -->
+      <div *ngIf="tab === 'related'" class="srd-body srd-related">
+        <div class="srd-rel">
+          <div class="srd-sec-head"><span class="srd-rel-ic"><lucide-icon [img]="icons.Wrench" [size]="18"></lucide-icon></span><h3 class="srd-h grow">Related Work Orders ({{ relatedWorkOrders.length }})</h3>
+            <span class="menu-wrap"><button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('link-wo', $event)" aria-haspopup="menu" [disabled]="!linkableWorkOrders.length"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Link Work Order</button>
+              <span *ngIf="menuOpen === 'link-wo'" class="menu" role="menu" (click)="$event.stopPropagation()">
+                <button *ngFor="let w of linkableWorkOrders" type="button" role="menuitem" (click)="linkWorkOrder(w)">{{ w.id }} · {{ w.description }}</button>
+              </span></span></div>
+          <div class="table-wrap"><table class="dt">
+            <thead><tr><th>#</th><th>Work Order #</th><th>Title</th><th>Type</th><th>Status</th><th>Priority</th><th>Planned Date</th><th>Assigned To</th><th class="col-act">Actions</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let w of relatedWorkOrders; let i = index">
+                <td>{{ i + 1 }}</td><td><button type="button" class="sr-link" (click)="goWorkOrders(w.id)">{{ w.id }}</button></td><td>{{ w.description }}</td><td>{{ w.type }}</td>
+                <td><span class="srd-wo-st" [ngClass]="'wo--' + w.status.toLowerCase().replace(' ', '-')">{{ w.status }}</span></td>
+                <td><span *ngIf="w.priority; else noPrio" class="prio" [ngClass]="prioClass(w.priority)">{{ w.priority }}</span><ng-template #noPrio>-</ng-template></td>
+                <td class="nowrap">{{ fmtDate(w.date) }}</td><td>{{ w.technician }}</td>
+                <td class="col-act"><span class="menu-wrap">
+                  <button type="button" class="icon-btn" (click)="toggleMenu('wo-' + w.id, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + w.id"><lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon></button>
+                  <span *ngIf="menuOpen === 'wo-' + w.id" class="menu" role="menu" (click)="$event.stopPropagation()">
+                    <button type="button" role="menuitem" (click)="goWorkOrders()">View work orders</button>
+                    <button type="button" role="menuitem" class="danger" (click)="unlinkWorkOrder()">Unlink</button>
+                  </span></span></td>
+              </tr>
+              <tr *ngIf="!relatedWorkOrders.length"><td colspan="9" class="empty">No work order linked yet.</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <div class="srd-rel">
+          <div class="srd-sec-head"><span class="srd-rel-ic"><lucide-icon [img]="icons.Boxes" [size]="18"></lucide-icon></span><h3 class="srd-h grow">Related Assets / Components ({{ components.length }})</h3></div>
+          <div class="table-wrap"><table class="dt">
+            <thead><tr><th>#</th><th>Asset / Component #</th><th>Name</th><th>Type</th><th>Relationship</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of components; let i = index">
+                <td>{{ i + 1 }}</td><td class="sr-id">{{ c.link.tag }}</td><td>{{ c.part?.name ?? '-' }}</td><td>{{ c.link.type }}</td><td>Part of {{ asset.tag }}</td>
+              </tr>
+              <tr *ngIf="!components.length"><td colspan="5" class="empty">No components recorded for this asset.</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <div class="srd-rel">
+          <div class="srd-sec-head"><span class="srd-rel-ic"><lucide-icon [img]="icons.Package" [size]="18"></lucide-icon></span><h3 class="srd-h grow">Related Spare Parts ({{ relatedParts.length }})</h3>
+            <button type="button" class="btn btn-outline btn-sm" (click)="goParts()">View Spare Parts</button></div>
+          <div class="table-wrap"><table class="dt">
+            <thead><tr><th>#</th><th>Part #</th><th>Part Name</th><th class="num">Quantity Used</th><th>Used Date</th><th>Related Work Order</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let p of relatedParts; let i = index">
+                <td>{{ i + 1 }}</td><td class="sr-id">{{ p.partNo }}</td><td>{{ p.name }}</td><td class="num">{{ p.qty }}</td><td class="nowrap">{{ fmtDate(p.date) }}</td>
+                <td><button type="button" class="sr-link" (click)="goWorkOrders(p.wo)">{{ p.wo }}</button></td>
+              </tr>
+              <tr *ngIf="!relatedParts.length"><td colspan="6" class="empty">No parts issued against the linked work order.</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <div class="srd-rel">
+          <div class="srd-sec-head"><span class="srd-rel-ic"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon></span><h3 class="srd-h grow">Related Documents ({{ attachments.length }})</h3>
+            <button type="button" class="btn btn-outline btn-sm" (click)="setTab('attachments')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Document</button></div>
+          <div class="table-wrap"><table class="dt">
+            <thead><tr><th>#</th><th>Document Name</th><th>Type</th><th>Uploaded Date</th><th>Uploaded By</th><th>Related To</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let a of attachments; let i = index">
+                <td>{{ i + 1 }}</td><td><button type="button" class="sr-link" (click)="openFile(a)">{{ a.name }}</button></td>
+                <td><span class="srd-kind" [ngClass]="'f--' + a.kind.toLowerCase()">{{ a.kind }}</span></td>
+                <td class="nowrap">{{ fmtDate(a.at.slice(0, 10)) }}</td><td>{{ a.by }}</td><td>Service Request</td>
+              </tr>
+              <tr *ngIf="!attachments.length"><td colspan="6" class="empty">No documents.</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Summary column ===== -->
+    <aside class="srd-side">
+      <section class="card panel" aria-labelledby="srd-sum">
+        <div class="srd-sec-head"><h3 id="srd-sum" class="srd-h grow">Request Summary</h3>
+          <button type="button" class="srd-edit" (click)="openEdit()" [disabled]="r.status === 'Closed'"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></div>
+        <dl class="srd-kv srd-kv--side">
+          <dt>Service Request #</dt><dd>{{ r.id }}</dd>
+          <dt>Asset</dt><dd>{{ asset.tag }} ({{ asset.name }})</dd>
+          <dt>Request Type</dt><dd>{{ r.category }}</dd>
+          <dt>Priority</dt><dd><span class="prio" [ngClass]="prioClass(r.priority)"><lucide-icon *ngIf="r.priority === 'High'" [img]="icons.TriangleAlert" [size]="12"></lucide-icon> {{ r.priority }}</span></dd>
+          <dt>Status</dt><dd><span class="sr-st" [ngClass]="statusClass(r.status)">{{ r.status }}</span></dd>
+          <dt>Requested By</dt><dd>{{ r.requestedBy }}</dd>
+          <dt>Requested Date</dt><dd>{{ fmtDateTime(r.createdAt) }}</dd>
+          <dt>Target Date</dt><dd>{{ fmtDate(r.targetDate) }}</dd>
+          <dt>Location</dt><dd>{{ r.location || location }}</dd>
+          <dt>Department</dt><dd>{{ r.requesterDept || asset.department }}</dd>
+          <dt>Description</dt><dd>{{ r.description || '-' }}</dd>
+        </dl>
+      </section>
+
+      <section class="card panel" aria-labelledby="srd-work">
+        <h3 id="srd-work" class="srd-h">Work Details</h3>
+        <dl class="srd-kv srd-kv--side">
+          <dt>Assigned To</dt><dd>{{ r.assignedTo || '-' }}</dd>
+          <dt>Work Order</dt><dd><button *ngIf="r.workOrder; else noWo" type="button" class="sr-link" (click)="goWorkOrders(r.workOrder)">{{ r.workOrder }}</button><ng-template #noWo>-</ng-template></dd>
+          <dt *ngIf="workOrder">Work Order Status</dt><dd *ngIf="workOrder as w">{{ w.status }}</dd>
+          <dt>Estimated Downtime</dt><dd>{{ r.downtimeHours ? r.downtimeHours + ' Hours' : workOrder?.downtimeMin ? (workOrder!.downtimeMin / 60 | number: '1.0-1') + ' Hours' : '-' }}</dd>
+          <dt>Planned Start</dt><dd>{{ r.plannedStart ? fmtDateTime(r.plannedStart) : fmtDate(workOrder?.date) }}</dd>
+          <dt>Planned End</dt><dd>{{ fmtDateTime(r.plannedEnd) }}</dd>
+          <dt>Actual Start</dt><dd>{{ fmtDateTime(r.respondedAt) }}</dd>
+          <dt>Actual End</dt><dd>{{ fmtDateTime(r.resolvedAt) }}</dd>
+        </dl>
+      </section>
+
+      <section class="card panel" aria-labelledby="srd-rel">
+        <h3 id="srd-rel" class="srd-h">Related Information</h3>
+        <div class="srd-links">
+          <button type="button" (click)="goAsset()"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon>View Asset</button>
+          <button type="button" (click)="goParts()"><lucide-icon [img]="icons.Package" [size]="18"></lucide-icon><span>View Spare Parts<small>{{ relatedParts.length }} Parts</small></span></button>
+          <button type="button" (click)="r.workOrder ? goWorkOrders(r.workOrder) : setTab('related')"><lucide-icon [img]="icons.Wrench" [size]="18"></lucide-icon>View Work Order</button>
+          <button type="button" (click)="setTab('attachments')"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon><span>View Documents<small>{{ r.attachments.length }} Documents</small></span></button>
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<!-- ===== Edit ===== -->
+<div *ngIf="edit as f" class="overlay" (click)="edit = null">
+  <div class="modal sr-modal" role="dialog" aria-modal="true" aria-labelledby="srd-edit-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="srd-edit-title">Edit {{ requestId }}</h2><button type="button" class="icon-btn" (click)="edit = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="saveEdit()">
+      <label class="field"><span class="field-label">Subject <em>*</em></span><input class="control" [(ngModel)]="f.title" name="title" /></label>
+      <label class="field"><span class="field-label">Description</span><textarea class="control sr-textarea" [(ngModel)]="f.description" name="desc" rows="3"></textarea></label>
+      <div class="two">
+        <label class="field"><span class="field-label">Request Type</span><select class="control" [(ngModel)]="f.category" name="cat"><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+        <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="f.priority" name="prio"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
+        <label class="field"><span class="field-label">Assigned To</span><select class="control" [(ngModel)]="f.assignedTo" name="assigned"><option value="">Not assigned</option><option *ngFor="let t of technicians" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Target Date <em>*</em></span><input class="control" type="date" [(ngModel)]="f.targetDate" name="target" /></label>
+      </div>
+      <p *ngIf="editError" class="form-error" role="alert">{{ editError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="edit = null">Cancel</button><button type="submit" class="btn btn-primary">Save</button></div>
+    </form>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

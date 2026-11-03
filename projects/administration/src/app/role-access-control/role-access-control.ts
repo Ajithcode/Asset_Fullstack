@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { catchError, concatMap, defer, from, of, toArray } from 'rxjs';
 import {
   ArrowUp, Briefcase, ChartColumn, ChevronRight, CircleCheck, Coins, Copy, Crown, Download, Ellipsis, Eye, FileText, Funnel, Hammer, Headset, Info,
   Lock, LucideAngularModule, LucideIconData, Package, Plus, Search, Server, Settings, Shield, ShieldCheck, ShoppingCart, Trash2, Truck, Upload,
@@ -10,7 +11,7 @@ import { AdminPage } from '../shared/admin-common';
 import { PermissionMatrix } from './permission-matrix/permission-matrix';
 import { RoleApprovals, approvalsError } from './role-approvals/role-approvals';
 import { DATA_SCOPES, RoleIcon, RoleRecord, RoleStatus, RoleType, USERS_LAST_MONTH, blankRole, demoUsers } from './role-access.data';
-import { RoleAccessService } from './role-access.service';
+import { RoleAccessService, adminApiError } from './role-access.service';
 import { RoleDrawer, roleErrors } from './role-drawer/role-drawer';
 import { RoleScope } from './role-scope/role-scope';
 import { UsersDialog } from './users-dialog/users-dialog';
@@ -72,8 +73,14 @@ export class RoleAccessControlPage extends AdminPage {
 
   constructor() {
     super();
-    const roles = this.service.all();
-    this.load(roles.find((r) => r.code === 'OPS_MANAGER') ?? roles[0]);
+    this.service.load().subscribe({
+      next: (roles) => this.load(roles.find((r) => r.code === 'OPS_MANAGER') ?? roles[0]),
+      error: (err) => this.notify(`Couldn't load roles: ${adminApiError(err, 'roles')}`)
+    });
+  }
+
+  get loading(): boolean {
+    return this.service.loading();
   }
 
   // ===== Stats =====
@@ -236,16 +243,31 @@ export class RoleAccessControlPage extends AdminPage {
         this.notify('Import failed: the file is not valid JSON.');
         return;
       }
-      let added = 0;
-      for (const row of rows) {
-        if (!row || typeof row.name !== 'string' || typeof row.code !== 'string') continue;
-        // Imported roles are always custom and start unassigned
-        const role = { ...blankRole(), ...row, id: '', type: 'Custom', users: 0 } as RoleRecord;
-        role.code = this.service.uniqueCode(role.code.toUpperCase());
-        this.service.save(role);
-        added++;
+      const valid = rows.filter((row) => row && typeof row.name === 'string' && typeof row.code === 'string');
+      if (!valid.length) {
+        this.notify('No roles found in the file (each needs a name and code).');
+        return;
       }
-      this.notify(added ? `Imported ${added} role${added === 1 ? '' : 's'} as custom roles.` : 'No roles found in the file (each needs a name and code).');
+      // One POST at a time so each unique code sees the roles created before it
+      from(valid)
+        .pipe(
+          concatMap((row) =>
+            defer(() => {
+              // Imported roles are always custom and start unassigned
+              const role = { ...blankRole(), ...row, id: '', type: 'Custom', users: 0 } as RoleRecord;
+              role.code = this.service.uniqueCode(role.code.toUpperCase());
+              return this.service.save(role);
+            }).pipe(catchError(() => of(null)))
+          ),
+          toArray()
+        )
+        .subscribe((saved) => {
+          const added = saved.filter(Boolean).length;
+          const failed = saved.length - added;
+          this.notify(
+            `Imported ${added} role${added === 1 ? '' : 's'} as custom roles.` + (failed ? ` ${failed} failed (check names and codes).` : '')
+          );
+        });
     });
   }
 
@@ -268,9 +290,13 @@ export class RoleAccessControlPage extends AdminPage {
     this.draft.name = this.draft.name.trim();
     this.draft.code = this.draft.code.trim();
     const wasNew = this.isNew;
-    const stored = this.service.save(this.draft);
-    this.load(stored);
-    this.notify(`${stored.name} ${wasNew ? 'created' : 'saved'}.`);
+    this.service.save(this.draft).subscribe({
+      next: (stored) => {
+        this.load(stored);
+        this.notify(`${stored.name} ${wasNew ? 'created' : 'saved'}.`);
+      },
+      error: (err) => this.notify(`Couldn't save ${this.draft.name}: ${adminApiError(err, 'roles')}`)
+    });
   }
 
   cancelEdit(): void {
@@ -298,11 +324,14 @@ export class RoleAccessControlPage extends AdminPage {
         ? `${r.users} user${r.users === 1 ? '' : 's'} will lose this role's access. This can't be undone.`
         : "This role isn't assigned to anyone. This can't be undone.",
       action: 'Delete Role',
-      run: () => {
-        this.service.remove(r.id);
-        this.load(this.roles[0]);
-        this.notify(`${r.name} deleted.`);
-      }
+      run: () =>
+        this.service.remove(r.id).subscribe({
+          next: () => {
+            this.load(this.roles[0]);
+            this.notify(`${r.name} deleted.`);
+          },
+          error: (err) => this.notify(`Couldn't delete ${r.name}: ${adminApiError(err, 'roles')}`)
+        })
     };
   }
 

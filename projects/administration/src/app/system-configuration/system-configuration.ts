@@ -59,6 +59,23 @@ export class SystemConfigurationPage extends AdminPage {
   showPending = false;
   showHistory = false;
   confirm: { title: string; message: string; action: 'reset' | 'discard' } | null = null;
+  saving = false;
+
+  constructor() {
+    super();
+    const before = this.service.values();
+    this.service.load().subscribe({
+      // Pick up the saved values for every setting the user has not touched meanwhile
+      next: () => {
+        const saved = this.service.values();
+        const next = { ...this.draft };
+        for (const key of Object.keys(saved)) if (next[key] === before[key]) next[key] = saved[key];
+        this.draft = next;
+        this.validate();
+      },
+      error: (err: Error) => this.notify(`Could not load the saved configuration. ${err.message}`)
+    });
+  }
 
   // ----- Derived data -----
 
@@ -212,16 +229,20 @@ export class SystemConfigurationPage extends AdminPage {
       this.notify(`Fix ${invalid.length} invalid setting${invalid.length > 1 ? 's' : ''} before saving.`);
       return;
     }
-    let applied = 0;
-    let queued = 0;
-    for (const s of dirty) {
-      const change = this.service.submit(s.key, this.draft[s.key], 'Saved from System Configuration.');
-      if (change?.status === 'Applied') applied++;
-      else if (change) queued++;
-    }
-    this.draft = this.service.values();
-    this.validate();
-    this.notify(this.summary(applied, queued));
+    if (this.saving) return;
+    this.saving = true;
+    this.service.submit(dirty.map((s) => ({ key: s.key, value: this.draft[s.key] })), 'Saved from System Configuration.').subscribe({
+      next: (changes) => {
+        this.saving = false;
+        this.draft = this.service.values();
+        this.validate();
+        this.notify(this.summary(changes.filter((c) => c.status === 'Applied').length, changes.filter((c) => c.status === 'Pending').length));
+      },
+      error: (err: Error) => {
+        this.saving = false;
+        this.notify(`Changes not saved. ${err.message}`);
+      }
+    });
   }
 
   /** "Apply Change" in the drawer: records the selected setting with its reason. */
@@ -236,11 +257,21 @@ export class SystemConfigurationPage extends AdminPage {
       this.notify(this.errors[s.key]);
       return;
     }
-    const change = this.service.submit(s.key, this.draft[s.key], reason);
-    this.draft = { ...this.draft, [s.key]: this.service.setting(s.key)?.value ?? this.draft[s.key] };
-    this.validate();
-    this.drawer?.reset();
-    this.notify(change?.status === 'Pending' ? `${s.label} change sent for review.` : `${s.label} updated.`);
+    if (this.saving) return;
+    this.saving = true;
+    this.service.submit([{ key: s.key, value: this.draft[s.key] }], reason).subscribe({
+      next: ([change]) => {
+        this.saving = false;
+        this.draft = { ...this.draft, [s.key]: this.service.setting(s.key)?.value ?? this.draft[s.key] };
+        this.validate();
+        this.drawer?.reset();
+        this.notify(change?.status === 'Pending' ? `${s.label} change sent for review.` : `${s.label} updated.`);
+      },
+      error: (err: Error) => {
+        this.saving = false;
+        this.notify(`${s.label} not saved. ${err.message}`);
+      }
+    });
   }
 
   /** Drawer "Cancel": drops the unsaved value of the selected setting. */

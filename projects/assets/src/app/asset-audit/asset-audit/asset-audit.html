@@ -1,0 +1,224 @@
+<section class="au-page">
+  <!-- ===== Page header ===== -->
+  <div class="page-head">
+    <div class="grow">
+      <h1>Asset Audit</h1>
+      <p>Manage and track asset audits, stock verification and compliance checks.</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openNew()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>New Audit</button>
+  </div>
+
+  <!-- ===== Summary ===== -->
+  <div class="stats">
+    <button type="button" class="card stat" [class.is-on]="!statusFilter" (click)="filterStatus('')">
+      <span class="stat-ic stat-ic--purple"><lucide-icon [img]="icons.ClipboardList" [size]="24"></lucide-icon></span>
+      <span><span class="stat-label">Total Audits</span><strong>{{ audits.length }}</strong></span>
+    </button>
+    <button type="button" class="card stat" [class.is-on]="statusFilter === 'Completed'" (click)="filterStatus('Completed')">
+      <span class="stat-ic stat-ic--green"><lucide-icon [img]="icons.CircleCheck" [size]="24"></lucide-icon></span>
+      <span><span class="stat-label">Completed</span><strong>{{ countOf('Completed') }}</strong></span>
+    </button>
+    <button type="button" class="card stat" [class.is-on]="statusFilter === 'In Progress'" (click)="filterStatus('In Progress')">
+      <span class="stat-ic stat-ic--blue"><lucide-icon [img]="icons.Clock" [size]="24"></lucide-icon></span>
+      <span><span class="stat-label">In Progress</span><strong>{{ countOf('In Progress') }}</strong></span>
+    </button>
+    <button type="button" class="card stat" [class.is-on]="statusFilter === 'Scheduled'" (click)="filterStatus('Scheduled')">
+      <span class="stat-ic stat-ic--amber"><lucide-icon [img]="icons.Clock" [size]="24"></lucide-icon></span>
+      <span><span class="stat-label">Scheduled</span><strong>{{ countOf('Scheduled') }}</strong></span>
+    </button>
+    <button type="button" class="card stat" [class.is-on]="statusFilter === 'Overdue'" (click)="filterStatus('Overdue')">
+      <span class="stat-ic stat-ic--red"><lucide-icon [img]="icons.CircleX" [size]="24"></lucide-icon></span>
+      <span><span class="stat-label">Overdue</span><strong class="red">{{ countOf('Overdue') }}</strong></span>
+    </button>
+  </div>
+
+  <!-- ===== Filters ===== -->
+  <form class="card filters" (ngSubmit)="onFilter()">
+    <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" name="q" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by audit name, reference, location, or auditor..." aria-label="Search audits" /></label>
+    <label class="field"><span class="field-label">Audit Type</span><select class="control" name="type" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">All Types</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+    <label class="field"><span class="field-label">Status</span><select class="control" name="status" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
+    <label class="field"><span class="field-label">Location</span><select class="control" name="loc" [(ngModel)]="locationFilter" (ngModelChange)="onFilter()"><option value="">All Locations</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
+    <div class="field field--range">
+      <span class="field-label">Date Range</span>
+      <span class="range">
+        <lucide-icon [img]="icons.CalendarDays" [size]="16"></lucide-icon>
+        <input type="date" name="fromDate" [(ngModel)]="fromDate" (ngModelChange)="onFilter()" aria-label="Scheduled from" />
+        <span>-</span>
+        <input type="date" name="toDate" [(ngModel)]="toDate" (ngModelChange)="onFilter()" aria-label="Scheduled until" />
+      </span>
+    </div>
+    <button type="button" class="btn btn-outline" [class.is-on]="moreFilters" (click)="moreFilters = !moreFilters" [attr.aria-expanded]="moreFilters"><lucide-icon [img]="icons.Funnel" [size]="16"></lucide-icon>More Filters</button>
+    <div *ngIf="moreFilters" class="more">
+      <label class="field"><span class="field-label">Audited By</span><select class="control" name="auditor" [(ngModel)]="auditorFilter" (ngModelChange)="onFilter()"><option value="">All Auditors</option><option *ngFor="let a of auditors" [value]="a">{{ a }}</option></select></label>
+      <label class="field"><span class="field-label">Findings</span>
+        <select class="control" name="findings" [(ngModel)]="findingsFilter" (ngModelChange)="onFilter()">
+          <option value="">All</option>
+          <option value="with">With discrepancies</option>
+          <option value="none">No discrepancies</option>
+          <option value="pending">Not yet recorded</option>
+        </select>
+      </label>
+      <button type="button" class="link-btn" (click)="resetFilters()">Reset filters</button>
+    </div>
+  </form>
+
+  <!-- ===== Table ===== -->
+  <section class="card panel" aria-label="Asset audits">
+    <div class="panel-head">
+      <span *ngIf="checked.size" class="muted">{{ checked.size }} selected · <button type="button" class="link-btn" (click)="checked.clear()">Clear</button></span>
+      <span class="grow"></span>
+      <span class="menu-wrap">
+        <button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('export', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'export'"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon>Export<lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon></button>
+        <span *ngIf="menuOpen === 'export'" class="menu" role="menu" (click)="$event.stopPropagation()">
+          <button type="button" role="menuitem" (click)="export('xlsx')">Excel (.xlsx)</button>
+          <button type="button" role="menuitem" (click)="export('csv')">CSV (.csv)</button>
+        </span>
+      </span>
+    </div>
+
+    <div class="table-wrap">
+      <table class="au-table">
+        <thead>
+          <tr>
+            <th class="ck"><input type="checkbox" [checked]="allPageChecked" (change)="togglePage($any($event.target).checked)" aria-label="Select all on this page" /></th>
+            <th>#</th>
+            <th>Audit Reference</th>
+            <th>Audit Name</th>
+            <th>Audit Type</th>
+            <th>Location / Site</th>
+            <th>Scheduled Date</th>
+            <th>Completed Date</th>
+            <th class="center">Status</th>
+            <th>Audited By</th>
+            <th class="center">Findings</th>
+            <th class="center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of pageRows; let i = index">
+            <td class="ck"><input type="checkbox" [checked]="checked.has(a.id)" (change)="toggleCheck(a.id)" [attr.aria-label]="'Select ' + a.reference" /></td>
+            <td>{{ rowNo(i) }}</td>
+            <td><button type="button" class="ref-link" (click)="openDetail(a)">{{ a.reference }}</button></td>
+            <td>{{ a.name }}</td>
+            <td>{{ a.type }}</td>
+            <td>{{ a.location }}</td>
+            <td class="nowrap">{{ a.scheduled | date: 'dd MMM yyyy' }}</td>
+            <td class="nowrap">{{ a.completed ? (a.completed | date: 'dd MMM yyyy') : '-' }}</td>
+            <td class="center"><span class="status" [ngClass]="statusClass(a.status)">{{ a.status }}</span></td>
+            <td class="nowrap">{{ a.auditor }}</td>
+            <td class="center">
+              <span *ngIf="a.findings !== null; else noFindings" class="findings" [class.findings--ok]="a.findings === 0">{{ findingsLabel(a) }}</span>
+              <ng-template #noFindings><span class="muted">-</span></ng-template>
+            </td>
+            <td class="center">
+              <button type="button" class="kebab" (click)="openRowMenu(a, $event)" aria-haspopup="menu" [attr.aria-expanded]="rowMenu?.row === a" [attr.aria-label]="'Actions for ' + a.reference"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button>
+            </td>
+          </tr>
+          <tr *ngIf="!pageRows.length"><td colspan="12" class="empty">No audits match the filters.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <span *ngIf="rowMenu as m" class="menu menu--fixed" role="menu" [style.top.px]="m.top" [style.right.px]="m.right" (click)="$event.stopPropagation()">
+      <button type="button" role="menuitem" (click)="openDetail(m.row)">View details</button>
+      <button type="button" role="menuitem" [disabled]="m.row.status === 'Completed'" (click)="openEdit(m.row)">Edit</button>
+      <button type="button" role="menuitem" [disabled]="m.row.status !== 'Scheduled' && m.row.status !== 'Overdue'" (click)="startAudit(m.row)">Start audit</button>
+      <button type="button" role="menuitem" (click)="openComplete(m.row)">{{ m.row.status === 'Completed' ? 'Update findings' : 'Complete audit' }}</button>
+      <button type="button" role="menuitem" class="danger" (click)="openDelete(m.row)">Delete</button>
+    </span>
+
+    <div class="pager">
+      <span>Show</span>
+      <select class="control pager-size" [(ngModel)]="pageSize" (ngModelChange)="onFilter()" aria-label="Records per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select>
+      <span>records per page</span>
+      <span class="grow"></span>
+      <span class="showing">{{ showingLabel }}</span>
+      <button type="button" class="pg-btn" [disabled]="page === 0" (click)="page = page - 1" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+      <button *ngFor="let p of pages" type="button" class="pg-btn" [class.is-on]="p === page" (click)="page = p" [attr.aria-current]="p === page ? 'page' : null">{{ p + 1 }}</button>
+      <button type="button" class="pg-btn" [disabled]="page >= pageCount - 1" (click)="page = page + 1" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+    </div>
+  </section>
+</section>
+
+<!-- ===== New / edit ===== -->
+<div *ngIf="auditForm as f" class="overlay" (click)="auditForm = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="au-form-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="au-form-title">{{ f.id ? 'Edit Audit' : 'New Audit' }}</h2>
+      <button type="button" class="icon-btn" (click)="auditForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveAudit()">
+      <label class="field"><span class="field-label">Audit Name <em>*</em></span><input class="control" [(ngModel)]="f.name" name="name" placeholder="e.g. Q1 Asset Audit - Head Office" /></label>
+      <div class="two">
+        <label class="field"><span class="field-label">Audit Type</span><select class="control" [(ngModel)]="f.type" name="type"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Location / Site <em>*</em></span><select class="control" [(ngModel)]="f.location" name="location"><option value="" disabled>Select location</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
+      </div>
+      <div class="two">
+        <label class="field"><span class="field-label">Scheduled Date <em>*</em></span><input class="control" type="date" [(ngModel)]="f.scheduled" name="scheduled" /></label>
+        <label class="field"><span class="field-label">Audited By <em>*</em></span><select class="control" [(ngModel)]="f.auditor" name="auditor"><option value="" disabled>Select auditor</option><option *ngFor="let a of auditors" [value]="a">{{ a }}</option></select></label>
+      </div>
+      <label class="field"><span class="field-label">Notes</span><textarea class="control textarea" rows="3" [(ngModel)]="f.notes" name="notes"></textarea></label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="auditForm = null">Cancel</button><button type="submit" class="btn btn-primary">{{ f.id ? 'Save Changes' : 'Schedule Audit' }}</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Complete / findings ===== -->
+<div *ngIf="completeForm as c" class="overlay" (click)="completeForm = null">
+  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="au-complete-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="au-complete-title">Record Findings</h2>
+      <button type="button" class="icon-btn" (click)="completeForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveComplete()">
+      <div class="two">
+        <label class="field"><span class="field-label">Completed Date <em>*</em></span><input class="control" type="date" [(ngModel)]="c.completed" name="completed" /></label>
+        <label class="field"><span class="field-label">Discrepancies <em>*</em></span><input class="control" type="number" min="0" [(ngModel)]="c.findings" name="findings" /></label>
+      </div>
+      <label class="field"><span class="field-label">Notes</span><textarea class="control textarea" rows="3" [(ngModel)]="c.notes" name="notes"></textarea></label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="completeForm = null">Cancel</button><button type="submit" class="btn btn-primary">Mark Completed</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Details ===== -->
+<div *ngIf="detail as d" class="overlay" (click)="detail = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="au-detail-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="au-detail-title">{{ d.reference }}</h2>
+      <button type="button" class="icon-btn" (click)="detail = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <dl class="kv">
+        <dt>Audit Name</dt><dd>{{ d.name }}</dd>
+        <dt>Audit Type</dt><dd>{{ d.type }}</dd>
+        <dt>Location / Site</dt><dd>{{ d.location }}</dd>
+        <dt>Scheduled Date</dt><dd>{{ d.scheduled | date: 'dd MMM yyyy' }}</dd>
+        <dt>Completed Date</dt><dd>{{ d.completed ? (d.completed | date: 'dd MMM yyyy') : '-' }}</dd>
+        <dt>Status</dt><dd><span class="status" [ngClass]="statusClass(d.status)">{{ d.status }}</span></dd>
+        <dt>Audited By</dt><dd>{{ d.auditor }}</dd>
+        <dt>Findings</dt><dd>{{ findingsLabel(d) }}</dd>
+        <dt>Notes</dt><dd>{{ d.notes || '-' }}</dd>
+      </dl>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" [disabled]="d.status === 'Completed'" (click)="detail = null; openEdit(d)">Edit</button>
+        <button type="button" class="btn btn-primary" (click)="detail = null; openComplete(d)">{{ d.status === 'Completed' ? 'Update Findings' : 'Complete Audit' }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Delete ===== -->
+<div *ngIf="deleteTarget as t" class="overlay" (click)="deleteTarget = null">
+  <div class="modal modal--sm" role="alertdialog" aria-modal="true" aria-labelledby="au-del-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="au-del-title">Delete Audit</h2><button type="button" class="icon-btn" (click)="deleteTarget = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <p>Delete <strong>{{ t.reference }} · {{ t.name }}</strong>? This action cannot be undone.</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="deleteTarget = null">Cancel</button><button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button></div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

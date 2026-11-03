@@ -1,0 +1,516 @@
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a routerLink="/assets/list">Assets</a><span class="sep" aria-hidden="true">›</span><a routerLink="/assets/assignment">Assignment</a><span class="sep" aria-hidden="true">›</span>
+  <ng-container *ngIf="step === 1; else crumbStep"><span class="crumb-current">Bulk Assignment</span></ng-container>
+  <ng-template #crumbStep><a href="" (click)="$event.preventDefault(); goStep(1)">Bulk Assignment</a><span class="sep" aria-hidden="true">›</span><span class="crumb-current">{{ steps[step - 1].title }}</span></ng-template>
+</nav>
+
+<section class="aa-page">
+  <div class="card page-head">
+    <span class="head-ic"><lucide-icon [img]="icons.UsersRound" [size]="24"></lucide-icon></span>
+    <div class="grow">
+      <h1>Bulk Assignment</h1>
+      <p>Assign multiple assets to employees, departments, locations or other entities using file upload.</p>
+    </div>
+  </div>
+
+  <ol class="card stepper stepper--5">
+    <li *ngFor="let st of steps; let i = index" [class.is-current]="step === i + 1" [class.is-done]="step > i + 1">
+      <button type="button" (click)="goStep(i + 1)" [attr.aria-current]="step === i + 1 ? 'step' : null">
+        <span class="step-no"><lucide-icon *ngIf="step > i + 1; else stepNo" [img]="icons.Check" [size]="20"></lucide-icon><ng-template #stepNo>{{ i + 1 }}</ng-template></span>
+        <span class="step-text"><strong>{{ st.title }}</strong><small>{{ stepSub(i) }}</small></span>
+      </button>
+    </li>
+  </ol>
+
+  <div class="wz-grid" [class.wz-grid--full]="step === 2">
+    <div class="card wz-main">
+      <div class="wz-body">
+        <!-- ===== Step 1: upload ===== -->
+        <ng-container *ngIf="step === 1">
+          <div class="wz-head">
+            <span class="wz-ic"><lucide-icon [img]="icons.FileUp" [size]="22"></lucide-icon></span>
+            <div><h2>1. Upload File</h2><p>Upload an Excel or CSV file containing the assets and assignment information.</p></div>
+          </div>
+          <div class="upload-grid">
+            <div class="upload-col">
+              <input #fileInput type="file" hidden accept=".xlsx,.xls,.csv" (change)="onFileInput($event)" />
+              <div class="drop drop--lg" role="button" tabindex="0" [class.is-over]="isDragging" aria-label="Choose a file: drag and drop or press Enter to browse"
+                (click)="fileInput.click()" (keydown.enter)="fileInput.click()" (keydown.space)="$event.preventDefault(); fileInput.click()"
+                (dragover)="$event.preventDefault(); isDragging = true" (dragleave)="isDragging = false" (drop)="onDrop($event)">
+                <lucide-icon [img]="icons.CloudUpload" [size]="40"></lucide-icon>
+                <strong class="drop-title">Drag and drop your file here, or click to upload</strong>
+                <small>Supports .XLS, .XLSX, .CSV (Max 10 MB)</small>
+              </div>
+              <p *ngIf="fileError" class="form-error" role="alert">{{ fileError }}</p>
+              <div *ngIf="file" class="file-chip">
+                <span class="xls-badge" aria-hidden="true">X</span>
+                <span class="grow"><strong>{{ file.name }}</strong><small>{{ fileSize(file.size) }} &bull; Uploaded on {{ dateTime(file.uploadedOn) }}</small></span>
+                <button type="button" class="icon-btn" (click)="removeFile()" aria-label="Remove file"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+              </div>
+            </div>
+            <div class="template-col">
+              <h3>Download Template</h3>
+              <p>Use our template to prepare your data or follow the format guidelines.</p>
+              <button type="button" class="btn btn-outline" (click)="downloadTemplate()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Download Template</button>
+              <p class="info-box"><lucide-icon [img]="icons.Info" [size]="20"></lucide-icon><span>Required columns: Asset Tag/Serial and Assignment Type are mandatory. Other columns are optional.</span></p>
+              <button type="button" class="link-btn link-btn--accent" (click)="useSample()">No file handy? Use sample data</button>
+            </div>
+          </div>
+        </ng-container>
+        <!-- ===== Step 2: map columns ===== -->
+        <ng-container *ngIf="step === 2">
+          <div class="wz-head">
+            <span class="wz-ic"><lucide-icon [img]="icons.FileSpreadsheet" [size]="22"></lucide-icon></span>
+            <div><h2>2. Map Columns</h2><p>Match your file columns with the required fields. Required fields must be mapped.</p></div>
+          </div>
+          <div class="map-grid">
+            <section class="sub-card">
+              <div class="sub-head"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon><h3 class="grow">File Columns (from Excel)</h3></div>
+              <table class="aa-table map-table">
+                <thead><tr><th class="ck">#</th><th>Column Name</th><th>Sample Data (Row 2)</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let c of columns">
+                    <td class="ck"><input type="checkbox" [checked]="!!c.field" (change)="toggleColumn(c, $any($event.target).checked)" [attr.aria-label]="'Import ' + c.header" /></td>
+                    <td>{{ c.header }}</td>
+                    <td class="muted-cell">{{ c.sample || '-' }}</td>
+                  </tr>
+                  <tr *ngIf="!columns.length"><td colspan="3" class="empty">Upload a file to see its columns.</td></tr>
+                </tbody>
+              </table>
+            </section>
+            <div class="map-arrows" aria-hidden="true"><span *ngFor="let c of columns">→</span></div>
+            <section class="sub-card">
+              <div class="sub-head">
+                <lucide-icon [img]="icons.Settings" [size]="18"></lucide-icon><h3 class="grow">Map to Asset360 Fields</h3>
+                <button type="button" class="link-btn link-btn--accent" (click)="autoMap()"><lucide-icon [img]="icons.RotateCcw" [size]="15"></lucide-icon>Reset Mapping</button>
+              </div>
+              <table class="aa-table map-table">
+                <thead><tr><th>File Column</th><th>Asset360 Field</th><th>Data Type</th><th></th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let c of columns" [class.is-off]="!c.field">
+                    <td>{{ c.header }}<em *ngIf="fieldDef(c.field)?.required" class="req">*</em></td>
+                    <td>
+                      <select class="control map-select" [class.is-dup]="c.field && duplicateFields.has(c.field)" [(ngModel)]="c.field" (ngModelChange)="onMappingChange()" [attr.aria-label]="'Asset360 field for ' + c.header">
+                        <option value="">Don't import</option>
+                        <option *ngFor="let f of fields" [value]="f.key">{{ f.label }}</option>
+                      </select>
+                    </td>
+                    <td>{{ fieldDef(c.field)?.dataType || '-' }}</td>
+                    <td>
+                      <span *ngIf="c.field && duplicateFields.has(c.field)" class="badge badge--dup">Duplicate</span>
+                      <span *ngIf="c.field && !duplicateFields.has(c.field)" class="badge" [class.badge--req]="fieldDef(c.field)?.required">{{ fieldDef(c.field)?.required ? 'Required' : 'Optional' }}</span>
+                      <span *ngIf="!c.field" class="badge badge--off">Skipped</span>
+                    </td>
+                  </tr>
+                  <tr *ngIf="!columns.length"><td colspan="4" class="empty">No columns to map yet.</td></tr>
+                </tbody>
+              </table>
+            </section>
+          </div>
+          <p class="muted">Asset Tag / Serial and Assignment Type must be mapped. Required fields that aren't in the file are taken from Assignment Details (step 4).</p>
+        </ng-container>
+
+        <!-- ===== Step 3: preview & validate ===== -->
+        <ng-container *ngIf="step === 3">
+          <div class="wz-head">
+            <span class="wz-ic"><lucide-icon [img]="icons.Eye" [size]="22"></lucide-icon></span>
+            <div class="grow"><h2>3. Preview &amp; Validate</h2><p>Review the imported data and fix any issues before proceeding to the next step.</p></div>
+            <label class="search head-search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="page = 0" placeholder="Search by asset name, tag, or error..." aria-label="Search records" /></label>
+            <select class="control filter-select" [ngModel]="filter" (ngModelChange)="setFilter($event)" aria-label="Filter records">
+              <option value="all">Filter: All</option><option value="valid">Valid</option><option value="warning">Warnings</option><option value="error">Errors</option>
+            </select>
+          </div>
+          <ng-container *ngTemplateOutlet="statCards; context: { clickable: true }"></ng-container>
+
+          <section class="sub-card">
+            <div class="sub-head">
+              <lucide-icon [img]="icons.Building2" [size]="20"></lucide-icon>
+              <h3 class="grow">Asset Records ({{ filtered.length }})</h3>
+              <span *ngIf="excluded.size" class="muted">{{ excluded.size }} excluded · <button type="button" class="link-btn link-btn--accent" (click)="restoreExcluded()">Restore</button></span>
+              <button *ngIf="checked.size" type="button" class="btn btn-outline btn-sm" (click)="excludeChecked()"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon>Exclude ({{ checked.size }})</button>
+              <button type="button" class="btn btn-outline btn-sm" [class.is-on]="editing" (click)="toggleEditing()"><lucide-icon [img]="editing ? icons.Check : icons.Pencil" [size]="15"></lucide-icon>{{ editing ? 'Done Editing' : 'Edit Data' }}</button>
+              <button type="button" class="btn btn-outline btn-sm" [disabled]="!warningRecords.length && !errorCount" (click)="exportErrors()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Errors</button>
+            </div>
+            <div class="table-wrap">
+              <table class="aa-table bulk-table" [class.is-editing]="editing">
+                <thead><tr>
+                  <th class="ck"><input type="checkbox" [checked]="allPageChecked" (change)="togglePage($any($event.target).checked)" aria-label="Select all on this page" /></th>
+                  <th>#</th><th>Asset Tag / Serial</th><th>Asset Name</th><th>Asset Type</th><th>Assignment Type</th><th>Assign To</th><th>Department</th><th>Location / Site</th><th>Start Date</th><th>Status</th><th>Remarks</th>
+                </tr></thead>
+                <tbody>
+                  <tr *ngFor="let r of pageRows">
+                    <td class="ck"><input type="checkbox" [checked]="checked.has(r.index)" (change)="toggleCheck(r.index)" [attr.aria-label]="'Select row ' + r.row" /></td>
+                    <td>{{ r.row - 1 }}</td>
+                    <ng-container *ngIf="editing; else readCells">
+                      <td><input class="control cell-input" [ngModel]="r.tag" (ngModelChange)="edit(r, 'tag', $event)" aria-label="Asset tag" /></td>
+                      <td>{{ r.asset?.assetName || r.assetName || '-' }}</td>
+                      <td>{{ r.asset?.assetType || '-' }}</td>
+                      <td><select class="control cell-input" [ngModel]="r.type" (ngModelChange)="edit(r, 'type', $event)" aria-label="Assignment type"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></td>
+                      <td><input class="control cell-input" [ngModel]="r.assignee" (ngModelChange)="edit(r, 'assignee', $event)" aria-label="Assign to" /></td>
+                      <td><input class="control cell-input" [ngModel]="r.department" (ngModelChange)="edit(r, 'department', $event)" aria-label="Department" /></td>
+                      <td><input class="control cell-input" [ngModel]="r.location" (ngModelChange)="edit(r, 'location', $event)" aria-label="Location" /></td>
+                      <td><input class="control cell-input" type="date" [ngModel]="r.from" (ngModelChange)="edit(r, 'from', $event)" aria-label="Start date" /></td>
+                    </ng-container>
+                    <ng-template #readCells>
+                      <td class="nowrap">{{ r.tag || '-' }}</td>
+                      <td class="nowrap">{{ r.asset?.assetName || r.assetName || '-' }}</td>
+                      <td>{{ r.asset?.assetType || '-' }}</td>
+                      <td>{{ r.type || '-' }}</td>
+                      <td>{{ r.assignee || '-' }}</td>
+                      <td>{{ r.department || '-' }}</td>
+                      <td>{{ shortLocation(r.location) || '-' }}</td>
+                      <td class="nowrap">{{ date(r.from) || '-' }}</td>
+                    </ng-template>
+                    <td><span class="status" [ngClass]="'rec--' + r.state">{{ r.state === 'valid' ? 'Valid' : r.state === 'warning' ? 'Warning' : 'Error' }}</span></td>
+                    <td class="remark-cell" [ngClass]="'remark--' + r.state" [title]="r.detail">{{ r.issue || '-' }}</td>
+                  </tr>
+                  <tr *ngIf="!pageRows.length"><td colspan="12" class="empty">No records match.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pager-row">
+              <span class="pager-size">Show <select class="control" [(ngModel)]="pageSize" (ngModelChange)="page = 0" aria-label="Records per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select> records per page</span>
+              <span class="muted">{{ showingLabel }}</span>
+              <span class="pages">
+                <button type="button" class="pg" [disabled]="page === 0" (click)="page = page - 1" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+                <ng-container *ngFor="let n of pageList">
+                  <button *ngIf="n !== null; else gap" type="button" class="pg" [class.is-on]="n === page" (click)="page = n">{{ n + 1 }}</button>
+                  <ng-template #gap><span class="pg-gap">…</span></ng-template>
+                </ng-container>
+                <button type="button" class="pg" [disabled]="page + 1 >= pageCount" (click)="page = page + 1" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+              </span>
+            </div>
+          </section>
+        </ng-container>
+
+        <!-- ===== Step 4: common details ===== -->
+        <ng-container *ngIf="step === 4">
+          <div class="wz-head">
+            <span class="wz-ic"><lucide-icon [img]="icons.Settings" [size]="22"></lucide-icon></span>
+            <div><h2>4. Assignment Details</h2><p>Set common details that will be applied to all valid records. These can be overridden by data in the file if provided.</p></div>
+          </div>
+          <div class="sub-card type-card">
+            <span class="field-label">Assignment Type <lucide-icon class="info-ic" [img]="icons.Info" [size]="14" title="Used for rows whose Assignment Type cell is blank"></lucide-icon></span>
+            <div class="radios radios--start" role="radiogroup" aria-label="Assignment type">
+              <label *ngFor="let t of types" class="radio" [class.is-on]="common.type === t"><input type="radio" name="commonType" [checked]="common.type === t" (change)="setCommonType(t)" />{{ t === 'Location' ? 'Location / Site' : targetLabels[t] }}</label>
+            </div>
+          </div>
+          <div class="details-grid">
+            <section class="sub-card">
+              <div class="sub-head"><lucide-icon [img]="common.type === 'Employee' ? icons.UserRound : icons.Building2" [size]="20"></lucide-icon><h3>{{ common.type === 'Location' ? 'Location' : targetLabels[common.type] }} Details</h3></div>
+              <div class="sub-body">
+                <label class="field"><span class="field-label">{{ common.type === 'Location' ? 'Location' : targetLabels[common.type] }} <em>*</em></span>
+                  <select class="control" [(ngModel)]="common.assignee"><option value="">Select {{ targetLabels[common.type].toLowerCase() }}</option><option *ngFor="let c of assigneeChoices(common.type)" [value]="c">{{ c }}</option></select></label>
+                <label *ngIf="common.type === 'Department' || common.type === 'Employee'" class="field"><span class="field-label">Department Manager</span>
+                  <select class="control" [(ngModel)]="common.manager"><option value="">{{ departmentManager ? departmentManager + ' (default)' : 'Search and select manager (optional)' }}</option><option *ngFor="let m of managers" [value]="m">{{ m }}</option></select></label>
+              </div>
+            </section>
+            <section class="sub-card">
+              <div class="sub-head"><lucide-icon [img]="icons.MapPin" [size]="20"></lucide-icon><h3>Location / Site Details <span class="muted-inline">(Optional)</span></h3></div>
+              <div class="sub-body loc-grid">
+                <span class="field-label">Site</span><select class="control" [(ngModel)]="common.site" (ngModelChange)="onSite()" aria-label="Site"><option value="">Select site</option><option *ngFor="let x of sites" [value]="x">{{ x }}</option></select>
+                <span class="field-label">Building</span><select class="control" [(ngModel)]="common.building" (ngModelChange)="onBuilding()" [disabled]="!common.site" aria-label="Building"><option value="">Select building</option><option *ngFor="let x of buildings" [value]="x">{{ x }}</option></select>
+                <span class="field-label">Floor</span><select class="control" [(ngModel)]="common.floor" (ngModelChange)="onFloor()" [disabled]="!common.building" aria-label="Floor"><option value="">Select floor</option><option *ngFor="let x of floors" [value]="x">{{ x }}</option></select>
+                <span class="field-label">Room / Space</span><select class="control" [(ngModel)]="common.room" [disabled]="!common.floor" aria-label="Room or space"><option value="">Select room / space</option><option *ngFor="let x of rooms" [value]="x">{{ x }}</option></select>
+              </div>
+            </section>
+            <section class="sub-card">
+              <div class="sub-head"><lucide-icon [img]="icons.CalendarDays" [size]="20"></lucide-icon><h3>Assignment Period</h3></div>
+              <div class="sub-body two-col">
+                <label class="field"><span class="field-label">Start Date <em>*</em></span><input class="control" type="date" [(ngModel)]="common.from" /></label>
+                <div class="field">
+                  <span class="field-label">End Date</span>
+                  <input *ngIf="common.setEnd; else openEnd" class="control" type="date" [(ngModel)]="common.to" aria-label="End date" />
+                  <ng-template #openEnd><input class="control" value="Open Ended" disabled aria-label="End date" /></ng-template>
+                  <label class="check"><input type="checkbox" [(ngModel)]="common.setEnd" (ngModelChange)="onSetEnd()" />Set end date</label>
+                </div>
+              </div>
+            </section>
+            <section class="sub-card">
+              <div class="sub-head"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon><h3>Purpose / Reason</h3></div>
+              <div class="sub-body two-col">
+                <label class="field"><span class="field-label">Assignment Reason <em>*</em></span><select class="control" [(ngModel)]="common.reason"><option value="">Select reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+                <label class="field"><span class="field-label">Reference (Optional)</span><input class="control" [(ngModel)]="common.reference" /></label>
+                <label class="field span-2"><span class="field-label">Notes (Optional)</span><textarea class="control remarks" rows="2" [(ngModel)]="common.notes" [maxlength]="notesMax" placeholder="Added to the remarks of every assignment"></textarea><small class="counter">{{ common.notes.length }}/{{ notesMax }}</small></label>
+              </div>
+            </section>
+          </div>
+          <section class="sub-card">
+            <div class="sub-head"><lucide-icon [img]="icons.Settings" [size]="20"></lucide-icon><h3>Additional Options</h3></div>
+            <div class="sub-body options-grid">
+              <label class="check"><input type="checkbox" [(ngModel)]="common.override" />Override existing assignment (if asset already assigned)</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="common.notifyManager" />Send notification to department manager</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="common.notifyAssignee" />Send notification to assignee(s)</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="common.notifyDepartment" />Send notification to department</label>
+            </div>
+          </section>
+        </ng-container>
+
+        <!-- ===== Step 5: confirm ===== -->
+        <ng-container *ngIf="step === 5">
+          <div class="wz-head">
+            <span class="wz-ic wz-ic--solid"><lucide-icon [img]="icons.Check" [size]="20"></lucide-icon></span>
+            <div><h2>5. Confirm &amp; Assign</h2><p>Review the summary and confirm to assign the assets. You can go back to previous steps to make changes if needed.</p></div>
+          </div>
+          <ng-container *ngTemplateOutlet="statCards; context: { clickable: false }"></ng-container>
+
+          <section class="sub-card">
+            <div class="sub-head">
+              <lucide-icon [img]="icons.FileSpreadsheet" [size]="20"></lucide-icon>
+              <h3 class="grow">Preview of Valid Records ({{ previewRecords.length }} of {{ validCount }})</h3>
+              <label class="search mini-search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="previewSearch" placeholder="Search in preview..." aria-label="Search valid records" /></label>
+              <button type="button" class="btn btn-outline btn-sm" (click)="showAll.preview = !showAll.preview">{{ showAll.preview ? 'Show Less' : 'View All' }}</button>
+            </div>
+            <div class="table-wrap" [class.scroll-box]="showAll.preview">
+              <table class="aa-table bulk-table">
+                <thead><tr><th>#</th><th>Asset Tag / Serial</th><th>Asset Name</th><th>Asset Type</th><th>Assignment Type</th><th>Assign To</th><th>Location / Site</th><th>Start Date</th><th>End Date</th><th>Purpose / Reason</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let r of previewRecords; let i = index">
+                    <td>{{ i + 1 }}</td>
+                    <td class="nowrap">{{ r.asset?.tag }}</td>
+                    <td class="nowrap">{{ r.asset?.assetName }}</td>
+                    <td>{{ r.asset?.assetType }}</td>
+                    <td>{{ targetLabels[r.type || 'Employee'] }}</td>
+                    <td>{{ r.assignee }}</td>
+                    <td>{{ shortLocation(r.location) || '-' }}</td>
+                    <td class="nowrap">{{ date(r.from) }}</td>
+                    <td class="nowrap">{{ date(r.to) || '-' }}</td>
+                    <td>{{ r.reason || '-' }}</td>
+                  </tr>
+                  <tr *ngIf="!previewRecords.length"><td colspan="10" class="empty">No valid records{{ previewSearch ? ' match the search' : '' }}.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="issue-grid">
+            <section class="sub-card">
+              <div class="sub-head sub-head--warn">
+                <lucide-icon [img]="icons.TriangleAlert" [size]="20"></lucide-icon>
+                <h3 class="grow">Warnings ({{ warningRecords.length }})</h3>
+                <button *ngIf="warningRecords.length > 3" type="button" class="btn btn-outline btn-sm" (click)="showAll.warnings = !showAll.warnings">{{ showAll.warnings ? 'Show Less' : 'View All' }}</button>
+              </div>
+              <ng-container *ngTemplateOutlet="issueTable; context: { rows: showAll.warnings ? warningRecords : warningRecords.slice(0, 3), kind: 'warning' }"></ng-container>
+            </section>
+            <section class="sub-card">
+              <div class="sub-head sub-head--err">
+                <lucide-icon [img]="icons.CircleX" [size]="20"></lucide-icon>
+                <h3 class="grow">Errors ({{ errorCount }})</h3>
+                <button *ngIf="errorCount > 3" type="button" class="btn btn-outline btn-sm" (click)="showAll.errors = !showAll.errors">{{ showAll.errors ? 'Show Less' : 'View All' }}</button>
+              </div>
+              <ng-container *ngTemplateOutlet="issueTable; context: { rows: showAll.errors ? errorRecords : errorRecords.slice(0, 3), kind: 'error' }"></ng-container>
+            </section>
+          </div>
+          <label *ngIf="warningRecords.length" class="check"><input type="checkbox" [(ngModel)]="includeWarnings" />Also assign the {{ warningRecords.length }} record{{ warningRecords.length === 1 ? '' : 's' }} with warnings ({{ toAssign.length }} will be assigned; errors are skipped)</label>
+        </ng-container>
+
+        <p *ngIf="stepError" class="form-error" role="alert">{{ stepError }}</p>
+      </div>
+
+      <!-- Map step: first rows as mapped -->
+      <div *ngIf="step === 2" class="wz-body file-preview">
+        <div class="wz-head">
+          <span class="wz-ic"><lucide-icon [img]="icons.Eye" [size]="22"></lucide-icon></span>
+          <div class="grow"><h2>Data Preview (First {{ rows.length < 5 ? rows.length : 5 }} records)</h2><p>Verify that the data is mapping correctly. You can go back and adjust the mapping if needed.</p></div>
+          <span class="total">Total Records: <strong>{{ rows.length }}</strong></span>
+        </div>
+        <div class="table-wrap">
+          <table class="aa-table bulk-table">
+            <thead><tr><th>#</th><th>Asset Tag / Serial</th><th>Asset Name</th><th>Asset Type</th><th>Assignment Type</th><th>Assign To</th><th>Department</th><th>Location / Site</th><th>Start Date</th><th>End Date</th><th>Purpose / Reason</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let r of fileRows(5); let i = index">
+                <td>{{ i + 1 }}</td>
+                <td class="nowrap">{{ r.tag || '-' }}</td>
+                <td class="nowrap">{{ r.assetName || '-' }}</td>
+                <td>{{ r.assetType || '-' }}</td>
+                <td>{{ r.type || '-' }}</td>
+                <td>{{ r.assignee || '-' }}</td>
+                <td>{{ r.department || '-' }}</td>
+                <td>{{ r.location || '-' }}</td>
+                <td class="nowrap">{{ r.from || '-' }}</td>
+                <td class="nowrap">{{ r.to || '-' }}</td>
+                <td>{{ r.reason || '-' }}</td>
+              </tr>
+              <tr *ngIf="!rows.length"><td colspan="11" class="empty">Upload a file to preview its data.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Upload step: first rows of the file -->
+      <div *ngIf="step === 1 && file" class="wz-body file-preview">
+        <div class="wz-head">
+          <span class="wz-ic"><lucide-icon [img]="icons.FileSearch" [size]="22"></lucide-icon></span>
+          <div class="grow"><h2>2. Preview Data ({{ showAll.file ? 'All' : 'First ' + (rows.length < 10 ? rows.length : 10) }} records)</h2><p>We have read your file. Please review the data below and proceed to map columns.</p></div>
+          <span class="total">Total Records: <strong>{{ rows.length }}</strong></span>
+          <button *ngIf="rows.length > 10" type="button" class="btn btn-outline btn-sm" (click)="showAll.file = !showAll.file">{{ showAll.file ? 'Show Less' : 'View All' }}</button>
+        </div>
+        <div class="table-wrap" [class.scroll-box]="showAll.file">
+          <table class="aa-table bulk-table">
+            <thead><tr><th>#</th><th>Asset Tag / Serial</th><th>Asset Name</th><th>Asset Type</th><th>Assignment Type</th><th>Assigned To</th><th>Location / Site</th><th>Start Date</th><th>End Date</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let r of fileRows(showAll.file ? rows.length : 10); let i = index">
+                <td>{{ i + 1 }}</td>
+                <td class="nowrap">{{ r.tag || '-' }}</td>
+                <td class="nowrap">{{ r.assetName || '-' }}</td>
+                <td>{{ r.assetType || '-' }}</td>
+                <td>{{ r.type || '-' }}</td>
+                <td>{{ r.assignee || '-' }}</td>
+                <td>{{ r.location || '-' }}</td>
+                <td class="nowrap">{{ r.from || '-' }}</td>
+                <td class="nowrap">{{ r.to || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="wz-foot">
+        <button type="button" class="btn btn-outline" (click)="back()"><lucide-icon *ngIf="step > 1" [img]="icons.ArrowLeft" [size]="17"></lucide-icon>{{ step === 1 ? 'Cancel' : 'Back' }}</button>
+        <button *ngIf="step < 5" type="button" class="btn btn-primary" (click)="next()">Next<lucide-icon [img]="icons.ArrowRight" [size]="17"></lucide-icon></button>
+        <span *ngIf="step === 5" class="foot-actions">
+          <label class="check"><input type="checkbox" [(ngModel)]="notify" />Send assignment notifications after completion
+            <lucide-icon class="info-ic" [img]="icons.Info" [size]="15" title="The assignee, their manager and department get an email for each assignment."></lucide-icon></label>
+          <button type="button" class="btn btn-primary" [disabled]="saving || !file" (click)="confirm()"><lucide-icon [img]="icons.Check" [size]="17"></lucide-icon>Confirm &amp; Assign</button>
+        </span>
+      </div>
+    </div>
+
+    <aside *ngIf="step === 1" class="wz-side">
+      <section class="card panel summary">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.FileText" [size]="20"></lucide-icon><h3 class="grow">File Information</h3></div>
+        <dl *ngIf="file; else noFileInfo" class="kv kv--tight">
+          <dt>File Name</dt><dd>{{ file.name }}</dd>
+          <dt>File Size</dt><dd>{{ fileSize(file.size) }}</dd>
+          <dt>Uploaded By</dt><dd>{{ currentUser }}</dd>
+          <dt>Uploaded On</dt><dd>{{ dateTime(file.uploadedOn) }}</dd>
+          <dt>Total Records</dt><dd>{{ rows.length }}</dd>
+        </dl>
+        <ng-template #noFileInfo><p class="muted">No file uploaded yet.</p></ng-template>
+      </section>
+      <section class="card panel">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.FileCheck" [size]="20"></lucide-icon><h3 class="grow">File Validations</h3></div>
+        <ul *ngIf="file; else noFileInfo2" class="checks">
+          <li *ngFor="let c of fileChecks" [ngClass]="'check--' + c.state">
+            <span class="check-dot"><lucide-icon [img]="c.state === 'ok' ? icons.Check : c.state === 'warn' ? icons.TriangleAlert : icons.X" [size]="13"></lucide-icon></span>{{ c.label }}
+          </li>
+        </ul>
+        <ng-template #noFileInfo2><p class="muted">Checks run when a file is uploaded.</p></ng-template>
+      </section>
+    </aside>
+
+    <!-- Preview & Validate: summary donut, rules, issues -->
+    <aside *ngIf="step === 3" class="wz-side">
+      <section class="card panel">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.Settings" [size]="20"></lucide-icon><h3 class="grow">Validation Summary</h3></div>
+        <div *ngIf="validated; else notValidated" class="donut-row">
+          <svg viewBox="0 0 42 42" class="donut" role="img" [attr.aria-label]="validCount + ' valid, ' + warningRecords.length + ' warnings, ' + errorCount + ' errors'">
+            <circle cx="21" cy="21" r="15.9155" class="donut-track" />
+            <circle cx="21" cy="21" r="15.9155" class="donut-seg donut-seg--valid" [attr.stroke-dasharray]="donut.valid" stroke-dashoffset="25" />
+            <circle cx="21" cy="21" r="15.9155" class="donut-seg donut-seg--warn" [attr.stroke-dasharray]="donut.warn" [attr.stroke-dashoffset]="25 + donut.warnOffset" />
+            <circle cx="21" cy="21" r="15.9155" class="donut-seg donut-seg--err" [attr.stroke-dasharray]="donut.err" [attr.stroke-dashoffset]="25 + donut.errOffset" />
+            <text x="21" y="21" class="donut-num">{{ records.length }}</text>
+            <text x="21" y="26.5" class="donut-lbl">Records</text>
+          </svg>
+          <ul class="legend">
+            <li><i class="dot dot--valid"></i>Valid<span>{{ validCount }} ({{ pct(validCount) }}%)</span></li>
+            <li><i class="dot dot--warn"></i>Warnings<span>{{ warningRecords.length }} ({{ pct(warningRecords.length) }}%)</span></li>
+            <li><i class="dot dot--err"></i>Errors<span>{{ errorCount }} ({{ pct(errorCount) }}%)</span></li>
+          </ul>
+        </div>
+        <ng-template #notValidated><p class="muted">Upload a file to see the summary.</p></ng-template>
+      </section>
+      <section class="card panel">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.FileText" [size]="20"></lucide-icon><h3 class="grow">Validation Rules</h3></div>
+        <ul class="checks checks--tight">
+          <li *ngFor="let rule of rules; let i = index" [ngClass]="'check--' + ruleState(i)">
+            <span class="check-dot"><lucide-icon [img]="ruleState(i) === 'ok' ? icons.Check : ruleState(i) === 'warn' ? icons.TriangleAlert : icons.X" [size]="12"></lucide-icon></span>{{ rule }}
+          </li>
+        </ul>
+      </section>
+      <section class="card panel">
+        <div class="panel-head"><lucide-icon class="head-icon t-red" [img]="icons.CircleX" [size]="20"></lucide-icon><h3 class="grow">Errors &amp; Warnings ({{ errorCount + warningRecords.length }})</h3></div>
+        <div class="sub-tabs sub-tabs--flush" role="tablist">
+          <button type="button" role="tab" [class.is-on]="issueTab === 'all'" (click)="issueTab = 'all'">All ({{ errorCount + warningRecords.length }})</button>
+          <button type="button" role="tab" [class.is-on]="issueTab === 'error'" (click)="issueTab = 'error'">Errors ({{ errorCount }})</button>
+          <button type="button" role="tab" [class.is-on]="issueTab === 'warning'" (click)="issueTab = 'warning'">Warnings ({{ warningRecords.length }})</button>
+        </div>
+        <div class="issue-list">
+          <table class="aa-table side-table">
+            <thead><tr><th>Row</th><th>Field</th><th>Issue</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let r of issueRows" [title]="r.detail">
+                <td>{{ r.row - 1 }}</td>
+                <td>{{ r.field }}</td>
+                <td><span class="issue" [ngClass]="'issue--' + r.state"><lucide-icon [img]="r.state === 'error' ? icons.CircleX : icons.TriangleAlert" [size]="14"></lucide-icon>{{ r.issue }}</span></td>
+              </tr>
+              <tr *ngIf="!issueRows.length"><td colspan="3" class="empty">No issues.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Assignment Details / Confirm: file summary and common details -->
+    <aside *ngIf="step > 3" class="wz-side">
+      <section class="card panel summary">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.FileText" [size]="20"></lucide-icon><h3 class="grow">{{ step === 4 ? 'File Summary' : 'Assignment Summary' }}</h3></div>
+        <dl class="kv kv--tight">
+          <dt>File Name</dt><dd>{{ file?.name || '-' }}</dd>
+          <dt>Total Records</dt><dd>{{ file ? records.length : '-' }}</dd>
+          <ng-container *ngIf="validated">
+            <dt>Valid Records</dt><dd class="t-green">{{ validCount }}<ng-container *ngIf="step === 5"> ({{ pct(validCount) }}%)</ng-container></dd>
+            <dt>Warnings</dt><dd class="t-amber">{{ warningRecords.length }}<ng-container *ngIf="step === 5"> ({{ pct(warningRecords.length) }}%)</ng-container></dd>
+            <dt>Errors</dt><dd class="t-red">{{ errorCount }}<ng-container *ngIf="step === 5"> ({{ pct(errorCount) }}%)</ng-container></dd>
+          </ng-container>
+        </dl>
+      </section>
+      <section class="card panel summary">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.UsersRound" [size]="20"></lucide-icon><h3 class="grow">Common Assignment Details</h3></div>
+        <dl class="kv kv--tight"><ng-container *ngFor="let r of commonRows"><dt>{{ r.label }}</dt><dd>{{ r.value }}</dd></ng-container></dl>
+      </section>
+      <p *ngIf="step === 4" class="card verify-note"><lucide-icon [img]="icons.Info" [size]="20"></lucide-icon><span><strong>Note</strong><br />These details will be applied to all valid records. You can review and confirm the final assignment in the next step.</span></p>
+    </aside>
+  </div>
+</section>
+
+<!-- Total / valid / warnings / errors cards; on step 3 they filter the table -->
+<ng-template #statCards let-clickable="clickable">
+  <div class="bulk-stats">
+    <button type="button" class="bstat" [class.is-on]="clickable && filter === 'all'" [disabled]="!clickable" (click)="setFilter('all')">
+      <span class="bstat-ic"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></span>
+      <span class="grow"><small>Total Records</small><strong>{{ records.length }}</strong></span>
+    </button>
+    <button type="button" class="bstat bstat--green" [class.is-on]="clickable && filter === 'valid'" [disabled]="!clickable" (click)="setFilter('valid')">
+      <span class="bstat-ic"><lucide-icon [img]="icons.Check" [size]="24"></lucide-icon></span>
+      <span class="grow"><small>Valid Records</small><strong>{{ validCount }}</strong></span><em>{{ pct(validCount) }}%</em>
+    </button>
+    <button type="button" class="bstat bstat--amber" [class.is-on]="clickable && filter === 'warning'" [disabled]="!clickable" (click)="setFilter('warning')">
+      <span class="bstat-ic"><lucide-icon [img]="icons.TriangleAlert" [size]="24"></lucide-icon></span>
+      <span class="grow"><small>Warnings</small><strong>{{ warningRecords.length }}</strong></span><em>{{ pct(warningRecords.length) }}%</em>
+    </button>
+    <button type="button" class="bstat bstat--red" [class.is-on]="clickable && filter === 'error'" [disabled]="!clickable" (click)="setFilter('error')">
+      <span class="bstat-ic"><lucide-icon [img]="icons.X" [size]="24"></lucide-icon></span>
+      <span class="grow"><small>Errors</small><strong>{{ errorCount }}</strong></span><em>{{ pct(errorCount) }}%</em>
+    </button>
+  </div>
+</ng-template>
+
+<ng-template #issueTable let-rows="rows" let-kind="kind">
+  <div class="table-wrap" [class.scroll-box]="rows.length > 3">
+    <table class="aa-table bulk-table issue-table">
+      <thead><tr><th>#</th><th>Asset Tag / Serial</th><th>Issue</th><th>Details</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let r of rows; let i = index">
+          <td>{{ i + 1 }}</td>
+          <td class="nowrap">{{ r.tag || 'Row ' + r.row }}</td>
+          <td class="nowrap"><span class="issue" [ngClass]="'issue--' + kind"><lucide-icon [img]="kind === 'error' ? icons.CircleX : icons.TriangleAlert" [size]="14"></lucide-icon>{{ r.issue }}</span></td>
+          <td>{{ r.detail }}</td>
+        </tr>
+        <tr *ngIf="!rows.length"><td colspan="4" class="empty">None.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</ng-template>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

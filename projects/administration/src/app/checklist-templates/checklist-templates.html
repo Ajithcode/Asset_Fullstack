@@ -406,6 +406,25 @@
           </div>
         }
       </div>
+      @if (savedSections.length) {
+        <div class="library__saved">
+          <h3>Saved checklist items</h3>
+          <span class="muted">Items saved for your organization, grouped by section. Add a section to the template you are editing.</span>
+          <div class="library__grid">
+            @for (saved of savedSections; track saved.title) {
+              <div class="library__card">
+                <span class="list-item__icon" data-tone="purple"><lucide-icon [img]="icons.ListChecks" [size]="20"></lucide-icon></span>
+                <div>
+                  <b>{{ saved.title }}</b>
+                  <span class="muted">{{ saved.items.length }} {{ saved.items.length === 1 ? 'item' : 'items' }}</span>
+                  <p>{{ saved.items[0].text }}@if (saved.items.length > 1) {<span> and {{ saved.items.length - 1 }} more</span>}</p>
+                  <button type="button" class="btn btn--sm btn--outline" (click)="useSavedSection(saved)">Add to template</button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
     </div>
   </div>
 }

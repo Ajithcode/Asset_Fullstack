@@ -1,6 +1,7 @@
-import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { EMPTY, catchError, concatMap, finalize, from, tap } from 'rxjs';
 import {
   ArrowDown,
   ArrowUp,
@@ -25,7 +26,7 @@ import { UserDrawer } from './user-drawer/user-drawer';
 import { downloadCsv, parseCsv } from './user-csv';
 import { LAST_MONTH, LOCATION_TIME_ZONES, USER_ROLES, blankUser, roleModules } from './user-management.data';
 import { AdminUser, UserStatus } from './user-management.model';
-import { UserAdminService } from './user-management.service';
+import { UserAdminService, apiErrorMessage } from './user-management.service';
 import { loginLabel, roleOf } from './user-format';
 
 /** A status action waiting for confirmation in the dialog. */
@@ -66,11 +67,19 @@ export class UserManagementPage extends AdminPage {
   checked = new Set<string>();
   menuFor: string | null = null;
 
-  // Opens on the signed-in administrator, as in the design
-  drawerUser: AdminUser | null = this.service.find(CURRENT_USER.id) ?? null;
+  drawerUser: AdminUser | null = null;
   drawerMode: 'add' | 'edit' = 'edit';
   inviteOpen = false;
   pending: PendingAction | null = null;
+
+  constructor() {
+    super();
+    // Load failures from the Administration API show up as a toast
+    effect(() => {
+      const error = this.service.error();
+      if (error) this.notify(error);
+    });
+  }
 
   /* ===== Stats ===== */
 
@@ -258,20 +267,27 @@ export class UserManagementPage extends AdminPage {
   }
 
   onSaved(event: { user: AdminUser; isNew: boolean }): void {
-    const now = new Date().toISOString();
     if (event.isNew) {
-      const user: AdminUser = { ...event.user, id: this.service.nextId(), status: 'Pending', created: now, invitedAt: now, lastLogin: null };
-      this.service.save(user);
-      this.notify(`${user.name} added. An invitation was sent to ${user.email}.`);
-      this.drawerMode = 'edit';
-      this.drawerUser = user;
+      // DEMO MODE: the invitation email is sent by the identity service once connected
+      this.service.create({ ...event.user, status: 'Pending', lastLogin: null }).subscribe({
+        next: (user) => {
+          this.notify(`${user.name} added. An invitation was sent to ${user.email}.`);
+          this.drawerMode = 'edit';
+          this.drawerUser = user;
+        },
+        error: (err) => this.notify(apiErrorMessage(err, `${event.user.name} could not be added.`))
+      });
       return;
     }
     const before = this.service.find(event.user.id);
-    this.service.save(event.user);
-    this.drawerUser = event.user;
-    const statusNote = before && before.status !== event.user.status ? ` Status is now ${event.user.status}.` : '';
-    this.notify(`${event.user.name} updated.${statusNote}`);
+    this.service.update(event.user).subscribe({
+      next: (user) => {
+        this.drawerUser = user;
+        const statusNote = before && before.status !== user.status ? ` Status is now ${user.status}.` : '';
+        this.notify(`${user.name} updated.${statusNote}`);
+      },
+      error: (err) => this.notify(apiErrorMessage(err, `${event.user.name} could not be updated.`))
+    });
   }
 
   /** Keeps the drawer showing the latest copy after a status change from the table. */
@@ -302,11 +318,7 @@ export class UserManagementPage extends AdminPage {
       message: `${u.name} will be able to sign in again with their current roles and module access.`,
       confirmLabel: 'Activate',
       danger: false,
-      run: () => {
-        this.service.save({ ...u, status: 'Active', suspendReason: '' });
-        this.refreshDrawer(u.id);
-        this.notify(`${u.name} is active again.`);
-      }
+      run: () => this.setStatus([u], 'Active', '', () => `${u.name} is active again.`)
     });
   }
 
@@ -322,11 +334,8 @@ export class UserManagementPage extends AdminPage {
       message: `${u.name} will be signed out and won't be able to sign in until the account is activated again.`,
       confirmLabel: 'Suspend',
       danger: true,
-      run: () => {
-        this.service.save({ ...u, status: 'Suspended', suspendReason: `Suspended by ${CURRENT_USER.name} on ${formatDate(new Date().toISOString())}.` });
-        this.refreshDrawer(u.id);
-        this.notify(`${u.name} is suspended.`);
-      }
+      run: () =>
+        this.setStatus([u], 'Suspended', `Suspended by ${CURRENT_USER.name} on ${formatDate(new Date().toISOString())}.`, () => `${u.name} is suspended.`)
     });
   }
 
@@ -338,7 +347,7 @@ export class UserManagementPage extends AdminPage {
       confirmLabel: 'Resend Invite',
       danger: false,
       run: () => {
-        this.service.save({ ...u, invitedAt: new Date().toISOString() });
+        this.service.patchLocal({ ...u, invitedAt: new Date().toISOString() });
         this.refreshDrawer(u.id);
         this.notify(`Invitation sent again to ${u.email}.`);
       }
@@ -372,13 +381,55 @@ export class UserManagementPage extends AdminPage {
     });
   }
 
+  /** DELETE each account in turn; ones the server refuses stay in the list and are reported. */
   private doRemove(list: AdminUser[]): void {
-    const ids = list.map((u) => u.id);
-    this.service.remove(ids);
-    for (const id of ids) this.checked.delete(id);
-    if (this.drawerUser && this.drawerMode === 'edit' && ids.includes(this.drawerUser.id)) this.drawerUser = null;
-    this.goTo(this.page);
-    this.notify(list.length === 1 ? `${list[0].name} deleted.` : `${list.length} users deleted.`);
+    let removed = 0;
+    const failed: string[] = [];
+    from(list)
+      .pipe(
+        concatMap((u) =>
+          this.service.remove(u.id).pipe(
+            tap(() => {
+              removed++;
+              this.checked.delete(u.id);
+              if (this.drawerUser && this.drawerMode === 'edit' && this.drawerUser.id === u.id) this.drawerUser = null;
+            }),
+            catchError((err) => {
+              failed.push(apiErrorMessage(err, `${u.name} could not be deleted.`));
+              return EMPTY;
+            })
+          )
+        ),
+        finalize(() => {
+          this.goTo(this.page);
+          if (!failed.length) this.notify(list.length === 1 ? `${list[0].name} deleted.` : `${list.length} users deleted.`);
+          else this.notify(`${removed} of ${list.length} deleted. ${failed[0]}`);
+        })
+      )
+      .subscribe();
+  }
+
+  /** PUT each account with the new status in turn; ones the server refuses keep their old status and are reported. */
+  private setStatus(list: AdminUser[], status: UserStatus, suspendReason: string, done: () => string): void {
+    let changed = 0;
+    const failed: string[] = [];
+    from(list)
+      .pipe(
+        concatMap((u) =>
+          this.service.update({ ...u, status, suspendReason }).pipe(
+            tap(() => {
+              changed++;
+              this.refreshDrawer(u.id);
+            }),
+            catchError((err) => {
+              failed.push(apiErrorMessage(err, `${u.name} could not be updated.`));
+              return EMPTY;
+            })
+          )
+        ),
+        finalize(() => this.notify(failed.length ? `${changed} of ${list.length} updated. ${failed[0]}` : done()))
+      )
+      .subscribe();
   }
 
   /* ===== Bulk actions ===== */
@@ -404,11 +455,7 @@ export class UserManagementPage extends AdminPage {
       message: 'Suspended accounts in the selection will be able to sign in again. Pending invitations are left as they are.',
       confirmLabel: 'Activate',
       danger: false,
-      run: () => {
-        for (const u of list) this.service.save({ ...u, status: 'Active', suspendReason: '' });
-        list.forEach((u) => this.refreshDrawer(u.id));
-        this.notify(`${list.length} user${list.length === 1 ? '' : 's'} activated.`);
-      }
+      run: () => this.setStatus(list, 'Active', '', () => `${list.length} user${list.length === 1 ? '' : 's'} activated.`)
     });
   }
 
@@ -426,9 +473,7 @@ export class UserManagementPage extends AdminPage {
       danger: true,
       run: () => {
         const reason = `Suspended by ${CURRENT_USER.name} on ${formatDate(new Date().toISOString())}.`;
-        for (const u of list) this.service.save({ ...u, status: 'Suspended', suspendReason: reason });
-        list.forEach((u) => this.refreshDrawer(u.id));
-        this.notify(`${list.length} user${list.length === 1 ? '' : 's'} suspended.`);
+        this.setStatus(list, 'Suspended', reason, () => `${list.length} user${list.length === 1 ? '' : 's'} suspended.`);
       }
     });
   }
@@ -460,38 +505,59 @@ export class UserManagementPage extends AdminPage {
   }
 
   onInvited(req: InviteRequest): void {
-    for (const email of req.emails) this.createInvite(email, '', req.department, req.primaryRole, req.location);
     this.inviteOpen = false;
     this.page = 0;
-    this.notify(`${req.emails.length} invitation${req.emails.length === 1 ? '' : 's'} sent.`);
+    const invites = req.emails.map((email) => this.inviteUser(email, '', req.department, req.primaryRole, req.location));
+    this.createAll(invites, (added, failed) =>
+      failed.length
+        ? `${added} invitation${added === 1 ? '' : 's'} sent; ${failed.length} failed: ${failed[0]}`
+        : `${added} invitation${added === 1 ? '' : 's'} sent.`
+    );
   }
 
   /** New pending account; the name defaults to the part of the email before the @. */
-  private createInvite(email: string, name: string, department: string, primaryRole: string, location: string, employeeId = ''): AdminUser {
-    const now = new Date().toISOString();
+  private inviteUser(email: string, name: string, department: string, primaryRole: string, location: string, employeeId = ''): AdminUser {
     const guessed = email
       .split('@')[0]
       .split(/[._-]+/)
       .filter(Boolean)
       .map((p) => p[0].toUpperCase() + p.slice(1))
       .join(' ');
-    const user: AdminUser = {
+    return {
       ...blankUser(),
-      id: this.service.nextId(),
       name: name || guessed,
       email: email.toLowerCase(),
-      employeeId: employeeId || this.service.nextEmployeeId(),
+      employeeId,
       department,
       jobTitle: primaryRole,
       location,
       timeZone: LOCATION_TIME_ZONES[location] ?? blankUser().timeZone,
       primaryRole,
-      modules: roleModules([primaryRole]),
-      created: now,
-      invitedAt: now
+      modules: roleModules([primaryRole])
     };
-    this.service.save(user);
-    return user;
+  }
+
+  /**
+   * POST each new account in turn (DEMO MODE: invitation emails are sent by the identity service once connected).
+   * Rows without an employee ID get the next free number as they are created.
+   */
+  private createAll(users: AdminUser[], message: (added: number, failed: string[]) => string): void {
+    let added = 0;
+    const failed: string[] = [];
+    from(users)
+      .pipe(
+        concatMap((u) =>
+          this.service.create({ ...u, employeeId: u.employeeId || this.service.nextEmployeeId() }).pipe(
+            tap(() => added++),
+            catchError((err) => {
+              failed.push(apiErrorMessage(err, `${u.email} could not be added.`));
+              return EMPTY;
+            })
+          )
+        ),
+        finalize(() => this.notify(message(added, failed)))
+      )
+      .subscribe();
   }
 
   export(): void {
@@ -531,7 +597,8 @@ export class UserManagementPage extends AdminPage {
       this.notify('The file needs Email, Department and Primary Role columns.');
       return;
     }
-    let added = 0;
+    const users: AdminUser[] = [];
+    const inFile = (pick: (u: AdminUser) => string, value: string) => users.some((u) => pick(u).toUpperCase() === value.toUpperCase());
     let skipped = 0;
     for (const cells of lines) {
       const get = (i: number) => (i >= 0 ? cells[i] ?? '' : '');
@@ -540,16 +607,18 @@ export class UserManagementPage extends AdminPage {
       const roleOk = USER_ROLES.some((r) => r.name === get(role) && !r.secondaryOnly);
       const location = ADMIN_LOCATIONS.includes(get(loc)) ? get(loc) : ADMIN_LOCATIONS[0];
       if (
-        !EMAIL.test(e) || this.service.emailTaken(e, null) || !ADMIN_DEPARTMENTS.includes(get(dept)) || !roleOk ||
-        (empId && (!/^EMP-\d{4,}$/.test(empId) || this.service.employeeIdTaken(empId, null)))
+        !EMAIL.test(e) || this.service.emailTaken(e, null) || inFile((u) => u.email, e) || !ADMIN_DEPARTMENTS.includes(get(dept)) || !roleOk ||
+        (empId && (!/^EMP-\d{4,}$/.test(empId) || this.service.employeeIdTaken(empId, null) || inFile((u) => u.employeeId, empId)))
       ) {
         skipped++;
         continue;
       }
-      this.createInvite(e, get(name), get(dept), get(role), location, empId);
-      added++;
+      users.push(this.inviteUser(e, get(name), get(dept), get(role), location, empId));
     }
     this.page = 0;
-    this.notify(`Imported ${added} user${added === 1 ? '' : 's'} as pending invitations${skipped ? `, skipped ${skipped} (invalid or duplicate)` : ''}.`);
+    this.createAll(users, (added, failed) => {
+      const total = skipped + failed.length;
+      return `Imported ${added} user${added === 1 ? '' : 's'} as pending invitations${total ? `, skipped ${total} (invalid or duplicate)` : ''}.`;
+    });
   }
 }

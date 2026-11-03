@@ -398,10 +398,10 @@ export class AssetList {
     this.router.navigate([path], { queryParams: { tag: asset.tag } });
   }
 
-  /** Opens the asset's detail page (Relationships tab) for this row. */
+  /** Opens the asset's detail page (Overview tab) for this row. */
   viewAsset(asset: AssetRow): void {
     this.openMenuId = null;
-    this.router.navigate(['/assets/relationships'], { queryParams: { tag: asset.tag } });
+    this.router.navigate(['/assets/overview'], { queryParams: { tag: asset.tag } });
   }
 
   // ===== Export / print =====

@@ -1,0 +1,924 @@
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a routerLink="/assets/list">Assets</a><lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon>
+  <a routerLink="/assets/audit">Asset Audit</a><lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon>
+  <span>New Audit</span>
+</nav>
+
+<section class="na-page">
+  <div class="card page-head">
+    <span class="head-ic"><lucide-icon [img]="icons.ClipboardList" [size]="24"></lucide-icon></span>
+    <div class="grow">
+      <h1>New Asset Audit</h1>
+      <p>Create a new asset audit to verify asset existence, condition, and compliance.</p>
+    </div>
+  </div>
+
+  <!-- ===== Stepper ===== -->
+  <ol class="card stepper">
+    <li *ngFor="let s of steps; let i = index" [class.is-current]="i === step" [class.is-done]="i < step">
+      <button type="button" (click)="goStep(i, false)" [attr.aria-current]="i === step ? 'step' : null">
+        <span class="step-no"><lucide-icon *ngIf="i < step; else stepNo" [img]="icons.Check" [size]="20"></lucide-icon><ng-template #stepNo>{{ i + 1 }}</ng-template></span>
+        <span class="step-text"><strong>{{ s }}</strong><small>{{ stepSub(i) }}</small></span>
+      </button>
+    </li>
+  </ol>
+
+  <div class="wz-grid">
+    <div class="card wz-main">
+      <div class="wz-body">
+        <!-- ===== Step 1: basic information, with the scope and criteria set-up as in the design ===== -->
+        <ng-container *ngIf="step === 0">
+          <section id="na-basic" class="section">
+            <div class="wz-head">
+              <span class="wz-ic"><lucide-icon [img]="icons.ClipboardList" [size]="22"></lucide-icon></span>
+              <div><h2>1. Basic Information</h2><p>Provide the key details for this audit.</p></div>
+            </div>
+            <div class="grid3">
+              <label class="field"><span class="field-label">Audit Name <em>*</em></span><input class="control" [(ngModel)]="d.name" placeholder="e.g. Q4 Asset Audit - Main Plant" /></label>
+              <label class="field"><span class="field-label">Audit Type <em>*</em></span>
+                <select class="control" [(ngModel)]="d.type"><option value="" disabled>Select audit type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select>
+              </label>
+              <label class="field"><span class="field-label">Audit Reference <span class="opt">(Optional)</span></span><input class="control" [(ngModel)]="d.reference" [placeholder]="suggestedReference" /></label>
+            </div>
+            <label class="field">
+              <span class="field-label">Description</span>
+              <span class="textarea-wrap">
+                <textarea class="control textarea" rows="3" [(ngModel)]="d.description" [maxlength]="descriptionMax" placeholder="What this audit covers and why"></textarea>
+                <small class="counter">{{ d.description.length }}/{{ descriptionMax }}</small>
+              </span>
+            </label>
+            <p *ngIf="error && errorAt === 'basic'" class="form-error" role="alert">{{ error }}</p>
+          </section>
+
+          <section id="na-scope" class="section section--split">
+            <div class="sec-head"><h3>Scope &amp; Assets</h3><p>Define the scope of this audit and select the assets.</p></div>
+            <div class="grid3">
+              <label class="field"><span class="field-label">Location / Site <em>*</em></span>
+                <select class="control" [(ngModel)]="d.location" (ngModelChange)="onScopeChange()"><option value="" disabled>Select location</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select>
+              </label>
+              <label class="field"><span class="field-label">Department <span class="opt">(Optional)</span></span>
+                <select class="control" [(ngModel)]="d.department" (ngModelChange)="onScopeChange()"><option value="">All Departments</option><option *ngFor="let x of departments" [value]="x">{{ x }}</option></select>
+              </label>
+              <label class="field"><span class="field-label">Asset Category <span class="opt">(Optional)</span></span>
+                <select class="control" [(ngModel)]="d.category" (ngModelChange)="onScopeChange()"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
+              </label>
+            </div>
+
+            <div class="field">
+              <span class="field-label">Asset Selection <em>*</em></span>
+              <div class="radios" role="radiogroup" aria-label="Asset selection">
+                <label *ngFor="let s of selections" class="radio"><input type="radio" name="selection" [value]="s.key" [(ngModel)]="d.selection" />{{ s.label }}</label>
+              </div>
+            </div>
+
+            <div *ngIf="d.selection === 'selected'" class="sel-extra">
+              <button type="button" class="btn btn-outline btn-sm" (click)="openPicker()"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>Pick Assets</button>
+              <span class="muted">{{ d.tags.length }} asset{{ d.tags.length === 1 ? '' : 's' }} picked</span>
+            </div>
+            <div *ngIf="d.selection === 'range'" class="sel-extra">
+              <label class="field"><span class="field-label">From Tag</span><input class="control" [(ngModel)]="d.rangeFrom" placeholder="e.g. GEN-00001" /></label>
+              <label class="field"><span class="field-label">To Tag</span><input class="control" [(ngModel)]="d.rangeTo" placeholder="e.g. GEN-00100" /></label>
+            </div>
+            <div *ngIf="d.selection === 'filter'" class="sel-extra">
+              <label class="field"><span class="field-label">Asset Status</span>
+                <select class="control" [(ngModel)]="d.filterStatus"><option value="">Any Status</option><option *ngFor="let s of assetStatuses" [value]="s">{{ s }}</option></select>
+              </label>
+              <label class="field"><span class="field-label">Name / Tag Contains</span><input class="control" [(ngModel)]="d.filterText" placeholder="e.g. Generator" /></label>
+            </div>
+
+            <div class="count-box">
+              <lucide-icon class="info-ic" [img]="icons.Info" [size]="22"></lucide-icon>
+              <div class="grow"><span class="muted">Assets to be audited</span><strong>{{ auditAssets.length }} assets</strong></div>
+              <button type="button" class="btn btn-white" [disabled]="!auditAssets.length" (click)="openPreview()"><lucide-icon [img]="icons.Eye" [size]="16"></lucide-icon>Preview Assets</button>
+            </div>
+            <p *ngIf="error && errorAt === 'scope'" class="form-error" role="alert">{{ error }}</p>
+          </section>
+        </ng-container>
+
+        <!-- ===== Step 2: assets & sensors ===== -->
+        <ng-container *ngIf="step === 1">
+          <section id="na-assets" class="section">
+            <div class="wz-head">
+              <span class="wz-ic"><lucide-icon [img]="icons.Package" [size]="22"></lucide-icon></span>
+              <div class="grow"><h2>2. Select Assets &amp; Sensors</h2><p>Choose the assets and their sensors/components to be included in this audit.</p></div>
+              <label class="btn btn-outline btn-sm file-btn">
+                <lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon>Import from Excel
+                <input type="file" accept=".xlsx,.xls,.csv" (change)="importFile($event)" />
+              </label>
+            </div>
+
+            <div class="tabs" role="tablist" aria-label="Asset view">
+              <button type="button" role="tab" [class.is-on]="assetTab === 'assets'" [attr.aria-selected]="assetTab === 'assets'" (click)="assetTab = 'assets'">Assets ({{ filteredAssets.length }})</button>
+              <button type="button" role="tab" [class.is-on]="assetTab === 'sensors'" [attr.aria-selected]="assetTab === 'sensors'" (click)="assetTab = 'sensors'">Sensors ({{ sensorRows.length }})</button>
+              <button type="button" role="tab" [class.is-on]="assetTab === 'hierarchy'" [attr.aria-selected]="assetTab === 'hierarchy'" (click)="assetTab = 'hierarchy'">Hierarchy View</button>
+            </div>
+
+            <div class="filters">
+              <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="assetSearch" (ngModelChange)="onAssetFilter()" placeholder="Search assets by name, tag, serial number..." aria-label="Search assets" /></label>
+              <label class="field"><span class="field-label">Location</span>
+                <select class="control" [(ngModel)]="assetLocation" (ngModelChange)="onAssetFilter()"><option value="">All Locations</option><option *ngFor="let l of assetLocations" [value]="l">{{ l }}</option></select>
+              </label>
+              <label class="field"><span class="field-label">Category</span>
+                <select class="control" [(ngModel)]="assetCategory" (ngModelChange)="onAssetFilter()"><option value="">All Categories</option><option *ngFor="let c of assetCategories" [value]="c">{{ c }}</option></select>
+              </label>
+              <label class="field"><span class="field-label">Status</span>
+                <select class="control" [(ngModel)]="assetStatus" (ngModelChange)="onAssetFilter()"><option value="">All Status</option><option *ngFor="let s of assetStatuses" [value]="s">{{ s }}</option></select>
+              </label>
+              <button type="button" class="btn btn-outline btn-sm filter-btn" [class.is-on]="moreFilters" (click)="moreFilters = !moreFilters" [attr.aria-expanded]="moreFilters"><lucide-icon [img]="icons.Funnel" [size]="15"></lucide-icon>More Filters</button>
+              <div *ngIf="moreFilters" class="more">
+                <label class="field"><span class="field-label">Department</span>
+                  <select class="control" [(ngModel)]="assetDepartment" (ngModelChange)="onAssetFilter()"><option value="">All Departments</option><option *ngFor="let x of departments" [value]="x">{{ x }}</option></select>
+                </label>
+                <button type="button" class="link-btn" (click)="resetAssetFilters()">Reset filters</button>
+              </div>
+            </div>
+
+            <!-- Assets tab -->
+            <div *ngIf="assetTab === 'assets'" class="sa-wrap">
+              <table class="na-table sa-table">
+                <thead>
+                  <tr>
+                    <th class="ck"><input type="checkbox" [checked]="allPicked(pageRows)" [indeterminate]="somePicked(pageRows)" (change)="setAll(pageRows, $any($event.target).checked)" aria-label="Select all on this page" /></th>
+                    <th>#</th>
+                    <th>Asset Name</th>
+                    <th>Asset Tag</th>
+                    <th>Category</th>
+                    <th>Location</th>
+                    <th class="center">Status</th>
+                    <th>Sensors</th>
+                    <th class="center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <ng-container *ngFor="let a of pageRows; let i = index">
+                    <tr [class.is-picked]="isPicked(a)">
+                      <td class="ck"><input type="checkbox" [checked]="isPicked(a)" (change)="toggleAsset(a)" [attr.aria-label]="'Select ' + a.tag" /></td>
+                      <td>{{ rowNo(i) }}</td>
+                      <td>
+                        <span class="asset">
+                          <span class="thumb" [ngClass]="'thumb--' + a.kind"><lucide-icon [img]="kindIcons[a.kind]" [size]="18"></lucide-icon></span>
+                          <button type="button" class="name-link" (click)="openDetail(a)">{{ a.name }}</button>
+                        </span>
+                      </td>
+                      <td class="nowrap">{{ a.tag }}</td>
+                      <td>{{ a.category }}</td>
+                      <td class="nowrap">{{ a.location }}</td>
+                      <td class="center"><span class="status" [class.status--warn]="a.status === 'Under Maintenance'" [class.status--idle]="a.status === 'Idle'">{{ a.status }}</span></td>
+                      <td>
+                        <button type="button" class="sensor-btn" [disabled]="!a.sensors.length" (click)="toggleExpand(a)" [attr.aria-expanded]="expanded.has(a.tag)" [attr.aria-label]="'Show sensors of ' + a.tag">
+                          {{ a.sensors.length }}<lucide-icon *ngIf="a.sensors.length" [img]="expanded.has(a.tag) ? icons.ChevronDown : icons.ChevronRight" [size]="15"></lucide-icon>
+                        </button>
+                      </td>
+                      <td class="center"><button type="button" class="kebab" (click)="openRowMenu(a, $event)" aria-haspopup="menu" [attr.aria-expanded]="rowMenu?.asset === a" [attr.aria-label]="'Actions for ' + a.tag"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button></td>
+                    </tr>
+                    <tr *ngIf="expanded.has(a.tag)" class="sub-row">
+                      <td></td>
+                      <td colspan="8">
+                        <div class="sensor-grid">
+                          <label *ngFor="let s of a.sensors" class="check"><input type="checkbox" [checked]="isSensorPicked(a, s)" (change)="toggleSensor(a, s)" />{{ s.name }}<small class="muted">{{ s.id }} · {{ s.type }}</small></label>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-container>
+                  <tr *ngIf="!pageRows.length"><td colspan="9" class="empty">No assets match the filters.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Sensors tab -->
+            <div *ngIf="assetTab === 'sensors'" class="sa-wrap">
+              <table class="na-table sa-table">
+                <thead>
+                  <tr><th class="ck"></th><th>#</th><th>Sensor / Component</th><th>Sensor ID</th><th>Type</th><th>Asset</th><th>Asset Tag</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let r of sensorPageRows; let i = index" [class.is-picked]="isSensorPicked(r.asset, r.sensor)">
+                    <td class="ck"><input type="checkbox" [checked]="isSensorPicked(r.asset, r.sensor)" (change)="toggleSensor(r.asset, r.sensor)" [attr.aria-label]="'Select ' + r.sensor.id" /></td>
+                    <td>{{ rowNo(i) }}</td>
+                    <td><span class="asset"><lucide-icon class="sensor-ic" [img]="icons.Cpu" [size]="16"></lucide-icon>{{ r.sensor.name }}</span></td>
+                    <td class="nowrap">{{ r.sensor.id }}</td>
+                    <td>{{ r.sensor.type }}</td>
+                    <td><button type="button" class="name-link" (click)="openDetail(r.asset)">{{ r.asset.name }}</button></td>
+                    <td class="nowrap">{{ r.asset.tag }}</td>
+                  </tr>
+                  <tr *ngIf="!sensorPageRows.length"><td colspan="7" class="empty">No sensors for the assets shown.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Hierarchy tab -->
+            <div *ngIf="assetTab === 'hierarchy'" class="tree">
+              <div *ngFor="let g of hierarchy" class="tree-group">
+                <div class="tree-node tree-node--loc">
+                  <button type="button" class="tree-toggle" (click)="toggleNode(g.location)" [attr.aria-expanded]="!collapsed.has(g.location)"><lucide-icon [img]="collapsed.has(g.location) ? icons.ChevronRight : icons.ChevronDown" [size]="16"></lucide-icon></button>
+                  <input type="checkbox" [checked]="allPicked(groupAssets(g))" [indeterminate]="somePicked(groupAssets(g))" (change)="setAll(groupAssets(g), $any($event.target).checked)" [attr.aria-label]="'Select all in ' + g.location" />
+                  <strong>{{ g.location }}</strong><span class="muted">{{ pickedCount(groupAssets(g)) }} / {{ groupAssets(g).length }} selected</span>
+                </div>
+                <ng-container *ngIf="!collapsed.has(g.location)">
+                  <div *ngFor="let c of g.categories" class="tree-cat">
+                    <div class="tree-node">
+                      <button type="button" class="tree-toggle" (click)="toggleNode(g.location + '|' + c.category)" [attr.aria-expanded]="!collapsed.has(g.location + '|' + c.category)"><lucide-icon [img]="collapsed.has(g.location + '|' + c.category) ? icons.ChevronRight : icons.ChevronDown" [size]="16"></lucide-icon></button>
+                      <input type="checkbox" [checked]="allPicked(c.assets)" [indeterminate]="somePicked(c.assets)" (change)="setAll(c.assets, $any($event.target).checked)" [attr.aria-label]="'Select all ' + c.category" />
+                      <span class="tree-label">{{ c.category }}</span><span class="muted">{{ pickedCount(c.assets) }} / {{ c.assets.length }}</span>
+                    </div>
+                    <div *ngIf="!collapsed.has(g.location + '|' + c.category)" class="tree-leaves">
+                      <label *ngFor="let a of c.assets" class="tree-leaf">
+                        <input type="checkbox" [checked]="isPicked(a)" (change)="toggleAsset(a)" />
+                        <span class="thumb thumb--sm" [ngClass]="'thumb--' + a.kind"><lucide-icon [img]="kindIcons[a.kind]" [size]="14"></lucide-icon></span>
+                        <span>{{ a.name }}</span><span class="muted">{{ a.tag }} · {{ a.sensors.length }} sensors</span>
+                      </label>
+                    </div>
+                  </div>
+                </ng-container>
+              </div>
+              <p *ngIf="!hierarchy.length" class="empty">No assets match the filters.</p>
+            </div>
+
+            <div *ngIf="assetTab !== 'hierarchy'" class="pager">
+              <span>Show</span>
+              <select class="control pager-size" [(ngModel)]="pageSize" (ngModelChange)="onAssetFilter()" aria-label="Records per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select>
+              <span>records per page</span>
+              <span class="grow"></span>
+              <span class="showing">{{ showingLabel }}</span>
+              <button type="button" class="pg-btn" [disabled]="current === 0" (click)="setPage(current - 1)" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+              <button *ngFor="let p of pages" type="button" class="pg-btn" [class.is-on]="p === current" (click)="setPage(p)" [attr.aria-current]="p === current ? 'page' : null">{{ p + 1 }}</button>
+              <button type="button" class="pg-btn" [disabled]="current >= pageCount - 1" (click)="setPage(current + 1)" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+            </div>
+          </section>
+
+          <!-- Selected assets -->
+          <section class="section section--split">
+            <div class="sec-head sec-head--row">
+              <div class="grow"><h3>Selected Assets ({{ pickedAssets.length }})</h3><p>Review the selected assets and their sensors/components.</p></div>
+              <button type="button" class="btn btn-danger btn-sm" [disabled]="!pickedAssets.length" (click)="removeAll()"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Remove All</button>
+            </div>
+            <div class="sa-wrap selected-wrap">
+              <table class="na-table sa-table sa-table--plain">
+                <thead><tr><th>#</th><th>Asset Name</th><th>Asset Tag</th><th>Category</th><th>Sensors / Components</th><th></th><th class="center">Actions</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let a of pickedAssets; let i = index">
+                    <td>{{ i + 1 }}</td>
+                    <td>{{ a.name }}</td>
+                    <td class="nowrap">{{ a.tag }}</td>
+                    <td>{{ a.category }}</td>
+                    <td>{{ pickedSensors(a).length }} selected<span *ngIf="pickedSensors(a).length !== a.sensors.length" class="muted"> of {{ a.sensors.length }}</span></td>
+                    <td><button type="button" class="link-btn" (click)="openDetail(a)">View Details</button></td>
+                    <td class="center"><button type="button" class="kebab kebab--danger" (click)="setPicked(a, false)" [attr.aria-label]="'Remove ' + a.tag"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button></td>
+                  </tr>
+                  <tr *ngIf="!pickedAssets.length"><td colspan="7" class="empty">No assets selected yet. Tick assets in the list above.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p *ngIf="error && errorAt === 'assets'" class="form-error" role="alert">{{ error }}</p>
+          </section>
+        </ng-container>
+
+        <!-- ===== Quick criteria on step 1, as in the design ===== -->
+        <section *ngIf="step === 0" id="na-criteria" class="section section--split">
+          <div class="sec-head"><h3>Audit Criteria</h3><p>Define what to verify during the audit.</p></div>
+          <div class="checks">
+            <label *ngFor="let c of criteriaOptions" class="check"><input type="checkbox" [checked]="d.criteria.includes(c)" (change)="toggle(d.criteria, c)" />{{ c }}</label>
+            <label class="check"><input type="checkbox" [(ngModel)]="d.otherChecked" />Other (specify)</label>
+            <input class="control" [(ngModel)]="d.otherText" [disabled]="!d.otherChecked" placeholder="Enter details" aria-label="Other criteria details" />
+          </div>
+          <p *ngIf="error && errorAt === 'criteria'" class="form-error" role="alert">{{ error }}</p>
+        </section>
+
+        <!-- ===== Step 3: criteria library ===== -->
+        <ng-container *ngIf="step === 2">
+          <section id="na-library" class="section">
+            <div class="wz-head">
+              <span class="wz-ic"><lucide-icon [img]="icons.ListChecks" [size]="22"></lucide-icon></span>
+              <div class="grow"><h2>3. Audit Criteria</h2><p>Define what to check for the selected assets. You can use templates or create custom criteria.</p></div>
+              <span class="menu-wrap">
+                <button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('template', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'template'">
+                  <lucide-icon [img]="icons.FileText" [size]="16"></lucide-icon>Load from Template<lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon>
+                </button>
+                <span *ngIf="menuOpen === 'template'" class="menu menu--drop" role="menu" (click)="$event.stopPropagation()">
+                  <button *ngFor="let t of templates" type="button" role="menuitem" (click)="loadTemplate(t)">{{ t.name }}<small>{{ t.ids.length }} criteria</small></button>
+                </span>
+              </span>
+              <button type="button" class="btn btn-primary btn-sm" (click)="openAddCriterion()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Add Criteria</button>
+            </div>
+
+            <div class="tabs tabs--wrap" role="tablist" aria-label="Criteria type">
+              <button *ngFor="let t of criterionTypes" type="button" role="tab" [class.is-on]="criteriaTab === t" [attr.aria-selected]="criteriaTab === t" (click)="setCriteriaTab(t)">{{ t }} ({{ criteriaCount(t) }})</button>
+            </div>
+
+            <div class="filters">
+              <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="criteriaSearch" (ngModelChange)="onCriteriaFilter()" placeholder="Search criteria by name or description..." aria-label="Search criteria" /></label>
+              <label class="field"><span class="field-label">Category</span>
+                <select class="control" [(ngModel)]="criteriaCategory" (ngModelChange)="onCriteriaFilter()"><option value="">All Categories</option><option *ngFor="let c of criterionCategories" [value]="c">{{ c }}</option></select>
+              </label>
+              <label class="field"><span class="field-label">Applies To</span>
+                <select class="control" [(ngModel)]="criteriaApplies" (ngModelChange)="onCriteriaFilter()"><option value="">All Assets</option><option *ngFor="let a of appliesOptions" [value]="a">{{ a }} only</option></select>
+              </label>
+              <label class="field"><span class="field-label">Mandatory</span>
+                <select class="control" [(ngModel)]="criteriaMandatory" (ngModelChange)="onCriteriaFilter()"><option value="">All Criteria</option><option value="yes">Mandatory</option><option value="no">Optional</option></select>
+              </label>
+              <button type="button" class="btn btn-outline btn-sm filter-btn" [class.is-on]="criteriaMoreFilters" (click)="criteriaMoreFilters = !criteriaMoreFilters" [attr.aria-expanded]="criteriaMoreFilters"><lucide-icon [img]="icons.Funnel" [size]="15"></lucide-icon>More Filters</button>
+              <div *ngIf="criteriaMoreFilters" class="more">
+                <label class="field"><span class="field-label">Check Method</span>
+                  <select class="control" [(ngModel)]="criteriaMethod" (ngModelChange)="onCriteriaFilter()"><option value="">All Methods</option><option *ngFor="let m of checkMethods" [value]="m">{{ m }}</option></select>
+                </label>
+                <button type="button" class="link-btn" (click)="resetCriteriaFilters()">Reset filters</button>
+              </div>
+            </div>
+
+            <div class="sa-wrap">
+              <table class="na-table sa-table">
+                <thead>
+                  <tr>
+                    <th class="ck"><input type="checkbox" [checked]="allIncluded(criteriaRows)" [indeterminate]="someIncluded(criteriaRows)" (change)="setAllIncluded(criteriaRows, $any($event.target).checked)" aria-label="Include all on this page" /></th>
+                    <th>#</th>
+                    <th>Criteria Name</th>
+                    <th>Category</th>
+                    <th>Type</th>
+                    <th>Check Method</th>
+                    <th>Applies To</th>
+                    <th class="center">Mandatory</th>
+                    <th class="center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let c of criteriaRows; let i = index" [class.is-picked]="isIncluded(c)">
+                    <td class="ck"><input type="checkbox" [checked]="isIncluded(c)" (change)="setIncluded(c, $any($event.target).checked)" [attr.aria-label]="'Include ' + c.name" /></td>
+                    <td>{{ criteriaPage * criteriaPageSize + i + 1 }}</td>
+                    <td><button type="button" class="name-link" (click)="openEditCriterion(c)" [title]="c.description">{{ c.name }}</button></td>
+                    <td>{{ c.category }}</td>
+                    <td class="nowrap">{{ c.type }}</td>
+                    <td class="nowrap">{{ c.method }}</td>
+                    <td class="nowrap">{{ c.appliesTo }}</td>
+                    <td class="center"><button type="button" class="yn" [class.yn--yes]="c.mandatory" (click)="toggleMandatory(c)" [attr.aria-label]="c.name + ': mandatory ' + (c.mandatory ? 'yes' : 'no') + '. Click to change'">{{ c.mandatory ? 'Yes' : 'No' }}</button></td>
+                    <td class="center"><button type="button" class="kebab" (click)="openCriterionMenu(c, $event)" aria-haspopup="menu" [attr.aria-expanded]="criterionMenu?.item === c" [attr.aria-label]="'Actions for ' + c.name"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button></td>
+                  </tr>
+                  <tr *ngIf="!criteriaRows.length">
+                    <td colspan="9" class="empty">{{ criteriaCount(criteriaTab) ? 'No criteria match the filters.' : 'No ' + criteriaTab.toLowerCase() + ' criteria yet.' }} <button type="button" class="link-btn" (click)="openAddCriterion()">Add criteria</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="pager">
+              <span>Show</span>
+              <select class="control pager-size" [(ngModel)]="criteriaPageSize" (ngModelChange)="onCriteriaFilter()" aria-label="Records per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select>
+              <span>records per page</span>
+              <span class="grow"></span>
+              <span class="showing">{{ criteriaShowing }}</span>
+              <button type="button" class="pg-btn" [disabled]="criteriaPage === 0" (click)="criteriaPage = criteriaPage - 1" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+              <button *ngFor="let p of criteriaPages" type="button" class="pg-btn" [class.is-on]="p === criteriaPage" (click)="criteriaPage = p" [attr.aria-current]="p === criteriaPage ? 'page' : null">{{ p + 1 }}</button>
+              <button type="button" class="pg-btn" [disabled]="criteriaPage >= criteriaPageCount - 1" (click)="criteriaPage = criteriaPage + 1" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+            </div>
+            <p *ngIf="error && errorAt === 'library'" class="form-error" role="alert">{{ error }}</p>
+          </section>
+
+          <section class="section section--split">
+            <div class="sec-head"><h3>Criteria Settings</h3><p>Additional settings for audit criteria.</p></div>
+            <div class="settings">
+              <label *ngFor="let s of settingRows" class="setting">
+                <lucide-icon class="setting-ic" [img]="s.icon" [size]="20"></lucide-icon>
+                <span class="grow"><strong>{{ s.label }}</strong><small>{{ s.hint }}</small></span>
+                <input type="checkbox" role="switch" class="switch" [(ngModel)]="criteria.settings[s.key]" [attr.aria-label]="s.label" />
+              </label>
+            </div>
+          </section>
+        </ng-container>
+
+        <!-- ===== Step 4: team, schedule, plan and notifications ===== -->
+        <ng-container *ngIf="step === 3">
+          <section id="na-assign" class="section">
+            <div class="wz-head">
+              <span class="wz-ic"><lucide-icon [img]="icons.CalendarDays" [size]="22"></lucide-icon></span>
+              <div class="grow"><h2>4. Assign Audit Team</h2><p>Assign auditors and define their responsibilities for this audit.</p></div>
+              <button type="button" class="btn btn-outline btn-sm" (click)="openAddMember()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Add Team Member</button>
+            </div>
+
+            <div class="filters">
+              <label class="search team-search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="teamSearch" placeholder="Search users by name, role, or department..." aria-label="Search team" /></label>
+              <span class="grow"></span>
+              <button *ngIf="checkedMembers.size" type="button" class="btn btn-danger btn-sm" (click)="removeCheckedMembers()"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Remove selected ({{ checkedMembers.size }})</button>
+            </div>
+
+            <div class="sa-wrap">
+              <table class="na-table sa-table">
+                <thead>
+                  <tr>
+                    <th class="ck"><input type="checkbox" [checked]="allMembersChecked()" (change)="toggleAllMembers($any($event.target).checked)" aria-label="Select all team members" /></th>
+                    <th>#</th>
+                    <th>Team Member</th>
+                    <th>Role</th>
+                    <th>Department</th>
+                    <th>Assigned Assets</th>
+                    <th class="center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let m of filteredTeam; let i = index">
+                    <td class="ck"><input type="checkbox" [checked]="checkedMembers.has(m.user.name)" (change)="toggleMember(m.user.name)" [attr.aria-label]="'Select ' + m.user.name" /></td>
+                    <td>{{ i + 1 }}</td>
+                    <td>
+                      <span class="who">
+                        <span class="avatar" [style.background]="'hsl(' + avatarHue(m.user.name) + ' 50% 42%)'">{{ initials(m.user.name) }}</span>
+                        <span><strong>{{ m.user.name }}</strong><small>{{ m.user.email }}</small></span>
+                      </span>
+                    </td>
+                    <td><select class="control role-select" [ngModel]="m.role" (ngModelChange)="setRole(m, $event)" [attr.aria-label]="'Role of ' + m.user.name"><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select></td>
+                    <td>{{ m.user.department }}</td>
+                    <td class="nowrap">{{ m.role === 'Observer' ? '-' : assignedCount(m.user.name) + ' assets' }}</td>
+                    <td class="center"><button type="button" class="kebab" (click)="openMemberMenu(m, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + m.user.name"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button></td>
+                  </tr>
+                  <tr *ngIf="!filteredTeam.length">
+                    <td colspan="7" class="empty">{{ schedule.team.length ? 'No team members match the search.' : 'No team members yet.' }} <button *ngIf="!schedule.team.length" type="button" class="link-btn" (click)="openAddMember()">Add team member</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="section section--split">
+            <div class="sec-head"><h3>Schedule Audit</h3><p>Define the audit schedule and timeline.</p></div>
+            <div class="sched-grid">
+              <label class="field"><span class="field-label">Start Date <em>*</em></span><input class="control" type="date" [(ngModel)]="schedule.start" (ngModelChange)="showStartMonth()" /></label>
+              <label class="field"><span class="field-label">End Date <em>*</em></span><input class="control" type="date" [(ngModel)]="schedule.end" [min]="schedule.start" /></label>
+              <label class="field"><span class="field-label">Working Days</span>
+                <select class="control" [(ngModel)]="schedule.workingDays"><option *ngFor="let w of workingDayOptions" [value]="w">{{ w }}</option></select>
+              </label>
+              <label class="field"><span class="field-label">Daily Start Time</span><input class="control" type="time" [(ngModel)]="schedule.startTime" /></label>
+              <label class="field"><span class="field-label">Daily End Time</span><input class="control" type="time" [(ngModel)]="schedule.endTime" /></label>
+            </div>
+            <div class="field">
+              <span class="field-label">Location Sequence</span>
+              <div class="seq" role="radiogroup" aria-label="Location sequence">
+                <label *ngFor="let s of sequences" class="seq-opt">
+                  <input type="radio" name="sequence" [value]="s.key" [(ngModel)]="schedule.sequence" />
+                  <span><strong>{{ s.label }}</strong><small>{{ s.hint }}</small></span>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--split">
+            <div class="sec-head sec-head--row">
+              <div class="grow"><h3>Audit Plan</h3><p>Auto-generated plan based on selected assets and team assignments.</p></div>
+              <button type="button" class="btn btn-outline btn-sm" (click)="regenerate()"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Regenerate Plan</button>
+            </div>
+
+            <p *ngIf="planStale && schedule.plan.length" class="warn" role="status"><lucide-icon [img]="icons.TriangleAlert" [size]="16"></lucide-icon>Assets, dates or sequence changed since this plan was made. Regenerate the plan to update it.</p>
+
+            <div *ngIf="checkedPlanRows.size" class="bulk">
+              <span>{{ checkedPlanRows.size }} selected · Assign to</span>
+              <select class="control bulk-select" [(ngModel)]="bulkAssignee" aria-label="Assign selected days to"><option value="" disabled>Choose auditor</option><option *ngFor="let a of auditorNames" [value]="a">{{ a }}</option></select>
+              <button type="button" class="btn btn-primary btn-sm" [disabled]="!bulkAssignee" (click)="assignChecked()">Apply</button>
+              <button type="button" class="link-btn" (click)="checkedPlanRows.clear()">Clear</button>
+            </div>
+
+            <div class="sa-wrap plan-wrap">
+              <table class="na-table sa-table sa-table--plain">
+                <thead>
+                  <tr>
+                    <th class="ck"><input type="checkbox" [checked]="allPlanChecked()" (change)="toggleAllPlan($any($event.target).checked)" aria-label="Select all plan days" /></th>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>{{ schedule.sequence === 'category' ? 'Asset Category' : 'Location / Site' }}</th>
+                    <th>Assets Count</th>
+                    <th>Assigned To</th>
+                    <th class="center">Status</th>
+                    <th class="center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let r of schedule.plan; let i = index">
+                    <td class="ck"><input type="checkbox" [checked]="checkedPlanRows.has(r.id)" (change)="togglePlanRow(r.id)" [attr.aria-label]="'Select ' + r.date" /></td>
+                    <td>{{ i + 1 }}</td>
+                    <td class="nowrap">{{ r.date | date: 'dd MMM yyyy' }}</td>
+                    <td>{{ r.group }}</td>
+                    <td>{{ r.tags.length }}</td>
+                    <td>
+                      <span *ngIf="r.assignee; else nobody" class="who who--sm">
+                        <span class="avatar avatar--sm" [style.background]="'hsl(' + avatarHue(r.assignee) + ' 50% 42%)'">{{ initials(r.assignee) }}</span>{{ r.assignee }}
+                      </span>
+                      <ng-template #nobody><button type="button" class="link-btn link-btn--warn" (click)="openRowEdit(r)">Not assigned</button></ng-template>
+                    </td>
+                    <td class="center"><span class="status status--sched">{{ r.status }}</span></td>
+                    <td class="center"><button type="button" class="kebab" (click)="openPlanMenu(r, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + r.date"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button></td>
+                  </tr>
+                  <tr *ngIf="!schedule.plan.length"><td colspan="8" class="empty">No plan yet. Set the dates above and press Regenerate Plan.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p *ngIf="schedule.plan.length" class="muted">{{ schedule.plan.length }} audit days · {{ workDayCount }} working days · {{ finalAssets.length }} assets</p>
+          </section>
+
+          <section class="section section--split">
+            <div class="sec-head"><h3>Notifications</h3><p>Configure notifications for audit activities.</p></div>
+            <div class="notify">
+              <label class="check"><input type="checkbox" [(ngModel)]="schedule.notifications.onAssignment" />Notify team members upon assignment</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="schedule.notifications.reminder" />Send schedule reminder (1 day before)</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="schedule.notifications.onCompletion" />Notify on audit completion</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="schedule.notifications.onChange" />Notify if schedule changes</label>
+            </div>
+            <p *ngIf="error && errorAt === 'assign'" class="form-error" role="alert">{{ error }}</p>
+          </section>
+        </ng-container>
+
+        <!-- ===== Step 5: review & submit ===== -->
+        <ng-container *ngIf="step === 4">
+          <div class="review-grid">
+            <section class="review">
+              <div class="review-head"><h3 class="grow">1. Basic Information</h3><button type="button" class="link-btn" (click)="goStep(0, false)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></div>
+              <dl class="kv kv--review">
+                <dt>Audit Name</dt><dd>{{ d.name || '-' }}</dd>
+                <dt>Audit Reference</dt><dd>{{ d.reference.trim().toUpperCase() || suggestedReference }}</dd>
+                <dt>Audit Type</dt><dd>{{ d.type || '-' }}</dd>
+                <dt>Description</dt><dd>{{ d.description || '-' }}</dd>
+              </dl>
+            </section>
+
+            <section class="review">
+              <div class="review-head"><h3 class="grow">2. Scope &amp; Assets</h3><button type="button" class="link-btn" (click)="goStep(1, false)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></div>
+              <dl class="kv kv--review">
+                <dt>Location / Site</dt><dd>{{ d.location || 'All Locations' }}</dd>
+                <dt>Department</dt><dd>{{ d.department || 'All Departments' }}</dd>
+                <dt>Asset Category</dt><dd>{{ d.category || 'All Categories' }}</dd>
+                <dt>Total Assets in Scope</dt><dd>{{ scopeAssets.length }}</dd>
+                <dt>Selected Assets</dt><dd class="dd-row">{{ finalAssets.length }}<button type="button" class="link-btn link-btn--line" (click)="openPreview()">View Selected Assets</button></dd>
+                <dt>Selection Method</dt><dd>{{ selectionLabel }}</dd>
+              </dl>
+            </section>
+
+            <section class="review">
+              <div class="review-head"><h3 class="grow">3. Audit Criteria</h3><button type="button" class="link-btn" (click)="goStep(2, false)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></div>
+              <div class="sa-wrap review-table">
+                <table class="na-table sa-table sa-table--plain">
+                  <thead><tr><th>#</th><th>Criteria Name</th><th>Category</th><th>Type</th><th class="center">Mandatory</th></tr></thead>
+                  <tbody>
+                    <tr *ngFor="let c of includedCriteria; let i = index">
+                      <td>{{ i + 1 }}</td>
+                      <td>{{ c.name }}</td>
+                      <td>{{ c.category }}</td>
+                      <td class="nowrap">{{ c.type }}</td>
+                      <td class="center"><span class="yn-badge" [class.yn-badge--no]="!c.mandatory">{{ c.mandatory ? 'Yes' : 'No' }}</span></td>
+                    </tr>
+                    <tr *ngIf="!includedCriteria.length"><td colspan="5" class="empty">No criteria included yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="review">
+              <div class="review-head"><h3 class="grow">4. Assign &amp; Schedule</h3><button type="button" class="link-btn" (click)="goStep(3, false)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></div>
+              <dl class="kv kv--review">
+                <dt>Audit Team</dt><dd class="dd-row">{{ schedule.team.length }} member{{ schedule.team.length === 1 ? '' : 's' }}<button type="button" class="link-btn" (click)="goStep(3, false)">View Team</button></dd>
+                <dt>Team Members</dt>
+                <dd>
+                  <ul class="team-list">
+                    <li *ngFor="let m of schedule.team">
+                      <span class="avatar" [style.background]="'hsl(' + avatarHue(m.user.name) + ' 50% 42%)'">{{ initials(m.user.name) }}</span>
+                      <span><strong>{{ m.user.name }}</strong><small>{{ m.role }}</small></span>
+                    </li>
+                  </ul>
+                  <span *ngIf="!schedule.team.length">-</span>
+                </dd>
+                <dt>Start Date</dt><dd>{{ schedule.start ? (schedule.start | date: 'dd MMM yyyy') : '-' }}</dd>
+                <dt>End Date</dt><dd>{{ schedule.end ? (schedule.end | date: 'dd MMM yyyy') : '-' }}</dd>
+                <dt>Working Days</dt><dd>{{ schedule.workingDays }}</dd>
+                <dt>Daily Time</dt><dd>{{ schedule.startTime || '-' }} - {{ schedule.endTime || '-' }}</dd>
+                <dt>Schedule Sequence</dt><dd>{{ sequenceLabel }}</dd>
+                <dt>Auto Plan</dt><dd>{{ schedule.plan.length ? (schedule.sequence === 'custom' ? 'Arranged by hand' : 'Enabled (auto-generated plan)') + ' · ' + schedule.plan.length + ' audit days' : 'Not generated' }}</dd>
+              </dl>
+            </section>
+          </div>
+
+          <div class="review-grid review-grid--files">
+            <section class="review">
+              <div class="review-head">
+                <h3 class="grow">5. Attachments</h3>
+                <label class="link-btn file-link"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>Add Files<input type="file" multiple (change)="addAttachments($event)" /></label>
+              </div>
+              <div class="sa-wrap review-table">
+                <table class="na-table sa-table sa-table--plain">
+                  <thead><tr><th>#</th><th>File Name</th><th>Type</th><th>Size</th><th>Uploaded By</th><th>Date</th><th></th></tr></thead>
+                  <tbody>
+                    <tr *ngFor="let a of attachments; let i = index">
+                      <td>{{ i + 1 }}</td>
+                      <td><span class="file-name"><lucide-icon [img]="a.type === 'Image' ? icons.FileImage : icons.FileText" [size]="16"></lucide-icon>{{ a.name }}</span></td>
+                      <td>{{ a.type }}</td>
+                      <td class="nowrap">{{ fileSize(a.size) }}</td>
+                      <td class="nowrap">{{ a.uploadedBy }}</td>
+                      <td class="nowrap">{{ a.date | date: 'dd MMM yyyy' }}</td>
+                      <td class="center"><button type="button" class="kebab kebab--danger" (click)="removeAttachment(a)" [attr.aria-label]="'Remove ' + a.name"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon></button></td>
+                    </tr>
+                    <tr *ngIf="!attachments.length"><td colspan="7" class="empty">No files attached. Use Add Files to attach checklists, floor plans or guidelines.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="review">
+              <div class="review-head">
+                <h3 class="grow">6. Notes &amp; Instructions</h3>
+                <button type="button" class="link-btn" (click)="editingNotes = !editingNotes"><lucide-icon [img]="editingNotes ? icons.Check : icons.Pencil" [size]="14"></lucide-icon>{{ editingNotes ? 'Done' : 'Edit' }}</button>
+              </div>
+              <textarea *ngIf="editingNotes; else notesView" class="control textarea notes-box" rows="5" [(ngModel)]="d.notes" placeholder="Instructions for the audit team, e.g. access, safety or photo requirements" aria-label="Notes and instructions"></textarea>
+              <ng-template #notesView><p class="notes-box notes-box--view">{{ d.notes || 'No notes yet. Press Edit to add instructions for the audit team.' }}</p></ng-template>
+            </section>
+          </div>
+        </ng-container>
+      </div>
+
+      <!-- ===== Footer ===== -->
+      <div class="wz-foot">
+        <button type="button" class="btn btn-outline" (click)="step === 0 ? cancel() : back()">
+          <lucide-icon *ngIf="step > 0" [img]="icons.ArrowLeft" [size]="17"></lucide-icon>{{ step === 0 ? 'Cancel' : 'Back' }}
+        </button>
+        <span class="foot-actions">
+          <button type="button" class="btn btn-outline" (click)="saveDraft()"><lucide-icon [img]="icons.Save" [size]="16"></lucide-icon>Save as Draft</button>
+          <button type="button" class="btn btn-primary" (click)="next()">
+            {{ step === steps.length - 1 ? 'Submit Audit' : 'Next' }}<lucide-icon [img]="step === steps.length - 1 ? icons.Check : icons.ArrowRight" [size]="17"></lucide-icon>
+          </button>
+ 
+        </span>
+      </div>
+    </div>
+
+    <!-- ===== Side panel ===== -->
+    <aside class="wz-side">
+      <section class="card panel">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.Package" [size]="20"></lucide-icon><h3>Asset Summary</h3></div>
+        <div class="sum-asset">
+          <span class="asset-img"><lucide-icon [img]="featured.category === 'Power Generation' ? icons.Zap : icons.Package" [size]="40"></lucide-icon></span>
+          <div>
+            <span class="pill" [class.pill--warn]="featured.status !== 'In Service'">{{ featured.status }}</span>
+            <strong>{{ featured.tag }}</strong>
+            <small>{{ featured.name }}</small>
+          </div>
+        </div>
+        <dl class="kv kv--side">
+          <dt>Category</dt><dd>{{ featured.category }}</dd>
+          <dt>Location</dt><dd>{{ featured.location }}</dd>
+          <dt>Department</dt><dd>{{ featured.department }}</dd>
+        </dl>
+      </section>
+
+      <section class="card panel">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.CalendarDays" [size]="20"></lucide-icon><h3>Audit Summary</h3></div>
+        <dl class="kv kv--side">
+          <dt>Audit Name</dt><dd>{{ d.name || '-' }}</dd>
+          <dt>Audit Type</dt><dd>{{ d.type || '-' }}</dd>
+          <dt>Location</dt><dd>{{ d.location || '-' }}</dd>
+          <dt>Department</dt><dd>{{ d.department || 'All Departments' }}</dd>
+          <dt>Asset Category</dt><dd>{{ d.category || 'All Categories' }}</dd>
+          <dt>Total Assets</dt><dd>{{ step === 0 ? auditAssets.length : scopeAssets.length }}</dd>
+          <ng-container *ngIf="step > 0"><dt>Selected Assets</dt><dd>{{ finalAssets.length }}</dd></ng-container>
+          <dt>Scheduled Date</dt><dd>{{ step >= 3 && schedule.start ? (schedule.start | date: 'dd MMM yyyy') + ' - ' + (schedule.end | date: 'dd MMM yyyy') : '-' }}</dd>
+          <dt>Status</dt><dd><span class="pill pill--draft">Draft</span></dd>
+        </dl>
+      </section>
+
+      <section *ngIf="step === 1" class="card panel">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.CircleCheck" [size]="20"></lucide-icon><h3>Progress</h3></div>
+        <div class="progress">
+          <svg viewBox="0 0 120 120" class="donut" role="img" [attr.aria-label]="finalAssets.length + ' of ' + scopeAssets.length + ' assets selected'">
+            <circle cx="60" cy="60" r="50" class="donut-track" />
+            <circle cx="60" cy="60" r="50" class="donut-bar" [attr.stroke-dasharray]="(progress / 100) * 314.16 + ' 314.16'" />
+            <text x="60" y="58" text-anchor="middle" class="donut-num">{{ finalAssets.length }}</text>
+            <text x="60" y="78" text-anchor="middle" class="donut-of">/ {{ scopeAssets.length }}</text>
+          </svg>
+          <div><span class="muted">Assets Selected</span><strong class="pct">{{ progress | number: '1.0-1' }}%</strong></div>
+        </div>
+      </section>
+
+      <section *ngIf="step === 2" class="card panel">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.ListChecks" [size]="20"></lucide-icon><h3>Selected Criteria</h3></div>
+        <div class="crit-count">
+          <span class="crit-ic"><lucide-icon [img]="icons.ClipboardList" [size]="22"></lucide-icon></span>
+          <strong>{{ includedCriteria.length }} criteria selected</strong>
+        </div>
+        <ul class="crit-legend">
+          <li><span class="dot dot--red"></span>{{ mandatoryCount }} Mandatory criteria</li>
+          <li><span class="dot dot--green"></span>{{ includedCriteria.length - mandatoryCount }} Optional criteria</li>
+        </ul>
+      </section>
+
+      <section *ngIf="step === 3" class="card panel">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.CalendarDays" [size]="20"></lucide-icon><h3>Schedule Overview</h3></div>
+        <div class="cal-head">
+          <button type="button" class="cal-nav" (click)="shiftMonth(-1)" aria-label="Previous month"><lucide-icon [img]="icons.ChevronLeft" [size]="18"></lucide-icon></button>
+          <strong>{{ calMonth | date: 'MMMM yyyy' }}</strong>
+          <button type="button" class="cal-nav" (click)="shiftMonth(1)" aria-label="Next month"><lucide-icon [img]="icons.ChevronRight" [size]="18"></lucide-icon></button>
+        </div>
+        <table class="cal" role="grid">
+          <thead><tr><th *ngFor="let w of calWeekdays" scope="col">{{ w }}</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let week of calWeeks">
+              <td *ngFor="let c of week" [class.out]="!c.inMonth" [class.range]="inRange(c.iso)" [class.range-start]="c.iso === schedule.start" [class.range-end]="c.iso === schedule.end">
+                <span
+                  class="cal-day"
+                  [class.plan]="planDates.includes(c.iso)"
+                  [class.edge]="c.iso === schedule.start || c.iso === schedule.end"
+                  [class.today]="c.iso === today"
+                  [attr.title]="planDates.includes(c.iso) ? 'Audit day' : otherAuditDates.includes(c.iso) ? 'Other audit scheduled' : null"
+                >{{ c.day }}<i *ngIf="otherAuditDates.includes(c.iso)" class="other-dot"></i></span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="cal-legend">
+          <span><i class="cal-dot cal-dot--plan"></i>Audit Schedule</span>
+          <span><i class="cal-dot cal-dot--other"></i>Other Activities</span>
+        </div>
+      </section>
+
+      <section *ngIf="step === 0" class="card panel">
+        <div class="panel-head"><lucide-icon class="head-icon" [img]="icons.Info" [size]="20"></lucide-icon><h3>Guidelines</h3></div>
+        <ul class="bullets"><li *ngFor="let g of guidelines">{{ g }}</li></ul>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<span *ngIf="rowMenu as m" class="menu" role="menu" [style.top.px]="m.top" [style.right.px]="m.right" (click)="$event.stopPropagation()">
+  <button type="button" role="menuitem" (click)="openDetail(m.asset)">View details</button>
+  <button type="button" role="menuitem" (click)="toggleAsset(m.asset); closeMenus()">{{ isPicked(m.asset) ? 'Remove from audit' : 'Add to audit' }}</button>
+  <button type="button" role="menuitem" [disabled]="!m.asset.sensors.length" (click)="setSensors(m.asset, true)">Select all sensors</button>
+  <button type="button" role="menuitem" [disabled]="!isPicked(m.asset) || !pickedSensors(m.asset).length" (click)="setSensors(m.asset, false)">Clear sensors</button>
+</span>
+
+<span *ngIf="criterionMenu as m" class="menu" role="menu" [style.top.px]="m.top" [style.right.px]="m.right" (click)="$event.stopPropagation()">
+  <button type="button" role="menuitem" (click)="openEditCriterion(m.item)">Edit</button>
+  <button type="button" role="menuitem" (click)="setIncluded(m.item, !isIncluded(m.item)); closeMenus()">{{ isIncluded(m.item) ? 'Exclude from audit' : 'Include in audit' }}</button>
+  <button type="button" role="menuitem" (click)="toggleMandatory(m.item)">{{ m.item.mandatory ? 'Make optional' : 'Make mandatory' }}</button>
+  <button type="button" role="menuitem" (click)="duplicateCriterion(m.item)">Duplicate</button>
+  <button type="button" role="menuitem" class="danger" (click)="openDeleteCriterion(m.item)">Delete</button>
+</span>
+
+<!-- ===== Add / edit criteria ===== -->
+<div *ngIf="criterionForm as f" class="overlay" (click)="criterionForm = null">
+  <div class="modal modal--detail" role="dialog" aria-modal="true" aria-labelledby="na-crit-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="na-crit-title" class="grow">{{ f.id ? 'Edit Criteria' : 'Add Criteria' }}</h2>
+      <button type="button" class="icon-btn" (click)="criterionForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveCriterion()">
+      <label class="field"><span class="field-label">Criteria Name <em>*</em></span><input class="control" name="name" [(ngModel)]="f.name" placeholder="e.g. Fire Extinguisher Pressure" /></label>
+      <label class="field"><span class="field-label">Description</span><textarea class="control textarea" rows="2" name="description" [(ngModel)]="f.description" placeholder="What the auditor should check"></textarea></label>
+      <div class="two">
+        <label class="field"><span class="field-label">Type</span><select class="control" name="type" [(ngModel)]="f.type"><option *ngFor="let t of criterionTypes" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Category</span><select class="control" name="category" [(ngModel)]="f.category"><option *ngFor="let c of criterionCategories" [value]="c">{{ c }}</option></select></label>
+        <label class="field"><span class="field-label">Check Method</span><select class="control" name="method" [(ngModel)]="f.method"><option *ngFor="let m of checkMethods" [value]="m">{{ m }}</option></select></label>
+        <label class="field"><span class="field-label">Applies To</span><select class="control" name="appliesTo" [(ngModel)]="f.appliesTo"><option *ngFor="let a of appliesOptions" [value]="a">{{ a }}</option></select></label>
+      </div>
+      <label class="check"><input type="checkbox" name="mandatory" [(ngModel)]="f.mandatory" />Mandatory: the audit can't be closed until this is checked</label>
+      <p *ngIf="criterionError" class="form-error" role="alert">{{ criterionError }}</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="criterionForm = null">Cancel</button>
+        <button type="submit" class="btn btn-primary">{{ f.id ? 'Save Changes' : 'Add Criteria' }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Delete criteria ===== -->
+<div *ngIf="criterionToDelete as t" class="overlay" (click)="criterionToDelete = null">
+  <div class="modal modal--sm" role="alertdialog" aria-modal="true" aria-labelledby="na-crit-del-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="na-crit-del-title" class="grow">Remove Criteria</h2><button type="button" class="icon-btn" (click)="criterionToDelete = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <p>Remove <strong>{{ t.name }}</strong> from this audit's criteria list?</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="criterionToDelete = null">Cancel</button><button type="button" class="btn btn-danger-solid" (click)="confirmDeleteCriterion()">Remove</button></div>
+    </div>
+  </div>
+</div>
+
+<span *ngIf="teamMenu as m" class="menu" role="menu" [style.top.px]="m.top" [style.right.px]="m.right" (click)="$event.stopPropagation()">
+  <ng-container *ngIf="menuMember as member">
+    <button type="button" role="menuitem" [disabled]="member.role === 'Lead Auditor'" (click)="setRole(member, 'Lead Auditor')">Make lead auditor</button>
+    <button type="button" role="menuitem" [disabled]="member.role === 'Observer'" (click)="setRole(member, 'Observer')">Make observer</button>
+    <button type="button" role="menuitem" class="danger" (click)="removeMembers([member.user.name])">Remove from team</button>
+  </ng-container>
+  <ng-container *ngIf="menuPlanRow as row">
+    <button type="button" role="menuitem" (click)="openRowEdit(row)">Change date / auditor</button>
+    <button type="button" role="menuitem" [disabled]="schedule.plan.indexOf(row) === 0" (click)="movePlanRow(row, -1)">Move earlier</button>
+    <button type="button" role="menuitem" [disabled]="schedule.plan.indexOf(row) === schedule.plan.length - 1" (click)="movePlanRow(row, 1)">Move later</button>
+  </ng-container>
+</span>
+
+<!-- ===== Add team member ===== -->
+<div *ngIf="addForm as f" class="overlay" (click)="addForm = null">
+  <div class="modal modal--detail" role="dialog" aria-modal="true" aria-labelledby="na-add-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="na-add-title" class="grow">Add Team Member</h2>
+      <button type="button" class="icon-btn" (click)="addForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveAddMember()">
+      <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" name="search" [(ngModel)]="f.search" placeholder="Search by name, department or job title" aria-label="Search users" /></label>
+      <div class="user-list">
+        <label *ngFor="let u of addChoices" class="user-row">
+          <input type="checkbox" [checked]="f.picked.includes(u.name)" (change)="togglePickUser(u.name)" />
+          <span class="avatar" [style.background]="'hsl(' + avatarHue(u.name) + ' 50% 42%)'">{{ initials(u.name) }}</span>
+          <span class="grow"><strong>{{ u.name }}</strong><small>{{ u.title }} · {{ u.department }}</small></span>
+        </label>
+        <p *ngIf="!addChoices.length" class="empty">Everyone matching is already on the team.</p>
+      </div>
+      <label class="field role-field"><span class="field-label">Role</span>
+        <select class="control" name="role" [(ngModel)]="f.role"><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select>
+      </label>
+      <p *ngIf="teamError" class="form-error" role="alert">{{ teamError }}</p>
+      <div class="modal-foot">
+        <span class="muted grow">{{ f.picked.length }} selected</span>
+        <button type="button" class="btn btn-outline" (click)="addForm = null">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add to Team</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Edit plan day ===== -->
+<div *ngIf="rowForm as f" class="overlay" (click)="rowForm = null">
+  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="na-row-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="na-row-title" class="grow">{{ f.row.group }} · {{ f.row.tags.length }} assets</h2>
+      <button type="button" class="icon-btn" (click)="rowForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveRowEdit()">
+      <label class="field"><span class="field-label">Date <em>*</em></span><input class="control" type="date" name="date" [(ngModel)]="f.date" [min]="schedule.start" [max]="schedule.end" /></label>
+      <label class="field"><span class="field-label">Assigned To <em>*</em></span>
+        <select class="control" name="assignee" [(ngModel)]="f.assignee"><option value="" disabled>Choose auditor</option><option *ngFor="let a of auditorNames" [value]="a">{{ a }}</option></select>
+      </label>
+      <p *ngIf="!auditorNames.length" class="muted">Add an auditor to the team first.</p>
+      <p *ngIf="teamError" class="form-error" role="alert">{{ teamError }}</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="rowForm = null">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Asset details ===== -->
+<div *ngIf="detail as a" class="overlay" (click)="detail = null">
+  <div class="modal modal--detail" role="dialog" aria-modal="true" aria-labelledby="na-detail-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <span class="thumb" [ngClass]="'thumb--' + a.kind"><lucide-icon [img]="kindIcons[a.kind]" [size]="18"></lucide-icon></span>
+      <h2 id="na-detail-title" class="grow">{{ a.name }} · {{ a.tag }}</h2>
+      <button type="button" class="icon-btn" (click)="detail = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <dl class="kv">
+        <dt>Serial Number</dt><dd>{{ a.serial }}</dd>
+        <dt>Category</dt><dd>{{ a.category }}</dd>
+        <dt>Location</dt><dd>{{ a.location }}</dd>
+        <dt>Department</dt><dd>{{ a.department }}</dd>
+        <dt>Status</dt><dd><span class="status" [class.status--warn]="a.status === 'Under Maintenance'" [class.status--idle]="a.status === 'Idle'">{{ a.status }}</span></dd>
+      </dl>
+      <h3>Sensors / Components ({{ a.sensors.length }})</h3>
+      <div class="sensor-grid sensor-grid--modal">
+        <label *ngFor="let s of a.sensors" class="check"><input type="checkbox" [checked]="isSensorPicked(a, s)" (change)="toggleSensor(a, s)" />{{ s.name }}<small class="muted">{{ s.id }} · {{ s.type }}</small></label>
+        <span *ngIf="!a.sensors.length" class="muted">This asset has no sensors or components.</span>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="toggleAsset(a)">{{ isPicked(a) ? 'Remove from Audit' : 'Add to Audit' }}</button>
+        <button type="button" class="btn btn-primary" (click)="detail = null">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Asset picker / preview ===== -->
+<div *ngIf="preview" class="overlay" (click)="preview = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="na-preview-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="na-preview-title">{{ preview === 'pick' ? 'Pick Assets' : 'Assets to be Audited (' + finalAssets.length + ')' }}</h2>
+      <button type="button" class="icon-btn" (click)="preview = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input *ngIf="preview === 'pick'" type="search" [(ngModel)]="pickerSearch" placeholder="Search by tag, name or category" aria-label="Search assets" />
+        <input *ngIf="preview === 'preview'" type="search" [(ngModel)]="previewSearch" placeholder="Search by tag, name or category" aria-label="Search assets" />
+      </label>
+      <div class="table-wrap">
+        <table class="na-table">
+          <thead><tr><th *ngIf="preview === 'pick'"></th><th>Asset Tag</th><th>Asset Name</th><th>Category</th><th>Department</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let a of preview === 'pick' ? pickerRows : previewRows">
+              <td *ngIf="preview === 'pick'"><input type="checkbox" [checked]="d.tags.includes(a.tag)" (change)="togglePick(a.tag)" [attr.aria-label]="'Pick ' + a.tag" /></td>
+              <td class="nowrap">{{ a.tag }}</td>
+              <td>{{ a.name }}</td>
+              <td>{{ a.category }}</td>
+              <td>{{ a.department }}</td>
+              <td class="nowrap">{{ a.status }}</td>
+            </tr>
+            <tr *ngIf="!(preview === 'pick' ? pickerRows : previewRows).length"><td colspan="6" class="empty">No assets found.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <small class="muted">Showing up to 200 assets; search to narrow the list.</small>
+      <div class="modal-foot">
+        <span *ngIf="preview === 'pick'" class="muted grow">{{ d.tags.length }} picked</span>
+        <button type="button" class="btn btn-primary" (click)="preview = null">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

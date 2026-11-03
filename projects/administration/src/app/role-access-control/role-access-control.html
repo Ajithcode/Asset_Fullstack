@@ -146,7 +146,7 @@
             }
           </button>
         } @empty {
-          <p class="list-empty">No roles match the search or filters.</p>
+          <p class="list-empty">{{ loading ? 'Loading roles...' : 'No roles match the search or filters.' }}</p>
         }
       </div>
     </aside>

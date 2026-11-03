@@ -1,4 +1,4 @@
-import { Component, ViewChild, inject } from '@angular/core';
+import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -8,7 +8,7 @@ import {
 import { AdminPage, ADMIN_PEOPLE } from '../shared/admin-common';
 import { DataJob, FieldMapping, JobSchedule, JobStatus, JobType, ValidationRule } from './data-import.model';
 import { DATA_OBJECT_NAMES, objectDef } from './data-import.data';
-import { DataJobService, cloneJob } from './data-import.service';
+import { DataJobService, apiErrorMessage, cloneJob } from './data-import.service';
 import { compactNumber, downloadFile, formatStamp, toCsv } from './data-import.util';
 import { JobDrawer } from './job-drawer/job-drawer';
 import { JobOverview } from './job-overview/job-overview';
@@ -40,7 +40,7 @@ const OBJECT_ICONS: Record<string, typeof Database> = {
   templateUrl: './data-import-export.html',
   styleUrls: ['../shared/admin-workspace.css', './data-import-export.css']
 })
-export class DataImportExportPage extends AdminPage {
+export class DataImportExportPage extends AdminPage implements OnInit {
   readonly service = inject(DataJobService);
   @ViewChild(JobDrawer) drawer?: JobDrawer;
 
@@ -77,6 +77,7 @@ export class DataImportExportPage extends AdminPage {
   draft: DataJob;
   moreOpen = false;
   validatingId = '';
+  saving = false;
   confirmDelete: DataJob | null = null;
 
   constructor() {
@@ -84,6 +85,19 @@ export class DataImportExportPage extends AdminPage {
     const first = this.service.all()[0];
     this.selectedId = first?.id ?? '';
     this.draft = first ? cloneJob(first) : this.service.blank('Import');
+  }
+
+  ngOnInit(): void {
+    this.service.load().subscribe({
+      next: (list) => {
+        if (this.service.get(this.selectedId)) return;
+        // Keep an unsaved new-job draft open; otherwise show the first job
+        const first = list[0];
+        this.selectedId = first?.id ?? '';
+        if (this.draft.id || !this.draft.name.trim()) this.draft = first ? cloneJob(first) : this.service.blank('Import');
+      },
+      error: (err) => this.notify(apiErrorMessage(err, 'Could not load import jobs.'))
+    });
   }
 
   // ----- Derived data -----
@@ -167,15 +181,25 @@ export class DataImportExportPage extends AdminPage {
   }
 
   onSaved(draft: DataJob): void {
+    if (this.saving) return;
     const isNew = !draft.id;
-    const saved = this.service.save(draft);
-    this.selectedId = saved.id;
-    this.draft = cloneJob(saved);
-    if (isNew) {
-      this.clearFilters();
-      this.tab = 'overview';
-    }
-    this.notify(isNew ? `${saved.name} created as ${saved.code}.` : `${saved.name} saved (${saved.version}).`);
+    this.saving = true;
+    this.service.save(draft).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.selectedId = saved.id;
+        this.draft = cloneJob(saved);
+        if (isNew) {
+          this.clearFilters();
+          this.tab = 'overview';
+        }
+        this.notify(isNew ? `${saved.name} created as ${saved.code}.` : `${saved.name} saved (${saved.version}).`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err, `Could not save ${draft.name.trim()}.`));
+      }
+    });
   }
 
   cancelDrawer(): void {
@@ -280,29 +304,40 @@ export class DataImportExportPage extends AdminPage {
       this.notify('A running job can’t be deleted. Wait for it to finish.');
       return;
     }
-    this.service.remove(job.id);
-    const next = this.filtered[0] ?? this.service.all()[0];
-    this.selectedId = next?.id ?? '';
-    this.draft = next ? cloneJob(next) : this.service.blank('Import');
-    this.notify(`${job.name} deleted.`);
+    this.service.remove(job.id).subscribe({
+      next: () => {
+        const next = this.filtered[0] ?? this.service.all()[0];
+        this.selectedId = next?.id ?? '';
+        this.draft = next ? cloneJob(next) : this.service.blank('Import');
+        this.notify(`${job.name} deleted.`);
+      },
+      error: (err) => this.notify(apiErrorMessage(err, `Could not delete ${job.name}.`))
+    });
   }
 
   // ----- Tab outputs -----
   onMapping(mapping: FieldMapping[]): void {
-    this.service.patch(this.selectedId, { mapping });
-    this.resyncDrawer();
-    this.notify('Field mapping saved.');
+    this.service.patch(this.selectedId, { mapping }).subscribe(() => {
+      this.resyncDrawer();
+      this.notify('Field mapping saved.');
+    });
   }
 
   onRules(change: { rules: ValidationRule[]; rule: ValidationRule }): void {
-    this.service.patch(this.selectedId, { rules: change.rules });
-    this.resyncDrawer();
-    this.notify(`${change.rule.name} ${change.rule.enabled ? 'enabled' : 'disabled'}.`);
+    this.service.patch(this.selectedId, { rules: change.rules }).subscribe(() => {
+      this.resyncDrawer();
+      this.notify(`${change.rule.name} ${change.rule.enabled ? 'enabled' : 'disabled'}.`);
+    });
   }
 
   onSchedule(schedule: JobSchedule): void {
-    this.service.patch(this.selectedId, { schedule });
-    this.resyncDrawer();
-    this.notify('Schedule saved.');
+    const id = this.selectedId;
+    this.service.patch(id, { schedule }).subscribe({
+      next: () => {
+        this.resyncDrawer();
+        this.notify('Schedule saved.');
+      },
+      error: (err) => this.notify(apiErrorMessage(err, 'Could not save the schedule.'))
+    });
   }
 }

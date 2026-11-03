@@ -1,0 +1,305 @@
+<section class="aa-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a><span class="sep" aria-hidden="true">›</span><span class="crumb-current">Disposal</span>
+  </nav>
+
+  <!-- ===== Page header ===== -->
+  <div class="card page-head">
+    <span class="head-ic"><lucide-icon [img]="icons.Recycle" [size]="24"></lucide-icon></span>
+    <div class="grow">
+      <h1>Asset Disposal</h1>
+      <p>Manage end-of-life assets with proper approval and compliance.</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openNew()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>New Disposal Request</button>
+  </div>
+
+  <!-- ===== Summary (doubles as a status filter) ===== -->
+  <div class="stats">
+    <button type="button" class="card stat" [class.is-on]="!statusFilter" (click)="filterStatus('')">
+      <span class="stat-ic"><lucide-icon [img]="icons.FileText" [size]="26"></lucide-icon></span>
+      <div><span class="stat-label">Total Disposal Requests</span><span class="stat-row"><strong>{{ requests.length | number }}</strong></span><span class="stat-sub">All requests</span></div>
+    </button>
+    <button type="button" class="card stat" [class.is-on]="statusFilter === 'Pending'" (click)="filterStatus('Pending')">
+      <span class="stat-ic stat-ic--amber"><lucide-icon [img]="icons.Clock" [size]="26"></lucide-icon></span>
+      <div><span class="stat-label">Pending Approval</span><span class="stat-row"><strong>{{ countOf('Pending') | number }}</strong></span><span class="stat-sub">Awaiting a decision</span></div>
+    </button>
+    <button type="button" class="card stat" [class.is-on]="statusFilter === 'Completed'" (click)="filterStatus('Completed')">
+      <span class="stat-ic stat-ic--green"><lucide-icon [img]="icons.CircleCheck" [size]="26"></lucide-icon></span>
+      <div><span class="stat-label">Completed</span><span class="stat-row"><strong>{{ countOf('Completed') | number }}</strong></span><span class="stat-sub">Assets disposed</span></div>
+    </button>
+    <button type="button" class="card stat" [class.is-on]="statusFilter === 'Rejected'" (click)="filterStatus('Rejected')">
+      <span class="stat-ic stat-ic--red"><lucide-icon [img]="icons.CircleX" [size]="26"></lucide-icon></span>
+      <div><span class="stat-label">Rejected</span><span class="stat-row"><strong>{{ countOf('Rejected') | number }}</strong></span><span class="stat-sub">Not approved</span></div>
+    </button>
+  </div>
+
+  <!-- ===== Filters ===== -->
+  <form class="card filters" (ngSubmit)="onFilter()">
+    <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" name="q" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by asset name, tag, disposal ID..." aria-label="Search disposal requests" /></label>
+    <label class="field"><span class="field-label">Status</span><select class="control" name="status" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
+    <label class="field"><span class="field-label">Disposal Method</span><select class="control" name="method" [(ngModel)]="methodFilter" (ngModelChange)="onFilter()"><option value="">All Methods</option><option *ngFor="let m of methods" [value]="m">{{ m }}</option></select></label>
+    <label class="field"><span class="field-label">Category</span><select class="control" name="cat" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+    <label class="field"><span class="field-label">Location</span><select class="control" name="loc" [(ngModel)]="locationFilter" (ngModelChange)="onFilter()"><option value="">All Locations</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
+    <div class="filter-actions">
+      <button type="button" class="btn btn-outline" [class.is-on]="moreFilters" (click)="moreFilters = !moreFilters" [attr.aria-expanded]="moreFilters"><lucide-icon [img]="icons.SlidersHorizontal" [size]="16"></lucide-icon>More Filters</button>
+      <button type="button" class="link-btn" (click)="resetFilters()">Reset</button>
+      <button type="submit" class="btn btn-primary"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>Search</button>
+    </div>
+    <div *ngIf="moreFilters" class="more">
+      <label class="field"><span class="field-label">Requested From</span><input class="control" type="date" name="fromDate" [(ngModel)]="fromDate" (ngModelChange)="onFilter()" /></label>
+      <label class="field"><span class="field-label">Requested Until</span><input class="control" type="date" name="toDate" [(ngModel)]="toDate" (ngModelChange)="onFilter()" /></label>
+    </div>
+  </form>
+
+  <div class="aa-grid" [class.has-detail]="selected">
+    <!-- ===== Table ===== -->
+    <section class="card panel" aria-labelledby="dp-list">
+      <div class="panel-head">
+        <lucide-icon class="head-icon" [img]="icons.Recycle" [size]="20"></lucide-icon>
+        <h3 id="dp-list" class="grow">Disposal Requests</h3>
+        <span *ngIf="checked.size" class="muted dp-selected">{{ checked.size }} selected</span>
+        <span class="menu-wrap">
+          <button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('export', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'export'"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export<lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon></button>
+          <span *ngIf="menuOpen === 'export'" class="menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="export('xlsx')">Excel (.xlsx)</button>
+            <button type="button" role="menuitem" (click)="export('csv')">CSV (.csv)</button>
+          </span>
+        </span>
+        <span class="menu-wrap">
+          <button type="button" class="btn btn-outline btn-icon btn-sm" (click)="toggleMenu('table', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'table'" aria-label="Table actions"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button>
+          <span *ngIf="menuOpen === 'table'" class="menu" role="menu" (click)="$event.stopPropagation()">
+            <button type="button" role="menuitem" (click)="checked.clear(); menuOpen = ''" [disabled]="!checked.size">Clear selection</button>
+            <button type="button" role="menuitem" (click)="resetFilters(); menuOpen = ''">Reset filters</button>
+          </span>
+        </span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="aa-table">
+          <thead>
+            <tr>
+              <th class="ck"><input type="checkbox" [checked]="allPageChecked" (change)="togglePage($any($event.target).checked)" aria-label="Select all on this page" /></th>
+              <th>#</th>
+              <th>Disposal ID</th>
+              <th>Asset</th>
+              <th>Asset Tag</th>
+              <th>Location</th>
+              <th>Disposal Method</th>
+              <th>Status</th>
+              <th>Requested Date</th>
+              <th class="center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of pageRows; let i = index" [class.is-selected]="selected === r" (click)="select(r)" tabindex="0" (keydown.enter)="select(r)">
+              <td class="ck" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="checked.has(r.id)" (change)="toggleCheck(r.id)" [attr.aria-label]="'Select ' + r.reference" /></td>
+              <td>{{ rowNo(i) }}</td>
+              <td class="nowrap"><strong class="dp-ref">{{ r.reference }}</strong></td>
+              <td>
+                <span class="asset">
+                  <span class="asset-ic"><lucide-icon [img]="icons.Package" [size]="20"></lucide-icon></span>
+                  <span><strong>{{ r.assetName }}</strong><small>{{ r.category }}</small></span>
+                </span>
+              </td>
+              <td class="nowrap">{{ r.tag }}<small *ngIf="r.serial">SN: {{ r.serial }}</small></td>
+              <td class="nowrap">{{ r.location }}</td>
+              <td class="nowrap">{{ r.method }}</td>
+              <td><span class="status" [ngClass]="statusClass(r.status)">{{ r.status }}</span></td>
+              <td class="nowrap">{{ r.requested | date: 'dd MMM yyyy' }}</td>
+              <td class="center" (click)="$event.stopPropagation()">
+                <button type="button" class="btn btn-outline btn-icon btn-sm" (click)="openRowMenu(r, $event)" aria-haspopup="menu" [attr.aria-expanded]="rowMenu?.row === r" [attr.aria-label]="'Actions for ' + r.reference"><lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon></button>
+              </td>
+            </tr>
+            <tr *ngIf="!pageRows.length"><td colspan="10" class="empty">No disposal requests match the filters.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <span *ngIf="rowMenu as m" class="menu menu--fixed" role="menu" [style.top.px]="m.top" [style.right.px]="m.right" (click)="$event.stopPropagation()">
+        <button type="button" role="menuitem" (click)="select(m.row)">View details</button>
+        <button type="button" role="menuitem" [disabled]="m.row.status !== 'Draft' && m.row.status !== 'Pending'" (click)="openEdit(m.row)">Edit</button>
+        <button type="button" role="menuitem" [disabled]="m.row.status !== 'Draft'" (click)="submitForApproval(m.row)">Submit for approval</button>
+        <button type="button" role="menuitem" [disabled]="m.row.status !== 'Pending'" (click)="approve(m.row)">Approve</button>
+        <button type="button" role="menuitem" [disabled]="m.row.status !== 'Pending'" (click)="openReject(m.row)">Reject</button>
+        <button type="button" role="menuitem" [disabled]="m.row.status !== 'Approved'" (click)="complete(m.row)">Mark as disposed</button>
+        <button type="button" role="menuitem" class="danger" (click)="openDelete(m.row)">Delete</button>
+      </span>
+
+      <div class="pager">
+        <label class="pager-size">Show <select class="control" [(ngModel)]="pageSize" (ngModelChange)="onFilter()" aria-label="Rows per page"><option *ngFor="let n of pageSizes" [ngValue]="n">{{ n }}</option></select> per page</label>
+        <span class="grow"></span>
+        <span class="showing">{{ showingLabel }}</span>
+        <button type="button" class="pg-btn" [disabled]="page === 0" (click)="page = page - 1" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+        <button *ngFor="let p of pages" type="button" class="pg-btn" [class.is-on]="p === page" (click)="page = p" [attr.aria-current]="p === page ? 'page' : null">{{ p + 1 }}</button>
+        <button type="button" class="pg-btn" [disabled]="page >= pageCount - 1" (click)="page = page + 1" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+      </div>
+    </section>
+
+    <!-- ===== Details ===== -->
+    <aside *ngIf="selected as s" class="card panel detail" aria-labelledby="dp-detail">
+      <div class="detail-inner">
+      <div class="panel-head">
+        <lucide-icon class="head-icon" [img]="icons.FileText" [size]="20"></lucide-icon>
+        <h3 id="dp-detail" class="grow">Disposal Details</h3>
+        <button type="button" class="icon-btn" (click)="selected = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+
+      <div class="d-asset">
+        <span class="d-img">
+          <img *ngIf="imageOf(s) as src; else picIcon" [src]="src" [alt]="s.assetName" />
+          <ng-template #picIcon><lucide-icon [img]="icons.Package" [size]="44"></lucide-icon></ng-template>
+        </span>
+        <div class="grow">
+          <div class="d-title"><strong>{{ s.reference }}</strong><span class="status" [ngClass]="statusClass(s.status)">{{ s.status }}</span></div>
+          <span class="d-type">{{ s.assetName }}</span>
+          <small>Asset Tag: {{ s.tag }}</small>
+          <small>Category: {{ s.category }}</small>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" [class.is-on]="tab === 'details'" [attr.aria-selected]="tab === 'details'" (click)="tab = 'details'">Details</button>
+        <button type="button" role="tab" [class.is-on]="tab === 'items'" [attr.aria-selected]="tab === 'items'" (click)="tab = 'items'">Items ({{ itemsOf(s).length }})</button>
+        <button type="button" role="tab" [class.is-on]="tab === 'workflow'" [attr.aria-selected]="tab === 'workflow'" (click)="tab = 'workflow'">Workflow</button>
+        <button type="button" role="tab" [class.is-on]="tab === 'files'" [attr.aria-selected]="tab === 'files'" (click)="tab = 'files'">Files ({{ s.attachments.length }})</button>
+        <button type="button" role="tab" [class.is-on]="tab === 'notes'" [attr.aria-selected]="tab === 'notes'" (click)="tab = 'notes'">Notes ({{ s.notes.length }})</button>
+      </div>
+
+      <dl *ngIf="tab === 'details'" class="kv">
+        <dt>Disposal ID</dt><dd>{{ s.reference }}</dd>
+        <dt>Asset</dt><dd>{{ s.assetName }}</dd>
+        <dt>Asset Tag</dt><dd>{{ s.tag }}</dd>
+        <dt>Serial Number</dt><dd>{{ s.serial || '—' }}</dd>
+        <dt>Model</dt><dd>{{ s.model || '—' }}</dd>
+        <dt>Manufacturer</dt><dd>{{ s.manufacturer || '—' }}</dd>
+        <dt>Location</dt><dd>{{ s.locationDetail }}</dd>
+        <dt>Disposal Method</dt><dd>{{ s.method }}</dd>
+        <dt>Reason</dt><dd>{{ s.reason }}</dd>
+        <dt>Est. Value</dt><dd>AED {{ s.value | number: '1.2-2' }}</dd>
+        <dt>Requested By</dt><dd>{{ s.requestedBy }}</dd>
+        <dt>Requested On</dt><dd>{{ s.requested | date: 'dd MMM yyyy HH:mm' }}</dd>
+        <dt>Status</dt><dd><span class="status" [ngClass]="statusClass(s.status)">{{ s.status }}</span></dd>
+      </dl>
+
+      <ul *ngIf="tab === 'items'" class="related">
+        <li *ngFor="let it of itemsOf(s)">
+          <span class="dp-item">
+            <span class="asset-ic"><lucide-icon [img]="icons.Package" [size]="18"></lucide-icon></span>
+            <span class="grow"><strong>{{ it.assetName }}</strong><small>{{ it.tag }}<ng-container *ngIf="it.serial"> · SN: {{ it.serial }}</ng-container></small></span>
+            <small class="nowrap">AED {{ it.value | number: '1.2-2' }}</small>
+          </span>
+        </li>
+      </ul>
+
+      <ol *ngIf="tab === 'workflow'" class="flow">
+        <li *ngFor="let w of workflow(s)" [ngClass]="'flow--' + w.state">
+          <span class="flow-dot">
+            <lucide-icon *ngIf="w.state === 'done'" [img]="icons.Check" [size]="13"></lucide-icon>
+            <lucide-icon *ngIf="w.state === 'rejected'" [img]="icons.X" [size]="13"></lucide-icon>
+          </span>
+          <div>
+            <strong>{{ w.title }}</strong>
+            <span *ngIf="w.at; else badge" class="flow-meta">{{ w.at | date: 'dd MMM yyyy h:mm a' }}<br />{{ w.by }}</span>
+            <ng-template #badge><span class="status" [ngClass]="w.state === 'done' ? 'status--approved' : w.state === 'rejected' ? 'status--rejected' : w.state === 'current' ? 'status--pending' : 'status--draft'">{{ w.label }}</span></ng-template>
+          </div>
+        </li>
+      </ol>
+
+      <div *ngIf="tab === 'files'" class="tab-body">
+        <ul *ngIf="s.attachments.length; else noFiles" class="file-list">
+          <li *ngFor="let a of s.attachments">
+            <lucide-icon [img]="icons.Paperclip" [size]="16"></lucide-icon>
+            <span class="grow"><span class="file-name">{{ a.name }}</span><small class="muted">{{ fileSize(a.size) }} · {{ a.added | date: 'dd MMM yyyy' }}</small></span>
+            <button type="button" class="icon-btn" (click)="removeAttachment(a)" [attr.aria-label]="'Remove ' + a.name"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button>
+          </li>
+        </ul>
+        <ng-template #noFiles><p class="muted">No attachments yet.</p></ng-template>
+        <label class="btn btn-outline btn-sm upload"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon>Add Files<input #files type="file" multiple (change)="addFiles(files)" /></label>
+      </div>
+
+      <div *ngIf="tab === 'notes'" class="tab-body">
+        <form class="note-form" (ngSubmit)="addNote()">
+          <input class="control" name="note" [(ngModel)]="noteText" placeholder="Add a note..." aria-label="New note" />
+          <button type="submit" class="btn btn-primary btn-sm" [disabled]="!noteText.trim()">Add</button>
+        </form>
+        <ol *ngIf="s.notes.length; else noNotes" class="timeline">
+          <li *ngFor="let n of s.notes">
+            <span class="tl-dot"></span>
+            <div><strong>{{ n.text }}</strong><span class="muted">{{ n.at | date: 'dd MMM yyyy HH:mm' }} · {{ n.by }}</span></div>
+          </li>
+        </ol>
+        <ng-template #noNotes><p class="muted">No notes yet.</p></ng-template>
+      </div>
+
+      <div class="d-actions">
+        <button *ngIf="s.status === 'Draft'" type="button" class="btn btn-primary btn-sm" (click)="submitForApproval(s)">Submit for Approval</button>
+        <ng-container *ngIf="s.status === 'Pending'">
+          <button type="button" class="btn btn-primary btn-sm" (click)="approve(s)"><lucide-icon [img]="icons.Check" [size]="16"></lucide-icon>Approve</button>
+          <button type="button" class="btn btn-danger btn-sm" (click)="openReject(s)"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon>Reject</button>
+        </ng-container>
+        <button *ngIf="s.status === 'Approved'" type="button" class="btn btn-primary btn-sm" (click)="complete(s)"><lucide-icon [img]="icons.CircleCheck" [size]="16"></lucide-icon>Mark as Disposed</button>
+        <button type="button" class="btn btn-outline btn-sm" [disabled]="!canCancel(s)" (click)="openEdit(s)"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>Edit</button>
+        <button type="button" class="btn btn-danger btn-sm" [disabled]="!canCancel(s)" (click)="cancelRequest(s)"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>Cancel Request</button>
+      </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ===== New / edit ===== -->
+<div *ngIf="form as f" class="overlay" (click)="form = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dp-form-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="dp-form-title">{{ f.id ? 'Edit Disposal Request' : 'New Disposal Request' }}</h2>
+      <button type="button" class="icon-btn" (click)="form = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveForm()">
+      <div class="two">
+        <label class="field"><span class="field-label">Asset Name <em>*</em></span><input class="control" [(ngModel)]="f.assetName" name="assetName" placeholder="e.g. Dell Latitude 7420" /></label>
+        <label class="field"><span class="field-label">Asset Tag <em>*</em></span><input class="control" [(ngModel)]="f.tag" name="tag" placeholder="e.g. LT-000125" /></label>
+      </div>
+      <div class="two">
+        <label class="field"><span class="field-label">Category <em>*</em></span><select class="control" [(ngModel)]="f.category" name="category"><option value="" disabled>Select category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+        <label class="field"><span class="field-label">Location <em>*</em></span><select class="control" [(ngModel)]="f.location" name="location"><option value="" disabled>Select location</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
+      </div>
+      <label class="field"><span class="field-label">Location Detail</span><input class="control" [(ngModel)]="f.locationDetail" name="locationDetail" placeholder="e.g. Head Office - IT Department" /></label>
+      <div class="three">
+        <label class="field"><span class="field-label">Manufacturer</span><input class="control" [(ngModel)]="f.manufacturer" name="manufacturer" /></label>
+        <label class="field"><span class="field-label">Model</span><input class="control" [(ngModel)]="f.model" name="model" /></label>
+        <label class="field"><span class="field-label">Serial Number</span><input class="control" [(ngModel)]="f.serial" name="serial" /></label>
+      </div>
+      <div class="three">
+        <label class="field"><span class="field-label">Disposal Method</span><select class="control" [(ngModel)]="f.method" name="method"><option *ngFor="let m of methods" [value]="m">{{ m }}</option></select></label>
+        <label class="field"><span class="field-label">Reason</span><select class="control" [(ngModel)]="f.reason" name="reason"><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+        <label class="field"><span class="field-label">Est. Value (AED)</span><input class="control" type="number" min="0" [(ngModel)]="f.value" name="value" /></label>
+      </div>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="form = null">Cancel</button><button type="submit" class="btn btn-primary">{{ f.id ? 'Save Changes' : 'Create Request' }}</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Reject ===== -->
+<div *ngIf="rejectTarget as t" class="overlay" (click)="rejectTarget = null">
+  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="dp-rej-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="dp-rej-title">Reject Request</h2><button type="button" class="icon-btn" (click)="rejectTarget = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="confirmReject()">
+      <p>Reject <strong>{{ t.reference }} · {{ t.assetName }}</strong>?</p>
+      <label class="field"><span class="field-label">Reason</span><textarea class="control remarks" rows="3" [(ngModel)]="rejectReason" name="rejectReason"></textarea></label>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="rejectTarget = null">Cancel</button><button type="submit" class="btn btn-danger-solid">Reject</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Delete ===== -->
+<div *ngIf="deleteTarget as t" class="overlay" (click)="deleteTarget = null">
+  <div class="modal modal--sm" role="alertdialog" aria-modal="true" aria-labelledby="dp-del-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="dp-del-title">Delete Request</h2><button type="button" class="icon-btn" (click)="deleteTarget = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <p>Delete <strong>{{ t.reference }} · {{ t.assetName }}</strong>? This action cannot be undone.</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="deleteTarget = null">Cancel</button><button type="button" class="btn btn-danger-solid" (click)="confirmDelete()">Delete</button></div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>
