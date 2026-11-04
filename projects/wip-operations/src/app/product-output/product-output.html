@@ -214,6 +214,7 @@
             <td class="num">{{ o.evidence }}</td>
             <td>{{ o.rejectReason || o.notes || '—' }}</td>
           </tr>
+          <tr *ngIf="!outputs.length"><td colspan="10" class="empty">No output recorded yet.</td></tr>
         </tbody>
       </table>
     </div>
@@ -294,7 +295,7 @@
       <dl class="kv"><dt>Item</dt><dd>{{ job.item }}</dd><dt>Batch</dt><dd>{{ job.batch }}</dd><dt>Job</dt><dd>{{ job.code }} · {{ job.routing }}</dd></dl>
       <table class="wt">
         <thead><tr><th>Component</th><th>Lot / Serial</th></tr></thead>
-        <tbody><tr *ngFor="let c of components"><td>{{ c.part }}</td><td>{{ c.ref.endsWith('-') ? c.ref + s.serial.replace('P-', '') : c.ref }}</td></tr></tbody>
+        <tbody><tr *ngIf="!components.length"><td colspan="2" class="empty">No component records.</td></tr><tr *ngFor="let c of components"><td>{{ c.part }}</td><td>{{ c.ref.endsWith('-') ? c.ref + s.serial.replace('P-', '') : c.ref }}</td></tr></tbody>
       </table>
       <h4 class="gen-h">History</h4>
       <ul class="gen-hist"><li *ngFor="let h of s.history"><strong>{{ h.at | date: 'dd MMM HH:mm' }}</strong> {{ h.text }} <span class="muted">· {{ h.by }}</span></li></ul>

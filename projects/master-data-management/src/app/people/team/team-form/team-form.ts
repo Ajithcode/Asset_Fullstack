@@ -2,7 +2,8 @@ import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angu
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Plus, Trash2, X } from 'lucide-angular';
 import { EmployeeService } from '../../employee/employee.service';
-import { PEOPLE_DEPARTMENTS, nowStamp } from '../../people.data';
+import { MasterLookups } from '../../name-lookup';
+import { nowStamp } from '../../people.data';
 import { ShiftService } from '../../shift/shift.service';
 import { TechnicianService } from '../../technician/technician.service';
 import { blankTeam } from '../team.data';
@@ -36,7 +37,13 @@ export class TeamForm implements OnChanges {
   private readonly employees = inject(EmployeeService);
   private readonly technicians = inject(TechnicianService);
   readonly icons = { X, Plus, Trash2 };
-  readonly departments = PEOPLE_DEPARTMENTS;
+  private readonly lookups = inject(MasterLookups);
+
+  // Department names from the departments API, plus the current value so an edit keeps it
+  get departments(): string[] {
+    const names = this.lookups.departments.names;
+    return this.form.department && !names.includes(this.form.department) ? [this.form.department, ...names] : names;
+  }
   readonly tabs: { id: FormTab; label: string }[] = [
     { id: 'basic', label: 'Basic Information' },
     { id: 'members', label: 'Members' },

@@ -10,7 +10,7 @@ import {
 import { AdminPage } from '../shared/admin-common';
 import { PermissionMatrix } from './permission-matrix/permission-matrix';
 import { RoleApprovals, approvalsError } from './role-approvals/role-approvals';
-import { DATA_SCOPES, RoleIcon, RoleRecord, RoleStatus, RoleType, USERS_LAST_MONTH, blankRole, demoUsers } from './role-access.data';
+import { DATA_SCOPES, RoleIcon, RoleRecord, RoleStatus, RoleType, USERS_LAST_MONTH, blankRole } from './role-access.data';
 import { RoleAccessService, adminApiError } from './role-access.service';
 import { RoleDrawer, roleErrors } from './role-drawer/role-drawer';
 import { RoleScope } from './role-scope/role-scope';
@@ -110,7 +110,7 @@ export class RoleAccessControlPage extends AdminPage {
   }
 
   get usersTrend(): number {
-    return Math.round(((this.usersAssigned - USERS_LAST_MONTH) / USERS_LAST_MONTH) * 100);
+    return USERS_LAST_MONTH ? Math.round(((this.usersAssigned - USERS_LAST_MONTH) / USERS_LAST_MONTH) * 100) : 0;
   }
 
   // ===== List =====
@@ -351,6 +351,7 @@ export class RoleAccessControlPage extends AdminPage {
   }
 
   allUsers(): string[] {
-    return demoUsers(this.draft.id || this.draft.name, this.draft.users);
+    // Role members come from the users API once wired
+    return [];
   }
 }

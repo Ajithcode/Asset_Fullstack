@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of, shareReplay, throwError } from 'rxjs';
-import { AssetIconKey, AssetRecord, AssetStatus, Criticality, findAsset } from 'shared-ui';
+import { AssetIconKey, AssetRecord, AssetStatus, Criticality } from 'shared-ui';
 import { ASSET_API } from '../services/asset-api';
 
 /** One row of GET /api/asset-registrations (AssetListItemResponse). */
@@ -116,34 +116,31 @@ export function isoDay(value: string | null | undefined): string {
 }
 
 /**
- * Asset record shown by the pages for a registered asset. Assets that also exist in the shared sample register keep
- * that record (photo, icon), with the registration's values on top.
+ * Asset record shown by the pages for a registered asset (from its registration list row).
  */
 export function toAssetRecord(item: AssetListItemDto): AssetRecord {
   const tag = item.assetTag ?? item.assetRegistrationId;
-  const known = findAsset(tag);
   const text = `${item.category ?? ''} ${item.assetType ?? ''} ${item.assetName ?? ''}`;
   let id = 0;
   for (const ch of item.assetRegistrationId) id = (id * 31 + ch.charCodeAt(0)) % 100_000;
   const area = [item.buildingName, item.floorName, item.zoneName, item.roomName].filter(Boolean).join(' / ');
   return {
-    ...(known ?? {}),
-    id: known?.id ?? id,
+    id,
     tag,
-    name: item.assetName ?? known?.name ?? tag,
-    category: item.category ?? known?.category ?? '',
-    type: item.assetType ?? known?.type ?? '',
-    site: item.siteName ?? known?.site ?? '',
-    area: area || item.locationPath || known?.area || '',
-    custodian: item.custodianName ?? known?.custodian ?? '',
-    department: item.department ?? known?.department ?? '',
-    status: pick(item.status, STATUSES, known?.status ?? 'Active'),
-    criticality: pick(item.criticality, CRITICALITIES, known?.criticality ?? 'Medium'),
-    manufacturer: item.manufacturer ?? known?.manufacturer ?? '',
-    model: known?.model ?? '',
-    nextMaintenance: isoDay(item.nextMaintenanceDate) || known?.nextMaintenance || null,
-    icon: known?.icon ?? ICON_WORDS.find(([re]) => re.test(text))?.[1] ?? 'transformer',
-    image: item.imageUrl ?? known?.image ?? '',
+    name: item.assetName ?? tag,
+    category: item.category ?? '',
+    type: item.assetType ?? '',
+    site: item.siteName ?? '',
+    area: area || item.locationPath || '',
+    custodian: item.custodianName ?? '',
+    department: item.department ?? '',
+    status: pick(item.status, STATUSES, 'Active'),
+    criticality: pick(item.criticality, CRITICALITIES, 'Medium'),
+    manufacturer: item.manufacturer ?? '',
+    model: '',
+    nextMaintenance: isoDay(item.nextMaintenanceDate) || null,
+    icon: ICON_WORDS.find(([re]) => re.test(text))?.[1] ?? 'transformer',
+    image: item.imageUrl ?? '',
   };
 }
 

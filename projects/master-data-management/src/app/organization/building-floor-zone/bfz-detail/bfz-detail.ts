@@ -20,7 +20,6 @@ import { COUNTRY_FLAGS } from '../bfz.data';
 import { BfzRecord } from '../bfz.model';
 import { BfzService } from '../bfz.service';
 import { BfzPlan } from '../bfz-plan/bfz-plan';
-import { sampleActivity, sampleAssets, sampleDepartments, sampleDocuments, samplePeople } from './bfz-detail.mock';
 
 type DetailTab = 'overview' | 'floors' | 'zones' | 'assets' | 'departments' | 'people' | 'documents' | 'map' | 'activity';
 
@@ -53,11 +52,12 @@ export class BfzDetail implements OnChanges {
   moreOpen = false;
   expandedFloors = new Set<string>();
 
-  assets = sampleAssets;
-  departments = sampleDepartments;
-  people = samplePeople;
-  documents = sampleDocuments;
-  activity = sampleActivity;
+  // Rows for tabs owned by other modules (Assets, People, Documents, audit log); empty until those APIs are wired
+  readonly assets: { tag: string; name: string; category: string; status: string }[] = [];
+  readonly departments: { name: string; head: string; people: number }[] = [];
+  readonly people: { name: string; role: string; department: string }[] = [];
+  readonly documents: { name: string; kind: string; size: string; date: string }[] = [];
+  readonly activity: { when: string; who: string; text: string }[] = [];
 
   ngOnChanges(): void {
     this.moreOpen = false;

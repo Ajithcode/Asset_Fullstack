@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, EventEmitter, Input, NgZone, OnCh
 import type * as Leaflet from 'leaflet';
 import { Forklift, LucideIconData, Package, Tag, TriangleAlert, Wifi, Wrench, Zap, Droplets } from 'lucide-angular';
 import {
-  ASSETS, FACILITY_GEO, FacilityFeature, HISTORY_FL008, LngLat, ROUTE_FL008, TrackedAsset,
+  ASSETS, FACILITY_GEO, FacilityFeature, LngLat, TrackedAsset, Zone,
   distanceM, isLowConfidence, placeOf, pointAlong,
 } from './location-data';
 import { buildPlanArt } from './rl-plan-art';
@@ -12,19 +12,9 @@ type L = typeof Leaflet;
 export interface MapLayers { zones: boolean; labels: boolean; gateways: boolean; trails: boolean; assets: boolean }
 export interface LivePosition { id: string; lng: number; lat: number; place: string; regLng: number; regLat: number; heading: number }
 
-interface Mover {
-  id: string;
-  marker: Leaflet.Marker | Leaflet.CircleMarker;
-  label?: Leaflet.Marker;
-  path: Leaflet.LatLng[];
-  cum: number[];
-  total: number;
-  speed: number;
-  dist: number;
-  /** ping-pong movers reverse at the ends; loops wrap */
-  loop: boolean;
-  dir: number;
-}
+/** Neutral view used until a floor plan or geofence geometry is loaded. */
+const DEFAULT_CENTER: [number, number] = [20, 0];
+const DEFAULT_ZOOM = 2;
 
 /** Status colours (legend): live moving, live stationary, stale, low-confidence, offline / breach. */
 const COLOR = { moving: '#16a34a', stationary: '#2563eb', stale: '#d97706', lowconf: '#6b7280', offline: '#dc2626', breach: '#dc2626' };
@@ -44,9 +34,9 @@ export function stateColor(a: TrackedAsset): string {
 }
 
 /**
- * Leaflet indoor floor plan for Real-Time Location (Dubai Plant, Level 1). Everything drawn comes from
- * facility-level1.geo.json (walls, zones, racks, machines, gateways, featured assets, the forklift route); the other
- * assets come from location-data. Runs outside Angular and reports selections / live positions through outputs.
+ * Leaflet indoor floor plan for Real-Time Location. The plan (walls, zones, racks, machines, gateways) comes from
+ * FACILITY_GEO and the assets from location-data. Runs outside Angular and reports selections / live positions
+ * through outputs.
  */
 @Component({
   selector: 'app-rl-map',
@@ -59,6 +49,8 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
   @Input() selectedId = '';
   @Input() layers: MapLayers = { zones: true, labels: true, gateways: true, trails: true, assets: true };
   @Input() imagery = false;
+  /** Geofences from the Tracking API, drawn on the zones / labels layers. */
+  @Input() geofences: Zone[] = [];
 
   @Output() select = new EventEmitter<string>();
   @Output() live = new EventEmitter<LivePosition>();
@@ -74,19 +66,14 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
   private planBounds?: Leaflet.LatLngBounds;
   private groups: Record<'plan' | 'zones' | 'labels' | 'gateways' | 'trails' | 'assets' | 'featured' | 'focus', Leaflet.LayerGroup> = {} as never;
   private markers = new Map<string, Leaflet.Marker | Leaflet.CircleMarker>();
-  private movers: Mover[] = [];
-  private trail?: Leaflet.Polyline;
-  private trailPts: Leaflet.LatLng[] = [];
-  private arrow?: Leaflet.Marker;
   private accuracy?: Leaflet.Circle;
   private replay?: { line: Leaflet.Polyline; ghost: Leaflet.Marker; path: Leaflet.LatLng[]; cum: number[]; total: number; start: number };
   private frame = 0;
-  private last = 0;
-  private lastEmit = 0;
-  private lastTrail = 0;
   private resize?: ResizeObserver;
   private destroyed = false;
   private nearZoom = 20;
+  private geoZones?: Leaflet.FeatureGroup;
+  private geoLabels?: Leaflet.LayerGroup;
 
   async ngAfterViewInit(): Promise<void> {
     if (typeof window === 'undefined') return;
@@ -103,6 +90,10 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
     this.zone.runOutsideAngular(() => {
       if (c['layers']) this.applyLayers();
       if (c['imagery']) this.setImagery();
+      if (c['geofences']) {
+        this.drawGeofences();
+        if (!this.planBounds) this.fitPlan(false);
+      }
       if (c['selectedId']) {
         this.restyle();
         if (!c['selectedId'].firstChange && this.selectedId) this.focus(this.selectedId);
@@ -134,18 +125,29 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   fitPlan(animate: boolean): void {
-    if (!this.map || !this.planBounds) return;
+    if (!this.map) return;
+    if (!this.planBounds) {
+      // no floor plan: frame the geofences when there are any, else keep the neutral world view
+      const geo = this.geoZones?.getLayers().length ? this.geoZones.getBounds() : null;
+      if (geo?.isValid()) this.map.flyToBounds(geo, { padding: [24, 24], maxZoom: 20, duration: animate ? 0.8 : 0, animate });
+      else if (!animate) this.map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+      return;
+    }
     this.map.flyToBounds(this.planBounds, { padding: [10, 10], duration: animate ? 0.8 : 0, animate });
   }
 
-  /** Replays FL-008's recorded run (charging zone → corridor → Aisle 04) as an animated ghost marker. */
-  replayHistory(): void {
+  /** Replays a recorded run (lng/lat points, oldest first) as an animated ghost marker. */
+  replayHistory(history: LngLat[]): void {
     const L = this.L;
     const map = this.map;
     if (!L || !map) return;
+    if (history.length < 2) {
+      this.replayDone.emit();
+      return;
+    }
     this.zone.runOutsideAngular(() => {
       this.clearReplay();
-      const path = HISTORY_FL008.map(([lng, lat]) => L.latLng(lat, lng));
+      const path = history.map(([lng, lat]) => L.latLng(lat, lng));
       const cum = [0];
       for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + path[i - 1].distanceTo(path[i]));
       const line = L.polyline(path, { color: '#7c3aed', weight: 3, opacity: 0.85, dashArray: '2 7', lineCap: 'round', className: 'rl-replay', interactive: false }).addTo(map);
@@ -165,16 +167,24 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
     for (const k of ['plan', 'zones', 'labels', 'gateways', 'trails', 'assets', 'featured', 'focus'] as const) this.groups[k] = L.layerGroup().addTo(map);
     // CAD-style plan artwork sits in its own pane under the zones, markers and hover targets
     map.createPane('rl-art').style.zIndex = '350';
-    const art = buildPlanArt(FACILITY_GEO.features);
-    L.svgOverlay(art.svg, [[art.south, art.west], [art.north, art.east]], { pane: 'rl-art', interactive: false, className: 'rl-art' }).addTo(map);
+    if (FACILITY_GEO.features.some((x) => x.properties.kind === 'outline')) {
+      const art = buildPlanArt(FACILITY_GEO.features);
+      L.svgOverlay(art.svg, [[art.south, art.west], [art.north, art.east]], { pane: 'rl-art', interactive: false, className: 'rl-art' }).addTo(map);
+    } else {
+      // no floor plan yet: allow a world view
+      map.setMinZoom(DEFAULT_ZOOM);
+    }
     this.drawPlan(L);
+    this.geoZones = L.featureGroup().addTo(this.groups.zones);
+    this.geoLabels = L.layerGroup().addTo(this.groups.labels);
+    this.drawGeofences();
     this.drawAssets(L);
     this.fitPlan(false);
     // the 230-odd background assets only appear once zoomed in past the whole-level view
     this.nearZoom = map.getZoom() + 0.5;
     map.on('zoomend', () => this.applyZoomClass());
     this.applyZoomClass();
-    map.setMaxBounds(this.planBounds!.pad(0.35));
+    if (this.planBounds) map.setMaxBounds(this.planBounds.pad(0.35));
     this.applyLayers();
     this.restyle();
     this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
@@ -223,7 +233,7 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
         // walls, doors, bay lines and machine details are part of the plan artwork
         case 'rack':
           L.polygon(ring(f), HIT)
-            .bindTooltip(`<strong>${esc(String(p.name))}</strong><span>Pallet racking · 10 bays</span>`, { className: 'rl-tip', sticky: true, direction: 'top' })
+            .bindTooltip(`<strong>${esc(String(p.name))}</strong><span>Pallet racking</span>`, { className: 'rl-tip', sticky: true, direction: 'top' })
             .addTo(this.groups.plan);
           break;
         case 'machine':
@@ -268,6 +278,24 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
     }
   }
 
+  /** Geofence outlines (polygons, rectangles and circles as rings) from the API. */
+  private drawGeofences(): void {
+    const L = this.L;
+    const zones = this.geoZones;
+    const labels = this.geoLabels;
+    if (!L || !zones || !labels) return;
+    zones.clearLayers();
+    labels.clearLayers();
+    for (const z of this.geofences) {
+      if (z.hidden || z.ring.length < 3) continue;
+      const poly = L.polygon(z.ring.map(([lng, lat]) => L.latLng(lat, lng)), { color: z.color, weight: 2, dashArray: '7 6', fillColor: z.color, fillOpacity: z.restricted ? 0.13 : 0.09, className: 'rl-zone' + (z.restricted ? ' is-restricted' : '') });
+      poly.bindTooltip(`<strong>${esc(z.name)}</strong><span>${esc(z.type)} · ${esc(z.rule)}</span>`, { className: 'rl-tip', sticky: true, direction: 'top' });
+      poly.addTo(zones);
+      const b = poly.getBounds();
+      L.marker(L.latLng(b.getNorth(), b.getCenter().lng), { interactive: false, keyboard: false, icon: L.divIcon({ className: 'rl-lbl-wrap', html: `<span class="rl-zone-lbl${z.restricted ? ' is-red' : ''}" style="--c:${z.color}">${esc(z.name)}</span>`, iconSize: [0, 0] }) }).addTo(labels);
+    }
+  }
+
   private countNear(lng: number, lat: number): number {
     return ASSETS.filter((a) => distanceM(a, { lng, lat }) <= 15).length;
   }
@@ -283,7 +311,6 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
       });
       m.addTo(this.groups.assets);
       this.markers.set(a.id, m);
-      if (a.path) this.addMover(L, a.id, m, undefined, a.path, a.speed, false);
     }
     // featured assets with label cards
     for (const a of ASSETS.filter((x) => x.featured)) {
@@ -295,25 +322,8 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
       });
       m.addTo(this.groups.featured);
       this.markers.set(a.id, m);
-      const card = L.marker([a.lat, a.lng], { interactive: false, keyboard: false, zIndexOffset: 700, icon: L.divIcon({ className: 'rl-card-wrap', html: this.cardHtml(a), iconSize: [0, 0] }) }).addTo(this.groups.featured);
-      if (a.id === 'FL-008') {
-        // FL-008 drives its loop through Aisle 04 / 05; start where the GeoJSON places it
-        const route = ROUTE_FL008;
-        const mv = this.addMover(L, a.id, m, card, route, a.speed, true);
-        mv.dist = 9;
-        this.trail = L.polyline([], { color: COLOR.moving, weight: 3, opacity: 0.9, dashArray: '1 7', lineCap: 'round', interactive: false, className: 'rl-trail' }).addTo(this.groups.trails);
-        this.arrow = L.marker([a.lat, a.lng], { interactive: false, keyboard: false, zIndexOffset: 750, icon: L.divIcon({ className: 'rl-wrap', html: '<span class="rl-arrow"><i></i></span>', iconSize: [0, 0] }) }).addTo(this.groups.trails);
-      }
+      L.marker([a.lat, a.lng], { interactive: false, keyboard: false, zIndexOffset: 700, icon: L.divIcon({ className: 'rl-card-wrap', html: this.cardHtml(a), iconSize: [0, 0] }) }).addTo(this.groups.featured);
     }
-  }
-
-  private addMover(L: L, id: string, marker: Leaflet.Marker | Leaflet.CircleMarker, label: Leaflet.Marker | undefined, coords: LngLat[], speed: number, loop: boolean): Mover {
-    const path = coords.map(([lng, lat]) => L.latLng(lat, lng));
-    const cum = [0];
-    for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + path[i - 1].distanceTo(path[i]));
-    const mv: Mover = { id, marker, label, path, cum, total: cum[cum.length - 1] || 0.01, speed: speed || 1, dist: 0, loop, dir: 1 };
-    this.movers.push(mv);
-    return mv;
   }
 
   private tipFor(a: TrackedAsset): string {
@@ -395,31 +405,11 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
     this.replay = undefined;
   }
 
+  /** Advances the history replay ghost, if one is running. */
   private animate(t: number): void {
-    const L = this.L!;
-    const dt = this.last ? Math.min(0.1, (t - this.last) / 1000) : 0;
-    this.last = t;
-    for (const mv of this.movers) {
-      mv.dist += mv.speed * dt * mv.dir;
-      if (mv.loop) mv.dist = ((mv.dist % mv.total) + mv.total) % mv.total;
-      else if (mv.dist >= mv.total || mv.dist <= 0) {
-        mv.dist = Math.max(0, Math.min(mv.total, mv.dist));
-        mv.dir *= -1;
-      }
-      let i = 1;
-      while (i < mv.cum.length - 1 && mv.cum[i] < mv.dist) i++;
-      const a = mv.path[i - 1];
-      const b = mv.path[i];
-      const k = (mv.dist - mv.cum[i - 1]) / (mv.cum[i] - mv.cum[i - 1] || 1);
-      const pos = L.latLng(a.lat + (b.lat - a.lat) * k, a.lng + (b.lng - a.lng) * k);
-      mv.marker.setLatLng(pos);
-      mv.label?.setLatLng(pos);
-      if (mv.id === this.selectedId) this.accuracy?.setLatLng(pos);
-      if (mv.id === 'FL-008') this.trackFl008(L, mv, pos, a, b, t);
-    }
     if (this.replay) {
       const r = this.replay;
-      // 4x real speed (1.4 m/s), then hold the finished line for a moment
+      // 4x walking speed (1.4 m/s), then hold the finished line for a moment
       const along = ((t - r.start) / 1000) * 1.4 * 4;
       if (along > r.total + 8) {
         this.clearReplay();
@@ -430,27 +420,4 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
       }
     }
   }
-
-  private trackFl008(L: L, mv: Mover, pos: Leaflet.LatLng, a: Leaflet.LatLng, b: Leaflet.LatLng, t: number): void {
-    const heading = Math.atan2((b.lng - a.lng) * Math.cos((pos.lat * Math.PI) / 180), b.lat - a.lat);
-    if (t - this.lastTrail > 220) {
-      this.lastTrail = t;
-      this.trailPts.push(pos);
-      if (this.trailPts.length > 45) this.trailPts.shift();
-      this.trail?.setLatLngs(this.trailPts);
-      // the arrow sits a few metres ahead, pointing the direction of travel
-      const ahead = L.latLng(pos.lat + Math.cos(heading) * (4 / 111_320), pos.lng + Math.sin(heading) * (4 / (111_320 * Math.cos((pos.lat * Math.PI) / 180))));
-      this.arrow?.setLatLng(ahead);
-      const el = this.arrow?.getElement()?.querySelector('.rl-arrow') as HTMLElement | null;
-      if (el) el.style.transform = `rotate(${(heading * 180) / Math.PI}deg)`;
-    }
-    if (t - this.lastEmit > 1000) {
-      this.lastEmit = t;
-      // the asset's own registered fix trails the device by ~2.5 m (last checkpoint read)
-      const back = ((mv.dist - 2.5) % mv.total + mv.total) % mv.total;
-      const [rLng, rLat] = pointAlong(mv.path.map((p) => [p.lng, p.lat] as LngLat), back);
-      this.zone.run(() => this.live.emit({ id: mv.id, lng: pos.lng, lat: pos.lat, place: placeOf(pos.lng, pos.lat), regLng: rLng, regLat: rLat, heading }));
-    }
-  }
 }
-

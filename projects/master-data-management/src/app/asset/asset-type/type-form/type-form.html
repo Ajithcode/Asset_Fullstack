@@ -44,7 +44,7 @@
             </div>
             <div class="field" [class.invalid]="errors.category">
               <label for="type-cat"><span class="req">*</span> Category</label>
-              <select id="type-cat" name="category" [(ngModel)]="form.category" (ngModelChange)="onCategoryChange()">
+              <select id="type-cat" name="category" [(ngModel)]="form.category">
                 <option value="" disabled>Select category</option>
                 @for (c of service.categories(); track c) { <option [value]="c">{{ c }}</option> }
               </select>

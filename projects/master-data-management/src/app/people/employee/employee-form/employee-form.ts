@@ -1,10 +1,12 @@
 import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Camera, LucideAngularModule, Plus, Trash2, X } from 'lucide-angular';
-import { ACCESS_ROLES, DESIGNATIONS, EMAIL, EMPLOYMENT_TYPES, PEOPLE_DEPARTMENTS, nowStamp, readPhoto } from '../../people.data';
+import { ACCESS_ROLES, DESIGNATIONS, EMAIL, EMPLOYMENT_TYPES, nowStamp, readPhoto } from '../../people.data';
+import { MasterLookups } from '../../name-lookup';
+import { SiteService } from '../../../organization/site/site.service';
 import { SkillService } from '../../skill/skill.service';
 import { TeamService } from '../../team/team.service';
-import { EMPLOYEE_SITES, NATIONALITIES, blankEmployee } from '../employee.data';
+import { NATIONALITIES, blankEmployee } from '../employee.data';
 import { EmployeeRecord } from '../employee.model';
 import { EmployeeService } from '../employee.service';
 
@@ -39,12 +41,12 @@ export class EmployeeForm implements OnChanges {
   readonly service = inject(EmployeeService);
   readonly skillService = inject(SkillService);
   readonly teams = inject(TeamService);
+  private readonly lookups = inject(MasterLookups);
+  private readonly siteService = inject(SiteService);
   readonly icons = { X, Camera, Plus, Trash2 };
-  readonly departments = PEOPLE_DEPARTMENTS;
   readonly designations = DESIGNATIONS;
   readonly employmentTypes = EMPLOYMENT_TYPES;
   readonly accessRoles = ACCESS_ROLES;
-  readonly sites = EMPLOYEE_SITES;
   readonly nationalities = NATIONALITIES;
   readonly tabs: { id: FormTab; label: string }[] = [
     { id: 'basic', label: 'Basic Information' },
@@ -64,6 +66,18 @@ export class EmployeeForm implements OnChanges {
     this.form = this.employee ? structuredClone(this.employee) : blankEmployee(this.service.nextId());
     this.errors = {};
     this.tab = 'basic';
+  }
+
+  // Department names from the departments API, plus the current value so an edit keeps it
+  get departments(): string[] {
+    const names = this.lookups.departments.names;
+    return this.form.department && !names.includes(this.form.department) ? [this.form.department, ...names] : names;
+  }
+
+  // Names of sites already loaded from the sites API, plus the current value so an edit keeps it
+  get sites(): string[] {
+    const names = this.siteService.all().map((s) => s.name);
+    return this.form.site && !names.includes(this.form.site) ? [this.form.site, ...names] : names;
   }
 
   get isEdit(): boolean {

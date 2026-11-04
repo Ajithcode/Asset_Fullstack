@@ -180,7 +180,7 @@ interface AssetDocument {
   size: number;
   /** ISO date (yyyy-mm-dd). */
   uploadedAt: string;
-  /** Present for files picked in this session; the sample rows have none. */
+  /** Present for files picked in this session. */
   file?: File;
 }
 
@@ -241,7 +241,7 @@ type InfoTab = 'technical' | 'operational' | 'custom' | 'attachments';
 
 type DocumentType = 'pdf' | 'sheet' | 'image' | 'doc';
 
-/** All registration fields, pre-filled with static sample data until the Assets API is wired up. */
+/** All registration fields; the form starts blank. */
 interface AssetForm {
   // Step 1: Basic Information
   assetName: string;
@@ -457,28 +457,28 @@ export class AssetRegistration {
   submitted = false;
 
   form: AssetForm = {
-    assetName: 'Diesel Generator 250 kVA',
-    assetTag: 'GEN-00045',
-    barcode: 'DG250-2026-00045',
-    rfidTag: 'E28011606000020B3C4F8E9A',
+    assetName: '',
+    assetTag: '',
+    barcode: '',
+    rfidTag: '',
     category: '',
     subCategory: '',
     assetType: '',
-    model: 'C250D6E',
+    model: '',
     manufacturer: '',
-    serialNumber: 'CAT2026G45001',
-    status: 'active',
-    condition: 'good',
+    serialNumber: '',
+    status: '',
+    condition: '',
     criticality: '',
-    description: '250 kVA diesel generator for main plant backup power. Installed at Building A.',
+    description: '',
     assetSubType: '',
     functionPurpose: '',
-    costCenter: 'fm-001',
+    costCenter: '',
     businessUnit: '',
     taggingMethod: '',
     complianceCategory: '',
     lifecycleStage: '',
-    keywords: ['generator', 'diesel', 'backup power', 'critical'],
+    keywords: [],
     country: '',
     site: '',
     building: '',
@@ -489,66 +489,66 @@ export class AssetRegistration {
     assignedTo: '',
     ownershipType: '',
     responsibleTeam: '',
-    assignmentStart: '2026-09-01',
+    assignmentStart: '',
     assignmentEnd: '',
     setAsCurrent: true,
-    purchaseOrder: 'PO-2026-00458',
-    invoiceNumber: 'INV-2026-0789',
+    purchaseOrder: '',
+    invoiceNumber: '',
     vendor: '',
-    purchaseDate: '2026-06-15',
-    deliveryDate: '2026-06-28',
-    purchaseCost: '250000',
+    purchaseDate: '',
+    deliveryDate: '',
+    purchaseCost: '',
     quantity: '1',
     unit: '',
-    currency: 'AED',
-    taxRate: '5',
+    currency: '',
+    taxRate: '',
     paymentTerms: '',
     procurementMethod: '',
-    projectReference: 'Main Plant Expansion 2026',
-    remarks: 'Procured as part of main plant expansion. Includes commissioning and operator training.',
+    projectReference: '',
+    remarks: '',
     warrantyType: '',
-    warrantyStart: '2026-06-28',
-    warrantyPeriod: '5',
+    warrantyStart: '',
+    warrantyPeriod: '',
     warrantyPeriodUnit: '',
-    amcIncluded: true,
+    amcIncluded: false,
     supportCoverage: '',
     serviceProvider: '',
-    warrantyReference: 'WARR-2026-CAT-001',
+    warrantyReference: '',
     specs: {
-      powerRating: '250',
+      powerRating: '',
       powerUnit: '',
-      voltage: '400',
+      voltage: '',
       voltageUnit: '',
-      frequency: '50',
+      frequency: '',
       frequencyUnit: '',
       phase: '',
       fuelType: '',
-      fuelTankCapacity: '500',
+      fuelTankCapacity: '',
       fuelTankUnit: '',
-      length: '3200',
-      width: '1100',
-      height: '1800',
+      length: '',
+      width: '',
+      height: '',
       dimensionUnit: '',
-      weight: '2500',
+      weight: '',
       weightUnit: '',
-      temperatureRange: '-10 to 50',
+      temperatureRange: '',
       temperatureUnit: '',
       ipRating: '',
-      noiseLevel: '75',
+      noiseLevel: '',
       noiseUnit: '',
-      lifespan: '20',
+      lifespan: '',
       lifespanUnit: '',
-      remarks: 'Air cooled diesel generator with automatic transfer switch. Suitable for continuous operation.',
+      remarks: '',
     },
     operations: {
-      operatingHours: '8',
+      operatingHours: '',
       operatingHoursUnit: '',
       operatingShift: '',
       utilization: '',
-      maintenanceFrequency: '500',
+      maintenanceFrequency: '',
       maintenanceFrequencyUnit: '',
-      lastMaintenance: '2026-09-01',
-      nextMaintenance: '2027-03-01',
+      lastMaintenance: '',
+      nextMaintenance: '',
       complianceStandards: [],
     },
   };
@@ -599,11 +599,8 @@ export class AssetRegistration {
 
   readonly functionPurposes: Option[] = [];
 
-  readonly costCenters: Option[] = [
-    { label: 'FM-001 - Building Operations', value: 'fm-001' },
-    { label: 'OP-010 - Plant Operations', value: 'op-010' },
-    { label: 'MT-020 - Maintenance', value: 'mt-020' },
-  ];
+  /** No cost-center master data API yet; options can be added through the option menu. */
+  readonly costCenters: Option[] = [];
 
   readonly businessUnits: Option[] = [];
 
@@ -675,11 +672,7 @@ export class AssetRegistration {
   /** True while the cost box has focus, so it shows the raw number instead of "250,000.00". */
   costEditing = false;
 
-  purchaseDocuments: AssetDocument[] = [
-    { name: 'Purchase Invoice_INV-2026-0789.pdf', size: 1258291, uploadedAt: '2026-06-15' },
-    { name: 'Purchase Order_PO-2026-00458.xlsx', size: 870400, uploadedAt: '2026-06-10' },
-    { name: 'Delivery Note_DN-2026-0456.pdf', size: 634880, uploadedAt: '2026-06-28' },
-  ];
+  purchaseDocuments: AssetDocument[] = [];
   /** The document list a file is being dragged over. */
   draggingList: DocumentList | null = null;
   /** "list:index" of the document whose "more" menu is open. */
@@ -740,7 +733,7 @@ export class AssetRegistration {
 
   customFields: CustomField[] = [
     {
-      label: 'Asset Criticality Level', type: 'select', value: 'critical',
+      label: 'Asset Criticality Level', type: 'select', value: '',
       options: [
         { label: 'Critical', value: 'critical' },
         { label: 'High', value: 'high' },
@@ -749,28 +742,21 @@ export class AssetRegistration {
       ],
     },
     {
-      label: 'Environmental Impact', type: 'select', value: 'high',
+      label: 'Environmental Impact', type: 'select', value: '',
       options: [{ label: 'High', value: 'high' }, { label: 'Medium', value: 'medium' }, { label: 'Low', value: 'low' }],
     },
-    { label: 'Installation Date', type: 'date', value: '2026-06-15' },
-    { label: 'Commissioning Date', type: 'date', value: '2026-06-20' },
+    { label: 'Installation Date', type: 'date', value: '' },
+    { label: 'Commissioning Date', type: 'date', value: '' },
     {
-      label: 'Asset Color', type: 'select', value: 'yellow',
+      label: 'Asset Color', type: 'select', value: '',
       options: units('Yellow', 'White', 'Grey', 'Black', 'Green').map((o) => ({ ...o, value: o.value.toLowerCase() })),
     },
-    { label: 'Notes', type: 'textarea', value: 'Installed near main entrance. Fire rated enclosure.', maxLength: NOTES_MAX },
+    { label: 'Notes', type: 'textarea', value: '', maxLength: NOTES_MAX },
   ];
 
-  attachments: AssetDocument[] = [
-    { name: 'Installation_Certificate.pdf', size: 1258291, uploadedAt: '2026-06-20' },
-    { name: 'Operation_Manual_C250D6E.pdf', size: 5033165, uploadedAt: '2026-06-20' },
-  ];
+  attachments: AssetDocument[] = [];
 
-  images: AssetImage[] = [
-    { src: 'asset-generator.svg', alt: 'Diesel generator, front view' },
-    { src: 'asset-generator-panel.svg', alt: 'Generator control panel' },
-    { src: 'asset-generator.svg', alt: 'Diesel generator, side view' },
-  ];
+  images: AssetImage[] = [];
   activeImageIndex = 0;
 
   @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
@@ -1494,7 +1480,7 @@ export class AssetRegistration {
   downloadDocument(doc: AssetDocument): void {
     this.docMenuKey = null;
     if (!doc.file) {
-      this.showToast(`${doc.name} is sample data and has no file to download.`);
+      this.showToast(`${doc.name} has no file to download.`);
       return;
     }
     const url = URL.createObjectURL(doc.file);

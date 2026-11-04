@@ -225,7 +225,7 @@
             </ng-container>
             <dt>Related Duplicates</dt><dd><span class="val">{{ mergeCount }} asset{{ mergeCount === 1 ? '' : 's' }} will be merged</span></dd>
             <dt>Merge Reason</dt><dd><span class="val">Duplicate records</span></dd>
-            <dt>Merged By</dt><dd><span class="val">Rex Kumar</span></dd>
+            <dt>Merged By</dt><dd><span class="val">{{ currentUser || '—' }}</span></dd>
             <dt>Merge Date</dt><dd><span class="val">{{ nowLabel }}</span></dd>
           </dl>
         </article>

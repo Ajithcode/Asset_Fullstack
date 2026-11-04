@@ -370,6 +370,7 @@
           <span class="ev-text"><strong>{{ e.title }}</strong><small>By: {{ e.by }}</small></span>
         </li>
       </ol>
+      <p *ngIf="!recentEvents.length" class="empty-line">No records found.</p>
       <button type="button" class="link-btn view-all" (click)="openHistory()">View All Events <lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
     </div>
   </ng-template>
@@ -472,6 +473,7 @@
           <text [attr.x]="pt.x" [attr.y]="chart.height - 6" class="axis-label" text-anchor="middle">{{ fmtMonth(pt.p.date) }}</text>
         </g>
       </svg>
+      <p *ngIf="!chartPoints.length" class="empty-line">No records found.</p>
     </div>
   </ng-template>
 

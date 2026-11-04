@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { AssetCondition, AssetHeader, AssetIconKey, AssetStatus, Criticality, findAsset } from 'shared-ui';
+import { AssetCondition, AssetHeader, AssetIconKey, AssetStatus, Criticality } from 'shared-ui';
 import { ASSET_API } from '../services/asset-api';
 
 /** One row of GET /api/asset-registrations (AssetListItemResponse). */
@@ -77,8 +77,6 @@ function conditionFor(status: string): AssetCondition {
 export function headerFor(item: AssetListItemDto): AssetHeader {
   const tag = item.assetTag || item.assetRegistrationId;
   const status = (item.status || 'Active') as AssetStatus;
-  // Sample photos are kept for the demo assets that share a tag with a registered asset
-  const sample = findAsset(tag);
   return {
     tag,
     name: item.assetName ?? '',
@@ -88,8 +86,8 @@ export function headerFor(item: AssetListItemDto): AssetHeader {
     status,
     condition: conditionFor(status),
     criticality: (item.criticality || 'Low') as Criticality,
-    image: item.imageUrl || sample?.image || null,
-    icon: sample?.icon ?? iconFor(item.category, item.assetType),
+    image: item.imageUrl || null,
+    icon: iconFor(item.category, item.assetType),
   };
 }
 

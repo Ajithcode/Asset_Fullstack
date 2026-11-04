@@ -6,4 +6,4 @@
  *
  * Local backend in Docker instead of the tunnel: 'http://localhost:5296/'
  */
-export const API_BASE_URL = 'https://saw-updates-chelsea-spreading.trycloudflare.com/';
+export const API_BASE_URL = 'http://localhost:5296/';

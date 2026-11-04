@@ -46,7 +46,7 @@ type ViewMode = 'list' | 'grid';
 
 /** The asset's current assessment with its mitigation actions and earlier assessments. */
 interface CriticalityView extends CriticalityAssessment {
-  /** DEMO MODE: failure impact has no Asset API yet; from the asset's sample data file when there is one. */
+  /** Failure impact has no Asset API yet; empty until one serves it. */
   impact: CriticalityImpact | null;
   mitigations: MitigationAction[];
   /** Earlier assessments, newest first. */

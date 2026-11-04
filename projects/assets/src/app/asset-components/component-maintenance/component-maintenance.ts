@@ -104,84 +104,10 @@ function addMonths(d: Date, months: number): Date {
   return out;
 }
 
-type Template = [task: string, kind: MaintenanceKind, value: number, unit: IntervalUnit];
-
-/** Schedule templates per component icon, so each kind of part gets plausible tasks. */
-function templatesFor(c: AssetComponent): Template[] {
-  switch (c.icon) {
-    case 'engine':
-      return [
-        ['500 Hours Service', 'Preventive', 500, 'Hours'],
-        ['Oil Filter Replacement', 'Replacement', 500, 'Hours'],
-        ['Air Filter Replacement', 'Replacement', 1000, 'Hours'],
-        ['Fuel Filter Replacement', 'Replacement', 1000, 'Hours'],
-        ['Turbo Charger Inspection', 'Inspection', 2000, 'Hours'],
-      ];
-    case 'filter':
-    case 'fuel':
-    case 'oil':
-      return [
-        [`${c.name} Replacement`, 'Replacement', 500, 'Hours'],
-        ['Visual Inspection', 'Inspection', 1, 'Months'],
-        ['Differential Pressure Check', 'Inspection', 14, 'Days'],
-        ['Housing Cleaning', 'Preventive', 250, 'Hours'],
-        ['Seal & Gasket Check', 'Inspection', 3, 'Months'],
-      ];
-    case 'battery':
-      return [
-        ['Voltage & Terminal Check', 'Inspection', 1, 'Months'],
-        ['Load Test', 'Preventive', 6, 'Months'],
-        ['Terminal Cleaning', 'Preventive', 3, 'Months'],
-        ['Capacity Test', 'Inspection', 6, 'Months'],
-        ['Charger Output Calibration', 'Calibration', 12, 'Months'],
-      ];
-    case 'panel':
-    case 'cpu':
-    case 'board':
-    case 'control':
-      return [
-        ['Firmware & Fault Log Review', 'Inspection', 3, 'Months'],
-        ['Sensor Calibration', 'Calibration', 12, 'Months'],
-        ['Connection Tightness Check', 'Inspection', 6, 'Months'],
-        ['Dust Cleaning', 'Preventive', 3, 'Months'],
-        ['Configuration Backup', 'Preventive', 1, 'Months'],
-      ];
-    default:
-      return [
-        ['General Inspection', 'Inspection', 3, 'Months'],
-        ['Cleaning & Lubrication', 'Preventive', 500, 'Hours'],
-        ['Vibration Analysis', 'Inspection', 6, 'Months'],
-        ['Bearing Lubrication', 'Preventive', 1000, 'Hours'],
-        ['Alignment Check', 'Calibration', 12, 'Months'],
-      ];
-  }
-}
-
-const TECHNICIANS = ['Rashid Ali', 'Hamad Lateef', 'Ramesh Kumar', 'Faisal Ahmed'];
-
-/** Deterministic sample data for a component, laid out relative to today. */
+/** Empty maintenance data for a component until a component maintenance API exists. */
 export function buildMockMaintenance(c: AssetComponent): MaintenanceData {
-  const now = today();
-  const runningHours = c.lifeUnit === 'hrs' && c.lifeUsed ? c.lifeUsed : 1250;
-  const schedules: MaintenanceSchedule[] = templatesFor(c).map(([task, kind, value, unit], i) => ({
-    id: nextId++,
-    task,
-    kind,
-    intervalValue: value,
-    intervalUnit: unit,
-    // Spread due dates from a couple of weeks overdue to ~8 months out.
-    nextDue: toIso(addDays(now, ((i * 53 + c.id * 17) % 250) - 15)),
-  }));
-  const history: MaintenanceRecord[] = Array.from({ length: 6 }, (_, k) => ({
-    id: nextId++,
-    date: toIso(addDays(now, -(12 + k * 38 + (c.id % 7) * 3))),
-    task: schedules[k % schedules.length].task,
-    runningHours: Math.max(0, runningHours - (k + 1) * 150),
-    status: k === 3 ? 'Cancelled' : 'Completed',
-    technician: TECHNICIANS[(k + c.id) % TECHNICIANS.length],
-    notes: '',
-  }));
-  return { hoursPerDay: 4, runningHours, schedules, history };
+  const runningHours = c.lifeUnit === 'hrs' && c.lifeUsed ? c.lifeUsed : 0;
+  return { hoursPerDay: 4, runningHours, schedules: [], history: [] };
 }
 
 type ScheduleForm = Omit<MaintenanceSchedule, 'id'>;
@@ -203,11 +129,11 @@ export class ComponentMaintenance {
 
   readonly kinds: MaintenanceKind[] = ['Preventive', 'Inspection', 'Replacement', 'Calibration'];
   readonly units: IntervalUnit[] = ['Hours', 'Days', 'Months'];
-  readonly technicians = TECHNICIANS;
+  readonly technicians: string[] = [];
 
   private comp!: AssetComponent;
 
-  /** Sample data is created on first view and kept on the component, so it survives tab switches. */
+  /** Maintenance data is created (empty) on first view and kept on the component, so it survives tab switches. */
   @Input({ required: true })
   set component(c: AssetComponent) {
     c.maintenance ??= buildMockMaintenance(c);

@@ -21,7 +21,8 @@ import {
   User,
   Wrench,
 } from 'lucide-angular';
-import { AuthService, LoginData } from 'shared-ui';
+import { AuthService, AuthUser, LoginData, LoginResponse } from 'shared-ui';
+import { Observable } from 'rxjs';
 
 const REMEMBER_KEY = 'a360.rememberedUser';
 /** Design canvas of the login page (the mock is 1536 × 1024, drawn here with a tighter vertical rhythm). */
@@ -30,7 +31,10 @@ const DESIGN_MIN_W = 1280;
 
 type Directory = '' | 'Active Directory' | 'LDAP';
 
-/** DEMO MODE: any username + password signs in straight to the dashboard (no backend, no OTP). */
+/**
+ * Sign-in in two steps against the UserAccount service: username + password, then the 6-digit code from the
+ * authenticator app (first sign-in: scan the QR code with Google Authenticator first) or from the emailed OTP.
+ */
 @Component({
   standalone: true,
   selector: 'app-login',
@@ -39,7 +43,7 @@ type Directory = '' | 'Active Directory' | 'LDAP';
   styleUrls: ['./login.css']
 })
 export class Login {
-  readonly icons = { ArrowRight, Building2, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Lock, Mail, QrCode, Server, User };
+  readonly icons = { ArrowRight, Building2, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Lock, Mail, QrCode, Server, ShieldCheck, User };
   readonly features = [
     { label: 'Asset\nVisibility', icon: Box, tone: 'purple' },
     { label: 'Maintenance\nManagement', icon: Wrench, tone: 'teal' },
@@ -64,6 +68,11 @@ export class Login {
   scale = 1;
   /** Set when the user picks Active Directory / LDAP: same form, signs in against that directory. */
   directory: Directory = '';
+  /** Second step after a correct password: the authenticator / emailed code. */
+  challenge: LoginResponse | null = null;
+  /** Username the challenge belongs to. */
+  private challengeUser = '';
+  code = '';
 
   constructor(private auth: AuthService, private router: Router, private route: ActivatedRoute) {
     this.fit();
@@ -94,16 +103,66 @@ export class Login {
       return;
     }
 
+    if (this.isLoading) return;
+
     this.errorMsg = '';
     this.infoMsg = '';
     try {
       if (this.rememberMe) localStorage.setItem(REMEMBER_KEY, userName);
       else localStorage.removeItem(REMEMBER_KEY);
     } catch {}
-    this.auth.login({ userName, password: this.credentials.password });
-    this.credentials.password = '';
-    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-    this.router.navigateByUrl(returnUrl || this.startPage());
+    this.isLoading = true;
+    this.auth.login({ userName, password: this.credentials.password }).subscribe({
+      next: (res) => {
+        this.isLoading = false;
+        this.credentials.password = '';
+        this.challenge = res;
+        this.challengeUser = userName;
+        this.code = '';
+        this.infoMsg = res.message;
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMsg = this.auth.errorMessage(err, 'Sign-in failed. Please try again.');
+      },
+    });
+  }
+
+  /** Step 2: the 6-digit code from the authenticator app (or the email); signs in and opens the start page. */
+  verifyCode(): void {
+    const c = this.challenge;
+    const code = this.code.replace(/\s/g, '');
+    if (!c || this.isLoading) return;
+    if (!/^\d{6}$/.test(code)) {
+      this.errorMsg = 'Enter the 6-digit code.';
+      return;
+    }
+    this.errorMsg = '';
+    this.isLoading = true;
+    const call: Observable<AuthUser> =
+      c.method === 'totp' ? this.auth.verifyTotp(this.challengeUser, c.loginToken ?? '', code) : this.auth.verifyOtp(this.challengeUser, code);
+    call.subscribe({
+      next: () => {
+        this.isLoading = false;
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+        this.router.navigateByUrl(returnUrl || this.startPage());
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.code = '';
+        this.errorMsg = this.auth.errorMessage(err, 'Invalid code. Please try again.');
+        // An expired sign-in or too many tries needs the password again
+        if (err?.status === 401 && /expired|again|too many/i.test(this.errorMsg)) this.backToPassword(this.errorMsg);
+      },
+    });
+  }
+
+  /** Back to username + password (cancel the code step). */
+  backToPassword(message = ''): void {
+    this.challenge = null;
+    this.code = '';
+    this.infoMsg = '';
+    this.errorMsg = message;
   }
 
   /** Start page chosen in Preferences (account menu), else the IoT & Tracking Overview dashboard. */

@@ -10,14 +10,14 @@ export type FilterOperator =
   | '=' | '≠' | '>' | '<' | '≥' | '≤'
   | 'on' | 'before' | 'after';
 
-/** A reportable field. Sample values are generated from `values`, `pattern`, a numeric range or a date span. */
+/** A reportable field. `values` lists the fixed options offered in filters. */
 export interface FieldDef {
   key: string;
   label: string;
   kind: FieldKind;
   group: string;
   values?: string[];
-  /** e.g. 'WO-2026-{n}' with n = start + row */
+  /** ID pattern, e.g. 'WO-{n}' */
   pattern?: string;
   start?: number;
   pad?: number;

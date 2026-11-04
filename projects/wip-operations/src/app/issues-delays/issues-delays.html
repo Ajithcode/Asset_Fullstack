@@ -90,7 +90,7 @@
             </div>
           </section>
 
-          <div class="id-pair">
+          <div *ngIf="issues.length" class="id-pair">
             <!-- Impact & delay -->
             <section class="box" aria-labelledby="id-impact">
               <h3 id="id-impact">Impact &amp; Delay</h3>
@@ -172,7 +172,7 @@
         </div>
 
         <!-- ===== Right column ===== -->
-        <div class="col">
+        <div *ngIf="issues.length" class="col">
           <section class="box" aria-labelledby="id-det">
             <div class="box-head"><h3 id="id-det" class="grow">Issue Details</h3></div>
             <div class="det-title">

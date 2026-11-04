@@ -17,7 +17,7 @@ const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}$/i;
 
 function blankDraft(datasetId: string): ExportDraft {
   return {
-    id: null, name: '', datasetId, format: 'CSV', fields: [], filters: [], delivery: 'S3', target: 's3://piq-asset360-exports/',
+    id: null, name: '', datasetId, format: 'CSV', fields: [], filters: [], delivery: 'S3', target: '',
     frequency: 'Daily', time: '02:00', encrypted: true
   };
 }
@@ -289,7 +289,7 @@ export class ExportBuilder {
 
   get datasetSummary(): string {
     const ds = this.service.dataset(this.draft.datasetId);
-    return ds ? `${ds.rows.toLocaleString('en-US')} rows · ${this.allFields.length} fields · refreshed ${ds.refreshed.replace('T', ' ')}` : '';
+    return ds ? `${ds.rows.toLocaleString('en-US')} rows · ${this.allFields.length} fields · refreshed ${ds.refreshed ? ds.refreshed.replace('T', ' ') : '—'}` : '';
   }
 
   setDataset(id: string): void {
@@ -339,7 +339,7 @@ export class ExportBuilder {
 
   valueHint(r: ExportFilter): string {
     const t = this.fieldType(r.field);
-    if (t === 'date') return r.operator === 'in last' ? '30 days' : '2026-10-01';
+    if (t === 'date') return r.operator === 'in last' ? '30 days' : new Date().toISOString().slice(0, 10);
     if (t === 'text' || t === 'id') return 'Value';
     return '0';
   }
@@ -371,7 +371,7 @@ export class ExportBuilder {
 
   setDelivery(d: DeliveryType): void {
     this.draft.delivery = d;
-    this.draft.target = d === 'S3' ? 's3://piq-asset360-exports/' : d === 'Email' ? '' : d === 'Secure FTP' ? 'sftp.purpleiq.com/exports' : '';
+    this.draft.target = '';
   }
 
   get deliveryError(): string {

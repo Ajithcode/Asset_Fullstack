@@ -593,18 +593,19 @@
             <dt>Type</dt><dd>{{ w.type }}</dd>
             <dt>Description</dt><dd>{{ w.description }}</dd>
             <dt>Start Date</dt><dd>{{ fmtDateTime(d.start) }}</dd>
-            <dt>End Date</dt><dd>{{ fmtDateTime(d.end) }}</dd>
+            <dt>End Date</dt><dd>{{ d.end ? fmtDateTime(d.end) : '—' }}</dd>
             <dt>Downtime</dt><dd>{{ fmtDuration(w.downtimeMin) }}</dd>
             <dt>Status</dt><dd><span class="st" [ngClass]="statusClass(w.status)">{{ w.status }}</span></dd>
             <dt>Performed By</dt><dd>{{ w.technician }}{{ w.technician.startsWith('External') ? '' : ' (Technician)' }}</dd>
-            <dt>Supervisor</dt><dd>{{ d.supervisor }}</dd>
-            <dt>Root Cause</dt><dd>{{ d.rootCause }}</dd>
-            <dt>Resolution</dt><dd>{{ d.resolution }}</dd>
-            <dt>Next Action</dt><dd>{{ d.nextAction }}</dd>
+            <dt>Supervisor</dt><dd>{{ d.supervisor || '—' }}</dd>
+            <dt>Root Cause</dt><dd>{{ d.rootCause || '—' }}</dd>
+            <dt>Resolution</dt><dd>{{ d.resolution || '—' }}</dd>
+            <dt>Next Action</dt><dd>{{ d.nextAction || '—' }}</dd>
           </dl>
           <ul *ngIf="detailTab === 'tasks'" class="mh-list">
             <li *ngFor="let t of d.tasks"><lucide-icon class="ok" [img]="icons.CircleCheck" [size]="16"></lucide-icon><span class="grow">{{ t.task }}</span><span class="muted">{{ t.by }}</span></li>
           </ul>
+          <p *ngIf="detailTab === 'tasks' && !d.tasks.length" class="muted mh-empty">No records found.</p>
           <ng-container *ngIf="detailTab === 'parts'">
             <table *ngIf="d.parts.length; else noParts" class="dt dt--compact"><thead><tr><th>Part</th><th class="num">Qty</th><th class="num">AED</th></tr></thead>
               <tbody><tr *ngFor="let p of d.parts"><td>{{ p.part }}<small class="muted mh-sub">{{ p.partNo }}</small></td><td class="num">{{ p.qty }}</td><td class="num">{{ p.amount | number }}</td></tr></tbody></table>
@@ -616,6 +617,7 @@
           <ul *ngIf="detailTab === 'documents'" class="mh-list">
             <li *ngFor="let doc of d.documents"><lucide-icon [img]="icons.FileText" [size]="16"></lucide-icon><span class="grow">{{ doc.name }}<small class="muted mh-sub">{{ doc.kind }} · {{ doc.size }}</small></span></li>
           </ul>
+          <p *ngIf="detailTab === 'documents' && !d.documents.length" class="muted mh-empty">No records found.</p>
 
           <h4 class="mh-rel-title">Related Information</h4>
           <dl class="mh-rel">

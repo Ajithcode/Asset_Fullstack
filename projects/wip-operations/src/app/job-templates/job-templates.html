@@ -21,7 +21,7 @@
       <h1>Job Master Template</h1>
       <p class="subtitle">Define reusable job settings, routing and execution rules</p>
     </div>
-    <div class="head-actions">
+    <div *ngIf="templateList.length" class="head-actions">
       <button type="button" class="btn btn-outline" (click)="previewOpen = true"><lucide-icon [img]="icons.Eye" [size]="18"></lucide-icon>Preview</button>
       <button type="button" class="btn btn-outline" (click)="saveDraft()"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon>Save Draft</button>
       <button type="button" class="btn btn-primary" (click)="publish()"><lucide-icon [img]="icons.Send" [size]="18"></lucide-icon>Publish Template</button>
@@ -34,7 +34,7 @@
     <button type="button" class="icon-btn" (click)="bannerOpen = false" aria-label="Dismiss"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
   </div>
 
-  <div class="layout">
+  <div *ngIf="templateList.length; else noTemplates" class="layout">
     <!-- ===== Main column ===== -->
     <div class="main">
       <div class="card">
@@ -414,8 +414,12 @@
     </aside>
   </div>
 
+  <ng-template #noTemplates>
+    <div class="card"><p class="empty">No job templates yet.</p></div>
+  </ng-template>
+
   <!-- ===== Footer ===== -->
-  <footer class="card foot">
+  <footer *ngIf="templateList.length" class="card foot">
     <span class="muted grow">Last updated {{ t.lastUpdated | date: 'dd MMM yyyy' }} by {{ t.lastUpdatedBy }} &bull; Changes apply to new job orders</span>
     <button type="button" class="btn btn-outline" (click)="cancel()">Cancel</button>
     <button type="button" class="btn btn-primary" (click)="saveDraft()"><lucide-icon [img]="icons.Save" [size]="16"></lucide-icon>Save Draft</button>

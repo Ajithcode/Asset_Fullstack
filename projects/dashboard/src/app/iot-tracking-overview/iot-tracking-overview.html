@@ -121,7 +121,7 @@
         <div class="io-fw io-click" *ngIf="firmware as f" role="button" tabindex="0" (click)="openFirmware()" (keydown.enter)="openFirmware()">
           <div class="io-fw-head"><strong>Firmware Updates</strong><b>{{ f.pct }}%</b></div>
           <div class="io-bar"><span [style.width.%]="f.pct"></span></div>
-          <small class="muted">{{ f.latest | number }} of {{ f.total | number }} devices on latest firmware ({{ latestFirmware }})</small>
+          <small class="muted">{{ f.latest | number }} of {{ f.total | number }} devices on latest firmware<ng-container *ngIf="latestFirmware"> ({{ latestFirmware }})</ng-container></small>
         </div>
       </div>
     </section>

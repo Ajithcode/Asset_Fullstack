@@ -69,6 +69,7 @@ export class AssetPerformancePage extends ScopedAnalyticsPage {
   }
 
   private buildInsights(v: AssetPerformanceView): RaInsight[] {
+    if (!v.total) return [];
     const low = v.lowUtilization;
     return [
       v.critical.length

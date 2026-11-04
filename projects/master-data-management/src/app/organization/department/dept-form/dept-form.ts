@@ -2,7 +2,6 @@ import { Component, EventEmitter, Input, OnChanges, Output, inject, SimpleChange
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, User, X } from 'lucide-angular';
 import { MASTER_ICONS, MASTER_ICON_KEYS } from '../../../shared/master-icons';
-import { COST_CENTERS, EMPLOYEES } from '../../business-unit/business-unit.data';
 import { BusinessUnitService } from '../../business-unit/business-unit.service';
 import { COUNTRIES, CURRENCIES } from '../../organization/organization.data';
 import { blankDepartment } from '../department.data';
@@ -36,7 +35,8 @@ export class DeptForm implements OnChanges {
   readonly logoIcons = MASTER_ICONS;
   readonly logoKeys = MASTER_ICON_KEYS;
   readonly types = DEPARTMENT_TYPES;
-  readonly employees = EMPLOYEES;
+  // Employee suggestions for the head and deputy fields; free text until the employee list is wired here
+  readonly employees: string[] = [];
   readonly currencies = CURRENCIES;
   readonly countries = COUNTRIES;
   readonly tabs: { id: FormTab; label: string }[] = [
@@ -76,7 +76,7 @@ export class DeptForm implements OnChanges {
     const ownUnit = this.businessUnits.find(this.form.businessUnitCode)?.costCenter;
     const fromDepartments = this.service.ofBusinessUnit(this.form.businessUnitCode).map((d) => d.costCenter);
     const suggested = this.form.businessUnitCode && this.form.code ? [`CC-${this.form.businessUnitCode}-${this.form.code.trim().toUpperCase()}`] : [];
-    return [...new Set([...suggested, ...(ownUnit ? [ownUnit] : []), ...fromDepartments, ...(this.form.businessUnitCode ? [] : COST_CENTERS)].filter(Boolean))];
+    return [...new Set([...suggested, ...(ownUnit ? [ownUnit] : []), ...fromDepartments, this.form.costCenter].filter(Boolean))];
   }
 
   get path(): string {

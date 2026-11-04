@@ -29,7 +29,8 @@ import {
   X,
 } from 'lucide-angular';
 import { Subject, catchError, forkJoin, of, switchMap, tap } from 'rxjs';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetCondition, AssetHeader, AssetRecord, AssetTabLink, TODAY, assetHeader, assetLocation, assetTabs, findAsset, toIsoDate } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetCondition, AssetHeader, AssetRecord, AssetTabLink, TODAY, assetHeader, assetLocation, assetTabs, toIsoDate } from 'shared-ui';
+import { blankAssetRecord } from '../shared/blank-asset';
 import { AssetDetail, Assessment, loadAssetDetail } from '../asset-details/asset-details';
 import {
   AssetDetailsService,
@@ -43,7 +44,6 @@ import { MaintenanceData, dataFor } from '../asset-maintenance/asset-maintenance
 import { isOpen } from '../asset-maintenance/maintenance-sr';
 import { AssetComponent, COMPONENT_ICONS, componentTreeOf, componentsOf, loadComponentTree } from '../asset-components/asset-components';
 import { ComponentOverview } from '../asset-components/component-overview/component-overview';
-import { buildMockFields } from '../asset-custom-fields/asset-custom-fields';
 import { CustomField } from '../asset-custom-fields/custom-fields.model';
 import { CustomFieldDto, toCustomField } from '../asset-custom-fields/custom-fields.service';
 
@@ -74,8 +74,6 @@ const KIND_TONES: Record<HistoryKind, string> = {
 };
 const HISTORY_KINDS = Object.keys(KIND_TONES) as HistoryKind[];
 const HISTORY_PAGE = 15;
-/** Field definitions used until (or when) /api/asset-custom-fields returns none. */
-const MOCK_FIELDS = buildMockFields();
 
 
 /**
@@ -109,13 +107,13 @@ export class AssetDetailTab implements OnDestroy {
   tabs: AssetTabLink[] = assetTabs('Overview');
 
   /** The asset named by ?tag=; when it is missing or unknown the page shows a "not found" message. */
-  asset: AssetHeader = assetHeader(ASSET_RECORDS[0]);
-  record: AssetRecord = ASSET_RECORDS[0];
+  asset: AssetHeader = assetHeader(blankAssetRecord());
+  record: AssetRecord = blankAssetRecord();
   notFound = false;
   requestedTag = '';
   loading = false;
   detail: AssetDetail | null = null;
-  maintenance: MaintenanceData = dataFor(ASSET_RECORDS[0]);
+  maintenance: MaintenanceData = dataFor(blankAssetRecord());
   tree: AssetComponent[] = [];
   components: AssetComponent[] = [];
   selectedComponent: AssetComponent | null = null;
@@ -126,12 +124,12 @@ export class AssetDetailTab implements OnDestroy {
   search = '';
   historyLimit = HISTORY_PAGE;
 
-  /** The asset's registration from the Asset API; null when not registered (demo record only). */
+  /** The asset's registration from the Asset API; null when not registered. */
   registration: AssetRegistrationDto | null = null;
-  /** The asset's service requests from the API; null until loaded (the demo maintenance data is used meanwhile). */
+  /** The asset's service requests from the API; null until loaded. */
   private apiRequests: ServiceRequestListItemDto[] | null = null;
-  /** Field definitions: from the API when it has any, otherwise the demo set. */
-  private fields: CustomField[] = MOCK_FIELDS;
+  /** Field definitions from the API (empty until loaded). */
+  private fields: CustomField[] = [];
 
   // Custom fields
   fieldGroups: { name: string; rows: FieldRow[] }[] = [];
@@ -158,7 +156,7 @@ export class AssetDetailTab implements OnDestroy {
         this.fields = defs.map((d) => toCustomField(d as unknown as CustomFieldDto));
         this.fieldGroups = this.buildFields();
       },
-      error: () => undefined, // keep the demo definitions
+      error: () => undefined, // no definitions: the Custom Fields tab stays empty
     });
     this.load$.pipe(switchMap((tag) => this.loadApi(tag)), takeUntilDestroyed(destroyRef)).subscribe();
     route.queryParamMap.pipe(takeUntilDestroyed(destroyRef)).subscribe((p) => this.load(p.get('tag')));
@@ -171,21 +169,15 @@ export class AssetDetailTab implements OnDestroy {
   // ===== Loading =====
 
   private load(tag: string | null): void {
-    tag ??= ASSET_RECORDS[0].tag; // opened without an asset: show the first one
-    const record = findAsset(tag);
-    this.requestedTag = tag;
+    this.requestedTag = tag ?? '';
     this.registration = null;
     this.apiRequests = null;
-    this.notFound = false;
-    this.load$.next(tag); // the Asset API record replaces the demo one when it arrives
-    if (!record) {
-      this.loading = true;
-      return;
-    }
-    this.setRecord(record);
+    this.notFound = !tag; // opened without an asset
+    this.loading = !!tag;
+    this.load$.next(tag); // the Asset API record is shown when it arrives
   }
 
-  /** Shows a register record: header, demo maintenance data, components and the demo detail file. */
+  /** Shows a register record: header, maintenance data, components and the detail data. */
   private setRecord(record: AssetRecord): void {
     this.record = record;
     this.asset = assetHeader(record);
@@ -211,32 +203,21 @@ export class AssetDetailTab implements OnDestroy {
 
   /**
    * Reads the asset from the Asset API by tag (registration, components, service requests). A tag that is in
-   * neither the API nor the demo register shows "not found".
+   * the API does not have shows "not found".
    */
   private loadApi(tag: string | null) {
     if (!tag) return of(null);
-    const fallback = findAsset(tag);
-    return this.assetsApi.getByTag(tag, fallback).pipe(
+    return this.assetsApi.getByTag(tag).pipe(
       catchError(() => of(null)),
       tap((a) => {
         if (this.requestedTag !== tag) return;
         if (!a) {
-          if (!fallback) {
-            this.loading = false;
-            this.notFound = true;
-          }
+          this.loading = false;
+          this.notFound = true;
           return;
         }
         this.registration = a.registration;
-        if (fallback) {
-          // same asset: keep the demo detail data already loading, refresh the register values
-          this.record = a.record;
-          this.asset = assetHeader(a.record);
-          this.applyCondition();
-          this.rebuild();
-        } else {
-          this.setRecord(a.record);
-        }
+        this.setRecord(a.record);
       }),
       switchMap((a) => {
         if (!a || this.requestedTag !== tag) return of(null);

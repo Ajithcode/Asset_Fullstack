@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, ViewChild, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -32,8 +32,13 @@ import {
   X,
 } from 'lucide-angular';
 import {
-  ASSETS, AssetState, LEVELS, LocEvent, SITE, TrackedAsset, ZONES, buildEvents, distanceM, isAlert, isLowConfidence, placeOf, trailFL008,
+  ASSETS, AssetState, GEOFENCE_PREFIX, LEVELS, LngLat, LocEvent, SITE, TrackedAsset, ZONES, Zone, circleRing, distanceM, isAlert, isLowConfidence, placeOf, setGeofenceZones,
 } from './location-data';
+import { apiErrorMessage } from '../shared/tracking-api';
+import { GeofenceApiService } from '../geofence-alerts/geofence-api.service';
+import { AlertRuleApiService } from '../geofence-alerts/alert-rule-api.service';
+import { Zone as Geofence, CONDITIONS } from '../geofence-alerts/geofence-data';
+import { LocationEventApiService } from './location-event-api.service';
 import type * as Leaflet from 'leaflet';
 import { MapDrawTools } from '../shared/map-draw-tools/map-draw-tools';
 import { LivePosition, MapLayers, RlMap, stateColor } from './rl-map';
@@ -41,7 +46,21 @@ import { LivePosition, MapLayers, RlMap, stateColor } from './rl-map';
 type StatusFilter = '' | AssetState | 'alerts';
 interface AlertForm { assetId: string; rule: 'enter' | 'exit' | 'dwell' | 'boundary'; zone: string; minutes: number; notify: string }
 
-const SITES = ['Dubai Plant', 'Abu Dhabi', 'Sharjah Warehouse'];
+/** Location events are re-polled this often (ms). */
+const EVENT_POLL_MS = 15_000;
+
+/** Geofence → zone shape used by the floor map and zone look-ups (circles become a ring). */
+function geofenceZone(g: Geofence): Zone {
+  const ring: LngLat[] = g.center && g.radiusM ? circleRing(g.center.lng, g.center.lat, g.radiusM) : (g.latlngs ?? []).map((p) => [p.lng, p.lat] as LngLat);
+  if (ring.length && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) ring.push(ring[0]);
+  return {
+    id: GEOFENCE_PREFIX + g.id, name: g.name, color: g.color, kind: 'zone', type: g.type + ' geofence', rule: g.status === 'Active' ? g.schedule : 'Disabled',
+    restricted: g.type === 'Restricted', hidden: ring.length < 4, ring,
+  };
+}
+
+/** Sites with indoor floor plans (empty until loaded). */
+const SITES: string[] = [];
 const RULE_LABEL: Record<AlertForm['rule'], string> = { enter: 'Enters zone', exit: 'Leaves zone', dwell: 'Dwells longer than', boundary: 'Comes within 3 m of boundary' };
 
 @Component({
@@ -51,23 +70,36 @@ const RULE_LABEL: Record<AlertForm['rule'], string> = { enter: 'Enters zone', ex
   templateUrl: './real-time-location.html',
   styleUrls: ['./real-time-location.css', './real-time-location-panels.css'],
 })
-export class RealTimeLocation implements OnDestroy {
+export class RealTimeLocation implements OnInit, OnDestroy {
   readonly icons = { Bell, Box, Building2, ChevronDown, Clock, Crosshair, Eye, Forklift, Info, Layers, LocateFixed, MapPin, Minus, Package, Pause, Play, Plus, Route, Search, Settings, ShieldAlert, Signal, Tag, TriangleAlert, Wifi, X };
   readonly levels = LEVELS;
   readonly sites = SITES;
-  readonly zones = ZONES;
+  /** Floor-plan zones plus geofences from the API. */
+  get zones(): Zone[] {
+    return ZONES;
+  }
+  /** Geofences with an outline, for the map. */
+  geoZones: Zone[] = [];
   readonly ruleLabel = RULE_LABEL;
   readonly types = [...new Set(ASSETS.map((a) => a.type))].sort();
 
   @ViewChild(RlMap) private mapRef?: RlMap;
   private readonly router = inject(Router);
+  private readonly eventApi = inject(LocationEventApiService);
+  private readonly geofenceApi = inject(GeofenceApiService);
+  private readonly ruleApi = inject(AlertRuleApiService);
 
   site = SITE;
-  level = LEVELS[0].id;
+  level = LEVELS[0]?.id ?? '';
   /** Seconds since the page opened; drives "updated N sec ago" and last-seen ages. */
   tick = 0;
-  /** Location engine refresh cycle, seconds. */
-  readonly refresh = 10;
+  /** Location events poll cycle, seconds. */
+  readonly refresh = EVENT_POLL_MS / 1000;
+  /** Tick of the last successful events refresh (-1 = never). */
+  private refreshedAt = -1;
+  loadingEvents = false;
+  eventsError = '';
+  saving = false;
   layers: MapLayers = { zones: true, labels: true, gateways: true, trails: true, assets: true };
   imagery = false;
   drawMap: Leaflet.Map | null = null;
@@ -78,7 +110,7 @@ export class RealTimeLocation implements OnDestroy {
   statusFilter: StatusFilter = '';
   zoneFilter = '';
 
-  selectedId = 'FL-008';
+  selectedId = '';
   flPos: LivePosition | null = null;
   replaying = false;
   eventsAll = false;
@@ -88,14 +120,53 @@ export class RealTimeLocation implements OnDestroy {
   formError = '';
   toast = '';
 
-  private readonly openedAt = Date.now();
-  private readonly events: LocEvent[] = buildEvents(this.openedAt);
-  readonly trail = trailFL008(this.openedAt);
+  private events: LocEvent[] = [];
+  /** Recorded positions of the selected asset over the last 30 minutes, oldest first (empty until loaded). */
+  readonly trail: { at: number; lng: number; lat: number; place: string }[] = [];
   private timer = setInterval(() => this.tick++, 1000);
+  private pollTimer?: ReturnType<typeof setInterval>;
+
+  ngOnInit(): void {
+    this.loadEvents();
+    this.loadGeofences();
+    this.pollTimer = setInterval(() => this.loadEvents(true), EVENT_POLL_MS);
+  }
+
+  /** GET /api/location-events (newest first). */
+  loadEvents(silent = false): void {
+    if (!silent) this.loadingEvents = true;
+    this.eventApi.list().subscribe({
+      next: (rows) => {
+        this.events = rows.sort((a, b) => b.at - a.at);
+        this.loadingEvents = false;
+        this.eventsError = '';
+        this.refreshedAt = this.tick;
+      },
+      error: (err) => {
+        this.loadingEvents = false;
+        const msg = apiErrorMessage(err, 'Could not load location events.');
+        if (!silent || !this.eventsError) this.showToast(msg);
+        this.eventsError = msg;
+      },
+    });
+  }
+
+  /** Geofences drawn on the map and offered in the zone filter / alert form. */
+  private loadGeofences(): void {
+    this.geofenceApi.list().subscribe({
+      next: (list) => {
+        const zones = list.map(geofenceZone);
+        setGeofenceZones(zones);
+        this.geoZones = zones.filter((z) => !z.hidden);
+      },
+      error: (err) => this.showToast(apiErrorMessage(err, 'Could not load geofences.')),
+    });
+  }
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   ngOnDestroy(): void {
     clearInterval(this.timer);
+    clearInterval(this.pollTimer);
     clearTimeout(this.toastTimer);
   }
 
@@ -115,27 +186,26 @@ export class RealTimeLocation implements OnDestroy {
     this.statusFilter = this.statusFilter === s ? '' : s;
   }
 
-  get updatedSec(): number {
-    return this.tick % this.refresh;
+  /** Seconds since location events were last refreshed (null before the first load). */
+  get updatedSec(): number | null {
+    return this.refreshedAt < 0 ? null : this.tick - this.refreshedAt;
   }
 
   // ===== asset list =====
 
-  /** Current position: live for FL-008, otherwise the last fix. */
+  /** Current position: the live position when the map reports one for this asset, otherwise the last fix. */
   posOf(a: TrackedAsset): { lng: number; lat: number } {
-    return a.id === 'FL-008' && this.flPos ? this.flPos : a;
+    return this.flPos?.id === a.id ? this.flPos : a;
   }
 
   zoneName(a: TrackedAsset): string {
-    if (a.id === 'FL-008' && this.flPos) return placeOf(this.flPos.lng, this.flPos.lat).split(' / ')[0];
+    if (this.flPos?.id === a.id) return placeOf(this.flPos.lng, this.flPos.lat).split(' / ')[0];
     return placeOf(a.lng, a.lat).split(' / ')[0];
   }
 
-  /** Seconds since the last fix right now (live assets keep reporting; stale / offline ones age). */
+  /** Seconds since the last fix right now (ages from the value reported when the page opened). */
   seenSec(a: TrackedAsset): number {
-    if (a.state === 'stale' || a.state === 'offline') return a.seenSec + this.tick;
-    const cycle = a.state === 'moving' ? this.refresh : 30;
-    return a.seenSec < cycle ? (a.seenSec + this.tick) % cycle : a.seenSec + (this.tick % cycle);
+    return a.seenSec + this.tick;
   }
 
   ago(sec: number): string {
@@ -217,14 +287,13 @@ export class RealTimeLocation implements OnDestroy {
     return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} ${this.clock(d.getTime(), true)}`;
   }
 
-  /** Device fix vs the asset's own registered fix (for FL-008 both are live; others use their last checkpoint). */
+  /** Device fix vs the asset's own registered fix; only available while the map reports a live position for the asset. */
   get comparison(): { dev: { lng: number; lat: number; acc: number; sec: number }; reg: { lng: number; lat: number; acc: number; sec: number }; dist: number } | null {
     const a = this.selected;
     if (!a) return null;
+    if (this.flPos?.id !== a.id) return null;
     const dev = { ...this.posOf(a), acc: a.accuracy, sec: this.seenSec(a) };
-    const reg = a.id === 'FL-008' && this.flPos
-      ? { lng: this.flPos.regLng, lat: this.flPos.regLat, acc: 4.1, sec: this.seenSec(a) + 1 }
-      : { lng: a.lng + 0.000012, lat: a.lat - 0.000009, acc: Math.round((a.accuracy + 0.9) * 10) / 10, sec: this.seenSec(a) + 7 };
+    const reg = { lng: this.flPos.regLng, lat: this.flPos.regLat, acc: a.accuracy, sec: this.seenSec(a) };
     return { dev, reg, dist: Math.round(distanceM(dev, reg) * 10) / 10 };
   }
 
@@ -232,13 +301,10 @@ export class RealTimeLocation implements OnDestroy {
     return n.toFixed(6);
   }
 
-  /** Last 30 minutes: FL-008's recorded run; other assets stayed where they are. */
+  /** Last 30 minutes of recorded positions for the selected asset. */
   get trailPoints(): { at: number; place: string; moved: boolean }[] {
-    const a = this.selected;
-    if (!a) return [];
-    if (a.id === 'FL-008') return this.trail.map((p, i) => ({ at: p.at, place: p.place, moved: i > 0 && p.place !== this.trail[i - 1].place }));
-    const place = placeOf(a.lng, a.lat);
-    return this.trail.map((p) => ({ at: p.at, place, moved: false }));
+    if (!this.selected) return [];
+    return this.trail.map((p, i) => ({ at: p.at, place: p.place, moved: i > 0 && p.place !== this.trail[i - 1].place }));
   }
 
   // ===== actions =====
@@ -260,7 +326,7 @@ export class RealTimeLocation implements OnDestroy {
   }
 
   onSite(s: string): void {
-    if (s !== SITE) {
+    if (SITE && s !== SITE) {
       this.showToast(`${s} has no indoor floor plan yet. Showing ${SITE}.`);
       setTimeout(() => (this.site = SITE));
     }
@@ -270,7 +336,7 @@ export class RealTimeLocation implements OnDestroy {
     const lv = LEVELS.find((l) => l.id === id);
     if (lv && !lv.mapped) {
       this.showToast(`${lv.name} is not mapped for location tracking yet.`);
-      setTimeout(() => (this.level = LEVELS[0].id));
+      setTimeout(() => (this.level = LEVELS[0]?.id ?? ''));
     }
   }
 
@@ -294,13 +360,13 @@ export class RealTimeLocation implements OnDestroy {
   }
 
   trackHistory(a: TrackedAsset): void {
-    if (a.id !== 'FL-008') {
-      this.showToast(`${a.id} has not moved in the last 30 minutes. Its trail is a single point.`);
+    if (this.trail.length < 2) {
+      this.showToast(`No location history recorded for ${a.id} in the last 30 minutes.`);
       return;
     }
     this.replaying = true;
-    this.mapRef?.replayHistory();
-    this.showToast('Replaying FL-008: Charging Zone → Main Corridor → Warehouse A / Aisle 04 (4× speed).');
+    this.mapRef?.replayHistory(this.trail.map((p) => [p.lng, p.lat] as LngLat));
+    this.showToast(`Replaying ${a.id}: ${this.trail[0].place} → ${this.trail[this.trail.length - 1].place} (4× speed).`);
   }
 
   onReplayDone(): void {
@@ -309,20 +375,41 @@ export class RealTimeLocation implements OnDestroy {
 
   openAlert(a: TrackedAsset): void {
     this.formError = '';
-    this.alertForm = { assetId: a.id, rule: 'boundary', zone: 'Restricted Zone', minutes: 15, notify: 'Operations team' };
+    const geo = this.alertZones;
+    this.alertForm = { assetId: a.id, rule: 'enter', zone: (geo.find((z) => z.restricted) ?? geo[0])?.id ?? '', minutes: 15, notify: 'Operations team' };
   }
 
+  /** Geofences the alert form can attach a rule to. */
+  get alertZones(): Zone[] {
+    return ZONES.filter((z) => z.id.startsWith(GEOFENCE_PREFIX));
+  }
+
+  /** Creates a geofence alert rule (POST /api/alert-rules) scoped to this asset; "within 3 m of boundary" has no API trigger. */
   saveAlert(): void {
     const f = this.alertForm;
-    if (!f) return;
+    if (!f || this.saving) return;
+    if (f.rule === 'boundary') return void (this.formError = 'Boundary-distance alerts are not supported by the alert rule API yet.');
     if (f.rule === 'dwell' && !(f.minutes > 0)) return void (this.formError = 'Enter the dwell time in minutes.');
-    const a = ASSETS.find((x) => x.id === f.assetId);
-    this.events.unshift({
-      at: Date.now(), assetId: f.assetId, assetName: a?.name ?? '', event: 'Geofence Alert', zone: f.zone,
-      details: `Alert rule created: ${RULE_LABEL[f.rule].toLowerCase()}${f.rule === 'dwell' ? ' ' + f.minutes + ' min' : ''} · notify ${f.notify}`,
+    const zone = this.alertZones.find((z) => z.id === f.zone);
+    if (!zone) return void (this.formError = 'Choose a geofence.');
+    const meOnly = f.notify === 'Me only';
+    const label = RULE_LABEL[f.rule].toLowerCase() + (f.rule === 'dwell' ? ' ' + f.minutes + ' min' : '');
+    this.saving = true;
+    this.formError = '';
+    this.ruleApi.create({
+      name: f.assetId + ' ' + label, zoneId: zone.id.slice(GEOFENCE_PREFIX.length), trigger: f.rule, dwellMin: f.minutes, severity: 'High', group: f.assetId,
+      condition: CONDITIONS[0], createAlert: true, notify: !meOnly, team: meOnly ? '' : f.notify, workflow: false, workflowName: '', inApp: true, email: !meOnly, push: false, enabled: true,
+    }).subscribe({
+      next: () => {
+        this.saving = false;
+        this.alertForm = null;
+        this.showToast(`Alert rule created for ${f.assetId}: ${label} ${zone.name}.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.formError = apiErrorMessage(err, 'Could not create the alert rule.');
+      },
     });
-    this.alertForm = null;
-    this.showToast(`Alert created for ${f.assetId}: ${RULE_LABEL[f.rule].toLowerCase()} ${f.zone}.`);
   }
 
   // ===== events =====
@@ -336,11 +423,11 @@ export class RealTimeLocation implements OnDestroy {
   }
 
   eventIcon(e: LocEvent) {
-    return e.event === 'Geofence Alert' ? TriangleAlert : e.event === 'Signal Lost' || e.event === 'Stale Location' ? Clock : e.event === 'Entered Zone' ? Play : Route;
+    return e.event === 'Geofence Alert' ? TriangleAlert : e.event === 'Dwell Exceeded' ? Clock : e.event === 'Entered Zone' ? Play : Route;
   }
 
   eventClass(e: LocEvent): string {
-    return e.event === 'Geofence Alert' || e.event === 'Signal Lost' ? 'ev--red' : e.event === 'Stale Location' ? 'ev--amber' : e.event === 'Entered Zone' ? 'ev--green' : 'ev--blue';
+    return e.event === 'Geofence Alert' ? 'ev--red' : e.event === 'Dwell Exceeded' ? 'ev--amber' : e.event === 'Entered Zone' ? 'ev--green' : 'ev--blue';
   }
 
   // ===== misc =====

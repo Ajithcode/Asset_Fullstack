@@ -82,7 +82,9 @@ export class IotActionPlanDialog implements OnInit {
 
   get dueError(): string {
     if (!this.plan.due) return 'Pick a due date.';
-    return this.plan.due < '2026-10-28' ? 'The due date cannot be in the past.' : '';
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return this.plan.due < today ? 'The due date cannot be in the past.' : '';
   }
 
   submit(): void {

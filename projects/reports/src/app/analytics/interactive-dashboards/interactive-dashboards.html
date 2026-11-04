@@ -34,7 +34,6 @@
         <div class="menu" role="menu">
           <button type="button" (click)="openSaveView()">Save view</button>
           <button type="button" (click)="copyLink()">Copy dashboard link</button>
-          <button type="button" (click)="resetDemo()">Reset demo dashboards</button>
         </div>
       }
     </div>
@@ -53,7 +52,7 @@
       <div class="menu idb-menu" role="menu">
         @for (d of store.dashboards; track d.id) {
           <ng-container *ngTemplateOutlet="dashItem; context: { $implicit: d }"></ng-container>
-        }
+        } @empty { <p class="muted idb-menu__empty">No dashboards yet.</p> }
       </div>
     }
   </div>
@@ -138,6 +137,14 @@
         }
       </div>
     } @empty {
+      @if (!hasDashboard) {
+        <div class="idb-blank">
+          <lucide-icon [img]="icons.ChartColumn" [size]="32" />
+          <strong>No dashboards yet</strong>
+          <span class="muted">Create a dashboard, then add widgets from the Widget Library.</span>
+          <button type="button" class="btn btn--primary" (click)="createOpen = true"><lucide-icon [img]="icons.CirclePlus" [size]="16" /> Create Dashboard</button>
+        </div>
+      } @else {
       <div class="idb-blank" [class.idb-cell--over]="overIndex === 0">
         <lucide-icon [img]="icons.ChartColumn" [size]="32" />
         <strong>This dashboard has no widgets yet</strong>
@@ -146,6 +153,7 @@
           <button type="button" class="btn btn--primary" (click)="openAdd(null)"><lucide-icon [img]="icons.CirclePlus" [size]="16" /> Add Widget</button>
         }
       </div>
+      }
     }
     @if (editMode && current.widgets.length) {
       <div class="idb-dropzone" [class.idb-cell--over]="overIndex === current.widgets.length">Drop here to add at the end</div>

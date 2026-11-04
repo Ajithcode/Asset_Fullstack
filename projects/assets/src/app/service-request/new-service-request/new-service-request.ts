@@ -18,7 +18,8 @@ import {
   X,
 } from 'lucide-angular';
 import { Observable, Subject, catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, AuthService, TODAY, assetLocation, findAsset, toIsoDate } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetRecord, AuthService, TODAY, assetLocation, toIsoDate } from 'shared-ui';
+import { blankAssetRecord } from '../../shared/blank-asset';
 import { loadAssetDetail } from '../../asset-details/asset-details';
 import { AssetDetailsService, AssetRegistrationDto } from '../../asset-details/asset-details.service';
 import { SR_SLA, SrPriority } from '../../asset-maintenance/maintenance-sr';
@@ -86,9 +87,9 @@ type FieldKey = 'title' | 'description' | 'requestedDate' | 'targetDate' | 'loca
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** Used when the signed-in user has no name. */
-const FALLBACK_USER = 'Rex Kumar';
 /** No people API in the Asset service yet: the assignable technicians are a fixed list. */
-const TECHNICIANS = ['Ahmed Khan', 'Ravi Patel', 'Nisha Patel', 'Ramesh Kumar', 'Salim Ahmed', 'Khalid Mansoori', 'Priya Nair'];
+/** Technician directory; empty until a people/master-data API serves it. */
+const TECHNICIANS: string[] = [];
 const TAG_SUGGESTIONS = ['Noise', 'Vibration', 'Leak', 'Overheating', 'Electrical', 'Operation', 'Safety', 'Inspection'];
 /** The Media service stores images and PDFs only. */
 const UPLOAD_EXTS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
@@ -120,7 +121,7 @@ export class NewServiceRequest implements OnDestroy {
   readonly maxDescription = MAX_DESCRIPTION;
   readonly uploadAccept = UPLOAD_EXTS.map((e) => '.' + e).join(',');
 
-  asset: AssetRecord = findAsset('GEN-00045') ?? ASSET_RECORDS[0];
+  asset: AssetRecord = blankAssetRecord();
   /** The asset's registration in the Asset API; null until loaded or when the tag is not registered. */
   registration: AssetRegistrationDto | null = null;
   assetLoading = false;
@@ -171,8 +172,7 @@ export class NewServiceRequest implements OnDestroy {
 
   /** The asset by tag, then its requests (and any saved draft) and its work orders. */
   private loadAsset(tag: string | null): Observable<unknown> {
-    const fallback = findAsset(tag) ?? (tag ? undefined : this.asset);
-    if (fallback) this.setAssetRecord(fallback);
+    const fallback = !tag && this.asset.tag ? this.asset : undefined;
     this.registration = null;
     this.requests = [];
     this.workOrders = [];
@@ -243,7 +243,7 @@ export class NewServiceRequest implements OnDestroy {
   }
 
   private get currentUser(): string {
-    return this.auth.getUser()?.userName || this.auth.getUserEmail() || FALLBACK_USER;
+    return this.auth.getUser()?.userName || this.auth.getUserEmail() || '';
   }
 
   private blankForm(): NewSrForm {
@@ -272,11 +272,11 @@ export class NewServiceRequest implements OnDestroy {
   // ===== Options =====
 
   get locations(): string[] {
-    return [...new Set([this.location, ...ASSET_RECORDS.map(assetLocation), this.form?.location].filter(Boolean))].sort();
+    return [...new Set([this.location, this.form?.location].filter(Boolean))].sort();
   }
 
   get departments(): string[] {
-    return [...new Set([...ASSET_RECORDS.map((a) => a.department), 'Operations', 'Maintenance', this.asset.department, this.form.department].filter(Boolean))].sort();
+    return [...new Set([this.asset.department, this.form.department].filter(Boolean))].sort();
   }
 
   get people(): string[] {

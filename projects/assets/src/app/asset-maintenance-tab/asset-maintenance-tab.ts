@@ -22,7 +22,8 @@ import {
   Timer,
   Wrench,
 } from 'lucide-angular';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetHeader, AssetRecord, AssetTabLink, TODAY, assetHeader, assetTabs, findAsset, toIsoDate } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetHeader, AssetRecord, AssetTabLink, TODAY, assetHeader, assetTabs, toIsoDate } from 'shared-ui';
+import { blankAssetRecord } from '../shared/blank-asset';
 import { MaintenanceData, WorkOrder } from '../asset-maintenance/asset-maintenance';
 import { MaintenanceApiService, buildMaintenanceData, emptyMaintenanceData } from '../asset-maintenance/maintenance-api.service';
 import { AssetLookupService, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
@@ -85,13 +86,13 @@ export class AssetMaintenanceTab implements OnDestroy {
   tabs: AssetTabLink[] = assetTabs('Maintenance');
 
   /** The asset named by ?tag=; when it is missing or unknown the page shows a "not found" message. */
-  asset: AssetHeader = assetHeader(ASSET_RECORDS[0]);
-  private record: AssetRecord = ASSET_RECORDS[0];
+  asset: AssetHeader = assetHeader(blankAssetRecord());
+  private record: AssetRecord = blankAssetRecord();
   notFound = false;
   requestedTag = '';
 
   /** The asset's records from the Maintenance service and the Asset API. */
-  data: MaintenanceData = emptyMaintenanceData(ASSET_RECORDS[0]);
+  data: MaintenanceData = emptyMaintenanceData(blankAssetRecord());
   pm: PmSchedule[] = [];
   loading = false;
   loadError = '';
@@ -124,11 +125,13 @@ export class AssetMaintenanceTab implements OnDestroy {
   // ===== Loading =====
 
   private load(tag: string | null): void {
-    tag ??= ASSET_RECORDS[0].tag; // opened without an asset: show the first one
-    const record = findAsset(tag);
-    this.requestedTag = tag;
-    if (record) return this.show(record);
-    // not in the sample register: look the tag up in the Asset API
+    this.requestedTag = tag ?? '';
+    if (!tag) {
+      // opened without an asset
+      this.notFound = true;
+      return;
+    }
+    // look the tag up in the Asset API
     this.loading = true;
     this.lookup.byTag(tag).subscribe({
       next: (item) => {
@@ -166,7 +169,7 @@ export class AssetMaintenanceTab implements OnDestroy {
   private setComponents(tag: string): void {
     this.components = componentsOf(tag);
     for (const c of this.components) {
-      // component maintenance / service records have no API yet (sample data per component)
+      // component maintenance / service records have no API yet (empty per component)
       c.maintenance ??= buildMockMaintenance(c);
       c.serviceHistory ??= buildMockServiceHistory(c);
     }

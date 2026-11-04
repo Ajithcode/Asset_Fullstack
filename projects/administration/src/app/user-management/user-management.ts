@@ -605,7 +605,7 @@ export class UserManagementPage extends AdminPage {
       const e = get(email).toLowerCase();
       const empId = get(emp).toUpperCase();
       const roleOk = USER_ROLES.some((r) => r.name === get(role) && !r.secondaryOnly);
-      const location = ADMIN_LOCATIONS.includes(get(loc)) ? get(loc) : ADMIN_LOCATIONS[0];
+      const location = ADMIN_LOCATIONS.includes(get(loc)) ? get(loc) : ADMIN_LOCATIONS[0] ?? '';
       if (
         !EMAIL.test(e) || this.service.emailTaken(e, null) || inFile((u) => u.email, e) || !ADMIN_DEPARTMENTS.includes(get(dept)) || !roleOk ||
         (empId && (!/^EMP-\d{4,}$/.test(empId) || this.service.employeeIdTaken(empId, null) || inFile((u) => u.employeeId, empId)))

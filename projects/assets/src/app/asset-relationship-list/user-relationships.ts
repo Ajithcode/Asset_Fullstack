@@ -1,5 +1,3 @@
-import { findAsset } from 'shared-ui';
-
 /**
  * Main asset → sub asset links that users create on the Asset Relationship page (menu).
  * DEMO MODE: saved in this browser until the Assets API is wired up. The asset Relationships tab shows them
@@ -23,8 +21,8 @@ export function readUserRelationships(): UserRelationship[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const list = raw ? (JSON.parse(raw) as UserRelationship[]) : [];
-    // Drop links to assets no longer in the register
-    return Array.isArray(list) ? list.filter((r) => findAsset(r.mainTag) && findAsset(r.subTag)) : [];
+    // Drop malformed entries
+    return Array.isArray(list) ? list.filter((r) => !!r?.mainTag && !!r?.subTag) : [];
   } catch {
     return [];
   }

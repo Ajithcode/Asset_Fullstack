@@ -16,8 +16,36 @@ import { formatArea, formatDateTime } from '../location.format';
 import { LocationRecord } from '../location.model';
 import { LocationService } from '../location.service';
 import { LocationMap } from '../location-map/location-map';
-import { activityFor, assetsFor, documentsFor, peopleFor } from './location-detail.mock';
 import { iconForType } from '../location.icons';
+
+interface LocationAsset {
+  tag: string;
+  name: string;
+  category: string;
+  condition: string;
+  status: string;
+}
+
+interface LocationPerson {
+  name: string;
+  role: string;
+  shift: string;
+  phone: string;
+}
+
+interface LocationDocument {
+  name: string;
+  kind: string;
+  size: string;
+  uploadedOn: string;
+  uploadedBy: string;
+}
+
+interface LocationActivity {
+  when: string;
+  who: string;
+  text: string;
+}
 
 type DetailTab = 'overview' | 'assets' | 'people' | 'equipment' | 'documents' | 'map' | 'children' | 'settings' | 'activity';
 
@@ -74,10 +102,11 @@ export class LocationDetail implements OnChanges {
   tree: TreeNode | null = null;
   expanded = new Set<string>();
 
-  assets = assetsFor;
-  people = peopleFor;
-  documents = documentsFor;
-  activity = activityFor;
+  // Rows for tabs owned by other modules (Assets, People, Documents, audit log); empty until those APIs are wired
+  readonly assets: LocationAsset[] = [];
+  readonly people: LocationPerson[] = [];
+  readonly documents: LocationDocument[] = [];
+  readonly activity: LocationActivity[] = [];
 
   ngOnChanges(): void {
     this.moreOpen = false;

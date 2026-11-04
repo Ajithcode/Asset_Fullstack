@@ -112,6 +112,12 @@
   pointer-events: none;
 }
 
+.cr-tree-empty {
+  margin: 12px 16px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
 .cr-tree {
   list-style: none;
   margin: 0;

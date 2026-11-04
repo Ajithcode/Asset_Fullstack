@@ -147,7 +147,7 @@ export class CondForm implements OnChanges {
         description: f.description.trim(),
         triggerCriteria: f.triggerCriteria.trim(),
         createdOn: this.original?.createdOn ?? stamp,
-        createdBy: this.original?.createdBy ?? 'Rex Kumar',
+        createdBy: this.original?.createdBy ?? '',
         updatedOn: stamp
       },
       originalCode: this.original?.code ?? null

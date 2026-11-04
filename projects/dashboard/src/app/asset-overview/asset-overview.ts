@@ -399,6 +399,11 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   private fitSites(): void {
     const size = this.map?.getSize();
     if (!this.map || !size?.x || !size.y) return;
+    // No sites yet: show a world view instead of fitting empty (invalid) bounds
+    if (!SITES.length) {
+      this.map.setView([20, 0], 2);
+      return;
+    }
     const pad: [number, number] = [Math.min(120, size.x * 0.2), Math.min(70, size.y * 0.2)];
     this.map.fitBounds(L.latLngBounds(SITES.map((s) => [s.lat, s.lng] as [number, number])), { padding: pad });
   }

@@ -7,7 +7,6 @@ import {
   Plus, Search, Server, Shield, Upload, User, Users, Wrench, X
 } from 'lucide-angular';
 import { ASSET360_MODULES, AdminPage } from '../shared/admin-common';
-import { demoUsers } from '../role-access-control/role-access.data';
 import { RoleAccessService, adminApiError } from '../role-access-control/role-access.service';
 import { UsersDialog } from '../role-access-control/users-dialog/users-dialog';
 import { ExceptionList } from './exception-list/exception-list';
@@ -357,6 +356,7 @@ export class ModuleAccessPage extends AdminPage {
   }
 
   allUsers(): string[] {
-    return demoUsers(this.draft.id || this.draft.name, this.draft.users);
+    // Policy members come from the users API once wired
+    return [];
   }
 }

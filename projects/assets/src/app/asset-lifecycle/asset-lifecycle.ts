@@ -214,74 +214,44 @@ export class AssetLifecycle implements OnDestroy {
   readonly criticalities: AssetInfo['criticality'][] = ['Critical', 'High', 'Medium', 'Low'];
   image = 'asset-generator.svg';
 
-  asset: AssetInfo = {
-    tag: 'GEN-00045',
-    name: 'Generator 250 kVA',
-    category: 'Power Equipment',
-    typeModel: 'Caterpillar C9.3',
-    serial: 'CATC083KLB12345',
-    location: 'Main Plant - Block A',
-    custodian: 'Engineering Team',
-    criticality: 'Critical',
-  };
+  asset: AssetInfo = { tag: '', name: '', category: '', typeModel: '', serial: '', location: '', custodian: '', criticality: 'Medium' };
 
-  dates: KeyDates = {
-    purchase: '2023-01-10',
-    installation: '2023-01-25',
-    operationalSince: '2023-01-26',
-    expectedUpgrade: '2028-01-26',
-    expectedDisposal: '2033-01-26',
-  };
+  dates: KeyDates = { purchase: '', installation: '', operationalSince: '', expectedUpgrade: '', expectedDisposal: '' };
 
   status: StatusInfo = {
     operational: 'Active',
     condition: 'Good',
-    health: 85,
-    utilization: 72,
-    availability: 98,
-    lastMaintenance: '2024-03-12',
-    nextMaintenance: '2025-03-12',
-    lastAssessment: '2025-09-01',
-    nextAssessment: '2026-03-01',
+    health: 0,
+    utilization: 0,
+    availability: 0,
+    lastMaintenance: '',
+    nextMaintenance: '',
+    lastAssessment: '',
+    nextAssessment: '',
   };
 
+  /** Stage skeleton; dates, owners and statuses come from the asset's records once loaded. */
   stages: Stage[] = [
-    { key: 'planning', label: 'Planning', status: 'Completed', date: '2023-01-05', owner: 'Engineering Team', notes: 'Capacity study approved for Block A backup power.' },
-    { key: 'procurement', label: 'Procurement', status: 'Completed', date: '2023-01-10', owner: 'Procurement Team', notes: 'PO-2023-0012 raised with Cummins Arabia.' },
-    { key: 'received', label: 'Received', status: 'Completed', date: '2023-01-18', owner: 'Store Team', notes: 'GRN-2023-0145; no transit damage.' },
-    { key: 'installation', label: 'Installation', status: 'Completed', date: '2023-01-25', owner: 'Installation Team', notes: 'Installed on plinth P-04, Block A.' },
-    { key: 'commissioning', label: 'Commissioning', status: 'Completed', date: '2023-01-26', owner: 'Engineering Team', notes: 'Load bank test passed at 100% for 4 hours.' },
-    { key: 'operation', label: 'In Operation', status: 'Current', date: '2023-01-26', owner: 'Operations Team', notes: '' },
-    { key: 'maintenance', label: 'Maintenance', status: 'Planned', date: '', owner: 'Maintenance Team', notes: 'Planned preventive maintenance every 12 months.' },
-    { key: 'upgrade', label: 'Upgrade', status: 'Planned', date: '', owner: 'Engineering Team', notes: 'Control panel upgrade planned for 2028.' },
+    { key: 'planning', label: 'Planning', status: 'Not Started', date: '', owner: '', notes: '' },
+    { key: 'procurement', label: 'Procurement', status: 'Not Started', date: '', owner: '', notes: '' },
+    { key: 'received', label: 'Received', status: 'Not Started', date: '', owner: '', notes: '' },
+    { key: 'installation', label: 'Installation', status: 'Not Started', date: '', owner: '', notes: '' },
+    { key: 'commissioning', label: 'Commissioning', status: 'Not Started', date: '', owner: '', notes: '' },
+    { key: 'operation', label: 'In Operation', status: 'Not Started', date: '', owner: '', notes: '' },
+    { key: 'maintenance', label: 'Maintenance', status: 'Not Started', date: '', owner: '', notes: '' },
+    { key: 'upgrade', label: 'Upgrade', status: 'Not Started', date: '', owner: '', notes: '' },
     { key: 'decommissioning', label: 'Decommissioning', status: 'Not Started', date: '', owner: '', notes: '' },
     { key: 'disposal', label: 'Disposal', status: 'Not Started', date: '', owner: '', notes: '' },
   ];
 
-  events: LifecycleEvent[] = [
-    { id: 1, date: '2023-01-05', title: 'Capacity planning approved', by: 'Engineering Team', kind: 'Procurement' },
-    { id: 2, date: '2023-01-10', title: 'Purchase order received (PO-2023-0012)', by: 'Procurement Team', kind: 'Procurement' },
-    { id: 3, date: '2023-01-18', title: 'Asset received (GRN-2023-0145)', by: 'Store Team', kind: 'Installation' },
-    { id: 4, date: '2023-01-25', title: 'Installed at Main Plant - Block A', by: 'Installation Team', kind: 'Installation' },
-    { id: 5, date: '2023-01-26', title: 'Commissioned and handed over', by: 'Engineering Team', kind: 'Installation' },
-    { id: 6, date: '2023-01-26', title: 'Put into operation', by: 'Operations Team', kind: 'Operation' },
-    { id: 7, date: '2024-03-12', title: 'Preventive maintenance completed (WO-2024-0032)', by: 'Maintenance Team', kind: 'Maintenance' },
-    { id: 8, date: '2025-08-15', title: 'Minor repair completed (WO-2025-0121)', by: 'Maintenance Team', kind: 'Repair' },
-  ];
-  private nextEventId = 9;
+  events: LifecycleEvent[] = [];
+  private nextEventId = 1;
 
-  conditionHistory: ConditionPoint[] = [
-    { date: '2023-01-26', condition: 'Excellent', notes: 'Commissioning inspection' },
-    { date: '2023-07-20', condition: 'Excellent', notes: '' },
-    { date: '2024-01-18', condition: 'Good', notes: 'Minor oil seepage noted' },
-    { date: '2024-07-22', condition: 'Good', notes: '' },
-    { date: '2025-01-15', condition: 'Fair', notes: 'Alternator bearing noise; repair scheduled' },
-    { date: '2025-09-01', condition: 'Good', notes: 'After minor repair (WO-2025-0121)' },
-  ];
+  conditionHistory: ConditionPoint[] = [];
 
-  financial = { acquisition: 220_000, operating: 50_000, maintenance: 45_000, upgrade: 35_000 };
-  warranty = { end: '2026-01-26', provider: 'Cummins Arabia', amcEnd: '2027-01-26', amcProvider: 'Al Masaood Power' };
-  maintenanceSummary = { workOrders: 12, openWorkOrders: 1, breakdowns: 2, downtimeHours: 16 };
+  financial = { acquisition: 0, operating: 0, maintenance: 0, upgrade: 0 };
+  warranty = { end: '', provider: '', amcEnd: '', amcProvider: '' };
+  maintenanceSummary = { workOrders: 0, openWorkOrders: 0, breakdowns: 0, downtimeHours: 0 };
 
   activeTab: LifecycleTab = 'overview';
   actionsOpen = false;
@@ -317,12 +287,12 @@ export class AssetLifecycle implements OnDestroy {
   private readonly api = inject(AssetLifecycleService);
 
   constructor() {
-    // ?tag=GEN-00045 opens an asset's lifecycle
+    // ?tag=<asset tag> opens an asset's lifecycle
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef)))
       .subscribe((p) => {
         const tag = p.get('tag') || this.asset.tag;
-        if (tag !== this.registrationTag || !this.loadSub) this.load(tag);
+        if (tag && (tag !== this.registrationTag || !this.loadSub)) this.load(tag);
       });
   }
 
@@ -858,7 +828,7 @@ export class AssetLifecycle implements OnDestroy {
     this.submitted = true;
     const d = this.eventDraft;
     if (!d.date || !d.title.trim()) return;
-    const e = { ...d, title: d.title.trim(), by: d.by.trim() || this.api.user || 'Rex Kumar' };
+    const e = { ...d, title: d.title.trim(), by: d.by.trim() || this.api.user || '' };
     const apply = () => {
       this.addEvent(e);
       this.closeModal();
@@ -902,7 +872,7 @@ export class AssetLifecycle implements OnDestroy {
       }
       const becameCurrent = d.status === 'Current' && target.status !== 'Current';
       Object.assign(target, { status: d.status, date: d.date, owner: d.owner.trim(), notes: d.notes.trim() });
-      if (becameCurrent) this.addEvent({ date: d.date, title: `Moved to ${target.label} stage`, by: this.api.user || 'Rex Kumar', kind: 'Stage' });
+      if (becameCurrent) this.addEvent({ date: d.date, title: `Moved to ${target.label} stage`, by: this.api.user || '', kind: 'Stage' });
       this.closeModal();
       this.showToast(`${target.label} stage updated.`);
     });
@@ -916,7 +886,7 @@ export class AssetLifecycle implements OnDestroy {
       if (current) current.status = 'Completed';
       next.status = 'Current';
       next.date = this.todayIso;
-      this.addEvent({ date: this.todayIso, title: `Moved to ${next.label} stage`, by: this.api.user || 'Rex Kumar', kind: 'Stage' });
+      this.addEvent({ date: this.todayIso, title: `Moved to ${next.label} stage`, by: this.api.user || '', kind: 'Stage' });
       this.closeModal();
       this.showToast(`${this.asset.tag} moved to ${next.label}.`);
     });

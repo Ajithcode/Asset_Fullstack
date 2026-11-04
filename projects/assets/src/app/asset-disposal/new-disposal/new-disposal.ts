@@ -40,8 +40,8 @@ import {
   Upload,
   X,
 } from 'lucide-angular';
-import { CATEGORIES, DISPOSAL_IMAGES, DISPOSAL_METHODS, DisposalItem, DisposalMethod, REASONS, nowStamp } from '../asset-disposal/asset-disposal';
-import { CURRENT_USER, EMPLOYEES, isoDate } from '../../asset-assignment/asset-assignment-data';
+import { DISPOSAL_IMAGES, DISPOSAL_METHODS, DisposalItem, DisposalMethod, REASONS, nowStamp } from '../asset-disposal/asset-disposal';
+import { isoDate } from '../../asset-assignment/asset-assignment-data';
 import {
   AssetDisposalService,
   AssetRegistrationListItemDto,
@@ -101,15 +101,8 @@ interface Vendor {
   phone: string;
 }
 
-// DEMO MODE: vendor register until the Vendor API serves it
-const VENDORS: Vendor[] = [
-  { name: 'Green Recycle LLC', methods: ['Recycle'], address: 'P.O. Box 12345, Dubai, UAE', license: 'TRN-123456789', contact: 'Mohammed Al Hassan', phone: '+971 50 123 4567' },
-  { name: 'EcoTech Disposal', methods: ['Recycle', 'Scrap'], address: 'Industrial Area 4, Sharjah, UAE', license: 'TRN-234567891', contact: 'Priya Nair', phone: '+971 55 234 5678' },
-  { name: 'Gulf Scrap Traders', methods: ['Scrap', 'Sell / Auction'], address: 'Al Quoz Industrial 3, Dubai, UAE', license: 'TRN-345678912', contact: 'Imran Qureshi', phone: '+971 52 345 6789' },
-  { name: 'Dell Asset Recovery', methods: ['Return to Vendor'], address: 'Dubai Internet City, Dubai, UAE', license: 'TRN-456789123', contact: 'Sarah Thompson', phone: '+971 4 456 7890' },
-  { name: 'Emirates Charity Foundation', methods: ['Donate'], address: 'Al Barsha 1, Dubai, UAE', license: 'TRN-567891234', contact: 'Fatima Al Mansoori', phone: '+971 56 567 8901' },
-  { name: 'Emirates Auction House', methods: ['Sell / Auction'], address: 'Al Aweer, Dubai, UAE', license: 'TRN-678912345', contact: 'Khalid Rahman', phone: '+971 50 678 9012' },
-];
+/** Vendor register; empty until the Vendor API serves it (vendors saved on a loaded request are added). */
+const VENDORS: Vendor[] = [];
 
 /** Method cards on the Disposal Method step; Sell / Auction stays in the dropdown. */
 const METHOD_CARDS: { method: DisposalMethod; text: string; tone: string }[] = [
@@ -143,23 +136,15 @@ interface ApprovalStep {
   type: ApprovalType;
 }
 
-// DEMO MODE: approver directory until the Users API serves it
-const APPROVERS: Approver[] = [
-  { name: 'Ahmed Salim', role: 'IT Manager', color: '#6b7cc9' },
-  { name: 'Nisha Patel', role: 'Head - IT Department', color: '#7c6ee6' },
-  { name: 'Ramesh Kumar', role: 'Finance Department', color: '#6d28d9' },
-  { name: 'Mohammed Al Hassan', role: 'Operations Director', color: '#0e7490' },
-  { name: 'Fatima Hassan', role: 'Finance Manager', color: '#be185d' },
-  { name: 'Arjun Mehta', role: 'Asset Manager', color: '#15803d' },
-  { name: 'Sara Ahmed', role: 'Procurement Lead', color: '#c2410c' },
-];
+/** Approver directory; empty until the Users API serves it (approvers on a loaded request are added). */
+const APPROVERS: Approver[] = [];
 
 /** Default approval chain for a new request. */
 const DEFAULT_CHAIN: ApprovalStep[] = [
-  { level: 'Line Manager', approver: 'Ahmed Salim', type: 'Mandatory' },
-  { level: 'Department Head', approver: 'Nisha Patel', type: 'Mandatory' },
-  { level: 'Finance Approval', approver: 'Ramesh Kumar', type: 'Mandatory' },
-  { level: 'Final Approval', approver: 'Mohammed Al Hassan', type: 'Mandatory' },
+  { level: 'Line Manager', approver: '', type: 'Mandatory' },
+  { level: 'Department Head', approver: '', type: 'Mandatory' },
+  { level: 'Finance Approval', approver: '', type: 'Mandatory' },
+  { level: 'Final Approval', approver: '', type: 'Mandatory' },
 ];
 
 const STEPS = [
@@ -204,10 +189,10 @@ export class NewDisposal implements OnInit, OnDestroy {
   readonly methodIcons: Record<string, typeof Recycle> = {
     Recycle, Scrap: Trash2, 'Return to Vendor': RefreshCw, Donate: HandHeart, 'Sell / Auction': Tag, Sell: Tag, Auction: Tag,
   };
-  /** Approver directory (demo list plus anyone already on a loaded request). */
+  /** Approver directory (anyone already on a loaded request). */
   approverChoices: Approver[] = [...APPROVERS];
   readonly approvalTypes: ApprovalType[] = ['Mandatory', 'Optional'];
-  people = EMPLOYEES.map((e) => e.name).concat(EMPLOYEES.some((e) => e.name === CURRENT_USER) ? [] : [CURRENT_USER]);
+  people: string[] = [];
   readonly pageSizes = [10, 25, 50];
 
   private readonly router = inject(Router);
@@ -226,7 +211,7 @@ export class NewDisposal implements OnInit, OnDestroy {
   // 1. Request details
   title = '';
   requestDate = isoDate(new Date());
-  requestedBy = CURRENT_USER;
+  requestedBy = '';
   reason = REASONS[0];
   category = '';
   priority: Priority = 'Normal';
@@ -262,11 +247,11 @@ export class NewDisposal implements OnInit, OnDestroy {
 
   // 3. Method
   method: DisposalMethod = 'Recycle';
-  /** Demo vendor register plus vendors already saved on a loaded request. */
+  /** Vendor register plus vendors already saved on a loaded request. */
   vendorList: Vendor[] = [...VENDORS];
-  vendor = VENDORS[0].name;
-  contactPerson = VENDORS[0].contact;
-  contactNumber = VENDORS[0].phone;
+  vendor = '';
+  contactPerson = '';
+  contactNumber = '';
   expectedDate = '';
   instructions = '';
 
@@ -543,7 +528,7 @@ export class NewDisposal implements OnInit, OnDestroy {
   }
 
   get categories(): string[] {
-    return [...new Set([...CATEGORIES, ...this.pool.map((a) => a.category).filter(Boolean)])];
+    return [...new Set(this.pool.map((a) => a.category).filter(Boolean))];
   }
 
   get assetStatuses(): string[] {
@@ -768,7 +753,7 @@ export class NewDisposal implements OnInit, OnDestroy {
 
   addFiles(list: FileList | null | undefined): void {
     const tooBig = Array.from(list ?? []).filter((f) => f.size > 10 * 1024 * 1024);
-    const by = this.auth.getUser()?.userName || this.api.currentUser() || CURRENT_USER;
+    const by = this.auth.getUser()?.userName || this.api.currentUser() || '';
     for (const f of Array.from(list ?? [])) {
       if (f.size <= 10 * 1024 * 1024) this.files.push({ name: f.name, size: f.size, added: nowStamp(), by, description: '' });
     }
@@ -824,11 +809,10 @@ export class NewDisposal implements OnInit, OnDestroy {
   // ===== API bodies =====
 
   private detailsBody(): DisposalDetailsBody {
-    const employee = EMPLOYEES.find((e) => e.name === this.requestedBy);
     return {
       requestTitle: this.title.trim(),
       requestDate: this.requestDate || null,
-      requestedBy: this.requestedBy ? { userId: employee?.id ?? null, name: this.requestedBy, roleDepartment: employee?.department ?? null } : null,
+      requestedBy: this.requestedBy ? { userId: null, name: this.requestedBy, roleDepartment: null } : null,
       reason: this.reason || null,
       disposalCategory: this.category || null,
       priority: this.priority || null,

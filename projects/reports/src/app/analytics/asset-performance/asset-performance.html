@@ -270,6 +270,8 @@
     </header>
     @for (i of insights; track i.id) {
       <ra-insight-card [insight]="i" (action)="insightAction($event)" />
+    } @empty {
+      <p class="empty">No insights for the current filters.</p>
     }
   </aside>
 </div>

@@ -37,7 +37,8 @@ import {
   Wrench,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, AssetStatus, AuthService, findAsset } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetRecord, AssetStatus, AuthService } from 'shared-ui';
+import { blankAssetRecord } from '../../shared/blank-asset';
 import { loadAssetDetail } from '../../asset-details/asset-details';
 import { AssetDetailsService, fileUrl, iconForAsset, isoDay } from '../../asset-details/asset-details.service';
 import { apiErrorMessage } from '../../services/asset-api';
@@ -153,7 +154,8 @@ interface EditForm {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** No people API in the Asset service yet: the assignable technicians are a fixed list. */
-const TECHNICIANS = ['Ahmed Khan', 'Ravi Patel', 'Nisha Patel', 'Ramesh Kumar', 'Salim Ahmed', 'Khalid Mansoori', 'Priya Nair'];
+/** Technician directory; empty until a people/master-data API serves it. */
+const TECHNICIANS: string[] = [];
 const KIND_BY_EXT: Record<string, FileKind> = {
   jpg: 'Image', jpeg: 'Image', png: 'Image', gif: 'Image', webp: 'Image', pdf: 'PDF', doc: 'Document', docx: 'Document', txt: 'Document',
   xls: 'Spreadsheet', xlsx: 'Spreadsheet', csv: 'Spreadsheet', m4a: 'Audio', mp3: 'Audio', wav: 'Audio', mp4: 'Video', mov: 'Video',
@@ -197,7 +199,7 @@ export class ServiceRequest implements OnDestroy {
   readonly pageSizes = [10, 25, 50];
   readonly uploadAccept = UPLOAD_EXTS.map((e) => '.' + e).join(',');
 
-  asset: AssetRecord = findAsset('GEN-00045') ?? ASSET_RECORDS[0];
+  asset: AssetRecord = blankAssetRecord();
   /** The asset's AssetRegistrationId, once known. */
   private assetId = '';
   requestId = '';
@@ -287,11 +289,9 @@ export class ServiceRequest implements OnDestroy {
     this.assetComponents = [];
     this.assetWorkOrders = [];
     this.assetId = '';
-    const fallback = findAsset(tag);
-    if (fallback) this.setAssetRecord(fallback);
 
     const asset$ = tag
-      ? this.assets.getByTag(tag, fallback).pipe(catchError(() => of(null)))
+      ? this.assets.getByTag(tag).pipe(catchError(() => of(null)))
       : of(null);
 
     return asset$.pipe(
@@ -315,7 +315,7 @@ export class ServiceRequest implements OnDestroy {
           this.requestId = dto.requestNumber;
           if (!this.assetId) {
             this.assetId = dto.asset.assetRegistrationId;
-            this.setAssetRecord(this.recordFromRequest(dto, fallback));
+            this.setAssetRecord(this.recordFromRequest(dto));
           }
         }
       }),

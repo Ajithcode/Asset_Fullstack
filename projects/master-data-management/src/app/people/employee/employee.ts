@@ -7,12 +7,13 @@ import { Observable, finalize } from 'rxjs';
 import { ListPage } from '../../shared/list-page';
 import { apiErrorMessage } from '../../shared/mdm-api';
 import { SkillService } from '../skill/skill.service';
-import { PEOPLE_DEPARTMENTS, avatarColor, initials } from '../people.data';
+import { avatarColor, initials } from '../people.data';
 import { TeamService } from '../team/team.service';
 import { blankEmployee } from './employee.data';
 import { EmployeeForm } from './employee-form/employee-form';
 import { EmployeeFilters, EmployeeRecord, EmployeeStatus } from './employee.model';
 import { EmployeeService } from './employee.service';
+import { MasterLookups } from '../name-lookup';
 
 type SortKey = 'id' | 'name' | 'department' | 'designation';
 
@@ -28,7 +29,13 @@ export class EmployeePage extends ListPage<EmployeeRecord, EmployeeFilters, Sort
   private readonly teams = inject(TeamService);
   private readonly skills = inject(SkillService);
   readonly basePath = MASTER_DATA_BASE_PATH;
-  readonly departments = PEOPLE_DEPARTMENTS;
+  private readonly lookups = inject(MasterLookups);
+
+  // Department names from the departments API
+  get departments(): string[] {
+    const names = this.lookups.departments.names;
+    return names;
+  }
   readonly statuses: EmployeeStatus[] = ['Active', 'On Leave', 'Inactive'];
   readonly initials = initials;
   readonly avatarColor = avatarColor;

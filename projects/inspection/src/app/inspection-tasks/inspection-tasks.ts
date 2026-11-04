@@ -40,7 +40,6 @@ import { Pager, pillClass } from '../shared/insp-utils';
 
 const RESPONSE_TYPES = ['Pass / Fail', 'Yes / No', 'Numeric', 'Text'];
 const SEVERITIES = ['Critical', 'High', 'Medium', 'Low'];
-const FALLBACK_CATEGORIES = ['Safety', 'Mechanical', 'Condition', 'Electrical', 'Instrumentation'];
 
 function blankTask(category: string): Partial<InspectionTask> {
   return {
@@ -123,7 +122,7 @@ export class InspectionTasksPage implements OnInit {
     const fromStore = [...this.api.taskCategories.items()]
       .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
       .map((c) => c.categoryName);
-    const set = new Set(fromStore.length ? fromStore : FALLBACK_CATEGORIES);
+    const set = new Set(fromStore);
     this.store.items().forEach((t) => t.taskCategory && set.add(t.taskCategory));
     return [...set];
   });

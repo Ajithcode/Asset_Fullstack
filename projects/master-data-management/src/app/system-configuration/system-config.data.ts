@@ -80,6 +80,6 @@ export function defaultSettings(): SystemSettings {
     numbering: { prefix: 'AST', pattern: '{PREFIX}-{YY}-{0000}', startNumber: 1, digits: 4, resetYearly: true, includeSite: false },
     integration: { erp: 'None', apiEnabled: true, rateLimitPerMinute: 120, webhookUrl: '', syncIntervalMinutes: 60, sources: [], failedSyncStatus: '' },
     backup: { frequency: 'Daily', time: '02:00', retentionDays: 30, auditRetentionMonths: 24, deletedRetentionDays: 90 },
-    other: { betaFeatures: false, helpdeskEmail: 'support@purpleiq.com', supportPhone: '+971 4 000 0000', termsUrl: '' }
+    other: { betaFeatures: false, helpdeskEmail: 'support@purpleiq.com', supportPhone: '', termsUrl: '' }
   };
 }

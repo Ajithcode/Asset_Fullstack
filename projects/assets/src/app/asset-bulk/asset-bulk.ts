@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy } from '@angular/core';
+import { Component, HostListener, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -28,8 +28,9 @@ import {
   Wand2,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS, AssetIconKey, AssetRecord, AssetStatus, Criticality, assetLocation } from 'shared-ui';
+import { AssetRecord, AssetStatus, AuthService, Criticality, assetLocation } from 'shared-ui';
 import { readUserRelationships } from '../asset-relationship-list/user-relationships';
+import { iconForAsset } from '../asset-details/asset-details.service';
 
 type ImportType = 'create' | 'update' | 'upsert';
 type ExportType = 'master' | 'related' | 'custom';
@@ -91,7 +92,6 @@ interface HistoryEntry {
   by: string;
 }
 
-const CURRENT_USER = 'Rex Kumar';
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const STATUSES: AssetStatus[] = ['Active', 'Under Maintenance', 'In Repair', 'Disposed', 'In Storage', 'Checked Out'];
 const CRITICALITIES: Criticality[] = ['Critical', 'High', 'Medium', 'Low'];
@@ -122,14 +122,11 @@ const TEMPLATES: TemplateDef[] = [
 
 const STANDARD_EXPORT: FieldKey[] = ['tag', 'name', 'category', 'type', 'manufacturer', 'model', 'site', 'area', 'custodian', 'status', 'criticality'];
 
-/** DEMO MODE: kept in memory until the Assets API is wired up. */
-const HISTORY: HistoryEntry[] = [
-  { fileName: 'Assets_Jan2026.xlsx', type: 'Import', records: 253, status: 'Completed', at: '2026-01-01T14:30', by: 'Rex Kumar' },
-  { fileName: 'Assets_Update.xlsx', type: 'Import', records: 120, status: 'Completed', at: '2025-12-15T09:20', by: 'Sara Ali' },
-  { fileName: 'Assets.csv', type: 'Import', records: 78, status: 'Failed', at: '2025-12-10T11:45', by: 'Rex Kumar' },
-  { fileName: 'Asset_Export.xlsx', type: 'Export', records: 1245, status: 'Completed', at: '2025-12-05T16:10', by: 'Omar Khan' },
-  { fileName: 'Assets_Decom.xlsx', type: 'Import', records: 45, status: 'Completed', at: '2025-11-20T10:05', by: 'Rex Kumar' },
-];
+/** Import / export history of this session (kept in memory until an API serves it). */
+const HISTORY: HistoryEntry[] = [];
+
+/** Assets imported in this session (kept in memory until the import is wired to the Assets API). */
+const REGISTER: AssetRecord[] = [];
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9/]+/g, ' ').trim();
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -173,8 +170,9 @@ export class AssetBulk implements OnDestroy {
   readonly fields = FIELDS;
   readonly templates = TEMPLATES;
   readonly steps = ['Download Template', 'Upload File', 'Map Fields', 'Validate', 'Import'];
-  readonly categories = [...new Set(ASSET_RECORDS.map((a) => a.category))].sort();
-  readonly sites = [...new Set(ASSET_RECORDS.map((a) => a.site))].sort();
+  /** Master data lists; empty until a master data API serves them. */
+  readonly categories: string[] = [];
+  readonly sites: string[] = [];
   readonly statuses = STATUSES;
   readonly criticalities = CRITICALITIES;
 
@@ -213,6 +211,11 @@ export class AssetBulk implements OnDestroy {
   // ===== Dialogs =====
   historyOpen = false;
   issuesOpen = false;
+  private readonly auth = inject(AuthService);
+  private get currentUser(): string {
+    return this.auth.getUser()?.userName || this.auth.getUserEmail() || '';
+  }
+
   get history(): HistoryEntry[] {
     return HISTORY;
   }
@@ -238,22 +241,14 @@ export class AssetBulk implements OnDestroy {
   }
 
   get departments(): string[] {
-    return [...new Set(ASSET_RECORDS.map((a) => a.department))].sort();
+    return [];
   }
 
   // ===== Step 1: template =====
 
   downloadTemplate(): void {
     const keys = this.template.fields;
-    const sample = ASSET_RECORDS.slice(0, 3).map((a) =>
-      keys.map((k) => {
-        if (k === 'serialNumber') return a.serialNumber ?? `SN-${a.tag}`;
-        if (k === 'purchaseDate') return a.purchaseDate ?? '2026-01-15';
-        const v = (a as unknown as Record<string, unknown>)[k];
-        return v === null || v === undefined ? '' : String(v);
-      }),
-    );
-    const sheet = XLSX.utils.aoa_to_sheet([keys.map((k) => this.field(k)!.label + (this.field(k)!.mandatory ? ' *' : '')), ...sample]);
+    const sheet = XLSX.utils.aoa_to_sheet([keys.map((k) => this.field(k)!.label + (this.field(k)!.mandatory ? ' *' : ''))]);
     sheet['!cols'] = keys.map(() => ({ wch: 20 }));
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, 'Assets');
@@ -325,28 +320,6 @@ export class AssetBulk implements OnDestroy {
     } catch {
       this.fileError = 'The file could not be read as a spreadsheet.';
     }
-  }
-
-  /** Builds a small sample file (with a few deliberate errors) for trying the import. */
-  useSample(): void {
-    const head = ['Asset ID *', 'Asset Name *', 'Category *', 'Asset Type *', 'Model', 'Serial Number', 'Purchase Date', 'Site', 'Status'];
-    const rows = [
-      ['GEN-00120', 'Diesel Generator 150 kVA', 'Power Generation', 'Generator', 'Perkins 1106A', 'PK1106-7781', '2026-02-10', 'Head Office', 'Active'],
-      ['UPS-00090', 'UPS 250 kVA', 'Electrical', 'UPS', 'Galaxy VX 250', 'GVX-25-0090', '2026-03-04', 'Data Center', 'Active'],
-      ['HVAC-00125', 'Air Handling Unit 2', 'HVAC', 'AHU', 'Trane CSAA 012', 'TR-CS-1250', '2026-03-18', 'Head Office', 'Active'],
-      ['FP-00070', 'Jockey Pump', 'Safety & Security', 'Fire System', 'Grundfos CR 5', 'CR5-26-0070', '15/04/2026', 'Head Office', 'Active'],
-      ['IT-00230', 'Laptop - Lenovo ThinkPad', 'IT Equipment', 'Laptop', 'T14 Gen 4', 'PF4XK2Q1', '2026-05-02', 'Head Office', 'In Storage'],
-      ['IT-00230', 'Laptop - Lenovo ThinkPad', 'IT Equipment', 'Laptop', 'T14 Gen 4', 'PF4XK2Q1', '2026-05-02', 'Head Office', 'In Storage'],
-      ['CCTV-00250', 'CCTV Camera - PTZ', 'Security', 'CCTV', 'Axis Q6075', 'AX-Q6075-250', '2026-13-40', 'Warehouse', 'Active'],
-      ['', 'Solar Inverter 20 kW', 'Renewable Energy', 'Inverter', 'SMA STP 20', 'SMA-20-0011', '2026-06-01', 'Building B', 'Active'],
-      ['TRF-00080', 'Transformer 250 kVA', 'Power Equipment', 'Transformer', 'ABB 250', 'ABB-250-80', '2026-06-20', 'Main Substation', 'Operational'],
-      ['GEN-00045', 'Diesel Generator 250 kVA', 'Power Generation', 'Generator', 'C9.3', 'CAT2026G45001', '2023-01-10', 'Head Office', 'Active'],
-    ];
-    const sheet = XLSX.utils.aoa_to_sheet([head, ...rows]);
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, sheet, 'Assets');
-    const out = XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
-    this.parse(new File([out], 'Assets_Sample.xlsx'), out);
   }
 
   removeFile(): void {
@@ -487,7 +460,7 @@ export class AssetBulk implements OnDestroy {
       seenTags.add(tag);
       values.tag = tag;
       for (const key of ['purchaseDate', 'nextMaintenance'] as const) if (values[key]) values[key] = parseDate(values[key]!) ?? '';
-      clean.push({ row: rowNo, values, exists: ASSET_RECORDS.some((a) => a.tag === tag) });
+      clean.push({ row: rowNo, values, exists: REGISTER.some((a) => a.tag === tag) });
     });
     this.clean = clean;
     this.issues = issues;
@@ -498,7 +471,7 @@ export class AssetBulk implements OnDestroy {
 
   /** First problem with a row, or '' when it is fine. */
   private rowProblem(v: Partial<Record<FieldKey, string>>, tag: string): string {
-    const exists = ASSET_RECORDS.some((a) => a.tag === tag);
+    const exists = REGISTER.some((a) => a.tag === tag);
     for (const f of FIELDS) {
       const value = (v[f.key] ?? '').trim();
       const needed = f.mandatory && (this.importType !== 'update' || f.key === 'tag') && !(this.importType === 'upsert' && exists && f.key !== 'tag');
@@ -507,7 +480,7 @@ export class AssetBulk implements OnDestroy {
       if (f.type === 'Date' && !parseDate(value)) return `${f.label} "${value}" is not a valid date.`;
       if (f.key === 'status' && !STATUSES.includes(value as AssetStatus)) return `Status "${value}" is not one of: ${STATUSES.join(', ')}.`;
       if (f.key === 'criticality' && !CRITICALITIES.includes(value as Criticality)) return `Criticality "${value}" is not one of: ${CRITICALITIES.join(', ')}.`;
-      if (f.key === 'category' && !this.categories.includes(value)) return `Category "${value}" does not exist.`;
+      if (f.key === 'category' && this.categories.length && !this.categories.includes(value)) return `Category "${value}" does not exist.`;
     }
     if (!/^[A-Z0-9][A-Z0-9-]*$/.test(tag)) return `Asset ID "${tag}" may only use letters, digits and dashes.`;
     if (this.importType === 'create' && exists) return `Asset ID ${tag} already exists.`;
@@ -530,16 +503,16 @@ export class AssetBulk implements OnDestroy {
     let created = 0;
     let updated = 0;
     for (const { values } of this.clean) {
-      const existing = ASSET_RECORDS.find((a) => a.tag === values.tag);
+      const existing = REGISTER.find((a) => a.tag === values.tag);
       if (existing) {
         this.apply(existing, values);
         updated++;
       } else {
-        ASSET_RECORDS.push(this.newRecord(values));
+        REGISTER.push(this.newRecord(values));
         created++;
       }
     }
-    HISTORY.unshift({ fileName: this.file.name, type: 'Import', records: this.clean.length, status: 'Completed', at: nowLocal(), by: CURRENT_USER });
+    HISTORY.unshift({ fileName: this.file.name, type: 'Import', records: this.clean.length, status: 'Completed', at: nowLocal(), by: this.currentUser });
     this.step = 5;
     const skipped = this.issues.length;
     this.showToast(`Import complete: ${created} created, ${updated} updated${skipped ? `, ${skipped} rows skipped` : ''}. See the Asset List.`);
@@ -579,16 +552,13 @@ export class AssetBulk implements OnDestroy {
   }
 
   private newRecord(v: Partial<Record<FieldKey, string>>): AssetRecord {
-    // Borrow the icon of a similar asset already in the register
-    const like = ASSET_RECORDS.find((a) => a.type === v.type) ?? ASSET_RECORDS.find((a) => a.category === v.category);
-    const icon: AssetIconKey = like?.icon ?? 'transformer';
     const record: AssetRecord = {
-      id: Math.max(0, ...ASSET_RECORDS.map((a) => a.id)) + 1,
+      id: Math.max(0, ...REGISTER.map((a) => a.id)) + 1,
       tag: v.tag!, name: v.name ?? v.tag!, category: v.category ?? '', type: v.type ?? '',
       site: v.site ?? '', area: v.area ?? '', custodian: v.custodian ?? '', department: v.department ?? '',
       status: (v.status as AssetStatus) || 'Active', criticality: (v.criticality as Criticality) || 'Medium',
       manufacturer: v.manufacturer ?? '', model: v.model ?? '', nextMaintenance: v.nextMaintenance || null,
-      icon, image: like?.image ?? '',
+      icon: iconForAsset(v.category, v.type, v.name), image: '',
     };
     if (v.serialNumber) record.serialNumber = v.serialNumber;
     if (v.purchaseDate) record.purchaseDate = v.purchaseDate;
@@ -622,7 +592,7 @@ export class AssetBulk implements OnDestroy {
   }
 
   get exportRows(): AssetRecord[] {
-    return ASSET_RECORDS.filter(
+    return REGISTER.filter(
       (a) =>
         (!this.filterCategory || a.category === this.filterCategory) &&
         (!this.filterSite || a.site === this.filterSite) &&
@@ -676,7 +646,7 @@ export class AssetBulk implements OnDestroy {
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, 'Assets');
     XLSX.writeFile(book, name, { bookType: this.exportFormat });
-    HISTORY.unshift({ fileName: name, type: 'Export', records: rows.length, status: 'Completed', at: nowLocal(), by: CURRENT_USER });
+    HISTORY.unshift({ fileName: name, type: 'Export', records: rows.length, status: 'Completed', at: nowLocal(), by: this.currentUser });
     this.showToast(`${rows.length} assets exported to ${name}.`);
   }
 

@@ -19,13 +19,14 @@
       <h1>Material Consumption</h1>
       <p class="subtitle">Record material usage, returns and scrap against job orders</p>
     </div>
-    <div class="head-actions">
+    <div *ngIf="jobList.length" class="head-actions">
       <button type="button" class="btn btn-outline" (click)="exportXlsx()"><lucide-icon [img]="icons.Upload" [size]="17"></lucide-icon>Export</button>
       <button type="button" class="btn btn-outline" (click)="openMove('return')"><lucide-icon [img]="icons.Undo2" [size]="17"></lucide-icon>Return Material</button>
       <button type="button" class="btn btn-primary" (click)="focusForm()"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>Record Consumption</button>
     </div>
   </div>
 
+  <ng-container *ngIf="jobList.length; else noJobs">
   <!-- ===== Job card ===== -->
   <div class="card job-card">
     <div class="job-main">
@@ -239,6 +240,11 @@
       </section>
     </aside>
   </div>
+
+  </ng-container>
+  <ng-template #noJobs>
+    <div class="card"><p class="empty">No job orders with materials yet.</p></div>
+  </ng-template>
 
   <p class="foot-note"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>Transactions update the shared inventory ledger and job costs. Posted entries require a reversal to correct.</p>
 </section>

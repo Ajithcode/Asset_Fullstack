@@ -57,8 +57,6 @@ import {
 } from './custom-fields.service';
 import { apiErrorMessage } from '../services/asset-api';
 
-/** Sample definitions, still used by the asset detail Custom Fields tab. */
-export { buildMockFields } from './custom-fields.mock';
 
 type ListTab = FieldScope | 'compound';
 type PageTab = ListTab | 'groups' | 'layouts';

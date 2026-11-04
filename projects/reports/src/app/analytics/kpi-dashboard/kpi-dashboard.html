@@ -136,6 +136,8 @@
             <button type="button" class="btn btn--sm btn--outline" (click)="insightAction(ins)">{{ ins.action.label }}</button>
           </div>
         </article>
+      } @empty {
+        <div class="empty">No insights for the current filters.</div>
       }
     </section>
 

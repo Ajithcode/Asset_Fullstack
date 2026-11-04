@@ -54,8 +54,6 @@ export class PredictiveAnalyticsPage extends ScopedAnalyticsPage {
 
   constructor() {
     super();
-    // The model re-scores assets every few hours
-    this.updatedMinutes = 120;
     this.recompute();
   }
 

@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { buildSampleRows, GeneratedReportService, TEMPLATE_HEADERS } from '../generated-report.service';
+import { GeneratedReportService, TEMPLATE_HEADERS } from '../generated-report.service';
 
 interface TreeNode {
   label: string;
@@ -79,43 +79,8 @@ export class CreateReport {
   // ---- Left navigation tree ----
   searchTerm = '';
 
-  treeNodes: TreeNode[] = [
-    {
-      label: 'Track People',
-      expanded: true,
-      children: [
-        {
-          label: 'UAE',
-          expanded: true,
-          children: [
-            {
-              label: 'Oman',
-              expanded: true,
-              children: [
-                {
-                  label: 'Street One',
-                  expanded: true,
-                  children: [
-                    {
-                      label: 'Second Colony',
-                      expanded: true,
-                      children: [
-                        {
-                          label: 'Third Right',
-                          expanded: true,
-                          children: [{ label: 'Azy floor', active: true }]
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  ];
+  /** Location hierarchy; comes from the locations API (not wired yet). */
+  treeNodes: TreeNode[] = [];
 
   toggleNode(node: TreeNode): void {
     if (node.children?.length) {
@@ -124,12 +89,12 @@ export class CreateReport {
   }
 
   // ---- Connection / status strip ----
-  connectionStatus = { online: true };
+  connectionStatus = { online: false };
   gatewayStats = {
-    totalGateway: 24,
-    fixedSensor: 118,
-    mobileSensor: 46,
-    alarms: 3
+    totalGateway: 0,
+    fixedSensor: 0,
+    mobileSensor: 0,
+    alarms: 0
   };
 
   // ---- Time range ----
@@ -213,7 +178,8 @@ export class CreateReport {
     }
 
     const headers = this.selectedTemplate ? TEMPLATE_HEADERS[this.selectedTemplate] ?? [] : [];
-    const rows = buildSampleRows(headers, 5);
+    // Rows are filled in by the reporting API once it is connected
+    const rows: Record<string, string | number>[] = [];
     const today = new Date().toISOString().slice(0, 10);
     const timeRangeLabel = this.timeRangePresets.find((p) => p.value === this.timeRangePreset)?.label ?? '';
 

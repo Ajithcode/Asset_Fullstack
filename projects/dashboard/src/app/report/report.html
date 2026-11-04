@@ -89,6 +89,7 @@
           <circle *ngFor="let p of a.pts" [attr.cx]="p.x" [attr.cy]="p.y" r="2.2" fill="#fff" stroke="#f59e0b" stroke-width="1.2"></circle>
           <rect *ngFor="let v of a.vals; let i = index" class="hit" [attr.x]="a.x(i) - a.slot / 2" [attr.y]="cp.t" [attr.width]="a.slot" [attr.height]="ch - cp.t - cp.b" (mouseenter)="hoverDay = i" (click)="openDay(i)"></rect>
         </svg>
+        <p *ngIf="!a.vals.length" class="io-empty">No reporting activity yet.</p>
         <div *ngIf="hoverDay !== null && a.vals[hoverDay] as v" class="io-tip" [style.left.%]="(a.x(hoverDay) / cw) * 100">
           <strong>{{ fmtDate(v.date) }}</strong>
           <span *ngFor="let s of series"><i [style.background]="s.color"></i>{{ s.label }}<b>{{ $any(v)[s.key] }}</b></span>
@@ -263,6 +264,7 @@
       <ul class="rp-recent">
         <li *ngFor="let e of recent" class="io-click" (click)="openRecent(e)"><span class="rp-av" [ngClass]="avatarTone(e.owner)">{{ initials(e.owner) }}</span>
           <span class="grow"><strong>{{ e.owner }}</strong><small>{{ e.action }} "{{ e.report }}"</small></span><small class="muted nowrap">{{ ago(e.at) }}</small></li>
+        <li *ngIf="!recent.length" class="io-empty">No recent activity.</li>
       </ul>
     </section>
   </div>

@@ -75,12 +75,12 @@ export interface FieldLayout {
 
 export const ALL_ASSETS = 'All Assets';
 
-/** Sample records for each lookup source, used for default values and form previews. */
+/** Lookup sources a field can read from; their records are empty until a master data API serves them. */
 export const LOOKUP_SOURCES: Record<string, string[]> = {
-  Suppliers: ['Al Masaood Power', 'Cummins Arabia', 'Gulf Power Parts', 'Emirates Industrial Supply'],
-  Manufacturers: ['Cummins', 'Caterpillar', 'Siemens', 'ABB', 'Schneider Electric'],
-  Locations: ['Dubai HQ', 'Jebel Ali Warehouse', 'Abu Dhabi Plant', 'Sharjah Depot'],
-  Users: ['Rex Kumar', 'Aisha Rahman', 'Omar Haddad', 'Priya Nair'],
+  Suppliers: [],
+  Manufacturers: [],
+  Locations: [],
+  Users: [],
 };
 
 export const BUILT_IN_PREFIX = 'builtin:';

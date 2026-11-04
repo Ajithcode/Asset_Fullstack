@@ -4,7 +4,7 @@ import { LucideAngularModule, User, X } from 'lucide-angular';
 import { COUNTRIES, CURRENCIES } from '../../organization/organization.data';
 import { DepartmentService } from '../../department/department.service';
 import { OrganizationService } from '../../organization/organization.service';
-import { COST_CENTERS, EMPLOYEES, blankBusinessUnit } from '../business-unit.data';
+import { blankBusinessUnit } from '../business-unit.data';
 import { MASTER_ICONS, MASTER_ICON_KEYS } from '../../../shared/master-icons';
 import { BusinessUnitRecord } from '../business-unit.model';
 import { BusinessUnitService } from '../business-unit.service';
@@ -36,8 +36,8 @@ export class BuForm implements OnChanges {
   readonly icons = { X, User };
   readonly logoIcons = MASTER_ICONS;
   readonly logoKeys = MASTER_ICON_KEYS;
-  readonly employees = EMPLOYEES;
-  readonly costCenters = COST_CENTERS;
+  // Employee suggestions for the head field; free text until the employee list is wired here
+  readonly employees: string[] = [];
   readonly currencies = CURRENCIES;
   readonly countries = COUNTRIES;
   readonly tabs: { id: FormTab; label: string }[] = [
@@ -59,6 +59,11 @@ export class BuForm implements OnChanges {
     this.form = this.unit ? structuredClone(this.unit) : blankBusinessUnit();
     this.errors = {};
     this.tab = 'basic';
+  }
+
+  // Cost centers already used on business units, plus the current value
+  get costCenters(): string[] {
+    return [...new Set([this.form.costCenter, ...this.service.all().map((r) => r.costCenter)].filter(Boolean))];
   }
 
   get isEdit(): boolean {

@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { availableFields, calcValue, formatCell, isNumeric, sampleValue } from '../custom-reports.engine';
-import { CalcField, CalcOperator, CustomReport, FieldDef, ReportRow } from '../custom-reports.model';
+import { availableFields, isNumeric } from '../custom-reports.engine';
+import { CalcField, CalcOperator, CustomReport, FieldDef } from '../custom-reports.model';
 
 /** Add calculated field: name + <numeric field> <operator> <numeric field>. */
 @Component({
@@ -46,8 +46,7 @@ import { CalcField, CalcOperator, CustomReport, FieldDef, ReportRow } from '../c
           </div>
           @if (submitted && exprError) { <p class="cr-error">{{ exprError }}</p> }
           @if (left && right) {
-            <p class="cr-formula"><strong>{{ name || 'New field' }}</strong> = {{ labelOf(left) }} {{ op }} {{ labelOf(right) }}
-              <span class="muted">· first sample row: {{ sampleResult }}</span></p>
+            <p class="cr-formula"><strong>{{ name || 'New field' }}</strong> = {{ labelOf(left) }} {{ op }} {{ labelOf(right) }}</p>
           }
         }
 
@@ -94,13 +93,6 @@ export class CalcFieldDialog implements OnInit {
     if (!this.left || !this.right) return 'Choose both fields.';
     if (this.left === this.right && (this.op === '-' || this.op === '÷')) return 'Choose two different fields for this operator.';
     return '';
-  }
-
-  get sampleResult(): string {
-    const row: ReportRow = {};
-    for (const f of this.numericFields) row[f.key] = sampleValue(f, 0);
-    if (this.op === '÷' && !Number(row[this.right])) return 'n/a (division by zero shows 0)';
-    return formatCell('number', calcValue({ key: '', label: '', left: this.left, op: this.op, right: this.right }, row));
   }
 
   submit(): void {

@@ -1,7 +1,6 @@
 /**
- * Detail data for each register asset (DEMO MODE): one JSON file per asset, named by its tag.
- * The files are loaded on demand, so only the asset being viewed is downloaded.
- * The pages copy what they load, so edits stay in the page and never change these files.
+ * Detail data types for an asset (documents, images, status, relationships, criticality, health).
+ * The static per-asset JSON files were removed; loadAssetDetail resolves to null until an API serves this data.
  */
 
 // ===== Documents =====
@@ -369,28 +368,8 @@ export interface AssetDetail {
 
 type Loader = () => Promise<{ default: unknown }>;
 
-const LOADERS: Record<string, Loader> = {
-  'AC-00311': () => import('./AC-00311.json'),
-  'AC-00318': () => import('./AC-00318.json'),
-  'CCTV-00234': () => import('./CCTV-00234.json'),
-  'CCTV-00241': () => import('./CCTV-00241.json'),
-  'FLT-00021': () => import('./FLT-00021.json'),
-  'FLT-00033': () => import('./FLT-00033.json'),
-  'FP-00056': () => import('./FP-00056.json'),
-  'FP-00061': () => import('./FP-00061.json'),
-  'GEN-00045': () => import('./GEN-00045.json'),
-  'GEN-00052': () => import('./GEN-00052.json'),
-  'HVAC-00112': () => import('./HVAC-00112.json'),
-  'HVAC-00118': () => import('./HVAC-00118.json'),
-  'IT-00189': () => import('./IT-00189.json'),
-  'IT-00204': () => import('./IT-00204.json'),
-  'SOL-00456': () => import('./SOL-00456.json'),
-  'SOL-00462': () => import('./SOL-00462.json'),
-  'TRF-00067': () => import('./TRF-00067.json'),
-  'TRF-00072': () => import('./TRF-00072.json'),
-  'UPS-00078': () => import('./UPS-00078.json'),
-  'UPS-00081': () => import('./UPS-00081.json'),
-};
+/** The static per-asset JSON files were removed; every asset resolves to null until an API serves this data. */
+const LOADERS: Record<string, Loader> = {};
 
 const cache = new Map<string, Promise<AssetDetail | null>>();
 

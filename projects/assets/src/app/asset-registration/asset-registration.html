@@ -1121,7 +1121,8 @@
 
         <div class="gallery">
           <div class="gallery-main">
-            <img *ngIf="activeImage" [src]="activeImage.src" [alt]="activeImage.alt" />
+            <img *ngIf="activeImage; else noImages" [src]="activeImage.src" [alt]="activeImage.alt" />
+            <ng-template #noImages><p class="docs-empty">No images added yet.</p></ng-template>
           </div>
           <div class="gallery-thumbs">
             <button type="button" class="gallery-thumb" *ngFor="let t of thumbnails" (click)="activeImageIndex = t.index"
