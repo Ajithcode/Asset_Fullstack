@@ -63,7 +63,7 @@ export class ReportView {
   }
 
   backToReports(): void {
-    this.router.navigate(['/reports-analytics']);
+    this.router.navigate(['/reports-analytics/generated-reports']);
   }
 
   @HostListener('document:click')
