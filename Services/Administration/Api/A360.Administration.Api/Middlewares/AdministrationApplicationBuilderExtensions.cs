@@ -29,6 +29,12 @@ public static class AdministrationApplicationBuilderExtensions
         app.MapSystemConfigurationEndpoints();
         app.MapIntegrationEndpoints();
         app.MapDataImportJobEndpoints();
+        app.MapDeviceAssetPlotEndpoints();
+        app.MapMapLibraryZoneEndpoints();
+        app.MapFloorPlanEndpoints();
+        app.MapMapLayerEndpoints();
+        app.MapMapGeneralSettingsEndpoints();
+        app.MapZoneGeofenceEndpoints();
 
         return app;
     }

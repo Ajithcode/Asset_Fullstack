@@ -80,6 +80,30 @@ public static class AdministrationServiceCollectionExtensions
         services.AddScoped<IDataImportJobRepository>(serviceProvider => serviceProvider.GetRequiredService<DataImportJobRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DataImportJobRepository>());
 
+        services.AddScoped<DeviceAssetPlotRepository>();
+        services.AddScoped<IDeviceAssetPlotRepository>(serviceProvider => serviceProvider.GetRequiredService<DeviceAssetPlotRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DeviceAssetPlotRepository>());
+
+        services.AddScoped<MapLibraryZoneRepository>();
+        services.AddScoped<IMapLibraryZoneRepository>(serviceProvider => serviceProvider.GetRequiredService<MapLibraryZoneRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapLibraryZoneRepository>());
+
+        services.AddScoped<FloorPlanRepository>();
+        services.AddScoped<IFloorPlanRepository>(serviceProvider => serviceProvider.GetRequiredService<FloorPlanRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<FloorPlanRepository>());
+
+        services.AddScoped<MapLayerRepository>();
+        services.AddScoped<IMapLayerRepository>(serviceProvider => serviceProvider.GetRequiredService<MapLayerRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapLayerRepository>());
+
+        services.AddScoped<MapGeneralSettingsRepository>();
+        services.AddScoped<IMapGeneralSettingsRepository>(serviceProvider => serviceProvider.GetRequiredService<MapGeneralSettingsRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapGeneralSettingsRepository>());
+
+        services.AddScoped<ZoneGeofenceRepository>();
+        services.AddScoped<IZoneGeofenceRepository>(serviceProvider => serviceProvider.GetRequiredService<ZoneGeofenceRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<ZoneGeofenceRepository>());
+
         // Built eagerly so a missing or malformed encryption key stops the service at startup.
         services.AddSingleton<ISecretProtector>(new AesGcmSecretProtector(configuration));
 
