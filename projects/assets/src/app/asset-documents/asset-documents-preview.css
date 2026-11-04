@@ -129,7 +129,7 @@
   padding: 10px 8px;
   overflow-y: auto;
   background: #24262b;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
 .thumb {

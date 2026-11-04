@@ -44,70 +44,45 @@
           </div>
         </div>
 
-        <label class="field">
+        <div class="field">
           <span class="field-label">Category</span>
-          <select class="control" name="category" [(ngModel)]="draft.category" (ngModelChange)="onCategoryChange()">
-            <option value="">All Categories</option>
-            <option *ngFor="let o of categoryOptions" [value]="o">{{ o }}</option>
-          </select>
-        </label>
+          <app-filter-select name="category" [(ngModel)]="draft.category" (ngModelChange)="onCategoryChange()" [options]="categoryOptions" allLabel="All Categories" ariaLabel="Category"></app-filter-select>
+        </div>
 
-        <label class="field">
+        <div class="field">
           <span class="field-label">Asset Type</span>
-          <select class="control" name="type" [(ngModel)]="draft.type">
-            <option value="">All Types</option>
-            <option *ngFor="let o of typeOptions" [value]="o">{{ o }}</option>
-          </select>
-        </label>
+          <app-filter-select name="type" [(ngModel)]="draft.type" [options]="typeOptions" allLabel="All Types" ariaLabel="Asset Type"></app-filter-select>
+        </div>
 
-        <label class="field">
+        <div class="field">
           <span class="field-label">Status</span>
-          <select class="control" name="status" [(ngModel)]="draft.status">
-            <option value="">All Status</option>
-            <option *ngFor="let o of statusOptions" [value]="o">{{ o }}</option>
-            <option value="Other">Other</option>
-          </select>
-        </label>
+          <app-filter-select name="status" [(ngModel)]="draft.status" [options]="statusFilterOptions" allLabel="All Status" ariaLabel="Status"></app-filter-select>
+        </div>
 
-        <label class="field">
+        <div class="field">
           <span class="field-label">Location</span>
-          <select class="control" name="location" [(ngModel)]="draft.location">
-            <option value="">All Locations</option>
-            <option *ngFor="let o of locationOptions" [value]="o">{{ o }}</option>
-          </select>
-        </label>
+          <app-filter-select name="location" [(ngModel)]="draft.location" [options]="locationOptions" allLabel="All Locations" ariaLabel="Location"></app-filter-select>
+        </div>
 
-        <label class="field">
+        <div class="field">
           <span class="field-label">Department</span>
-          <select class="control" name="department" [(ngModel)]="draft.department">
-            <option value="">All Departments</option>
-            <option *ngFor="let o of departmentOptions" [value]="o">{{ o }}</option>
-          </select>
-        </label>
+          <app-filter-select name="department" [(ngModel)]="draft.department" [options]="departmentOptions" allLabel="All Departments" ariaLabel="Department"></app-filter-select>
+        </div>
 
-        <label class="field">
+        <div class="field">
           <span class="field-label">Custodian</span>
-          <select class="control" name="custodian" [(ngModel)]="draft.custodian">
-            <option value="">All Custodians</option>
-            <option *ngFor="let o of custodianOptions" [value]="o">{{ o }}</option>
-          </select>
-        </label>
+          <app-filter-select name="custodian" [(ngModel)]="draft.custodian" [options]="custodianOptions" allLabel="All Custodians" ariaLabel="Custodian"></app-filter-select>
+        </div>
 
-        <label class="field">
+        <div class="field">
           <span class="field-label">Criticality</span>
-          <select class="control" name="criticality" [(ngModel)]="draft.criticality">
-            <option value="">All</option>
-            <option *ngFor="let o of criticalityOptions" [value]="o">{{ o }}</option>
-          </select>
-        </label>
+          <app-filter-select name="criticality" [(ngModel)]="draft.criticality" [options]="criticalityOptions" allLabel="All" ariaLabel="Criticality"></app-filter-select>
+        </div>
 
-        <label class="field">
+        <div class="field">
           <span class="field-label">Manufacturer</span>
-          <select class="control" name="manufacturer" [(ngModel)]="draft.manufacturer">
-            <option value="">All Manufacturers</option>
-            <option *ngFor="let o of manufacturerOptions" [value]="o">{{ o }}</option>
-          </select>
-        </label>
+          <app-filter-select name="manufacturer" [(ngModel)]="draft.manufacturer" [options]="manufacturerOptions" allLabel="All Manufacturers" ariaLabel="Manufacturer"></app-filter-select>
+        </div>
 
         <div class="filter-actions">
           <button
@@ -127,28 +102,18 @@
       </div>
 
       <div *ngIf="showMoreFilters" class="more-filters">
-        <label class="field">
+        <div class="field">
           <span class="field-label">Next Maintenance</span>
-          <select class="control" name="maintenanceDue" [(ngModel)]="draft.maintenanceDue">
-            <option value="">Any time</option>
-            <option value="overdue">Overdue</option>
-            <option value="30">Due in next 30 days</option>
-            <option value="90">Due in next 90 days</option>
-            <option value="none">Not scheduled</option>
-          </select>
-        </label>
+          <app-filter-select name="maintenanceDue" [(ngModel)]="draft.maintenanceDue" [options]="maintenanceOptions" allLabel="Any time" ariaLabel="Next Maintenance"></app-filter-select>
+        </div>
       </div>
     </form>
   </div>
 
   <!-- Summary + table -->
-  <div class="card list-body">
+  <div class="card list-body" [class.is-loading]="loading" [attr.aria-busy]="loading">
     <div class="summary-row">
       <div class="summary-stats">
-        <div class="total">
-          <span>Total Assets</span>
-          <strong>{{ assets.length | number }}</strong>
-        </div>
         <button
           *ngFor="let card of statusCards"
           type="button"
@@ -219,11 +184,14 @@
         <tbody>
           <tr *ngFor="let a of pageRows; let i = index; trackBy: trackById" [class.is-selected]="selected.has(a.id)">
             <td class="col-check no-print">
-              <input type="checkbox" [checked]="selected.has(a.id)" (change)="toggleRow(a.id)" [attr.aria-label]="'Select ' + a.name" />
+              <input type="checkbox" [checked]="selected.has(a.id)" (change)="toggleRow(a)" [attr.aria-label]="'Select ' + a.name" />
             </td>
             <td class="col-num">{{ rangeStart + i }}</td>
             <td class="col-img">
-              <span class="asset-thumb"><lucide-icon [img]="assetIcons[a.icon]" [size]="20"></lucide-icon></span>
+              <span class="asset-thumb">
+                <img *ngIf="a.imageUrl; else rowIcon" [src]="a.imageUrl" [alt]="a.name" />
+                <ng-template #rowIcon><lucide-icon [img]="assetIcons[a.icon]" [size]="20"></lucide-icon></ng-template>
+              </span>
             </td>
             <td><button type="button" class="asset-name" (click)="viewAsset(a)">{{ a.name }}</button></td>
             <td class="mono">{{ a.tag }}</td>
@@ -250,21 +218,25 @@
           </tr>
         </tbody>
       </table>
-      <ng-container *ngIf="!pageRows.length" [ngTemplateOutlet]="emptyState"></ng-container>
+      <ng-container *ngIf="!pageRows.length && !loading" [ngTemplateOutlet]="emptyState"></ng-container>
+      <div *ngIf="!pageRows.length && loading" class="empty"><p>Loading assets&hellip;</p></div>
     </div>
 
     <!-- Grid view -->
     <div *ngIf="view === 'grid'">
-      <div *ngIf="pageRows.length; else emptyState" class="asset-grid">
+      <div *ngIf="pageRows.length || loading; else emptyState" class="asset-grid">
         <article *ngFor="let a of pageRows; trackBy: trackById" class="asset-card" [class.is-selected]="selected.has(a.id)">
           <header>
-            <input type="checkbox" class="no-print" [checked]="selected.has(a.id)" (change)="toggleRow(a.id)" [attr.aria-label]="'Select ' + a.name" />
+            <input type="checkbox" class="no-print" [checked]="selected.has(a.id)" (change)="toggleRow(a)" [attr.aria-label]="'Select ' + a.name" />
             <span class="pill" [ngClass]="statusClass(a.status)"><span class="dot"></span>{{ a.status }}</span>
             <span class="spacer"></span>
             <ng-container *ngTemplateOutlet="rowMenu; context: { $implicit: a }"></ng-container>
           </header>
           <div class="card-main">
-            <span class="asset-thumb asset-thumb--lg"><lucide-icon [img]="assetIcons[a.icon]" [size]="26"></lucide-icon></span>
+            <span class="asset-thumb asset-thumb--lg">
+              <img *ngIf="a.imageUrl; else cardIcon" [src]="a.imageUrl" [alt]="a.name" />
+              <ng-template #cardIcon><lucide-icon [img]="assetIcons[a.icon]" [size]="26"></lucide-icon></ng-template>
+            </span>
             <div>
               <button type="button" class="asset-name" (click)="viewAsset(a)">{{ a.name }}</button>
               <div class="mono muted">{{ a.tag }}</div>
@@ -272,7 +244,7 @@
           </div>
           <dl>
             <div><dt>Category</dt><dd>{{ a.category }} &middot; {{ a.type }}</dd></div>
-            <div><dt>Location</dt><dd>{{ a.site }}, {{ a.area }}</dd></div>
+            <div><dt>Location</dt><dd>{{ a.locationPath || a.site }}</dd></div>
             <div><dt>Custodian</dt><dd>{{ a.custodian }}</dd></div>
             <div>
               <dt>Next Maintenance</dt>
@@ -288,19 +260,14 @@
 
     <!-- Pagination -->
     <div class="pager no-print">
-      <label class="page-size">
-        Show
-        <select class="control" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()" name="pageSize">
-          <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
-        </select>
-        per page
-      </label>
+      <select class="control page-size-select" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()" name="pageSize" aria-label="Rows per page">
+        <option *ngFor="let s of pageSizeOptions" [ngValue]="s">{{ s }}</option>
+      </select>
 
       <div class="pager-right">
-        <span class="range">Showing {{ rangeStart }} - {{ rangeEnd }} of {{ filtered.length | number }} assets</span>
         <nav class="pages" aria-label="Pagination">
           <button type="button" class="page-btn" [disabled]="page === 1" (click)="goToPage(page - 1)" aria-label="Previous page">
-            <lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon>
+            <lucide-icon [img]="icons.ChevronLeft" [size]="13"></lucide-icon>
           </button>
           <ng-container *ngFor="let p of pageList">
             <button
@@ -314,7 +281,7 @@
             <ng-template #gap><span class="page-gap">&hellip;</span></ng-template>
           </ng-container>
           <button type="button" class="page-btn" [disabled]="page === totalPages" (click)="goToPage(page + 1)" aria-label="Next page">
-            <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
+            <lucide-icon [img]="icons.ChevronRight" [size]="13"></lucide-icon>
           </button>
         </nav>
       </div>

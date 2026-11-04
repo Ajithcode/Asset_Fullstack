@@ -255,12 +255,12 @@
             <span class="field-label">Department <em>*</em></span>
             <span class="opt-row">
               <span class="select-wrap">
-                <select class="control" [class.is-invalid]="isInvalid('department')" [(ngModel)]="form.department">
+                <select class="control" [class.is-invalid]="isInvalid('department')" [(ngModel)]="form.department" (ngModelChange)="onDepartmentChange()">
                   <option value="" disabled>Select department</option>
                   <option *ngFor="let o of departments" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
-              <app-option-menu [options]="departments" label="Department" [value]="form.department" (valueChange)="form.department = $event"></app-option-menu>
+              <app-option-menu [options]="departments" label="Department" [value]="form.department" (valueChange)="form.department = $event; onDepartmentChange()"></app-option-menu>
             </span>
           </label>
 
@@ -395,12 +395,12 @@
             <span class="field-label">Custodian / Department <em>*</em></span>
             <span class="opt-row">
               <span class="select-wrap">
-                <select class="control" [class.is-invalid]="isInvalid('department')" [(ngModel)]="form.department">
+                <select class="control" [class.is-invalid]="isInvalid('department')" [(ngModel)]="form.department" (ngModelChange)="onDepartmentChange()">
                   <option value="" disabled>Select department</option>
                   <option *ngFor="let o of departments" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
-              <app-option-menu [options]="departments" label="Department" [value]="form.department" (valueChange)="form.department = $event"></app-option-menu>
+              <app-option-menu [options]="departments" label="Department" [value]="form.department" (valueChange)="form.department = $event; onDepartmentChange()"></app-option-menu>
             </span>
           </label>
 
@@ -1193,8 +1193,8 @@
     </ng-template>
     <div class="reg-footer-right">
       <button type="button" class="btn btn-outline btn-lg" *ngIf="currentStep > 0" (click)="backToList()">Cancel</button>
-      <button type="button" class="btn btn-outline btn-lg" (click)="saveDraft()">Save as Draft</button>
-      <button type="button" class="btn btn-primary btn-lg" (click)="next()">
+      <button type="button" class="btn btn-outline btn-lg" [disabled]="registering" (click)="saveDraft()">Save as Draft</button>
+      <button type="button" class="btn btn-primary btn-lg" [disabled]="registering" (click)="next()">
         {{ isLastStep ? 'Submit' : 'Next' }}
         <lucide-icon [img]="icons.ArrowRight" [size]="18"></lucide-icon>
       </button>

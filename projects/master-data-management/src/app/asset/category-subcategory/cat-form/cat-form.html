@@ -59,14 +59,6 @@
           <textarea id="cat-desc" name="description" rows="4" placeholder="Enter description about the category" [(ngModel)]="form.description"></textarea>
         </div>
 
-        <div class="field">
-          <label for="cat-parent">Parent Category</label>
-          <select id="cat-parent" name="parentCode" [(ngModel)]="form.parentCode">
-            <option [ngValue]="null">Select parent category (optional)</option>
-            @for (p of parentOptions; track p.code) { <option [ngValue]="p.code">{{ p.name }} ({{ p.code }})</option> }
-          </select>
-        </div>
-
         @if (!form.image) {
           <div class="grid">
             <div class="field" [class.invalid]="errors.color">
