@@ -26,6 +26,7 @@ import {
   Flame,
   Folder,
   FolderOpen,
+  FolderPlus,
   Forklift,
   Gauge,
   Inbox,
@@ -34,6 +35,7 @@ import {
   MoveRight,
   Network,
   Package,
+  PackagePlus,
   Plus,
   Search,
   Server,
@@ -42,6 +44,7 @@ import {
   ToggleRight,
   Trash2,
   Warehouse,
+  Workflow,
   X,
   Zap,
 } from 'lucide-angular';
@@ -71,6 +74,7 @@ interface HierarchyNode {
   model: string;
   manufacturer: string;
   status: AssetStatus;
+  description: string;
   icon: keyof AssetHierarchy['assetIcons'];
   children: HierarchyNode[];
   /** The saved item; null for the "All Assets" root, which only exists on screen. */
@@ -92,8 +96,19 @@ interface NodeForm {
 const ROOT_ID = '__root__';
 const NODE_KINDS: NodeKind[] = ['site', 'building', 'area', 'floor', 'system', 'asset'];
 
+type GroupKind = Exclude<NodeKind, 'root' | 'asset'>;
+
+interface HierarchyNodeForm {
+  name: string;
+  kind: GroupKind;
+  parentId: string;
+  code: string;
+  description: string;
+  status: 'Active' | 'Inactive';
+}
+
 function rootNode(children: HierarchyNode[] = []): HierarchyNode {
-  return { id: ROOT_ID, kind: 'root', name: 'All Assets', tag: 'ALL', type: '', model: '', manufacturer: '', status: 'Active', icon: 'generic', children, dto: null };
+  return { id: ROOT_ID, kind: 'root', name: 'All Assets', tag: 'ALL', type: '', model: '', manufacturer: '', status: 'Active', description: '', icon: 'generic', children, dto: null };
 }
 
 const KIND_LABELS: Record<NodeKind, string> = {
@@ -119,7 +134,7 @@ const DIAGRAM_ROW_LIMIT = 6;
 export class AssetHierarchy implements OnInit {
   readonly icons = {
     Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Download, Ellipsis, EllipsisVertical, Eye,
-    Inbox, Link2, MoveRight, Network, Plus, Search, SquarePen, Trash2, X,
+    FolderPlus, Inbox, Link2, MoveRight, Network, PackagePlus, Plus, Search, SquarePen, Trash2, Workflow, X,
   };
 
   readonly kindIcons = {
@@ -182,6 +197,13 @@ export class AssetHierarchy implements OnInit {
   editingNode: HierarchyNode | null = null;
   form: NodeForm = this.emptyForm(ROOT_ID);
   formSubmitted = false;
+
+  // "+" action menu and Create Hierarchy Node modal
+  addMenuOpen = false;
+  nodeFormOpen = false;
+  nodeForm: HierarchyNodeForm = this.emptyNodeForm(ROOT_ID);
+  nodeFormSubmitted = false;
+  readonly nodeKinds: GroupKind[] = ['site', 'building', 'area', 'floor', 'system'];
 
   // Move modal
   moveTarget: HierarchyNode | null = null;
@@ -247,6 +269,7 @@ export class AssetHierarchy implements OnInit {
         model: dto.modelName ?? '',
         manufacturer: dto.manufacturerName ?? '',
         status: dto.status || 'Active',
+        description: '',
         icon: kind === 'asset' ? this.guessIcon(dto.assetTypeName ?? '') : 'generic',
         children: [],
         dto,
@@ -513,6 +536,8 @@ export class AssetHierarchy implements OnInit {
   onEscape(): void {
     this.openMenu = null;
     this.formOpen = false;
+    this.addMenuOpen = false;
+    this.nodeFormOpen = false;
     this.moveTarget = null;
     this.assignOpen = false;
     this.deleteTarget = null;
@@ -647,6 +672,114 @@ export class AssetHierarchy implements OnInit {
     const t = type.toLowerCase();
     const match = (Object.keys(this.assetIcons) as HierarchyNode['icon'][]).find((k) => k !== 'generic' && t.includes(k));
     return match ?? 'generic';
+  }
+
+  // ===== "+" action menu =====
+
+  openAddMenu(): void {
+    this.openMenu = null;
+    this.addMenuOpen = true;
+  }
+
+  chooseCreateNode(): void {
+    this.addMenuOpen = false;
+    this.openCreateNode();
+  }
+
+  chooseAddExisting(): void {
+    this.addMenuOpen = false;
+    this.openAssign();
+  }
+
+  // ===== Create Hierarchy Node =====
+
+  private emptyNodeForm(parentId: string): HierarchyNodeForm {
+    return { name: '', kind: 'system', parentId, code: '', description: '', status: 'Active' };
+  }
+
+  /** Nearest non-asset node at or above `n` – hierarchy nodes can only sit under other hierarchy nodes. */
+  private nearestGroup(n: HierarchyNode): HierarchyNode {
+    return [...this.lineage(n.id)].reverse().find((a) => a.kind !== 'asset') ?? this.root;
+  }
+
+  openCreateNode(parent: HierarchyNode = this.selected): void {
+    const p = this.nearestGroup(parent);
+    this.nodeForm = { ...this.emptyNodeForm(p.id), kind: this.suggestKind(p) };
+    this.nodeFormSubmitted = false;
+    this.nodeFormOpen = true;
+  }
+
+  /** Sensible default level for a node created under `parent`. */
+  private suggestKind(parent: HierarchyNode): GroupKind {
+    switch (parent.kind) {
+      case 'root': return 'site';
+      case 'site': return 'building';
+      case 'building': return 'floor';
+      default: return 'system';
+    }
+  }
+
+  /** Grouping nodes (no assets) a new hierarchy node can be placed under, indented by depth. */
+  get nodeParentOptions(): { id: string; label: string }[] {
+    const out: { id: string; label: string }[] = [];
+    const visit = (n: HierarchyNode, depth: number) => {
+      if (n.kind === 'asset') return;
+      out.push({ id: n.id, label: `${'\u00a0\u00a0\u00a0'.repeat(depth)}${n.name}` });
+      n.children.forEach((c) => visit(c, depth + 1));
+    };
+    visit(this.root, 0);
+    return out;
+  }
+
+  /** "Head Office / Building A / Floor 1 / HVAC System" preview of where the new node lands. */
+  get nodePreview(): string {
+    const parent = this.find(this.nodeForm.parentId) ?? this.root;
+    const names = this.lineage(parent.id).slice(1).map((a) => a.name);
+    names.push(this.nodeForm.name.trim() || 'New Node');
+    return names.join(' / ');
+  }
+
+  get nodeFormValid(): boolean {
+    const f = this.nodeForm;
+    return !!f.name.trim() && !!f.code.trim() && !this.isCodeTaken(f.code) && !!this.find(f.parentId);
+  }
+
+  isCodeTaken(code: string): boolean {
+    const t = code.trim().toUpperCase();
+    return !!t && !!this.findBy((n) => n.tag.toUpperCase() === t);
+  }
+
+  saveNode(): void {
+    this.nodeFormSubmitted = true;
+    if (!this.nodeFormValid || this.saving) return;
+    const f = this.nodeForm;
+    const parent = this.find(f.parentId) ?? this.root;
+    const input: HierarchyItemInput = {
+      itemKind: f.kind,
+      parentId: parent.id === ROOT_ID ? null : parent.id,
+      name: f.name.trim(),
+      assetTag: f.code.trim().toUpperCase(),
+      assetTypeId: null,
+      modelId: null,
+      manufacturerId: null,
+      manufacturerName: null,
+      status: f.status,
+    };
+    this.saving = true;
+    this.api.create(input).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        this.nodeFormOpen = false;
+        this.expanded.add(parent.id);
+        this.selectedId = saved.id;
+        this.showToast(`${saved.name} created under ${parent.name}.`);
+        this.reload();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.showToast(apiErrorMessage(err));
+      },
+    });
   }
 
   // ===== Move =====

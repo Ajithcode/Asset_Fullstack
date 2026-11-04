@@ -1,0 +1,211 @@
+<div class="mws">
+  <aside class="side">
+    <section class="panel">
+      <app-site-tree></app-site-tree>
+    </section>
+
+    <button type="button" class="btn btn--primary" (click)="uploadOpen = true">
+      <lucide-icon [img]="icons.CloudUpload" [size]="16"></lucide-icon> Upload New Version
+    </button>
+
+    @if (store.currentPlan; as p) {
+      <section class="panel">
+        <h3 class="sub-panel__title">Map Information</h3>
+        <dl class="rows">
+          <dt>Name</dt><dd>{{ store.floorTitle() }}</dd>
+          <dt>Type</dt><dd>{{ p.type }}</dd>
+          <dt>Format</dt><dd>{{ p.format }}</dd>
+          <dt>Current Version</dt>
+          <dd><span class="pill" data-tone="green">{{ store.currentVersion?.version ?? p.version }} ({{ store.currentVersion?.status ?? p.status }})</span></dd>
+          <dt>Size</dt><dd>{{ p.sizeMb }} MB</dd>
+          <dt>Dimensions</dt><dd>{{ p.dimensions }}</dd>
+        </dl>
+      </section>
+    }
+  </aside>
+
+  <section class="panel" aria-label="Versions">
+    <header class="map-head">
+      <span class="map-head__icon"><lucide-icon [img]="icons.Building2" [size]="20"></lucide-icon></span>
+      <div class="map-head__text">
+        <h2>
+          {{ store.floorTitle() }}
+          @if (store.currentVersion; as cv) { <span class="pill" data-tone="green">Published {{ cv.version }}</span> }
+        </h2>
+        <p>Type: {{ store.currentPlan?.type ?? 'Floor Plan' }} | Location: {{ store.locationLabel() }}</p>
+      </div>
+      <div class="map-head__actions">
+        <button type="button" class="btn btn--sm btn--outline" (click)="previewOpen = true"><lucide-icon [img]="icons.Eye" [size]="14"></lucide-icon> Preview</button>
+        <button type="button" class="btn btn--sm btn--primary" (click)="uploadOpen = true">Upload New Version</button>
+        <div class="dd dd--right">
+          <button type="button" class="icon-btn" aria-label="More actions" (click)="toggleHeadMenu($event)"><lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon></button>
+          @if (headMenuOpen) {
+            <div class="menu" role="menu">
+              <button type="button" role="menuitem" [disabled]="!checked.size" (click)="archiveChecked()">Archive selected ({{ checked.size }})</button>
+              <button type="button" role="menuitem" (click)="rightTab = 'access'">Publishing &amp; access</button>
+            </div>
+          }
+        </div>
+      </div>
+    </header>
+
+    <div class="mstats">
+      <div class="stat">
+        <span class="stat__icon"><lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon></span>
+        <span class="stat__body"><span class="stat__value">{{ store.versions.length }}</span><span class="stat__label">Total Versions</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat__icon" data-tone="green"><lucide-icon [img]="icons.CircleCheck" [size]="20"></lucide-icon></span>
+        <span class="stat__body"><span class="stat__value">{{ store.versionCount('Published') }}</span><span class="stat__label">Published</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat__icon"><lucide-icon [img]="icons.Clock" [size]="20"></lucide-icon></span>
+        <span class="stat__body"><span class="stat__value">{{ store.versionCount('Draft') }}</span><span class="stat__label">Draft</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.RefreshCw" [size]="20"></lucide-icon></span>
+        <span class="stat__body"><span class="stat__value">{{ store.versionCount('Archived') }}</span><span class="stat__label">Archived</span></span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Version</th>
+            <th>Status</th>
+            <th>Changes / Description</th>
+            <th>Uploaded By</th>
+            <th>Uploaded On</th>
+            <th class="center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (v of paged; track v.version) {
+            <tr class="clickable" [class.is-selected]="v.version === selectedVersion" (click)="selectedVersion = v.version">
+              <td (click)="$event.stopPropagation()"><input type="checkbox" [attr.aria-label]="'Select ' + v.version" [checked]="checked.has(v.version)" (change)="toggle(v.version)" /></td>
+              <td>
+                <div class="name-cell">
+                  <app-map-canvas class="thumb" [preview]="true"></app-map-canvas>
+                  <span><b>{{ v.version }}</b>@if (v.current) { <span class="pill" data-tone="purple">Current</span> }</span>
+                </div>
+              </td>
+              <td><span class="pill" [attr.data-tone]="tone(v.status)">{{ v.status }}</span></td>
+              <td><ul class="changes">@for (c of v.changes; track $index) { <li>{{ c }}</li> }</ul></td>
+              <td>{{ v.uploadedBy }}</td>
+              <td>{{ date(v.uploadedOn) }}<br /><small class="muted">{{ time(v.uploadedOn) }}</small></td>
+              <td (click)="$event.stopPropagation()">
+                <div class="row-actions">
+                  <button type="button" class="icon-btn" aria-label="Preview" (click)="selectedVersion = v.version; previewOpen = true"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon></button>
+                  <div class="dd">
+                    <button type="button" class="icon-btn" aria-label="More actions" (click)="toggleMenu($event, v.version)"><lucide-icon [img]="icons.Ellipsis" [size]="15"></lucide-icon></button>
+                    @if (menuFor === v.version) {
+                      <div class="menu" role="menu">
+                        @if (!v.current) { <button type="button" role="menuitem" (click)="publish(v)">Publish</button> }
+                        @if (v.status !== 'Draft' && !v.current) { <button type="button" role="menuitem" (click)="setDraft(v)">Set as draft</button> }
+                        <button type="button" role="menuitem" (click)="download(v)">Download</button>
+                        @if (v.status !== 'Archived' && !v.current) { <button type="button" role="menuitem" class="danger" (click)="archive(v)">Archive</button> }
+                      </div>
+                    }
+                  </div>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      <span>Showing {{ store.versions.length ? page * pageSize + 1 : 0 }}–{{ page * pageSize + paged.length }} of {{ store.versions.length }} versions</span>
+      <span class="pager__pages">
+        Rows per page:
+        <select class="zoom-select" aria-label="Rows per page" [(ngModel)]="pageSize" (ngModelChange)="page = 0">
+          @for (s of pageSizes; track s) { <option [ngValue]="s">{{ s }}</option> }
+        </select>
+        <button type="button" class="page-btn" aria-label="Previous page" [disabled]="page === 0" (click)="page = page - 1"><lucide-icon [img]="icons.ChevronLeft" [size]="14"></lucide-icon></button>
+        @for (n of pages; track n) { <button type="button" class="page-btn" [class.active]="n === page" (click)="page = n">{{ n + 1 }}</button> }
+        <button type="button" class="page-btn" aria-label="Next page" [disabled]="page >= pageCount - 1" (click)="page = page + 1"><lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon></button>
+      </span>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <nav class="rtabs" role="tablist">
+      <button type="button" role="tab" [class.active]="rightTab === 'details'" (click)="rightTab = 'details'">Version Details</button>
+      <button type="button" role="tab" [class.active]="rightTab === 'access'" (click)="rightTab = 'access'">Publishing &amp; Access</button>
+    </nav>
+
+    @if (rightTab === 'details') {
+      @if (selected; as v) {
+        <div class="rhead">
+          <span class="rhead__icon" style="border-style: solid"><lucide-icon [img]="icons.Layers" [size]="17"></lucide-icon></span>
+          <h3>Version {{ v.version }}</h3>
+          <span class="pill" [attr.data-tone]="tone(v.status)">{{ v.status }}</span>
+        </div>
+        <div class="preview">
+          <app-map-canvas [preview]="true"></app-map-canvas>
+          <button type="button" class="icon-btn" aria-label="Preview larger" (click)="previewOpen = true"><lucide-icon [img]="icons.Maximize2" [size]="13"></lucide-icon></button>
+        </div>
+        <dl class="rows">
+          <dt>Version Ref.</dt><dd>{{ v.version }}</dd>
+          <dt>Status</dt><dd><span class="pill" [attr.data-tone]="tone(v.status)">{{ v.status }}</span></dd>
+          <dt>{{ v.status === 'Published' ? 'Published On' : 'Uploaded On' }}</dt><dd>{{ date(v.uploadedOn) }}, {{ time(v.uploadedOn) }}</dd>
+          <dt>{{ v.status === 'Published' ? 'Published By' : 'Uploaded By' }}</dt><dd>{{ v.uploadedBy }}</dd>
+          <dt>File Name</dt><dd>{{ v.fileName }}</dd>
+          <dt>File Size</dt><dd>{{ v.sizeMb }} MB</dd>
+          <dt>Dimensions</dt><dd>{{ store.currentPlan?.dimensions }}</dd>
+          <dt>Scale</dt><dd>{{ store.currentPlan?.scale }}</dd>
+        </dl>
+        <div class="field" style="margin-top: 12px">
+          <label for="vr-desc">Description</label>
+          <textarea id="vr-desc" rows="3" [(ngModel)]="v.description"></textarea>
+        </div>
+        <div class="action-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr))">
+          <button type="button" class="btn btn--outline btn--sm" [disabled]="v.current || v.status === 'Draft'" (click)="setDraft(v)"><lucide-icon [img]="icons.FileText" [size]="13"></lucide-icon> Set as Draft</button>
+          <button type="button" class="btn btn--outline btn--sm" (click)="publish(v)"><lucide-icon [img]="icons.RefreshCw" [size]="13"></lucide-icon> {{ v.current ? 'Republish' : 'Publish' }}</button>
+          <button type="button" class="btn btn--outline btn--sm" [disabled]="v.current || v.status === 'Archived'" (click)="archive(v)"><lucide-icon [img]="icons.Archive" [size]="13"></lucide-icon> Archive</button>
+        </div>
+      } @else {
+        <p class="empty">Select a version.</p>
+      }
+    } @else {
+      <div class="rform">
+        <div class="field">
+          <label for="ac-aud">Who can view published maps</label>
+          <select id="ac-aud" [(ngModel)]="access.audience">
+            <option>All Users</option>
+            <option>Selected Roles</option>
+            <option>Administrators Only</option>
+          </select>
+        </div>
+        @if (access.audience === 'Selected Roles') {
+          <div class="checks">
+            @for (r of roles; track r) {
+              <label class="check-row"><input type="checkbox" [checked]="access.roles.includes(r)" (change)="toggleRole(r)" /> {{ r }}</label>
+            }
+          </div>
+        }
+        <label class="check-row">Require approval to publish<span class="map-tools__spacer"></span><span class="switch"><input type="checkbox" [(ngModel)]="access.approval" aria-label="Require approval" /><i></i></span></label>
+        <label class="check-row">Allow download of map files<span class="map-tools__spacer"></span><span class="switch"><input type="checkbox" [(ngModel)]="access.download" aria-label="Allow download" /><i></i></span></label>
+        <label class="check-row">Watermark published maps<span class="map-tools__spacer"></span><span class="switch"><input type="checkbox" [(ngModel)]="access.watermark" aria-label="Watermark" /><i></i></span></label>
+        <div class="rfoot"><button type="button" class="btn btn--primary" (click)="saveAccess()">Save</button></div>
+      </div>
+    }
+  </aside>
+</div>
+
+@if (uploadOpen) {
+  <app-upload-dialog mode="version" (done)="uploaded($event)" (cancel)="uploadOpen = false"></app-upload-dialog>
+}
+
+@if (previewOpen) {
+  <div class="overlay" (click)="previewOpen = false">
+    <div class="modal preview-modal" role="dialog" aria-modal="true" aria-label="Version preview" (click)="$event.stopPropagation()">
+      <h2>{{ store.floorTitle() }} – {{ selected?.version }}</h2>
+      <app-map-canvas [showMinimap]="false"></app-map-canvas>
+      <div class="rfoot"><button type="button" class="btn" (click)="previewOpen = false">Close</button></div>
+    </div>
+  </div>
+}

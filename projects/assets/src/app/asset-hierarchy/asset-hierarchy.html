@@ -24,7 +24,7 @@
         <span class="icon-tile"><lucide-icon [img]="icons.Network" [size]="18"></lucide-icon></span>
         <h2>Asset Hierarchy Tree</h2>
         <div class="tree-tools">
-          <button type="button" class="tool-btn tool-btn--primary" (click)="openAdd()" [title]="'Add under ' + selected.name" aria-label="Add item under the selection">
+          <button type="button" class="tool-btn tool-btn--primary" (click)="openAddMenu()" title="Add to asset hierarchy" aria-label="Add to asset hierarchy" aria-haspopup="dialog">
             <lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>
           </button>
           <button
@@ -154,6 +154,11 @@
               <ng-template #groupFacts>
                 <div><dt>Total Assets</dt><dd>{{ assetCount(selected) | number }}</dd></div>
                 <div><dt>Direct Children</dt><dd>{{ selected.children.length }}</dd></div>
+                <div *ngIf="selected.kind !== 'root'">
+                  <dt>Status</dt>
+                  <dd><span class="pill" [ngClass]="statusClass(selected.status)"><span class="dot"></span>{{ selected.status }}</span></dd>
+                </div>
+                <div *ngIf="selected.description" class="facts-wide"><dt>Description</dt><dd>{{ selected.description }}</dd></div>
               </ng-template>
             </dl>
           </div>
@@ -368,6 +373,83 @@
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="formOpen = false">Cancel</button>
         <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : editingNode ? 'Save Changes' : 'Add' }}</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===== "+" action menu ===== -->
+  <div *ngIf="addMenuOpen" class="overlay" (click)="addMenuOpen = false">
+    <div class="modal add-menu" role="dialog" aria-modal="true" aria-labelledby="add-menu-title" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2 id="add-menu-title">Add to Asset Hierarchy</h2>
+        <button type="button" class="icon-btn" (click)="addMenuOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <div class="modal-body">
+        <button type="button" class="add-option" (click)="chooseCreateNode()">
+          <span class="add-option-title"><lucide-icon [img]="icons.FolderPlus" [size]="20"></lucide-icon>Create Hierarchy Node</span>
+          <span class="add-option-desc">Create a logical group, system, subsystem or structural node.</span>
+        </button>
+        <button type="button" class="add-option" (click)="chooseAddExisting()">
+          <span class="add-option-title"><lucide-icon [img]="icons.PackagePlus" [size]="20"></lucide-icon>Add Existing Asset</span>
+          <span class="add-option-desc">Select a registered asset and assign it to a hierarchy parent.</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Create Hierarchy Node modal ===== -->
+  <div *ngIf="nodeFormOpen" class="overlay" (click)="nodeFormOpen = false">
+    <form class="modal" role="dialog" aria-modal="true" aria-labelledby="node-create-title" (click)="$event.stopPropagation()" (ngSubmit)="saveNode()">
+      <div class="modal-head">
+        <div class="modal-title">
+          <lucide-icon class="modal-title-icon" [img]="icons.Workflow" [size]="20"></lucide-icon>
+          <h2 id="node-create-title">Create Hierarchy Node</h2>
+        </div>
+        <button type="button" class="icon-btn" (click)="nodeFormOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <div class="modal-body">
+        <label class="field">
+          <span class="field-label">Node Name <em>*</em></span>
+          <input class="control" name="nodeName" [(ngModel)]="nodeForm.name" [class.is-invalid]="nodeFormSubmitted && !nodeForm.name.trim()" placeholder="e.g. HVAC System" maxlength="80" />
+          <span *ngIf="nodeFormSubmitted && !nodeForm.name.trim()" class="error">Node name is required.</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Node Type <em>*</em></span>
+          <select class="control" name="nodeKind" [(ngModel)]="nodeForm.kind">
+            <option *ngFor="let k of nodeKinds" [value]="k">{{ kindLabels[k] }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Parent Hierarchy Node <em>*</em></span>
+          <select class="control" name="nodeParent" [(ngModel)]="nodeForm.parentId">
+            <option *ngFor="let o of nodeParentOptions" [ngValue]="o.id">{{ o.label }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Hierarchy Code <em>*</em></span>
+          <input class="control mono" name="nodeCode" [(ngModel)]="nodeForm.code" [class.is-invalid]="nodeFormSubmitted && (!nodeForm.code.trim() || isCodeTaken(nodeForm.code))" placeholder="e.g. HVAC-SYS-001" maxlength="30" />
+          <span *ngIf="nodeFormSubmitted && !nodeForm.code.trim()" class="error">Hierarchy code is required.</span>
+          <span *ngIf="isCodeTaken(nodeForm.code)" class="error">Code already in use.</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Description</span>
+          <textarea class="control" name="nodeDescription" rows="2" [(ngModel)]="nodeForm.description" placeholder="e.g. Central HVAC system serving Floor 1" maxlength="250"></textarea>
+        </label>
+        <div class="field" role="radiogroup" aria-labelledby="node-status-label">
+          <span id="node-status-label" class="field-label">Status</span>
+          <div class="radio-row">
+            <label class="radio"><input type="radio" name="nodeStatus" value="Active" [(ngModel)]="nodeForm.status" />Active</label>
+            <label class="radio"><input type="radio" name="nodeStatus" value="Inactive" [(ngModel)]="nodeForm.status" />Inactive</label>
+          </div>
+        </div>
+        <div class="preview-box">
+          <strong>Hierarchy Preview</strong>
+          <span>{{ nodePreview }}</span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="nodeFormOpen = false">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Node</button>
       </div>
     </form>
   </div>

@@ -1,0 +1,179 @@
+<div class="mws">
+  <aside class="side">
+    <section class="panel">
+      <span class="field-label">Location</span>
+      <select class="select select--full" aria-label="Location" [ngModel]="store.selectedFloorId" (ngModelChange)="store.selectFloor($event)">
+        @for (f of store.floors; track f.id) { <option [value]="f.id">{{ f.label }}</option> }
+      </select>
+
+      <div class="panel__head" style="margin: 14px 0 8px">
+        <h3>Layers ({{ enabledCount }})</h3>
+        <button type="button" class="btn btn--primary btn--sm" (click)="addLayer()"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Add Layer</button>
+      </div>
+
+      @for (l of store.layers; track l.id) {
+        <div
+          class="layer-row"
+          [class.active]="l.id === selectedId"
+          [class.drag-over]="overId === l.id && dragId !== l.id"
+          draggable="true"
+          (dragstart)="dragStart(l.id)"
+          (dragover)="dragOver($event, l.id)"
+          (dragleave)="overId = null"
+          (drop)="drop(l.id)"
+          (click)="pick(l.id)"
+        >
+          <input type="checkbox" [attr.aria-label]="'Show ' + l.name" [(ngModel)]="l.enabled" [disabled]="l.locked" (click)="$event.stopPropagation()" />
+          <span class="layer-row__name"><lucide-icon [img]="l.icon" [size]="15"></lucide-icon>{{ l.name }}</span>
+          @if (l.locked) {
+            <lucide-icon [img]="icons.Lock" [size]="14" class="muted" title="Base layer is locked"></lucide-icon>
+          } @else {
+            <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="(l.visible ? 'Hide ' : 'Show ') + l.name" (click)="toggleEye($event, l)">
+              <lucide-icon [img]="l.visible ? icons.Eye : icons.EyeOff" [size]="15"></lucide-icon>
+            </button>
+          }
+          <lucide-icon class="grip" [img]="icons.GripVertical" [size]="15" aria-hidden="true"></lucide-icon>
+        </div>
+      }
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <h3>Layer Sets (Views) <lucide-icon [img]="icons.CircleHelp" [size]="13" class="muted" title="A layer set remembers which layers are switched on"></lucide-icon></h3>
+        <button type="button" class="btn btn--primary btn--sm" aria-label="Add layer set" (click)="addSet()"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon></button>
+      </div>
+      <div class="sets" role="radiogroup" aria-label="Layer sets">
+        @for (s of store.layerSets; track s) {
+          <div class="set-row" [class.active]="s === store.activeLayerSet">
+            @if (renaming === s) {
+              <input type="text" aria-label="Layer set name" [(ngModel)]="renameText" (keydown.enter)="commitRename()" (blur)="commitRename()" />
+            } @else {
+              <label><input type="radio" name="layer-set" [checked]="s === store.activeLayerSet" (change)="applySet(s)" /> {{ s }}</label>
+              <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Rename ' + s" (click)="startRename(s)"><lucide-icon [img]="icons.Pencil" [size]="13"></lucide-icon></button>
+              <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Delete ' + s" [disabled]="store.layerSets.length <= 1" (click)="removeSet(s)"><lucide-icon [img]="icons.Trash2" [size]="13"></lucide-icon></button>
+            }
+          </div>
+        }
+      </div>
+    </section>
+  </aside>
+
+  <app-map-viewer #v>
+    <ng-container ngProjectAs="[tools]">
+      <label class="show-row">
+        Layer Set:
+        <select class="zoom-select" aria-label="Layer set" [ngModel]="store.activeLayerSet" (ngModelChange)="applySet($event)">
+          @for (s of store.layerSets; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+      </label>
+      <span class="show-row">
+        Show:
+        <label><input type="checkbox" [ngModel]="isShown('zones')" (ngModelChange)="setShown('zones', $event)" /> Zones</label>
+        <label><input type="checkbox" [ngModel]="isShown('devices')" (ngModelChange)="setShown('devices', $event)" /> Devices</label>
+        <label><input type="checkbox" [ngModel]="isShown('assets')" (ngModelChange)="setShown('assets', $event)" /> Assets</label>
+        <label><input type="checkbox" [ngModel]="isShown('annotations')" (ngModelChange)="setShown('annotations', $event)" /> Annotations</label>
+      </span>
+    </ng-container>
+
+    <app-map-canvas
+      [zoom]="v.zoom"
+      [showZones]="store.isOn('zones')"
+      [showDevices]="store.isOn('devices')"
+      [showAssets]="store.isOn('assets')"
+      [showLabels]="store.layer('assets')?.showLabel ?? true"
+      [showItemLabels]="store.layer('assets')?.showId ?? true"
+    ></app-map-canvas>
+  </app-map-viewer>
+
+  <aside class="panel">
+    <nav class="rtabs" role="tablist">
+      <button type="button" role="tab" [class.active]="rightTab === 'details'" (click)="rightTab = 'details'">Layer Details</button>
+      <button type="button" role="tab" [class.active]="rightTab === 'style'" (click)="rightTab = 'style'">Layer Style</button>
+    </nav>
+
+    @if (draft; as d) {
+      <div class="rhead">
+        <span class="rhead__icon" style="border-style: solid"><lucide-icon [img]="d.icon" [size]="17"></lucide-icon></span>
+        <h3>{{ d.name }}</h3>
+        <label class="check-row">
+          <span class="switch"><input type="checkbox" [(ngModel)]="d.visible" [disabled]="d.locked" aria-label="Visible" /><i></i></span>
+          {{ d.visible ? 'Visible' : 'Hidden' }}
+        </label>
+      </div>
+
+      <form class="rform" (ngSubmit)="save()">
+        @if (rightTab === 'details') {
+          <div class="field" [class.invalid]="!d.name.trim()">
+            <label for="ly-name">Layer Name <span class="req">*</span></label>
+            <input id="ly-name" name="name" [(ngModel)]="d.name" />
+            @if (!d.name.trim()) { <small>Layer name is required</small> }
+          </div>
+          <div class="field">
+            <label for="ly-type">Layer Type</label>
+            <select id="ly-type" name="type" [(ngModel)]="d.type" [disabled]="d.locked">
+              @for (t of layerTypes; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="ly-desc">Description</label>
+            <textarea id="ly-desc" name="desc" rows="3" [(ngModel)]="d.description"></textarea>
+          </div>
+
+          <h4>Display Options</h4>
+          <label class="check-row"><input type="checkbox" name="label" [(ngModel)]="d.showLabel" /> Show Asset Label</label>
+          <label class="check-row"><input type="checkbox" name="id" [(ngModel)]="d.showId" /> Show Asset ID</label>
+          <label class="check-row"><input type="checkbox" name="statusIcon" [(ngModel)]="d.showStatusIcon" /> Show Asset Status Icon</label>
+          <label class="check-row"><input type="checkbox" name="catColor" [(ngModel)]="d.useCategoryColor" /> Use Category Color</label>
+          <div class="field">
+            <label for="ly-pos">Label Position</label>
+            <select id="ly-pos" name="pos" [(ngModel)]="d.labelPosition">
+              @for (p of labelPositions; track p) { <option [value]="p">{{ p }}</option> }
+            </select>
+          </div>
+
+          <h4>Filters (Optional)</h4>
+          <div class="field">
+            <span>Asset Category</span>
+            <div class="chips">
+              @for (c of d.categories; track c) {
+                <span class="chip">{{ c }} <button type="button" [attr.aria-label]="'Remove ' + c" (click)="removeCategory(c)"><lucide-icon [img]="icons.X" [size]="12"></lucide-icon></button></span>
+              }
+              <select aria-label="Add asset category" name="cat" [ngModel]="''" (ngModelChange)="addCategory($event)">
+                <option value="">Add...</option>
+                @for (c of categories; track c) {
+                  @if (!d.categories.includes(c)) { <option [value]="c">{{ c }}</option> }
+                }
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="ly-status">Asset Status</label>
+            <select id="ly-status" name="status" [(ngModel)]="d.statusFilter">
+              @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+            </select>
+          </div>
+        } @else {
+          <div class="field">
+            <label for="ly-color">Color</label>
+            <input id="ly-color" name="color" type="color" [(ngModel)]="d.color" style="height: 38px; padding: 2px" />
+          </div>
+          <div class="field">
+            <label for="ly-op">Opacity</label>
+            <div class="range"><input id="ly-op" name="opacity" type="range" min="10" max="100" [(ngModel)]="d.opacity" /> <b>{{ d.opacity }}%</b></div>
+          </div>
+          <label class="check-row"><input type="checkbox" name="locked" [(ngModel)]="d.locked" /> Lock layer (no editing)</label>
+          @if (!d.locked) {
+            <button type="button" class="btn btn--danger" (click)="removeLayer()"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon> Remove Layer</button>
+          }
+        }
+
+        <div class="rfoot">
+          <button type="button" class="btn" (click)="reset()">Reset</button>
+          <button type="submit" class="btn btn--primary" [disabled]="!d.name.trim()">Save Layer</button>
+        </div>
+      </form>
+    } @else {
+      <p class="empty">Select a layer.</p>
+    }
+  </aside>
+</div>

@@ -1,4 +1,7 @@
 import { Routes } from '@angular/router';
+import { ADMINISTRATION_MENU } from 'shared-ui';
+
+const MAPS_FLOOR_PLANS = ADMINISTRATION_MENU.find((m) => m.slug === 'maps-floor-plans')!;
 
 // Mounted by the shell at /administration; paths match ADMINISTRATION_MENU in shared-ui, which the shell's
 // sidebar is built from. There is no landing page: the bare path redirects to the first module.
@@ -51,5 +54,13 @@ export const routes: Routes = [
   {
     path: 'system-audit-log',
     loadComponent: () => import('./system-audit-log/system-audit-log').then((m) => m.SystemAuditLogPage)
+  },
+  {
+    // Maps & Floor Plans: one page, the sub page slug (sidebar child) picks its tab
+    path: MAPS_FLOOR_PLANS.slug,
+    children: [
+      { path: '', redirectTo: MAPS_FLOOR_PLANS.children![0].slug, pathMatch: 'full' },
+      { path: ':tab', loadComponent: () => import('./mapsandfloorplan/mapsandfloorplan').then((m) => m.Mapsandfloorplan) }
+    ]
   }
 ];

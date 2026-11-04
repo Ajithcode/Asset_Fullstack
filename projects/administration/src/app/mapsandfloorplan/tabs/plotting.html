@@ -1,0 +1,243 @@
+<div class="mws">
+  <aside class="side">
+    <section class="panel">
+      <span class="field-label">Location</span>
+      <select class="select select--full" aria-label="Location" [ngModel]="store.selectedFloorId" (ngModelChange)="store.selectFloor($event)">
+        @for (f of store.floors; track f.id) { <option [value]="f.id">{{ f.label }}</option> }
+      </select>
+
+      <nav class="subtabs" role="tablist" style="margin-top: 12px">
+        <button type="button" role="tab" [class.active]="listTab === 'device'" (click)="listTab = 'device'">Devices ({{ count('device') }})</button>
+        <button type="button" role="tab" [class.active]="listTab === 'asset'" (click)="listTab = 'asset'">Assets ({{ count('asset') }})</button>
+      </nav>
+
+      <div class="tools-row">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+          <input [placeholder]="'Search ' + listTab + 's...'" [attr.aria-label]="'Search ' + listTab + 's'" [(ngModel)]="search" />
+        </label>
+        <button type="button" class="icon-btn" [class.on]="activeOnly" aria-label="Active only" title="Active only" (click)="activeOnly = !activeOnly">
+          <lucide-icon [img]="icons.ListFilter" [size]="15"></lucide-icon>
+        </button>
+      </div>
+
+      <div class="dd" style="display: flex; justify-content: flex-end; margin-bottom: 6px">
+        <button type="button" class="btn btn--primary btn--sm" [disabled]="!store.editing" (click)="togglePlotMenu($event, listTab)">
+          <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Plot {{ listTab === 'device' ? 'Device' : 'Asset' }}
+        </button>
+        @if (plotMenu === listTab) {
+          <div class="menu" role="menu" style="left: auto; right: 0">
+            @for (i of unplottedOf(listTab); track i.id) {
+              <button type="button" role="menuitem" (click)="startPlacing(i)"><lucide-icon [img]="i.icon" [size]="14"></lucide-icon> {{ i.name }} ({{ i.code }})</button>
+            } @empty {
+              <button type="button" role="menuitem" disabled>Everything is plotted</button>
+            }
+          </div>
+        }
+      </div>
+
+      @for (i of list; track i.id) {
+        <div class="item-row" role="button" tabindex="0" [class.active]="i.id === store.selectedItemId" [style.--tone]="hex(i.tone)" (click)="select(i)" (keydown.enter)="select(i)">
+          <span class="item-row__icon"><lucide-icon [img]="i.icon" [size]="15"></lucide-icon></span>
+          <span class="item-row__body">
+            <b>{{ i.name }} – {{ i.code }}</b>
+            <small>{{ i.type }} · <span class="dot" [class.dot--off]="i.status !== 'Active'"></span> {{ i.status }}@if (i.x === null) { · <em>Not plotted</em> }</small>
+          </span>
+          <div class="dd dd--right">
+            <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Actions for ' + i.code" (click)="toggleMenu($event, i.id)">
+              <lucide-icon [img]="icons.Ellipsis" [size]="15"></lucide-icon>
+            </button>
+            @if (menuFor === i.id) {
+              <div class="menu" role="menu">
+                <button type="button" role="menuitem" (click)="startPlacing(i)">
+                  <lucide-icon [img]="icons.Move" [size]="14"></lucide-icon> {{ i.x === null ? 'Plot on map' : 'Reposition' }}
+                </button>
+                @if (i.x !== null) {
+                  <button type="button" role="menuitem" class="danger" (click)="remove(i)"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon> Remove plot</button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      } @empty {
+        <p class="list-empty">No {{ listTab }}s match.</p>
+      }
+    </section>
+
+    <section class="panel unplotted">
+      <div class="panel__head">
+        <h3>Unplotted Items ({{ store.unplotted.length }})</h3>
+        <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="unplottedOpen ? 'Collapse' : 'Expand'" (click)="unplottedOpen = !unplottedOpen">
+          <lucide-icon [img]="unplottedOpen ? icons.ChevronUp : icons.ChevronDown" [size]="16"></lucide-icon>
+        </button>
+      </div>
+      @if (unplottedOpen) {
+        <div class="list">
+          @for (i of store.unplotted; track i.id) {
+            <div class="item-row" [style.--tone]="hex(i.tone)">
+              <span class="item-row__icon"><lucide-icon [img]="i.icon" [size]="15"></lucide-icon></span>
+              <span class="item-row__body"><b>{{ i.name }} ({{ i.code }})</b><small>{{ i.kind === 'asset' ? 'Asset' : 'Device' }} · {{ i.type }}</small></span>
+              <button type="button" class="icon-btn" [class.on]="placingId === i.id" [attr.aria-label]="'Plot ' + i.code" title="Plot on map" (click)="startPlacing(i)">
+                <lucide-icon [img]="icons.MapPin" [size]="14"></lucide-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="list-empty">Everything is plotted.</p>
+          }
+        </div>
+      }
+    </section>
+  </aside>
+
+  <app-map-viewer #v>
+    <ng-container ngProjectAs="[tools]">
+      <button type="button" class="btn" [class.on]="!placingId" (click)="placingId = null">
+        <lucide-icon [img]="icons.MousePointer2" [size]="15"></lucide-icon> Select
+      </button>
+      <div class="dd">
+        <button type="button" class="btn" [disabled]="!store.editing" (click)="togglePlotMenu($event, 'device')">
+          <lucide-icon [img]="icons.Cpu" [size]="15"></lucide-icon> Plot Device <lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>
+        </button>
+        @if (plotMenu === 'device') {
+          <div class="menu" role="menu">
+            @for (i of unplottedOf('device'); track i.id) {
+              <button type="button" role="menuitem" (click)="startPlacing(i)">{{ i.name }} ({{ i.code }})</button>
+            } @empty {
+              <button type="button" role="menuitem" disabled>All devices plotted</button>
+            }
+          </div>
+        }
+      </div>
+      <div class="dd">
+        <button type="button" class="btn" [disabled]="!store.editing" (click)="togglePlotMenu($event, 'asset')">
+          <lucide-icon [img]="icons.Package" [size]="15"></lucide-icon> Plot Asset <lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>
+        </button>
+        @if (plotMenu === 'asset') {
+          <div class="menu" role="menu">
+            @for (i of unplottedOf('asset'); track i.id) {
+              <button type="button" role="menuitem" (click)="startPlacing(i)">{{ i.name }} ({{ i.code }})</button>
+            } @empty {
+              <button type="button" role="menuitem" disabled>All assets plotted</button>
+            }
+          </div>
+        }
+      </div>
+      <button type="button" class="btn" [disabled]="!store.editing" (click)="autoPlot()">
+        <lucide-icon [img]="icons.Sparkles" [size]="15"></lucide-icon> Auto Plot (Bulk)
+      </button>
+    </ng-container>
+
+    @if (placingId) {
+      <p class="note placing-hint">Click on the map to place {{ selected?.name }} ({{ selected?.code }}). <button type="button" class="btn--link btn" (click)="placingId = null">Cancel</button></p>
+    }
+    <app-map-canvas
+      [zoom]="v.zoom"
+      [showZones]="show.zones"
+      [showDevices]="show.devices && showFilter !== 'assets'"
+      [showAssets]="show.assets && showFilter !== 'devices'"
+      [showLabels]="show.labels"
+      [showItemLabels]="settings.labelMode !== 'None'"
+      [selectedItemId]="store.selectedItemId"
+      [placing]="!!placingId"
+      (itemSelect)="select($event)"
+      (place)="place($event)"
+    ></app-map-canvas>
+
+    <div class="map-foot" foot>
+      <label><input type="checkbox" [(ngModel)]="show.devices" /> Devices ({{ count('device') }})</label>
+      <label><input type="checkbox" [(ngModel)]="show.assets" /> Assets ({{ count('asset') }})</label>
+      <label><input type="checkbox" [(ngModel)]="show.zones" /> Zones ({{ store.zones.length }})</label>
+      <label><input type="checkbox" [(ngModel)]="show.labels" /> Labels</label>
+      <span class="map-foot__spacer"></span>
+      Show
+      <select class="zoom-select" aria-label="Show" [(ngModel)]="showFilter">
+        <option value="all">All Items</option>
+        <option value="devices">Devices only</option>
+        <option value="assets">Assets only</option>
+      </select>
+    </div>
+  </app-map-viewer>
+
+  <aside class="panel">
+    <nav class="rtabs" role="tablist">
+      <button type="button" role="tab" [class.active]="rightTab === 'details'" (click)="rightTab = 'details'">Asset / Device Details</button>
+      <button type="button" role="tab" [class.active]="rightTab === 'settings'" (click)="rightTab = 'settings'">Plotting Settings</button>
+    </nav>
+
+    @if (rightTab === 'details') {
+      @if (selected; as i) {
+        <div class="rhead">
+          <span class="rhead__icon rhead__icon--solid" [style.color]="hex(i.tone)"><lucide-icon [img]="i.icon" [size]="17"></lucide-icon></span>
+          <h3>{{ i.name }} ({{ i.code }})</h3>
+          <span class="pill" [attr.data-tone]="i.x !== null ? 'green' : 'grey'">{{ i.x !== null ? 'Plotted' : 'Unplotted' }}</span>
+        </div>
+        <dl class="rows">
+          <dt>Type</dt><dd>{{ i.kind === 'asset' ? 'Asset' : 'Device' }}</dd>
+          <dt>{{ i.kind === 'asset' ? 'Asset Category' : 'Device Type' }}</dt><dd>{{ i.type }}</dd>
+          @if (i.assetType) { <dt>Asset Type</dt><dd>{{ i.assetType }}</dd> }
+          <dt>Model</dt><dd>{{ i.model ?? '—' }}</dd>
+          <dt>Serial Number</dt><dd>{{ i.serial ?? '—' }}</dd>
+          <dt>Location</dt><dd>{{ store.locationLabel() }}</dd>
+          <dt>Zone</dt><dd>{{ selectedZoneLabel }}</dd>
+          @if (i.x !== null) {
+            <dt>Map Position</dt><dd>X: {{ metres(i).x }} m &nbsp; Y: {{ metres(i).y }} m</dd>
+            <dt>Orientation</dt>
+            <dd class="inline">
+              <input class="mini-input" type="number" step="15" aria-label="Orientation in degrees" [ngModel]="i.orientation" (ngModelChange)="rotate(i, $event)" [disabled]="!store.editing" /> °
+            </dd>
+          }
+          <dt>Icon &amp; Color</dt>
+          <dd>
+            <div class="swatches">
+              @for (t of tones; track t) {
+                <button type="button" [class.on]="i.tone === t" [style.background]="hex(t)" [attr.aria-label]="t" [disabled]="!store.editing" (click)="setTone(i, t)"></button>
+              }
+            </div>
+          </dd>
+          <dt>Status</dt><dd><span class="pill" [attr.data-tone]="i.status === 'Active' ? 'green' : 'grey'"><i></i>{{ i.status }}</span></dd>
+          <dt>Last Updated</dt><dd>{{ date(i.lastUpdated) }}, {{ time(i.lastUpdated) }}</dd>
+        </dl>
+        <div class="action-grid">
+          <button type="button" class="btn btn--outline" [disabled]="!store.editing" (click)="startPlacing(i)">
+            <lucide-icon [img]="icons.Move" [size]="14"></lucide-icon> {{ i.x === null ? 'Plot on Map' : 'Reposition' }}
+          </button>
+          <button type="button" class="btn btn--outline" [disabled]="!store.editing" (click)="replaceIcon()">
+            <lucide-icon [img]="icons.Image" [size]="14"></lucide-icon> Replace Icon
+          </button>
+          @if (i.x !== null) {
+            <button type="button" class="btn btn--danger btn--full" [disabled]="!store.editing" (click)="remove(i)">
+              <lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon> Remove Plot
+            </button>
+          }
+        </div>
+      } @else {
+        <p class="empty">Select a device or asset from the list or the map.</p>
+      }
+    } @else {
+      <div class="rform">
+        <label class="check-row">
+          Snap to grid
+          <span class="map-tools__spacer"></span>
+          <span class="switch"><input type="checkbox" [(ngModel)]="settings.snap" aria-label="Snap to grid" /><i></i></span>
+        </label>
+        <div class="field">
+          <label for="pl-grid">Grid size (m)</label>
+          <input id="pl-grid" type="number" min="0.1" step="0.1" [(ngModel)]="settings.grid" [disabled]="!settings.snap" />
+        </div>
+        <label class="check-row">
+          Assign zone from position
+          <span class="map-tools__spacer"></span>
+          <span class="switch"><input type="checkbox" [(ngModel)]="settings.autoZone" aria-label="Assign zone from position" disabled checked /><i></i></span>
+        </label>
+        <div class="field">
+          <label for="pl-label">Marker label</label>
+          <select id="pl-label" [(ngModel)]="settings.labelMode">
+            <option value="ID">Asset / Device ID</option>
+            <option value="None">None</option>
+          </select>
+        </div>
+        <p class="note">Zones are worked out from where an item sits on the plan.</p>
+      </div>
+    }
+  </aside>
+</div>

@@ -50,6 +50,7 @@
               <lucide-icon *ngIf="item.icon" [img]="item.icon" [size]="18" [strokeWidth]="2"></lucide-icon>
             </span>
             <span class="nav-label" *ngIf="!collapsed">{{ item.label }}</span>
+            <span class="nav-badge" *ngIf="item.badge && !collapsed">{{ item.badge }}</span>
             <span class="nav-caret" *ngIf="!collapsed">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 12 15 18 9"></polyline>
@@ -81,7 +82,10 @@
                   (click)="toggleInlineGroup(child)"
                   (keydown.enter)="toggleInlineGroup(child)"
                 >
-                  <span class="nav-dropdown-group__label">{{ child.label }}</span>
+                  <span class="nav-dropdown-group__label">
+                    {{ child.label }}
+                    <span class="nav-badge" *ngIf="child.badge">{{ child.badge }}</span>
+                  </span>
                   <span class="nav-dropdown-group__caret">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -165,7 +169,10 @@
           [class.open]="isSubDropdownOpen(child.label)"
           (click)="toggleSubDropdown(child.label)"
         >
-          <span class="nav-flyout-item__label">{{ child.label }}</span>
+          <span class="nav-flyout-item__label">
+            {{ child.label }}
+            <span class="nav-badge" *ngIf="child.badge">{{ child.badge }}</span>
+          </span>
           <span class="nav-flyout-item__arrow">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="9 18 15 12 9 6"></polyline>
