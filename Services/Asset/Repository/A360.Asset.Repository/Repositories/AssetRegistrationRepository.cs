@@ -59,6 +59,13 @@ public sealed class AssetRegistrationRepository
             .AnyAsync(cancellationToken);
     }
 
+    public async Task<AssetRegistration?> GetByAssetTagAsync(string assetTag, CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(asset => asset.BasicInformation.AssetTag == assetTag && !asset.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<AssetRegistration?> GetByAssetRegistrationIdAsync(string assetRegistrationId, CancellationToken cancellationToken = default)
     {
         return await Collection

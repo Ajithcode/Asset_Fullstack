@@ -132,6 +132,18 @@ public static class AssetServiceCollectionExtensions
         // Read-only: the dashboard reads tracking records from the shared database, so it needs no indexes of its own.
         services.AddScoped<A360.Asset.Repository.Dashboard.IAssetDashboardRepository, A360.Asset.Repository.Dashboard.AssetDashboardRepository>();
 
+        services.AddScoped<AssetDedupRulesRepository>();
+        services.AddScoped<IAssetDedupRulesRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetDedupRulesRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetDedupRulesRepository>());
+
+        services.AddScoped<AssetDedupDismissalRepository>();
+        services.AddScoped<IAssetDedupDismissalRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetDedupDismissalRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetDedupDismissalRepository>());
+
+        services.AddScoped<AssetMergeRepository>();
+        services.AddScoped<IAssetMergeRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetMergeRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetMergeRepository>());
+
         services.AddHostedService<MongoIndexHostedService>();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();

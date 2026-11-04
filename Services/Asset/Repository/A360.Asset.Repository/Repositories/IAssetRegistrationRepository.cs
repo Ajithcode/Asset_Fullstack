@@ -7,6 +7,8 @@ public interface IAssetRegistrationRepository : IMongoRepository<AssetRegistrati
 {
     Task<bool> AssetTagExistsAsync(string assetTag, CancellationToken cancellationToken = default);
 
+    Task<AssetRegistration?> GetByAssetTagAsync(string assetTag, CancellationToken cancellationToken = default);
+
     Task<AssetRegistration?> GetByAssetRegistrationIdAsync(string assetRegistrationId, CancellationToken cancellationToken = default);
 
     /// <summary>Assets whose tag or serial number is one of <paramref name="tagsOrSerials"/> (exact match).</summary>
