@@ -2,6 +2,10 @@ export interface AdminModule {
   label: string;
   slug: string;
   description: string;
+  // Small pill shown after the label in the sidebar (e.g. 'New')
+  badge?: string;
+  // Sub pages: the module expands in the Administration flyout; each opens /administration/<slug>/<child slug>
+  children?: { label: string; slug: string }[];
 }
 
 export const ADMINISTRATION_BASE_PATH = '/administration';
@@ -19,5 +23,19 @@ export const ADMINISTRATION_MENU: AdminModule[] = [
   { label: 'System Configuration', slug: 'system-configuration', description: 'General system settings and defaults.' },
   { label: 'Integration & API', slug: 'integration-api', description: 'Connected systems, API keys and webhooks.' },
   { label: 'Data Import / Export', slug: 'data-import-export', description: 'Bulk import and export of system data.' },
-  { label: 'System Audit Log', slug: 'system-audit-log', description: 'Who changed what, and when.' }
+  { label: 'System Audit Log', slug: 'system-audit-log', description: 'Who changed what, and when.' },
+  {
+    label: 'Maps & Floor Plans',
+    slug: 'maps-floor-plans',
+    description: 'Site maps, floor plans, zones and device plotting.',
+    children: [
+      { label: 'Map Library', slug: 'map-library' },
+      { label: 'Floor Plans', slug: 'floor-plans' },
+      { label: 'Zones & Geofences', slug: 'zones-geofences' },
+      { label: 'Device & Asset Plotting', slug: 'device-asset-plotting' },
+      { label: 'Layers', slug: 'layers' },
+      { label: 'Versions & Publishing', slug: 'versions-publishing' },
+      { label: 'Settings', slug: 'settings' }
+    ]
+  }
 ];

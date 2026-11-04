@@ -1,0 +1,256 @@
+<div class="mws">
+  <aside class="panel">
+    <app-site-tree placeholder="Search location..." (floorSelect)="onFloor()"></app-site-tree>
+  </aside>
+
+  <section class="panel" aria-label="Floor plans">
+    <header class="map-head">
+      <span class="map-head__icon"><lucide-icon [img]="icons.Building2" [size]="20"></lucide-icon></span>
+      <div class="map-head__text">
+        <h2>Floor Plans – {{ store.floorTitle() }}</h2>
+        <p>Manage floor plans, versions and publication for this location.</p>
+      </div>
+      <div class="map-head__actions">
+        <div class="dd upload-split">
+          <button type="button" class="btn btn--primary upload-split__main" (click)="uploadOpen = true">
+            <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add Floor Plan
+          </button>
+          <button type="button" class="btn btn--primary upload-split__caret" aria-label="More add options" (click)="toggleHeadMenu($event)">
+            <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+          </button>
+          @if (headMenuOpen) {
+            <div class="menu" role="menu">
+              <button type="button" role="menuitem" (click)="uploadOpen = true">Upload floor plan</button>
+              <button type="button" role="menuitem" (click)="goTo.emit('versions-publishing')">Upload new version</button>
+            </div>
+          }
+        </div>
+        <button type="button" class="icon-btn" aria-label="Delete selected" [disabled]="!checked.size" (click)="removeChecked()" title="Delete selected">
+          <lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon>
+        </button>
+      </div>
+    </header>
+
+    <div class="mstats">
+      <div class="stat">
+        <span class="stat__icon"><lucide-icon [img]="icons.Building2" [size]="20"></lucide-icon></span>
+        <span class="stat__body"><span class="stat__value">{{ all.length }}</span><span class="stat__label">Floor Plans</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat__icon"><lucide-icon [img]="icons.Layers" [size]="20"></lucide-icon></span>
+        <span class="stat__body"><span class="stat__value">{{ store.zones.length }}</span><span class="stat__label">Zones</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.Wifi" [size]="20"></lucide-icon></span>
+        <span class="stat__body"><span class="stat__value">{{ devicesPlotted }}</span><span class="stat__label">Devices Plotted</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat__icon"><lucide-icon [img]="icons.Package" [size]="20"></lucide-icon></span>
+        <span class="stat__body"><span class="stat__value">{{ assetsPlotted }}</span><span class="stat__label">Assets Plotted</span></span>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+        <input placeholder="Search floor plans..." aria-label="Search floor plans" [(ngModel)]="search" (ngModelChange)="onFilter()" />
+      </label>
+      <select class="select" aria-label="Status" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()">
+        <option value="">Status: All</option>
+        <option value="Published">Published</option>
+        <option value="Draft">Draft</option>
+        <option value="Archived">Archived</option>
+      </select>
+      <select class="select" aria-label="Type" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()">
+        <option value="">Type: All</option>
+        <option value="Floor Plan">Floor Plan</option>
+        <option value="Site Map">Site Map</option>
+      </select>
+      <select class="select" aria-label="Sort" [(ngModel)]="sort">
+        <option value="updated">Sort: Updated Date</option>
+        <option value="name">Sort: Name</option>
+        <option value="version">Sort: Version</option>
+      </select>
+      <span class="toolbar__spacer"></span>
+      <button type="button" class="icon-btn" [class.on]="view === 'list'" aria-label="List view" (click)="view = 'list'">
+        <lucide-icon [img]="icons.List" [size]="16"></lucide-icon>
+      </button>
+      <button type="button" class="icon-btn" [class.on]="view === 'grid'" aria-label="Grid view" (click)="view = 'grid'">
+        <lucide-icon [img]="icons.LayoutGrid" [size]="16"></lucide-icon>
+      </button>
+    </div>
+
+    @if (view === 'list') {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" aria-label="Select all" [checked]="allChecked" (change)="toggleAll()" /></th>
+              <th>Floor Plan Name</th>
+              <th>Type</th>
+              <th>File</th>
+              <th>Version</th>
+              <th>Status</th>
+              <th>Last Updated</th>
+              <th class="center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of paged; track p.id) {
+              <tr class="clickable" [class.is-selected]="p.id === selected?.id" (click)="select(p)">
+                <td (click)="$event.stopPropagation()"><input type="checkbox" [attr.aria-label]="'Select ' + p.name" [checked]="checked.has(p.id)" (change)="toggle(p.id)" /></td>
+                <td>
+                  <div class="name-cell">
+                    <app-map-canvas class="thumb" [preview]="true"></app-map-canvas>
+                    <span><b>{{ p.name }}</b><small>{{ p.subtitle }}</small></span>
+                  </div>
+                </td>
+                <td><span class="pill" data-tone="purple">{{ p.type }}</span></td>
+                <td>{{ p.format }} ({{ p.sizeMb }} MB)</td>
+                <td>{{ p.version }}</td>
+                <td><span class="pill" [attr.data-tone]="tone(p.status)"><i></i>{{ p.status }}</span></td>
+                <td>{{ date(p.updated) }}<br /><small class="muted">{{ time(p.updated) }}</small></td>
+                <td (click)="$event.stopPropagation()">
+                  <div class="row-actions">
+                    <button type="button" class="icon-btn" aria-label="View on map" (click)="open(p, 'map-library')">
+                      <lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>
+                    </button>
+                    <div class="dd">
+                      <button type="button" class="icon-btn" aria-label="More actions" (click)="toggleMenu($event, p.id)">
+                        <lucide-icon [img]="icons.Ellipsis" [size]="15"></lucide-icon>
+                      </button>
+                      @if (menuFor === p.id) {
+                        <div class="menu" role="menu">
+                          <button type="button" role="menuitem" (click)="select(p); edit(p)">Edit details</button>
+                          <button type="button" role="menuitem" (click)="download(p)">Download</button>
+                          @if (p.status !== 'Published') {
+                            <button type="button" role="menuitem" (click)="publish(p)">Publish</button>
+                          }
+                          @if (p.status !== 'Archived') {
+                            <button type="button" role="menuitem" (click)="archive(p)">Archive</button>
+                          }
+                          <button type="button" role="menuitem" class="danger" (click)="remove(p)">Delete</button>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="8" class="empty">No floor plans match. Use Add Floor Plan to upload one.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="plan-grid">
+        @for (p of paged; track p.id) {
+          <button type="button" class="plan-card" [class.active]="p.id === selected?.id" (click)="select(p)">
+            <app-map-canvas [preview]="true"></app-map-canvas>
+            <b>{{ p.name }}</b>
+            <small class="muted">{{ p.format }} · {{ p.version }}</small>
+            <span class="pill" [attr.data-tone]="tone(p.status)"><i></i>{{ p.status }}</span>
+          </button>
+        } @empty {
+          <p class="empty">No floor plans match.</p>
+        }
+      </div>
+    }
+
+    <div class="pager">
+      <span>Showing {{ rows.length ? page * pageSize + 1 : 0 }}–{{ page * pageSize + paged.length }} of {{ rows.length }} floor plans</span>
+      <span class="pager__pages">
+        Rows per page:
+        <select class="zoom-select" aria-label="Rows per page" [(ngModel)]="pageSize" (ngModelChange)="onFilter()">
+          @for (s of pageSizes; track s) { <option [ngValue]="s">{{ s }}</option> }
+        </select>
+        <button type="button" class="page-btn" aria-label="Previous page" [disabled]="page === 0" (click)="page = page - 1">
+          <lucide-icon [img]="icons.ChevronLeft" [size]="14"></lucide-icon>
+        </button>
+        @for (n of pages; track n) {
+          <button type="button" class="page-btn" [class.active]="n === page" (click)="page = n">{{ n + 1 }}</button>
+        }
+        <button type="button" class="page-btn" aria-label="Next page" [disabled]="page >= pageCount - 1" (click)="page = page + 1">
+          <lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon>
+        </button>
+      </span>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="rhead">
+      <lucide-icon [img]="icons.Info" [size]="18" class="muted"></lucide-icon>
+      <h3>Floor Plan Details</h3>
+    </div>
+    @if (selected; as p) {
+      <div class="preview">
+        <app-map-canvas [preview]="true"></app-map-canvas>
+        <button type="button" class="icon-btn" aria-label="Open on map" (click)="open(p, 'map-library')">
+          <lucide-icon [img]="icons.Maximize2" [size]="13"></lucide-icon>
+        </button>
+      </div>
+
+      @if (editing) {
+        <form class="rform" (ngSubmit)="saveEdit()">
+          <div class="field" [class.invalid]="!editing.name.trim()">
+            <label for="fp-name">Name <span class="req">*</span></label>
+            <input id="fp-name" name="name" [(ngModel)]="editing.name" />
+          </div>
+          <div class="field">
+            <label for="fp-sub">Description</label>
+            <input id="fp-sub" name="subtitle" [(ngModel)]="editing.subtitle" />
+          </div>
+          <div class="field">
+            <label for="fp-type">Type</label>
+            <select id="fp-type" name="type" [(ngModel)]="editing.type">
+              <option value="Floor Plan">Floor Plan</option>
+              <option value="Site Map">Site Map</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fp-dim">Dimensions</label>
+            <input id="fp-dim" name="dim" [(ngModel)]="editing.dimensions" />
+          </div>
+          <div class="field">
+            <label for="fp-scale">Scale</label>
+            <input id="fp-scale" name="scale" [(ngModel)]="editing.scale" />
+          </div>
+          <div class="rfoot">
+            <button type="button" class="btn" (click)="editing = null">Cancel</button>
+            <button type="submit" class="btn btn--primary">Save</button>
+          </div>
+        </form>
+      } @else {
+        <dl class="rows">
+          <dt>Name</dt><dd>{{ p.name }}</dd>
+          <dt>Location</dt><dd class="inline"><lucide-icon [img]="icons.Building2" [size]="14"></lucide-icon> {{ store.locationLabel(p.floorId) }}</dd>
+          <dt>Type</dt><dd>{{ p.type }}</dd>
+          <dt>File</dt>
+          <dd class="inline">
+            {{ p.fileName }} ({{ p.sizeMb }} MB)
+            <button type="button" class="icon-btn icon-btn--bare" aria-label="Download file" (click)="download(p)">
+              <lucide-icon [img]="icons.Download" [size]="14"></lucide-icon>
+            </button>
+          </dd>
+          <dt>Version</dt><dd>{{ p.version }}</dd>
+          <dt>Status</dt><dd><span class="pill" [attr.data-tone]="tone(p.status)"><i></i>{{ p.status }}</span></dd>
+          <dt>Dimensions</dt><dd>{{ p.dimensions }}</dd>
+          <dt>Scale</dt><dd>{{ p.scale }}</dd>
+          <dt>{{ p.status === 'Published' ? 'Published On' : 'Updated On' }}</dt><dd>{{ date(p.updated) }}, {{ time(p.updated) }}</dd>
+          <dt>{{ p.status === 'Published' ? 'Published By' : 'Updated By' }}</dt><dd>{{ p.updatedBy }}</dd>
+        </dl>
+        <div class="action-grid">
+          <button type="button" class="btn btn--outline" (click)="edit(p)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon> Edit Details</button>
+          <button type="button" class="btn btn--outline" (click)="open(p, 'zones-geofences')"><lucide-icon [img]="icons.Layers" [size]="14"></lucide-icon> Manage Zones</button>
+          <button type="button" class="btn btn--outline btn--full" (click)="open(p, 'map-library')"><lucide-icon [img]="icons.Eye" [size]="14"></lucide-icon> View on Map</button>
+        </div>
+      }
+    } @else {
+      <p class="empty">No floor plans for this location yet.</p>
+    }
+  </aside>
+</div>
+
+@if (uploadOpen) {
+  <app-upload-dialog (done)="uploaded($event)" (cancel)="uploadOpen = false"></app-upload-dialog>
+}

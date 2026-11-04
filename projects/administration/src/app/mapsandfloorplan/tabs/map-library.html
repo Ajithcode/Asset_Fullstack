@@ -1,0 +1,128 @@
+<div class="mws">
+  <aside class="side">
+    <section class="panel">
+      <app-site-tree></app-site-tree>
+    </section>
+
+    <div class="dd upload-split">
+      <button type="button" class="btn btn--primary upload-split__main" (click)="uploadOpen = true">
+        <lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Upload Map
+      </button>
+      <button type="button" class="btn btn--primary upload-split__caret" aria-label="More upload options" (click)="toggleUploadMenu($event)">
+        <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
+      </button>
+      @if (uploadMenuOpen) {
+        <div class="menu" role="menu">
+          <button type="button" role="menuitem" (click)="uploadOpen = true">Upload floor plan</button>
+          <button type="button" role="menuitem" (click)="goTo.emit('versions-publishing')">Upload new version</button>
+          <button type="button" role="menuitem" (click)="goTo.emit('floor-plans')">Manage floor plans</button>
+        </div>
+      }
+    </div>
+
+    <section class="panel storage">
+      <b>Storage &amp; Usage</b>
+      <div class="storage__meta"><span>{{ usedGb }} GB of {{ totalGb }} GB used</span><span>{{ storagePct }}%</span></div>
+      <div class="progress"><i [style.width.%]="storagePct" style="background: var(--adm-purple)"></i></div>
+    </section>
+  </aside>
+
+  <app-map-viewer #v (versions)="goTo.emit('versions-publishing')">
+    <ng-container ngProjectAs="[tools]">
+      <button type="button" class="btn" [class.on]="!placing" (click)="placing = null">
+        <lucide-icon [img]="icons.MousePointer2" [size]="15"></lucide-icon> Select
+      </button>
+      <div class="dd">
+        <button type="button" class="btn" [disabled]="!store.editing" aria-haspopup="menu" [attr.aria-expanded]="drawOpen" (click)="toggleDraw($event)">
+          <lucide-icon [img]="icons.Hexagon" [size]="15"></lucide-icon> Draw Zone <lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>
+        </button>
+        @if (drawOpen) {
+          <div class="menu" role="menu">
+            @for (s of shapes; track s.shape) {
+              <button type="button" role="menuitem" (click)="draw(s.shape)"><lucide-icon [img]="s.icon" [size]="14"></lucide-icon> {{ s.label }}</button>
+            }
+          </div>
+        }
+      </div>
+      <button type="button" class="btn" [class.on]="placing === 'device'" [disabled]="!store.editing" (click)="startPlacing('device')">
+        <lucide-icon [img]="icons.Cpu" [size]="15"></lucide-icon> Plot Device
+      </button>
+      <button type="button" class="btn" [class.on]="placing === 'asset'" [disabled]="!store.editing" (click)="startPlacing('asset')">
+        <lucide-icon [img]="icons.Package" [size]="15"></lucide-icon> Plot Asset
+      </button>
+    </ng-container>
+
+    @if (placing) {
+      <p class="note placing-hint">Click on the map to place the next unplotted {{ placing }}.</p>
+    }
+    <app-map-canvas
+      [zoom]="v.zoom"
+      [showZones]="show.zones"
+      [showDevices]="show.devices"
+      [showAssets]="show.assets"
+      [showLabels]="show.labels"
+      [selectedZoneId]="store.selectedZoneId"
+      [selectedItemId]="store.selectedItemId"
+      [placing]="!!placing"
+      (zoneSelect)="selectZone($event)"
+      (itemSelect)="selectItem($event)"
+      (place)="place($event)"
+    ></app-map-canvas>
+
+    <div class="map-foot" foot>
+      <label><input type="checkbox" [(ngModel)]="show.zones" /> Zones ({{ store.zones.length }})</label>
+      <label><input type="checkbox" [(ngModel)]="show.devices" /> Devices ({{ store.devices.length }})</label>
+      <label><input type="checkbox" [(ngModel)]="show.assets" /> Assets ({{ store.assets.length }})</label>
+      <label><input type="checkbox" [(ngModel)]="show.labels" /> Labels</label>
+    </div>
+  </app-map-viewer>
+
+  <aside class="panel">
+    <nav class="rtabs" role="tablist">
+      <button type="button" role="tab" [class.active]="rightTab === 'zone'" (click)="rightTab = 'zone'">Zone Details</button>
+      <button type="button" role="tab" [class.active]="rightTab === 'layers'" (click)="rightTab = 'layers'">Layers</button>
+      <button type="button" role="tab" [class.active]="rightTab === 'info'" (click)="rightTab = 'info'">Map Info</button>
+    </nav>
+
+    @switch (rightTab) {
+      @case ('zone') {
+        <app-zone-form [zone]="store.selectedZone"></app-zone-form>
+      }
+      @case ('layers') {
+        <div class="rform">
+          @for (l of store.layers; track l.id) {
+            <label class="check-row">
+              <input type="checkbox" [(ngModel)]="l.enabled" [disabled]="l.locked" />
+              <lucide-icon [img]="l.icon" [size]="15"></lucide-icon>
+              {{ l.name }}
+            </label>
+          }
+          <button type="button" class="btn btn--outline" (click)="goTo.emit('layers')">Manage Layers</button>
+        </div>
+      }
+      @case ('info') {
+        @if (store.currentPlan; as p) {
+          <dl class="rows">
+            <dt>Name</dt><dd>{{ p.name }}</dd>
+            <dt>Location</dt><dd>{{ store.locationLabel() }}</dd>
+            <dt>Type</dt><dd>{{ p.type }}</dd>
+            <dt>File</dt><dd>{{ p.fileName }} ({{ p.sizeMb }} MB)</dd>
+            <dt>Version</dt><dd>{{ p.version }}</dd>
+            <dt>Status</dt><dd>{{ p.status }}</dd>
+            <dt>Dimensions</dt><dd>{{ p.dimensions }}</dd>
+            <dt>Scale</dt><dd>{{ p.scale }}</dd>
+            <dt>Updated</dt><dd>{{ date(p.updated) }} by {{ p.updatedBy }}</dd>
+            <dt>Zones</dt><dd>{{ store.zones.length }}</dd>
+            <dt>Plotted</dt><dd>{{ store.plotted.length }} of {{ store.items.length }} items</dd>
+          </dl>
+        } @else {
+          <p class="empty">No floor plan for this location.</p>
+        }
+      }
+    }
+  </aside>
+</div>
+
+@if (uploadOpen) {
+  <app-upload-dialog (done)="uploaded($event)" (cancel)="uploadOpen = false"></app-upload-dialog>
+}

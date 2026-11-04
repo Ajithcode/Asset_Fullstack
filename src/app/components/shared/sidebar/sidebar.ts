@@ -35,6 +35,8 @@ export interface NavItem {
   landing?: string;
   // Expand inline under the item even though the submenu has a second level
   inline?: boolean;
+  // Small pill shown after the label (e.g. 'New')
+  badge?: string;
 }
 
 @Component({
@@ -194,7 +196,17 @@ export class Sidebar {
       label: 'Administration',
       path: ADMINISTRATION_BASE_PATH,
       icon: Settings,
-      children: ADMINISTRATION_MENU.map((m) => ({ label: m.label, path: `${ADMINISTRATION_BASE_PATH}/${m.slug}` }))
+      // Expands in place under the item (like Master Data Management) instead of the flyout
+      inline: true,
+      children: ADMINISTRATION_MENU.map((m) => {
+        const path = `${ADMINISTRATION_BASE_PATH}/${m.slug}`;
+        return {
+          label: m.label,
+          path,
+          badge: m.badge,
+          children: m.children?.map((c) => ({ label: c.label, path: `${path}/${c.slug}` }))
+        };
+      })
     },
     {
       label: 'Master Data Management',
@@ -235,7 +247,7 @@ export class Sidebar {
       });
   }
 
-  // Items with a single level of children expand inline; deeper menus (Administration) keep the flyout
+  // Items with a single level of children expand inline; deeper menus keep the flyout
   // unless they opt in with `inline`
   isInline(item: NavItem): boolean {
     return !!item.children?.length && (!!item.inline || item.children.every((child) => !child.children));

@@ -1,17 +1,13 @@
 <section class="reg-page">
   <!-- Everything above the action bar scrolls; the bar stays pinned to the bottom of the screen -->
   <div class="reg-scroll">
-  <!-- Breadcrumb + back -->
+  <!-- Breadcrumb -->
   <div class="reg-topbar">
     <nav class="breadcrumb" aria-label="Breadcrumb">
       <a routerLink="/assets/list">Assets</a>
       <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
       <span class="breadcrumb-current">Asset Registration</span>
     </nav>
-    <button type="button" class="btn btn-outline btn-sm" (click)="backToList()">
-      <lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon>
-      Back to List
-    </button>
   </div>
 
   <!-- Header + stepper -->
@@ -1184,15 +1180,8 @@
 
   <!-- Action bar -->
   <footer class="reg-footer">
-    <button type="button" class="btn btn-outline btn-lg" *ngIf="currentStep > 0; else cancelLeft" (click)="previous()">
-      <lucide-icon [img]="icons.ChevronLeft" [size]="18"></lucide-icon>
-      Back
-    </button>
-    <ng-template #cancelLeft>
-      <button type="button" class="btn btn-outline btn-lg" (click)="backToList()">Cancel</button>
-    </ng-template>
+    <button type="button" class="btn btn-outline btn-lg" (click)="backToList()">Cancel</button>
     <div class="reg-footer-right">
-      <button type="button" class="btn btn-outline btn-lg" *ngIf="currentStep > 0" (click)="backToList()">Cancel</button>
       <button type="button" class="btn btn-outline btn-lg" [disabled]="registering" (click)="saveDraft()">Save as Draft</button>
       <button type="button" class="btn btn-primary btn-lg" [disabled]="registering" (click)="next()">
         {{ isLastStep ? 'Submit' : 'Next' }}

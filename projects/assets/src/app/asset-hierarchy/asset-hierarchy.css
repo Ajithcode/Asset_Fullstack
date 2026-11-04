@@ -1351,3 +1351,105 @@ button.caret:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ============ "+" action menu ============ */
+.add-menu {
+  max-width: 560px;
+}
+
+.add-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--ah-border);
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  color: var(--ah-text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.add-option:hover,
+.add-option:focus-visible {
+  border-color: var(--ah-accent-border);
+  background: var(--ah-accent-soft);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 43, 216, 0.08);
+}
+
+.add-option-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.add-option-title lucide-icon {
+  color: var(--ah-accent);
+}
+
+.add-option-desc {
+  font-size: 13px;
+  color: var(--ah-text-muted);
+}
+
+/* ============ Create Hierarchy Node ============ */
+.modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-title-icon {
+  color: var(--ah-accent);
+}
+
+.radio-row {
+  display: flex;
+  gap: 24px;
+}
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.radio input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ah-accent);
+}
+
+.preview-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid var(--ah-border);
+  font-size: 13px;
+}
+
+.preview-box strong {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.preview-box span {
+  color: #374151;
+  word-break: break-word;
+}
+
+.facts-wide {
+  grid-column: 1 / -1;
+}
