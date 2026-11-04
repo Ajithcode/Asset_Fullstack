@@ -52,7 +52,7 @@ export const routes: Routes = [
       { path: 'financial', component: ModulePlaceholder, data: { title: 'Financial' } },
       { path: 'locating', redirectTo: 'tracking-iot/real-time-location', pathMatch: 'full' },
       // Reports moved into the Reports & Analytics remote; old links keep working
-      { path: 'report', redirectTo: 'reports-analytics', pathMatch: 'full' },
+      { path: 'report', redirectTo: 'reports-analytics/generated-reports', pathMatch: 'full' },
       { path: 'report/create', redirectTo: 'reports-analytics/create', pathMatch: 'full' },
       { path: 'report/view/:id', redirectTo: 'reports-analytics/view/:id', pathMatch: 'full' },
       { path: 'events', component: Events },
