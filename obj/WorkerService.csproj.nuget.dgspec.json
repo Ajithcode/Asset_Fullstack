@@ -1,0 +1,79 @@
+{
+  "format": 1,
+  "restore": {
+    "/home/piq1/WorkerService/WorkerService/WorkerService.csproj": {}
+  },
+  "projects": {
+    "/home/piq1/WorkerService/WorkerService/WorkerService.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/piq1/WorkerService/WorkerService/WorkerService.csproj",
+        "projectName": "WorkerService",
+        "projectPath": "/home/piq1/WorkerService/WorkerService/WorkerService.csproj",
+        "packagesPath": "/home/piq1/.nuget/packages/",
+        "outputPath": "/home/piq1/WorkerService/WorkerService/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/piq1/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.Extensions.Hosting": {
+              "target": "Package",
+              "version": "[10.0.10, )"
+            },
+            "Microsoft.Extensions.Options": {
+              "target": "Package",
+              "version": "[10.0.10, )"
+            },
+            "MongoDB.Driver": {
+              "target": "Package",
+              "version": "[3.10.0, )"
+            },
+            "StackExchange.Redis": {
+              "target": "Package",
+              "version": "[3.0.17, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/8.0.133/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
