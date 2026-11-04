@@ -1,0 +1,103 @@
+<div class="backdrop" (click)="close()"></div>
+<aside class="drawer" role="dialog" aria-label="Work order form">
+  <div class="drawer-head">
+    <h2 class="grow">{{ workOrder() ? 'Edit Work Order ' + workOrder()!.workOrderId : 'Create Work Order' }}</h2>
+    <button type="button" class="icon-btn" aria-label="Close" (click)="close()"><lucide-icon [img]="X" [size]="18"></lucide-icon></button>
+  </div>
+  <form class="drawer-body" id="wo-form" (ngSubmit)="save()">
+    @if (error(); as e) { <div class="alert">{{ e }}</div> }
+    <div class="form-grid">
+      <h3 class="form-section">Work Order Information</h3>
+      <label class="field">
+        <span class="field-label">Work Order # <span class="req">*</span></span>
+        <input class="control" name="workOrderId" [(ngModel)]="form.workOrderId" [readonly]="!!workOrder()" />
+      </label>
+      <label class="field">
+        <span class="field-label">Status</span>
+        <select class="control" name="status" [(ngModel)]="form.status">
+          @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+      </label>
+      <label class="field span-2">
+        <span class="field-label">Title <span class="req">*</span></span>
+        <input class="control" name="title" [(ngModel)]="form.title" placeholder="e.g. Generator 500 kVA - Monthly PM" />
+      </label>
+      <app-mnt-asset-picker [(assetId)]="form.assetId" [(assetName)]="form.assetName" (picked)="onAsset($event)"></app-mnt-asset-picker>
+      <label class="field">
+        <span class="field-label">Maintenance Type <span class="req">*</span></span>
+        <select class="control" name="workType" [(ngModel)]="form.workType">
+          @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Category</span>
+        <select class="control" name="category" [(ngModel)]="form.category">
+          @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Priority <span class="req">*</span></span>
+        <select class="control" name="priority" [(ngModel)]="form.priority">
+          @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Due Date</span>
+        <input class="control" type="date" name="dueDate" [(ngModel)]="form.dueDate" />
+      </label>
+      <label class="field">
+        <span class="field-label">Planned Start</span>
+        <input class="control" type="datetime-local" name="plannedStart" [(ngModel)]="form.plannedStart" />
+      </label>
+      <label class="field">
+        <span class="field-label">Planned End</span>
+        <input class="control" type="datetime-local" name="plannedEnd" [(ngModel)]="form.plannedEnd" />
+      </label>
+      <label class="field">
+        <span class="field-label">Estimated Duration (hours)</span>
+        <input class="control" type="number" min="0" step="0.5" name="estimatedHours" [(ngModel)]="form.estimatedHours" />
+      </label>
+      <label class="field">
+        <span class="field-label">Work Order Source</span>
+        <select class="control" name="source" [(ngModel)]="form.source">
+          @for (s of sources; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+      </label>
+      <label class="field span-2">
+        <span class="field-label">Description</span>
+        <textarea class="control" name="description" rows="3" [(ngModel)]="form.description"></textarea>
+      </label>
+
+      <h3 class="form-section">Assignment</h3>
+      <label class="field">
+        <span class="field-label">Assigned To</span>
+        <input class="control" name="assignedTechnician" list="wo-people" [(ngModel)]="form.assignedTechnician" />
+        <datalist id="wo-people">@for (p of people(); track p) { <option [value]="p"></option> }</datalist>
+      </label>
+      <label class="field">
+        <span class="field-label">Team</span>
+        <input class="control" name="team" list="wo-teams" [(ngModel)]="form.team" />
+        <datalist id="wo-teams">@for (t of teams(); track t) { <option [value]="t"></option> }</datalist>
+      </label>
+      <label class="field span-2">
+        <span class="field-label">Vendor</span>
+        <input class="control" name="vendor" [(ngModel)]="form.vendor" placeholder="External contractor, if any" />
+      </label>
+
+      <h3 class="form-section">Location</h3>
+      <label class="field"><span class="field-label">Site</span><input class="control" name="site" [(ngModel)]="form.site" /></label>
+      <label class="field"><span class="field-label">Building</span><input class="control" name="building" [(ngModel)]="form.building" /></label>
+      <label class="field"><span class="field-label">Room / Area</span><input class="control" name="area" [(ngModel)]="form.area" /></label>
+      <label class="field"><span class="field-label">Department</span><input class="control" name="department" [(ngModel)]="form.department" /></label>
+
+      <label class="field span-2">
+        <span class="field-label">Notes</span>
+        <textarea class="control" name="notes" rows="3" [(ngModel)]="form.notes"></textarea>
+      </label>
+    </div>
+  </form>
+  <div class="drawer-foot">
+    <button type="button" class="btn btn-outline" (click)="close()">Cancel</button>
+    <button type="submit" form="wo-form" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving...' : workOrder() ? 'Save Changes' : 'Create Work Order' }}</button>
+  </div>
+</aside>

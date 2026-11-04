@@ -1,0 +1,140 @@
+<section class="ip-page" (click)="closeMenus()">
+  <header class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span>/</span><span class="current">Plans &amp; Schedule</span>
+      </nav>
+      <h1>Inspection Plan &amp; Schedule</h1>
+      <p class="subtitle">Manage recurring inspection plans, upcoming inspections and inspector availability.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export</button>
+      <a class="btn btn-accent-outline" routerLink="/inspection/new"><lucide-icon [img]="icons.CalendarPlus" [size]="17"></lucide-icon>Schedule Inspection</a>
+      <button type="button" class="btn btn-primary" (click)="openNew()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>New Plan</button>
+    </div>
+  </header>
+
+  @if (plans.error(); as err) { <div class="alert">Plans: {{ err }}</div> }
+  @if (inspections.error(); as err) { <div class="alert">Inspections: {{ err }}</div> }
+
+  <div class="kpis">
+    <button type="button" class="kpi" (click)="statusFilter.set('Active')">
+      <span class="kpi-ic"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Active Plans</span><span class="kpi-value">{{ kpis().active }}</span></span>
+    </button>
+    <div class="kpi">
+      <span class="kpi-ic kpi-ic--blue"><lucide-icon [img]="icons.CalendarDays" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Due This Week</span><span class="kpi-value">{{ kpis().dueWeek }}</span></span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.CircleAlert" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Overdue</span><span class="kpi-value c-bad">{{ kpis().overdue }}</span></span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.Users" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Unassigned</span><span class="kpi-value">{{ kpis().unassigned }}</span></span>
+    </div>
+  </div>
+
+  <div class="ps-grid">
+    <!-- Plans list -->
+    <section class="card">
+      <div class="card-head"><h2>Inspection Plans</h2></div>
+      <div class="filters">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" placeholder="Search plans by name, code or category..." [ngModel]="search()" (ngModelChange)="search.set($event)" />
+        </label>
+        <select class="control status-sel" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)" aria-label="Status">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="All">All statuses</option>
+        </select>
+      </div>
+
+      <div class="plan-list">
+        @if (plans.loading()) {
+          <div class="empty">Loading plans...</div>
+        } @else {
+          @for (p of visible(); track p.id; let i = $index) {
+            <article class="plan" [class.is-selected]="p.id === selectedId()" (click)="selectedId.set(p.id)">
+              <div class="plan-top">
+                <span class="plan-ic" [class]="'plan-ic plan-ic--' + (i % 4)"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon></span>
+                <div class="grow">
+                  <div class="plan-name">{{ p.planName }}</div>
+                  <div class="muted">{{ p.planCode }} • {{ p.category || p.inspectionTypeName }} • {{ p.frequency }}</div>
+                </div>
+                <span [class]="pillClass(planStatus(p))"><span class="dot"></span>{{ planStatus(p) }}</span>
+                <div class="menu-wrap">
+                  <button type="button" class="icon-btn" aria-label="Plan actions" (click)="toggleMenu(p.id, $event)"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
+                  @if (menuId() === p.id) {
+                    <div class="menu" (click)="$event.stopPropagation()">
+                      <button type="button" (click)="edit(p)">Edit</button>
+                      <button type="button" (click)="toggleActive(p)">{{ isActive(p) ? 'Deactivate' : 'Activate' }}</button>
+                      <button type="button" class="c-bad" (click)="askDelete(p)">Delete</button>
+                    </div>
+                  }
+                </div>
+              </div>
+              <div class="plan-meta">
+                <span class="meta"><lucide-icon [img]="icons.Layers" [size]="16"></lucide-icon>{{ p.assetCount }} assets</span>
+                <span class="meta"><lucide-icon [img]="icons.CalendarDays" [size]="16"></lucide-icon><span><small>Next due</small>{{ fmtDate(p.nextDueDate) || '—' }}</span></span>
+                <span class="meta"><lucide-icon [img]="icons.User" [size]="16"></lucide-icon><span><small>Inspector</small>{{ p.inspectorName || 'Unassigned' }}</span></span>
+              </div>
+              @if (confirmDeleteId() === p.id) {
+                <div class="confirm" (click)="$event.stopPropagation()">
+                  <span class="grow">Delete {{ p.planCode || p.planName }}? This cannot be undone.</span>
+                  <button type="button" class="btn btn-sm btn-outline" (click)="confirmDeleteId.set(null)">Cancel</button>
+                  <button type="button" class="btn btn-sm btn-danger" (click)="remove(p)">Delete</button>
+                </div>
+              }
+            </article>
+          } @empty {
+            <div class="empty">{{ plans.items().length ? 'No plans match the current filters.' : 'No inspection plans yet. Create one with New Plan.' }}</div>
+          }
+        }
+      </div>
+      @if (filtered().length > 4) {
+        <button type="button" class="link view-all" (click)="showAll.set(!showAll())">
+          {{ showAll() ? 'Show fewer plans' : 'View all ' + filtered().length + ' plans' }} ›
+        </button>
+      }
+    </section>
+
+    <!-- Calendar -->
+    <app-insp-schedule-calendar [inspections]="inspections.items()" [loading]="inspections.loading()"></app-insp-schedule-calendar>
+  </div>
+
+  @if (selected(); as s) {
+    <footer class="footer-bar summary">
+      <span class="plan-ic plan-ic--0"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon></span>
+      <div class="sum-name">
+        <div class="plan-name">{{ s.planName }}</div>
+        <div class="muted">{{ s.planCode }} • {{ s.category || s.inspectionTypeName }}</div>
+      </div>
+      <div class="sum-item"><small>Frequency</small><span>{{ s.frequency || '—' }}</span></div>
+      <div class="sum-item"><small>Scope</small><span>{{ s.assetCount }} assets</span></div>
+      <div class="sum-item"><small>Checklist</small><span>{{ s.checklistName || s.checklistCode || '—' }}</span></div>
+      <div class="sum-item"><small>Lead time</small><span>{{ s.leadTimeDays }} days</span></div>
+      <div class="sum-item">
+        <small>Auto-generate inspections</small>
+        <span class="row">
+          <label class="toggle"><input type="checkbox" [checked]="s.autoGenerate" (change)="setAutoGenerate(s, $any($event.target).checked)" /><span></span></label>
+          {{ s.autoGenerate ? 'On' : 'Off' }}
+        </span>
+      </div>
+      <button type="button" class="link edit-plan" (click)="edit(s)"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>Edit Plan</button>
+    </footer>
+  }
+
+  @if (drawerOpen()) {
+    <app-insp-plan-form-drawer
+      [plan]="editing()"
+      [people]="people()"
+      (saved)="onSaved($event)"
+      (closed)="drawerOpen.set(false)"
+    ></app-insp-plan-form-drawer>
+  }
+
+  @if (toast(); as t) { <div class="toast">{{ t }}</div> }
+</section>

@@ -573,6 +573,7 @@ select.control {
 .type-pill.type--connected { background: #efeafe; color: #5b21b6; }
 .type-pill.type--supporting { background: #fef6d8; color: #a16207; }
 .type-pill.type--component { background: #fdece6; color: #c2410c; }
+.type-pill.type--sub { background: #e0f4f8; color: #0e7490; }
 
 /* ============ Diagram ============ */
 .rel-body {
@@ -722,6 +723,7 @@ button.node:hover {
 .node-icon.type--connected { background: #efeafe; color: #5b21b6; }
 .node-icon.type--supporting { background: #fef6d8; color: #a16207; }
 .node-icon.type--component { background: #fdece6; color: #c2410c; }
+.node-icon.type--sub { background: #e0f4f8; color: #0e7490; }
 
 .node-text {
   display: flex;
@@ -772,6 +774,7 @@ button.node:hover {
 .details-img.type--connected { background: #efeafe; color: #5b21b6; }
 .details-img.type--supporting { background: #fef6d8; color: #a16207; }
 .details-img.type--component { background: #fdece6; color: #c2410c; }
+.details-img.type--sub { background: #e0f4f8; color: #0e7490; }
 
 .details-top h4 {
   margin: 0;

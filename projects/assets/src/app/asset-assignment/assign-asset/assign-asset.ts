@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnDestroy, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -53,11 +53,15 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
+import { Observable, finalize, forkJoin, map, of, switchMap } from 'rxjs';
+import { apiErrorMessage } from '../../services/asset-api';
 import {
-  ASSIGN_DRAFT, ASSIGNMENTS, Assignment, AssignmentType, AssetKind, CURRENT_ROLE, CURRENT_USER, DEPARTMENT_MANAGERS, DepartmentManager, EMPLOYEES, ENTITIES, ENTITY_KINDS,
-  EntityKind, LOCATION_DETAILS, LocationDetails, PoolAsset, STORE_LOCATION, TARGET_LABELS, UNASSIGNED_ASSETS, assetFacts, assigneeChoices, assigneeDetails, isoDate, stamp,
-  BUILDINGS, COST_CENTERS, Employee, FLOORS, ROOMS, SITES, SITE_TREE, SiteNode,
+  Assignment, AssignmentType, AssetKind, COST_CENTERS, DepartmentManager, ENTITIES, ENTITY_KINDS, EntityKind, LocationDetails, SiteNode, TARGET_LABELS, isoDate,
 } from '../asset-assignment-data';
+import {
+  AssetAssignmentDto, AssetAssignmentRequest, AssetAssignmentService, AssignmentAttachmentDto, AssignmentLookups, EMPTY_LOOKUPS, LookupEmployee, PoolItem,
+  assignToOf, choicesFor, dayOf, departmentRequest, employeeRequest, locationFrom, siteTreeOf, toRows, typeOf, uniqueSorted,
+} from '../asset-assignment.service';
 
 type SelectMode = 'single' | 'multiple' | 'scan';
 type ScanSource = 'camera' | 'external';
@@ -76,12 +80,17 @@ interface Attachment {
   size: number;
   /** "YYYY-MM-DD" */
   added: string;
-  file: File;
+  /** A file picked now; uploaded when the assignment is saved. */
+  file?: File;
+  /** A file already uploaded (reopened draft). */
+  stored?: AssignmentAttachmentDto;
 }
 
 /** The Assign Asset wizard state. */
 interface Wizard {
   step: number;
+  /** The saved draft being continued, if any. */
+  draftId?: string;
   /** Tags of the assets being assigned. */
   tags: string[];
   selectMode: SelectMode;
@@ -129,13 +138,11 @@ interface Wizard {
   customReason: string;
 }
 
-/** Pool asset with its current assignment and the facts shown when it's scanned or picked. */
-interface PoolRow extends PoolAsset {
+/** Registered asset with its current assignment and the facts shown when it's scanned or picked. */
+interface PoolRow extends PoolItem {
   current?: Assignment;
   brand: string;
   model: string;
-  category: string;
-  location: string;
 }
 
 /** Browser barcode reader (Chrome / Edge / Android); not in the TypeScript DOM types yet. */
@@ -155,13 +162,14 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
   templateUrl: './assign-asset.html',
   styleUrls: ['../asset-assignment.css', '../asset-assignment-table.css', './assign-asset.css'],
 })
-export class AssignAsset implements OnDestroy {
+export class AssignAsset implements OnInit, OnDestroy {
   readonly icons = {
     ArrowLeft, ArrowLeftRight, ArrowRight, Barcode, Bell, Building2, CalendarClock, CalendarDays, Camera, ChevronDown, ChevronLeft, ChevronRight, EllipsisVertical, ListFilter, Check, CircleCheck, CloudUpload, Download, FileSpreadsheet, FileText, Hexagon,
     ImageIcon, Info, Keyboard, LayoutGrid, Layers, Mail, MapPin, Paperclip, Pencil, Phone, Plus, ScanLine, Search, Settings, UserRound, Wrench, X, Zap,
   };
   readonly kindIcons: Record<AssetKind, typeof Laptop> = {
     laptop: Laptop, phone: Smartphone, scanner: ScanBarcode, projector: Projector, forklift: Forklift, tool: Wrench, card: CreditCard, monitor: Monitor, tablet: Tablet, camera: Cctv,
+    other: Hexagon,
   };
   readonly assignmentTypes: AssignmentType[] = ['Employee', 'Department', 'Location', 'Other'];
   readonly targetLabels = TARGET_LABELS;
@@ -178,23 +186,19 @@ export class AssignAsset implements OnDestroy {
     { title: 'Review & Confirm', sub: 'Verify and assign' },
   ];
   readonly reasons = ['Operational Use', 'Repair / Service', 'New Joiner', 'Project Work', 'Replacement', 'Temporary Use', 'Relocation', 'Calibration', 'Other'];
-  readonly costCenters = COST_CENTERS;
-  readonly sites = SITES;
-  readonly buildings = BUILDINGS;
-  readonly floors = FLOORS;
-  readonly rooms = ROOMS;
-  readonly siteTree = SITE_TREE;
   readonly serviceTypes = ['AMC Support', 'Warranty Repair', 'Calibration', 'Upgrade', 'Inspection', 'Installation'];
   readonly returnConditions = ['Same as Assigned', 'Serviced / Repaired', 'Upgraded', 'Not Applicable'];
   readonly priorities = ['Low', 'Normal', 'High', 'Urgent'];
-  readonly requestors = [CURRENT_USER, ...EMPLOYEES.map((e) => e.name)];
   readonly acceptAttr = ACCEPTED_FILES.map((x) => '.' + x).join(',');
   readonly remarksMax = 500;
-  readonly assigneeChoices = assigneeChoices;
 
-  /** DEMO MODE: shared in-memory store, so assignments made here show in the list. */
-  readonly assignments: Assignment[] = ASSIGNMENTS;
-  readonly wizard: Wizard;
+  /** Registered assets, with the active assignment each is in. */
+  pool: PoolRow[] = [];
+  lookups: AssignmentLookups = EMPTY_LOOKUPS;
+  siteTree: SiteNode[] = [];
+  loading = false;
+  loadError = '';
+  wizard: Wizard;
   wizardError = '';
   saving = false;
   fileError = '';
@@ -238,37 +242,131 @@ export class AssignAsset implements OnDestroy {
   }
 
   private readonly router = inject(Router);
+  private readonly api = inject(AssetAssignmentService);
+  /** Page opened with ?type= or ?assets=; a saved draft is not restored then. */
+  private readonly preset: boolean;
 
   constructor() {
     // ?type=Department preselects the target, ?assets=IT-000456,IT-000457 the assets
     const query = inject(ActivatedRoute).snapshot.queryParamMap;
     const type = query.get('type') as AssignmentType | null;
-    const tags = (query.get('assets') ?? '').split(',').filter((t) => this.pool.some((p) => p.tag === t));
-    const draft = ASSIGN_DRAFT.value as Wizard | undefined;
-    if (draft && !type && !tags.length) {
-      this.wizard = { ...draft, files: [...draft.files] };
-      ASSIGN_DRAFT.value = undefined;
-    } else if ((!type || type === 'Employee') && !tags.length) {
-      this.wizard = this.demoWizard();
-    } else {
-      this.wizard = this.newWizard(type && this.assignmentTypes.includes(type) ? type : 'Employee', tags);
-    }
+    const tags = (query.get('assets') ?? '').split(',').filter(Boolean);
+    this.preset = !!type || !!tags.length;
+    this.wizard = this.newWizard(type && this.assignmentTypes.includes(type) ? type : 'Employee', tags);
   }
 
-  /** DEMO MODE: opening the page directly prefills a laptop assignment to Arjun Mehta. */
-  private demoWizard(): Wizard {
-    const tag = 'IT-000457';
-    const w: Wizard = {
-      ...this.newWizard('Employee', []),
-      tags: this.pool.some((p) => p.tag === tag) ? [tag] : [],
-      reason: 'New Joiner',
-      approvalRef: 'HR-2025-0012',
-      from: '2025-01-01',
-      openEnded: true,
-      remarks: 'Assigned to Arjun Mehta for IT operations. Includes laptop, charger and carrying case.',
+  /** Loads the assets, the assignments they are in, master data and (when opened plainly) the user's last draft. */
+  ngOnInit(): void {
+    this.loading = true;
+    forkJoin({ assets: this.api.listAssets(), assignments: this.api.listAll(), lookups: this.api.lookups() })
+      .pipe(finalize(() => (this.loading = false)))
+      .subscribe({
+        next: ({ assets, assignments, lookups }) => {
+          this.lookups = lookups;
+          this.siteTree = siteTreeOf(lookups);
+          if (this.siteTree[0]) this.openNodes.add(this.siteTree[0].name);
+          this.pool = this.buildPool(assets, assignments);
+          const w = this.wizard;
+          w.tags = w.tags.filter((t) => this.pool.some((p) => p.tag === t));
+          if (w.step === 2 && !w.tags.length) w.step = 1;
+          if (!w.reference) w.reference = `ASSIGN-${new Date().getFullYear()}-${String(assignments.length + 1).padStart(3, '0')}`;
+          if (!w.requestor) w.requestor = this.requestors[0] ?? '';
+          const user = this.api.user;
+          const draft = this.preset ? undefined : assignments.find((d) => /^draft$/i.test(d.status ?? '') && (!user || d.createdBy === user));
+          if (draft) {
+            this.wizard = this.fromDraft(draft);
+            if (this.wizard.target === 'Employee' && this.wizard.assignee) this.fillSiteFrom(this.wizard, this.wizard.assignee, false);
+          }
+        },
+        error: (err) => (this.loadError = apiErrorMessage(err, 'Assets could not be loaded.')),
+      });
+  }
+
+  /** Assets with the active assignment each is in, and the brand / model shown when picked. */
+  private buildPool(assets: PoolItem[], assignments: AssetAssignmentDto[]): PoolRow[] {
+    const current = new Map<string, Assignment>();
+    for (const d of assignments) {
+      if (!/^active$/i.test(d.status ?? '')) continue;
+      for (const row of toRows(d)) if (!current.has(row.assetRegistrationId)) current.set(row.assetRegistrationId, row);
+    }
+    return assets.map((a) => this.poolRow(a, current.get(a.assetRegistrationId)));
+  }
+
+  private poolRow(a: PoolItem, current?: Assignment): PoolRow {
+    const [first, ...rest] = a.assetName.split(' ');
+    return {
+      ...a, current, serial: a.serial || current?.serial || '', brand: a.manufacturer || first, model: a.manufacturer ? a.assetName : rest.join(' ') || a.assetName,
+      category: a.category || a.assetType, location: current?.location || a.location || '—',
     };
-    this.fillSiteFrom(w, 'Arjun Mehta');
-    return w;
+  }
+
+  /** The wizard as it was saved with Save as Draft. */
+  private fromDraft(d: AssetAssignmentDto): Wizard {
+    const target = d.assignTo ? typeOf(d.assignTo) : 'Employee';
+    const l = d.location;
+    const e = d.otherEntity;
+    const mode = (d.selectionMode ?? '').toLowerCase();
+    const assignee =
+      target === 'Employee' ? d.employee?.employeeName ?? '' : target === 'Department' ? d.department?.departmentName ?? '' : target === 'Location' ? (l?.buildingName ? `${l.siteName} - ${l.buildingName}` : l?.siteName ?? '') : '';
+    const base = this.newWizard(target, (d.assets ?? []).map((a) => a.assetTag || a.assetRegistrationId));
+    return {
+      ...base,
+      step: 1, draftId: d.id, selectMode: mode === 'multiple' || mode === 'scan' ? mode : base.selectMode, assignee,
+      entityKind: (ENTITY_KINDS.find((k) => k === e?.entityType) ?? base.entityKind), entity: e?.entityName ?? '', contact: e?.contactPerson ?? '', phone: e?.contactPhone ?? '',
+      email: e?.contactEmail ?? '', agreement: e?.agreementReference ?? '', approvalRef: d.approvalReference ?? '', costCenter: d.costCenter ?? '', site: l?.siteName ?? '',
+      building: l?.buildingName ?? '', floor: l?.floorName ?? '', room: l?.roomName ?? '', reason: d.purpose ?? e?.reason ?? '', transfer: d.assignmentType || base.transfer,
+      from: dayOf(d.fromDate) || base.from, to: dayOf(d.toDate), openEnded: d.isOpenEnded, serviceType: e?.serviceType ?? '', workOrder: e?.serviceRequestNumber ?? '',
+      serviceLocation: e?.serviceLocation ?? '', expectedReturn: dayOf(e?.expectedReturnDate), returnCondition: e?.returnCondition || base.returnCondition,
+      responsible: e?.responsiblePerson?.name ?? '', remarks: d.remarks ?? '', notes: d.notes ?? '',
+      files: (d.attachments ?? []).map((a) => ({ name: a.fileName, size: a.fileSize ?? 0, added: dayOf(d.updatedAt ?? d.createdAt), stored: a })),
+      notify: d.notification?.notifyAssignees ?? base.notify, notifyMessage: d.notification?.message ?? base.notifyMessage, notifyManager: d.notification?.notifyManager ?? base.notifyManager,
+      notifyDepartment: d.notification?.notifyDepartment ?? false, reminder: d.reminder?.isEnabled ?? false, reminderDate: dayOf(d.reminder?.reminderDate), reminderMessage: d.reminder?.message ?? '',
+      reference: d.customFields?.assignmentReference ?? '', requestor: d.customFields?.requestorName ?? base.requestor, priority: d.customFields?.priority || base.priority,
+      customReason: d.customFields?.assignmentReason ?? '',
+    };
+  }
+
+  // ===== Master data choices =====
+
+  assigneeChoices(type: AssignmentType): string[] {
+    return choicesFor(this.lookups, type, ENTITIES.map((e) => e.name));
+  }
+
+  get costCenters(): string[] {
+    return uniqueSorted([...COST_CENTERS, ...this.lookups.employees.map((e) => e.costCenter), this.wizard.costCenter]);
+  }
+
+  get sites(): string[] {
+    return uniqueSorted([...this.lookups.sites.map((x) => x.name), this.wizard.site]);
+  }
+
+  private get siteId(): string | undefined {
+    return this.lookups.sites.find((x) => x.name === this.wizard.site)?.id;
+  }
+
+  /** Buildings of the chosen site (all when none is chosen). */
+  get buildings(): string[] {
+    const id = this.siteId;
+    return uniqueSorted([...this.lookups.buildings.filter((b) => !id || !b.siteId || b.siteId === id).map((b) => b.name), this.wizard.building]);
+  }
+
+  get floors(): string[] {
+    const w = this.wizard;
+    const id = this.siteId;
+    return uniqueSorted([...this.lookups.floors.filter((f) => (!id || !f.siteId || f.siteId === id) && (!w.building || !f.buildingName || f.buildingName === w.building)).map((f) => f.name), w.floor]);
+  }
+
+  get rooms(): string[] {
+    const w = this.wizard;
+    const id = this.siteId;
+    return uniqueSorted([
+      ...this.lookups.rooms.filter((r) => (!id || !r.siteId || r.siteId === id) && (!w.building || !r.buildingName || r.buildingName === w.building) && (!w.floor || !r.floorName || r.floorName === w.floor)).map((r) => r.name),
+      w.room,
+    ]);
+  }
+
+  get requestors(): string[] {
+    return uniqueSorted([this.api.user, ...this.lookups.employees.map((e) => e.name)]);
   }
 
   ngOnDestroy(): void {
@@ -276,33 +374,17 @@ export class AssignAsset implements OnDestroy {
   }
 
   private newWizard(target: AssignmentType, tags: string[]): Wizard {
-    const year = new Date().getFullYear();
     return {
       step: tags.length ? 2 : 1, tags, selectMode: tags.length > 1 ? 'multiple' : 'single', assetSearch: '', target, assignee: '', entityKind: 'Vendor / Supplier', entity: '',
       contact: '', phone: '', email: '', agreement: '', approvalRef: '', costCenter: '', site: '', building: '', floor: '', room: '', reason: '', transfer: TRANSFER_TYPES[target][0], from: isoDate(new Date()),
       to: '', openEnded: target !== 'Other', serviceType: '', workOrder: '', serviceLocation: '', expectedReturn: '', returnCondition: 'Same as Assigned', responsible: '',
       remarks: '', notes: '', files: [], notify: true, notifyMessage: 'Your asset(s) have been assigned to you. Please check the details in Asset360.', notifyManager: true,
-      notifyDepartment: false, reminder: false, reminderDate: '', reminderMessage: '', reference: `ASSIGN-${year}-${String(this.assignments.length + 1).padStart(3, '0')}`,
-      requestor: CURRENT_USER, priority: 'Normal', customReason: '',
+      notifyDepartment: false, reminder: false, reminderDate: '', reminderMessage: '', reference: '',
+      requestor: this.api.user, priority: 'Normal', customReason: '',
     };
   }
 
   // ===== Asset selection =====
-
-  /** Every known asset: those in the assignment list plus unassigned stock. */
-  get pool(): PoolRow[] {
-    const rows = new Map<string, PoolRow>();
-    const row = (a: PoolAsset, current?: Assignment): PoolRow => ({
-      assetName: a.assetName, assetType: a.assetType, kind: a.kind, tag: a.tag, serial: a.serial, current, ...assetFacts(a), location: current?.location || STORE_LOCATION,
-    });
-    for (const a of this.assignments) {
-      const current = a.status === 'Returned' ? undefined : a;
-      const known = rows.get(a.tag);
-      if (!known || (!known.current && current)) rows.set(a.tag, row(a, current));
-    }
-    for (const u of UNASSIGNED_ASSETS) if (!rows.has(u.tag)) rows.set(u.tag, row(u));
-    return [...rows.values()];
-  }
 
   get poolFiltered(): PoolRow[] {
     const q = this.wizard.assetSearch.trim().toLowerCase();
@@ -489,13 +571,26 @@ export class AssignAsset implements OnDestroy {
   /** A code read by the camera, an uploaded image, the external scanner or typed in. */
   onCode(code: string): void {
     const p = this.lookup(code);
-    if (!p) {
-      this.found = null;
-      this.scanError = `No asset found for "${code.trim()}".`;
+    if (p) {
+      this.scanError = '';
+      this.found = p;
       return;
     }
+    // Not a known tag: ask the API (matches serial numbers, which the asset list does not return)
+    const c = code.trim();
+    this.found = null;
     this.scanError = '';
-    this.found = p;
+    this.api.searchAssets(c).subscribe({
+      next: (items) => {
+        const hit = items.length === 1 ? items[0] : items.find((i) => i.tag.toLowerCase() === c.toLowerCase());
+        const row = hit && (this.pool.find((x) => x.assetRegistrationId === hit.assetRegistrationId) ?? this.poolRow({ ...hit, serial: c }));
+        if (!row) return void (this.scanError = `No asset found for "${c}".`);
+        if (!row.serial) row.serial = c;
+        if (!this.pool.includes(row)) this.pool = [...this.pool, row];
+        this.found = row;
+      },
+      error: (err) => (this.scanError = apiErrorMessage(err, `No asset found for "${c}".`)),
+    });
   }
 
   submitManual(): void {
@@ -615,13 +710,18 @@ export class AssignAsset implements OnDestroy {
     return TRANSFER_TYPES[this.wizard.target];
   }
 
-  get employee(): Employee | undefined {
+  get employee(): LookupEmployee | undefined {
     const w = this.wizard;
-    return w.target === 'Employee' ? EMPLOYEES.find((e) => e.name === w.assignee) : undefined;
+    return w.target === 'Employee' ? this.lookups.employees.find((e) => e.name === w.assignee) : undefined;
   }
 
-  /** Manager shown next to the employee or department. */
+  /** Manager shown next to the employee (their reporting manager) or the department (its head). */
   get manager(): DepartmentManager | undefined {
+    const e = this.employee;
+    if (e?.managerId || e?.managerName) {
+      const m = this.lookups.employees.find((x) => x.mdmId === e.managerId);
+      return { name: m?.name || e.managerName, id: m?.id ?? '', title: m?.title ?? '', location: m?.location ?? '' };
+    }
     return this.reviewDepartment?.manager;
   }
 
@@ -634,16 +734,18 @@ export class AssignAsset implements OnDestroy {
     this.fillSiteFrom(w, name);
   }
 
-  private fillSiteFrom(w: Wizard, name: string): void {
+  /** The employee's site and cost center, or the department head's site, fill the site fields (only empty ones when `overwrite` is false). */
+  private fillSiteFrom(w: Wizard, name: string, overwrite = true): void {
     w.assignee = name;
-    const where = w.target === 'Employee' ? EMPLOYEES.find((e) => e.name === name)?.location : w.target === 'Department' ? DEPARTMENT_MANAGERS[name]?.location : undefined;
-    const d = where ? LOCATION_DETAILS[where] : undefined;
-    if (!d) return;
-    w.costCenter = d.costCenter;
-    w.site = d.site;
-    w.building = d.building;
-    w.floor = d.floor;
-    w.room = d.room;
+    const e = w.target === 'Employee' ? this.lookups.employees.find((x) => x.name === name) : undefined;
+    const site = e?.location || (w.target === 'Department' ? this.lookups.departments.find((d) => d.name === name)?.manager?.location : '') || '';
+    const d: LocationDetails = { site: this.lookups.sites.find((x) => x.name === site || x.code === site)?.name ?? site, building: '', floor: '', room: '', costCenter: e?.costCenter ?? '' };
+    if (!d.site && !d.costCenter) return;
+    if (overwrite || !w.costCenter) w.costCenter = d.costCenter || w.costCenter;
+    if (d.site && (overwrite || !w.site)) {
+      if (w.site !== d.site) w.building = w.floor = w.room = '';
+      w.site = d.site;
+    }
   }
 
   // ===== Location / site picker =====
@@ -754,8 +856,8 @@ export class AssignAsset implements OnDestroy {
   /** Department the assets end up with (the employee's, or the department assigned to). */
   get reviewDepartment(): { name: string; manager?: DepartmentManager } | null {
     const w = this.wizard;
-    const name = w.target === 'Department' ? w.assignee : w.target === 'Employee' ? EMPLOYEES.find((e) => e.name === w.assignee)?.department : '';
-    return name ? { name, manager: DEPARTMENT_MANAGERS[name] } : null;
+    const name = w.target === 'Department' ? w.assignee : w.target === 'Employee' ? this.employee?.department : '';
+    return name ? { name, manager: this.lookups.departments.find((d) => d.name === name)?.manager } : null;
   }
 
   /** Where the assets end up, as entered on the Assignment Details step. */
@@ -951,6 +1053,10 @@ export class AssignAsset implements OnDestroy {
   }
 
   downloadFile(a: Attachment): void {
+    if (!a.file) {
+      if (a.stored?.fileUrl) window.open(a.stored.fileUrl, '_blank', 'noopener');
+      return;
+    }
     const url = URL.createObjectURL(a.file);
     const link = document.createElement('a');
     link.href = url;
@@ -978,14 +1084,19 @@ export class AssignAsset implements OnDestroy {
 
   // ===== Save =====
 
-  /** Keeps the wizard as it is and returns to the list; the page reopens with it next time. */
+  /** Saves the wizard as a draft on the server and returns to the list; the page reopens with it next time. */
   saveDraft(): void {
-    this.stopCamera();
-    ASSIGN_DRAFT.value = { ...this.wizard, files: [...this.wizard.files] };
-    this.router.navigate(['/assets/assignment'], { state: { toast: 'Assignment saved as draft.' } });
+    const w = this.wizard;
+    if (this.saving) return;
+    if (!w.tags.length) {
+      w.step = 1;
+      this.wizardError = 'Select at least one asset.';
+      return;
+    }
+    this.save(true, 'Assignment saved as draft.');
   }
 
-  /** Creates the assignments; assets already assigned elsewhere are handed over (their old assignment ends). */
+  /** Creates the assignment; assets already assigned elsewhere are handed over (their old assignment ends). */
   confirmWizard(): void {
     const w = this.wizard;
     if (this.saving) return;
@@ -997,57 +1108,88 @@ export class AssignAsset implements OnDestroy {
         return;
       }
     }
+    const lookupError = this.targetError();
+    if (lookupError) {
+      w.step = 2;
+      this.wizardError = lookupError;
+      return;
+    }
+    const n = w.tags.length;
+    this.save(false, `${n} asset${n === 1 ? '' : 's'} assigned to ${this.wizardAssignee}.`);
+  }
+
+  /** The picked employee, department or site must exist in master data, since the API stores its id. */
+  private targetError(): string {
+    const w = this.wizard;
+    if (w.target === 'Employee' && !this.employee) return `Employee '${w.assignee}' was not found in master data.`;
+    if (w.target === 'Department' && !this.lookups.departments.some((d) => d.name === w.assignee)) return `Department '${w.assignee}' was not found in master data.`;
+    if (w.target === 'Location' && !this.lookups.sites.some((x) => x.name === w.site)) return `Site '${w.site}' was not found in master data.`;
+    return '';
+  }
+
+  /** Uploads new attachments, ends the handed-over assets' assignments (when confirming), then creates or updates the assignment. */
+  private save(draft: boolean, message: string): void {
+    const w = this.wizard;
     this.saving = true;
-    const now = stamp(new Date());
-    const target = assigneeDetails(w.target, this.wizardAssignee);
-    if (w.target === 'Other') target.assigneeSub = w.entityKind;
-    const extra = [
-      { label: 'Assignment Type', value: w.transfer },
-      { label: 'Purpose', value: w.reason },
-      { label: 'Approval Reference', value: w.approvalRef },
-      { label: 'Cost Center', value: w.costCenter },
-      { label: 'Site', value: [w.site, w.building, w.floor, w.room].filter(Boolean).join(' · ') },
-      { label: 'Reference', value: w.reference },
-      { label: 'Requestor', value: w.requestor },
-      { label: 'Priority', value: w.priority },
-      { label: 'Assignment Reason', value: w.customReason },
-      { label: 'Notifications', value: this.notifyLabel },
-      { label: 'Reminder', value: w.reminder ? `${w.reminderDate}${w.reminderMessage ? ` · ${w.reminderMessage}` : ''}` : '' },
-      { label: 'Documents', value: w.files.map((f) => f.name).join(', ') },
-    ];
-    if (w.target === 'Other') {
-      extra.push(
-        { label: w.entityKind, value: w.entity },
-        { label: 'Contact Person', value: w.contact },
-        { label: 'Phone', value: w.phone },
-        { label: 'Email', value: w.email },
-        { label: 'Agreement / PO', value: w.agreement },
-        { label: 'Service Type', value: w.serviceType },
-        { label: 'Service Request', value: w.workOrder },
-        { label: 'Service Location', value: w.serviceLocation },
-        { label: 'Expected Return', value: w.expectedReturn },
-        { label: 'Return Condition', value: w.returnCondition },
-        { label: 'Responsible', value: w.responsible },
-      );
-    }
-    const kept = extra.filter((r) => r.value);
-    let id = Math.max(0, ...this.assignments.map((a) => a.id));
-    const created: Assignment[] = [];
-    for (const p of this.chosen) {
-      if (p.current) {
-        p.current.history.push({ at: now, action: 'Assignment ended', by: CURRENT_USER, note: `Handed over to ${target.assignee}` });
-        p.current.status = 'Returned';
-        p.current.to = isoDate(new Date());
-      }
-      created.push({
-        id: ++id, assetName: p.assetName, assetType: p.assetType, kind: p.kind, tag: p.tag, serial: p.serial, type: w.target, ...target, from: w.from, to: w.openEnded ? '' : w.to,
-        status: 'Assigned', assignedBy: CURRENT_USER, assignedByRole: CURRENT_ROLE, assignedOn: now, remarks: [w.remarks.trim(), w.notes.trim()].filter(Boolean).join('\n'),
-        extra: kept, history: [{ at: now, action: 'Assigned', by: CURRENT_USER, note: `Assigned to ${target.assignee}${p.current ? ` (from ${p.current.assignee})` : ''}` }],
+    this.wizardError = '';
+    const uploads: Observable<AssignmentAttachmentDto>[] = w.files.map((f) => (f.stored ? of(f.stored) : this.api.uploadFile(f.file!)));
+    const handovers = draft ? [] : this.chosen.filter((p) => p.current && p.current.assignmentId !== w.draftId).map((p) => p.current!);
+    (uploads.length ? forkJoin(uploads) : of([] as AssignmentAttachmentDto[]))
+      .pipe(
+        map((attachments) => this.buildRequest(attachments)),
+        switchMap((request) => this.api.returnRows(handovers, `Handed over to ${this.wizardAssignee}`).pipe(map(() => request))),
+        switchMap((request) => (w.draftId ? this.api.update(w.draftId, request, draft) : this.api.create(request, draft))),
+        finalize(() => (this.saving = false)),
+      )
+      .subscribe({
+        next: () => {
+          this.stopCamera();
+          this.router.navigate(['/assets/assignment'], { state: { toast: message } });
+        },
+        error: (err) => (this.wizardError = apiErrorMessage(err, 'The assignment could not be saved.')),
       });
-    }
-    this.assignments.unshift(...created);
-    this.stopCamera();
-    const n = created.length;
-    this.router.navigate(['/assets/assignment'], { state: { toast: `${n} asset${n === 1 ? '' : 's'} assigned to ${target.assignee}.` } });
+  }
+
+  /** The wizard as an API request. */
+  private buildRequest(attachments: AssignmentAttachmentDto[]): AssetAssignmentRequest {
+    const w = this.wizard;
+    const text = (v: string) => v.trim() || null;
+    const requestor = this.lookups.employees.find((e) => e.name === w.requestor);
+    const manager = this.manager;
+    const employee = w.target === 'Employee' ? employeeRequest(this.employee, w.assignee) : null;
+    if (employee && manager && !employee.manager) employee.manager = { id: null, code: manager.id || null, name: manager.name, designation: manager.title || null };
+    return {
+      selectionMode: w.selectMode === 'multiple' ? 'Multiple' : w.selectMode === 'scan' ? 'Scan' : 'Single',
+      assetRegistrationIds: this.chosen.map((p) => p.assetRegistrationId),
+      assignTo: assignToOf(w.target),
+      assignmentType: text(w.transfer),
+      fromDate: w.from || null,
+      toDate: w.openEnded ? null : w.to || null,
+      isOpenEnded: w.openEnded,
+      employee,
+      department: w.target === 'Department' ? departmentRequest(this.lookups.departments.find((d) => d.name === w.assignee), w.assignee) : null,
+      otherEntity:
+        w.target === 'Other'
+          ? {
+              entityType: w.entityKind, entityId: null, entityName: w.entity, contactPerson: text(w.contact), contactPhone: text(w.phone), contactEmail: text(w.email),
+              agreementReference: text(w.agreement), reason: text(w.reason), serviceType: text(w.serviceType), serviceRequestNumber: text(w.workOrder),
+              serviceLocation: text(w.serviceLocation), expectedReturnDate: w.expectedReturn || null, returnCondition: text(w.returnCondition),
+              responsiblePerson: w.responsible.trim() ? { id: null, code: null, name: w.responsible.trim(), designation: null } : null,
+            }
+          : null,
+      location: w.target === 'Other' ? null : locationFrom(this.lookups, { site: w.site, building: w.building, floor: w.floor, room: w.room }),
+      costCenter: text(w.costCenter),
+      purpose: text(w.reason),
+      approvalReference: text(w.approvalRef),
+      remarks: text(w.remarks),
+      notes: text(w.notes),
+      attachments,
+      notification: { notifyAssignees: w.notify, message: w.notify ? text(w.notifyMessage) : null, notifyManager: w.notifyManager, notifyDepartment: w.notifyDepartment },
+      reminder: { isEnabled: w.reminder, reminderDate: w.reminder ? w.reminderDate || null : null, message: w.reminder ? text(w.reminderMessage) : null },
+      customFields: { assignmentReference: text(w.reference), requestorId: requestor?.mdmId ?? null, requestorName: text(w.requestor), priority: text(w.priority), assignmentReason: text(w.customReason) },
+      createdBy: this.api.user || null,
+      clientId: null,
+      tenantId: null,
+    };
   }
 }

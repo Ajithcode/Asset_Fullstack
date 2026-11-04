@@ -1,0 +1,31 @@
+.panel { display: flex; flex-direction: column; }
+.top { display: flex; gap: 12px; padding: 16px 16px 0; border-bottom: 1px solid var(--ip-border); }
+.top h2 { margin: 0; font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.code { font-size: 14px; margin-top: 2px; }
+.pic { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 96px; height: 96px; margin-bottom: 10px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, var(--ip-grey-soft)); border: 1px solid var(--ip-border); color: #6b6880; }
+
+.tabs { display: flex; gap: 6px; margin-top: 12px; }
+.tabs button { padding: 10px 12px; border: 0; border-bottom: 2px solid transparent; background: none; font: inherit; font-size: 14px; color: var(--ip-muted); cursor: pointer; }
+.tabs button.on { color: var(--ip-accent); border-bottom-color: var(--ip-accent); font-weight: 700; }
+
+.body { display: flex; flex-direction: column; gap: 14px; padding: 14px 16px 16px; }
+.block { border-top: 1px solid var(--ip-border); padding-top: 12px; }
+.summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.summary .kv { grid-template-columns: auto 1fr; font-size: 13px; }
+.tbl { border: 1px solid var(--ip-border); border-radius: 8px; overflow: auto; }
+.tbl .table { font-size: 12.5px; }
+.tbl .table td, .tbl .table th { padding: 7px 10px; }
+.tbl .table tbody tr { cursor: default; }
+
+.trace { display: flex; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--ip-border); padding-top: 12px; }
+.small { font-size: 12.5px; grid-template-columns: auto 1fr; }
+.yn { display: inline-flex; align-items: center; gap: 6px; }
+.cert { display: flex; flex-direction: column; gap: 8px; min-width: 170px; padding: 10px 12px; border: 1px solid var(--ip-border); border-radius: 8px; background: var(--ip-bg-soft); font-size: 13px; }
+.cert-file { display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.small-link { font-size: 12.5px; text-decoration: underline; }
+.full { width: 100%; }
+
+@media (max-width: 480px) {
+  .summary { grid-template-columns: 1fr; }
+  .pic { display: none; }
+}

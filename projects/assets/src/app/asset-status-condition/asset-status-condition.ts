@@ -24,22 +24,23 @@ import {
   Wrench,
   X,
 } from 'lucide-angular';
+import { Subscription, forkJoin, from } from 'rxjs';
 import {
-  ASSET_RECORDS,
   ASSET_TYPE_ICONS,
   AssetHeader,
   AssetTabLink,
-  assetHeader,
+  AuthService,
   assetTabs,
   conditionPill,
   criticalityPill,
-  findAsset,
   statusPill,
 } from 'shared-ui';
+import { apiErrorMessage } from '../services/asset-api';
+import { AssetLookupService, EMPTY_HEADER } from './asset-lookup.service';
+import { AssetConditionService, ConditionAssessment, ConditionAssessmentFields } from './asset-condition.service';
 import {
   AlertItem,
   AlertStatus,
-  Assessment,
   Condition,
   EnvReading,
   LifecycleInfo,
@@ -56,7 +57,7 @@ type TrendRange = 'all' | '3y' | '1y';
 type ReadingState = 'Normal' | 'Warning' | 'Critical';
 
 interface ChartPoint {
-  a: Assessment;
+  a: ConditionAssessment;
   x: number;
   y: number;
 }
@@ -70,7 +71,6 @@ const SCORE_MAX = 100;
 /** Chart geometry in SVG user units; the SVG scales to its container width. */
 const CHART = { w: 560, h: 210, left: 64, right: 18, top: 14, bottom: 30 };
 
-const CURRENT_USER = 'Rex Kumar';
 const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 @Component({
@@ -87,9 +87,20 @@ export class AssetStatusCondition implements OnDestroy {
     Pencil, Plus, Power, Printer, ScrollText, Timer, TriangleAlert, Wrench, X,
   };
 
+  private readonly lookup = inject(AssetLookupService);
+  private readonly conditionApi = inject(AssetConditionService);
+  private readonly auth = inject(AuthService);
+  private loadSub?: Subscription;
+
   /** The asset named by ?tag=; when it is missing or unknown the page shows a "not found" message. */
-  asset: AssetHeader = assetHeader(ASSET_RECORDS[0]);
+  asset: AssetHeader = EMPTY_HEADER;
+  /** assetRegistrationId of the asset, the key of the Asset API. */
+  assetId = '';
   notFound = false;
+  /** Set when the Asset API could not be read. */
+  loadError = '';
+  /** True while an assessment is being saved. */
+  saving = false;
   requestedTag = '';
   readonly tabs: AssetTabLink[] = assetTabs('Status & Condition');
   readonly typeIcons = ASSET_TYPE_ICONS;
@@ -116,10 +127,12 @@ export class AssetStatusCondition implements OnDestroy {
   operatingModes: string[] = [];
   readonly lifecycleStages = ['Planned', 'Procured', 'Installed', 'In Operation', 'Under Overhaul', 'In Storage', 'Decommissioning', 'Disposed'];
 
-  // ===== Data (DEMO MODE: loaded from the asset's data file and kept in memory) =====
-  assessments: Assessment[] = [];
+  // ===== Data =====
+  /** Condition assessments, from the Asset API. */
+  assessments: ConditionAssessment[] = [];
+  // DEMO MODE: the rest (timeline, operational details, lifecycle, readings, alarms, performance) has no Asset API yet
+  // and is loaded from the asset's sample data file when there is one, and kept in memory.
   timeline: TimelineEvent[] = [];
-  private nextAssessmentId = 1;
 
   availability = 0;
   utilization = 0;
@@ -149,7 +162,7 @@ export class AssetStatusCondition implements OnDestroy {
   readingsOpen = false;
 
   /** Assessment dialog: id null = new assessment. */
-  assessmentForm: (Omit<Assessment, 'id'> & { id: number | null }) | null = null;
+  assessmentForm: (ConditionAssessmentFields & { id: string | null }) | null = null;
   operationalForm: OperationalDetails | null = null;
   lifecycleForm: LifecycleInfo | null = null;
   formError = '';
@@ -167,12 +180,9 @@ export class AssetStatusCondition implements OnDestroy {
   }
 
   private load(tag: string | null): void {
-    tag ??= ASSET_RECORDS[0].tag; // opened from the menu without an asset: show the first one
-    const record = findAsset(tag);
     this.requestedTag = tag ?? '';
-    this.notFound = !record;
-    if (!record) return;
-    this.asset = assetHeader(record);
+    this.notFound = false;
+    this.loadError = '';
     this.hasData = false;
     this.closeMenus();
     this.trendRange = 'all';
@@ -181,31 +191,73 @@ export class AssetStatusCondition implements OnDestroy {
     this.operationalForm = null;
     this.lifecycleForm = null;
     this.loading = true;
-    loadAssetDetail(record.tag).then((detail) => {
-      if (this.requestedTag !== record.tag) return; // the user moved on to another asset
-      this.loading = false;
-      if (!detail) return;
-      const s = cloneDetail(detail.status);
-      this.assessments = s.assessments;
-      this.timeline = s.timeline;
-      this.nextAssessmentId = Math.max(0, ...s.assessments.map((a) => a.id)) + 1;
-      this.availability = s.availability;
-      this.utilization = s.utilization;
-      this.lastMaintenance = s.lastMaintenance;
-      this.operational = s.operational;
-      this.operatingModes = s.operatingModes;
-      this.lifecycle = s.lifecycle;
-      this.readingsUpdatedAt = s.readingsUpdatedAt;
-      this.readings = s.readings;
-      this.alerts = s.alerts;
-      this.environment = s.environment;
-      this.consumptionLabel = s.consumptionLabel;
-      this.performance = s.performance;
-      this.hasData = true;
+    this.loadSub?.unsubscribe();
+    this.loadSub = this.lookup.resolve(tag).subscribe({
+      next: (found) => {
+        if (!found) {
+          this.loading = false;
+          this.notFound = true;
+          return;
+        }
+        this.asset = found.header;
+        this.assetId = found.id;
+        this.loadSub = forkJoin({
+          assessments: this.conditionApi.getForAsset(found.id),
+          detail: from(loadAssetDetail(found.header.tag)),
+        }).subscribe({
+          next: ({ assessments, detail }) => {
+            this.loading = false;
+            this.assessments = assessments;
+            this.applySampleDetail(detail);
+            this.hasData = true;
+          },
+          error: (err) => this.failLoad(err),
+        });
+      },
+      error: (err) => this.failLoad(err),
     });
   }
 
+  private failLoad(err: unknown): void {
+    this.loading = false;
+    this.loadError = apiErrorMessage(err, 'Could not load the condition assessments.');
+    this.showToast(this.loadError);
+  }
+
+  /** Parts of the page without an Asset API yet (DEMO MODE), from the asset's sample data file if it has one. */
+  private applySampleDetail(detail: Awaited<ReturnType<typeof loadAssetDetail>>): void {
+    if (!detail) {
+      this.timeline = [];
+      this.availability = this.utilization = 0;
+      this.lastMaintenance = '';
+      this.operational = { ...this.operational, status: this.asset.status, statusSince: '', location: this.asset.location };
+      this.operatingModes = [];
+      this.lifecycle = { stage: '', commissionedOn: '', expectedLifeYears: 0, nextAssessment: '', nextMaintenance: '' };
+      this.readingsUpdatedAt = '';
+      this.readings = this.alerts = [];
+      this.environment = [];
+      this.consumptionLabel = '';
+      this.performance = [];
+      return;
+    }
+    const s = cloneDetail(detail.status);
+    this.timeline = s.timeline;
+    this.availability = s.availability;
+    this.utilization = s.utilization;
+    this.lastMaintenance = s.lastMaintenance;
+    this.operational = s.operational;
+    this.operatingModes = s.operatingModes;
+    this.lifecycle = s.lifecycle;
+    this.readingsUpdatedAt = s.readingsUpdatedAt;
+    this.readings = s.readings;
+    this.alerts = s.alerts;
+    this.environment = s.environment;
+    this.consumptionLabel = s.consumptionLabel;
+    this.performance = s.performance;
+  }
+
   ngOnDestroy(): void {
+    this.loadSub?.unsubscribe();
     clearTimeout(this.toastTimer);
   }
 
@@ -217,17 +269,17 @@ export class AssetStatusCondition implements OnDestroy {
   // ===== Derived values =====
 
   /** Assessments oldest first. */
-  get sortedAssessments(): Assessment[] {
+  get sortedAssessments(): ConditionAssessment[] {
     return [...this.assessments].sort((a, b) => a.date.localeCompare(b.date));
   }
 
-  get latest(): Assessment | undefined {
+  get latest(): ConditionAssessment | undefined {
     const list = this.sortedAssessments;
     return list[list.length - 1];
   }
 
   /** Newest first, for the assessment history table. */
-  get assessmentHistory(): Assessment[] {
+  get assessmentHistory(): ConditionAssessment[] {
     return [...this.sortedAssessments].reverse();
   }
 
@@ -249,10 +301,12 @@ export class AssetStatusCondition implements OnDestroy {
   }
 
   get ageText(): string {
+    if (!this.lifecycle.commissionedOn) return '-';
     return formatMonths(monthsBetween(this.lifecycle.commissionedOn, this.today));
   }
 
   get remainingLifeText(): string {
+    if (!this.lifecycle.commissionedOn || !this.lifecycle.expectedLifeYears) return '-';
     const left = this.lifecycle.expectedLifeYears * 12 - monthsBetween(this.lifecycle.commissionedOn, this.today);
     return left > 0 ? formatMonths(left) : 'End of expected life reached';
   }
@@ -326,7 +380,7 @@ export class AssetStatusCondition implements OnDestroy {
     return CHART.h - CHART.bottom;
   }
 
-  get rangedAssessments(): Assessment[] {
+  get rangedAssessments(): ConditionAssessment[] {
     if (this.trendRange === 'all') return this.sortedAssessments;
     const months = this.trendRange === '3y' ? 36 : 12;
     const since = toIsoDate(addMonths(new Date(), -months));
@@ -446,7 +500,7 @@ export class AssetStatusCondition implements OnDestroy {
     this.assessmentForm = {
       id: null,
       date: this.today,
-      assessedBy: CURRENT_USER,
+      assessedBy: this.currentUser,
       overall: base?.overall ?? 'Good',
       healthScore: base?.healthScore ?? 85,
       physical: base?.physical ?? 'Good',
@@ -456,15 +510,21 @@ export class AssetStatusCondition implements OnDestroy {
     };
   }
 
-  openEditAssessment(a: Assessment | undefined): void {
+  openEditAssessment(a: ConditionAssessment | undefined): void {
     if (!a) return;
     this.formError = '';
-    this.assessmentForm = { ...a };
+    const { assetRegistrationId, ...fields } = a;
+    this.assessmentForm = { ...fields };
+  }
+
+  /** Signed-in user, the default "Assessed By". */
+  private get currentUser(): string {
+    return this.auth.getUserEmail() ?? '';
   }
 
   saveAssessment(): void {
     const f = this.assessmentForm;
-    if (!f) return;
+    if (!f || this.saving) return;
     const score = Number(f.healthScore);
     if (!f.date || !f.assessedBy.trim()) {
       this.formError = 'Enter the assessment date and who assessed it.';
@@ -479,30 +539,42 @@ export class AssetStatusCondition implements OnDestroy {
       return;
     }
     const previous = this.latest?.overall;
-    const record: Assessment = { ...f, id: f.id ?? this.nextAssessmentId++, healthScore: Math.round(score), assessedBy: f.assessedBy.trim(), remarks: f.remarks.trim() };
-    if (f.id === null) {
-      this.assessments = [...this.assessments, record];
-      const changed = previous && previous !== record.overall;
-      this.timeline = [
-        ...this.timeline,
-        {
-          date: record.date,
-          title: changed ? `Condition changed to ${record.overall}` : `Condition assessed as ${record.overall}`,
-          by: record.assessedBy,
-          condition: record.overall,
-        },
-      ];
-      if (this.isOverdue(this.lifecycle.nextAssessment) || this.lifecycle.nextAssessment <= record.date) {
-        // Schedule the next assessment six months on
-        this.lifecycle.nextAssessment = toIsoDate(addMonths(parseDate(record.date), 6));
-      }
-      this.showToast('Assessment recorded.');
-    } else {
-      this.assessments = this.assessments.map((a) => (a.id === record.id ? record : a));
-      this.showToast('Assessment updated.');
-    }
-    this.hoverIndex = null;
-    this.assessmentForm = null;
+    const { id, ...fields } = f;
+    const request = id === null ? this.conditionApi.create(this.assetId, fields) : this.conditionApi.update(id, fields);
+    this.saving = true;
+    this.formError = '';
+    request.subscribe({
+      next: (record) => {
+        this.saving = false;
+        if (id === null) {
+          this.assessments = [...this.assessments, record];
+          const changed = previous && previous !== record.overall;
+          this.timeline = [
+            ...this.timeline,
+            {
+              date: record.date,
+              title: changed ? `Condition changed to ${record.overall}` : `Condition assessed as ${record.overall}`,
+              by: record.assessedBy,
+              condition: record.overall,
+            },
+          ];
+          if (this.isOverdue(this.lifecycle.nextAssessment) || this.lifecycle.nextAssessment <= record.date) {
+            // Schedule the next assessment six months on
+            this.lifecycle.nextAssessment = toIsoDate(addMonths(parseDate(record.date), 6));
+          }
+          this.showToast('Assessment recorded.');
+        } else {
+          this.assessments = this.assessments.map((a) => (a.id === record.id ? record : a));
+          this.showToast('Assessment updated.');
+        }
+        this.hoverIndex = null;
+        this.assessmentForm = null;
+      },
+      error: (err) => {
+        this.saving = false;
+        this.formError = apiErrorMessage(err, 'The assessment could not be saved.');
+      },
+    });
   }
 
   // ===== Operational details / lifecycle =====
@@ -524,7 +596,7 @@ export class AssetStatusCondition implements OnDestroy {
       return;
     }
     if (f.status !== this.operational.status) {
-      this.timeline = [...this.timeline, { date: f.statusSince, title: `Status changed to ${f.status}`, by: CURRENT_USER, status: f.status }];
+      this.timeline = [...this.timeline, { date: f.statusSince, title: `Status changed to ${f.status}`, by: this.currentUser, status: f.status }];
     }
     this.operational = { ...f, location: f.location.trim(), controlledBy: f.controlledBy.trim(), remarks: f.remarks.trim() };
     this.operationalForm = null;
@@ -603,6 +675,7 @@ function addMonths(d: Date, months: number): Date {
 
 /** Whole months from one date to another. */
 function monthsBetween(fromIso: string, toIso: string): number {
+  if (!fromIso || !toIso) return 0;
   const a = parseDate(fromIso);
   const b = parseDate(toIso);
   return Math.max(0, (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth() - (b.getDate() < a.getDate() ? 1 : 0));

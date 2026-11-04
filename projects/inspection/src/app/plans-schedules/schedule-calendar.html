@@ -1,0 +1,72 @@
+<section class="card">
+  <div class="card-head cal-head">
+    <h2>Inspection Schedule</h2>
+    <div class="nav">
+      <button type="button" class="nav-btn" aria-label="Previous" (click)="move(-1)"><lucide-icon [img]="icons.ChevronLeft" [size]="18"></lucide-icon></button>
+      <button type="button" class="month" (click)="goToday()" title="Go to today">{{ title() }}</button>
+      <button type="button" class="nav-btn" aria-label="Next" (click)="move(1)"><lucide-icon [img]="icons.ChevronRight" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="seg">
+      @for (v of ['Month', 'Week', 'List']; track v) {
+        <button type="button" [class.on]="view() === v" (click)="setView($any(v))">{{ v }}</button>
+      }
+    </div>
+  </div>
+
+  <div class="card-body cal-body">
+    @if (loading()) { <div class="empty">Loading inspections...</div> }
+
+    @if (view() === 'List') {
+      <div class="list">
+        @for (e of monthEvents(); track e.insp.id) {
+          <button type="button" class="list-row" [class.on]="e.day === selectedDay()" (click)="select(e.day)">
+            <span class="ld">{{ fmtDate(e.day) }}</span>
+            <span class="ev-dot" [class]="'ev-dot ' + e.cls"></span>
+            <span class="grow lt">{{ e.insp.title || e.insp.inspectionCode }}</span>
+            <span class="muted">{{ e.insp.assignedTo || 'Unassigned' }}</span>
+            <span [class]="pillClass(e.status)">{{ e.status }}</span>
+          </button>
+        } @empty {
+          <div class="empty">No inspections in {{ title() }}.</div>
+        }
+      </div>
+    } @else {
+      <div class="grid" [class.week]="view() === 'Week'">
+        @for (h of weekHeads; track h) { <div class="wh">{{ h }}</div> }
+        @for (c of view() === 'Week' ? weekCells() : monthCells(); track c.day) {
+          <button type="button" class="day" [class.out]="!c.inMonth" [class.sel]="c.day === selectedDay()" (click)="select(c.day)">
+            <span class="dn" [class.today]="c.day === today">{{ c.date }}</span>
+            @if (c.monthLabel) { <span class="ml">{{ c.monthLabel }}</span> }
+            @for (e of view() === 'Week' ? c.events : c.events.slice(0, 2); track e.insp.id) {
+              <span class="ev" [class]="'ev ' + e.cls" [title]="e.insp.title"><span class="ev-dot"></span>{{ e.insp.title || e.insp.inspectionCode }}</span>
+            }
+            @if (view() === 'Month' && c.events.length > 2) { <span class="more">+{{ c.events.length - 2 }} more</span> }
+          </button>
+        }
+      </div>
+    }
+
+    <div class="legend">
+      @for (l of legend; track l.label) { <span><span class="ev-dot" [class]="'ev-dot ' + l.cls"></span>{{ l.label }}</span> }
+    </div>
+
+    <div class="detail">
+      <h3>{{ dayTitle() }}</h3>
+      @for (e of dayEvents(); track e.insp.id) {
+        <div class="drow">
+          <span class="time">{{ e.time || 'All day' }}</span>
+          <span class="ev-dot" [class]="'ev-dot ' + e.cls"></span>
+          <div class="grow">
+            <div class="strong">{{ e.insp.title || e.insp.inspectionCode }}</div>
+            <div class="muted">{{ e.insp.inspectionCode }}@if (e.insp.planCode) { • {{ e.insp.planCode }} • {{ e.insp.planName }} }</div>
+          </div>
+          <span class="who"><lucide-icon [img]="icons.User" [size]="15"></lucide-icon>{{ e.insp.assignedTo || 'Unassigned' }}</span>
+          <span [class]="pillClass(e.status)">{{ e.status }}</span>
+          <a class="link" routerLink="/inspection/execution" [queryParams]="{ code: e.insp.inspectionCode }">View <lucide-icon [img]="icons.ChevronRight" [size]="15"></lucide-icon></a>
+        </div>
+      } @empty {
+        <div class="muted none">No inspections scheduled on this day.</div>
+      }
+    </div>
+  </div>
+</section>

@@ -1,0 +1,137 @@
+<section class="mp-page">
+  <nav class="breadcrumb"><a routerLink="/maintenance/overview">Maintenance</a><span class="sep">›</span><span class="current">Work Orders</span></nav>
+
+  <header class="page-head">
+    <span class="head-icon"><lucide-icon [img]="icons.ClipboardList" [size]="28"></lucide-icon></span>
+    <div class="grow">
+      <h1>Work Orders</h1>
+      <p class="subtitle">Create, track and manage maintenance work orders for all assets.</p>
+    </div>
+    <div class="head-actions">
+      <app-mnt-date-range [range]="range()" (rangeChange)="setRange($event)"></app-mnt-date-range>
+      <button type="button" class="btn btn-primary" (click)="openNew()"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>Create Work Order</button>
+    </div>
+  </header>
+
+  @if (store.error(); as err) { <div class="alert">{{ err }}</div> }
+
+  <div class="kpis" style="--kpi-cols: 4">
+    <button type="button" class="kpi" (click)="setTab('all')">
+      <span class="kpi-ic kpi-ic--purple"><lucide-icon [img]="icons.ClipboardList" [size]="24"></lucide-icon></span>
+      <span class="kpi-body">
+        <span class="kpi-label">Total Work Orders</span>
+        <span class="kpi-row"><span class="kpi-value">{{ kpis().total }}</span>
+          @if (kpis().trend !== null) { <span class="trend" [class.trend--down]="kpis().trend! < 0"><lucide-icon [img]="kpis().trend! < 0 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon>{{ kpis().trend! < 0 ? -kpis().trend! : kpis().trend }}%</span> }
+        </span>
+        <span class="kpi-sub">vs previous period</span>
+      </span>
+    </button>
+    <button type="button" class="kpi kpi--green" (click)="setTab('completed')">
+      <span class="kpi-ic kpi-ic--green"><lucide-icon [img]="icons.CircleCheck" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Completed</span><span class="kpi-value">{{ kpis().completed }}</span><span class="kpi-sub">{{ kpis().pct(kpis().completed) }}%</span></span>
+    </button>
+    <button type="button" class="kpi kpi--amber" (click)="setTab('progress')">
+      <span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.Clock" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">In Progress</span><span class="kpi-value">{{ kpis().progress }}</span><span class="kpi-sub">{{ kpis().pct(kpis().progress) }}%</span></span>
+    </button>
+    <button type="button" class="kpi kpi--red" (click)="setTab('overdue')">
+      <span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.CircleAlert" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Overdue</span><span class="kpi-value">{{ kpis().overdue }}</span><span class="kpi-sub">{{ kpis().pct(kpis().overdue) }}%</span></span>
+    </button>
+  </div>
+
+  <section class="register">
+    <nav class="tabs">
+      @for (t of tabs; track t.key) { <button type="button" class="tab" [class.is-active]="tab() === t.key" (click)="setTab(t.key)">{{ t.label }}</button> }
+    </nav>
+    <div class="filters">
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="17"></lucide-icon>
+        <input type="search" placeholder="Search by WO#, asset name, tag, description..." [ngModel]="search()" (ngModelChange)="setFilter('search', $event)" />
+      </label>
+      <select class="control sel" [ngModel]="type()" (ngModelChange)="setFilter('type', $event)" aria-label="Maintenance type">
+        <option value="">All Maintenance Types</option>
+        @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+      </select>
+      <select class="control sel" [ngModel]="priority()" (ngModelChange)="setFilter('priority', $event)" aria-label="Priority">
+        <option value="">All Priorities</option>
+        @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
+      </select>
+      <button type="button" class="btn btn-outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export</button>
+    </div>
+
+    @if (table.selectedRows().length; as n) {
+      <div class="bulk">
+        <strong>{{ n }} selected</strong>
+        <select class="control sel" [ngModel]="bulkStatus()" (ngModelChange)="bulkStatus.set($event)" aria-label="New status">
+          <option value="">Change status to...</option>
+          @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+        <button type="button" class="btn btn-sm btn-primary" [disabled]="!bulkStatus()" (click)="applyBulkStatus()">Apply</button>
+        <button type="button" class="btn btn-sm btn-outline" (click)="export(table.selectedRows())">Export selected</button>
+        <span class="grow"></span>
+        <button type="button" class="btn btn-sm btn-ghost" (click)="table.clearSelection()">Clear</button>
+      </div>
+    }
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="chk"><input type="checkbox" [checked]="table.allSelected()" (change)="table.toggleAll()" aria-label="Select page" /></th>
+            <th class="num">#</th><th>Work Order #</th><th>Asset Name</th><th>Asset Tag</th><th>Type</th><th>Priority</th><th>Status</th><th>Due Date</th><th>Assigned To</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of table.rows(); track r.row.id) {
+            @let w = r.row;
+            <tr [class.is-selected]="w.id === openId()" (click)="openId.set(w.id)">
+              <td class="chk" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="table.selected().has(w.id)" (change)="table.toggle(w.id)" [attr.aria-label]="'Select ' + w.workOrderId" /></td>
+              <td class="num">{{ r.n }}</td>
+              <td class="code">{{ w.workOrderId }}</td>
+              <td>{{ w.assetName }}</td>
+              <td class="nowrap">{{ w.assetId }}</td>
+              <td>{{ w.workType }}</td>
+              <td><span [class]="pillClass(w.priority)">{{ w.priority }}</span></td>
+              <td><span [class]="pillClass(woStatus(w))">{{ woStatus(w) }}</span></td>
+              <td class="nowrap" [class.c-bad]="isOverdue(w)">{{ fmtDate(w.dueDate ?? w.scheduledDate) || '—' }}</td>
+              <td class="nowrap">{{ w.assignedTechnician || '—' }}</td>
+              <td class="menu-cell" (click)="$event.stopPropagation()">
+                <button type="button" class="icon-btn" aria-label="Work order actions" (click)="table.toggleMenu(w.id, $event)"><lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon></button>
+                @if (table.menuId() === w.id) {
+                  <div class="menu">
+                    <button type="button" (click)="table.menuId.set(null); openId.set(w.id)">View details</button>
+                    <button type="button" (click)="edit(w)">Edit</button>
+                    @if (w.status !== 'In Progress' && w.status !== 'Completed') { <button type="button" (click)="setStatus(w, 'In Progress')">Start work</button> }
+                    @if (w.status !== 'Completed') { <button type="button" (click)="setStatus(w, 'Completed')">Mark completed</button> }
+                    <button type="button" class="c-bad" (click)="table.askDelete(w.id)">Delete</button>
+                  </div>
+                }
+              </td>
+            </tr>
+            @if (table.confirmDeleteId() === w.id) {
+              <tr (click)="$event.stopPropagation()"><td colspan="11">
+                <div class="confirm">
+                  <span class="grow">Delete {{ w.workOrderId }}? This cannot be undone.</span>
+                  <button type="button" class="btn btn-sm btn-outline" (click)="table.confirmDeleteId.set(null)">Cancel</button>
+                  <button type="button" class="btn btn-sm btn-danger" (click)="remove(w)">Delete</button>
+                </div>
+              </td></tr>
+            }
+          }
+        </tbody>
+      </table>
+      @if (store.loading()) { <div class="empty">Loading work orders...</div> }
+      @else if (!table.total()) { <div class="empty">{{ store.items().length ? 'No work orders match the current filters.' : 'No work orders yet.' }}</div> }
+    </div>
+    <app-mnt-table-footer [total]="table.total()" [(page)]="table.page" [(size)]="table.size"></app-mnt-table-footer>
+  </section>
+
+  @if (opened(); as w) {
+    <app-mnt-work-order-detail [workOrder]="w" (closed)="openId.set(null)" (edit)="edit($event)" (duplicate)="duplicate($event)" (notify)="toast.show($event)"></app-mnt-work-order-detail>
+  }
+  @if (formOpen()) {
+    <app-mnt-work-order-form [workOrder]="editing()" [seed]="seed()" (saved)="onSaved($event)" (closed)="formOpen.set(false)"></app-mnt-work-order-form>
+  }
+  @if (toast.message(); as t) { <div class="toast">{{ t }}</div> }
+</section>

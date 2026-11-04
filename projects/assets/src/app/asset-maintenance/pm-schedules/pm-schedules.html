@@ -212,7 +212,7 @@
       <label class="field"><span class="field-label">Template</span><select class="control" [(ngModel)]="f.template" name="template"><option value="">Not linked</option><option *ngFor="let t of templates" [value]="t.code">{{ t.code }} · {{ t.name }}</option></select></label>
       <datalist id="pm-assignees"><option *ngFor="let a of assignees" [value]="a"></option></datalist>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="form = null">Cancel</button><button type="submit" class="btn btn-primary">{{ f.id ? 'Save' : 'Add Schedule' }}</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="form = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">{{ f.id ? 'Save' : 'Add Schedule' }}</button></div>
     </form>
   </div>
 </div>

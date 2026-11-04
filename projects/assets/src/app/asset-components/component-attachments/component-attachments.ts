@@ -1,4 +1,5 @@
-import { Component, ElementRef, HostListener, Input, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, Input, ViewChild, inject } from '@angular/core';
+import { Observable, concat, map, of, switchMap, toArray } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -31,6 +32,8 @@ import {
   formatSize,
   saveBlob,
 } from '../file-preview/file-preview';
+import { AssetComponentsService, isoLocalDateTime, type AssetDocumentDto, type ComponentFileDetails, type UploadedFile } from '../asset-components.service';
+import { apiErrorMessage } from '../../services/asset-api';
 
 export type AttachmentCategory = 'Manual' | 'Drawing' | 'Parts List' | 'Image' | 'Report' | 'Certificate' | 'Other';
 
@@ -45,9 +48,12 @@ export interface ComponentAttachment {
   description: string;
   /** Page count for the preview pager on sample files. */
   pages: number;
-  /** Present only for files uploaded in this session; sample attachments have no file behind them. */
+  /** Present only for files uploaded in this session. */
   file?: File;
+  /** Stored file url (from the Media service). */
   url?: string;
+  /** The asset document behind this row (/api/asset-documents). */
+  dto?: AssetDocumentDto;
 }
 
 interface EditForm {
@@ -57,16 +63,9 @@ interface EditForm {
 }
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
-const EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip'];
+const EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'];
 const ACCEPT = EXTENSIONS.map((e) => '.' + e).join(',');
-const CURRENT_USER = 'Rex Kumar';
-
 let nextId = 1;
-
-function isoAt(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 function extensionOf(fileName: string): string {
   const i = fileName.lastIndexOf('.');
@@ -85,30 +84,26 @@ function guessCategory(fileName: string): AttachmentCategory {
   return 'Other';
 }
 
-type Seed = [suffix: string, category: AttachmentCategory, sizeMb: number, by: string, monthsAgo: number, pages: number, description: string];
+const CATEGORIES: AttachmentCategory[] = ['Manual', 'Drawing', 'Parts List', 'Image', 'Report', 'Certificate', 'Other'];
 
-const SEEDS: Seed[] = [
-  ['Manual.pdf', 'Manual', 5.4, CURRENT_USER, 9, 52, 'Operation and maintenance manual. Includes safety instructions, operating procedures and maintenance guidelines.'],
-  ['Wiring_Diagram.pdf', 'Drawing', 2.1, 'DCS Service', 9, 4, 'Control and power wiring schematic.'],
-  ['Spare_Parts_List.xlsx', 'Parts List', 1.2, 'Supplier', 9, 1, 'Recommended spares with part numbers.'],
-  ['Photo.jpg', 'Image', 3.8, CURRENT_USER, 10, 1, 'Photo taken at commissioning.'],
-  ['Inspection_Report.docx', 'Report', 1.6, 'DCS Service', 10, 3, 'Pre-commissioning inspection report.'],
-  ['Certificate_of_Compliance.pdf', 'Certificate', 0.9, 'Supplier', 10, 2, 'Manufacturer compliance certificate.'],
-];
-
-export function buildMockAttachments(c: AssetComponent): ComponentAttachment[] {
-  const prefix = c.name.split(/\s+/)[0].replace(/[^A-Za-z0-9]/g, '') || c.tag;
-  const now = new Date();
-  return SEEDS.map(([suffix, category, sizeMb, by, monthsAgo, pages, description], i) => ({
+/** Attachments are stored as asset documents: the display name is the document name, the category its type. */
+function toAttachment(dto: AssetDocumentDto): ComponentAttachment {
+  return {
     id: nextId++,
-    fileName: `${prefix}_${suffix}`,
-    category,
-    size: Math.round(sizeMb * 1_048_576),
-    uploadedBy: by,
-    uploadedAt: isoAt(new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1 + ((i * 9 + c.id) % 27), 9 + i, (i * 17) % 60)),
-    description,
-    pages,
-  }));
+    fileName: dto.documentName || dto.fileName,
+    category: CATEGORIES.find((c) => c === dto.documentType) ?? 'Other',
+    size: dto.fileSize ?? 0,
+    uploadedBy: dto.uploadedBy ?? '',
+    uploadedAt: isoLocalDateTime(dto.uploadDate),
+    description: dto.description ?? '',
+    pages: 1,
+    url: dto.fileUrl || undefined,
+    dto,
+  };
+}
+
+function detailsOf(a: Pick<ComponentAttachment, 'fileName' | 'category' | 'description'>, version = 'v1.0'): ComponentFileDetails {
+  return { documentName: a.fileName, documentType: a.category, version, status: 'Active', description: a.description };
 }
 
 @Component({
@@ -141,11 +136,21 @@ export class ComponentAttachments {
 
   private comp!: AssetComponent;
 
-  /** Sample attachments are created on first view and kept on the component, so they survive tab switches. */
+  private readonly api = inject(AssetComponentsService);
+
+  loading = false;
+  loadError = '';
+  /** An upload / edit / delete is in flight. */
+  saving = false;
+
+  /** Attachments are loaded from the API on first view and kept on the component, so they survive tab switches. */
   @Input({ required: true })
   set component(c: AssetComponent) {
-    c.attachments ??= buildMockAttachments(c);
     this.comp = c;
+    if (!c.attachments) {
+      c.attachments = [];
+      this.load();
+    }
     this.search = '';
     this.typeFilter = '';
     this.categoryFilter = '';
@@ -160,7 +165,38 @@ export class ComponentAttachments {
   }
 
   get items(): ComponentAttachment[] {
-    return this.comp.attachments!;
+    return this.comp.attachments ?? [];
+  }
+
+  /** Loads the component's attachments from the API. */
+  load(): void {
+    const c = this.comp;
+    if (!c.apiId || !c.assetRegistrationId) return;
+    this.loading = true;
+    this.loadError = '';
+    this.api.listComponentFiles('attachment', c.assetRegistrationId, c.apiId).subscribe({
+      next: (dtos) => {
+        this.loading = false;
+        c.attachments = dtos.map(toAttachment);
+        if (c === this.comp && !this.selected) this.selectedId = this.sorted[0]?.id ?? null;
+      },
+      error: (err) => {
+        this.loading = false;
+        c.attachments = undefined;
+        this.loadError = apiErrorMessage(err, 'Could not load attachments.');
+      },
+    });
+  }
+
+  /** Saves an attachment's details (and optionally a new file) and updates the row from the response. */
+  private saveAttachment(a: ComponentAttachment, changes: Partial<ComponentAttachment>, file?: UploadedFile): Observable<ComponentAttachment> {
+    if (!a.dto) return of(Object.assign(a, changes));
+    return this.api.updateComponentFile(a.dto, detailsOf({ ...a, ...changes }, a.dto.version || 'v1.0'), file).pipe(
+      map((dto) => {
+        this.release(a);
+        return Object.assign(a, { ...toAttachment(dto), id: a.id, file: undefined });
+      }),
+    );
   }
 
   search = '';
@@ -230,36 +266,65 @@ export class ComponentAttachments {
   private addFiles(files: File[]): void {
     if (!files.length) return;
     this.rejected = [];
-    const added: ComponentAttachment[] = [];
+    const c = this.comp;
+    if (!c.apiId || !c.assetRegistrationId) {
+      this.showToast('This component is not saved yet.');
+      return;
+    }
+    const valid: File[] = [];
     for (const file of files) {
       const error = this.validate(file);
-      if (error) {
-        this.rejected.push(error);
-        continue;
-      }
-      const a: ComponentAttachment = {
-        id: nextId++,
-        fileName: file.name,
-        category: guessCategory(file.name),
-        size: file.size,
-        uploadedBy: CURRENT_USER,
-        uploadedAt: isoAt(new Date()),
-        description: '',
-        pages: 1,
-        file,
-        url: URL.createObjectURL(file),
-      };
-      this.items.push(a);
-      added.push(a);
+      if (error) this.rejected.push(error);
+      else valid.push(file);
     }
-    if (added.length) {
-      this.selectedId = added[0].id;
-      this.search = '';
-      this.typeFilter = '';
-      this.categoryFilter = '';
-      this.page = 1;
-      this.showToast(`${added.length} file${added.length === 1 ? '' : 's'} uploaded.`);
-    }
+    if (!valid.length) return;
+
+    // One at a time: upload the file, then save it as an attachment of this component.
+    const added: ComponentAttachment[] = [];
+    this.saving = true;
+    concat(
+      ...valid.map((file) =>
+        this.api.uploadFile(file).pipe(
+          switchMap((uploaded) =>
+            this.api.createComponentFile(
+              'attachment',
+              c.assetRegistrationId!,
+              c.apiId!,
+              detailsOf({ fileName: file.name, category: guessCategory(file.name), description: '' }),
+              uploaded,
+            ),
+          ),
+          map((dto) => {
+            const a = toAttachment(dto);
+            c.attachments = [...(c.attachments ?? []), a];
+            added.push(a);
+            return a;
+          }),
+        ),
+      ),
+    )
+      .pipe(toArray())
+      .subscribe({
+        next: () => {
+          this.saving = false;
+          this.afterAdd(added);
+        },
+        error: (err) => {
+          this.saving = false;
+          this.afterAdd(added);
+          this.rejected.push(apiErrorMessage(err, 'Upload failed.'));
+        },
+      });
+  }
+
+  private afterAdd(added: ComponentAttachment[]): void {
+    if (!added.length) return;
+    this.selectedId = added[0].id;
+    this.search = '';
+    this.typeFilter = '';
+    this.categoryFilter = '';
+    this.page = 1;
+    this.showToast(`${added.length} file${added.length === 1 ? '' : 's'} uploaded.`);
   }
 
   /** Swaps the file behind the selected attachment, keeping its category and description. */
@@ -268,15 +333,26 @@ export class ComponentAttachments {
     const file = input.files?.[0];
     input.value = '';
     const a = this.selected;
-    if (!file || !a) return;
+    if (!file || !a || this.saving) return;
     const error = this.validate(file);
     if (error) {
       this.showToast(error + '.');
       return;
     }
-    this.release(a);
-    Object.assign(a, { fileName: file.name, size: file.size, uploadedBy: CURRENT_USER, uploadedAt: isoAt(new Date()), pages: 1, file, url: URL.createObjectURL(file) });
-    this.showToast(`File replaced with ${file.name}.`);
+    this.saving = true;
+    this.api
+      .uploadFile(file)
+      .pipe(switchMap((uploaded) => this.saveAttachment(a, { fileName: file.name }, uploaded)))
+      .subscribe({
+        next: () => {
+          this.saving = false;
+          this.showToast(`File replaced with ${file.name}.`);
+        },
+        error: (err) => {
+          this.saving = false;
+          this.showToast(apiErrorMessage(err, 'Could not replace the file.'));
+        },
+      });
   }
 
   pickReplacement(): void {
@@ -356,14 +432,27 @@ export class ComponentAttachments {
   }
 
   downloadChecked(): void {
-    const withFiles = this.checkedItems.filter((a) => a.file);
-    withFiles.forEach((a) => saveBlob(a.file!, a.fileName));
+    const withFiles = this.checkedItems.filter((a) => a.file || a.url);
+    withFiles.forEach((a) => this.saveFile(a));
     const skipped = this.checkedItems.length - withFiles.length;
     this.showToast(
       withFiles.length
-        ? `Downloading ${withFiles.length} file${withFiles.length === 1 ? '' : 's'}${skipped ? `; ${skipped} sample file${skipped === 1 ? '' : 's'} skipped` : ''}.`
-        : 'The selected attachments are samples with no file attached.',
+        ? `Downloading ${withFiles.length} file${withFiles.length === 1 ? '' : 's'}${skipped ? `; ${skipped} without a stored file skipped` : ''}.`
+        : 'The selected attachments have no stored file.',
     );
+  }
+
+  private saveFile(a: ComponentAttachment): void {
+    if (a.file) {
+      saveBlob(a.file, a.fileName);
+      return;
+    }
+    if (!a.url) return;
+    this.api.fetchFile(a.url).subscribe({
+      next: (blob) => saveBlob(blob, a.fileName),
+      // Fall back to letting the browser open the stored file.
+      error: () => window.open(a.url, '_blank', 'noopener'),
+    });
   }
 
   // ===== Selection & file actions =====
@@ -378,11 +467,11 @@ export class ComponentAttachments {
 
   download(a: ComponentAttachment): void {
     this.openMenu = null;
-    if (!a.file) {
-      this.showToast('This is a sample attachment with no file behind it. Upload a file to download it.');
+    if (!a.file && !a.url) {
+      this.showToast('No file is stored for this attachment.');
       return;
     }
-    saveBlob(a.file, a.fileName);
+    this.saveFile(a);
   }
 
   openInNewTab(a: ComponentAttachment): void {
@@ -391,7 +480,7 @@ export class ComponentAttachments {
   }
 
   private release(a: ComponentAttachment): void {
-    if (a.url) URL.revokeObjectURL(a.url);
+    if (a.url?.startsWith('blob:')) URL.revokeObjectURL(a.url);
   }
 
   // ===== Menus =====
@@ -429,12 +518,24 @@ export class ComponentAttachments {
   saveEdit(): void {
     this.editSubmitted = true;
     const a = this.editTarget;
-    if (!a || this.editNameInvalid) return;
-    a.fileName = this.editForm.baseName.trim() + extensionOf(a.fileName);
-    a.category = this.editForm.category;
-    a.description = this.editForm.description.trim();
-    this.editTarget = null;
-    this.showToast(`${a.fileName} updated.`);
+    if (!a || this.editNameInvalid || this.saving) return;
+    const changes = {
+      fileName: this.editForm.baseName.trim() + extensionOf(a.fileName),
+      category: this.editForm.category,
+      description: this.editForm.description.trim(),
+    };
+    this.saving = true;
+    this.saveAttachment(a, changes).subscribe({
+      next: () => {
+        this.saving = false;
+        this.editTarget = null;
+        this.showToast(`${a.fileName} updated.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.showToast(apiErrorMessage(err, 'Could not save the attachment.'));
+      },
+    });
   }
 
   // ===== Delete =====
@@ -446,15 +547,31 @@ export class ComponentAttachments {
 
   confirmDelete(): void {
     const targets = this.deleteTargets;
-    if (!targets.length) return;
-    targets.forEach((a) => {
-      this.release(a);
-      this.checked.delete(a.id);
+    if (!targets.length || this.saving) return;
+    const c = this.comp;
+    const ids = targets.map((a) => a.dto?.id).filter((id): id is string => !!id);
+    const delete$: Observable<unknown> =
+      ids.length === 0 ? of(null) : ids.length === 1 ? this.api.deleteComponentFile(ids[0]) : this.api.deleteComponentFiles(ids);
+    this.saving = true;
+    delete$.subscribe({
+      next: () => {
+        this.saving = false;
+        targets.forEach((a) => {
+          this.release(a);
+          this.checked.delete(a.id);
+        });
+        c.attachments = (c.attachments ?? []).filter((a) => !targets.includes(a));
+        if (targets.some((a) => a.id === this.selectedId)) this.selectedId = this.sorted[0]?.id ?? null;
+        this.deleteTargets = [];
+        this.showToast(targets.length === 1 ? `${targets[0].fileName} deleted.` : `${targets.length} attachments deleted.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.deleteTargets = [];
+        this.showToast(apiErrorMessage(err, 'Could not delete the attachment.'));
+        this.load();
+      },
     });
-    this.comp.attachments = this.items.filter((a) => !targets.includes(a));
-    if (targets.some((a) => a.id === this.selectedId)) this.selectedId = this.sorted[0]?.id ?? null;
-    this.deleteTargets = [];
-    this.showToast(targets.length === 1 ? `${targets[0].fileName} deleted.` : `${targets.length} attachments deleted.`);
   }
 
   trackById(_: number, row: { id: number }): number {

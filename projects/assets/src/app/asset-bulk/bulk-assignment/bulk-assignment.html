@@ -33,13 +33,13 @@
           </div>
           <div class="upload-grid">
             <div class="upload-col">
-              <input #fileInput type="file" hidden accept=".xlsx,.xls,.csv" (change)="onFileInput($event)" />
+              <input #fileInput type="file" hidden accept=".xlsx,.csv" (change)="onFileInput($event)" />
               <div class="drop drop--lg" role="button" tabindex="0" [class.is-over]="isDragging" aria-label="Choose a file: drag and drop or press Enter to browse"
                 (click)="fileInput.click()" (keydown.enter)="fileInput.click()" (keydown.space)="$event.preventDefault(); fileInput.click()"
                 (dragover)="$event.preventDefault(); isDragging = true" (dragleave)="isDragging = false" (drop)="onDrop($event)">
                 <lucide-icon [img]="icons.CloudUpload" [size]="40"></lucide-icon>
                 <strong class="drop-title">Drag and drop your file here, or click to upload</strong>
-                <small>Supports .XLS, .XLSX, .CSV (Max 10 MB)</small>
+                <small>{{ busy ? 'Uploading and reading the file...' : 'Supports .XLSX, .CSV (Max 10 MB)' }}</small>
               </div>
               <p *ngIf="fileError" class="form-error" role="alert">{{ fileError }}</p>
               <div *ngIf="file" class="file-chip">
@@ -367,11 +367,11 @@
 
       <div class="wz-foot">
         <button type="button" class="btn btn-outline" (click)="back()"><lucide-icon *ngIf="step > 1" [img]="icons.ArrowLeft" [size]="17"></lucide-icon>{{ step === 1 ? 'Cancel' : 'Back' }}</button>
-        <button *ngIf="step < 5" type="button" class="btn btn-primary" (click)="next()">Next<lucide-icon [img]="icons.ArrowRight" [size]="17"></lucide-icon></button>
+        <button *ngIf="step < 5" type="button" class="btn btn-primary" [disabled]="busy" (click)="next()">{{ busy ? 'Please wait...' : 'Next' }}<lucide-icon [img]="icons.ArrowRight" [size]="17"></lucide-icon></button>
         <span *ngIf="step === 5" class="foot-actions">
           <label class="check"><input type="checkbox" [(ngModel)]="notify" />Send assignment notifications after completion
             <lucide-icon class="info-ic" [img]="icons.Info" [size]="15" title="The assignee, their manager and department get an email for each assignment."></lucide-icon></label>
-          <button type="button" class="btn btn-primary" [disabled]="saving || !file" (click)="confirm()"><lucide-icon [img]="icons.Check" [size]="17"></lucide-icon>Confirm &amp; Assign</button>
+          <button type="button" class="btn btn-primary" [disabled]="saving || busy || !file" (click)="confirm()"><lucide-icon [img]="icons.Check" [size]="17"></lucide-icon>{{ saving ? 'Assigning...' : 'Confirm &amp; Assign' }}</button>
         </span>
       </div>
     </div>

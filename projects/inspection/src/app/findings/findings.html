@@ -1,0 +1,130 @@
+<section class="ip-page" (click)="menuId.set(null)">
+  <header class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span>/</span><span class="current">Findings &amp; Actions</span>
+      </nav>
+      <h1>Inspection Findings</h1>
+      <p class="subtitle">Track inspection exceptions, assign corrective actions and verify closure.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-accent-outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export</button>
+      <button type="button" class="btn btn-primary" (click)="openNew()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>New Finding</button>
+    </div>
+  </header>
+
+  @if (findings.error(); as err) { <div class="alert">{{ err }}</div> }
+
+  <div class="fd-split">
+    <div class="fd-main">
+      <div class="kpis">
+        <button type="button" class="kpi" (click)="kpiFilter('open')">
+          <span class="kpi-ic"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></span>
+          <span class="kpi-body"><span class="kpi-label">Open Findings</span><span class="kpi-value">{{ kpis().open }}</span></span>
+        </button>
+        <button type="button" class="kpi" (click)="kpiFilter('critical')">
+          <span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.CircleAlert" [size]="24"></lucide-icon></span>
+          <span class="kpi-body"><span class="kpi-label">Critical / High</span><span class="kpi-value c-bad">{{ kpis().critical }}</span></span>
+        </button>
+        <button type="button" class="kpi" (click)="kpiFilter('overdue')">
+          <span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.Clock" [size]="24"></lucide-icon></span>
+          <span class="kpi-body"><span class="kpi-label">Overdue Actions</span><span class="kpi-value c-warn">{{ kpis().overdue }}</span></span>
+        </button>
+        <button type="button" class="kpi" (click)="kpiFilter('verify')">
+          <span class="kpi-ic kpi-ic--blue"><lucide-icon [img]="icons.SquareCheckBig" [size]="24"></lucide-icon></span>
+          <span class="kpi-body"><span class="kpi-label">Pending Verification</span><span class="kpi-value">{{ kpis().verify }}</span></span>
+        </button>
+      </div>
+
+      <section class="card">
+        <div class="card-head"><h2>Findings Register</h2></div>
+        <div class="filters">
+          <label class="search">
+            <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+            <input type="search" placeholder="Search finding, asset or inspection..." [ngModel]="search()" (ngModelChange)="setFilter('search', $event)" />
+          </label>
+          <select class="control sel" [ngModel]="severity()" (ngModelChange)="setFilter('severity', $event)" aria-label="Severity">
+            <option value="">All Severities</option>
+            <option value="Critical/High">Critical / High</option>
+            @for (s of severities; track s) { <option [value]="s">{{ s }}</option> }
+          </select>
+          <select class="control sel" [ngModel]="status()" (ngModelChange)="setFilter('status', $event)" aria-label="Status">
+            <option value="Open">Open</option>
+            <option value="">All Statuses</option>
+            @for (s of statuses; track s) { <option [value]="s">{{ s === 'Open' ? 'Open (new)' : s }}</option> }
+          </select>
+          @if (overdueOnly()) {
+            <button type="button" class="pill pill--red chip" (click)="overdueOnly.set(false)">Overdue only ✕</button>
+          }
+        </div>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Finding ID / Finding</th><th>Asset</th><th>Severity</th><th>Owner</th><th>Due Date</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              @for (f of rows(); track f.id) {
+                <tr [class.is-selected]="f.id === selectedId()" (click)="selectedId.set(f.id)">
+                  <td><div class="code">{{ f.findingCode || '—' }}</div><div>{{ f.title }}</div></td>
+                  <td><span class="u">{{ f.assetCode }}</span></td>
+                  <td><span [class]="pillClass(f.severity)" [class.sev-low]="f.severity === 'Low'"><span class="dot"></span>{{ f.severity }}</span></td>
+                  <td class="nowrap">{{ f.owner }}</td>
+                  <td class="nowrap" [class.c-bad]="isOverdue(f)" [class.strong]="isOverdue(f)">{{ fmtDate(f.dueDate) || '—' }}</td>
+                  <td><span [class]="pillClass(f.status)">{{ f.status }}</span></td>
+                  <td class="menu-cell">
+                    <button type="button" class="icon-btn" aria-label="Finding actions" (click)="toggleMenu(f.id, $event)"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
+                    @if (menuId() === f.id) {
+                      <div class="menu" (click)="$event.stopPropagation()">
+                        <button type="button" (click)="selectedId.set(f.id); menuId.set(null)">View details</button>
+                        <button type="button" (click)="edit(f)">Edit</button>
+                        <button type="button" class="c-bad" (click)="askDelete(f)">Delete</button>
+                      </div>
+                    }
+                  </td>
+                </tr>
+                @if (confirmDeleteId() === f.id) {
+                  <tr class="confirm-row" (click)="$event.stopPropagation()">
+                    <td colspan="7">
+                      <div class="confirm">
+                        <span class="grow">Delete {{ f.findingCode || f.title }}? This cannot be undone.</span>
+                        <button type="button" class="btn btn-sm btn-outline" (click)="confirmDeleteId.set(null)">Cancel</button>
+                        <button type="button" class="btn btn-sm btn-danger" (click)="remove(f)">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+          @if (findings.loading()) {
+            <div class="empty">Loading findings...</div>
+          } @else if (!rows().length) {
+            <div class="empty">{{ findings.items().length ? 'No findings match the current filters.' : 'No findings recorded yet.' }}</div>
+          }
+        </div>
+
+        <div class="pager">
+          <span class="grow">{{ pager.label(filtered().length, 'findings') }}</span>
+          <button type="button" aria-label="Previous page" [disabled]="page() <= 1" (click)="goPage(page() - 1)"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+          @for (p of pager.pageList(filtered().length); track p) {
+            <button type="button" [class.is-active]="p === pager.page" (click)="goPage(p)">{{ p }}</button>
+          }
+          <button type="button" aria-label="Next page" [disabled]="page() >= pageCount()" (click)="goPage(page() + 1)"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+        </div>
+      </section>
+    </div>
+
+    @if (selected(); as s) {
+      <app-insp-finding-detail [finding]="s" [people]="people()" (edit)="edit(s)" (notify)="flash($event)"></app-insp-finding-detail>
+    } @else {
+      <section class="card"><div class="empty">Select a finding to see its details.</div></section>
+    }
+  </div>
+
+  @if (drawerOpen()) {
+    <app-insp-finding-form-drawer [finding]="editing()" [people]="people()" (saved)="onSaved($event)" (closed)="drawerOpen.set(false)"></app-insp-finding-form-drawer>
+  }
+
+  @if (toast(); as t) { <div class="toast">{{ t }}</div> }
+</section>

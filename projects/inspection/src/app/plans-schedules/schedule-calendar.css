@@ -1,0 +1,56 @@
+.cal-head { flex-wrap: wrap; }
+.cal-head h2 { flex: 1 1 auto; }
+.nav { display: flex; align-items: center; gap: 10px; }
+.nav-btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid var(--ip-control); border-radius: 8px; background: #fff; cursor: pointer; }
+.month { min-width: 140px; border: 0; background: none; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer; }
+.seg { display: inline-flex; border: 1px solid var(--ip-control); border-radius: 8px; overflow: hidden; }
+.seg button { padding: 7px 16px; border: 0; border-left: 1px solid var(--ip-control); background: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+.seg button:first-child { border-left: 0; }
+.seg button.on { background: var(--ip-accent); color: #fff; font-weight: 600; }
+.cal-body { padding-top: 4px; }
+
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--ip-border); border-radius: 10px; overflow: hidden; }
+.wh { padding: 8px; background: var(--ip-bg-soft); font-size: 12.5px; font-weight: 700; text-align: center; border-bottom: 1px solid var(--ip-border); }
+.day { display: flex; flex-direction: column; align-items: stretch; gap: 3px; min-height: 68px; padding: 6px; border: 0; border-right: 1px solid var(--ip-border); border-bottom: 1px solid var(--ip-border); background: #fff; font: inherit; text-align: center; cursor: pointer; min-width: 0; }
+.day:nth-of-type(7n) { border-right: 0; }
+.day:hover { background: #faf9fe; }
+.day.sel { background: var(--ip-accent-soft); }
+.day.out .dn { color: #aaa7b8; }
+.week .day { min-height: 180px; }
+.dn { align-self: center; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; font-size: 13px; }
+.dn.today { background: var(--ip-accent); color: #fff; font-weight: 700; }
+.ml { font-size: 11px; color: var(--ip-muted); margin-top: -4px; }
+.more { font-size: 11px; color: var(--ip-accent); font-weight: 600; }
+
+.ev { display: flex; align-items: center; gap: 5px; padding: 3px 6px; border-radius: 6px; font-size: 11.5px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--ip-grey-soft); color: var(--ip-text); }
+.ev-dot { display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: #aaa7b8; }
+.ev--sched { background: var(--ip-accent-soft); }
+.ev--prog { background: var(--ip-blue-soft); }
+.ev--done { background: var(--ip-good-soft); }
+.ev--over { background: var(--ip-bad-soft); color: var(--ip-bad); }
+.ev-dot.ev--sched, .ev--sched .ev-dot { background: var(--ip-accent); }
+.ev-dot.ev--prog, .ev--prog .ev-dot { background: var(--ip-blue); }
+.ev-dot.ev--done, .ev--done .ev-dot { background: var(--ip-good); }
+.ev-dot.ev--over, .ev--over .ev-dot { background: var(--ip-bad); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 18px; margin: 12px 0; font-size: 13px; }
+.legend > span { display: inline-flex; align-items: center; gap: 7px; }
+
+.list { display: flex; flex-direction: column; border: 1px solid var(--ip-border); border-radius: 10px; overflow: hidden; }
+.list-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--ip-border); background: #fff; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.list-row.on { background: var(--ip-accent-soft); }
+.ld { width: 96px; flex: 0 0 auto; font-weight: 600; }
+.lt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.detail { border: 1px solid var(--ip-border); border-radius: 10px; background: var(--ip-bg-soft); padding: 10px 12px; }
+.detail h3 { margin: 0 0 8px; font-size: 15px; }
+.drow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; margin-top: 6px; border: 1px solid var(--ip-border); border-radius: 8px; background: #fff; font-size: 13px; }
+.time { min-width: 96px; padding-right: 12px; border-right: 1px solid var(--ip-border); }
+.who { display: inline-flex; align-items: center; gap: 6px; }
+.none { padding: 6px 2px; }
+
+@media (max-width: 640px) {
+  .day { min-height: 54px; padding: 3px; }
+  .ev { font-size: 0; padding: 0; width: 8px; height: 8px; background: none; align-self: center; }
+  .seg button { padding: 7px 10px; }
+}

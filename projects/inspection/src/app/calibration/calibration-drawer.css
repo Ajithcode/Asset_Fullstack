@@ -1,0 +1,10 @@
+.seg { display: flex; border: 1px solid var(--ip-control); border-radius: 8px; overflow: hidden; }
+.seg button { flex: 1; padding: 9px 12px; border: 0; background: #fff; font: inherit; font-size: 13.5px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--ip-control); }
+.seg button.on { background: var(--ip-accent); color: #fff; font-weight: 600; }
+.pts-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.pts { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.pts th { text-align: left; padding: 6px 4px; color: var(--ip-muted); font-weight: 600; }
+.pts td { padding: 3px 4px; }
+.pts .control { height: 34px; padding: 0 6px; }
+.pts td:last-child { width: 34px; }

@@ -1,0 +1,36 @@
+.cal-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.cal-main .kpi { padding: 14px; gap: 12px; }
+.cal-main .kpi-ic { width: 42px; height: 42px; }
+.kpi--warn { background: #fffaf0; }
+.kpi--bad { background: #fff6f6; }
+.sel { width: 170px; flex: 0 0 auto; }
+.u { text-decoration: underline; color: var(--ip-accent); }
+
+.ck { width: 34px; }
+.ck input { width: 16px; height: 16px; accent-color: var(--ip-accent); cursor: pointer; }
+.sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; color: inherit; }
+.sort lucide-icon { color: var(--ip-muted); }
+.sort.on lucide-icon { color: var(--ip-accent); }
+
+.menu-cell { position: relative; width: 40px; }
+.menu { position: absolute; right: 8px; top: 40px; z-index: 20; min-width: 170px; padding: 6px; background: #fff; border: 1px solid var(--ip-border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); }
+.menu button { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.menu button:hover { background: var(--ip-accent-soft); }
+.confirm-row td { padding: 6px 10px; background: #fff !important; cursor: default; }
+.confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 8px; background: var(--ip-bad-soft); color: var(--ip-bad); font-size: 13px; }
+.btn-danger { background: var(--ip-bad); color: #fff; }
+
+.upcoming { flex-wrap: wrap; gap: 10px 18px; }
+.up-title { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; color: var(--ip-text); }
+.up-item { display: flex; align-items: center; gap: 12px; padding: 4px 14px; border: 0; border-left: 1px solid var(--ip-border); background: none; font: inherit; font-size: 12.5px; color: var(--ip-muted); text-align: left; cursor: pointer; }
+.up-item:hover .txt, .up-item:hover b { color: var(--ip-accent); }
+.up-date { display: flex; flex-direction: column; align-items: center; padding: 4px 10px; border-radius: 8px; background: var(--ip-bg-soft); font-size: 12px; color: var(--ip-text); }
+.up-date b { font-size: 18px; line-height: 1.1; }
+.txt { color: var(--ip-text); font-weight: 600; }
+.up-who { display: inline-flex; align-items: flex-start; gap: 6px; }
+.up-all { margin-left: auto; }
+
+@media (max-width: 600px) {
+  .sel { width: 100%; flex: 1 1 100%; }
+  .up-item { border-left: 0; padding: 4px 0; }
+}

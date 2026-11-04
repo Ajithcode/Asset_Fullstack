@@ -1,0 +1,256 @@
+<section class="ip-page">
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span>/</span><span>Configuration</span><span>/</span>
+        <span class="current">Numbering Sequences</span>
+      </nav>
+      <h1>Numbering Sequences</h1>
+      <p class="subtitle">Configure unique references for inspection records, plans, findings and reports.</p>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="btn btn-accent-outline" (click)="showLog = true">
+        <lucide-icon [img]="icons.FileText" [size]="17"></lucide-icon>View Allocation Log
+      </button>
+      <button type="button" class="btn btn-primary" (click)="newSequence()">
+        <lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>New Sequence
+      </button>
+    </div>
+  </div>
+
+  @if (store.error(); as err) {
+    <div class="alert">{{ err }}</div>
+  }
+
+  <div class="split-3">
+    <!-- ===== Library ===== -->
+    <div class="card">
+      <div class="card-head"><h2>Sequence Library</h2></div>
+      <div class="filters">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" placeholder="Search sequences..." [ngModel]="search()" (ngModelChange)="search.set($event)" aria-label="Search sequences" />
+        </label>
+      </div>
+      <div class="lib">
+        @if (store.loading()) {
+          <div class="empty">Loading sequences…</div>
+        }
+        @for (s of filtered(); track s.id) {
+          <div class="lib-item" [class.is-selected]="selectedId() === s.id">
+            <button type="button" class="lib-main" (click)="select(s)">
+              <span class="lib-ic"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon></span>
+              <span class="grow">
+                <span class="lib-name">{{ s.sequenceName }}</span>
+                <span class="muted">{{ s.format }}</span>
+              </span>
+              <span [class]="pillClass(s.isActive ? 'Active' : 'Inactive')"><span class="dot"></span>{{ s.isActive ? 'Active' : 'Inactive' }}</span>
+            </button>
+            <button type="button" class="icon-btn" aria-label="More actions" (click)="menuFor = menuFor === s.id ? null : s.id; confirmDelete = null">
+              <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon>
+            </button>
+            @if (menuFor === s.id) {
+              <div class="menu">
+                @if (confirmDelete === s.id) {
+                  <span class="muted">Delete this sequence?</span>
+                  <button type="button" class="menu-danger" (click)="remove(s)">Yes, delete</button>
+                  <button type="button" (click)="confirmDelete = null">Keep</button>
+                } @else {
+                  <button type="button" (click)="duplicate(s)">Duplicate</button>
+                  <button type="button" class="menu-danger" (click)="confirmDelete = s.id">Delete</button>
+                }
+              </div>
+            }
+          </div>
+        } @empty {
+          @if (!store.loading()) {
+            <div class="empty">No sequences found.</div>
+          }
+        }
+      </div>
+    </div>
+
+    <!-- ===== Configuration ===== -->
+    <div class="card">
+      <div class="card-head"><h2>Sequence Configuration</h2></div>
+      @if (draft; as d) {
+        <div class="card-body cfg">
+          <div class="cfg-title">
+            <span class="lib-ic"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon></span>
+            <h3>{{ d.sequenceName || 'Untitled sequence' }}</h3>
+            <button type="button" [class]="pillClass(d.isActive ? 'Active' : 'Inactive')" class="pill-btn" (click)="toggleActive()" title="Toggle active">
+              <span class="dot"></span>{{ d.isActive ? 'Active' : 'Inactive' }}
+            </button>
+          </div>
+          <div class="form-grid">
+            <label class="field"><span class="field-label">Sequence name <span class="req">*</span></span>
+              <input class="control" [(ngModel)]="d.sequenceName" (ngModelChange)="touch()" /></label>
+            <label class="field"><span class="field-label">Record type</span>
+              <select class="control" [(ngModel)]="d.numberType" (ngModelChange)="touch()">
+                @for (t of recordTypes; track t) { <option [value]="t">{{ t }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">Prefix</span>
+              <input class="control" [(ngModel)]="d.prefix" (ngModelChange)="rebuild()" /></label>
+            <label class="field"><span class="field-label">Separator</span>
+              <select class="control" [(ngModel)]="d.separator" (ngModelChange)="rebuild()">
+                @for (s of separators; track s.value) { <option [value]="s.value">{{ s.label }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">Year format</span>
+              <select class="control" [(ngModel)]="d.yearFormat" (ngModelChange)="rebuild()">
+                @for (y of yearFormats; track y.value) { <option [value]="y.value">{{ y.label }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">Sequence digits</span>
+              <select class="control" [(ngModel)]="d.sequenceDigits" (ngModelChange)="touch()">
+                @for (n of digitOptions; track n) { <option [ngValue]="n">{{ n }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">Starting number</span>
+              <input class="control" type="number" min="0" [(ngModel)]="d.startingNumber" (ngModelChange)="setStarting()" /></label>
+            <label class="field"><span class="field-label">Reset rule</span>
+              <select class="control" [(ngModel)]="d.resetFrequency" (ngModelChange)="touch()">
+                @for (r of resetRules; track r) { <option [value]="r">{{ r }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">Scope</span>
+              <select class="control" [(ngModel)]="d.scope" (ngModelChange)="touch()">
+                @for (s of scopes; track s) { <option [value]="s">{{ s }}</option> }
+              </select></label>
+            <label class="field"><span class="field-label">Timezone</span>
+              <select class="control" [(ngModel)]="d.timezone" (ngModelChange)="touch()">
+                @for (t of timezones; track t) { <option [value]="t">{{ t }}</option> }
+              </select></label>
+            <label class="field span-2"><span class="field-label">Sequence format</span>
+              <input class="control mono" [(ngModel)]="d.format" (ngModelChange)="touch()" /></label>
+          </div>
+          <div class="tokens">
+            @for (t of tokens(d); track t.label) { <span [class]="t.cls">{{ t.label }}</span> }
+            <span class="tok-help">
+              <button type="button" class="link" (click)="showTokens = !showTokens">Available tokens <lucide-icon [img]="icons.Info" [size]="14"></lucide-icon></button>
+              @if (showTokens) {
+                <span class="tip" role="tooltip">
+                  <code>{{ '{PREFIX}' }}</code> prefix · <code>{{ '{YYYY}' }}</code> 4-digit year · <code>{{ '{YY}' }}</code> 2-digit year ·
+                  <code>{{ '{MM}' }}</code> month · <code>{{ '{SEQ}' }}</code> padded counter (required)
+                </span>
+              }
+            </span>
+          </div>
+          <div class="cfg-bottom">
+            <div class="field">
+              <span class="field-label">Next counter</span>
+              <input class="control mono counter" [value]="counter(d)" readonly aria-label="Next counter" />
+              <span class="field-hint">Allocated automatically when the record is created.</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Options</span>
+              <label class="check"><input type="checkbox" [(ngModel)]="d.generateOnFinalCreation" (ngModelChange)="touch()" />Generate on final record creation</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="d.doNotReuse" (ngModelChange)="touch()" />Do not reuse allocated numbers</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="d.allowManualOverride" (ngModelChange)="touch()" />Allow manual override</label>
+              <span class="field-hint"><lucide-icon [img]="icons.Info" [size]="12"></lucide-icon> Cancelled records retain their allocated reference.</span>
+            </div>
+          </div>
+        </div>
+      } @else {
+        <div class="empty">Select a sequence or create a new one.</div>
+      }
+    </div>
+
+    <!-- ===== Right column ===== -->
+    <div class="col">
+      @if (draft; as d) {
+        <div class="card">
+          <div class="card-head"><h2>Live Preview</h2></div>
+          <div class="card-body pv">
+            <span class="field-label">Next Reference</span>
+            <div class="big-ref mono">{{ render(d, d.runningNumber) }}</div>
+            <span class="field-label">Next 3 numbers</span>
+            <ol class="next3">
+              @for (r of nextThree(d); track $index) { <li><span>{{ $index + 1 }}</span><b class="mono">{{ r }}</b></li> }
+            </ol>
+            <span class="field-label">Reset Preview</span>
+            @if (resetDate(d); as rd) {
+              <div class="reset">{{ resetLabel(rd) }} <lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon>
+                <b class="mono">{{ render(d, d.startingNumber, rd) }}</b></div>
+            } @else {
+              <div class="reset muted">Counter never resets.</div>
+            }
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Validation</h2></div>
+          <div class="card-body val">
+            @for (v of validation(d); track v.text) {
+              <div class="val-row" [class.bad]="!v.ok">
+                <lucide-icon [img]="v.ok ? icons.CircleCheck : icons.CircleAlert" [size]="18"></lucide-icon>{{ v.text }}
+              </div>
+            }
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Usage Summary</h2></div>
+          <div class="card-body">
+            <dl class="kv">
+              <dt>Last allocated</dt><dd class="c-accent">{{ d.lastAllocated || '—' }}</dd>
+              <dt>Used by</dt><dd class="c-accent">{{ d.sequenceName }}</dd>
+              <dt>Assigned this year</dt><dd>{{ d.assignedThisYear }}</dd>
+            </dl>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  @if (draft; as d) {
+    <div class="card">
+      <div class="card-head"><h2>Recent Allocations</h2></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Reference</th><th>Record</th><th>Allocated At</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (a of recent(d); track a.reference + a.allocatedAt) {
+              <tr><td class="code">{{ a.reference }}</td><td>{{ a.record }}</td><td>{{ fmtDateTime(a.allocatedAt) }}</td>
+                <td><span [class]="pillClass(a.state)"><span class="dot"></span>{{ a.state }}</span></td></tr>
+            } @empty {
+              <tr><td colspan="4" class="empty">No references allocated yet.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="pad"></div>
+    </div>
+
+    <div class="footer-bar">
+      <lucide-icon [img]="icons.Info" [size]="16"></lucide-icon>
+      <span class="grow">Changes apply to future records. Existing references remain unchanged.
+        @if (dirty) { <b class="c-warn"> · Unsaved changes</b> } @else if (lastEdited(d)) { · Last edited {{ lastEdited(d) }} }</span>
+      <button type="button" class="btn btn-outline" (click)="cancel()" [disabled]="!dirty">Cancel</button>
+      <button type="button" class="btn btn-primary" (click)="save()" [disabled]="saving || !dirty">{{ saving ? 'Saving…' : 'Save Changes' }}</button>
+    </div>
+  }
+
+  @if (showLog) {
+    <div class="backdrop" (click)="showLog = false"></div>
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Allocation log">
+      <div class="drawer-head">
+        <h2 class="grow">Allocation Log</h2>
+        <button type="button" class="btn btn-outline btn-sm" (click)="exportLog()" [disabled]="!logRows.length">
+          <lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+        <button type="button" class="icon-btn" aria-label="Close" (click)="showLog = false"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <div class="modal-body">
+        <table class="table">
+          <thead><tr><th>Reference</th><th>Record</th><th>Sequence</th><th>Allocated At</th><th>Status</th></tr></thead>
+          <tbody>
+            @for (a of logRows; track $index) {
+              <tr><td class="code">{{ a.reference }}</td><td>{{ a.record }}</td><td>{{ a.sequenceName }}</td>
+                <td class="nowrap">{{ fmtDateTime(a.allocatedAt) }}</td><td><span [class]="pillClass(a.state)">{{ a.state }}</span></td></tr>
+            } @empty {
+              <tr><td colspan="5" class="empty">No allocations recorded.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  @if (toast(); as t) {
+    <div class="toast" role="status">{{ t }}</div>
+  }
+</section>

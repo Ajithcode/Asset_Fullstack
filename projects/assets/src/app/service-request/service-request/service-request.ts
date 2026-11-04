@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { combineLatest } from 'rxjs';
+import { Observable, Subject, catchError, combineLatest, forkJoin, map, of, switchMap, tap } from 'rxjs';
 import {
   LucideAngularModule,
   ArrowDownUp,
@@ -37,16 +37,61 @@ import {
   Wrench,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, TODAY, assetLocation, findAsset, toIsoDate } from 'shared-ui';
-import { RelatedPart, RelationshipLink, loadAssetDetail } from '../../asset-details/asset-details';
-import { MaintenanceData, WorkOrder, dataFor } from '../../asset-maintenance/asset-maintenance';
-import { SR_CATEGORIES, SR_PRIORITIES, SrCategory, SrPriority, SrStatus, ServiceRequest as SrRecord } from '../../asset-maintenance/maintenance-sr';
-import { lineCost } from '../../asset-maintenance/maintenance-parts';
+import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, AssetStatus, AuthService, findAsset } from 'shared-ui';
+import { loadAssetDetail } from '../../asset-details/asset-details';
+import { AssetDetailsService, fileUrl, iconForAsset, isoDay } from '../../asset-details/asset-details.service';
+import { apiErrorMessage } from '../../services/asset-api';
+import {
+  MaintenanceWorkOrderDto,
+  SR_API_PRIORITIES,
+  SR_API_REQUEST_TYPES,
+  ServiceRequestApiService,
+  ServiceRequestDto,
+  ServiceRequestRelatedDto,
+  SrAttachmentRequest,
+  SrUpdateDto,
+  SrWorkOrderDto,
+  fmtFileSize,
+  localStamp,
+  toSaveBody,
+} from '../service-request-api.service';
 
 type Tab = 'details' | 'updates' | 'attachments' | 'related';
-type Attachment = SrRecord['attachments'][number];
 type FileKind = 'Image' | 'PDF' | 'Document' | 'Spreadsheet' | 'Audio' | 'Video' | 'File';
 type UpdateKind = 'created' | 'status' | 'comment' | 'file';
+
+/** The request as the page shows it, mapped from the API's AssetServiceRequestResponse. */
+interface SrView {
+  /** Request number, e.g. SR-2025-028. */
+  id: string;
+  /** API id used for every call. */
+  apiId: string;
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  status: string;
+  /** yyyy-MM-ddTHH:mm (local) */
+  createdAt: string;
+  requestedBy: string;
+  requesterDept: string;
+  assignedTo: string;
+  /** Actual start, or ''. */
+  respondedAt: string;
+  /** Actual end, or ''. */
+  resolvedAt: string;
+  targetDate: string;
+  workOrder: string;
+  /** No rating in the API. */
+  rating: number;
+  location?: string;
+  downtimeHours?: number;
+  plannedStart?: string;
+  plannedEnd?: string;
+  relatedRequest?: string;
+  tags?: string[];
+  reference?: string;
+}
 
 interface UpdateRow {
   at: string;
@@ -55,26 +100,59 @@ interface UpdateRow {
   kind: UpdateKind;
   action: string;
   /** Status the request moved to with this update, if any. */
-  status: SrStatus | null;
+  status: string | null;
 }
 
-interface AttachmentRow extends Attachment {
+interface AttachmentRow {
+  /** Attachment id. */
+  key: string;
+  name: string;
+  size: string;
+  description?: string;
+  url?: string;
   kind: FileKind;
   by: string;
   at: string;
 }
 
+interface WoRow {
+  id: string;
+  date: string;
+  type: string;
+  description: string;
+  status: string;
+  technician: string;
+  priority?: string;
+  downtimeMin?: number;
+}
+
+interface ComponentRow {
+  tag: string;
+  name: string;
+  type: string;
+  relationship: string;
+}
+
+interface DocRow {
+  name: string;
+  kind: FileKind;
+  at: string;
+  by: string;
+  relatedTo: string;
+  url?: string;
+}
+
 interface EditForm {
   title: string;
   description: string;
-  category: SrCategory;
-  priority: SrPriority;
+  category: string;
+  priority: string;
   assignedTo: string;
   targetDate: string;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const CURRENT_USER = 'Rex Kumar';
+/** No people API in the Asset service yet: the assignable technicians are a fixed list. */
 const TECHNICIANS = ['Ahmed Khan', 'Ravi Patel', 'Nisha Patel', 'Ramesh Kumar', 'Salim Ahmed', 'Khalid Mansoori', 'Priya Nair'];
 const KIND_BY_EXT: Record<string, FileKind> = {
   jpg: 'Image', jpeg: 'Image', png: 'Image', gif: 'Image', webp: 'Image', pdf: 'PDF', doc: 'Document', docx: 'Document', txt: 'Document',
@@ -83,8 +161,16 @@ const KIND_BY_EXT: Record<string, FileKind> = {
 const UPLOAD_EXTS = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'mp4'];
 const MAX_UPLOAD = 50 * 1024 * 1024;
 const TABS: Tab[] = ['details', 'updates', 'attachments', 'related'];
+/** Status moves offered in More Actions, by current status (the API's update statuses). */
+const STATUS_ACTIONS: Record<string, { label: string; status: string }[]> = {
+  Open: [{ label: 'Start work', status: 'In Progress' }, { label: 'Approve', status: 'Approved' }, { label: 'Put on hold', status: 'On Hold' }, { label: 'Close request', status: 'Closed' }, { label: 'Cancel request', status: 'Cancelled' }],
+  'In Progress': [{ label: 'Put on hold', status: 'On Hold' }, { label: 'Close request', status: 'Closed' }, { label: 'Cancel request', status: 'Cancelled' }],
+  'On Hold': [{ label: 'Resume work', status: 'In Progress' }, { label: 'Close request', status: 'Closed' }, { label: 'Cancel request', status: 'Cancelled' }],
+  Approved: [{ label: 'Start work', status: 'In Progress' }, { label: 'Close request', status: 'Closed' }, { label: 'Cancel request', status: 'Cancelled' }],
+  Closed: [{ label: 'Reopen', status: 'Open' }],
+};
 
-/** One service request on its own page: asset header, the request's tabs and a summary column. */
+/** One service request on its own page: asset header, the request's tabs and a summary column. Data from /api/service-requests. */
 @Component({
   selector: 'app-service-request',
   standalone: true,
@@ -105,19 +191,28 @@ export class ServiceRequest implements OnDestroy {
   };
   readonly typeIcons = ASSET_TYPE_ICONS;
   readonly tabs = TABS;
-  readonly categories = SR_CATEGORIES;
-  readonly priorities = SR_PRIORITIES;
+  categories: string[] = SR_API_REQUEST_TYPES;
+  priorities: string[] = SR_API_PRIORITIES;
   readonly technicians = TECHNICIANS;
   readonly pageSizes = [10, 25, 50];
   readonly uploadAccept = UPLOAD_EXTS.map((e) => '.' + e).join(',');
 
   asset: AssetRecord = findAsset('GEN-00045') ?? ASSET_RECORDS[0];
-  data: MaintenanceData = dataFor(this.asset);
+  /** The asset's AssetRegistrationId, once known. */
+  private assetId = '';
   requestId = '';
   tab: Tab = 'details';
   health: number | null = null;
-  components: { link: RelationshipLink; part: RelatedPart | undefined }[] = [];
-  private loadedTag = '';
+  loading = false;
+  busy = false;
+  loadError = '';
+
+  private dto: ServiceRequestDto | null = null;
+  request: SrView | null = null;
+  private apiUpdates: SrUpdateDto[] = [];
+  private related: ServiceRequestRelatedDto | null = null;
+  private assetComponents: ComponentRow[] = [];
+  private assetWorkOrders: MaintenanceWorkOrderDto[] = [];
 
   // Updates
   updateFilter: '' | 'comment' | 'status' = '';
@@ -139,18 +234,38 @@ export class ServiceRequest implements OnDestroy {
   editError = '';
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
+  private loadedKey = '';
+  private readonly load$ = new Subject<{ tag: string | null; id: string | null }>();
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly api = inject(ServiceRequestApiService);
+  private readonly assets = inject(AssetDetailsService);
+  private readonly auth = inject(AuthService);
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
+    this.api.options().pipe(takeUntilDestroyed(destroyRef)).subscribe({
+      next: (o) => {
+        if (o.requestTypes?.length) this.categories = o.requestTypes;
+        if (o.priorities?.length) this.priorities = o.priorities;
+      },
+      error: () => undefined, // keep the built-in lists
+    });
+
+    this.load$.pipe(switchMap((k) => this.loadAll(k.tag, k.id)), takeUntilDestroyed(destroyRef)).subscribe();
+
     combineLatest([this.route.paramMap, this.route.queryParamMap])
-      .pipe(takeUntilDestroyed(inject(DestroyRef)))
+      .pipe(takeUntilDestroyed(destroyRef))
       .subscribe(([p, q]) => {
-        const asset = findAsset(q.get('tag')) ?? this.asset;
-        if (asset.tag !== this.loadedTag) this.setAsset(asset);
-        const id = p.get('id') ?? this.latestId;
-        if (id !== this.requestId) this.resetFiles();
-        this.requestId = id;
+        const tag = q.get('tag');
+        const id = p.get('id');
+        const key = `${tag ?? ''}|${id ?? ''}`;
+        if (key !== this.loadedKey) {
+          this.loadedKey = key;
+          this.requestId = id ?? '';
+          this.resetFiles();
+          this.load$.next({ tag, id });
+        }
         const tab = q.get('tab') as Tab | null;
         this.tab = tab && TABS.includes(tab) ? tab : 'details';
       });
@@ -160,18 +275,157 @@ export class ServiceRequest implements OnDestroy {
     clearTimeout(this.toastTimer);
   }
 
-  private setAsset(a: AssetRecord): void {
-    this.asset = a;
-    this.loadedTag = a.tag;
-    this.data = dataFor(a);
-    this.health = null;
-    this.components = [];
-    loadAssetDetail(a.tag).then((d) => {
-      if (this.asset.tag !== a.tag || !d) return;
-      this.health = d.health.score;
-      const parts = new Map(d.relationships.parts.map((x) => [x.tag, x]));
-      this.components = d.relationships.links.filter((l) => l.type === 'Component' && l.status === 'Active').map((link) => ({ link, part: parts.get(link.tag) }));
+  // ===== Loading =====
+
+  /** Asset by tag, then the request (by id or number, or the asset's latest), then its updates and related items. */
+  private loadAll(tag: string | null, id: string | null): Observable<unknown> {
+    this.loading = true;
+    this.loadError = '';
+    this.setRequest(null);
+    this.apiUpdates = [];
+    this.related = null;
+    this.assetComponents = [];
+    this.assetWorkOrders = [];
+    this.assetId = '';
+    const fallback = findAsset(tag);
+    if (fallback) this.setAssetRecord(fallback);
+
+    const asset$ = tag
+      ? this.assets.getByTag(tag, fallback).pipe(catchError(() => of(null)))
+      : of(null);
+
+    return asset$.pipe(
+      tap((a) => {
+        if (a) {
+          this.assetId = a.registration.assetRegistrationId;
+          this.setAssetRecord(a.record);
+        }
+      }),
+      switchMap(() => {
+        if (id) return this.api.find(id, this.assetId || undefined);
+        if (!this.assetId) return of(null);
+        return this.api.list({ assetRegistrationId: this.assetId, pageSize: 1 }).pipe(
+          switchMap((res) => (res.items[0] ? this.api.get(res.items[0].id) : of(null))),
+        );
+      }),
+      tap((dto) => {
+        this.loading = false;
+        this.setRequest(dto);
+        if (dto) {
+          this.requestId = dto.requestNumber;
+          if (!this.assetId) {
+            this.assetId = dto.asset.assetRegistrationId;
+            this.setAssetRecord(this.recordFromRequest(dto, fallback));
+          }
+        }
+      }),
+      switchMap((dto) => (dto ? this.loadExtras(dto.id) : of(null))),
+      catchError((err) => {
+        this.loading = false;
+        this.loadError = apiErrorMessage(err, 'Could not load the service request.');
+        return of(null);
+      }),
+    );
+  }
+
+  /** Updates, related items, the asset's components and its work orders (each optional). */
+  private loadExtras(apiId: string): Observable<unknown> {
+    const assetId = this.assetId;
+    return forkJoin({
+      updates: this.api.getUpdates(apiId).pipe(catchError(() => of([] as SrUpdateDto[]))),
+      related: this.api.getRelated(apiId).pipe(catchError(() => of(null))),
+      components: assetId ? this.assets.getComponents(assetId).pipe(catchError(() => of([]))) : of([]),
+      workOrders: assetId ? this.api.workOrdersOfAsset(assetId).pipe(catchError(() => of([] as MaintenanceWorkOrderDto[]))) : of([]),
+    }).pipe(
+      tap((r) => {
+        if (this.dto?.id !== apiId) return;
+        this.apiUpdates = r.updates;
+        this.related = r.related;
+        this.assetComponents = r.components.map((c) => ({ tag: c.componentTag, name: c.componentName, type: 'Component', relationship: `Part of ${this.asset.tag}` }));
+        this.assetWorkOrders = r.workOrders;
+      }),
+    );
+  }
+
+  /** Re-reads updates and related items after a change. */
+  private refreshExtras(): void {
+    const id = this.dto?.id;
+    if (!id) return;
+    forkJoin({
+      updates: this.api.getUpdates(id).pipe(catchError(() => of(this.apiUpdates))),
+      related: this.api.getRelated(id).pipe(catchError(() => of(this.related))),
+    }).subscribe((r) => {
+      if (this.dto?.id !== id) return;
+      this.apiUpdates = r.updates;
+      this.related = r.related;
     });
+  }
+
+  private setAssetRecord(a: AssetRecord): void {
+    const changed = a.tag !== this.asset.tag;
+    this.asset = a;
+    if (changed || this.health === null) {
+      this.health = null;
+      loadAssetDetail(a.tag).then((d) => {
+        if (this.asset.tag === a.tag && d) this.health = d.health.score;
+      });
+    }
+  }
+
+  /** Header record for an asset known only from the request's copy of it. */
+  private recordFromRequest(dto: ServiceRequestDto, fallback?: AssetRecord): AssetRecord {
+    const a = dto.asset;
+    return {
+      id: fallback?.id ?? 0,
+      name: a.assetName ?? fallback?.name ?? '',
+      tag: a.assetTag ?? fallback?.tag ?? '',
+      category: a.category ?? fallback?.category ?? '',
+      type: fallback?.type ?? '',
+      site: a.location ?? fallback?.site ?? '',
+      area: fallback && !a.location ? fallback.area : '',
+      custodian: fallback?.custodian ?? '',
+      department: a.department ?? fallback?.department ?? '',
+      status: (a.status ?? fallback?.status ?? 'Active') as AssetStatus,
+      criticality: fallback?.criticality ?? 'Medium',
+      manufacturer: fallback?.manufacturer ?? '',
+      model: fallback?.model ?? '',
+      nextMaintenance: fallback?.nextMaintenance ?? null,
+      icon: fallback?.icon ?? iconForAsset(a.category, a.assetName),
+      image: fileUrl(a.imageUrl) || fallback?.image || '',
+    };
+  }
+
+  private setRequest(dto: ServiceRequestDto | null): void {
+    this.dto = dto;
+    this.request = dto ? this.toView(dto) : null;
+  }
+
+  private toView(d: ServiceRequestDto): SrView {
+    return {
+      id: d.requestNumber,
+      apiId: d.id,
+      title: d.title,
+      description: d.description ?? '',
+      category: d.requestType ?? '',
+      priority: d.priority ?? '',
+      status: d.status ?? '',
+      createdAt: localStamp(d.requestedDate ?? d.submittedAt ?? d.createdAt),
+      requestedBy: d.requestedBy?.name ?? d.createdBy ?? '',
+      requesterDept: d.department?.name ?? '',
+      assignedTo: d.assignedTo?.name ?? '',
+      respondedAt: localStamp(d.actualStart),
+      resolvedAt: localStamp(d.actualEnd),
+      targetDate: isoDay(d.targetDate),
+      workOrder: d.workOrder?.workOrderId ?? '',
+      rating: 0,
+      location: d.location?.name ?? undefined,
+      downtimeHours: d.estimatedDowntimeHours ?? undefined,
+      plannedStart: localStamp(d.plannedStart),
+      plannedEnd: localStamp(d.plannedEnd),
+      relatedRequest: d.relatedServiceRequest ?? undefined,
+      tags: d.tags ?? [],
+      reference: d.referenceNumber ?? undefined,
+    };
   }
 
   private resetFiles(): void {
@@ -183,31 +437,29 @@ export class ServiceRequest implements OnDestroy {
     this.comment = '';
   }
 
-  /** Most recently raised request of the asset (opened from the sidebar, where no id is given). */
-  private get latestId(): string {
-    return this.data.serviceRequests.reduce<SrRecord | null>((a, r) => (!a || r.createdAt > a.createdAt ? r : a), null)?.id ?? '';
-  }
-
-  get request(): SrRecord | null {
-    return this.data.serviceRequests.find((r) => r.id === this.requestId) ?? null;
-  }
-
   get location(): string {
-    return assetLocation(this.asset);
+    return [this.asset.site, this.asset.area].filter(Boolean).join(' - ') || '-';
   }
 
-  get workOrder(): WorkOrder | null {
-    const id = this.request?.workOrder;
-    return (id && this.data.workOrders.find((w) => w.id === id)) || null;
+  get workOrder(): WoRow | null {
+    const w = this.related?.workOrders.find((x) => x.workOrderId === this.request?.workOrder) ?? this.dto?.workOrder ?? null;
+    return w ? this.toWoRow(w) : null;
+  }
+
+  private toWoRow(w: SrWorkOrderDto): WoRow {
+    return {
+      id: w.workOrderId, date: isoDay(w.plannedStart), type: w.workType ?? '-', description: w.title ?? '', status: w.status ?? 'Open',
+      technician: w.assignedTo ?? '-', priority: w.priority ?? undefined,
+    };
   }
 
   // ===== Tabs =====
 
-  tabLabel(t: Tab, r: SrRecord): string {
+  tabLabel(t: Tab, r: SrView): string {
     switch (t) {
       case 'details': return 'Details';
-      case 'updates': return `Updates (${r.updates.length})`;
-      case 'attachments': return `Attachments (${r.attachments.length})`;
+      case 'updates': return `Updates (${this.apiUpdates.length || this.dto?.counts.updatesCount || 0})`;
+      case 'attachments': return `Attachments (${this.attachments.length})`;
       case 'related': return `Related (${this.relatedCount})`;
     }
   }
@@ -240,11 +492,11 @@ export class ServiceRequest implements OnDestroy {
 
   // ===== Formatting =====
 
-  fmtDate(iso: string | undefined): string {
+  fmtDate(iso: string | undefined | null): string {
     return iso ? `${iso.slice(8, 10)} ${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}` : '-';
   }
 
-  fmtDateTime(v: string | undefined): string {
+  fmtDateTime(v: string | undefined | null): string {
     return v ? `${this.fmtDate(v.slice(0, 10))}${v.length > 10 ? ' ' + v.slice(11, 16) : ''}` : '-';
   }
 
@@ -259,11 +511,11 @@ export class ServiceRequest implements OnDestroy {
     return 'av--' + (h % 5);
   }
 
-  statusClass(s: SrStatus): string {
+  statusClass(s: string): string {
     return 'sr-st--' + s.toLowerCase().replace(' ', '-');
   }
 
-  prioClass(p: SrPriority): string {
+  prioClass(p: string): string {
     return 'prio--' + p.toLowerCase();
   }
 
@@ -286,22 +538,20 @@ export class ServiceRequest implements OnDestroy {
 
   // ===== Updates =====
 
-  /** Updates are stored as text; the kind and resulting status are read from it. */
-  private toRow(u: SrRecord['updates'][number], first: boolean): UpdateRow {
-    const t = u.text.toLowerCase();
-    if (first || t.startsWith('service request created')) return { ...u, kind: 'created', action: 'Created the Service Request', status: 'Open' };
-    if (t.startsWith('attachment added')) return { ...u, kind: 'file', action: 'Added Attachment', status: null };
-    const status: SrStatus | null = t.startsWith('resolved') ? 'Resolved' : t.startsWith('closed') ? 'Closed' : t.startsWith('reopened') ? 'Open'
-      : t.startsWith('assigned') || t.startsWith('converted') ? 'In Progress' : null;
-    return status ? { ...u, kind: 'status', action: 'Updated Status', status } : { ...u, kind: 'comment', action: 'Added Comment', status: null };
+  private toRow(u: SrUpdateDto): UpdateRow {
+    const kind: UpdateKind =
+      u.updateType === 'Created' ? 'created'
+        : u.updateType === 'Status Change' || u.updateType === 'Work Order' ? 'status'
+          : !u.message && u.attachments?.length ? 'file' : 'comment';
+    const text = [u.message, u.recommendedAction ? `Recommended action: ${u.recommendedAction}` : '', u.attachments?.length ? `Attachments: ${u.attachments.map((a) => a.fileName).join(', ')}` : '']
+      .filter(Boolean).join(' · ') || u.action;
+    return { at: localStamp(u.createdAt), by: u.userName || 'System', text, kind, action: u.action, status: u.status ?? null };
   }
 
   get updates(): UpdateRow[] {
-    const r = this.request;
-    if (!r) return [];
-    return r.updates
-      .map((u, i) => this.toRow(u, i === 0))
-      .filter((u) => !this.updateFilter || (this.updateFilter === 'comment' ? u.kind === 'comment' : u.kind === 'status' || u.kind === 'created'));
+    return this.apiUpdates
+      .map((u) => this.toRow(u))
+      .filter((u) => !this.updateFilter || (this.updateFilter === 'comment' ? u.kind === 'comment' || u.kind === 'file' : u.kind === 'status' || u.kind === 'created'));
   }
 
   updateIcon(kind: UpdateKind) {
@@ -311,20 +561,8 @@ export class ServiceRequest implements OnDestroy {
   addComment(): void {
     const r = this.request;
     const text = this.comment.trim();
-    if (!r || !text) return;
-    this.log(r, text);
-    this.comment = '';
-    this.showToast('Comment added.');
-  }
-
-  private log(r: SrRecord, text: string): void {
-    r.updates.push({ at: this.nowStamp(), by: CURRENT_USER, text });
-  }
-
-  private nowStamp(): string {
-    const d = new Date();
-    const p = (n: number) => String(n).padStart(2, '0');
-    return `${toIsoDate(d)}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    if (!r || !text || this.busy) return;
+    this.run(this.api.addUpdate(r.apiId, { message: text }), 'Comment added.', () => (this.comment = ''));
   }
 
   // ===== Attachments =====
@@ -337,10 +575,20 @@ export class ServiceRequest implements OnDestroy {
     return { Image: this.icons.FileImage, PDF: this.icons.FileText, Document: this.icons.FileText, Spreadsheet: this.icons.FileSpreadsheet, Audio: this.icons.Music, Video: this.icons.Video, File: this.icons.File }[kind];
   }
 
-  /** Files raised with the request carry no uploader: they came from the requester. */
   get attachments(): AttachmentRow[] {
+    const d = this.dto;
     const r = this.request;
-    return r ? r.attachments.map((a) => ({ ...a, kind: this.kindOf(a.name), by: a.by ?? r.requestedBy, at: a.at ?? r.createdAt })) : [];
+    if (!d || !r) return [];
+    return (d.attachments ?? []).map((a) => ({
+      key: a.attachmentId,
+      name: a.fileName,
+      size: fmtFileSize(a.fileSize),
+      description: a.description ?? '',
+      url: fileUrl(a.fileUrl) || undefined,
+      kind: this.kindOf(a.fileName),
+      by: a.uploadedBy || r.requestedBy,
+      at: localStamp(a.uploadedAt) || r.createdAt,
+    }));
   }
 
   get kinds(): FileKind[] {
@@ -382,15 +630,15 @@ export class ServiceRequest implements OnDestroy {
   }
 
   get allChecked(): boolean {
-    return this.filePage.length > 0 && this.filePage.every((a) => this.checked.has(a.name));
+    return this.filePage.length > 0 && this.filePage.every((a) => this.checked.has(a.key));
   }
 
   toggleAll(on: boolean): void {
-    for (const a of this.filePage) on ? this.checked.add(a.name) : this.checked.delete(a.name);
+    for (const a of this.filePage) on ? this.checked.add(a.key) : this.checked.delete(a.key);
   }
 
-  toggleCheck(name: string, on: boolean): void {
-    on ? this.checked.add(name) : this.checked.delete(name);
+  toggleCheck(key: string, on: boolean): void {
+    on ? this.checked.add(key) : this.checked.delete(key);
   }
 
   onDrop(event: DragEvent): void {
@@ -404,158 +652,190 @@ export class ServiceRequest implements OnDestroy {
     input.value = '';
   }
 
+  /** Uploads the files through the Media service, then attaches them to the request. */
   private addFiles(files: FileList): void {
     const r = this.request;
-    if (!r) return;
+    if (!r || this.busy) return;
     const skipped: string[] = [];
-    let added = 0;
+    const ok: File[] = [];
     for (const f of Array.from(files)) {
       const ext = f.name.split('.').pop()?.toLowerCase() ?? '';
-      if (!UPLOAD_EXTS.includes(ext) || f.size > MAX_UPLOAD) {
-        skipped.push(f.name);
-        continue;
-      }
-      // object URL lives for the session, like the attachment itself
-      const url = URL.createObjectURL(f);
-      r.attachments.push({ name: this.uniqueName(r, f.name), size: this.fmtSize(f.size), by: CURRENT_USER, at: this.nowStamp(), description: '', url });
-      this.log(r, `Attachment added: ${f.name}.`);
-      added++;
+      if (!UPLOAD_EXTS.includes(ext) || f.size > MAX_UPLOAD) skipped.push(f.name);
+      else ok.push(f);
     }
-    this.showToast([added ? `${added} file${added > 1 ? 's' : ''} attached.` : '', skipped.length ? `Not added (type or size): ${skipped.join(', ')}.` : ''].filter(Boolean).join(' '));
+    if (!ok.length) return this.showToast(`Not added (type or size): ${skipped.join(', ')}.`);
+    this.busy = true;
+    const failed: string[] = [];
+    forkJoin(ok.map((f) => this.api.upload(f).pipe(catchError(() => (failed.push(f.name), of(null))))))
+      .pipe(
+        map((list) => list.filter((x): x is SrAttachmentRequest => !!x)),
+        switchMap((list) => (list.length ? this.api.addAttachments(r.apiId, list).pipe(map((dto) => ({ dto, n: list.length }))) : of({ dto: null, n: 0 }))),
+      )
+      .subscribe({
+        next: ({ dto, n }) => {
+          this.busy = false;
+          if (dto) this.applyDto(dto);
+          this.showToast([
+            n ? `${n} file${n > 1 ? 's' : ''} attached.` : '',
+            skipped.length ? `Not added (type or size): ${skipped.join(', ')}.` : '',
+            failed.length ? `Upload failed: ${failed.join(', ')}.` : '',
+          ].filter(Boolean).join(' '));
+        },
+        error: (err) => this.fail(err),
+      });
   }
 
-  private uniqueName(r: SrRecord, name: string): string {
-    if (!r.attachments.some((a) => a.name === name)) return name;
-    const dot = name.lastIndexOf('.');
-    const [base, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ''];
-    let n = 2;
-    while (r.attachments.some((a) => a.name === `${base} (${n})${ext}`)) n++;
-    return `${base} (${n})${ext}`;
-  }
-
-  private fmtSize(bytes: number): string {
-    return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  }
-
-  openFile(a: Attachment): void {
+  openFile(a: { name: string; url?: string }): void {
     this.menuOpen = '';
     if (a.url) window.open(a.url, '_blank', 'noopener');
-    else this.showToast(`${a.name} is not available for preview in demo mode.`);
+    else this.showToast(`${a.name} has no file link.`);
   }
 
-  removeFile(a: Attachment): void {
+  removeFile(a: AttachmentRow): void {
     this.menuOpen = '';
     const r = this.request;
     if (!r || !confirm(`Remove ${a.name}?`)) return;
-    r.attachments = r.attachments.filter((x) => x.name !== a.name);
-    this.checked.delete(a.name);
-    if (this.page >= this.pageCount) this.page = this.pageCount - 1;
+    this.run(this.api.deleteAttachments(r.apiId, [a.key]), `${a.name} removed.`, () => {
+      this.checked.delete(a.key);
+      if (this.page >= this.pageCount) this.page = this.pageCount - 1;
+    });
   }
 
   removeChecked(): void {
     this.menuOpen = '';
     const r = this.request;
     if (!r || !this.checked.size || !confirm(`Remove ${this.checked.size} attachment(s)?`)) return;
-    r.attachments = r.attachments.filter((x) => !this.checked.has(x.name));
-    this.checked.clear();
-    this.page = 0;
+    this.run(this.api.deleteAttachments(r.apiId, [...this.checked]), 'Attachments removed.', () => {
+      this.checked.clear();
+      this.page = 0;
+    });
   }
 
   // ===== Related =====
 
-  get relatedWorkOrders(): WorkOrder[] {
-    const w = this.workOrder;
-    return w ? [w] : [];
+  get relatedWorkOrders(): WoRow[] {
+    const list = this.related?.workOrders ?? (this.dto?.workOrder ? [this.dto.workOrder] : []);
+    return list.map((w) => this.toWoRow(w));
   }
 
-  /** Work orders that could still be linked: open ones on this asset. */
-  get linkableWorkOrders(): WorkOrder[] {
-    return this.data.workOrders.filter((w) => w.status !== 'Completed' && w.id !== this.request?.workOrder);
+  /** Work orders that could still be linked: open ones on this asset in the Maintenance service. */
+  get linkableWorkOrders(): WoRow[] {
+    const linked = new Set(this.relatedWorkOrders.map((w) => w.id.toLowerCase()));
+    return this.assetWorkOrders
+      .filter((w) => !/completed|closed|cancel/i.test(w.status ?? '') && !linked.has(w.workOrderId.toLowerCase()))
+      .map((w) => ({ id: w.workOrderId, date: isoDay(w.scheduledDate), type: w.workType, description: w.title, status: w.status ?? 'Open', technician: w.assignedTechnician ?? '-', priority: w.priority }));
   }
 
-  get relatedParts(): { partNo: string; name: string; qty: number; date: string; wo: string; cost: number }[] {
-    const wo = this.request?.workOrder;
-    if (!wo) return [];
-    const names = new Map(this.data.spareParts.map((p) => [p.partNo, p.name]));
-    return this.data.partsUsage.filter((u) => u.wo === wo).map((u) => ({ partNo: u.partNo, name: names.get(u.partNo) ?? u.partNo, qty: u.qty, date: u.date, wo: u.wo, cost: lineCost(u) }));
+  /** Assets and components linked to the request; the asset's own components when none are linked. */
+  get components(): ComponentRow[] {
+    const linked = this.related?.relatedAssets ?? [];
+    if (linked.length) return linked.map((x) => ({ tag: x.number ?? x.referenceId, name: x.name ?? '-', type: x.type, relationship: x.relationship ?? '-' }));
+    return this.assetComponents;
+  }
+
+  get relatedParts(): { partNo: string; name: string; qty: number; date: string; wo: string }[] {
+    return (this.related?.spareParts ?? []).map((p) => ({ partNo: p.partId, name: p.partName ?? p.partId, qty: p.quantityUsed, date: isoDay(p.usedDate), wo: p.workOrderId ?? '' }));
+  }
+
+  get relatedPartsQty(): number {
+    return this.relatedParts.reduce((s, p) => s + p.qty, 0);
+  }
+
+  /** Request attachments and linked asset documents. */
+  get relatedDocs(): DocRow[] {
+    const docs = this.related?.documents;
+    if (!docs) return this.attachments.map((a) => ({ name: a.name, kind: a.kind, at: a.at, by: a.by, relatedTo: 'Service Request', url: a.url }));
+    return docs.map((d) => ({
+      name: d.documentName ?? '-', kind: this.kindOf(d.documentName ?? ''), at: localStamp(d.uploadedAt), by: d.uploadedBy ?? '-', relatedTo: d.relatedTo, url: fileUrl(d.fileUrl) || undefined,
+    }));
   }
 
   get relatedCount(): number {
-    return this.relatedWorkOrders.length + this.components.length + this.relatedParts.length + (this.request?.attachments.length ?? 0);
+    return this.related?.counts.relatedCount ?? this.dto?.counts.relatedCount ?? 0;
   }
 
-  linkWorkOrder(w: WorkOrder): void {
+  linkWorkOrder(w: WoRow): void {
     const r = this.request;
     this.menuOpen = '';
     if (!r) return;
-    r.workOrder = w.id;
-    if (!r.assignedTo) r.assignedTo = w.technician;
-    if (!r.respondedAt) r.respondedAt = this.nowStamp();
-    if (r.status === 'Open') r.status = 'In Progress';
-    this.log(r, `Converted to ${w.id}.`);
-    this.showToast(`${r.id} linked to ${w.id}.`);
+    this.run(this.api.linkWorkOrder(r.apiId, w.id), `${r.id} linked to ${w.id}.`);
   }
 
-  unlinkWorkOrder(): void {
+  unlinkWorkOrder(id?: string): void {
     const r = this.request;
     this.menuOpen = '';
-    if (!r?.workOrder) return;
-    this.log(r, `Unlinked from ${r.workOrder}.`);
-    r.workOrder = '';
+    const wo = id ?? r?.workOrder;
+    if (!r || !wo) return;
+    this.run(this.api.unlinkWorkOrder(r.apiId, wo), `${wo} unlinked.`);
   }
 
   // ===== Actions =====
 
+  /** Statuses More Actions can move the request to. */
+  statusActions(r: SrView): { label: string; status: string }[] {
+    return STATUS_ACTIONS[r.status] ?? [];
+  }
+
+  /** Locked statuses: the API refuses edits on closed or cancelled requests. */
+  isLocked(r: SrView): boolean {
+    return r.status === 'Closed' || r.status === 'Cancelled';
+  }
+
+  /** Creates the work order in the Maintenance service, then links it to the request (which moves to In Progress). */
   convert(): void {
     const r = this.request;
+    const d = this.dto;
     this.menuOpen = '';
-    if (!r) return;
+    if (!r || !d || this.busy) return;
     // stays on this page: the work order shows under Related
     if (r.workOrder) return this.setTab('related');
-    const n = Math.max(0, ...this.data.workOrders.map((w) => Number(w.id.split('-')[2]) || 0)) + 1;
-    const id = `WO-${this.data.year}-${String(n).padStart(3, '0')}`;
-    const technician = r.assignedTo || TECHNICIANS[0];
-    this.data.workOrders = [
-      { id, date: toIsoDate(TODAY), type: 'Corrective', description: r.title, labor: 0, parts: 0, service: 0, downtimeMin: 0, reason: '', status: 'Open', technician, priority: r.priority },
-      ...this.data.workOrders,
-    ];
-    r.workOrder = id;
-    r.assignedTo = technician;
-    if (!r.respondedAt) r.respondedAt = this.nowStamp();
-    if (r.status === 'Open') r.status = 'In Progress';
-    this.log(r, `Converted to ${id}.`);
-    this.setTab('related');
-    this.showToast(`${id} created from ${r.id} and linked.`);
+    if (r.status === 'Draft') return this.showToast('Submit the request before converting it to a work order.');
+    const now = new Date();
+    const workOrderId = `WO-${now.getFullYear()}-${String(now.getTime()).slice(-6)}`;
+    const assetId = this.assetId || d.asset.assetRegistrationId;
+    const create$ = this.api.createWorkOrder({
+      workOrderId, assetId, assetName: d.asset.assetName, workType: d.requestType || 'Corrective', title: d.title, description: d.description,
+      priority: d.priority || 'Medium', scheduledDate: d.plannedStart ?? d.targetDate, assignedTechnician: d.assignedTo?.name ?? null,
+      createdBy: this.currentUser, status: 'Open',
+    });
+    const flow$ = create$.pipe(
+      switchMap((wo) => this.api.convertToWorkOrder(r.apiId, wo.workOrderId || workOrderId, false)),
+      switchMap((dto) => (dto.status === 'Open' ? this.api.addUpdate(dto.id, { status: 'In Progress', message: `Work started on ${workOrderId}.` }) : of(dto))),
+    );
+    this.run(flow$, `${workOrderId} created from ${r.id} and linked.`, () => this.setTab('related'));
   }
 
-  setStatus(to: 'Resolved' | 'Closed'): void {
+  setStatus(to: string): void {
     const r = this.request;
     this.menuOpen = '';
-    if (!r) return;
-    const at = this.nowStamp();
-    if (!r.respondedAt) r.respondedAt = at;
-    if (!r.resolvedAt) r.resolvedAt = at;
-    r.status = to;
-    this.log(r, `${to}.`);
-    this.showToast(`${r.id} marked ${to.toLowerCase()}.`);
+    if (!r || this.busy) return;
+    if (to === 'Cancelled' && !confirm(`Cancel service request ${r.id}? A cancelled request can no longer be changed.`)) return;
+    this.run(this.api.addUpdate(r.apiId, { status: to, message: `Status changed to ${to}.` }), `${r.id} is now ${to}.`);
   }
 
-  reopen(): void {
+  /** Submits a draft (status Open). */
+  submitDraft(): void {
     const r = this.request;
     this.menuOpen = '';
-    if (!r) return;
-    r.status = r.assignedTo ? 'In Progress' : 'Open';
-    r.resolvedAt = '';
-    this.log(r, 'Reopened.');
-    this.showToast(`${r.id} reopened.`);
+    if (!r || this.busy) return;
+    this.run(this.api.submit(r.apiId), `${r.id} submitted.`);
   }
 
+  /** Deletes a draft; a submitted request is cancelled instead. */
   remove(): void {
     const r = this.request;
     this.menuOpen = '';
-    if (!r || !confirm(`Delete service request ${r.id}?`)) return;
-    this.data.serviceRequests.splice(this.data.serviceRequests.indexOf(r), 1);
-    this.back();
+    if (!r) return;
+    if (r.status !== 'Draft') return this.setStatus('Cancelled');
+    if (!confirm(`Delete service request ${r.id}?`)) return;
+    this.busy = true;
+    this.api.delete(r.apiId).subscribe({
+      next: () => {
+        this.busy = false;
+        this.back();
+      },
+      error: (err) => this.fail(err),
+    });
   }
 
   copyLink(): void {
@@ -571,27 +851,81 @@ export class ServiceRequest implements OnDestroy {
   openEdit(): void {
     const r = this.request;
     this.menuOpen = '';
-    if (!r) return;
+    if (!r || this.isLocked(r)) return;
     this.editError = '';
     this.edit = { title: r.title, description: r.description, category: r.category, priority: r.priority, assignedTo: r.assignedTo, targetDate: r.targetDate };
   }
 
+  /** Assignable people: the fixed technicians plus whoever the request is assigned to now. */
+  get assignees(): string[] {
+    const current = this.request?.assignedTo;
+    return current && !TECHNICIANS.includes(current) ? [current, ...TECHNICIANS] : TECHNICIANS;
+  }
+
   saveEdit(): void {
     const r = this.request;
+    const d = this.dto;
     const f = this.edit;
-    if (!r || !f) return;
+    if (!r || !d || !f || this.busy) return;
     if (!f.title.trim()) return void (this.editError = 'Enter the subject.');
     if (!f.targetDate) return void (this.editError = 'Enter the target date.');
-    const assigned = f.assignedTo && f.assignedTo !== r.assignedTo;
-    Object.assign(r, { title: f.title.trim(), description: f.description.trim(), category: f.category, priority: f.priority, assignedTo: f.assignedTo, targetDate: f.targetDate });
-    if (assigned) {
-      if (!r.respondedAt) r.respondedAt = this.nowStamp();
-      if (r.status === 'Open') r.status = 'In Progress';
-      this.log(r, `Assigned to ${f.assignedTo}.`);
-    }
-    this.log(r, 'Request details updated.');
-    this.edit = null;
-    this.showToast(`${r.id} updated.`);
+    const assigned = !!f.assignedTo && f.assignedTo !== r.assignedTo;
+    const body = toSaveBody(d);
+    body.title = f.title.trim();
+    body.description = f.description.trim() || null;
+    body.requestType = f.category || null;
+    body.priority = f.priority || null;
+    body.targetDate = f.targetDate;
+    body.assignedTo = f.assignedTo
+      ? f.assignedTo === d.assignedTo?.name ? body.assignedTo : { userId: null, name: f.assignedTo, role: 'Technician' }
+      : null;
+    const save$ = this.api.update(r.apiId, body, r.status === 'Draft').pipe(
+      switchMap((dto) => (assigned && dto.status === 'Open' ? this.api.addUpdate(dto.id, { status: 'In Progress', message: `Assigned to ${f.assignedTo}.` }) : of(dto))),
+    );
+    this.busy = true;
+    this.editError = '';
+    save$.subscribe({
+      next: (dto) => {
+        this.busy = false;
+        this.applyDto(dto);
+        this.edit = null;
+        this.showToast(`${r.id} updated.`);
+      },
+      error: (err) => {
+        this.busy = false;
+        this.editError = apiErrorMessage(err, 'Could not save the request.');
+      },
+    });
+  }
+
+  // ===== API helpers =====
+
+  private get currentUser(): string | null {
+    return this.auth.getUser()?.userName || this.auth.getUserEmail();
+  }
+
+  private applyDto(dto: ServiceRequestDto): void {
+    this.setRequest(dto);
+    this.refreshExtras();
+  }
+
+  /** Runs a call that returns the updated request, then shows it. */
+  private run(call$: Observable<ServiceRequestDto>, done: string, after?: () => void): void {
+    this.busy = true;
+    call$.subscribe({
+      next: (dto) => {
+        this.busy = false;
+        this.applyDto(dto);
+        after?.();
+        this.showToast(done);
+      },
+      error: (err) => this.fail(err),
+    });
+  }
+
+  private fail(err: unknown): void {
+    this.busy = false;
+    this.showToast(apiErrorMessage(err));
   }
 
   // ===== Menus & toast =====

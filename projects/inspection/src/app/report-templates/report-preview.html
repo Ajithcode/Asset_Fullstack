@@ -1,0 +1,125 @@
+@let t = template();
+@let ins = inspection();
+<div class="zoom" [style.zoom]="zoom() / 100">
+  <article #page class="rp" [style.--acc]="t.accentColor || '#6D28D9'" [style.width.px]="pageWidth()" [attr.dir]="t.language === 'Arabic' ? 'rtl' : 'ltr'">
+    @for (b of blocks(); track $index) {
+      @switch (b.kind) {
+        @case ('header') {
+          <header class="rp-head">
+            <div class="rp-logo"><span class="hex">⬢</span><span><strong>asset360</strong><small>by Purple IQ</small></span></div>
+            <div class="rp-no"><strong>INSPECTION REPORT</strong><span>{{ reportNumber() }}</span></div>
+          </header>
+        }
+        @case ('summary') {
+          <section>
+            <h1 class="rp-title">{{ ins?.title || t.inspectionTypeName || 'Inspection Report' }}</h1>
+            <div class="rp-meta">
+              <span>Inspection</span><b>{{ ins?.inspectionCode || 'INS-2026-0000' }}</b>
+              <span>Inspector</span><b>{{ ins?.assignedTo || '—' }}</b>
+              <span>Asset</span><b class="lnk">{{ ins?.assetCode || 'ASSET-001' }}</b>
+              <span>Date</span><b>{{ fmtDate(ins?.completedAt || ins?.startedAt || ins?.dueDate) || '—' }}</b>
+              <span>Location</span><b>{{ ins?.location || '—' }}</b>
+              <span>Type</span><b>{{ ins?.inspectionTypeName || t.inspectionTypeName || '—' }}</b>
+            </div>
+            @let bn = banner();
+            <div class="rp-banner" [attr.data-tone]="bn.tone"><span class="ic">!</span><span><strong>{{ bn.title }}</strong><small>{{ bn.text }}</small></span></div>
+          </section>
+        }
+        @case ('asset') {
+          <section>
+            <h2>{{ b.name }}</h2>
+            <div class="rp-meta">
+              <span>Asset</span><b>{{ ins?.assetName || 'Sample asset' }}</b>
+              <span>Code</span><b>{{ ins?.assetCode || '—' }}</b>
+              <span>Site</span><b>{{ ins?.siteName || '—' }}</b>
+              <span>Department</span><b>{{ ins?.department || '—' }}</b>
+              <span>Category</span><b>{{ ins?.category || '—' }}</b>
+              <span>Standard</span><b>{{ ins?.referenceStandard || '—' }}</b>
+            </div>
+          </section>
+        }
+        @case ('checklist') {
+          <section>
+            <h2>{{ b.name }}</h2>
+            <table>
+              <thead><tr><th>Task</th>@if (t.showAcceptanceCriteria) {<th>Acceptance</th>}<th>Result</th><th>Reading</th>@if (t.includeInternalNotes) {<th>Notes</th>}</tr></thead>
+              <tbody>
+                @for (r of responses(); track $index) {
+                  <tr>
+                    <td>{{ r.taskTitle }}</td>
+                    @if (t.showAcceptanceCriteria) { <td>{{ criteria(r) }}</td> }
+                    <td><span class="res" [attr.data-r]="r.result || 'Pending'">{{ r.result || 'Pending' }}</span></td>
+                    <td>{{ reading(r) }}</td>
+                    @if (t.includeInternalNotes) { <td>{{ r.notes || '—' }}</td> }
+                  </tr>
+                } @empty {
+                  <tr><td [attr.colspan]="5" class="muted">{{ ins ? 'No checklist results to show.' : 'Checklist results appear here.' }}</td></tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
+        @case ('findings') {
+          <section>
+            <h2>{{ b.name }}</h2>
+            <table>
+              <thead><tr><th>#</th><th>Finding</th><th>Severity</th>@if (t.showFindingStatus) {<th>Status</th>}<th>Related Work Order</th></tr></thead>
+              <tbody>
+                @for (f of findings(); track f.id; let i = $index) {
+                  <tr>
+                    <td>{{ i + 1 }}</td>
+                    <td>{{ f.title }}@if (t.includeInternalNotes && f.observation) {<small class="obs">{{ f.observation }}</small>}</td>
+                    <td><span class="sev" [attr.data-s]="f.severity">{{ f.severity }}</span></td>
+                    @if (t.showFindingStatus) { <td>{{ f.status }}</td> }
+                    <td class="lnk">{{ f.workOrder || '—' }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td [attr.colspan]="5" class="muted">No findings recorded.</td></tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
+        @case ('evidence') {
+          <section>
+            <h2>{{ b.name }}</h2>
+            <div class="gallery">
+              @for (p of photos(); track p) {
+                @if (isImage(p)) { <img [src]="p" alt="Inspection evidence" /> } @else { <span class="ph">{{ p }}</span> }
+              } @empty { <span class="ph">No photos captured</span><span class="ph">—</span> }
+            </div>
+          </section>
+        }
+        @case ('signatures') {
+          <section>
+            <h2>{{ b.name }}</h2>
+            <div class="signs">
+              @for (s of ins?.signOff ?? []; track $index) {
+                <div class="sign">
+                  <small>{{ s.role }}</small>
+                  @if (s.state === 'Signed') { <span class="sig">{{ s.name }}</span> } @else { <span class="sig sig--pending">{{ s.state || 'Pending' }}</span> }
+                  <small>{{ s.name }}@if (s.signedAt) {<br />{{ fmtDate(s.signedAt) }}}</small>
+                </div>
+              } @empty {
+                <div class="sign"><small>Inspector</small><span class="sig sig--pending">Pending</span></div>
+                <div class="sign"><small>Supervisor</small><span class="sig sig--pending">Pending</span></div>
+              }
+              <div class="stamp"><span>QUALITY<br />DEPT</span></div>
+            </div>
+          </section>
+        }
+        @case ('footer') {
+          <footer class="rp-foot"><span>Internal use only</span><span>Page 1 of {{ pageCount() }}</span></footer>
+        }
+        @default {
+          <section>
+            <h2>{{ b.name }}</h2>
+            <p class="muted">Content for “{{ b.name }}” is added when the report is generated.</p>
+          </section>
+        }
+      }
+    } @empty {
+      <p class="muted">All sections are disabled. Enable at least one section to preview the report.</p>
+    }
+  </article>
+</div>

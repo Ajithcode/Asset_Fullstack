@@ -124,7 +124,7 @@
                 <button type="button" class="btn btn-outline btn-icon btn-sm" (click)="openRowMenu(a, $event)" aria-haspopup="menu" [attr.aria-expanded]="rowMenu?.row === a" [attr.aria-label]="'Actions for ' + a.tag"><lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon></button>
               </td>
             </tr>
-            <tr *ngIf="!pageRows.length"><td [attr.colspan]="visibleColumnCount" class="empty">No assignments match the filters.</td></tr>
+            <tr *ngIf="!pageRows.length"><td [attr.colspan]="visibleColumnCount" class="empty">{{ loading ? 'Loading assignments...' : loadError ? loadError : 'No assignments match the filters.' }}<button *ngIf="loadError && !loading" type="button" class="link-btn" (click)="load()">Retry</button></td></tr>
           </tbody>
         </table>
       </div>
@@ -167,7 +167,7 @@
 
       <div class="tabs" role="tablist">
         <button type="button" role="tab" [class.is-on]="tab === 'assignment'" [attr.aria-selected]="tab === 'assignment'" (click)="tab = 'assignment'">Assignment</button>
-        <button type="button" role="tab" [class.is-on]="tab === 'history'" [attr.aria-selected]="tab === 'history'" (click)="tab = 'history'">History</button>
+        <button type="button" role="tab" [class.is-on]="tab === 'history'" [attr.aria-selected]="tab === 'history'" (click)="openHistory(s)">History</button>
         <button type="button" role="tab" [class.is-on]="tab === 'related'" [attr.aria-selected]="tab === 'related'" (click)="tab = 'related'">Related</button>
       </div>
 
@@ -190,10 +190,12 @@
         <dd><span class="who"><span class="avatar avatar--me">{{ initials(s.assignedBy) }}</span><span><strong>{{ s.assignedBy }}</strong><small>{{ s.assignedByRole }}</small></span></span></dd>
         <dt>Assigned On</dt><dd>{{ s.assignedOn | date: 'dd MMM yyyy HH:mm' }}</dd>
         <ng-container *ngFor="let x of s.extra"><dt>{{ x.label }}</dt><dd>{{ x.value }}</dd></ng-container>
-        <dt>Remarks</dt><dd><textarea class="control remarks" rows="3" [(ngModel)]="s.remarks" placeholder="Add remarks" aria-label="Remarks"></textarea></dd>
+        <dt>Remarks</dt><dd><textarea class="control remarks" rows="3" [(ngModel)]="s.remarks" (change)="saveRemarks(s)" [disabled]="s.status === 'Returned'" placeholder="Add remarks" aria-label="Remarks"></textarea></dd>
       </dl>
 
       <ol *ngIf="tab === 'history'" class="timeline">
+        <li *ngIf="historyLoading" class="muted">Loading history...</li>
+        <li *ngIf="!historyLoading && !s.history.length" class="muted">No history recorded yet.</li>
         <li *ngFor="let h of s.history.slice().reverse()">
           <span class="tl-dot"></span>
           <div><strong>{{ h.action }}</strong><span class="muted">{{ h.note }}</span><span class="muted">{{ h.at | date: 'dd MMM yyyy HH:mm' }} · {{ h.by }}</span></div>
@@ -240,7 +242,7 @@
       </div>
       <label class="field"><span class="field-label">Remarks</span><input class="control" [(ngModel)]="f.remarks" name="remarks" /></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="assignForm = null">Cancel</button><button type="submit" class="btn btn-primary">Reassign</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="assignForm = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving...' : 'Reassign' }}</button></div>
     </form>
   </div>
 </div>
@@ -252,7 +254,7 @@
     <form class="modal-body" (ngSubmit)="saveExtend()">
       <label class="field"><span class="field-label">New To Date <em>*</em></span><input class="control" type="date" [(ngModel)]="t.to" name="to" /></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="extendTarget = null">Cancel</button><button type="submit" class="btn btn-primary">Extend</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="extendTarget = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving...' : 'Extend' }}</button></div>
     </form>
   </div>
 </div>
@@ -263,7 +265,7 @@
     <div class="modal-head"><h2 id="aa-end-title">End Assignment</h2><button type="button" class="icon-btn" (click)="endTarget = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <div class="modal-body">
       <p>End the assignment of <strong>{{ e.assetName }} ({{ e.tag }})</strong> to <strong>{{ e.assignee }}</strong>? The asset will be marked as returned today.</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="endTarget = null">Cancel</button><button type="button" class="btn btn-danger-solid" (click)="confirmEnd()">End Assignment</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="endTarget = null">Cancel</button><button type="button" class="btn btn-danger-solid" [disabled]="saving" (click)="confirmEnd()">{{ saving ? 'Ending...' : 'End Assignment' }}</button></div>
     </div>
   </div>
 </div>

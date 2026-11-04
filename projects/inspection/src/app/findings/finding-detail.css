@@ -1,0 +1,49 @@
+.panel { display: flex; flex-direction: column; }
+.p-head { display: flex; align-items: flex-start; gap: 8px; padding: 16px 16px 6px; flex-wrap: wrap; }
+.p-head h2 { margin: 0; font-size: 19px; font-weight: 800; }
+.menu-wrap { position: relative; }
+.menu { position: absolute; right: 0; top: 32px; z-index: 20; min-width: 150px; padding: 6px; background: #fff; border: 1px solid var(--ip-border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); }
+.menu button { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.menu button:hover { background: var(--ip-accent-soft); }
+
+.tabs { display: flex; gap: 6px; padding: 0 16px; border-bottom: 1px solid var(--ip-border); }
+.tabs button { padding: 10px 12px; border: 0; border-bottom: 2px solid transparent; background: none; font: inherit; font-size: 14px; color: var(--ip-muted); cursor: pointer; }
+.tabs button.on { color: var(--ip-accent); border-bottom-color: var(--ip-accent); font-weight: 700; }
+.p-body { display: flex; flex-direction: column; gap: 14px; padding: 14px 16px 16px; }
+.u { text-decoration: underline; color: var(--ip-accent); }
+
+.obs-grid { display: grid; grid-template-columns: auto auto 1fr; gap: 16px; align-items: start; }
+.obs-grid > * + * { padding-left: 14px; border-left: 1px solid var(--ip-border); }
+.big { font-size: 22px; font-weight: 800; }
+.mid { font-size: 16px; font-weight: 700; margin-top: 4px; }
+.obs-text { margin: 0; font-size: 13px; color: var(--ip-muted); }
+
+.evidence { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.thumb { width: 110px; height: 66px; border-radius: 8px; overflow: hidden; border: 1px solid var(--ip-border); padding: 0; background: var(--ip-bg-soft); cursor: pointer; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--ip-muted); font-size: 10.5px; cursor: default; padding: 4px; text-align: center; overflow-wrap: anywhere; }
+.ca { font-size: 13px; }
+.wo { padding: 2px 8px; border: 1px solid var(--ip-accent-border); border-radius: 6px; color: var(--ip-accent); }
+.row-end, .wf-actions, .comment, .reassign { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+.comment .control, .reassign .control { flex: 1; }
+
+.stepper { display: flex; list-style: none; margin: 4px 0 10px; padding: 0; }
+.stepper li { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; font-size: 12.5px; color: var(--ip-muted); }
+.stepper li + li::before { content: ''; position: absolute; top: 9px; right: 50%; width: 100%; height: 2px; background: var(--ip-border); z-index: 0; }
+.stepper li.done + li::before, .stepper li.cur:not(:first-child)::before { background: var(--ip-accent); }
+.node { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; border: 2px solid #b8b4c6; background: #fff; color: #fff; }
+.done .node, .cur .node { border-color: var(--ip-accent); background: var(--ip-accent); }
+.cur .lbl { color: var(--ip-accent); font-weight: 700; }
+
+.foot-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+.timeline li { display: flex; gap: 10px; }
+.av { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--ip-accent-soft); color: var(--ip-accent); font-size: 11.5px; font-weight: 700; }
+.lightbox { position: fixed; z-index: 901; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 90vw; max-height: 85vh; padding: 10px; background: #fff; border-radius: 10px; }
+.lightbox img { max-width: calc(90vw - 20px); max-height: calc(85vh - 20px); display: block; }
+.close { position: absolute; top: 6px; right: 6px; background: #fff; }
+
+@media (max-width: 520px) {
+  .obs-grid { grid-template-columns: 1fr 1fr; }
+  .obs-text { grid-column: 1 / -1; padding-left: 0 !important; border-left: 0 !important; }
+}

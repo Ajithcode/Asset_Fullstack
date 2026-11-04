@@ -1,0 +1,320 @@
+<section class="mp-page">
+  <nav class="breadcrumb"><a routerLink="/maintenance/overview">Maintenance</a><span class="sep">›</span><span class="current">Predictive Maintenance</span></nav>
+
+  <header class="page-head">
+    <span class="head-icon"><lucide-icon [img]="icons.ChartColumn" [size]="28"></lucide-icon></span>
+    <div class="grow">
+      <h1>Predictive Maintenance</h1>
+      <p class="subtitle">Monitor asset health, detect anomalies and predict potential failures using AI and IoT data.</p>
+    </div>
+    <div class="head-actions">
+      <app-mnt-date-range [(range)]="range"></app-mnt-date-range>
+      <button type="button" class="btn btn-primary" (click)="openNew()"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>Add Predictive Model</button>
+    </div>
+  </header>
+
+  @if (store.error(); as err) { <div class="alert">{{ err }}</div> }
+
+  <div class="kpis">
+    <button type="button" class="kpi" (click)="kpiFilter('')">
+      <span class="kpi-ic kpi-ic--purple"><lucide-icon [img]="icons.Activity" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Monitored Assets</span><span class="kpi-value">{{ kpis().total }}</span><span class="kpi-sub">with an active model</span></span>
+    </button>
+    <button type="button" class="kpi kpi--green" (click)="kpiFilter('Healthy')">
+      <span class="kpi-ic kpi-ic--green"><lucide-icon [img]="icons.CircleCheck" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Healthy</span><span class="kpi-value">{{ kpis().healthy }}</span><span class="kpi-sub">{{ kpis().pct(kpis().healthy) }}%</span></span>
+    </button>
+    <button type="button" class="kpi kpi--amber" (click)="kpiFilter('At Risk')">
+      <span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.TriangleAlert" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">At Risk</span><span class="kpi-value">{{ kpis().atRisk }}</span><span class="kpi-sub">{{ kpis().pct(kpis().atRisk) }}%</span></span>
+    </button>
+    <button type="button" class="kpi kpi--red" (click)="kpiFilter('High')">
+      <span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.CircleAlert" [size]="24"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">High Risk</span><span class="kpi-value">{{ kpis().high }}</span><span class="kpi-sub">{{ kpis().pct(kpis().high) }}%</span></span>
+    </button>
+    <button type="button" class="kpi" (click)="setTab('actions')">
+      <span class="kpi-ic kpi-ic--purple"><lucide-icon [img]="icons.CalendarDays" [size]="24"></lucide-icon></span>
+      <span class="kpi-body">
+        <span class="kpi-label">Predicted Failures (Next 30 Days)</span>
+        <span class="kpi-row"><span class="kpi-value">{{ kpis().next30 }}</span>
+          @if (kpis().next30Trend !== null) { <span class="trend" [class.trend--down]="kpis().next30Trend! > 0"><lucide-icon [img]="kpis().next30Trend! < 0 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon>{{ kpis().next30Trend! < 0 ? -kpis().next30Trend! : kpis().next30Trend }}%</span> }
+        </span>
+        <span class="kpi-sub">vs previous 30 days</span>
+      </span>
+    </button>
+  </div>
+
+  <div class="charts">
+    <app-mnt-chart-card title="Asset Health Distribution" (exportData)="exportHealth()"><app-mnt-donut [segments]="healthDonut()" centerLabel="Assets"></app-mnt-donut></app-mnt-chart-card>
+    <app-mnt-chart-card title="Predicted Failures Trend" (exportData)="exportTrend()"><app-mnt-bars [labels]="failureTrend().labels" [series]="failureTrend().series" [line]="failureTrend().line"></app-mnt-bars></app-mnt-chart-card>
+    <app-mnt-chart-card title="Top Assets at Risk" (exportData)="exportTop()"><app-mnt-hbars [items]="topAtRisk()"></app-mnt-hbars></app-mnt-chart-card>
+  </div>
+
+  <section class="register">
+    <nav class="tabs">
+      @for (t of tabs; track t.key) { <button type="button" class="tab" [class.is-active]="tab() === t.key" (click)="setTab(t.key)">{{ t.label }}</button> }
+    </nav>
+    <div class="filters">
+      <label class="search">
+        <lucide-icon [img]="icons.Search" [size]="17"></lucide-icon>
+        <input type="search" placeholder="Search by asset name, tag, location..." [ngModel]="search()" (ngModelChange)="set('search', $event)" />
+      </label>
+      <select class="control sel" [ngModel]="risk()" (ngModelChange)="set('risk', $event)" aria-label="Risk level">
+        <option value="">All Risk Levels</option>
+        @for (r of risks; track r) { <option [value]="r">{{ r }}</option> }
+      </select>
+      <select class="control sel" [ngModel]="assetType()" (ngModelChange)="set('assetType', $event)" aria-label="Asset type">
+        <option value="">All Asset Types</option>
+        @for (t of assetTypes(); track t) { <option [value]="t">{{ t }}</option> }
+      </select>
+      <select class="control sel" [ngModel]="location()" (ngModelChange)="set('location', $event)" aria-label="Location">
+        <option value="">All Locations</option>
+        @for (l of locations(); track l) { <option [value]="l">{{ l }}</option> }
+      </select>
+      <select class="control sel" [ngModel]="model()" (ngModelChange)="set('model', $event)" aria-label="Model">
+        <option value="">All Models</option>
+        @for (m of models(); track m) { <option [value]="m">{{ m }}</option> }
+      </select>
+      <button type="button" class="btn btn-accent-outline" (click)="advanced.set(!advanced())"><lucide-icon [img]="icons.Filter" [size]="16"></lucide-icon>Advanced Filters</button>
+    </div>
+    @if (advanced()) {
+      <div class="adv">
+        <label class="field"><span class="field-label">Sensor Type</span>
+          <select class="control" [ngModel]="sensor()" (ngModelChange)="set('sensor', $event)"><option value="">All Sensors</option>@for (s of sensors; track s) { <option [value]="s">{{ s }}</option> }</select>
+        </label>
+        <label class="field"><span class="field-label">Status</span>
+          <select class="control" [ngModel]="status()" (ngModelChange)="set('status', $event)"><option value="">All Statuses</option>@for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }</select>
+        </label>
+        <label class="check" style="align-self: end; height: 40px"><input type="checkbox" [ngModel]="includeResolved()" (ngModelChange)="includeResolved.set($event); table.reset()" />Include resolved predictions</label>
+        <div class="field"><span class="field-label">&nbsp;</span><button type="button" class="btn btn-outline" (click)="export()">Export (CSV)</button></div>
+      </div>
+    }
+
+    @switch (tab()) {
+      @case ('predictions') {
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th class="chk"><input type="checkbox" [checked]="table.allSelected()" (change)="table.toggleAll()" aria-label="Select page" /></th><th class="num">#</th><th>Asset Name</th><th>Asset Tag</th><th>Asset Type</th><th>Location / Site</th><th>Health Score</th><th>Risk Level</th><th>Predicted Issue</th><th>Predicted Date</th><th>Confidence</th><th>Recommended Action</th><th>Actions</th></tr></thead>
+            <tbody>
+              @for (r of table.rows(); track r.row.id) {
+                @let p = r.row;
+                <tr [class.is-selected]="p.id === viewId()" (click)="viewId.set(p.id)">
+                  <td class="chk" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="table.selected().has(p.id)" (change)="table.toggle(p.id)" [attr.aria-label]="'Select ' + p.assetName" /></td>
+                  <td class="num">{{ r.n }}</td>
+                  <td>{{ p.assetName }}</td>
+                  <td class="nowrap">{{ p.assetId }}</td>
+                  <td>{{ p.assetType || '—' }}</td>
+                  <td>{{ p.location || '—' }}</td>
+                  <td><span class="health">{{ p.healthScore ?? '—' }}<span class="health-bar"><span [style.width.%]="p.healthScore ?? 0" [style.background]="healthColor(p.healthScore)"></span></span></span></td>
+                  <td><span [class]="pillClass(riskOf(p))">{{ riskOf(p) }}</span></td>
+                  <td>{{ p.predictedIssue || '-' }}</td>
+                  <td class="nowrap">{{ fmtDate(p.predictedFailureDate) || '-' }}</td>
+                  <td>{{ p.confidence !== null ? p.confidence + '%' : '-' }}</td>
+                  <td>{{ p.recommendedAction || '-' }}</td>
+                  <td class="menu-cell" (click)="$event.stopPropagation()">
+                    <button type="button" class="icon-btn" aria-label="Prediction actions" (click)="table.toggleMenu(p.id, $event)"><lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon></button>
+                    @if (table.menuId() === p.id) {
+                      <div class="menu">
+                        <button type="button" (click)="table.menuId.set(null); viewId.set(p.id)">View details</button>
+                        <button type="button" (click)="edit(p)">Edit</button>
+                        @if (!p.workOrderId && riskOf(p) !== 'Healthy') { <button type="button" [disabled]="busyId() === p.id" (click)="createWorkOrder(p)">Create Work Order</button> }
+                        @if (p.status === 'Monitoring' && riskOf(p) !== 'Healthy') { <button type="button" (click)="setStatus(p, 'Alert')">Flag as Alert</button> }
+                        @if (p.status !== 'Resolved') { <button type="button" (click)="recordFailure(p)">Record actual failure</button><button type="button" (click)="setStatus(p, 'Resolved')">Mark resolved</button> }
+                        @else { <button type="button" (click)="setStatus(p, 'Monitoring')">Resume monitoring</button> }
+                        <button type="button" class="c-bad" (click)="table.askDelete(p.id)">Delete</button>
+                      </div>
+                    }
+                  </td>
+                </tr>
+                @if (table.confirmDeleteId() === p.id) {
+                  <tr (click)="$event.stopPropagation()"><td colspan="13">
+                    <div class="confirm">
+                      <span class="grow">Delete the prediction for {{ p.assetName }}? This cannot be undone.</span>
+                      <button type="button" class="btn btn-sm btn-outline" (click)="table.confirmDeleteId.set(null)">Cancel</button>
+                      <button type="button" class="btn btn-sm btn-danger" (click)="remove(p)">Delete</button>
+                    </div>
+                  </td></tr>
+                }
+              }
+            </tbody>
+          </table>
+          @if (store.loading()) { <div class="empty">Loading predictions...</div> }
+          @else if (!table.total()) { <div class="empty">{{ store.items().length ? 'No assets match the current filters.' : 'No predictive models yet.' }}</div> }
+        </div>
+        <app-mnt-table-footer [total]="table.total()" [(page)]="table.page" [(size)]="table.size"></app-mnt-table-footer>
+      }
+      @case ('anomalies') {
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Detected</th><th>Asset</th><th>Metric</th><th>Value</th><th>Expected</th><th>Severity</th><th>Note</th></tr></thead>
+            <tbody>
+              @for (x of anomalies(); track $index) {
+                <tr (click)="viewId.set(x.p.id)">
+                  <td class="nowrap">{{ fmtDateTime(x.a.detectedAt) }}</td><td>{{ x.p.assetName }} <span class="muted">{{ x.p.assetId }}</span></td><td>{{ x.a.metric }}</td>
+                  <td class="strong">{{ x.a.value }} {{ unit(x.a.metric) }}</td><td>{{ x.a.expected || '—' }} {{ unit(x.a.metric) }}</td>
+                  <td><span [class]="pillClass(x.a.severity)">{{ x.a.severity || '—' }}</span></td><td>{{ x.a.note || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (!anomalies().length) { <div class="empty">No anomalies for the current filters.</div> }
+        </div>
+      }
+      @case ('models') {
+        <div class="table-wrap" style="padding-bottom: 18px">
+          <table class="table">
+            <thead><tr><th>Model</th><th>Monitored Assets</th><th>Predictions</th><th>Active Alerts</th><th>Avg. Confidence</th><th>Closed Predictions</th><th>Accuracy (±{{ 7 }} days)</th></tr></thead>
+            <tbody>
+              @for (m of modelStats(); track m.name) {
+                <tr (click)="set('model', m.name === 'Unassigned' ? '' : m.name); setTab('predictions')">
+                  <td class="code">{{ m.name }}</td><td>{{ m.assets }}</td><td>{{ m.predictions }}</td><td>{{ m.alerts }}</td>
+                  <td>{{ m.avgConfidence !== null ? m.avgConfidence + '%' : '—' }}</td><td>{{ m.outcomes }}</td>
+                  <td>@if (m.accuracy !== null) { <span class="health">{{ m.accuracy }}%<span class="health-bar"><span [style.width.%]="m.accuracy" [style.background]="healthColor(m.accuracy)"></span></span></span> } @else { — }</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (!modelStats().length) { <div class="empty">No models yet.</div> }
+          <p class="muted">Accuracy counts a closed prediction as correct when the recorded failure happened within 7 days of the predicted date.</p>
+        </div>
+      }
+      @case ('sensors') {
+        <div class="table-wrap" style="padding-bottom: 18px">
+          <table class="table">
+            <thead><tr><th>Asset</th><th>Sensor</th><th>Device</th><th>Last Reading</th><th>Rule</th><th>Reading Time</th><th>Condition</th></tr></thead>
+            <tbody>
+              @for (p of filtered(); track p.id) {
+                <tr (click)="edit(p)">
+                  <td>{{ p.assetName }} <span class="muted">{{ p.assetId }}</span></td><td>{{ p.sensorType }}</td><td class="nowrap">{{ p.dataSourceDeviceId || '—' }}</td>
+                  <td class="strong">{{ p.lastReading ?? '—' }} {{ p.lastReading !== null ? unit(p.sensorType) : '' }}</td>
+                  <td class="nowrap">{{ p.alertCondition === 'Below Threshold' ? '<' : '>' }} {{ p.thresholdValue }} {{ unit(p.sensorType) }}</td>
+                  <td class="nowrap">{{ fmtDateTime(p.lastReadingAt) || '—' }}</td>
+                  <td><span [class]="pillClass(isBreach(p) ? 'Breach' : 'Normal')">{{ isBreach(p) ? 'Breach' : 'Normal' }}</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (!filtered().length) { <div class="empty">No sensor rules for the current filters.</div> }
+        </div>
+      }
+      @case ('actions') {
+        <div class="table-wrap" style="padding-bottom: 18px">
+          <table class="table">
+            <thead><tr><th>Asset</th><th>Risk</th><th>Predicted Issue</th><th>Predicted Date</th><th>Recommended Action</th><th>Work Order</th><th></th></tr></thead>
+            <tbody>
+              @for (p of actions(); track p.id) {
+                @let w = workOrderFor(p);
+                <tr (click)="viewId.set(p.id)">
+                  <td>{{ p.assetName }} <span class="muted">{{ p.assetId }}</span></td><td><span [class]="pillClass(riskOf(p))">{{ riskOf(p) }}</span></td>
+                  <td>{{ p.predictedIssue || '—' }}</td><td class="nowrap">{{ fmtDate(p.predictedFailureDate) || '—' }}</td><td>{{ p.recommendedAction }}</td>
+                  <td>@if (w) { <a class="link" routerLink="/maintenance/work-orders" [queryParams]="{ code: w.workOrderId }" (click)="$event.stopPropagation()">{{ w.workOrderId }}</a> <span [class]="pillClass(w.status)">{{ w.status }}</span> } @else { {{ p.workOrderId || '—' }} }</td>
+                  <td (click)="$event.stopPropagation()">@if (!p.workOrderId) { <button type="button" class="btn btn-sm btn-primary" [disabled]="busyId() === p.id" (click)="createWorkOrder(p)">Create Work Order</button> }</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (!actions().length) { <div class="empty">No open recommendations.</div> }
+        </div>
+      }
+    }
+  </section>
+
+  @if (viewing(); as p) {
+    @let w = workOrderFor(p);
+    <div class="backdrop" (click)="viewId.set(null)"></div>
+    <aside class="drawer" role="dialog" [attr.aria-label]="'Prediction for ' + p.assetName">
+      <div class="drawer-head">
+        <h2>{{ p.assetName }}</h2>
+        <span [class]="pillClass(riskOf(p))">{{ riskOf(p) }}</span>
+        <span class="grow"></span>
+        <button type="button" class="icon-btn" aria-label="Close" (click)="viewId.set(null)"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <div class="drawer-body">
+        <dl class="kv">
+          <dt>Asset Tag</dt><dd>{{ p.assetId }}</dd>
+          <dt>Asset Type</dt><dd>{{ p.assetType || '—' }}</dd>
+          <dt>Location</dt><dd>{{ p.location || '—' }}</dd>
+          <dt>Health Score</dt><dd><span class="health">{{ p.healthScore ?? '—' }}<span class="health-bar"><span [style.width.%]="p.healthScore ?? 0" [style.background]="healthColor(p.healthScore)"></span></span></span></dd>
+          <dt>Model</dt><dd>{{ p.modelName || '—' }}</dd>
+          <dt>Sensor</dt><dd>{{ p.sensorType }} · {{ p.dataSourceDeviceId || 'no device' }}</dd>
+          <dt>Last Reading</dt><dd>{{ p.lastReading ?? '—' }} {{ unit(p.sensorType) }} (rule {{ p.alertCondition === 'Below Threshold' ? '<' : '>' }} {{ p.thresholdValue }}) @if (isBreach(p)) { <span class="pill pill--red">Breach</span> }</dd>
+          <dt>Predicted Issue</dt><dd>{{ p.predictedIssue || '—' }}</dd>
+          <dt>Predicted Date</dt><dd>{{ fmtDate(p.predictedFailureDate) || '—' }}</dd>
+          <dt>Confidence</dt><dd>{{ p.confidence !== null ? p.confidence + '%' : '—' }}</dd>
+          <dt>Recommended Action</dt><dd>{{ p.recommendedAction || '—' }}</dd>
+          <dt>Status</dt><dd><span [class]="pillClass(p.status)">{{ p.status }}</span></dd>
+          <dt>Work Order</dt><dd>@if (w) { <a class="link" routerLink="/maintenance/work-orders" [queryParams]="{ code: w.workOrderId }">{{ w.workOrderId }}</a> · {{ w.status }} } @else { {{ p.workOrderId || 'Not raised' }} }</dd>
+          @if (p.actualFailureDate) { <dt>Actual Failure</dt><dd>{{ fmtDate(p.actualFailureDate) }}</dd> }
+        </dl>
+        @if (p.predictionModelOutput) { <div><h4 class="form-section">Model Output</h4><p class="subtitle">{{ p.predictionModelOutput }}</p></div> }
+        <div>
+          <h4 class="form-section">Recent Anomalies</h4>
+          @for (a of p.anomalies.slice(0, 5); track $index) {
+            <p class="subtitle"><span [class]="pillClass(a.severity)">{{ a.severity }}</span> {{ fmtDateTime(a.detectedAt) }} · {{ a.metric }} {{ a.value }} {{ unit(a.metric) }} (expected {{ a.expected }}) — {{ a.note }}</p>
+          } @empty { <p class="muted">No anomalies recorded.</p> }
+        </div>
+      </div>
+      <div class="drawer-foot">
+        <button type="button" class="btn btn-ghost" (click)="edit(p)">Edit</button>
+        @if (p.status !== 'Resolved') { <button type="button" class="btn btn-outline" (click)="setStatus(p, 'Resolved')">Mark Resolved</button> }
+        @if (!p.workOrderId && riskOf(p) !== 'Healthy') { <button type="button" class="btn btn-primary" [disabled]="busyId() === p.id" (click)="createWorkOrder(p)">{{ busyId() === p.id ? 'Creating...' : 'Create Work Order' }}</button> }
+      </div>
+    </aside>
+  }
+
+  @if (formOpen()) {
+    <div class="backdrop" (click)="formOpen.set(false)"></div>
+    <aside class="drawer" role="dialog" aria-label="Predictive model form">
+      <div class="drawer-head">
+        <h2 class="grow">{{ editingId() ? 'Edit Prediction · ' + form.assetName : 'Add Predictive Model' }}</h2>
+        <button type="button" class="icon-btn" aria-label="Close" (click)="formOpen.set(false)"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <form class="drawer-body" id="pdm-form" (ngSubmit)="save()">
+        @if (formError(); as e) { <div class="alert">{{ e }}</div> }
+        <div class="form-grid">
+          <h3 class="form-section">Asset</h3>
+          <app-mnt-asset-picker [(assetId)]="form.assetId" [(assetName)]="form.assetName" (picked)="onAsset($event)"></app-mnt-asset-picker>
+          <label class="field"><span class="field-label">Asset Type</span><input class="control" name="assetType" [(ngModel)]="form.assetType" /></label>
+          <label class="field"><span class="field-label">Location / Site</span><input class="control" name="location" [(ngModel)]="form.location" /></label>
+
+          <h3 class="form-section">Monitoring Rule</h3>
+          <label class="field"><span class="field-label">Model</span><input class="control" name="modelName" list="pdm-models" [(ngModel)]="form.modelName" placeholder="e.g. Vibration Anomaly v2" />
+            <datalist id="pdm-models">@for (m of models(); track m) { <option [value]="m"></option> }</datalist>
+          </label>
+          <label class="field"><span class="field-label">Sensor Type <span class="req">*</span></span>
+            <select class="control" name="sensorType" [(ngModel)]="form.sensorType">@for (s of sensors; track s) { <option [value]="s">{{ s }}</option> }</select>
+          </label>
+          <label class="field"><span class="field-label">Data Source Device</span><input class="control" name="device" [(ngModel)]="form.dataSourceDeviceId" placeholder="e.g. VIB-SNS-012" /></label>
+          <label class="field"><span class="field-label">Alert Condition</span>
+            <select class="control" name="alertCondition" [(ngModel)]="form.alertCondition">@for (c of conditions; track c) { <option [value]="c">{{ c }}</option> }</select>
+          </label>
+          <label class="field"><span class="field-label">Threshold ({{ unit(form.sensorType) }}) <span class="req">*</span></span><input class="control" type="number" step="any" name="threshold" [(ngModel)]="form.thresholdValue" /></label>
+          <label class="field"><span class="field-label">Last Reading ({{ unit(form.sensorType) }})</span><input class="control" type="number" step="any" name="reading" [(ngModel)]="form.lastReading" />
+            <span class="field-hint">A reading that breaches the rule is logged as an anomaly.</span>
+          </label>
+
+          <h3 class="form-section">Prediction</h3>
+          <label class="field"><span class="field-label">Health Score (0-100)</span><input class="control" type="number" min="0" max="100" name="health" [ngModel]="form.healthScore" (ngModelChange)="onHealth($event)" /></label>
+          <label class="field"><span class="field-label">Risk Level</span>
+            <select class="control" name="riskLevel" [(ngModel)]="form.riskLevel">@for (r of risks; track r) { <option [value]="r">{{ r }}</option> }</select>
+            <span class="field-hint">Suggested from the health score: below 50 High, below 70 At Risk.</span>
+          </label>
+          <label class="field"><span class="field-label">Predicted Issue</span><input class="control" name="issue" [(ngModel)]="form.predictedIssue" placeholder="e.g. Bearing Wear" /></label>
+          <label class="field"><span class="field-label">Predicted Failure Date</span><input class="control" type="date" name="predictedDate" [(ngModel)]="form.predictedFailureDate" /></label>
+          <label class="field"><span class="field-label">Confidence (%)</span><input class="control" type="number" min="0" max="100" name="confidence" [(ngModel)]="form.confidence" /></label>
+          <label class="field"><span class="field-label">Status</span>
+            <select class="control" name="status" [(ngModel)]="form.status">@for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }</select>
+          </label>
+          <label class="field span-2"><span class="field-label">Recommended Action</span><input class="control" name="action" [(ngModel)]="form.recommendedAction" placeholder="e.g. Inspect bearings" /></label>
+          <label class="field span-2"><span class="field-label">Model Output</span><textarea class="control" name="output" rows="3" [(ngModel)]="form.predictionModelOutput"></textarea></label>
+        </div>
+      </form>
+      <div class="drawer-foot">
+        <button type="button" class="btn btn-outline" (click)="formOpen.set(false)">Cancel</button>
+        <button type="submit" form="pdm-form" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving...' : editingId() ? 'Save Changes' : 'Add Model' }}</button>
+      </div>
+    </aside>
+  }
+
+  @if (toast.message(); as t) { <div class="toast">{{ t }}</div> }
+</section>

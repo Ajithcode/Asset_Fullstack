@@ -1,6 +1,7 @@
-import { Component, EventEmitter, HostListener, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, OnChanges, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { map } from 'rxjs';
 import {
   LucideAngularModule,
   CalendarDays,
@@ -23,8 +24,8 @@ import {
   X,
 } from 'lucide-angular';
 import {
-  ASSET_TYPES,
-  ASSET_TYPE_CATEGORY,
+  ALL_ASSETS,
+  BUILT_IN_FIELDS,
   CustomField,
   FieldGroup,
   FieldLayout,
@@ -32,28 +33,34 @@ import {
   LOOKUP_SOURCES,
   LayoutSection,
   SYSTEM_FIELDS,
+  isBuiltIn,
 } from '../custom-fields.model';
+import { AssetTypeOption, CategoryOption, CustomFieldsService, FieldLayoutDto, runAll, toFieldLayout, toLayoutRequest } from '../custom-fields.service';
+import { apiErrorMessage } from '../../services/asset-api';
 
 interface LayoutForm {
   original: FieldLayout | null;
   name: string;
+  /** Asset type name, or "All Assets". */
   assetType: string;
   description: string;
   status: FieldStatus;
-  /** New layouts only: id of a layout to copy the structure from, or 0 for a blank layout. */
-  copyFrom: number;
+  /** New layouts only: id of a layout to copy the structure from, or '' for a blank layout. */
+  copyFrom: string;
 }
 
 type DragState =
-  | { kind: 'field'; fieldId: number; from: { s: number; i: number } | null }
+  | { kind: 'field'; fieldId: string; from: { s: number; i: number } | null }
   | { kind: 'section'; index: number };
 
 /** Section header colours, by position in the layout (matches the design's purple / blue / green sequence). */
 const SECTION_TONES = ['violet', 'blue', 'green', 'amber', 'pink', 'teal', 'slate', 'yellow'];
 const DESCRIPTION_MAX = 250;
+/** Group a blank layout starts with, when it exists. */
+const DEFAULT_GROUP = 'General Information';
 
 function cloneSections(sections: LayoutSection[]): LayoutSection[] {
-  return sections.map((s) => ({ group: s.group, fieldIds: [...s.fieldIds] }));
+  return sections.map((s) => ({ groupId: s.groupId, group: s.group, fieldIds: [...s.fieldIds] }));
 }
 
 @Component({
@@ -63,17 +70,26 @@ function cloneSections(sections: LayoutSection[]): LayoutSection[] {
   templateUrl: './field-layouts.html',
   styleUrls: ['../asset-custom-fields.css', './field-layouts.css'],
 })
-export class CfFieldLayouts implements OnInit {
+export class CfFieldLayouts implements OnInit, OnChanges {
+  private readonly api = inject(CustomFieldsService);
+
   @Input({ required: true }) layouts!: FieldLayout[];
   @Input({ required: true }) fields!: CustomField[];
   @Input({ required: true }) groups!: FieldGroup[];
+  /** Standard asset fields layouts can place. */
+  @Input() builtIns: CustomField[] = BUILT_IN_FIELDS;
+  /** The page is still loading its data. */
+  @Input() loading = false;
   @Output() notify = new EventEmitter<string>();
 
   readonly icons = {
     CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Cog, Copy, EllipsisVertical, GripVertical, Inbox, Pencil,
     Plus, Power, PowerOff, Search, SquarePen, Trash2, X,
   };
-  readonly assetTypes = ASSET_TYPES;
+  types: AssetTypeOption[] = [];
+  categories: CategoryOption[] = [];
+  /** A save or delete is in flight. */
+  saving = false;
   readonly pageSizeOptions = [10, 25, 50];
   readonly descriptionMax = DESCRIPTION_MAX;
 
@@ -107,7 +123,42 @@ export class CfFieldLayouts implements OnInit {
   deleteTargets: FieldLayout[] = [];
 
   ngOnInit(): void {
-    if (this.layouts[0]) this.select(this.layouts[0]);
+    this.api.assetTypes().subscribe({
+      next: (types) => (this.types = types),
+      error: (err) => this.notify.emit(apiErrorMessage(err, 'Could not load asset types.')),
+    });
+    this.api.categories().subscribe({ next: (categories) => (this.categories = categories), error: () => undefined });
+    if (!this.selected && this.layouts[0]) this.select(this.layouts[0]);
+  }
+
+  /** When the page reloads its layouts, the selection follows the same layout (by id); unsaved designer edits are kept. */
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes['layouts'] || changes['layouts'].firstChange) return;
+    const current = this.selected && this.layouts.find((l) => l.id === this.selected!.id);
+    if (current && this.dirty) this.selected = current;
+    else if (current) this.select(current);
+    else this.select(this.layouts[0] ?? null);
+    this.checked.clear();
+  }
+
+  /** Asset type names for the selects; "All Assets" is for layouts without an asset type. */
+  get assetTypes(): string[] {
+    const names = this.types.map((t) => t.typeName);
+    this.layouts.forEach((l) => l.assetTypeId && !names.includes(l.assetType) && names.push(l.assetType));
+    return [...new Set(names), ALL_ASSETS];
+  }
+
+  private typeIdOf(name: string): string {
+    if (name === ALL_ASSETS) return '';
+    return this.types.find((t) => t.typeName === name)?.id ?? this.layouts.find((l) => l.assetType === name)?.assetTypeId ?? '';
+  }
+
+  private get allFields(): CustomField[] {
+    return [...this.builtIns, ...this.fields];
+  }
+
+  private fromDto(dto: FieldLayoutDto): FieldLayout {
+    return toFieldLayout(dto, this.allFields);
   }
 
   // ===== List =====
@@ -212,8 +263,8 @@ export class CfFieldLayouts implements OnInit {
 
   // ===== Field lookup =====
 
-  fieldById(id: number): CustomField | undefined {
-    return id < 0 ? SYSTEM_FIELDS.find((f) => f.id === id) : this.fields.find((f) => f.id === id);
+  fieldById(id: string): CustomField | undefined {
+    return isBuiltIn({ id }) ? this.builtIns.find((f) => f.id === id) ?? SYSTEM_FIELDS.find((f) => f.id === id) : this.fields.find((f) => f.id === id);
   }
 
   sectionFields(s: LayoutSection): CustomField[] {
@@ -232,7 +283,7 @@ export class CfFieldLayouts implements OnInit {
     return this.draft.reduce((n, s) => n + s.fieldIds.length, 0);
   }
 
-  private get usedIds(): Set<number> {
+  private get usedIds(): Set<string> {
     return new Set(this.draft.flatMap((s) => s.fieldIds));
   }
 
@@ -240,13 +291,28 @@ export class CfFieldLayouts implements OnInit {
     return this.usedIds.has(f.id);
   }
 
-  /** Fields a layout for this asset type may use: built-ins, active asset fields and the type's category fields. */
+  /** The asset type's category and every category above it (category fields of any of them apply). */
+  private categoryLineage(assetType: string): Set<string> {
+    const ids = new Set<string>();
+    const typeId = this.typeIdOf(assetType);
+    let id: string | null | undefined = this.types.find((t) => t.id === typeId)?.categoryId;
+    while (id && !ids.has(id)) {
+      ids.add(id);
+      id = this.categories.find((c) => c.id === id)?.parentCategoryId;
+    }
+    return ids;
+  }
+
+  /**
+   * Fields a layout for this asset type may use, as the API's available-fields: built-ins, active asset fields,
+   * and active category fields for the type's category or any category above it.
+   */
   private poolFor(assetType: string): CustomField[] {
-    const category = ASSET_TYPE_CATEGORY[assetType] ?? '';
+    const lineage = this.categoryLineage(assetType);
     return [
-      ...SYSTEM_FIELDS,
+      ...this.builtIns,
       ...this.fields.filter(
-        (f) => f.status === 'Active' && (f.scope === 'asset' || (f.scope === 'category' && !!category && f.appliesTo === category)),
+        (f) => f.status === 'Active' && (f.scope === 'asset' || (f.scope === 'category' && lineage.has(f.appliesToId))),
       ),
     ];
   }
@@ -259,8 +325,8 @@ export class CfFieldLayouts implements OnInit {
 
   /** Active groups without a section yet, for "Add Group". */
   get addableGroups(): FieldGroup[] {
-    const present = new Set(this.draft.map((s) => s.group));
-    return [...this.groups].sort((a, b) => a.order - b.order).filter((g) => g.status === 'Active' && !present.has(g.name));
+    const present = new Set(this.draft.map((s) => s.groupId));
+    return [...this.groups].sort((a, b) => a.order - b.order).filter((g) => g.status === 'Active' && !present.has(g.id));
   }
 
   // ===== Designer edits =====
@@ -271,7 +337,7 @@ export class CfFieldLayouts implements OnInit {
   }
 
   addSection(g: FieldGroup): void {
-    this.draft.push({ group: g.name, fieldIds: [] });
+    this.draft.push({ groupId: g.id, group: g.name, fieldIds: [] });
     this.addGroupOpen = false;
     this.collapsed.delete(g.name);
     this.changed();
@@ -291,7 +357,7 @@ export class CfFieldLayouts implements OnInit {
   suggestedFor(s: LayoutSection): CustomField[] {
     if (!this.selected) return [];
     const used = this.usedIds;
-    return this.poolFor(this.selected.assetType).filter((f) => f.id > 0 && f.group === s.group && !used.has(f.id));
+    return this.poolFor(this.selected.assetType).filter((f) => !isBuiltIn(f) && f.groupId === s.groupId && !used.has(f.id));
   }
 
   addSuggested(s: LayoutSection): void {
@@ -317,7 +383,7 @@ export class CfFieldLayouts implements OnInit {
 
   // ===== Drag and drop =====
 
-  onFieldDragStart(event: DragEvent, fieldId: number, from: { s: number; i: number } | null): void {
+  onFieldDragStart(event: DragEvent, fieldId: string, from: { s: number; i: number } | null): void {
     event.stopPropagation();
     this.drag = { kind: 'field', fieldId, from };
     event.dataTransfer?.setData('text/plain', String(fieldId));
@@ -380,7 +446,7 @@ export class CfFieldLayouts implements OnInit {
     this.availDropActive = false;
   }
 
-  private placeField(fieldId: number, from: { s: number; i: number } | null, to: { s: number; i: number }): void {
+  private placeField(fieldId: string, from: { s: number; i: number } | null, to: { s: number; i: number }): void {
     let index = to.i;
     if (from) {
       if (from.s === to.s && (from.i === to.i || from.i + 1 === to.i)) return;
@@ -407,29 +473,40 @@ export class CfFieldLayouts implements OnInit {
   }
 
   saveLayout(): void {
-    if (!this.selected) return;
+    const layout = this.selected;
+    if (!layout || this.saving) return;
     const used = this.usedIds;
     const missing = SYSTEM_FIELDS.filter((f) => !used.has(f.id));
     if (missing.length) {
       this.saveError = `${missing.map((f) => f.label).join(' and ')} must be on the layout.`;
       return;
     }
-    this.selected.sections = cloneSections(this.draft);
-    this.dirty = false;
-    this.notify.emit(`${this.selected.name} saved.`);
+    this.saving = true;
+    this.api.updateLayout(layout.id, toLayoutRequest({ ...layout, sections: this.draft }, this.allFields)).subscribe({
+      next: (dto) => {
+        this.saving = false;
+        Object.assign(layout, this.fromDto(dto));
+        if (this.selected === layout) this.select(layout);
+        this.notify.emit(`${layout.name} saved.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.saveError = apiErrorMessage(err, 'Could not save the layout.');
+      },
+    });
   }
 
   // ===== Layout details (add / edit modal) =====
 
   openAdd(): void {
     this.openMenu = null;
-    this.layoutForm = { original: null, name: '', assetType: ASSET_TYPES[0], description: '', status: 'Active', copyFrom: 0 };
+    this.layoutForm = { original: null, name: '', assetType: this.assetTypes[0], description: '', status: 'Active', copyFrom: '' };
     this.layoutSubmitted = false;
   }
 
   openEdit(l: FieldLayout): void {
     this.openMenu = null;
-    this.layoutForm = { original: l, name: l.name, assetType: l.assetType, description: l.description, status: l.status, copyFrom: 0 };
+    this.layoutForm = { original: l, name: l.name, assetType: l.assetType, description: l.description, status: l.status, copyFrom: '' };
     this.layoutSubmitted = false;
   }
 
@@ -442,55 +519,116 @@ export class CfFieldLayouts implements OnInit {
     return null;
   }
 
+  /** Sections a new blank layout starts with: the required built-ins in the default (or first active) group. */
+  private blankSections(): LayoutSection[] {
+    const g = this.groups.find((x) => x.name === DEFAULT_GROUP) ?? [...this.groups].sort((a, b) => a.order - b.order).find((x) => x.status === 'Active');
+    return g ? [{ groupId: g.id, group: g.name, fieldIds: SYSTEM_FIELDS.map((f) => f.id) }] : [];
+  }
+
   saveLayoutForm(): void {
     this.layoutSubmitted = true;
     const e = this.layoutForm;
-    if (!e || this.layoutNameError) return;
-    const values = { name: e.name.trim(), assetType: e.assetType, description: e.description.trim(), status: e.status };
-    if (e.original) {
-      const typeChanged = e.original.assetType !== values.assetType;
-      Object.assign(e.original, values);
-      if (typeChanged) this.pruneToPool(e.original);
-      this.notify.emit(`${values.name} updated.`);
+    if (!e || this.layoutNameError || this.saving) return;
+    const values = {
+      name: e.name.trim(),
+      assetType: e.assetType,
+      assetTypeId: this.typeIdOf(e.assetType),
+      description: e.description.trim(),
+      status: e.status,
+    };
+    if (e.assetType !== ALL_ASSETS && !values.assetTypeId) {
+      this.notify.emit(`Asset type "${e.assetType}" was not found.`);
+      return;
+    }
+    const original = e.original;
+    let layout: FieldLayout;
+    if (original) {
+      layout = { ...original, ...values, sections: cloneSections(original.sections) };
+      if (original.assetType !== values.assetType) this.pruneToPool(layout);
     } else {
       const source = this.layouts.find((l) => l.id === e.copyFrom);
-      const created: FieldLayout = {
-        id: Math.max(0, ...this.layouts.map((l) => l.id)) + 1,
-        ...values,
-        sections: source ? cloneSections(source.sections) : [{ group: 'General Information', fieldIds: SYSTEM_FIELDS.map((f) => f.id) }],
-      };
-      this.pruneToPool(created);
-      this.layouts.push(created);
-      this.select(created);
-      this.notify.emit(`${values.name} added.`);
+      layout = { id: '', ...values, sections: source ? cloneSections(source.sections) : this.blankSections() };
+      this.pruneToPool(layout);
     }
-    this.layoutForm = null;
+    const request = toLayoutRequest(layout, this.allFields);
+    this.saving = true;
+    (original ? this.api.updateLayout(original.id, request) : this.api.createLayout(request)).subscribe({
+      next: (dto) => {
+        this.saving = false;
+        const saved = this.fromDto(dto);
+        if (original) {
+          const keepDraft = this.selected === original && this.dirty;
+          Object.assign(original, saved);
+          if (this.selected === original) {
+            if (keepDraft) this.pruneDraft(original.assetType);
+            else this.select(original);
+          }
+          this.notify.emit(`${saved.name} updated.`);
+        } else {
+          this.layouts.push(saved);
+          this.select(saved);
+          this.notify.emit(`${saved.name} added.`);
+        }
+        if (this.layoutForm === e) this.layoutForm = null;
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify.emit(apiErrorMessage(err, 'Could not save the layout.'));
+      },
+    });
+  }
+
+  /** Fields that can stay on a layout of this asset type. */
+  private keeperFor(assetType: string): (id: string) => boolean {
+    const pool = new Set(this.poolFor(assetType).map((f) => f.id));
+    return (id: string) => pool.has(id) || this.fieldById(id)?.scope === 'asset';
   }
 
   /** Category fields of another asset type can't stay on the layout after its type changes. */
   private pruneToPool(l: FieldLayout): void {
-    const pool = new Set(this.poolFor(l.assetType).map((f) => f.id));
-    const keep = (id: number) => pool.has(id) || this.fieldById(id)?.scope === 'asset';
+    const keep = this.keeperFor(l.assetType);
     l.sections.forEach((s) => (s.fieldIds = s.fieldIds.filter(keep)));
-    if (l === this.selected) this.draft.forEach((s) => (s.fieldIds = s.fieldIds.filter(keep)));
+  }
+
+  private pruneDraft(assetType: string): void {
+    const keep = this.keeperFor(assetType);
+    this.draft.forEach((s) => (s.fieldIds = s.fieldIds.filter(keep)));
   }
 
   duplicate(l: FieldLayout): void {
     this.openMenu = null;
+    if (this.saving) return;
     let name = `${l.name} (Copy)`;
-    for (let n = 2; this.layouts.some((x) => x.name === name); n++) name = `${l.name} (Copy ${n})`;
-    const copy: FieldLayout = { ...l, id: Math.max(0, ...this.layouts.map((x) => x.id)) + 1, name, sections: cloneSections(l.sections) };
-    this.layouts.splice(this.layouts.indexOf(l) + 1, 0, copy);
-    this.requestSelect(copy);
-    this.notify.emit(`${name} created.`);
+    for (let n = 2; this.layouts.some((x) => x.name.toLowerCase() === name.toLowerCase()); n++) name = `${l.name} (Copy ${n})`;
+    this.saving = true;
+    this.api.createLayout(toLayoutRequest({ ...l, name }, this.allFields)).subscribe({
+      next: (dto) => {
+        this.saving = false;
+        const copy = this.fromDto(dto);
+        const index = this.layouts.indexOf(l);
+        this.layouts.splice(index >= 0 ? index + 1 : this.layouts.length, 0, copy);
+        this.requestSelect(copy);
+        this.notify.emit(`${name} created.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify.emit(apiErrorMessage(err, 'Could not duplicate the layout.'));
+      },
+    });
   }
 
   setStatus(list: FieldLayout[], status: FieldStatus): void {
     this.openMenu = null;
-    list.forEach((l) => (l.status = status));
     this.checked.clear();
-    const verb = status === 'Active' ? 'activated' : 'deactivated';
-    this.notify.emit(list.length === 1 ? `${list[0].name} ${verb}.` : `${list.length} layouts ${verb}.`);
+    const targets = list.filter((l) => l.status !== status);
+    if (!targets.length) return;
+    runAll(targets, (l) => this.api.updateLayout(l.id, toLayoutRequest({ ...l, status }, this.allFields)).pipe(map(() => l))).subscribe((result) => {
+      result.ok.forEach((l) => (l.status = status));
+      const verb = status === 'Active' ? 'activated' : 'deactivated';
+      const n = result.ok.length;
+      const done = n === 1 ? `${result.ok[0].name} ${verb}.` : n ? `${n} layouts ${verb}.` : '';
+      this.notify.emit([done, ...result.errors.slice(0, 1)].filter(Boolean).join(' '));
+    });
   }
 
   askDelete(list: FieldLayout[]): void {
@@ -500,19 +638,28 @@ export class CfFieldLayouts implements OnInit {
 
   confirmDelete(): void {
     const targets = this.deleteTargets;
-    targets.forEach((l) => {
-      this.layouts.splice(this.layouts.indexOf(l), 1);
-      this.checked.delete(l);
-    });
-    if (this.selected && targets.includes(this.selected)) this.select(this.layouts[0] ?? null);
     this.deleteTargets = [];
-    this.notify.emit(targets.length === 1 ? `${targets[0].name} deleted.` : `${targets.length} layouts deleted.`);
+    if (!targets.length) return;
+    this.saving = true;
+    runAll(targets, (l) => this.api.deleteLayout(l.id).pipe(map(() => l))).subscribe((result) => {
+      this.saving = false;
+      const deleted = result.ok;
+      deleted.forEach((l) => {
+        const index = this.layouts.indexOf(l);
+        if (index >= 0) this.layouts.splice(index, 1);
+        this.checked.delete(l);
+      });
+      if (this.selected && deleted.includes(this.selected)) this.select(this.layouts[0] ?? null);
+      const done = deleted.length === 1 ? `${deleted[0].name} deleted.` : deleted.length ? `${deleted.length} layouts deleted.` : '';
+      this.notify.emit([done, ...result.errors.slice(0, 1)].filter(Boolean).join(' '));
+    });
   }
 
   // ===== Import / export (called from the page header) =====
 
+  /** The API has no layout export, so the file is built from the loaded layouts (groups and fields by name). */
   exportLayouts(): void {
-    const nameOf = (id: number) => this.fieldById(id)?.name;
+    const nameOf = (id: string) => this.fieldById(id)?.name;
     const rows = this.layouts.map((l) => ({
       name: l.name,
       assetType: l.assetType,
@@ -529,46 +676,64 @@ export class CfFieldLayouts implements OnInit {
     this.notify.emit(`Exported ${rows.length} layout${rows.length === 1 ? '' : 's'}.`);
   }
 
-  /** Adds layouts with new names; sections keep only groups and fields that exist here. */
+  /** Creates layouts with new names through the API; sections keep only groups and fields that exist here. */
   importLayouts(parsed: unknown, fileName: string): void {
     const list: unknown[] = Array.isArray(parsed) ? parsed : Array.isArray((parsed as { layouts?: unknown[] })?.layouts) ? (parsed as { layouts: unknown[] }).layouts : [];
     const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
     const obj = (v: unknown) => (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
-    let added = 0;
+    if (!list.length) {
+      this.notify.emit(`No layouts found in ${fileName}.`);
+      return;
+    }
+    const taken = new Set(this.layouts.map((l) => l.name.toLowerCase()));
+    const toCreate: FieldLayout[] = [];
     let skipped = 0;
     for (const raw of list) {
       const r = obj(raw);
       const name = str(r['name']);
-      const assetType = ASSET_TYPES.includes(str(r['assetType'])) ? str(r['assetType']) : 'All Assets';
-      if (!name || this.layouts.some((l) => l.name.toLowerCase() === name.toLowerCase())) {
+      if (!name || taken.has(name.toLowerCase())) {
         skipped++;
         continue;
       }
+      taken.add(name.toLowerCase());
+      const assetTypeId = this.typeIdOf(str(r['assetType']));
+      const assetType = assetTypeId ? str(r['assetType']) : ALL_ASSETS;
       const pool = this.poolFor(assetType);
       const sections = (Array.isArray(r['sections']) ? (r['sections'] as unknown[]) : [])
         .map(obj)
-        .filter((s) => this.groups.some((g) => g.name === str(s['group'])))
-        .map((s) => ({
-          group: str(s['group']),
+        .map((s) => ({ s, g: this.groups.find((g) => g.name === str(s['group'])) }))
+        .filter((x): x is { s: Record<string, unknown>; g: FieldGroup } => !!x.g)
+        .map(({ s, g }) => ({
+          groupId: g.id,
+          group: g.name,
           fieldIds: (Array.isArray(s['fields']) ? (s['fields'] as unknown[]) : [])
             .map((n) => pool.find((f) => f.name === str(n))?.id)
-            .filter((id): id is number => id !== undefined),
+            .filter((id): id is string => id !== undefined),
         }));
-      this.layouts.push({
-        id: Math.max(0, ...this.layouts.map((l) => l.id)) + 1,
+      toCreate.push({
+        id: '',
         name,
+        assetTypeId,
         assetType,
         description: str(r['description']).slice(0, DESCRIPTION_MAX),
         status: r['status'] === 'Inactive' ? 'Inactive' : 'Active',
         sections,
       });
-      added++;
     }
-    this.notify.emit(
-      list.length
-        ? `Imported ${added} layout${added === 1 ? '' : 's'}${skipped ? `; skipped ${skipped} invalid or existing` : ''}.`
-        : `No layouts found in ${fileName}.`,
-    );
+    if (!toCreate.length) {
+      this.notify.emit(`Imported 0 layouts; skipped ${skipped} invalid or existing.`);
+      return;
+    }
+    runAll(toCreate, (l) => this.api.createLayout(toLayoutRequest(l, this.allFields))).subscribe((result) => {
+      result.ok.forEach((dto) => this.layouts.push(this.fromDto(dto)));
+      if (!this.selected && this.layouts[0]) this.select(this.layouts[0]);
+      skipped += result.errors.length;
+      const added = result.ok.length;
+      this.notify.emit(
+        `Imported ${added} layout${added === 1 ? '' : 's'}${skipped ? `; skipped ${skipped} invalid or existing` : ''}.` +
+          (result.errors.length ? ` ${result.errors[0]}` : ''),
+      );
+    });
   }
 
   lookupPlaceholder(f: CustomField): string {

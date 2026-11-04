@@ -1,0 +1,253 @@
+<section class="ip-page">
+  <!-- ===== Header ===== -->
+  <div class="page-head">
+    <div class="grow">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a routerLink="/inspection/overview">Inspection</a><span aria-hidden="true">/</span>
+        <span>Configuration</span><span aria-hidden="true">/</span>
+        <span class="current">Inspection Tasks</span>
+      </nav>
+      <h1>Inspection Tasks</h1>
+      <p class="subtitle">Create reusable inspection checks with clear acceptance criteria and evidence requirements.</p>
+    </div>
+    <div class="head-actions">
+      <input #fileInput type="file" accept=".csv,.xlsx,.xls" hidden (change)="importFile(fileInput)" />
+      <button type="button" class="btn btn-outline" [disabled]="importing()" (click)="fileInput.click()" title="Import tasks from a CSV or XLSX file (columns: Task Title, Category, Response Type, Unit, Min, Max, Procedure…)">
+        <lucide-icon [img]="icons.Upload" [size]="17"></lucide-icon>{{ importing() ? 'Importing…' : 'Import' }}</button>
+      <button type="button" class="btn btn-primary" (click)="openNew()"><lucide-icon [img]="icons.Plus" [size]="18"></lucide-icon>New Task</button>
+    </div>
+  </div>
+
+  @if (store.error()) { <div class="alert" role="alert">{{ store.error() }}</div> }
+
+  <!-- ===== KPIs ===== -->
+  <div class="kpis">
+    <button type="button" class="kpi" (click)="statusFilter.set('All'); resetPage()">
+      <span class="kpi-ic"><lucide-icon [img]="icons.FileText" [size]="22"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Total Tasks</span><strong class="kpi-value">{{ kpis().total }}</strong></span>
+    </button>
+    <button type="button" class="kpi" (click)="statusFilter.set('Active'); resetPage()">
+      <span class="kpi-ic kpi-ic--green"><lucide-icon [img]="icons.CircleCheck" [size]="22"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Active</span><strong class="kpi-value">{{ kpis().active }}</strong></span>
+    </button>
+    <div class="kpi">
+      <span class="kpi-ic kpi-ic--blue"><lucide-icon [img]="icons.Layers" [size]="22"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Used in Checklists</span><strong class="kpi-value">{{ kpis().used }}</strong></span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-ic kpi-ic--amber"><lucide-icon [img]="icons.Image" [size]="22"></lucide-icon></span>
+      <span class="kpi-body"><span class="kpi-label">Require Evidence</span><strong class="kpi-value">{{ kpis().evidence }}</strong></span>
+    </div>
+  </div>
+
+  <div class="split">
+    <!-- ===== Library ===== -->
+    <div class="card">
+      <div class="card-head"><h2>Inspection Task Library</h2></div>
+      <div class="filters">
+        <label class="search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" placeholder="Search tasks by name or code..." aria-label="Search tasks" [(ngModel)]="search" (ngModelChange)="resetPage()" />
+        </label>
+        <select class="control flt" aria-label="Category" [(ngModel)]="categoryFilter" (ngModelChange)="resetPage()">
+          <option value="All">All Categories</option>
+          @for (c of categories(); track c) { <option [value]="c">{{ c }}</option> }
+        </select>
+        <select class="control flt flt--sm" aria-label="Status" [(ngModel)]="statusFilter" (ngModelChange)="resetPage()">
+          <option value="All">All Statuses</option><option value="Active">Active</option><option value="Inactive">Inactive</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Task Code</th><th>Task Name</th><th>Category</th><th>Response Type</th><th>Status</th><th class="center">Actions</th></tr>
+          </thead>
+          <tbody>
+            @for (t of pager.slice(filtered()); track t.id) {
+              <tr [class.is-selected]="selected()?.id === t.id" (click)="selectedId.set(t.id)">
+                <td class="nowrap">{{ t.taskCode }}</td>
+                <td>{{ t.taskTitle }}</td>
+                <td class="nowrap"><span class="cat" [attr.data-cat]="t.taskCategory"><lucide-icon [img]="categoryIcon(t.taskCategory)" [size]="17"></lucide-icon>{{ t.taskCategory }}</span></td>
+                <td class="nowrap">{{ responseLabel(t) }}</td>
+                <td><span [class]="pillClass(statusLabel(t))"><span class="dot"></span>{{ statusLabel(t) }}</span></td>
+                <td class="row-actions">
+                  <button type="button" class="icon-btn" aria-label="Edit" title="Edit" (click)="openEdit(t, $event)"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon></button>
+                  <span class="menu-wrap">
+                    <button type="button" class="icon-btn" aria-label="More actions" [attr.aria-expanded]="menuId() === t.id" (click)="toggleMenu($event, t.id)"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
+                    @if (menuId() === t.id) {
+                      <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                        @if (confirmId() === t.id) {
+                          <p class="menu-confirm">Delete {{ t.taskCode }}?</p>
+                          <div class="menu-confirm-actions">
+                            <button type="button" class="btn btn-sm btn-outline" (click)="confirmId.set(null)">Cancel</button>
+                            <button type="button" class="btn btn-sm btn-danger" (click)="remove(t)">Delete</button>
+                          </div>
+                        } @else {
+                          <button type="button" role="menuitem" (click)="setActive(t, !t.isActive)"><lucide-icon [img]="icons.Power" [size]="15"></lucide-icon>{{ t.isActive ? 'Deactivate' : 'Activate' }}</button>
+                          <button type="button" role="menuitem" (click)="duplicate(t)"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon>Duplicate</button>
+                          <button type="button" role="menuitem" class="danger" (click)="askDelete($event, t)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete</button>
+                        }
+                      </div>
+                    }
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty">{{ store.loading() ? 'Loading tasks…' : 'No tasks found.' }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <span class="grow">{{ pager.label(filtered().length, 'tasks') }}</span>
+        <button type="button" aria-label="Previous page" [disabled]="pager.page <= 1" (click)="pager.page = pager.page - 1"><lucide-icon [img]="icons.ChevronLeft" [size]="15"></lucide-icon></button>
+        @for (p of pageButtons(filtered().length); track $index) {
+          @if (p) { <button type="button" [class.is-active]="p === pager.page" (click)="pager.page = p">{{ p }}</button> } @else { <span class="gap">…</span> }
+        }
+        <button type="button" aria-label="Next page" [disabled]="pager.page >= pager.pages(filtered().length)" (click)="pager.page = pager.page + 1"><lucide-icon [img]="icons.ChevronRight" [size]="15"></lucide-icon></button>
+      </div>
+    </div>
+
+    <!-- ===== Detail panel ===== -->
+    <aside class="card">
+      @if (selected(); as t) {
+        <div class="card-body detail">
+          <div class="detail-head">
+            <div class="grow">
+              <h2>{{ t.taskTitle }}</h2>
+              <span class="muted">{{ t.taskCode }}</span>
+            </div>
+            <span [class]="pillClass(statusLabel(t))"><span class="dot"></span>{{ statusLabel(t) }}</span>
+            <button type="button" class="btn btn-accent-outline btn-sm" (click)="openEdit(t)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Task</button>
+          </div>
+          @if (t.taskDescription) { <p class="muted desc">{{ t.taskDescription }}</p> }
+
+          <div class="sub-box">
+            <h3 class="section-title">Task Configuration</h3>
+            <div class="cfg">
+              <div class="cfg-item"><lucide-icon [img]="categoryIcon(t.taskCategory)" [size]="16"></lucide-icon><span class="muted">Category</span><strong>{{ t.taskCategory || '—' }}</strong></div>
+              <div class="cfg-item"><lucide-icon [img]="icons.Thermometer" [size]="16"></lucide-icon><span class="muted">Unit</span><strong>{{ t.unit || '—' }}</strong></div>
+              <div class="cfg-item"><lucide-icon [img]="icons.SlidersHorizontal" [size]="16"></lucide-icon><span class="muted">Response type</span><strong>{{ t.responseType }}</strong></div>
+              <div class="cfg-item"><lucide-icon [img]="icons.Clock" [size]="16"></lucide-icon><span class="muted">Estimated duration</span><strong>{{ t.estimatedDurationMinutes || 0 }} min</strong></div>
+            </div>
+          </div>
+
+          <div class="sub-box">
+            <h3 class="section-title">Acceptance Criteria</h3>
+            @if (t.responseType === 'Numeric') {
+              <div class="crit">
+                <label class="field"><span class="field-label">Minimum</span>
+                  <span class="unit-input"><input class="control" readonly [value]="t.minValue ?? '—'" /><span>{{ t.unit }}</span></span></label>
+                <label class="field"><span class="field-label">Maximum</span>
+                  <span class="unit-input"><input class="control" readonly [value]="t.maxValue ?? '—'" /><span>{{ t.unit }}</span></span></label>
+                <div class="pass-note"><lucide-icon [img]="icons.CircleCheck" [size]="16"></lucide-icon>Pass when reading is within the configured range.</div>
+              </div>
+            } @else if (t.responseType === 'Text') {
+              <p class="muted m0">Free-text observation; the inspector records the result manually.</p>
+            } @else {
+              <div class="pass-note"><lucide-icon [img]="icons.CircleCheck" [size]="16"></lucide-icon>Pass when the inspector records {{ t.responseType === 'Yes / No' ? 'the expected Yes / No answer' : '“Pass”' }}.</div>
+            }
+          </div>
+
+          <div class="sub-box">
+            <h3 class="section-title">Procedure</h3>
+            <div class="proc"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon><span>{{ t.procedure || 'No procedure recorded.' }}</span></div>
+          </div>
+
+          <div class="sub-box">
+            <h3 class="section-title">Evidence &amp; Failure Rules</h3>
+            <div class="rules">
+              <div class="rule-list">
+                <label class="check"><lucide-icon [img]="icons.Image" [size]="15"></lucide-icon><input type="checkbox" disabled [checked]="t.readingRequired" />Required reading</label>
+                <label class="check"><lucide-icon [img]="icons.Camera" [size]="15"></lucide-icon><input type="checkbox" disabled [checked]="t.photoRequiredOnFailure" />Photo required on failure</label>
+                <label class="check"><lucide-icon [img]="icons.TriangleAlert" [size]="15"></lucide-icon><input type="checkbox" disabled [checked]="t.createFindingOutsideLimits" />Create finding when outside limits</label>
+              </div>
+              <div class="sev"><span class="muted">Default severity</span><span [class]="pillClass(t.defaultSeverity)"><span class="dot"></span>{{ t.defaultSeverity || '—' }}</span></div>
+            </div>
+          </div>
+
+          <div class="sub-box">
+            <div class="linked-head">
+              <lucide-icon [img]="icons.Link2" [size]="16"></lucide-icon><h3 class="section-title m0 grow">Linked Checklists</h3>
+              <a class="link" routerLink="/inspection/checklists">View usage <lucide-icon [img]="icons.ChevronRight" [size]="15"></lucide-icon></a>
+            </div>
+            <div class="chips">
+              @for (c of linkedChecklists(); track c.id) {
+                <span class="chip"><lucide-icon [img]="icons.FileText" [size]="14"></lucide-icon>{{ c.templateName }} v{{ c.versionLabel }}</span>
+              } @empty { <span class="muted">Not used in any checklist yet.</span> }
+            </div>
+          </div>
+
+          <div class="note"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon><span>Task changes are versioned. Existing inspection results retain the task version used during execution.</span></div>
+        </div>
+      } @else {
+        <div class="empty">{{ store.loading() ? 'Loading…' : 'Select a task to see its configuration.' }}</div>
+      }
+    </aside>
+  </div>
+</section>
+
+<!-- ===== New / edit drawer ===== -->
+@if (form; as f) {
+  <div class="backdrop" (click)="closeForm()"></div>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="task-form-title">
+    <div class="drawer-head">
+      <h2 id="task-form-title" class="grow">{{ f.id ? 'Edit Task' : 'New Task' }}</h2>
+      <button type="button" class="icon-btn" aria-label="Close" (click)="closeForm()"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <div class="drawer-body">
+      @if (formError) { <div class="alert" role="alert">{{ formError }}</div> }
+      <div class="form-grid">
+        <label class="field span-2"><span class="field-label">Task name <span class="req">*</span></span>
+          <input class="control" [(ngModel)]="f.taskTitle" placeholder="e.g. Measure bearing temperature" /></label>
+        <label class="field"><span class="field-label">Code</span>
+          <input class="control" [value]="f.taskCode || 'Assigned on save'" readonly /></label>
+        <label class="field"><span class="field-label">Category</span>
+          <select class="control" [(ngModel)]="f.taskCategory">
+            @for (c of categories(); track c) { <option [value]="c">{{ c }}</option> }
+          </select></label>
+        <label class="field span-2"><span class="field-label">Description</span>
+          <textarea class="control" rows="2" [(ngModel)]="f.taskDescription"></textarea></label>
+        <label class="field"><span class="field-label">Response type</span>
+          <select class="control" [(ngModel)]="f.responseType">
+            @for (r of responseTypes; track r) { <option [value]="r">{{ r }}</option> }
+          </select></label>
+        <label class="field"><span class="field-label">Unit</span>
+          <input class="control" [(ngModel)]="f.unit" placeholder="e.g. °C, bar, mm/s" /></label>
+        @if (f.responseType === 'Numeric') {
+          <label class="field"><span class="field-label">Minimum</span>
+            <input class="control" type="number" [(ngModel)]="f.minValue" /></label>
+          <label class="field"><span class="field-label">Maximum</span>
+            <input class="control" type="number" [(ngModel)]="f.maxValue" /></label>
+        }
+        <label class="field"><span class="field-label">Estimated duration (min)</span>
+          <input class="control" type="number" min="0" [(ngModel)]="f.estimatedDurationMinutes" /></label>
+        <label class="field"><span class="field-label">Default severity</span>
+          <select class="control" [(ngModel)]="f.defaultSeverity">
+            @for (s of severities; track s) { <option [value]="s">{{ s }}</option> }
+          </select></label>
+        <label class="field span-2"><span class="field-label">Procedure</span>
+          <textarea class="control" rows="3" [(ngModel)]="f.procedure"></textarea></label>
+      </div>
+      <div>
+        <h3 class="section-title">Evidence &amp; Failure Rules</h3>
+        <div class="rule-list">
+          <label class="check"><input type="checkbox" [(ngModel)]="f.readingRequired" />Required reading</label>
+          <label class="check"><input type="checkbox" [(ngModel)]="f.photoRequiredOnFailure" />Photo required on failure</label>
+          <label class="check"><input type="checkbox" [(ngModel)]="f.createFindingOutsideLimits" />Create finding when outside limits</label>
+          <label class="check"><input type="checkbox" [(ngModel)]="f.isCriticalTask" />Critical task</label>
+          <label class="check"><input type="checkbox" [(ngModel)]="f.isMandatory" />Mandatory</label>
+        </div>
+      </div>
+      <label class="active-row"><span class="toggle"><input type="checkbox" [(ngModel)]="f.isActive" /><span></span></span><span>Active</span></label>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn btn-outline" (click)="closeForm()">Cancel</button>
+      <button type="button" class="btn btn-primary" [disabled]="saving" (click)="saveForm()">{{ saving ? 'Saving…' : f.id ? 'Save Changes' : 'Create Task' }}</button>
+    </div>
+  </aside>
+}
+
+@if (toast()) { <div class="toast" role="status">{{ toast() }}</div> }

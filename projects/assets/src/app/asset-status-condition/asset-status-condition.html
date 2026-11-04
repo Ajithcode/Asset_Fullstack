@@ -71,7 +71,11 @@
     <p>Loading status &amp; condition data…</p>
   </div>
 
-  <div *ngIf="!hasData && !loading" class="card not-found">
+  <div *ngIf="loadError && !loading" class="card not-found">
+    <p class="form-error" role="alert">{{ loadError }}</p>
+  </div>
+
+  <div *ngIf="!hasData && !loading && !loadError" class="card not-found">
     <h2>No status &amp; condition data yet</h2>
     <p>No condition assessments or operational readings have been recorded for <strong>{{ asset.tag }}</strong> ({{ asset.name }}).</p>
   </div>
@@ -494,7 +498,7 @@
         </label>
         <label class="field">
           <span class="field-label">Assessed By <em>*</em></span>
-          <input type="text" class="control" [(ngModel)]="f.assessedBy" name="assessedBy" maxlength="60" />
+          <input type="text" class="control" [(ngModel)]="f.assessedBy" name="assessedBy" maxlength="200" />
         </label>
         <label class="field">
           <span class="field-label">Overall Condition <em>*</em></span>
@@ -532,7 +536,7 @@
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="assessmentForm = null">Cancel</button>
-        <button type="submit" class="btn btn-primary">{{ f.id === null ? 'Record Assessment' : 'Save Changes' }}</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : f.id === null ? 'Record Assessment' : 'Save Changes' }}</button>
       </div>
     </form>
   </div>

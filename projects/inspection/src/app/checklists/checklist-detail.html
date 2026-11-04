@@ -1,0 +1,229 @@
+<div class="card cd">
+  <!-- ===== Header ===== -->
+  <div class="cd-head">
+    <span class="cd-icon"><lucide-icon [img]="checklistIcon(draft)" [size]="26"></lucide-icon></span>
+    <div class="grow">
+      <div class="cd-title">
+        <h2>{{ draft.templateName }}</h2>
+        <span [class]="pillClass(draft.status)"><span class="dot"></span>{{ draft.status || 'Draft' }}</span>
+        @if (dirty) { <span class="pill pill--amber">Unsaved changes</span> }
+      </div>
+      <div class="muted cd-meta">
+        <span>{{ draft.checklistCode || 'New' }}</span><span>•</span>
+        <span>Updated {{ fmtDate(source.updatedAt || source.createdAt) || '—' }}</span><span>•</span>
+        <span>Owner: {{ draft.owner || '—' }}</span>
+      </div>
+    </div>
+    <select class="control ver" aria-label="Version" [ngModel]="source.id" (ngModelChange)="selectId.emit($event)">
+      @for (v of versions(); track v.id) { <option [value]="v.id">Version {{ v.versionLabel }}{{ v.status === 'Draft' ? ' (Draft)' : '' }}</option> }
+    </select>
+    <span class="menu-wrap">
+      <button type="button" class="icon-btn icon-btn--box" aria-label="More checklist actions" (click)="toggleMenu($event, 'head')"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
+      @if (menuKey === 'head') {
+        <div class="menu" role="menu" (click)="$event.stopPropagation()">
+          @if (confirmDelete) {
+            <p class="menu-confirm">Delete {{ draft.templateName }} v{{ draft.versionLabel }}?</p>
+            <div class="menu-confirm-actions">
+              <button type="button" class="btn btn-sm btn-outline" (click)="confirmDelete = false">Cancel</button>
+              <button type="button" class="btn btn-sm btn-danger" (click)="remove()">Delete</button>
+            </div>
+          } @else {
+            <button type="button" role="menuitem" (click)="duplicate()"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon>Duplicate</button>
+            <button type="button" role="menuitem" (click)="exportJson()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export JSON</button>
+            <button type="button" role="menuitem" class="danger" (click)="confirmDelete = true"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete</button>
+          }
+        </div>
+      }
+    </span>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="Checklist sections">
+    <button type="button" role="tab" [class.is-active]="tab === 'items'" [attr.aria-selected]="tab === 'items'" (click)="tab = 'items'">Checklist Items</button>
+    <button type="button" role="tab" [class.is-active]="tab === 'rules'" [attr.aria-selected]="tab === 'rules'" (click)="tab = 'rules'">Rules &amp; Scoring</button>
+    <button type="button" role="tab" [class.is-active]="tab === 'usage'" [attr.aria-selected]="tab === 'usage'" (click)="tab = 'usage'">Usage &amp; Versions</button>
+  </nav>
+
+  <div class="cd-body">
+    @switch (tab) {
+      @case ('items') {
+        <div class="tiles">
+          <div class="tile"><lucide-icon [img]="icons.Shield" [size]="22"></lucide-icon><span><span class="muted">Inspection Type</span><strong>{{ draft.inspectionTypeName || '—' }}</strong></span></div>
+          <div class="tile"><lucide-icon [img]="icons.Package" [size]="22"></lucide-icon><span><span class="muted">Applicable Assets</span><strong>{{ draft.assetCategory || draft.assetType || 'All assets' }}</strong></span></div>
+          <div class="tile"><lucide-icon [img]="icons.ChartColumn" [size]="22"></lucide-icon><span><span class="muted">Scoring</span><strong>{{ draft.scoring || '—' }}</strong></span></div>
+        </div>
+
+        <div class="tbl-wrap">
+          <table class="table items">
+            <thead>
+              <tr><th class="c-num">#</th><th>Task Name</th><th>Response Type</th><th>Weight</th><th>Required</th><th>Acceptance Criteria</th><th class="c-act">Actions</th></tr>
+            </thead>
+            @for (s of draft.sections; track $index; let si = $index) {
+              <tbody>
+                <tr class="sec-row" (click)="toggleSection(si)">
+                  <td class="c-num"><lucide-icon [img]="icons.GripVertical" [size]="16"></lucide-icon></td>
+                  <td colspan="5"><strong>{{ si + 1 }}. {{ s.sectionName }}</strong></td>
+                  <td class="c-act nowrap">
+                    <span class="muted">{{ s.tasks.length }} task{{ s.tasks.length === 1 ? '' : 's' }}</span>
+                    @if (!locked) {
+                      <span class="menu-wrap">
+                        <button type="button" class="icon-btn" aria-label="Section actions" (click)="toggleMenu($event, 's' + si)"><lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon></button>
+                        @if (menuKey === 's' + si) {
+                          <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                            <button type="button" role="menuitem" [disabled]="si === 0" (click)="moveSection(si, -1)"><lucide-icon [img]="icons.ArrowUp" [size]="15"></lucide-icon>Move up</button>
+                            <button type="button" role="menuitem" [disabled]="si === draft.sections.length - 1" (click)="moveSection(si, 1)"><lucide-icon [img]="icons.ArrowDown" [size]="15"></lucide-icon>Move down</button>
+                            <button type="button" role="menuitem" class="danger" (click)="removeSection(si)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Remove section</button>
+                          </div>
+                        }
+                      </span>
+                    }
+                    <button type="button" class="icon-btn" [attr.aria-label]="collapsed.has(si) ? 'Expand section' : 'Collapse section'" [attr.aria-expanded]="!collapsed.has(si)">
+                      <lucide-icon [img]="collapsed.has(si) ? icons.ChevronDown : icons.ChevronUp" [size]="16"></lucide-icon></button>
+                  </td>
+                </tr>
+                @if (!collapsed.has(si)) {
+                  @for (t of s.tasks; track $index; let ti = $index) {
+                    <tr class="task-row">
+                      <td class="c-num">{{ rowNumber(si, ti) }}</td>
+                      <td>
+                        @if (editingRow === si + '-' + ti) { <input class="control control--sm" aria-label="Task name" [(ngModel)]="t.taskTitle" /> }
+                        @else { {{ t.taskTitle }} }
+                      </td>
+                      <td>
+                        <select class="control control--sm resp" aria-label="Response type" [(ngModel)]="t.responseType" [disabled]="locked">
+                          @for (o of responseOptions(t); track o) { <option [value]="o">{{ o }}</option> }
+                        </select>
+                      </td>
+                      <td><span class="weight"><input class="control control--sm" type="number" min="0" max="100" aria-label="Weight" [(ngModel)]="t.weight" [disabled]="locked" /><span>%</span></span></td>
+                      <td><label class="check"><input type="checkbox" [(ngModel)]="t.isMandatory" [disabled]="locked" />Required</label></td>
+                      <td>
+                        @if (editingRow === si + '-' + ti) { <input class="control control--sm" aria-label="Acceptance criteria" [(ngModel)]="t.acceptanceCriteria" /> }
+                        @else { {{ t.acceptanceCriteria || '-' }} }
+                      </td>
+                      <td class="c-act nowrap">
+                        <button type="button" class="icon-btn" [disabled]="locked" [attr.aria-label]="editingRow === si + '-' + ti ? 'Done editing' : 'Edit task'"
+                          [title]="locked ? 'Published versions are locked' : 'Edit'" (click)="editingRow = editingRow === si + '-' + ti ? '' : si + '-' + ti">
+                          <lucide-icon [img]="editingRow === si + '-' + ti ? icons.X : icons.Pencil" [size]="15"></lucide-icon></button>
+                        <span class="menu-wrap">
+                          <button type="button" class="icon-btn" aria-label="Task actions" [disabled]="locked" (click)="toggleMenu($event, si + '-' + ti)"><lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon></button>
+                          @if (menuKey === si + '-' + ti) {
+                            <div class="menu" role="menu" (click)="$event.stopPropagation()">
+                              <button type="button" role="menuitem" [disabled]="ti === 0" (click)="moveTask(si, ti, -1)"><lucide-icon [img]="icons.ArrowUp" [size]="15"></lucide-icon>Move up</button>
+                              <button type="button" role="menuitem" [disabled]="ti === s.tasks.length - 1" (click)="moveTask(si, ti, 1)"><lucide-icon [img]="icons.ArrowDown" [size]="15"></lucide-icon>Move down</button>
+                              <button type="button" role="menuitem" class="danger" (click)="removeTask(si, ti)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Remove</button>
+                            </div>
+                          }
+                        </span>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="7" class="muted sec-empty">No tasks in this section yet.</td></tr>
+                  }
+                }
+              </tbody>
+            } @empty {
+              <tbody><tr><td colspan="7" class="empty">No sections yet. {{ locked ? '' : 'Add a section, then add tasks from the task library.' }}</td></tr></tbody>
+            }
+          </table>
+        </div>
+
+        <div class="items-foot">
+          <button type="button" class="btn btn-accent-outline btn-sm" [disabled]="locked" (click)="openPicker()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Task</button>
+          @if (newSectionName === null) {
+            <button type="button" class="btn btn-accent-outline btn-sm" [disabled]="locked" (click)="newSectionName = ''"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Section</button>
+          } @else {
+            <span class="inline-add">
+              <input class="control control--sm" placeholder="Section name" aria-label="New section name" [(ngModel)]="newSectionName" (keyup.enter)="addSection()" (keyup.escape)="newSectionName = null" />
+              <button type="button" class="btn btn-primary btn-sm" (click)="addSection()">Add</button>
+              <button type="button" class="icon-btn" aria-label="Cancel" (click)="newSectionName = null"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon></button>
+            </span>
+          }
+          <span class="grow"></span>
+          <span class="muted">{{ draft.sections.length }} section{{ draft.sections.length === 1 ? '' : 's' }} • {{ shownCount }} of {{ taskCount }} tasks shown</span>
+          @if (shownCount < taskCount) { <button type="button" class="link" (click)="expandAll()">View all tasks →</button> }
+        </div>
+
+        @if (picker) {
+          <app-checklist-task-picker [sectionNames]="sectionNames()" [usedCodes]="usedCodes()" [(section)]="pickerSection" (add)="addTask($event)" (closed)="picker = false" />
+        }
+
+        <div class="rules-grid">
+          <div class="sub-box rule-box">
+            <lucide-icon [img]="icons.ClipboardCheck" [size]="22"></lucide-icon>
+            <div><h3 class="section-title">Completion Rules</h3>
+              <label class="check"><input type="checkbox" [(ngModel)]="draft.allMandatoryRequired" [disabled]="locked" />All mandatory items required</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="draft.photoOnFailedItems" [disabled]="locked" />Photo evidence on failed items</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="draft.inspectorSignatureRequired" [disabled]="locked" />Inspector signature required</label>
+            </div>
+          </div>
+          <div class="sub-box rule-box">
+            <lucide-icon [img]="icons.TriangleAlert" [size]="22"></lucide-icon>
+            <div><h3 class="section-title">Failure Handling</h3>
+              <label class="check"><input type="checkbox" [(ngModel)]="draft.criticalFailureOverridesScore" [disabled]="locked" />Critical failure overrides score</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="draft.createFindingOnFailure" [disabled]="locked" />Create inspection finding</label>
+              <label class="check"><input type="checkbox" [(ngModel)]="draft.routeCorrectiveAction" [disabled]="locked" />Route corrective action via workflow</label>
+            </div>
+          </div>
+        </div>
+      }
+
+      @case ('rules') {
+        <div class="form-grid">
+          <label class="field"><span class="field-label">Checklist name</span><input class="control" [(ngModel)]="draft.templateName" [disabled]="locked" /></label>
+          <label class="field"><span class="field-label">Inspection type</span>
+            <select class="control" [ngModel]="draft.inspectionTypeId" (ngModelChange)="pickType($event)" [disabled]="locked">
+              <option value="">— None —</option>
+              @for (t of api.types.items(); track t.id) { <option [value]="t.id">{{ t.inspectionTypeName }}</option> }
+            </select></label>
+          <label class="field"><span class="field-label">Asset category</span><input class="control" [(ngModel)]="draft.assetCategory" [disabled]="locked" /></label>
+          <label class="field"><span class="field-label">Asset type</span><input class="control" [(ngModel)]="draft.assetType" [disabled]="locked" /></label>
+          <label class="field"><span class="field-label">Scoring method</span>
+            <select class="control" [(ngModel)]="draft.scoring" [disabled]="locked">
+              @for (m of scoringMethods; track m) { <option [value]="m">{{ m }}</option> }
+            </select></label>
+          <label class="field"><span class="field-label">Owner</span><input class="control" [(ngModel)]="draft.owner" [disabled]="locked" /></label>
+          <label class="field"><span class="field-label">Effective date</span><input class="control" type="date" [(ngModel)]="draft.effectiveDate" [disabled]="locked" /></label>
+          <div class="field"><span class="field-label">Modules</span>
+            <div class="mods">
+              @for (m of modules; track m) {
+                <label class="check"><input type="checkbox" [checked]="draft.modules.includes(m)" [disabled]="locked" (change)="toggleModule(m, $any($event.target).checked)" />{{ m }}</label>
+              }
+            </div>
+          </div>
+        </div>
+
+        <h3 class="section-title mt">Weight distribution</h3>
+        <table class="table wtable">
+          <thead><tr><th>Section</th><th>Tasks</th><th>Weight</th></tr></thead>
+          <tbody>
+            @for (s of draft.sections; track $index) {
+              <tr><td>{{ s.sectionName }}</td><td>{{ s.tasks.length }}</td><td>{{ sectionWeight(s) }}%</td></tr>
+            }
+            <tr class="total"><td>Total</td><td>{{ taskCount }}</td>
+              <td><span [class]="totalWeight === 100 ? 'pill pill--green' : 'pill pill--amber'">{{ totalWeight }}%</span></td></tr>
+          </tbody>
+        </table>
+        @if (draft.scoring === 'Weighted' && totalWeight !== 100) {
+          <div class="note warn"><lucide-icon [img]="icons.TriangleAlert" [size]="16"></lucide-icon><span>Weighted scoring expects task weights to add up to 100%.</span></div>
+        }
+      }
+
+      @case ('usage') {
+        <app-checklist-usage [checklist]="draft" [versions]="versions()" (selectId)="selectId.emit($event)" />
+      }
+    }
+  </div>
+
+  <!-- ===== Footer ===== -->
+  <div class="cd-foot">
+    @if (locked) {
+      <span class="note grow"><lucide-icon [img]="icons.Lock" [size]="15"></lucide-icon>Published versions are locked. Create a new version to edit.</span>
+      <button type="button" class="btn btn-accent-outline btn-sm" (click)="tab = 'usage'">View Version History</button>
+      <button type="button" class="btn btn-primary btn-sm" [disabled]="busy" (click)="createNewVersion()">{{ busy ? 'Creating…' : 'Create New Version' }}</button>
+    } @else {
+      <span class="note grow"><lucide-icon [img]="icons.Info" [size]="15"></lucide-icon>Draft v{{ draft.versionLabel }} — editable. Publish to make it available to plans and inspections.</span>
+      @if (dirty) { <button type="button" class="btn btn-outline btn-sm" (click)="discard()">Discard</button> }
+      <button type="button" class="btn btn-accent-outline btn-sm" [disabled]="busy || !dirty" (click)="save()">Save</button>
+      <button type="button" class="btn btn-primary btn-sm" [disabled]="busy" (click)="save(true)">Publish</button>
+    }
+  </div>
+</div>

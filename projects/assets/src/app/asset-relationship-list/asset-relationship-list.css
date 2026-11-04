@@ -396,3 +396,7 @@
 .picker-row small {
   font-size: 12px;
 }
+
+/* API errors: above the tables and inside the popups */
+.sc-page > .form-error { padding: 4px 2px; }
+.modal > .form-error { padding: 0 20px 10px; }

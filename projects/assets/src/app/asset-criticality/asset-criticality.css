@@ -474,3 +474,4 @@ input.control--xs {
     display: none !important;
   }
 }
+.status--muted { color: #64748b; }

@@ -51,6 +51,11 @@
     </button>
   </div>
 
+  <div *ngIf="loadError" class="card load-error" role="alert">
+    <span class="grow">{{ loadError }}</span>
+    <button type="button" class="btn btn-soft btn-sm" (click)="reload()">Retry</button>
+  </div>
+
   <!-- ===== Field list tabs ===== -->
   <div *ngIf="isFieldTab" class="cf-body" [class.cf-body--with-panel]="panelOpen">
     <div class="card panel">
@@ -168,8 +173,8 @@
         </table>
         <div *ngIf="!pageRows.length" class="empty">
           <lucide-icon [img]="icons.Inbox" [size]="30"></lucide-icon>
-          <h4>{{ tabFields.length ? 'No fields match' : 'No ' + listNoun + ' fields yet' }}</h4>
-          <p>{{ tabFields.length ? 'Try a different search or filter.' : 'Use "' + addLabel + '" to create one.' }}</p>
+          <h4>{{ loading ? 'Loading fields…' : tabFields.length ? 'No fields match' : 'No ' + listNoun + ' fields yet' }}</h4>
+          <p *ngIf="!loading">{{ tabFields.length ? 'Try a different search or filter.' : 'Use "' + addLabel + '" to create one.' }}</p>
         </div>
       </div>
 
@@ -378,7 +383,7 @@
 
       <div class="panel-foot">
         <button type="button" class="btn btn-outline" (click)="closePanel()">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save Field</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save Field' }}</button>
       </div>
     </form>
   </div>
@@ -465,8 +470,8 @@
         </table>
         <div *ngIf="!groupPageRows.length" class="empty">
           <lucide-icon [img]="icons.Inbox" [size]="30"></lucide-icon>
-          <h4>{{ groups.length ? 'No groups match' : 'No field groups yet' }}</h4>
-          <p>{{ groups.length ? 'Try a different search or filter.' : 'Use "Add Field Group" to create one.' }}</p>
+          <h4>{{ loading ? 'Loading field groups…' : groups.length ? 'No groups match' : 'No field groups yet' }}</h4>
+          <p *ngIf="!loading">{{ groups.length ? 'Try a different search or filter.' : 'Use "Add Field Group" to create one.' }}</p>
         </div>
       </div>
 
@@ -599,7 +604,7 @@
 
       <div class="panel-foot">
         <button type="button" class="btn btn-outline" (click)="closeGroupPanel()">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save Group</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save Group' }}</button>
       </div>
     </form>
   </div>
@@ -610,6 +615,8 @@
     [layouts]="layouts"
     [fields]="fields"
     [groups]="groups"
+    [builtIns]="builtIns"
+    [loading]="loading"
     (notify)="showToast($event)"
   ></app-cf-field-layouts>
 
@@ -657,7 +664,7 @@
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="deleteTargets = []">Cancel</button>
-        <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
+        <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">Delete</button>
       </div>
     </div>
   </div>
@@ -671,12 +678,12 @@
         <p>
           <ng-container *ngIf="groupDeleteFieldCount; else emptyGroup">{{ groupDeleteFieldCount }} field(s) will become unassigned. The fields and their data are kept.</ng-container>
           <ng-template #emptyGroup>{{ groupDeleteTargets.length === 1 ? 'The group has' : 'These groups have' }} no fields.</ng-template>
-          Matching sections are removed from field layouts.
+          A group still used by a field layout can't be deleted until it is removed from the layout.
         </p>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="groupDeleteTargets = []">Cancel</button>
-        <button type="button" class="btn btn-danger" (click)="confirmDeleteGroups()">Delete</button>
+        <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDeleteGroups()">Delete</button>
       </div>
     </div>
   </div>
