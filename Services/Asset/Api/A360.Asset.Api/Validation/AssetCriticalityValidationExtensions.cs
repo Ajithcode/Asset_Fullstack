@@ -41,6 +41,10 @@ public static class AssetCriticalityValidationExtensions
         ValidateRating(errors, "Likelihood", request.Likelihood);
         ValidateRating(errors, "Consequence", request.Consequence);
         LimitText(errors, "Remarks", request.Remarks, RemarksMaxLength);
+        LimitText(errors, "AssessmentMethod", request.AssessmentMethod, NameMaxLength);
+        LimitText(errors, "ReviewFrequency", request.ReviewFrequency, NameMaxLength);
+        LimitText(errors, "Department", request.Department, NameMaxLength);
+        LimitText(errors, "AssetGroup", request.AssetGroup, NameMaxLength);
 
         var criteria = request.Criteria ?? [];
         if (criteria.Count == 0)
@@ -92,6 +96,26 @@ public static class AssetCriticalityValidationExtensions
         if (duplicateNames.Count > 0)
         {
             errors["Criteria"] = [$"Each criterion can be sent only once: {string.Join(", ", duplicateNames)}"];
+        }
+
+        return errors;
+    }
+
+    public static Dictionary<string, string[]> Validate(this UpdateAssetCriticalityDetailsRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        RequireText(errors, "AssessedBy", request.AssessedBy, NameMaxLength);
+        RequireText(errors, "ApprovedBy", request.ApprovedBy, NameMaxLength);
+        LimitText(errors, "AssessmentMethod", request.AssessmentMethod, NameMaxLength);
+        LimitText(errors, "ReviewFrequency", request.ReviewFrequency, NameMaxLength);
+        LimitText(errors, "Department", request.Department, NameMaxLength);
+        LimitText(errors, "AssetGroup", request.AssetGroup, NameMaxLength);
+        LimitText(errors, "Remarks", request.Remarks, RemarksMaxLength);
+
+        if (request.ValidUntil is null)
+        {
+            errors["ValidUntil"] = ["ValidUntil is required"];
         }
 
         return errors;

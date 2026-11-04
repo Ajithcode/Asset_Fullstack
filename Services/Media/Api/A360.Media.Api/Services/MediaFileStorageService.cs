@@ -2,7 +2,7 @@ namespace A360.Media.Api.Services;
 
 public sealed class MediaFileStorageService : IMediaFileStorageService
 {
-    private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".pdf"];
+    private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt"];
 
     private readonly string _uploadRootFolder;
     private readonly string _baseUrl;
@@ -18,7 +18,7 @@ public sealed class MediaFileStorageService : IMediaFileStorageService
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (!AllowedExtensions.Contains(extension))
         {
-            throw new InvalidOperationException("Only jpg, jpeg, png, webp, and pdf files are allowed.");
+            throw new InvalidOperationException("Only jpg, jpeg, png, webp, gif, bmp, pdf, doc, docx, xls, xlsx, csv and txt files are allowed.");
         }
 
         var folder = Path.Combine(_uploadRootFolder, category);

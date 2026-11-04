@@ -14,6 +14,9 @@ public sealed class AssetAssignmentRepository
     public const string DraftStatus = "Draft";
     public const string ActiveStatus = "Active";
 
+    // Ended with End Assignment; its assets were released.
+    public const string ReturnedStatus = "Returned";
+
     public const int DefaultPageSize = 10;
     public const int MaxPageSize = 200;
 

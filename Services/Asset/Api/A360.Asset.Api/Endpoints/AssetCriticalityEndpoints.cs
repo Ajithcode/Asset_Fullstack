@@ -24,6 +24,7 @@ public static class AssetCriticalityEndpoints
         group.MapGet("/history", GetHistoryAsync).WithName("GetAssetCriticalityHistory");
         group.MapGet("/{id}", GetAssessmentByIdAsync).WithName("GetAssetCriticalityById");
         group.MapPost("", CreateAssessmentAsync).WithName("CreateAssetCriticality");
+        group.MapPut("/{id}", UpdateDetailsAsync).WithName("UpdateAssetCriticalityDetails");
 
         return group;
     }
@@ -130,6 +131,49 @@ public static class AssetCriticalityEndpoints
         await eventLogger.LogAsync(EntityType, assessment.Id, Describe(assessment), EventAction.Created, cancellationToken);
 
         return Results.Created($"/api/asset-criticality/{assessment.Id}", AssetCriticalityResponse.FromEntity(assessment));
+    }
+
+    /// <summary>Edit Additional Information: dates, people, method, review frequency, department, group and remarks.</summary>
+    private static async Task<IResult> UpdateDetailsAsync(
+        string id,
+        UpdateAssetCriticalityDetailsRequest request,
+        IAssetCriticalityAssessmentRepository repository,
+        ICurrentUserAccessor currentUserAccessor,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var validationErrors = request.Validate();
+        if (validationErrors.Count > 0)
+        {
+            return Results.ValidationProblem(validationErrors);
+        }
+
+        var assessment = await repository.GetByIdAsync(id, cancellationToken);
+        if (assessment is null || assessment.IsDeleted)
+        {
+            return AssessmentNotFound(id);
+        }
+
+        var validUntil = ContractText.DateOnly(request.ValidUntil);
+        var nextReview = ContractText.DateOnly(request.NextReviewDate);
+        if (validUntil < assessment.AssessmentDate.Date || nextReview < assessment.AssessmentDate.Date)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                [validUntil < assessment.AssessmentDate.Date ? "ValidUntil" : "NextReviewDate"] = ["Date cannot be before the assessment date"]
+            });
+        }
+
+        request.ApplyTo(assessment, currentUserAccessor.GetCurrentUser());
+
+        if (!await repository.UpdateAsync(id, assessment, cancellationToken))
+        {
+            return AssessmentNotFound(id);
+        }
+
+        await eventLogger.LogAsync(EntityType, assessment.Id, Describe(assessment), EventAction.Updated, cancellationToken);
+
+        return Results.Ok(AssetCriticalityResponse.FromEntity(assessment));
     }
 
     private static string Describe(AssetCriticalityAssessment assessment) =>

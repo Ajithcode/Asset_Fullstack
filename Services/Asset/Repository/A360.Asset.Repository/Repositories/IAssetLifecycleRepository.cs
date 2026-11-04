@@ -1,0 +1,9 @@
+using A360.Asset.Domain.Entities;
+using A360.Repository.Repositories;
+
+namespace A360.Asset.Repository.Repositories;
+
+public interface IAssetLifecycleRepository : IMongoRepository<AssetLifecycleRecord>
+{
+    Task<AssetLifecycleRecord?> GetByAssetRegistrationIdAsync(string assetRegistrationId, CancellationToken cancellationToken = default);
+}

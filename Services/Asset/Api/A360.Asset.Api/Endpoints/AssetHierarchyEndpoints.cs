@@ -22,6 +22,7 @@ public static class AssetHierarchyEndpoints
         group.MapGet("/{id}", GetItemByIdAsync).WithName("GetAssetHierarchyItemById");
         group.MapPost("", CreateItemAsync).WithName("CreateAssetHierarchyItem");
         group.MapPut("/{id}", UpdateItemAsync).WithName("UpdateAssetHierarchyItem");
+        group.MapDelete("/{id}", DeleteItemAsync).WithName("DeleteAssetHierarchyItem");
 
         return group;
     }
@@ -203,6 +204,35 @@ public static class AssetHierarchyEndpoints
         await eventLogger.LogAsync(EntityType, item.Id, item.Name, EventAction.Updated, cancellationToken);
 
         return Results.Ok(new HierarchyLookup(await LoadItemsAsync(repository, cancellationToken)).ToResponse(item));
+    }
+
+    /// <summary>Removes an item that has nothing under it; items with children must be emptied or moved first.</summary>
+    private static async Task<IResult> DeleteItemAsync(
+        string id,
+        IAssetHierarchyItemRepository repository,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var all = await LoadItemsAsync(repository, cancellationToken);
+        var item = all.FirstOrDefault(candidate => candidate.Id == id);
+        if (item is null)
+        {
+            return NotFound(id);
+        }
+
+        var childCount = all.Count(candidate => candidate.ParentId == id);
+        if (childCount > 0)
+        {
+            return Results.Conflict(new { message = $"'{item.Name}' still has {childCount} item(s) under it. Move or remove them first." });
+        }
+
+        if (!await repository.DeleteAsync(id, cancellationToken))
+        {
+            return NotFound(id);
+        }
+
+        await eventLogger.LogAsync(EntityType, item.Id, item.Name, EventAction.Deleted, cancellationToken);
+        return Results.NoContent();
     }
 
     /// <summary>

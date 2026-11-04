@@ -42,6 +42,7 @@ public static class AssetApplicationBuilderExtensions
         app.MapAssetServiceRequestEndpoints();
         app.MapAssetDashboardEndpoints();
         app.MapAssetDedupEndpoints();
+        app.MapAssetLifecycleEndpoints();
 
         return app;
     }

@@ -10,6 +10,10 @@ namespace A360.Asset.Api.Contracts;
 /// <param name="ValidUntil">Defaults to one year after AssessmentDate.</param>
 /// <param name="NextReviewDate">Defaults to six months after AssessmentDate.</param>
 /// <param name="Remarks">Leave empty to keep the remarks of the current assessment.</param>
+/// <param name="AssessmentMethod">Leave empty to keep the current assessment's method.</param>
+/// <param name="ReviewFrequency">Leave empty to keep the current assessment's review frequency.</param>
+/// <param name="Department">Leave empty to keep the current one, or the asset's department.</param>
+/// <param name="AssetGroup">Leave empty to keep the current assessment's asset group.</param>
 public sealed record CreateAssetCriticalityRequest(
     string? AssetRegistrationId,
     DateTime? AssessmentDate,
@@ -23,7 +27,11 @@ public sealed record CreateAssetCriticalityRequest(
     string? Remarks,
     string? CreatedBy,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    string? AssessmentMethod = null,
+    string? ReviewFrequency = null,
+    string? Department = null,
+    string? AssetGroup = null)
 {
     public AssetCriticalityAssessment ToEntity(AssetRegistration asset, AssetCriticalityAssessment? previous, CurrentUser? currentUser)
     {
@@ -51,12 +59,48 @@ public sealed record CreateAssetCriticalityRequest(
             CriticalityScore = score,
             CriticalityLevel = AssetCriticalityLevels.FromScore(score),
             Remarks = ContractText.TrimOrNull(Remarks) ?? previous?.Remarks,
+            AssessmentMethod = ContractText.TrimOrNull(AssessmentMethod) ?? previous?.AssessmentMethod,
+            ReviewFrequency = ContractText.TrimOrNull(ReviewFrequency) ?? previous?.ReviewFrequency,
+            Department = ContractText.TrimOrNull(Department) ?? previous?.Department ?? ContractText.TrimOrNull(asset.Classification.Department),
+            AssetGroup = ContractText.TrimOrNull(AssetGroup) ?? previous?.AssetGroup,
             CreatedBy = ContractText.FirstNonEmpty(CreatedBy, currentUser?.UserName),
             CreatedAt = DateTime.UtcNow,
             ClientId = ContractText.FirstNonEmpty(ClientId, currentUser?.ClientId),
             TenantId = ContractText.FirstNonEmpty(TenantId, currentUser?.TenantId),
             IsDeleted = false
         };
+    }
+}
+
+/// <summary>
+/// Edit Additional Information of an assessment. Score, level, criteria and the matrix position are not changed here;
+/// a new score is recorded with Re-assess (POST).
+/// </summary>
+public sealed record UpdateAssetCriticalityDetailsRequest(
+    DateTime? ValidUntil,
+    DateTime? NextReviewDate,
+    string? AssessedBy,
+    string? ApprovedBy,
+    string? AssessmentMethod,
+    string? ReviewFrequency,
+    string? Department,
+    string? AssetGroup,
+    string? Remarks,
+    string? UpdatedBy)
+{
+    public void ApplyTo(AssetCriticalityAssessment assessment, CurrentUser? currentUser)
+    {
+        assessment.ValidUntil = ContractText.DateOnly(ValidUntil);
+        assessment.NextReviewDate = ContractText.DateOnly(NextReviewDate);
+        assessment.AssessedBy = AssessedBy!.Trim();
+        assessment.ApprovedBy = ApprovedBy!.Trim();
+        assessment.AssessmentMethod = ContractText.TrimOrNull(AssessmentMethod);
+        assessment.ReviewFrequency = ContractText.TrimOrNull(ReviewFrequency);
+        assessment.Department = ContractText.TrimOrNull(Department);
+        assessment.AssetGroup = ContractText.TrimOrNull(AssetGroup);
+        assessment.Remarks = ContractText.TrimOrNull(Remarks);
+        assessment.UpdatedBy = ContractText.FirstNonEmpty(UpdatedBy, currentUser?.UserName);
+        assessment.UpdatedAt = DateTime.UtcNow;
     }
 }
 
@@ -179,8 +223,14 @@ public sealed record AssetCriticalityResponse(
     decimal CriticalityScore,
     string CriticalityLevel,
     string? Remarks,
+    string? AssessmentMethod,
+    string? ReviewFrequency,
+    string? Department,
+    string? AssetGroup,
     string? CreatedBy,
     DateTime? CreatedAt,
+    string? UpdatedBy,
+    DateTime? UpdatedAt,
     string? ClientId,
     string? TenantId)
 {
@@ -206,8 +256,14 @@ public sealed record AssetCriticalityResponse(
             assessment.CriticalityScore,
             assessment.CriticalityLevel,
             assessment.Remarks,
+            assessment.AssessmentMethod,
+            assessment.ReviewFrequency,
+            assessment.Department,
+            assessment.AssetGroup,
             assessment.CreatedBy,
             assessment.CreatedAt,
+            assessment.UpdatedBy,
+            assessment.UpdatedAt,
             assessment.ClientId,
             assessment.TenantId);
     }
