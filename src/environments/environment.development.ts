@@ -13,6 +13,7 @@ export const environment = {
   inspectionApiUrl: 'http://localhost:5296/',
   maintenanceApiUrl: 'http://localhost:5296/',
   workflowsApiUrl: 'http://localhost:5296/',
+  reportAnalyticsApiUrl: 'http://localhost:5296/',
   supportEmail: 'support@assets360.com',
   clientId: 'CLT-1001',
   tenantId: 'TENANT-DEFAULT'

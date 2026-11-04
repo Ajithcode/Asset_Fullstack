@@ -1,8 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { buildSampleRows, GeneratedReportService, TEMPLATE_HEADERS } from '../generated-report.service';
+import { GeneratedReportService, ReportModule, ReportTemplate } from '../generated-report.service';
 
 interface TreeNode {
   label: string;
@@ -11,54 +11,8 @@ interface TreeNode {
   children?: TreeNode[];
 }
 
-type ReportModule =
-  | 'asset-tracking'
-  | 'asset-management'
-  | 'maintenance'
-  | 'inspection'
-  | 'wip';
- 
-const TEMPLATE_OPTIONS_BY_MODULE: Record<ReportModule, string[]> = {
-  'asset-tracking': [
-    'Asset Location & Movement Report',
-    'Asset Location History / Trail Report',
-    'Asset Missing / Not-Seen Report',
-    'Asset Movement & Exception Report',
-    'Asset Utilization & Dwell-Time Report'
-  ],
-  'asset-management': [
-    'Asset Register Report',
-    'Asset Lifecycle Report',
-    'Asset Allocation & Custodian Report',
-    'Asset Valuation & Depreciation Report',
-    'Warranty / AMC / Contract Expiry Report'
-  ],
-  maintenance: [
-    'Preventive Maintenance Compliance Report',
-    'Maintenance Work Order Report',
-    'Asset Maintenance History Report',
-    'Breakdown & Reliability Report',
-    'Maintenance Cost Report'
-  ],
-  inspection: [
-    'Detailed Inspection Report / Certificate',
-    'Inspection Compliance Summary Report',
-    'Failed Inspection & Findings Report',
-    'Corrective Action & Reinspection Report',
-    'Inspection & Approval Audit Trail Report'
-  ],
-  wip: [
-    'WIP Status Summary Report',
-    'WIP Ageing Report',
-    'WIP Movement & Stage History Report',
-    'WIP Delay / Bottleneck Report',
-    'WIP Completion & Turnaround-Time Report'
-  ]
-};
-
 type ReportFormat = 'url' | 'pdf' | 'csv';
 type Recurrence = 'once' | 'daily' | 'weekly' | 'monthly';
-type TimeRangePreset = '1h' | '2h' | '4h' | '8h' | '24h' | 'custom';
 
 @Component({
   standalone: true,
@@ -67,13 +21,13 @@ type TimeRangePreset = '1h' | '2h' | '4h' | '8h' | '24h' | 'custom';
   templateUrl: './create-report.html',
   styleUrls: ['./create-report.css']
 })
-export class CreateReport {
+export class CreateReport implements OnInit {
   constructor(private router: Router, private generatedReportService: GeneratedReportService) {}
 
   // ---- Breadcrumb navigation ----
   navigateToReport(): void {
     // Adjust the path below to match your app's actual route for the Report list page
-    this.router.navigate(['/reports-analytics']);
+    this.router.navigate(['/reports-analytics/generated-reports']);
   }
 
   // ---- Left navigation tree ----
@@ -132,38 +86,64 @@ export class CreateReport {
     alarms: 3
   };
 
+  // ---- Templates and time ranges (GET /api/generated-reports/templates) ----
+  modules: ReportModule[] = [];
+  loadingTemplates = false;
+  templatesError: string | null = null;
+  saving = false;
+  saveError: string | null = null;
+
+  ngOnInit(): void {
+    this.loadTemplates();
+  }
+
+  loadTemplates(): void {
+    this.loadingTemplates = true;
+    this.templatesError = null;
+    this.generatedReportService.getTemplates().subscribe({
+      next: (catalog) => {
+        this.modules = catalog.modules ?? [];
+        const ranges = catalog.timeRanges ?? [];
+        // Hour ranges stay as chips; the longer ones go in the dropdown.
+        this.timeRangePresets = ranges.filter((range) => range.value.endsWith('h'));
+        this.longTimeRanges = ranges.filter((range) => !range.value.endsWith('h'));
+        if (catalog.weekdays?.length) this.weekDays = catalog.weekdays;
+        this.loadingTemplates = false;
+      },
+      error: (err: Error) => {
+        this.templatesError = err.message;
+        this.loadingTemplates = false;
+      }
+    });
+  }
+
   // ---- Time range ----
-  timeRangePreset: TimeRangePreset = '2h';
+  timeRangePreset = '30d';
 
-  timeRangePresets: { value: TimeRangePreset; label: string }[] = [
-    { value: '1h', label: '1 Hours' },
-    { value: '2h', label: '2 Hours' },
-    { value: '4h', label: '4 Hours' },
-    { value: '8h', label: '8 Hours' },
-    { value: '24h', label: '24 Hours' }
-  ];
+  timeRangePresets: { value: string; label: string }[] = [];
+  longTimeRanges: { value: string; label: string }[] = [];
 
-  selectTimeRange(preset: TimeRangePreset): void {
-    this.timeRangePreset = preset;
+  get longTimeRangeValue(): string {
+    return this.longTimeRanges.some((range) => range.value === this.timeRangePreset) ? this.timeRangePreset : '';
+  }
+
+  selectTimeRange(preset: string): void {
+    if (preset) this.timeRangePreset = preset;
   }
 
   // ---- Report form state ----
   reportName = '';
 
-  selectedModule: ReportModule | null = null;
-
-  moduleOptions: { value: ReportModule; label: string }[] = [
-    { value: 'asset-tracking', label: 'Asset tracking' },
-    { value: 'asset-management', label: 'Asset Management' },
-    { value: 'maintenance', label: 'Maintanance management' },
-    { value: 'inspection', label: 'Inspection Management' },
-    { value: 'wip', label: 'Work in Progress' },
-  ];
+  selectedModule: string | null = null;
 
   selectedTemplate = '';
 
-  get templateOptions(): string[] {
-    return this.selectedModule ? TEMPLATE_OPTIONS_BY_MODULE[this.selectedModule] : [];
+  get templateOptions(): ReportTemplate[] {
+    return this.modules.find((module) => module.name === this.selectedModule)?.templates ?? [];
+  }
+
+  get selectedTemplateInfo(): ReportTemplate | null {
+    return this.templateOptions.find((template) => template.name === this.selectedTemplate) ?? null;
   }
 
   // ---- Format ----
@@ -183,7 +163,7 @@ export class CreateReport {
   // ---- Share with ----
   shareWith = '';
 
-  selectModule(value: ReportModule): void {
+  selectModule(value: string): void {
     this.selectedModule = value;
     this.selectedTemplate = '';
   }
@@ -197,7 +177,17 @@ export class CreateReport {
   }
 
   get isFormValid(): boolean {
-    return !!this.reportName.trim() && !!this.selectedModule;
+    if (!this.reportName.trim() || !this.selectedModule || !this.selectedTemplateInfo?.available) return false;
+    switch (this.recurrence) {
+      case 'daily':
+        return !!this.dailyTime;
+      case 'weekly':
+        return !!this.weeklyDay && !!this.weeklyTime;
+      case 'monthly':
+        return !!this.monthlyDate && !!this.monthlyTime;
+      default:
+        return true;
+    }
   }
 
   private readonly recurrenceLabels: Record<Recurrence, string> = {
@@ -208,34 +198,39 @@ export class CreateReport {
   };
 
   onCreateReport(): void {
-    if (!this.isFormValid) {
+    if (!this.isFormValid || this.saving) {
       return;
     }
 
-    const headers = this.selectedTemplate ? TEMPLATE_HEADERS[this.selectedTemplate] ?? [] : [];
-    const rows = buildSampleRows(headers, 5);
-    const today = new Date().toISOString().slice(0, 10);
-    const timeRangeLabel = this.timeRangePresets.find((p) => p.value === this.timeRangePreset)?.label ?? '';
-
-    this.generatedReportService.addReport({
-      title: this.reportName.trim(),
-      timeRange: timeRangeLabel,
-      expireOn: '',
-      recurrence: this.recurrenceLabels[this.recurrence],
-      createdOn: today,
-      type: this.format.toUpperCase(),
-      shareWith: this.shareWith
-        .split(',')
-        .map((email) => email.trim())
-        .filter(Boolean)
-        .join(', '),
-      generatedOn: today,
-      status: 'Completed',
-      headers,
-      rows
-    });
-
-    this.router.navigate(['/reports-analytics']);
+    const scheduleTime = { once: null, daily: this.dailyTime, weekly: this.weeklyTime, monthly: this.monthlyTime }[this.recurrence];
+    this.saving = true;
+    this.saveError = null;
+    this.generatedReportService
+      .create({
+        name: this.reportName.trim(),
+        module: this.selectedModule!,
+        template: this.selectedTemplate,
+        timeRange: this.timeRangePreset,
+        recurrence: this.recurrenceLabels[this.recurrence],
+        scheduleTime,
+        scheduleDay: this.recurrence === 'weekly' ? this.weeklyDay : null,
+        scheduleDate: this.recurrence === 'monthly' ? this.monthlyDate : null,
+        format: this.format.toUpperCase(),
+        shareWith: this.shareWith
+          .split(',')
+          .map((email) => email.trim())
+          .filter(Boolean)
+      })
+      .subscribe({
+        next: () => {
+          this.saving = false;
+          this.router.navigate(['/reports-analytics/generated-reports']);
+        },
+        error: (err: Error) => {
+          this.saving = false;
+          this.saveError = err.message;
+        }
+      });
   }
 
   onCancel(): void {
@@ -251,5 +246,6 @@ export class CreateReport {
     this.monthlyDate = '';
     this.monthlyTime = '';
     this.shareWith = '';
+    this.saveError = null;
   }
 }

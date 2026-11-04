@@ -474,3 +474,13 @@
   background: #d8cffb;
   cursor: not-allowed;
 }
+.cr-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #6b7280;
+}
+
+.cr-hint--error {
+  color: #dc2626;
+}

@@ -75,11 +75,12 @@
 
           <select
             class="cr-select cr-select--compact"
-            [(ngModel)]="timeRangePreset"
+            [ngModel]="longTimeRangeValue"
             name="timeRangeMode"
             (ngModelChange)="selectTimeRange($event)"
           >
-            <option value="custom">Custom</option>
+            <option value="" disabled>Range</option>
+            <option *ngFor="let range of longTimeRanges" [value]="range.value">{{ range.label }}</option>
           </select>
 
           <button
@@ -114,17 +115,21 @@
           <div class="cr-field">
             <label class="cr-label">Select Module</label>
             <div class="cr-radio-list">
-              <label class="cr-radio" *ngFor="let option of moduleOptions">
+              <label class="cr-radio" *ngFor="let option of modules">
                 <input
                   type="radio"
                   name="module"
-                  [value]="option.value"
+                  [value]="option.name"
                   [ngModel]="selectedModule"
                   (ngModelChange)="selectModule($event)"
                 />
                 <span class="cr-radio-dot"></span>
-                <span class="cr-radio-text">{{ option.label }}</span>
+                <span class="cr-radio-text">{{ option.name }}</span>
               </label>
+              <p class="cr-hint" *ngIf="loadingTemplates">Loading templates…</p>
+              <p class="cr-hint cr-hint--error" *ngIf="templatesError">
+                {{ templatesError }} <button type="button" class="cr-breadcrumb-link" (click)="loadTemplates()">Retry</button>
+              </p>
             </div>
           </div>
 
@@ -137,8 +142,21 @@
               name="template"
             >
               <option value="" disabled selected>Choose a template</option>
-              <option *ngFor="let tpl of templateOptions" [value]="tpl">{{ tpl }}</option>
+              <option
+                *ngFor="let tpl of templateOptions"
+                [value]="tpl.name"
+                [disabled]="!tpl.available"
+                [attr.title]="tpl.unavailableReason || tpl.note"
+              >{{ tpl.name }}{{ tpl.available ? '' : ' (not available)' }}</option>
             </select>
+            <p class="cr-hint" *ngIf="selectedTemplateInfo as info">
+              {{ info.datasetName }} · {{ info.columns.length }} columns{{ info.dateField ? ' · time range on ' + info.dateField : ' · current snapshot (time range does not apply)' }}<ng-container *ngIf="info.note">. {{ info.note }}</ng-container>
+            </p>
+            <p class="cr-hint" *ngIf="selectedModule && !selectedTemplate && templateOptions.length">
+              <ng-container *ngFor="let tpl of templateOptions">
+                <span *ngIf="!tpl.available">{{ tpl.name }}: {{ tpl.unavailableReason }}<br /></span>
+              </ng-container>
+            </p>
           </div>
 
         </div>
@@ -251,15 +269,17 @@
         </div>
       </div>
 
+      <p class="cr-hint cr-hint--error" *ngIf="saveError">{{ saveError }}</p>
+
       <div class="cr-actions">
-        <button type="button" class="cr-btn cr-btn--ghost" (click)="onCancel()">Cancel</button>
+        <button type="button" class="cr-btn cr-btn--ghost" [disabled]="saving" (click)="onCancel()">Cancel</button>
         <button
           type="button"
           class="cr-btn cr-btn--primary"
-          [disabled]="!isFormValid"
+          [disabled]="!isFormValid || saving"
           (click)="onCreateReport()"
         >
-          Create Report
+          {{ saving ? 'Generating…' : 'Create Report' }}
         </button>
       </div>
 

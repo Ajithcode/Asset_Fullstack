@@ -24,16 +24,8 @@
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>
-        <!-- Upload -->
-        <button class="icon-btn" title="Upload" (click)="uploadReport()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 19V6"></path>
-            <path d="M6 12l6-6 6 6"></path>
-            <path d="M5 21h14"></path>
-          </svg>
-        </button>
         <!-- Download (all reports currently shown in this tab) -->
-        <button class="icon-btn" title="Download all" (click)="downloadAllReports()">
+        <button class="icon-btn" title="Download all" [disabled]="busy || filteredReports.length === 0" (click)="downloadAllReports()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 5v13"></path>
             <path d="M6 12l6 6 6-6"></path>
@@ -93,6 +85,9 @@
         </tr>
       </thead>
       <tbody>
+        <tr *ngIf="error && !loading">
+          <td colspan="11" class="empty-row">{{ error }}</td>
+        </tr>
         <ng-container *ngIf="!loading">
           <tr *ngFor="let report of filteredReports; let i = index"
               [class.row-alt]="i % 2 === 1">
@@ -108,14 +103,13 @@
             <td>{{ report.shareWith }}</td>
             <td>{{ report.generatedOn }}</td>
             <td>
-              <span class="status-badge" [ngClass]="{
+              <span class="status-badge" [attr.title]="report.error || (report.truncated ? 'First ' + report.rowCount + ' rows kept' : null)" [ngClass]="{
                 'status-completed': report.status === 'Completed',
-                'status-pending':   report.status === 'Pending',
                 'status-failed':    report.status === 'Failed'
               }">{{ report.status }}</span>
             </td>
             <td class="row-actions-cell">
-              <button class="icon-btn icon-btn--row" title="Download this report" (click)="downloadReport(report)">
+              <button class="icon-btn icon-btn--row" title="Download this report" [disabled]="busy" (click)="downloadReport(report)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 5v13"></path>
                   <path d="M6 12l6 6 6-6"></path>
@@ -125,7 +119,7 @@
               <app-row-actions (edit)="editReport(report)" (delete)="deleteRow(report)"></app-row-actions>
             </td>
           </tr>
-          <tr *ngIf="filteredReports.length === 0">
+          <tr *ngIf="filteredReports.length === 0 && !error">
             <td colspan="11" class="empty-row">No reports found for this filter.</td>
           </tr>
         </ng-container>
@@ -137,11 +131,3 @@
   </div>
 
 </div>
-
-<app-import-file-modal
-  *ngIf="showImportModal"
-  [columns]="importColumns"
-  fileBaseName="reports"
-  (cancelled)="showImportModal = false"
-  (imported)="onImportRows($event)"
-></app-import-file-modal>

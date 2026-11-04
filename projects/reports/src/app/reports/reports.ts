@@ -1,9 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { environment } from 'shared-ui';
-import { ImportColumn, ImportFileModal } from 'shared-ui';
+import { forkJoin } from 'rxjs';
 import { RowActions } from 'shared-ui';
 import { downloadReportAsExcel, downloadReportsAsWorkbook, GeneratedReportService, Report } from '../generated-report.service';
 
@@ -13,56 +11,43 @@ export type FrequencyFilter = 'Monthly' | 'Weekly' | 'Daily' | 'Once';
 @Component({
   standalone: true,
   selector: 'app-reports',
-  imports: [CommonModule, ImportFileModal, RowActions],
+  imports: [CommonModule, RowActions],
   templateUrl: './reports.html',
   styleUrls: ['./reports.css']
 })
 export class Reports {
-  private http = inject(HttpClient);
   private router = inject(Router);
-  private generatedReportService = inject(GeneratedReportService);
-  private apiUrl = environment.reportsApiUrl || environment.apiUrl;
-
-  readonly importColumns: ImportColumn[] = [
-    { key: 'slNo', label: 'Sl NO' },
-    { key: 'title', label: 'Reports' },
-    { key: 'timeRange', label: 'Time Range' },
-    { key: 'expireOn', label: 'Expire On' },
-    { key: 'recurrence', label: 'Recurrence' },
-    { key: 'createdOn', label: 'Created On' },
-    { key: 'type', label: 'Type' },
-    { key: 'shareWith', label: 'Share With' },
-    { key: 'generatedOn', label: 'Generated On' },
-    { key: 'status', label: 'Status' }
-  ];
-  showImportModal = false;
+  private service = inject(GeneratedReportService);
 
   reports: Report[] = [];
   loading = false;
   error: string | null = null;
+  busy = false;
   activeFilter: FrequencyFilter = 'Monthly';
   filters: FrequencyFilter[] = ['Monthly', 'Weekly', 'Daily', 'Once'];
 
   ngOnInit() {
-    // If a report was just created, jump to whichever frequency tab it
-    // belongs under so it's actually visible without the user hunting for it.
-    const recent = this.generatedReportService.mostRecent;
-    if (recent && (this.filters as string[]).includes(recent.recurrence)) {
-      this.activeFilter = recent.recurrence as FrequencyFilter;
+    // If a report was just created, open the frequency tab it belongs under so it is visible straight away.
+    const recent = this.service.lastCreatedRecurrence;
+    if (recent && (this.filters as string[]).includes(recent)) {
+      this.activeFilter = recent as FrequencyFilter;
     }
+    this.service.lastCreatedRecurrence = null;
     this.loadReports();
   }
 
   loadReports() {
     this.loading = true;
-    this.http.get(`${this.apiUrl}api/reports`).subscribe({
-      next: (res: any) => {
-        this.reports = [...this.generatedReportService.getAll(), ...(res.data || res)];
+    this.error = null;
+    this.service.list(this.activeFilter).subscribe({
+      next: (reports) => {
+        this.reports = reports;
         this.loading = false;
       },
-      error: () => {
+      error: (err: Error) => {
+        this.reports = [];
+        this.error = err.message;
         this.loading = false;
-        this.reports = this.generatedReportService.getAll();
       }
     });
   }
@@ -72,8 +57,9 @@ export class Reports {
     this.loadReports();
   }
 
+  /** The list is already filtered by recurrence on the server. */
   get filteredReports(): Report[] {
-    return this.reports.filter(r => r.recurrence === this.activeFilter);
+    return this.reports;
   }
 
   addReport() {
@@ -84,63 +70,55 @@ export class Reports {
     this.router.navigate(['/reports-analytics/view', report.id]);
   }
 
-  uploadReport() {
-    this.showImportModal = true;
-  }
-
-  onImportRows(rows: Record<string, string>[]): void {
-    const startIndex = this.reports.length;
-    const normalizeStatus = (value: string | undefined): Report['status'] => {
-      const v = (value ?? '').trim();
-      return v === 'Completed' || v === 'Pending' || v === 'Failed' ? v : 'Pending';
-    };
-
-    const imported: Report[] = rows.map((row, i) => ({
-      id: `RPT-${startIndex + i + 1}`,
-      slNo: row['slNo'] ? Number(row['slNo']) : startIndex + i + 1,
-      title: row['title'] ?? '',
-      timeRange: row['timeRange'] ?? '',
-      expireOn: row['expireOn'] ?? '',
-      recurrence: row['recurrence'] ?? '',
-      createdOn: row['createdOn'] ?? '',
-      type: row['type'] ?? '',
-      shareWith: row['shareWith'] ?? '',
-      generatedOn: row['generatedOn'] ?? '',
-      status: normalizeStatus(row['status'])
-    }));
-
-    this.reports = [...this.reports, ...imported];
-    this.showImportModal = false;
-  }
-
+  /** The list holds no row data, so the report is fetched with its rows before it is written to Excel. */
   downloadReport(report: Report): void {
-    downloadReportAsExcel({ headers: [], rows: [], ...report });
+    this.busy = true;
+    this.service.get(report.id).subscribe({
+      next: (full) => {
+        downloadReportAsExcel({ ...full, slNo: report.slNo });
+        this.busy = false;
+      },
+      error: (err: Error) => {
+        this.error = err.message;
+        this.busy = false;
+      }
+    });
   }
 
   downloadAllReports(): void {
-    downloadReportsAsWorkbook(
-      this.filteredReports.map((report) => ({ headers: [], rows: [], ...report })),
-      `reports-export-${new Date().toISOString().slice(0, 10)}.xlsx`
-    );
+    const shown = this.filteredReports;
+    if (shown.length === 0) return;
+    this.busy = true;
+    forkJoin(shown.map((report) => this.service.get(report.id))).subscribe({
+      next: (full) => {
+        downloadReportsAsWorkbook(
+          full.map((report, i) => ({ ...report, slNo: shown[i].slNo })),
+          `reports-export-${new Date().toISOString().slice(0, 10)}.xlsx`
+        );
+        this.busy = false;
+      },
+      error: (err: Error) => {
+        this.error = err.message;
+        this.busy = false;
+      }
+    });
   }
 
   refreshReports() {
     this.loadReports();
   }
 
+  /** Reports cannot be edited once generated; Edit opens the report, where it can be regenerated. */
   editReport(report: Report) {
-    // Edit action
+    this.viewReport(report);
   }
 
   deleteRow(report: Report): void {
-    this.reports = this.reports.filter(r => r.id !== report.id);
-  }
-
-  deleteReport(report: Report) {
-    this.http.delete(`${this.apiUrl}api/reports/${report.id}`).subscribe({
+    if (!confirm(`Delete the report "${report.title}"?`)) return;
+    this.service.delete(report.id).subscribe({
       next: () => this.loadReports(),
-      error: () => {
-        this.reports = this.reports.filter(r => r.id !== report.id);
+      error: (err: Error) => {
+        this.error = err.message;
       }
     });
   }

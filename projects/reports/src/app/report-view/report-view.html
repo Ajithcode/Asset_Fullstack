@@ -19,7 +19,7 @@
             <path d="M5 21h14"></path>
           </svg>
         </button>
-        <button class="icon-btn" title="Refresh" (click)="onRefresh()">
+        <button class="icon-btn" title="Regenerate from live data" [disabled]="regenerating" (click)="onRefresh()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
             <path d="M21 4v5h-5"></path>
@@ -45,6 +45,11 @@
         </div>
       </div>
     </div>
+
+    <p class="empty-row" *ngIf="regenerating">Regenerating…</p>
+    <p class="empty-row" *ngIf="error">{{ error }}</p>
+    <p class="empty-row" *ngIf="report.status === 'Failed'">This report failed: {{ report.error }}</p>
+    <p class="empty-row" *ngIf="report.truncated">Showing the first {{ report.rowCount }} matching rows.</p>
 
     <div class="table-wrapper">
       <table class="lh-table">
@@ -72,7 +77,8 @@
 
   <ng-template #notFound>
     <div class="lh-container">
-      <p class="empty-row">Report not found. <a (click)="backToReports()">Back to Reports</a></p>
+      <p class="empty-row" *ngIf="loading">Loading…</p>
+      <p class="empty-row" *ngIf="!loading">{{ error || 'Report not found.' }} <a (click)="backToReports()">Back to Reports</a></p>
     </div>
   </ng-template>
 </div>
