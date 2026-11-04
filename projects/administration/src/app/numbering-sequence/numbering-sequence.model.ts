@@ -70,7 +70,8 @@ export const TOKEN_LABELS: Record<TokenKind, string> = {
   suffix: 'Suffix'
 };
 export const DATE_FORMATS = ['YYYY', 'YY', 'MM', 'YYYYMM', 'YYMM'];
-export const LOCATION_CODES = ['DXB', 'AUH', 'SHJ', 'RUH', 'LON', 'SIN'];
+/** Site codes for the location token; come from the locations API (empty until wired). */
+export const LOCATION_CODES: string[] = [];
 export const SEPARATORS = [
   { value: '-', label: '-' },
   { value: '/', label: '/' },

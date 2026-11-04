@@ -99,129 +99,9 @@ function fromIso(iso: string): Date {
   return new Date(y, m - 1, d);
 }
 
-function addMonths(d: Date, months: number): Date {
-  const out = new Date(d);
-  out.setMonth(out.getMonth() + months);
-  return out;
-}
-
-interface Template {
-  type: ServiceType;
-  description: string;
-  work: string[];
-  parts: [name: string, partNumber: string, qty: number, unitCost: number][];
-}
-
-/** Cycled (newest first) to build a believable service log; mirrors the design mock. */
-const TEMPLATES: Template[] = [
-  {
-    type: 'Preventive',
-    description: '500 Hours Service',
-    work: ['Changed engine oil', 'Replaced oil filter', 'Replaced fuel filter', 'Replaced air filter', 'Checked belts and hoses', 'Load test 30 min'],
-    parts: [['Engine Oil 15W-40 (L)', 'CAT-DEO-15W40', 24, 18], ['Oil Filter', '1R-0739', 1, 145], ['Fuel Filter', '1R-0751', 1, 160], ['Air Filter', '1R-1808', 1, 210]],
-  },
-  {
-    type: 'Corrective',
-    description: 'Oil filter replacement',
-    work: ['Diagnosed oil pressure drop', 'Replaced clogged oil filter', 'Topped up engine oil'],
-    parts: [['Oil Filter', '1R-0739', 1, 145], ['Engine Oil 15W-40 (L)', 'CAT-DEO-15W40', 4, 18]],
-  },
-  {
-    type: 'Preventive',
-    description: 'Air filter replacement',
-    work: ['Inspected air intake', 'Replaced air filter element', 'Reset restriction indicator'],
-    parts: [['Air Filter', '1R-1808', 1, 210]],
-  },
-  {
-    type: 'Inspection',
-    description: 'Routine inspection',
-    work: ['Visual inspection', 'Checked fluid levels', 'Checked for leaks', 'Battery voltage check'],
-    parts: [],
-  },
-  {
-    type: 'Corrective',
-    description: 'Turbo charger issue',
-    work: ['Investigated boost loss', 'Replaced turbo oil feed seal', 'Test run under load'],
-    parts: [['Turbo Seal Kit', '358-1471-SK', 1, 420]],
-  },
-  {
-    type: 'Preventive',
-    description: 'Fuel filter replacement',
-    work: ['Replaced primary fuel filter', 'Replaced secondary fuel filter', 'Bled fuel system'],
-    parts: [['Fuel Filter', '1R-0751', 2, 160]],
-  },
-  {
-    type: 'Corrective',
-    description: 'Overheating - cooling system',
-    work: ['Flushed cooling system', 'Replaced thermostat', 'Refilled coolant', 'Pressure-tested radiator'],
-    parts: [['Thermostat', '245-7590-T', 1, 190], ['Coolant ELC (L)', 'CAT-ELC-50', 20, 12]],
-  },
-  {
-    type: 'Preventive',
-    description: 'Oil & fuel filter replacement',
-    work: ['Changed engine oil', 'Replaced oil filter', 'Replaced fuel filter'],
-    parts: [['Oil Filter', '1R-0739', 1, 145], ['Fuel Filter', '1R-0751', 1, 160], ['Engine Oil 15W-40 (L)', 'CAT-DEO-15W40', 24, 18]],
-  },
-  {
-    type: 'Inspection',
-    description: 'General inspection',
-    work: ['Visual inspection', 'Checked mounting bolts', 'Reviewed controller fault log'],
-    parts: [],
-  },
-];
-
-const VENDORS = ['Caterpillar UAE', 'DCS Service'];
-const TECHNICIANS = ['John Mathew', 'Rashid Ali', 'Hamad Lateef', 'Ramesh Kumar'];
-
-/** Deterministic sample log for a component: one record roughly every 3–7 months, newest first. */
-export function buildMockServiceHistory(c: AssetComponent): ServiceRecord[] {
-  const records: ServiceRecord[] = [];
-  // Stagger the latest record per component so an asset-wide activity feed isn't all one date.
-  let date = addMonths(today(), -2);
-  date.setDate(date.getDate() - (c.id % 9) * 4);
-  const baseHours = c.lifeUnit === 'hrs' && c.lifeUsed ? c.lifeUsed : 1250;
-  for (let i = 0; i < 18; i++) {
-    const t = TEMPLATES[i % TEMPLATES.length];
-    const iso = toIso(date);
-    const hasFollowUp = t.type !== 'Corrective';
-    const vendor = VENDORS[(i + (t.type === 'Corrective' ? 1 : 0)) % VENDORS.length];
-    records.push({
-      id: nextId++,
-      reference: `SRV-${date.getFullYear()}-${String(18 - i + (c.id % 9) * 20).padStart(4, '0')}`,
-      date: iso,
-      nextDue: hasFollowUp ? toIso(addMonths(date, t.type === 'Inspection' ? 6 : 5)) : '',
-      type: t.type,
-      description: t.description,
-      performedBy: vendor,
-      technician: TECHNICIANS[(i + c.id) % TECHNICIANS.length],
-      // Empty means "at the asset's own location".
-      location: '',
-      startTime: '10:00',
-      endTime: t.type === 'Inspection' ? '11:30' : '14:30',
-      runningHours: Math.max(0, baseHours - i * 250),
-      status: 'Completed',
-      remarks:
-        i === 0
-          ? 'Completed 500 hours scheduled service. Engine oil, oil filter, fuel filter and air filter replaced. Overall condition good.'
-          : `${t.description} completed. No further issues observed.`,
-      workPerformed: [...t.work],
-      parts: t.parts.map(([name, partNumber, quantity, unitCost]) => ({ id: nextId++, name, partNumber, quantity, unitCost })),
-      labourCost: t.type === 'Inspection' ? 250 : 600,
-      otherCost: t.type === 'Corrective' ? 150 : 0,
-      documents:
-        i % 3 === 0
-          ? [
-              { id: nextId++, name: `Service-Report-${iso}.pdf`, size: 482_000 },
-              { id: nextId++, name: `Invoice-${iso}.pdf`, size: 126_000 },
-            ]
-          : [],
-      health: i % 4 === 1 ? 'Fair' : 'Good',
-      healthScore: i % 4 === 1 ? 68 : 85 - (i % 3) * 3,
-      reminder: '',
-    });
-    date = addMonths(date, -(3 + ((i * 5 + c.id) % 5)));
-  }
-  return records;
+/** Empty service log for a component until a component service-history API exists. */
+export function buildMockServiceHistory(_c: AssetComponent): ServiceRecord[] {
+  return [];
 }
 
 @Component({
@@ -247,8 +127,8 @@ export class ComponentServiceHistory {
   readonly serviceTypes: ServiceType[] = ['Preventive', 'Corrective', 'Inspection'];
   readonly statuses: ServiceStatus[] = ['Completed', 'In Progress', 'Scheduled', 'Cancelled'];
   readonly healthRatings: HealthRating[] = ['Good', 'Fair', 'Poor'];
-  readonly vendors = VENDORS;
-  readonly technicians = TECHNICIANS;
+  readonly vendors: string[] = [];
+  readonly technicians: string[] = [];
   readonly pageSizeOptions = [10, 25, 50];
   readonly detailTabs: { key: DetailTab; label: string }[] = [
     { key: 'details', label: 'Details' },
@@ -263,7 +143,7 @@ export class ComponentServiceHistory {
 
   private comp!: AssetComponent;
 
-  /** Sample log is created on first view and kept on the component, so it survives tab switches. */
+  /** Service log is created (empty) on first view and kept on the component, so it survives tab switches. */
   @Input({ required: true })
   set component(c: AssetComponent) {
     c.serviceHistory ??= buildMockServiceHistory(c);

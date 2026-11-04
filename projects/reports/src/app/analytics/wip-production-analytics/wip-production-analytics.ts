@@ -16,7 +16,8 @@ import {
   RaWidget, fmtDate, fmtInt, previousSeries, siteInScope, sumOf
 } from '../inventory-analytics/parts';
 
-const KPI_DELTAS = { output: 11.8, wip: 5.6, onTime: 2.8, utilization: 4.7, oee: 3.2 };
+/** Change vs the previous period (%). Not available until a data source is wired. */
+const KPI_DELTAS = { output: 0, wip: 0, onTime: 0, utilization: 0, oee: 0 };
 
 /** Reports & Analytics > WIP / Production Analytics */
 @Component({
@@ -60,7 +61,6 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
   readonly hours = (v: number) => `${Math.round(v)} h`;
 
   ngOnInit(): void {
-    this.updatedMinutes = 3;
     this.apply();
   }
 

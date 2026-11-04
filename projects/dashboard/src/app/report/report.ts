@@ -166,7 +166,7 @@ export class Report implements AfterViewInit, OnDestroy {
 
   /** Share of the catalogue the filters keep; scales the activity and delivery figures. */
   private get share(): number {
-    return this.reports.length / this.library.length;
+    return this.library.length ? this.reports.length / this.library.length : 0;
   }
 
   onFilter(): void {

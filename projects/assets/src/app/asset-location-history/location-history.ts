@@ -27,8 +27,8 @@ import {
   Users,
   X,
 } from 'lucide-angular';
-import DATA from './location-history.json';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, findAsset } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetRecord } from 'shared-ui';
+import { blankAssetRecord } from '../shared/blank-asset';
 import { Subscription } from 'rxjs';
 import { LocationHistoryService } from './location-history.service';
 import { AssetLookupService, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
@@ -101,10 +101,9 @@ interface RecordForm {
   remarks: string;
 }
 
-const SOURCE = DATA as unknown as { locations: Place[]; geofence: [number, number][]; assets: Record<string, AssetHistory> };
-const PLACES: Place[] = SOURCE.locations;
-const DEFAULT_TAG = 'GEN-00045';
-const CURRENT_USER = 'Rex Kumar';
+/** Places with map coordinates and the site geofence; empty until a locations API serves them (zones from events are listed without a pin). */
+const PLACES: Place[] = [];
+const GEOFENCE: [number, number][] = [];
 
 const TILE = 256;
 const MIN_ZOOM = 13;
@@ -152,12 +151,13 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
     Shapes, User, Users, X,
   };
   readonly typeIcons = ASSET_TYPE_ICONS;
-  readonly assets = ASSET_RECORDS;
+  /** Assets for the picker; empty until an asset list is loaded (open the page with ?tag= to view an asset). */
+  readonly assets: AssetRecord[] = [];
   readonly pageSizes = [10, 25, 50];
 
   @ViewChild('mapEl') mapEl?: ElementRef<HTMLDivElement>;
 
-  asset: AssetRecord = findAsset(DEFAULT_TAG) ?? ASSET_RECORDS[0];
+  asset: AssetRecord = blankAssetRecord();
   /** Movements from the Tracking service's location events; serial number and custodian from the Asset API. */
   history: AssetHistory = emptyHistory(this.asset);
   loading = false;
@@ -198,7 +198,7 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
   private resizeObserver?: ResizeObserver;
   /** Map state: zoom level, centre and the map box size in pixels. */
   mapZoom = 17;
-  private center = { lat: PLACES[0].lat, lng: PLACES[0].lng };
+  private center = { lat: 0, lng: 0 };
   mapW = 800;
   mapH = 290;
   private fitted = false;
@@ -213,17 +213,12 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
       .queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef)))
       .subscribe((p) => {
         const tag = p.get('tag');
-        const a = findAsset(tag);
-        if (a) {
-          if (a.tag !== this.asset.tag || !this.loadSub) this.setAsset(a, false);
-        } else if (tag) {
-          // not in the sample register: look the tag up in the Asset API
+        if (tag) {
+          // look the tag up in the Asset API
           this.lookup.byTag(tag).subscribe({
             next: (item) => (item ? this.setAsset(toAssetRecord(item), false) : this.showToast(`Asset ${tag} was not found.`)),
             error: (err) => this.showToast(apiErrorMessage(err)),
           });
-        } else if (!this.loadSub) {
-          this.reload();
         }
       });
   }
@@ -467,7 +462,7 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
     }
     pins.sort((a, b) => Number(a.current) - Number(b.current));
     const path = [...rows].sort((a, b) => a.at.localeCompare(b.at)).map((r) => at(r.place.lat, r.place.lng)).map((p) => `${p.x},${p.y}`).join(' ');
-    const fence = SOURCE.geofence.map(([lat, lng]) => at(lat, lng)).map((p) => `${p.x},${p.y}`).join(' ');
+    const fence = GEOFENCE.map(([lat, lng]) => at(lat, lng)).map((p) => `${p.x},${p.y}`).join(' ');
     const view = { tiles, pins, path, fence };
     this.viewCache = { key, view };
     return view;
@@ -577,7 +572,7 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
       next: (e) => {
         this.saving = false;
         const id = Math.max(0, ...this.history.movements.map((m) => m.id)) + 1;
-        this.history.movements = [...this.history.movements, { id, at: f.at, location: f.location, movement: f.movement, source: f.source, remarks, by: e.createdBy || CURRENT_USER }];
+        this.history.movements = [...this.history.movements, { id, at: f.at, location: f.location, movement: f.movement, source: f.source, remarks, by: e.createdBy || '—' }];
         this.recordForm = null;
         this.page = 0;
         this.fit();

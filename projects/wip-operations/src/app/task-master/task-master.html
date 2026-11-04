@@ -19,13 +19,14 @@
       <h1>Task Master</h1>
       <p class="subtitle">Define reusable task instructions, requirements and completion criteria</p>
     </div>
-    <div class="head-actions">
+    <div *ngIf="taskList.length" class="head-actions">
       <button type="button" class="btn btn-outline" (click)="previewOpen = true"><lucide-icon [img]="icons.Eye" [size]="18"></lucide-icon>Preview</button>
       <button type="button" class="btn btn-outline" (click)="saveDraft()"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon>Save Draft</button>
       <button type="button" class="btn btn-primary" (click)="publish()"><lucide-icon [img]="icons.Send" [size]="18"></lucide-icon>Publish Task</button>
     </div>
   </div>
 
+  <ng-container *ngIf="taskList.length; else noTasks">
   <div class="card">
     <div class="tpl-head">
       <span class="tpl-icon"><lucide-icon [img]="icons.ClipboardList" [size]="28"></lucide-icon></span>
@@ -328,6 +329,11 @@
     <button type="button" class="btn btn-outline" (click)="cancel()">Cancel</button>
     <button type="button" class="btn btn-primary" (click)="saveDraft()"><lucide-icon [img]="icons.Save" [size]="16"></lucide-icon>Save Draft</button>
   </footer>
+  </ng-container>
+
+  <ng-template #noTasks>
+    <div class="card"><p class="empty">No tasks yet.</p></div>
+  </ng-template>
 </section>
 
 <!-- ===== Used in ===== -->

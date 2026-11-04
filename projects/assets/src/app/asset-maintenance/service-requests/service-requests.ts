@@ -73,8 +73,8 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const CW = 300;
 const CH = 150;
 const PAD = { l: 26, r: 8, t: 14, b: 22 };
-const CURRENT_USER = 'Rex Kumar';
-const TECHNICIANS = ['Ahmed Khan', 'Ravi Patel', 'Nisha Patel', 'Ramesh Kumar', 'Salim Ahmed', 'Khalid Mansoori', 'Priya Nair'];
+/** Technician directory; empty until a people/master-data API serves it. */
+const TECHNICIANS: string[] = [];
 
 @Component({
   selector: 'app-service-requests',
@@ -134,7 +134,7 @@ export class ServiceRequests {
   private readonly api = inject(MaintenanceApiService);
 
   private get user(): string {
-    return this.api.user === 'unknown' ? CURRENT_USER : this.api.user;
+    return this.api.user === 'unknown' ? '' : this.api.user;
   }
 
   private fail(err: unknown, fallback: string): void {
@@ -345,7 +345,7 @@ export class ServiceRequests {
   convertToWorkOrder(r: ServiceRequest): void {
     this.menuOpen = '';
     if (r.workOrder) return void this.openWorkOrder.emit(r.workOrder);
-    this.convert.emit({ requestId: r.id, description: r.title, technician: r.assignedTo || TECHNICIANS[0] });
+    this.convert.emit({ requestId: r.id, description: r.title, technician: r.assignedTo || '' });
   }
 
   /** Called by the page once the work order is saved. */

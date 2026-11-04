@@ -23,7 +23,7 @@
       <h1>Job Order (Instance)</h1>
       <p class="subtitle">Execute, track and complete a job created from a published template</p>
     </div>
-    <div class="head-actions">
+    <div *ngIf="orderList.length" class="head-actions">
       <button type="button" class="btn btn-outline" [disabled]="o.status === 'Completed'" (click)="togglePause()">
         <lucide-icon [img]="o.status === 'In Progress' ? icons.Pause : icons.Play" [size]="18"></lucide-icon>
         {{ o.status === 'In Progress' ? 'Pause Job' : o.status === 'Paused' ? 'Resume Job' : 'Start Job' }}
@@ -35,6 +35,7 @@
     </div>
   </div>
 
+  <ng-container *ngIf="orderList.length; else noOrders">
   <!-- ===== Order summary ===== -->
   <div class="card summary-card">
     <img class="product" [src]="o.image" [alt]="o.name" />
@@ -355,6 +356,11 @@
     <span class="grow">Template version locked at job creation &bull; All execution changes are recorded</span>
     <button type="button" class="link-btn" (click)="tab = 'activity'">View Audit Trail<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
   </footer>
+  </ng-container>
+
+  <ng-template #noOrders>
+    <div class="card panel"><p class="empty">No job orders yet.</p></div>
+  </ng-template>
 </section>
 
 <!-- =================== Dialogs =================== -->

@@ -43,23 +43,17 @@ import {
 } from 'lucide-angular';
 import { Observable, catchError, firstValueFrom, forkJoin, of } from 'rxjs';
 import {
-  ASSET_RECORDS,
   AssetCondition,
   AssetHeader,
   AssetIconKey,
   AssetStatus,
   AssetTabLink,
   Criticality,
-  assetCondition,
-  assetHeader,
-  assetLocation,
   assetTabs,
   conditionPill,
   criticalityPill,
-  findAsset,
   statusPill,
 } from 'shared-ui';
-import { AssetDetail, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
 import { FROM_RELATIONSHIPS } from '../asset-relationship-list/user-relationships';
 import {
   API_RELATIONSHIP_TYPES,
@@ -140,7 +134,7 @@ interface ApiLink {
 
 /**
  * Relationships of one asset. For an asset in the Asset API, `api` is set and every change is saved there;
- * otherwise (sample assets only) the graph is the static demo data, cached per tag in memory.
+ * otherwise the asset is not found.
  */
 interface AssetGraph {
   catalog: CatalogAsset[];
@@ -167,30 +161,14 @@ const TYPE_COLORS: Record<RelType, string> = {
   'Sub Asset': '#0891b2',
 };
 
-/** Relationship types of the sample (demo) data. */
-const DEMO_REL_TYPES: RelType[] = ['Parent Asset', 'Connected Asset', 'Supporting Asset', 'Component'];
+/** Relationship types offered before an asset from the Asset API is shown. */
+const DEFAULT_REL_TYPES: RelType[] = ['Parent Asset', 'Connected Asset', 'Supporting Asset', 'Component'];
 
 /** Register icon -> relationship node icon. */
 const ICON_FOR: Record<AssetIconKey, IconKey> = {
   generator: 'Zap', chiller: 'Fan', ups: 'BatteryCharging', forklift: 'Forklift', fire: 'Flame',
   ac: 'AirVent', laptop: 'Laptop', cctv: 'Cctv', transformer: 'Cog', solar: 'SolarPanel',
 };
-
-const GRAPHS = new Map<string, AssetGraph>();
-
-/**
- * Builds an asset's relationship graph from its data file. Anything in the register can be linked,
- * so the other register assets are added to the catalogue too.
- */
-function buildGraph(tag: string, detail: AssetDetail | null): AssetGraph {
-  const catalog: CatalogAsset[] = (detail?.relationships.parts ?? []).map((p) => ({ ...p, icon: p.icon as IconKey }));
-  for (const other of ASSET_RECORDS) {
-    if (other.tag === tag || catalog.some((c) => c.tag === other.tag)) continue;
-    catalog.push({ tag: other.tag, name: other.name, category: other.category, location: assetLocation(other), condition: assetCondition(other), icon: ICON_FOR[other.icon] });
-  }
-  const relationships: Relationship[] = cloneDetail(detail?.relationships.links ?? []);
-  return { catalog, relationships, nextId: Math.max(0, ...relationships.map((r) => r.id)) + 1 };
-}
 
 /** Catalogue key of a saved sub asset: its Asset ID, or the component tag for a component. */
 function subTag(s: SubAssetDto): string {
@@ -307,7 +285,6 @@ interface DiagramSet {
   graph: AssetGraph | null;
 }
 
-/** DEMO MODE: all data is static and kept in memory. */
 @Component({
   selector: 'app-asset-relationship',
   standalone: true,
@@ -349,8 +326,8 @@ export class AssetRelationship {
   requestedTag = '';
   tabs: AssetTabLink[] = assetTabs('Relationships');
 
-  /** Relationship types offered: the Asset API's for a registered asset, the sample ones otherwise. */
-  relTypes: RelType[] = DEMO_REL_TYPES;
+  /** Relationship types offered: the Asset API's for a registered asset, the defaults otherwise. */
+  relTypes: RelType[] = DEFAULT_REL_TYPES;
   readonly directions: Direction[] = ['Parent', 'Child', 'Sibling'];
   readonly statuses: RelStatus[] = ['Active', 'Inactive'];
 
@@ -434,7 +411,7 @@ export class AssetRelationship {
       });
   }
 
-  /** Shows the asset named in the URL: from the Asset API when it is registered there, else the sample data. */
+  /** Shows the asset named in the URL, from the Asset API. */
   private load(tag: string | null): void {
     this.requestedTag = tag ?? '';
     this.notFound = false;
@@ -457,12 +434,12 @@ export class AssetRelationship {
     });
   }
 
-  /** Loads an asset's header and relationships; null when neither the Asset API nor the sample data has it. */
+  /** Loads an asset's header and relationships; null when the Asset API does not have it. */
   private async resolve(tag: string | null): Promise<LoadedAsset | null> {
     if (!tag) {
-      // Opened from the menu without an asset: show the first registered one (or the first sample asset).
+      // Opened from the menu without an asset: show the first registered one.
       const first = await firstValueFrom(this.api.getAssets().pipe(catchError(() => of([] as RegisteredAsset[]))));
-      tag = first[0]?.id ?? ASSET_RECORDS[0]?.tag ?? '';
+      tag = first[0]?.id ?? '';
       if (!tag) return null;
     }
     const registered = await firstValueFrom(this.api.findAssetOrNull(tag));
@@ -483,16 +460,7 @@ export class AssetRelationship {
         return { header: apiHeader(registered), graph };
       }
     }
-    // Sample asset (not in the Asset API): its static demo relationships, kept in memory
-    const record = findAsset(tag);
-    if (!record) return null;
-    const cached = GRAPHS.get(record.tag);
-    if (cached) return { header: assetHeader(record), graph: cached };
-    const detail = await loadAssetDetail(record.tag);
-    const graph = buildGraph(record.tag, detail);
-    // A failed download is not cached, so a later visit tries again
-    if (detail) GRAPHS.set(record.tag, graph);
-    return { header: assetHeader(record), graph };
+    return null;
   }
 
   /** Starts loading every asset opened together (kept while switching between them). */
@@ -530,7 +498,7 @@ export class AssetRelationship {
   private show(graph: AssetGraph): void {
     this.loading = false;
     this.graph = graph;
-    this.relTypes = graph.api ? API_RELATIONSHIP_TYPES : DEMO_REL_TYPES;
+    this.relTypes = graph.api ? API_RELATIONSHIP_TYPES : DEFAULT_REL_TYPES;
     // Reset per-asset view state
     const pending = this.pendingSelect;
     this.pendingSelect = null;

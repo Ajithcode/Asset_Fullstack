@@ -26,7 +26,8 @@ import {
   CircleDot,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetIconKey } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetIconKey, AuthService } from 'shared-ui';
+import { iconForAsset } from '../asset-details/asset-details.service';
 import { Comparable, DEFAULT_RULES, DedupRules, MATCH_FIELDS, MatchField, confidence } from './dedup-match';
 import { AssetDedupService, AssetMergeDto, DedupGroupDto, DedupRecordDto, MergeField, dedupErrorMessage } from './asset-dedup.service';
 
@@ -95,13 +96,12 @@ function isoDate(v: string): string {
   return m ? `${m[3]}-${pad(Number(m[2]))}-${pad(Number(m[1]))}` : '';
 }
 
-/** API record → page record; the picture is that of a sample asset of the same type (or category). */
+/** API record → page record; no picture, so the icon is guessed from the category, type and name. */
 function toRecord(r: DedupRecordDto): DedupRecord {
-  const like = ASSET_RECORDS.find((a) => a.type === r.type) ?? ASSET_RECORDS.find((a) => a.category === r.category);
   return {
     tag: r.tag, name: r.name, type: r.type, manufacturer: r.manufacturer, model: r.model, serialNumber: r.serialNumber, category: r.category,
     location: r.location, status: r.status, purchaseDate: r.purchaseDate, supplier: r.supplier, value: r.value, lastModified: r.lastModified,
-    modifiedBy: r.modifiedBy, source: r.source, inRegister: r.inRegister, image: like?.image ?? '', icon: like?.icon ?? 'transformer',
+    modifiedBy: r.modifiedBy, source: r.source, inRegister: r.inRegister, image: '', icon: iconForAsset(r.category, r.type, r.name),
   };
 }
 
@@ -172,6 +172,7 @@ export class AssetMerge implements OnDestroy {
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   private readonly api = inject(AssetDedupService);
+  private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
@@ -520,6 +521,11 @@ export class AssetMerge implements OnDestroy {
 
   get mergeCount(): number {
     return this.mergeTags.length - 1;
+  }
+
+  /** Signed-in user, shown as the one merging. */
+  get currentUser(): string {
+    return this.auth.getUser()?.userName || this.auth.getUserEmail() || '';
   }
 
   get nowLabel(): string {

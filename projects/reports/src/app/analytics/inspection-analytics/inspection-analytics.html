@@ -91,10 +91,12 @@
     <app-ra-widget class="span-2" title="Inspection Compliance" info="Inspections completed on time against the 90% target" (exportCsv)="exportCompliance()">
       <div class="ia-compliance">
         <ra-gauge-chart [value]="view.completionRate" [display]="kpis[1].value" [target]="complianceTarget" [color]="'#10b981'" [size]="190" />
-        <div class="ia-compliance__delta">
-          <strong><lucide-icon [img]="icons.ArrowUp" [size]="16" /> {{ kpis[1].delta }}</strong>
-          <span class="muted">vs. previous period</span>
-        </div>
+        @if (kpis[1].delta) {
+          <div class="ia-compliance__delta">
+            <strong><lucide-icon [img]="icons.ArrowUp" [size]="16" /> {{ kpis[1].delta }}</strong>
+            <span class="muted">vs. previous period</span>
+          </div>
+        }
       </div>
       <ra-cartesian-chart [labels]="view.labels" [series]="complianceSeries" kind="line" [height]="130" [min]="80" [max]="100" [format]="percentFormat" [legend]="false" ariaLabel="Inspection compliance trend" />
     </app-ra-widget>
@@ -129,6 +131,8 @@
           <button type="button" class="btn btn--sm btn--primary" (click)="insightAction(ins, ins.secondary.action)">{{ ins.secondary.label }}</button>
         </div>
       </article>
+    } @empty {
+      <div class="empty">No insights for the current filters.</div>
     }
   </aside>
 </div>

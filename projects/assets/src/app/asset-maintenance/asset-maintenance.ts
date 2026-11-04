@@ -36,8 +36,8 @@ import {
   Wrench,
   X,
 } from 'lucide-angular';
-import DATA from './maintenance.json';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, TODAY, assetLocation, findAsset, toIsoDate } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetRecord, TODAY, assetLocation, toIsoDate } from 'shared-ui';
+import { blankAssetRecord } from '../shared/blank-asset';
 import { MaintenanceTask, loadAssetDetail } from '../asset-details/asset-details';
 import { WoDetail, buildWoDetail } from './maintenance-history';
 import { PmSchedule, schedulesFromPlan } from './maintenance-pm';
@@ -142,61 +142,18 @@ const TYPE_COLORS: Record<WoType, string> = { Preventive: '#16a34a', Corrective:
 const REASON_COLORS: Record<string, string> = { Overheating: '#dc2626', 'Scheduled Maintenance': '#2563eb', 'Electrical Fault': '#eaa200', Inspection: '#7c3aed', Others: '#9ca3af' };
 export const STATE_COLORS: Record<WoState, string> = { Completed: '#16a34a', 'In Progress': '#2563eb', Overdue: '#dc2626', Scheduled: '#8b5cf6' };
 const STATES: WoState[] = ['Completed', 'In Progress', 'Overdue', 'Scheduled'];
-const AMC_VENDORS: Record<string, string> = { 'Power Generation': 'ABC Services LLC', HVAC: 'CoolTech Facilities LLC', Electrical: 'Volt Power Services', 'IT Equipment': 'NetCare Solutions', 'Safety & Security': 'SecureGuard Systems', 'Material Handling': 'LiftPro Services' };
 const REASON_ORDER = ['Overheating', 'Scheduled Maintenance', 'Electrical Fault', 'Inspection', 'Others'];
-const SOURCE = DATA as unknown as MaintenanceData;
+const YEAR = TODAY.getFullYear();
 const NO_SCHEDULES: PmSchedule[] = [];
-const CURRENT_USER = 'Rex Kumar';
 
 // Chart geometry (SVG user units)
 const CW = 440;
 const CH = 150;
 const PAD = { l: 34, r: 8, t: 8, b: 22 };
 
-/**
- * DEMO MODE: GEN-00045 has its recorded maintenance; other assets get the same pattern scaled from their tag,
- * so every asset opens with consistent figures. Kept in memory per asset.
- */
-const STORE = new Map<string, MaintenanceData>();
+/** Empty maintenance data for an asset (kept for the asset detail tab); the real records come from the Maintenance API. */
 export function dataFor(a: AssetRecord): MaintenanceData {
-  let d = STORE.get(a.tag);
-  if (d) return d;
-  d = structuredClone(SOURCE);
-  d.activity = [];
-  if (a.tag !== 'GEN-00045') {
-    let seed = 0;
-    for (const ch of a.tag) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
-    const f = 0.45 + (seed % 100) / 90;
-    const r10 = (n: number) => Math.round((n * f) / 10) * 10;
-    const prefix = a.tag.split('-')[0];
-    const ids = new Map<string, string>();
-    d.workOrders = d.workOrders.map((w, i) => ({
-      ...w, id: `WO-2026-${String(100 + ((seed + i * 7) % 800)).padStart(3, '0')}-${prefix}`, labor: r10(w.labor), parts: r10(w.parts), service: r10(w.service),
-      downtimeMin: Math.round((w.downtimeMin * f) / 15) * 15,
-    }));
-    SOURCE.workOrders.forEach((w, i) => ids.set(w.id, d!.workOrders[i].id));
-    // keep service requests pointing at this asset's work orders
-    d.serviceRequests = d.serviceRequests.map((sr) => ({ ...sr, workOrder: ids.get(sr.workOrder) ?? '' }));
-    d.lastYear = { cost: r10(d.lastYear.cost), downtimeMin: Math.round(d.lastYear.downtimeMin * f) };
-    d.sensors = [];
-    // other assets build their PM list from their own maintenance plan
-    delete d.pm;
-    d.pmLastYear = 0;
-    d.overview = { serialNumber: a.serialNumber ?? `SN-${2020 + (seed % 5)}-${String(seed % 100000).padStart(5, '0')}`, warrantyYears: 5, amcVendor: AMC_VENDORS[a.category] ?? 'ABC Services LLC' };
-    // parts lines follow this asset's work orders and their scaled parts cost
-    const partsOf = new Map(d.workOrders.map((w) => [w.id, w.parts]));
-    d.partsUsage = d.partsUsage.map((u) => ({ ...u, wo: ids.get(u.wo) ?? u.wo, unitCost: Math.max(1, Math.round(u.unitCost * f)) }));
-    for (const [wo, target] of partsOf) {
-      const lines = d.partsUsage.filter((u) => u.wo === wo);
-      if (!lines.length) continue;
-      const diff = target - lines.reduce((t, u) => t + u.qty * u.unitCost, 0);
-      const sundries = lines.find((u) => u.partNo === 'SP-00001');
-      if (sundries && sundries.unitCost + diff >= 0) sundries.unitCost += diff;
-      else if (diff > 0) d.partsUsage.push({ wo, date: lines[0].date, partNo: 'SP-00001', qty: 1, unitCost: diff });
-    }
-  }
-  STORE.set(a.tag, d);
-  return d;
+  return emptyMaintenanceData(a);
 }
 
 @Component({
@@ -234,7 +191,7 @@ export class AssetMaintenance implements OnDestroy {
   readonly pageSizes = [10, 25, 50];
   readonly Math = Math;
 
-  asset: AssetRecord = findAsset('GEN-00045') ?? ASSET_RECORDS[0];
+  asset: AssetRecord = blankAssetRecord();
   /** The asset's records from the Maintenance service and the Asset API (empty until loaded). */
   data: MaintenanceData = emptyMaintenanceData(this.asset);
   loading = false;
@@ -264,8 +221,8 @@ export class AssetMaintenance implements OnDestroy {
 
   // Period: whole year by default; the date range narrows everything on the Costs tab
   period: 'year' | 'quarter' | 'h1' | 'custom' = 'year';
-  fromDate = `${SOURCE.year}-01-01`;
-  toDate = `${SOURCE.year}-12-31`;
+  fromDate = `${YEAR}-01-01`;
+  toDate = `${YEAR}-12-31`;
   rangeOpen = false;
   costChartRange: 'year' | 'h2' = 'year';
   downChartRange: 'year' | 'h2' = 'year';
@@ -294,14 +251,12 @@ export class AssetMaintenance implements OnDestroy {
   private readonly router = inject(Router);
 
   constructor() {
-    // ?tag=GEN-00045 opens an asset (the asset detail tabs pass it)
+    // ?tag=<asset tag> opens an asset (the asset detail tabs pass it)
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef)))
       .subscribe((p) => {
         const tag = p.get('tag');
-        const known = findAsset(tag);
-        if (known || !tag) this.setAsset(known ?? this.asset);
-        else this.openRegistered(tag);
+        if (tag) this.openRegistered(tag);
         // ?tab=costs opens a section directly
         const tab = p.get('tab') as Tab | null;
         if (tab && this.tabs.some((t) => t.key === tab)) this.tab = tab;
@@ -319,7 +274,7 @@ export class AssetMaintenance implements OnDestroy {
     this.loadSub?.unsubscribe();
   }
 
-  /** A tag that is only in the Asset API (not in the sample register). */
+  /** Opens an asset from the Asset API by its tag. */
   private openRegistered(tag: string): void {
     this.lookup.byTag(tag).subscribe({
       next: (item) => (item ? this.setAsset(toAssetRecord(item)) : this.showToast(`Asset ${tag} was not found.`)),
@@ -867,8 +822,8 @@ export class AssetMaintenance implements OnDestroy {
   histStatus = '';
   histTech = '';
   histDowntimeOnly = false;
-  histFrom = `${SOURCE.year - 1}-01-01`;
-  histTo = `${SOURCE.year}-12-31`;
+  histFrom = `${YEAR - 1}-01-01`;
+  histTo = `${YEAR}-12-31`;
   histRangeOpen = false;
   histAdvOpen = false;
   histPageSize = 10;
@@ -878,8 +833,8 @@ export class AssetMaintenance implements OnDestroy {
   selectedWoId: string | null = null;
   panelOpen = true;
   detailTab: 'details' | 'tasks' | 'parts' | 'costs' | 'documents' = 'details';
-  histCostYear = SOURCE.year;
-  histDownYear = SOURCE.year;
+  histCostYear = YEAR;
+  histDownYear = YEAR;
   hoverDot: { w: WorkOrder; x: number } | null = null;
   hoverHistCost: number | null = null;
   hoverHistDown: number | null = null;
@@ -1094,7 +1049,7 @@ export class AssetMaintenance implements OnDestroy {
   openWorkOrder(type: WoType = 'Corrective'): void {
     this.menuOpen = '';
     this.woError = '';
-    this.woForm = { type, description: '', date: toIsoDate(TODAY), technician: 'Ahmed Khan' };
+    this.woForm = { type, description: '', date: toIsoDate(TODAY), technician: '' };
     this.pendingRequest = null;
   }
 
@@ -1105,7 +1060,7 @@ export class AssetMaintenance implements OnDestroy {
     const head = `WO-${this.data.year}-`;
     const n = Math.max(0, ...this.data.workOrders.filter((w) => w.id.startsWith(head)).map((w) => Number(w.id.split('-')[2]) || 0)) + 1;
     const id = `${head}${String(n).padStart(3, '0')}`;
-    const technician = f.technician.trim() || this.api.user || CURRENT_USER;
+    const technician = f.technician.trim() || this.api.user || '';
     const pending = this.pendingRequest;
     this.woSaving = true;
     this.api.createWorkOrder(this.asset, { id, type: f.type, description: f.description.trim(), date: f.date, technician, priority: pending ? 'High' : 'Medium' }).subscribe({

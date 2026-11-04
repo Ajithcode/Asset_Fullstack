@@ -130,8 +130,8 @@ export class AssetStatusCondition implements OnDestroy {
   // ===== Data =====
   /** Condition assessments, from the Asset API. */
   assessments: ConditionAssessment[] = [];
-  // DEMO MODE: the rest (timeline, operational details, lifecycle, readings, alarms, performance) has no Asset API yet
-  // and is loaded from the asset's sample data file when there is one, and kept in memory.
+  // The rest (timeline, operational details, lifecycle, readings, alarms, performance) has no Asset API yet,
+  // so it stays empty until one serves it.
   timeline: TimelineEvent[] = [];
 
   availability = 0;
@@ -224,7 +224,7 @@ export class AssetStatusCondition implements OnDestroy {
     this.showToast(this.loadError);
   }
 
-  /** Parts of the page without an Asset API yet (DEMO MODE), from the asset's sample data file if it has one. */
+  /** Parts of the page without an Asset API yet; empty when no detail data is available. */
   private applySampleDetail(detail: Awaited<ReturnType<typeof loadAssetDetail>>): void {
     if (!detail) {
       this.timeline = [];

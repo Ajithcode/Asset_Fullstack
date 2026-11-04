@@ -154,7 +154,7 @@ export class MfrForm implements OnChanges {
         supportPortal: trim(f.supportPortal),
         supportEmail: trim(f.supportEmail),
         createdOn: this.original?.createdOn ?? stamp,
-        createdBy: this.original?.createdBy ?? 'Rex Kumar',
+        createdBy: this.original?.createdBy ?? '',
         updatedOn: stamp
       },
       originalCode: this.original?.code ?? null,

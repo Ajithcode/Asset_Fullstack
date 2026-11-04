@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { ChartColumn, LucideAngularModule, X } from 'lucide-angular';
 import { avatarTone, initials } from '../../shared/admin-common';
 import { ChipSelect } from '../../role-access-control/chip-select/chip-select';
-import { demoUsers } from '../../role-access-control/role-access.data';
 import { RoleAccessService } from '../../role-access-control/role-access.service';
 import { AccessSummary, POLICY_SCOPES, POLICY_TYPES, PolicyRecord, accessSummary } from '../module-access.data';
 import { ModuleAccessService } from '../module-access.service';
@@ -52,7 +51,7 @@ export class PolicyDrawer implements OnChanges {
   avatars: string[] = [];
 
   ngOnChanges(): void {
-    this.avatars = demoUsers(this.policy.id || this.policy.name, Math.min(this.policy.users, 3));
+    this.avatars = []; // member names come from the users API once wired
   }
 
   get roleOptions(): string[] {

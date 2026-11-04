@@ -4,9 +4,8 @@ import {
   ReportDefinition, ReportFilter, ReportRow
 } from './custom-reports.model';
 
-// DEMO MODE: preview rows are generated from the field catalogue until the reporting API returns real data
+// Report engine: filters, groups and sorts source rows (empty until the reporting API returns real data)
 
-export const SAMPLE_ROWS = 24;
 export const COUNT_KEY = '__count';
 
 const ALL_FIELDS: FieldDef[] = FIELD_GROUPS.flatMap((g) => g.fields);
@@ -46,31 +45,6 @@ export function operatorsFor(kind: FieldKind): FilterOperator[] {
   return ['equals', 'not equals', 'contains'];
 }
 
-function hash(s: string): number {
-  let h = 7;
-  for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 9973;
-  return h;
-}
-
-function addDays(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-/** Deterministic sample value for row i. */
-export function sampleValue(f: FieldDef, i: number): string | number {
-  const h = hash(f.key);
-  if (f.pattern) return f.pattern.replace('{n}', String((f.start ?? 1) + i).padStart(f.pad ?? 4, '0'));
-  if (f.values?.length) return f.values[(i * 3 + (h % 5) + Math.floor(i / f.values.length)) % f.values.length];
-  if (f.kind === 'date') return addDays(f.from ?? '2026-01-01', (i * 37 + h) % (f.span ?? 300));
-  const min = f.min ?? 0;
-  const max = f.max ?? 100;
-  const step = f.step ?? 1;
-  const t = ((i * 37 + h * 11) % 101) / 100;
-  return Math.round((min + t * (max - min)) / step) * step;
-}
-
 export function calcValue(c: CalcField, row: ReportRow): number {
   const a = Number(row[c.left]) || 0;
   const b = Number(row[c.right]) || 0;
@@ -78,16 +52,9 @@ export function calcValue(c: CalcField, row: ReportRow): number {
   return Math.round(ops[c.op] * 100) / 100;
 }
 
-function buildRows(def: ReportDefinition): ReportRow[] {
-  const base = groupsOf(def.sourceKey).flatMap((g) => g.fields);
-  const rows: ReportRow[] = [];
-  for (let i = 0; i < SAMPLE_ROWS; i++) {
-    const row: ReportRow = {};
-    for (const f of base) row[f.key] = sampleValue(f, i);
-    for (const c of def.calcFields) row[c.key] = calcValue(c, row);
-    rows.push(row);
-  }
-  return rows;
+/** Source rows for the report. No reporting API is wired yet, so there are none. */
+function buildRows(_def: ReportDefinition): ReportRow[] {
+  return [];
 }
 
 /** Validation message for a filter row, or '' when it is usable. */
@@ -146,7 +113,7 @@ export function outputColumns(def: ReportDefinition): PreviewColumn[] {
   ];
 }
 
-/** Runs the report against the generated sample rows. */
+/** Runs the report against the source rows. */
 export function runReport(def: ReportDefinition): PreviewResult {
   const columns = outputColumns(def);
   let rows = buildRows(def);

@@ -463,7 +463,7 @@
         <div><dt>Telemetry availability</dt><dd>{{ detail.asset.availability === null ? '—' : detail.asset.availability + '%' }}</dd></div>
         <div><dt>Utilization / target</dt><dd>{{ detail.asset.utilization === null ? '—' : detail.utilization + '%' }} / {{ detail.asset.target }}%</dd></div>
       </dl>
-      @if (detail.asset.utilization !== null) {
+      @if (detail.asset.utilization !== null && sparkFor(detail).length) {
         <div class="iot-spark">
           <span class="muted">Utilization, last 12 weeks</span>
           <ra-sparkline [values]="sparkFor(detail)" [color]="colors.purple" [width]="240" [height]="44" [area]="true" />

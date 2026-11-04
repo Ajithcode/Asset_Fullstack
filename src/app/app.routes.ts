@@ -6,8 +6,8 @@ import { Signup } from './components/pages/signup/signup/signup';
 import { SectionUnavailable } from './section-unavailable/section-unavailable';
 import { Events } from './components/pages/events/events/events';
 import { Layout } from './components/shared/layout/layout';
-// DEMO MODE: Auth guard import kept for reference
-// import { authGuard } from './components/guard/auth-guard';
+
+import { authGuard } from './components/guard/auth-guard';
 import { ProcessAutomation } from './components/pages/process-automation/process-automation/process-automation';
 import { ProcessAutomationAdd } from './components/pages/process-automation/process-automation-add/process-automation-add';
 
@@ -29,8 +29,8 @@ export const routes: Routes = [
   {
     path: '',
     component: Layout,
-    // DEMO MODE: Auth guard is disabled
-    // canActivate: [authGuard],
+    // Every page needs a signed-in user (see authGuard)
+    canActivate: [authGuard],
     children: [
       // Each main sidebar menu is its own micro-frontend (projects/<name>); its pages are routed inside it
       { path: 'dashboard', loadChildren: remoteRoutes('dashboard') },

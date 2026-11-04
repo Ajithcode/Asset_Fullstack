@@ -109,7 +109,7 @@
             </div>
           </section>
 
-          <section class="panel-box" aria-labelledby="lm-jobs">
+          <section *ngIf="locations.length" class="panel-box" aria-labelledby="lm-jobs">
             <h3 id="lm-jobs">Jobs at {{ selected.name }}</h3>
             <div class="table-wrap">
               <table class="loc-table">
@@ -140,7 +140,7 @@
         </div>
 
         <!-- Details -->
-        <section class="panel-box details" aria-labelledby="lm-det">
+        <section *ngIf="locations.length" class="panel-box details" aria-labelledby="lm-det">
           <div class="det-head">
             <h3 id="lm-det" class="grow">Location Details</h3>
             <button type="button" class="st-pill" [ngClass]="'st--' + selected.status.toLowerCase()" (click)="toggleActive(selected)" [title]="selected.status === 'Active' ? 'Deactivate' : 'Activate'"><span class="dot"></span>{{ selected.status }}</button>
@@ -217,6 +217,7 @@
                 <td class="nowrap">{{ o.arrival | date: 'dd MMM, HH:mm' }}</td><td class="nowrap">{{ durationSince(o.arrival) }}</td>
                 <td><button type="button" class="btn btn-outline btn-xs" (click)="openMove(o)"><lucide-icon [img]="icons.ArrowRight" [size]="14"></lucide-icon>Move Job</button></td>
               </tr>
+              <tr *ngIf="!occupancy.length"><td colspan="7" class="empty">No jobs at any location.</td></tr>
             </tbody>
           </table>
         </div>
@@ -237,6 +238,7 @@
                   <button type="button" class="link-btn link-btn--danger" (click)="approve(m, false)">Reject</button>
                 </ng-container></td>
               </tr>
+              <tr *ngIf="!movements.length"><td colspan="7" class="empty">No movements yet.</td></tr>
             </tbody>
           </table>
         </div>
@@ -263,6 +265,7 @@
                 </td>
                 <td class="muted small">{{ l.controls.requireCapacity ? 'Capacity' : '' }}{{ l.controls.requireStage ? ' · Stage' : '' }}{{ l.controls.scanQr ? ' · QR scan' : '' }}{{ l.controls.supervisorApproval ? ' · Approval' : '' }}</td>
               </tr>
+              <tr *ngIf="!scoped.length"><td colspan="3" class="empty">No locations.</td></tr>
             </tbody>
           </table>
         </div>

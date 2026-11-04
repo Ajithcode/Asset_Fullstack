@@ -18,7 +18,7 @@
 
   <!-- ===== Job ===== -->
   <div class="card job-strip">
-    <img class="job-img" [src]="job.image" alt="" />
+    <img *ngIf="job.image" class="job-img" [src]="job.image" alt="" />
     <div class="grow job-name">
       <a class="job-link plain" routerLink="/wip-operations/job-orders" [queryParams]="{ code: job.code }">{{ job.code }}</a> • {{ job.name }}
       <span class="pill pill--green"><span class="dot-sm"></span>{{ job.status }}</span>
@@ -93,6 +93,7 @@
           <thead><tr><th>Stage</th><th>Tasks (Completed / Total)</th><th>Status</th></tr></thead>
           <tbody>
             <tr *ngFor="let s of stages"><td>{{ s.name }}</td><td>{{ stageDone(s) }} / {{ s.tasks.length }}</td><td><span class="pill" [ngClass]="stageClass(stageStatus(s))">{{ stageStatus(s) }}</span></td></tr>
+            <tr *ngIf="!stages.length"><td colspan="3" class="empty">No stages.</td></tr>
           </tbody>
         </table>
       </section>
@@ -161,6 +162,7 @@
             <td><span class="pill" [ngClass]="e.review === 'Reviewed' ? 'pill--green' : 'pill--amber'">{{ e.review }}</span><span class="sub">{{ e.reviewedBy }}</span></td>
             <td><button *ngIf="e.correctedBy === null && e.type !== 'System event'" type="button" class="btn btn-outline btn-xs" (click)="openCorrect(e)"><lucide-icon [img]="icons.Pencil" [size]="13"></lucide-icon>Correct</button></td>
           </tr>
+          <tr *ngIf="!timeline.length"><td colspan="7" class="empty">No entries match the filters.</td></tr>
         </tbody>
       </table>
     </div>
@@ -168,6 +170,7 @@
   </section>
 
   <!-- =================== Stage summary =================== -->
+  <p *ngIf="tab === 'stages' && !stages.length" class="box empty">No stages.</p>
   <div *ngIf="tab === 'stages'" class="stage-grid">
     <section *ngFor="let s of stages" class="box">
       <div class="box-head"><h3 class="grow">{{ s.name }}</h3><span class="pill" [ngClass]="stageClass(stageStatus(s))">{{ stageStatus(s) }}</span></div>
@@ -196,6 +199,7 @@
             <td><span class="pill" [ngClass]="o.disposition === 'Accepted' ? 'pill--green' : o.disposition === 'Awaiting QC' ? 'pill--amber' : 'pill--red'">{{ o.disposition }}</span></td>
             <td>{{ o.inspection }}</td><td>{{ o.location }}</td><td>{{ handover(o.serial) }}</td>
           </tr>
+          <tr *ngIf="!outputs.length"><td colspan="7" class="empty">No output recorded yet.</td></tr>
         </tbody>
       </table>
     </div>
@@ -232,6 +236,7 @@
           <button *ngIf="b.status === 'Open'" type="button" class="btn btn-outline btn-xs" (click)="resolveBlocker(b)">Mark resolved</button>
           <span *ngIf="b.status === 'Resolved'" class="pill pill--green">Resolved</span>
         </li>
+        <li *ngIf="!blockers.length" class="empty">No blockers.</li>
       </ul>
     </section>
 

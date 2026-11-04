@@ -121,7 +121,7 @@ export class AssetHealthScore implements OnDestroy {
   /** Data the health is worked out from. */
   private assessments: ConditionAssessment[] = [];
   private criticality: CriticalityAssessment | null = null;
-  /** DEMO MODE: no maintenance plan API in this module; from the asset's sample data file when there is one. */
+  /** No maintenance plan API in this module yet; empty until one serves it. */
   private maintenancePlan: MaintenanceTask[] = [];
   requestedTag = '';
   readonly tabs: AssetTabLink[] = assetTabs('Asset Health Score');

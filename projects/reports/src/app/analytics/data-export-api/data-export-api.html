@@ -82,12 +82,16 @@
             </span>
             <span class="dx-kpi-row">
               <span class="kpi__value">{{ k.value }}</span>
-              <ra-sparkline [values]="k.trend" [color]="k.color" [width]="72" [height]="26" [area]="true"></ra-sparkline>
+              @if (k.trend.length) {
+                <ra-sparkline [values]="k.trend" [color]="k.color" [width]="72" [height]="26" [area]="true"></ra-sparkline>
+              }
             </span>
-            <span class="kpi__delta" [class.kpi__delta--bad]="!k.up">
-              <lucide-icon [img]="k.up ? icons.ArrowUp : icons.ArrowDown" [size]="12"></lucide-icon>
-              {{ k.delta }} <small>vs last week</small>
-            </span>
+            @if (k.delta) {
+              <span class="kpi__delta" [class.kpi__delta--bad]="!k.up">
+                <lucide-icon [img]="k.up ? icons.ArrowUp : icons.ArrowDown" [size]="12"></lucide-icon>
+                {{ k.delta }} <small>vs last week</small>
+              </span>
+            }
           </div>
         </div>
       }

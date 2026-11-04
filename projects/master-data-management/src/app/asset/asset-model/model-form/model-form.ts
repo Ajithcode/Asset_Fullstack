@@ -4,7 +4,7 @@ import { LucideAngularModule, Plus, Trash2, X } from 'lucide-angular';
 import { CURRENCIES } from '../../../organization/organization/organization.data';
 import { AssetTypeService } from '../../asset-type/asset-type.service';
 import { ManufacturerService } from '../../manufacturer/manufacturer.service';
-import { CRITICALITIES, MODEL_COST_CENTERS, PM_FREQUENCIES, TRACKING_METHODS, blankAssetModel, hasRunningNumber, sampleTag, specsFor } from '../asset-model.data';
+import { CRITICALITIES, PM_FREQUENCIES, TRACKING_METHODS, blankAssetModel, hasRunningNumber, sampleTag, specsFor } from '../asset-model.data';
 import { MODEL_ICONS } from '../asset-model.icons';
 import { AssetModelRecord } from '../asset-model.model';
 import { AssetModelService } from '../asset-model.service';
@@ -60,7 +60,6 @@ export class ModelForm implements OnChanges {
   readonly makers = inject(ManufacturerService);
   readonly icons = { X, Plus, Trash2 };
   readonly modelIcons = MODEL_ICONS;
-  readonly costCenters = MODEL_COST_CENTERS;
   readonly currencies = CURRENCIES;
   readonly pmFrequencies = PM_FREQUENCIES;
   readonly criticalities = CRITICALITIES;
@@ -140,6 +139,11 @@ export class ModelForm implements OnChanges {
       this.form.assignable = type.assignable;
     }
     if (!this.form.specs.length) this.loadTemplate();
+  }
+
+  // Cost centers already used on asset models, plus the current value
+  get costCenters(): string[] {
+    return [...new Set([this.form.costCenter, ...this.service.all().map((r) => r.costCenter)].filter(Boolean))];
   }
 
   // A category that no longer fits the chosen type clears the type

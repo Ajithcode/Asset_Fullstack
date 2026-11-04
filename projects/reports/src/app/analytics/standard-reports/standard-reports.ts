@@ -88,7 +88,7 @@ export class StandardReportsPage extends AnalyticsPage {
 
   /** Every report shares the applied reporting period. */
   get reportingPeriod(): ReportPeriod {
-    return this.service.reports[0].period;
+    return this.service.period;
   }
 
   // ===== Table =====

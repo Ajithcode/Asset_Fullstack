@@ -5,7 +5,7 @@ import { TRACKING_METHODS } from '../../asset-model/asset-model.data';
 import { MODEL_ICONS, MODEL_ICON_KEYS } from '../../asset-model/asset-model.icons';
 import { CUSTOM_FIELD_TYPES } from '../../asset-type/asset-type.data';
 import { HEX_COLOR } from '../../level-icons';
-import { CATEGORY_ASSET_TYPES, CATEGORY_COST_CENTERS, CATEGORY_TYPE_DEFAULTS, blankCategory } from '../category.data';
+import { CATEGORY_ASSET_TYPES, CATEGORY_TYPE_DEFAULTS, blankCategory } from '../category.data';
 import { CategoryRecord } from '../category.model';
 import { CategoryService } from '../category.service';
 
@@ -50,7 +50,6 @@ export class CatForm implements OnChanges {
   readonly typeIcons = MODEL_ICONS;
   readonly iconKeys = MODEL_ICON_KEYS;
   readonly assetTypes = CATEGORY_ASSET_TYPES;
-  readonly costCenters = CATEGORY_COST_CENTERS;
   readonly trackingMethods = TRACKING_METHODS;
   readonly fieldTypes = CUSTOM_FIELD_TYPES;
   readonly tabs: { id: CatFormTab; label: string }[] = [
@@ -84,6 +83,11 @@ export class CatForm implements OnChanges {
   get parentOptions(): CategoryRecord[] {
     const blocked = this.original ? this.service.descendantCodes(this.original.code) : new Set<string>();
     return this.service.all().filter((c) => !blocked.has(c.code));
+  }
+
+  // Cost centers already used on categories, plus the current value
+  get costCenters(): string[] {
+    return [...new Set([this.form.costCenter, ...this.service.all().map((r) => r.costCenter)].filter(Boolean))];
   }
 
   // New categories pick up the usual accounting defaults for their asset type
@@ -169,7 +173,7 @@ export class CatForm implements OnChanges {
         tagPrefix: f.tagPrefix.trim().toUpperCase(),
         customFields: f.customFields.map((c) => ({ ...c, name: c.name.trim() })),
         createdOn: this.original?.createdOn ?? stamp,
-        createdBy: this.original?.createdBy ?? 'Rex Kumar',
+        createdBy: this.original?.createdBy ?? '',
         updatedOn: stamp
       },
       originalCode: this.original?.code ?? null

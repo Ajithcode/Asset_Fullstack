@@ -1,0 +1,254 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, catchError, map, of } from 'rxjs';
+import { AuthService, environment } from 'shared-ui';
+import { apiError, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
+import { Conn, DevEvent, Device, Health, Power } from './device-data';
+
+/** A device as GET/POST/PUT /api/iot-devices returns it (addressed by deviceId). */
+export interface IoTDeviceDto {
+  id: string;
+  deviceId: string;
+  deviceName: string;
+  deviceType: string;
+  model: string;
+  serialNumber: string | null;
+  connectivity: string;
+  siteId: string | null;
+  siteName: string | null;
+  assetRegistrationId: string | null;
+  assetCode: string | null;
+  assetName: string | null;
+  gateway: string | null;
+  powerSource: string;
+  batteryLevel: number | null;
+  lastSeenAt: string | null;
+  health: string | null;
+  firmwareVersion: string | null;
+  pendingFirmwareVersion: string | null;
+  firmwareUpdateScheduledAt: string | null;
+  createdBy: string | null;
+  createdAt: string | null;
+  updatedBy: string | null;
+  updatedAt: string | null;
+  clientId: string | null;
+  tenantId: string | null;
+}
+
+/** Body of POST /api/iot-devices and PUT /api/iot-devices/{deviceId}. */
+export interface IoTDeviceRequest {
+  deviceId: string;
+  deviceName: string;
+  deviceType: string;
+  model: string;
+  serialNumber: string;
+  connectivity: string;
+  siteId: string | null;
+  siteName: string | null;
+  assetRegistrationId: string | null;
+  assetCode: string | null;
+  assetName: string | null;
+  gateway: string | null;
+  /** Left out (null) on create: the API takes it from the model. */
+  powerSource: string | null;
+  batteryLevel: number | null;
+  lastSeenAt: string | null;
+  health: string | null;
+  firmwareVersion: string | null;
+  createdBy: string;
+  clientId: string;
+  tenantId: string;
+}
+
+/** GET /api/iot-devices/models */
+export interface DeviceModelOption {
+  modelNumber: string;
+  manufacturer: string;
+  displayName: string;
+  deviceType: string;
+  connectivity: string;
+  protocol: string | null;
+  defaultConnectivity: string;
+  powerSource: string;
+}
+
+/** GET /api/iot-devices/gateways */
+export interface GatewayOption {
+  deviceId: string;
+  deviceName: string;
+  siteId: string | null;
+  siteName: string | null;
+}
+
+export interface SiteOption {
+  id: string;
+  name: string;
+}
+
+/** Minutes without a message after which a device counts as Offline (the page's default "mark offline after"). */
+export const DEFAULT_OFFLINE_MIN = 30;
+
+function epoch(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+function powerOf(source: string | null | undefined): Power {
+  const s = (source ?? '').toLowerCase();
+  return s.startsWith('battery') ? 'Battery' : s === 'poe' ? 'PoE' : 'External';
+}
+
+/** Online / Offline from the last message; Pending until the first one arrives (the API has no connection state). */
+export function connOf(lastSeenSec: number | null, offlineAfterMin = DEFAULT_OFFLINE_MIN): Conn {
+  if (lastSeenSec === null) return 'Pending';
+  return lastSeenSec <= offlineAfterMin * 60 ? 'Online' : 'Offline';
+}
+
+/**
+ * A page device for an API device. The API has no IMEI, signal strength, telemetry or event history:
+ * those stay empty (shown as "—"); the events list what the record itself says (registered, updated, last message).
+ */
+export function deviceFromDto(dto: IoTDeviceDto): Device {
+  const created = epoch(dto.createdAt);
+  const updated = epoch(dto.updatedAt);
+  const seen = epoch(dto.lastSeenAt);
+  const lastSeenSec = seen === null ? null : Math.max(0, Math.round((Date.now() - seen) / 1000));
+  const health = (['Good', 'Warning', 'Critical'] as Health[]).find((h) => h === dto.health) ?? 'Good';
+  const log: DevEvent[] = [];
+  if (seen !== null) log.push({ at: seen, title: 'Last message received', detail: dto.gateway ? `via ${dto.gateway}` : '', level: 'green' });
+  if (updated !== null) log.push({ at: updated, title: 'Device updated', detail: dto.updatedBy ? `by ${dto.updatedBy}` : '', level: 'purple' });
+  if (created !== null) log.push({ at: created, title: 'Device registered', detail: [dto.model, dto.serialNumber, dto.createdBy ? `by ${dto.createdBy}` : ''].filter(Boolean).join(' · '), level: 'grey' });
+  log.sort((a, b) => b.at - a.at);
+  const code = dto.assetCode || dto.assetRegistrationId;
+  return {
+    id: dto.deviceId,
+    name: dto.deviceName,
+    type: dto.deviceType,
+    model: dto.model,
+    serial: dto.serialNumber ?? '',
+    imei: '',
+    protocol: dto.connectivity,
+    conn: connOf(lastSeenSec),
+    health,
+    asset: code ? { name: dto.assetName || code, code } : null,
+    site: dto.siteName ?? '',
+    gateway: dto.gateway ?? '',
+    power: powerOf(dto.powerSource),
+    battery: dto.batteryLevel ?? null,
+    rssi: null,
+    lastSeenSec,
+    firmware: dto.firmwareVersion ?? '',
+    installedDaysAgo: created === null ? 0 : Math.max(0, Math.floor((Date.now() - created) / 86_400_000)),
+    settings: { intervalMin: 10, lowBattery: 20, offlineAfterMin: DEFAULT_OFFLINE_MIN, alerts: true },
+    log,
+    api: dto,
+  };
+}
+
+/** IoT Device Management → /api/iot-devices (Tracking service). */
+@Injectable({ providedIn: 'root' })
+export class IoTDeviceApiService {
+  private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
+  private readonly url = trackingUrl('iot-devices');
+
+  currentUser(): string {
+    return this.auth.getUser()?.userName || this.auth.getUserEmail() || 'Unknown user';
+  }
+
+  /** GET /api/iot-devices */
+  getAll(): Observable<Device[]> {
+    return this.http.get<IoTDeviceDto[]>(this.url, { params: tenantParams() }).pipe(
+      map((rows) => (rows ?? []).map(deviceFromDto)),
+      catchError((e) => apiError(e, 'Could not load devices.')),
+    );
+  }
+
+  /** GET /api/iot-devices/{deviceId} */
+  get(deviceId: string): Observable<Device> {
+    return this.http.get<IoTDeviceDto>(`${this.url}/${encodeURIComponent(deviceId)}`, { params: tenantParams() }).pipe(
+      map(deviceFromDto),
+      catchError((e) => apiError(e, `Could not load ${deviceId}.`)),
+    );
+  }
+
+  /** GET /api/iot-devices/device-types */
+  deviceTypes(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.url}/device-types`, { params: tenantParams() }).pipe(catchError(() => of([])));
+  }
+
+  /** GET /api/iot-devices/models (all device types) */
+  models(deviceType?: string): Observable<DeviceModelOption[]> {
+    return this.http.get<DeviceModelOption[]>(`${this.url}/models`, { params: tenantParams({ deviceType }) }).pipe(catchError(() => of([])));
+  }
+
+  /** GET /api/iot-devices/connectivities?model&deviceType */
+  connectivities(model?: string, deviceType?: string): Observable<string[]> {
+    return this.http.get<string[]>(`${this.url}/connectivities`, { params: tenantParams({ model, deviceType }) }).pipe(catchError(() => of([])));
+  }
+
+  /** GET /api/iot-devices/gateways (every site) */
+  gateways(siteId?: string): Observable<GatewayOption[]> {
+    return this.http.get<GatewayOption[]>(`${this.url}/gateways`, { params: tenantParams({ siteId }) }).pipe(catchError(() => of([])));
+  }
+
+  /** Master-data sites; empty when the service cannot be reached. */
+  sites(): Observable<SiteOption[]> {
+    return this.http.get<Record<string, unknown>[]>(`${environment.assetMasterDataApiUrl}api/master-data/sites`).pipe(
+      map((rows) => (Array.isArray(rows) ? rows : [])
+        .filter((r) => r['id'] && r['isDeleted'] !== true)
+        .map((r) => ({ id: String(r['id']), name: String(r['siteName'] ?? r['name'] ?? r['id']) }))),
+      catchError(() => of([])),
+    );
+  }
+
+  /** POST /api/iot-devices */
+  create(d: Device, siteId: string | null): Observable<Device> {
+    return this.http.post<IoTDeviceDto>(this.url, this.request(d, siteId), { params: tenantParams() }).pipe(
+      map(deviceFromDto),
+      catchError((e) => apiError(e, `Could not register ${d.id}.`)),
+    );
+  }
+
+  /** PUT /api/iot-devices/{deviceId}: full replace; fields the page does not edit are sent back as loaded. */
+  update(d: Device, siteId?: string | null): Observable<Device> {
+    return this.http.put<IoTDeviceDto>(`${this.url}/${encodeURIComponent(d.id)}`, this.request(d, siteId === undefined ? d.api?.siteId ?? null : siteId), { params: tenantParams() }).pipe(
+      map(deviceFromDto),
+      catchError((e) => apiError(e, `Could not save ${d.id}.`)),
+    );
+  }
+
+  /** DELETE /api/iot-devices/{deviceId} */
+  delete(deviceId: string): Observable<void> {
+    return this.http.delete<void>(`${this.url}/${encodeURIComponent(deviceId)}`, { params: tenantParams() }).pipe(
+      catchError((e) => apiError(e, `Could not delete ${deviceId}.`)),
+    );
+  }
+
+  private request(d: Device, siteId: string | null): IoTDeviceRequest {
+    const api = d.api;
+    const sameAsset = !!api && !!d.asset && (api.assetCode || api.assetRegistrationId) === d.asset.code;
+    return {
+      deviceId: d.id,
+      deviceName: d.name,
+      deviceType: d.type,
+      model: d.model,
+      serialNumber: d.serial,
+      connectivity: d.protocol,
+      siteId,
+      siteName: d.site || null,
+      assetRegistrationId: sameAsset ? api!.assetRegistrationId : null,
+      assetCode: d.asset?.code ?? null,
+      assetName: d.asset && d.asset.name !== d.asset.code ? d.asset.name : sameAsset ? api!.assetName : null,
+      gateway: d.gateway || null,
+      powerSource: api?.powerSource ?? null,
+      batteryLevel: api?.batteryLevel ?? null,
+      lastSeenAt: api?.lastSeenAt ?? null,
+      health: api?.health ?? null,
+      firmwareVersion: api?.firmwareVersion ?? null,
+      createdBy: this.currentUser(),
+      ...tenantBody(),
+    };
+  }
+}

@@ -112,7 +112,7 @@ import { JOB_TONES, MODULE_TONES, destinationIcon, formatStamp, moduleIcon } fro
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="11" class="empty">No export jobs match the current filters.</td></tr>
+              <tr><td colspan="11" class="empty">No export jobs found.</td></tr>
             }
           </tbody>
         </table>

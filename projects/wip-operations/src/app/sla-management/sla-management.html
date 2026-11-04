@@ -77,6 +77,7 @@
                   <div class="mon-bar"><span class="mon-fill" [ngClass]="'fill--' + stateClass(state(t))" [style.width.%]="pct(t) > 100 ? 100 : pct(t)"></span></div>
                   <div class="mon-foot"><span [class.c-bad]="state(t) === 'Breached'"><lucide-icon [img]="icons.Clock" [size]="13"></lucide-icon> {{ remaining(t) }}</span><span class="muted">{{ pct(t) }}% elapsed</span></div>
                 </li>
+                <li *ngIf="!watched.length" class="empty">No active timers.</li>
               </ul>
               <button type="button" class="link-btn" (click)="showTimers('')">View all timers<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
             </section>
@@ -264,6 +265,7 @@
                 <td>{{ e.channel }}</td>
                 <td class="nowrap"><span *ngIf="e.acknowledged; else ackBtn">{{ e.acknowledged | date: 'HH:mm' }}</span><ng-template #ackBtn><button type="button" class="btn btn-outline btn-xs" (click)="acknowledge(e)">Acknowledge</button></ng-template></td>
               </tr>
+              <tr *ngIf="!escalations.length"><td colspan="7" class="empty">No escalations.</td></tr>
             </tbody>
           </table>
         </div>
@@ -285,6 +287,7 @@
                 <td class="nowrap">{{ r.done ? fmtTarget(r.avg) : '—' }}</td>
                 <td class="num" [class.c-bad]="r.breachedNow">{{ r.breachedNow }}</td>
               </tr>
+              <tr *ngIf="!performance.length"><td colspan="7" class="empty">No active policies.</td></tr>
             </tbody>
           </table>
         </div>

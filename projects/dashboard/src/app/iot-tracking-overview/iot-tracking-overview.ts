@@ -152,7 +152,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   constructor() {
     // open on the device behind the latest critical alert
     const first = ALERTS.find((a) => a.severity === 'Critical') ?? ALERTS[0];
-    this.selectedId = first?.deviceId ?? DEVICES[0].id;
+    this.selectedId = first?.deviceId ?? DEVICES[0]?.id ?? '';
   }
 
   ngAfterViewInit(): void {
@@ -231,15 +231,15 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     return {
       connected: total,
       // change against the previous period only makes sense for the whole fleet
-      connectedChange: this.filtered ? null : Math.round(((total - PREVIOUS.connected) / PREVIOUS.connected) * 1000) / 10,
+      connectedChange: this.filtered || !PREVIOUS?.connected ? null : Math.round(((total - PREVIOUS.connected) / PREVIOUS.connected) * 1000) / 10,
       online,
       onlinePct: pct(online, total),
       alerts: alerts.length,
       critical: alerts.filter((a) => a.severity === 'Critical').length,
       coverage,
-      coverageChange: this.filtered ? null : Math.round((coverage - PREVIOUS.coverage) * 10) / 10,
+      coverageChange: this.filtered || !PREVIOUS ? null : Math.round((coverage - PREVIOUS.coverage) * 10) / 10,
       freshness,
-      freshnessChange: this.filtered ? null : Math.round((freshness - PREVIOUS.freshness) * 10) / 10,
+      freshnessChange: this.filtered || !PREVIOUS ? null : Math.round((freshness - PREVIOUS.freshness) * 10) / 10,
     };
   }
 
@@ -324,7 +324,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   get timeline() {
     const days = EVENT_HISTORY.slice(-Number(this.timelinePeriod));
     // the fleet filter scales the event volume to the share of devices shown
-    const scale = this.devices.length / DEVICES.length;
+    const scale = DEVICES.length ? this.devices.length / DEVICES.length : 0;
     const vals = days.map((d) => ({ date: d.date, telemetry: Math.round(d.telemetry * scale), location: Math.round(d.location * scale), geofence: Math.round(d.geofence * scale), alerts: Math.round(d.alerts * scale) }));
     const visible = SERIES.filter((s) => !this.hiddenSeries.has(s.key));
     const max = Math.max(10, ...vals.flatMap((v) => visible.map((s) => v[s.key])));
@@ -462,6 +462,10 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   private fitToFilter(): void {
     if (!this.map) return;
     const zones = SITES.filter((s) => !this.site || s.name === this.site).flatMap((s) => s.zone);
+    if (!zones.length) {
+      this.map.setView([20, 0], 2);
+      return;
+    }
     this.map.fitBounds(L.latLngBounds(zones), { padding: [16, 16] });
   }
 
@@ -648,7 +652,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   openFirmware(): void {
     const f = this.firmware;
     this.drill = {
-      title: 'Firmware Updates', subtitle: `Latest firmware ${LATEST_FIRMWARE} · ${this.scope}`,
+      title: 'Firmware Updates', subtitle: LATEST_FIRMWARE ? `Latest firmware ${LATEST_FIRMWARE} · ${this.scope}` : this.scope,
       stats: [{ label: 'On latest', value: f.latest, color: '#16a34a' }, { label: 'Update available', value: f.total - f.latest, color: '#dc2626' }, { label: 'Up to date', value: `${f.pct}%` }],
       columns: this.deviceColumns({ key: 'firmware', label: 'Firmware' }, { key: 'latest', label: 'Latest', pill: YES_NO }),
       rows: this.deviceRows([...this.devices].sort((a, b) => Number(a.firmwareLatest) - Number(b.firmwareLatest)), (d) => ({ firmware: d.firmware, latest: d.firmwareLatest ? 'Yes' : 'No' })),

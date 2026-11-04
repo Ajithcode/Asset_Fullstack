@@ -181,7 +181,7 @@ export class RaDetailDialog {
   }
 }
 
-/** "Create work order" / "Create action plan" form (DEMO MODE: nothing is saved). */
+/** "Create work order" / "Create action plan" form (not saved until the Maintenance API is connected). */
 @Component({
   selector: 'ra-action-dialog',
   standalone: true,
@@ -280,7 +280,7 @@ export class RaActionDialog implements OnChanges {
         <p>Save the current filters so you can come back to this view later.</p>
         <div class="field" [class.invalid]="!!error">
           <label for="ra-view-name">View name <span class="req">*</span></label>
-          <input id="ra-view-name" name="name" [(ngModel)]="name" maxlength="60" placeholder="e.g. Dubai HQ – Machinery" />
+          <input id="ra-view-name" name="name" [(ngModel)]="name" maxlength="60" placeholder="e.g. Main site – Machinery" />
           @if (error) { <small>{{ error }}</small> }
         </div>
         <div class="dialog__actions">

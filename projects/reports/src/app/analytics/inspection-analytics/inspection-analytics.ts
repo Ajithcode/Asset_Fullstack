@@ -99,7 +99,6 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
 
   constructor() {
     super();
-    this.updatedMinutes = 4;
     this.apply();
   }
 
@@ -115,11 +114,11 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
     });
     this.view = v;
     this.kpis = [
-      { key: 'total', label: 'Total Inspections', value: v.totalInspections.toLocaleString('en-US'), delta: '+12.5%', up: true, good: true, icon: ClipboardList, tone: 'purple' },
-      { key: 'rate', label: 'Completion Rate', value: percent(v.completionRate), delta: '+3.8%', up: true, good: true, icon: CircleCheck, tone: 'green' },
-      { key: 'open', label: 'Open Findings', value: String(v.findings.length), delta: '-9.4%', up: false, good: true, icon: FileText, tone: 'orange' },
-      { key: 'critical', label: 'Critical Findings', value: String(v.critical), delta: '-20%', up: false, good: true, icon: TriangleAlert, tone: 'red' },
-      { key: 'due', label: 'Corrective Actions Due', value: String(v.actionsDue), delta: '+6.2%', up: true, good: false, icon: Wrench, tone: 'blue' }
+      { key: 'total', label: 'Total Inspections', value: v.totalInspections.toLocaleString('en-US'), delta: '', up: true, good: true, icon: ClipboardList, tone: 'purple' },
+      { key: 'rate', label: 'Completion Rate', value: percent(v.completionRate), delta: '', up: true, good: true, icon: CircleCheck, tone: 'green' },
+      { key: 'open', label: 'Open Findings', value: String(v.findings.length), delta: '', up: false, good: true, icon: FileText, tone: 'orange' },
+      { key: 'critical', label: 'Critical Findings', value: String(v.critical), delta: '', up: false, good: true, icon: TriangleAlert, tone: 'red' },
+      { key: 'due', label: 'Corrective Actions Due', value: String(v.actionsDue), delta: '', up: true, good: false, icon: Wrench, tone: 'blue' }
     ];
     this.buildTrend();
     this.severitySeries = SEVERITIES.map((s) => ({ name: s, values: v.severity[s], color: SEVERITY_COLORS[s] }));
@@ -169,6 +168,11 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
 
   private buildInsights(): void {
     const v = this.view;
+    // Insights are only meaningful once there is inspection data in scope
+    if (!v.findings.length && !v.siteSafety.length) {
+      this.insights = [];
+      return;
+    }
     const recurring = recurringAssets(v.findings);
     const belowSafety = v.siteSafety.filter((s) => s.safety < SAFETY_TARGET);
     const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -228,7 +232,7 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
 
   kpiAction(kpi: KpiTile, action: string): void {
     if (action === 'Export CSV') {
-      downloadCsv(`inspection-${kpi.key}.csv`, ['KPI', 'Value', 'Change vs previous period', 'Period', 'Location'], [[kpi.label, kpi.value, kpi.delta, this.period, this.location]]);
+      downloadCsv(`inspection-${kpi.key}.csv`, ['KPI', 'Value', 'Change vs previous period', 'Period', 'Location'], [[kpi.label, kpi.value, kpi.delta || '—', this.period, this.location]]);
       return;
     }
     const v = this.view;
@@ -261,7 +265,7 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
           { label: 'Already overdue', value: String(v.findings.filter((r) => r.dueInDays < 0).length) }
         ];
     }
-    fields.push({ label: 'Change vs previous period', value: kpi.delta }, { label: 'Period', value: this.period }, { label: 'Location', value: this.location });
+    fields.push({ label: 'Change vs previous period', value: kpi.delta || '—' }, { label: 'Period', value: this.period }, { label: 'Location', value: this.location });
     this.detail = { title: kpi.label, subtitle: kpi.value, fields, finding: null };
   }
 

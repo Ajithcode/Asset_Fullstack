@@ -61,7 +61,7 @@ export interface ShareResult {
 
         <label class="switch idb-share-org">
           <input type="checkbox" [(ngModel)]="organization" />
-          <i></i> Everyone in Purple IQ Group can view
+          <i></i> Everyone in the organization can view
         </label>
 
         <div class="field">

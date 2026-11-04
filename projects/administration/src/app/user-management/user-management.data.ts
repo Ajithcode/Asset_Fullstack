@@ -6,38 +6,18 @@ import { AdminUser, UserRole } from './user-management.model';
 /** The modules shown as access tiles in the user drawer. */
 export const USER_MODULES = ['Dashboard', 'Assets', 'Maintenance', 'Inventory', 'Compliance', 'Reports'];
 
-export const USER_ROLES: UserRole[] = [
-  { name: 'System Administrator', short: 'System Admin', tone: 'pink', modules: USER_MODULES },
-  { name: 'Operations Manager', short: 'Operations Manager', tone: 'purple', modules: ['Dashboard', 'Assets', 'Maintenance', 'Inventory', 'Reports'] },
-  { name: 'Asset Manager', short: 'Asset Manager', tone: 'purple', modules: ['Dashboard', 'Assets', 'Maintenance', 'Reports'] },
-  { name: 'Maintenance Lead', short: 'Maintenance Lead', tone: 'blue', modules: ['Dashboard', 'Assets', 'Maintenance', 'Reports'] },
-  { name: 'Technician', short: 'Technician', tone: 'green', modules: ['Dashboard', 'Maintenance'] },
-  { name: 'Finance Analyst', short: 'Finance Analyst', tone: 'blue', modules: ['Dashboard', 'Assets', 'Reports'] },
-  { name: 'Compliance Officer', short: 'Compliance Officer', tone: 'orange', modules: ['Dashboard', 'Assets', 'Compliance', 'Reports'] },
-  { name: 'Inventory Controller', short: 'Inventory Controller', tone: 'green', modules: ['Dashboard', 'Inventory', 'Reports'] },
-  { name: 'IT Support', short: 'IT Support', tone: 'blue', modules: ['Dashboard', 'Assets'] },
-  { name: 'HR Officer', short: 'HR Officer', tone: 'grey', modules: ['Dashboard', 'Reports'] },
-  { name: 'Procurement Officer', short: 'Procurement Officer', tone: 'orange', modules: ['Dashboard', 'Inventory', 'Reports'] },
-  { name: 'Report Viewer', short: 'Report Viewer', tone: 'grey', modules: ['Dashboard', 'Reports'], secondaryOnly: true },
-  { name: 'Compliance User', short: 'Compliance User', tone: 'orange', modules: ['Dashboard', 'Compliance'], secondaryOnly: true }
-];
+/** Roles offered in the user drawer / invite dialog; loaded from the roles API (empty until wired). */
+export const USER_ROLES: UserRole[] = [];
 
 export const ALL_LOCATIONS = 'All Locations';
 
-export const LOCATION_TIME_ZONES: Record<string, string> = {
-  'Dubai HQ': '(GMT+4) Dubai, UAE',
-  'Abu Dhabi Office': '(GMT+4) Dubai, UAE',
-  'Sharjah Facility': '(GMT+4) Dubai, UAE',
-  'Riyadh Office': '(GMT+3) Riyadh, KSA',
-  'London Office': '(GMT+0) London, UK',
-  'Singapore Office': '(GMT+8) Singapore'
-};
+/** Site -> time zone lookup; comes from the locations API (empty until wired). */
+export const LOCATION_TIME_ZONES: Record<string, string> = {};
 
-export const TIME_ZONES = [...new Set(Object.values(LOCATION_TIME_ZONES))];
+export const TIME_ZONES = ['(GMT+0) London, UK', '(GMT+3) Riyadh, KSA', '(GMT+4) Dubai, UAE', '(GMT+8) Singapore'];
 
-// DEMO MODE: the API has no history of counts, so last month's figures are fixed
-/** Counts at the end of last month, for the "vs last month" trends on the stat cards. */
-export const LAST_MONTH = { total: 221, active: 214, pending: 12, suspended: 9 };
+/** Counts at the end of last month, for the "vs last month" trends on the stat cards (no history API yet). */
+export const LAST_MONTH = { total: 0, active: 0, pending: 0, suspended: 0 };
 
 export function blankUser(): AdminUser {
   return {
@@ -48,8 +28,8 @@ export function blankUser(): AdminUser {
     department: '',
     jobTitle: '',
     phone: '',
-    location: ADMIN_LOCATIONS[0],
-    timeZone: LOCATION_TIME_ZONES[ADMIN_LOCATIONS[0]],
+    location: ADMIN_LOCATIONS[0] ?? '',
+    timeZone: LOCATION_TIME_ZONES[ADMIN_LOCATIONS[0] ?? ''] ?? '',
     photo: null,
     primaryRole: '',
     secondaryRoles: [],

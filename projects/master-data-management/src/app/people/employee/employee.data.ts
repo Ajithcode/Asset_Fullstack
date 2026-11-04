@@ -1,7 +1,6 @@
 import { EmployeeRecord } from './employee.model';
 
 export const NATIONALITIES = ['UAE', 'India', 'Pakistan', 'Philippines', 'Egypt', 'Jordan', 'United Kingdom', 'Spain', 'Brazil', 'Sri Lanka'];
-export const EMPLOYEE_SITES = ['Dubai Factory', 'Abu Dhabi Office', 'Sharjah Warehouse', 'Riyadh Plant', 'Doha Office'];
 
 export function blankEmployee(id: string): EmployeeRecord {
   return {

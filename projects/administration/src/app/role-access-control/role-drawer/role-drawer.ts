@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Info, Lock, LucideAngularModule, X } from 'lucide-angular';
 import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS, avatarTone, initials } from '../../shared/admin-common';
 import { ChipSelect } from '../chip-select/chip-select';
-import { DATA_SCOPES, DataScope, ROLE_TYPES, RoleRecord, SESSION_TIMEOUTS, demoUsers } from '../role-access.data';
+import { DATA_SCOPES, DataScope, ROLE_TYPES, RoleRecord, SESSION_TIMEOUTS } from '../role-access.data';
 import { RoleAccessService } from '../role-access.service';
 
 export type RoleErrors = Partial<Record<'name' | 'code' | 'locations' | 'departments' | 'approvalLimit', string>>;
@@ -53,7 +53,7 @@ export class RoleDrawer implements OnChanges {
   avatars: string[] = [];
 
   ngOnChanges(): void {
-    this.avatars = demoUsers(this.role.id || this.role.name, Math.min(this.role.users, 4));
+    this.avatars = []; // member names come from the users API once wired
   }
 
   get errors(): RoleErrors {

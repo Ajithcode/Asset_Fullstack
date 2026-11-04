@@ -4,7 +4,7 @@ import { LucideAngularModule, Plus, Trash2, X } from 'lucide-angular';
 import { CURRENCIES } from '../../../organization/organization/organization.data';
 import { TRACKING_METHODS, hasRunningNumber, sampleTag } from '../../asset-model/asset-model.data';
 import { MODEL_ICONS, MODEL_ICON_KEYS } from '../../asset-model/asset-model.icons';
-import { ASSET_CLASSES, CUSTOM_FIELD_TYPES, MAINTENANCE_TYPES, SERVICE_PROVIDERS, TYPE_COST_CENTERS, blankAssetType, categoryDefaults } from '../asset-type.data';
+import { ASSET_CLASSES, CUSTOM_FIELD_TYPES, MAINTENANCE_TYPES, blankAssetType } from '../asset-type.data';
 import { AssetTypeRecord } from '../asset-type.model';
 import { AssetTypeService } from '../asset-type.service';
 
@@ -64,8 +64,6 @@ export class TypeForm implements OnChanges {
   readonly classes = ASSET_CLASSES;
   readonly maintenanceTypes = MAINTENANCE_TYPES;
   readonly fieldTypes = CUSTOM_FIELD_TYPES;
-  readonly providers = SERVICE_PROVIDERS;
-  readonly costCenters = TYPE_COST_CENTERS;
   readonly currencies = CURRENCIES;
   readonly trackingMethods = TRACKING_METHODS;
   readonly tabs: { id: TypeFormTab; label: string }[] = [
@@ -103,13 +101,14 @@ export class TypeForm implements OnChanges {
     return this.form.currency.slice(0, 3);
   }
 
-  /** New types pick up the usual cost center and service provider of their category. */
-  onCategoryChange(): void {
-    const d = categoryDefaults(this.form.category);
-    if (!d || this.isEdit) return;
-    if (!this.form.costCenter) this.form.costCenter = d.costCenter;
-    if (!this.form.serviceProvider) this.form.serviceProvider = d.serviceProvider;
-    this.form.capitalizationThreshold = d.threshold;
+  // Cost centers already used on asset types, plus the current value
+  get costCenters(): string[] {
+    return [...new Set([this.form.costCenter, ...this.service.all().map((r) => r.costCenter)].filter(Boolean))];
+  }
+
+  // Service providers already used on asset types, plus the current value
+  get providers(): string[] {
+    return [...new Set([this.form.serviceProvider, ...this.service.all().map((r) => r.serviceProvider)].filter(Boolean))];
   }
 
   // Suggest a tagging format from the code (AT-LAP-001 gives LAP-{YY}-{0000}) until one is typed
@@ -216,7 +215,7 @@ export class TypeForm implements OnChanges {
         taggingFormat: f.taggingFormat.trim(),
         customFields: f.customFields.map((c) => ({ ...c, name: c.name.trim() })),
         createdOn: this.original?.createdOn ?? stamp,
-        createdBy: this.original?.createdBy ?? 'Rex Kumar',
+        createdBy: this.original?.createdBy ?? '',
         updatedOn: stamp
       },
       originalCode: this.original?.code ?? null,

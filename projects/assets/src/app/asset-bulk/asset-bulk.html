@@ -67,8 +67,7 @@
           </div>
           <ng-template #noFile>
             <div class="file-chip file-chip--empty">
-              <span class="grow">{{ lastImport ? 'Last imported: ' + lastImport : 'No file selected' }}
-                <button type="button" class="link-btn" (click)="useSample()">Try with sample data</button></span>
+              <span class="grow">{{ lastImport ? 'Last imported: ' + lastImport : 'No file selected' }}</span>
             </div>
           </ng-template>
         </div>
@@ -283,6 +282,7 @@
               <td><span class="map-status" [ngClass]="h.status === 'Completed' ? 'map--mapped' : 'map--failed'"><span class="dot"></span>{{ h.status }}</span></td>
               <td class="nowrap">{{ h.at | date: 'dd MMM yyyy HH:mm' }}</td><td class="nowrap">{{ h.by }}</td>
             </tr>
+            <tr *ngIf="!history.length"><td colspan="6" class="empty-line">No records found.</td></tr>
           </tbody>
         </table>
       </div>
@@ -303,6 +303,7 @@
             <td><span class="map-status" [ngClass]="h.status === 'Completed' ? 'map--mapped' : 'map--failed'"><span class="dot"></span>{{ h.status }}</span></td>
             <td class="nowrap">{{ h.at | date: 'dd MMM yyyy HH:mm' }}</td><td>{{ h.by }}</td>
           </tr>
+          <tr *ngIf="!history.length"><td colspan="6" class="empty-line">No records found.</td></tr>
         </tbody>
       </table>
     </div>

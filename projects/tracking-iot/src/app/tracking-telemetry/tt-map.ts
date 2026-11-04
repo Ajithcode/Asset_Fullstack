@@ -9,18 +9,9 @@ type LngLat = [number, number];
 export interface MapLayers { assets: boolean; devices: boolean; gateways: boolean; geofences: boolean }
 export interface MapPosition { id: string; lat: number; lng: number }
 
-interface Mover {
-  id: string;
-  marker: Leaflet.Marker;
-  label: Leaflet.Marker;
-  path: Leaflet.LatLng[];
-  /** cumulative metres at each vertex */
-  cum: number[];
-  total: number;
-  speed: number;
-  dist: number;
-  last: number;
-}
+/** Neutral view used until site geometry is loaded. */
+const DEFAULT_CENTER: [number, number] = [20, 0];
+const DEFAULT_ZOOM = 2;
 
 const TILES = {
   sat: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', opts: { maxNativeZoom: 19, maxZoom: 20, attribution: 'Imagery &copy; Esri, Maxar' } },
@@ -41,9 +32,8 @@ const SVG = Object.fromEntries(Object.entries(ICON_DATA).map(([k, v]) => [k, svg
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 /**
- * Leaflet campus map for Tracking & Telemetry. Everything drawn comes from campus.geo.json: building footprints,
- * geofences, internal roads, gateways, asset / device positions and the forklift's patrol route (animated).
- * Runs outside Angular and reports back through outputs.
+ * Leaflet site map for Tracking & Telemetry. Everything drawn comes from CAMPUS_GEO: building footprints,
+ * geofences, internal roads, gateways and asset / device positions. Runs outside Angular and reports back through outputs.
  */
 @Component({
   selector: 'app-tt-map',
@@ -73,9 +63,6 @@ export class TtMap implements AfterViewInit, OnChanges, OnDestroy {
   private markers = new Map<string, Leaflet.Marker>();
   private labels = new Map<string, Leaflet.Marker>();
   private buildings = new Map<string, Leaflet.Polygon>();
-  private movers: Mover[] = [];
-  private frame = 0;
-  private lastEmit = 0;
   private resize?: ResizeObserver;
   private destroyed = false;
 
@@ -101,7 +88,6 @@ export class TtMap implements AfterViewInit, OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyed = true;
-    cancelAnimationFrame(this.frame);
     this.resize?.disconnect();
     this.map?.remove();
   }
@@ -123,7 +109,11 @@ export class TtMap implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   fitCampus(animate: boolean): void {
-    if (!this.map || !this.campusBounds) return;
+    if (!this.map) return;
+    if (!this.campusBounds) {
+      if (!animate) this.map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+      return;
+    }
     this.map.flyToBounds(this.campusBounds, { padding: [18, 18], duration: animate ? 0.8 : 0, animate });
   }
 
@@ -141,7 +131,7 @@ export class TtMap implements AfterViewInit, OnChanges, OnDestroy {
 
   private init(L: L): void {
     const el = this.host.nativeElement;
-    const map = L.map(el, { zoomControl: false, attributionControl: true, zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 90, maxZoom: 20, minZoom: 14, fadeAnimation: true, zoomAnimation: true });
+    const map = L.map(el, { zoomControl: false, attributionControl: true, zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 90, maxZoom: 20, minZoom: 2, fadeAnimation: true, zoomAnimation: true });
     this.map = map;
     map.attributionControl.setPrefix('');
     L.control.scale({ position: 'bottomleft', imperial: false, maxWidth: 110 }).addTo(map);
@@ -155,11 +145,6 @@ export class TtMap implements AfterViewInit, OnChanges, OnDestroy {
     // the drawing tools own map clicks while they draw / place (container gets md-busy)
     map.on('click', () => !el.classList.contains('md-busy') && this.zone.run(() => this.select.emit('')));
     this.zone.run(() => this.ready.emit(map));
-    const tick = (t: number) => {
-      this.animate(t);
-      this.frame = requestAnimationFrame(tick);
-    };
-    this.frame = requestAnimationFrame(tick);
   }
 
   /** Cross-fades the base tiles when switching map / satellite. */
@@ -243,17 +228,6 @@ export class TtMap implements AfterViewInit, OnChanges, OnDestroy {
         }
       }
     }
-    // patrol routes: the forklift drives its loop inside Warehouse Zone B
-    for (const f of feats.filter((x) => x.properties.kind === 'route')) {
-      const id = String(f.properties['asset']);
-      const marker = this.markers.get(id);
-      const label = this.labels.get(id);
-      if (!marker || !label) continue;
-      const path = (f.geometry.coordinates as LngLat[]).map(([lng, lat]) => L.latLng(lat, lng));
-      const cum = [0];
-      for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + path[i - 1].distanceTo(path[i]));
-      this.movers.push({ id, marker, label, path, cum, total: cum[cum.length - 1], speed: Number(f.properties['speedMps']) || 1.5, dist: 0, last: 0 });
-    }
   }
 
   private tipFor(id: string, building: string): string {
@@ -302,26 +276,5 @@ export class TtMap implements AfterViewInit, OnChanges, OnDestroy {
     set(this.groups.devices, this.layers.devices);
     set(this.groups.gateways, this.layers.gateways);
     set(this.groups.geofences, this.layers.geofences);
-  }
-
-  private animate(t: number): void {
-    for (const mv of this.movers) {
-      const dt = mv.last ? Math.min(0.1, (t - mv.last) / 1000) : 0;
-      mv.last = t;
-      mv.dist = (mv.dist + mv.speed * dt) % mv.total;
-      let i = 1;
-      while (i < mv.cum.length - 1 && mv.cum[i] < mv.dist) i++;
-      const a = mv.path[i - 1];
-      const b = mv.path[i];
-      const seg = mv.cum[i] - mv.cum[i - 1] || 1;
-      const k = (mv.dist - mv.cum[i - 1]) / seg;
-      const pos = this.L!.latLng(a.lat + (b.lat - a.lat) * k, a.lng + (b.lng - a.lng) * k);
-      mv.marker.setLatLng(pos);
-      mv.label.setLatLng(pos);
-      if (t - this.lastEmit > 1000) {
-        this.lastEmit = t;
-        this.zone.run(() => this.moved.emit({ id: mv.id, lat: pos.lat, lng: pos.lng }));
-      }
-    }
   }
 }

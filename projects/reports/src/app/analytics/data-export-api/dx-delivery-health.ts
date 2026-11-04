@@ -25,6 +25,7 @@ import { DataExportService } from './data-export-api.service';
       <div class="dx-health-grid">
         <div>
           <h3 class="dx-h3">Export Run Success Rate</h3>
+          @if (labels.length) {
           <ra-cartesian-chart
             [labels]="labels"
             [series]="runSeries"
@@ -37,9 +38,13 @@ import { DataExportService } from './data-export-api.service';
             yTitle="Number of runs"
             ariaLabel="Export runs per day with success rate"
           ></ra-cartesian-chart>
+          } @else {
+          <p class="empty">No data</p>
+          }
         </div>
         <div>
           <h3 class="dx-h3">API Request Volume</h3>
+          @if (labels.length) {
           <ra-cartesian-chart
             [labels]="labels"
             [series]="apiSeries"
@@ -47,6 +52,9 @@ import { DataExportService } from './data-export-api.service';
             [height]="210"
             ariaLabel="Reporting API requests per day"
           ></ra-cartesian-chart>
+          } @else {
+          <p class="empty">No data</p>
+          }
         </div>
       </div>
     </section>

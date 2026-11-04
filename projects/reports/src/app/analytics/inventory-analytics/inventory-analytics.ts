@@ -14,7 +14,8 @@ import {
   RaWidget, fmtInt, previousSeries, siteInScope, sumOf
 } from './parts';
 
-const KPI_DELTAS = { value: 7.6, items: 3.1, turnover: 9.2, belowReorder: -14, accuracy: 1.8 };
+/** Change vs the previous period comes from the inventory API; 0 until it is wired */
+const KPI_DELTAS = { value: 0, items: 0, turnover: 0, belowReorder: 0, accuracy: 0 };
 const UTIL_LIMIT = 90;
 
 /** Reports & Analytics > Inventory Analytics */
@@ -56,7 +57,6 @@ export class InventoryAnalyticsPage extends RaDashboardPage implements OnInit {
   readonly pct = (v: number) => `${Math.round(v)}%`;
 
   ngOnInit(): void {
-    this.updatedMinutes = 6;
     this.apply();
   }
 
@@ -130,6 +130,8 @@ export class InventoryAnalyticsPage extends RaDashboardPage implements OnInit {
 
   private buildInsights(v: InventoryView): void {
     const list: InsightCard[] = [];
+    this.insights = list;
+    if (!v.hasScope) return;
     const n = v.belowReorder;
     list.push(
       n

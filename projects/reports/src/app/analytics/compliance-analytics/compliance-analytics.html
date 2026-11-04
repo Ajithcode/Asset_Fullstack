@@ -130,6 +130,8 @@
           <button type="button" class="btn btn--sm btn--primary" (click)="insightAction(ins, ins.secondary.action)">{{ ins.secondary.label }}</button>
         </div>
       </article>
+    } @empty {
+      <div class="empty">No insights for the current filters.</div>
     }
   </aside>
 </div>

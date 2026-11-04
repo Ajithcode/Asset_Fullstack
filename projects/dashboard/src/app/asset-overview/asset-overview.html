@@ -145,7 +145,8 @@
       <table *ngIf="showAllSites" class="io-table">
         <thead><tr><th>Site</th><th class="num">Assets</th><th class="num">Healthy</th></tr></thead>
         <tbody><tr *ngFor="let s of siteStats" (click)="openSite(s.site.name)" [class.is-selected]="site === s.site.name" class="ao-click">
-          <td>{{ s.site.name }}</td><td class="num">{{ s.total | number }}</td><td class="num">{{ s.healthyPct }}%</td></tr></tbody>
+          <td>{{ s.site.name }}</td><td class="num">{{ s.total | number }}</td><td class="num">{{ s.healthyPct }}%</td></tr>
+          <tr *ngIf="!siteStats.length"><td colspan="3" class="io-empty">No sites yet.</td></tr></tbody>
       </table>
     </section>
 

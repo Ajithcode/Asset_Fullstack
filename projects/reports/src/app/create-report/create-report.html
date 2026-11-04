@@ -25,6 +25,7 @@
       </div>
 
       <ng-container *ngTemplateOutlet="treeList; context: { nodes: treeNodes, depth: 0 }"></ng-container>
+      <p class="cr-tree-empty" *ngIf="!treeNodes.length">No locations found</p>
 
       <ng-template #treeList let-nodes="nodes" let-depth="depth">
         <ul class="cr-tree" [style.--depth]="depth">

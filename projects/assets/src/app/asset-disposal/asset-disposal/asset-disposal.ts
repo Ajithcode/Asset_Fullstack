@@ -122,7 +122,6 @@ interface WorkflowStep {
 /** Fallback lists until GET /api/asset-disposals/options answers. */
 export const DISPOSAL_METHODS: DisposalMethod[] = ['Recycle', 'Scrap', 'Return to Vendor', 'Donate', 'Sell / Auction'];
 const DISPOSAL_STATUSES: DisposalStatus[] = ['Draft', 'Pending', 'Approved', 'Completed', 'Rejected', 'Cancelled'];
-export const CATEGORIES = ['IT Equipment', 'Networking', 'Furniture', 'HVAC', 'Audio Visual', 'Electrical', 'Vehicles', 'Tools'];
 export const REASONS = ['End of Life', 'Damaged Beyond Repair', 'Obsolete', 'Uneconomical to Repair', 'Lost / Stolen', 'Surplus / Not Required', 'Other'];
 
 /** Local "YYYY-MM-DDTHH:mm", the format the requested date is kept in. */

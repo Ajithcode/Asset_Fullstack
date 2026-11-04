@@ -137,6 +137,7 @@
                     </button>
                   </td>
                 </tr>
+                <tr *ngIf="!filtered.length"><td [attr.colspan]="weekDays.length + 1" class="empty">No resources match the filters.</td></tr>
               </tbody>
             </table>
           </div>
@@ -164,6 +165,7 @@
                     <button type="button" class="link-btn link-btn--danger" (click)="releaseBooking(a.r, a.b)">Release</button>
                   </td>
                 </tr>
+                <tr *ngIf="!assignments.length"><td colspan="7" class="empty">No job assignments.</td></tr>
               </tbody>
             </table>
           </div>
@@ -186,6 +188,7 @@
                     <span *ngIf="!r.certifications.length" class="muted">None recorded</span>
                   </td>
                 </tr>
+                <tr *ngIf="!certified.length"><td colspan="4" class="empty">No resources.</td></tr>
               </tbody>
             </table>
           </div>
@@ -210,6 +213,7 @@
                   <td>{{ r.name }}</td><td>{{ r.type }}</td><td class="nowrap">{{ r.capacity }}</td><td>{{ r.calendar }}</td>
                   <td><span class="util"><span class="bar"><span class="bar-fill" [ngClass]="'bar--' + utilTone(r.utilization)" [style.width.%]="r.utilization"></span></span>{{ r.utilization }}%</span></td>
                 </tr>
+                <tr *ngIf="!byUtilization.length"><td colspan="5" class="empty">No resources.</td></tr>
               </tbody>
             </table>
           </div>
