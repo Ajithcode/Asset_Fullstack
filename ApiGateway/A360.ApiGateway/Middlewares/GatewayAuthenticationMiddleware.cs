@@ -32,6 +32,7 @@ public sealed class GatewayAuthenticationMiddleware
     {
         if (HttpMethods.IsOptions(context.Request.Method)
             || IsPublicPath(context.Request.Path)
+            || IsUploadedFile(context.Request)
             || context.User.Identity?.IsAuthenticated == true)
         {
             await _next(context);
@@ -39,6 +40,14 @@ public sealed class GatewayAuthenticationMiddleware
         }
 
         await context.ChallengeAsync(JwtBearerDefaults.AuthenticationScheme);
+    }
+
+    // Files saved by the Media service (random file names under /uploads/<category>/) are read by <img> / download
+    // links, which can't send a bearer token. Only reading is public; uploading still needs a signed-in user.
+    private static bool IsUploadedFile(HttpRequest request)
+    {
+        return (HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method))
+            && request.Path.StartsWithSegments("/uploads", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsPublicPath(PathString path)

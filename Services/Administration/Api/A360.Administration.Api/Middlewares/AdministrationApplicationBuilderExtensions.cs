@@ -29,6 +29,7 @@ public static class AdministrationApplicationBuilderExtensions
         app.MapSystemConfigurationEndpoints();
         app.MapIntegrationEndpoints();
         app.MapDataImportJobEndpoints();
+        app.MapMapEndpoints();
 
         return app;
     }
