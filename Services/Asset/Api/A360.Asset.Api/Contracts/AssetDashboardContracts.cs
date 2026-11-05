@@ -61,7 +61,25 @@ public sealed record AssetDashboardKpisResponse(
     AssetDashboardKpi OnlineNow,
     AssetDashboardKpi Alerts,
     AssetDashboardKpi Coverage,
-    AssetDashboardKpi DataFreshness);
+    AssetDashboardKpi DataFreshness,
+    IReadOnlyList<ConnectedAssetDetail> ConnectedAssetDetails);
+
+/// <summary>A registered asset whose asset tag reports in NetworkTimeSeries (meta.tagid).</summary>
+/// <param name="AssetStatus">The asset's registration status (basic_information.status).</param>
+/// <param name="NetworkStatus">Status of the tag's newest network reading, e.g. "online" or "offline".</param>
+/// <param name="ReadingCount">How many network readings the tag has.</param>
+public sealed record ConnectedAssetDetail(
+    string AssetRegistrationId,
+    string? AssetTag,
+    string? AssetName,
+    string? AssetType,
+    string? SiteName,
+    string? AssetStatus,
+    string? NetworkStatus,
+    string? GatewayId,
+    DateTime? FirstSeenAt,
+    DateTime? LastSeenAt,
+    long ReadingCount);
 
 // ---- 6: Real-time Asset Location ----
 

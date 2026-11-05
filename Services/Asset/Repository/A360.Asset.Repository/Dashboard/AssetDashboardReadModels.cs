@@ -114,3 +114,14 @@ public sealed class DashboardUtilization
 
 /// <summary>One bucket of a per-day count: the UTC day (yyyy-MM-dd), an optional group key and the number of records.</summary>
 public sealed record DashboardDailyCount(string Date, string? Key, int Count);
+
+/// <summary>One tag in NetworkTimeSeries, summarised over all of its readings.</summary>
+/// <param name="LastStatus">Status of the newest reading, lower-cased (e.g. "online", "offline").</param>
+/// <param name="LastGatewayId">Gateway of the newest reading (meta.gatewayid).</param>
+public sealed record NetworkTagSummary(
+    string TagId,
+    DateTime? FirstSeenAt,
+    DateTime? LastSeenAt,
+    string? LastStatus,
+    string? LastGatewayId,
+    long ReadingCount);

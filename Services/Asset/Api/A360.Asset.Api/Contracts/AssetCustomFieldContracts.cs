@@ -55,6 +55,17 @@ public static class BuiltInAssetFields
     public static bool Contains(string fieldName) => All.Any(field => field.FieldName == fieldName);
 }
 
+/// <summary>A field name entry for pickers.</summary>
+/// <param name="Id">The custom field's id; null for standard asset fields.</param>
+/// <param name="Source">"BuiltIn" for standard asset fields, otherwise the custom field's scope.</param>
+public sealed record AssetFieldNameResponse(
+    string? Id,
+    string FieldName,
+    string DisplayLabel,
+    string FieldType,
+    string Source,
+    string? Status);
+
 public sealed record CustomFieldPartDto(string? Key, string? Label, string? Unit);
 
 /// <summary>Used for both create and update. The field type cannot change after the field is created.</summary>

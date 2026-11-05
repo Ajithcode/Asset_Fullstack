@@ -42,7 +42,7 @@ public static class AssetDashboardEndpoints
     }
 
     /// <summary>
-    /// 1 Connected Assets (assets with a device), 2 Online Now, 3 Alerts in the period, 4 Coverage (% of connected assets
+    /// 1 Connected Assets (registered assets whose asset tag reports in NetworkTimeSeries as meta.tagid), 2 Online Now, 3 Alerts in the period, 4 Coverage (% of connected assets
     /// with a location event in the last 24 h), 5 Data Freshness (% of reporting devices seen within the SLA of 60 min).
     /// </summary>
     private static async Task<IResult> GetKpisAsync(IAssetDashboardRepository repository, CancellationToken cancellationToken, int? days = null)
@@ -58,9 +58,27 @@ public static class AssetDashboardEndpoints
         var assetIds = assets.Select(asset => asset.AssetRegistrationId).ToList();
         var devices = await repository.GetDevicesAsync(assetIds, cancellationToken);
 
-        // 1. Connected assets now vs. those already connected when the period started.
-        var connected = DistinctAssets(devices);
-        var connectedBefore = DistinctAssets(devices.Where(device => device.CreatedAt < period.FromUtc));
+        // 1. Connected assets: the asset tag (basic_information.asset_tag) matches a tag id in NetworkTimeSeries.
+        //    Compared with those whose tag had already reported when the period started.
+        var networkTags = await repository.GetNetworkTagsAsync(cancellationToken);
+        var connectedAssets = assets
+            .Where(asset => !string.IsNullOrWhiteSpace(asset.AssetTag) && networkTags.ContainsKey(asset.AssetTag.Trim()))
+            .ToList();
+        var connected = connectedAssets.Select(asset => asset.AssetRegistrationId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var connectedBefore = connectedAssets.Count(asset => networkTags[asset.AssetTag!.Trim()].FirstSeenAt < period.FromUtc);
+        var connectedDetails = connectedAssets
+            .Select(asset =>
+            {
+                var tag = networkTags[asset.AssetTag!.Trim()];
+                return new ConnectedAssetDetail(asset.AssetRegistrationId, asset.AssetTag, asset.AssetName, asset.AssetType, asset.SiteName,
+                    asset.Status, tag.LastStatus, tag.LastGatewayId, tag.FirstSeenAt, tag.LastSeenAt, tag.ReadingCount);
+            })
+            .OrderByDescending(detail => detail.LastSeenAt)
+            .ThenBy(detail => detail.AssetName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // Assets with a tracking device, as before; Online Now and Coverage are measured against these, unchanged.
+        var withDevice = DistinctAssets(devices);
 
         // 2. Online now.
         var statuses = DeviceStatusByAsset(devices);
@@ -71,13 +89,13 @@ public static class AssetDashboardEndpoints
         var alertsNow = alerts.Count(alert => alert.RaisedAt >= period.FromUtc);
         var alertsBefore = alerts.Count - alertsNow;
 
-        // 4. Coverage: connected assets located in the last 24 h vs. the 24 h before.
-        var keyToAsset = AssetKeys(assets.Where(asset => connected.Contains(asset.AssetRegistrationId)));
+        // 4. Coverage: assets with a device located in the last 24 h vs. the 24 h before.
+        var keyToAsset = AssetKeys(assets.Where(asset => withDevice.Contains(asset.AssetRegistrationId)));
         var events = await repository.GetLocationEventsAsync(keyToAsset.Keys.ToList(), now.AddDays(-2), cancellationToken);
         var locatedLastDay = LocatedAssets(events.Where(locationEvent => locationEvent.EventTime >= now.AddDays(-1)), keyToAsset);
         var locatedDayBefore = LocatedAssets(events.Where(locationEvent => locationEvent.EventTime < now.AddDays(-1)), keyToAsset);
-        var coverage = DashboardMath.Percent(locatedLastDay, connected.Count);
-        var coverageBefore = DashboardMath.Percent(locatedDayBefore, connected.Count);
+        var coverage = DashboardMath.Percent(locatedLastDay, withDevice.Count);
+        var coverageBefore = DashboardMath.Percent(locatedDayBefore, withDevice.Count);
 
         // 5. Data freshness: of the devices that have ever reported, how many reported within the SLA.
         var reporting = devices.Where(device => device.LastSeenAt is not null).ToList();
@@ -89,13 +107,14 @@ public static class AssetDashboardEndpoints
             period.ToUtc,
             assets.Count,
             new AssetDashboardKpi(connected.Count, DashboardMath.Percent(connected.Count, assets.Count),
-                DashboardMath.Change(connected.Count, connectedBefore.Count), $"of {assets.Count} registered assets"),
-            new AssetDashboardKpi(online, DashboardMath.Percent(online, connected.Count), null, "of connected assets"),
+                DashboardMath.Change(connected.Count, connectedBefore), $"of {assets.Count} registered assets"),
+            new AssetDashboardKpi(online, DashboardMath.Percent(online, withDevice.Count), null, "of connected assets"),
             new AssetDashboardKpi(alertsNow, null, DashboardMath.Change(alertsNow, alertsBefore), $"in last {period.Days} days"),
             new AssetDashboardKpi(coverage, coverage, coverage == 0 && coverageBefore == 0 ? null : Math.Round(coverage - coverageBefore, 1),
                 "assets located within the last day (change in percentage points)"),
             new AssetDashboardKpi(DashboardMath.Percent(fresh, reporting.Count), DashboardMath.Percent(fresh, reporting.Count), null,
-                $"{fresh} of {reporting.Count} reporting devices updated within {DataFreshnessSlaMinutes} min (SLA)")));
+                $"{fresh} of {reporting.Count} reporting devices updated within {DataFreshnessSlaMinutes} min (SLA)"),
+            connectedDetails));
     }
 
     /// <summary>6. Map pins, legend counts and the "Top Active Sites" panel; <paramref name="top"/> = 0 returns every site (View All).</summary>

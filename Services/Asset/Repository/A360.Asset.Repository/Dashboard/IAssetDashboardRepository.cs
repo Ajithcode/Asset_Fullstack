@@ -9,6 +9,12 @@ public interface IAssetDashboardRepository
     /// <summary>Every registered (not deleted) asset.</summary>
     Task<IReadOnlyList<DashboardAsset>> GetAssetsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Every tag id that has reported to the network (NetworkTimeSeries meta.tagid), keyed case-insensitively,
+    /// with its first and last reading, latest status and gateway.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, NetworkTagSummary>> GetNetworkTagsAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Devices assigned to one of <paramref name="assetRegistrationIds"/>.</summary>
     Task<IReadOnlyList<DashboardDevice>> GetDevicesAsync(IReadOnlyCollection<string> assetRegistrationIds, CancellationToken cancellationToken = default);
 

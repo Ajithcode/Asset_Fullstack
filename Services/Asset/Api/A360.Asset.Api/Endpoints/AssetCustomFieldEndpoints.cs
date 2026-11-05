@@ -21,6 +21,7 @@ public static class AssetCustomFieldEndpoints
         var group = routes.MapGroup("/api/asset-custom-fields").WithTags("Asset Custom Fields");
 
         group.MapGet("", GetFieldsAsync).WithName("GetAssetCustomFields");
+        group.MapGet("/names", GetFieldNamesAsync).WithName("GetAssetCustomFieldNames");
         group.MapGet("/export", ExportFieldsAsync).WithName("ExportAssetCustomFields");
         group.MapPost("/import", ImportFieldsAsync).WithName("ImportAssetCustomFields");
         group.MapGet("/{id}", GetFieldByIdAsync).WithName("GetAssetCustomFieldById");
@@ -74,6 +75,46 @@ public static class AssetCustomFieldEndpoints
             filtered.Count,
             page,
             pageSize));
+    }
+
+    /// <summary>
+    /// Every field name, unpaged, for dropdowns and pickers: the standard asset fields first, then custom fields.
+    /// </summary>
+    /// <param name="scope">Asset, Component or Category; omitted lists all scopes.</param>
+    /// <param name="status">Active or Inactive; omitted lists both.</param>
+    /// <param name="includeBuiltIn">Whether to include the standard asset fields (asset_name, asset_tag, ...). Ignored for the Component scope.</param>
+    private static async Task<IResult> GetFieldNamesAsync(
+        IAssetCustomFieldRepository repository,
+        CancellationToken cancellationToken,
+        string? scope = null,
+        string? status = null,
+        bool includeBuiltIn = true)
+    {
+        var listedScope = CustomFieldScopes.Normalize(scope);
+        if (!string.IsNullOrWhiteSpace(scope) && listedScope is null)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["scope"] = [$"Scope must be one of: {string.Join(", ", CustomFieldScopes.All)}"]
+            });
+        }
+
+        var scopes = listedScope is not null ? [listedScope] : CustomFieldScopes.All.ToList();
+        var fields = WhereEquals(await repository.GetByScopesAsync(scopes, cancellationToken), field => field.Status, status);
+
+        var builtIn = includeBuiltIn && listedScope != CustomFieldScopes.Component
+                      && (string.IsNullOrWhiteSpace(status) || string.Equals(status.Trim(), ActiveInactiveStatuses.Active, StringComparison.OrdinalIgnoreCase))
+            ? BuiltInAssetFields.All.Select(field => new AssetFieldNameResponse(
+                null, field.FieldName, field.DisplayLabel, field.FieldType, AvailableLayoutFieldResponse.BuiltIn, ActiveInactiveStatuses.Active))
+            : [];
+
+        var custom = fields
+            .OrderBy(field => field.Scope)
+            .ThenBy(field => field.DisplayOrder)
+            .ThenBy(field => field.FieldName, StringComparer.Ordinal)
+            .Select(field => new AssetFieldNameResponse(field.Id, field.FieldName, field.DisplayLabel, field.FieldType, field.Scope, field.Status));
+
+        return Results.Ok(builtIn.Concat(custom).ToList());
     }
 
     private static async Task<IResult> GetFieldByIdAsync(

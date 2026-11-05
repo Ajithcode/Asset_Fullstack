@@ -17,6 +17,9 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
     private const string AssetUtilizationCollection = "AssetUtilization";
     private const string TelemetryReadingCollection = "TelemetryReading";
 
+    // Device readings written by the network server; each reading names its tag in meta.tagid.
+    private const string NetworkTimeSeriesCollection = "NetworkTimeSeries";
+
     // Ids and tags are matched ignoring case, as everywhere else in the services.
     private static readonly Collation CaseInsensitive = new("en", strength: CollationStrength.Secondary);
 
@@ -56,6 +59,63 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
                 asset.LocationAssignment?.Location?.Latitude,
                 asset.LocationAssignment?.Location?.Longitude))
             .ToList();
+    }
+
+    public async Task<IReadOnlyDictionary<string, NetworkTagSummary>> GetNetworkTagsAsync(CancellationToken cancellationToken = default)
+    {
+        // Grouped in Mongo so only one row per tag comes back, however many readings there are.
+        var newestFirst = new BsonDocument("timestamp", -1);
+        var rows = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
+            .Aggregate()
+            .Match(Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Exists("meta.tagid"),
+                Builders<BsonDocument>.Filter.Ne("meta.tagid", BsonNull.Value)))
+            .Group(new BsonDocument
+            {
+                { "_id", "$meta.tagid" },
+                { "firstSeen", new BsonDocument("$min", "$timestamp") },
+                { "lastSeen", new BsonDocument("$max", "$timestamp") },
+                { "lastStatus", new BsonDocument("$top", new BsonDocument { { "sortBy", newestFirst }, { "output", "$status" } }) },
+                { "lastGateway", new BsonDocument("$top", new BsonDocument { { "sortBy", newestFirst }, { "output", "$meta.gatewayid" } }) },
+                { "readings", new BsonDocument("$sum", 1) }
+            })
+            .ToListAsync(cancellationToken);
+
+        // Tags differing only in case or spacing are one tag; their readings are combined.
+        var tags = new Dictionary<string, NetworkTagSummary>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            var tagId = row["_id"].ToString()?.Trim();
+            if (string.IsNullOrEmpty(tagId))
+            {
+                continue;
+            }
+
+            var summary = new NetworkTagSummary(
+                tagId,
+                DateOrNull(row, "firstSeen"),
+                DateOrNull(row, "lastSeen"),
+                TextOrNull(row, "lastStatus")?.ToLowerInvariant(),
+                TextOrNull(row, "lastGateway"),
+                row["readings"].ToInt64());
+
+            tags[tagId] = tags.TryGetValue(tagId, out var existing) ? Combine(existing, summary) : summary;
+        }
+
+        return tags;
+
+        static DateTime? DateOrNull(BsonDocument row, string name) =>
+            row.TryGetValue(name, out var value) && value.IsValidDateTime ? value.ToUniversalTime() : null;
+
+        static string? TextOrNull(BsonDocument row, string name) =>
+            row.TryGetValue(name, out var value) && !value.IsBsonNull ? value.ToString()?.Trim() : null;
+
+        static NetworkTagSummary Combine(NetworkTagSummary a, NetworkTagSummary b)
+        {
+            var newest = (b.LastSeenAt ?? DateTime.MinValue) > (a.LastSeenAt ?? DateTime.MinValue) ? b : a;
+            DateTime? first = a.FirstSeenAt is null ? b.FirstSeenAt : b.FirstSeenAt is null ? a.FirstSeenAt : a.FirstSeenAt < b.FirstSeenAt ? a.FirstSeenAt : b.FirstSeenAt;
+            return newest with { FirstSeenAt = first, ReadingCount = a.ReadingCount + b.ReadingCount };
+        }
     }
 
     public Task<IReadOnlyList<DashboardDevice>> GetDevicesAsync(IReadOnlyCollection<string> assetRegistrationIds, CancellationToken cancellationToken = default)
