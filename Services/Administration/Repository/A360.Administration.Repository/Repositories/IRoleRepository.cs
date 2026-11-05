@@ -16,5 +16,9 @@ public interface IRoleRepository : IMongoRepository<Role>
         string? status,
         CancellationToken cancellationToken = default);
 
-    Task<bool> RoleCodeExistsAsync(string roleCode, string? tenantId, CancellationToken cancellationToken = default);
+    /// <param name="exceptRoleId">Role being edited, left out of the check.</param>
+    Task<bool> RoleCodeExistsAsync(string roleCode, string? tenantId, CancellationToken cancellationToken = default, string? exceptRoleId = null);
+
+    /// <summary>Roles (not deleted) with any of the given names, case-insensitive; tenant filter applies when given.</summary>
+    Task<IReadOnlyCollection<Role>> GetByNamesAsync(IReadOnlyCollection<string> roleNames, string? tenantId, CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using A360.Administration.Api.Accounts;
 using A360.Administration.Api.Security;
 using A360.Administration.Repository.Repositories;
 using A360.Repository.Activity;
@@ -47,6 +48,13 @@ public static class AdministrationServiceCollectionExtensions
         services.AddScoped<UserRepository>();
         services.AddScoped<IUserRepository>(serviceProvider => serviceProvider.GetRequiredService<UserRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<UserRepository>());
+
+        // Sign-in accounts for User Management users live in the UserAccount service (same host in the container)
+        services.AddHttpClient<LoginAccountClient>(client =>
+        {
+            client.BaseAddress = new Uri(configuration["Services:UserAccountUrl"] ?? "http://localhost:5018/");
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
 
         services.AddScoped<RoleRepository>();
         services.AddScoped<IRoleRepository>(serviceProvider => serviceProvider.GetRequiredService<RoleRepository>());

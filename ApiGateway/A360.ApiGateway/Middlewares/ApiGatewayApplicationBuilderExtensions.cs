@@ -135,7 +135,15 @@ public static class ApiGatewayApplicationBuilderExtensions
             .WithName("GatewayDownstreamSwagger")
             .WithTags("Gateway");
 
-        app.MapReverseProxy();
+        app.MapReverseProxy(proxy =>
+        {
+            // Role-based access: creates, edits and deletes need the matching permission on the module
+            proxy.UseMiddleware<ModulePermissionMiddleware>();
+            // YARP's default steps, kept when the pipeline is customised
+            proxy.UseSessionAffinity();
+            proxy.UseLoadBalancing();
+            proxy.UsePassiveHealthChecks();
+        });
 
         return app;
     }

@@ -60,4 +60,8 @@ public sealed class User : BaseEntity
 
     [BsonElement("last_login_at")]
     public DateTime? LastLoginAt { get; set; }
+
+    // Id of the sign-in account in the UserAccount service; the password lives there (hashed), never here.
+    [BsonElement("login_account_id")]
+    public string? LoginAccountId { get; set; }
 }

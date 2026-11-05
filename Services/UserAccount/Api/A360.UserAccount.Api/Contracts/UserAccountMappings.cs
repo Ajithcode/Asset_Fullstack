@@ -41,7 +41,11 @@ internal static class UserAccountMappings
         user.ShortName = Clean(request.ShortName);
         user.ContactNo = Clean(request.ContactNo);
         user.Email = Clean(request.Email);
-        user.LoginPassword = passwordHashingService.Hash(Clean(request.LoginPassword));
+        // A blank password keeps the current hash
+        if (!string.IsNullOrWhiteSpace(request.LoginPassword))
+        {
+            user.LoginPassword = passwordHashingService.Hash(Clean(request.LoginPassword));
+        }
         user.ActiveDirectoryUserName = Clean(request.ActiveDirectoryUserName);
         user.UserRoleId = Clean(request.UserRoleId);
         user.UpdatedBy = request.UpdatedBy;

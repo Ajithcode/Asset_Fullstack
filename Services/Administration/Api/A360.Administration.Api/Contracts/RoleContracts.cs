@@ -10,7 +10,18 @@ public sealed record CreateRoleRequest(
     string? Status,
     string? CreatedBy,
     string? TenantId,
-    string? ClientId);
+    string? ClientId,
+    Dictionary<string, Dictionary<string, string>>? Permissions);
+
+// PUT /api/roles/{roleId}
+public sealed record UpdateRoleRequest(
+    string? RoleName,
+    string? RoleCode,
+    string? Description,
+    string? RoleType,
+    string? Status,
+    string? UpdatedBy,
+    Dictionary<string, Dictionary<string, string>>? Permissions);
 
 public sealed record RoleResponse(
     string RoleId,
@@ -24,7 +35,8 @@ public sealed record RoleResponse(
     string? UpdatedBy,
     DateTime? UpdatedAt,
     string? TenantId,
-    string? ClientId)
+    string? ClientId,
+    IReadOnlyDictionary<string, Dictionary<string, string>> Permissions)
 {
     public static RoleResponse FromEntity(Role role)
     {
@@ -40,6 +52,7 @@ public sealed record RoleResponse(
             role.UpdatedBy,
             role.UpdatedAt,
             role.TenantId,
-            role.ClientId);
+            role.ClientId,
+            role.Permissions);
     }
 }

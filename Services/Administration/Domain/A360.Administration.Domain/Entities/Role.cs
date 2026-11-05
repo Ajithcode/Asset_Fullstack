@@ -24,4 +24,9 @@ public sealed class Role : BaseEntity
     // System or Custom.
     [BsonElement("role_type")]
     public string RoleType { get; set; } = string.Empty;
+
+    // Permission matrix: module name -> action (view, create, edit, delete, approve, export) -> full | partial | none | na.
+    // Drives what users with this role can see and do.
+    [BsonElement("permissions")]
+    public Dictionary<string, Dictionary<string, string>> Permissions { get; set; } = [];
 }
