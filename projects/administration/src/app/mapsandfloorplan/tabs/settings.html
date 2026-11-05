@@ -12,11 +12,11 @@
       <span class="map-head__icon"><lucide-icon [img]="sectionIcon" [size]="20"></lucide-icon></span>
       <div class="map-head__text">
         <h2>{{ sectionLabel }}</h2>
-        <p>Configure global settings for maps, floor plans and spatial management.</p>
+        <p>{{ loading ? 'Loading settings…' : loadError || 'Configure global settings for maps, floor plans and spatial management.' }}</p>
       </div>
       <div class="map-head__actions">
-        <button type="button" class="btn btn--outline" (click)="reset()"><lucide-icon [img]="icons.RotateCcw" [size]="15"></lucide-icon> Reset to Default</button>
-        <button type="button" class="btn btn--primary" [disabled]="!dirty" (click)="save()"><lucide-icon [img]="icons.Save" [size]="15"></lucide-icon> Save Changes</button>
+        <button type="button" class="btn btn--outline" [disabled]="loading || store.working" (click)="reset()"><lucide-icon [img]="icons.RotateCcw" [size]="15"></lucide-icon> Reset to Default</button>
+        <button type="button" class="btn btn--primary" [disabled]="!dirty || loading || store.working" (click)="save()"><lucide-icon [img]="icons.Save" [size]="15"></lucide-icon> {{ store.working ? 'Saving…' : 'Save Changes' }}</button>
       </div>
     </header>
 
