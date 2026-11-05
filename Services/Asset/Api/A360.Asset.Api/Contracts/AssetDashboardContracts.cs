@@ -96,13 +96,130 @@ public sealed record AssetLocationPin(
     string? LastZone,
     DateTime? LastSeenAt);
 
+/// <summary>One site in "Top Active Sites": the assets mapped to it (location.site_id) and their network status.</summary>
+/// <param name="SiteId">The site's id in master_sites; "unassigned" for assets with no site. Pass it to GET /api/asset-dashboard/sites/{siteId}.</param>
+/// <param name="SiteName">Name from master_sites, or the name stored on the assets when the site is not in master data.</param>
+/// <param name="TotalAssets">Every registered asset mapped to the site.</param>
+/// <param name="OnlinePercent">Online as a percentage of <paramref name="TotalAssets"/>.</param>
+/// <param name="Online">Tag reported within the last 10 minutes and its latest status is "online".</param>
+/// <param name="Offline">Tag reported within the last 10 minutes and its latest status is not "online".</param>
+/// <param name="Idle">Tag has readings, but none in the last 10 minutes.</param>
+/// <param name="Unknown">Asset whose tag has no readings in NetworkTimeSeries.</param>
 public sealed record AssetSiteActivity(
+    string SiteId,
     string SiteName,
+    string? SiteCode,
     int TotalAssets,
     double OnlinePercent,
     int Online,
     int Idle,
-    int Offline);
+    int Offline,
+    int Unknown);
+
+/// <summary>An asset mapped to a site, with its tag's latest NetworkTimeSeries reading.</summary>
+/// <param name="NetworkStatus">Online, Offline, Idle (no reading for 10 minutes) or Unknown (tag has no readings).</param>
+public sealed record SiteAssetDetail(
+    string AssetRegistrationId,
+    string? AssetTag,
+    string? AssetName,
+    string? AssetType,
+    string? AssetStatus,
+    string? BuildingName,
+    string? FloorName,
+    string? ZoneName,
+    string? LocationPath,
+    double? Latitude,
+    double? Longitude,
+    string NetworkStatus,
+    string? GatewayId,
+    DateTime? LastSeenAt);
+
+/// <summary>GET /api/asset-dashboard/sites/{siteId}: the site, its counts, and every asset mapped to it.</summary>
+public sealed record AssetSiteDetailResponse(
+    string SiteId,
+    string SiteName,
+    string? SiteCode,
+    string? SiteType,
+    string? City,
+    string? Country,
+    int TotalAssets,
+    double OnlinePercent,
+    IReadOnlyList<SiteStatusGroup> Statuses);
+
+/// <summary>One status in a site (Online, Idle, Offline, Unknown): its count and the assets behind it. Highest count first.</summary>
+public sealed record SiteStatusGroup(string Status, int Count, IReadOnlyList<SiteAssetDetail> Assets);
+
+/// <summary>GET /api/asset-dashboard/tags/{tagId}: the tag's network details and the asset(s) it is mapped to.</summary>
+/// <param name="IsMapped">True when an asset's basic_information.asset_tag equals this tag id.</param>
+/// <param name="NetworkStatus">Online / Offline / Idle (no reading for 10 minutes) for a mapped tag; Unknown when not mapped.</param>
+/// <param name="LastStatus">Status on the newest NetworkTimeSeries reading, as stored (e.g. "online").</param>
+/// <param name="RecentReadings">Newest readings first, as many as the readings query parameter asks for.</param>
+public sealed record TagDetailResponse(
+    string TagId,
+    bool IsMapped,
+    string NetworkStatus,
+    string? LastStatus,
+    string? LastGatewayId,
+    double? LastRssi,
+    DateTime? FirstSeenAt,
+    DateTime? LastSeenAt,
+    long ReadingCount,
+    IReadOnlyList<TagReading> RecentReadings,
+    IReadOnlyList<TagMappedAsset> MappedAssets);
+
+public sealed record TagReading(DateTime? Timestamp, string? GatewayId, string? Status, double? Rssi, string? Raw);
+
+/// <summary>An asset whose asset tag is the requested tag id.</summary>
+public sealed record TagMappedAsset(
+    string AssetRegistrationId,
+    string? AssetTag,
+    string? AssetName,
+    string? AssetType,
+    string? AssetStatus,
+    string? SiteId,
+    string? SiteName,
+    string? BuildingName,
+    string? FloorName,
+    string? ZoneName,
+    string? LocationPath,
+    double? Latitude,
+    double? Longitude);
+
+/// <summary>GET /api/asset-dashboard/categories: asset count per classification.category, highest first.</summary>
+/// <param name="TotalAssets">All registered (not deleted) assets.</param>
+public sealed record AssetCategoryCountsResponse(int TotalAssets, IReadOnlyList<AssetCategoryCount> Categories);
+
+/// <param name="Category">classification.category; "Uncategorized" when an asset has none.</param>
+/// <param name="SubCategories">Counts per classification.sub_category inside this category, highest first.</param>
+public sealed record AssetCategoryCount(string Category, int Count, double Percent, IReadOnlyList<AssetSubCategoryCount> SubCategories);
+
+public sealed record AssetSubCategoryCount(string SubCategory, int Count);
+
+/// <summary>
+/// GET /api/asset-dashboard/critical-assets, /assets-without-custodian, /assets-without-documents:
+/// the matching assets and their count.
+/// </summary>
+/// <param name="Count">Assets that match.</param>
+/// <param name="TotalAssets">All registered (not deleted) assets.</param>
+public sealed record AssetCheckResponse(int Count, int TotalAssets, IReadOnlyList<AssetCheckDetail> Assets);
+
+/// <param name="CustodianName">location_assignment.assignment.assigned_to_name.</param>
+/// <param name="DocumentCount">Files in purchase_warranty.documents + additional_information.attachments + AssetDocument records.</param>
+public sealed record AssetCheckDetail(
+    string AssetRegistrationId,
+    string? AssetTag,
+    string? AssetName,
+    string? Category,
+    string? SubCategory,
+    string? AssetType,
+    string? Criticality,
+    string? AssetStatus,
+    string? SiteId,
+    string? SiteName,
+    string? LocationPath,
+    string? CustodianName,
+    string? CustodianDepartment,
+    int DocumentCount);
 
 /// <param name="Legend">Counts per pin status: Online, Idle, Offline, Alert, Unknown.</param>
 /// <param name="AssetsWithoutCoordinates">Assets that cannot be pinned because no latitude / longitude is recorded.</param>

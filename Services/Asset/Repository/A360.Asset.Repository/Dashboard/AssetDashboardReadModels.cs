@@ -15,7 +15,18 @@ public sealed record DashboardAsset(
     string? AssetType,
     string? SiteName,
     double? Latitude,
-    double? Longitude);
+    double? Longitude,
+    string? SiteId = null,
+    string? LocationPath = null,
+    string? BuildingName = null,
+    string? FloorName = null,
+    string? ZoneName = null,
+    string? Category = null,
+    string? SubCategory = null,
+    string? Criticality = null,
+    string? CustodianName = null,
+    string? CustodianDepartment = null,
+    int AttachedDocumentCount = 0);
 
 /// <summary>Tracking IoTDevice: a connected device and the asset it is assigned to.</summary>
 [BsonIgnoreExtraElements]
@@ -125,3 +136,23 @@ public sealed record NetworkTagSummary(
     string? LastStatus,
     string? LastGatewayId,
     long ReadingCount);
+
+/// <summary>One NetworkTimeSeries reading of a tag.</summary>
+public sealed record NetworkTagReading(DateTime? Timestamp, string? GatewayId, string? Status, double? Rssi, string? Raw);
+
+/// <summary>A site from master data (master_sites), owned by the MasterDataManagement service.</summary>
+[BsonIgnoreExtraElements]
+public sealed class DashboardSite
+{
+    [BsonId]
+    [BsonRepresentation(MongoDB.Bson.BsonType.ObjectId)]
+    public string Id { get; set; } = string.Empty;
+
+    [BsonElement("site_name")] public string? SiteName { get; set; }
+    [BsonElement("code")] public string? Code { get; set; }
+    [BsonElement("site_type")] public string? SiteType { get; set; }
+    [BsonElement("city")] public string? City { get; set; }
+    [BsonElement("country")] public string? Country { get; set; }
+    [BsonElement("status")] public string? Status { get; set; }
+    [BsonElement("is_deleted")] public bool IsDeleted { get; set; }
+}

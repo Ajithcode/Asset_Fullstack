@@ -20,6 +20,9 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
     // Device readings written by the network server; each reading names its tag in meta.tagid.
     private const string NetworkTimeSeriesCollection = "NetworkTimeSeries";
 
+    // Site master data, written by the MasterDataManagement service.
+    private const string SiteCollection = "master_sites";
+
     // Ids and tags are matched ignoring case, as everywhere else in the services.
     private static readonly Collation CaseInsensitive = new("en", strength: CollationStrength.Secondary);
 
@@ -40,7 +43,19 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             .Include(asset => asset.BasicInformation.AssetName)
             .Include(asset => asset.BasicInformation.Status)
             .Include(asset => asset.Classification.AssetType)
+            .Include(asset => asset.Classification.Category)
+            .Include(asset => asset.Classification.SubCategory)
+            .Include(asset => asset.Classification.Criticality)
+            .Include(asset => asset.LocationAssignment.Assignment.AssignedToName)
+            .Include(asset => asset.LocationAssignment.Assignment.CustodianDepartment)
+            .Include(asset => asset.PurchaseWarranty.Documents)
+            .Include(asset => asset.AdditionalInformation.Attachments)
+            .Include(asset => asset.LocationAssignment.Location.SiteId)
             .Include(asset => asset.LocationAssignment.Location.SiteName)
+            .Include(asset => asset.LocationAssignment.Location.BuildingName)
+            .Include(asset => asset.LocationAssignment.Location.FloorName)
+            .Include(asset => asset.LocationAssignment.Location.ZoneName)
+            .Include(asset => asset.LocationAssignment.Location.LocationPath)
             .Include(asset => asset.LocationAssignment.Location.Latitude)
             .Include(asset => asset.LocationAssignment.Location.Longitude);
 
@@ -57,19 +72,92 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
                 asset.Classification?.AssetType,
                 asset.LocationAssignment?.Location?.SiteName,
                 asset.LocationAssignment?.Location?.Latitude,
-                asset.LocationAssignment?.Location?.Longitude))
+                asset.LocationAssignment?.Location?.Longitude,
+                asset.LocationAssignment?.Location?.SiteId,
+                asset.LocationAssignment?.Location?.LocationPath,
+                asset.LocationAssignment?.Location?.BuildingName,
+                asset.LocationAssignment?.Location?.FloorName,
+                asset.LocationAssignment?.Location?.ZoneName,
+                asset.Classification?.Category,
+                asset.Classification?.SubCategory,
+                asset.Classification?.Criticality,
+                asset.LocationAssignment?.Assignment?.AssignedToName,
+                asset.LocationAssignment?.Assignment?.CustodianDepartment,
+                (asset.PurchaseWarranty?.Documents?.Count ?? 0) + (asset.AdditionalInformation?.Attachments?.Count ?? 0)))
             .ToList();
     }
 
-    public async Task<IReadOnlyDictionary<string, NetworkTagSummary>> GetNetworkTagsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyDictionary<string, int>> CountDocumentRecordsByAssetAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await _database.GetCollection<BsonDocument>(AssetDocumentRepository.CollectionName)
+            .Aggregate()
+            .Match(Builders<BsonDocument>.Filter.Ne("is_deleted", true))
+            .Group(new BsonDocument { { "_id", "$asset_registration_id" }, { "count", new BsonDocument("$sum", 1) } })
+            .ToListAsync(cancellationToken);
+
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            var id = row["_id"].IsBsonNull ? null : row["_id"].ToString()?.Trim();
+            if (!string.IsNullOrEmpty(id))
+            {
+                counts[id] = counts.GetValueOrDefault(id) + row["count"].ToInt32();
+            }
+        }
+
+        return counts;
+    }
+
+    public async Task<IReadOnlyDictionary<string, DashboardSite>> GetSitesAsync(CancellationToken cancellationToken = default)
+    {
+        var sites = await Collection<DashboardSite>(SiteCollection)
+            .Find(Builders<DashboardSite>.Filter.Ne(site => site.IsDeleted, true))
+            .ToListAsync(cancellationToken);
+
+        return sites.ToDictionary(site => site.Id, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public Task<IReadOnlyDictionary<string, NetworkTagSummary>> GetNetworkTagsAsync(CancellationToken cancellationToken = default)
+    {
+        return SummariseNetworkTagsAsync(
+            Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Exists("meta.tagid"),
+                Builders<BsonDocument>.Filter.Ne("meta.tagid", BsonNull.Value)),
+            cancellationToken);
+    }
+
+    public async Task<NetworkTagSummary?> GetNetworkTagAsync(string tagId, CancellationToken cancellationToken = default)
+    {
+        var tags = await SummariseNetworkTagsAsync(Builders<BsonDocument>.Filter.Eq("meta.tagid", tagId.Trim()), cancellationToken);
+        return tags.Values.FirstOrDefault();
+    }
+
+    public async Task<IReadOnlyList<NetworkTagReading>> GetNetworkTagReadingsAsync(string tagId, int limit, CancellationToken cancellationToken = default)
+    {
+        var rows = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
+            .Find(Builders<BsonDocument>.Filter.Eq("meta.tagid", tagId.Trim()), new FindOptions { Collation = CaseInsensitive })
+            .Sort(new BsonDocument { { "timestamp", -1 }, { "_id", -1 } })
+            .Limit(limit)
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(row => new NetworkTagReading(
+                row.TryGetValue("timestamp", out var time) && time.IsValidDateTime ? time.ToUniversalTime() : null,
+                row.TryGetValue("meta", out var meta) && meta.IsBsonDocument && meta.AsBsonDocument.TryGetValue("gatewayid", out var gateway) && !gateway.IsBsonNull ? gateway.ToString() : null,
+                row.TryGetValue("status", out var status) && !status.IsBsonNull ? status.ToString()?.Trim().ToLowerInvariant() : null,
+                row.TryGetValue("rssi", out var rssi) && rssi.IsNumeric ? rssi.ToDouble() : null,
+                row.TryGetValue("raw", out var raw) && !raw.IsBsonNull ? raw.ToString() : null))
+            .ToList();
+    }
+
+    private async Task<IReadOnlyDictionary<string, NetworkTagSummary>> SummariseNetworkTagsAsync(
+        FilterDefinition<BsonDocument> filter,
+        CancellationToken cancellationToken)
     {
         // Grouped in Mongo so only one row per tag comes back, however many readings there are.
         var newestFirst = new BsonDocument("timestamp", -1);
         var rows = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
-            .Aggregate()
-            .Match(Builders<BsonDocument>.Filter.And(
-                Builders<BsonDocument>.Filter.Exists("meta.tagid"),
-                Builders<BsonDocument>.Filter.Ne("meta.tagid", BsonNull.Value)))
+            .Aggregate(new AggregateOptions { Collation = CaseInsensitive })
+            .Match(filter)
             .Group(new BsonDocument
             {
                 { "_id", "$meta.tagid" },

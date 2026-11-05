@@ -16,8 +16,16 @@ public static class AssetDashboardEndpoints
     private const string Alert = "Alert";
     private const string Unknown = "Unknown";
     private const string Resolved = "Resolved";
+    private const string UnassignedSiteId = "unassigned";
     private const string SensorAttention = "Attention";
     private const int DataFreshnessSlaMinutes = 60;
+
+    // Device Connectivity: a mapped tag with no reading for this long counts as Idle.
+    private const int IdleAfterMinutes = 10;
+    private const int DefaultTagReadings = 20;
+    private const string Uncategorized = "Uncategorized";
+    private const string CriticalLevel = "Critical";
+    private const int MaxTagReadings = 500;
     private const int DefaultTopSites = 3;
     private const int DefaultAlertLimit = 10;
 
@@ -30,6 +38,12 @@ public static class AssetDashboardEndpoints
 
         group.MapGet("/kpis", GetKpisAsync).WithName("GetAssetDashboardKpis");
         group.MapGet("/locations", GetLocationsAsync).WithName("GetAssetDashboardLocations");
+        group.MapGet("/sites/{siteId}", GetSiteAssetsAsync).WithName("GetAssetDashboardSiteAssets");
+        group.MapGet("/tags/{tagId}", GetTagAsync).WithName("GetAssetDashboardTag");
+        group.MapGet("/categories", GetCategoryCountsAsync).WithName("GetAssetDashboardCategoryCounts");
+        group.MapGet("/critical-assets", GetCriticalAssetsAsync).WithName("GetAssetDashboardCriticalAssets");
+        group.MapGet("/assets-without-custodian", GetAssetsWithoutCustodianAsync).WithName("GetAssetDashboardAssetsWithoutCustodian");
+        group.MapGet("/assets-without-documents", GetAssetsWithoutDocumentsAsync).WithName("GetAssetDashboardAssetsWithoutDocuments");
         group.MapGet("/device-connectivity", GetDeviceConnectivityAsync).WithName("GetAssetDashboardDeviceConnectivity");
         group.MapGet("/firmware", GetFirmwareAsync).WithName("GetAssetDashboardFirmware");
         group.MapGet("/health-scores", GetHealthScoresAsync).WithName("GetAssetDashboardHealthScores");
@@ -42,7 +56,8 @@ public static class AssetDashboardEndpoints
     }
 
     /// <summary>
-    /// 1 Connected Assets (registered assets whose asset tag reports in NetworkTimeSeries as meta.tagid), 2 Online Now, 3 Alerts in the period, 4 Coverage (% of connected assets
+    /// 1 Connected Assets (registered assets whose asset tag reports in NetworkTimeSeries as meta.tagid), 2 Online Now (connected
+    /// assets whose tag's latest NetworkTimeSeries status is "online"), 3 Alerts in the period, 4 Coverage (% of connected assets
     /// with a location event in the last 24 h), 5 Data Freshness (% of reporting devices seen within the SLA of 60 min).
     /// </summary>
     private static async Task<IResult> GetKpisAsync(IAssetDashboardRepository repository, CancellationToken cancellationToken, int? days = null)
@@ -77,12 +92,11 @@ public static class AssetDashboardEndpoints
             .ThenBy(detail => detail.AssetName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        // Assets with a tracking device, as before; Online Now and Coverage are measured against these, unchanged.
+        // Assets with a tracking device, as before; Coverage is measured against these, unchanged.
         var withDevice = DistinctAssets(devices);
 
-        // 2. Online now.
-        var statuses = DeviceStatusByAsset(devices);
-        var online = statuses.Count(entry => entry.Value == Online);
+        // 2. Online now: connected assets whose tag's newest NetworkTimeSeries reading has status "online".
+        var online = connectedDetails.Count(detail => string.Equals(detail.NetworkStatus, "online", StringComparison.OrdinalIgnoreCase));
 
         // 3. Alerts raised in the period vs. the previous period.
         var alerts = await repository.GetAlertsAsync(assetIds, period.PreviousFromUtc, period.ToUtc, cancellationToken);
@@ -108,7 +122,7 @@ public static class AssetDashboardEndpoints
             assets.Count,
             new AssetDashboardKpi(connected.Count, DashboardMath.Percent(connected.Count, assets.Count),
                 DashboardMath.Change(connected.Count, connectedBefore), $"of {assets.Count} registered assets"),
-            new AssetDashboardKpi(online, DashboardMath.Percent(online, withDevice.Count), null, "of connected assets"),
+            new AssetDashboardKpi(online, DashboardMath.Percent(online, connected.Count), null, "of connected assets"),
             new AssetDashboardKpi(alertsNow, null, DashboardMath.Change(alertsNow, alertsBefore), $"in last {period.Days} days"),
             new AssetDashboardKpi(coverage, coverage, coverage == 0 && coverageBefore == 0 ? null : Math.Round(coverage - coverageBefore, 1),
                 "assets located within the last day (change in percentage points)"),
@@ -158,20 +172,21 @@ public static class AssetDashboardEndpoints
         var legend = new[] { Online, Idle, Offline, Alert, Unknown }
             .ToDictionary(status => status, status => assets.Count(asset => PinStatus(asset.AssetRegistrationId) == status));
 
-        // Sites rank by connected assets online, then by size; only assets with a device count towards a site.
+        // Sites: assets grouped by location.site_id, named from master_sites; status from NetworkTimeSeries (tag id = asset tag).
+        // Rank by asset count, highest first, then by assets online.
+        var siteMaster = await repository.GetSitesAsync(cancellationToken);
+        var networkTags = await repository.GetNetworkTagsAsync(cancellationToken);
         var sites = assets
-            .Where(asset => deviceStatus.ContainsKey(asset.AssetRegistrationId))
-            .GroupBy(asset => string.IsNullOrWhiteSpace(asset.SiteName) ? "Unassigned" : asset.SiteName.Trim(), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(SiteKey, StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
-                var siteStatuses = group.Select(asset => deviceStatus[asset.AssetRegistrationId]).ToList();
-                var siteOnline = siteStatuses.Count(status => status == Online);
-                return new AssetSiteActivity(
-                    group.Key, group.Count(), DashboardMath.Percent(siteOnline, group.Count()),
-                    siteOnline, siteStatuses.Count(status => status == Idle), siteStatuses.Count(status => status == Offline));
+                var counts = SiteCounts.From(group, networkTags);
+                var (name, code) = SiteNameAndCode(group.Key, group, siteMaster);
+                return new AssetSiteActivity(group.Key, name, code, counts.Total, counts.OnlinePercent,
+                    counts.Online, counts.Idle, counts.Offline, counts.Unknown);
             })
-            .OrderByDescending(site => site.Online)
-            .ThenByDescending(site => site.TotalAssets)
+            .OrderByDescending(site => site.TotalAssets)
+            .ThenByDescending(site => site.Online)
             .ThenBy(site => site.SiteName)
             .ToList();
 
@@ -179,17 +194,206 @@ public static class AssetDashboardEndpoints
         return Results.Ok(new AssetLocationMapResponse(pins, legend, assets.Count - pins.Count, shownSites, sites.Count));
     }
 
-    /// <summary>7. Device connectivity of the devices on registered assets: Online, Idle (warning), Offline, Unknown (no health record).</summary>
-    private static async Task<IResult> GetDeviceConnectivityAsync(IAssetDashboardRepository repository, CancellationToken cancellationToken)
+    /// <summary>
+    /// Top Active Sites drill-down: the assets mapped to <paramref name="siteId"/> (location.site_id; "unassigned" for assets
+    /// with no site), their count, and each asset's network status from NetworkTimeSeries (tag id = asset tag).
+    /// </summary>
+    private static async Task<IResult> GetSiteAssetsAsync(string siteId, IAssetDashboardRepository repository, CancellationToken cancellationToken)
+    {
+        siteId = siteId.Trim();
+        var siteMaster = await repository.GetSitesAsync(cancellationToken);
+        var assets = await repository.GetAssetsAsync(cancellationToken);
+        var networkTags = await repository.GetNetworkTagsAsync(cancellationToken);
+
+        var detail = BuildSiteDetail(siteId, assets, siteMaster, networkTags);
+        return detail is null
+            ? Results.NotFound(new { message = $"Site '{siteId}' was not found." })
+            : Results.Ok(detail);
+    }
+
+    /// <summary>
+    /// One tag: its NetworkTimeSeries details (first / last reading, latest status, gateway, RSSI, reading count, newest
+    /// readings) and every asset whose asset tag is this tag id. <paramref name="readings"/> is how many recent readings to
+    /// return (default 20, 0 for none, at most 500). 404 when the tag has never reported and no asset uses it.
+    /// </summary>
+    private static async Task<IResult> GetTagAsync(
+        string tagId,
+        IAssetDashboardRepository repository,
+        CancellationToken cancellationToken,
+        int? readings = null)
+    {
+        var limit = readings ?? DefaultTagReadings;
+        if (limit is < 0 or > MaxTagReadings)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["readings"] = [$"readings must be between 0 and {MaxTagReadings}"] });
+        }
+
+        tagId = tagId.Trim();
+        var tag = await repository.GetNetworkTagAsync(tagId, cancellationToken);
+        var assets = await repository.GetAssetsAsync(cancellationToken);
+        var mapped = assets
+            .Where(asset => string.Equals(asset.AssetTag?.Trim(), tagId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(asset => asset.AssetName, StringComparer.OrdinalIgnoreCase)
+            .Select(asset => new TagMappedAsset(asset.AssetRegistrationId, asset.AssetTag, asset.AssetName, asset.AssetType, asset.Status,
+                asset.SiteId, asset.SiteName, asset.BuildingName, asset.FloorName, asset.ZoneName, asset.LocationPath,
+                asset.Latitude, asset.Longitude))
+            .ToList();
+
+        if (tag is null && mapped.Count == 0)
+        {
+            return Results.NotFound(new { message = $"Tag '{tagId}' has no readings in NetworkTimeSeries and is not mapped to any asset." });
+        }
+
+        var recent = tag is null || limit == 0
+            ? []
+            : (await repository.GetNetworkTagReadingsAsync(tagId, limit, cancellationToken))
+                .Select(reading => new TagReading(reading.Timestamp, reading.GatewayId, reading.Status, reading.Rssi, reading.Raw))
+                .ToList();
+        // Latest status, gateway and RSSI all come from the same (newest) reading.
+        var newest = recent.Count > 0
+            ? recent[0]
+            : tag is null ? null : (await repository.GetNetworkTagReadingsAsync(tagId, 1, cancellationToken))
+                .Select(reading => new TagReading(reading.Timestamp, reading.GatewayId, reading.Status, reading.Rssi, reading.Raw))
+                .FirstOrDefault();
+
+        return Results.Ok(new TagDetailResponse(
+            tag?.TagId ?? tagId,
+            mapped.Count > 0,
+            mapped.Count > 0 ? NetworkState(tag) : Unknown,
+            newest?.Status ?? tag?.LastStatus,
+            newest?.GatewayId ?? tag?.LastGatewayId,
+            newest?.Rssi,
+            tag?.FirstSeenAt,
+            tag?.LastSeenAt,
+            tag?.ReadingCount ?? 0,
+            recent,
+            mapped));
+    }
+
+    /// <summary>Asset count per category (classification.category) with a sub-category breakdown, highest count first.</summary>
+    private static async Task<IResult> GetCategoryCountsAsync(IAssetDashboardRepository repository, CancellationToken cancellationToken)
     {
         var assets = await repository.GetAssetsAsync(cancellationToken);
-        var devices = await repository.GetDevicesAsync(assets.Select(asset => asset.AssetRegistrationId).ToList(), cancellationToken);
-        var deviceIds = devices.Select(device => device.DeviceId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var health = (await repository.GetDeviceHealthAsync(deviceIds, cancellationToken))
-            .GroupBy(record => record.DeviceId, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First().Connectivity, StringComparer.OrdinalIgnoreCase);
 
-        var statuses = deviceIds.Select(deviceId => ConnectivityStatus(health.GetValueOrDefault(deviceId))).ToList();
+        var categories = assets
+            .GroupBy(asset => NameOr(asset.Category, Uncategorized), StringComparer.OrdinalIgnoreCase)
+            .Select(group => new AssetCategoryCount(
+                group.First().Category?.Trim() ?? Uncategorized,
+                group.Count(),
+                DashboardMath.Percent(group.Count(), assets.Count),
+                group.GroupBy(asset => NameOr(asset.SubCategory, Uncategorized), StringComparer.OrdinalIgnoreCase)
+                    .Select(sub => new AssetSubCategoryCount(sub.Key, sub.Count()))
+                    .OrderByDescending(sub => sub.Count)
+                    .ThenBy(sub => sub.SubCategory, StringComparer.OrdinalIgnoreCase)
+                    .ToList()))
+            .OrderByDescending(category => category.Count)
+            .ThenBy(category => category.Category, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Results.Ok(new AssetCategoryCountsResponse(assets.Count, categories));
+
+        static string NameOr(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+    }
+
+    /// <summary>Assets whose classification.criticality is "Critical", with their count.</summary>
+    private static Task<IResult> GetCriticalAssetsAsync(IAssetDashboardRepository repository, CancellationToken cancellationToken) =>
+        AssetCheckAsync(repository, detail => string.Equals(detail.Criticality?.Trim(), CriticalLevel, StringComparison.OrdinalIgnoreCase), cancellationToken);
+
+    /// <summary>Assets with no custodian name (location_assignment.assignment.assigned_to_name empty), with their count.</summary>
+    private static Task<IResult> GetAssetsWithoutCustodianAsync(IAssetDashboardRepository repository, CancellationToken cancellationToken) =>
+        AssetCheckAsync(repository, detail => detail.CustodianName is null, cancellationToken);
+
+    /// <summary>
+    /// Assets with no document anywhere: no purchase / warranty documents, no attachments, and nothing on the
+    /// Asset Documents screen (AssetDocument), with their count.
+    /// </summary>
+    private static Task<IResult> GetAssetsWithoutDocumentsAsync(IAssetDashboardRepository repository, CancellationToken cancellationToken) =>
+        AssetCheckAsync(repository, detail => detail.DocumentCount == 0, cancellationToken);
+
+    private static async Task<IResult> AssetCheckAsync(
+        IAssetDashboardRepository repository,
+        Func<AssetCheckDetail, bool> matches,
+        CancellationToken cancellationToken)
+    {
+        var assets = await repository.GetAssetsAsync(cancellationToken);
+        var documentRecords = await repository.CountDocumentRecordsByAssetAsync(cancellationToken);
+
+        var matching = assets
+            .Select(asset => new AssetCheckDetail(asset.AssetRegistrationId, asset.AssetTag, asset.AssetName, asset.Category, asset.SubCategory,
+                asset.AssetType, asset.Criticality, asset.Status, asset.SiteId, asset.SiteName, asset.LocationPath,
+                string.IsNullOrWhiteSpace(asset.CustodianName) ? null : asset.CustodianName.Trim(), asset.CustodianDepartment,
+                asset.AttachedDocumentCount + documentRecords.GetValueOrDefault(asset.AssetRegistrationId)))
+            .Where(matches)
+            .OrderBy(detail => detail.AssetName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(detail => detail.AssetRegistrationId, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Results.Ok(new AssetCheckResponse(matching.Count, assets.Count, matching));
+    }
+
+    /// <summary>One site's counts and assets; null when the id is neither in master_sites nor on any asset.</summary>
+    private static AssetSiteDetailResponse? BuildSiteDetail(
+        string siteId,
+        IReadOnlyList<DashboardAsset> assets,
+        IReadOnlyDictionary<string, DashboardSite> siteMaster,
+        IReadOnlyDictionary<string, NetworkTagSummary> networkTags)
+    {
+        var siteAssets = assets
+            .Where(asset => string.Equals(SiteKey(asset), siteId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        siteMaster.TryGetValue(siteId, out var site);
+        if (site is null && siteAssets.Count == 0)
+        {
+            return null;
+        }
+
+        var counts = SiteCounts.From(siteAssets, networkTags);
+        var (name, code) = SiteNameAndCode(siteId, siteAssets, siteMaster);
+
+        var details = siteAssets
+            .Select(asset =>
+            {
+                var tag = NetworkTag(asset, networkTags);
+                return new SiteAssetDetail(asset.AssetRegistrationId, asset.AssetTag, asset.AssetName, asset.AssetType, asset.Status,
+                    asset.BuildingName, asset.FloorName, asset.ZoneName, asset.LocationPath, asset.Latitude, asset.Longitude,
+                    NetworkState(tag), tag?.LastGatewayId, tag?.LastSeenAt);
+            })
+            .ToList();
+
+        // One group per status, highest count first; each group carries the assets behind its count.
+        var statusOrder = new[] { Online, Idle, Offline, Unknown };
+        var statuses = statusOrder
+            .Select(status => details
+                .Where(detail => detail.NetworkStatus == status)
+                .OrderBy(detail => detail.AssetName, StringComparer.OrdinalIgnoreCase)
+                .ToList())
+            .Select((group, index) => new SiteStatusGroup(statusOrder[index], group.Count, group))
+            .OrderByDescending(group => group.Count)
+            .ThenBy(group => Array.IndexOf(statusOrder, group.Status))
+            .ToList();
+
+        return new AssetSiteDetailResponse(site?.Id ?? siteId, name, code, site?.SiteType, site?.City, site?.Country,
+            counts.Total, counts.OnlinePercent, statuses);
+    }
+
+    /// <summary>
+    /// 7. Device connectivity of every tag in NetworkTimeSeries (meta.tagid). A tag is mapped when it equals a registered
+    /// asset's tag (basic_information.asset_tag). Mapped tags: Idle when the newest reading is older than
+    /// <see cref="IdleAfterMinutes"/> minutes, otherwise Online or Offline from that reading's status. Tags not mapped to
+    /// any asset are Unknown.
+    /// </summary>
+    private static async Task<IResult> GetDeviceConnectivityAsync(IAssetDashboardRepository repository, CancellationToken cancellationToken)
+    {
+        var assetTags = (await repository.GetAssetsAsync(cancellationToken))
+            .Where(asset => !string.IsNullOrWhiteSpace(asset.AssetTag))
+            .Select(asset => asset.AssetTag!.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var networkTags = await repository.GetNetworkTagsAsync(cancellationToken);
+        var statuses = networkTags.Values
+            .Select(tag => assetTags.Contains(tag.TagId) ? NetworkState(tag) : Unknown)
+            .ToList();
+
         return Results.Ok(Donut(statuses, Online, [Online, Idle, Offline, Unknown]));
     }
 
@@ -381,6 +585,61 @@ public static class AssetDashboardEndpoints
             .Where(device => !string.IsNullOrWhiteSpace(device.AssetRegistrationId))
             .Select(device => device.AssetRegistrationId!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The site an asset is mapped to: location.site_id, or "unassigned" when it has none.</summary>
+    private static string SiteKey(DashboardAsset asset) =>
+        string.IsNullOrWhiteSpace(asset.SiteId) ? UnassignedSiteId : asset.SiteId.Trim();
+
+    /// <summary>Name and code from master_sites; falls back to the name stored on the assets when the id is not in master data.</summary>
+    private static (string Name, string? Code) SiteNameAndCode(
+        string siteId, IEnumerable<DashboardAsset> siteAssets, IReadOnlyDictionary<string, DashboardSite> siteMaster)
+    {
+        if (siteMaster.TryGetValue(siteId, out var site) && !string.IsNullOrWhiteSpace(site.SiteName))
+        {
+            return (site.SiteName.Trim(), site.Code);
+        }
+
+        var storedName = siteAssets.Select(asset => asset.SiteName?.Trim()).FirstOrDefault(name => !string.IsNullOrEmpty(name));
+        return (storedName ?? "Unassigned", null);
+    }
+
+    private static NetworkTagSummary? NetworkTag(DashboardAsset asset, IReadOnlyDictionary<string, NetworkTagSummary> networkTags) =>
+        !string.IsNullOrWhiteSpace(asset.AssetTag) && networkTags.TryGetValue(asset.AssetTag.Trim(), out var tag) ? tag : null;
+
+    /// <summary>
+    /// Connectivity of a tag mapped to an asset, from NetworkTimeSeries: Unknown when the tag has no readings; Idle when the
+    /// newest reading is older than <see cref="IdleAfterMinutes"/> minutes; otherwise Online when its status is "online",
+    /// else Offline. Used by Device Connectivity, Top Active Sites and the site endpoints so they always agree.
+    /// </summary>
+    private static string NetworkState(NetworkTagSummary? tag)
+    {
+        if (tag is null)
+        {
+            return Unknown;
+        }
+
+        if (tag.LastSeenAt is null || tag.LastSeenAt < DateTime.UtcNow.AddMinutes(-IdleAfterMinutes))
+        {
+            return Idle;
+        }
+
+        return tag.LastStatus == "online" ? Online : Offline;
+    }
+
+    private sealed record SiteCounts(int Total, int Online, int Idle, int Offline, int Unknown)
+    {
+        public double OnlinePercent => DashboardMath.Percent(Online, Total);
+
+        public static SiteCounts From(IEnumerable<DashboardAsset> siteAssets, IReadOnlyDictionary<string, NetworkTagSummary> networkTags)
+        {
+            var states = siteAssets.Select(asset => NetworkState(NetworkTag(asset, networkTags))).ToList();
+            return new SiteCounts(states.Count,
+                states.Count(s => s == AssetDashboardEndpoints.Online),
+                states.Count(s => s == AssetDashboardEndpoints.Idle),
+                states.Count(s => s == AssetDashboardEndpoints.Offline),
+                states.Count(s => s == AssetDashboardEndpoints.Unknown));
+        }
     }
 
     /// <summary>Location events name an asset by registration id or by tag; maps both to the registration id.</summary>

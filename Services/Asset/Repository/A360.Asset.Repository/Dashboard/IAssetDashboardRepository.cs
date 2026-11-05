@@ -9,11 +9,23 @@ public interface IAssetDashboardRepository
     /// <summary>Every registered (not deleted) asset.</summary>
     Task<IReadOnlyList<DashboardAsset>> GetAssetsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Every site in master data (master_sites, not deleted), keyed by id.</summary>
+    Task<IReadOnlyDictionary<string, DashboardSite>> GetSitesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Documents filed on the Asset Documents screen (AssetDocument, not deleted), counted per asset registration id.</summary>
+    Task<IReadOnlyDictionary<string, int>> CountDocumentRecordsByAssetAsync(CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Every tag id that has reported to the network (NetworkTimeSeries meta.tagid), keyed case-insensitively,
     /// with its first and last reading, latest status and gateway.
     /// </summary>
     Task<IReadOnlyDictionary<string, NetworkTagSummary>> GetNetworkTagsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>One tag's summary from NetworkTimeSeries (tag id matched ignoring case); null when it has never reported.</summary>
+    Task<NetworkTagSummary?> GetNetworkTagAsync(string tagId, CancellationToken cancellationToken = default);
+
+    /// <summary>One tag's newest readings from NetworkTimeSeries, newest first.</summary>
+    Task<IReadOnlyList<NetworkTagReading>> GetNetworkTagReadingsAsync(string tagId, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>Devices assigned to one of <paramref name="assetRegistrationIds"/>.</summary>
     Task<IReadOnlyList<DashboardDevice>> GetDevicesAsync(IReadOnlyCollection<string> assetRegistrationIds, CancellationToken cancellationToken = default);
