@@ -1,3 +1,4 @@
+import { RoleRecord } from '../role-access-control/role-access.data';
 import { ADMIN_LOCATIONS } from '../shared/admin-common';
 import { AdminUser, UserRole } from './user-management.model';
 
@@ -6,8 +7,32 @@ import { AdminUser, UserRole } from './user-management.model';
 /** The modules shown as access tiles in the user drawer. */
 export const USER_MODULES = ['Dashboard', 'Assets', 'Maintenance', 'Inventory', 'Compliance', 'Reports'];
 
-/** Roles offered in the user drawer / invite dialog; loaded from the roles API (empty until wired). */
+/** Roles offered in the user drawer / invite dialog; filled from GET api/roles by setUserRoles(). */
 export const USER_ROLES: UserRole[] = [];
+
+/** User modules whose name differs in the Role & Access Control permission matrix. */
+const ROLE_MATRIX_MODULE: Record<string, string> = { Compliance: 'Audit & Compliance', Reports: 'Reports & Analytics' };
+
+/**
+ * Replaces USER_ROLES with the active roles from the Role & Access Control API. A role grants a user module when
+ * its matrix allows View (full or partial) on that module.
+ */
+export function setUserRoles(roles: RoleRecord[]): void {
+  const mapped = roles
+    .filter((r) => r.status === 'Active')
+    .map(
+      (r): UserRole => ({
+        name: r.name,
+        short: r.name,
+        tone: r.type === 'System' ? 'blue' : 'purple',
+        modules: USER_MODULES.filter((m) => {
+          const view = r.permissions[ROLE_MATRIX_MODULE[m] ?? m]?.view;
+          return view === 'full' || view === 'partial';
+        })
+      })
+    );
+  USER_ROLES.splice(0, USER_ROLES.length, ...mapped);
+}
 
 export const ALL_LOCATIONS = 'All Locations';
 

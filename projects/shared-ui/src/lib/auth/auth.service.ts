@@ -98,6 +98,14 @@ export class AuthService {
 
   clearSession(): void {
     [TOKEN_KEY, REFRESH_KEY, EMAIL_KEY, USER_KEY].forEach((key) => this.remove(key));
+    // The role-based access cached by AccessService belongs to this session too
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('myAccess');
+      } catch {
+        // storage unavailable
+      }
+    }
   }
 
   /** Readable message for a failed auth call: the server's message, first validation error, or the status. */

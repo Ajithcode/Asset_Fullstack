@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, Output, EventEmitter } from '@angular/core';
+import { Component, ElementRef, HostListener, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -21,7 +21,7 @@ import {
   Settings,
   Database
 } from 'lucide-angular';
-import { ADMINISTRATION_BASE_PATH, ADMINISTRATION_MENU, MASTER_DATA_BASE_PATH, MASTER_DATA_MENU, REPORTS_ANALYTICS_BASE_PATH, REPORTS_ANALYTICS_MENU } from 'shared-ui';
+import { ADMINISTRATION_BASE_PATH, ADMINISTRATION_MENU, AccessService, MASTER_DATA_BASE_PATH, isCreatePath, MASTER_DATA_MENU, REPORTS_ANALYTICS_BASE_PATH, REPORTS_ANALYTICS_MENU } from 'shared-ui';
 
 export interface NavItem {
   label: string;
@@ -63,7 +63,30 @@ export class Sidebar {
   // viewport coordinates for the currently open flyout, computed from the clicked trigger element
   flyoutPosition: { top: number; left: number } | null = null;
 
-  navItems: NavItem[] = [
+  private readonly access = inject(AccessService);
+
+  /** Sections the signed-in user may open (role-based access); none until their access has loaded. */
+  get navItems(): NavItem[] {
+    const access = this.access.access();
+    if (!access) return [];
+    // Rebuilt only when the access changes, so the menu keeps its items between change-detection runs
+    if (this.menuFor !== access) {
+      this.menuFor = access;
+      this.menu = this.allNavItems
+        .filter((item) => this.access.canView(item.label, access))
+        .map((item) =>
+          item.children && !this.access.can(item.label, 'create')
+            ? { ...item, children: item.children.filter((child) => !isCreatePath(child.path)) }
+            : item
+        );
+    }
+    return this.menu;
+  }
+
+  private menuFor: object | null = null;
+  private menu: NavItem[] = [];
+
+  private readonly allNavItems: NavItem[] = [
     {
       label: 'Dashboard',
       path: '/dashboard',
@@ -230,6 +253,8 @@ export class Sidebar {
   openInlineGroup: string | null = null;
 
   constructor(private router: Router, private elementRef: ElementRef) {
+    // Pages opened straight from a link (no fresh sign-in) load the access here
+    this.access.ensureLoaded().pipe(takeUntilDestroyed()).subscribe();
     // Keep the section that contains the current page expanded, including on first load / deep links
     this.router.events
       .pipe(

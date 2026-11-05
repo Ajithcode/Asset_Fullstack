@@ -131,20 +131,34 @@
           </button>
         }
         @for (r of filtered; track r.id) {
-          <button type="button" class="list-item" [class.active]="!isNew && r.id === selectedId" (click)="select(r)">
-            <span class="list-item__icon"><lucide-icon [img]="roleIcon(r)" [size]="20"></lucide-icon></span>
-            <span class="list-item__body">
-              <span class="list-item__title">{{ r.name }}</span>
-              <span class="rac-meta">
-                <span class="muted"><lucide-icon [img]="icons.Users" [size]="12"></lucide-icon> {{ r.users }} users</span>
-                <span class="pill" [attr.data-tone]="r.type === 'System' ? 'blue' : 'purple'">{{ r.type }}</span>
-                <span class="pill" [attr.data-tone]="r.status === 'Active' ? 'green' : 'grey'"><i></i>{{ r.status }}</span>
+          <div class="rac-row">
+            <button type="button" class="list-item" [class.active]="!isNew && r.id === selectedId" (click)="select(r)">
+              <span class="list-item__icon"><lucide-icon [img]="roleIcon(r)" [size]="20"></lucide-icon></span>
+              <span class="list-item__body">
+                <span class="list-item__title">{{ r.name }}</span>
+                <span class="rac-meta">
+                  <span class="muted"><lucide-icon [img]="icons.Users" [size]="12"></lucide-icon> {{ r.users }} users</span>
+                  <span class="pill" [attr.data-tone]="r.type === 'System' ? 'blue' : 'purple'">{{ r.type }}</span>
+                  <span class="pill" [attr.data-tone]="r.status === 'Active' ? 'green' : 'grey'"><i></i>{{ r.status }}</span>
+                </span>
               </span>
+            </button>
+            <span class="rac-row__actions">
+              <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Edit ' + r.name" title="Edit role" (click)="editRole(r, $event)">
+                <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>
+              </button>
+              <button
+                type="button"
+                class="icon-btn icon-btn--bare rac-row__delete"
+                [attr.aria-label]="'Delete ' + r.name"
+                [title]="r.type === 'System' ? 'System roles cannot be deleted' : 'Delete role'"
+                [disabled]="r.type === 'System'"
+                (click)="askDelete(r, $event)"
+              >
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
             </span>
-            @if (!isNew && r.id === selectedId) {
-              <lucide-icon class="rac-chev" [img]="icons.ChevronRight" [size]="16"></lucide-icon>
-            }
-          </button>
+          </div>
         } @empty {
           <p class="list-empty">{{ loading ? 'Loading roles...' : 'No roles match the search or filters.' }}</p>
         }
@@ -246,5 +260,5 @@
 }
 
 @if (toast) {
-  <div class="toast" role="status">{{ toast }}</div>
+  <div class="toast" role="status" [attr.data-tone]="toastTone">{{ toast }}</div>
 }

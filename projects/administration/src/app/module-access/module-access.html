@@ -130,17 +130,27 @@
           </button>
         }
         @for (p of filtered; track p.id) {
-          <button type="button" class="list-item ma-item" [class.active]="!isNew && p.id === selectedId" (click)="select(p)">
-            <span class="list-item__icon" [attr.data-tone]="p.tone"><lucide-icon [img]="policyIcon(p)" [size]="20"></lucide-icon></span>
-            <span class="list-item__body">
-              <span class="list-item__title">{{ p.name }}</span>
-              <span class="list-item__meta">{{ p.users }} users assigned</span>
+          <div class="ma-row">
+            <button type="button" class="list-item ma-item" [class.active]="!isNew && p.id === selectedId" (click)="select(p)">
+              <span class="list-item__icon" [attr.data-tone]="p.tone"><lucide-icon [img]="policyIcon(p)" [size]="20"></lucide-icon></span>
+              <span class="list-item__body">
+                <span class="list-item__title">{{ p.name }}</span>
+                <span class="list-item__meta">{{ p.users }} users assigned</span>
+              </span>
+              <span class="ma-pills">
+                <span class="pill" [attr.data-tone]="typeTone(p.type)">{{ p.type }}</span>
+                <span class="pill ma-status" [attr.data-tone]="p.status === 'Active' ? 'green' : 'grey'"><i></i>{{ p.status }}</span>
+              </span>
+            </button>
+            <span class="ma-row__actions">
+              <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Edit ' + p.name" title="Edit policy" (click)="editPolicy(p, $event)">
+                <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>
+              </button>
+              <button type="button" class="icon-btn icon-btn--bare ma-row__delete" [attr.aria-label]="'Delete ' + p.name" title="Delete policy" (click)="askDelete(p, $event)">
+                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
+              </button>
             </span>
-            <span class="ma-pills">
-              <span class="pill" [attr.data-tone]="typeTone(p.type)">{{ p.type }}</span>
-              <span class="pill ma-status" [attr.data-tone]="p.status === 'Active' ? 'green' : 'grey'"><i></i>{{ p.status }}</span>
-            </span>
-          </button>
+          </div>
         } @empty {
           <p class="list-empty">{{ loading ? 'Loading policies...' : 'No policies match the search or filters.' }}</p>
         }
@@ -238,5 +248,5 @@
 }
 
 @if (toast) {
-  <div class="toast" role="status">{{ toast }}</div>
+  <div class="toast" role="status" [attr.data-tone]="toastTone">{{ toast }}</div>
 }

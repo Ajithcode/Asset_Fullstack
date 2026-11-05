@@ -1,4 +1,4 @@
-import { Component, HostListener } from '@angular/core';
+import { Component, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgFor, NgIf } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -21,7 +21,7 @@ import {
   User,
   Wrench,
 } from 'lucide-angular';
-import { AuthService, AuthUser, LoginData, LoginResponse } from 'shared-ui';
+import { AccessService, AuthService, AuthUser, LoginData, LoginResponse } from 'shared-ui';
 import { Observable } from 'rxjs';
 
 const REMEMBER_KEY = 'a360.rememberedUser';
@@ -73,6 +73,8 @@ export class Login {
   /** Username the challenge belongs to. */
   private challengeUser = '';
   code = '';
+
+  private readonly access = inject(AccessService);
 
   constructor(private auth: AuthService, private router: Router, private route: ActivatedRoute) {
     this.fit();
@@ -143,9 +145,12 @@ export class Login {
       c.method === 'totp' ? this.auth.verifyTotp(this.challengeUser, c.loginToken ?? '', code) : this.auth.verifyOtp(this.challengeUser, code);
     call.subscribe({
       next: () => {
-        this.isLoading = false;
         const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-        this.router.navigateByUrl(returnUrl || this.startPage());
+        // Role-based access for this user first, so the menu and pages match their roles from the start
+        this.access.load().subscribe(() => {
+          this.isLoading = false;
+          this.router.navigateByUrl(returnUrl || this.startPage());
+        });
       },
       error: (err) => {
         this.isLoading = false;
