@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ChevronDown, Circle, Hexagon, LucideAngularModule, MousePointer2, PenTool, Plus, Search, ShieldAlert, Square } from 'lucide-angular';
 import { MapCanvas } from '../map-canvas/map-canvas';
 import { MapViewer } from '../map-viewer/map-viewer';
-import { MapZone, TONE_HEX, ZONE_TYPES, ZoneType, zoneIcon } from '../maps.data';
+import { MapZone, TONE_HEX, ZoneType, zoneIcon } from '../maps.data';
 import { MapsStore } from '../maps.store';
 import { ZoneForm } from '../zone-form/zone-form';
 
@@ -24,7 +24,7 @@ import { ZoneForm } from '../zone-form/zone-form';
 
         <div class="panel__head" style="margin: 0">
           <h3>Zones ({{ store.zones.length }})</h3>
-          <button type="button" class="btn btn--primary btn--sm" [disabled]="!store.editing" (click)="draw('Rectangle')">
+          <button type="button" class="btn btn--primary btn--sm" [disabled]="!store.editing || store.working || !store.currentPlan" (click)="draw('Rectangle')">
             <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Add Zone
           </button>
         </div>
@@ -60,7 +60,7 @@ import { ZoneForm } from '../zone-form/zone-form';
               }
             </button>
           } @empty {
-            <p class="list-empty">No zones match.</p>
+            <p class="list-empty">{{ emptyText }}</p>
           }
         </div>
 
@@ -71,7 +71,7 @@ import { ZoneForm } from '../zone-form/zone-form';
         <ng-container ngProjectAs="[tools]">
           <button type="button" class="btn on"><lucide-icon [img]="icons.MousePointer2" [size]="15"></lucide-icon> Select</button>
           <div class="dd">
-            <button type="button" class="btn" [disabled]="!store.editing" aria-haspopup="menu" [attr.aria-expanded]="drawOpen" (click)="toggleDraw($event)">
+            <button type="button" class="btn" [disabled]="!store.editing || store.working || !store.currentPlan" aria-haspopup="menu" [attr.aria-expanded]="drawOpen" (click)="toggleDraw($event)">
               <lucide-icon [img]="icons.Hexagon" [size]="15"></lucide-icon> Draw Zone <lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>
             </button>
             @if (drawOpen) {
@@ -122,7 +122,10 @@ import { ZoneForm } from '../zone-form/zone-form';
 export class ZonesTab {
   readonly store = inject(MapsStore);
   readonly icons = { ChevronDown, Hexagon, MousePointer2, Plus, Search, ShieldAlert };
-  readonly types = ZONE_TYPES;
+  get types() {
+    return this.store.zoneTypes;
+  }
+
   readonly shapes: { shape: MapZone['shape']; label: string; icon: typeof Square }[] = [
     { shape: 'Polygon', label: 'Polygon Zone', icon: Hexagon },
     { shape: 'Rectangle', label: 'Rectangle Zone', icon: Square },
@@ -151,7 +154,7 @@ export class ZonesTab {
   }
 
   hex(z: MapZone): string {
-    return TONE_HEX[z.tone];
+    return this.store.zoneHex(z);
   }
 
   toneHex(tone: keyof typeof TONE_HEX): string {
@@ -170,8 +173,12 @@ export class ZonesTab {
 
   draw(shape: MapZone['shape']): void {
     this.drawOpen = false;
-    const zone = this.store.addZone(shape);
-    this.typeFilter = '';
-    this.store.notify(`${zone.name} added - fill in its details and save`);
+    this.store.addZone(shape, () => (this.typeFilter = ''));
+  }
+
+  get emptyText(): string {
+    if (this.store.zonesLoading) return 'Loading zones…';
+    if (!this.store.currentPlan) return 'No floor plan for this location - upload one to draw zones.';
+    return this.store.zones.length ? 'No zones match.' : 'No zones yet - use Add Zone or Draw Zone.';
   }
 }

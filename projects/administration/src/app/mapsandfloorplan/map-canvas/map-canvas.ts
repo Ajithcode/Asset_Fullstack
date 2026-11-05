@@ -1,6 +1,6 @@
 import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, inject } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
-import { MapZone, PlotItem, TONE_HEX, zoneIcon } from '../maps.data';
+import { FloorPlan, MapZone, PlotItem, TONE_HEX, isImageFormat, zoneIcon } from '../maps.data';
 import { MapsStore } from '../maps.store';
 
 /**
@@ -13,7 +13,10 @@ import { MapsStore } from '../maps.store';
   imports: [LucideAngularModule],
   template: `
     <div class="viewport" [class.viewport--preview]="preview" [class.placing]="placing">
-      <div class="plan" #plan [style.width.%]="zoom" (click)="onPlanClick($event)">
+      <div class="plan" #plan [style.width.%]="zoom" [style.aspect-ratio]="ratio" (click)="onPlanClick($event)">
+        @if (imageUrl; as src) {
+          <img class="plan__base plan__img" [src]="src" [alt]="shownPlan?.name ?? 'Floor plan'" draggable="false" (load)="onImageLoad($event)" (error)="onImageError(src)" />
+        } @else {
         <svg class="plan__base" viewBox="0 0 600 320" preserveAspectRatio="none" aria-hidden="true">
           <rect x="6" y="6" width="588" height="308" fill="#fff" stroke="#334155" stroke-width="5" />
           <!-- interior walls and rooms -->
@@ -33,8 +36,9 @@ import { MapsStore } from '../maps.store';
             <rect x="570" y="250" width="20" height="40" />
           </g>
         </svg>
+        }
 
-        @if (showZones) {
+        @if (showZones && ownZones) {
           @for (z of store.zones; track z.id) {
             <button
               type="button"
@@ -63,7 +67,7 @@ import { MapsStore } from '../maps.store';
           }
         }
 
-        @if (!preview) {
+        @if (!preview && ownZones) {
           @for (i of store.plotted; track i.id) {
             @if ((i.kind === 'device' && showDevices) || (i.kind === 'asset' && showAssets)) {
               <button
@@ -116,6 +120,7 @@ import { MapsStore } from '../maps.store';
     .viewport.placing .plan { cursor: crosshair; }
     .plan { position: relative; aspect-ratio: 600 / 320; margin: 0 auto; transition: width 0.15s ease; }
     .plan__base { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .plan__img { object-fit: fill; background: #fff; user-select: none; }
     .zone {
       position: absolute;
       display: flex;
@@ -219,16 +224,54 @@ export class MapCanvas {
   @Output() itemSelect = new EventEmitter<PlotItem>();
   @Output() place = new EventEmitter<{ x: number; y: number }>();
 
+  /** Plan to draw (defaults to the store's current plan). Zones and plots are drawn only for the current plan. */
+  @Input() plan: FloorPlan | undefined;
+  /** Another file of the plan to show instead (e.g. a version's file). */
+  @Input() fileUrl: string | null = null;
+  @Input() fileFormat: string | null = null;
+
   readonly racks = [
     [150, 60], [210, 60], [270, 60], [330, 60], [150, 100], [210, 100], [270, 100], [330, 100], [150, 170], [270, 170], [330, 170]
   ];
+
+  /** Image URLs that failed to load: those fall back to the placeholder drawing. */
+  private static broken = new Set<string>();
+  /** Aspect ratio of the loaded image (the placeholder is 600 / 320). */
+  ratio = '600 / 320';
+
+  get shownPlan(): FloorPlan | undefined {
+    return this.plan ?? this.store.currentPlan;
+  }
+
+  /** True when the zones / plots in the store belong to the plan shown. */
+  get ownZones(): boolean {
+    return !this.plan || this.plan.id === this.store.selectedPlanId;
+  }
+
+  /** The real floor plan image, when the file is an image (PNG / JPG / SVG) and it loads. */
+  get imageUrl(): string | null {
+    const p = this.shownPlan;
+    const url = this.fileUrl ?? p?.fileUrl ?? '';
+    const format = this.fileFormat ?? p?.format ?? '';
+    return url && isImageFormat(format) && !MapCanvas.broken.has(url) ? url : null;
+  }
+
+  onImageLoad(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img.naturalWidth && img.naturalHeight) this.ratio = `${img.naturalWidth} / ${img.naturalHeight}`;
+  }
+
+  onImageError(src: string): void {
+    MapCanvas.broken.add(src);
+    this.ratio = '600 / 320';
+  }
 
   icon(z: MapZone) {
     return zoneIcon(z.type);
   }
 
   hex(z: MapZone): string {
-    return TONE_HEX[z.tone];
+    return this.store.zoneHex(z);
   }
 
   toneHex(i: PlotItem): string {

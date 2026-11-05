@@ -48,7 +48,7 @@ export class MapLibraryTab {
   placing: PlotKind | null = null;
   show = { zones: true, devices: true, assets: true, labels: true };
 
-  readonly usedGb = 3.2;
+  /** Storage quota shown in the Storage & Usage card (no quota API yet). */
   readonly totalGb = 10;
   date = fmtDate;
 
@@ -66,9 +66,7 @@ export class MapLibraryTab {
 
   draw(shape: MapZone['shape']): void {
     this.drawOpen = false;
-    const zone = this.store.addZone(shape);
-    this.rightTab = 'zone';
-    this.store.notify(`${zone.name} added - fill in its details and save`);
+    this.store.addZone(shape, () => (this.rightTab = 'zone'));
   }
 
   startPlacing(kind: PlotKind): void {
@@ -87,9 +85,8 @@ export class MapLibraryTab {
     const item = this.store.unplotted.find((i) => i.kind === this.placing);
     this.placing = null;
     if (!item) return;
-    this.store.plot(item.id, pos.x, pos.y);
     this.store.selectedItemId = item.id;
-    this.store.notify(`${item.name} (${item.code}) plotted`);
+    this.store.plot(item.id, pos.x, pos.y, `${item.name} (${item.code}) plotted`);
   }
 
   selectZone(z: MapZone): void {
@@ -102,8 +99,18 @@ export class MapLibraryTab {
     this.goTo.emit('device-asset-plotting');
   }
 
+  /** Size of the floor plan files (current versions) stored for the tenant. */
+  get usedBytes(): number {
+    return this.store.floorPlans.reduce((sum, p) => sum + (p.sizeBytes || 0), 0);
+  }
+
+  get usedLabel(): string {
+    const gb = this.usedBytes / 1024 ** 3;
+    return gb >= 0.1 ? `${gb.toFixed(1)} GB` : `${(this.usedBytes / 1024 ** 2).toFixed(1)} MB`;
+  }
+
   get storagePct(): number {
-    return Math.round((this.usedGb / this.totalGb) * 100);
+    return Math.min(100, Math.round((this.usedBytes / (this.totalGb * 1024 ** 3)) * 100));
   }
 
   toggleUploadMenu(event: MouseEvent): void {
@@ -111,8 +118,8 @@ export class MapLibraryTab {
     this.uploadMenuOpen = !this.uploadMenuOpen;
   }
 
-  uploaded(name: string): void {
+  /** The store already showed the success toast. */
+  uploaded(): void {
     this.uploadOpen = false;
-    this.store.notify(`${name} uploaded as a draft`);
   }
 }

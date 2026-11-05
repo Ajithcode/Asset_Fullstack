@@ -41,5 +41,5 @@
 }
 
 @if (store.toast) {
-  <div class="toast" role="status">{{ store.toast }}</div>
+  <div class="toast" role="status" aria-live="polite" [attr.data-tone]="store.toastTone">{{ store.toast }}</div>
 }
