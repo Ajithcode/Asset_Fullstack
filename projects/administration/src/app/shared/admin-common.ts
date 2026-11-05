@@ -44,18 +44,24 @@ export function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+export type ToastTone = 'info' | 'success' | 'error';
+
 /** Base for the Administration pages: organization picker + toast. */
 @Directive()
 export abstract class AdminPage implements OnDestroy {
   readonly organizations = ORGANIZATIONS;
   organization = ORGANIZATIONS[0] ?? '';
   toast: string | null = null;
+  /** Colour of the toast: info (dark), success (green) or error (red). */
+  toastTone: ToastTone = 'info';
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
-  notify(message: string): void {
+  notify(message: string, tone: ToastTone = 'info'): void {
     this.toast = message;
+    this.toastTone = tone;
     if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = null), 3200);
+    // errors stay a little longer so the reason can be read
+    this.toastTimer = setTimeout(() => (this.toast = null), tone === 'error' ? 5000 : 3200);
   }
 
   ngOnDestroy(): void {

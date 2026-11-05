@@ -66,11 +66,13 @@ export const ROLE_MODULES: { name: string; na: PermAction[] }[] = [
   { name: 'Maintenance', na: [] },
   { name: 'Inspection', na: [] },
   { name: 'Inventory', na: [] },
+  { name: 'WIP / Operations', na: [] },
   { name: 'Compliance', na: [] },
   { name: 'Contracts & Warranty', na: [] },
   { name: 'Financial', na: [] },
   { name: 'Reports & Analytics', na: ['approve'] },
-  { name: 'Administration', na: ['approve'] }
+  { name: 'Administration', na: ['approve'] },
+  { name: 'Master Data Management', na: [] }
 ];
 
 export const ROLE_TYPES: RoleType[] = ['Custom', 'System'];

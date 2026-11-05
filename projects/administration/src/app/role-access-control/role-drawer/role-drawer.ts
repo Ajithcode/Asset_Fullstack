@@ -1,8 +1,9 @@
 import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Info, Lock, LucideAngularModule, X } from 'lucide-angular';
-import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS, avatarTone, initials } from '../../shared/admin-common';
+import { avatarTone, initials } from '../../shared/admin-common';
 import { ChipSelect } from '../chip-select/chip-select';
+import scopeOptions from '../role-scope-options.json';
 import { DATA_SCOPES, DataScope, ROLE_TYPES, RoleRecord, SESSION_TIMEOUTS } from '../role-access.data';
 import { RoleAccessService } from '../role-access.service';
 
@@ -47,8 +48,8 @@ export class RoleDrawer implements OnChanges {
   readonly types = ROLE_TYPES;
   readonly scopes = DATA_SCOPES;
   readonly timeouts = SESSION_TIMEOUTS;
-  readonly locations = ADMIN_LOCATIONS;
-  readonly departments = ADMIN_DEPARTMENTS;
+  readonly locations: string[] = scopeOptions.locations;
+  readonly departments: string[] = scopeOptions.departments;
 
   avatars: string[] = [];
 
@@ -75,7 +76,7 @@ export class RoleDrawer implements OnChanges {
 
   onScope(scope: DataScope): void {
     this.role.dataScope = scope;
-    if (scope === 'All Locations') this.role.locations = [...ADMIN_LOCATIONS];
+    if (scope === 'All Locations') this.role.locations = [...this.locations];
     this.changed.emit();
   }
 
