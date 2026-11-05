@@ -79,13 +79,14 @@ function clone(s: MapSettings): MapSettings {
   templateUrl: './settings.html',
   styleUrls: ['../../shared/admin-workspace.css', '../maps.css'],
   styles: `
-    .set-ws { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 12px; align-items: start; }
+    .set-ws { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 12px; align-items: stretch; }
     .set-nav { display: flex; flex-direction: column; gap: 2px; padding: 10px; }
     .set-nav button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-radius: 8px; background: none; font: inherit; font-weight: 600; color: #334155; text-align: left; cursor: pointer; }
     .set-nav button:hover { background: #faf9fe; }
     .set-nav button.active { background: var(--adm-purple-soft); color: var(--adm-purple); }
     .set-nav lucide-icon { color: var(--adm-purple); }
-    .set-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .set-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+    .srow select { width: 100%; }
     .set-card { border: 1px solid var(--adm-border); border-radius: 12px; padding: 14px 16px; }
     .set-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 14.5px; font-weight: 800; }
     .set-card h3 lucide-icon { color: var(--adm-purple); }

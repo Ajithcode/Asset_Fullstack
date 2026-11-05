@@ -102,8 +102,9 @@ import { MapsStore } from '../maps.store';
     </div>
   `,
   styles: `
-    :host { display: block; min-width: 0; }
+    :host { display: flex; flex-direction: column; min-width: 0; }
     .viewport {
+      flex: 1;
       position: relative;
       overflow: auto;
       border: 1px solid #e6e8ef;
