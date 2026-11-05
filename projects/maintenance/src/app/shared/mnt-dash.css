@@ -74,3 +74,10 @@ button.kpi:hover { border-color: var(--mp-accent-border); }
   .kpis, .charts { grid-template-columns: minmax(0, 1fr); }
   .sel { max-width: none; }
 }
+
+/* ===== Purple theme: default / purple KPI icon tiles; status tones keep their colors ===== */
+.kpi-ic:not(.kpi-ic--green):not(.kpi-ic--amber):not(.kpi-ic--red) {
+  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px #6d28d940;
+}

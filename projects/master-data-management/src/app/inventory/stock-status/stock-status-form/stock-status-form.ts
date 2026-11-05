@@ -18,7 +18,8 @@ type Tab = 'basic' | 'rules' | 'settings';
     '../../../shared/styles/mdm-drawer-extras.css',
     '../../../people/people-form.css',
     '../../../asset/level-form.css',
-    '../../../people/shift/shift-form/shift-form.css'
+    '../../../people/shift/shift-form/shift-form.css',
+    '../../../shared/styles/mdm-purple-theme.css'
   ]
 })
 export class StockStatusForm extends MasterForm<StockStatusRecord, Tab> {

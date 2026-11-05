@@ -1,4 +1,5 @@
-import { AfterViewInit, Component, ElementRef, HostListener, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -48,7 +49,6 @@ import {
   HealthBand,
   IotAlert,
   LATEST_FIRMWARE,
-  PREVIOUS,
   SERIES,
   SITES,
   STATUSES,
@@ -57,6 +57,7 @@ import {
 } from './iot-overview-data';
 import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
 import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
+import { AssetDashboardKpis, ConnectedAssetDetail, Dashboard, DeviceConnectivity, SiteAsset, TopSite } from '../services/dashboard/dashboard';
 
 type Period = '7' | '30' | '90';
 type QuickTab = 'overview' | 'location' | 'telemetry' | 'maintenance';
@@ -96,8 +97,10 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     ArrowDown, ArrowUp, ArrowUpDown, Bell, BellRing, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Cog, Database, Download, Ellipsis, ExternalLink, FileText,
     Heart, House, Maximize, MapPin, Minus, Plus, Power, Radio, TriangleAlert, Warehouse, Wifi, WifiOff, Zap,
   };
-  readonly sites = SITES.map((s) => s.name);
-  readonly types = ASSET_TYPES;
+  /** "Site" dropdown, from GET api/master-data/sites?clientId=. */
+  sites: string[] = [];
+  /** "Asset Type" dropdown, from GET api/master-data/asset-types. */
+  types: string[] = [];
   readonly statuses = STATUSES;
   readonly statusColors = STATUS_COLORS;
   readonly healthColors = HEALTH_COLORS;
@@ -145,6 +148,21 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly zone = inject(NgZone);
   private readonly now = new Date();
+  private readonly dashboardApi = inject(Dashboard);
+  private readonly destroyRef = inject(DestroyRef);
+
+  /** KPI cards from GET api/asset-dashboard/kpis; null until the first response. */
+  kpiData: AssetDashboardKpis | null = null;
+  kpiLoading = false;
+  kpiError = '';
+
+  /** Donut from GET api/asset-dashboard/device-connectivity; null until the first response. */
+  connectivityData: DeviceConnectivity | null = null;
+  connectivityLoading = false;
+
+  /** Sites ranked by the API (GET api/asset-dashboard/locations). */
+  topSites: TopSite[] = [];
+  sitesLoading = false;
 
   /** Filtered fleet; rebuilt by apply() whenever a filter changes. */
   devices: Device[] = DEVICES;
@@ -153,6 +171,104 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     // open on the device behind the latest critical alert
     const first = ALERTS.find((a) => a.severity === 'Critical') ?? ALERTS[0];
     this.selectedId = first?.deviceId ?? DEVICES[0]?.id ?? '';
+    this.loadKpis();
+    this.loadConnectivity();
+    this.loadSites();
+    this.loadAssetTypes();
+    this.loadSiteOptions();
+  }
+
+  /** Fills the Site dropdown with the client's active, non-deleted sites, sorted by name. */
+  loadSiteOptions(): void {
+    this.dashboardApi
+      .getSites()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          const names = (res ?? []).filter((s) => !s.isDeleted && s.status !== 'Inactive').map((s) => s.siteName).filter(Boolean);
+          this.sites = [...new Set(names)].sort((a, b) => a.localeCompare(b));
+        },
+        error: () => {
+          this.sites = [];
+          this.showToast('Could not load site list');
+        },
+      });
+  }
+
+  /** Fills the Asset Type dropdown with the active, non-deleted types, sorted by name. */
+  loadAssetTypes(): void {
+    this.dashboardApi
+      .getAssetTypes()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          const names = (res ?? []).filter((t) => !t.isDeleted && t.status !== 'Inactive').map((t) => t.assetTypeName).filter(Boolean);
+          this.types = [...new Set(names)].sort((a, b) => a.localeCompare(b));
+        },
+        error: () => {
+          this.types = [];
+          this.showToast('Could not load asset types');
+        },
+      });
+  }
+
+  /** Fetches every site for "Top Active Sites"; the widget shows the first 3 until View All. */
+  loadSites(): void {
+    this.sitesLoading = true;
+    this.dashboardApi
+      .getLocations()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.topSites = res.topSites ?? [];
+          this.sitesLoading = false;
+        },
+        error: () => {
+          this.topSites = [];
+          this.sitesLoading = false;
+          this.showToast('Could not load sites');
+        },
+      });
+  }
+
+  /** Fetches the Device Connectivity donut for the selected period. */
+  loadConnectivity(): void {
+    this.connectivityLoading = true;
+    this.dashboardApi
+      .getDeviceConnectivity(Number(this.period))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.connectivityData = res;
+          this.connectivityLoading = false;
+        },
+        error: () => {
+          this.connectivityData = null;
+          this.connectivityLoading = false;
+          this.showToast('Could not load device connectivity');
+        },
+      });
+  }
+
+  /** Fetches the KPI cards for the selected period. */
+  loadKpis(): void {
+    this.kpiLoading = true;
+    this.kpiError = '';
+    this.dashboardApi
+      .getKpis(Number(this.period))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.kpiData = res;
+          this.kpiLoading = false;
+        },
+        error: () => {
+          this.kpiData = null;
+          this.kpiLoading = false;
+          this.kpiError = 'Could not load KPIs';
+          this.showToast(this.kpiError);
+        },
+      });
   }
 
   ngAfterViewInit(): void {
@@ -194,6 +310,8 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     this.alertPage = 0;
     // alert markers follow the period
     this.drawMarkers();
+    this.loadKpis();
+    this.loadConnectivity();
   }
 
   get periodLabel(): string {
@@ -218,45 +336,57 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   // ===== KPIs =====
 
   get kpis() {
-    const list = this.devices;
-    const total = list.length;
-    const online = list.filter((d) => d.status === 'Online').length;
-    const reporting = list.filter((d) => d.status === 'Online' || d.status === 'Idle');
-    const located = list.filter((d) => this.minutesSince(d.lastUpdate) <= COVERAGE_MIN).length;
-    const fresh = reporting.filter((d) => this.minutesSince(d.lastUpdate) <= FRESH_MIN).length;
-    const alerts = this.periodAlerts;
-    const pct = (n: number, of: number) => (of ? Math.round((n / of) * 1000) / 10 : 0);
-    const coverage = pct(located, total);
-    const freshness = pct(fresh, reporting.length);
+    const api = this.kpiData;
+    const round = (v: number | null | undefined) => (v === null || v === undefined ? null : Math.round(v * 10) / 10);
     return {
-      connected: total,
-      // change against the previous period only makes sense for the whole fleet
-      connectedChange: this.filtered || !PREVIOUS?.connected ? null : Math.round(((total - PREVIOUS.connected) / PREVIOUS.connected) * 1000) / 10,
-      online,
-      onlinePct: pct(online, total),
-      alerts: alerts.length,
-      critical: alerts.filter((a) => a.severity === 'Critical').length,
-      coverage,
-      coverageChange: this.filtered || !PREVIOUS ? null : Math.round((coverage - PREVIOUS.coverage) * 10) / 10,
-      freshness,
-      freshnessChange: this.filtered || !PREVIOUS ? null : Math.round((freshness - PREVIOUS.freshness) * 10) / 10,
+      connected: api?.connectedAssets.value ?? 0,
+      connectedChange: round(api?.connectedAssets.changePercent),
+      online: api?.onlineNow.value ?? 0,
+      onlinePct: round(api?.onlineNow.percent) ?? 0,
+      alerts: api?.alerts.value ?? 0,
+      // the API has no severity split yet: critical count comes from the alert list
+      critical: this.periodAlerts.filter((a) => a.severity === 'Critical').length,
+      coverage: round(api?.coverage.percent) ?? 0,
+      coverageChange: round(api?.coverage.changePercent),
+      freshness: round(api?.dataFreshness.percent) ?? 0,
+      freshnessChange: round(api?.dataFreshness.changePercent),
     };
+  }
+
+  /** Connected assets returned with the KPIs. */
+  get connectedAssets(): ConnectedAssetDetail[] {
+    return this.kpiData?.connectedAssetDetails ?? [];
+  }
+
+  private connectedColumns(): DrillColumn[] {
+    return [
+      { key: 'tag', label: 'Asset Tag' }, { key: 'name', label: 'Asset Name' }, { key: 'type', label: 'Type' }, { key: 'site', label: 'Site' },
+      { key: 'network', label: 'Network', pill: { online: STATUS_COLORS.Online, offline: STATUS_COLORS.Offline } },
+      { key: 'gateway', label: 'Gateway' }, { key: 'lastSeen', label: 'Last Seen' }, { key: 'readings', label: 'Readings', num: true },
+    ];
+  }
+
+  private connectedRows(list: ConnectedAssetDetail[]): DrillRow[] {
+    return list.map((a) => ({
+      cells: {
+        tag: a.assetTag, name: a.assetName, type: a.assetType, site: a.siteName, network: a.networkStatus,
+        gateway: a.gatewayId, lastSeen: a.lastSeenAt ? this.fmtDateTime(a.lastSeenAt) : '-', readings: a.readingCount,
+      },
+    }));
   }
 
   // ===== Sites =====
 
   get siteStats() {
-    const rows = SITES.map((s) => {
-      const list = this.devices.filter((d) => d.site === s.name);
-      const count = (st: DeviceStatus) => list.filter((d) => d.status === st).length;
-      const online = count('Online');
+    const rows = this.topSites.map((t) => {
+      // icon and colour come from the local site catalogue when the names match
+      const local = SITES.find((s) => s.name.toLowerCase() === t.siteName.toLowerCase());
       return {
-        site: s, total: list.length, online, idle: count('Idle'), offline: count('Offline') + count('Unknown'),
-        onlinePct: list.length ? Math.round((online / list.length) * 1000) / 10 : 0,
+        site: { id: t.siteId, name: t.siteName, color: local?.color ?? '#2563eb', image: local?.image ?? 'warehouse' },
+        total: t.totalAssets, online: t.online, idle: t.idle, offline: t.offline + t.unknown,
+        onlinePct: Math.round(t.onlinePercent * 10) / 10,
       };
-    })
-      .filter((r) => r.total)
-      .sort((a, b) => b.total - a.total);
+    });
     return this.showAllSites ? rows : rows.slice(0, 3);
   }
 
@@ -268,17 +398,24 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   // ===== Tracking health =====
 
   get connectivity() {
-    const total = this.devices.length;
+    const api = this.connectivityData;
+    const bands = api?.bands ?? [];
+    const total = api?.total ?? 0;
     const C = 2 * Math.PI * 48;
     let acc = 0;
-    const rows = STATUSES.map((s) => {
-      const count = this.devices.filter((d) => d.status === s).length;
+    // keep the fixed status order; any extra band from the API goes last
+    const names = [...STATUSES, ...bands.map((b) => b.name).filter((n) => !STATUSES.includes(n as DeviceStatus))];
+    const rows = names.map((s) => {
+      const band = bands.find((b) => b.name.toLowerCase() === s.toLowerCase());
+      const count = band?.count ?? 0;
+      const percent = band?.percent ?? 0;
       const len = total ? (count / total) * C : 0;
-      const row = { status: s, count, color: STATUS_COLORS[s], dash: `${Math.max(0, len - (count ? 2 : 0))} ${C}`, offset: -acc };
+      const color = STATUS_COLORS[s as DeviceStatus] ?? '#94a3b8';
+      const row = { status: s as DeviceStatus, count, percent, color, dash: `${Math.max(0, len - (count ? 2 : 0))} ${C}`, offset: -acc };
       acc += len;
       return row;
     });
-    return { total, rows };
+    return { total, centrePercent: Math.round((api?.centrePercent ?? 0) * 10) / 10, rows };
   }
 
   get firmware() {
@@ -587,13 +724,18 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     const list = this.devices;
     const k = this.kpis;
     if (kind === 'connected') {
-      this.drill = { title: 'Connected Assets', subtitle: this.scope, stats: [{ label: 'Connected', value: k.connected }, ...this.statusStats(list)], columns: this.deviceColumns(), rows: this.deviceRows(list) };
-    } else if (kind === 'online') {
-      const online = list.filter((d) => d.status === 'Online');
+      const assets = this.connectedAssets;
       this.drill = {
-        title: 'Online Now', subtitle: this.scope,
-        stats: [{ label: 'Online', value: k.online, color: STATUS_COLORS.Online }, { label: 'Of connected assets', value: `${k.onlinePct}%` }, ...this.statusStats(list).slice(1)],
-        columns: this.deviceColumns({ key: 'util', label: 'Utilization %', num: true }), rows: this.deviceRows(online, (d) => ({ util: d.utilization })),
+        title: 'Connected Assets', subtitle: this.kpiData?.connectedAssets.note ?? this.scope,
+        stats: [{ label: 'Connected', value: k.connected }, { label: 'Registered', value: this.kpiData?.totalAssets ?? 0 }],
+        columns: this.connectedColumns(), rows: this.connectedRows(assets), empty: 'No connected assets.',
+      };
+    } else if (kind === 'online') {
+      const online = this.connectedAssets.filter((a) => a.networkStatus?.toLowerCase() === 'online');
+      this.drill = {
+        title: 'Online Now', subtitle: this.kpiData?.onlineNow.note ?? this.scope,
+        stats: [{ label: 'Online', value: k.online, color: STATUS_COLORS.Online }, { label: 'Of connected assets', value: `${k.onlinePct}%` }],
+        columns: this.connectedColumns(), rows: this.connectedRows(online), empty: 'No assets online.',
       };
     } else if (kind === 'alerts') {
       this.drill = { title: 'Alerts', subtitle: this.scope, stats: this.alertStats(this.periodAlerts), columns: this.alertColumns(true), rows: this.alertRowsOf(this.periodAlerts), empty: 'No alerts in this period.' };
@@ -619,16 +761,53 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     }
   }
 
-  openSite(name: string): void {
-    const list = this.devices.filter((d) => d.site === name);
+  /** Site popup: from GET api/asset-dashboard/sites/{siteId} when the id is known, else from the local fleet (map markers). */
+  openSite(name: string, siteId?: string): void {
     const on = this.site === name;
-    this.drill = {
-      title: name, subtitle: `Site · ${this.scope}`,
-      stats: [{ label: 'Assets', value: list.length }, ...this.statusStats(list), { label: 'Online %', value: `${pct(list.filter((d) => d.status === 'Online').length, list.length)}%` }],
-      columns: this.deviceColumns({ key: 'health', label: 'Health %', num: true }),
-      rows: this.deviceRows(list, (d) => ({ health: d.health ?? '' })),
-      actions: [{ label: on ? 'Clear site filter' : `Filter dashboard to ${name}`, run: () => this.filterSite(name) }],
-    };
+    const action = { label: on ? 'Clear site filter' : `Filter dashboard to ${name}`, run: () => this.filterSite(name) };
+    if (!siteId) {
+      const list = this.devices.filter((d) => d.site === name);
+      this.drill = {
+        title: name, subtitle: `Site · ${this.scope}`,
+        stats: [{ label: 'Assets', value: list.length }, ...this.statusStats(list), { label: 'Online %', value: `${pct(list.filter((d) => d.status === 'Online').length, list.length)}%` }],
+        columns: this.deviceColumns({ key: 'health', label: 'Health %', num: true }),
+        rows: this.deviceRows(list, (d) => ({ health: d.health ?? '' })),
+        actions: [action],
+      };
+      return;
+    }
+    this.dashboardApi
+      .getSite(siteId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          const assets: SiteAsset[] = res.statuses.flatMap((s) => s.assets);
+          const where = [res.siteType, res.city, res.country].filter(Boolean).join(' · ');
+          this.drill = {
+            title: res.siteName, subtitle: `Site${where ? ' · ' + where : ''}`,
+            stats: [
+              { label: 'Assets', value: res.totalAssets },
+              ...STATUSES.map((st) => ({ label: st, value: res.statuses.find((x) => x.status === st)?.count ?? 0, color: STATUS_COLORS[st] })),
+              { label: 'Online %', value: `${Math.round(res.onlinePercent * 10) / 10}%` },
+            ],
+            columns: [
+              { key: 'tag', label: 'Asset Tag' }, { key: 'name', label: 'Asset Name' }, { key: 'type', label: 'Type' },
+              { key: 'network', label: 'Network', pill: STATUS_COLORS }, { key: 'location', label: 'Location' },
+              { key: 'gateway', label: 'Gateway' }, { key: 'lastSeen', label: 'Last Seen' },
+            ],
+            rows: assets.map((a) => ({
+              cells: {
+                tag: a.assetTag, name: a.assetName, type: a.assetType, network: a.networkStatus,
+                location: [a.buildingName, a.floorName, a.zoneName].filter(Boolean).join(' / ') || '-',
+                gateway: a.gatewayId ?? '-', lastSeen: a.lastSeenAt ? this.fmtDateTime(a.lastSeenAt) : '-',
+              },
+            })),
+            empty: 'No assets at this site.',
+            actions: [action],
+          };
+        },
+        error: () => this.showToast(`Could not load ${name}`),
+      });
   }
 
   openStatus(s: DeviceStatus): void {

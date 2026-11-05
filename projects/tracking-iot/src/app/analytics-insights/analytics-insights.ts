@@ -74,7 +74,7 @@ const TW = 400;
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './analytics-insights.html',
-  styleUrls: ['./analytics-insights.css', './analytics-insights-charts.css'],
+  styleUrls: ['./analytics-insights.css', './analytics-insights-charts.css', '../shared/iot-purple-theme.css'],
 })
 export class AnalyticsInsights implements OnDestroy {
   readonly icons = { Activity, ArrowRight, Bookmark, CalendarDays, ChevronDown, Database, Download, Info, Lightbulb, MapPin, ShieldCheck, Trash2, TrendingUp, TriangleAlert, X };

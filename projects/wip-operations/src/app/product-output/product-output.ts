@@ -65,7 +65,7 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50];
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './product-output.html',
   // Buttons, controls, tabs, modal and toast come from the Job Templates stylesheet
-  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './product-output.css'],
+  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './product-output.css', '../shared/wip-purple-theme.css'],
 })
 export class ProductOutput implements OnDestroy {
   readonly icons = {

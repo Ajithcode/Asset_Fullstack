@@ -117,7 +117,7 @@ const CONN_ALIASES: Record<string, Connectivity> = {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './device-type-model.html',
-  styleUrls: ['./device-type-model.css', './device-type-model-sections.css', './device-type-model-dialogs.css'],
+  styleUrls: ['./device-type-model.css', './device-type-model-sections.css', './device-type-model-dialogs.css', '../shared/iot-purple-theme.css'],
 })
 export class DeviceTypeModel implements OnInit, OnDestroy {
   private readonly api = inject(DeviceModelApiService);

@@ -18,7 +18,7 @@ const USERNAME = /^[a-z0-9]+([._-][a-z0-9]+)*$/;
   selector: 'app-user-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './user-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', './user-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', './user-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class UserForm extends MasterForm<UserRecord, Tab> implements OnChanges {
   protected readonly store = inject(UserService);

@@ -12,7 +12,7 @@ import { MasterField, MasterRecord, MasterTableConfig, MasterValue } from './mas
   selector: 'app-master-table',
   imports: [FormsModule, RowActions],
   templateUrl: './master-table.html',
-  styleUrl: './master-table.css'
+  styleUrls: ['./master-table.css', '../styles/mdm-purple-theme.css']
 })
 export class MasterTable implements OnInit {
   @Input({ required: true }) config!: MasterTableConfig;

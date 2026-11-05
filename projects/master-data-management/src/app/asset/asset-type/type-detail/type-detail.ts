@@ -21,7 +21,8 @@ type DetailTab = 'overview' | 'subcategories' | 'assets' | 'fields' | 'defaults'
     '../../../shared/styles/mdm-detail.css',
     '../../../shared/styles/mdm-detail-extras.css',
     '../../asset-model/model-detail/model-detail.css',
-    './type-detail.css'
+    './type-detail.css',
+    '../../../shared/styles/mdm-purple-theme.css'
   ]
 })
 export class TypeDetail implements OnChanges {

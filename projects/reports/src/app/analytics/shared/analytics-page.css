@@ -953,3 +953,38 @@ input[type='radio'] {
     grid-column: 1 / -1;
   }
 }
+
+/* ===== Purple accent (matches Master Data Management) ===== */
+.btn.btn--primary {
+  border-color: transparent;
+  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px #6d28d940;
+}
+
+.btn.btn--primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: linear-gradient(90deg, #3b1574, #5b21b6);
+}
+
+/* KPI / stat icons; green / orange / pink / red tones keep their meaning colours.
+   Doubled class so page stylesheets loaded after this one (e.g. .sr-tile .kpi__icon) don't win. */
+.kpi__icon.kpi__icon:not([data-tone]):not(.cr-lib-item__icon),
+.kpi__icon.kpi__icon[data-tone='blue']:not(.cr-lib-item__icon),
+.kpi__icon.kpi__icon[data-tone='purple']:not(.cr-lib-item__icon) {
+  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px #6d28d940;
+}
+
+.crumbs a {
+  color: #6d28d9;
+}
+
+.crumbs a:hover {
+  color: #4c1d95;
+}
+
+.crumbs span {
+  color: #a78bfa;
+}

@@ -98,7 +98,7 @@ const num = (v: unknown): number | null => (v === null || v === undefined || v =
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './device-health.html',
-  styleUrls: ['./device-health.css', './device-health-table.css', './device-health-panel.css'],
+  styleUrls: ['./device-health.css', './device-health-table.css', './device-health-panel.css', '../shared/iot-purple-theme.css'],
 })
 export class DeviceHealth implements OnInit, OnDestroy {
   readonly icons = { Battery, Check, FileText, RadioTower, Signal, Building, Calendar, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, CircleX, Cpu, Ellipsis, ExternalLink, HeartPulse, Info, LoaderCircle, MapPin, Play, Plug, Plus, Search, Settings, SlidersHorizontal, TriangleAlert, Wifi, WifiOff, X };

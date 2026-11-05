@@ -32,7 +32,8 @@ interface HierarchyRow {
     '../../../shared/styles/mdm-drawer-extras.css',
     '../../asset-model/model-detail/model-detail.css',
     '../../level-detail.css',
-    './cat-detail.css'
+    './cat-detail.css',
+    '../../../shared/styles/mdm-purple-theme.css'
   ]
 })
 export class CatDetail implements OnChanges {

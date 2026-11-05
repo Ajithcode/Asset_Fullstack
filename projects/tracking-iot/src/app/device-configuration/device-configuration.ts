@@ -61,7 +61,7 @@ const round = (v: number, dp = 1) => Math.round(v * 10 ** dp) / 10 ** dp;
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './device-configuration.html',
-  styleUrls: ['./device-configuration.css', './device-configuration-sections.css'],
+  styleUrls: ['./device-configuration.css', './device-configuration-sections.css', '../shared/iot-purple-theme.css'],
 })
 export class DeviceConfiguration implements OnInit, DoCheck, OnDestroy {
   readonly icons = { Antenna, Bell, Bluetooth, Building2, Calendar, ChartColumn, Check, CircleAlert, CircleCheck, CircleX, Clock, Copy, Cpu, Eye, History, IdCard, Info, LayoutDashboard, Pencil, Plus, RadioTower, RotateCcw, Save, Send, ShieldCheck, Thermometer, Trash2, TriangleAlert, X, Battery };

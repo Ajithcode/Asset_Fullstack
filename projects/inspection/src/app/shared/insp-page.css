@@ -166,3 +166,24 @@ textarea.control { height: auto; min-height: 80px; padding: 8px 10px; resize: ve
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .form-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ===== Purple theme (matches Master Data Management / Administration) ===== */
+.btn-primary {
+  border: none;
+  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px #6d28d940;
+}
+.btn-primary:hover:not(:disabled) { background: linear-gradient(90deg, #3b1574, #5b21b6); }
+
+/* Breadcrumb: links and separators purple, current page stays dark */
+.breadcrumb a { color: #6d28d9; }
+.breadcrumb a:hover { color: #4c1d95; }
+.breadcrumb .crumb-sep { color: #a78bfa; }
+
+/* KPI icon tiles in the default / blue accent tone; status tones keep their colors */
+.kpi-ic:not(.kpi-ic--red):not(.kpi-ic--amber):not(.kpi-ic--green):not(.kpi-ic--grey) {
+  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px #6d28d940;
+}

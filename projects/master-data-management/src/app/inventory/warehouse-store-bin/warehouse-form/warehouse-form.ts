@@ -16,7 +16,7 @@ type Tab = 'basic' | 'address' | 'contact' | 'settings';
   selector: 'app-warehouse-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './warehouse-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class WarehouseForm extends MasterForm<WarehouseRecord, Tab> {
   protected readonly store = inject(WarehouseService);

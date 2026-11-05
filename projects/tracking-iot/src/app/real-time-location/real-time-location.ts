@@ -68,7 +68,7 @@ const RULE_LABEL: Record<AlertForm['rule'], string> = { enter: 'Enters zone', ex
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule, RlMap, MapDrawTools],
   templateUrl: './real-time-location.html',
-  styleUrls: ['./real-time-location.css', './real-time-location-panels.css'],
+  styleUrls: ['./real-time-location.css', './real-time-location-panels.css', '../shared/iot-purple-theme.css'],
 })
 export class RealTimeLocation implements OnInit, OnDestroy {
   readonly icons = { Bell, Box, Building2, ChevronDown, Clock, Crosshair, Eye, Forklift, Info, Layers, LocateFixed, MapPin, Minus, Package, Pause, Play, Plus, Route, Search, Settings, ShieldAlert, Signal, Tag, TriangleAlert, Wifi, X };

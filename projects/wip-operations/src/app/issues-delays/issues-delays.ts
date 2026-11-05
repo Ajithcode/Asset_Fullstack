@@ -112,7 +112,7 @@ const mins = (a: string, b: string) => Math.max(0, Math.round((parseLocal(b).get
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './issues-delays.html',
   // Buttons, controls, tabs, switches, modal and toast come from the Job Templates stylesheet
-  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './issues-delays.css'],
+  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './issues-delays.css', '../shared/wip-purple-theme.css'],
 })
 export class IssuesDelays implements OnDestroy {
   readonly icons = {

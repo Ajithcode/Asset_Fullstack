@@ -105,7 +105,7 @@ function eventKind(text: string): EventKind {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './tag-management.html',
-  styleUrls: ['./tag-management.css', './tag-management-panel.css', './tag-management-layout.css', './tag-management-views.css'],
+  styleUrls: ['./tag-management.css', './tag-management-panel.css', './tag-management-layout.css', './tag-management-views.css', '../shared/iot-purple-theme.css'],
 })
 export class TagManagement implements OnInit, OnDestroy {
   private readonly api = inject(TagIdApiService);

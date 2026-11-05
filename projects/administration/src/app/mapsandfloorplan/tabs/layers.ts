@@ -184,6 +184,11 @@ export class LayersTab {
   }
 
   save(): void {
+    // Enter on the Details tab moves on to Style instead of saving
+    if (this.rightTab === 'details') {
+      this.rightTab = 'style';
+      return;
+    }
     if (!this.draft || !this.draft.name.trim()) return;
     this.store.layers = this.store.layers.map((l) => (l.id === this.draft!.id ? { ...this.draft!, name: this.draft!.name.trim() } : l));
     this.store.notify(`Layer ${this.draft.name} saved`);

@@ -169,7 +169,11 @@
 
         <div class="rfoot">
           <button type="button" class="btn" (click)="reset()">Reset</button>
-          <button type="submit" class="btn btn--primary" [disabled]="!d.name.trim()">Save Layer</button>
+          @if (rightTab === 'style') {
+            <button type="submit" class="btn btn--primary" [disabled]="!d.name.trim()">Save Layer</button>
+          } @else {
+            <button type="button" class="btn btn--primary" (click)="rightTab = 'style'">Next</button>
+          }
         </div>
       </form>
     } @else {

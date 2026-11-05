@@ -68,7 +68,7 @@ function parseLocal(s: string): Date {
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './job-orders.html',
   // Buttons, form controls, cards, tabs, modal and toast come from the Job Templates stylesheet
-  styleUrls: ['../job-templates/job-templates.css', './job-orders.css'],
+  styleUrls: ['../job-templates/job-templates.css', './job-orders.css', '../shared/wip-purple-theme.css'],
 })
 export class JobOrders implements OnDestroy {
   readonly icons = {

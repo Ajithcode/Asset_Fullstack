@@ -103,7 +103,7 @@ function addWorking(cal: WorkCalendar, from: string, mins: number): string {
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './sla-management.html',
   // Buttons, controls, tabs, switches, modal and toast come from the Job Templates stylesheet
-  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './sla-management.css'],
+  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './sla-management.css', '../shared/wip-purple-theme.css'],
 })
 export class SlaManagement implements OnDestroy {
   readonly icons = { ArrowRight, Bell, CircleCheck, CirclePause, CirclePlay, Clock, Download, Gauge, House, Info, Plus, Search, Settings2, Timer, TriangleAlert, X };

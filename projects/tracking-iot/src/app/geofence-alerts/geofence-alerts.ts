@@ -80,7 +80,7 @@ const GEOFENCE_EVENT = /geofence|zone|dwell|enter|exit/i;
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule, GeofenceMap, MapDrawTools],
   templateUrl: './geofence-alerts.html',
-  styleUrls: ['./geofence-alerts.css', './geofence-alerts-sections.css'],
+  styleUrls: ['./geofence-alerts.css', './geofence-alerts-sections.css', '../shared/iot-purple-theme.css'],
 })
 export class GeofenceAlerts implements OnInit, OnDestroy {
   readonly icons = { ArrowDown, ArrowUp, Bell, Box, Boxes, Building2, CalendarClock, Check, ChevronLeft, ChevronRight, Circle, Copy, Download, Ellipsis, History, Layers, Locate, LogIn, LogOut, MapPin, Minus, Pencil, Pentagon, Plus, Power, Search, Settings, Shapes, ShieldAlert, Timer, Trash2, TriangleAlert, Wifi, X };

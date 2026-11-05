@@ -21,7 +21,7 @@ type SortKey = 'name' | 'code' | 'department' | 'members';
   selector: 'app-mdm-people-team',
   imports: [FormsModule, RouterLink, LucideAngularModule, TeamForm],
   templateUrl: './team.html',
-  styleUrls: ['../../shared/styles/mdm-page.css', '../people.css']
+  styleUrls: ['../../shared/styles/mdm-page.css', '../people.css', '../../shared/styles/mdm-purple-theme.css']
 })
 export class TeamPage extends ListPage<TeamRecord, TeamFilters, SortKey> {
   readonly service = inject(TeamService);

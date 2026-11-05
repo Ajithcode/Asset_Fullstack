@@ -15,7 +15,7 @@ const WEB_URL = /^https?:\/\/[^\s.]+\.[^\s]+$/i;
   selector: 'app-standard-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './standard-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class StandardForm extends MasterForm<StandardRecord, Tab> {
   protected readonly store = inject(StandardService);

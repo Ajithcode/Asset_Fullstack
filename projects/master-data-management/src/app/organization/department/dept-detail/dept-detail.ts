@@ -25,7 +25,7 @@ interface HierarchyRow {
   selector: 'app-dept-detail',
   imports: [DecimalPipe, RouterLink, LucideAngularModule],
   templateUrl: './dept-detail.html',
-  styleUrls: ['../../../shared/styles/mdm-detail.css', '../../../shared/styles/mdm-detail-extras.css', './dept-detail.css']
+  styleUrls: ['../../../shared/styles/mdm-detail.css', '../../../shared/styles/mdm-detail-extras.css', './dept-detail.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class DeptDetail implements OnChanges {
   @Input({ required: true }) department!: DepartmentRecord;

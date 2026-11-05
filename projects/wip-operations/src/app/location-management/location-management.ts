@@ -99,7 +99,7 @@ function parseLocal(s: string): Date {
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './location-management.html',
   // Buttons, controls, cards, tabs, switches, menu, modal and toast come from the Job Templates stylesheet
-  styleUrls: ['../job-templates/job-templates.css', './location-management.css', './location-management-panels.css'],
+  styleUrls: ['../job-templates/job-templates.css', './location-management.css', './location-management-panels.css', '../shared/wip-purple-theme.css'],
 })
 export class LocationManagement implements OnDestroy {
   readonly icons = {

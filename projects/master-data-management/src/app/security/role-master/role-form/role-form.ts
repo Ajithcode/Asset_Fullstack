@@ -21,7 +21,7 @@ interface PermissionGroup {
   selector: 'app-role-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './role-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', './role-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', './role-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class RoleForm extends MasterForm<RoleRecord, Tab> implements OnChanges {
   // Users holding the role being edited

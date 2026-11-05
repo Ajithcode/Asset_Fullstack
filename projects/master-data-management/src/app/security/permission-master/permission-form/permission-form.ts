@@ -13,7 +13,7 @@ type Tab = 'basic';
   selector: 'app-permission-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './permission-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class PermissionForm extends MasterForm<PermissionRecord, Tab> {
   // Roles that grant the permission being edited

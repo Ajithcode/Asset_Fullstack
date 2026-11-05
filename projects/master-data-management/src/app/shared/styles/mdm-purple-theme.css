@@ -1,0 +1,43 @@
+/* Purple accent for every Master Data Management page, form and detail panel */
+.btn--primary,
+.btn-primary {
+  border: none;
+  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px #6d28d940;
+}
+
+.btn--primary:hover:not(:disabled),
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(90deg, #3b1574, #5b21b6);
+}
+
+/* Icon tiles: page header, KPI cards, detail stat cards and tiles, logo upload */
+.head__icon,
+.kpi__icon--blue,
+.kpi__icon--purple,
+.stat-card__icon,
+.upload__icon,
+.tile__icon:not(.tile__icon--warn) {
+  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px #6d28d940;
+}
+
+/* Inline tree icons have no tile, so take the accent as text color */
+.tree__icon {
+  color: #6d28d9;
+}
+
+/* Breadcrumb */
+.crumbs a {
+  color: #6d28d9;
+}
+
+.crumbs a:hover {
+  color: #4c1d95;
+}
+
+.crumbs span {
+  color: #a78bfa;
+}

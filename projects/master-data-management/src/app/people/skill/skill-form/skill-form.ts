@@ -15,7 +15,7 @@ type FieldKey = 'name' | 'code' | 'category' | 'levels' | 'validity';
   selector: 'app-skill-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './skill-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class SkillForm implements OnChanges {
   // 'edit' changes `skill`; 'add' creates a new one, pre-filled from it if given (Duplicate)
@@ -85,7 +85,23 @@ export class SkillForm implements OnChanges {
     this.form.relatedRoles = this.hasRole(role) ? this.form.relatedRoles.filter((r) => r !== role) : [...this.form.relatedRoles, role];
   }
 
+  /** True on the final tab, where the primary button saves instead of advancing. */
+  get isLastTab(): boolean {
+    return this.tab === this.tabs[this.tabs.length - 1].id;
+  }
+
+  /** Move to the next tab. */
+  next(): void {
+    const i = this.tabs.findIndex((t) => t.id === this.tab);
+    if (i < this.tabs.length - 1) this.tab = this.tabs[i + 1].id;
+  }
+
   submit(): void {
+    // Enter key / primary button on earlier tabs just advances
+    if (!this.isLastTab) {
+      this.next();
+      return;
+    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a skill name.';

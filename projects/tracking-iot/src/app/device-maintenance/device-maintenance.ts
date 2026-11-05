@@ -76,7 +76,7 @@ const UNASSIGNED = 'Unassigned';
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './device-maintenance.html',
-  styleUrls: ['./device-maintenance.css', './device-maintenance-panel.css', './device-maintenance-tabs.css'],
+  styleUrls: ['./device-maintenance.css', './device-maintenance-panel.css', './device-maintenance-tabs.css', '../shared/iot-purple-theme.css'],
 })
 export class DeviceMaintenance implements OnInit, OnDestroy {
   readonly icons = { ArrowDown, ArrowRight, ArrowUp, Building2, Calendar, CalendarClock, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, Cpu, Download, Ellipsis, Info, Link, ListChecks, Mail, MapPin, Pencil, Phone, Plus, RotateCcw, Search, ShieldCheck, Signal, TriangleAlert, Users, Wrench, X };

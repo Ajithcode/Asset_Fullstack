@@ -88,7 +88,7 @@ function pad(n: number): string {
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule, TtMap, MapDrawTools],
   templateUrl: './tracking-telemetry.html',
-  styleUrls: ['./tracking-telemetry.css', './tracking-telemetry-panels.css'],
+  styleUrls: ['./tracking-telemetry.css', './tracking-telemetry-panels.css', '../shared/iot-purple-theme.css'],
 })
 export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
   readonly icons = { Activity, ArrowUp, Battery, BatteryLow, Bell, Box, Building2, Calendar, Check, Clock, Cpu, Download, Heart, History, Info, Link, Locate, MapPin, Minus, Plus, RadioTower, Signal, Thermometer, TriangleAlert, Wifi, X };

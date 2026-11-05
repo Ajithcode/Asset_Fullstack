@@ -30,7 +30,7 @@ const SIBLING_PREVIEW = 4;
   selector: 'app-site-detail',
   imports: [DecimalPipe, RouterLink, LucideAngularModule, SiteMap],
   templateUrl: './site-detail.html',
-  styleUrls: ['../../../shared/styles/mdm-detail.css', './site-detail.css']
+  styleUrls: ['../../../shared/styles/mdm-detail.css', './site-detail.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class SiteDetail implements OnChanges {
   @Input({ required: true }) site!: SiteRecord;

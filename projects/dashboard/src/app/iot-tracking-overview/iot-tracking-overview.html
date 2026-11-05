@@ -79,19 +79,19 @@
           <div class="io-sub-head"><h3><lucide-icon [img]="icons.MapPin" [size]="16"></lucide-icon>Top Active Sites</h3>
             <button type="button" class="io-link" (click)="showAllSites = !showAllSites">{{ showAllSites ? 'Show Top 3' : 'View All' }}</button></div>
           <ul>
-            <li *ngFor="let s of siteStats" [class.is-on]="site === s.site.name" (click)="openSite(s.site.name)" title="Show site details">
+            <li *ngFor="let s of siteStats" [class.is-on]="site === s.site.name" (click)="openSite(s.site.name, s.site.id)" title="Show site details">
               <div class="io-site-row">
                 <span class="io-site-img" [style.background]="s.site.color + '1f'" [style.color]="s.site.color"><lucide-icon [img]="s.site.image === 'factory' ? icons.Cog : icons.Warehouse" [size]="26"></lucide-icon></span>
                 <span class="grow"><strong>{{ s.site.name }}</strong><small>{{ s.total | number }} assets</small></span>
                 <span class="io-site-pct"><b>{{ s.onlinePct }}%</b><small>Online</small></span>
               </div>
               <div class="io-stack" role="img" [attr.aria-label]="s.online + ' online, ' + s.idle + ' idle, ' + s.offline + ' offline'">
-                <span class="st-on" [style.flex-grow]="s.online">{{ s.online }}</span>
+                <span *ngIf="s.online" class="st-on" [style.flex-grow]="s.online">{{ s.online }}</span>
                 <span *ngIf="s.idle" class="st-idle" [style.flex-grow]="s.idle">{{ s.idle }}</span>
                 <span *ngIf="s.offline" class="st-off" [style.flex-grow]="s.offline">{{ s.offline }}</span>
               </div>
             </li>
-            <li *ngIf="!siteStats.length" class="muted">No assets match the filters.</li>
+            <li *ngIf="!siteStats.length" class="muted">{{ sitesLoading ? 'Loading sites…' : 'No sites with assets.' }}</li>
           </ul>
         </div>
       </div>
@@ -104,17 +104,17 @@
         <div>
           <h3>Device Connectivity</h3>
           <div class="io-donut" *ngIf="connectivity as c">
-            <svg viewBox="0 0 120 120" role="img" [attr.aria-label]="kpis.onlinePct + '% online'" (mouseleave)="hoverStatus = null">
+            <svg viewBox="0 0 120 120" role="img" [attr.aria-label]="c.centrePercent + '% online'" (mouseleave)="hoverStatus = null">
               <circle cx="60" cy="60" r="48" fill="none" stroke="#eef0f4" stroke-width="14"></circle>
               <ng-container *ngFor="let r of c.rows">
                 <circle *ngIf="r.count" cx="60" cy="60" r="48" fill="none" [attr.stroke]="r.color" [attr.stroke-width]="hoverStatus === r.status ? 18 : 14"
                   [attr.stroke-dasharray]="r.dash" [attr.stroke-dashoffset]="r.offset" transform="rotate(-90 60 60)" (mouseenter)="hoverStatus = r.status" (click)="openStatus(r.status)" class="io-click"></circle>
               </ng-container>
-              <text x="60" y="60" class="io-donut-num">{{ hoverStatus ? (c.rows[statuses.indexOf(hoverStatus)].count | number) : kpis.onlinePct + '%' }}</text>
+              <text x="60" y="60" class="io-donut-num">{{ hoverStatus ? (c.rows[statuses.indexOf(hoverStatus)].count | number) : c.centrePercent + '%' }}</text>
               <text x="60" y="76" class="io-donut-cap">{{ hoverStatus ?? 'Online' }}</text>
             </svg>
             <ul class="io-legend">
-              <li *ngFor="let r of c.rows" class="io-click" (mouseenter)="hoverStatus = r.status" (mouseleave)="hoverStatus = null" (click)="openStatus(r.status)"><i [style.background]="r.color"></i><span class="grow">{{ r.status }}</span><b>{{ r.count | number }}</b></li>
+              <li *ngFor="let r of c.rows" class="io-click" (mouseenter)="hoverStatus = r.status" (mouseleave)="hoverStatus = null" (click)="openStatus(r.status)"><i [style.background]="r.color"></i><span class="grow">{{ r.status }}</span><b>{{ r.count | number }}</b><small class="muted">{{ r.percent }}%</small></li>
             </ul>
           </div>
         </div>

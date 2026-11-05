@@ -34,7 +34,8 @@ const TAB_OF: Record<FieldKey, CatFormTab> = {
     '../../../shared/styles/mdm-drawer-extras.css',
     '../../asset-model/model-form/model-form.css',
     '../../asset-type/type-form/type-form.css',
-    '../../level-form.css'
+    '../../level-form.css',
+    '../../../shared/styles/mdm-purple-theme.css'
   ]
 })
 export class CatForm implements OnChanges {
@@ -138,7 +139,23 @@ export class CatForm implements OnChanges {
     this.form.image = null;
   }
 
+  /** True on the final tab, where the primary button saves instead of advancing. */
+  get isLastTab(): boolean {
+    return this.tab === this.tabs[this.tabs.length - 1].id;
+  }
+
+  /** Move to the next tab. */
+  next(): void {
+    const i = this.tabs.findIndex((t) => t.id === this.tab);
+    if (i < this.tabs.length - 1) this.tab = this.tabs[i + 1].id;
+  }
+
   submit(): void {
+    // Enter key / primary button on earlier tabs just advances
+    if (!this.isLastTab) {
+      this.next();
+      return;
+    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a category name.';
