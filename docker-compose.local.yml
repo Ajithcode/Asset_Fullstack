@@ -11,6 +11,8 @@ services:
       # Development: without SMTP settings the login OTP is written to the container log instead of emailed.
       ASPNETCORE_ENVIRONMENT: Development
       MONGODB_URI: ${MONGODB_URI:?set MONGODB_URI in .env.local}
+      # Media builds file links from this: through the gateway, the only port published to the browser
+      BaseUrl: http://localhost:5296
     ports:
       - "5296:5296"
     restart: unless-stopped
