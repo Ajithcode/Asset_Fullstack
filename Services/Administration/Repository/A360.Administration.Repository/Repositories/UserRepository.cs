@@ -25,20 +25,90 @@ public sealed class UserRepository : MongoRepository<User>, IUserRepository, IMo
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public Task<bool> UsernameExistsAsync(string username, string? tenantId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<User>> GetUsersAsync(string? tenantId, string? clientId, CancellationToken cancellationToken = default)
     {
-        return ExistsAsync(Builders<User>.Filter.Eq(user => user.Username, username), tenantId, cancellationToken);
+        var builder = Builders<User>.Filter;
+        var filter = builder.Eq(user => user.IsDeleted, false);
+        if (!string.IsNullOrWhiteSpace(tenantId))
+        {
+            filter &= builder.Eq(user => user.TenantId, tenantId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(clientId))
+        {
+            filter &= builder.Eq(user => user.ClientId, clientId);
+        }
+
+        return await Collection
+            .Find(filter)
+            .SortByDescending(user => user.CreatedAt)
+            .ToListAsync(cancellationToken);
     }
 
-    public Task<bool> EmailExistsAsync(string email, string? tenantId, CancellationToken cancellationToken = default)
+    public async Task<User?> GetBySignInNameAsync(string signInName, CancellationToken cancellationToken = default)
     {
-        return ExistsAsync(Builders<User>.Filter.Eq(user => user.Email, email), tenantId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(signInName))
+        {
+            return null;
+        }
+
+        // Usernames and emails are stored lower-case
+        var name = signInName.Trim().ToLowerInvariant();
+        return await Collection
+            .Find(user => !user.IsDeleted && (user.Email == name || user.Username == name))
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
-    private async Task<bool> ExistsAsync(FilterDefinition<User> filter, string? tenantId, CancellationToken cancellationToken)
+    public async Task<long> CountWithRoleAsync(string roleName, string? tenantId, CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<User>.Filter;
+        var filter = builder.Eq(user => user.IsDeleted, false)
+            & (builder.Eq(user => user.PrimaryRole, roleName) | builder.AnyEq(user => user.SecondaryRoles, roleName));
+        if (!string.IsNullOrWhiteSpace(tenantId))
+        {
+            filter &= builder.Eq(user => user.TenantId, tenantId);
+        }
+
+        return await Collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+    }
+
+    public async Task RenameRoleAsync(string oldName, string newName, string? tenantId, CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<User>.Filter;
+        var scope = builder.Eq(user => user.IsDeleted, false);
+        if (!string.IsNullOrWhiteSpace(tenantId))
+        {
+            scope &= builder.Eq(user => user.TenantId, tenantId);
+        }
+
+        await Collection.UpdateManyAsync(
+            scope & builder.Eq(user => user.PrimaryRole, oldName),
+            Builders<User>.Update.Set(user => user.PrimaryRole, newName),
+            cancellationToken: cancellationToken);
+        await Collection.UpdateManyAsync(
+            scope & builder.AnyEq(user => user.SecondaryRoles, oldName),
+            Builders<User>.Update.Set("secondary_roles.$", newName),
+            cancellationToken: cancellationToken);
+    }
+
+    public Task<bool> UsernameExistsAsync(string username, string? tenantId, CancellationToken cancellationToken = default, string? exceptUserId = null)
+    {
+        return ExistsAsync(Builders<User>.Filter.Eq(user => user.Username, username), tenantId, exceptUserId, cancellationToken);
+    }
+
+    public Task<bool> EmailExistsAsync(string email, string? tenantId, CancellationToken cancellationToken = default, string? exceptUserId = null)
+    {
+        return ExistsAsync(Builders<User>.Filter.Eq(user => user.Email, email), tenantId, exceptUserId, cancellationToken);
+    }
+
+    private async Task<bool> ExistsAsync(FilterDefinition<User> filter, string? tenantId, string? exceptUserId, CancellationToken cancellationToken)
     {
         var builder = Builders<User>.Filter;
         filter &= builder.Eq(user => user.IsDeleted, false) & builder.Eq(user => user.TenantId, tenantId);
+        if (!string.IsNullOrWhiteSpace(exceptUserId))
+        {
+            filter &= builder.Ne(user => user.UserId, exceptUserId);
+        }
 
         return await Collection.Find(filter).AnyAsync(cancellationToken);
     }

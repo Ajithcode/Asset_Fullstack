@@ -19,7 +19,8 @@ internal static class UserAccountRequestValidator
     {
         var errors = new ValidationErrorBuilder();
 
-        ValidateUserFields(errors, request.UserName, request.ShortName, request.ContactNo, request.Email, request.LoginPassword, request.UserRoleId);
+        // On update a blank password keeps the current one
+        ValidateUserFields(errors, request.UserName, request.ShortName, request.ContactNo, request.Email, request.LoginPassword, request.UserRoleId, passwordRequired: false);
 
         return errors.ToDictionary();
     }
@@ -55,13 +56,17 @@ internal static class UserAccountRequestValidator
         string? contactNo,
         string? email,
         string? loginPassword,
-        string? userRoleId)
+        string? userRoleId,
+        bool passwordRequired = true)
     {
         errors.Required(nameof(CreateUserRequest.UserName), userName, "User name");
         errors.Required(nameof(CreateUserRequest.ShortName), shortName, "Short name");
         errors.Required(nameof(CreateUserRequest.ContactNo), contactNo, "Contact number");
         errors.Email(nameof(CreateUserRequest.Email), email);
-        errors.Required(nameof(CreateUserRequest.LoginPassword), loginPassword, "Login password");
+        if (passwordRequired)
+        {
+            errors.Required(nameof(CreateUserRequest.LoginPassword), loginPassword, "Login password");
+        }
         errors.Required(nameof(CreateUserRequest.UserRoleId), userRoleId, "User role id");
     }
 

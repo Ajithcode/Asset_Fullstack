@@ -77,14 +77,39 @@ public sealed class RoleRepository : MongoRepository<Role>, IRoleRepository, IMo
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<bool> RoleCodeExistsAsync(string roleCode, string? tenantId, CancellationToken cancellationToken = default)
+    public async Task<bool> RoleCodeExistsAsync(string roleCode, string? tenantId, CancellationToken cancellationToken = default, string? exceptRoleId = null)
     {
         var builder = Builders<Role>.Filter;
         var filter = builder.Eq(role => role.RoleCode, roleCode)
             & builder.Eq(role => role.IsDeleted, false)
             & builder.Eq(role => role.TenantId, tenantId);
+        if (!string.IsNullOrWhiteSpace(exceptRoleId))
+        {
+            filter &= builder.Ne(role => role.RoleId, exceptRoleId);
+        }
 
         return await Collection.Find(filter).AnyAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<Role>> GetByNamesAsync(IReadOnlyCollection<string> roleNames, string? tenantId, CancellationToken cancellationToken = default)
+    {
+        if (roleNames.Count == 0)
+        {
+            return [];
+        }
+
+        var builder = Builders<Role>.Filter;
+        var filter = builder.Eq(role => role.IsDeleted, false);
+        if (!string.IsNullOrWhiteSpace(tenantId))
+        {
+            filter &= builder.Eq(role => role.TenantId, tenantId);
+        }
+
+        // Role lists are small: match names case-insensitively in memory
+        var roles = await Collection.Find(filter).ToListAsync(cancellationToken);
+        return roles
+            .Where(role => roleNames.Any(name => string.Equals(name?.Trim(), role.RoleName, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
     }
 
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)

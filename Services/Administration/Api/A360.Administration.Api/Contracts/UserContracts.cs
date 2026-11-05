@@ -21,7 +21,44 @@ public sealed record CreateUserRequest(
     string? AccountStatus,
     string? CreatedBy,
     string? TenantId,
-    string? ClientId);
+    string? ClientId,
+    // Sign-in password; hashed by the UserAccount service and never returned
+    string? Password);
+
+// PUT /api/users/{userId}: same editable fields as create. A blank password keeps the current one.
+public sealed record UpdateUserRequest(
+    string? Name,
+    string? Username,
+    string? Image,
+    string? Email,
+    string? EmployeeId,
+    string? Department,
+    string? JobTitle,
+    string? Phone,
+    string? Location,
+    string? TimeZone,
+    string? PrimaryRole,
+    List<string>? SecondaryRoles,
+    string? AccountStatus,
+    string? AccessScope,
+    bool? MfaEnabled,
+    List<string>? ModuleAccess,
+    string? UpdatedBy,
+    string? Password);
+
+/// <summary>A module the signed-in user may open, with the actions their roles allow on it.</summary>
+public sealed record ModuleAccessResponse(string Module, IReadOnlyCollection<string> Actions);
+
+/// <summary>GET /api/users/me: who is signed in and what they may see.</summary>
+public sealed record MyAccessResponse(
+    string DisplayName,
+    string Email,
+    string RoleName,
+    IReadOnlyCollection<string> Roles,
+    // Sign-in administrators see everything; everyone else only the modules below
+    bool FullAccess,
+    IReadOnlyCollection<ModuleAccessResponse> Modules,
+    UserResponse? User);
 
 public sealed record UserResponse(
     string UserId,
@@ -47,7 +84,9 @@ public sealed record UserResponse(
     string? UpdatedBy,
     DateTime? UpdatedAt,
     string? TenantId,
-    string? ClientId)
+    string? ClientId,
+    // True when the user has a sign-in account (a password was set)
+    bool HasLogin)
 {
     public static UserResponse FromEntity(User user)
     {
@@ -75,6 +114,7 @@ public sealed record UserResponse(
             user.UpdatedBy,
             user.UpdatedAt,
             user.TenantId,
-            user.ClientId);
+            user.ClientId,
+            !string.IsNullOrWhiteSpace(user.LoginAccountId));
     }
 }
