@@ -37,6 +37,8 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
         services.AddA360JwtAuthentication(configuration);
+        // Sign-in + role permissions also when the frontend calls this service directly on its own port
+        services.AddA360AccessGuard(configuration, "Assets");
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Asset",
@@ -77,6 +79,10 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<AssetFieldGroupRepository>();
         services.AddScoped<IAssetFieldGroupRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetFieldGroupRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetFieldGroupRepository>());
+
+        services.AddScoped<AssetLifecycleRepository>();
+        services.AddScoped<IAssetLifecycleRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetLifecycleRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetLifecycleRepository>());
 
         services.AddScoped<AssetFieldLayoutRepository>();
         services.AddScoped<IAssetFieldLayoutRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetFieldLayoutRepository>());
@@ -135,6 +141,18 @@ public static class AssetServiceCollectionExtensions
 
         // Read-only: the dashboard reads tracking records from the shared database, so it needs no indexes of its own.
         services.AddScoped<A360.Asset.Repository.Dashboard.IAssetDashboardRepository, A360.Asset.Repository.Dashboard.AssetDashboardRepository>();
+
+        services.AddScoped<AssetDedupRulesRepository>();
+        services.AddScoped<IAssetDedupRulesRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetDedupRulesRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetDedupRulesRepository>());
+
+        services.AddScoped<AssetDedupDismissalRepository>();
+        services.AddScoped<IAssetDedupDismissalRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetDedupDismissalRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetDedupDismissalRepository>());
+
+        services.AddScoped<AssetMergeRepository>();
+        services.AddScoped<IAssetMergeRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetMergeRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetMergeRepository>());
 
         services.AddHostedService<MongoIndexHostedService>();
         services.AddEndpointsApiExplorer();

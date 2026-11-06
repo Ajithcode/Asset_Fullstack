@@ -171,3 +171,11 @@ public static class MapSettingsOptions
 
     public static readonly IReadOnlyList<string> MapAccessLevels = ["No Access", "View Only", "Edit", "Full Access"];
 }
+
+public static class MapLayerLabelPosition
+{
+    public const string Default = "Bottom Center";
+
+    public static readonly IReadOnlyList<string> All =
+        ["Top Center", "Bottom Center", "Left", "Right", "Center", "Hidden"];
+}

@@ -43,6 +43,7 @@ public static class AssetAssignmentEndpoints
         group.MapPut("/{id}", UpdateAssignmentAsync).WithName("UpdateAssetAssignment");
         group.MapDelete("/{id}", DeleteAssignmentAsync).WithName("DeleteAssetAssignment");
         group.MapPost("/bulk-delete", DeleteAssignmentsAsync).WithName("DeleteAssetAssignments");
+        group.MapPost("/{id}/return", ReturnAssignmentAsync).WithName("ReturnAssetAssignment");
 
         return group;
     }
@@ -297,6 +298,149 @@ public static class AssetAssignmentEndpoints
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// End Assignment: the assets are returned and released (they get back the status they had before).
+    /// With AssetRegistrationIds naming only some of the assets, those are split off into a new returned assignment
+    /// and the rest stay assigned; without it the whole assignment is returned.
+    /// </summary>
+    private static async Task<IResult> ReturnAssignmentAsync(
+        string id,
+        ReturnAssetAssignmentRequest? request,
+        IAssetAssignmentRepository repository,
+        IAssetRegistrationRepository assetRepository,
+        ISequenceGenerator sequenceGenerator,
+        ICurrentUserAccessor currentUserAccessor,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var assignment = await repository.GetByIdAsync(id, cancellationToken);
+        if (assignment is null || assignment.IsDeleted)
+        {
+            return AssignmentNotFound(id);
+        }
+
+        if (!IsActive(assignment))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["Status"] = ["Only an active assignment can be returned"]
+            });
+        }
+
+        var requested = ContractText.CleanList(request?.AssetRegistrationIds, StringComparer.Ordinal);
+        var unknown = requested
+            .Where(assetId => assignment.Assets.All(asset => asset.AssetRegistrationId != assetId))
+            .ToList();
+        if (unknown.Count > 0)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["AssetRegistrationIds"] = [$"Not in this assignment: {string.Join(", ", unknown)}"]
+            });
+        }
+
+        var returnDate = ContractText.DateOnly(request?.ReturnDate) ?? DateTime.UtcNow.Date;
+        if (assignment.FromDate is { } fromDate && returnDate < fromDate)
+        {
+            returnDate = fromDate;
+        }
+
+        var requestedSet = requested.ToHashSet(StringComparer.Ordinal);
+        var returning = requestedSet.Count == 0
+            ? assignment.Assets.ToList()
+            : assignment.Assets.Where(asset => requestedSet.Contains(asset.AssetRegistrationId)).ToList();
+
+        var currentUser = currentUserAccessor.GetCurrentUser();
+        var userName = ContractText.FirstNonEmpty(request?.UpdatedBy, currentUser?.UserName);
+        var remarks = ContractText.TrimOrNull(request?.Remarks);
+
+        AssetAssignmentRecord returned;
+        if (returning.Count == assignment.Assets.Count)
+        {
+            MarkReturned(assignment, returnDate, remarks, userName);
+            if (!await repository.UpdateAsync(id, assignment, cancellationToken))
+            {
+                return AssignmentNotFound(id);
+            }
+
+            returned = assignment;
+            await eventLogger.LogAsync(EntityType, assignment.Id, $"{Describe(assignment)} returned", EventAction.Updated, cancellationToken);
+        }
+        else
+        {
+            assignment.Assets = assignment.Assets.Where(asset => !requestedSet.Contains(asset.AssetRegistrationId)).ToList();
+            assignment.UpdatedBy = userName;
+            assignment.UpdatedAt = DateTime.UtcNow;
+            if (!await repository.UpdateAsync(id, assignment, cancellationToken))
+            {
+                return AssignmentNotFound(id);
+            }
+
+            var nextSequence = await sequenceGenerator.GetNextValueAsync(SequenceName, cancellationToken);
+            returned = SplitOff(assignment, returning, $"{AssignmentNumberPrefix}{nextSequence:D6}");
+            MarkReturned(returned, returnDate, remarks, userName);
+            await repository.CreateAsync(returned, cancellationToken);
+
+            await eventLogger.LogAsync(EntityType, assignment.Id,
+                $"{assignment.AssignmentNumber} - {returning.Count} assets returned in {returned.AssignmentNumber}", EventAction.Updated, cancellationToken);
+            await eventLogger.LogAsync(EntityType, returned.Id, $"{Describe(returned)} returned", EventAction.Created, cancellationToken);
+        }
+
+        await ReleaseAssetsAsync(returning, returned, userName, assetRepository, eventLogger, cancellationToken);
+
+        return Results.Ok(AssetAssignmentResponse.FromEntity(returned));
+    }
+
+    private static void MarkReturned(AssetAssignmentRecord assignment, DateTime returnDate, string? remarks, string? userName)
+    {
+        assignment.Status = AssetAssignmentRepository.ReturnedStatus;
+        assignment.ToDate = returnDate;
+        assignment.IsOpenEnded = false;
+        if (remarks is not null)
+        {
+            assignment.Remarks = assignment.Remarks is null ? remarks : $"{assignment.Remarks}\n{remarks}";
+        }
+
+        assignment.UpdatedBy = userName;
+        assignment.UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>A copy of the assignment holding only the given assets, as a new record.</summary>
+    private static AssetAssignmentRecord SplitOff(AssetAssignmentRecord source, List<AssetAssignmentAsset> assets, string assignmentNumber)
+    {
+        return new AssetAssignmentRecord
+        {
+            AssignmentNumber = assignmentNumber,
+            SelectionMode = source.SelectionMode,
+            BulkAssignmentId = source.BulkAssignmentId,
+            Assets = assets,
+            AssignTo = source.AssignTo,
+            AssignmentType = source.AssignmentType,
+            FromDate = source.FromDate,
+            ToDate = source.ToDate,
+            IsOpenEnded = source.IsOpenEnded,
+            Employee = source.Employee,
+            Department = source.Department,
+            OtherEntity = source.OtherEntity,
+            Location = source.Location,
+            CostCenter = source.CostCenter,
+            Purpose = source.Purpose,
+            ApprovalReference = source.ApprovalReference,
+            Remarks = source.Remarks,
+            Notes = source.Notes,
+            Attachments = source.Attachments,
+            Notification = source.Notification,
+            Reminder = source.Reminder,
+            CustomFields = source.CustomFields,
+            Status = source.Status,
+            CreatedBy = source.CreatedBy,
+            CreatedAt = source.CreatedAt,
+            ClientId = source.ClientId,
+            TenantId = source.TenantId,
+            IsDeleted = false
+        };
     }
 
     /// <summary>Loads every selected asset so nothing is saved when one is missing; when confirming, none may be assigned elsewhere.</summary>

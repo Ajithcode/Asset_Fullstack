@@ -39,6 +39,8 @@ public static class UserAccountServiceCollectionExtensions
         services.AddSingleton<TotpService>();
         services.AddSingleton<TokenService>();
         services.AddA360JwtAuthentication(configuration);
+        // Sign-in + role permissions also when the frontend calls this service directly on its own port
+        services.AddA360AccessGuard(configuration, null, "/api/auth/roles", "/api/auth/register", "/api/auth/login", "/api/auth/verify-otp", "/api/auth/verify-totp", "/api/auth/refresh", "/api/auth/logout");
         services.AddOtpEmailSender(configuration, environment);
 
         services.AddScoped<EventLogRepository>();

@@ -28,6 +28,26 @@ public static partial class RoleValidationExtensions
         return errors;
     }
 
+    public static Dictionary<string, string[]> Validate(this UpdateRoleRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        Require(errors, nameof(request.RoleName), request.RoleName);
+        Require(errors, nameof(request.RoleCode), request.RoleCode);
+        Require(errors, nameof(request.RoleType), request.RoleType);
+        Require(errors, nameof(request.Status), request.Status);
+
+        if (!string.IsNullOrWhiteSpace(request.RoleCode) && !RoleCodePattern().IsMatch(request.RoleCode.Trim()))
+        {
+            errors[nameof(request.RoleCode)] = ["RoleCode may only contain letters, digits and underscores"];
+        }
+
+        AllowOnly(errors, nameof(request.RoleType), request.RoleType, AllowedRoleTypes);
+        AllowOnly(errors, nameof(request.Status), request.Status, AllowedStatuses);
+
+        return errors;
+    }
+
     private static void Require(Dictionary<string, string[]> errors, string field, string? value)
     {
         if (string.IsNullOrWhiteSpace(value))

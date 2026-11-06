@@ -3,10 +3,8 @@ using A360.Domain.Entities;
 
 namespace A360.Administration.Domain.Entities;
 
-/// <summary>
-/// Floor Plans: an uploaded plan of a location (e.g. Building A - Floor 1, Floor1_v2.1.png, v2.1, Published).
-/// </summary>
-/// <remarks>Status (Draft, Published or Archived) is kept in BaseEntity.Status.</remarks>
+// A floor plan or site map drawn over an uploaded file. Status (Draft, Published, Archived) is stored in BaseEntity.Status.
+// Every uploaded revision is kept in Versions; the plan's file fields mirror the current version.
 [BsonIgnoreExtraElements]
 public sealed class FloorPlan : BaseEntity
 {
@@ -14,78 +12,106 @@ public sealed class FloorPlan : BaseEntity
     [BsonElement("floor_plan_id")]
     public string FloorPlanId { get; set; } = string.Empty;
 
-    // e.g. Building A - Floor 1.
+    // Master Data Management id of the site, building or floor the plan belongs to.
+    [BsonElement("location_id")]
+    public string LocationId { get; set; } = string.Empty;
+
+    // site, building or floor.
+    [BsonElement("location_type")]
+    public string LocationType { get; set; } = string.Empty;
+
+    // Display text such as "Head Office > Building A > Floor 1".
+    [BsonElement("location_path")]
+    public string? LocationPath { get; set; }
+
     [BsonElement("name")]
     public string Name { get; set; } = string.Empty;
 
-    // e.g. Main production floor.
     [BsonElement("description")]
     public string? Description { get; set; }
 
-    [BsonElement("location_id")]
-    public string? LocationId { get; set; }
+    // Floor Plan or Site Map.
+    [BsonElement("plan_type")]
+    public string PlanType { get; set; } = string.Empty;
 
-    // Location hierarchy, e.g. Head Office > Building A > Floor 1.
-    [BsonElement("location_path")]
-    public string LocationPath { get; set; } = string.Empty;
+    // PNG, JPG, PDF, SVG, DWG or DXF.
+    [BsonElement("format")]
+    public string Format { get; set; } = string.Empty;
 
-    // One of FloorPlanType.All.
-    [BsonElement("type")]
-    public string Type { get; set; } = string.Empty;
-
-    // e.g. Floor1_v2.1.png.
-    [BsonElement("file_name")]
-    public string FileName { get; set; } = string.Empty;
-
-    // Where the uploaded file is stored (Media service URL).
+    // URL returned by the Media service upload; may be empty when no file service is used.
     [BsonElement("file_url")]
     public string? FileUrl { get; set; }
 
-    // PNG, JPG, SVG, PDF, DWG or DXF; taken from the file name when not given.
-    [BsonElement("file_format")]
-    public string? FileFormat { get; set; }
+    [BsonElement("file_name")]
+    public string FileName { get; set; } = string.Empty;
 
-    [BsonElement("file_size_bytes")]
-    public long? FileSizeBytes { get; set; }
+    [BsonElement("size_bytes")]
+    public long SizeBytes { get; set; }
 
-    // e.g. v2.1.
-    [BsonElement("version")]
-    public string Version { get; set; } = string.Empty;
+    // Real-world size of the drawing, used to turn plan percentages into meters.
+    [BsonElement("width_meters")]
+    public double? WidthMeters { get; set; }
 
-    // Real-world size in metres, e.g. 60.00 m × 32.00 m.
-    [BsonElement("width")]
-    public double? Width { get; set; }
+    [BsonElement("height_meters")]
+    public double? HeightMeters { get; set; }
 
-    [BsonElement("length")]
-    public double? Length { get; set; }
-
-    // Drawing scale as 1 : N, e.g. 100 for 1 : 100.
+    // Drawing scale such as 1:100.
     [BsonElement("scale")]
-    public int? Scale { get; set; }
+    public string? Scale { get; set; }
 
-    [BsonElement("published_on")]
-    public DateTime? PublishedOn { get; set; }
+    // Version shown on the plan, e.g. v1.0.
+    [BsonElement("current_version")]
+    public string CurrentVersion { get; set; } = string.Empty;
+
+    [BsonElement("published_at")]
+    public DateTime? PublishedAt { get; set; }
 
     [BsonElement("published_by")]
     public string? PublishedBy { get; set; }
+
+    [BsonElement("versions")]
+    public List<FloorPlanVersion> Versions { get; set; } = [];
 }
 
-public static class FloorPlanType
+// One uploaded revision of a floor plan, numbered vMAJOR.MINOR.
+[BsonIgnoreExtraElements]
+public sealed class FloorPlanVersion
 {
-    public static readonly IReadOnlyList<string> All =
-        ["Floor Plan", "Site Plan", "Building Plan", "Campus Map", "Evacuation Plan"];
-}
+    [BsonElement("version")]
+    public string Version { get; set; } = string.Empty;
 
-public static class FloorPlanStatus
-{
-    public const string Draft = "Draft";
-    public const string Published = "Published";
-    public const string Archived = "Archived";
+    // Draft, Published or Archived.
+    [BsonElement("status")]
+    public string Status { get; set; } = string.Empty;
 
-    public static readonly IReadOnlyList<string> All = [Draft, Published, Archived];
-}
+    [BsonElement("file_url")]
+    public string? FileUrl { get; set; }
 
-public static class FloorPlanFileFormat
-{
-    public static readonly IReadOnlyList<string> All = ["PNG", "JPG", "JPEG", "SVG", "PDF", "DWG", "DXF"];
+    [BsonElement("file_name")]
+    public string FileName { get; set; } = string.Empty;
+
+    [BsonElement("format")]
+    public string Format { get; set; } = string.Empty;
+
+    [BsonElement("size_bytes")]
+    public long SizeBytes { get; set; }
+
+    [BsonElement("description")]
+    public string? Description { get; set; }
+
+    // Change notes listed in the version history.
+    [BsonElement("changes")]
+    public List<string> Changes { get; set; } = [];
+
+    [BsonElement("uploaded_by")]
+    public string? UploadedBy { get; set; }
+
+    [BsonElement("uploaded_at")]
+    public DateTime? UploadedAt { get; set; }
+
+    [BsonElement("published_at")]
+    public DateTime? PublishedAt { get; set; }
+
+    [BsonElement("published_by")]
+    public string? PublishedBy { get; set; }
 }

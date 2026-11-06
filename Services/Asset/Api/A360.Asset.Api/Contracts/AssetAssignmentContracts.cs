@@ -262,6 +262,16 @@ public sealed record AssetAssignmentCustomFieldsRequest(
 
 public sealed record DeleteAssetAssignmentsRequest(IReadOnlyCollection<string>? Ids);
 
+/// <summary>End Assignment.</summary>
+/// <param name="AssetRegistrationIds">The assets being returned; empty returns every asset in the assignment.</param>
+/// <param name="ReturnDate">Becomes the ToDate; today when empty.</param>
+/// <param name="Remarks">Added to the assignment remarks.</param>
+public sealed record ReturnAssetAssignmentRequest(
+    IReadOnlyCollection<string>? AssetRegistrationIds,
+    DateTime? ReturnDate,
+    string? Remarks,
+    string? UpdatedBy);
+
 /// <param name="StatusCounts">Counts per status (Draft, Active) for the same filters except Status.</param>
 public sealed record AssetAssignmentListResponse(
     IReadOnlyCollection<AssetAssignmentResponse> Items,

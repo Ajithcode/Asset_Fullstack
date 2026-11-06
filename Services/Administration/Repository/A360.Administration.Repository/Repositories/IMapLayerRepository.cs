@@ -5,8 +5,11 @@ namespace A360.Administration.Repository.Repositories;
 
 public interface IMapLayerRepository : IMongoRepository<MapLayer>
 {
-    Task<MapLayer?> GetByLayerIdAsync(string layerId, CancellationToken cancellationToken = default);
+    /// <summary>Stored layer options (not deleted) of a floor plan.</summary>
+    Task<IReadOnlyCollection<MapLayer>> GetByFloorPlanAsync(string floorPlanId, CancellationToken cancellationToken = default);
 
-    /// <summary>True when the floor plan (or, with no floor plan, the tenant) already has a layer with this name, ignoring case.</summary>
-    Task<bool> LayerNameExistsAsync(string layerName, string? floorPlanId, string? tenantId, CancellationToken cancellationToken = default);
+    /// <summary>The stored row of one layer, including a soft-deleted one so the unique (plan, key) row is reused.</summary>
+    Task<MapLayer?> GetByKeyAsync(string floorPlanId, string layerKey, CancellationToken cancellationToken = default);
+
+    Task SoftDeleteByFloorPlanAsync(string floorPlanId, string? updatedBy, CancellationToken cancellationToken = default);
 }

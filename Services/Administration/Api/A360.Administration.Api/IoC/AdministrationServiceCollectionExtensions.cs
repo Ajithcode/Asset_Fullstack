@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using A360.Administration.Api.Accounts;
 using A360.Administration.Api.Security;
 using A360.Administration.Repository.Repositories;
 using A360.Repository.Activity;
@@ -31,6 +32,8 @@ public static class AdministrationServiceCollectionExtensions
         });
 
         services.AddA360JwtAuthentication(configuration);
+        // Sign-in + role permissions also when the frontend calls this service directly on its own port
+        services.AddA360AccessGuard(configuration, "Administration");
 
         services.AddScoped<EventLogRepository>();
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
@@ -47,6 +50,17 @@ public static class AdministrationServiceCollectionExtensions
         services.AddScoped<UserRepository>();
         services.AddScoped<IUserRepository>(serviceProvider => serviceProvider.GetRequiredService<UserRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<UserRepository>());
+
+        // Sign-in accounts for User Management users live in the UserAccount service (same host in the container)
+        // The UserAccount service requires a signed-in user, so the admin's own token goes along
+        services.AddHttpContextAccessor();
+        services.AddTransient<ForwardAuthorizationHandler>();
+        services.AddHttpClient<LoginAccountClient>(client =>
+        {
+            client.BaseAddress = new Uri(configuration["Services:UserAccountUrl"] ?? "http://localhost:5018/");
+            client.Timeout = TimeSpan.FromSeconds(15);
+        })
+            .AddHttpMessageHandler<ForwardAuthorizationHandler>();
 
         services.AddScoped<RoleRepository>();
         services.AddScoped<IRoleRepository>(serviceProvider => serviceProvider.GetRequiredService<RoleRepository>());
@@ -88,14 +102,6 @@ public static class AdministrationServiceCollectionExtensions
         services.AddScoped<IMapLibraryZoneRepository>(serviceProvider => serviceProvider.GetRequiredService<MapLibraryZoneRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapLibraryZoneRepository>());
 
-        services.AddScoped<FloorPlanRepository>();
-        services.AddScoped<IFloorPlanRepository>(serviceProvider => serviceProvider.GetRequiredService<FloorPlanRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<FloorPlanRepository>());
-
-        services.AddScoped<MapLayerRepository>();
-        services.AddScoped<IMapLayerRepository>(serviceProvider => serviceProvider.GetRequiredService<MapLayerRepository>());
-        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapLayerRepository>());
-
         services.AddScoped<MapGeneralSettingsRepository>();
         services.AddScoped<IMapGeneralSettingsRepository>(serviceProvider => serviceProvider.GetRequiredService<MapGeneralSettingsRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapGeneralSettingsRepository>());
@@ -103,6 +109,31 @@ public static class AdministrationServiceCollectionExtensions
         services.AddScoped<ZoneGeofenceRepository>();
         services.AddScoped<IZoneGeofenceRepository>(serviceProvider => serviceProvider.GetRequiredService<ZoneGeofenceRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<ZoneGeofenceRepository>());
+
+        // Maps & Floor Plans
+        services.AddScoped<FloorPlanRepository>();
+        services.AddScoped<IFloorPlanRepository>(serviceProvider => serviceProvider.GetRequiredService<FloorPlanRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<FloorPlanRepository>());
+
+        services.AddScoped<MapZoneRepository>();
+        services.AddScoped<IMapZoneRepository>(serviceProvider => serviceProvider.GetRequiredService<MapZoneRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapZoneRepository>());
+
+        services.AddScoped<MapPlotRepository>();
+        services.AddScoped<IMapPlotRepository>(serviceProvider => serviceProvider.GetRequiredService<MapPlotRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapPlotRepository>());
+
+        services.AddScoped<MapLayerRepository>();
+        services.AddScoped<IMapLayerRepository>(serviceProvider => serviceProvider.GetRequiredService<MapLayerRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapLayerRepository>());
+
+        services.AddScoped<MapLayerSetRepository>();
+        services.AddScoped<IMapLayerSetRepository>(serviceProvider => serviceProvider.GetRequiredService<MapLayerSetRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapLayerSetRepository>());
+
+        services.AddScoped<MapSettingsRepository>();
+        services.AddScoped<IMapSettingsRepository>(serviceProvider => serviceProvider.GetRequiredService<MapSettingsRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapSettingsRepository>());
 
         // Built eagerly so a missing or malformed encryption key stops the service at startup.
         services.AddSingleton<ISecretProtector>(new AesGcmSecretProtector(configuration));

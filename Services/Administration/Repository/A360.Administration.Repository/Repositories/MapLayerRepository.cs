@@ -6,41 +6,37 @@ namespace A360.Administration.Repository.Repositories;
 
 public sealed class MapLayerRepository : MongoRepository<MapLayer>, IMapLayerRepository, IMongoIndexConfigurator
 {
-    public const string CollectionName = "administration_map_layers";
-
-    private static readonly Collation CaseInsensitive = new("en", strength: CollationStrength.Secondary);
+    public const string CollectionName = "maps_layers";
 
     public MapLayerRepository(IMongoDatabase database)
         : base(database.GetCollection<MapLayer>(CollectionName))
     {
     }
 
-    public async Task<MapLayer?> GetByLayerIdAsync(string layerId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<MapLayer>> GetByFloorPlanAsync(string floorPlanId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(layerId))
-        {
-            return null;
-        }
-
         return await Collection
-            .Find(layer => layer.LayerId == layerId && !layer.IsDeleted)
+            .Find(layer => layer.FloorPlanId == floorPlanId && !layer.IsDeleted)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<MapLayer?> GetByKeyAsync(string floorPlanId, string layerKey, CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(layer => layer.FloorPlanId == floorPlanId && layer.LayerKey == layerKey)
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<bool> LayerNameExistsAsync(
-        string layerName,
-        string? floorPlanId,
-        string? tenantId,
-        CancellationToken cancellationToken = default)
+    public async Task SoftDeleteByFloorPlanAsync(string floorPlanId, string? updatedBy, CancellationToken cancellationToken = default)
     {
-        return await Collection
-            .Find(
-                layer => layer.LayerName == layerName
-                    && layer.FloorPlanId == floorPlanId
-                    && layer.TenantId == tenantId
-                    && !layer.IsDeleted,
-                new FindOptions { Collation = CaseInsensitive })
-            .AnyAsync(cancellationToken);
+        var filter = Builders<MapLayer>.Filter.Eq(layer => layer.FloorPlanId, floorPlanId)
+            & Builders<MapLayer>.Filter.Eq(layer => layer.IsDeleted, false);
+        var update = Builders<MapLayer>.Update
+            .Set(layer => layer.IsDeleted, true)
+            .Set(layer => layer.UpdatedBy, updatedBy)
+            .Set(layer => layer.UpdatedAt, DateTime.UtcNow);
+
+        await Collection.UpdateManyAsync(filter, update, cancellationToken: cancellationToken);
     }
 
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
@@ -48,14 +44,10 @@ public sealed class MapLayerRepository : MongoRepository<MapLayer>, IMapLayerRep
         var indexes = new[]
         {
             new CreateIndexModel<MapLayer>(
-                Builders<MapLayer>.IndexKeys.Ascending(layer => layer.LayerId),
-                new CreateIndexOptions { Name = "ux_administration_map_layers_layer_id", Unique = true }),
-            new CreateIndexModel<MapLayer>(
                 Builders<MapLayer>.IndexKeys
-                    .Ascending(layer => layer.TenantId)
                     .Ascending(layer => layer.FloorPlanId)
-                    .Ascending(layer => layer.LayerName),
-                new CreateIndexOptions { Name = "ix_administration_map_layers_tenant_id_floor_plan_id_layer_name", Collation = CaseInsensitive })
+                    .Ascending(layer => layer.LayerKey),
+                new CreateIndexOptions { Name = "ux_maps_layers_floor_plan_id_layer_key", Unique = true })
         };
 
         await Collection.Indexes.CreateManyAsync(indexes, cancellationToken);

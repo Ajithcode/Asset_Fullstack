@@ -1,4 +1,5 @@
 using A360.Administration.Api.Endpoints;
+using A360.Security;
 
 namespace A360.Administration.Api.Middlewares;
 
@@ -8,6 +9,7 @@ public static class AdministrationApplicationBuilderExtensions
     {
         // Reads the bearer token forwarded by the gateway so event logs know who made each change.
         app.UseAuthentication();
+        app.UseA360AccessGuard();
 
         if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
         {
@@ -31,10 +33,9 @@ public static class AdministrationApplicationBuilderExtensions
         app.MapDataImportJobEndpoints();
         app.MapDeviceAssetPlotEndpoints();
         app.MapMapLibraryZoneEndpoints();
-        app.MapFloorPlanEndpoints();
-        app.MapMapLayerEndpoints();
         app.MapMapGeneralSettingsEndpoints();
         app.MapZoneGeofenceEndpoints();
+        app.MapMapEndpoints();
 
         return app;
     }
