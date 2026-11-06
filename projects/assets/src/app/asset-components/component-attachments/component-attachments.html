@@ -32,13 +32,6 @@
       <button type="button" class="icon-btn icon-btn--sm" (click)="rejected = []" aria-label="Dismiss"><lucide-icon [img]="icons.X" [size]="14"></lucide-icon></button>
     </div>
 
-    <p *ngIf="saving" class="load-state" role="status">Saving…</p>
-    <div *ngIf="loadError" class="load-state load-state--error" role="alert">
-      <span>{{ loadError }}</span>
-      <button type="button" class="btn btn-outline btn-sm" (click)="load()">Retry</button>
-    </div>
-    <p *ngIf="loading" class="load-state" role="status">Loading attachments…</p>
-
     <div class="filters">
       <div class="search-box">
         <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
@@ -159,7 +152,7 @@
         <span class="icon-tile"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon></span>
         <h3 class="grow">Attachment Preview</h3>
         <ng-container *ngIf="selected as a">
-          <button type="button" class="btn btn-soft btn-sm" (click)="download(a)" [title]="a.url ? 'Download ' + a.fileName : 'No file stored'">
+          <button type="button" class="btn btn-soft btn-sm" (click)="download(a)" [title]="a.file ? 'Download ' + a.fileName : 'Sample attachment – no file behind it'">
             <lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>
             Download
           </button>
@@ -246,7 +239,7 @@
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="editTarget = null">Cancel</button>
-      <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save Changes' }}</button>
+      <button type="submit" class="btn btn-primary">Save Changes</button>
     </div>
   </form>
 </div>
@@ -262,7 +255,7 @@
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="deleteTargets = []">Cancel</button>
-      <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">{{ saving ? 'Deleting…' : 'Delete' }}</button>
+      <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
     </div>
   </div>
 </div>

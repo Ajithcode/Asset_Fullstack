@@ -50,10 +50,6 @@
     </div>
   </div>
 
-  <!-- ===== Load state ===== -->
-  <p *ngIf="loading" class="load-note" role="status">Loading maintenance records for {{ asset.tag }}…</p>
-  <p *ngIf="loadError && !loading" class="load-error" role="alert">{{ loadError }} <button type="button" class="btn btn-outline btn-sm" (click)="reload()">Retry</button></p>
-
   <!-- ===== KPIs ===== -->
   <div *ngIf="tab === 'requests'" class="kpis">
     <ng-container *ngIf="srKpis as k">
@@ -462,7 +458,7 @@
   </section>
 
   <!-- =================== Service requests =================== -->
-  <app-service-requests *ngIf="tab === 'requests'" [asset]="asset" [location]="location" [requests]="data.serviceRequests" [registrationId]="registrationId"
+  <app-service-requests *ngIf="tab === 'requests'" [asset]="asset" [location]="location" [requests]="data.serviceRequests"
     (convert)="openSrWorkOrder($event)" (openWorkOrder)="showWorkOrder($event)" (activity)="logActivity($event, 'request')" (notify)="showToast($event)"></app-service-requests>
 
   <!-- =================== History =================== -->
@@ -674,7 +670,7 @@
       <label class="field"><span class="field-label">Description <em>*</em></span><input class="control" [(ngModel)]="f.description" name="desc" /></label>
       <label class="field"><span class="field-label">Technician</span><input class="control" [(ngModel)]="f.technician" name="tech" /></label>
       <p *ngIf="woError" class="form-error" role="alert">{{ woError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="woForm = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="woSaving">{{ woSaving ? 'Creating…' : 'Create' }}</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="woForm = null">Cancel</button><button type="submit" class="btn btn-primary">Create</button></div>
     </form>
   </div>
 </div>

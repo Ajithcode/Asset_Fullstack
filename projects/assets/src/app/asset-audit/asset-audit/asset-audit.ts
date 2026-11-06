@@ -1,5 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Component, HostListener, OnDestroy, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -21,15 +20,16 @@ import {
   Upload,
   X,
 } from 'lucide-angular';
-import { AssetAuditService, AuditCounts, AuditListItemDto, AuditLocation, apiDate } from '../asset-audit.service';
-import { apiErrorMessage } from '../../services/asset-api';
+/**
+ * DEMO MODE: asset audit sample data (DEMO MODE) until the Asset Audit API returns audit type, location, status, auditor and findings.
+ * The first ten rows match the design; the rest fill out the list so filters and paging have something to work with.
+ */
 
 export type AuditType = 'Periodic' | 'Ad-hoc' | 'Compliance' | 'Annual' | 'Spot Check' | 'Preventive';
 export type AuditStatus = 'Draft' | 'Scheduled' | 'In Progress' | 'Completed' | 'Overdue';
 
 export interface AssetAuditRecord {
-  /** API id of the audit. */
-  id: string;
+  id: number;
   /** "AUD-YYYY-NNN" */
   reference: string;
   name: string;
@@ -44,39 +44,76 @@ export interface AssetAuditRecord {
   /** Discrepancies found; null until the audit has findings recorded. */
   findings: number | null;
   notes: string;
+  /** Set by the New Audit page. */
   assetCount?: number;
   dueDate?: string;
 }
 
 export const AUDIT_TYPES: AuditType[] = ['Periodic', 'Ad-hoc', 'Compliance', 'Annual', 'Spot Check', 'Preventive'];
 const AUDIT_STATUSES: AuditStatus[] = ['Draft', 'Scheduled', 'In Progress', 'Completed', 'Overdue'];
+export const AUDIT_LOCATIONS = ['Main Plant - Block A', 'Main Plant - Block B', 'Head Office', 'Data Centre', 'Warehouse', 'Field Operations', 'Transport Yard', 'All Locations'];
+export const AUDITORS = ['Salim Ahmed', 'Nisha Patel', 'Ahmed Khan', 'Ramesh Kumar', 'Priya Nair'];
+
+type Row = [string, AuditType, string, string, string, AuditStatus, string, number | null];
+
+const ROWS: Row[] = [
+  ['Q4 Asset Audit - Main Plant', 'Periodic', 'Main Plant - Block A', '2025-12-15', '', 'Scheduled', 'Salim Ahmed', null],
+  ['IT Equipment Verification', 'Ad-hoc', 'Head Office', '2025-10-10', '2025-10-12', 'Completed', 'Nisha Patel', 2],
+  ['Critical Assets Audit', 'Compliance', 'Data Centre', '2025-10-01', '2025-10-03', 'Completed', 'Ahmed Khan', 1],
+  ['Warehouse Asset Count', 'Periodic', 'Warehouse', '2025-09-20', '2025-09-21', 'Completed', 'Ramesh Kumar', 4],
+  ['Mobile Assets Audit', 'Periodic', 'Field Operations', '2025-09-10', '2025-09-12', 'In Progress', 'Priya Nair', 1],
+  ['Annual Asset Verification', 'Annual', 'All Locations', '2025-08-01', '2025-08-05', 'Completed', 'Salim Ahmed', 3],
+  ['Safety Equipment Audit', 'Compliance', 'Main Plant - Block B', '2025-07-15', '2025-07-16', 'Completed', 'Nisha Patel', 0],
+  ['Office Assets Spot Check', 'Spot Check', 'Head Office', '2025-06-10', '2025-06-10', 'Completed', 'Ahmed Khan', 1],
+  ['Vehicle Assets Audit', 'Periodic', 'Transport Yard', '2025-06-05', '', 'Overdue', 'Ramesh Kumar', null],
+  ['HVAC Assets Audit', 'Preventive', 'Main Plant - Block A', '2025-05-20', '2025-05-22', 'Completed', 'Priya Nair', 2],
+  ['Server Room Verification', 'Compliance', 'Data Centre', '2025-05-08', '2025-05-09', 'Completed', 'Ahmed Khan', 0],
+  ['Spare Parts Stock Check', 'Spot Check', 'Warehouse', '2025-04-25', '2025-04-25', 'Completed', 'Ramesh Kumar', 2],
+  ['Fire Safety Equipment Audit', 'Compliance', 'Main Plant - Block B', '2025-04-14', '2025-04-15', 'Completed', 'Nisha Patel', 1],
+  ['Laptop Fleet Audit', 'Periodic', 'Head Office', '2025-04-02', '2025-04-04', 'Completed', 'Salim Ahmed', 0],
+  ['Field Tools Verification', 'Ad-hoc', 'Field Operations', '2025-03-20', '', 'In Progress', 'Priya Nair', null],
+  ['Forklift Inspection Audit', 'Preventive', 'Warehouse', '2025-03-11', '2025-03-12', 'Completed', 'Ramesh Kumar', 1],
+  ['Network Equipment Audit', 'Periodic', 'Data Centre', '2025-03-03', '2025-03-05', 'Completed', 'Ahmed Khan', 0],
+  ['Q1 Asset Audit - Block B', 'Periodic', 'Main Plant - Block B', '2025-02-24', '2025-02-27', 'Completed', 'Salim Ahmed', 3],
+  ['Furniture Count', 'Spot Check', 'Head Office', '2025-02-12', '2025-02-12', 'Completed', 'Nisha Patel', 0],
+  ['Fleet Tyre Audit', 'Preventive', 'Transport Yard', '2025-02-03', '', 'In Progress', 'Ramesh Kumar', null],
+  ['Generator Compliance Audit', 'Compliance', 'Main Plant - Block A', '2025-01-28', '2025-01-29', 'Completed', 'Priya Nair', 1],
+  ['CCTV Assets Audit', 'Ad-hoc', 'All Locations', '2025-01-20', '2025-01-22', 'Completed', 'Ahmed Khan', 0],
+  ['Calibration Equipment Audit', 'Compliance', 'Main Plant - Block B', '2025-12-28', '', 'Scheduled', 'Nisha Patel', null],
+  ['Year-start Asset Verification', 'Annual', 'All Locations', '2025-01-06', '2025-01-10', 'Completed', 'Salim Ahmed', 2],
+];
+
+export const AUDITS: AssetAuditRecord[] = ROWS.map(([name, type, location, scheduled, completed, status, auditor, findings], i) => ({
+  id: i + 1,
+  reference: `AUD-2025-${String(ROWS.length - i).padStart(3, '0')}`,
+  name, type, location, scheduled, completed, status, auditor, findings, notes: '',
+}));
+
+/** Next reference number for a new audit, e.g. "AUD-2025-025". */
+export function nextReference(audits: AssetAuditRecord[], year = new Date().getFullYear()): string {
+  const max = audits.reduce((n, a) => Math.max(n, Number(a.reference.split('-')[2]) || 0), 0);
+  return `AUD-${year}-${String(max + 1).padStart(3, '0')}`;
+}
 
 export function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function toRecord(dto: AuditListItemDto): AssetAuditRecord {
-  return {
-    id: dto.id,
-    reference: dto.auditReference,
-    name: dto.auditName,
-    type: (dto.auditType ?? '') as AuditType,
-    location: dto.location ?? '',
-    scheduled: apiDate(dto.scheduledDate),
-    completed: apiDate(dto.completedDate),
-    status: (dto.status ?? 'Draft') as AuditStatus,
-    auditor: dto.auditedBy ?? '',
-    findings: dto.discrepancyCount,
-    notes: '',
-    assetCount: dto.assetCount,
-    dueDate: apiDate(dto.endDate),
-  };
-}
-
 type FindingsFilter = '' | 'with' | 'none' | 'pending';
 
+interface AuditForm {
+  /** Audit being edited; null for a new audit. */
+  id: number | null;
+  name: string;
+  type: AuditType;
+  location: string;
+  scheduled: string;
+  auditor: string;
+  notes: string;
+}
+
 interface CompleteForm {
-  id: string;
+  id: number;
   completed: string;
   findings: number;
   notes: string;
@@ -88,41 +125,38 @@ interface CompleteForm {
   templateUrl: './asset-audit.html',
   styleUrl: './asset-audit.css',
 })
-export class AssetAudit implements OnInit, OnDestroy {
+export class AssetAudit implements OnDestroy {
   readonly icons = {
     CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, CircleX, ClipboardList, Clock, EllipsisVertical, Funnel, Plus, Search, Upload, X,
   };
   readonly types = AUDIT_TYPES;
   readonly statuses = AUDIT_STATUSES;
-  /** Location / site filter options (id and name). */
-  locations: AuditLocation[] = [];
+  readonly locations = AUDIT_LOCATIONS;
+  readonly auditors = AUDITORS;
   readonly pageSizes = [10, 25, 50];
 
-  /** Audits matching the server-side filters (search, type, status, location, dates). */
-  audits: AssetAuditRecord[] = [];
-  counts: AuditCounts = { total: 0, completed: 0, inProgress: 0, scheduled: 0, overdue: 0, draft: 0 };
-  loading = false;
-  loadError = '';
-  busy = false;
+  /** DEMO MODE: shared in-memory list until the Asset Audit API carries these fields, so audits made on the New Audit page show here. */
+  readonly audits: AssetAuditRecord[] = AUDITS;
 
   // Filters
   search = '';
   typeFilter: AuditType | '' = '';
   statusFilter: AuditStatus | '' = '';
   locationFilter = '';
-  fromDate = '';
-  toDate = '';
+  fromDate = '2025-01-01';
+  toDate = '2025-12-31';
   moreFilters = false;
   auditorFilter = '';
   findingsFilter: FindingsFilter = '';
   pageSize = 10;
   page = 0;
 
-  checked = new Set<string>();
+  checked = new Set<number>();
   menuOpen = '';
   /** Row actions menu, fixed to the viewport so the scrolling table doesn't clip it. */
   rowMenu: { row: AssetAuditRecord; top: number; right: number } | null = null;
 
+  auditForm: AuditForm | null = null;
   completeForm: CompleteForm | null = null;
   detail: AssetAuditRecord | null = null;
   deleteTarget: AssetAuditRecord | null = null;
@@ -130,10 +164,7 @@ export class AssetAudit implements OnInit, OnDestroy {
 
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
-  private searchTimer?: ReturnType<typeof setTimeout>;
-  private loadSub?: Subscription;
   private readonly router = inject(Router);
-  private readonly api = inject(AssetAuditService);
 
   constructor() {
     // Message handed over by the New Audit page after saving
@@ -141,65 +172,14 @@ export class AssetAudit implements OnInit, OnDestroy {
     if (typeof message === 'string') this.showToast(message);
   }
 
-  ngOnInit(): void {
-    this.api.locations().subscribe((list) => (this.locations = list));
-    this.load();
-  }
-
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
-    clearTimeout(this.searchTimer);
-    this.loadSub?.unsubscribe();
-  }
-
-  // ===== Loading =====
-
-  private get query() {
-    return {
-      search: this.search.trim(),
-      auditType: this.typeFilter,
-      status: this.statusFilter,
-      locationId: this.locationFilter,
-      fromDate: this.fromDate,
-      toDate: this.toDate,
-    };
-  }
-
-  load(): void {
-    this.loadSub?.unsubscribe();
-    this.loading = true;
-    this.loadError = '';
-    this.loadSub = this.api.list(this.query).subscribe({
-      next: ({ items, counts }) => {
-        this.audits = items.map(toRecord);
-        this.counts = counts;
-        const ids = new Set(this.audits.map((a) => a.id));
-        for (const id of [...this.checked]) if (!ids.has(id)) this.checked.delete(id);
-        if (this.page >= this.pageCount) this.page = this.pageCount - 1;
-        this.loading = false;
-      },
-      error: (err) => {
-        this.audits = [];
-        this.loadError = apiErrorMessage(err, 'Audits could not be loaded.');
-        this.loading = false;
-      },
-    });
-  }
-
-  get auditors(): string[] {
-    return [...new Set(this.audits.map((a) => a.auditor).filter(Boolean))].sort((x, y) => x.localeCompare(y));
   }
 
   // ===== Summary =====
 
   countOf(status: AuditStatus): number {
-    switch (status) {
-      case 'Completed': return this.counts.completed;
-      case 'In Progress': return this.counts.inProgress;
-      case 'Scheduled': return this.counts.scheduled;
-      case 'Overdue': return this.counts.overdue;
-      default: return this.counts.draft;
-    }
+    return this.audits.filter((a) => a.status === status).length;
   }
 
   /** Summary cards double as a quick status filter. */
@@ -210,9 +190,19 @@ export class AssetAudit implements OnInit, OnDestroy {
 
   // ===== Filters & paging =====
 
-  /** Audited By and Findings are filtered here; the rest by the API. */
   get filtered(): AssetAuditRecord[] {
-    return this.audits.filter((a) => (!this.auditorFilter || a.auditor === this.auditorFilter) && this.matchesFindings(a));
+    const q = this.search.trim().toLowerCase();
+    return this.audits.filter(
+      (a) =>
+        (!this.typeFilter || a.type === this.typeFilter) &&
+        (!this.statusFilter || a.status === this.statusFilter) &&
+        (!this.locationFilter || a.location === this.locationFilter) &&
+        (!this.fromDate || a.scheduled >= this.fromDate) &&
+        (!this.toDate || a.scheduled <= this.toDate) &&
+        (!this.auditorFilter || a.auditor === this.auditorFilter) &&
+        this.matchesFindings(a) &&
+        (!q || `${a.reference} ${a.name} ${a.location} ${a.auditor}`.toLowerCase().includes(q)),
+    );
   }
 
   private matchesFindings(a: AssetAuditRecord): boolean {
@@ -237,7 +227,6 @@ export class AssetAudit implements OnInit, OnDestroy {
   }
 
   get showingLabel(): string {
-    if (this.loading) return 'Loading...';
     const n = this.filtered.length;
     if (!n) return 'No records';
     return `Showing ${this.page * this.pageSize + 1} to ${Math.min(n, (this.page + 1) * this.pageSize)} of ${n} records`;
@@ -247,11 +236,8 @@ export class AssetAudit implements OnInit, OnDestroy {
     return this.page * this.pageSize + i + 1;
   }
 
-  /** Server-side filters reload the list; the search waits for typing to pause. */
   onFilter(): void {
     this.page = 0;
-    clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => this.load(), 300);
   }
 
   resetFilters(): void {
@@ -273,7 +259,7 @@ export class AssetAudit implements OnInit, OnDestroy {
     }
   }
 
-  toggleCheck(id: string): void {
+  toggleCheck(id: number): void {
     if (this.checked.has(id)) this.checked.delete(id);
     else this.checked.add(id);
   }
@@ -290,11 +276,6 @@ export class AssetAudit implements OnInit, OnDestroy {
     return 'status--' + status.toLowerCase().replace(' ', '-');
   }
 
-  /** Draft and Scheduled audits can still be changed in the wizard. */
-  canEdit(a: AssetAuditRecord): boolean {
-    return a.status === 'Draft' || a.status === 'Scheduled' || a.status === 'Overdue';
-  }
-
   // ===== New / edit =====
 
   openNew(): void {
@@ -302,51 +283,58 @@ export class AssetAudit implements OnInit, OnDestroy {
     this.router.navigate(['/assets/audit/new-audit']);
   }
 
-  /** Opens the audit in the New Audit wizard. */
   openEdit(a: AssetAuditRecord): void {
     this.closeMenus();
-    this.detail = null;
-    this.router.navigate(['/assets/audit/new-audit'], { queryParams: { id: a.id } });
+    this.formError = '';
+    this.auditForm = { id: a.id, name: a.name, type: a.type, location: a.location, scheduled: a.scheduled, auditor: a.auditor, notes: a.notes };
+  }
+
+  saveAudit(): void {
+    const f = this.auditForm;
+    if (!f) return;
+    if (!f.name.trim()) return void (this.formError = 'Enter the audit name.');
+    if (!f.location) return void (this.formError = 'Choose the location / site.');
+    if (!f.scheduled) return void (this.formError = 'Choose the scheduled date.');
+    if (!f.auditor) return void (this.formError = 'Choose who will audit.');
+
+    const fields = { name: f.name.trim(), type: f.type, location: f.location, scheduled: f.scheduled, auditor: f.auditor, notes: f.notes.trim() };
+    const existing = this.audits.find((a) => a.id === f.id);
+    if (existing) {
+      Object.assign(existing, fields);
+      this.showToast(`${existing.reference} updated.`);
+    } else {
+      const reference = nextReference(this.audits);
+      const id = this.audits.reduce((n, a) => Math.max(n, a.id), 0) + 1;
+      this.audits.unshift({ id, reference, ...fields, completed: '', status: 'Scheduled', findings: null });
+      this.page = 0;
+      this.showToast(`${reference} scheduled.`);
+    }
+    this.auditForm = null;
   }
 
   // ===== Status changes =====
 
   startAudit(a: AssetAuditRecord): void {
     this.closeMenus();
-    this.api.start(a.id).subscribe({
-      next: () => {
-        this.showToast(`${a.reference} started.`);
-        this.load();
-      },
-      error: (err) => this.showToast(apiErrorMessage(err, `${a.reference} could not be started.`)),
-    });
+    a.status = 'In Progress';
+    this.showToast(`${a.reference} started.`);
   }
 
   openComplete(a: AssetAuditRecord): void {
     this.closeMenus();
     this.formError = '';
-    this.completeForm = { id: a.id, completed: a.completed || isoDate(new Date()), findings: a.findings ?? 0, notes: a.notes };
+    this.completeForm = { id: a.id, completed: isoDate(new Date()), findings: a.findings ?? 0, notes: a.notes };
   }
 
   saveComplete(): void {
     const f = this.completeForm;
     const a = this.audits.find((x) => x.id === f?.id);
-    if (!f || !a || this.busy) return;
+    if (!f || !a) return;
     if (!f.completed) return void (this.formError = 'Choose the completed date.');
     if (f.findings == null || f.findings < 0) return void (this.formError = 'Enter the number of discrepancies (0 if none).');
-    this.busy = true;
-    this.api.complete(a.id, Math.floor(f.findings), f.notes.trim()).subscribe({
-      next: () => {
-        this.busy = false;
-        this.completeForm = null;
-        this.showToast(`${a.reference} completed.`);
-        this.load();
-      },
-      error: (err) => {
-        this.busy = false;
-        this.formError = apiErrorMessage(err, `${a.reference} could not be completed.`);
-      },
-    });
+    Object.assign(a, { status: 'Completed', completed: f.completed, findings: Math.floor(f.findings), notes: f.notes.trim() });
+    this.completeForm = null;
+    this.showToast(`${a.reference} completed.`);
   }
 
   // ===== Details / delete =====
@@ -354,11 +342,6 @@ export class AssetAudit implements OnInit, OnDestroy {
   openDetail(a: AssetAuditRecord): void {
     this.closeMenus();
     this.detail = a;
-    // Notes are only on the full audit
-    this.api.get(a.id).subscribe({
-      next: (dto) => (a.notes = dto.completionRemarks || dto.notes || dto.description || ''),
-      error: () => undefined,
-    });
   }
 
   openDelete(a: AssetAuditRecord): void {
@@ -368,43 +351,17 @@ export class AssetAudit implements OnInit, OnDestroy {
 
   confirmDelete(): void {
     const a = this.deleteTarget;
-    if (!a || this.busy) return;
-    this.busy = true;
-    this.api.delete(a.id).subscribe({
-      next: () => {
-        this.busy = false;
-        this.checked.delete(a.id);
-        this.deleteTarget = null;
-        this.showToast(`${a.reference} deleted.`);
-        this.load();
-      },
-      error: (err) => {
-        this.busy = false;
-        this.deleteTarget = null;
-        this.showToast(apiErrorMessage(err, `${a.reference} could not be deleted.`));
-      },
-    });
+    if (!a) return;
+    this.audits.splice(this.audits.indexOf(a), 1);
+    this.checked.delete(a.id);
+    this.deleteTarget = null;
+    if (this.page >= this.pageCount) this.page = this.pageCount - 1;
+    this.showToast(`${a.reference} deleted.`);
   }
 
   // ===== Export =====
 
-  /** Excel of the whole filtered list comes from the API; CSV and ticked rows are built here from the loaded data. */
   export(format: 'xlsx' | 'csv'): void {
-    this.menuOpen = '';
-    if (format === 'xlsx' && !this.checked.size && !this.auditorFilter && !this.findingsFilter) {
-      this.api.export(this.query).subscribe({
-        next: (blob) => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = 'Asset_Audits.xlsx';
-          link.click();
-          URL.revokeObjectURL(url);
-        },
-        error: (err) => this.showToast(apiErrorMessage(err, 'Export failed.')),
-      });
-      return;
-    }
     const source = this.checked.size ? this.filtered.filter((a) => this.checked.has(a.id)) : this.filtered;
     const rows = source.map((a, i) => ({
       '#': i + 1, 'Audit Reference': a.reference, 'Audit Name': a.name, 'Audit Type': a.type, 'Location / Site': a.location,
@@ -413,6 +370,7 @@ export class AssetAudit implements OnInit, OnDestroy {
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Asset Audits');
     XLSX.writeFile(book, `Asset_Audits.${format}`, { bookType: format });
+    this.menuOpen = '';
   }
 
   // ===== Menus =====
@@ -445,7 +403,7 @@ export class AssetAudit implements OnInit, OnDestroy {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.closeMenus();
-    this.completeForm = this.detail = this.deleteTarget = null;
+    this.auditForm = this.completeForm = this.detail = this.deleteTarget = null;
   }
 
   private showToast(message: string): void {

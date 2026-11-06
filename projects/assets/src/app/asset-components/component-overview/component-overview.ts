@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   LucideAngularModule,
@@ -19,8 +19,7 @@ import {
 } from 'lucide-angular';
 import type { AssetComponent } from '../asset-components';
 import { buildMockServiceHistory, type ServiceRecord } from '../component-service-history/component-service-history';
-import { toDocument, type ComponentDocument } from '../component-documents/component-documents';
-import { AssetComponentsService, componentFileTag } from '../asset-components.service';
+import { buildMockDocuments, type ComponentDocument } from '../component-documents/component-documents';
 import { formatSize, saveBlob } from '../file-preview/file-preview';
 
 type ReplacementStatus = 'Overdue' | 'Due Soon' | 'On Track';
@@ -86,8 +85,6 @@ export class ComponentOverview implements OnChanges {
   /** Open a component-level tab (service, documents, …) focused on a component. */
   @Output() openTab = new EventEmitter<{ tab: 'service' | 'documents'; component: AssetComponent | null }>();
 
-  private readonly api = inject(AssetComponentsService);
-
   expanded = new Set<number>();
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
@@ -98,29 +95,11 @@ export class ComponentOverview implements OnChanges {
     this.expanded.clear();
     const first = this.components.find((c) => c.children.length);
     if (first) this.expanded.add(first.id);
-    // The activity feed reads the per-component service data, so make sure it exists.
+    // The activity feed and document list read the per-component sample data, so make sure it exists.
     for (const c of this.all) {
       c.serviceHistory ??= buildMockServiceHistory(c);
+      c.documents ??= buildMockDocuments(c);
     }
-    this.loadDocuments();
-  }
-
-  /** Loads the documents of components whose Documents tab has not been opened yet (one request per asset). */
-  private loadDocuments(): void {
-    const pending = this.all.filter((c) => !c.documents && c.apiId && c.assetRegistrationId);
-    if (!pending.length) return;
-    const assetId = pending[0].assetRegistrationId!;
-    this.api.listAssetComponentFiles('document', assetId).subscribe({
-      next: (dtos) => {
-        for (const c of pending) {
-          if (c.documents) continue;
-          const tag = componentFileTag('document', c.apiId!);
-          c.documents = dtos.filter((d) => d.tags.includes(tag)).map(toDocument);
-        }
-      },
-      // The document list simply stays empty; the Documents tab shows the error when opened.
-      error: () => undefined,
-    });
   }
 
   /** Every component in the tree, depth first. */
@@ -235,19 +214,11 @@ export class ComponentOverview implements OnChanges {
   }
 
   download(item: DocumentItem): void {
-    const { file, url, fileName } = item.doc;
-    if (file) {
-      saveBlob(file, fileName);
+    if (!item.doc.file) {
+      this.showToast('This is a sample document with no file attached. Upload a file on the Documents tab to download it.');
       return;
     }
-    if (!url) {
-      this.showToast('No file is stored for this document.');
-      return;
-    }
-    this.api.fetchFile(url).subscribe({
-      next: (blob) => saveBlob(blob, fileName),
-      error: () => window.open(url, '_blank', 'noopener'),
-    });
+    saveBlob(item.doc.file, item.doc.fileName);
   }
 
   private showToast(message: string): void {

@@ -18,12 +18,6 @@
       </div>
     </div>
 
-    <div *ngIf="loadError" class="load-state load-state--error" role="alert">
-      <span>{{ loadError }}</span>
-      <button type="button" class="btn btn-outline btn-sm" (click)="load()">Retry</button>
-    </div>
-    <p *ngIf="loading" class="load-state" role="status">Loading documents…</p>
-
     <div class="filters">
       <div class="search-box">
         <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
@@ -150,7 +144,7 @@
         <span class="icon-tile"><lucide-icon [img]="icons.Eye" [size]="18"></lucide-icon></span>
         <h3 class="grow">Document Preview</h3>
         <ng-container *ngIf="selected as d">
-          <button type="button" class="btn btn-soft btn-sm" (click)="download(d)" [title]="d.url ? 'Download ' + d.fileName : 'No file stored'">
+          <button type="button" class="btn btn-soft btn-sm" (click)="download(d)" [title]="d.file ? 'Download ' + d.fileName : 'Sample document – no file attached'">
             <lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>
             Download
           </button>
@@ -261,9 +255,8 @@
       </label>
     </div>
     <div class="modal-foot">
-      <span *ngIf="formError" class="error form-error" role="alert">{{ formError }}</span>
       <button type="button" class="btn btn-outline" (click)="formOpen = false">Cancel</button>
-      <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : formMode === 'edit' ? 'Save Changes' : 'Upload' }}</button>
+      <button type="submit" class="btn btn-primary">{{ formMode === 'edit' ? 'Save Changes' : 'Upload' }}</button>
     </div>
   </form>
 </div>
@@ -277,7 +270,7 @@
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="deleteTarget = null">Cancel</button>
-      <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">{{ saving ? 'Deleting…' : 'Delete' }}</button>
+      <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
     </div>
   </div>
 </div>

@@ -798,18 +798,6 @@ select.control {
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
 }
 
-/* ============ Load error ============ */
-.load-error {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
-  font-size: 13.5px;
-}
-
 
 
 /* ============ Page ============ */

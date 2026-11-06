@@ -43,7 +43,7 @@
       <div class="nsr-intro">
         <h2>New Service Request</h2>
         <p>Raise a new service request for this asset. Fill in the details below and submit for review.</p>
-        <p *ngIf="hasDraft" class="nsr-draft">Restored your saved draft. <button type="button" class="sr-link" (click)="discardDraft()" [disabled]="busy">Discard draft</button></p>
+        <p *ngIf="hasDraft" class="nsr-draft">Restored your saved draft. <button type="button" class="sr-link" (click)="discardDraft()">Start blank</button></p>
       </div>
 
       <!-- ===== Request information ===== -->
@@ -103,7 +103,7 @@
             <small *ngIf="submitted && errors.plannedEnd" class="nsr-err">{{ errors.plannedEnd }}</small></label>
           <label class="field"><span class="field-label">Related Work Order</span>
             <select class="control" [(ngModel)]="form.workOrder" name="workOrder"><option value="">Select Work Order (Optional)</option>
-              <option *ngFor="let w of workOrders" [value]="w.id">{{ w.id }} · {{ w.description }}</option></select></label>
+              <option *ngFor="let w of data.workOrders" [value]="w.id">{{ w.id }} · {{ w.description }}</option></select></label>
           <label class="field"><span class="field-label">Related Service Request</span>
             <select class="control" [(ngModel)]="form.relatedRequest" name="relatedRequest"><option value="">Select SR (Optional)</option>
               <option *ngFor="let r of requestsByDate" [value]="r.id">{{ r.id }} · {{ r.title }}</option></select></label>
@@ -119,7 +119,7 @@
             (dragover)="$event.preventDefault(); dragging = true" (dragleave)="dragging = false" (drop)="onDrop($event)">
             <lucide-icon [img]="icons.Upload" [size]="28"></lucide-icon>
             <strong>Drag and drop files here or click to upload</strong>
-            <span class="muted">Supports: PDF, JPG, PNG, WEBP (Max 10 MB each)</span>
+            <span class="muted">Supports: PDF, JPG, PNG, DOC, XLS (Max 10 MB each)</span>
           </div>
           <ul *ngIf="files.length" class="nsr-files">
             <li *ngFor="let f of files"><lucide-icon [img]="icons.File" [size]="15"></lucide-icon><span class="grow">{{ f.name }}</span><span class="muted">{{ f.size }}</span>
@@ -146,8 +146,8 @@
       <div class="nsr-foot">
         <button type="button" class="btn btn-outline" (click)="cancel()">Cancel</button>
         <span class="grow"></span>
-        <button type="button" class="btn btn-outline" (click)="saveDraft()" [disabled]="busy"><lucide-icon [img]="icons.Save" [size]="16"></lucide-icon>Save as Draft</button>
-        <button type="submit" class="btn btn-primary" [disabled]="busy"><lucide-icon [img]="icons.Send" [size]="16"></lucide-icon>Submit Service Request</button>
+        <button type="button" class="btn btn-outline" (click)="saveDraft()"><lucide-icon [img]="icons.Save" [size]="16"></lucide-icon>Save as Draft</button>
+        <button type="submit" class="btn btn-primary"><lucide-icon [img]="icons.Send" [size]="16"></lucide-icon>Submit Service Request</button>
       </div>
     </div>
 

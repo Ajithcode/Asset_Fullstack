@@ -25,39 +25,41 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-angular';
-import { Subscription, catchError, forkJoin, from, of } from 'rxjs';
-import { ASSET_TYPE_ICONS, AssetHeader, AssetTabLink, AuthService, assetTabs } from 'shared-ui';
-import { CriticalityCriterion, CriticalityImpact, CriticalityLevel, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
-import { apiErrorMessage } from '../services/asset-api';
-import { AssetLookupService, EMPTY_HEADER } from '../asset-status-condition/asset-lookup.service';
 import {
-  AssetCriticalityService,
-  CriticalityAssessment,
-  CriticalityOptions,
-  MITIGATION_STATUSES,
-  MitigationAction,
+  ASSET_RECORDS,
+  ASSET_TYPE_ICONS,
+  AssetHeader,
+  AssetRecord,
+  AssetTabLink,
+  assetCondition,
+  assetHeader,
+  assetLocation,
+  assetTabs,
+  findAsset,
+} from 'shared-ui';
+import {
+  CriticalityCriterion,
+  CriticalityData,
+  CriticalityLevel,
+  Mitigation,
   MitigationStatus,
-  RISK_SCALE,
-  RelatedAssetLink,
-} from './asset-criticality.service';
+  cloneDetail,
+  loadAssetDetail,
+} from '../asset-details/asset-details';
 
 type SubTab = 'details' | 'impact' | 'mitigation' | 'history' | 'related';
 type ViewMode = 'list' | 'grid';
 
-/** The asset's current assessment with its mitigation actions and earlier assessments. */
-interface CriticalityView extends CriticalityAssessment {
-  /** DEMO MODE: failure impact has no Asset API yet; from the asset's sample data file when there is one. */
-  impact: CriticalityImpact | null;
-  mitigations: MitigationAction[];
-  /** Earlier assessments, newest first. */
-  history: CriticalityAssessment[];
+/** A register asset with its criticality, for the list at the bottom of the page. */
+interface ListRow {
+  asset: AssetRecord;
+  crit: CriticalityData;
 }
 
-/** One row of the Asset Criticality List: an asset's current assessment. */
-type ListRow = CriticalityAssessment;
-
-interface RelatedRow extends RelatedAssetLink {
-  crit: CriticalityAssessment | null;
+interface RelatedRow {
+  asset: AssetRecord;
+  relation: string;
+  crit: CriticalityData | null;
 }
 
 interface AssessmentForm {
@@ -71,7 +73,7 @@ interface AssessmentForm {
 }
 
 type InfoForm = Pick<
-  CriticalityAssessment,
+  CriticalityData,
   'method' | 'reviewFrequency' | 'validUntil' | 'nextReview' | 'assessedBy' | 'approvedBy' | 'department' | 'assetGroup' | 'remarks'
 >;
 
@@ -83,21 +85,16 @@ interface MitigationForm {
   reducesTo: CriticalityLevel;
 }
 
+const CURRENT_USER = 'Rex Kumar';
 const LEVELS: CriticalityLevel[] = ['Critical', 'High', 'Medium', 'Low'];
 /** Matrix axis labels, index 0 = 1 (very low). */
-const SCALE = RISK_SCALE;
-/** Criteria the first assessment of an asset starts with, until GET /api/asset-criticality/options answers. */
-const DEFAULT_CRITERIA = [
-  { name: 'Operational Impact', weight: 25 },
-  { name: 'Safety Impact', weight: 20 },
-  { name: 'Financial Impact', weight: 20 },
-  { name: 'Compliance / Regulatory', weight: 15 },
-  { name: 'Environmental Impact', weight: 10 },
-  { name: 'Reputation Impact', weight: 10 },
-];
+const SCALE = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
 
 /** Radar geometry in SVG user units. */
 const RADAR = { cx: 210, cy: 120, r: 78, labelR: 104 };
+
+/** Criticality of each asset, kept in memory so edits survive moving between tabs (DEMO MODE). */
+const CRITICALITY = new Map<string, CriticalityData>();
 
 export function criticalityLevel(score: number): CriticalityLevel {
   return score >= 80 ? 'Critical' : score >= 60 ? 'High' : score >= 40 ? 'Medium' : 'Low';
@@ -138,33 +135,23 @@ export class AssetCriticality implements OnDestroy {
   readonly scale = SCALE;
   readonly radar = RADAR;
   readonly scoreSteps = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
-  readonly mitigationStatuses: MitigationStatus[] = MITIGATION_STATUSES;
+  readonly mitigationStatuses: MitigationStatus[] = ['Open', 'In Progress', 'Completed'];
   readonly assessmentMethods = ['Risk Matrix (Weighted)', 'Risk Matrix (Simple)', 'FMECA', 'Expert Judgement'];
   readonly reviewFrequencies = ['Every 3 Months', 'Every 6 Months', 'Every 12 Months'];
 
   @ViewChild('subtabsEl') private subtabsEl?: ElementRef<HTMLElement>;
 
   private readonly router = inject(Router);
-  private readonly lookup = inject(AssetLookupService);
-  private readonly api = inject(AssetCriticalityService);
-  private readonly auth = inject(AuthService);
-  private loadSub?: Subscription;
-  private options: CriticalityOptions | null = null;
 
   /** The asset named by ?tag=; when it is missing or unknown the page shows a "not found" message. */
-  asset: AssetHeader = EMPTY_HEADER;
-  /** assetRegistrationId of the asset, the key of the Asset API. */
-  assetId = '';
+  asset: AssetHeader = assetHeader(ASSET_RECORDS[0]);
+  record: AssetRecord = ASSET_RECORDS[0];
   notFound = false;
-  /** Set when the asset's criticality could not be read from the Asset API. */
-  loadError = '';
-  /** True while a dialog is being saved. */
-  saving = false;
   requestedTag = '';
   readonly tabs: AssetTabLink[] = assetTabs('Criticality');
 
   loading = false;
-  crit: CriticalityView | null = null;
+  crit: CriticalityData | null = null;
   related: RelatedRow[] = [];
   subTab: SubTab = 'details';
   readonly subTabs: { key: SubTab; label: string }[] = [
@@ -177,7 +164,6 @@ export class AssetCriticality implements OnDestroy {
 
   // ===== Asset Criticality List =====
   listLoading = true;
-  listError = '';
   rows: ListRow[] = [];
   search = '';
   categoryFilter = '';
@@ -188,8 +174,8 @@ export class AssetCriticality implements OnDestroy {
   pageSize = 10;
   page = 1;
   readonly checked = new Set<string>();
-  categories: string[] = [];
-  sites: string[] = [];
+  readonly categories = [...new Set(ASSET_RECORDS.map((a) => a.category))].sort();
+  readonly sites = [...new Set(ASSET_RECORDS.map((a) => a.site))].sort();
 
   // ===== Menus & modals =====
   actionsOpen = false;
@@ -211,102 +197,65 @@ export class AssetCriticality implements OnDestroy {
       .queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef)))
       .subscribe((params) => this.load(params.get('tag')));
     this.loadList();
-    this.api.getOptions().subscribe({ next: (o) => (this.options = o), error: () => (this.options = null) });
   }
 
   ngOnDestroy(): void {
-    this.loadSub?.unsubscribe();
     clearTimeout(this.toastTimer);
   }
 
   // ===== Loading =====
 
   private load(tag: string | null): void {
+    tag ??= ASSET_RECORDS[0].tag; // opened from the menu without an asset: show the first one
+    const record = findAsset(tag);
     this.requestedTag = tag ?? '';
-    this.notFound = false;
-    this.loadError = '';
-    this.crit = null;
+    this.notFound = !record;
+    if (!record) return;
+    this.record = record;
+    this.asset = assetHeader(record);
+    this.crit = CRITICALITY.get(record.tag) ?? null;
     this.related = [];
     this.subTab = 'details';
     this.closeMenus();
     this.assessForm = this.infoForm = this.mitigationForm = null;
     this.loading = true;
-    this.loadSub?.unsubscribe();
-    this.loadSub = this.lookup.resolve(tag).subscribe({
-      next: (found) => {
-        if (!found) {
-          this.loading = false;
-          this.notFound = true;
-          return;
-        }
-        this.asset = found.header;
-        this.assetId = found.id;
-        this.loadSub = forkJoin({
-          history: this.api.getHistory(found.id),
-          mitigations: this.api.getMitigations(found.id),
-          related: this.api.getRelated(found.id).pipe(catchError(() => of([] as RelatedAssetLink[]))),
-          detail: from(loadAssetDetail(found.header.tag)),
-        }).subscribe({
-          next: ({ history, mitigations, related, detail }) => {
-            this.loading = false;
-            const current = history.find((h) => h.isCurrent) ?? history[0];
-            this.crit = current
-              ? {
-                  ...current,
-                  impact: detail ? cloneDetail(detail.criticality.impact) : null,
-                  mitigations,
-                  history: history.filter((h) => h.id !== current.id),
-                }
-              : null;
-            this.related = related.map((r) => ({ ...r, crit: this.rowFor(r.assetRegistrationId) }));
-            if (this.assessOnLoad === this.asset.tag) {
-              this.assessOnLoad = null;
-              this.openAssessment();
-            }
-          },
-          error: (err) => this.failLoad(err),
-        });
-      },
-      error: (err) => this.failLoad(err),
+    loadAssetDetail(record.tag).then((detail) => {
+      if (this.requestedTag !== record.tag) return; // the user moved on to another asset
+      this.loading = false;
+      if (detail) {
+        this.crit = this.stateFor(record.tag, detail.criticality);
+        this.related = detail.relationships.links
+          .filter((l) => findAsset(l.tag))
+          .map((l) => ({ asset: findAsset(l.tag)!, relation: `${l.type} (${l.direction})`, crit: CRITICALITY.get(l.tag) ?? null }));
+      }
+      if (this.assessOnLoad === record.tag) {
+        this.assessOnLoad = null;
+        this.openAssessment();
+      }
     });
   }
 
-  private failLoad(err: unknown): void {
-    this.loading = false;
-    this.loadError = apiErrorMessage(err, 'Could not load the criticality assessment.');
-    this.showToast(this.loadError);
+  /** The in-memory criticality of an asset, created from its data file the first time. */
+  private stateFor(tag: string, fromFile: CriticalityData): CriticalityData {
+    let state = CRITICALITY.get(tag);
+    if (!state) {
+      state = cloneDetail(fromFile);
+      CRITICALITY.set(tag, state);
+    }
+    return state;
   }
 
-  /** Current assessment of an asset from the list, if it has one. */
-  private rowFor(assetRegistrationId: string | null): CriticalityAssessment | null {
-    return assetRegistrationId ? this.rows.find((r) => r.assetRegistrationId === assetRegistrationId) ?? null : null;
-  }
-
-  /** Loads the current assessment of every asset for the list. */
+  /** Loads every asset's criticality for the list (each file is fetched once and cached). */
   private loadList(): void {
-    this.listLoading = true;
-    this.listError = '';
-    this.api.getList().subscribe({
-      next: (rows) => {
-        this.setRows(rows);
-        this.listLoading = false;
-      },
-      error: (err) => {
-        this.listLoading = false;
-        this.listError = apiErrorMessage(err, 'Could not load the asset criticality list.');
-      },
+    Promise.all(
+      ASSET_RECORDS.map((asset) =>
+        loadAssetDetail(asset.tag).then((d) => (d ? { asset, crit: this.stateFor(asset.tag, d.criticality) } : null)),
+      ),
+    ).then((rows) => {
+      this.rows = rows.filter((r): r is ListRow => !!r);
+      this.listLoading = false;
+      for (const r of this.related) r.crit = CRITICALITY.get(r.asset.tag) ?? null;
     });
-  }
-
-  private setRows(rows: ListRow[]): void {
-    this.rows = rows;
-    this.categories = [...new Set(rows.map((r) => r.category).filter(Boolean))].sort();
-    this.sites = [...new Set(rows.map((r) => r.location).filter(Boolean))].sort();
-    for (const r of this.related) r.crit = this.rowFor(r.assetRegistrationId);
-  }
-
-  private get currentUser(): string {
-    return this.auth.getUserEmail() ?? '';
   }
 
   // ===== Header helpers =====
@@ -405,64 +354,43 @@ export class AssetCriticality implements OnDestroy {
   // ===== Mitigation / history / related =====
 
   get openMitigations(): number {
-    return this.crit?.mitigations.filter((m) => m.status !== 'Completed' && m.status !== 'Cancelled').length ?? 0;
+    return this.crit?.mitigations.filter((m) => m.status !== 'Completed').length ?? 0;
   }
 
   mitigationTone(status: MitigationStatus): string {
-    return status === 'Completed' ? 'good' : status === 'Cancelled' ? 'muted' : status === 'In Progress' ? 'warn' : 'serious';
+    return status === 'Completed' ? 'good' : status === 'In Progress' ? 'warn' : 'serious';
   }
 
-  setMitigationStatus(m: MitigationAction, status: MitigationStatus): void {
-    const previous = m.status;
+  setMitigationStatus(m: Mitigation, status: MitigationStatus): void {
     m.status = status;
-    this.api.setMitigationStatus(m.id, status).subscribe({
-      next: (saved) => {
-        Object.assign(m, saved);
-        this.showToast(`"${m.action}" marked ${status}.`);
-      },
-      error: (err) => {
-        m.status = previous;
-        this.showToast(apiErrorMessage(err, 'The status could not be changed.'));
-      },
-    });
+    this.showToast(`"${m.action}" marked ${status}.`);
   }
 
   openMitigation(): void {
     this.closeMenus();
     this.formError = '';
     const next = this.crit ? LEVELS[Math.min(LEVELS.length - 1, LEVELS.indexOf(this.crit.level) + 1)] : 'Low';
-    this.mitigationForm = { action: '', owner: this.currentUser, dueDate: addMonths(this.today, 1), status: 'Open', reducesTo: next };
+    this.mitigationForm = { action: '', owner: CURRENT_USER, dueDate: addMonths(this.today, 1), status: 'Open', reducesTo: next };
   }
 
   saveMitigation(): void {
     const f = this.mitigationForm;
-    const crit = this.crit;
-    if (!f || !crit || this.saving) return;
+    if (!f || !this.crit) return;
     if (!f.action.trim() || !f.owner.trim() || !f.dueDate) {
       this.formError = 'Enter the action, owner and due date.';
       return;
     }
-    this.saving = true;
-    this.formError = '';
-    this.api.createMitigation(this.assetId, f).subscribe({
-      next: (action) => {
-        this.saving = false;
-        crit.mitigations = [...crit.mitigations, action];
-        this.mitigationForm = null;
-        this.showToast('Mitigation action added.');
-      },
-      error: (err) => {
-        this.saving = false;
-        this.formError = apiErrorMessage(err, 'The mitigation action could not be added.');
-      },
-    });
+    const id = Math.max(0, ...this.crit.mitigations.map((m) => m.id)) + 1;
+    this.crit.mitigations = [...this.crit.mitigations, { ...f, id, action: f.action.trim(), owner: f.owner.trim() }];
+    this.mitigationForm = null;
+    this.showToast('Mitigation action added.');
   }
 
   viewAsset(tag: string, assess = false): void {
     this.closeMenus();
     if (assess) this.assessOnLoad = tag;
     this.router.navigate(['/assets/criticality'], { queryParams: { tag } }).then(() => {
-      if (tag === this.asset.tag && assess && !this.loading) {
+      if (tag === this.record.tag && assess) {
         this.assessOnLoad = null;
         this.openAssessment();
       }
@@ -474,26 +402,15 @@ export class AssetCriticality implements OnDestroy {
 
   openAssessment(): void {
     this.closeMenus();
-    if (!this.assetId || this.notFound) return;
+    if (!this.crit) return;
     this.formError = '';
-    const c = this.crit;
-    // The first assessment of an asset starts from the standard criteria
-    const criteria: CriticalityCriterion[] = c
-      ? c.criteria.map((x) => ({ ...x }))
-      : (this.options?.criteria ?? DEFAULT_CRITERIA).map((x) => ({
-          key: x.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          name: x.name,
-          weight: Number(x.weight),
-          score: 3,
-          justification: '',
-        }));
     this.assessForm = {
       date: this.today,
-      assessedBy: this.currentUser,
-      approvedBy: c?.approvedBy ?? '',
-      likelihood: c?.likelihood ?? 3,
-      consequence: c?.consequence ?? 3,
-      criteria,
+      assessedBy: CURRENT_USER,
+      approvedBy: this.crit.approvedBy,
+      likelihood: this.crit.likelihood,
+      consequence: this.crit.consequence,
+      criteria: this.crit.criteria.map((c) => ({ ...c })),
       remarks: '',
     };
   }
@@ -508,7 +425,8 @@ export class AssetCriticality implements OnDestroy {
 
   saveAssessment(): void {
     const f = this.assessForm;
-    if (!f || this.saving) return;
+    const crit = this.crit;
+    if (!f || !crit) return;
     if (!f.date || !f.assessedBy.trim() || !f.approvedBy.trim()) {
       this.formError = 'Enter the assessment date, assessed by and approved by.';
       return;
@@ -517,42 +435,31 @@ export class AssetCriticality implements OnDestroy {
       this.formError = 'Give a justification for every criterion.';
       return;
     }
-    const old = this.crit;
-    const months = old?.reviewFrequency === 'Every 3 Months' ? 3 : old?.reviewFrequency === 'Every 12 Months' ? 12 : 6;
-    this.saving = true;
-    this.formError = '';
-    this.api
-      .create(this.assetId, {
-        ...f,
-        validUntil: addMonths(f.date, 12),
-        nextReview: addMonths(f.date, months),
-      })
-      .subscribe({
-        next: (saved) => {
-          this.saving = false;
-          // The previous assessment moves into the review history
-          const { impact = null, mitigations = [], history = [], ...previous } = old ?? {};
-          this.crit = {
-            ...saved,
-            impact,
-            mitigations,
-            history: old ? [{ ...(previous as CriticalityAssessment), isCurrent: false }, ...history] : [],
-          };
-          this.setRows([...this.rows.filter((r) => r.assetRegistrationId !== saved.assetRegistrationId), saved].sort((a, b) =>
-            a.assetRegistrationId.localeCompare(b.assetRegistrationId),
-          ));
-          this.assessForm = null;
-          this.showToast(
-            !old ? `Assessment saved: ${saved.score} / 100 (${saved.level}).`
-              : old.level === saved.level ? `Assessment saved: ${saved.score} / 100 (${saved.level}).`
-              : `Criticality changed from ${old.level} to ${saved.level}.`,
-          );
-        },
-        error: (err) => {
-          this.saving = false;
-          this.formError = apiErrorMessage(err, 'The assessment could not be saved.');
-        },
-      });
+    // The current assessment moves into the review history
+    crit.history = [
+      {
+        date: crit.assessmentDate, score: crit.score, level: crit.level, likelihood: crit.likelihood, consequence: crit.consequence,
+        assessedBy: crit.assessedBy, approvedBy: crit.approvedBy, remarks: crit.remarks,
+      },
+      ...crit.history,
+    ];
+    const previous = crit.level;
+    const months = crit.reviewFrequency === 'Every 3 Months' ? 3 : crit.reviewFrequency === 'Every 12 Months' ? 12 : 6;
+    Object.assign(crit, {
+      score: this.formScore,
+      level: this.formLevel,
+      assessmentDate: f.date,
+      validUntil: addMonths(f.date, 12),
+      nextReview: addMonths(f.date, months),
+      assessedBy: f.assessedBy.trim(),
+      approvedBy: f.approvedBy.trim(),
+      likelihood: Number(f.likelihood),
+      consequence: Number(f.consequence),
+      criteria: f.criteria.map((c) => ({ ...c, score: Number(c.score), justification: c.justification.trim() })),
+      remarks: f.remarks.trim() || crit.remarks,
+    });
+    this.assessForm = null;
+    this.showToast(previous === crit.level ? `Assessment saved: ${crit.score} / 100 (${crit.level}).` : `Criticality changed from ${previous} to ${crit.level}.`);
   }
 
   // ===== Additional information =====
@@ -567,27 +474,14 @@ export class AssetCriticality implements OnDestroy {
 
   saveInfo(): void {
     const f = this.infoForm;
-    const crit = this.crit;
-    if (!f || !crit || this.saving) return;
+    if (!f || !this.crit) return;
     if (!f.validUntil || !f.assessedBy.trim() || !f.approvedBy.trim()) {
       this.formError = 'Enter valid until, assessed by and approved by.';
       return;
     }
-    this.saving = true;
-    this.formError = '';
-    this.api.updateDetails(crit.id, f).subscribe({
-      next: (saved) => {
-        this.saving = false;
-        Object.assign(crit, saved);
-        this.setRows(this.rows.map((r) => (r.id === saved.id ? saved : r)));
-        this.infoForm = null;
-        this.showToast('Additional information saved.');
-      },
-      error: (err) => {
-        this.saving = false;
-        this.formError = apiErrorMessage(err, 'The additional information could not be saved.');
-      },
-    });
+    Object.assign(this.crit, { ...f, assessedBy: f.assessedBy.trim(), approvedBy: f.approvedBy.trim(), remarks: f.remarks.trim() });
+    this.infoForm = null;
+    this.showToast('Additional information saved.');
   }
 
   // ===== Asset Criticality List =====
@@ -596,10 +490,10 @@ export class AssetCriticality implements OnDestroy {
     const q = this.search.trim().toLowerCase();
     return this.rows.filter(
       (r) =>
-        (!this.categoryFilter || r.category === this.categoryFilter) &&
-        (!this.siteFilter || r.location === this.siteFilter) &&
-        (!this.levelFilter || r.level === this.levelFilter) &&
-        (!q || [r.tag, r.name, r.category, r.location].some((v) => v.toLowerCase().includes(q))),
+        (!this.categoryFilter || r.asset.category === this.categoryFilter) &&
+        (!this.siteFilter || r.asset.site === this.siteFilter) &&
+        (!this.levelFilter || r.crit.level === this.levelFilter) &&
+        (!q || [r.asset.tag, r.asset.name, r.asset.category, assetLocation(r.asset)].some((v) => v.toLowerCase().includes(q))),
     );
   }
 
@@ -635,12 +529,20 @@ export class AssetCriticality implements OnDestroy {
     this.page = Math.min(Math.max(1, page), this.pageCount);
   }
 
+  location(a: AssetRecord): string {
+    return assetLocation(a);
+  }
+
+  condition(a: AssetRecord): string {
+    return assetCondition(a);
+  }
+
   get allChecked(): boolean {
-    return this.pageRows.length > 0 && this.pageRows.every((r) => this.checked.has(r.tag));
+    return this.pageRows.length > 0 && this.pageRows.every((r) => this.checked.has(r.asset.tag));
   }
 
   toggleAll(on: boolean): void {
-    this.pageRows.forEach((r) => (on ? this.checked.add(r.tag) : this.checked.delete(r.tag)));
+    this.pageRows.forEach((r) => (on ? this.checked.add(r.asset.tag) : this.checked.delete(r.asset.tag)));
   }
 
   toggleRow(tag: string, on: boolean): void {
@@ -674,10 +576,10 @@ export class AssetCriticality implements OnDestroy {
 
   exportList(): void {
     this.closeMenus();
-    const rows = this.checked.size ? this.filtered.filter((r) => this.checked.has(r.tag)) : this.filtered;
+    const rows = this.checked.size ? this.filtered.filter((r) => this.checked.has(r.asset.tag)) : this.filtered;
     const lines = [
       ['Asset ID', 'Asset Name', 'Category', 'Location', 'Criticality Level', 'Criticality Score', 'Assessment Date', 'Next Review', 'Status'],
-      ...rows.map((r) => [r.tag, r.name, r.category, r.location, r.level, r.score, r.assessmentDate, r.nextReview, r.assetStatus]),
+      ...rows.map((r) => [r.asset.tag, r.asset.name, r.asset.category, assetLocation(r.asset), r.crit.level, r.crit.score, r.crit.assessmentDate, r.crit.nextReview, r.asset.status]),
     ];
     this.download(lines, 'asset_criticality_list.csv');
   }

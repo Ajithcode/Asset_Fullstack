@@ -38,14 +38,6 @@
     </label>
   </div>
 
-  <!-- API load state -->
-  <div *ngIf="loadError" class="load-state load-state--error" role="alert">
-    <span>{{ loadError }}</span>
-    <button type="button" class="btn btn-outline" (click)="retryLoad()">Retry</button>
-  </div>
-  <p *ngIf="loading && !loadError" class="load-state" role="status">Loading components…</p>
-  <p *ngIf="!loading && !loadError && !assets.length" class="load-state" role="status">No registered assets found. Register an asset first to manage its components.</p>
-
   <!-- Asset summary -->
   <div class="card asset-card">
     <div class="asset-image">
@@ -478,9 +470,8 @@
         </label>
       </div>
       <div class="modal-foot">
-        <span *ngIf="formError" class="error form-error" role="alert">{{ formError }}</span>
         <button type="button" class="btn btn-outline" (click)="formOpen = false">Cancel</button>
-        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Component' }}</button>
+        <button type="submit" class="btn btn-primary">{{ editing ? 'Save Changes' : 'Add Component' }}</button>
       </div>
     </form>
   </div>
@@ -496,7 +487,7 @@
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="deleteTarget = null">Cancel</button>
-        <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">{{ saving ? 'Removing…' : 'Remove' }}</button>
+        <button type="button" class="btn btn-danger" (click)="confirmDelete()">Remove</button>
       </div>
     </div>
   </div>

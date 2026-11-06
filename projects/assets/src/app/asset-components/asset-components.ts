@@ -1,5 +1,4 @@
-import { Component, HostListener, inject } from '@angular/core';
-import { Observable, concat, forkJoin, last, map, of, switchMap } from 'rxjs';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -48,8 +47,6 @@ import { ComponentServiceHistory, type ServiceRecord } from './component-service
 import { ComponentDocuments, type ComponentDocument } from './component-documents/component-documents';
 import { ComponentAttachments, type ComponentAttachment } from './component-attachments/component-attachments';
 import { ComponentOverview } from './component-overview/component-overview';
-import { AssetComponentsService, isoDate, type AssetComponentDto, type AssetListItemDto, type SaveAssetComponentRequest } from './asset-components.service';
-import { apiErrorMessage } from '../services/asset-api';
 
 type ComponentStatus = 'Active' | 'Under Maintenance' | 'Needs Replacement' | 'Inactive';
 type LifeUnit = 'hrs' | 'months';
@@ -62,14 +59,7 @@ interface TabMeta {
 }
 
 export interface AssetComponent {
-  /** Client-side id (stable per API component for the session). */
   id: number;
-  /** AssetComponent id in the Asset API. */
-  apiId?: string;
-  /** Registration id (e.g. AR000001) of the asset the component belongs to. */
-  assetRegistrationId?: string;
-  /** API id of the parent component; null for top-level components. */
-  parentApiId?: string | null;
   name: string;
   tag: string;
   model: string;
@@ -98,8 +88,6 @@ export interface AssetComponent {
 }
 
 interface AssetRecord {
-  /** Registration id (e.g. AR000001) used by the components API. */
-  assetRegistrationId: string;
   name: string;
   tag: string;
   type: string;
@@ -108,172 +96,193 @@ interface AssetRecord {
   location: string;
   area: string;
   custodian: string;
-  status: string;
+  status: 'Active' | 'Under Maintenance' | 'In Repair';
   icon: keyof AssetComponents['componentIcons'];
   components: AssetComponent[];
 }
 
 type ComponentForm = Omit<AssetComponent, 'id' | 'children' | 'icon'> & { parentId: number | null };
 
-/** Stable numeric ids for API components, so the selection survives reloads. */
-const NUMERIC_IDS = new Map<string, number>();
 let nextId = 1;
 
-function numericIdOf(apiId: string): number {
-  let id = NUMERIC_IDS.get(apiId);
-  if (id === undefined) {
-    id = nextId++;
-    NUMERIC_IDS.set(apiId, id);
-  }
-  return id;
-}
-
-/** Best guess at an icon from a component's name. */
-export function guessComponentIcon(name: string): AssetComponent['icon'] {
-  const n = name.toLowerCase();
-  if (n.includes('fuel')) return 'fuel';
-  if (n.includes('oil') || n.includes('pump')) return 'oil';
-  if (n.includes('filter')) return 'filter';
-  if (n.includes('battery')) return 'battery';
-  if (n.includes('turbo')) return 'turbo';
-  if (n.includes('fan')) return 'fan';
-  if (n.includes('radiator')) return 'radiator';
-  if (n.includes('cooling') || n.includes('chiller')) return 'cooling';
-  if (n.includes('engine') || n.includes('compressor') || n.includes('motor')) return 'engine';
-  if (n.includes('alternator')) return 'alternator';
-  if (n.includes('panel')) return 'panel';
-  if (n.includes('module') || n.includes('controller')) return 'cpu';
-  if (n.includes('control')) return 'control';
-  if (n.includes('avr') || n.includes('board') || n.includes('regulator')) return 'board';
-  if (n.includes('enclosure') || n.includes('housing') || n.includes('canopy')) return 'enclosure';
-  if (n.includes('cable') || n.includes('wiring')) return 'cable';
-  if (n.includes('generator')) return 'generator';
-  return 'generic';
-}
-
-const STATUSES: ComponentStatus[] = ['Active', 'Under Maintenance', 'Needs Replacement', 'Inactive'];
-
-function toStatus(value: string | null): ComponentStatus {
-  return STATUSES.find((s) => s.toLowerCase() === (value ?? '').trim().toLowerCase()) ?? 'Active';
-}
-
-function toLifeUnit(value: string | null): LifeUnit {
-  return (value ?? '').toLowerCase().includes('month') ? 'months' : 'hrs';
-}
-
-const LIFE_UNIT_API: Record<LifeUnit, string> = { hrs: 'Running hours', months: 'Months' };
-
-/** Builds the component tree of an asset from the API's flat list. */
-function buildTree(dtos: AssetComponentDto[], previous: AssetComponent[]): AssetComponent[] {
-  // Keep the in-session maintenance / service data of components that are still there.
-  const old = new Map<string, AssetComponent>();
-  const visit = (list: AssetComponent[]) => list.forEach((c) => (c.apiId && old.set(c.apiId, c), visit(c.children)));
-  visit(previous);
-
-  const nodes = new Map<string, AssetComponent>();
-  for (const d of dtos) {
-    const before = old.get(d.id);
-    nodes.set(d.id, {
-      id: numericIdOf(d.id),
-      apiId: d.id,
-      assetRegistrationId: d.assetRegistrationId,
-      parentApiId: d.parentComponentId,
-      name: d.componentName,
-      tag: d.componentTag,
-      model: d.model ?? '',
-      manufacturer: d.manufacturer ?? '',
-      partNumber: d.partNumber ?? '',
-      serialNumber: d.serialNumber ?? '',
-      installedDate: isoDate(d.installedDate),
-      expectedReplacement: isoDate(d.expectedReplacementDate),
-      lifeUsed: Number(d.lifecycleUsed) || 0,
-      lifeTotal: Number(d.lifecycleRatedLife) || 0,
-      lifeUnit: toLifeUnit(d.lifecycleUnit),
-      status: toStatus(d.status),
-      description: d.description ?? '',
-      icon: guessComponentIcon(d.componentName),
-      children: [],
-      maintenance: before?.maintenance,
-      serviceHistory: before?.serviceHistory,
-    });
-  }
-  const roots: AssetComponent[] = [];
-  for (const node of nodes.values()) {
-    const parent = node.parentApiId ? nodes.get(node.parentApiId) : undefined;
-    if (parent && parent !== node) parent.children.push(node);
-    else roots.push(node);
-  }
-  const byName = (a: AssetComponent, b: AssetComponent) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-  const sortAll = (list: AssetComponent[]) => (list.sort(byName), list.forEach((c) => sortAll(c.children)));
-  sortAll(roots);
-  return roots;
-}
-
-function toAssetRecord(dto: AssetListItemDto): AssetRecord {
-  const location = dto.locationPath || [dto.siteName, dto.buildingName].filter(Boolean).join(' - ');
-  const area = [dto.floorName, dto.zoneName, dto.roomName].filter(Boolean).join(' / ');
+function part(
+  name: string,
+  tag: string,
+  icon: AssetComponent['icon'],
+  details: Partial<Omit<AssetComponent, 'id' | 'name' | 'tag' | 'icon'>> = {},
+): AssetComponent {
   return {
-    assetRegistrationId: dto.assetRegistrationId,
-    name: dto.assetName || dto.assetTag || dto.assetRegistrationId,
-    tag: dto.assetTag || dto.assetRegistrationId,
-    type: dto.assetType || dto.category || '',
-    model: '',
-    manufacturer: dto.manufacturer ?? '',
-    location,
-    area,
-    custodian: dto.custodianName ?? '',
-    status: dto.status || 'Active',
-    icon: guessComponentIcon(`${dto.assetType ?? ''} ${dto.category ?? ''} ${dto.assetName ?? ''}`),
-    components: [],
+    id: nextId++,
+    name,
+    tag,
+    icon,
+    model: details.model ?? '',
+    manufacturer: details.manufacturer ?? '',
+    partNumber: details.partNumber ?? '',
+    serialNumber: details.serialNumber ?? '',
+    installedDate: details.installedDate ?? '',
+    expectedReplacement: details.expectedReplacement ?? '',
+    lifeUsed: details.lifeUsed ?? 0,
+    lifeTotal: details.lifeTotal ?? 0,
+    lifeUnit: details.lifeUnit ?? 'hrs',
+    status: details.status ?? 'Active',
+    description: details.description ?? '',
+    children: details.children ?? [],
   };
 }
 
-const EMPTY_ASSET: AssetRecord = {
-  assetRegistrationId: '',
-  name: '',
-  tag: '',
-  type: '',
-  model: '',
-  manufacturer: '',
-  location: '',
-  area: '',
-  custodian: '',
-  status: 'Active',
-  icon: 'generic',
-  components: [],
-};
-
-/**
- * Component trees loaded from the API, by asset tag, shared with the asset detail / maintenance tabs
- * (componentTreeOf / componentsOf). Filled whenever an asset's components are loaded.
- */
-const TREE_CACHE = new Map<string, AssetComponent[]>();
-
-/** The asset's top-level components (assemblies hold their parts in `children`); empty until loaded from the API. */
-export function componentTreeOf(tag: string): AssetComponent[] {
-  return TREE_CACHE.get(tag) ?? [];
+function buildMockAssets(): AssetRecord[] {
+  return [
+    {
+      name: 'Generator 250 kVA',
+      tag: 'GEN-00045',
+      type: 'Generator',
+      model: 'G250',
+      manufacturer: 'Caterpillar',
+      location: 'Head Office - Building A',
+      area: 'Plant Room',
+      custodian: 'Ahmed Basim',
+      status: 'Active',
+      icon: 'generator',
+      components: [
+        part('Engine Assembly', 'ENG-001', 'engine', {
+          model: 'C9.3B', manufacturer: 'Caterpillar', partNumber: '490-1022', serialNumber: 'SN-ENG-2026-001',
+          installedDate: '2026-01-15', lifeUsed: 4000, lifeTotal: 30000,
+          description: 'Diesel engine assembly including the intake and lubrication filters.',
+          children: [
+            part('Air Filter', 'AF-001', 'filter', {
+              model: 'CAT-AF250', manufacturer: 'Caterpillar', partNumber: '1R-1808', serialNumber: 'SN-AF-2026-001',
+              installedDate: '2026-01-15', expectedReplacement: '2027-01-15', lifeUsed: 4000, lifeTotal: 10000,
+              description: 'Primary air filter for engine air intake system.',
+            }),
+            part('Fuel Filter', 'FF-001', 'fuel', {
+              model: 'CAT-FF250', manufacturer: 'Caterpillar', partNumber: '1R-0751', serialNumber: 'SN-FF-2026-001',
+              installedDate: '2026-01-15', expectedReplacement: '2026-11-15', lifeUsed: 4000, lifeTotal: 5000,
+              description: 'Secondary fuel filter protecting the injection system.',
+            }),
+            part('Oil Filter', 'OF-001', 'oil', {
+              model: 'CAT-OF250', manufacturer: 'Caterpillar', partNumber: '1R-0739', serialNumber: 'SN-OF-2026-001',
+              installedDate: '2026-01-15', expectedReplacement: '2026-09-30', lifeUsed: 4000, lifeTotal: 4000,
+              status: 'Under Maintenance', description: 'Full-flow engine oil filter.',
+            }),
+            part('Turbo Charger', 'TC-001', 'turbo', {
+              model: 'CAT-TC250', manufacturer: 'Caterpillar', partNumber: '358-1471', serialNumber: 'SN-TC-2026-001',
+              installedDate: '2026-01-15', expectedReplacement: '2030-01-15', lifeUsed: 4000, lifeTotal: 25000,
+              description: 'Exhaust-driven turbocharger for the engine air supply.',
+            }),
+          ],
+        }),
+        part('Alternator', 'ALT-001', 'alternator', {
+          model: 'LC6114', manufacturer: 'Leroy-Somer', partNumber: 'LS-6114-250', serialNumber: 'SN-ALT-2026-001',
+          installedDate: '2026-01-15', lifeUsed: 4000, lifeTotal: 40000, description: 'Brushless synchronous alternator.',
+          children: [
+            part('AVR', 'AVR-001', 'board', {
+              model: 'R450', manufacturer: 'Leroy-Somer', partNumber: 'R450-A', serialNumber: 'SN-AVR-2026-001',
+              installedDate: '2026-01-15', description: 'Automatic voltage regulator.',
+            }),
+          ],
+        }),
+        part('Cooling System', 'CLS-001', 'cooling', {
+          manufacturer: 'Caterpillar', installedDate: '2026-01-15', description: 'Engine cooling circuit.',
+          children: [
+            part('Radiator', 'RAD-001', 'radiator', {
+              model: 'CAT-RD250', manufacturer: 'Caterpillar', partNumber: '245-7590', serialNumber: 'SN-RAD-2026-001',
+              installedDate: '2026-01-15', lifeUsed: 4000, lifeTotal: 20000, description: 'Engine-mounted radiator core.',
+            }),
+            part('Cooling Fan', 'FAN-001', 'fan', {
+              model: 'CAT-FN250', manufacturer: 'Caterpillar', partNumber: '361-4511', serialNumber: 'SN-FAN-2026-001',
+              installedDate: '2026-01-15', lifeUsed: 4000, lifeTotal: 15000, description: 'Pusher fan for the radiator.',
+            }),
+          ],
+        }),
+        part('Control System', 'CTL-001', 'control', {
+          installedDate: '2026-01-15', description: 'Generator control and protection.',
+          children: [
+            part('Control Panel', 'CP-001', 'panel', {
+              model: 'EMCP 4.2B', manufacturer: 'Caterpillar', partNumber: '533-0371', serialNumber: 'SN-CP-2026-001',
+              installedDate: '2026-01-15', description: 'Operator control panel.',
+            }),
+            part('Controller Module', 'CM-001', 'cpu', {
+              model: 'ECM-A4', manufacturer: 'Caterpillar', partNumber: '548-4207', serialNumber: 'SN-CM-2026-001',
+              installedDate: '2026-01-15', description: 'Engine control module.',
+            }),
+            part('Battery', 'BAT-001', 'battery', {
+              model: '12V 100Ah', manufacturer: 'Varta', partNumber: '600-123', serialNumber: 'SN-BAT-2026-001',
+              installedDate: '2026-01-15', expectedReplacement: '2028-01-15', lifeUsed: 9, lifeTotal: 24, lifeUnit: 'months',
+              status: 'Needs Replacement', description: 'Lead-acid starter battery.',
+            }),
+          ],
+        }),
+        part('Enclosure', 'ENC-001', 'enclosure', {
+          model: 'SA-250', manufacturer: 'Caterpillar', installedDate: '2026-01-15', description: 'Sound-attenuated weatherproof enclosure.',
+        }),
+      ],
+    },
+    {
+      name: 'HVAC Chiller',
+      tag: 'HVAC-00112',
+      type: 'Chiller',
+      model: 'TR-350',
+      manufacturer: 'Trane',
+      location: 'Head Office - Building B',
+      area: 'Roof',
+      custodian: 'Sara Ahmed',
+      status: 'Active',
+      icon: 'cooling',
+      components: [
+        part('Compressor', 'CMP-112', 'engine', {
+          model: 'CVHF-350', manufacturer: 'Trane', partNumber: 'CMP-350', serialNumber: 'SN-CMP-2025-112',
+          installedDate: '2025-06-01', lifeUsed: 9800, lifeTotal: 60000, description: 'Centrifugal compressor.',
+        }),
+        part('Condenser Fan', 'CFN-112', 'fan', {
+          model: 'CF-900', manufacturer: 'Ziehl-Abegg', installedDate: '2025-06-01', lifeUsed: 9800, lifeTotal: 30000,
+          description: 'Air-cooled condenser fan.',
+        }),
+        part('Chilled Water Pump', 'CWP-112', 'oil', {
+          model: 'NBG-125', manufacturer: 'Grundfos', installedDate: '2025-06-01', status: 'Under Maintenance',
+          description: 'Primary chilled water circulation pump.',
+        }),
+      ],
+    },
+    {
+      name: 'UPS 100 kVA',
+      tag: 'UPS-00078',
+      type: 'UPS',
+      model: 'Galaxy VS',
+      manufacturer: 'Schneider Electric',
+      location: 'Data Center - Building A',
+      area: 'DC Room',
+      custodian: 'Mohan Kumar',
+      status: 'Active',
+      icon: 'battery',
+      components: [
+        part('Battery String A', 'BSA-078', 'battery', {
+          model: 'VRLA 12V 9Ah', manufacturer: 'CSB', installedDate: '2024-03-10', expectedReplacement: '2028-03-10',
+          lifeUsed: 31, lifeTotal: 48, lifeUnit: 'months', description: '40-block VRLA battery string.',
+        }),
+        part('Power Module', 'PM-078', 'board', {
+          model: 'GVSPM50KB', manufacturer: 'Schneider Electric', installedDate: '2024-03-10', description: '50 kW power module.',
+        }),
+      ],
+    },
+  ];
 }
 
-/** The asset's components, assemblies followed by their parts; empty until loaded from the API. */
+/**
+ * Components of every asset, shared by the Components page and the asset Maintenance / Service History tabs so
+ * both show the same parts and records. DEMO MODE: kept in memory for the session.
+ */
+const SHARED_ASSETS = buildMockAssets();
+
+/** The asset's top-level components (assemblies hold their parts in `children`); empty when none are recorded. */
+export function componentTreeOf(tag: string): AssetComponent[] {
+  return SHARED_ASSETS.find((a) => a.tag === tag)?.components ?? [];
+}
+
+/** The asset's components, assemblies followed by their parts; empty when none are recorded. */
 export function componentsOf(tag: string): AssetComponent[] {
   const flat = (list: AssetComponent[]): AssetComponent[] => list.flatMap((c) => [c, ...flat(c.children)]);
   return flat(componentTreeOf(tag));
-}
-
-/**
- * Loads an asset's components from the API by asset tag and fills the shared cache read by
- * componentTreeOf / componentsOf. Emits the top-level components (empty when the asset is not found).
- */
-export function loadComponentTree(api: AssetComponentsService, tag: string): Observable<AssetComponent[]> {
-  return api.listAssets(tag).pipe(
-    map((assets) => assets.find((a) => a.assetTag === tag) ?? assets.find((a) => a.assetRegistrationId === tag) ?? null),
-    switchMap((asset) => (asset ? api.listComponents(asset.assetRegistrationId) : of<AssetComponentDto[]>([]))),
-    map((dtos) => {
-      const tree = buildTree(dtos, componentTreeOf(tag));
-      TREE_CACHE.set(tag, tree);
-      return tree;
-    }),
-  );
 }
 
 /** Icon of each component kind (AssetComponent['icon']). */
@@ -345,10 +354,8 @@ export class AssetComponents {
   readonly statusOptions: ComponentStatus[] = ['Active', 'Under Maintenance', 'Needs Replacement', 'Inactive'];
   readonly pageSizeOptions = [10, 25, 50];
 
-  private readonly api = inject(AssetComponentsService);
-
-  assets: AssetRecord[] = [];
-  assetTag = '';
+  assets: AssetRecord[] = SHARED_ASSETS;
+  assetTag: string;
   activeTab: AssetTab = 'components';
 
   expanded = new Set<number>();
@@ -373,15 +380,6 @@ export class AssetComponents {
 
   deleteTarget: AssetComponent | null = null;
 
-  /** Loading the asset list or the selected asset's components. */
-  loading = false;
-  /** Error from loading; shown inline above the page content. */
-  loadError = '';
-  /** A create / update / delete / status change is in flight. */
-  saving = false;
-  /** Error from the last save, shown in the add / edit form. */
-  formError = '';
-
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
@@ -389,97 +387,20 @@ export class AssetComponents {
     private readonly router: Router,
     route: ActivatedRoute,
   ) {
-    this.loadAssets(route.snapshot.queryParamMap.get('tag'));
+    const requested = route.snapshot.queryParamMap.get('tag');
+    this.assetTag = this.assets.some((a) => a.tag === requested) ? requested! : this.assets[0].tag;
+    this.resetSelection();
   }
 
   // ===== Asset =====
 
   get asset(): AssetRecord {
-    return this.assets.find((a) => a.tag === this.assetTag) ?? this.assets[0] ?? EMPTY_ASSET;
+    return this.assets.find((a) => a.tag === this.assetTag) ?? this.assets[0];
   }
 
   onAssetChange(): void {
     this.router.navigate([], { queryParams: { tag: this.assetTag }, replaceUrl: true });
-    this.loadComponents(true);
-  }
-
-  /** Loads the asset picker, then the requested asset's components (the first asset when none is requested). */
-  loadAssets(requested: string | null = this.assetTag || null): void {
-    this.loading = true;
-    this.loadError = '';
-    this.api
-      .listAssets()
-      .pipe(
-        switchMap((list) =>
-          // The requested asset may be outside the first page of the picker; look it up by tag.
-          requested && !list.some((a) => a.assetTag === requested || a.assetRegistrationId === requested)
-            ? this.api.listAssets(requested).pipe(map((found) => [...found.filter((a) => a.assetTag === requested || a.assetRegistrationId === requested), ...list]))
-            : of(list),
-        ),
-      )
-      .subscribe({
-        next: (list: AssetListItemDto[]) => {
-          this.assets = list.map(toAssetRecord);
-          const match = this.assets.find((a) => a.tag === requested || a.assetRegistrationId === requested);
-          this.assetTag = match?.tag ?? this.assets[0]?.tag ?? '';
-          if (!this.assets.length) {
-            this.loading = false;
-            this.resetSelection();
-            return;
-          }
-          this.loadComponents(true);
-        },
-        error: (err) => {
-          this.loading = false;
-          this.loadError = apiErrorMessage(err, 'Could not load assets.');
-        },
-      });
-  }
-
-  /**
-   * Loads the selected asset's components from the API.
-   * @param reset true when switching assets: opens the first assembly instead of keeping the current selection.
-   */
-  loadComponents(reset = false, done?: () => void): void {
-    const asset = this.asset;
-    if (!asset.assetRegistrationId) return;
-    this.loading = true;
-    this.loadError = '';
-    if (!asset.model) {
-      this.api.getAssetBasics(asset.assetRegistrationId).subscribe({
-        next: (b) => {
-          asset.model = b.model;
-          asset.manufacturer ||= b.manufacturer;
-        },
-        error: () => undefined,
-      });
-    }
-    this.api.listComponents(asset.assetRegistrationId).subscribe({
-      next: (dtos) => {
-        asset.components = buildTree(dtos, asset.components);
-        TREE_CACHE.set(asset.tag, asset.components);
-        this.loading = false;
-        if (reset) {
-          this.resetSelection();
-        } else {
-          // Drop selections that no longer exist.
-          if (this.find(this.groupId) === null) this.groupId = null;
-          if (this.find(this.detailId) === null) this.detailId = null;
-          if (this.find(this.focusId) === null) this.focusId = this.detailId ?? this.asset.components[0]?.id ?? null;
-          [...this.checked].forEach((id) => this.find(id) === null && this.checked.delete(id));
-        }
-        done?.();
-      },
-      error: (err) => {
-        this.loading = false;
-        this.loadError = apiErrorMessage(err, `Could not load the components of ${asset.tag}.`);
-      },
-    });
-  }
-
-  retryLoad(): void {
-    if (this.assets.length) this.loadComponents(true);
-    else this.loadAssets();
+    this.resetSelection();
   }
 
   /** Opens the first assembly and shows its first part, as in the design. */
@@ -712,63 +633,16 @@ export class AssetComponents {
   }
 
   setStatusForChecked(status: ComponentStatus): void {
-    const rows = this.groupChildren.filter((c) => this.checked.has(c.id) && c.apiId);
-    if (!rows.length || this.saving) return;
-    this.saving = true;
-    forkJoin(rows.map((c) => this.api.updateComponent(this.asset.assetRegistrationId, c.apiId!, this.requestOf(c, { status })))).subscribe({
-      next: () => {
-        this.saving = false;
-        this.checked.clear();
-        this.loadComponents();
-        this.showToast(`${rows.length} component${rows.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`);
-      },
-      error: (err) => {
-        this.saving = false;
-        this.loadComponents();
-        this.showToast(apiErrorMessage(err, 'Could not change the status.'));
-      },
-    });
+    const rows = this.groupChildren.filter((c) => this.checked.has(c.id));
+    rows.forEach((c) => (c.status = status));
+    this.checked.clear();
+    this.showToast(`${rows.length} component${rows.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`);
   }
 
   setStatus(c: AssetComponent, status: ComponentStatus): void {
     this.openMenu = null;
-    if (!c.apiId || this.saving) return;
-    this.saving = true;
-    this.api.updateComponent(this.asset.assetRegistrationId, c.apiId, this.requestOf(c, { status })).subscribe({
-      next: () => {
-        this.saving = false;
-        c.status = status;
-        this.showToast(`${c.name} marked ${status.toLowerCase()}.`);
-      },
-      error: (err) => {
-        this.saving = false;
-        this.showToast(apiErrorMessage(err, `Could not change the status of ${c.name}.`));
-      },
-    });
-  }
-
-  /** Save request for an existing component, with optional changes. */
-  private requestOf(c: AssetComponent, changes: Partial<AssetComponent> = {}): SaveAssetComponentRequest {
-    const v = { ...c, ...changes };
-    return {
-      parentComponentId: this.parentOf(c.id)?.apiId ?? null,
-      componentName: v.name,
-      componentTag: v.tag,
-      status: v.status,
-      model: v.model || null,
-      manufacturer: v.manufacturer || null,
-      partNumber: v.partNumber || null,
-      serialNumber: v.serialNumber || null,
-      installedDate: v.installedDate || null,
-      expectedReplacementDate: v.expectedReplacement || null,
-      lifecycleUsed: v.lifeUsed,
-      lifecycleRatedLife: v.lifeTotal,
-      lifecycleUnit: LIFE_UNIT_API[v.lifeUnit],
-      description: v.description || null,
-      createdBy: null,
-      clientId: '',
-      tenantId: '',
-    };
+    c.status = status;
+    this.showToast(`${c.name} marked ${status.toLowerCase()}.`);
   }
 
   // ===== Display helpers =====
@@ -834,7 +708,6 @@ export class AssetComponents {
     this.editing = null;
     this.form = { ...EMPTY_FORM, parentId: this.groupId, manufacturer: this.asset.manufacturer, installedDate: TODAY_ISO };
     this.formSubmitted = false;
-    this.formError = '';
     this.formOpen = true;
   }
 
@@ -859,7 +732,6 @@ export class AssetComponents {
       parentId: this.parentOf(c.id)?.id ?? null,
     };
     this.formSubmitted = false;
-    this.formError = '';
     this.formOpen = true;
   }
 
@@ -883,52 +755,58 @@ export class AssetComponents {
 
   saveForm(): void {
     this.formSubmitted = true;
-    this.formError = '';
     const f = this.form;
-    if (this.saving || !f.name.trim() || !f.tag.trim() || this.isTagTaken(f.tag) || this.lifeInvalid || this.datesInvalid) return;
+    if (!f.name.trim() || !f.tag.trim() || this.isTagTaken(f.tag) || this.lifeInvalid || this.datesInvalid) return;
 
-    const parent = this.find(f.parentId);
-    const body: SaveAssetComponentRequest = {
-      parentComponentId: parent?.apiId ?? null,
-      componentName: f.name.trim(),
-      componentTag: f.tag.trim().toUpperCase(),
-      status: f.status,
-      model: f.model.trim() || null,
-      manufacturer: f.manufacturer.trim() || null,
-      partNumber: f.partNumber.trim() || null,
-      serialNumber: f.serialNumber.trim() || null,
-      installedDate: f.installedDate || null,
-      expectedReplacementDate: f.expectedReplacement || null,
-      lifecycleUsed: Number(f.lifeUsed) || 0,
-      lifecycleRatedLife: Number(f.lifeTotal) || 0,
-      lifecycleUnit: LIFE_UNIT_API[f.lifeUnit],
-      description: f.description.trim() || null,
-      createdBy: null,
-      clientId: '',
-      tenantId: '',
+    const { parentId, ...rest } = f;
+    const values = {
+      ...rest,
+      name: f.name.trim(),
+      tag: f.tag.trim().toUpperCase(),
+      model: f.model.trim(),
+      manufacturer: f.manufacturer.trim(),
+      partNumber: f.partNumber.trim(),
+      serialNumber: f.serialNumber.trim(),
+      description: f.description.trim(),
+      lifeUsed: Number(f.lifeUsed) || 0,
+      lifeTotal: Number(f.lifeTotal) || 0,
     };
-    const editing = this.editing;
-    const assetId = this.asset.assetRegistrationId;
-    const request$ = editing?.apiId ? this.api.updateComponent(assetId, editing.apiId, body) : this.api.createComponent(assetId, body);
+    const parent = this.find(parentId);
+    const siblings = parent ? parent.children : this.asset.components;
 
-    this.saving = true;
-    request$.subscribe({
-      next: (saved) => {
-        this.saving = false;
-        this.formOpen = false;
-        const savedId = numericIdOf(saved.id);
-        this.loadComponents(false, () => {
-          if (parent) this.expanded.add(parent.id);
-          this.groupId = parent?.id ?? null;
-          if (!editing) this.detailId = savedId;
-        });
-        this.showToast(editing ? `${body.componentName} updated.` : `${body.componentName} added${parent ? ` to ${parent.name}` : ''}.`);
-      },
-      error: (err) => {
-        this.saving = false;
-        this.formError = apiErrorMessage(err, editing ? 'Could not save the component.' : 'Could not add the component.');
-      },
-    });
+    if (this.editing) {
+      const c = this.editing;
+      Object.assign(c, values);
+      const currentParent = this.parentOf(c.id);
+      if ((currentParent?.id ?? null) !== (parent?.id ?? null)) {
+        const from = currentParent ? currentParent.children : this.asset.components;
+        from.splice(from.indexOf(c), 1);
+        siblings.push(c);
+      }
+      this.showToast(`${c.name} updated.`);
+    } else {
+      const created: AssetComponent = { id: nextId++, ...values, icon: this.guessIcon(values.name), children: [] };
+      siblings.push(created);
+      this.detailId = created.id;
+      this.showToast(`${created.name} added${parent ? ` to ${parent.name}` : ''}.`);
+    }
+    if (parent) this.expanded.add(parent.id);
+    this.groupId = parent?.id ?? null;
+    this.formOpen = false;
+  }
+
+  private guessIcon(name: string): AssetComponent['icon'] {
+    const n = name.toLowerCase();
+    if (n.includes('fuel')) return 'fuel';
+    if (n.includes('oil') || n.includes('pump')) return 'oil';
+    if (n.includes('filter')) return 'filter';
+    if (n.includes('battery')) return 'battery';
+    if (n.includes('fan')) return 'fan';
+    if (n.includes('radiator')) return 'radiator';
+    if (n.includes('panel')) return 'panel';
+    if (n.includes('module') || n.includes('controller')) return 'cpu';
+    if (n.includes('cable') || n.includes('wiring')) return 'cable';
+    return 'generic';
   }
 
   // ===== Remove =====
@@ -938,39 +816,18 @@ export class AssetComponents {
     this.deleteTarget = c;
   }
 
-  /** Removes the component and its sub-components (the API only deletes leaves, so children go first). */
   confirmDelete(): void {
     const c = this.deleteTarget;
-    if (!c || this.saving) return;
-    const order: AssetComponent[] = [];
-    const visit = (n: AssetComponent) => {
-      n.children.forEach(visit);
-      order.push(n);
-    };
-    visit(c);
-    const assetId = this.asset.assetRegistrationId;
+    if (!c) return;
     const parent = this.parentOf(c.id);
-    this.saving = true;
-    concat(...order.filter((n) => n.apiId).map((n) => this.api.deleteComponent(assetId, n.apiId!)))
-      .pipe(last(undefined, undefined))
-      .subscribe({
-        next: () => {
-          this.saving = false;
-          this.deleteTarget = null;
-          this.checked.delete(c.id);
-          // Fall back to the parent if the removed branch held the current selection.
-          this.loadComponents(false, () => {
-            if (this.groupId === null && parent && this.find(parent.id)) this.groupId = parent.id;
-          });
-          this.showToast(`${c.name} removed.`);
-        },
-        error: (err) => {
-          this.saving = false;
-          this.deleteTarget = null;
-          this.loadComponents();
-          this.showToast(apiErrorMessage(err, `Could not remove ${c.name}.`));
-        },
-      });
+    const siblings = parent ? parent.children : this.asset.components;
+    siblings.splice(siblings.indexOf(c), 1);
+    this.checked.delete(c.id);
+    // Fall back to the parent if the removed branch held the current selection.
+    if (this.find(this.groupId) === null) this.groupId = parent?.id ?? null;
+    if (this.find(this.detailId) === null) this.detailId = null;
+    this.deleteTarget = null;
+    this.showToast(`${c.name} removed.`);
   }
 
   countDescendants(c: AssetComponent): number {

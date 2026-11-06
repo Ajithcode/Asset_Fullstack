@@ -1,5 +1,4 @@
-import { Component, DestroyRef, HostListener, inject } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -39,95 +38,12 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { Observable, Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
-import { TODAY, toIsoDate } from 'shared-ui';
-import { FilterSelect, FilterSelectOption } from '../shared/filter-select/filter-select';
-import {
-  AssetRegistrationFilters, AssetRegistrationListItem, AssetRegistrationListQuery, AssetRegistrationListResult, AssetRegistrationService,
-} from '../services/asset-registration/asset-registration';
+import { ASSET_RECORDS, AssetRecord, AssetStatus, Criticality, TODAY, toIsoDate } from 'shared-ui';
 
 type SortKey = 'name' | 'tag' | 'category' | 'location' | 'custodian' | 'status' | 'criticality' | 'nextMaintenance';
 type MaintenanceDue = '' | 'overdue' | '30' | '90' | 'none';
-type AssetIconKey = 'generator' | 'chiller' | 'ups' | 'forklift' | 'fire' | 'ac' | 'laptop' | 'cctv' | 'transformer' | 'solar' | 'box';
 
-/** One row of GET /api/asset-registrations, shaped for the table and grid. */
-interface AssetRow {
-  /** Record id (Mongo); assetRegistrationId is the business id such as "AR000003". */
-  id: string;
-  registrationId: string;
-  name: string;
-  tag: string;
-  imageUrl: string | null;
-  category: string;
-  type: string;
-  site: string;
-  /** Location below the site, e.g. "Street One > Third Right > Second Colony". */
-  area: string;
-  locationPath: string;
-  custodian: string;
-  department: string;
-  status: string;
-  criticality: string;
-  manufacturer: string;
-  /** yyyy-mm-dd, or null when not scheduled. */
-  nextMaintenance: string | null;
-  icon: AssetIconKey;
-}
-
-interface SelectOption {
-  value: string;
-  label: string;
-}
-
-/** API sortBy names for each sortable column. */
-const SORT_FIELDS: Record<SortKey, string> = {
-  name: 'assetName',
-  tag: 'assetTag',
-  category: 'category',
-  location: 'location',
-  custodian: 'custodian',
-  status: 'status',
-  criticality: 'criticality',
-  nextMaintenance: 'nextMaintenanceDate',
-};
-
-/** Picks a row icon from the asset type / category name. */
-const ICON_KEYWORDS: [RegExp, AssetIconKey][] = [
-  [/generator/i, 'generator'],
-  [/transformer|switchgear|panel/i, 'transformer'],
-  [/chiller|cooling|hvac|ahu|air handling/i, 'chiller'],
-  [/\bups\b|battery/i, 'ups'],
-  [/forklift|truck|vehicle/i, 'forklift'],
-  [/fire/i, 'fire'],
-  [/air ?con|\bac\b/i, 'ac'],
-  [/laptop|computer|server|it /i, 'laptop'],
-  [/cctv|camera/i, 'cctv'],
-  [/solar/i, 'solar'],
-];
-
-function toRow(item: AssetRegistrationListItem): AssetRow {
-  const below = [item.buildingName, item.floorName, item.zoneName, item.roomName].filter(Boolean).join(' > ');
-  const kind = `${item.assetType ?? ''} ${item.category ?? ''}`;
-  return {
-    id: item.id,
-    registrationId: item.assetRegistrationId,
-    name: item.assetName ?? '',
-    tag: item.assetTag ?? '',
-    imageUrl: item.imageUrl,
-    category: item.category ?? '',
-    type: item.assetType ?? '',
-    site: item.siteName ?? '',
-    area: below,
-    locationPath: item.locationPath ?? '',
-    custodian: item.custodianName ?? '',
-    department: item.department ?? '',
-    status: item.status ?? '',
-    criticality: item.criticality ?? '',
-    manufacturer: item.manufacturer ?? '',
-    nextMaintenance: item.nextMaintenanceDate ? item.nextMaintenanceDate.slice(0, 10) : null,
-    icon: ICON_KEYWORDS.find(([re]) => re.test(kind))?.[1] ?? 'box',
-  };
-}
+type AssetRow = AssetRecord;
 
 interface Filters {
   category: string;
@@ -149,6 +65,10 @@ interface StatusCard {
   count: number;
 }
 
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+}
+
 const EMPTY_FILTERS: Filters = {
   category: '',
   type: '',
@@ -161,14 +81,14 @@ const EMPTY_FILTERS: Filters = {
   maintenanceDue: '',
 };
 
-const MAIN_STATUSES = ['Active', 'Under Maintenance', 'In Repair', 'Disposed'];
-const CRITICALITY_RANK: Record<string, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+const MAIN_STATUSES: AssetStatus[] = ['Active', 'Under Maintenance', 'In Repair', 'Disposed'];
+const CRITICALITY_RANK: Record<Criticality, number> = { Critical: 0, High: 1, Medium: 2, Low: 3 };
 const AVATAR_COLORS = ['#6d4aff', '#2563eb', '#0891b2', '#db2777', '#7c3aed', '#059669', '#ea580c', '#4f46e5'];
 
 @Component({
   selector: 'app-asset-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FilterSelect],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './asset-list.html',
   styleUrl: './asset-list.css',
 })
@@ -190,39 +110,18 @@ export class AssetList {
     cctv: Cctv,
     transformer: Cog,
     solar: SolarPanel,
-    box: Box,
   };
 
-  private readonly api = inject(AssetRegistrationService);
-  private readonly destroyRef = inject(DestroyRef);
+  readonly assets: AssetRow[] = ASSET_RECORDS;
 
-  // ===== Filter options (GET /api/asset-registrations/filters) =====
-
-  private filterData?: AssetRegistrationFilters;
-  categoryOptions: string[] = [];
-  statusOptions: string[] = [];
-  /** value is the locationId filter, label the full path. */
-  locationOptions: SelectOption[] = [];
-  departmentOptions: string[] = [];
-  /** value is custodianUserId. */
-  custodianOptions: SelectOption[] = [];
-  criticalityOptions: string[] = [];
-  manufacturerOptions: string[] = [];
-  readonly pageSizeOptions = [5, 10, 20];
-  /** Status filter choices: the API's statuses plus "Other". */
-  get statusFilterOptions(): string[] {
-    return this.statusFilterCache.source === this.statusOptions
-      ? this.statusFilterCache.list
-      : (this.statusFilterCache = { source: this.statusOptions, list: [...this.statusOptions, 'Other'] }).list;
-  }
-  private statusFilterCache: { source: readonly string[] | null; list: string[] } = { source: null, list: [] };
-
-  readonly maintenanceOptions: FilterSelectOption[] = [
-    { value: 'overdue', label: 'Overdue' },
-    { value: '30', label: 'Due in next 30 days' },
-    { value: '90', label: 'Due in next 90 days' },
-    { value: 'none', label: 'Not scheduled' },
-  ];
+  readonly categoryOptions = uniqueSorted(this.assets.map((a) => a.category));
+  readonly statusOptions: AssetStatus[] = ['Active', 'Under Maintenance', 'In Repair', 'Disposed', 'In Storage', 'Checked Out'];
+  readonly locationOptions = uniqueSorted(this.assets.map((a) => a.site));
+  readonly departmentOptions = uniqueSorted(this.assets.map((a) => a.department));
+  readonly custodianOptions = uniqueSorted(this.assets.map((a) => a.custodian));
+  readonly criticalityOptions: Criticality[] = ['Critical', 'High', 'Medium', 'Low'];
+  readonly manufacturerOptions = uniqueSorted(this.assets.map((a) => a.manufacturer));
+  readonly pageSizeOptions = [10, 25, 50, 100];
 
   search = '';
   /** Values bound to the filter controls; they take effect on "Apply Filters". */
@@ -237,61 +136,27 @@ export class AssetList {
   page = 1;
   pageSize = 10;
 
-  /** Selected rows by id; kept across pages so "Export selected" has their data. */
-  readonly selected = new Map<string, AssetRow>();
-  openMenuId: string | null = null;
+  selected = new Set<number>();
+  openMenuId: number | null = null;
 
-  statusCards: StatusCard[] = this.buildStatusCards();
-  /** Assets matching every filter except status; shown as "Total Assets". */
-  totalAssets = 0;
-  /** Assets matching every filter, across all pages. */
-  totalCount = 0;
+  statusCards: StatusCard[] = [];
+  filtered: AssetRow[] = [];
   pageRows: AssetRow[] = [];
-  loading = false;
 
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  private readonly reload$ = new Subject<void>();
-  private readonly searchInput$ = new Subject<void>();
-
   constructor(private readonly router: Router) {
-    this.reload$
-      .pipe(
-        switchMap(() => this.fetchPage()),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe((result) => this.showPage(result));
-    this.searchInput$.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.refresh());
-    this.loadFilterOptions();
+    this.statusCards = this.buildStatusCards();
     this.refresh();
-  }
-
-  private loadFilterOptions(): void {
-    this.api.getFilters().subscribe({
-      next: (f) => {
-        this.filterData = f;
-        const sorted = (values: string[] = []) => [...new Set(values)].sort((a, b) => a.localeCompare(b));
-        this.categoryOptions = sorted(f.categories);
-        this.statusOptions = sorted(f.statuses);
-        this.locationOptions = (f.locations ?? []).map((l) => ({ value: l.id, label: l.path || l.name }));
-        this.departmentOptions = sorted(f.departments);
-        const custodians = new Map<string, string>();
-        for (const c of f.custodians ?? []) if (c.userId) custodians.set(c.userId, c.name || c.userId);
-        this.custodianOptions = [...custodians].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
-        this.criticalityOptions = [...new Set(f.criticalities ?? [])].sort((a, b) => (CRITICALITY_RANK[a] ?? 9) - (CRITICALITY_RANK[b] ?? 9));
-        this.manufacturerOptions = sorted(f.manufacturers);
-      },
-      error: () => this.showToast('Could not load the filter options.'),
-    });
   }
 
   // ===== Filters =====
 
   /** Types offered depend on the chosen category. */
   get typeOptions(): string[] {
-    const types = (this.filterData?.assetTypes ?? []).filter((t) => !this.draft.category || t.category === this.draft.category);
-    return [...new Set(types.map((t) => t.assetType))].sort((a, b) => a.localeCompare(b));
+    const source = this.draft.category ? this.assets.filter((a) => a.category === this.draft.category) : this.assets;
+    return uniqueSorted(source.map((a) => a.type));
   }
 
   onCategoryChange(): void {
@@ -324,16 +189,14 @@ export class AssetList {
     this.refresh();
   }
 
-  /** Search runs on the server, 300 ms after typing stops. */
   onSearchChange(): void {
     this.page = 1;
-    this.searchInput$.next();
+    this.refresh();
   }
 
   clearSearch(): void {
     this.search = '';
-    this.page = 1;
-    this.refresh();
+    this.onSearchChange();
   }
 
   /** Status cards act as a quick filter; clicking the active card clears it. */
@@ -360,17 +223,18 @@ export class AssetList {
     return days >= 0 && days <= Number(due);
   }
 
-  private buildStatusCards(summary?: AssetRegistrationListResult['summary']): StatusCard[] {
+  private buildStatusCards(): StatusCard[] {
+    const count = (fn: (a: AssetRow) => boolean) => this.assets.filter(fn).length;
     return [
-      { label: 'Active', value: 'Active', dot: '#22a95b', count: summary?.active ?? 0 },
-      { label: 'Under Maintenance', value: 'Under Maintenance', dot: '#f59e0b', count: summary?.underMaintenance ?? 0 },
-      { label: 'In Repair', value: 'In Repair', dot: '#e11d48', count: summary?.inRepair ?? 0 },
-      { label: 'Disposed', value: 'Disposed', dot: '#94a3b8', count: summary?.disposed ?? 0 },
-      { label: 'Other', value: 'Other', dot: '#4f2bd8', count: summary?.other ?? 0 },
+      { label: 'Active', value: 'Active', dot: '#22a95b', count: count((a) => a.status === 'Active') },
+      { label: 'Under Maintenance', value: 'Under Maintenance', dot: '#f59e0b', count: count((a) => a.status === 'Under Maintenance') },
+      { label: 'In Repair', value: 'In Repair', dot: '#e11d48', count: count((a) => a.status === 'In Repair') },
+      { label: 'Disposed', value: 'Disposed', dot: '#94a3b8', count: count((a) => a.status === 'Disposed') },
+      { label: 'Other', value: 'Other', dot: '#4f2bd8', count: count((a) => !MAIN_STATUSES.includes(a.status)) },
     ];
   }
 
-  // ===== Sorting (server side) =====
+  // ===== Sorting =====
 
   sortBy(key: SortKey): void {
     if (this.sortKey === key) {
@@ -383,7 +247,6 @@ export class AssetList {
       this.sortKey = key;
       this.sortDir = 'asc';
     }
-    this.page = 1;
     this.refresh();
   }
 
@@ -392,95 +255,74 @@ export class AssetList {
     return this.sortDir === 'asc' ? this.icons.ChevronUp : this.icons.ChevronDown;
   }
 
-  // ===== Loading (GET /api/asset-registrations) =====
+  private sortValue(a: AssetRow, key: SortKey): string | number {
+    switch (key) {
+      case 'location':
+        return `${a.site} ${a.area}`;
+      case 'category':
+        return `${a.category} ${a.type}`;
+      case 'criticality':
+        return CRITICALITY_RANK[a.criticality];
+      case 'nextMaintenance':
+        // Unscheduled assets sort last in ascending order.
+        return a.nextMaintenance ?? '9999-12-31';
+      default:
+        return a[key];
+    }
+  }
+
+  // ===== Derived rows =====
 
   private refresh(): void {
-    this.reload$.next();
-  }
-
-  /** Search, filters and sort as API query parameters (status and maintenance due are added by the caller). */
-  private baseQuery(): AssetRegistrationListQuery {
+    const q = this.search.trim().toLowerCase();
     const f = this.applied;
-    return {
-      search: this.search.trim() || undefined,
-      category: f.category || undefined,
-      assetType: f.type || undefined,
-      locationId: f.location || undefined,
-      department: f.department || undefined,
-      custodianUserId: f.custodian || undefined,
-      criticality: f.criticality || undefined,
-      manufacturer: f.manufacturer || undefined,
-      sortBy: this.sortKey ? SORT_FIELDS[this.sortKey] : undefined,
-      sortDirection: this.sortKey ? this.sortDir : undefined,
-    };
-  }
 
-  /**
-   * The API has no "Other" status or maintenance-due filter. Those load every matching asset (page by page) and
-   * filter and page here; everything else is filtered, sorted and paged by the API.
-   */
-  private get filtersLocally(): boolean {
-    return this.applied.status === 'Other' || !!this.applied.maintenanceDue;
-  }
-
-  private fetchPage(): Observable<{ rows: AssetRow[]; total: number; all: number; summary?: AssetRegistrationListResult['summary'] } | null> {
-    this.loading = true;
-    const query = this.baseQuery();
-    const request$ = this.filtersLocally
-      ? this.api.getAllMatching(query).pipe(
-          map((items) => {
-            const all = items.map(toRow);
-            const rows = all.filter((a) => this.matchesStatus(a, this.applied.status) && this.matchesMaintenanceDue(a, this.applied.maintenanceDue));
-            const count = (fn: (a: AssetRow) => boolean) => all.filter(fn).length;
-            const summary = {
-              total: all.length,
-              active: count((a) => a.status === 'Active'),
-              underMaintenance: count((a) => a.status === 'Under Maintenance'),
-              inRepair: count((a) => a.status === 'In Repair'),
-              disposed: count((a) => a.status === 'Disposed'),
-              other: count((a) => !MAIN_STATUSES.includes(a.status)),
-            };
-            const start = (this.page - 1) * this.pageSize;
-            return { rows: rows.slice(start, start + this.pageSize), total: rows.length, all: all.length, summary };
-          }),
-        )
-      : this.api
-          .getAll({ ...query, status: this.applied.status || undefined, page: this.page, pageSize: this.pageSize })
-          .pipe(map((res) => ({ rows: res.items.map(toRow), total: res.totalCount, all: res.summary?.total ?? res.totalCount, summary: res.summary })));
-    return request$.pipe(
-      catchError(() => {
-        this.showToast('Could not load assets. Please try again.');
-        return of(null);
-      }),
+    let rows = this.assets.filter(
+      (a) =>
+        (!q ||
+          [a.name, a.tag, a.category, a.type, a.site, a.area, a.custodian, a.manufacturer].some((v) =>
+            v.toLowerCase().includes(q),
+          )) &&
+        (!f.category || a.category === f.category) &&
+        (!f.type || a.type === f.type) &&
+        this.matchesStatus(a, f.status) &&
+        (!f.location || a.site === f.location) &&
+        (!f.department || a.department === f.department) &&
+        (!f.custodian || a.custodian === f.custodian) &&
+        (!f.criticality || a.criticality === f.criticality) &&
+        (!f.manufacturer || a.manufacturer === f.manufacturer) &&
+        this.matchesMaintenanceDue(a, f.maintenanceDue),
     );
-  }
 
-  private showPage(result: { rows: AssetRow[]; total: number; all: number; summary?: AssetRegistrationListResult['summary'] } | null): void {
-    this.loading = false;
-    if (!result) return;
-    this.pageRows = result.rows;
-    this.totalCount = result.total;
-    this.totalAssets = result.all;
-    this.statusCards = this.buildStatusCards(result.summary);
-    // A filter shrank the result below the current page: go to the last page that exists
-    if (this.page > this.totalPages) {
-      this.page = this.totalPages;
-      this.refresh();
+    if (this.sortKey) {
+      const key = this.sortKey;
+      const dir = this.sortDir === 'asc' ? 1 : -1;
+      rows = [...rows].sort((x, y) => {
+        const vx = this.sortValue(x, key);
+        const vy = this.sortValue(y, key);
+        const cmp = typeof vx === 'number' && typeof vy === 'number' ? vx - vy : String(vx).localeCompare(String(vy));
+        return cmp * dir;
+      });
     }
+
+    this.filtered = rows;
+    this.page = Math.min(this.page, this.totalPages);
+    const start = (this.page - 1) * this.pageSize;
+    this.pageRows = rows.slice(start, start + this.pageSize);
   }
 
   // ===== Pagination =====
 
   get totalPages(): number {
-    return Math.max(1, Math.ceil(this.totalCount / this.pageSize));
+    return Math.max(1, Math.ceil(this.filtered.length / this.pageSize));
   }
 
   get rangeStart(): number {
-    return this.totalCount ? (this.page - 1) * this.pageSize + 1 : 0;
+    return this.filtered.length ? (this.page - 1) * this.pageSize + 1 : 0;
   }
 
   get rangeEnd(): number {
-    return Math.min(this.page * this.pageSize, this.totalCount);
+    return Math.min(this.page * this.pageSize, this.filtered.length);
   }
 
   /** Page numbers to render, with null standing in for an ellipsis. */
@@ -516,14 +358,14 @@ export class AssetList {
   toggleAllOnPage(): void {
     const selectAll = !this.allOnPageSelected;
     for (const r of this.pageRows) {
-      if (selectAll) this.selected.set(r.id, r);
+      if (selectAll) this.selected.add(r.id);
       else this.selected.delete(r.id);
     }
   }
 
-  toggleRow(row: AssetRow): void {
-    if (this.selected.has(row.id)) this.selected.delete(row.id);
-    else this.selected.set(row.id, row);
+  toggleRow(id: number): void {
+    if (this.selected.has(id)) this.selected.delete(id);
+    else this.selected.add(id);
   }
 
   clearSelection(): void {
@@ -532,7 +374,7 @@ export class AssetList {
 
   // ===== Row actions =====
 
-  toggleMenu(id: string, event: MouseEvent): void {
+  toggleMenu(id: number, event: MouseEvent): void {
     event.stopPropagation();
     this.openMenuId = this.openMenuId === id ? null : id;
   }
@@ -564,22 +406,8 @@ export class AssetList {
 
   // ===== Export / print =====
 
-  /** Exports the selected rows, or else every asset matching the search and filters (all pages). */
   exportCsv(): void {
-    if (this.selected.size) {
-      this.downloadCsv([...this.selected.values()]);
-      return;
-    }
-    this.api.getAllMatching({ ...this.baseQuery(), status: this.applied.status && this.applied.status !== 'Other' ? this.applied.status : undefined }).subscribe({
-      next: (items) =>
-        this.downloadCsv(
-          items.map(toRow).filter((a) => this.matchesStatus(a, this.applied.status) && this.matchesMaintenanceDue(a, this.applied.maintenanceDue)),
-        ),
-      error: () => this.showToast('Could not export assets. Please try again.'),
-    });
-  }
-
-  private downloadCsv(rows: AssetRow[]): void {
+    const rows = this.selected.size ? this.filtered.filter((a) => this.selected.has(a.id)) : this.filtered;
     const header = ['Asset Name', 'Asset Tag', 'Category', 'Type', 'Site', 'Area', 'Custodian', 'Department', 'Status', 'Criticality', 'Manufacturer', 'Next Maintenance'];
     const escape = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
     const lines = [header, ...rows.map((a) => [a.name, a.tag, a.category, a.type, a.site, a.area, a.custodian, a.department, a.status, a.criticality, a.manufacturer, a.nextMaintenance ?? ''])]
@@ -615,11 +443,11 @@ export class AssetList {
     return AVATAR_COLORS[h % AVATAR_COLORS.length];
   }
 
-  statusClass(status: string): string {
+  statusClass(status: AssetStatus): string {
     return 'status--' + status.toLowerCase().replace(/\s+/g, '-');
   }
 
-  criticalityClass(c: string): string {
+  criticalityClass(c: Criticality): string {
     return 'crit--' + c.toLowerCase();
   }
 
@@ -638,7 +466,7 @@ export class AssetList {
     return days >= 0 && days <= 14;
   }
 
-  trackById(_: number, row: AssetRow): string {
+  trackById(_: number, row: AssetRow): number {
     return row.id;
   }
 

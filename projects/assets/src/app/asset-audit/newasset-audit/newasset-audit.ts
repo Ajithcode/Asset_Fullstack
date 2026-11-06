@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -52,40 +52,25 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { ActivatedRoute } from '@angular/router';
-import { Observable, catchError, concatMap, forkJoin, from, last, map, mergeMap, of, switchMap, tap } from 'rxjs';
-import { AUDIT_TYPES, AuditType, isoDate } from '../asset-audit/asset-audit';
-import {
-  AssetAuditDto,
-  AssetAuditService,
-  AuditAttachmentDto,
-  AuditBasicInformationRequest,
-  AuditCriterionDto,
-  AuditLocation,
-  AuditPlanEntryDto,
-  AuditScheduleRequest,
-  AuditUserOption,
-  CriterionTemplateDto,
-  RegisterAsset,
-  apiDate,
-} from '../asset-audit.service';
-import { apiErrorMessage } from '../../services/asset-api';
+import { AUDITS, AUDIT_LOCATIONS, AUDIT_TYPES, AuditStatus, AuditType, isoDate, nextReference } from '../asset-audit/asset-audit';
+
+/**
+ * DEMO MODE: sample assets until the Asset Audit API returns assets by location.
+ * Main Plant - Block A has 245 assets and starts with the generator shown in the design.
+ */
 
 type AssetSelection = 'all' | 'selected' | 'range' | 'filter';
+type AssetStatus = 'In Service' | 'Under Maintenance' | 'Idle';
 type AssetKind = 'generator' | 'electrical' | 'tank' | 'cooling' | 'exhaust' | 'hvac' | 'it' | 'vehicle' | 'furniture' | 'safety' | 'tool';
 
 interface AuditSensor {
-  /** AssetComponent id. */
+  /** "<asset tag>-S01" */
   id: string;
-  /** Component tag shown next to the name. */
-  code: string;
   name: string;
   type: 'Sensor' | 'Component';
 }
 
 interface AuditAsset {
-  /** AssetRegistrationId. */
-  id: string;
   tag: string;
   serial: string;
   name: string;
@@ -93,32 +78,112 @@ interface AuditAsset {
   category: string;
   location: string;
   department: string;
-  status: string;
+  status: AssetStatus;
   sensors: AuditSensor[];
-  /** Sensors have been fetched. */
-  sensorsLoaded?: boolean;
 }
 
-/** Icon kind from the category / name of a registered asset. */
-function kindOf(text: string): AssetKind {
-  const t = text.toLowerCase();
-  const rules: [RegExp, AssetKind][] = [
-    [/generat|power|ups|turbine/, 'generator'], [/fuel|tank|cylinder/, 'tank'], [/hvac|chiller|air handling|ahu/, 'hvac'],
-    [/cool|radiator|fan/, 'cooling'], [/exhaust|emission|silencer/, 'exhaust'], [/it |server|computer|laptop|network|switch|it$/, 'it'],
-    [/vehicle|truck|forklift|car|fleet/, 'vehicle'], [/furniture|desk|chair|cabinet/, 'furniture'], [/safety|fire|extinguisher|detector/, 'safety'],
-    [/tool|jack|welding/, 'tool'], [/electric|panel|battery|transformer|breaker/, 'electrical'],
-  ];
-  return rules.find(([r]) => r.test(t))?.[1] ?? 'electrical';
+const AUDIT_DEPARTMENTS = ['Finance Department', 'Operations', 'Maintenance', 'IT Department', 'Administration', 'Logistics'];
+
+/** Asset categories with sample models: [model name, tag prefix, icon kind]. */
+const CATEGORY_MODELS: Record<string, [string, string, AssetKind][]> = {
+  'Power Generation': [['Generator 500 kVA', 'GEN', 'generator'], ['Generator 250 kVA', 'GEN', 'generator'], ['UPS 60 kVA', 'UPS', 'electrical'], ['Transformer 1 MVA', 'TRF', 'electrical']],
+  Electrical: [['ATS Panel', 'ATS', 'electrical'], ['Control Panel', 'CP', 'electrical'], ['Battery Bank', 'BB', 'electrical'], ['Distribution Board', 'DB', 'electrical']],
+  'Fuel System': [['Fuel Tank 10,000L', 'FT', 'tank'], ['Fuel Pump', 'FP', 'tank']],
+  'Cooling System': [['Cooling Radiator', 'CR', 'cooling'], ['Cooling Tower', 'CT', 'cooling']],
+  'Emission Control': [['Exhaust System', 'EXH', 'exhaust'], ['Silencer Unit', 'SIL', 'exhaust']],
+  HVAC: [['Chiller Unit 200 TR', 'HVC', 'hvac'], ['Air Handling Unit', 'AHU', 'hvac']],
+  'IT Equipment': [['Dell PowerEdge R750', 'ITE', 'it'], ['Cisco Switch 48P', 'ITE', 'it']],
+  Vehicles: [['Forklift 3 Ton', 'VEH', 'vehicle'], ['Toyota Hilux', 'VEH', 'vehicle']],
+  Furniture: [['Workstation Desk', 'FUR', 'furniture'], ['Filing Cabinet', 'FUR', 'furniture']],
+  'Safety Equipment': [['Fire Extinguisher 9 kg', 'SAF', 'safety'], ['Gas Detector', 'SAF', 'safety']],
+  Tools: [['Welding Machine', 'TLS', 'tool'], ['Hydraulic Jack', 'TLS', 'tool']],
+};
+
+/** Sensor / component names by icon kind. */
+const KIND_SENSORS: Record<AssetKind, string[]> = {
+  generator: ['Engine Temperature Sensor', 'Oil Pressure Sensor', 'Coolant Level Sensor', 'Fuel Level Sensor', 'Vibration Sensor', 'Voltage Sensor', 'Frequency Sensor', 'Battery Charger'],
+  electrical: ['Voltage Sensor', 'Current Sensor', 'Breaker Status Sensor', 'Temperature Sensor', 'Controller Module', 'Surge Protector'],
+  tank: ['Fuel Level Sensor', 'Leak Detector', 'Temperature Sensor'],
+  cooling: ['Coolant Temperature Sensor', 'Fan Motor', 'Flow Sensor'],
+  exhaust: ['Exhaust Temperature Sensor', 'Emission Analyzer'],
+  hvac: ['Supply Air Sensor', 'Return Air Sensor', 'Compressor', 'Filter Pressure Sensor'],
+  it: ['Power Supply Unit', 'Fan Module', 'Temperature Sensor'],
+  vehicle: ['GPS Tracker', 'Fuel Level Sensor', 'Battery'],
+  furniture: [],
+  safety: ['Pressure Gauge', 'Inspection Tag'],
+  tool: ['Power Cable', 'Safety Guard'],
+};
+
+const ASSET_CATEGORIES = Object.keys(CATEGORY_MODELS);
+const ASSET_STATUSES: AssetStatus[] = ['In Service', 'Under Maintenance', 'Idle'];
+
+/** Assets per site; "All Locations" is the union. */
+const SITE_COUNTS: [string, number][] = [
+  ['Main Plant - Block A', 245], ['Main Plant - Block B', 180], ['Head Office', 132], ['Data Centre', 96],
+  ['Warehouse', 210], ['Field Operations', 74], ['Transport Yard', 58],
+];
+
+/** The first Main Plant - Block A assets, as in the design: [model name, tag, sensor count, status]. */
+const DESIGN_ASSETS: [string, string, number, AssetStatus][] = [
+  ['Generator 500 kVA', 'GEN-00045', 8, 'In Service'],
+  ['ATS Panel', 'ATS-00012', 4, 'In Service'],
+  ['Fuel Tank 10,000L', 'FT-00008', 2, 'In Service'],
+  ['Cooling Radiator', 'CR-00015', 3, 'In Service'],
+  ['Control Panel', 'CP-00018', 6, 'In Service'],
+  ['Exhaust System', 'EXH-00021', 2, 'Under Maintenance'],
+  ['Battery Bank', 'BB-00033', 1, 'In Service'],
+];
+
+function sensorsFor(tag: string, kind: AssetKind, count: number): AuditSensor[] {
+  return KIND_SENSORS[kind].slice(0, count).map((name, i) => ({
+    id: `${tag}-S${String(i + 1).padStart(2, '0')}`,
+    name,
+    type: /Sensor|Detector|Analyzer|Gauge|Tracker/.test(name) ? 'Sensor' : 'Component',
+  }));
 }
 
-function toAuditAsset(a: RegisterAsset): AuditAsset {
-  return {
-    id: a.id, tag: a.tag, serial: '', name: a.name, kind: kindOf(`${a.category} ${a.assetType} ${a.name}`), category: a.category,
-    location: a.location, department: a.department, status: a.status, sensors: [],
-  };
+function buildAssets(): AuditAsset[] {
+  // Fixed seed so the sample list is the same on every load
+  let seed = 45;
+  const next = (n: number) => ((seed = (seed * 1103515245 + 12345) % 2147483648), seed % n);
+  const counters: Record<string, number> = {};
+  const serial = () => `SN${String(100000 + next(900000))}`;
+  const assets: AuditAsset[] = [];
+
+  for (const [name, tag, sensors, status] of DESIGN_ASSETS) {
+    const category = ASSET_CATEGORIES.find((c) => CATEGORY_MODELS[c].some(([m]) => m === name))!;
+    const [, prefix, kind] = CATEGORY_MODELS[category].find(([m]) => m === name)!;
+    counters[prefix] = Number(tag.split('-')[1]);
+    assets.push({ tag, serial: serial(), name, kind, category, location: 'Main Plant - Block A', department: 'Finance Department', status, sensors: sensorsFor(tag, kind, sensors) });
+  }
+
+  for (const [location, count] of SITE_COUNTS) {
+    const have = assets.filter((a) => a.location === location).length;
+    for (let i = have; i < count; i++) {
+      const category = ASSET_CATEGORIES[next(ASSET_CATEGORIES.length)];
+      const models = CATEGORY_MODELS[category];
+      const [name, prefix, kind] = models[next(models.length)];
+      counters[prefix] = (counters[prefix] ?? 0) + 1;
+      const tag = `${prefix}-${String(counters[prefix]).padStart(5, '0')}`;
+      const max = KIND_SENSORS[kind].length;
+      assets.push({
+        tag,
+        serial: serial(),
+        name,
+        kind,
+        category,
+        location,
+        department: AUDIT_DEPARTMENTS[next(AUDIT_DEPARTMENTS.length)],
+        status: ASSET_STATUSES[next(10) < 8 ? 0 : next(10) < 5 ? 1 : 2],
+        sensors: sensorsFor(tag, kind, max ? 1 + next(max) : 0),
+      });
+    }
+  }
+  return assets;
 }
 
-/** Fallback labels of the Audit Criteria checkboxes until the options load (same as the API's). */
+const AUDIT_ASSETS: AuditAsset[] = buildAssets();
+
 const AUDIT_CRITERIA = [
   'Physical existence (asset present at location)',
   'Condition check (visual inspection)',
@@ -128,8 +193,6 @@ const AUDIT_CRITERIA = [
   'Update location / assignment if changed',
   'Photo capture (mandatory)',
 ];
-const OTHER_OPTION = 'Other';
-const PHOTO_OPTION = 'PhotoCapture';
 
 const AUDIT_GUIDELINES = [
   'Ensure all selected assets are physically verified.',
@@ -143,7 +206,6 @@ type CriterionType = 'Checklist' | 'Condition Assessment' | 'Compliance' | 'Docu
 type CriterionAppliesTo = 'All Assets' | 'Selected Assets';
 
 interface AuditCriterion {
-  /** Template key, or the saved criterion id ("crt-N") for one added to this audit. */
   id: string;
   name: string;
   description: string;
@@ -164,31 +226,64 @@ interface CriteriaSettings {
 }
 
 const CRITERION_TYPES: CriterionType[] = ['Checklist', 'Condition Assessment', 'Compliance', 'Documentation', 'Custom'];
-const CHECK_METHODS = ['Visual Inspection', 'Scan Barcode / RFID', 'Compare with record', 'Functional Test', 'Measurement', 'Document Review', 'Photo Evidence'];
-const CRITERION_CATEGORIES = ['Existence', 'Identification', 'Location', 'Condition', 'Components', 'Compliance', 'Documentation', 'Safety', 'Custom', 'Other'];
+const CHECK_METHODS = ['Visual Inspection', 'Scan Barcode / RFID', 'Compare with record', 'Functional Test', 'Rating (1-5)', 'Document Check', 'Compare with telemetry', 'Measurement'];
+const CRITERION_CATEGORIES = ['Existence', 'Identification', 'Location', 'Condition', 'Components', 'Compliance', 'Documentation', 'Safety', 'Other'];
 
-/** Ready-made criteria sets for "Load from Template", by API template key. */
-const TEMPLATE_SETS: { name: string; ids: string[] | null }[] = [
-  { name: 'Standard Physical Audit', ids: ['physical-presence', 'asset-identification', 'location-verification', 'physical-condition', 'accessories-components', 'maintenance-tag'] },
-  { name: 'Condition Survey', ids: ['physical-presence', 'physical-condition', 'condition-rating', 'wear-damage', 'operational-status', 'cleanliness'] },
-  { name: 'Compliance Audit', ids: ['physical-presence', 'asset-identification', 'maintenance-tag', 'safety-certificate', 'statutory-inspection', 'regulatory-labels', 'purchase-documents'] },
-  { name: 'Full Audit (all criteria)', ids: null },
+type CriterionRow = [string, string, string, CriterionType, string, CriterionAppliesTo, boolean];
+
+const CRITERIA_ROWS: CriterionRow[] = [
+  ['Physical Presence', 'Asset is physically present at the recorded location.', 'Existence', 'Checklist', 'Visual Inspection', 'All Assets', true],
+  ['Asset Identification', 'Asset tag / serial number is readable and matches the record.', 'Identification', 'Checklist', 'Scan Barcode / RFID', 'All Assets', true],
+  ['Location Verification', 'Actual location matches the location in the register.', 'Location', 'Checklist', 'Compare with record', 'All Assets', true],
+  ['Physical Condition', 'Visual check for damage, corrosion or leaks.', 'Condition', 'Checklist', 'Visual Inspection', 'All Assets', true],
+  ['Accessories & Components', 'Accessories, sensors and components are present and fitted.', 'Components', 'Checklist', 'Visual Inspection', 'Selected Assets', false],
+  ['Maintenance Tag', 'Maintenance tag is present and the last service is within schedule.', 'Compliance', 'Checklist', 'Visual Inspection', 'Selected Assets', false],
+  ['Overall Condition Rating', 'Rate the overall condition from 1 (poor) to 5 (excellent).', 'Condition', 'Condition Assessment', 'Rating (1-5)', 'All Assets', true],
+  ['Wear & Damage', 'Record visible wear, cracks, dents or missing parts.', 'Condition', 'Condition Assessment', 'Visual Inspection', 'All Assets', false],
+  ['Operational Status', 'Asset starts and runs as expected.', 'Condition', 'Condition Assessment', 'Functional Test', 'Selected Assets', true],
+  ['Sensor Readings', 'Sensor readings are within the normal range.', 'Condition', 'Condition Assessment', 'Compare with telemetry', 'Selected Assets', false],
+  ['Safety Certification', 'Safety certificate is valid and displayed.', 'Safety', 'Compliance', 'Document Check', 'Selected Assets', true],
+  ['Statutory Inspection', 'Statutory inspection is done and not overdue.', 'Compliance', 'Compliance', 'Document Check', 'Selected Assets', true],
+  ['Environmental Compliance', 'Emissions, leaks and disposal meet environmental rules.', 'Compliance', 'Compliance', 'Visual Inspection', 'Selected Assets', false],
+  ['Warranty Documents', 'Warranty / AMC documents are on file and current.', 'Documentation', 'Documentation', 'Document Check', 'All Assets', false],
+  ['User Manual Available', 'Operating manual is available at the site.', 'Documentation', 'Documentation', 'Document Check', 'Selected Assets', false],
 ];
 
-function fromTemplate(t: CriterionTemplateDto): AuditCriterion {
-  return {
-    id: t.key, name: t.name, description: t.description ?? '', category: t.category ?? 'Other', type: t.type as CriterionType,
-    method: t.checkMethod ?? '', appliesTo: 'All Assets', mandatory: t.isMandatory,
-  };
-}
+const CRITERIA_LIBRARY: AuditCriterion[] = CRITERIA_ROWS.map(([name, description, category, type, method, appliesTo, mandatory], i) => ({
+  id: `CR-${String(i + 1).padStart(3, '0')}`, name, description, category, type, method, appliesTo, mandatory,
+}));
+
+/** Ready-made criteria sets for "Load from Template". */
+const CRITERIA_TEMPLATES: { name: string; ids: string[] }[] = [
+  { name: 'Standard Physical Audit', ids: ['CR-001', 'CR-002', 'CR-003', 'CR-004', 'CR-005', 'CR-006'] },
+  { name: 'Condition Survey', ids: ['CR-001', 'CR-004', 'CR-007', 'CR-008', 'CR-009', 'CR-010'] },
+  { name: 'Compliance Audit', ids: ['CR-001', 'CR-002', 'CR-006', 'CR-011', 'CR-012', 'CR-013', 'CR-014'] },
+  { name: 'Full Audit (all criteria)', ids: CRITERIA_LIBRARY.map((c) => c.id) },
+];
+
+/** Library criteria matching each quick criterion on the Basic Information step. */
+const QUICK_CRITERIA_MAP: Record<string, string[]> = {
+  'Physical existence (asset present at location)': ['CR-001'],
+  'Condition check (visual inspection)': ['CR-004'],
+  'Asset tag / serial number verification': ['CR-002'],
+  'Accessories / components check': ['CR-005'],
+  'Compliance and documentation check': ['CR-006', 'CR-011', 'CR-014'],
+  'Update location / assignment if changed': ['CR-003'],
+  'Photo capture (mandatory)': [],
+};
 
 // ===== Assign & schedule =====
 
-type TeamRole = 'Lead Auditor' | 'Auditor' | 'Observer' | 'Reviewer';
+type TeamRole = 'Lead Auditor' | 'Auditor' | 'Observer';
 type WorkingDays = 'Weekdays (Mon - Fri)' | 'Mon - Sat' | 'All days';
 type PlanSequence = 'location' | 'category' | 'custom';
 
-type AuditUser = AuditUserOption;
+interface AuditUser {
+  name: string;
+  email: string;
+  department: string;
+  title: string;
+}
 
 interface TeamMember {
   user: AuditUser;
@@ -221,10 +316,25 @@ interface ScheduleState {
   notifications: { onAssignment: boolean; reminder: boolean; onCompletion: boolean; onChange: boolean };
 }
 
-const TEAM_ROLES: TeamRole[] = ['Lead Auditor', 'Auditor', 'Observer', 'Reviewer'];
+const TEAM_ROLES: TeamRole[] = ['Lead Auditor', 'Auditor', 'Observer'];
 const WORKING_DAYS: WorkingDays[] = ['Weekdays (Mon - Fri)', 'Mon - Sat', 'All days'];
-const MON_TO_SAT = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const SEQUENCE_API: Record<PlanSequence, string> = { location: 'By Location', category: 'By Asset Category', custom: 'Custom Order' };
+
+const USER_ROWS: [string, string, string][] = [
+  ['Ramesh Kumar', 'Operations', 'Operations Supervisor'],
+  ['Nisha Patel', 'Facilities', 'Facilities Engineer'],
+  ['Ahmed Salim', 'Technical', 'Technical Lead'],
+  ['Salim Ahmed', 'Finance Department', 'Asset Accountant'],
+  ['Ahmed Khan', 'IT Department', 'IT Asset Manager'],
+  ['Priya Nair', 'Maintenance', 'Maintenance Planner'],
+  ['Divya Menon', 'Administration', 'Admin Officer'],
+  ['Arjun Rao', 'Logistics', 'Warehouse Lead'],
+  ['Kavya Iyer', 'Compliance', 'Compliance Officer'],
+  ['Rex Kumar', 'Administration', 'Administrator'],
+];
+
+const AUDIT_USERS: AuditUser[] = USER_ROWS.map(([name, department, title]) => ({
+  name, department, title, email: `${name.toLowerCase().replace(/\s+/g, '.')}@dcs.com`,
+}));
 
 /** Dates from start to end (inclusive) that fall on the chosen working days. */
 function workDates(start: string, end: string, days: WorkingDays): string[] {
@@ -240,9 +350,9 @@ function workDates(start: string, end: string, days: WorkingDays): string[] {
   return out;
 }
 
-/** Team members who carry out audit days (observers and reviewers don't). */
+/** Team members who carry out audit days (observers don't). */
 function planAuditors(state: ScheduleState): string[] {
-  return state.team.filter((m) => m.role === 'Lead Auditor' || m.role === 'Auditor').map((m) => m.user.name);
+  return state.team.filter((m) => m.role !== 'Observer').map((m) => m.user.name);
 }
 
 /** Everything the generated plan depends on; a different key means the plan is out of date. */
@@ -312,7 +422,7 @@ type Section = 'basic' | 'scope' | 'assets' | 'criteria' | 'library' | 'assign';
 
 type CriterionForm = Omit<AuditCriterion, 'id'> & { id: string | null };
 
-/** File attached on the Review & Submit step. */
+/** File attached on the Review & Submit step (kept in the browser until the API stores audit attachments). */
 interface AuditAttachment {
   name: string;
   type: 'Template' | 'Image' | 'Document' | 'Spreadsheet' | 'PDF' | 'Other';
@@ -320,9 +430,6 @@ interface AuditAttachment {
   uploadedBy: string;
   /** "YYYY-MM-DD" */
   date: string;
-  /** Stored file URL; set for attachments saved on the audit, empty for files only picked in this browser. */
-  url?: string;
-  contentType?: string | null;
 }
 
 interface AuditDraft {
@@ -330,7 +437,6 @@ interface AuditDraft {
   type: AuditType | '';
   reference: string;
   description: string;
-  /** Location id (see locations). */
   location: string;
   department: string;
   category: string;
@@ -354,7 +460,7 @@ interface AuditDraft {
   templateUrl: './newasset-audit.html',
   styleUrl: './newasset-audit.css',
 })
-export class NewassetAudit implements OnInit, OnDestroy {
+export class NewassetAudit implements OnDestroy {
   readonly icons = {
     ArrowLeft, ArrowRight, Building2, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, ClipboardList, Cpu, EllipsisVertical, Eye, Folder, Funnel,
     FileImage, FileText, Info, ListChecks, MapPin, Package, Pencil, Plus, RefreshCw, Save, Search, Trash2, TriangleAlert, Upload, X, Zap,
@@ -363,12 +469,12 @@ export class NewassetAudit implements OnInit, OnDestroy {
     generator: Zap, electrical: PlugZap, tank: Cylinder, cooling: Fan, exhaust: Wind, hvac: AirVent, it: Server, vehicle: Truck, furniture: Armchair, safety: FireExtinguisher, tool: Wrench,
   };
   readonly steps = ['Basic Information', 'Scope & Assets', 'Audit Criteria', 'Assign & Schedule', 'Review & Submit'];
-  types: string[] = AUDIT_TYPES;
-  /** Location / site options: id and name. */
-  locations: AuditLocation[] = [];
-  departments: string[] = [];
-  categories: string[] = [];
-  roles: TeamRole[] = TEAM_ROLES;
+  readonly types = AUDIT_TYPES;
+  readonly locations = AUDIT_LOCATIONS;
+  readonly departments = AUDIT_DEPARTMENTS;
+  readonly categories = ASSET_CATEGORIES;
+  readonly assetStatuses = ASSET_STATUSES;
+  readonly roles = TEAM_ROLES;
   readonly workingDayOptions = WORKING_DAYS;
   readonly sequences: { key: PlanSequence; label: string; hint: string }[] = [
     { key: 'location', label: 'By Location (recommended)', hint: 'Assets grouped by location for efficient audit.' },
@@ -377,13 +483,12 @@ export class NewassetAudit implements OnInit, OnDestroy {
   ];
   readonly calWeekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   readonly today = isoDate(new Date());
-  criteriaOptions: string[] = AUDIT_CRITERIA;
+  readonly criteriaOptions = AUDIT_CRITERIA;
   readonly guidelines = AUDIT_GUIDELINES;
-  criterionTypes: CriterionType[] = CRITERION_TYPES;
-  checkMethods: string[] = CHECK_METHODS;
+  readonly criterionTypes = CRITERION_TYPES;
+  readonly checkMethods = CHECK_METHODS;
   readonly criterionCategories = CRITERION_CATEGORIES;
-  /** "Load from Template" sets, with the criteria ids available. */
-  templates: { name: string; ids: string[] }[] = [];
+  readonly templates = CRITERIA_TEMPLATES;
   readonly appliesOptions: CriterionAppliesTo[] = ['All Assets', 'Selected Assets'];
   readonly settingRows: { key: keyof CriteriaSettings; label: string; hint: string; icon: typeof Camera }[] = [
     { key: 'photos', label: 'Capture photos for all criteria', hint: 'Require photo evidence for each check item', icon: Camera },
@@ -401,22 +506,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
   ];
   readonly descriptionMax = 1000;
   readonly pageSizes = [10, 25, 50];
-  /** Shown until the API gives the audit its reference, e.g. "AUD-2026-025". */
-  suggestedReference = 'Auto-generated';
-
-  /** Saved audit (the draft is created on the first save); null for a new, unsaved audit. */
-  auditId: string | null = null;
-  /** Status of the saved audit; a Scheduled audit being edited is saved again rather than submitted. */
-  private auditStatus = 'Draft';
-  /** A save or load is running. */
-  saving = false;
-  loading = false;
-  /** Highest step reached; steps up to it are saved on Save as Draft and Submit. */
-  private reached = 0;
-  /** Option label -> API key of the Audit Criteria checkboxes. */
-  private optionKeys: Record<string, string> = {};
-  /** API option key -> template keys it adds. */
-  private optionTemplates: Record<string, string[]> = {};
+  readonly suggestedReference = nextReference(AUDITS);
 
   /** 0-based index into steps. Step 0 also shows the scope and criteria sections, as in the design. */
   step = 0;
@@ -453,9 +543,9 @@ export class NewassetAudit implements OnInit, OnDestroy {
   rowMenu: { asset: AuditAsset; top: number; right: number } | null = null;
   detail: AuditAsset | null = null;
 
-  /** Criteria library for this audit (the API templates plus any added here), the ids included, and settings. */
+  /** Criteria library for this audit (the standard ones plus any added here), the ids included, and settings. */
   readonly criteria: { items: AuditCriterion[]; included: string[]; settings: CriteriaSettings } = {
-    items: [],
+    items: CRITERIA_LIBRARY.map((c) => ({ ...c })),
     included: [],
     settings: { photos: true, comments: true, mandatoryDefault: false, passFail: true, scoring: true, attachments: true },
   };
@@ -488,9 +578,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
     } as ScheduleState;
   })();
   /** Other audits' open dates, for the schedule calendar. */
-  otherAuditDates: string[] = [];
-  /** People who can join the audit team. */
-  users: AuditUser[] = [];
+  readonly otherAuditDates = AUDITS.filter((a) => a.status !== 'Completed').map((a) => a.scheduled);
 
   // Assign & Schedule step: team table, plan table, menus and dialogs
   teamSearch = '';
@@ -504,9 +592,6 @@ export class NewassetAudit implements OnInit, OnDestroy {
   /** First day of the month shown in the schedule calendar. */
   calMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   private scopeCache: { key: string; assets: AuditAsset[] } = { key: '', assets: [] };
-  /** Every asset seen (scope lists, the saved audit, imports), by tag. */
-  private readonly known = new Map<string, AuditAsset>();
-  scopeLoading = false;
 
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
@@ -516,119 +601,25 @@ export class NewassetAudit implements OnInit, OnDestroy {
   previewSearch = '';
 
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
   private readonly host = inject(ElementRef<HTMLElement>);
-  private readonly api = inject(AssetAuditService);
-
-  // ===== Loading =====
-
-  ngOnInit(): void {
-    const id = this.route.snapshot.queryParamMap.get('id');
-    this.loading = true;
-    this.api.locations().subscribe((list) => (this.locations = list));
-    this.api.categories().subscribe({ next: (list) => (this.categories = list), error: () => undefined });
-    this.api.users().subscribe({ next: (list) => (this.users = list), error: (err) => this.showToast(apiErrorMessage(err, 'Users could not be loaded for the audit team.')) });
-    // Departments in the register, for the scope and filters
-    this.api.registerAssets({}).subscribe({
-      next: (assets) => (this.departments = [...new Set(assets.map((a) => a.department).filter(Boolean))].sort((x, y) => x.localeCompare(y))),
-      error: () => undefined,
-    });
-    this.api.list({}).subscribe({
-      next: ({ items }) => (this.otherAuditDates = items.filter((a) => a.id !== id && a.status !== 'Completed' && a.scheduledDate).map((a) => apiDate(a.scheduledDate))),
-      error: () => undefined,
-    });
-
-    forkJoin({ options: this.api.options(), templates: this.api.criteriaTemplates() })
-      .pipe(
-        tap(({ options, templates }) => {
-          this.types = options.auditTypes;
-          this.criterionTypes = options.criterionTypes as CriterionType[];
-          this.checkMethods = options.checkMethods;
-          this.roles = options.roles as TeamRole[];
-          this.optionKeys = Object.fromEntries(Object.entries(options.criteriaOptions).map(([key, label]) => [label, key]));
-          this.criteriaOptions = Object.entries(options.criteriaOptions).filter(([key]) => key !== OTHER_OPTION).map(([, label]) => label);
-          this.optionTemplates = {};
-          for (const t of templates) if (t.optionKey) (this.optionTemplates[t.optionKey] ??= []).push(t.key);
-          this.criteria.items = templates.map(fromTemplate);
-          this.templates = TEMPLATE_SETS.map((set) => ({ name: set.name, ids: set.ids ?? templates.map((t) => t.key) }));
-        }),
-        switchMap(() => (id ? this.api.get(id) : of(null))),
-      )
-      .subscribe({
-        next: (audit) => {
-          this.loading = false;
-          if (audit) this.applyAudit(audit);
-          this.loadScope();
-        },
-        error: (err) => {
-          this.loading = false;
-          this.showToast(apiErrorMessage(err, id ? 'The audit could not be loaded.' : 'Audit options could not be loaded.'));
-          this.loadScope();
-        },
-      });
-  }
-
-  /** Name of the chosen location. */
-  get locationName(): string {
-    return this.locations.find((l) => l.id === this.d.location)?.name ?? '';
-  }
-
-  /** Loads the assets matching location, department and category from the asset register. */
-  private loadScope(): void {
-    const d = this.d;
-    const key = `${d.location}|${d.department}|${d.category}`;
-    if (this.scopeCache.key === key) return;
-    this.scopeCache = { key, assets: [] };
-    this.scopeLoading = true;
-    this.api.registerAssets({ locationId: d.location, department: d.department, category: d.category }).subscribe({
-      next: (list) => {
-        if (this.scopeCache.key !== key) return;
-        const assets = list.map((a) => this.remember(toAuditAsset(a)));
-        this.scopeCache = { key, assets };
-        this.scopeLoading = false;
-        // Picked assets outside the new scope drop out
-        const inScope = new Set(assets.map((a) => a.tag));
-        this.d.tags = this.d.tags.filter((t) => inScope.has(t));
-        this.loadSensors(assets);
-      },
-      error: (err) => {
-        this.scopeLoading = false;
-        this.showToast(apiErrorMessage(err, 'Assets could not be loaded from the asset register.'));
-      },
-    });
-  }
-
-  /** Keeps one object per asset tag, so picks and plan rows keep pointing at the same asset. */
-  private remember(a: AuditAsset): AuditAsset {
-    const have = this.known.get(a.tag);
-    if (have) {
-      for (const k of ['id', 'name', 'category', 'location', 'department', 'status'] as const) if (a[k]) have[k] = a[k];
-      return have;
-    }
-    this.known.set(a.tag, a);
-    return a;
-  }
-
-  /** Fetches the sensors / components of the assets (a few at a time). */
-  private loadSensors(assets: AuditAsset[]): void {
-    const todo = assets.filter((a) => !a.sensorsLoaded).slice(0, 500);
-    for (const a of todo) a.sensorsLoaded = true;
-    from(todo)
-      .pipe(mergeMap((a) => this.api.components(a.id).pipe(map((list) => ({ a, list })), catchError(() => of({ a, list: [] }))), 6))
-      .subscribe(({ a, list }) => {
-        a.sensors = list.map((c) => ({
-          id: c.id, code: c.componentTag, name: c.componentName,
-          type: /sensor|detector|analyzer|gauge|tracker/i.test(c.componentName) ? 'Sensor' : 'Component',
-        }));
-        // Picked assets without a sensor choice yet get all their sensors
-        if (this.isPicked(a) && !(a.tag in this.pick.sensors)) this.pick.sensors[a.tag] = a.sensors.map((x) => x.id);
-      });
-  }
 
   // ===== Scope =====
 
   /** Assets matching location, department and category (before the selection mode). */
   get scopeAssets(): AuditAsset[] {
+    const d = this.d;
+    // Cached so the asset tables get the same list between change detection runs
+    const key = `${d.location}|${d.department}|${d.category}`;
+    if (this.scopeCache.key !== key) {
+      // No location chosen yet counts as all locations, so the asset list isn't empty when opened from the step bar
+      const assets = AUDIT_ASSETS.filter(
+        (a) =>
+          (!d.location || d.location === 'All Locations' || a.location === d.location) &&
+          (!d.department || a.department === d.department) &&
+          (!d.category || a.category === d.category),
+      );
+      this.scopeCache = { key, assets };
+    }
     return this.scopeCache.assets;
   }
 
@@ -638,12 +629,12 @@ export class NewassetAudit implements OnInit, OnDestroy {
     const scope = this.scopeAssets;
     switch (d.selection) {
       case 'selected':
-        return d.tags.map((t) => this.known.get(t)).filter((a): a is AuditAsset => !!a);
+        return scope.filter((a) => d.tags.includes(a.tag));
       case 'range': {
         const from = d.rangeFrom.trim().toUpperCase();
         const to = d.rangeTo.trim().toUpperCase();
         if (!from || !to) return [];
-        return scope.filter((a) => a.tag.toUpperCase() >= from && a.tag.toUpperCase() <= to);
+        return scope.filter((a) => a.tag >= from && a.tag <= to);
       }
       case 'filter': {
         const q = d.filterText.trim().toLowerCase();
@@ -662,33 +653,24 @@ export class NewassetAudit implements OnInit, OnDestroy {
 
   /** Asset shown in the side card: the first one in the audit, else the first in scope. */
   get featured(): AuditAsset {
-    return this.finalAssets[0] ?? this.scopeAssets[0] ?? {
-      id: '', tag: '-', serial: '', name: 'No assets loaded', kind: 'electrical', category: '-', location: '-', department: '-', status: '-', sensors: [],
-    };
-  }
-
-  /** Statuses of the assets in scope, for the filters. */
-  get assetStatuses(): string[] {
-    return [...new Set(this.scopeAssets.map((a) => a.status).filter(Boolean))].sort((x, y) => x.localeCompare(y));
+    return this.finalAssets[0] ?? this.scopeAssets[0] ?? AUDIT_ASSETS[0];
   }
 
   /** Fills the Scope & Assets picks from the step 1 selection, when the scope changed since last time. */
   private fillPick(): void {
-    const key = this.scopeKey();
+    const d = this.d;
+    const key = JSON.stringify([d.location, d.department, d.category, d.selection, d.tags, d.rangeFrom, d.rangeTo, d.filterStatus, d.filterText]);
     if (key === this.pickedFor) return;
     this.pickedFor = key;
     this.pick.tags = this.auditAssets.map((a) => a.tag);
-    this.pick.sensors = Object.fromEntries(this.auditAssets.filter((a) => a.sensorsLoaded && a.sensors.length).map((a) => [a.tag, a.sensors.map((x) => x.id)]));
+    this.pick.sensors = Object.fromEntries(this.auditAssets.map((a) => [a.tag, a.sensors.map((x) => x.id)]));
     this.page = this.sensorPage = 0;
   }
 
-  private scopeKey(): string {
-    const d = this.d;
-    return JSON.stringify([d.location, d.department, d.category, d.selection, d.tags, d.rangeFrom, d.rangeTo, d.filterStatus, d.filterText]);
-  }
-
   onScopeChange(): void {
-    this.loadScope();
+    // Picked assets outside the new scope drop out
+    const inScope = new Set(this.scopeAssets.map((a) => a.tag));
+    this.d.tags = this.d.tags.filter((t) => inScope.has(t));
   }
 
   openPicker(): void {
@@ -803,7 +785,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
     const i = this.pick.tags.indexOf(a.tag);
     if (on && i < 0) {
       this.pick.tags.push(a.tag);
-      if (a.sensorsLoaded && a.sensors.length) this.pick.sensors[a.tag] = a.sensors.map((s) => s.id);
+      this.pick.sensors[a.tag] = a.sensors.map((s) => s.id);
     } else if (!on && i >= 0) {
       this.pick.tags.splice(i, 1);
       delete this.pick.sensors[a.tag];
@@ -858,7 +840,8 @@ export class NewassetAudit implements OnInit, OnDestroy {
 
   /** Picked assets in the order they were ticked. */
   get pickedAssets(): AuditAsset[] {
-    return this.pick.tags.map((t) => this.known.get(t)).filter((a): a is AuditAsset => !!a);
+    const byTag = new Map(this.scopeAssets.map((a) => [a.tag, a]));
+    return this.pick.tags.map((t) => byTag.get(t)).filter((a): a is AuditAsset => !!a);
   }
 
   removeAll(): void {
@@ -892,39 +875,12 @@ export class NewassetAudit implements OnInit, OnDestroy {
     else this.collapsed.add(key);
   }
 
-  /**
-   * Picks the assets listed in an Excel / CSV file, matched by asset tag or serial number.
-   * A saved audit imports through the API (any asset in the register); before the first save the file is matched here against the scope.
-   */
+  /** Picks the assets listed in an Excel / CSV file, matched by asset tag or serial number. */
   importFile(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    if (this.auditId) {
-      this.saving = true;
-      this.api.importAssets(this.auditId, file).subscribe({
-        next: (res) => {
-          this.saving = false;
-          let added = 0;
-          for (const x of res.audit.assets) {
-            const asset = this.remember(this.fromAuditAsset(x));
-            if (!this.isPicked(asset)) {
-              this.setPicked(asset, true);
-              added++;
-            }
-          }
-          this.loadSensors(this.pickedAssets);
-          const missing = res.notFound.length;
-          this.showToast(`${added} asset${added === 1 ? '' : 's'} added from ${file.name}` + (missing ? `; ${missing} not found in the asset register.` : '.'));
-        },
-        error: (err) => {
-          this.saving = false;
-          this.showToast(apiErrorMessage(err, `Could not import ${file.name}. Use an Excel or CSV file with an "Asset Tag" column.`));
-        },
-      });
-      return;
-    }
     const reader = new FileReader();
     reader.onload = () => {
       try {
@@ -936,7 +892,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
         const values = rows.slice(col < 0 ? 0 : 1).map((r) => String(r[Math.max(col, 0)] ?? '').trim().toUpperCase()).filter(Boolean);
 
         const byKey = new Map<string, AuditAsset>();
-        for (const a of this.scopeAssets) byKey.set(a.tag.toUpperCase(), a);
+        for (const a of this.scopeAssets) byKey.set(a.tag.toUpperCase(), a).set(a.serial.toUpperCase(), a);
         let added = 0;
         let missing = 0;
         for (const v of new Set(values)) {
@@ -1010,7 +966,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
     const key = JSON.stringify([d.criteria, other]);
     if (key === this.criteriaFor) return;
     this.criteriaFor = key;
-    const ids = new Set(d.criteria.flatMap((c) => this.optionTemplates[this.optionKeys[c] ?? ''] ?? []));
+    const ids = new Set(d.criteria.flatMap((c) => QUICK_CRITERIA_MAP[c] ?? []));
     if (other) {
       let custom = this.criteria.items.find((c) => c.type === 'Custom' && c.name.toLowerCase() === other.toLowerCase());
       if (!custom) {
@@ -1023,7 +979,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
       ids.add(custom.id);
     }
     this.criteria.included.splice(0, this.criteria.included.length, ...ids);
-    this.criteria.settings.photos = d.criteria.some((c) => this.optionKeys[c] === PHOTO_OPTION || c === 'Photo capture (mandatory)');
+    this.criteria.settings.photos = d.criteria.includes('Photo capture (mandatory)');
     this.criteriaPage = 0;
   }
 
@@ -1174,10 +1130,9 @@ export class NewassetAudit implements OnInit, OnDestroy {
     this.showToast(`"${c.name}" removed.`);
   }
 
-  /** Local id for a criterion added here; the API gives it a "crt-N" id when saved. */
   private nextCriterionId(): string {
-    const max = this.criteria.items.reduce((n, c) => Math.max(n, c.id.startsWith('new-') ? Number(c.id.slice(4)) || 0 : 0), 0);
-    return `new-${max + 1}`;
+    const max = this.criteria.items.reduce((n, c) => Math.max(n, Number(c.id.split('-')[1]) || 0), 0);
+    return `CR-${String(max + 1).padStart(3, '0')}`;
   }
 
   toggleMenu(name: string, event: Event): void {
@@ -1290,7 +1245,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
     if (!f) return [];
     const q = f.search.trim().toLowerCase();
     const inTeam = new Set(this.schedule.team.map((m) => m.user.name));
-    return this.users.filter((u) => !inTeam.has(u.name) && (!q || `${u.name} ${u.department} ${u.title}`.toLowerCase().includes(q)));
+    return AUDIT_USERS.filter((u) => !inTeam.has(u.name) && (!q || `${u.name} ${u.department} ${u.title}`.toLowerCase().includes(q)));
   }
 
   togglePickUser(name: string): void {
@@ -1306,7 +1261,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
     if (!f) return;
     if (!f.picked.length) return void (this.teamError = 'Tick the people to add.');
     f.picked.forEach((name, i) => {
-      const user = this.users.find((u) => u.name === name);
+      const user = AUDIT_USERS.find((u) => u.name === name);
       if (!user) return;
       const member: TeamMember = { user, role: 'Auditor' };
       this.schedule.team.push(member);
@@ -1348,32 +1303,8 @@ export class NewassetAudit implements OnInit, OnDestroy {
     if (!sc.start || !sc.end) return this.showToast('Choose the start and end dates first.');
     if (sc.end < sc.start) return this.showToast('The end date must be on or after the start date.');
     if (!this.workDayCount) return this.showToast('No working days between the start and end dates.');
-    this.checkedPlanRows.clear();
-    if (this.auditId && sc.team.length) {
-      // The API plans the saved assets; save the current picks first
-      this.saving = true;
-      this.saveStep(1)
-        .pipe(switchMap(() => this.api.generatePlan(this.auditId!, this.scheduleRequest())))
-        .subscribe({
-          next: (res) => {
-            this.saving = false;
-            const byId = new Map(this.finalAssets.map((a) => [a.id, a.tag]));
-            const nameOf = (userId: string | null) => sc.team.find((m) => m.user.id === userId)?.user.name ?? '';
-            sc.plan = res.plan.map((r, i) => ({
-              id: i + 1, date: apiDate(r.date), group: r.location ?? '', tags: r.assetRegistrationIds.map((x) => byId.get(x) ?? x),
-              assignee: r.assignedToName || nameOf(r.assignedToUserId), status: 'Scheduled',
-            }));
-            sc.planKey = planKey(this.finalAssets, sc);
-            this.showToast(`Plan generated: ${sc.plan.length} audit day${sc.plan.length === 1 ? '' : 's'} for ${res.totalAssets} assets.`);
-          },
-          error: (err) => {
-            this.saving = false;
-            this.showToast(apiErrorMessage(err, 'The plan could not be generated.'));
-          },
-        });
-      return;
-    }
     buildPlan(this.finalAssets, sc);
+    this.checkedPlanRows.clear();
     this.showToast(`Plan generated: ${sc.plan.length} audit day${sc.plan.length === 1 ? '' : 's'} for ${this.finalAssets.length} assets.`);
   }
 
@@ -1500,7 +1431,8 @@ export class NewassetAudit implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     const files = [...(input.files ?? [])];
     input.value = '';
-    const uploadedBy = this.api.userEmail || this.leadAuditor || 'You';
+    // DEMO MODE: the uploader is the lead auditor until the signed-in user is available here
+    const uploadedBy = this.leadAuditor || 'You';
     for (const f of files) {
       this.attachments.push({ name: f.name, type: this.fileType(f.name), size: f.size, uploadedBy, date: isoDate(new Date()) });
     }
@@ -1536,6 +1468,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
       if (!d.name.trim()) return fail('basic', 'Enter the audit name.');
       if (!d.type) return fail('basic', 'Choose the audit type.');
       const ref = d.reference.trim().toUpperCase();
+      if (ref && AUDITS.some((a) => a.reference === ref)) return fail('basic', `Audit reference ${ref} is already used.`);
       if (!d.location) return fail('scope', 'Choose the location / site.');
       if (d.selection === 'range' && (!d.rangeFrom.trim() || !d.rangeTo.trim())) return fail('scope', 'Enter both the from and to asset tags.');
       if (d.selection === 'selected' && !d.tags.length) return fail('scope', 'Pick the assets to audit.');
@@ -1589,27 +1522,12 @@ export class NewassetAudit implements OnInit, OnDestroy {
     this.error = '';
     this.errorAt = null;
     this.step = target;
-    this.reached = Math.max(this.reached, target);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  /** Next saves the step (creating the draft first) once the audit has a name; without one it just moves on. */
   next(): void {
     if (this.step === this.steps.length - 1) return this.submit();
-    if (this.saving) return;
-    const step = this.step;
-    if (!this.d.name.trim()) return this.goStep(step + 1, false);
-    this.saving = true;
-    const first = this.auditId || step === 0 ? of(null) : this.saveStep(0).pipe(catchError((err) => { this.saveFailed(0, err); throw err; }));
-    first
-      .pipe(switchMap(() => this.saveStep(step).pipe(catchError((err) => { this.saveFailed(step, err); throw err; }))))
-      .subscribe({
-        next: () => {
-          this.saving = false;
-          this.goStep(step + 1, false);
-        },
-        error: () => undefined,
-      });
+    this.goStep(this.step + 1, false);
   }
 
   back(): void {
@@ -1630,280 +1548,41 @@ export class NewassetAudit implements OnInit, OnDestroy {
     this.router.navigate(['/assets/audit']);
   }
 
-  /** Error from a save, shown on the step it belongs to. */
-  private saveFailed(step: number, err: unknown): void {
-    this.saving = false;
-    const message = apiErrorMessage(err, 'The audit could not be saved.');
-    const at: Section[] = ['basic', 'assets', 'library', 'assign'];
-    if (step < at.length) {
-      this.step = step;
-      this.fail(at[step], message);
-    }
-    this.showToast(message);
-  }
-
-  /** The API selection method: picks changed by hand on step 2, or a name filter, make it "Selected Assets". */
-  private selectionMethod(): string {
-    const d = this.d;
-    const picksChanged = !!this.pickedFor && this.pick.tags.slice().sort().join('|') !== this.auditAssets.map((a) => a.tag).sort().join('|');
-    if (d.selection === 'selected' || picksChanged || (d.selection === 'filter' && d.filterText.trim())) return 'Selected Assets';
-    if (d.selection === 'range') return 'Tag Range';
-    if (d.selection === 'filter' && d.filterStatus) return 'Filter';
-    return 'All In Location';
-  }
-
-  private basicRequest(): AuditBasicInformationRequest {
-    const d = this.d;
-    const method = this.selectionMethod();
-    const other = d.otherChecked ? d.otherText.trim() : '';
-    const options = d.criteria.map((label) => this.optionKeys[label]).filter((k): k is string => !!k);
-    if (d.otherChecked) options.push(OTHER_OPTION);
-    return {
-      auditName: d.name.trim(),
-      auditType: d.type || null,
-      auditReference: d.reference.trim().toUpperCase() || null,
-      description: d.description.trim() || null,
-      scope: {
-        locationId: d.location || null,
-        locationName: this.locationName || null,
-        departmentId: null,
-        departmentName: d.department || null,
-        categoryId: null,
-        categoryName: d.category || null,
-        selectionMethod: method,
-        tagFrom: method === 'Tag Range' ? d.rangeFrom.trim() : null,
-        tagTo: method === 'Tag Range' ? d.rangeTo.trim() : null,
-        assetStatus: method === 'Filter' ? d.filterStatus : null,
-        assetType: null,
-        criticality: null,
-      },
-      criteriaOptions: options,
-      otherCriteriaDetails: other || null,
-    };
-  }
-
-  /** Assets to save: the step 2 picks, or the assets picked on step 1 before step 2 was opened. */
-  private assetsToSave(): AuditAsset[] | null {
-    if (this.pickedFor) return this.pickedAssets;
-    return this.d.selection === 'selected' ? this.auditAssets : null;
-  }
-
-  private scheduleRequest(): AuditScheduleRequest {
-    const sc = this.schedule;
-    const idOf = (name: string) => sc.team.find((m) => m.user.name === name)?.user.id ?? null;
-    const plan: AuditPlanEntryDto[] = sc.plan.map((r) => ({
-      date: r.date,
-      location: r.group || null,
-      assetRegistrationIds: r.tags.map((t) => this.known.get(t)?.id).filter((x): x is string => !!x),
-      assignedToUserId: idOf(r.assignee),
-      status: r.status,
-    }));
-    return {
-      team: sc.team.map((m) => ({ userId: m.user.id, name: m.user.name, email: m.user.email || null, role: m.role, department: m.user.department || null })),
-      schedule: {
-        startDate: sc.start || null,
-        endDate: sc.end || null,
-        workingDays: sc.workingDays === 'All days' ? 'All Days' : sc.workingDays === 'Mon - Sat' ? 'Custom' : 'Weekdays (Mon - Fri)',
-        customDays: sc.workingDays === 'Mon - Sat' ? MON_TO_SAT : [],
-        dailyStartTime: sc.startTime || null,
-        dailyEndTime: sc.endTime || null,
-        locationSequence: SEQUENCE_API[sc.sequence],
-        // The plan on screen is saved as it is; without one the API makes it
-        autoPlan: !plan.length,
-      },
-      plan: plan.length ? plan : null,
-      notifications: {
-        notifyTeamOnAssignment: sc.notifications.onAssignment,
-        sendScheduleReminder: sc.notifications.reminder,
-        notifyOnCompletion: sc.notifications.onCompletion,
-        notifyOnScheduleChange: sc.notifications.onChange,
-      },
-    };
-  }
-
-  /** Saves one step (the draft is created by step 1). Steps not reached yet are skipped. */
-  private saveStep(step: number): Observable<AssetAuditDto | null> {
-    if (step === 0) {
-      const body = this.basicRequest();
-      const call = this.auditId ? this.api.updateBasicInformation(this.auditId, body, true) : this.api.create(body, true);
-      return call.pipe(tap((dto) => this.saved(dto)));
-    }
-    const id = this.auditId;
-    if (!id) return of(null);
-    switch (step) {
-      case 1: {
-        const assets = this.assetsToSave();
-        if (!assets) return of(null);
-        const body = assets.map((a) => ({ assetRegistrationId: a.id, componentIds: this.pickedFor ? this.pickedSensors(a) : a.sensors.map((x) => x.id) }));
-        // The selection method may have changed with the picks
-        return this.api.updateBasicInformation(id, this.basicRequest(), true).pipe(switchMap(() => this.api.updateAssets(id, body, true)));
-      }
-      case 2: {
-        if (!this.criteriaFor) return of(null);
-        const ids = this.finalAssets.map((a) => a.id);
-        const st = this.criteria.settings;
-        const criteria: AuditCriterionDto[] = this.includedCriteria.map((c) => ({
-          criterionId: c.id.startsWith('crt-') ? c.id : null,
-          name: c.name, description: c.description || null, category: c.category || null, type: c.type, checkMethod: c.method || null,
-          appliesTo: c.appliesTo, assetRegistrationIds: c.appliesTo === 'Selected Assets' ? ids : [], isMandatory: c.mandatory,
-        }));
-        return this.api.updateCriteria(id, {
-          criteria,
-          settings: { capturePhotos: st.photos, allowComments: st.comments, defaultMandatory: st.mandatoryDefault, showPassFail: st.passFail, enableScoring: st.scoring, allowAttachments: st.attachments },
-        }, true);
-      }
-      case 3:
-        return this.reached < 3 ? of(null) : this.api.updateSchedule(id, this.scheduleRequest(), true);
-      default: {
-        if (this.reached < 4) return of(null);
-        // Files picked in this browser have no stored URL yet, so only stored attachments are saved
-        const attachments: AuditAttachmentDto[] = this.attachments.filter((a) => a.url).map((a) => ({
-          fileName: a.name, fileUrl: a.url!, fileType: a.type, contentType: a.contentType ?? null, fileSize: a.size, uploadedBy: a.uploadedBy, uploadedAt: a.date || null,
-        }));
-        return this.api.updateReview(id, attachments, this.d.notes.trim());
-      }
-    }
-  }
-
-  private saved(dto: AssetAuditDto): void {
-    this.auditId = dto.id;
-    this.auditStatus = dto.status ?? 'Draft';
-    this.suggestedReference = dto.auditReference;
-  }
-
-  /** Saves steps 0..to in order, stopping at the first error (reported with its step). */
-  private saveSteps(to: number): Observable<string> {
-    const steps = Array.from({ length: to + 1 }, (_, i) => i);
-    return from(steps).pipe(
-      concatMap((s) => this.saveStep(s).pipe(catchError((err) => { this.saveFailed(s, err); throw err; }))),
-      last(),
-      map(() => this.suggestedReference),
-    );
-  }
-
   saveDraft(): void {
-    if (this.saving) return;
     if (!this.d.name.trim()) {
       this.step = 0;
       return this.fail('basic', 'Enter the audit name to save a draft.');
     }
-    this.saving = true;
-    this.saveSteps(4).subscribe({
-      next: (reference) => {
-        this.saving = false;
-        this.router.navigate(['/assets/audit'], { state: { toast: `${reference} saved as draft.` } });
-      },
-      error: () => undefined,
-    });
+    const reference = this.save('Draft');
+    this.router.navigate(['/assets/audit'], { state: { toast: `${reference} saved as draft.` } });
   }
 
   submit(): void {
-    if (this.saving) return;
-    if (!this.checkSteps(0, this.steps.length - 1)) return;
     const n = this.finalAssets.length;
-    this.saving = true;
-    this.saveSteps(4)
-      .pipe(switchMap(() => (this.auditStatus === 'Draft' ? this.api.submit(this.auditId!) : this.api.get(this.auditId!))))
-      .subscribe({
-        next: (dto) => {
-          this.saving = false;
-          const count = dto.selectedAssetCount || n;
-          this.router.navigate(['/assets/audit'], { state: { toast: `${dto.auditReference} scheduled for ${count} asset${count === 1 ? '' : 's'}.` } });
-        },
-        error: (err) => {
-          // Step save errors are already shown
-          if (!this.saving) return;
-          this.saving = false;
-          this.error = apiErrorMessage(err, 'The audit could not be submitted.');
-          this.showToast(this.error);
-        },
-      });
+    const reference = this.save('Scheduled');
+    this.router.navigate(['/assets/audit'], { state: { toast: `${reference} scheduled for ${n} asset${n === 1 ? '' : 's'}.` } });
   }
 
-  // ===== Edit: the saved audit -> the wizard =====
-
-  private fromAuditAsset(x: { assetRegistrationId: string; assetName: string | null; assetTag: string | null; category: string | null; assetType: string | null; location: string | null; status: string | null }): AuditAsset {
-    return {
-      id: x.assetRegistrationId, tag: x.assetTag || x.assetRegistrationId, serial: '', name: x.assetName ?? '',
-      kind: kindOf(`${x.category ?? ''} ${x.assetType ?? ''} ${x.assetName ?? ''}`), category: x.category ?? '', location: x.location ?? '',
-      department: '', status: x.status ?? '', sensors: [],
-    };
-  }
-
-  private applyAudit(a: AssetAuditDto): void {
-    this.saved(a);
+  /** DEMO MODE: adds the audit to the shared in-memory list. */
+  private save(status: AuditStatus): string {
     const d = this.d;
-    const sc = a.scope;
-    const labels = Object.fromEntries(Object.entries(this.optionKeys).map(([label, key]) => [key, label]));
-    Object.assign(d, {
-      name: a.auditName, type: a.auditType ?? '', reference: a.auditReference, description: a.description ?? '',
-      location: sc.locationId ?? '', department: sc.departmentName ?? '', category: sc.categoryName ?? '',
-      selection: ({ 'Selected Assets': 'selected', 'Tag Range': 'range', Filter: 'filter' } as Record<string, AssetSelection>)[sc.selectionMethod ?? ''] ?? 'all',
-      rangeFrom: sc.tagFrom ?? '', rangeTo: sc.tagTo ?? '', filterStatus: sc.assetStatus ?? '', filterText: '',
-      criteria: a.criteriaOptions.filter((k) => k !== OTHER_OPTION).map((k) => labels[k] ?? k),
-      otherChecked: a.criteriaOptions.includes(OTHER_OPTION), otherText: a.otherCriteriaDetails ?? '', notes: a.notes ?? '',
+    const reference = d.reference.trim().toUpperCase() || nextReference(AUDITS);
+    AUDITS.unshift({
+      id: AUDITS.reduce((n, a) => Math.max(n, a.id), 0) + 1,
+      reference,
+      name: d.name.trim(),
+      type: d.type || 'Periodic',
+      location: d.location,
+      scheduled: this.schedule.start || isoDate(new Date()),
+      completed: '',
+      status,
+      auditor: this.leadAuditor,
+      findings: null,
+      notes: [d.description.trim(), d.notes.trim()].filter(Boolean).join('\n\n'),
+      assetCount: this.finalAssets.length,
+      dueDate: this.schedule.end,
     });
-    const step = Math.max(1, a.currentStep);
-    this.reached = Math.min(4, step - 1);
-
-    // Step 2: the saved assets and their sensors
-    const assets = a.assets.map((x) => this.remember(this.fromAuditAsset(x)));
-    if (d.selection === 'selected') d.tags = assets.map((x) => x.tag);
-    if (step >= 2 || d.selection === 'selected') {
-      this.pickedFor = this.scopeKey();
-      this.pick.tags = assets.map((x) => x.tag);
-      this.pick.sensors = Object.fromEntries(a.assets.filter((x) => x.componentIds.length).map((x) => [x.assetTag || x.assetRegistrationId, [...x.componentIds]]));
-      this.loadSensors(assets);
-    }
-
-    // Step 3: criteria, matched to the templates by name
-    if (step >= 3) {
-      const included: string[] = [];
-      for (const c of a.criteria) {
-        const item: AuditCriterion = {
-          id: c.criterionId ?? this.nextCriterionId(), name: c.name, description: c.description ?? '', category: c.category ?? 'Other',
-          type: c.type as CriterionType, method: c.checkMethod ?? '', appliesTo: c.appliesTo as CriterionAppliesTo, mandatory: c.isMandatory,
-        };
-        const same = this.criteria.items.find((x) => x.name.toLowerCase() === c.name.toLowerCase());
-        if (same) Object.assign(same, { ...item, id: same.id });
-        else this.criteria.items.push(item);
-        included.push(same?.id ?? item.id);
-      }
-      this.criteria.included.splice(0, this.criteria.included.length, ...included);
-      this.criteriaFor = JSON.stringify([d.criteria, d.otherChecked ? d.otherText.trim() : '']);
-    }
-    const st = a.criteriaSettings;
-    Object.assign(this.criteria.settings, {
-      photos: st.capturePhotos, comments: st.allowComments, mandatoryDefault: st.defaultMandatory, passFail: st.showPassFail, scoring: st.enableScoring, attachments: st.allowAttachments,
-    });
-
-    // Step 4: team, schedule and plan
-    const s = this.schedule;
-    s.team = a.team.map((m) => ({
-      user: this.users.find((u) => u.id === m.userId) ?? { id: m.userId, name: m.name, email: m.email ?? '', department: m.department ?? '', title: '' },
-      role: m.role as TeamRole,
-    }));
-    const w = a.schedule.workingDays;
-    s.workingDays = w === 'All Days' ? 'All days' : w === 'Custom' && a.schedule.customDays.includes('Saturday') ? 'Mon - Sat' : 'Weekdays (Mon - Fri)';
-    if (a.schedule.startDate) s.start = apiDate(a.schedule.startDate);
-    if (a.schedule.endDate) s.end = apiDate(a.schedule.endDate);
-    s.startTime = a.schedule.dailyStartTime ?? s.startTime;
-    s.endTime = a.schedule.dailyEndTime ?? s.endTime;
-    s.sequence = (Object.entries(SEQUENCE_API).find(([, v]) => v === a.schedule.locationSequence)?.[0] as PlanSequence) ?? 'location';
-    const byId = new Map(assets.map((x) => [x.id, x.tag]));
-    const nameOf = (userId: string | null) => s.team.find((m) => m.user.id === userId)?.user.name ?? '';
-    s.plan = a.plan.map((r, i) => ({
-      id: i + 1, date: apiDate(r.date), group: r.location ?? '', tags: r.assetRegistrationIds.map((x) => byId.get(x) ?? x), assignee: nameOf(r.assignedToUserId), status: 'Scheduled',
-    }));
-    if (s.plan.length) s.planKey = planKey(this.finalAssets, s);
-    const n = a.notifications;
-    s.notifications = { onAssignment: n.notifyTeamOnAssignment, reminder: n.sendScheduleReminder, onCompletion: n.notifyOnCompletion, onChange: n.notifyOnScheduleChange };
-
-    // Step 5: stored attachments
-    this.attachments = a.attachments.map((x) => ({
-      name: x.fileName, type: (x.fileType as AuditAttachment['type']) || this.fileType(x.fileName), size: x.fileSize ?? 0,
-      uploadedBy: x.uploadedBy ?? '', date: apiDate(x.uploadedAt), url: x.fileUrl, contentType: x.contentType,
-    }));
+    return reference;
   }
 
   // ===== Display helpers =====

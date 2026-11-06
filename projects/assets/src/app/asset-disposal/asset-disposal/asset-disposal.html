@@ -110,22 +110,19 @@
                 <button type="button" class="btn btn-outline btn-icon btn-sm" (click)="openRowMenu(r, $event)" aria-haspopup="menu" [attr.aria-expanded]="rowMenu?.row === r" [attr.aria-label]="'Actions for ' + r.reference"><lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon></button>
               </td>
             </tr>
-            <tr *ngIf="loading"><td colspan="10" class="empty">Loading disposal requests...</td></tr>
-            <tr *ngIf="!loading && loadError"><td colspan="10" class="empty">{{ loadError }} <button type="button" class="link-btn" (click)="load()">Retry</button></td></tr>
-            <tr *ngIf="!loading && !loadError && !pageRows.length"><td colspan="10" class="empty">No disposal requests match the filters.</td></tr>
+            <tr *ngIf="!pageRows.length"><td colspan="10" class="empty">No disposal requests match the filters.</td></tr>
           </tbody>
         </table>
       </div>
 
       <span *ngIf="rowMenu as m" class="menu menu--fixed" role="menu" [style.top.px]="m.top" [style.right.px]="m.right" (click)="$event.stopPropagation()">
         <button type="button" role="menuitem" (click)="select(m.row)">View details</button>
-        <button type="button" role="menuitem" [disabled]="!canEdit(m.row)" (click)="openEdit(m.row)">Edit</button>
-        <button type="button" role="menuitem" [disabled]="!canEdit(m.row)" (click)="submitForApproval(m.row)">Submit for approval</button>
+        <button type="button" role="menuitem" [disabled]="m.row.status !== 'Draft' && m.row.status !== 'Pending'" (click)="openEdit(m.row)">Edit</button>
+        <button type="button" role="menuitem" [disabled]="m.row.status !== 'Draft'" (click)="submitForApproval(m.row)">Submit for approval</button>
         <button type="button" role="menuitem" [disabled]="m.row.status !== 'Pending'" (click)="approve(m.row)">Approve</button>
         <button type="button" role="menuitem" [disabled]="m.row.status !== 'Pending'" (click)="openReject(m.row)">Reject</button>
         <button type="button" role="menuitem" [disabled]="m.row.status !== 'Approved'" (click)="complete(m.row)">Mark as disposed</button>
-        <button type="button" role="menuitem" [disabled]="!canCancel(m.row)" (click)="cancelRequest(m.row)">Cancel request</button>
-        <button type="button" role="menuitem" class="danger" [disabled]="m.row.status !== 'Draft'" (click)="openDelete(m.row)">Delete</button>
+        <button type="button" role="menuitem" class="danger" (click)="openDelete(m.row)">Delete</button>
       </span>
 
       <div class="pager">
@@ -154,7 +151,7 @@
         </span>
         <div class="grow">
           <div class="d-title"><strong>{{ s.reference }}</strong><span class="status" [ngClass]="statusClass(s.status)">{{ s.status }}</span></div>
-          <span class="d-type">{{ s.title }}</span>
+          <span class="d-type">{{ s.assetName }}</span>
           <small>Asset Tag: {{ s.tag }}</small>
           <small>Category: {{ s.category }}</small>
         </div>
@@ -170,20 +167,17 @@
 
       <dl *ngIf="tab === 'details'" class="kv">
         <dt>Disposal ID</dt><dd>{{ s.reference }}</dd>
-        <dt>Request Title</dt><dd>{{ s.title }}</dd>
-        <dt>Asset</dt><dd>{{ s.assetName }}<ng-container *ngIf="s.assetCount > 1"> (+{{ s.assetCount - 1 }} more)</ng-container></dd>
+        <dt>Asset</dt><dd>{{ s.assetName }}</dd>
         <dt>Asset Tag</dt><dd>{{ s.tag }}</dd>
         <dt>Serial Number</dt><dd>{{ s.serial || '—' }}</dd>
         <dt>Model</dt><dd>{{ s.model || '—' }}</dd>
         <dt>Manufacturer</dt><dd>{{ s.manufacturer || '—' }}</dd>
-        <dt>Location</dt><dd>{{ s.locationDetail || s.location || '—' }}</dd>
-        <dt>Disposal Method</dt><dd>{{ s.method || '—' }}</dd>
-        <dt>Vendor</dt><dd>{{ s.vendor || '—' }}</dd>
+        <dt>Location</dt><dd>{{ s.locationDetail }}</dd>
+        <dt>Disposal Method</dt><dd>{{ s.method }}</dd>
         <dt>Reason</dt><dd>{{ s.reason }}</dd>
         <dt>Est. Value</dt><dd>AED {{ s.value | number: '1.2-2' }}</dd>
         <dt>Requested By</dt><dd>{{ s.requestedBy }}</dd>
-        <dt>Requested On</dt><dd>{{ s.requested | date: 'dd MMM yyyy' }}</dd>
-        <dt *ngIf="s.pendingWith">Pending With</dt><dd *ngIf="s.pendingWith">{{ s.pendingWith }}</dd>
+        <dt>Requested On</dt><dd>{{ s.requested | date: 'dd MMM yyyy HH:mm' }}</dd>
         <dt>Status</dt><dd><span class="status" [ngClass]="statusClass(s.status)">{{ s.status }}</span></dd>
       </dl>
 
@@ -238,13 +232,13 @@
       </div>
 
       <div class="d-actions">
-        <button *ngIf="canEdit(s)" type="button" class="btn btn-primary btn-sm" (click)="submitForApproval(s)">Submit for Approval</button>
+        <button *ngIf="s.status === 'Draft'" type="button" class="btn btn-primary btn-sm" (click)="submitForApproval(s)">Submit for Approval</button>
         <ng-container *ngIf="s.status === 'Pending'">
           <button type="button" class="btn btn-primary btn-sm" (click)="approve(s)"><lucide-icon [img]="icons.Check" [size]="16"></lucide-icon>Approve</button>
           <button type="button" class="btn btn-danger btn-sm" (click)="openReject(s)"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon>Reject</button>
         </ng-container>
         <button *ngIf="s.status === 'Approved'" type="button" class="btn btn-primary btn-sm" (click)="complete(s)"><lucide-icon [img]="icons.CircleCheck" [size]="16"></lucide-icon>Mark as Disposed</button>
-        <button type="button" class="btn btn-outline btn-sm" [disabled]="!canEdit(s)" (click)="openEdit(s)"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>Edit</button>
+        <button type="button" class="btn btn-outline btn-sm" [disabled]="!canCancel(s)" (click)="openEdit(s)"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon>Edit</button>
         <button type="button" class="btn btn-danger btn-sm" [disabled]="!canCancel(s)" (click)="cancelRequest(s)"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon>Cancel Request</button>
       </div>
       </div>
@@ -252,15 +246,47 @@
   </div>
 </section>
 
+<!-- ===== New / edit ===== -->
+<div *ngIf="form as f" class="overlay" (click)="form = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dp-form-title" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h2 id="dp-form-title">{{ f.id ? 'Edit Disposal Request' : 'New Disposal Request' }}</h2>
+      <button type="button" class="icon-btn" (click)="form = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+    <form class="modal-body" (ngSubmit)="saveForm()">
+      <div class="two">
+        <label class="field"><span class="field-label">Asset Name <em>*</em></span><input class="control" [(ngModel)]="f.assetName" name="assetName" placeholder="e.g. Dell Latitude 7420" /></label>
+        <label class="field"><span class="field-label">Asset Tag <em>*</em></span><input class="control" [(ngModel)]="f.tag" name="tag" placeholder="e.g. LT-000125" /></label>
+      </div>
+      <div class="two">
+        <label class="field"><span class="field-label">Category <em>*</em></span><select class="control" [(ngModel)]="f.category" name="category"><option value="" disabled>Select category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+        <label class="field"><span class="field-label">Location <em>*</em></span><select class="control" [(ngModel)]="f.location" name="location"><option value="" disabled>Select location</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
+      </div>
+      <label class="field"><span class="field-label">Location Detail</span><input class="control" [(ngModel)]="f.locationDetail" name="locationDetail" placeholder="e.g. Head Office - IT Department" /></label>
+      <div class="three">
+        <label class="field"><span class="field-label">Manufacturer</span><input class="control" [(ngModel)]="f.manufacturer" name="manufacturer" /></label>
+        <label class="field"><span class="field-label">Model</span><input class="control" [(ngModel)]="f.model" name="model" /></label>
+        <label class="field"><span class="field-label">Serial Number</span><input class="control" [(ngModel)]="f.serial" name="serial" /></label>
+      </div>
+      <div class="three">
+        <label class="field"><span class="field-label">Disposal Method</span><select class="control" [(ngModel)]="f.method" name="method"><option *ngFor="let m of methods" [value]="m">{{ m }}</option></select></label>
+        <label class="field"><span class="field-label">Reason</span><select class="control" [(ngModel)]="f.reason" name="reason"><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+        <label class="field"><span class="field-label">Est. Value (AED)</span><input class="control" type="number" min="0" [(ngModel)]="f.value" name="value" /></label>
+      </div>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="form = null">Cancel</button><button type="submit" class="btn btn-primary">{{ f.id ? 'Save Changes' : 'Create Request' }}</button></div>
+    </form>
+  </div>
+</div>
+
 <!-- ===== Reject ===== -->
 <div *ngIf="rejectTarget as t" class="overlay" (click)="rejectTarget = null">
   <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="dp-rej-title" (click)="$event.stopPropagation()">
     <div class="modal-head"><h2 id="dp-rej-title">Reject Request</h2><button type="button" class="icon-btn" (click)="rejectTarget = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="confirmReject()">
       <p>Reject <strong>{{ t.reference }} · {{ t.assetName }}</strong>?</p>
-      <label class="field"><span class="field-label">Reason <em>*</em></span><textarea class="control remarks" rows="3" [(ngModel)]="rejectReason" name="rejectReason" maxlength="500"></textarea></label>
-      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="rejectTarget = null">Cancel</button><button type="submit" class="btn btn-danger-solid" [disabled]="busy">Reject</button></div>
+      <label class="field"><span class="field-label">Reason</span><textarea class="control remarks" rows="3" [(ngModel)]="rejectReason" name="rejectReason"></textarea></label>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="rejectTarget = null">Cancel</button><button type="submit" class="btn btn-danger-solid">Reject</button></div>
     </form>
   </div>
 </div>
@@ -271,7 +297,7 @@
     <div class="modal-head"><h2 id="dp-del-title">Delete Request</h2><button type="button" class="icon-btn" (click)="deleteTarget = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <div class="modal-body">
       <p>Delete <strong>{{ t.reference }} · {{ t.assetName }}</strong>? This action cannot be undone.</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="deleteTarget = null">Cancel</button><button type="button" class="btn btn-danger-solid" [disabled]="busy" (click)="confirmDelete()">Delete</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="deleteTarget = null">Cancel</button><button type="button" class="btn btn-danger-solid" (click)="confirmDelete()">Delete</button></div>
     </div>
   </div>
 </div>

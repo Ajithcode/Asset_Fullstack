@@ -1,0 +1,122 @@
+<section class="sc-page">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">Asset Health Score</span>
+  </nav>
+
+  <header class="ov-head">
+    <h1>Asset Health Score</h1>
+    <p>Health score and assessment status of every asset. Open an asset to see its full health breakdown and history.</p>
+  </header>
+
+  <!-- KPIs -->
+  <div class="ov-kpis">
+    <div class="card ov-kpi">
+      <span class="ov-kpi-icon"><lucide-icon [img]="icons.Activity" [size]="20"></lucide-icon></span>
+      <div><span class="ov-kpi-label">Avg. Health Score</span><strong>{{ avgScore !== null ? avgScore + '%' : '-' }}</strong></div>
+    </div>
+    <div class="card ov-kpi">
+      <span class="ov-kpi-icon"><lucide-icon [img]="icons.HeartPulse" [size]="20"></lucide-icon></span>
+      <div><span class="ov-kpi-label">Healthy / Good</span><strong>{{ countStatus('Healthy', 'Good') }}</strong></div>
+    </div>
+    <div class="card ov-kpi">
+      <span class="ov-kpi-icon ov-kpi-icon--warn"><lucide-icon [img]="icons.Wrench" [size]="20"></lucide-icon></span>
+      <div><span class="ov-kpi-label">Fair</span><strong>{{ countStatus('Fair') }}</strong></div>
+    </div>
+    <div class="card ov-kpi">
+      <span class="ov-kpi-icon ov-kpi-icon--danger"><lucide-icon [img]="icons.TriangleAlert" [size]="20"></lucide-icon></span>
+      <div><span class="ov-kpi-label">Poor / Critical</span><strong>{{ countStatus('Poor', 'Critical') }}</strong></div>
+    </div>
+    <div class="card ov-kpi">
+      <span class="ov-kpi-icon ov-kpi-icon--warn"><lucide-icon [img]="icons.CalendarClock" [size]="20"></lucide-icon></span>
+      <div><span class="ov-kpi-label">Overdue Assessments</span><strong>{{ overdueAssessments }}</strong></div>
+    </div>
+  </div>
+
+  <div class="card panel">
+    <!-- Filters -->
+    <div class="ov-filters">
+      <label class="ov-search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input class="control" type="search" name="search" [(ngModel)]="search" placeholder="Search by tag, name, category or location" />
+      </label>
+      <select class="control" name="status" [(ngModel)]="statusFilter" aria-label="Health status">
+        <option value="">All Health Statuses</option>
+        <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+      </select>
+      <button *ngIf="hasFilters" type="button" class="btn btn-outline" (click)="resetFilters()">
+        <lucide-icon [img]="icons.X" [size]="15"></lucide-icon>Reset
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table class="data-table ov-table">
+        <thead>
+          <tr>
+            <th>Asset</th>
+            <th>Category</th>
+            <th>Location</th>
+            <th>Health Score</th>
+            <th>Health Status</th>
+            <th>Grade</th>
+            <th>Assessed On</th>
+            <th>Next Assessment</th>
+            <th>Next Maintenance</th>
+            <th>Assessed By</th>
+            <th class="col-actions">View</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of filtered; trackBy: trackByTag" class="ov-row" (click)="open(r)">
+            <td>
+              <div class="ov-asset">
+                <span class="ov-asset-icon"><lucide-icon [img]="typeIcons[r.icon]" [size]="18"></lucide-icon></span>
+                <div><strong>{{ r.tag }}</strong><small>{{ r.name }}</small></div>
+              </div>
+            </td>
+            <td>{{ r.category }}</td>
+            <td>{{ r.location }}</td>
+            <td>
+              <div *ngIf="r.score !== null; else dash" class="ov-health">
+                <span class="ov-bar"><span [ngClass]="'ov-bar--' + scoreTone(r.score)" [style.width.%]="r.score"></span></span>
+                {{ r.score }}%
+              </div>
+            </td>
+            <td>
+              <span *ngIf="r.status; else dash" class="pill pill--xs" [ngClass]="'pill--' + statusTone(r.status)"><span class="dot"></span>{{ r.status }}</span>
+            </td>
+            <td>{{ r.grade || '-' }}</td>
+            <td class="nowrap">{{ r.assessmentDate ? (r.assessmentDate | date: 'dd MMM yyyy') : '-' }}</td>
+            <td class="nowrap" [class.text-danger]="isPast(r.nextAssessment)">
+              {{ r.nextAssessment ? (r.nextAssessment | date: 'dd MMM yyyy') : '-' }}<small *ngIf="isPast(r.nextAssessment)"> (Overdue)</small>
+            </td>
+            <td class="nowrap" [class.text-danger]="isPast(r.nextMaintenance)">
+              {{ r.nextMaintenance ? (r.nextMaintenance | date: 'dd MMM yyyy') : '-' }}<small *ngIf="isPast(r.nextMaintenance)"> (Overdue)</small>
+            </td>
+            <td>{{ r.assessedBy || '-' }}</td>
+            <td class="col-actions">
+              <button type="button" class="btn btn-outline btn-xs" (click)="$event.stopPropagation(); open(r)" [attr.aria-label]="'View health score of ' + r.tag">
+                <lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="!loading && !filtered.length">
+            <td colspan="11" class="ov-empty">
+              <lucide-icon [img]="icons.Inbox" [size]="28"></lucide-icon>
+              <p>No assets match the filters.</p>
+            </td>
+          </tr>
+          <tr *ngIf="loading">
+            <td colspan="11" class="ov-empty">Loading assets…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="ov-count" *ngIf="!loading">Showing {{ filtered.length }} of {{ rows.length }} assets</p>
+  </div>
+
+  <ng-template #dash>-</ng-template>
+</section>

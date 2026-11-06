@@ -1,5 +1,4 @@
-import { Component, DestroyRef, HostListener, inject } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -52,40 +51,29 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { Observable, finalize, forkJoin } from 'rxjs';
-import {
-  AssetModelRecord, AssetTypeRecord, AssetTypes, TypeModelStatus, toStatus,
-} from '../services/asset-types/asset-types';
-import { AssetCategory, AssetCategoryService } from '../services/asset-category/asset-category';
-import { AssetDropdownService, DropdownOption } from '../services/asset-dropdowns/asset-dropdown';
-import { FilterSelect } from '../shared/filter-select/filter-select';
 
-type Status = TypeModelStatus;
+type Status = 'Active' | 'Inactive';
 
-interface AssetType {
-  id: string;
+interface AssetModel {
+  id: number;
   name: string;
   code: string;
-  categoryId: string;
+  manufacturer: string;
+  assetCount: number;
+  status: Status;
+}
+
+interface AssetType {
+  id: number;
+  name: string;
+  code: string;
   category: string;
   description: string;
   status: Status;
   icon: keyof AssetTypesModels['typeIcons'];
+  /** Uploaded image as a data URL; the icon is shown when absent. */
   image?: string;
-  modelCount: number;
-  /** The record as last loaded, for PUTs that change one thing. */
-  record: AssetTypeRecord;
-}
-
-interface AssetModel {
-  id: string;
-  /** Asset type the model belongs to. */
-  typeId: string;
-  name: string;
-  code: string;
-  manufacturer: string;
-  status: Status;
-  record: AssetModelRecord;
+  models: AssetModel[];
 }
 
 /** A model with the asset type it belongs to, as listed on the Models tab. */
@@ -99,7 +87,7 @@ type PageTab = 'types' | 'models';
 interface TypeForm {
   name: string;
   code: string;
-  categoryId: string;
+  category: string;
   description: string;
   status: Status;
 }
@@ -107,7 +95,7 @@ interface TypeForm {
 interface ModelForm {
   name: string;
   code: string;
-  manufacturerId: string;
+  manufacturer: string;
   status: Status;
 }
 
@@ -149,30 +137,94 @@ class Pager {
   }
 }
 
-const EMPTY_TYPE: TypeForm = { name: '', code: '', categoryId: '', description: '', status: 'Active' };
-const EMPTY_MODEL: ModelForm = { name: '', code: '', manufacturerId: '', status: 'Active' };
-/** Matches the popup-out animation length in the stylesheet. */
-const POPUP_CLOSE_MS = 180;
+let nextId = 1;
 
-/** Keyword → icon, so types from the API get a fitting icon. First match wins. */
-const ICON_KEYWORDS: [RegExp, string][] = [
-  [/generat/i, 'generator'], [/transformer/i, 'transformer'], [/\bups\b/i, 'ups'], [/switchgear/i, 'switchgear'],
-  [/panel/i, 'panel'], [/chiller/i, 'chiller'], [/ahu|air handling/i, 'ahu'], [/split|\bac\b|air con/i, 'ac'], [/vrf/i, 'vrf'],
-  [/cctv|camera/i, 'cctv'], [/laptop|notebook/i, 'laptop'], [/desktop|workstation|monitor/i, 'desktop'], [/server/i, 'server'],
-  [/network|switch|router/i, 'network'], [/printer|scanner/i, 'printer'], [/alarm/i, 'alarm'], [/access/i, 'access'],
-  [/fire/i, 'fire'], [/forklift/i, 'forklift'], [/conveyor/i, 'conveyor'], [/crane/i, 'crane'], [/pallet/i, 'pallet'],
-  [/truck|van/i, 'truck'], [/car|vehicle/i, 'car'], [/drill/i, 'drill'], [/meter|gauge|instrument/i, 'meter'],
-  [/cabinet/i, 'cabinet'], [/furniture|chair|desk/i, 'furniture'],
+interface TypeSeed {
+  name: string;
+  code: string;
+  category: string;
+  description: string;
+  icon: AssetType['icon'];
+  manufacturers: string[];
+  modelCount: number;
+  status?: Status;
+}
+
+const TYPE_SEEDS: TypeSeed[] = [
+  { name: 'Generator', code: 'GEN', category: 'Power Generation', description: 'Diesel / Gas Generators', icon: 'generator', manufacturers: ['Caterpillar', 'Cummins', 'Perkins', 'Kohler'], modelCount: 8 },
+  { name: 'Transformer', code: 'TRF', category: 'Power Generation', description: 'Power transformers and distribution transformers used in electrical power systems.', icon: 'transformer', manufacturers: [], modelCount: 0 },
+  { name: 'UPS', code: 'UPS', category: 'Electrical Equipment', description: 'Uninterruptible Power Supply', icon: 'ups', manufacturers: ['APC', 'Eaton', 'Vertiv'], modelCount: 5 },
+  { name: 'Switchgear', code: 'SWG', category: 'Electrical Equipment', description: 'LV / MV Switchgear', icon: 'switchgear', manufacturers: ['ABB', 'Schneider', 'Siemens'], modelCount: 7 },
+  { name: 'Control Panel', code: 'CP', category: 'Electrical Equipment', description: 'Electrical Control Panels', icon: 'panel', manufacturers: ['Rittal', 'Schneider', 'ABB'], modelCount: 5 },
+  { name: 'Chiller', code: 'CHL', category: 'HVAC', description: 'Chillers', icon: 'chiller', manufacturers: ['Carrier', 'Trane', 'York'], modelCount: 6 },
+  { name: 'AHU', code: 'AHU', category: 'HVAC', description: 'Air Handling Units', icon: 'ahu', manufacturers: ['Trane', 'Daikin'], modelCount: 4 },
+  { name: 'Split AC', code: 'SAC', category: 'HVAC', description: 'Split Air Conditioners', icon: 'ac', manufacturers: ['Daikin', 'LG', 'Mitsubishi'], modelCount: 6 },
+  { name: 'CCTV Camera', code: 'CCTV', category: 'Security & Safety', description: 'Security Cameras', icon: 'cctv', manufacturers: ['Hikvision', 'Axis'], modelCount: 4 },
+  { name: 'Laptop', code: 'LAP', category: 'IT Equipment', description: 'Laptops', icon: 'laptop', manufacturers: ['Dell', 'HP', 'Lenovo', 'Apple'], modelCount: 12 },
+  { name: 'Desktop', code: 'DSK', category: 'IT Equipment', description: 'Desktop Computers and Workstations', icon: 'desktop', manufacturers: ['Dell', 'HP', 'Lenovo'], modelCount: 6 },
+  { name: 'Server', code: 'SRV', category: 'IT Equipment', description: 'Rack and Tower Servers', icon: 'server', manufacturers: ['Dell', 'HPE'], modelCount: 4 },
+  { name: 'Network Switch', code: 'NSW', category: 'IT Equipment', description: 'Managed / Unmanaged Switches', icon: 'network', manufacturers: ['Cisco', 'Aruba'], modelCount: 5 },
+  { name: 'Printer', code: 'PRN', category: 'IT Equipment', description: 'Printers, Scanners and MFPs', icon: 'printer', manufacturers: ['HP', 'Canon', 'Ricoh'], modelCount: 3 },
+  { name: 'Fire Alarm Panel', code: 'FAP', category: 'Security & Safety', description: 'Fire Alarm Control Panels', icon: 'alarm', manufacturers: ['Honeywell', 'Siemens'], modelCount: 3 },
+  { name: 'Access Controller', code: 'ACC', category: 'Security & Safety', description: 'Door Controllers and Card Readers', icon: 'access', manufacturers: ['HID', 'Suprema'], modelCount: 4 },
+  { name: 'Fire Pump', code: 'FP', category: 'Security & Safety', description: 'Fire Fighting Pumps', icon: 'fire', manufacturers: ['Grundfos', 'Xylem'], modelCount: 2 },
+  { name: 'Forklift', code: 'FLT', category: 'Material Handling', description: 'Electric / Diesel Forklifts', icon: 'forklift', manufacturers: ['Toyota', 'Linde', 'Jungheinrich'], modelCount: 5 },
+  { name: 'Conveyor', code: 'CNV', category: 'Material Handling', description: 'Belt and Roller Conveyors', icon: 'conveyor', manufacturers: ['Interroll', 'Dorner'], modelCount: 3 },
+  { name: 'Crane', code: 'CRN', category: 'Material Handling', description: 'Overhead and Gantry Cranes', icon: 'crane', manufacturers: ['Konecranes', 'Demag'], modelCount: 2, status: 'Inactive' },
+  { name: 'Car', code: 'CAR', category: 'Vehicles & Fleet', description: 'Passenger Cars and SUVs', icon: 'car', manufacturers: ['Toyota', 'Nissan', 'Hyundai'], modelCount: 6 },
+  { name: 'Truck', code: 'TRK', category: 'Vehicles & Fleet', description: 'Light and Heavy Trucks', icon: 'truck', manufacturers: ['Isuzu', 'Volvo'], modelCount: 4 },
+  { name: 'Power Drill', code: 'PDR', category: 'Tools & Instruments', description: 'Cordless and Corded Drills', icon: 'drill', manufacturers: ['Bosch', 'Makita', 'DeWalt'], modelCount: 5 },
+  { name: 'Multimeter', code: 'MLT', category: 'Tools & Instruments', description: 'Digital Multimeters', icon: 'meter', manufacturers: ['Fluke', 'Keysight'], modelCount: 3 },
+  { name: 'Filing Cabinet', code: 'CAB', category: 'Furniture & Fixtures', description: 'Filing and Storage Cabinets', icon: 'cabinet', manufacturers: ['Steelcase', 'Herman Miller'], modelCount: 2 },
 ];
 
-function iconFor(text: string): AssetType['icon'] | undefined {
-  return ICON_KEYWORDS.find(([re]) => re.test(text))?.[1] as AssetType['icon'] | undefined;
+/** Models shown for Transformer in the design mock. */
+const TRANSFORMER_MODELS: Omit<AssetModel, 'id'>[] = [
+  { name: 'TX-500', code: 'TX500', manufacturer: 'ABB', assetCount: 12, status: 'Active' },
+  { name: 'TX-1000', code: 'TX1000', manufacturer: 'Siemens', assetCount: 8, status: 'Active' },
+  { name: 'TX-2000', code: 'TX2000', manufacturer: 'Schneider', assetCount: 6, status: 'Active' },
+  { name: 'DTR-315', code: 'DTR315', manufacturer: 'Eaton', assetCount: 4, status: 'Active' },
+  { name: 'DTR-630', code: 'DTR630', manufacturer: 'GE', assetCount: 3, status: 'Active' },
+  { name: 'TX-3000', code: 'TX3000', manufacturer: 'Hitachi', assetCount: 2, status: 'Inactive' },
+];
+
+function buildMockTypes(): AssetType[] {
+  return TYPE_SEEDS.map((s, ti) => {
+    const models: AssetModel[] =
+      s.code === 'TRF'
+        ? TRANSFORMER_MODELS.map((m) => ({ ...m, id: nextId++ }))
+        : Array.from({ length: s.modelCount }, (_, k) => {
+            const series = 100 * (k + 1) + ((ti * 17) % 50);
+            return {
+              id: nextId++,
+              name: `${s.code}-${series}`,
+              code: `${s.code}${series}`,
+              manufacturer: s.manufacturers[k % s.manufacturers.length],
+              assetCount: (ti * 7 + k * 5) % 15,
+              status: k === s.modelCount - 1 && k > 2 ? 'Inactive' : 'Active',
+            };
+          });
+    return {
+      id: nextId++,
+      name: s.name,
+      code: s.code,
+      category: s.category,
+      description: s.description,
+      status: s.status ?? 'Active',
+      icon: s.icon,
+      models,
+    };
+  });
 }
+
+const EMPTY_TYPE: TypeForm = { name: '', code: '', category: '', description: '', status: 'Active' };
+const EMPTY_MODEL: ModelForm = { name: '', code: '', manufacturer: '', status: 'Active' };
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 @Component({
   selector: 'app-asset-types-models',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FilterSelect],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './asset-types-models.html',
   styleUrl: './asset-types-models.css',
 })
@@ -213,186 +265,73 @@ export class AssetTypesModels {
     furniture: Armchair,
   };
 
-  readonly pageSizeOptions = [5, 10, 20];
-  readonly statusChoices: Status[] = ['Active', 'Inactive'];
+  readonly pageSizeOptions = [10, 25, 50];
 
-  private readonly api = inject(AssetTypes);
-  private readonly categoryApi = inject(AssetCategoryService);
-  private readonly dropdowns = inject(AssetDropdownService);
-  private readonly destroyRef = inject(DestroyRef);
-
-  types: AssetType[] = [];
-  /** Models of every asset type (the Models tab filters them by type). */
-  models: AssetModel[] = [];
-  /** Highlighted type; also the default type for a new model. */
-  selectedTypeId: string | null = null;
-  /** Asset Types tab (types table) or Models tab (models of every type). */
+  types: AssetType[] = buildMockTypes();
+  selectedTypeId: number;
+  /** Asset Types tab (types table + details) or Models tab (models of every type). */
   tab: PageTab = 'types';
-  loading = false;
-  loadError = '';
-  modelsLoading = false;
-  saving = false;
-
-  /** Category choices (Parent › Child) and manufacturers for the popups. */
-  categories: { value: string; label: string }[] = [];
-  manufacturers: DropdownOption[] = [];
 
   // Types table
   typeSearch = '';
   typeCategory = '';
   typePager = new Pager();
-  checkedTypes = new Set<string>();
+  checkedTypes = new Set<number>();
+
+  // Type details (read-only until "Edit")
+  editing = false;
+  detailForm: TypeForm = { ...EMPTY_TYPE };
+  detailSubmitted = false;
 
   // Models table
   modelSearch = '';
   /** Asset type filter (type id), '' for all types. */
-  modelType: string | '' = '';
+  modelType: number | '' = '';
   modelStatus: '' | Status = '';
   modelPager = new Pager();
-  checkedModels = new Set<string>();
+  checkedModels = new Set<number>();
 
-  // Add / edit type popup
+  // Add-type modal
   typeModalOpen = false;
-  typeModalClosing = false;
-  editingTypeId: string | null = null;
   typeModal: TypeForm = { ...EMPTY_TYPE };
   typeModalSubmitted = false;
   private typeCodeTouched = false;
 
-  // Add / edit model popup
+  // Add/edit-model modal
   modelModalOpen = false;
-  modelModalClosing = false;
   editingModel: AssetModel | null = null;
   modelModal: ModelForm = { ...EMPTY_MODEL };
   /** Asset type the model in the modal belongs to. */
-  modelModalTypeId: string | null = null;
+  modelModalTypeId: number | null = null;
   modelModalSubmitted = false;
 
   openMenu: string | null = null;
   deleteTarget: { kind: 'type'; item: AssetType } | { kind: 'model'; item: AssetModel } | null = null;
-  deleteClosing = false;
-
-  private readonly closeTimers: Record<'type' | 'model' | 'delete', ReturnType<typeof setTimeout> | undefined> = {
-    type: undefined, model: undefined, delete: undefined,
-  };
 
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   constructor(private readonly router: Router) {
-    this.loadTypes();
-    this.loadChoices();
-  }
-
-  // ===== Loading =====
-
-  /** GET /api/asset-category-types; keeps the selection where it still exists. */
-  loadTypes(selectId?: string): void {
-    this.loading = true;
-    this.loadError = '';
-    this.api
-      .getTypes()
-      .pipe(finalize(() => (this.loading = false)), takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (rows) => {
-          this.types = (rows ?? []).map((r) => this.toType(r)).sort((a, b) => a.name.localeCompare(b.name));
-          if (selectId) this.selectedTypeId = selectId;
-          if (!this.selectedType) this.selectedTypeId = this.types[0]?.id ?? null;
-          [...this.checkedTypes].forEach((id) => !this.types.some((t) => t.id === id) && this.checkedTypes.delete(id));
-          this.loadModels();
-        },
-        error: (err) => (this.loadError = this.api.errorMessage(err, 'Could not load asset types.')),
-      });
-  }
-
-  /** GET /api/asset-models: every type's models, for the Models tab (filtered by type on the page). */
-  loadModels(): void {
-    this.modelsLoading = true;
-    this.api
-      .getModels()
-      .pipe(finalize(() => (this.modelsLoading = false)), takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (rows) => {
-          this.models = (rows ?? []).map((r) => this.toModel(r)).sort((a, b) => a.name.localeCompare(b.name));
-          if (this.modelType && !this.types.some((t) => t.id === this.modelType)) this.modelType = '';
-          [...this.checkedModels].forEach((id) => !this.models.some((m) => m.id === id) && this.checkedModels.delete(id));
-        },
-        error: (err) => this.showToast(this.api.errorMessage(err, 'Could not load models.')),
-      });
-  }
-
-  /** Categories (asset categories API) and manufacturers (Master Data) for the popups. */
-  private loadChoices(): void {
-    forkJoin({ categories: this.categoryApi.getAll(), manufacturers: this.dropdowns.getManufacturers() })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ categories, manufacturers }) => {
-          this.categories = this.categoryChoices(categories ?? []);
-          this.manufacturers = manufacturers;
-        },
-        error: () => this.showToast('Could not load categories.'),
-      });
-  }
-
-  /** Every category as "Parent › Child", sorted by that path. */
-  private categoryChoices(rows: AssetCategory[]): { value: string; label: string }[] {
-    const byId = new Map(rows.map((r) => [r.id, r]));
-    const path = (r: AssetCategory): string => {
-      const names: string[] = [];
-      const seen = new Set<string>();
-      let current: AssetCategory | undefined = r;
-      while (current && !seen.has(current.id)) {
-        seen.add(current.id);
-        names.unshift(current.name);
-        current = current.parentCategoryId ? byId.get(current.parentCategoryId) : undefined;
-      }
-      return names.join(' › ');
-    };
-    return rows.map((r) => ({ value: r.id, label: path(r) })).sort((a, b) => a.label.localeCompare(b.label));
-  }
-
-  private toType(r: AssetTypeRecord): AssetType {
-    return {
-      id: r.id,
-      name: r.typeName,
-      code: r.typeCode,
-      categoryId: r.categoryId,
-      category: r.categoryName ?? '–',
-      description: r.description ?? '',
-      status: toStatus(r.status),
-      icon: iconFor(r.typeName) ?? iconFor(r.categoryName ?? '') ?? 'pallet',
-      image: r.imageUrl || undefined,
-      modelCount: r.modelCount ?? 0,
-      record: r,
-    };
-  }
-
-  private toModel(r: AssetModelRecord): AssetModel {
-    return { id: r.id, typeId: r.assetTypeId, name: r.modelName, code: r.modelCode, manufacturer: r.manufacturerName, status: toStatus(r.status), record: r };
-  }
-
-  /** Runs a write, shows the result, then reloads types (and the selected type's models). */
-  private write<T>(call: Observable<T>, success: (result: T) => string, after?: (result: T) => void, selectId?: string): void {
-    this.saving = true;
-    call.pipe(finalize(() => (this.saving = false)), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (result) => {
-        after?.(result);
-        this.showToast(success(result));
-        this.loadTypes(selectId);
-      },
-      error: (err) => this.showToast(this.api.errorMessage(err, 'Something went wrong. Please try again.')),
-    });
+    this.selectedTypeId = this.types.find((t) => t.code === 'TRF')?.id ?? this.types[0].id;
+    this.loadDetailForm();
   }
 
   // ===== Lookups =====
 
-  /** Categories used by at least one type, for the table filter. */
   get categoryOptions(): string[] {
     return [...new Set(this.types.map((t) => t.category))].sort((a, b) => a.localeCompare(b));
   }
 
   get selectedType(): AssetType | null {
     return this.types.find((t) => t.id === this.selectedTypeId) ?? null;
+  }
+
+  get manufacturerOptions(): string[] {
+    return [...new Set(this.types.flatMap((t) => t.models.map((m) => m.manufacturer)))].sort((a, b) => a.localeCompare(b));
+  }
+
+  typeAssetCount(t: AssetType): number {
+    return t.models.reduce((sum, m) => sum + m.assetCount, 0);
   }
 
   // ===== Types table =====
@@ -414,32 +353,38 @@ export class AssetTypesModels {
     this.typePager.page = 1;
   }
 
-  /** Highlights a type in the types table (new models default to it). */
   selectType(t: AssetType): void {
+    if (t.id === this.selectedTypeId) return;
+    if (this.editing && !confirm('Discard unsaved changes to this asset type?')) return;
     this.selectedTypeId = t.id;
+    this.editing = false;
+    this.loadDetailForm();
   }
 
   // ===== Tabs =====
 
   setTab(tab: PageTab): void {
     if (tab === this.tab) return;
+    if (this.editing && !confirm('Discard unsaved changes to this asset type?')) return;
+    this.editing = false;
+    this.loadDetailForm();
     this.tab = tab;
     this.openMenu = null;
   }
 
   /** Opens the Models tab filtered to one asset type. */
   showModelsOf(t: AssetType): void {
-    this.selectType(t);
+    this.openMenu = null;
     this.setTab('models');
+    if (this.tab !== 'models') return;
     this.modelType = t.id;
     this.modelSearch = '';
     this.modelStatus = '';
-    this.checkedModels.clear();
     this.onModelFilterChange();
   }
 
   get modelCount(): number {
-    return this.models.length;
+    return this.types.reduce((sum, t) => sum + t.models.length, 0);
   }
 
   get allTypesChecked(): boolean {
@@ -455,63 +400,112 @@ export class AssetTypesModels {
     this.pageTypes.forEach((t) => (on ? this.checkedTypes.add(t.id) : this.checkedTypes.delete(t.id)));
   }
 
-  toggleChecked(set: Set<string>, id: string): void {
+  toggleChecked(set: Set<number>, id: number): void {
     if (set.has(id)) set.delete(id);
     else set.add(id);
   }
 
-  /** PUT each checked type with the new status. */
   setTypeStatusForChecked(status: Status): void {
-    const rows = this.types.filter((t) => this.checkedTypes.has(t.id) && t.status !== status);
-    if (!rows.length || this.saving) {
-      this.checkedTypes.clear();
+    const rows = this.types.filter((t) => this.checkedTypes.has(t.id));
+    rows.forEach((t) => (t.status = status));
+    this.checkedTypes.clear();
+    this.showToast(`${rows.length} asset type${rows.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`);
+    this.loadDetailForm();
+  }
+
+  // ===== Type details =====
+
+  private loadDetailForm(): void {
+    const t = this.selectedType;
+    this.detailForm = t
+      ? { name: t.name, code: t.code, category: t.category, description: t.description, status: t.status }
+      : { ...EMPTY_TYPE };
+    this.detailSubmitted = false;
+  }
+
+  startEdit(t?: AssetType): void {
+    this.openMenu = null;
+    if (t) this.selectType(t);
+    if (this.selectedTypeId === t?.id || !t) this.editing = true;
+  }
+
+  cancelEdit(): void {
+    this.editing = false;
+    this.loadDetailForm();
+  }
+
+  saveDetails(): void {
+    const t = this.selectedType;
+    if (!t) return;
+    this.detailSubmitted = true;
+    const error = this.validateType(this.detailForm, t.id);
+    if (error) {
+      this.showToast(error);
       return;
     }
-    this.write(
-      forkJoin(rows.map((t) => this.api.updateType(t.id, { ...this.api.toTypeRequest(t.record), status }))),
-      (saved) => `${saved.length} asset type${saved.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`,
-      () => this.checkedTypes.clear(),
-    );
+    Object.assign(t, this.cleanType(this.detailForm));
+    this.editing = false;
+    this.loadDetailForm();
+    this.showToast(`${t.name} updated.`);
   }
 
-  toggleTypeStatus(t: AssetType): void {
-    this.openMenu = null;
-    const status: Status = t.status === 'Active' ? 'Inactive' : 'Active';
-    this.write(
-      this.api.updateType(t.id, { ...this.api.toTypeRequest(t.record), status }),
-      (saved) => `${saved.typeName} is now ${status.toLowerCase()}.`,
-    );
+  private cleanType(f: TypeForm): TypeForm {
+    return { ...f, name: f.name.trim(), code: f.code.trim().toUpperCase(), category: f.category.trim(), description: f.description.trim() };
   }
 
-  isTypeCodeTaken(code: string, exceptId: string | null): boolean {
+  isTypeCodeTaken(code: string, exceptId: number | null): boolean {
     const c = code.trim().toUpperCase();
     return !!c && this.types.some((t) => t.id !== exceptId && t.code.toUpperCase() === c);
   }
 
-  private validateType(f: TypeForm, exceptId: string | null): string | null {
+  private validateType(f: TypeForm, exceptId: number | null): string | null {
     if (!f.name.trim()) return 'Type name is required.';
     if (!f.code.trim()) return 'Type code is required.';
-    if (!f.categoryId) return 'Category is required.';
+    if (!f.category.trim()) return 'Category is required.';
     if (this.isTypeCodeTaken(f.code, exceptId)) return `Code "${f.code.trim().toUpperCase()}" is already used by another type.`;
     return null;
   }
 
-  // ===== Add / edit type popup =====
-
-  openTypeModal(t?: AssetType): void {
-    this.openMenu = null;
-    this.editingTypeId = t?.id ?? null;
-    this.typeModal = t
-      ? { name: t.name, code: t.code, categoryId: t.categoryId, description: t.description, status: t.status }
-      : { ...EMPTY_TYPE, categoryId: this.categories.find((c) => c.label.endsWith(this.typeCategory) && this.typeCategory)?.value ?? '' };
-    this.typeModalSubmitted = false;
-    this.typeCodeTouched = !!t; // editing keeps the saved code
-    this.cancelClose('type');
-    this.typeModalOpen = true;
+  onImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    const target = this.selectedType;
+    if (!file || !target) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      this.showToast('Please choose a JPG or PNG image.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      this.showToast('Image must be 2 MB or smaller.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      target.image = reader.result as string;
+      this.showToast('Type image updated.');
+    };
+    reader.readAsDataURL(file);
   }
 
-  get editingType(): AssetType | null {
-    return this.types.find((t) => t.id === this.editingTypeId) ?? null;
+  removeImage(): void {
+    if (this.selectedType) this.selectedType.image = undefined;
+  }
+
+  toggleTypeStatus(t: AssetType): void {
+    this.openMenu = null;
+    t.status = t.status === 'Active' ? 'Inactive' : 'Active';
+    if (t.id === this.selectedTypeId) this.loadDetailForm();
+    this.showToast(`${t.name} is now ${t.status.toLowerCase()}.`);
+  }
+
+  // ===== Add type modal =====
+
+  openTypeModal(): void {
+    this.typeModal = { ...EMPTY_TYPE, category: this.typeCategory };
+    this.typeModalSubmitted = false;
+    this.typeCodeTouched = false;
+    this.typeModalOpen = true;
   }
 
   /** Suggests a code from the name until the user types their own. */
@@ -527,60 +521,24 @@ export class AssetTypesModels {
     this.typeCodeTouched = true;
   }
 
-  /** POST (add) or PUT (edit) /api/asset-category-types. */
   saveTypeModal(): void {
     this.typeModalSubmitted = true;
-    if (this.validateType(this.typeModal, this.editingTypeId) || this.saving) return;
-    const f = this.typeModal;
-    const values = {
-      categoryId: f.categoryId,
-      typeName: f.name.trim(),
-      typeCode: f.code.trim().toUpperCase(),
-      description: f.description.trim() || null,
-      status: f.status,
-    };
-    const editing = this.editingType;
-    if (editing) {
-      this.write(
-        this.api.updateType(editing.id, { ...this.api.toTypeRequest(editing.record), ...values }),
-        (saved) => `${saved.typeName} updated.`,
-        () => this.closeTypeModal(),
-      );
-      return;
-    }
-    this.write(
-      this.api.createType(values),
-      (created) => `${created.typeName} added.`,
-      () => {
-        this.closeTypeModal();
-        this.typeSearch = '';
-        this.typeCategory = '';
-      },
-      undefined,
-    );
-  }
-
-  closeTypeModal(): void {
-    this.close('type', () => (this.typeModalOpen = false));
-  }
-
-  /** Delete button in the edit-type popup. */
-  deleteTypeFromModal(): void {
-    const t = this.editingType;
-    if (!t) return;
-    this.closeTypeModal();
-    this.askDeleteType(t);
+    if (this.validateType(this.typeModal, null)) return;
+    const created: AssetType = { id: nextId++, ...this.cleanType(this.typeModal), icon: 'pallet', models: [] };
+    this.types.push(created);
+    this.typeModalOpen = false;
+    this.typeSearch = '';
+    this.typeCategory = '';
+    this.typePager.page = this.typePager.totalPages(this.types.length);
+    this.selectType(created);
+    this.showToast(`${created.name} added.`);
   }
 
   // ===== Models table =====
 
-  /** Every model with its asset type (models of a type that no longer exists are left out). */
+  /** Every model with its asset type, in type order. */
   private get modelRows(): ModelRow[] {
-    const byId = new Map(this.types.map((t) => [t.id, t]));
-    return this.models.flatMap((m) => {
-      const t = byId.get(m.typeId);
-      return t ? [{ m, t }] : [];
-    });
+    return this.types.flatMap((t) => t.models.map((m) => ({ m, t })));
   }
 
   get filteredModels(): ModelRow[] {
@@ -608,7 +566,7 @@ export class AssetTypesModels {
 
   /** Asset type a model belongs to. */
   typeOf(m: AssetModel): AssetType | null {
-    return this.types.find((t) => t.id === m.typeId) ?? null;
+    return this.types.find((t) => t.models.includes(m)) ?? null;
   }
 
   get allModelsChecked(): boolean {
@@ -624,27 +582,17 @@ export class AssetTypesModels {
     this.pageModels.forEach((r) => (on ? this.checkedModels.add(r.m.id) : this.checkedModels.delete(r.m.id)));
   }
 
-  /** PUT each checked model with the new status. */
   setModelStatusForChecked(status: Status): void {
-    const rows = this.models.filter((m) => this.checkedModels.has(m.id) && m.status !== status);
-    if (!rows.length || this.saving) {
-      this.checkedModels.clear();
-      return;
-    }
-    this.write(
-      forkJoin(rows.map((m) => this.api.updateModel(m.id, { ...this.api.toModelRequest(m.record), status }))),
-      (saved) => `${saved.length} model${saved.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`,
-      () => this.checkedModels.clear(),
-    );
+    const rows = this.modelRows.filter((r) => this.checkedModels.has(r.m.id));
+    rows.forEach((r) => (r.m.status = status));
+    this.checkedModels.clear();
+    this.showToast(`${rows.length} model${rows.length === 1 ? '' : 's'} marked ${status.toLowerCase()}.`);
   }
 
   toggleModelStatus(m: AssetModel): void {
     this.openMenu = null;
-    const status: Status = m.status === 'Active' ? 'Inactive' : 'Active';
-    this.write(
-      this.api.updateModel(m.id, { ...this.api.toModelRequest(m.record), status }),
-      (saved) => `${saved.modelName} is now ${status.toLowerCase()}.`,
-    );
+    m.status = m.status === 'Active' ? 'Inactive' : 'Active';
+    this.showToast(`${m.name} is now ${m.status.toLowerCase()}.`);
   }
 
   viewModelAssets(m: AssetModel): void {
@@ -652,7 +600,7 @@ export class AssetTypesModels {
     this.router.navigate(['/assets/list'], { queryParams: { type: this.typeOf(m)?.code, model: m.code } });
   }
 
-  // ===== Add / edit model popup =====
+  // ===== Add / edit model modal =====
 
   get modalType(): AssetType | null {
     return this.types.find((t) => t.id === this.modelModalTypeId) ?? null;
@@ -661,127 +609,88 @@ export class AssetTypesModels {
   openModelModal(m?: AssetModel): void {
     this.openMenu = null;
     this.editingModel = m ?? null;
-    this.modelModal = m
-      ? {
-          name: m.name,
-          code: m.code,
-          // Older records may only carry the name; match it to a manufacturer when possible.
-          manufacturerId: m.record.manufacturerId ?? this.manufacturers.find((o) => o.label === m.manufacturer)?.value ?? '',
-          status: m.status,
-        }
-      : { ...EMPTY_MODEL };
-    // a new model goes to the type the table is filtered to, else the highlighted type
-    this.modelModalTypeId = m ? m.typeId : this.modelType || this.selectedTypeId;
+    this.modelModal = m ? { name: m.name, code: m.code, manufacturer: m.manufacturer, status: m.status } : { ...EMPTY_MODEL };
+    // a new model goes to the type the table is filtered to, else the selected type
+    this.modelModalTypeId = m ? (this.typeOf(m)?.id ?? null) : this.modelType === '' ? this.selectedTypeId : this.modelType;
     this.modelModalSubmitted = false;
-    this.cancelClose('model');
     this.modelModalOpen = true;
   }
 
   /** Model codes are unique within their asset type. */
   isModelCodeTaken(code: string): boolean {
     const c = code.trim().toUpperCase();
-    const typeId = this.modelModalTypeId;
-    return !!c && this.models.some((m) => m.typeId === typeId && m.id !== this.editingModel?.id && m.code.toUpperCase() === c);
+    return !!c && (this.modalType?.models ?? []).some((m) => m !== this.editingModel && m.code.toUpperCase() === c);
   }
 
-  /** POST (add) or PUT (edit) /api/asset-models. */
   saveModelModal(): void {
     this.modelModalSubmitted = true;
     const f = this.modelModal;
-    // the type chosen in the popup; changing it on an existing model moves the model to that type
     const t = this.modalType;
-    const manufacturer = this.manufacturers.find((o) => o.value === f.manufacturerId);
-    if (!t || !f.name.trim() || !f.code.trim() || !manufacturer || this.isModelCodeTaken(f.code) || this.saving) return;
+    if (!t || !f.name.trim() || !f.code.trim() || !f.manufacturer.trim() || this.isModelCodeTaken(f.code)) return;
 
-    const request = {
-      assetTypeId: t.id,
-      modelName: f.name.trim(),
-      modelCode: f.code.trim().toUpperCase(),
-      manufacturerId: manufacturer.value,
-      manufacturerName: manufacturer.label,
-      status: f.status,
-    };
-    const editing = this.editingModel;
-    this.write(
-      editing ? this.api.updateModel(editing.id, request) : this.api.createModel(request),
-      (saved) => (editing ? `${saved.modelName} updated.` : `${saved.modelName} added to ${t.name}.`),
-      () => {
-        this.closeModelModal();
-        if (!editing) {
-          // show the new model: filter the table to its type
-          this.modelType = t.id;
-          this.modelSearch = '';
-          this.modelStatus = '';
-          this.onModelFilterChange();
-        }
-      },
-    );
-  }
-
-  closeModelModal(): void {
-    this.close('model', () => (this.modelModalOpen = false));
+    const values = { name: f.name.trim(), code: f.code.trim().toUpperCase(), manufacturer: f.manufacturer.trim(), status: f.status };
+    const m = this.editingModel;
+    if (m) {
+      Object.assign(m, values);
+      // moved to another asset type
+      const from = this.typeOf(m);
+      if (from && from !== t) {
+        from.models.splice(from.models.indexOf(m), 1);
+        t.models.push(m);
+      }
+      this.showToast(`${values.name} updated.`);
+    } else {
+      t.models.push({ id: nextId++, assetCount: 0, ...values });
+      // show the new model: filter to its type and go to the last page
+      this.modelType = t.id;
+      this.modelSearch = '';
+      this.modelStatus = '';
+      this.modelPager.page = this.modelPager.totalPages(t.models.length);
+      this.showToast(`${values.name} added to ${t.name}.`);
+    }
+    this.modelModalOpen = false;
   }
 
   // ===== Delete =====
 
   askDeleteType(t: AssetType): void {
     this.openMenu = null;
-    this.cancelClose('delete');
+    const assets = this.typeAssetCount(t);
+    if (assets > 0) {
+      this.showToast(`${t.name} has ${assets} asset${assets === 1 ? '' : 's'} registered. Reassign them before deleting.`);
+      return;
+    }
     this.deleteTarget = { kind: 'type', item: t };
   }
 
   askDeleteModel(m: AssetModel): void {
     this.openMenu = null;
-    this.cancelClose('delete');
+    if (m.assetCount > 0) {
+      this.showToast(`${m.name} has ${m.assetCount} asset${m.assetCount === 1 ? '' : 's'} registered. Reassign them before deleting.`);
+      return;
+    }
     this.deleteTarget = { kind: 'model', item: m };
   }
 
-  /** DELETE the type (refused while it has models or field layouts) or the model. */
   confirmDelete(): void {
     const target = this.deleteTarget;
-    if (!target || this.saving) return;
-    const call = target.kind === 'type' ? this.api.deleteType(target.item.id) : this.api.deleteModel(target.item.id);
-    this.write(call, () => `${target.item.name} deleted.`, () => {
-      this.closeDelete();
-      if (target.kind === 'type') {
-        this.checkedTypes.delete(target.item.id);
-        if (this.modelType === target.item.id) this.modelType = '';
-      } else {
-        this.checkedModels.delete(target.item.id);
+    if (!target) return;
+    if (target.kind === 'type') {
+      this.types = this.types.filter((t) => t !== target.item);
+      this.checkedTypes.delete(target.item.id);
+      if (this.modelType === target.item.id) this.modelType = '';
+      if (target.item.id === this.selectedTypeId) {
+        this.selectedTypeId = this.filteredTypes[0]?.id ?? this.types[0]?.id ?? -1;
+        this.editing = false;
+        this.loadDetailForm();
       }
-    });
-  }
-
-  closeDelete(): void {
-    this.close('delete', () => (this.deleteTarget = null));
-  }
-
-  // ===== Popup close animation =====
-
-  /** Plays the popup-out animation, then removes the popup. */
-  private close(which: 'type' | 'model' | 'delete', remove: () => void): void {
-    const open = which === 'type' ? this.typeModalOpen : which === 'model' ? this.modelModalOpen : !!this.deleteTarget;
-    if (!open || this.isClosing(which)) return;
-    this.setClosing(which, true);
-    this.closeTimers[which] = setTimeout(() => {
-      remove();
-      this.setClosing(which, false);
-    }, POPUP_CLOSE_MS);
-  }
-
-  private cancelClose(which: 'type' | 'model' | 'delete'): void {
-    clearTimeout(this.closeTimers[which]);
-    this.setClosing(which, false);
-  }
-
-  private isClosing(which: 'type' | 'model' | 'delete'): boolean {
-    return which === 'type' ? this.typeModalClosing : which === 'model' ? this.modelModalClosing : this.deleteClosing;
-  }
-
-  private setClosing(which: 'type' | 'model' | 'delete', value: boolean): void {
-    if (which === 'type') this.typeModalClosing = value;
-    else if (which === 'model') this.modelModalClosing = value;
-    else this.deleteClosing = value;
+    } else {
+      const models = this.typeOf(target.item)?.models ?? [];
+      models.splice(models.indexOf(target.item), 1);
+      this.checkedModels.delete(target.item.id);
+    }
+    this.showToast(`${target.item.name} deleted.`);
+    this.deleteTarget = null;
   }
 
   // ===== Menus =====
@@ -799,17 +708,13 @@ export class AssetTypesModels {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.openMenu = null;
-    this.closeTypeModal();
-    this.closeModelModal();
-    this.closeDelete();
+    this.typeModalOpen = false;
+    this.modelModalOpen = false;
+    this.deleteTarget = null;
   }
 
-  trackById(_: number, row: { id: string }): string {
+  trackById(_: number, row: { id: number }): number {
     return row.id;
-  }
-
-  trackByModel(_: number, row: ModelRow): string {
-    return row.m.id;
   }
 
   private showToast(message: string): void {

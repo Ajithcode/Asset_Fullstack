@@ -97,9 +97,9 @@ export class Sidebar {
         { label: 'Asset Relationship', path: '/assets/asset-relationships' },
         { label: 'Asset Documents', path: '/assets/all-documents' },
         { label: 'Asset Images', path: '/assets/all-images' },
-        { label: 'Asset Status & Condition', path: '/assets/status-condition' },
-        { label: 'Asset Criticality', path: '/assets/criticality' },
-        { label: 'Asset Health Score', path: '/assets/health-score' },
+        { label: 'Asset Status & Condition', path: '/assets/all-status-condition' },
+        { label: 'Asset Criticality', path: '/assets/all-criticality' },
+        { label: 'Asset Health Score', path: '/assets/all-health-score' },
         { label: 'Bulk Import / Export', path: '/assets/bulk-import-export' },
         { label: 'Asset Merge / Dedup', path: '/assets/merge-dedup' }
       ]

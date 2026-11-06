@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -35,20 +35,17 @@ import {
   Wrench,
   X,
 } from 'lucide-angular';
-import { Observable, finalize, switchMap } from 'rxjs';
-import { apiErrorMessage } from '../services/asset-api';
-import { Assignment, AssignmentStatus, AssignmentType, AssetKind, ENTITIES, TARGET_LABELS, isoDate } from './asset-assignment-data';
 import {
-  AssetAssignmentDto, AssetAssignmentService, AssignmentLookups, DEFAULT_ASSIGNMENT_TYPE, EMPTY_LOOKUPS, choicesFor, requestFrom, targetFor, toRows, uniqueSorted,
-} from './asset-assignment.service';
+  ASSIGNMENTS, Assignment, AssignmentStatus, AssignmentType, AssetKind, CURRENT_ROLE, CURRENT_USER, DEPARTMENTS, LOCATIONS, TARGET_LABELS, assigneeChoices, assigneeDetails, isoDate, stamp,
+} from './asset-assignment-data';
 
 type ColumnKey = 'tag' | 'type' | 'assignee' | 'from' | 'to' | 'status';
 type DetailTab = 'assignment' | 'history' | 'related';
 
 interface AssignForm {
   mode: 'reassign' | 'bulk';
-  /** Rows being reassigned (reassign / bulk). */
-  ids: string[];
+  /** Assignments being reassigned (reassign / bulk). */
+  ids: number[];
   assetName: string;
   assetType: string;
   tag: string;
@@ -67,18 +64,20 @@ interface AssignForm {
   templateUrl: './asset-assignment.html',
   styleUrls: ['./asset-assignment.css', './asset-assignment-table.css'],
 })
-export class AssetAssignment implements OnInit, OnDestroy {
+export class AssetAssignment implements OnDestroy {
   readonly icons = {
     ArrowUp, Building2, CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, CircleStop, Columns3, Download, EllipsisVertical, Layers, MapPin, Plus,
     Repeat, RotateCcw, Search, SlidersHorizontal, UserRound, X,
   };
   readonly kindIcons: Record<AssetKind, typeof Laptop> = {
     laptop: Laptop, phone: Smartphone, scanner: ScanBarcode, projector: Projector, forklift: Forklift, tool: Wrench, card: CreditCard, monitor: Monitor, tablet: Tablet, camera: Cctv,
-    other: Layers,
   };
   readonly assignmentTypes: AssignmentType[] = ['Employee', 'Department', 'Location', 'Other'];
   readonly targetLabels = TARGET_LABELS;
+  readonly assigneeChoices = assigneeChoices;
   readonly statuses: AssignmentStatus[] = ['Assigned', 'Overdue', 'Returned'];
+  readonly departments = DEPARTMENTS;
+  readonly locations = LOCATIONS;
   readonly pageSizes = [10, 25, 50];
   readonly columns: { key: ColumnKey; label: string }[] = [
     { key: 'tag', label: 'Asset Tag / Serial' },
@@ -88,15 +87,11 @@ export class AssetAssignment implements OnInit, OnDestroy {
     { key: 'to', label: 'To Date' },
     { key: 'status', label: 'Status' },
   ];
-  /** One row per asset of each assignment (drafts are not listed). */
-  assignments: Assignment[] = [];
-  /** API records by id, for building update requests. */
-  private records = new Map<string, AssetAssignmentDto>();
-  private lookups: AssignmentLookups = EMPTY_LOOKUPS;
-  loading = false;
-  loadError = '';
-  saving = false;
-  historyLoading = false;
+  /** DEMO MODE: month-on-month change shown on the summary cards until the API returns it. */
+  readonly trends = { total: 6, Employee: 4, Department: 8, Location: 12 };
+
+  /** DEMO MODE: shared in-memory store, so assignments made on the Assign Asset page show in the list. */
+  readonly assignments: Assignment[] = ASSIGNMENTS;
 
   // Filters
   search = '';
@@ -112,8 +107,8 @@ export class AssetAssignment implements OnInit, OnDestroy {
   page = 0;
 
   hidden = new Set<ColumnKey>();
-  checked = new Set<string>();
-  selectedId: string | null = null;
+  checked = new Set<number>();
+  selectedId: number | null = ASSIGNMENTS[0]?.id ?? null;
   tab: DetailTab = 'assignment';
   menuOpen = '';
   /** Row actions menu, fixed to the viewport so the scrolling table doesn't clip it. */
@@ -121,13 +116,12 @@ export class AssetAssignment implements OnInit, OnDestroy {
 
   assignForm: AssignForm | null = null;
   formError = '';
-  extendTarget: { id: string; to: string } | null = null;
+  extendTarget: { id: number; to: string } | null = null;
   endTarget: Assignment | null = null;
 
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
   private readonly router = inject(Router);
-  private readonly api = inject(AssetAssignmentService);
 
   constructor() {
     // Message handed over by the Assign Asset page after saving
@@ -135,61 +129,8 @@ export class AssetAssignment implements OnInit, OnDestroy {
     if (typeof message === 'string') this.showToast(message);
   }
 
-  ngOnInit(): void {
-    this.load();
-    this.api.lookups().subscribe((lk) => (this.lookups = lk));
-  }
-
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
-  }
-
-  /** Reads every assignment; keeps the selected row when it is still there. */
-  load(): void {
-    this.loading = true;
-    this.loadError = '';
-    this.api
-      .listAll()
-      .pipe(finalize(() => (this.loading = false)))
-      .subscribe({
-        next: (list) => {
-          const shown = list.filter((d) => !/^draft$/i.test(d.status ?? ''));
-          this.records = new Map(shown.map((d) => [d.id, d]));
-          this.assignments = shown.flatMap(toRows);
-          for (const id of [...this.checked]) if (!this.assignments.some((a) => a.id === id)) this.checked.delete(id);
-          if (!this.assignments.some((a) => a.id === this.selectedId)) this.selectedId = this.assignments[0]?.id ?? null;
-          if (this.page >= this.pageCount) this.page = 0;
-        },
-        error: (err) => {
-          this.loadError = apiErrorMessage(err, 'Assignments could not be loaded.');
-          this.showToast(this.loadError);
-        },
-      });
-  }
-
-  /** Puts a changed assignment back into the list without reloading everything. */
-  private replace(dto: AssetAssignmentDto): void {
-    this.records.set(dto.id, dto);
-    const rows = toRows(dto);
-    const at = this.assignments.findIndex((a) => a.assignmentId === dto.id);
-    const rest = this.assignments.filter((a) => a.assignmentId !== dto.id);
-    rest.splice(at < 0 ? 0 : at, 0, ...rows);
-    this.assignments = rest;
-  }
-
-  /** Runs a save; shows the error in the open form (or as a toast) and keeps the form open. */
-  private run<T>(call: Observable<T>, done: (result: T) => void): void {
-    if (this.saving) return;
-    this.saving = true;
-    this.formError = '';
-    call.pipe(finalize(() => (this.saving = false))).subscribe({
-      next: done,
-      error: (err) => {
-        const message = apiErrorMessage(err);
-        if (this.assignForm || this.extendTarget) this.formError = message;
-        else this.showToast(message);
-      },
-    });
   }
 
   // ===== Summary =====
@@ -200,31 +141,6 @@ export class AssetAssignment implements OnInit, OnDestroy {
 
   countOf(type: AssignmentType): number {
     return this.active.filter((a) => a.type === type).length;
-  }
-
-  /** Change on the summary cards: assets assigned in the last 30 days, as a share of those assigned before. */
-  get trends(): Record<'total' | AssignmentType, number> {
-    const since = isoDate(new Date(Date.now() - 30 * 86_400_000));
-    const trend = (rows: Assignment[]) => {
-      const recent = rows.filter((a) => a.assignedOn.slice(0, 10) >= since).length;
-      const before = rows.length - recent;
-      return before ? Math.round((recent / before) * 100) : recent ? 100 : 0;
-    };
-    const of = (t: AssignmentType) => this.active.filter((a) => a.type === t);
-    return { total: trend(this.active), Employee: trend(of('Employee')), Department: trend(of('Department')), Location: trend(of('Location')), Other: trend(of('Other')) };
-  }
-
-  get departments(): string[] {
-    return uniqueSorted(this.assignments.map((a) => a.department));
-  }
-
-  get locations(): string[] {
-    return uniqueSorted(this.assignments.map((a) => a.location));
-  }
-
-  /** Names offered in Reassign for a kind of assignee. */
-  assigneeChoices(type: AssignmentType): string[] {
-    return choicesFor(this.lookups, type, ENTITIES.map((e) => e.name));
   }
 
   // ===== Filters & paging =====
@@ -312,7 +228,7 @@ export class AssetAssignment implements OnInit, OnDestroy {
     }
   }
 
-  toggleCheck(id: string): void {
+  toggleCheck(id: number): void {
     if (this.checked.has(id)) this.checked.delete(id);
     else this.checked.add(id);
   }
@@ -324,21 +240,6 @@ export class AssetAssignment implements OnInit, OnDestroy {
   select(a: Assignment): void {
     this.selectedId = a.id;
     this.tab = 'assignment';
-  }
-
-  /** History tab: the assignment's event log. */
-  openHistory(a: Assignment): void {
-    this.tab = 'history';
-    this.historyLoading = true;
-    this.api
-      .history(a.assignmentId)
-      .pipe(finalize(() => (this.historyLoading = false)))
-      .subscribe({
-        next: (events) => {
-          for (const row of this.assignments) if (row.assignmentId === a.assignmentId) row.history = events;
-        },
-        error: (err) => this.showToast(apiErrorMessage(err, 'History could not be loaded.')),
-      });
   }
 
   /** Other assignments of the same asset or to the same assignee. */
@@ -387,7 +288,6 @@ export class AssetAssignment implements OnInit, OnDestroy {
     if (this.assignForm) this.assignForm.assignee = '';
   }
 
-  /** Ends the current assignment of each asset and assigns them all to the new assignee in one assignment. */
   saveAssign(): void {
     const f = this.assignForm;
     if (!f) return;
@@ -395,41 +295,17 @@ export class AssetAssignment implements OnInit, OnDestroy {
     if (!f.from) return void (this.formError = 'Choose the from date.');
     if (f.to && f.to < f.from) return void (this.formError = 'The to date must be on or after the from date.');
 
-    const rows = this.assignments.filter((x) => f.ids.includes(x.id) && x.status !== 'Returned');
-    if (!rows.length) return void (this.formError = 'Nothing to reassign.');
-    const first = this.records.get(rows[0].assignmentId);
-    const target = targetFor(this.lookups, f.type, f.assignee, ENTITIES.find((e) => e.name === f.assignee)?.kind);
-    if (f.type === 'Employee' && !target.employee?.employeeId) return void (this.formError = `Employee '${f.assignee}' was not found in master data.`);
-    if (f.type === 'Department' && !target.department?.departmentId) return void (this.formError = `Department '${f.assignee}' was not found in master data.`);
-    if (f.type === 'Location' && !target.location?.siteId) return void (this.formError = `Site '${f.assignee}' was not found in master data.`);
-
-    const base = first ? requestFrom(first) : null;
-    const request = {
-      ...(base ?? {
-        selectionMode: null, assignmentType: null, fromDate: null, toDate: null, isOpenEnded: true, costCenter: null, purpose: null, approvalReference: null, remarks: null,
-        notes: null, attachments: [], notification: null, reminder: null, customFields: null, createdBy: null, clientId: null, tenantId: null,
-      }),
-      ...target,
-      selectionMode: rows.length > 1 ? 'Multiple' : 'Single',
-      assetRegistrationIds: [...new Set(rows.map((r) => r.assetRegistrationId))],
-      assignmentType: DEFAULT_ASSIGNMENT_TYPE[f.type],
-      fromDate: f.from,
-      toDate: f.to || null,
-      isOpenEnded: !f.to,
-      remarks: f.remarks.trim() || null,
-      attachments: [],
-      reminder: null,
-      createdBy: null,
-    };
-    if (f.type !== 'Location' && base?.location && !target.location) request.location = base.location;
-    const label = f.assignee;
-    this.run(this.api.returnRows(rows, `Reassigned to ${label}`).pipe(switchMap(() => this.api.create(request))), () => {
-      this.checked.clear();
-      this.showToast(rows.length === 1 ? `Reassigned to ${label}.` : `${rows.length} assets reassigned to ${label}.`);
-      this.assignForm = null;
-      this.page = 0;
-      this.load();
-    });
+    const target = assigneeDetails(f.type, f.assignee);
+    const now = stamp(new Date());
+    for (const a of this.assignments.filter((x) => f.ids.includes(x.id))) {
+      a.history.push({ at: now, action: 'Reassigned', by: CURRENT_USER, note: `From ${a.assignee} to ${target.assignee}` });
+      Object.assign(a, { type: f.type, ...target, from: f.from, to: f.to, status: 'Assigned', assignedBy: CURRENT_USER, assignedByRole: CURRENT_ROLE, assignedOn: now });
+      if (f.remarks.trim()) a.remarks = f.remarks.trim();
+    }
+    this.checked.clear();
+    this.showToast(f.ids.length === 1 ? `Reassigned to ${target.assignee}.` : `${f.ids.length} assets reassigned to ${target.assignee}.`);
+    this.assignForm = null;
+    this.page = 0;
   }
 
   // ===== Extend / end =====
@@ -443,16 +319,14 @@ export class AssetAssignment implements OnInit, OnDestroy {
   saveExtend(): void {
     const t = this.extendTarget;
     const a = this.assignments.find((x) => x.id === t?.id);
-    const dto = a && this.records.get(a.assignmentId);
-    if (!t || !a || !dto) return;
+    if (!t || !a) return;
     if (!t.to) return void (this.formError = 'Choose the new to date.');
     if (t.to < a.from) return void (this.formError = 'The to date must be on or after the from date.');
-    const request = { ...requestFrom(dto), toDate: t.to, isOpenEnded: false };
-    this.run(this.api.update(dto.id, request), (saved) => {
-      this.replace(saved);
-      this.extendTarget = null;
-      this.showToast(`${a.tag} extended to ${t.to}.`);
-    });
+    a.history.push({ at: stamp(new Date()), action: 'Extended', by: CURRENT_USER, note: `To date ${a.to || 'open'} → ${t.to}` });
+    a.to = t.to;
+    if (a.status === 'Overdue' && t.to >= isoDate(new Date())) a.status = 'Assigned';
+    this.extendTarget = null;
+    this.showToast(`${a.tag} extended to ${t.to}.`);
   }
 
   openEnd(a: Assignment): void {
@@ -460,48 +334,24 @@ export class AssetAssignment implements OnInit, OnDestroy {
     this.endTarget = a;
   }
 
-  /** Returns the asset: its assignment ends today and the asset is released. */
   confirmEnd(): void {
     const a = this.endTarget;
     if (!a) return;
-    this.run(this.api.returnAssets(a.assignmentId, [a.assetRegistrationId]), () => {
-      this.endTarget = null;
-      this.showToast(`Assignment of ${a.tag} ended.`);
-      this.load();
-    });
+    const today = isoDate(new Date());
+    a.history.push({ at: stamp(new Date()), action: 'Assignment ended', by: CURRENT_USER, note: `Returned by ${a.assignee}` });
+    a.status = 'Returned';
+    a.to = today;
+    this.endTarget = null;
+    this.showToast(`Assignment of ${a.tag} ended.`);
   }
 
-  /** Dates edited in the details panel are saved on the assignment (all its assets). */
+  /** Dates edited in the details panel. */
   onDatesChange(a: Assignment): void {
-    const dto = this.records.get(a.assignmentId);
-    if (!dto) return;
-    if (!a.from) return this.revert(dto, 'Choose the from date.');
-    if (a.to && a.to < a.from) return this.revert(dto, 'The to date must be on or after the from date.');
-    const request = { ...requestFrom(dto), fromDate: a.from, toDate: a.to || null, isOpenEnded: !a.to };
-    this.saveRow(dto, request, 'Dates updated.');
-  }
-
-  /** Remarks edited in the details panel. */
-  saveRemarks(a: Assignment): void {
-    const dto = this.records.get(a.assignmentId);
-    if (!dto || (dto.remarks ?? '') === a.remarks.trim()) return;
-    this.saveRow(dto, { ...requestFrom(dto), remarks: a.remarks.trim() || null }, 'Remarks saved.');
-  }
-
-  private saveRow(dto: AssetAssignmentDto, request: ReturnType<typeof requestFrom>, message: string): void {
-    this.api.update(dto.id, request).subscribe({
-      next: (saved) => {
-        this.replace(saved);
-        this.showToast(message);
-      },
-      error: (err) => this.revert(dto, apiErrorMessage(err)),
-    });
-  }
-
-  /** Puts the saved values back after a failed edit. */
-  private revert(dto: AssetAssignmentDto, message: string): void {
-    this.replace(dto);
-    this.showToast(message);
+    if (a.to && a.to < a.from) {
+      a.to = '';
+      return this.showToast('The to date must be on or after the from date.');
+    }
+    a.history.push({ at: stamp(new Date()), action: 'Dates updated', by: CURRENT_USER, note: `${a.from} → ${a.to || 'open'}` });
   }
 
   // ===== Export =====

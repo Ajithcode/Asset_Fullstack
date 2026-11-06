@@ -8,7 +8,7 @@
   <div class="card page-head">
     <span class="head-ic"><lucide-icon [img]="icons.ClipboardList" [size]="24"></lucide-icon></span>
     <div class="grow">
-      <h1>{{ auditId ? 'Edit Asset Audit' : 'New Asset Audit' }}</h1>
+      <h1>New Asset Audit</h1>
       <p>Create a new asset audit to verify asset existence, condition, and compliance.</p>
     </div>
   </div>
@@ -54,7 +54,7 @@
             <div class="sec-head"><h3>Scope &amp; Assets</h3><p>Define the scope of this audit and select the assets.</p></div>
             <div class="grid3">
               <label class="field"><span class="field-label">Location / Site <em>*</em></span>
-                <select class="control" [(ngModel)]="d.location" (ngModelChange)="onScopeChange()"><option value="" disabled>Select location</option><option *ngFor="let l of locations" [value]="l.id">{{ l.name }}</option></select>
+                <select class="control" [(ngModel)]="d.location" (ngModelChange)="onScopeChange()"><option value="" disabled>Select location</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select>
               </label>
               <label class="field"><span class="field-label">Department <span class="opt">(Optional)</span></span>
                 <select class="control" [(ngModel)]="d.department" (ngModelChange)="onScopeChange()"><option value="">All Departments</option><option *ngFor="let x of departments" [value]="x">{{ x }}</option></select>
@@ -88,7 +88,7 @@
 
             <div class="count-box">
               <lucide-icon class="info-ic" [img]="icons.Info" [size]="22"></lucide-icon>
-              <div class="grow"><span class="muted">Assets to be audited</span><strong>{{ scopeLoading ? 'Loading...' : auditAssets.length + ' assets' }}</strong></div>
+              <div class="grow"><span class="muted">Assets to be audited</span><strong>{{ auditAssets.length }} assets</strong></div>
               <button type="button" class="btn btn-white" [disabled]="!auditAssets.length" (click)="openPreview()"><lucide-icon [img]="icons.Eye" [size]="16"></lucide-icon>Preview Assets</button>
             </div>
             <p *ngIf="error && errorAt === 'scope'" class="form-error" role="alert">{{ error }}</p>
@@ -175,7 +175,7 @@
                       <td></td>
                       <td colspan="8">
                         <div class="sensor-grid">
-                          <label *ngFor="let s of a.sensors" class="check"><input type="checkbox" [checked]="isSensorPicked(a, s)" (change)="toggleSensor(a, s)" />{{ s.name }}<small class="muted">{{ s.code }} · {{ s.type }}</small></label>
+                          <label *ngFor="let s of a.sensors" class="check"><input type="checkbox" [checked]="isSensorPicked(a, s)" (change)="toggleSensor(a, s)" />{{ s.name }}<small class="muted">{{ s.id }} · {{ s.type }}</small></label>
                         </div>
                       </td>
                     </tr>
@@ -196,7 +196,7 @@
                     <td class="ck"><input type="checkbox" [checked]="isSensorPicked(r.asset, r.sensor)" (change)="toggleSensor(r.asset, r.sensor)" [attr.aria-label]="'Select ' + r.sensor.id" /></td>
                     <td>{{ rowNo(i) }}</td>
                     <td><span class="asset"><lucide-icon class="sensor-ic" [img]="icons.Cpu" [size]="16"></lucide-icon>{{ r.sensor.name }}</span></td>
-                    <td class="nowrap">{{ r.sensor.code }}</td>
+                    <td class="nowrap">{{ r.sensor.id }}</td>
                     <td>{{ r.sensor.type }}</td>
                     <td><button type="button" class="name-link" (click)="openDetail(r.asset)">{{ r.asset.name }}</button></td>
                     <td class="nowrap">{{ r.asset.tag }}</td>
@@ -460,7 +460,7 @@
           <section class="section section--split">
             <div class="sec-head sec-head--row">
               <div class="grow"><h3>Audit Plan</h3><p>Auto-generated plan based on selected assets and team assignments.</p></div>
-              <button type="button" class="btn btn-outline btn-sm" [disabled]="saving" (click)="regenerate()"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Regenerate Plan</button>
+              <button type="button" class="btn btn-outline btn-sm" (click)="regenerate()"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Regenerate Plan</button>
             </div>
 
             <p *ngIf="planStale && schedule.plan.length" class="warn" role="status"><lucide-icon [img]="icons.TriangleAlert" [size]="16"></lucide-icon>Assets, dates or sequence changed since this plan was made. Regenerate the plan to update it.</p>
@@ -537,7 +537,7 @@
             <section class="review">
               <div class="review-head"><h3 class="grow">2. Scope &amp; Assets</h3><button type="button" class="link-btn" (click)="goStep(1, false)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></div>
               <dl class="kv kv--review">
-                <dt>Location / Site</dt><dd>{{ locationName || 'All Locations' }}</dd>
+                <dt>Location / Site</dt><dd>{{ d.location || 'All Locations' }}</dd>
                 <dt>Department</dt><dd>{{ d.department || 'All Departments' }}</dd>
                 <dt>Asset Category</dt><dd>{{ d.category || 'All Categories' }}</dd>
                 <dt>Total Assets in Scope</dt><dd>{{ scopeAssets.length }}</dd>
@@ -632,8 +632,8 @@
           <lucide-icon *ngIf="step > 0" [img]="icons.ArrowLeft" [size]="17"></lucide-icon>{{ step === 0 ? 'Cancel' : 'Back' }}
         </button>
         <span class="foot-actions">
-          <button type="button" class="btn btn-outline" [disabled]="saving || loading" (click)="saveDraft()"><lucide-icon [img]="icons.Save" [size]="16"></lucide-icon>Save as Draft</button>
-          <button type="button" class="btn btn-primary" [disabled]="saving || loading" (click)="next()">
+          <button type="button" class="btn btn-outline" (click)="saveDraft()"><lucide-icon [img]="icons.Save" [size]="16"></lucide-icon>Save as Draft</button>
+          <button type="button" class="btn btn-primary" (click)="next()">
             {{ step === steps.length - 1 ? 'Submit Audit' : 'Next' }}<lucide-icon [img]="step === steps.length - 1 ? icons.Check : icons.ArrowRight" [size]="17"></lucide-icon>
           </button>
  
@@ -648,7 +648,7 @@
         <div class="sum-asset">
           <span class="asset-img"><lucide-icon [img]="featured.category === 'Power Generation' ? icons.Zap : icons.Package" [size]="40"></lucide-icon></span>
           <div>
-            <span class="pill" [class.pill--warn]="featured.status !== 'In Service' && featured.status !== 'Active'">{{ featured.status }}</span>
+            <span class="pill" [class.pill--warn]="featured.status !== 'In Service'">{{ featured.status }}</span>
             <strong>{{ featured.tag }}</strong>
             <small>{{ featured.name }}</small>
           </div>
@@ -665,7 +665,7 @@
         <dl class="kv kv--side">
           <dt>Audit Name</dt><dd>{{ d.name || '-' }}</dd>
           <dt>Audit Type</dt><dd>{{ d.type || '-' }}</dd>
-          <dt>Location</dt><dd>{{ locationName || '-' }}</dd>
+          <dt>Location</dt><dd>{{ d.location || '-' }}</dd>
           <dt>Department</dt><dd>{{ d.department || 'All Departments' }}</dd>
           <dt>Asset Category</dt><dd>{{ d.category || 'All Categories' }}</dd>
           <dt>Total Assets</dt><dd>{{ step === 0 ? auditAssets.length : scopeAssets.length }}</dd>
@@ -864,7 +864,7 @@
     </div>
     <div class="modal-body">
       <dl class="kv">
-        <dt>Serial Number</dt><dd>{{ a.serial || '-' }}</dd>
+        <dt>Serial Number</dt><dd>{{ a.serial }}</dd>
         <dt>Category</dt><dd>{{ a.category }}</dd>
         <dt>Location</dt><dd>{{ a.location }}</dd>
         <dt>Department</dt><dd>{{ a.department }}</dd>
@@ -872,7 +872,7 @@
       </dl>
       <h3>Sensors / Components ({{ a.sensors.length }})</h3>
       <div class="sensor-grid sensor-grid--modal">
-        <label *ngFor="let s of a.sensors" class="check"><input type="checkbox" [checked]="isSensorPicked(a, s)" (change)="toggleSensor(a, s)" />{{ s.name }}<small class="muted">{{ s.code }} · {{ s.type }}</small></label>
+        <label *ngFor="let s of a.sensors" class="check"><input type="checkbox" [checked]="isSensorPicked(a, s)" (change)="toggleSensor(a, s)" />{{ s.name }}<small class="muted">{{ s.id }} · {{ s.type }}</small></label>
         <span *ngIf="!a.sensors.length" class="muted">This asset has no sensors or components.</span>
       </div>
       <div class="modal-foot">

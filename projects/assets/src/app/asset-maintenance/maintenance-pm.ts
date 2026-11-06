@@ -6,8 +6,6 @@ export type PmStatus = 'On Schedule' | 'Due Soon' | 'Overdue';
 
 export interface PmSchedule {
   id: string;
-  /** Record id in the Maintenance service (set once saved there). */
-  apiId?: string;
   name: string;
   description: string;
   component: string;
@@ -77,7 +75,7 @@ export function pmStatus(s: PmSchedule, today: string): PmStatus {
   return days < 0 ? 'Overdue' : days <= DUE_SOON_DAYS ? 'Due Soon' : 'On Schedule';
 }
 
-export function categoryOf(task: string): PmCategory {
+function categoryOf(task: string): PmCategory {
   if (/overhaul/i.test(task)) return 'Overhaul';
   if (/test/i.test(task)) return 'Testing';
   if (/inspect|check|survey|scan/i.test(task)) return 'Inspection';

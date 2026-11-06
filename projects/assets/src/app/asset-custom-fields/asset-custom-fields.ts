@@ -1,5 +1,4 @@
-import { Component, HostListener, OnInit, ViewChild, inject } from '@angular/core';
-import { catchError, forkJoin, map, of } from 'rxjs';
+import { Component, HostListener, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -34,7 +33,6 @@ import {
   X,
 } from 'lucide-angular';
 import {
-  BUILT_IN_FIELDS,
   CustomField,
   FieldGroup,
   FieldLayout,
@@ -42,28 +40,15 @@ import {
   FieldStatus,
   FieldType,
   LOOKUP_SOURCES,
+  SYSTEM_FIELDS,
   typeClass,
 } from './custom-fields.model';
 import { CfFieldLayouts } from './field-layouts/field-layouts';
-import {
-  CategoryOption,
-  CustomFieldsService,
-  ImportResult,
-  SaveFieldGroupRequest,
-  runAll,
-  toFieldGroup,
-  toFieldLayout,
-  toFieldRequest,
-} from './custom-fields.service';
-import { apiErrorMessage } from '../services/asset-api';
-
-/** Sample definitions, still used by the asset detail Custom Fields tab. */
-export { buildMockFields } from './custom-fields.mock';
 
 type ListTab = FieldScope | 'compound';
 type PageTab = ListTab | 'groups' | 'layouts';
 
-type FieldForm = Omit<CustomField, 'id' | 'order' | 'options' | 'parts' | 'partDefs' | 'appliesToId' | 'groupId'> & { optionsText: string; partsText: string };
+type FieldForm = Omit<CustomField, 'id' | 'order' | 'options' | 'parts'> & { optionsText: string; partsText: string };
 
 interface GroupForm {
   original: FieldGroup | null;
@@ -71,7 +56,7 @@ interface GroupForm {
   description: string;
   status: FieldStatus;
   /** Assigned fields in display order; applied to the fields on save. */
-  fieldIds: string[];
+  fieldIds: number[];
 }
 
 interface TabMeta {
@@ -86,17 +71,183 @@ const NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 const DESCRIPTION_MAX = 500;
 const TOOLTIP_MAX = 250;
 const GROUP_DESCRIPTION_MAX = 250;
+const ASSET_CATEGORIES = ['Power Generation', 'Electrical Equipment', 'HVAC', 'IT Equipment', 'Security & Safety', 'Material Handling'];
 const ALL_COMPONENTS = 'All Components';
-/** The API keeps component type as free text and has no list of types; these are offered, plus any already in use. */
 const COMPONENT_TYPES = ['Engine', 'Alternator', 'Control Panel', 'Cooling System', 'Fuel System', 'Battery', 'Exhaust System'];
-/** Group new asset fields go into by default, when it exists. */
-const DEFAULT_GROUP = 'General Information';
 
-function importSummary(result: ImportResult, noun: string): string {
-  const parts = [`${result.created} ${noun}${result.created === 1 ? '' : 's'} created`, `${result.updated} updated`];
-  const errors = result.errors ?? [];
-  if (errors.length) parts.push(`${errors.length} skipped (${errors[0].name ? errors[0].name + ': ' : ''}${errors[0].message})`);
-  return `Import finished: ${parts.join(', ')}.`;
+const G_GENERAL = 'General Information';
+const G_PURCHASE = 'Purchase & Warranty';
+const G_TECH = 'Technical Specifications';
+const G_LOCATION = 'Location & Assignment';
+const G_COMPLIANCE = 'Compliance & Certification';
+const G_OPERATIONAL = 'Operational Details';
+const G_FINANCIAL = 'Financial Information';
+const G_MAINTENANCE = 'Maintenance Information';
+
+let nextId = 1;
+
+type Seed = [
+  scope: FieldScope,
+  name: string,
+  label: string,
+  type: FieldType,
+  group: string,
+  required: boolean,
+  extra?: Partial<Pick<CustomField, 'appliesTo' | 'options' | 'parts' | 'lookupSource' | 'description' | 'tooltip' | 'showInDetails' | 'searchable' | 'status' | 'defaultValue'>>,
+];
+
+const SEEDS: Seed[] = [
+  ['asset', 'warranty_expiry', 'Warranty Expiry Date', 'Date', G_PURCHASE, true, { description: 'Warranty expiry date provided by manufacturer', searchable: true }],
+  ['asset', 'asset_condition', 'Current Condition', 'Dropdown', G_GENERAL, true, { options: ['New', 'Good', 'Fair', 'Poor'], defaultValue: 'Good', showInDetails: true }],
+  ['asset', 'installation_date', 'Installation Date', 'Date', G_GENERAL, false, { showInDetails: true }],
+  ['asset', 'power_rating', 'Power Rating (kVA)', 'Number', G_TECH, true, { showInDetails: true, searchable: true }],
+  ['asset', 'voltage', 'Voltage (V)', 'Number', G_TECH, false],
+  ['asset', 'serial_number', 'Serial Number', 'Text', G_GENERAL, true, { showInDetails: true, searchable: true }],
+  ['asset', 'cost_center', 'Cost Center', 'Dropdown', G_FINANCIAL, false, { options: ['CC-100 Operations', 'CC-200 Facilities', 'CC-300 IT'] }],
+  ['asset', 'criticality', 'Criticality', 'Dropdown', G_GENERAL, false, { options: ['Critical', 'High', 'Medium', 'Low'], defaultValue: 'Medium', searchable: true }],
+  ['asset', 'location_zone', 'Location Zone', 'Text', G_LOCATION, false],
+  ['asset', 'last_calibration', 'Last Calibration Date', 'Date', G_COMPLIANCE, false],
+  ['asset', 'next_calibration', 'Next Calibration Date', 'Date', G_COMPLIANCE, false],
+  ['asset', 'frequency', 'Frequency (Hz)', 'Number', G_TECH, false, { defaultValue: '50' }],
+  ['asset', 'manufacturer', 'Manufacturer', 'Text', G_GENERAL, false, { searchable: true, showInDetails: true }],
+  ['asset', 'model', 'Model', 'Text', G_GENERAL, false, { searchable: true, showInDetails: true }],
+  ['asset', 'engine_type', 'Engine Type', 'Text', G_TECH, false],
+  ['asset', 'cooling_system', 'Cooling System', 'Dropdown', G_TECH, false, { options: ['Liquid Cooled', 'Air Cooled', 'Radiator', 'Heat Exchanger'] }],
+  ['asset', 'fuel_type', 'Fuel Type', 'Dropdown', G_TECH, false, { options: ['Diesel', 'Natural Gas', 'Petrol', 'LPG', 'Bi-Fuel'], defaultValue: 'Diesel' }],
+  ['asset', 'emissions_standard', 'Emissions Standard', 'Text', G_TECH, false],
+  ['asset', 'efficiency', 'Efficiency (%)', 'Number', G_TECH, false],
+  ['asset', 'purchase_date', 'Purchase Date', 'Date', G_PURCHASE, false, { showInDetails: true }],
+  ['asset', 'warranty_period', 'Warranty Period (Months)', 'Number', G_PURCHASE, false, { defaultValue: '12' }],
+  ['asset', 'warranty_provider', 'Warranty Provider', 'Text', G_PURCHASE, false],
+  ['asset', 'supplier', 'Supplier', 'Lookup', G_PURCHASE, false, { lookupSource: 'Suppliers', searchable: true }],
+  ['asset', 'gps_coordinates', 'GPS Coordinates', 'Compound', G_LOCATION, false, { parts: ['Latitude', 'Longitude'] }],
+  ['asset', 'assigned_department', 'Assigned Department', 'Dropdown', G_LOCATION, false, { options: ['Operations', 'Facilities', 'IT', 'Logistics', 'Security'] }],
+  ['asset', 'custodian', 'Custodian', 'Lookup', G_LOCATION, false, { lookupSource: 'Users' }],
+  ['asset', 'building_floor', 'Building / Floor', 'Text', G_LOCATION, false],
+  ['asset', 'certification_no', 'Certification No.', 'Text', G_COMPLIANCE, false, { searchable: true }],
+  ['asset', 'purchase_order_no', 'Purchase Order No.', 'Text', G_FINANCIAL, false, { searchable: true }],
+  ['asset', 'insured', 'Insured', 'Checkbox', G_FINANCIAL, false, { defaultValue: 'false', status: 'Inactive' }],
+  ['asset', 'depreciation_method', 'Depreciation Method', 'Dropdown', G_FINANCIAL, false, { options: ['Straight Line', 'Declining Balance', 'Units of Production'] }],
+  ['asset', 'purchase_cost', 'Purchase Cost (AED)', 'Number', G_FINANCIAL, false],
+  ['asset', 'maintenance_frequency', 'Maintenance Frequency', 'Dropdown', G_MAINTENANCE, false, { options: ['Weekly', 'Monthly', 'Quarterly', 'Half-Yearly', 'Yearly'] }],
+  ['asset', 'last_service_date', 'Last Service Date', 'Date', G_MAINTENANCE, false],
+  ['asset', 'next_service_date', 'Next Service Date', 'Date', G_MAINTENANCE, false],
+  ['asset', 'service_provider', 'Service Provider', 'Lookup', G_MAINTENANCE, false, { lookupSource: 'Suppliers' }],
+  ['asset', 'amc_contract_no', 'AMC Contract No.', 'Text', G_MAINTENANCE, false],
+  ['asset', 'runtime_hours', 'Runtime Hours', 'Number', G_MAINTENANCE, false],
+  ['asset', 'maintenance_notes', 'Maintenance Notes', 'Text Area', G_MAINTENANCE, false],
+  // Component fields have their own form and aren't part of the asset field groups.
+  ['component', 'serial_number', 'Serial Number', 'Text', '', true, { showInDetails: true, tooltip: 'Enter the manufacturer serial number of the component.' }],
+  ['component', 'manufacturing_date', 'Manufacturing Date', 'Date', '', false, { showInDetails: true }],
+  ['component', 'warranty_period', 'Warranty Period (Months)', 'Number', '', false, { showInDetails: true, defaultValue: '12' }],
+  ['component', 'material', 'Material', 'Dropdown', '', false, { options: ['Cast Iron', 'Steel', 'Stainless Steel', 'Aluminium', 'Copper', 'Composite'] }],
+  ['component', 'dimensions', 'Dimensions (L x W x H)', 'Compound', '', false, { parts: ['Length (mm)', 'Width (mm)', 'Height (mm)'], showInDetails: true }],
+  ['component', 'weight', 'Weight (kg)', 'Number', '', false, { showInDetails: true }],
+  ['component', 'operating_temperature', 'Operating Temperature', 'Text', '', false, { tooltip: 'Range in °C, e.g. -20 to 55' }],
+  ['component', 'ip_rating', 'IP Rating', 'Dropdown', '', false, { options: ['IP44', 'IP54', 'IP55', 'IP65', 'IP66', 'IP67'] }],
+  ['component', 'supplier', 'Supplier', 'Lookup', '', false, { lookupSource: 'Suppliers', searchable: true }],
+  ['component', 'installation_position', 'Installation Position', 'Dropdown', '', false, { options: ['Front', 'Rear', 'Left', 'Right', 'Top', 'Bottom', 'Internal'] }],
+  ['category', 'fuel_tank_capacity', 'Fuel Tank Capacity (L)', 'Number', G_OPERATIONAL, true, { appliesTo: 'Power Generation' }],
+  ['category', 'rated_output', 'Rated Output', 'Compound', G_OPERATIONAL, true, { appliesTo: 'Power Generation', parts: ['kVA', 'kW', 'Power Factor'] }],
+  ['category', 'cooling_capacity_tr', 'Cooling Capacity (TR)', 'Number', G_OPERATIONAL, true, { appliesTo: 'HVAC' }],
+  ['category', 'ram_gb', 'RAM (GB)', 'Number', G_OPERATIONAL, false, { appliesTo: 'IT Equipment' }],
+  ['category', 'ip_address', 'IP Address', 'Text', G_OPERATIONAL, false, { appliesTo: 'IT Equipment', searchable: true }],
+  ['category', 'ip_rating', 'IP Rating', 'Dropdown', G_COMPLIANCE, false, { appliesTo: 'Electrical Equipment', options: ['IP54', 'IP55', 'IP65', 'IP66'] }],
+  ['category', 'load_capacity_kg', 'Load Capacity (kg)', 'Number', G_OPERATIONAL, true, { appliesTo: 'Material Handling' }],
+];
+
+/** The sample field definitions; the asset detail Custom Fields tab shows an asset's values for them. */
+export function buildMockFields(): CustomField[] {
+  const counters = new Map<string, number>();
+  return SEEDS.map(([scope, name, label, type, group, required, extra = {}]) => {
+    const key = `${scope}|${group}`;
+    const order = counters.get(key) ?? 0;
+    counters.set(key, order + 1);
+    return {
+      id: nextId++,
+      scope,
+      appliesTo: extra.appliesTo ?? (scope === 'component' ? ALL_COMPONENTS : ''),
+      name,
+      label,
+      type,
+      group,
+      required,
+      showInDetails: extra.showInDetails ?? false,
+      searchable: extra.searchable ?? false,
+      defaultValue: extra.defaultValue ?? '',
+      options: extra.options ?? [],
+      parts: extra.parts ?? [],
+      lookupSource: extra.lookupSource ?? '',
+      description: extra.description ?? '',
+      tooltip: extra.tooltip ?? '',
+      status: extra.status ?? 'Active',
+      order,
+    };
+  });
+}
+
+const DEFAULT_GROUPS: Omit<FieldGroup, 'order'>[] = [
+  { name: G_GENERAL, description: 'Basic asset information fields', status: 'Active' },
+  { name: G_PURCHASE, description: 'Purchase, vendor and warranty details', status: 'Active' },
+  { name: G_TECH, description: 'Technical and performance details', status: 'Active' },
+  { name: G_LOCATION, description: 'Location, site and assignment details', status: 'Active' },
+  { name: G_COMPLIANCE, description: 'Compliance and regulatory fields', status: 'Active' },
+  { name: G_OPERATIONAL, description: 'Daily operational information', status: 'Inactive' },
+  { name: G_FINANCIAL, description: 'Cost, depreciation and financial details', status: 'Active' },
+  { name: G_MAINTENANCE, description: 'Maintenance related custom fields', status: 'Active' },
+];
+
+type LayoutSeed = [name: string, assetType: string, description: string, status: FieldStatus, sections: [string, string[]][]];
+
+const SYS = ['asset_name', 'asset_tag'];
+const LAYOUT_SEEDS: LayoutSeed[] = [
+  ['Generator Layout', 'Generator', 'Layout for Generator assets', 'Active', [
+    [G_GENERAL, [...SYS, 'manufacturer', 'model', 'serial_number', 'installation_date']],
+    [G_TECH, ['power_rating', 'voltage', 'frequency', 'fuel_type', 'cooling_system', 'engine_type']],
+    [G_PURCHASE, ['purchase_date', 'warranty_expiry', 'supplier', 'warranty_period']],
+    [G_COMPLIANCE, ['last_calibration']],
+    [G_MAINTENANCE, ['maintenance_frequency']],
+  ]],
+  ['Electrical Equipment', 'Electrical', 'Layout for electrical assets', 'Active', [
+    [G_GENERAL, [...SYS, 'manufacturer', 'model', 'serial_number']],
+    [G_TECH, ['voltage', 'frequency', 'power_rating']],
+    [G_COMPLIANCE, ['ip_rating', 'certification_no', 'last_calibration', 'next_calibration']],
+  ]],
+  ['HVAC Equipment', 'HVAC', 'Layout for HVAC assets', 'Active', [
+    [G_GENERAL, [...SYS, 'manufacturer', 'model', 'serial_number', 'installation_date']],
+    [G_TECH, ['cooling_system', 'power_rating', 'efficiency']],
+    [G_MAINTENANCE, ['maintenance_frequency', 'last_service_date', 'next_service_date', 'service_provider']],
+  ]],
+  ['IT Equipment', 'IT Asset', 'Layout for IT assets', 'Active', [
+    [G_GENERAL, [...SYS, 'manufacturer', 'model', 'serial_number']],
+    [G_LOCATION, ['location_zone', 'custodian', 'assigned_department']],
+    [G_PURCHASE, ['purchase_date', 'warranty_expiry', 'supplier']],
+  ]],
+  ['Vehicle Layout', 'Vehicle', 'Layout for vehicle assets', 'Inactive', [
+    [G_GENERAL, [...SYS, 'manufacturer', 'model']],
+    [G_TECH, ['fuel_type', 'engine_type', 'emissions_standard']],
+    [G_MAINTENANCE, ['runtime_hours', 'last_service_date', 'next_service_date']],
+  ]],
+  ['General Asset Layout', 'All Assets', 'Default layout for general assets', 'Active', [
+    [G_GENERAL, [...SYS, 'asset_condition', 'criticality', 'serial_number']],
+    [G_LOCATION, ['location_zone', 'gps_coordinates']],
+    [G_PURCHASE, ['purchase_date', 'warranty_expiry']],
+  ]],
+];
+
+function buildMockLayouts(fields: CustomField[]): FieldLayout[] {
+  const idOf = (name: string) => [...SYSTEM_FIELDS, ...fields].find((f) => f.name === name && f.scope !== 'component')?.id;
+  return LAYOUT_SEEDS.map(([name, assetType, description, status, sections], i) => ({
+    id: i + 1,
+    name,
+    assetType,
+    description,
+    status,
+    sections: sections.map(([group, names]) => ({
+      group,
+      fieldIds: names.map(idOf).filter((id): id is number => id !== undefined),
+    })),
+  }));
 }
 
 const TAB_META: Record<PageTab, TabMeta> = {
@@ -138,9 +289,7 @@ function downloadJson(data: unknown, fileName: string): void {
   templateUrl: './asset-custom-fields.html',
   styleUrl: './asset-custom-fields.css',
 })
-export class AssetCustomFields implements OnInit {
-  private readonly api = inject(CustomFieldsService);
-
+export class AssetCustomFields {
   readonly icons = {
     CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Cog, Combine, Copy, Download, EllipsisVertical, Eye,
     FolderPlus, GripVertical, Inbox, LayoutList, Layers, ListTree, Plus, Power, PowerOff, Search, Settings, SquarePen, Trash2, Upload, X,
@@ -151,7 +300,9 @@ export class AssetCustomFields implements OnInit {
   // Compound Fields is not shown as its own tab; compound fields are listed with the other fields of their scope
   readonly tabs = (Object.keys(TAB_META) as PageTab[]).filter((key) => key !== 'compound').map((key) => ({ key, label: TAB_META[key].label }));
   readonly fieldTypes = FIELD_TYPES;
+  readonly assetCategories = ASSET_CATEGORIES;
   readonly allComponents = ALL_COMPONENTS;
+  readonly componentTypes = COMPONENT_TYPES;
   readonly lookupSources = Object.keys(LOOKUP_SOURCES);
   readonly pageSizeOptions = [10, 25, 50];
   readonly descriptionMax = DESCRIPTION_MAX;
@@ -164,18 +315,10 @@ export class AssetCustomFields implements OnInit {
     { value: 'category', label: 'Asset Category' },
   ];
 
-  fields: CustomField[] = [];
-  groups: FieldGroup[] = [];
-  layouts: FieldLayout[] = [];
-  /** Standard asset fields layouts can place (from the API; the built-in list until it loads). */
-  builtIns: CustomField[] = BUILT_IN_FIELDS;
-  categories: CategoryOption[] = [];
+  fields: CustomField[] = buildMockFields();
+  groups: FieldGroup[] = DEFAULT_GROUPS.map((g, order) => ({ ...g, order }));
+  layouts: FieldLayout[] = buildMockLayouts(this.fields);
   activeTab: PageTab = 'asset';
-
-  loading = true;
-  loadError = '';
-  /** A save or delete is in flight; repeat submits are ignored. */
-  saving = false;
 
   // List filters (shared by the field and group lists)
   search = '';
@@ -187,12 +330,12 @@ export class AssetCustomFields implements OnInit {
   usedInFilter: '' | FieldScope = '';
   page = 1;
   pageSize = 10;
-  checked = new Set<string>();
+  checked = new Set<number>();
   checkedGroups = new Set<FieldGroup>();
   openMenu: string | null = null;
 
-  // Field side panel (opens on the first field once loaded, as in the design)
-  panelOpen = false;
+  // Field side panel (open on load, editing the first field, as in the design)
+  panelOpen = true;
   editing: CustomField | null = null;
   form: FieldForm = this.emptyForm('asset');
   formSubmitted = false;
@@ -209,7 +352,7 @@ export class AssetCustomFields implements OnInit {
   // "Add Fields" picker
   pickerOpen = false;
   pickerSearch = '';
-  pickerChecked = new Set<string>();
+  pickerChecked = new Set<number>();
 
   deleteTargets: CustomField[] = [];
   groupDeleteTargets: FieldGroup[] = [];
@@ -217,85 +360,8 @@ export class AssetCustomFields implements OnInit {
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  ngOnInit(): void {
-    this.api.categories().subscribe({
-      next: (categories) => (this.categories = categories),
-      error: (err) => this.showToast(apiErrorMessage(err, 'Could not load asset categories.')),
-    });
-    this.load(true);
-  }
-
-  // ===== Loading =====
-
-  /** Loads fields, groups and layouts; open panels are pointed at the reloaded records. */
-  load(openFirst = false): void {
-    this.loading = true;
-    this.loadError = '';
-    forkJoin({
-      fields: this.api.listFields(),
-      groups: this.api.listGroups(),
-      layouts: this.api.listLayouts(),
-      builtIns: this.api.builtInFields().pipe(catchError(() => of(BUILT_IN_FIELDS))),
-    }).subscribe({
-      next: ({ fields, groups, layouts, builtIns }) => {
-        this.fields = fields;
-        this.groups = groups;
-        this.builtIns = builtIns.length ? builtIns : BUILT_IN_FIELDS;
-        this.layouts = layouts.map((l) => toFieldLayout(l, [...this.builtIns, ...fields]));
-        this.loading = false;
-        this.resyncSelection();
-        if (openFirst) this.openFirstOfTab();
-      },
-      error: (err) => {
-        this.loading = false;
-        this.loadError = apiErrorMessage(err, 'Could not load custom fields.');
-      },
-    });
-  }
-
-  reload(): void {
-    this.load(!this.panelOpen && !this.groupForm);
-  }
-
-  /** After a reload, panels and selections refer to the new objects (by id). */
-  private resyncSelection(): void {
-    if (this.editing) {
-      const current = this.fields.find((f) => f.id === this.editing!.id);
-      if (current) this.editing = current;
-      else this.closePanel();
-    }
-    if (this.groupForm?.original) {
-      const current = this.groups.find((g) => g.id === this.groupForm!.original!.id);
-      if (current) this.groupForm.original = current;
-      else this.groupForm = null;
-    }
-    const ids = new Set(this.fields.map((f) => f.id));
-    this.checked.forEach((id) => !ids.has(id) && this.checked.delete(id));
-    this.checkedGroups.clear();
-  }
-
-  // ===== Lookups =====
-
-  /** Asset category names for the category selects (category fields are saved by category id). */
-  get assetCategories(): string[] {
-    return [...new Set(this.categories.map((c) => c.name))];
-  }
-
-  get componentTypes(): string[] {
-    const inUse = this.fields.filter((f) => f.scope === 'component' && f.appliesTo && f.appliesTo !== ALL_COMPONENTS).map((f) => f.appliesTo);
-    return [...new Set([...COMPONENT_TYPES, ...inUse])];
-  }
-
-  private categoryIdOf(name: string): string {
-    return this.categories.find((c) => c.name === name)?.id ?? '';
-  }
-
-  private groupIdOf(name: string): string {
-    return this.groups.find((g) => g.name === name)?.id ?? '';
-  }
-
-  private get defaultGroupName(): string {
-    return this.groups.find((g) => g.name === DEFAULT_GROUP)?.name ?? '';
+  constructor() {
+    this.openFirstOfTab();
   }
 
   // ===== Tabs =====
@@ -352,7 +418,7 @@ export class AssetCustomFields implements OnInit {
       const first = this.tabFields[0];
       if (first) this.openEdit(first);
     } else if (this.activeTab === 'groups') {
-      const g = this.sortedGroups[0];
+      const g = this.groups.find((x) => x.name === G_TECH) ?? this.sortedGroups[0];
       if (g) this.openGroupEdit(g);
     }
   }
@@ -459,7 +525,7 @@ export class AssetCustomFields implements OnInit {
     this.pageRows.forEach((f) => (on ? this.checked.add(f.id) : this.checked.delete(f.id)));
   }
 
-  toggleRow(id: string): void {
+  toggleRow(id: number): void {
     if (this.checked.has(id)) this.checked.delete(id);
     else this.checked.add(id);
   }
@@ -469,32 +535,14 @@ export class AssetCustomFields implements OnInit {
   }
 
   setStatusForChecked(status: FieldStatus): void {
-    const rows = this.checkedFields.filter((f) => f.status !== status);
+    const rows = this.checkedFields;
+    rows.forEach((f) => (f.status = status));
     this.checked.clear();
-    if (!rows.length) return;
-    this.saving = true;
-    runAll(rows, (f) => this.api.updateField(f.id, toFieldRequest({ ...f, status }))).subscribe((result) => {
-      this.saving = false;
-      result.ok.forEach((saved) => this.replaceField(saved));
-      const verb = status === 'Active' ? 'activated' : 'deactivated';
-      const n = result.ok.length;
-      this.showToast(`${n} field${n === 1 ? '' : 's'} ${verb}.${result.errors.length ? ` ${result.errors.length} failed: ${result.errors[0]}` : ''}`);
-    });
+    this.showToast(`${rows.length} field${rows.length === 1 ? '' : 's'} ${status === 'Active' ? 'activated' : 'deactivated'}.`);
   }
 
   usedIn(f: CustomField): string {
     return f.scope === 'asset' ? 'Asset' : f.scope === 'component' ? `Component · ${f.appliesTo}` : `Category · ${f.appliesTo}`;
-  }
-
-  /** Puts a saved field in place of its old copy (or adds it), keeping the open panel on it. */
-  private replaceField(saved: CustomField): void {
-    const index = this.fields.findIndex((f) => f.id === saved.id);
-    if (index >= 0) this.fields[index] = saved;
-    else this.fields.push(saved);
-    if (this.editing?.id === saved.id) {
-      this.editing = saved;
-      this.form.status = saved.status;
-    }
   }
 
   // ===== Menus =====
@@ -520,7 +568,7 @@ export class AssetCustomFields implements OnInit {
   // ===== Field side panel =====
 
   private defaultAppliesTo(scope: FieldScope): string {
-    if (scope === 'category') return (this.activeTab === 'category' && this.appliesToFilter) || this.assetCategories[0] || '';
+    if (scope === 'category') return (this.activeTab === 'category' && this.appliesToFilter) || ASSET_CATEGORIES[0];
     if (scope === 'component') return (this.activeTab === 'component' && this.appliesToFilter) || ALL_COMPONENTS;
     return '';
   }
@@ -532,7 +580,7 @@ export class AssetCustomFields implements OnInit {
       name: '',
       label: '',
       type,
-      group: scope === 'component' ? '' : this.defaultGroupName,
+      group: scope === 'component' ? '' : G_GENERAL,
       required: false,
       showInDetails: true,
       searchable: false,
@@ -551,9 +599,9 @@ export class AssetCustomFields implements OnInit {
     return `${this.editing ? 'Edit' : 'Add'} ${noun} Field`;
   }
 
-  /** The API keeps a field's type once it is created; the compound tab only holds compound fields. */
+  /** Component field types are fixed once created, as in the design; the compound tab only holds compound fields. */
   get typeLocked(): boolean {
-    return this.activeTab === 'compound' || !!this.editing;
+    return this.activeTab === 'compound' || (this.form.scope === 'component' && !!this.editing);
   }
 
   get isComponentForm(): boolean {
@@ -619,7 +667,7 @@ export class AssetCustomFields implements OnInit {
 
   onScopeChange(): void {
     this.form.appliesTo = this.defaultAppliesTo(this.form.scope);
-    this.form.group = this.form.scope === 'component' ? '' : this.form.group || this.defaultGroupName;
+    this.form.group = this.form.scope === 'component' ? '' : this.form.group || G_GENERAL;
   }
 
   onTypeChange(): void {
@@ -640,14 +688,11 @@ export class AssetCustomFields implements OnInit {
     return LOOKUP_SOURCES[source] ?? [];
   }
 
-  /**
-   * Same rule as the API: asset and category fields share one set of names (they appear on the same asset
-   * forms) and can't reuse a standard asset field's name; component fields have their own set.
-   */
-  isNameTaken(name: string, scope: FieldScope, _appliesTo: string, except: CustomField | null): boolean {
-    const componentSide = scope === 'component';
-    if (!componentSide && this.builtIns.some((f) => f.name === name)) return true;
-    return this.fields.some((f) => f.id !== except?.id && (f.scope === 'component') === componentSide && f.name === name);
+  isNameTaken(name: string, scope: FieldScope, appliesTo: string, except: CustomField | null): boolean {
+    if (scope !== 'component' && SYSTEM_FIELDS.some((f) => f.name === name)) return true;
+    return this.fields.some(
+      (f) => f !== except && f.scope === scope && f.name === name && (scope !== 'category' || f.appliesTo === appliesTo),
+    );
   }
 
   get nameError(): string | null {
@@ -677,100 +722,64 @@ export class AssetCustomFields implements OnInit {
   saveField(): void {
     this.formSubmitted = true;
     const f = this.form;
-    if (this.saving) return;
     if (this.nameError || !f.label.trim() || this.defaultError || this.optionsError || this.partsError) return;
     if (f.description.length > DESCRIPTION_MAX || f.tooltip.length > TOOLTIP_MAX) return;
     if (f.scope !== 'asset' && !f.appliesTo) return;
 
-    const appliesToId = f.scope === 'category' ? this.categoryIdOf(f.appliesTo) : '';
-    if (f.scope === 'category' && !appliesToId) {
-      this.showToast(`Asset category "${f.appliesTo}" was not found. Pick another category.`);
-      return;
-    }
-    const group = f.scope === 'component' ? '' : f.group;
-
-    const values: CustomField = {
-      id: this.editing?.id ?? '',
+    const values = {
       scope: f.scope,
       appliesTo: f.scope === 'asset' ? '' : f.appliesTo,
-      appliesToId,
       name: f.name.trim(),
       label: f.label.trim(),
       type: f.type,
-      group,
-      groupId: group ? this.groupIdOf(group) : '',
+      group: f.scope === 'component' ? '' : f.group,
       required: f.required,
       showInDetails: f.showInDetails,
       searchable: f.searchable,
       defaultValue: f.type === 'Compound' ? '' : f.defaultValue.trim(),
       options: f.type === 'Dropdown' ? this.formOptions : [],
       parts: f.type === 'Compound' ? this.formParts : [],
-      partDefs: this.editing?.partDefs ?? [],
       lookupSource: f.type === 'Lookup' ? f.lookupSource : '',
       description: f.description.trim(),
       tooltip: f.tooltip.trim(),
       status: f.status,
-      order: this.editing?.order ?? 0,
     };
 
-    const editing = this.editing;
-    const request = toFieldRequest(values);
-    this.saving = true;
-    (editing ? this.api.updateField(editing.id, request) : this.api.createField(request)).subscribe({
-      next: (saved) => {
-        this.saving = false;
-        this.replaceField(saved);
-        // Still showing the field that was saved: keep the panel on it.
-        if (this.panelOpen && this.editing === editing) {
-          this.editing = saved;
-          this.nameTouched = true;
-        }
-        this.formSubmitted = false;
-        this.showToast(`${saved.label} ${editing ? 'saved' : 'added'}.`);
-      },
-      error: (err) => {
-        this.saving = false;
-        this.showToast(apiErrorMessage(err, 'Could not save the field.'));
-      },
-    });
+    if (this.editing) {
+      const groupChanged = this.editing.group !== values.group;
+      Object.assign(this.editing, values);
+      if (groupChanged) this.editing.order = this.nextOrder(values.group);
+      this.showToast(`${values.label} saved.`);
+    } else {
+      const created: CustomField = { id: nextId++, ...values, order: this.nextOrder(values.group) };
+      this.fields.push(created);
+      this.editing = created;
+      this.showToast(`${values.label} added.`);
+    }
+    this.formSubmitted = false;
+  }
+
+  private nextOrder(group: string): number {
+    const orders = this.fields.filter((f) => f.group === group).map((f) => f.order);
+    return orders.length ? Math.max(...orders) + 1 : 0;
   }
 
   addGroupInline(): void {
     const name = this.newGroupName.trim();
-    if (!name || this.saving) return;
-    const existing = this.groups.find((g) => g.name.toLowerCase() === name.toLowerCase());
-    if (existing) {
-      this.form.group = existing.name;
-      this.newGroupName = '';
-      this.addingGroup = false;
-      return;
+    if (!name) return;
+    if (!this.groups.some((g) => g.name.toLowerCase() === name.toLowerCase())) {
+      this.groups.push({ name, description: '', status: 'Active', order: this.groups.length });
     }
-    this.saving = true;
-    this.api.createGroup({ groupName: name, description: null, status: 'Active', fieldIds: null }).subscribe({
-      next: (dto) => {
-        this.saving = false;
-        this.groups.push(toFieldGroup(dto, this.groups.length));
-        this.form.group = dto.groupName;
-        this.newGroupName = '';
-        this.addingGroup = false;
-      },
-      error: (err) => {
-        this.saving = false;
-        this.showToast(apiErrorMessage(err, 'Could not add the group.'));
-      },
-    });
+    this.form.group = this.groups.find((g) => g.name.toLowerCase() === name.toLowerCase())!.name;
+    this.newGroupName = '';
+    this.addingGroup = false;
   }
 
   toggleStatus(f: CustomField): void {
     this.openMenu = null;
-    const status: FieldStatus = f.status === 'Active' ? 'Inactive' : 'Active';
-    this.api.updateField(f.id, toFieldRequest({ ...f, status })).subscribe({
-      next: (saved) => {
-        this.replaceField(saved);
-        this.showToast(`${saved.label} ${saved.status === 'Active' ? 'activated' : 'deactivated'}.`);
-      },
-      error: (err) => this.showToast(apiErrorMessage(err, `Could not update ${f.label}.`)),
-    });
+    f.status = f.status === 'Active' ? 'Inactive' : 'Active';
+    if (this.editing === f) this.form.status = f.status;
+    this.showToast(`${f.label} ${f.status === 'Active' ? 'activated' : 'deactivated'}.`);
   }
 
   // ===== Delete fields =====
@@ -782,50 +791,86 @@ export class AssetCustomFields implements OnInit {
 
   confirmDelete(): void {
     const targets = this.deleteTargets;
+    const ids = new Set(targets.map((f) => f.id));
+    this.fields = this.fields.filter((f) => !ids.has(f.id));
+    targets.forEach((f) => this.checked.delete(f.id));
+    // Deleted fields also leave every layout and the open group draft.
+    this.layouts.forEach((l) => l.sections.forEach((s) => (s.fieldIds = s.fieldIds.filter((id) => !ids.has(id)))));
+    if (this.groupForm) this.groupForm.fieldIds = this.groupForm.fieldIds.filter((id) => !ids.has(id));
+    if (this.editing && ids.has(this.editing.id)) this.closePanel();
     this.deleteTargets = [];
-    if (!targets.length) return;
-    this.saving = true;
-    runAll(targets, (f) => this.api.deleteField(f.id).pipe(map(() => f.id))).subscribe((result) => {
-      this.saving = false;
-      const ids = new Set(result.ok);
-      this.fields = this.fields.filter((f) => !ids.has(f.id));
-      ids.forEach((id) => this.checked.delete(id));
-      if (this.groupForm) this.groupForm.fieldIds = this.groupForm.fieldIds.filter((id) => !ids.has(id));
-      if (this.editing && ids.has(this.editing.id)) this.closePanel();
-      const deleted = targets.filter((f) => ids.has(f.id));
-      const done = deleted.length === 1 ? `${deleted[0].label} deleted.` : deleted.length ? `${deleted.length} fields deleted.` : '';
-      this.showToast([done, ...result.errors.slice(0, 1)].filter(Boolean).join(' '));
-    });
+    this.showToast(targets.length === 1 ? `${targets[0].label} deleted.` : `${targets.length} fields deleted.`);
   }
 
   // ===== Field import / export =====
 
   private exportFields(): void {
-    const tab = this.activeTab;
-    this.api.exportFields(tab === 'compound' ? undefined : this.scope).subscribe({
-      next: (items) => {
-        const rows = tab === 'compound' ? items.filter((i) => i.fieldType === 'Compound') : items;
-        downloadJson(rows, `custom-fields-${tab}.json`);
-        this.showToast(`Exported ${rows.length} field${rows.length === 1 ? '' : 's'}.`);
-      },
-      error: (err) => this.showToast(apiErrorMessage(err, 'Could not export fields.')),
-    });
+    const rows = this.tabFields.map(({ id, order, ...rest }) => rest);
+    downloadJson({ version: 1, fields: rows }, `custom-fields-${this.activeTab}.json`);
+    this.showToast(`Exported ${rows.length} field${rows.length === 1 ? '' : 's'}.`);
   }
 
-  /** Imports a file produced by Export Fields; fields are matched by name (new ones created, existing ones updated). */
   private importFields(parsed: unknown, fileName: string): void {
     const list: unknown[] = Array.isArray(parsed) ? parsed : Array.isArray((parsed as { fields?: unknown[] })?.fields) ? (parsed as { fields: unknown[] }).fields : [];
-    if (!list.length) {
-      this.showToast(`No fields found in ${fileName}.`);
-      return;
+    let added = 0;
+    let skipped = 0;
+    for (const raw of list) {
+      const f = this.toImportedField(raw);
+      if (!f || this.isNameTaken(f.name, f.scope, f.appliesTo, null)) {
+        skipped++;
+        continue;
+      }
+      if (f.group && !this.groups.some((g) => g.name === f.group)) {
+        this.groups.push({ name: f.group, description: '', status: 'Active', order: this.groups.length });
+      }
+      f.order = this.nextOrder(f.group);
+      this.fields.push(f);
+      added++;
     }
-    this.api.importFields(list, this.scope).subscribe({
-      next: (result) => {
-        this.showToast(importSummary(result, 'field'));
-        this.load();
-      },
-      error: (err) => this.showToast(apiErrorMessage(err, `Could not import ${fileName}.`)),
-    });
+    this.showToast(
+      list.length
+        ? `Imported ${added} field${added === 1 ? '' : 's'}${skipped ? `; skipped ${skipped} invalid or duplicate` : ''}.`
+        : `No fields found in ${fileName}.`,
+    );
+  }
+
+  /** Accepts the shape produced by Export; anything missing a valid name, label or type is rejected. */
+  private toImportedField(raw: unknown): CustomField | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const r = raw as Record<string, unknown>;
+    const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+    const list = (v: unknown) => (Array.isArray(v) ? v.map(str).filter(Boolean) : []);
+    const name = str(r['name']);
+    const label = str(r['label']);
+    const type = str(r['type']) as FieldType;
+    const scope = (['asset', 'component', 'category'].includes(str(r['scope'])) ? str(r['scope']) : this.scope) as FieldScope;
+    const appliesTo = str(r['appliesTo']) || (scope === 'component' ? ALL_COMPONENTS : '');
+    const parts = list(r['parts']);
+    const lookupSource = str(r['lookupSource']);
+    if (!NAME_PATTERN.test(name) || !label || !FIELD_TYPES.includes(type)) return null;
+    if (scope === 'category' && !appliesTo) return null;
+    if (type === 'Compound' && parts.length < 2) return null;
+    if (type === 'Lookup' && !LOOKUP_SOURCES[lookupSource]) return null;
+    return {
+      id: nextId++,
+      scope,
+      appliesTo: scope === 'asset' ? '' : appliesTo,
+      name,
+      label,
+      type,
+      group: scope === 'component' ? '' : str(r['group']),
+      required: r['required'] === true,
+      showInDetails: r['showInDetails'] !== false,
+      searchable: r['searchable'] === true,
+      defaultValue: type === 'Compound' ? '' : str(r['defaultValue']),
+      options: list(r['options']),
+      parts: type === 'Compound' ? parts : [],
+      lookupSource: type === 'Lookup' ? lookupSource : '',
+      description: str(r['description']).slice(0, DESCRIPTION_MAX),
+      tooltip: str(r['tooltip']).slice(0, TOOLTIP_MAX),
+      status: r['status'] === 'Inactive' ? 'Inactive' : 'Active',
+      order: 0,
+    };
   }
 
   // ===== Field groups list =====
@@ -875,21 +920,14 @@ export class AssetCustomFields implements OnInit {
 
   setGroupStatus(groups: FieldGroup[], status: FieldStatus): void {
     this.openMenu = null;
+    groups.forEach((g) => (g.status = status));
+    if (this.groupForm?.original && groups.includes(this.groupForm.original)) this.groupForm.status = status;
     this.checkedGroups.clear();
-    const targets = groups.filter((g) => g.status !== status);
-    if (!targets.length) return;
-    const body = (g: FieldGroup): SaveFieldGroupRequest => ({ groupName: g.name, description: g.description || null, status, fieldIds: null });
-    runAll(targets, (g) => this.api.updateGroup(g.id, body(g))).subscribe((result) => {
-      result.ok.forEach((dto) => {
-        const g = this.groups.find((x) => x.id === dto.id);
-        if (g) g.status = dto.status === 'Inactive' ? 'Inactive' : 'Active';
-        if (this.groupForm?.original === g) this.groupForm!.status = status;
-      });
-      const verb = status === 'Active' ? 'activated' : 'deactivated';
-      const n = result.ok.length;
-      const done = n === 1 ? `${result.ok[0].groupName} ${verb}.` : `${n} groups ${verb}.`;
-      this.showToast([n ? done : '', ...result.errors.slice(0, 1)].filter(Boolean).join(' '));
-    });
+    this.showToast(
+      groups.length === 1
+        ? `${groups[0].name} ${status === 'Active' ? 'activated' : 'deactivated'}.`
+        : `${groups.length} groups ${status === 'Active' ? 'activated' : 'deactivated'}.`,
+    );
   }
 
   // ===== Group side panel =====
@@ -920,7 +958,7 @@ export class AssetCustomFields implements OnInit {
     return null;
   }
 
-  fieldById(id: string): CustomField | undefined {
+  fieldById(id: number): CustomField | undefined {
     return this.fields.find((f) => f.id === id);
   }
 
@@ -966,35 +1004,37 @@ export class AssetCustomFields implements OnInit {
     this.dropIndex = null;
   }
 
-  /** Saves the group and its field assignment (in order); fields removed from the draft become unassigned. */
   saveGroup(): void {
     this.groupSubmitted = true;
     const e = this.groupForm;
-    if (!e || this.saving || this.groupNameError || e.description.length > GROUP_DESCRIPTION_MAX) return;
-    const body: SaveFieldGroupRequest = {
-      groupName: e.name.trim(),
-      description: e.description.trim() || null,
-      status: e.status,
-      fieldIds: [...e.fieldIds],
-    };
-    this.saving = true;
-    (e.original ? this.api.updateGroup(e.original.id, body) : this.api.createGroup(body)).subscribe({
-      next: (dto) => {
-        this.saving = false;
-        const saved = toFieldGroup(dto, e.original?.order ?? this.groups.length);
-        if (e.original) Object.assign(e.original, saved);
-        else this.groups.push(saved);
-        if (this.groupForm === e) e.original = e.original ?? saved;
-        this.groupSubmitted = false;
-        this.showToast(`Group "${saved.name}" saved.`);
-        // Field assignments (and layout section names on a rename) changed on the server.
-        this.load();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.showToast(apiErrorMessage(err, 'Could not save the group.'));
-      },
+    if (!e || this.groupNameError || e.description.length > GROUP_DESCRIPTION_MAX) return;
+    const name = e.name.trim();
+    let group = e.original;
+    if (group) {
+      const old = group.name;
+      if (old !== name) {
+        // Everything that refers to the group by name follows the rename.
+        this.fields.filter((f) => f.group === old).forEach((f) => (f.group = name));
+        this.layouts.forEach((l) => l.sections.filter((s) => s.group === old).forEach((s) => (s.group = name)));
+        if (this.form.group === old) this.form.group = name;
+        if (this.groupFilter === old) this.groupFilter = name;
+      }
+      Object.assign(group, { name, description: e.description.trim(), status: e.status });
+    } else {
+      group = { name, description: e.description.trim(), status: e.status, order: this.groups.length };
+      this.groups.push(group);
+    }
+    // Fields removed from the draft become unassigned; fields added move here from their old group.
+    const ids = new Set(e.fieldIds);
+    this.groupFields(name).filter((f) => !ids.has(f.id)).forEach((f) => (f.group = ''));
+    e.fieldIds.forEach((id, order) => {
+      const f = this.fieldById(id);
+      if (f) Object.assign(f, { group: name, order });
     });
+    if (this.editing && this.editing.scope !== 'component') this.form.group = this.editing.group;
+    e.original = group;
+    this.groupSubmitted = false;
+    this.showToast(`Group "${name}" saved.`);
   }
 
   // ===== "Add Fields" picker =====
@@ -1016,7 +1056,7 @@ export class AssetCustomFields implements OnInit {
     );
   }
 
-  togglePick(id: string): void {
+  togglePick(id: number): void {
     if (this.pickerChecked.has(id)) this.pickerChecked.delete(id);
     else this.pickerChecked.add(id);
   }
@@ -1035,62 +1075,82 @@ export class AssetCustomFields implements OnInit {
   }
 
   get groupDeleteFieldCount(): number {
-    return this.groupDeleteTargets.reduce((n, g) => n + this.groupFields(g.name).length, 0);
+    return this.groupDeleteTargets.reduce((n, g) => n + this.fields.filter((f) => f.group === g.name).length, 0);
   }
 
-  /** Deleting a group unassigns its fields; the API refuses groups still used by a field layout. */
+  /** Deleting a group unassigns its fields and removes its section from every layout. */
   confirmDeleteGroups(): void {
     const targets = this.groupDeleteTargets;
+    const names = new Set(targets.map((g) => g.name));
+    const unassigned = this.groupDeleteFieldCount;
+    this.fields.filter((f) => names.has(f.group)).forEach((f) => (f.group = ''));
+    this.layouts.forEach((l) => (l.sections = l.sections.filter((s) => !names.has(s.group))));
+    this.groups = this.groups.filter((g) => !targets.includes(g));
+    this.sortedGroups.forEach((g, i) => (g.order = i));
+    targets.forEach((g) => this.checkedGroups.delete(g));
+    if (names.has(this.form.group)) this.form.group = '';
+    if (this.groupForm?.original && targets.includes(this.groupForm.original)) this.groupForm = null;
     this.groupDeleteTargets = [];
-    if (!targets.length) return;
-    this.saving = true;
-    runAll(targets, (g) => this.api.deleteGroup(g.id).pipe(map(() => g))).subscribe((result) => {
-      this.saving = false;
-      const deleted = result.ok;
-      if (this.groupForm?.original && deleted.includes(this.groupForm.original)) this.groupForm = null;
-      if (deleted.some((g) => g.name === this.form.group)) this.form.group = '';
-      const what = deleted.length === 1 ? `Group "${deleted[0].name}" deleted.` : deleted.length ? `${deleted.length} groups deleted.` : '';
-      this.showToast([what, ...result.errors.slice(0, 1)].filter(Boolean).join(' '));
-      if (deleted.length) this.load();
-    });
+    const what = targets.length === 1 ? `Group "${targets[0].name}"` : `${targets.length} groups`;
+    this.showToast(`${what} deleted${unassigned ? `; ${unassigned} field${unassigned === 1 ? '' : 's'} unassigned` : ''}.`);
   }
 
   // ===== Group import / export =====
 
   private exportGroups(): void {
-    this.api.exportGroups().subscribe({
-      next: (rows) => {
-        downloadJson(rows, 'field-groups.json');
-        this.showToast(`Exported ${rows.length} group${rows.length === 1 ? '' : 's'}.`);
-      },
-      error: (err) => this.showToast(apiErrorMessage(err, 'Could not export groups.')),
-    });
+    const rows = this.sortedGroups.map((g) => ({
+      name: g.name,
+      description: g.description,
+      status: g.status,
+      fields: this.groupFields(g.name).map((f) => (f.scope === 'category' ? { name: f.name, appliesTo: f.appliesTo } : { name: f.name })),
+    }));
+    downloadJson({ version: 1, groups: rows }, 'field-groups.json');
+    this.showToast(`Exported ${rows.length} group${rows.length === 1 ? '' : 's'}.`);
   }
 
-  /** Imports a file produced by Export Groups; groups are matched by name and their listed fields assigned in order. */
+  /** Adds groups whose names are new; listed fields that exist are moved into them. */
   private importGroups(parsed: unknown, fileName: string): void {
     const list: unknown[] = Array.isArray(parsed) ? parsed : Array.isArray((parsed as { groups?: unknown[] })?.groups) ? (parsed as { groups: unknown[] }).groups : [];
-    if (!list.length) {
-      this.showToast(`No groups found in ${fileName}.`);
-      return;
+    const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+    let added = 0;
+    let skipped = 0;
+    for (const raw of list) {
+      const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+      const name = str(r['name']);
+      if (!name || this.groups.some((g) => g.name.toLowerCase() === name.toLowerCase())) {
+        skipped++;
+        continue;
+      }
+      this.groups.push({
+        name,
+        description: str(r['description']).slice(0, GROUP_DESCRIPTION_MAX),
+        status: r['status'] === 'Inactive' ? 'Inactive' : 'Active',
+        order: this.groups.length,
+      });
+      const refs = Array.isArray(r['fields']) ? (r['fields'] as unknown[]) : [];
+      refs.forEach((ref, order) => {
+        const x = (ref && typeof ref === 'object' ? ref : {}) as Record<string, unknown>;
+        const f = this.fields.find(
+          (c) => c.scope !== 'component' && c.name === str(x['name']) && (c.scope === 'asset' || c.appliesTo === str(x['appliesTo'])),
+        );
+        if (f) Object.assign(f, { group: name, order });
+      });
+      added++;
     }
-    this.api.importGroups(list).subscribe({
-      next: (result) => {
-        this.showToast(importSummary(result, 'group'));
-        this.load();
-      },
-      error: (err) => this.showToast(apiErrorMessage(err, `Could not import ${fileName}.`)),
-    });
+    this.showToast(
+      list.length
+        ? `Imported ${added} group${added === 1 ? '' : 's'}${skipped ? `; skipped ${skipped} invalid or existing` : ''}.`
+        : `No groups found in ${fileName}.`,
+    );
   }
 
-  trackById(_: number, row: { id: string }): string {
+  trackById(_: number, row: { id: number }): number {
     return row.id;
   }
 
   showToast(message: string): void {
-    if (!message) return;
     this.toast = message;
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    this.toastTimer = setTimeout(() => (this.toast = ''), 3000);
   }
 }

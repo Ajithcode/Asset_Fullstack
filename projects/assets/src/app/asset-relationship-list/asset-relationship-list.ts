@@ -1,54 +1,19 @@
-import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { LucideAngularModule, ArrowLeft, ChevronDown, ChevronRight, Network, Plus, Search, Trash2, X } from 'lucide-angular';
-import { Observable } from 'rxjs';
-import { apiErrorMessage } from '../services/asset-api';
-import { FROM_RELATIONSHIPS } from './user-relationships';
-import {
-  AssetRelationshipDto,
-  AssetRelationshipService,
-  RegisteredAsset,
-  SubAssetDto,
-  subAssetKey,
-  toSubAssetRef,
-} from './asset-relationship.service';
+import { ASSET_RECORDS, AssetRecord, assetLocation, findAsset } from 'shared-ui';
+import { FROM_RELATIONSHIPS, UserRelationship, nowLocal, readUserRelationships, writeUserRelationships } from './user-relationships';
+import { loadAssetDetail } from '../asset-details/asset-details';
 
 type Step = 'main' | 'sub';
 
-/** An asset in the register as listed on this page; `tag` is its Asset ID. */
-interface PickAsset {
-  tag: string;
-  name: string;
-  category: string;
-  location: string;
-  status: string;
-}
-
-/** One sub asset linked to a main asset. */
-interface Link {
-  /** Unique within its main asset: "asset:<id>" or "component:<id>". */
-  key: string;
-  /** Asset ID for a registered asset; component tag for a component. */
-  subTag: string;
-  subName: string;
-  category: string;
-  /** Registered asset (its name links to its own Relationships tab) rather than a component. */
-  isAsset: boolean;
-  createdBy: string;
-  createdAt: string;
-  sub: SubAssetDto;
-}
-
 /** All the sub assets linked to one main asset: one row in the table. */
 interface MainGroup {
-  /** Saved relationship record id. */
-  id: string;
   mainTag: string;
-  mainName: string;
-  links: Link[];
-  createdBy: string;
+  links: UserRelationship[];
+  /** Newest link, yyyy-MM-ddTHH:mm. */
   updatedAt: string;
 }
 
@@ -61,42 +26,16 @@ interface SubRow {
   location: string;
   /** In the asset register (its name links to its own details). */
   inRegister: boolean;
-  sub: SubAssetDto;
 }
 
 /** One selected asset with everything related to it. */
 interface AssetPreview {
-  asset: PickAsset;
+  asset: AssetRecord;
   subs: SubRow[];
   loading: boolean;
 }
 
-function toPickAsset(a: RegisteredAsset): PickAsset {
-  return { tag: a.id, name: a.name, category: a.category, location: a.location, status: a.status };
-}
-
-function toGroup(r: AssetRelationshipDto): MainGroup {
-  const createdBy = r.createdBy ?? '-';
-  const at = r.lastUpdated ?? r.createdAt ?? '';
-  return {
-    id: r.id,
-    mainTag: r.mainAssetRegistrationId,
-    mainName: r.mainAssetName || r.mainAssetRegistrationId,
-    createdBy,
-    updatedAt: at,
-    links: r.subAssets.map((s) => ({
-      key: subAssetKey(s),
-      subTag: s.assetRegistrationId ?? (s.tag || s.componentId || ''),
-      subName: s.name,
-      category: s.category ?? '-',
-      isAsset: !!s.assetRegistrationId,
-      // The API keeps who / when per main asset, not per sub asset.
-      createdBy,
-      createdAt: at,
-      sub: s,
-    })),
-  };
-}
+const CURRENT_USER = 'Rex Kumar';
 
 @Component({
   selector: 'app-asset-relationship-list',
@@ -110,24 +49,12 @@ function toGroup(r: AssetRelationshipDto): MainGroup {
     './asset-relationship-list.css',
   ],
 })
-export class AssetRelationshipList implements OnInit, OnDestroy {
+export class AssetRelationshipList implements OnDestroy {
   readonly icons = { ArrowLeft, ChevronDown, ChevronRight, Network, Plus, Search, Trash2, X };
 
-  /** Saved relationships, one per main asset. */
-  rels: AssetRelationshipDto[] = [];
-  /** Assets in the register (main asset table and sub asset picker). */
-  assets: PickAsset[] = [];
+  relationships: UserRelationship[] = readUserRelationships();
   /** Opens the Relationships tab on these links rather than the asset's own data. */
   readonly fromRelationships = FROM_RELATIONSHIPS;
-
-  loadingAssets = false;
-  loadingRels = false;
-  /** Shown above the tables when a list could not be loaded. */
-  loadError = '';
-  /** True while a save / delete request is running. */
-  saving = false;
-  /** Error from the open popup's request. */
-  popupError = '';
 
   /** Which picker is open; null when none is. */
   step: Step | null = null;
@@ -143,8 +70,7 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
   readonly selectedSubs = new Set<string>();
 
   search = '';
-  /** Link being removed: its main asset and key. */
-  deleteId: { mainTag: string; key: string } | null = null;
+  deleteId: number | null = null;
   /** Main asset whose links are all being removed. */
   deleteMain: string | null = null;
   /** Main assets whose sub asset list is open. */
@@ -153,62 +79,19 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
   private readonly router = inject(Router);
-  private readonly api = inject(AssetRelationshipService);
-
-  ngOnInit(): void {
-    this.loadAssets();
-    this.loadRelationships();
-  }
 
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
   }
 
-  // ===== Loading =====
-
-  loadAssets(): void {
-    this.loadingAssets = true;
-    this.api.getAssets().subscribe({
-      next: (list) => {
-        this.assets = list.map(toPickAsset);
-        this.loadingAssets = false;
-      },
-      error: (err) => {
-        this.loadingAssets = false;
-        this.loadError = apiErrorMessage(err, 'Could not load the asset list.');
-      },
-    });
-  }
-
-  loadRelationships(): void {
-    this.loadingRels = true;
-    this.api.getRelationships().subscribe({
-      next: (list) => {
-        this.rels = list;
-        this.loadingRels = false;
-      },
-      error: (err) => {
-        this.loadingRels = false;
-        this.loadError = apiErrorMessage(err, 'Could not load the asset relationships.');
-      },
-    });
-  }
-
-  retry(): void {
-    this.loadError = '';
-    this.loadAssets();
-    this.loadRelationships();
+  private write(): void {
+    writeUserRelationships(this.relationships);
   }
 
   // ===== Lookups =====
 
-  asset(tag: string): PickAsset | undefined {
-    return this.assets.find((a) => a.tag === tag);
-  }
-
-  /** Name of an asset for messages and chips: from the register, else from a saved relationship. */
-  nameOf(tag: string): string {
-    return this.asset(tag)?.name ?? this.rels.find((r) => r.mainAssetRegistrationId === tag)?.mainAssetName ?? tag;
+  asset(tag: string): AssetRecord | undefined {
+    return findAsset(tag);
   }
 
   /** The most recently picked main asset. */
@@ -216,36 +99,27 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
     return this.mainTags[this.mainTags.length - 1] ?? '';
   }
 
-  get mainAsset(): PickAsset | undefined {
-    return this.asset(this.mainTag);
+  get mainAsset(): AssetRecord | undefined {
+    return findAsset(this.mainTag);
   }
 
-  location(a: PickAsset): string {
-    return a.location || '-';
-  }
-
-  /** Total sub asset links across all main assets. */
-  get linkCount(): number {
-    return this.rels.reduce((sum, r) => sum + r.subAssets.length, 0);
+  location(a: AssetRecord): string {
+    return assetLocation(a);
   }
 
   /** Assets offered in the open popup: the sub asset popup leaves out the chosen main assets. */
-  get pickerAssets(): PickAsset[] {
+  get pickerAssets(): AssetRecord[] {
     const q = this.pickerSearch.trim().toLowerCase();
-    return this.assets.filter(
+    return ASSET_RECORDS.filter(
       (a) =>
         (this.step !== 'sub' || !this.mainTags.includes(a.tag)) &&
-        (!q || [a.name, a.tag, a.category, a.location].some((v) => v.toLowerCase().includes(q))),
+        (!q || [a.name, a.tag, a.category, assetLocation(a)].some((v) => v.toLowerCase().includes(q))),
     );
-  }
-
-  private savedFor(mainTag: string): AssetRelationshipDto | undefined {
-    return this.rels.find((r) => r.mainAssetRegistrationId === mainTag);
   }
 
   /** Chosen main assets this sub asset is already linked to. */
   linkedMains(subTag: string): string[] {
-    return this.mainTags.filter((m) => this.savedFor(m)?.subAssets.some((s) => s.assetRegistrationId === subTag));
+    return this.mainTags.filter((m) => this.relationships.some((r) => r.mainTag === m && r.subTag === subTag));
   }
 
   /** True when the sub asset is already linked to every chosen main asset (nothing left to add). */
@@ -253,13 +127,27 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
     return this.step === 'sub' && this.mainTags.length > 0 && this.linkedMains(subTag).length === this.mainTags.length;
   }
 
+  get filtered(): UserRelationship[] {
+    const q = this.search.trim().toLowerCase();
+    if (!q) return this.relationships;
+    return this.relationships.filter((r) =>
+      [r.mainTag, r.subTag, findAsset(r.mainTag)?.name ?? '', findAsset(r.subTag)?.name ?? ''].some((v) => v.toLowerCase().includes(q)),
+    );
+  }
+
   /** Links grouped by main asset, most recently changed first; a search keeps a group when its main or any sub asset matches. */
   get groups(): MainGroup[] {
     const q = this.search.trim().toLowerCase();
-    const matches = (...values: string[]) => !q || values.some((v) => v.toLowerCase().includes(q));
-    return this.rels
-      .map(toGroup)
-      .filter((g) => matches(g.mainTag, g.mainName) || g.links.some((l) => matches(l.subTag, l.subName)))
+    const map = new Map<string, MainGroup>();
+    for (const r of this.relationships) {
+      let g = map.get(r.mainTag);
+      if (!g) map.set(r.mainTag, (g = { mainTag: r.mainTag, links: [], updatedAt: r.createdAt }));
+      g.links.push(r);
+      if (r.createdAt > g.updatedAt) g.updatedAt = r.createdAt;
+    }
+    const matches = (tag: string) => !q || tag.toLowerCase().includes(q) || (findAsset(tag)?.name ?? '').toLowerCase().includes(q);
+    return [...map.values()]
+      .filter((g) => matches(g.mainTag) || g.links.some((l) => matches(l.subTag)))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
@@ -276,48 +164,44 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
     this.mainTags = [mainTag];
     this.openAfterSave = false;
     this.pickerSearch = '';
-    this.popupError = '';
     this.selectedSubs.clear();
     this.step = 'sub';
   }
 
   get deletingMain(): MainGroup | undefined {
-    const r = this.deleteMain ? this.savedFor(this.deleteMain) : undefined;
-    return r ? toGroup(r) : undefined;
+    return this.deleteMain ? this.groups.find((g) => g.mainTag === this.deleteMain) ?? {
+      mainTag: this.deleteMain, links: this.relationships.filter((r) => r.mainTag === this.deleteMain), updatedAt: '',
+    } : undefined;
   }
 
   confirmDeleteMain(): void {
-    const g = this.deletingMain;
-    if (!g || this.saving) return;
-    const n = g.links.length;
-    this.mutate(this.api.delete(g.id), `${n} sub asset${n === 1 ? '' : 's'} unlinked from ${g.mainTag}.`, () => {
-      this.expanded.delete(g.mainTag);
-      this.deleteMain = null;
-    });
+    const tag = this.deleteMain;
+    if (!tag) return;
+    const n = this.relationships.filter((r) => r.mainTag === tag).length;
+    this.relationships = this.relationships.filter((r) => r.mainTag !== tag);
+    this.write();
+    this.expanded.delete(tag);
+    this.deleteMain = null;
+    this.showToast(`${n} sub asset${n === 1 ? '' : 's'} unlinked from ${tag}.`);
   }
 
-  get deleting(): { group: MainGroup; link: Link } | undefined {
-    const d = this.deleteId;
-    const r = d ? this.savedFor(d.mainTag) : undefined;
-    if (!d || !r) return undefined;
-    const group = toGroup(r);
-    const link = group.links.find((l) => l.key === d.key);
-    return link ? { group, link } : undefined;
+  get deleting(): UserRelationship | undefined {
+    return this.relationships.find((r) => r.id === this.deleteId);
   }
 
   // ===== Flow =====
 
   /** Assets listed in the main asset table on the page. */
-  get mainList(): PickAsset[] {
+  get mainList(): AssetRecord[] {
     const q = this.mainSearch.trim().toLowerCase();
-    return this.assets.filter((a) => !q || a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q));
+    return ASSET_RECORDS.filter((a) => !q || a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q));
   }
 
   isMain(tag: string): boolean {
     return this.selectedMains.includes(tag);
   }
 
-  toggleMain(a: PickAsset): void {
+  toggleMain(a: AssetRecord): void {
     this.selectedMains = this.isMain(a.tag) ? this.selectedMains.filter((t) => t !== a.tag) : [...this.selectedMains, a.tag];
   }
 
@@ -339,75 +223,48 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
 
   /** Opens the review popup for the assets ticked on the page and loads what is related to them. */
   nextToSubs(): void {
-    const assets = this.selectedMains.map((t) => this.asset(t)).filter((a): a is PickAsset => !!a);
+    const assets = this.selectedMains.map((t) => findAsset(t)).filter((a): a is AssetRecord => !!a);
     if (!assets.length) return;
     const previews: AssetPreview[] = assets.map((asset) => ({ asset, subs: [], loading: true }));
     this.previews = previews;
-    this.popupError = '';
-    this.api.getRelated(assets.map((a) => a.tag)).subscribe({
-      next: (sections) => {
-        if (this.previews !== previews) return;
-        for (const p of previews) {
-          const section = sections.find((s) => s.mainAssetRegistrationId === p.asset.tag);
-          p.subs = (section?.subAssets ?? []).map((s) => ({
-            tag: s.assetRegistrationId ?? (s.tag || s.componentId || ''),
-            name: s.name,
-            relation: s.relationshipType,
-            category: s.category ?? '-',
-            location: s.location ?? '-',
-            inRegister: !!s.assetRegistrationId,
-            sub: s,
-          }));
-          p.loading = false;
+    for (const p of previews) {
+      loadAssetDetail(p.asset.tag).then((detail) => {
+        const rows: SubRow[] = [];
+        const parts = detail?.relationships.parts ?? [];
+        // Sub assets: the asset's own child links (components, connected and supporting equipment)...
+        for (const l of detail?.relationships.links ?? []) {
+          if (l.direction !== 'Child' || l.status !== 'Active') continue;
+          const reg = findAsset(l.tag);
+          const part = parts.find((x) => x.tag === l.tag);
+          rows.push({
+            tag: l.tag, name: reg?.name ?? part?.name ?? l.tag, relation: l.type,
+            category: reg?.category ?? part?.category ?? '-', location: reg ? assetLocation(reg) : part?.location ?? '-', inRegister: !!reg,
+          });
         }
-      },
-      error: (err) => {
-        if (this.previews !== previews) return;
-        previews.forEach((p) => (p.loading = false));
-        this.popupError = apiErrorMessage(err, 'Could not load the related assets.');
-      },
-    });
+        // ...and sub assets linked on this page
+        for (const r of this.relationships) {
+          const reg = findAsset(r.subTag);
+          if (r.mainTag !== p.asset.tag || !reg || rows.some((x) => x.tag === r.subTag)) continue;
+          rows.push({ tag: reg.tag, name: reg.name, relation: 'Sub Asset', category: reg.category, location: assetLocation(reg), inRegister: true });
+        }
+        p.subs = rows;
+        p.loading = false;
+      });
+    }
   }
 
   closePreview(): void {
     this.previews = null;
-    this.popupError = '';
   }
 
-  /**
-   * Submit: save what the popup lists for each asset (its components become linked sub assets), then open the
-   * details page with one diagram per selected asset; the most recently selected one is active.
-   */
+  /** Submit: open the details page with one diagram per selected asset; the most recently selected one is active. */
   submitPreview(): void {
-    const list = this.previews ?? [];
-    const tags = list.map((p) => p.asset.tag);
+    const tags = (this.previews ?? []).map((p) => p.asset.tag);
     const last = tags[tags.length - 1];
-    if (!last || this.saving || list.some((p) => p.loading)) return;
-    const open = () => {
-      this.previews = null;
-      this.selectedMains = [];
-      this.router.navigate(['/assets/relationships'], { queryParams: { tag: last, tags: tags.join(','), from: FROM_RELATIONSHIPS } });
-    };
-    const toSave = list
-      .filter((p) => p.subs.length)
-      .map((p) => ({ mainAssetRegistrationId: p.asset.tag, subAssets: p.subs.map((s) => toSubAssetRef(s.sub)) }));
-    if (!toSave.length) {
-      open();
-      return;
-    }
-    this.saving = true;
-    this.popupError = '';
-    this.api.save(toSave).subscribe({
-      next: () => {
-        this.saving = false;
-        this.loadRelationships();
-        open();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.popupError = apiErrorMessage(err);
-      },
-    });
+    if (!last) return;
+    this.previews = null;
+    this.selectedMains = [];
+    this.router.navigate(['/assets/relationships'], { queryParams: { tag: last, tags: tags.join(','), from: FROM_RELATIONSHIPS } });
   }
 
   /** "Change" in the popup: back to the table on the page, keeping the ticked main assets. */
@@ -415,14 +272,14 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
     this.closePicker();
   }
 
-  toggleSub(a: PickAsset): void {
+  toggleSub(a: AssetRecord): void {
     if (this.isLinked(a.tag)) return;
     if (this.selectedSubs.has(a.tag)) this.selectedSubs.delete(a.tag);
     else this.selectedSubs.add(a.tag);
   }
 
   /** Sub assets in the current (searched) list that can still be linked. */
-  private get selectable(): PickAsset[] {
+  private get selectable(): AssetRecord[] {
     return this.pickerAssets.filter((a) => !this.isLinked(a.tag));
   }
 
@@ -436,70 +293,48 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
 
   /** Links every ticked sub asset to every chosen main asset (pairs that already exist are skipped). */
   addSubs(): void {
-    const subs = this.assets.filter((a) => this.selectedSubs.has(a.tag) && !this.isLinked(a.tag));
-    if (!subs.length || !this.mainTags.length || this.saving) return;
-    const mainTags = [...this.mainTags];
-    const request = mainTags
-      .map((main) => ({
-        mainAssetRegistrationId: main,
-        subAssets: subs
-          .filter((sub) => sub.tag !== main && !this.savedFor(main)?.subAssets.some((s) => s.assetRegistrationId === sub.tag))
-          .map((sub) => ({ assetRegistrationId: sub.tag, relationshipType: 'Sub Asset' })),
-      }))
-      .filter((r) => r.subAssets.length);
-    if (!request.length) {
-      this.closePicker();
-      return;
+    const subs = ASSET_RECORDS.filter((a) => this.selectedSubs.has(a.tag) && !this.isLinked(a.tag));
+    if (!subs.length || !this.mainTags.length) return;
+    let id = Math.max(0, ...this.relationships.map((r) => r.id));
+    const at = nowLocal();
+    const added: UserRelationship[] = [];
+    for (const main of this.mainTags) {
+      for (const sub of subs) {
+        if (sub.tag === main || this.relationships.some((r) => r.mainTag === main && r.subTag === sub.tag)) continue;
+        added.push({ id: ++id, mainTag: main, subTag: sub.tag, createdBy: CURRENT_USER, createdAt: at });
+      }
     }
-    const added = request.reduce((n, r) => n + r.subAssets.length, 0);
-    const mainName = this.mainAsset?.name ?? this.nameOf(this.mainTag);
-    const message =
-      mainTags.length === 1
-        ? `${subs.length} sub asset${subs.length === 1 ? '' : 's'} linked to ${mainName} (${this.mainTag}).`
-        : `${added} links saved for ${mainTags.length} main assets.`;
+    this.relationships = [...added.reverse(), ...this.relationships];
+    this.write();
+    this.mainTags.forEach((m) => this.expanded.add(m));
+    const mains = this.mainTags.length;
+    this.showToast(
+      mains === 1
+        ? `${subs.length} sub asset${subs.length === 1 ? '' : 's'} linked to ${this.mainAsset?.name} (${this.mainTag}).`
+        : `${added.length} links saved for ${mains} main assets.`,
+    );
     const open = this.openAfterSave ? this.mainTag : '';
-    this.mutate(this.api.save(request), message, () => {
-      mainTags.forEach((m) => this.expanded.add(m));
-      if (this.openAfterSave) this.selectedMains = [];
-      this.closePicker();
-      // Show the most recently picked main asset with its new sub assets
-      if (open) this.router.navigate(['/assets/relationships'], { queryParams: { tag: open, from: FROM_RELATIONSHIPS } });
-    });
+    if (this.openAfterSave) this.selectedMains = [];
+    this.closePicker();
+    // Show the most recently picked main asset with its new sub assets
+    if (open) this.router.navigate(['/assets/relationships'], { queryParams: { tag: open, from: FROM_RELATIONSHIPS } });
   }
 
   closePicker(): void {
     this.step = null;
     this.pickerSearch = '';
-    this.popupError = '';
     this.selectedSubs.clear();
     this.mainTags = [];
     this.openAfterSave = false;
   }
 
   confirmDelete(): void {
-    const d = this.deleting;
-    if (!d || this.saving) return;
-    const r = this.savedFor(d.group.mainTag)!;
-    const remaining = r.subAssets.filter((s) => subAssetKey(s) !== d.link.key).map((s) => toSubAssetRef(s));
-    this.mutate(this.api.replaceSubAssets(r.id, remaining), 'Relationship removed.', () => (this.deleteId = null));
-  }
-
-  /** Runs a save / delete, then reloads the relationships and shows the message; errors stay in the open popup. */
-  private mutate(request: Observable<unknown>, success: string, done: () => void): void {
-    this.saving = true;
-    this.popupError = '';
-    request.subscribe({
-      next: () => {
-        this.saving = false;
-        done();
-        this.showToast(success);
-        this.loadRelationships();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.popupError = apiErrorMessage(err);
-      },
-    });
+    const r = this.deleting;
+    if (!r) return;
+    this.relationships = this.relationships.filter((x) => x.id !== r.id);
+    this.write();
+    this.deleteId = null;
+    this.showToast('Relationship removed.');
   }
 
   @HostListener('document:keydown.escape')

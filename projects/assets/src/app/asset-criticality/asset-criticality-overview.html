@@ -1,0 +1,122 @@
+<section class="sc-page">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">Asset Criticality</span>
+  </nav>
+
+  <header class="ov-head">
+    <h1>Asset Criticality</h1>
+    <p>Criticality level, score and review status of every asset. Open an asset to see its full criticality assessment.</p>
+  </header>
+
+  <!-- KPIs -->
+  <div class="ov-kpis">
+    <div class="card ov-kpi">
+      <span class="ov-kpi-icon ov-kpi-icon--danger"><lucide-icon [img]="icons.ShieldAlert" [size]="20"></lucide-icon></span>
+      <div><span class="ov-kpi-label">Critical Assets</span><strong>{{ countLevel('Critical') }}</strong></div>
+    </div>
+    <div class="card ov-kpi">
+      <span class="ov-kpi-icon ov-kpi-icon--warn"><lucide-icon [img]="icons.TriangleAlert" [size]="20"></lucide-icon></span>
+      <div><span class="ov-kpi-label">High Criticality</span><strong>{{ countLevel('High') }}</strong></div>
+    </div>
+    <div class="card ov-kpi">
+      <span class="ov-kpi-icon"><lucide-icon [img]="icons.Gauge" [size]="20"></lucide-icon></span>
+      <div><span class="ov-kpi-label">Avg. Criticality Score</span><strong>{{ avgScore !== null ? avgScore + ' / 100' : '-' }}</strong></div>
+    </div>
+    <div class="card ov-kpi">
+      <span class="ov-kpi-icon ov-kpi-icon--warn"><lucide-icon [img]="icons.CalendarClock" [size]="20"></lucide-icon></span>
+      <div><span class="ov-kpi-label">Overdue Reviews</span><strong>{{ overdueReviews }}</strong></div>
+    </div>
+    <div class="card ov-kpi">
+      <span class="ov-kpi-icon ov-kpi-icon--danger"><lucide-icon [img]="icons.CircleAlert" [size]="20"></lucide-icon></span>
+      <div><span class="ov-kpi-label">Open Mitigations</span><strong>{{ openMitigations }}</strong></div>
+    </div>
+  </div>
+
+  <div class="card panel">
+    <!-- Filters -->
+    <div class="ov-filters">
+      <label class="ov-search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input class="control" type="search" name="search" [(ngModel)]="search" placeholder="Search by tag, name, category or location" />
+      </label>
+      <select class="control" name="level" [(ngModel)]="levelFilter" aria-label="Criticality level">
+        <option value="">All Levels</option>
+        <option *ngFor="let l of levels" [value]="l">{{ l }}</option>
+      </select>
+      <button *ngIf="hasFilters" type="button" class="btn btn-outline" (click)="resetFilters()">
+        <lucide-icon [img]="icons.X" [size]="15"></lucide-icon>Reset
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table class="data-table ov-table">
+        <thead>
+          <tr>
+            <th>Asset</th>
+            <th>Category</th>
+            <th>Location</th>
+            <th>Criticality</th>
+            <th>Score</th>
+            <th>Risk (L × C)</th>
+            <th>Assessed On</th>
+            <th>Next Review</th>
+            <th>Valid Until</th>
+            <th>Open Mitigations</th>
+            <th>Downtime Cost / hr</th>
+            <th class="col-actions">View</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of filtered; trackBy: trackByTag" class="ov-row" (click)="open(r)">
+            <td>
+              <div class="ov-asset">
+                <span class="ov-asset-icon"><lucide-icon [img]="typeIcons[r.icon]" [size]="18"></lucide-icon></span>
+                <div><strong>{{ r.tag }}</strong><small>{{ r.name }}</small></div>
+              </div>
+            </td>
+            <td>{{ r.category }}</td>
+            <td>{{ r.location }}</td>
+            <td><span class="pill pill--xs" [ngClass]="'pill--' + levelTone(r.level)"><span class="dot"></span>{{ r.level }}</span></td>
+            <td>
+              <div *ngIf="r.score !== null; else dash" class="ov-health">
+                <span class="ov-bar"><span [ngClass]="'ov-bar--' + scoreTone(r.score)" [style.width.%]="r.score"></span></span>
+                {{ r.score }}
+              </div>
+            </td>
+            <td>{{ r.risk !== null ? r.risk + ' / 25' : '-' }}</td>
+            <td class="nowrap">{{ r.assessmentDate ? (r.assessmentDate | date: 'dd MMM yyyy') : '-' }}</td>
+            <td class="nowrap" [class.text-danger]="isPast(r.nextReview)">
+              {{ r.nextReview ? (r.nextReview | date: 'dd MMM yyyy') : '-' }}<small *ngIf="isPast(r.nextReview)"> (Overdue)</small>
+            </td>
+            <td class="nowrap" [class.text-danger]="isPast(r.validUntil)">
+              {{ r.validUntil ? (r.validUntil | date: 'dd MMM yyyy') : '-' }}<small *ngIf="isPast(r.validUntil)"> (Expired)</small>
+            </td>
+            <td><span [class.text-danger]="r.openMitigations > 0">{{ r.openMitigations }}</span></td>
+            <td class="nowrap">{{ r.downtimeCost !== null ? r.currency + ' ' + (r.downtimeCost | number) : '-' }}</td>
+            <td class="col-actions">
+              <button type="button" class="btn btn-outline btn-xs" (click)="$event.stopPropagation(); open(r)" [attr.aria-label]="'View criticality of ' + r.tag">
+                <lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="!loading && !filtered.length">
+            <td colspan="12" class="ov-empty">
+              <lucide-icon [img]="icons.Inbox" [size]="28"></lucide-icon>
+              <p>No assets match the filters.</p>
+            </td>
+          </tr>
+          <tr *ngIf="loading">
+            <td colspan="12" class="ov-empty">Loading assets…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="ov-count" *ngIf="!loading">Showing {{ filtered.length }} of {{ rows.length }} assets</p>
+  </div>
+
+  <ng-template #dash>-</ng-template>
+</section>

@@ -214,7 +214,7 @@
       </div>
       <p class="muted sr-hint">{{ f.priority }} priority: respond within {{ sla[f.priority].responseHours }} hours, resolve within {{ sla[f.priority].resolutionDays }} days.</p>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="form = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">{{ f.id ? 'Save' : 'Create Request' }}</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="form = null">Cancel</button><button type="submit" class="btn btn-primary">{{ f.id ? 'Save' : 'Create Request' }}</button></div>
     </form>
   </div>
 </div>
@@ -229,7 +229,7 @@
         <label *ngFor="let n of [1, 2, 3, 4, 5]" [class.is-on]="c.rating >= n"><input type="radio" name="rating" [value]="n" [(ngModel)]="c.rating" />★</label>
         <span class="muted">{{ c.rating ? c.rating + ' / 5' : 'Not rated' }}</span>
       </fieldset>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closing = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">{{ c.to === 'Resolved' ? 'Mark Resolved' : 'Close Request' }}</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closing = null">Cancel</button><button type="submit" class="btn btn-primary">{{ c.to === 'Resolved' ? 'Mark Resolved' : 'Close Request' }}</button></div>
     </form>
   </div>
 </div>

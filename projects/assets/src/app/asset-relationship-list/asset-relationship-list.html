@@ -5,11 +5,6 @@
     <span class="breadcrumb-current">Asset Relationship</span>
   </nav>
 
-  <p *ngIf="loadError" class="form-error" role="alert">
-    {{ loadError }}
-    <button type="button" class="link-btn" (click)="retry()">Retry</button>
-  </p>
-
   <!-- Step 1: pick the main assets (name and ID) -->
   <section class="card panel" aria-labelledby="ar-main-title">
     <header class="card-head">
@@ -35,9 +30,7 @@
             <td>{{ a.name }}</td>
             <td class="nowrap">{{ a.tag }}</td>
           </tr>
-          <tr *ngIf="loadingAssets && !assets.length"><td colspan="4" class="empty-line">Loading assets…</td></tr>
-          <tr *ngIf="!loadingAssets && !assets.length"><td colspan="4" class="empty-line">No assets in the register yet.</td></tr>
-          <tr *ngIf="assets.length && !mainList.length"><td colspan="4" class="empty-line">No assets match "{{ mainSearch }}".</td></tr>
+          <tr *ngIf="!mainList.length"><td colspan="4" class="empty-line">No assets match "{{ mainSearch }}".</td></tr>
         </tbody>
       </table>
     </div>
@@ -49,10 +42,10 @@
   </section>
 
   <!-- Relationships made by users -->
-  <section *ngIf="rels.length" class="card panel" aria-labelledby="ar-title">
+  <section *ngIf="relationships.length" class="card panel" aria-labelledby="ar-title">
     <header class="card-head">
       <lucide-icon class="head-icon" [img]="icons.Network" [size]="20"></lucide-icon>
-      <h3 id="ar-title" class="grow">Asset Relationships <span class="count-note">{{ groups.length }} main asset{{ groups.length === 1 ? '' : 's' }} · {{ linkCount }} sub asset link{{ linkCount === 1 ? '' : 's' }}</span></h3>
+      <h3 id="ar-title" class="grow">Asset Relationships <span class="count-note">{{ groups.length }} main asset{{ groups.length === 1 ? '' : 's' }} · {{ relationships.length }} sub asset link{{ relationships.length === 1 ? '' : 's' }}</span></h3>
       <label class="search">
         <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
         <input type="search" [(ngModel)]="search" placeholder="Search assets..." aria-label="Search relationships" />
@@ -73,16 +66,16 @@
                 </button>
               </td>
               <td>{{ i + 1 }}</td>
-              <td><a class="asset-link" routerLink="/assets/relationships" [queryParams]="{ tag: g.mainTag, from: fromRelationships }">{{ g.mainName }}</a></td>
+              <td><a class="asset-link" routerLink="/assets/relationships" [queryParams]="{ tag: g.mainTag, from: fromRelationships }">{{ asset(g.mainTag)?.name }}</a></td>
               <td class="nowrap">{{ g.mainTag }}</td>
               <td>
                 <span class="subs">
                   <span class="sub-count">{{ g.links.length }}</span>
-                  <span *ngFor="let l of g.links.slice(0, previewCount)" class="sub-chip" [title]="l.subName + ' (' + l.subTag + ')'">{{ l.subName }}</span>
+                  <span *ngFor="let l of g.links.slice(0, previewCount)" class="sub-chip" [title]="asset(l.subTag)?.name + ' (' + l.subTag + ')'">{{ asset(l.subTag)?.name }}</span>
                   <button *ngIf="g.links.length > previewCount" type="button" class="more-btn" (click)="expanded.add(g.mainTag)">+{{ g.links.length - previewCount }} more</button>
                 </span>
               </td>
-              <td>{{ g.createdBy }}</td>
+              <td>{{ g.links[0].createdBy }}</td>
               <td class="nowrap">{{ g.updatedAt | date: 'dd MMM yyyy, HH:mm' }}</td>
               <td class="col-actions nowrap">
                 <button type="button" class="icon-btn" (click)="addSubsTo(g.mainTag)" [attr.aria-label]="'Add sub assets to ' + g.mainTag" title="Add sub assets"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon></button>
@@ -96,16 +89,13 @@
                   <thead><tr><th>Sub Asset</th><th>Sub Asset ID</th><th>Category</th><th>Linked By</th><th>Linked On</th><th class="col-actions"></th></tr></thead>
                   <tbody>
                     <tr *ngFor="let l of g.links">
-                      <td>
-                        <a *ngIf="l.isAsset; else componentName" class="asset-link" routerLink="/assets/relationships" [queryParams]="{ tag: l.subTag, from: fromRelationships }">{{ l.subName }}</a>
-                        <ng-template #componentName>{{ l.subName }}</ng-template>
-                      </td>
+                      <td><a class="asset-link" routerLink="/assets/relationships" [queryParams]="{ tag: l.subTag, from: fromRelationships }">{{ asset(l.subTag)?.name }}</a></td>
                       <td class="nowrap">{{ l.subTag }}</td>
-                      <td>{{ l.category }}</td>
+                      <td>{{ asset(l.subTag)?.category }}</td>
                       <td>{{ l.createdBy }}</td>
                       <td class="nowrap">{{ l.createdAt | date: 'dd MMM yyyy, HH:mm' }}</td>
                       <td class="col-actions">
-                        <button type="button" class="icon-btn danger" (click)="deleteId = { mainTag: g.mainTag, key: l.key }" [attr.aria-label]="'Unlink ' + l.subTag + ' from ' + g.mainTag"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon></button>
+                        <button type="button" class="icon-btn danger" (click)="deleteId = l.id" [attr.aria-label]="'Unlink ' + l.subTag + ' from ' + g.mainTag"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon></button>
                       </td>
                     </tr>
                   </tbody>
@@ -154,11 +144,10 @@
         </div>
       </section>
     </div>
-    <p *ngIf="popupError" class="form-error" role="alert">{{ popupError }}</p>
     <div class="modal-foot">
       <span class="muted grow">Submit opens {{ list[list.length - 1].asset.name }} ({{ list[list.length - 1].asset.tag }}).</span>
       <button type="button" class="btn btn-outline" (click)="closePreview()">Cancel</button>
-      <button type="button" class="btn btn-primary" [disabled]="saving" (click)="submitPreview()">{{ saving ? 'Saving…' : 'Submit' }}</button>
+      <button type="button" class="btn btn-primary" (click)="submitPreview()">Submit</button>
     </div>
   </div>
 </div>
@@ -173,7 +162,7 @@
     <div class="modal-body">
       <p *ngIf="step === 'sub'" class="picked">
         <span>Main asset{{ mainTags.length === 1 ? '' : 's' }}:</span>
-        <span *ngFor="let t of mainTags" class="main-chip">{{ nameOf(t) }} <small>({{ t }})</small></span>
+        <span *ngFor="let t of mainTags" class="main-chip">{{ asset(t)?.name }} <small>({{ t }})</small></span>
         <button type="button" class="link-btn" (click)="backToMain()"><lucide-icon [img]="icons.ArrowLeft" [size]="14"></lucide-icon>Change</button>
       </p>
       <label class="search search--full">
@@ -198,12 +187,11 @@
         <p *ngIf="!pickerAssets.length" class="empty-line">No assets match "{{ pickerSearch }}".</p>
       </div>
     </div>
-    <p *ngIf="popupError" class="form-error" role="alert">{{ popupError }}</p>
     <div *ngIf="step === 'sub'" class="modal-foot">
       <span class="muted grow">{{ selectedSubs.size }} selected</span>
       <button type="button" class="btn btn-outline" (click)="closePicker()">Cancel</button>
-      <button type="button" class="btn btn-primary" [disabled]="!selectedSubs.size || saving" (click)="addSubs()">
-        {{ saving ? 'Saving…' : 'Submit' }}
+      <button type="button" class="btn btn-primary" [disabled]="!selectedSubs.size" (click)="addSubs()">
+        Submit
       </button>
     </div>
   </div>
@@ -216,11 +204,10 @@
       <h2 id="ar-delm-title">Unlink all sub assets?</h2>
       <button type="button" class="icon-btn" (click)="deleteMain = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
     </div>
-    <div class="modal-body"><p>{{ m.mainName }} ({{ m.mainTag }}) will no longer have its {{ m.links.length }} sub asset{{ m.links.length === 1 ? '' : 's' }}. The assets themselves are not deleted.</p></div>
-    <p *ngIf="popupError" class="form-error" role="alert">{{ popupError }}</p>
+    <div class="modal-body"><p>{{ asset(m.mainTag)?.name }} ({{ m.mainTag }}) will no longer have its {{ m.links.length }} sub asset{{ m.links.length === 1 ? '' : 's' }}. The assets themselves are not deleted.</p></div>
     <div class="modal-foot">
-      <button type="button" class="btn btn-outline" (click)="deleteMain = null; popupError = ''">Cancel</button>
-      <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDeleteMain()">Unlink All</button>
+      <button type="button" class="btn btn-outline" (click)="deleteMain = null">Cancel</button>
+      <button type="button" class="btn btn-danger" (click)="confirmDeleteMain()">Unlink All</button>
     </div>
   </div>
 </div>
@@ -232,11 +219,10 @@
       <h2 id="ar-del-title">Remove relationship?</h2>
       <button type="button" class="icon-btn" (click)="deleteId = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
     </div>
-    <div class="modal-body"><p>{{ d.group.mainName }} ({{ d.group.mainTag }}) will no longer be linked to {{ d.link.subName }} ({{ d.link.subTag }}).</p></div>
-    <p *ngIf="popupError" class="form-error" role="alert">{{ popupError }}</p>
+    <div class="modal-body"><p>{{ asset(d.mainTag)?.name }} ({{ d.mainTag }}) will no longer be linked to {{ asset(d.subTag)?.name }} ({{ d.subTag }}).</p></div>
     <div class="modal-foot">
-      <button type="button" class="btn btn-outline" (click)="deleteId = null; popupError = ''">Cancel</button>
-      <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">Remove</button>
+      <button type="button" class="btn btn-outline" (click)="deleteId = null">Cancel</button>
+      <button type="button" class="btn btn-danger" (click)="confirmDelete()">Remove</button>
     </div>
   </div>
 </div>

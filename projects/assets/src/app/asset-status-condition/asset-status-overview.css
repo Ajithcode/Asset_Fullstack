@@ -1,0 +1,182 @@
+/* All-assets Status & Condition page. Shared tokens, cards, pills, buttons and table come from
+   asset-status-condition.css and asset-status-condition-panels.css (loaded first). */
+
+.ov-head h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.ov-head p {
+  margin: 0;
+  color: var(--sc-text-muted);
+  font-size: 14px;
+}
+
+/* ===== KPIs ===== */
+.ov-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ov-kpi {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ov-kpi-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--sc-accent-soft);
+  color: var(--sc-accent);
+}
+
+.ov-kpi-icon--warn {
+  background: #fff7e6;
+  color: #b7791f;
+}
+
+.ov-kpi-icon--danger {
+  background: #fdecec;
+  color: var(--sc-danger);
+}
+
+.ov-kpi-label {
+  display: block;
+  color: var(--sc-text-muted);
+  font-size: 13px;
+}
+
+.ov-kpi strong {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* ===== Filters ===== */
+.ov-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ov-filters select.control {
+  width: 190px;
+}
+
+.ov-search {
+  position: relative;
+  flex: 1 1 280px;
+}
+
+.ov-search lucide-icon {
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  color: #9ca3af;
+  transform: translateY(-50%);
+}
+
+.ov-search .control {
+  width: 100%;
+  padding-left: 34px;
+}
+
+/* ===== Table ===== */
+.ov-table td {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.ov-row {
+  cursor: pointer;
+}
+
+.ov-asset {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 190px;
+}
+
+.ov-asset-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--sc-accent-soft);
+  color: var(--sc-accent);
+}
+
+.ov-asset strong {
+  display: block;
+  font-size: 13px;
+}
+
+.ov-asset small {
+  color: var(--sc-text-muted);
+  font-size: 12px;
+}
+
+.ov-health {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.ov-bar {
+  display: inline-block;
+  width: 64px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef0f3;
+}
+
+.ov-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.ov-bar--good { background: var(--sc-good); }
+.ov-bar--warn { background: var(--sc-warn); }
+.ov-bar--critical { background: var(--sc-critical); }
+
+.ov-empty {
+  padding: 32px 8px !important;
+  color: var(--sc-text-muted);
+  text-align: center;
+}
+
+.ov-empty p {
+  margin: 8px 0 0;
+}
+
+.ov-count {
+  margin: 12px 0 0;
+  color: var(--sc-text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 1200px) {
+  .ov-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .ov-kpis { grid-template-columns: minmax(0, 1fr); }
+  .ov-filters select.control { width: 100%; }
+}

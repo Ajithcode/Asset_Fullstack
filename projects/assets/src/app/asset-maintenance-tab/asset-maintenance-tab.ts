@@ -23,15 +23,11 @@ import {
   Wrench,
 } from 'lucide-angular';
 import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetHeader, AssetRecord, AssetTabLink, TODAY, assetHeader, assetTabs, findAsset, toIsoDate } from 'shared-ui';
-import { MaintenanceData, WorkOrder } from '../asset-maintenance/asset-maintenance';
-import { MaintenanceApiService, buildMaintenanceData, emptyMaintenanceData } from '../asset-maintenance/maintenance-api.service';
-import { AssetLookupService, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
-import { apiErrorMessage } from '../services/asset-api';
-import { Subscription } from 'rxjs';
-import { PM_STATUS_COLORS, PmSchedule, PmStatus, daysUntil, pmStatus } from '../asset-maintenance/maintenance-pm';
+import { loadAssetDetail } from '../asset-details/asset-details';
+import { MaintenanceData, WorkOrder, dataFor } from '../asset-maintenance/asset-maintenance';
+import { PM_STATUS_COLORS, PmSchedule, PmStatus, daysUntil, pmStatus, schedulesFromPlan } from '../asset-maintenance/maintenance-pm';
 import { SR_STATUS_COLORS, ServiceRequest, isOpen, srKpis } from '../asset-maintenance/maintenance-sr';
-import { AssetComponent, componentsOf, loadComponentTree } from '../asset-components/asset-components';
-import { AssetComponentsService } from '../asset-components/asset-components.service';
+import { AssetComponent, componentsOf } from '../asset-components/asset-components';
 import { ComponentMaintenance, MaintenanceSchedule, buildMockMaintenance } from '../asset-components/component-maintenance/component-maintenance';
 import { ComponentServiceHistory, ServiceRecord, buildMockServiceHistory } from '../asset-components/component-service-history/component-service-history';
 
@@ -90,15 +86,9 @@ export class AssetMaintenanceTab implements OnDestroy {
   notFound = false;
   requestedTag = '';
 
-  /** The asset's records from the Maintenance service and the Asset API. */
-  data: MaintenanceData = emptyMaintenanceData(ASSET_RECORDS[0]);
+  data: MaintenanceData = dataFor(ASSET_RECORDS[0]);
   pm: PmSchedule[] = [];
   loading = false;
-  loadError = '';
-  private loadSub?: Subscription;
-  private readonly api = inject(MaintenanceApiService);
-  private readonly lookup = inject(AssetLookupService);
-  private readonly componentsApi = inject(AssetComponentsService);
   components: AssetComponent[] = [];
   /** Component shown in the component section below its summary table. */
   componentId: number | null = null;
@@ -118,7 +108,6 @@ export class AssetMaintenanceTab implements OnDestroy {
 
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
-    this.loadSub?.unsubscribe();
   }
 
   // ===== Loading =====
@@ -127,70 +116,28 @@ export class AssetMaintenanceTab implements OnDestroy {
     tag ??= ASSET_RECORDS[0].tag; // opened without an asset: show the first one
     const record = findAsset(tag);
     this.requestedTag = tag;
-    if (record) return this.show(record);
-    // not in the sample register: look the tag up in the Asset API
-    this.loading = true;
-    this.lookup.byTag(tag).subscribe({
-      next: (item) => {
-        this.loading = false;
-        this.notFound = !item;
-        if (item) this.show(toAssetRecord(item));
-      },
-      error: (err) => {
-        this.loading = false;
-        this.notFound = true;
-        this.loadError = apiErrorMessage(err);
-      },
-    });
-  }
-
-  private show(record: AssetRecord): void {
-    this.notFound = false;
+    this.notFound = !record;
+    if (!record) return;
     this.record = record;
     this.asset = assetHeader(record);
-    this.data = emptyMaintenanceData(record);
-    this.pm = [];
+    this.data = dataFor(record);
+    this.pm = this.data.pm ?? [];
     this.historyAll = false;
     this.closeMenus();
-    this.setComponents(record.tag);
-    // components come from the Asset API; the cache is filled by loadComponentTree
-    loadComponentTree(this.componentsApi, record.tag).subscribe({
-      next: () => {
-        if (this.record === record) this.setComponents(record.tag);
-      },
-      error: () => undefined,
-    });
-    this.reload();
-  }
-
-  private setComponents(tag: string): void {
-    this.components = componentsOf(tag);
+    this.components = componentsOf(record.tag);
     for (const c of this.components) {
-      // component maintenance / service records have no API yet (sample data per component)
       c.maintenance ??= buildMockMaintenance(c);
       c.serviceHistory ??= buildMockServiceHistory(c);
     }
-    if (!this.components.some((c) => c.id === this.componentId)) this.componentId = this.components[0]?.id ?? null;
-  }
-
-  /** (Re)loads the asset's work orders, PM schedules and service requests. */
-  reload(): void {
-    const record = this.record;
-    this.loadSub?.unsubscribe();
+    this.componentId = this.components[0]?.id ?? null;
+    if (this.data.pm) return;
+    // assets without recorded schedules start from their health maintenance plan, as on the Maintenance module
     this.loading = true;
-    this.loadError = '';
-    this.loadSub = this.api.load(record).subscribe({
-      next: (load) => {
-        if (this.record !== record) return;
-        this.loading = false;
-        this.data = buildMaintenanceData(record, load);
-        this.pm = this.data.pm ?? [];
-        this.loadError = load.errors.length ? `Some records could not be loaded. ${load.errors.join(' · ')}` : '';
-      },
-      error: (err) => {
-        this.loading = false;
-        this.loadError = apiErrorMessage(err);
-      },
+    loadAssetDetail(record.tag).then((d) => {
+      if (this.record !== record) return;
+      this.loading = false;
+      if (d?.health.maintenancePlan.length && !this.data.pm) this.data.pm = schedulesFromPlan(d.health.maintenancePlan, record.manufacturer);
+      this.pm = this.data.pm ?? [];
     });
   }
 
@@ -357,14 +304,11 @@ export class AssetMaintenanceTab implements OnDestroy {
   }
 
   openRequest(r: ServiceRequest): void {
-    this.router.navigate(['/assets/service-requests', r.apiId ?? r.id], { queryParams: { tag: this.asset.tag } });
+    this.router.navigate(['/assets/service-requests', r.id], { queryParams: { tag: this.asset.tag } });
   }
 
   openEvent(e: ServiceEvent): void {
-    if (e.source === 'Service Request') {
-      const r = this.data.serviceRequests.find((x) => x.id === e.ref);
-      this.router.navigate(['/assets/service-requests', r?.apiId ?? e.ref], { queryParams: { tag: this.asset.tag } });
-    }
+    if (e.source === 'Service Request') this.router.navigate(['/assets/service-requests', e.ref], { queryParams: { tag: this.asset.tag } });
     else this.router.navigate(['/assets/maintenance'], { queryParams: { tag: this.asset.tag, tab: 'history', wo: e.ref } });
   }
 

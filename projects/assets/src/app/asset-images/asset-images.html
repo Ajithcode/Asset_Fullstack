@@ -162,7 +162,7 @@
           </div>
           <a *ngIf="allAssets" class="tile-asset asset-link card-asset" routerLink="/assets/images" [queryParams]="{ tag: img.assetTag }">{{ assetName(img) }} · {{ img.assetTag }}</a>
         </article>
-        <p *ngIf="!pageItems.length" class="empty-line">{{ loading ? 'Loading images…' : loadError || 'No images match the current filters.' }}</p>
+        <p *ngIf="!pageItems.length" class="empty-line">{{ loading ? 'Loading images…' : 'No images match the current filters.' }}</p>
       </div>
 
       <!-- List view -->
@@ -276,7 +276,7 @@
             </tr>
             </ng-container>
             <tr *ngIf="!pageItems.length" class="empty-row">
-              <td [attr.colspan]="allAssets ? 11 : 9">{{ loading ? 'Loading images…' : loadError || 'No images match the current filters.' }}</td>
+              <td [attr.colspan]="allAssets ? 11 : 9">{{ loading ? 'Loading images…' : 'No images match the current filters.' }}</td>
             </tr>
           </tbody>
         </table>
@@ -535,7 +535,7 @@
       <p *ngIf="uploadError" class="form-error" role="alert">{{ uploadError }}</p>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="closeUpload()">Cancel</button>
-        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Uploading…' : 'Upload ' + (u.items.length > 1 ? u.items.length + ' Images' : 'Image') }}</button>
+        <button type="submit" class="btn btn-primary">Upload {{ u.items.length > 1 ? u.items.length + ' Images' : 'Image' }}</button>
       </div>
     </form>
   </div>
@@ -580,7 +580,7 @@
       <p *ngIf="editError" class="form-error" role="alert">{{ editError }}</p>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="edit = null">Cancel</button>
-        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save Changes' }}</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
       </div>
     </form>
   </div>
@@ -622,7 +622,7 @@
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="deleteIds = null">Cancel</button>
-      <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">{{ saving ? 'Deleting…' : 'Delete' }}</button>
+      <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
     </div>
   </div>
 </div>

@@ -2,28 +2,17 @@ export type FieldScope = 'asset' | 'component' | 'category';
 export type FieldType = 'Text' | 'Text Area' | 'Number' | 'Date' | 'Dropdown' | 'Checkbox' | 'Compound' | 'Lookup';
 export type FieldStatus = 'Active' | 'Inactive';
 
-export interface CompoundPart {
-  key: string;
-  label: string;
-  unit: string;
-}
-
 export interface CustomField {
-  /** API id (Mongo ObjectId); built-in asset fields use "builtin:<name>". */
-  id: string;
+  id: number;
   scope: FieldScope;
-  /** Asset category name (scope 'category') or component type (scope 'component'); empty for asset fields. */
+  /** Asset category (scope 'category') or component type (scope 'component'); empty for asset fields. */
   appliesTo: string;
-  /** Asset category id for category fields; empty otherwise. */
-  appliesToId: string;
   /** Machine name: lowercase letters, digits and underscores. */
   name: string;
   label: string;
   type: FieldType;
   /** Field group name (shown as "Category" in the field lists); empty when unassigned. */
   group: string;
-  /** Field group id; empty when unassigned. */
-  groupId: string;
   required: boolean;
   showInDetails: boolean;
   searchable: boolean;
@@ -32,8 +21,6 @@ export interface CustomField {
   options: string[];
   /** Sub-field labels for Compound fields, e.g. Length / Width / Height. */
   parts: string[];
-  /** Stored sub-field definitions (keys and units are kept across edits). */
-  partDefs: CompoundPart[];
   /** Record list a Lookup field picks from. */
   lookupSource: string;
   description: string;
@@ -45,7 +32,6 @@ export interface CustomField {
 }
 
 export interface FieldGroup {
-  id: string;
   name: string;
   description: string;
   status: FieldStatus;
@@ -54,26 +40,31 @@ export interface FieldGroup {
 }
 
 export interface LayoutSection {
-  /** Field group id the section is for. */
-  groupId: string;
   /** Field group name the section is for. */
   group: string;
-  fieldIds: string[];
+  fieldIds: number[];
 }
 
 export interface FieldLayout {
-  id: string;
+  id: number;
   name: string;
-  /** Asset type id; empty for a layout that applies to all assets. */
-  assetTypeId: string;
-  /** Asset type name, or "All Assets". */
   assetType: string;
   description: string;
   status: FieldStatus;
   sections: LayoutSection[];
 }
 
-export const ALL_ASSETS = 'All Assets';
+export const ASSET_TYPES = ['Generator', 'Electrical', 'HVAC', 'IT Asset', 'Vehicle', 'All Assets'];
+
+/** Asset category whose category-specific fields a layout's asset type can use. */
+export const ASSET_TYPE_CATEGORY: Record<string, string> = {
+  Generator: 'Power Generation',
+  Electrical: 'Electrical Equipment',
+  HVAC: 'HVAC',
+  'IT Asset': 'IT Equipment',
+  Vehicle: 'Material Handling',
+  'All Assets': '',
+};
 
 /** Sample records for each lookup source, used for default values and form previews. */
 export const LOOKUP_SOURCES: Record<string, string[]> = {
@@ -83,32 +74,16 @@ export const LOOKUP_SOURCES: Record<string, string[]> = {
   Users: ['Rex Kumar', 'Aisha Rahman', 'Omar Haddad', 'Priya Nair'],
 };
 
-export const BUILT_IN_PREFIX = 'builtin:';
-
-export function isBuiltIn(f: Pick<CustomField, 'id'>): boolean {
-  return f.id.startsWith(BUILT_IN_PREFIX);
-}
-
-/** A standard (built-in) asset field as a CustomField, so layouts can place it like any other. */
-export function builtInField(name: string, label: string, type: FieldType = 'Text', required = false): CustomField {
+function systemField(id: number, name: string, label: string): CustomField {
   return {
-    id: BUILT_IN_PREFIX + name, scope: 'asset', appliesTo: '', appliesToId: '', name, label, type, group: '', groupId: '', required,
-    showInDetails: true, searchable: true, defaultValue: '', options: [], parts: [], partDefs: [], lookupSource: '',
+    id, scope: 'asset', appliesTo: '', name, label, type: 'Text', group: 'General Information', required: true,
+    showInDetails: true, searchable: true, defaultValue: '', options: [], parts: [], lookupSource: '',
     description: 'Built-in asset field', tooltip: '', status: 'Active', order: 0,
   };
 }
 
-/** Built-in asset fields every layout must include. */
-export const SYSTEM_FIELDS: CustomField[] = [builtInField('asset_name', 'Asset Name', 'Text', true), builtInField('asset_tag', 'Asset Tag / ID', 'Text', true)];
-
-/** Standard asset fields layouts can place (the API's list; replaced by GET available-fields once loaded). */
-export const BUILT_IN_FIELDS: CustomField[] = [
-  ...SYSTEM_FIELDS,
-  builtInField('barcode', 'Barcode / QR Code'),
-  builtInField('rfid_tag_id', 'RFID Tag ID'),
-  builtInField('model', 'Model'),
-  builtInField('manufacturer', 'Manufacturer'),
-];
+/** Built-in asset fields every layout must include; negative ids keep them apart from custom fields. */
+export const SYSTEM_FIELDS: CustomField[] = [systemField(-1, 'asset_name', 'Asset Name'), systemField(-2, 'asset_tag', 'Asset Tag / ID')];
 
 export function typeClass(type: FieldType): string {
   return 'type--' + type.toLowerCase().replace(/\s+/g, '-');

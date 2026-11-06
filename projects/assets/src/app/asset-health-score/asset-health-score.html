@@ -71,10 +71,7 @@
   </nav>
 
   <div *ngIf="!health" class="card not-found">
-    <p *ngIf="loadError && !loading; else noHealth" class="form-error" role="alert">{{ loadError }}</p>
-    <ng-template #noHealth>
-      <p>{{ loading ? 'Loading health data…' : 'No health assessment has been recorded for ' + asset.tag + ' yet. Record a condition assessment on the Status & Condition tab.' }}</p>
-    </ng-template>
+    <p>{{ loading ? 'Loading health data…' : 'No health assessment has been recorded for ' + asset.tag + ' yet.' }}</p>
   </div>
 
   <ng-container *ngIf="health as h">
@@ -273,7 +270,7 @@
         </li>
       </ul>
       <div class="insight-actions">
-        <button type="button" class="btn btn-soft btn-tall" [disabled]="saving" (click)="runHealthCheck()"><lucide-icon [img]="icons.Play" [size]="16"></lucide-icon>Run Health Check</button>
+        <button type="button" class="btn btn-soft btn-tall" (click)="runHealthCheck()"><lucide-icon [img]="icons.Play" [size]="16"></lucide-icon>Run Health Check</button>
         <button type="button" class="btn btn-soft btn-tall" (click)="openPlan()"><lucide-icon [img]="icons.CalendarDays" [size]="16"></lucide-icon>View Maintenance Plan</button>
       </div>
     </section>
@@ -299,7 +296,7 @@
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot">
         <button type="button" class="btn btn-outline" (click)="detailsForm = null">Cancel</button>
-        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save' }}</button>
+        <button type="submit" class="btn btn-primary">Save</button>
       </div>
     </form>
   </div>
@@ -324,7 +321,6 @@
               <td class="nowrap" [class.text-danger]="isOverdue(t.nextDue)">{{ t.nextDue ? (t.nextDue | date: 'dd MMM yyyy') : 'Not scheduled' }}</td>
               <td class="nowrap">{{ t.owner }}</td>
             </tr>
-            <tr *ngIf="!health.maintenancePlan.length"><td colspan="5" class="empty-line">No maintenance plan has been recorded for {{ asset.tag }}.</td></tr>
           </tbody>
         </table>
       </div>

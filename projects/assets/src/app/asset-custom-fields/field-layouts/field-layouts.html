@@ -71,8 +71,8 @@
       </table>
       <div *ngIf="!pageRows.length" class="empty">
         <lucide-icon [img]="icons.Inbox" [size]="30"></lucide-icon>
-        <h4>{{ loading ? 'Loading field layouts…' : layouts.length ? 'No layouts match' : 'No field layouts yet' }}</h4>
-        <p *ngIf="!loading">{{ layouts.length ? 'Try a different search or filter.' : 'Use "Add Field Layout" to create one.' }}</p>
+        <h4>{{ layouts.length ? 'No layouts match' : 'No field layouts yet' }}</h4>
+        <p>{{ layouts.length ? 'Try a different search or filter.' : 'Use "Add Field Layout" to create one.' }}</p>
       </div>
     </div>
 
@@ -261,7 +261,7 @@
         <div class="structure-foot">
           <span *ngIf="saveError" class="error grow">{{ saveError }}</span>
           <button type="button" class="btn btn-outline" (click)="cancelChanges()" [disabled]="!dirty">Cancel</button>
-          <button type="button" class="btn btn-primary" (click)="saveLayout()" [disabled]="!dirty || saving">{{ saving ? 'Saving…' : 'Save Layout' }}</button>
+          <button type="button" class="btn btn-primary" (click)="saveLayout()" [disabled]="!dirty">Save Layout</button>
         </div>
       </section>
     </div>
@@ -339,14 +339,14 @@
       <label *ngIf="!layoutForm.original" class="field">
         <span class="field-label">Start From</span>
         <select class="control" name="copyFrom" [(ngModel)]="layoutForm.copyFrom">
-          <option [ngValue]="''">Blank layout (Asset Name and Asset Tag only)</option>
+          <option [ngValue]="0">Blank layout (Asset Name and Asset Tag only)</option>
           <option *ngFor="let l of layouts" [ngValue]="l.id">Copy of {{ l.name }}</option>
         </select>
       </label>
     </div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="layoutForm = null">Cancel</button>
-      <button type="submit" class="btn btn-primary" [disabled]="saving">{{ layoutForm.original ? 'Save' : 'Create Layout' }}</button>
+      <button type="submit" class="btn btn-primary">{{ layoutForm.original ? 'Save' : 'Create Layout' }}</button>
     </div>
   </form>
 </div>
@@ -372,7 +372,7 @@
     <div class="modal-body"><p>Only the layout is deleted; its fields and field groups are not affected.</p></div>
     <div class="modal-foot">
       <button type="button" class="btn btn-outline" (click)="deleteTargets = []">Cancel</button>
-      <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">Delete</button>
+      <button type="button" class="btn btn-danger" (click)="confirmDelete()">Delete</button>
     </div>
   </div>
 </div>

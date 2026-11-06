@@ -28,21 +28,19 @@ import {
   X,
 } from 'lucide-angular';
 import {
+  ASSET_RECORDS,
   ASSET_TYPE_ICONS,
   AssetHeader,
   AssetTabLink,
+  assetHeader,
+  assetLocation,
   assetTabs,
   conditionPill,
   criticalityPill,
+  findAsset,
   statusPill,
 } from 'shared-ui';
-import { Observable, Subscription, finalize, of, switchMap } from 'rxjs';
-import { ImageEvent } from '../asset-details/asset-details';
-import { apiErrorMessage } from '../services/asset-api';
-import { AssetLookupService, AssetOption } from '../asset-documents/asset-lookup.service';
-import { ApiImage, AssetImagesService } from './asset-images.service';
-
-type AssetImage = ApiImage;
+import { AssetDetail, AssetImage, ImageEvent, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
 
 type ViewMode = 'grid' | 'list';
 
@@ -87,14 +85,45 @@ interface EditForm {
   remarks: string;
 }
 
+const CURRENT_USER = 'Rex Kumar';
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MB = 1024 * 1024;
 
-/**
- * Image chosen as each asset's photo in the page header, by asset key. The API has no field for it,
- * so the choice lasts for the browser session only.
- */
-const ASSET_PHOTO = new Map<string, string>();
+/** One asset's images, kept in memory so its Images tab and the all-assets page show the same list (DEMO MODE). */
+interface ImageStore {
+  images: AssetImage[];
+  headerImageId: number;
+}
+
+const IMG_STORE = new Map<string, ImageStore>();
+/** Image ids are unique across assets so images of several assets can be listed together. */
+let nextImageId = 1;
+
+/** The stored images of an asset, created from its data file the first time. */
+function storeFor(tag: string, detail: AssetDetail | null): ImageStore {
+  let store = IMG_STORE.get(tag);
+  if (!store) {
+    const images = detail ? cloneDetail(detail.images) : [];
+    let headerImageId = 0;
+    for (const img of images) {
+      const id = nextImageId++;
+      if (img.id === detail?.headerImageId) headerImageId = id;
+      img.id = id;
+      img.assetTag = tag;
+    }
+    store = { images, headerImageId };
+    // A failed download is not stored, so a later visit tries again
+    if (detail) IMG_STORE.set(tag, store);
+  }
+  return store;
+}
+
+/** Frees an uploaded image's file URL once no stored image uses it (copies on several assets share one). */
+function releaseSrc(src: string): void {
+  if (!src.startsWith('blob:')) return;
+  const used = [...IMG_STORE.values()].some((s) => s.images.some((i) => i.src === src));
+  if (!used) URL.revokeObjectURL(src);
+}
 
 @Component({
   selector: 'app-asset-images',
@@ -111,16 +140,9 @@ export class AssetImages implements OnDestroy {
   };
 
   /** The asset named by ?tag=; when it is missing or unknown the page shows a "not found" message. */
-  asset: AssetHeader = EMPTY_HEADER;
-  /** The registered asset behind `asset` (per-asset page). */
-  private currentAsset: AssetOption | null = null;
-  private loadSub?: Subscription;
+  asset: AssetHeader = assetHeader(ASSET_RECORDS[0]);
   /** True while the asset's images are being fetched. */
   loading = false;
-  /** Shown in the list when the images could not be loaded. */
-  loadError = '';
-  /** True while an upload, edit, replace or delete is being saved. */
-  saving = false;
   notFound = false;
   requestedTag = '';
   readonly tabs: AssetTabLink[] = assetTabs('Images');
@@ -135,8 +157,7 @@ export class AssetImages implements OnDestroy {
   images: AssetImage[] = [];
   /** Asset Images menu page: images of every asset, with their asset name and ID. */
   allAssets = false;
-  /** Registered assets for the asset filter and the upload dialog's asset picker. */
-  assetOptions: AssetOption[] = [];
+  readonly assetOptions = ASSET_RECORDS;
   assetFilter = '';
   /** Asset dropdown in the upload dialog. */
   assetPickerOpen = false;
@@ -183,10 +204,6 @@ export class AssetImages implements OnDestroy {
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  private readonly api = inject(AssetImagesService);
-  private readonly lookup = inject(AssetLookupService);
-  private readonly destroyRef = inject(DestroyRef);
-
   constructor() {
     const route = inject(ActivatedRoute);
     this.allAssets = route.snapshot.data['allAssets'] === true;
@@ -196,75 +213,57 @@ export class AssetImages implements OnDestroy {
       this.loadAll();
       return;
     }
-    route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => this.load(params.get('tag')));
+    route.queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe((params) => this.load(params.get('tag')));
   }
 
-  /** Lists the images of every asset, and the registered assets for the picker and filter. */
+  /** Lists the images of every asset in the register. */
   private loadAll(): void {
     this.loading = true;
-    this.loadError = '';
-    this.lookup.listAssets().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (assets) => (this.assetOptions = assets),
-      error: (err) => this.showToast(apiErrorMessage(err, 'Could not load the asset list.')),
+    Promise.all(ASSET_RECORDS.map((a) => loadAssetDetail(a.tag).then((d) => storeFor(a.tag, d)))).then((stores) => {
+      this.loading = false;
+      this.images = stores.flatMap((s) => s.images);
+      this.previewId = this.images[0]?.id ?? null;
     });
-    this.api.list().pipe(takeUntilDestroyed(this.destroyRef), finalize(() => (this.loading = false))).subscribe({
-      next: (images) => {
-        this.images = images;
-        this.previewId = images[0]?.id ?? null;
-      },
-      error: (err) => (this.loadError = apiErrorMessage(err, 'Could not load the images.')),
-    });
+  }
+
+  /** Writes uploads and deletes back to each asset's stored images. */
+  private persist(): void {
+    for (const tag of this.allAssets ? ASSET_RECORDS.map((a) => a.tag) : [this.asset.tag]) {
+      const store = IMG_STORE.get(tag);
+      if (store) store.images = this.images.filter((i) => i.assetTag === tag);
+    }
   }
 
   assetName(img: AssetImage): string {
-    return img.assetName || this.assetOptions.find((a) => a.id === img.assetRegistrationId)?.name || '-';
+    return findAsset(img.assetTag)?.name ?? '-';
   }
 
   /** True for the image used as its asset's photo. */
   isAssetPhoto(img: AssetImage): boolean {
-    return !!img.assetTag && ASSET_PHOTO.get(img.assetTag) === img.apiId;
+    return (img.assetTag ? IMG_STORE.get(img.assetTag)?.headerImageId : this.headerImageId) === img.id;
   }
 
-  /** Shows the asset named in the URL (asset tag or registration id), with its images. */
+  /** Shows the asset named in the URL, with the images from its data file. */
   private load(tag: string | null): void {
-    this.loadSub?.unsubscribe(); // the user moved on to another asset
+    tag ??= ASSET_RECORDS[0].tag; // opened from the menu without an asset: show the first one
+    const record = findAsset(tag);
     this.requestedTag = tag ?? '';
-    this.notFound = false;
-    this.currentAsset = null;
+    this.notFound = !record;
+    if (!record) return;
+    this.asset = assetHeader(record);
     this.images = [];
     this.headerImageId = 0;
     this.previewOpen = true;
     this.previewId = null;
     this.loading = true;
-    this.loadError = '';
-    this.loadSub = this.lookup
-      .findAsset(tag)
-      .pipe(
-        switchMap((asset) => {
-          if (!asset) {
-            this.notFound = true;
-            return of(null);
-          }
-          this.currentAsset = asset;
-          this.asset = asset.header;
-          this.assetOptions = [asset];
-          return this.api.list(asset.id);
-        }),
-        finalize(() => (this.loading = false)),
-      )
-      .subscribe({
-        next: (images) => {
-          if (!images) return;
-          this.images = images;
-          const photo = ASSET_PHOTO.get(this.asset.tag);
-          this.headerImageId = images.find((i) => i.apiId === photo)?.id ?? 0;
-          this.previewId = images[0]?.id ?? null;
-        },
-        error: (err) => {
-          this.loadError = apiErrorMessage(err, 'Could not load the images.');
-          this.showToast(this.loadError);
-        },
-      });
+    loadAssetDetail(record.tag).then((detail) => {
+      if (this.requestedTag !== record.tag) return; // the user moved on to another asset
+      this.loading = false;
+      const store = storeFor(record.tag, detail);
+      this.images = store.images;
+      this.headerImageId = store.headerImageId;
+      this.previewId = this.images[0]?.id ?? null;
+    });
     this.lightboxOpen = false;
     this.checked.clear();
     this.clearFilters();
@@ -272,7 +271,7 @@ export class AssetImages implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.loadSub?.unsubscribe();
+    // Uploaded images stay in the shared store, so their file URLs are kept
     this.upload?.items.forEach((p) => URL.revokeObjectURL(p.previewUrl));
     clearTimeout(this.toastTimer);
   }
@@ -580,11 +579,12 @@ export class AssetImages implements OnDestroy {
     this.lightboxOpen = true;
   }
 
-  /** Session-only: the API has no asset photo field for images. */
   setAsAssetPhoto(image: AssetImage): void {
     this.closeMenus();
-    if (image.assetTag) ASSET_PHOTO.set(image.assetTag, image.apiId);
+    const store = image.assetTag ? IMG_STORE.get(image.assetTag) : undefined;
+    if (store) store.headerImageId = image.id;
     if (!this.allAssets) this.headerImageId = image.id;
+    this.logEvent(image, 'Set as asset photo');
     this.showToast(`${image.title} is now the asset photo.`);
   }
 
@@ -592,7 +592,13 @@ export class AssetImages implements OnDestroy {
 
   download(image: AssetImage): void {
     this.closeMenus();
-    this.lookup.download(image.src, image.fileName);
+    if (image.file) {
+      saveUrl(image.src, image.fileName);
+      return;
+    }
+    // Sample images are SVG illustrations: save them under the image's name with their real extension
+    const ext = image.src.split('.').pop() ?? 'svg';
+    saveUrl(image.src, image.fileName.replace(/\.[^.]+$/, '') + '.' + ext);
   }
 
   downloadSelected(): void {
@@ -630,7 +636,7 @@ export class AssetImages implements OnDestroy {
     this.closeMenus();
     this.uploadError = '';
     this.upload = {
-      items: [], assets: this.allAssets || !this.currentAsset ? [] : [this.currentAsset.tag], type: '', tags: '',
+      items: [], assets: this.allAssets ? [] : [this.asset.tag], type: '', tags: '',
       // On the all-assets page an empty location means "each asset's own location"
       location: this.allAssets ? '' : this.asset.location, description: '', remarks: '',
     };
@@ -644,9 +650,9 @@ export class AssetImages implements OnDestroy {
     this.assetPickerSearch = '';
   }
 
-  get pickerAssets(): AssetOption[] {
+  get pickerAssets(): typeof ASSET_RECORDS {
     const q = this.assetPickerSearch.trim().toLowerCase();
-    return q ? this.assetOptions.filter((a) => a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q)) : this.assetOptions;
+    return q ? ASSET_RECORDS.filter((a) => a.name.toLowerCase().includes(q) || a.tag.toLowerCase().includes(q)) : ASSET_RECORDS;
   }
 
   toggleUploadAsset(tag: string): void {
@@ -671,7 +677,7 @@ export class AssetImages implements OnDestroy {
   get uploadAssetsLabel(): string {
     const tags = this.upload?.assets ?? [];
     if (!tags.length) return 'Select assets';
-    if (tags.length === 1) return `${this.assetOptions.find((a) => a.tag === tags[0])?.name ?? tags[0]} (${tags[0]})`;
+    if (tags.length === 1) return `${findAsset(tags[0])?.name} (${tags[0]})`;
     return `${tags.length} assets selected`;
   }
 
@@ -742,51 +748,42 @@ export class AssetImages implements OnDestroy {
       this.uploadError = 'Give every image a name.';
       return;
     }
-    if (this.saving) return;
+    const at = toIsoDateTime(new Date());
     // Every image goes to every selected asset; the copies share the uploaded file
-    const ids = u.assets.map((tag) => this.assetOptions.find((a) => a.tag === tag)?.id ?? tag);
-    const items = u.items.map((p) => ({ file: p.file, title: p.title, width: p.width, height: p.height }));
-    const value = { type: u.type, tags: splitTags(u.tags), location: u.location, description: u.description, remarks: u.remarks };
-    this.runSave(
-      this.api.create(ids, items, value),
-      (added) => {
-        this.closeUpload();
-        if (!added.length) return;
-        this.images = [...added, ...this.images];
-        this.clearFilters();
-        this.page = 1;
-        this.openPreview(added[0]);
-        const perAsset = u.items.length;
-        this.showToast(
-          u.assets.length > 1
-            ? `${perAsset} image${perAsset > 1 ? 's' : ''} uploaded to ${u.assets.length} assets.`
-            : added.length === 1 ? `${added[0].title} uploaded.` : `${added.length} images uploaded.`,
-        );
-      },
-      (message) => (this.uploadError = message),
+    const batchStamp = Date.now();
+    const added: AssetImage[] = u.assets.flatMap((assetTag) => u.items.map((p) => ({
+      id: nextImageId++,
+      assetTag,
+      batch: `upload-${batchStamp}-${assetTag}`,
+      title: p.title.trim(),
+      description: u.description.trim(),
+      type: u.type,
+      tags: splitTags(u.tags),
+      uploadedBy: CURRENT_USER,
+      uploadedAt: at,
+      location: u.location.trim() || assetLocation(findAsset(assetTag)!),
+      fileName: p.file.name,
+      size: p.file.size,
+      width: p.width,
+      height: p.height,
+      remarks: u.remarks.trim(),
+      // The dialog's preview URL becomes the image's own URL
+      src: p.previewUrl,
+      file: p.file,
+      history: [{ action: 'Image uploaded', by: CURRENT_USER, at }],
+    })));
+    this.images = [...this.images, ...added];
+    this.persist();
+    this.upload = null;
+    this.clearFilters();
+    this.page = this.pageCount;
+    this.openPreview(added[0]);
+    const perAsset = u.items.length;
+    this.showToast(
+      u.assets.length > 1
+        ? `${perAsset} image${perAsset > 1 ? 's' : ''} uploaded to ${u.assets.length} assets.`
+        : added.length === 1 ? `${added[0].title} uploaded.` : `${added.length} images uploaded.`,
     );
-  }
-
-  /** Runs a save request with the saving flag set, reporting errors through `onError`. */
-  private runSave<T>(request: Observable<T>, onDone: (result: T) => void, onError: (message: string) => void): void {
-    this.saving = true;
-    request.pipe(takeUntilDestroyed(this.destroyRef), finalize(() => (this.saving = false))).subscribe({
-      next: onDone,
-      error: (err) => onError(apiErrorMessage(err)),
-    });
-  }
-
-  /** Puts an updated image in place of the one with the same local id. */
-  private replaceImage(updated: AssetImage): void {
-    this.images = this.images.map((i) => (i.id === updated.id ? updated : i));
-    if (this.gallery) this.gallery = this.gallery.map((i) => (i.id === updated.id ? updated : i));
-  }
-
-  /** Values of the edit form for an image as it is now. */
-  private editValue(image: AssetImage) {
-    return {
-      title: image.title, type: image.type, tags: image.tags, location: image.location, description: image.description, remarks: image.remarks,
-    };
   }
 
   // ===== Replace file =====
@@ -808,21 +805,20 @@ export class AssetImages implements OnDestroy {
       this.showToast('Choose an image file up to 20 MB.');
       return;
     }
-    if (this.saving) return;
-    const localUrl = URL.createObjectURL(file);
-    this.saving = true;
-    readDimensions(localUrl).then(([width, height]) => {
-      URL.revokeObjectURL(localUrl);
-      this.runSave(
-        this.api.update(image, this.editValue(image), { file, title: image.title, width, height }),
-        (updated) => {
-          this.replaceImage(updated);
-          this.openPreview(updated);
-          this.showToast(`${updated.title} replaced.`);
-        },
-        (message) => this.showToast(message),
-      );
+    const oldSrc = image.src;
+    image.file = file;
+    image.src = URL.createObjectURL(file);
+    releaseSrc(oldSrc);
+    image.fileName = file.name;
+    image.size = file.size;
+    image.width = image.height = 0;
+    readDimensions(image.src).then(([w, h]) => {
+      image.width = w;
+      image.height = h;
     });
+    this.logEvent(image, `Image replaced with ${file.name}`);
+    this.openPreview(image);
+    this.showToast(`${image.title} replaced.`);
   }
 
   // ===== Edit details =====
@@ -844,17 +840,14 @@ export class AssetImages implements OnDestroy {
       return;
     }
     const image = this.images.find((i) => i.id === e.id);
-    if (!image || this.saving) return;
-    const value = { title: e.title, type: e.type, tags: splitTags(e.tags), location: e.location, description: e.description, remarks: e.remarks };
-    this.runSave(
-      this.api.update(image, value),
-      (updated) => {
-        this.replaceImage(updated);
-        this.edit = null;
-        this.showToast('Image details saved.');
-      },
-      (message) => (this.editError = message),
-    );
+    if (!image) return;
+    Object.assign(image, {
+      title: e.title.trim(), description: e.description.trim(), type: e.type, tags: splitTags(e.tags),
+      location: e.location.trim(), remarks: e.remarks.trim(),
+    });
+    this.logEvent(image, 'Details edited');
+    this.edit = null;
+    this.showToast('Image details saved.');
   }
 
   // ===== History =====
@@ -862,13 +855,6 @@ export class AssetImages implements OnDestroy {
   openHistory(image: AssetImage): void {
     this.closeMenus();
     this.historyId = image.id;
-    // The event log holds the full history; keep the summary from the record if it has none
-    this.api.history(image).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (events) => {
-        if (events.length) image.history = events;
-      },
-      error: () => undefined,
-    });
   }
 
   get historyImage(): AssetImage | undefined {
@@ -877,6 +863,10 @@ export class AssetImages implements OnDestroy {
 
   get historyEvents(): ImageEvent[] {
     return [...(this.historyImage?.history ?? [])].reverse();
+  }
+
+  private logEvent(image: AssetImage, action: string): void {
+    image.history = [...image.history, { action, by: CURRENT_USER, at: toIsoDateTime(new Date()) }];
   }
 
   // ===== Delete =====
@@ -896,39 +886,26 @@ export class AssetImages implements OnDestroy {
   }
 
   confirmDelete(): void {
-    if (this.saving) return;
     const ids = new Set(this.deleteIds ?? []);
-    const apiIds = this.images.filter((i) => ids.has(i.id)).map((i) => i.apiId);
-    if (!apiIds.length) {
-      this.deleteIds = null;
-      return;
+    const removed = this.images.filter((i) => ids.has(i.id));
+    if (this.gallery) {
+      this.gallery = this.gallery.filter((i) => !ids.has(i.id));
+      if (!this.gallery.length) this.gallery = null;
+      else this.galleryIndex = Math.min(this.galleryIndex, this.gallery.length - 1);
     }
-    const request: Observable<unknown> = apiIds.length === 1 ? this.api.delete(apiIds[0]) : this.api.deleteMany(apiIds);
-    this.runSave(
-      request,
-      () => {
-        if (this.gallery) {
-          this.gallery = this.gallery.filter((i) => !ids.has(i.id));
-          if (!this.gallery.length) this.gallery = null;
-          else this.galleryIndex = Math.min(this.galleryIndex, this.gallery.length - 1);
-        }
-        this.images = this.images.filter((i) => !ids.has(i.id));
-        // An asset whose photo was deleted falls back to its default picture
-        for (const [tag, apiId] of ASSET_PHOTO) if (apiIds.includes(apiId)) ASSET_PHOTO.delete(tag);
-        ids.forEach((id) => this.checked.delete(id));
-        if (ids.has(this.headerImageId)) this.headerImageId = 0;
-        if (this.previewId !== null && ids.has(this.previewId)) {
-          this.previewId = this.filtered[0]?.id ?? null;
-          this.lightboxOpen = false;
-        }
-        this.showToast(ids.size === 1 ? 'Image deleted.' : `${ids.size} images deleted.`);
-        this.deleteIds = null;
-      },
-      (message) => {
-        this.deleteIds = null;
-        this.showToast(message);
-      },
-    );
+    this.images = this.images.filter((i) => !ids.has(i.id));
+    this.persist();
+    removed.forEach((i) => releaseSrc(i.src));
+    // An asset whose photo was deleted falls back to its first image
+    for (const store of IMG_STORE.values()) if (ids.has(store.headerImageId)) store.headerImageId = store.images[0]?.id ?? 0;
+    ids.forEach((id) => this.checked.delete(id));
+    if (ids.has(this.headerImageId)) this.headerImageId = this.images[0]?.id ?? 0;
+    if (this.previewId !== null && ids.has(this.previewId)) {
+      this.previewId = this.filtered[0]?.id ?? null;
+      this.lightboxOpen = false;
+    }
+    this.showToast(ids.size === 1 ? 'Image deleted.' : `${ids.size} images deleted.`);
+    this.deleteIds = null;
   }
 
   private showToast(message: string): void {
@@ -948,11 +925,9 @@ function toIsoDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** Header shown until the asset is loaded. */
-const EMPTY_HEADER: AssetHeader = {
-  tag: '', name: '', category: '-', model: '-', location: '-', status: 'Active', condition: 'Good', criticality: 'Medium',
-  image: null, icon: 'transformer',
-};
+function toIsoDateTime(d: Date): string {
+  return `${toIsoDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 function splitTags(text: string): string[] {
   return [...new Set(text.split(',').map((t) => t.trim()).filter(Boolean))];

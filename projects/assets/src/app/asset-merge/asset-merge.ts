@@ -1,9 +1,7 @@
-import { Component, DestroyRef, HostListener, OnDestroy, inject } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { forkJoin } from 'rxjs';
 import {
   LucideAngularModule,
   ArrowRight,
@@ -26,13 +24,37 @@ import {
   CircleDot,
   X,
 } from 'lucide-angular';
-import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetIconKey } from 'shared-ui';
-import { Comparable, DEFAULT_RULES, DedupRules, MATCH_FIELDS, MatchField, confidence } from './dedup-match';
-import { AssetDedupService, AssetMergeDto, DedupGroupDto, DedupRecordDto, MergeField, dedupErrorMessage } from './asset-dedup.service';
+import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetIconKey, AssetRecord, AssetStatus, assetLocation } from 'shared-ui';
+import DEDUP_DATA from './dedup-data.json';
+import { Comparable, DEFAULT_RULES, DedupRules, MATCH_FIELDS, MatchField, confidence, matchScore } from './dedup-match';
 
 type Confidence = 'High' | 'Medium' | 'Low';
+type MergeField = 'name' | 'type' | 'model' | 'serialNumber' | 'category' | 'location' | 'status' | 'purchaseDate' | 'supplier' | 'value';
 
-/** One record as compared and merged on this page (an API record plus its picture). */
+/** Purchase and audit details not held in the asset register. */
+interface AssetExtras {
+  serialNumber: string;
+  purchaseDate: string;
+  supplier: string;
+  value: number;
+  lastModified: string;
+  modifiedBy: string;
+}
+
+/** A record from another source (legacy import, finance register...) that may duplicate a register asset. */
+interface CandidateRecord extends AssetExtras {
+  tag: string;
+  name: string;
+  type: string;
+  manufacturer: string;
+  model: string;
+  category: string;
+  location: string;
+  status: string;
+  source: string;
+}
+
+/** One record as compared and merged on this page. */
 interface DedupRecord extends Comparable {
   tag: string;
   type: string;
@@ -67,6 +89,7 @@ interface MergeLog {
   by: string;
 }
 
+const CURRENT_USER = 'Rex Kumar';
 const MERGE_FIELDS: { key: MergeField; label: string }[] = [
   { key: 'name', label: 'Asset Name' },
   { key: 'type', label: 'Asset Type' },
@@ -81,7 +104,17 @@ const MERGE_FIELDS: { key: MergeField; label: string }[] = [
 ];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+/** DEMO MODE: sample records and merge state kept in memory until the Assets API is wired up. */
+const DATA = DEDUP_DATA as { extras: Record<string, AssetExtras>; candidates: CandidateRecord[] };
+const EXTRAS: Record<string, AssetExtras> = structuredClone(DATA.extras);
+let POOL: CandidateRecord[] = structuredClone(DATA.candidates);
+let RULES: DedupRules = { ...DEFAULT_RULES, fields: [...DEFAULT_RULES.fields] };
+/** Pairs marked "not a duplicate" ("TAG-A|TAG-B", sorted). */
+const DISMISSED = new Set<string>();
+const MERGE_LOG: MergeLog[] = [];
+
 const pad = (n: number) => String(n).padStart(2, '0');
+const pairKey = (a: string, b: string) => [a, b].sort().join('|');
 
 function nowLocal(): string {
   const d = new Date();
@@ -95,22 +128,75 @@ function isoDate(v: string): string {
   return m ? `${m[3]}-${pad(Number(m[2]))}-${pad(Number(m[1]))}` : '';
 }
 
-/** API record → page record; the picture is that of a sample asset of the same type (or category). */
-function toRecord(r: DedupRecordDto): DedupRecord {
-  const like = ASSET_RECORDS.find((a) => a.type === r.type) ?? ASSET_RECORDS.find((a) => a.category === r.category);
+function registerRecord(a: AssetRecord): DedupRecord {
+  const x = EXTRAS[a.tag];
   return {
-    tag: r.tag, name: r.name, type: r.type, manufacturer: r.manufacturer, model: r.model, serialNumber: r.serialNumber, category: r.category,
-    location: r.location, status: r.status, purchaseDate: r.purchaseDate, supplier: r.supplier, value: r.value, lastModified: r.lastModified,
-    modifiedBy: r.modifiedBy, source: r.source, inRegister: r.inRegister, image: like?.image ?? '', icon: like?.icon ?? 'transformer',
+    tag: a.tag, name: a.name, type: a.type, manufacturer: a.manufacturer, model: a.model, serialNumber: x?.serialNumber ?? a.serialNumber ?? '',
+    category: a.category, location: assetLocation(a), status: a.status, purchaseDate: x?.purchaseDate ?? a.purchaseDate ?? '',
+    supplier: x?.supplier ?? '', value: x?.value ?? 0, lastModified: x?.lastModified ?? '', modifiedBy: x?.modifiedBy ?? '',
+    source: 'Asset List', inRegister: true, image: a.image, icon: a.icon,
   };
 }
 
-function toGroup(g: DedupGroupDto): DuplicateGroup {
-  return { primary: toRecord(g.primary), members: g.members.map((m) => ({ rec: toRecord(m.record), score: m.score })), maxScore: g.maxScore };
+function candidateRecord(c: CandidateRecord): DedupRecord {
+  // Shown with the picture of a register asset of the same type
+  const like = ASSET_RECORDS.find((a) => a.type === c.type) ?? ASSET_RECORDS.find((a) => a.category === c.category);
+  return { ...c, inRegister: false, image: like?.image ?? '', icon: like?.icon ?? 'transformer' };
 }
 
-function toLog(m: AssetMergeDto): MergeLog {
-  return { primary: m.primaryTag, merged: m.mergedTags, notes: m.notes ?? '', at: m.mergedAt ?? '', by: m.mergedBy ?? '' };
+/**
+ * Groups possible duplicates. Each record joins the group of the register asset it matches best;
+ * register assets are never chained to each other through a third record.
+ */
+function findGroups(rules: DedupRules): DuplicateGroup[] {
+  const active = (r: DedupRecord) => rules.includeInactive || r.status !== 'Disposed';
+  const register = ASSET_RECORDS.map(registerRecord).filter(active);
+  const pool = POOL.map(candidateRecord).filter(active);
+  const score = (a: DedupRecord, b: DedupRecord) => (DISMISSED.has(pairKey(a.tag, b.tag)) ? 0 : matchScore(a, b, rules));
+  const groups = new Map<string, DuplicateGroup>();
+  const member = new Set<string>();
+  const join = (primary: DedupRecord, rec: DedupRecord, s: number) => {
+    let g = groups.get(primary.tag);
+    if (!g) groups.set(primary.tag, (g = { primary, members: [], maxScore: 0 }));
+    g.members.push({ rec, score: s });
+    g.maxScore = Math.max(g.maxScore, s);
+    member.add(rec.tag);
+  };
+
+  // 1. Records from other sources join their best-matching register asset
+  const unplaced: DedupRecord[] = [];
+  for (const c of pool) {
+    let best: DedupRecord | null = null;
+    let bestScore = 0;
+    for (const r of register) {
+      const s = score(c, r);
+      if (s >= rules.low && s > bestScore) [best, bestScore] = [r, s];
+    }
+    if (best) join(best, c, bestScore);
+    else unplaced.push(c);
+  }
+  // 2. Duplicates within the register: the older asset (lower id) is kept
+  for (let i = 0; i < register.length; i++) {
+    for (let j = i + 1; j < register.length; j++) {
+      const [a, b] = [register[i], register[j]];
+      if (member.has(a.tag) || member.has(b.tag) || groups.has(b.tag)) continue;
+      const s = score(a, b);
+      if (s >= rules.low) join(a, b, s);
+    }
+  }
+  // 3. Records that match only each other: the first one is kept
+  for (let i = 0; i < unplaced.length; i++) {
+    const a = unplaced[i];
+    if (member.has(a.tag)) continue;
+    for (let j = i + 1; j < unplaced.length; j++) {
+      const b = unplaced[j];
+      if (member.has(b.tag) || groups.has(b.tag)) continue;
+      const s = score(a, b);
+      if (s >= rules.low) join(a, b, s);
+    }
+  }
+  for (const g of groups.values()) g.members.sort((x, y) => y.score - x.score);
+  return [...groups.values()].sort((x, y) => y.maxScore - x.maxScore);
 }
 
 @Component({
@@ -131,15 +217,10 @@ export class AssetMerge implements OnDestroy {
   readonly matchFields = MATCH_FIELDS;
   readonly pageSizes = [5, 10, 20];
 
-  rules: DedupRules = { ...DEFAULT_RULES, fields: [...DEFAULT_RULES.fields] };
-  groups: DuplicateGroup[] = [];
-  merges: MergeLog[] = [];
-  loading = true;
-  loadError = '';
+  rules: DedupRules = RULES;
+  groups: DuplicateGroup[] = findGroups(RULES);
   scanning = false;
-  /** A merge, dismissal or rules save in progress. */
-  saving = false;
-  lastScan: string | null = null;
+  lastScan = nowLocal();
 
   // ===== Table =====
   level: Confidence | '' = '';
@@ -170,52 +251,15 @@ export class AssetMerge implements OnDestroy {
 
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
-
-  private readonly api = inject(AssetDedupService);
-  private readonly destroyRef = inject(DestroyRef);
+  private scanTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
-    this.load();
-  }
-
-  /** Rules, duplicate groups and the merge log, from the Asset service. */
-  load(): void {
-    this.loading = true;
-    this.loadError = '';
-    forkJoin({ rules: this.api.getRules(), groups: this.api.getGroups(), merges: this.api.getMerges() })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ rules, groups, merges }) => {
-          this.rules = { fields: rules.fields as MatchField[], high: rules.high, medium: rules.medium, low: rules.low, includeInactive: rules.includeInactive };
-          this.lastScan = groups.lastScanAt ?? rules.lastScanAt;
-          this.merges = merges.items.map(toLog);
-          this.setGroups(groups.items.map(toGroup));
-          this.loading = false;
-        },
-        error: (err) => {
-          this.loading = false;
-          this.loadError = dedupErrorMessage(err);
-        },
-      });
-  }
-
-  /** Reloads the groups (after a scan, dismissal, merge or rules change). */
-  private refresh(after?: () => void): void {
-    forkJoin({ groups: this.api.getGroups(), merges: this.api.getMerges() })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: ({ groups, merges }) => {
-          this.lastScan = groups.lastScanAt ?? this.lastScan;
-          this.merges = merges.items.map(toLog);
-          this.setGroups(groups.items.map(toGroup));
-          after?.();
-        },
-        error: (err) => this.showToast(dedupErrorMessage(err)),
-      });
+    if (this.groups.length) this.review(this.groups[0]);
   }
 
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
+    clearTimeout(this.scanTimer);
   }
 
   // ===== KPIs =====
@@ -243,25 +287,17 @@ export class AssetMerge implements OnDestroy {
   scan(): void {
     if (this.scanning) return;
     this.scanning = true;
-    this.api.scan().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (res) => {
-        this.lastScan = res.scannedAt;
-        this.refresh(() => {
-          this.scanning = false;
-          const n = res.duplicates;
-          this.showToast(n ? `Scan complete: ${n} potential duplicate${n > 1 ? 's' : ''} in ${res.groups} group${res.groups > 1 ? 's' : ''}.` : 'Scan complete: no duplicates found.');
-        });
-      },
-      error: (err) => {
-        this.scanning = false;
-        this.showToast(dedupErrorMessage(err));
-      },
-    });
+    this.scanTimer = setTimeout(() => {
+      this.rescan();
+      this.scanning = false;
+      const n = this.allMembers.length;
+      this.showToast(n ? `Scan complete: ${n} potential duplicate${n > 1 ? 's' : ''} in ${this.groups.length} group${this.groups.length > 1 ? 's' : ''}.` : 'Scan complete: no duplicates found.');
+    }, 700);
   }
 
-  /** Shows new groups, keeping the group under review (and the checked rows) when they are still there. */
-  private setGroups(groups: DuplicateGroup[]): void {
-    this.groups = groups;
+  private rescan(): void {
+    this.groups = findGroups(this.rules);
+    this.lastScan = nowLocal();
     const keep = this.groups.find((g) => g.primary.tag === this.reviewKey);
     if (keep) this.review(keep);
     else if (this.groups.length) this.review(this.groups[0]);
@@ -379,23 +415,10 @@ export class AssetMerge implements OnDestroy {
       this.showToast('Select records first.');
       return;
     }
-    if (this.saving) return;
-    this.saving = true;
-    forkJoin(groups.map((g) => this.api.dismiss([g.primary.tag, ...g.members.map((m) => m.rec.tag)])))
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          tags.forEach((t) => this.checked.delete(t));
-          this.refresh(() => {
-            this.saving = false;
-            this.showToast(groups.length === 1 ? `${groups[0].primary.tag} marked as not a duplicate.` : `${groups.length} groups marked as not duplicates.`);
-          });
-        },
-        error: (err) => {
-          this.saving = false;
-          this.showToast(dedupErrorMessage(err));
-        },
-      });
+    groups.forEach((g) => g.members.forEach((m) => DISMISSED.add(pairKey(g.primary.tag, m.rec.tag))));
+    tags.forEach((t) => this.checked.delete(t));
+    this.rescan();
+    this.showToast(groups.length === 1 ? `${groups[0].primary.tag} marked as not a duplicate.` : `${groups.length} groups marked as not duplicates.`);
   }
 
   dismissSelected(): void {
@@ -536,43 +559,50 @@ export class AssetMerge implements OnDestroy {
     this.confirmOpen = true;
   }
 
-  /**
-   * Applies the merge on the server: the kept record takes the chosen values (each field names the record it comes
-   * from) and the merged records are retired from the register.
-   */
+  /** Applies the merge: the kept record takes the chosen values; the others are removed. */
   merge(): void {
     this.confirmOpen = false;
-    if (this.saving) return;
     const recs = this.cards;
     const keep = recs[0];
-    const mergedTags = recs.slice(1).map((r) => r.tag);
-    const inMerge = new Set(recs.map((r) => r.tag));
-    const fieldSources: Partial<Record<MergeField, string>> = {};
-    for (const f of MERGE_FIELDS) {
-      const tag = this.choice[f.key];
-      if (tag && inMerge.has(tag)) fieldSources[f.key] = tag;
+    const pick = (f: MergeField) => {
+      const r = this.record(this.choice[f] ?? '');
+      return r ? this.value(r, f) : '';
+    };
+    const [site, ...area] = pick('location').split(' - ');
+    const removedRegister = recs.slice(1).filter((r) => r.inRegister);
+    let target = ASSET_RECORDS.find((a) => a.tag === keep.tag);
+    if (!target) {
+      // Keeping a record from another source: it joins the register in place of the register duplicates
+      const like = removedRegister[0] ? ASSET_RECORDS.find((a) => a.tag === removedRegister[0].tag) : undefined;
+      target = {
+        id: Math.max(0, ...ASSET_RECORDS.map((a) => a.id)) + 1, tag: keep.tag, name: '', type: '', category: '', site: '', area: '', custodian: like?.custodian ?? '',
+        department: like?.department ?? '', status: 'Active', criticality: like?.criticality ?? 'Medium', manufacturer: keep.manufacturer,
+        model: '', nextMaintenance: like?.nextMaintenance ?? null, icon: like?.icon ?? keep.icon, image: like?.image ?? keep.image,
+      };
+      ASSET_RECORDS.push(target);
     }
-    this.saving = true;
-    this.api
-      .merge({ primaryTag: keep.tag, mergedTags, fieldSources, notes: this.notes.trim() })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          this.reviewKey = null;
-          this.refresh(() => {
-            this.saving = false;
-            this.showToast(`${mergedTags.length} record${mergedTags.length > 1 ? 's' : ''} merged into ${keep.tag}.`);
-          });
-        },
-        error: (err) => {
-          this.saving = false;
-          this.showToast(dedupErrorMessage(err));
-        },
-      });
+    Object.assign(target, {
+      name: pick('name') || target.name, type: pick('type') || target.type, model: pick('model') || target.model,
+      category: pick('category') || target.category, site: site || target.site, area: area.join(' - ') || target.area,
+      status: (pick('status') as AssetStatus) || target.status,
+    });
+    if (pick('serialNumber')) target.serialNumber = pick('serialNumber');
+    if (isoDate(pick('purchaseDate'))) target.purchaseDate = isoDate(pick('purchaseDate'));
+    EXTRAS[target.tag] = {
+      serialNumber: pick('serialNumber'), purchaseDate: isoDate(pick('purchaseDate')), supplier: pick('supplier'),
+      value: Number(pick('value')) || 0, lastModified: nowLocal().slice(0, 10), modifiedBy: CURRENT_USER,
+    };
+    const gone = new Set(recs.slice(1).map((r) => r.tag));
+    for (let i = ASSET_RECORDS.length - 1; i >= 0; i--) if (gone.has(ASSET_RECORDS[i].tag)) ASSET_RECORDS.splice(i, 1);
+    POOL = POOL.filter((c) => !gone.has(c.tag) && c.tag !== keep.tag);
+    MERGE_LOG.unshift({ primary: keep.tag, merged: [...gone], notes: this.notes.trim(), at: nowLocal(), by: CURRENT_USER });
+    this.reviewKey = null;
+    this.rescan();
+    this.showToast(`${gone.size} record${gone.size > 1 ? 's' : ''} merged into ${keep.tag}.`);
   }
 
   get mergeLog(): MergeLog[] {
-    return this.merges;
+    return MERGE_LOG;
   }
 
   // ===== Rules =====
@@ -601,25 +631,10 @@ export class AssetMerge implements OnDestroy {
       this.rulesError = 'Thresholds must go High > Medium > Low, between 1 and 100.';
       return;
     }
-    if (this.saving) return;
-    this.saving = true;
-    this.api
-      .saveRules({ ...f, high, medium, low })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (saved) => {
-          this.rules = { fields: saved.fields as MatchField[], high: saved.high, medium: saved.medium, low: saved.low, includeInactive: saved.includeInactive };
-          this.rulesForm = null;
-          this.refresh(() => {
-            this.saving = false;
-            this.showToast(`Rules saved. ${this.allMembers.length} potential duplicates found.`);
-          });
-        },
-        error: (err) => {
-          this.saving = false;
-          this.rulesError = dedupErrorMessage(err);
-        },
-      });
+    RULES = this.rules = { ...f, high, medium, low };
+    this.rulesForm = null;
+    this.rescan();
+    this.showToast(`Rules saved. ${this.allMembers.length} potential duplicates found.`);
   }
 
   // ===== Misc =====

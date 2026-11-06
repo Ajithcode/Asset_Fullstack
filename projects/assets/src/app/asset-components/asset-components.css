@@ -1371,27 +1371,3 @@ button.caret:hover {
   max-width: 280px;
   font-weight: 500;
 }
-
-/* ===== API load state ===== */
-.load-state {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0 0 12px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: #f4f6fb;
-  color: #4b5565;
-  font-size: 13px;
-}
-
-.load-state--error {
-  justify-content: space-between;
-  background: #fdecec;
-  color: #b42318;
-}
-
-.form-error {
-  margin-right: auto;
-  align-self: center;
-}

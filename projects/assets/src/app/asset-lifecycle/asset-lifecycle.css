@@ -1655,8 +1655,3 @@ dd.total {
     display: none !important;
   }
 }
-
-/* API load state */
-.load-note, .load-error { margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; font-size: 13.5px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.load-note { background: #f3f4f6; color: #4b5563; }
-.load-error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }

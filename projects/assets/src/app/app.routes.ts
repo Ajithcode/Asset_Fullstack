@@ -11,8 +11,11 @@ import { AssetRelationshipList } from './asset-relationship-list/asset-relations
 import { AssetDocuments } from './asset-documents/asset-documents';
 import { AssetImages } from './asset-images/asset-images';
 import { AssetStatusCondition } from './asset-status-condition/asset-status-condition';
+import { AssetStatusOverview } from './asset-status-condition/asset-status-overview';
 import { AssetCriticality } from './asset-criticality/asset-criticality';
 import { AssetHealthScore } from './asset-health-score/asset-health-score';
+import { AssetCriticalityOverview } from './asset-criticality/asset-criticality-overview';
+import { AssetHealthOverview } from './asset-health-score/asset-health-overview';
 import { AssetBulk } from './asset-bulk/asset-bulk';
 import { BulkAssignment } from './asset-bulk/bulk-assignment/bulk-assignment';
 import { AssetMerge } from './asset-merge/asset-merge';
@@ -73,9 +76,16 @@ export const routes: Routes = [
   { path: 'images', component: AssetImages },
   // Menu page: images of every asset, uploaded to one or more assets at a time
   { path: 'all-images', component: AssetImages, data: { allAssets: true } },
+  // Asset detail tab (?tag=): one asset's status and condition, with the asset header and tab bar
   { path: 'status-condition', component: AssetStatusCondition },
+  // Menu page: status and condition of every asset
+  { path: 'all-status-condition', component: AssetStatusOverview },
+  // Asset detail tabs (?tag=): one asset's criticality / health score, with the asset header and tab bar
   { path: 'criticality', component: AssetCriticality },
   { path: 'health-score', component: AssetHealthScore },
+  // Menu pages: criticality / health score of every asset
+  { path: 'all-criticality', component: AssetCriticalityOverview },
+  { path: 'all-health-score', component: AssetHealthOverview },
   { path: 'bulk-import-export', component: AssetBulk },
   { path: 'merge-dedup', component: AssetMerge }
 ];

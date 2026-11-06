@@ -287,17 +287,3 @@
   .kpi-row,
   .grid-3 { grid-template-columns: minmax(0, 1fr); }
 }
-
-/* ===== Loading / load error ===== */
-.load-state {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #4b5563;
-}
-
-.load-state--error {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
-}

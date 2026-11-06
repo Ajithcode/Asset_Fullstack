@@ -46,8 +46,6 @@ import {
   isOpen,
   slaOf,
 } from '../maintenance-sr';
-import { MaintenanceApiService } from '../maintenance-api.service';
-import { apiErrorMessage } from '../../services/asset-api';
 
 export interface SrWorkOrderRequest {
   requestId: string;
@@ -89,8 +87,6 @@ export class ServiceRequests {
   @Input({ required: true }) location = '';
   /** Owned by the parent page; this tab edits it in place. */
   @Input({ required: true }) requests!: ServiceRequest[];
-  /** Asset registration id in the Asset API; new requests are raised against it. */
-  @Input() registrationId = '';
   @Output() convert = new EventEmitter<SrWorkOrderRequest>();
   @Output() activity = new EventEmitter<string>();
   @Output() notify = new EventEmitter<string>();
@@ -128,18 +124,7 @@ export class ServiceRequests {
   /** Resolve / close dialog. */
   closing: { id: string; to: 'Resolved' | 'Closed'; note: string; rating: number } | null = null;
   slaOpen = false;
-  /** True while a request is being saved. */
-  saving = false;
   private readonly router = inject(Router);
-  private readonly api = inject(MaintenanceApiService);
-
-  private get user(): string {
-    return this.api.user === 'unknown' ? CURRENT_USER : this.api.user;
-  }
-
-  private fail(err: unknown, fallback: string): void {
-    this.notify.emit(apiErrorMessage(err, fallback));
-  }
 
   // ===== Rows =====
 
@@ -230,7 +215,7 @@ export class ServiceRequests {
   /** Full page for one request, opened on the given tab. */
   open(r: ServiceRequest, tab: 'details' | 'updates' | 'attachments' | 'related' = 'details'): void {
     this.menuOpen = '';
-    this.router.navigate(['/assets/service-requests', r.apiId ?? r.id], { queryParams: { tag: this.asset.tag, tab } });
+    this.router.navigate(['/assets/service-requests', r.id], { queryParams: { tag: this.asset.tag, tab } });
   }
 
   get selected(): ServiceRequest | null {
@@ -253,7 +238,7 @@ export class ServiceRequests {
   }
 
   private log(r: ServiceRequest, text: string): void {
-    r.updates.push({ at: this.nowStamp(), by: this.user, text });
+    r.updates.push({ at: this.nowStamp(), by: CURRENT_USER, text });
   }
 
   private nowStamp(): string {
@@ -269,7 +254,7 @@ export class ServiceRequests {
     this.formError = '';
     this.form = r
       ? { id: r.id, title: r.title, description: r.description, category: r.category, priority: r.priority, requestedBy: r.requestedBy, requesterDept: r.requesterDept, assignedTo: r.assignedTo, targetDate: r.targetDate }
-      : { id: null, title: '', description: '', category: 'Mechanical', priority: 'Medium', requestedBy: this.user, requesterDept: `${this.asset.department} Department`, assignedTo: '', targetDate: this.targetFor('Medium') };
+      : { id: null, title: '', description: '', category: 'Mechanical', priority: 'Medium', requestedBy: CURRENT_USER, requesterDept: `${this.asset.department} Department`, assignedTo: '', targetDate: this.targetFor('Medium') };
   }
 
   private targetFor(p: SrPriority): string {
@@ -289,57 +274,42 @@ export class ServiceRequests {
     if (!f.title.trim()) return void (this.formError = 'Enter the subject.');
     if (!f.targetDate) return void (this.formError = 'Enter the target date.');
     const existing = f.id ? this.requests.find((r) => r.id === f.id) : undefined;
-    if (!existing && !this.registrationId) return void (this.formError = `${this.asset.tag} is not registered in the Asset API, so requests cannot be raised for it.`);
-    const fields = {
-      title: f.title.trim(), description: f.description.trim(), category: f.category, priority: f.priority, requestedBy: f.requestedBy.trim() || this.user,
-      requesterDept: f.requesterDept.trim(), assignedTo: f.assignedTo, targetDate: f.targetDate,
-    };
-    this.saving = true;
-    this.api.saveServiceRequest(this.registrationId, { ...fields, apiId: existing?.apiId }).subscribe({
-      next: (saved) => {
-        this.saving = false;
-        if (existing) {
-          const assigned = !existing.assignedTo && f.assignedTo;
-          Object.assign(existing, fields);
-          if (assigned) this.assignTo(existing, f.assignedTo, false);
-          this.log(existing, 'Request details updated.');
-          this.notify.emit(`${existing.id} updated.`);
-        } else {
-          const r: ServiceRequest = { ...saved, category: f.category };
-          this.requests.unshift(r);
-          if (f.assignedTo) this.assignTo(r, f.assignedTo, false);
-          this.selectedId = r.id;
-          this.panelOpen = true;
-          this.activity.emit(`Service request ${r.id} created`);
-          this.notify.emit(`${r.id} created for ${this.asset.tag}.`);
-        }
-        this.form = null;
-      },
-      error: (err) => {
-        this.saving = false;
-        this.formError = apiErrorMessage(err, 'The service request could not be saved.');
-      },
-    });
+    if (existing) {
+      const assigned = !existing.assignedTo && f.assignedTo;
+      Object.assign(existing, { title: f.title.trim(), description: f.description.trim(), category: f.category, priority: f.priority, requestedBy: f.requestedBy.trim(), requesterDept: f.requesterDept.trim(), assignedTo: f.assignedTo, targetDate: f.targetDate });
+      if (assigned) this.assignTo(existing, f.assignedTo, false);
+      this.log(existing, 'Request details updated.');
+      this.notify.emit(`${existing.id} updated.`);
+    } else {
+      const year = TODAY.getFullYear();
+      const n = Math.max(0, ...this.requests.map((r) => Number(r.id.split('-')[2]) || 0)) + 1;
+      const at = this.nowStamp();
+      const r: ServiceRequest = {
+        id: `SR-${year}-${String(n).padStart(3, '0')}`, date: at.slice(0, 10), title: f.title.trim(), description: f.description.trim(), category: f.category, priority: f.priority,
+        status: 'Open', createdAt: at, requestedBy: f.requestedBy.trim() || CURRENT_USER, requesterDept: f.requesterDept.trim(), assignedTo: '', respondedAt: '', resolvedAt: '',
+        targetDate: f.targetDate, workOrder: '', rating: 0, updates: [{ at, by: f.requestedBy.trim() || CURRENT_USER, text: 'Service request created.' }], attachments: [],
+      };
+      this.requests.unshift(r);
+      if (f.assignedTo) this.assignTo(r, f.assignedTo, false);
+      this.selectedId = r.id;
+      this.panelOpen = true;
+      this.activity.emit(`Service request ${r.id} created`);
+      this.notify.emit(`${r.id} created for ${this.asset.tag}.`);
+    }
+    this.form = null;
   }
 
-  /** Assigns locally and records it on the request (status In Progress) in the Asset API. */
   private assignTo(r: ServiceRequest, who: string, announce = true): void {
     r.assignedTo = who;
     if (!r.respondedAt) r.respondedAt = this.nowStamp();
     if (r.status === 'Open') r.status = 'In Progress';
     this.log(r, `Assigned to ${who}.`);
     if (announce) this.notify.emit(`${r.id} assigned to ${who}.`);
-    if (r.apiId) this.api.addServiceRequestUpdate(r.apiId, `Assigned to ${who}.`, r.status).subscribe({ error: (err) => this.fail(err, `${r.id}: the assignment was not saved.`) });
   }
 
   assign(r: ServiceRequest, who: string): void {
     this.menuOpen = '';
-    if (!who || who === r.assignedTo) return;
-    if (!r.apiId) return this.assignTo(r, who);
-    // keep the request's assignee in step, then note it on the Updates timeline
-    this.api
-      .saveServiceRequest(this.registrationId, { apiId: r.apiId, title: r.title, description: r.description, category: r.category, priority: r.priority, requestedBy: r.requestedBy, requesterDept: r.requesterDept, assignedTo: who, targetDate: r.targetDate })
-      .subscribe({ next: () => this.assignTo(r, who), error: (err) => this.fail(err, `${r.id} could not be assigned.`) });
+    if (who && who !== r.assignedTo) this.assignTo(r, who);
   }
 
   convertToWorkOrder(r: ServiceRequest): void {
@@ -352,7 +322,6 @@ export class ServiceRequests {
   linkWorkOrder(requestId: string, workOrder: string, technician: string): void {
     const r = this.requests.find((x) => x.id === requestId);
     if (!r) return;
-    if (r.apiId) this.api.linkWorkOrder(r.apiId, workOrder).subscribe({ error: (err) => this.fail(err, `${workOrder} could not be linked to ${r.id}.`) });
     r.workOrder = workOrder;
     if (!r.assignedTo) r.assignedTo = technician;
     if (!r.respondedAt) r.respondedAt = this.nowStamp();
@@ -369,25 +338,6 @@ export class ServiceRequests {
     const c = this.closing;
     const r = c && this.requests.find((x) => x.id === c.id);
     if (!c || !r) return;
-    if (r.apiId) {
-      if (this.saving) return;
-      this.saving = true;
-      this.api.addServiceRequestUpdate(r.apiId, `${c.to}.${c.note.trim() ? ' ' + c.note.trim() : ''}`, c.to).subscribe({
-        next: () => {
-          this.saving = false;
-          this.applyClose(r, c);
-        },
-        error: (err) => {
-          this.saving = false;
-          this.fail(err, `${r.id} could not be ${c.to.toLowerCase()}.`);
-        },
-      });
-      return;
-    }
-    this.applyClose(r, c);
-  }
-
-  private applyClose(r: ServiceRequest, c: { to: 'Resolved' | 'Closed'; note: string; rating: number }): void {
     const at = this.nowStamp();
     if (!r.respondedAt) r.respondedAt = at;
     if (!r.resolvedAt) r.resolvedAt = at;
@@ -401,28 +351,15 @@ export class ServiceRequests {
 
   reopen(r: ServiceRequest): void {
     this.menuOpen = '';
-    const status: SrStatus = r.assignedTo ? 'In Progress' : 'Open';
-    const apply = () => {
-      r.status = status;
-      r.resolvedAt = '';
-      this.log(r, 'Reopened.');
-      this.notify.emit(`${r.id} reopened.`);
-    };
-    if (!r.apiId) return apply();
-    this.api.addServiceRequestUpdate(r.apiId, 'Reopened.', status).subscribe({ next: apply, error: (err) => this.fail(err, `${r.id} could not be reopened.`) });
+    r.status = r.assignedTo ? 'In Progress' : 'Open';
+    r.resolvedAt = '';
+    this.log(r, 'Reopened.');
+    this.notify.emit(`${r.id} reopened.`);
   }
 
   remove(r: ServiceRequest): void {
     this.menuOpen = '';
     if (!confirm(`Delete service request ${r.id}?`)) return;
-    if (r.apiId) {
-      this.api.deleteServiceRequest(r.apiId).subscribe({ next: () => this.dropRow(r), error: (err) => this.fail(err, `${r.id} could not be deleted.`) });
-      return;
-    }
-    this.dropRow(r);
-  }
-
-  private dropRow(r: ServiceRequest): void {
     const i = this.requests.indexOf(r);
     if (i >= 0) this.requests.splice(i, 1);
     this.checked.delete(r.id);

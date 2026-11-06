@@ -941,10 +941,6 @@ button.caret:hover {
   color: var(--ah-text-muted);
 }
 
-.tree-empty.error {
-  color: var(--ah-danger);
-}
-
 /* ============ Status ============ */
 .pill {
   border: 0;

@@ -18,7 +18,6 @@
   </div>
 
   <ng-container *ngIf="!notFound">
-  <p *ngIf="loadError && !loading" class="mt-load-error" role="alert">{{ loadError }} <button type="button" class="btn btn-outline btn-sm" (click)="reload()">Retry</button></p>
   <!-- Asset header -->
   <div class="card asset-head">
     <img *ngIf="asset.image; else headerIcon" class="asset-img" [src]="asset.image" [alt]="asset.name" />

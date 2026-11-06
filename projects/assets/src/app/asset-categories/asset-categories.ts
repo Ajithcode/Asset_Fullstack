@@ -1,5 +1,4 @@
-import { Component, DestroyRef, HostListener, inject } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -63,67 +62,183 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { Observable, finalize, forkJoin } from 'rxjs';
-import {
-  AssetCategory, AssetCategoryAttribute, AssetCategoryCustomField, AssetCategoryService, CATEGORY_FIELD_TYPES, CategoryFieldType,
-  CategoryStatus,
-} from '../services/asset-category/asset-category';
-import { FilterSelect, FilterSelectOption } from '../shared/filter-select/filter-select';
 
+type CategoryStatus = 'Active' | 'Inactive';
 type DetailTab = 'subcategories' | 'fields' | 'attributes' | 'assets';
+type FieldType = 'Text' | 'Number' | 'Date' | 'Dropdown' | 'Yes / No';
+
+interface CustomField {
+  name: string;
+  type: FieldType;
+  required: boolean;
+}
+
+interface Attribute {
+  name: string;
+  unit: string;
+  example: string;
+}
 
 interface CategoryNode {
-  id: string;
+  id: number;
   name: string;
   code: string;
   description: string;
   status: CategoryStatus;
   icon: keyof AssetCategories['categoryIcons'];
-  /** Image URL (or data URL) saved on the category; the icon is shown when absent. */
+  /** Uploaded image as a data URL; the icon is shown when absent. */
   image?: string;
-  /** Own and inherited custom fields / attributes, as the API returns them. */
-  customFields: AssetCategoryCustomField[];
-  attributes: AssetCategoryAttribute[];
+  /** Assets registered directly against this category (leaf categories only, in practice). */
+  ownAssets: number;
+  customFields: CustomField[];
+  attributes: Attribute[];
   children: CategoryNode[];
-  /** The record as last loaded, for PUTs that change one thing. */
-  record: AssetCategory;
+}
+
+/** A field or attribute row, tagged with the category it was defined on. */
+interface Inherited<T> {
+  item: T;
+  from: string;
+  inherited: boolean;
 }
 
 interface CategoryForm {
   name: string;
   code: string;
-  parentId: string | null;
+  parentId: number | null;
   description: string;
   status: CategoryStatus;
 }
 
-/** Matches the popup-out animation length in the stylesheet. */
-const POPUP_CLOSE_MS = 180;
+let nextId = 1;
 
-const EMPTY_FORM: CategoryForm = { name: '', code: '', parentId: null, description: '', status: 'Active' };
-
-/** Keyword → icon, so categories from the API get a fitting icon. First match wins. */
-const ICON_KEYWORDS: [RegExp, string][] = [
-  [/generat|power/i, 'generator'], [/transformer/i, 'transformer'], [/\bups\b/i, 'ups'], [/switchgear/i, 'switchgear'],
-  [/panel/i, 'panel'], [/chiller|hvac|cooling/i, 'chiller'], [/ahu|air handling/i, 'ahu'], [/split|\bac\b|air con/i, 'ac'],
-  [/vrf/i, 'vrf'], [/forklift|material handling/i, 'forklift'], [/conveyor/i, 'conveyor'], [/crane/i, 'crane'],
-  [/pallet/i, 'pallet'], [/motor/i, 'motor'], [/compressor/i, 'compressor'], [/pump/i, 'pump'], [/laptop|notebook/i, 'laptop'],
-  [/desktop|monitor|workstation/i, 'desktop'], [/server/i, 'server'], [/network|switch|router/i, 'network'],
-  [/printer|scanner/i, 'printer'], [/\bit\b|computer|cpu/i, 'it'], [/cctv|camera/i, 'cctv'], [/alarm/i, 'alarm'],
-  [/access/i, 'access'], [/fire/i, 'fire'], [/security|safety/i, 'security'], [/cabinet|storage/i, 'cabinet'],
-  [/furniture|chair|desk/i, 'furniture'], [/truck|van/i, 'truck'], [/vehicle|car|fleet/i, 'vehicle'], [/drill|power tool/i, 'drill'],
-  [/measur|instrument|gauge|meter/i, 'gauge'], [/tool/i, 'tools'], [/machin|equipment/i, 'machinery'],
-];
-
-function toStatus(status: string | null | undefined): CategoryStatus {
-  return status?.trim().toLowerCase() === 'inactive' ? 'Inactive' : 'Active';
+function node(
+  name: string,
+  code: string,
+  icon: CategoryNode['icon'],
+  description: string,
+  opts: Partial<Pick<CategoryNode, 'ownAssets' | 'status' | 'customFields' | 'attributes' | 'children'>> = {},
+): CategoryNode {
+  return {
+    id: nextId++,
+    name,
+    code,
+    icon,
+    description,
+    status: opts.status ?? 'Active',
+    ownAssets: opts.ownAssets ?? 0,
+    customFields: opts.customFields ?? [],
+    attributes: opts.attributes ?? [],
+    children: opts.children ?? [],
+  };
 }
 
+function buildMockTree(): CategoryNode[] {
+  return [
+    node('Machinery & Equipment', 'ME', 'machinery', 'All types of machinery, plant and equipment used for operations and support functions.', {
+      customFields: [
+        { name: 'Operating Hours', type: 'Number', required: false },
+        { name: 'Commissioning Date', type: 'Date', required: true },
+        { name: 'Service Contract', type: 'Yes / No', required: false },
+      ],
+      attributes: [
+        { name: 'Rated Power', unit: 'kW', example: '250' },
+        { name: 'Voltage', unit: 'V', example: '415' },
+        { name: 'Weight', unit: 'kg', example: '1,850' },
+        { name: 'Noise Level', unit: 'dB', example: '72' },
+        { name: 'Efficiency', unit: '%', example: '94' },
+      ],
+      children: [
+        node('Power Generation', 'PG', 'generator', 'Equipment that generates, converts or distributes electrical power.', {
+          customFields: [{ name: 'Fuel Type', type: 'Dropdown', required: true }],
+          children: [
+            node('Generator', 'GEN', 'generator', 'Diesel / Gas / Portable Generators', { ownAssets: 56, attributes: [{ name: 'Fuel Tank Capacity', unit: 'L', example: '500' }] }),
+            node('Transformer', 'TRF', 'transformer', 'Power Transformers and Distribution Transformers', { ownAssets: 24 }),
+            node('UPS', 'UPS', 'ups', 'Uninterruptible Power Supply', { ownAssets: 32, attributes: [{ name: 'Backup Time', unit: 'min', example: '30' }] }),
+            node('Switchgear', 'SWG', 'switchgear', 'LV / MV Switchgear', { ownAssets: 18 }),
+            node('Control Panel', 'CP', 'panel', 'Electrical Control Panels', { ownAssets: 40 }),
+          ],
+        }),
+        node('HVAC', 'HVAC', 'chiller', 'Heating, ventilation and air conditioning equipment.', {
+          attributes: [{ name: 'Cooling Capacity', unit: 'TR', example: '5' }],
+          children: [
+            node('Chiller', 'CHL', 'chiller', 'Air / Water Cooled Chillers', { ownAssets: 12 }),
+            node('AHU', 'AHU', 'ahu', 'Air Handling Units', { ownAssets: 20 }),
+            node('Split AC', 'SAC', 'ac', 'Wall / Ceiling Split Air Conditioners', { ownAssets: 64 }),
+            node('VRF System', 'VRF', 'vrf', 'Variable Refrigerant Flow Systems', { ownAssets: 8, status: 'Inactive' }),
+          ],
+        }),
+        node('Material Handling', 'MH', 'forklift', 'Equipment used to move, store and control materials.', {
+          customFields: [{ name: 'Load Test Certificate', type: 'Text', required: true }],
+          children: [
+            node('Forklift', 'FLT', 'forklift', 'Electric / Diesel Forklifts', { ownAssets: 14 }),
+            node('Conveyor', 'CNV', 'conveyor', 'Belt and Roller Conveyors', { ownAssets: 6 }),
+            node('Crane', 'CRN', 'crane', 'Overhead and Gantry Cranes', { ownAssets: 3 }),
+            node('Pallet Jack', 'PJK', 'pallet', 'Manual / Electric Pallet Jacks', { ownAssets: 22 }),
+          ],
+        }),
+        node('Motor', 'MTR', 'motor', 'Electric Motors', { ownAssets: 28, status: 'Inactive' }),
+        node('Compressor', 'CMP', 'compressor', 'Air Compressors', { ownAssets: 14 }),
+        node('Pump', 'PMP', 'pump', 'Water / Fuel / Process Pumps', { ownAssets: 36 }),
+      ],
+    }),
+    node('IT Equipment', 'IT', 'it', 'Computing, networking and peripheral hardware.', {
+      customFields: [
+        { name: 'Asset Owner Email', type: 'Text', required: true },
+        { name: 'OS Version', type: 'Text', required: false },
+      ],
+      attributes: [{ name: 'RAM', unit: 'GB', example: '16' }, { name: 'Storage', unit: 'GB', example: '512' }],
+      children: [
+        node('Laptop', 'LAP', 'laptop', 'Business Laptops and Notebooks', { ownAssets: 210 }),
+        node('Desktop', 'DSK', 'desktop', 'Desktop Computers and Workstations', { ownAssets: 96 }),
+        node('Server', 'SRV', 'server', 'Rack and Tower Servers', { ownAssets: 18 }),
+        node('Network Switch', 'NSW', 'network', 'Managed / Unmanaged Switches', { ownAssets: 34 }),
+        node('Printer', 'PRN', 'printer', 'Printers, Scanners and MFPs', { ownAssets: 27 }),
+      ],
+    }),
+    node('Security & Safety', 'SS', 'security', 'Surveillance, access control and fire safety systems.', {
+      children: [
+        node('CCTV', 'CCTV', 'cctv', 'Dome / Bullet / PTZ Cameras', { ownAssets: 142 }),
+        node('Fire Alarm', 'FAL', 'alarm', 'Fire Alarm Panels and Detectors', { ownAssets: 58 }),
+        node('Access Control', 'ACC', 'access', 'Card Readers and Door Controllers', { ownAssets: 44 }),
+        node('Fire Pump', 'FP', 'fire', 'Fire Fighting Pumps', { ownAssets: 6 }),
+      ],
+    }),
+    node('Furniture & Fixtures', 'FF', 'furniture', 'Office furniture, fittings and fixtures.', {
+      children: [
+        node('Desk', 'DSK-F', 'furniture', 'Office Desks and Workstations', { ownAssets: 320 }),
+        node('Chair', 'CHR', 'furniture', 'Office and Visitor Chairs', { ownAssets: 410 }),
+        node('Cabinet', 'CAB', 'cabinet', 'Filing and Storage Cabinets', { ownAssets: 85 }),
+      ],
+    }),
+    node('Vehicles & Fleet', 'VF', 'vehicle', 'Company-owned and leased vehicles.', {
+      customFields: [
+        { name: 'Registration Number', type: 'Text', required: true },
+        { name: 'Insurance Expiry', type: 'Date', required: true },
+      ],
+      children: [
+        node('Car', 'CAR', 'vehicle', 'Passenger Cars and SUVs', { ownAssets: 22 }),
+        node('Truck', 'TRK', 'truck', 'Light and Heavy Trucks', { ownAssets: 9 }),
+        node('Van', 'VAN', 'truck', 'Delivery and Utility Vans', { ownAssets: 7 }),
+      ],
+    }),
+    node('Tools & Instruments', 'TI', 'tools', 'Hand tools, power tools and measuring instruments.', {
+      children: [
+        node('Power Tools', 'PWT', 'drill', 'Drills, Grinders and Saws', { ownAssets: 48 }),
+        node('Measuring Instruments', 'MSI', 'gauge', 'Multimeters, Gauges and Meters', { ownAssets: 31, attributes: [{ name: 'Calibration Interval', unit: 'months', example: '12' }] }),
+      ],
+    }),
+    node('Others', 'OTH', 'other', 'Assets that do not fit any other category.', { ownAssets: 15 }),
+  ];
+}
+
+const EMPTY_FORM: CategoryForm = { name: '', code: '', parentId: null, description: '', status: 'Active' };
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 @Component({
   selector: 'app-asset-categories',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FilterSelect],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './asset-categories.html',
   styleUrl: './asset-categories.css',
 })
@@ -173,27 +288,18 @@ export class AssetCategories {
     other: Box,
   };
 
-  readonly fieldTypes: CategoryFieldType[] = CATEGORY_FIELD_TYPES;
-  /** How the API's field types are shown. */
-  readonly fieldTypeLabels: Record<CategoryFieldType, string> = {
-    Text: 'Text', Number: 'Number', Date: 'Date', Dropdown: 'Dropdown', Checkbox: 'Yes / No',
-  };
-  readonly fieldTypeChoices: FilterSelectOption[] = CATEGORY_FIELD_TYPES.map((t) => ({ value: t, label: this.fieldTypeLabels[t] }));
-  readonly statusChoices: CategoryStatus[] = ['Active', 'Inactive'];
-  readonly pageSizeOptions = [5, 10, 20];
+  readonly fieldTypes: FieldType[] = ['Text', 'Number', 'Date', 'Dropdown', 'Yes / No'];
+  readonly pageSizeOptions = [10, 25, 50];
 
-  private readonly api = inject(AssetCategoryService);
-  private readonly destroyRef = inject(DestroyRef);
-
-  tree: CategoryNode[] = [];
-  loading = false;
-  loadError = '';
-  saving = false;
-  expanded = new Set<string>();
-  selectedId: string | null = null;
+  tree: CategoryNode[] = buildMockTree();
+  expanded = new Set<number>();
+  selectedId: number;
   treeSearch = '';
 
   // Details form (read-only until "Edit")
+  editing = false;
+  detailForm: CategoryForm = { ...EMPTY_FORM };
+  submitted = false;
 
   activeTab: DetailTab = 'subcategories';
 
@@ -203,22 +309,17 @@ export class AssetCategories {
   subSortDir: 'asc' | 'desc' | null = null;
   page = 1;
   pageSize = 10;
-  selectedRows = new Set<string>();
-  openMenuId: string | null = null;
+  selectedRows = new Set<number>();
+  openMenuId: number | null = null;
 
   // Add-category modal
   modalOpen = false;
-  /** True while a popup plays its close animation. */
-  modalClosing = false;
-  deleteClosing = false;
-  private modalCloseTimer?: ReturnType<typeof setTimeout>;
-  private deleteCloseTimer?: ReturnType<typeof setTimeout>;
   modalForm: CategoryForm = { ...EMPTY_FORM };
   modalSubmitted = false;
 
   // Add custom field / attribute inline rows
-  newField: { name: string; type: CategoryFieldType; required: boolean } = { name: '', type: 'Text', required: false };
-  newAttribute = { name: '', unit: '', example: '' };
+  newField: CustomField = { name: '', type: 'Text', required: false };
+  newAttribute: Attribute = { name: '', unit: '', example: '' };
 
   deleteTarget: CategoryNode | null = null;
 
@@ -226,86 +327,12 @@ export class AssetCategories {
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   constructor(private readonly router: Router) {
-    this.loadCategories();
-  }
-
-  // ===== Loading =====
-
-  /**
-   * GET /api/asset-categories and build the tree from parentCategoryId.
-   * Keeps the selection and open branches where they still exist; `selectId` picks a category after a save.
-   */
-  loadCategories(selectId?: string): void {
-    this.loading = true;
-    this.loadError = '';
-    this.api
-      .getAll()
-      .pipe(finalize(() => (this.loading = false)), takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (rows) => {
-          const firstLoad = !this.tree.length;
-          this.tree = this.buildTree(rows ?? []);
-          if (selectId) this.selectedId = selectId;
-          if (!this.find(this.selectedId)) this.selectedId = this.tree[0]?.id ?? null;
-          if (firstLoad && this.tree[0]) {
-            // Open the first branch, as in the design.
-            this.expanded.add(this.tree[0].id);
-            this.tree[0].children.filter((c) => c.children.length).forEach((c) => this.expanded.add(c.id));
-          }
-          if (this.selectedId) this.lineage(this.selectedId).slice(0, -1).forEach((a) => this.expanded.add(a.id));
-          [...this.expanded].forEach((id) => !this.find(id) && this.expanded.delete(id));
-          [...this.selectedRows].forEach((id) => !this.find(id) && this.selectedRows.delete(id));
-        },
-        error: (err) => (this.loadError = this.api.errorMessage(err, 'Could not load asset categories.')),
-      });
-  }
-
-  private buildTree(rows: AssetCategory[]): CategoryNode[] {
-    const nodes = new Map<string, CategoryNode>();
-    for (const r of rows) nodes.set(r.id, this.toNode(r));
-    const roots: CategoryNode[] = [];
-    for (const r of rows) {
-      const n = nodes.get(r.id)!;
-      const parent = r.parentCategoryId ? nodes.get(r.parentCategoryId) : undefined;
-      // A missing parent (e.g. deleted) leaves the category at the top level rather than hiding it.
-      (parent ? parent.children : roots).push(n);
-    }
-    const byName = (list: CategoryNode[]) => {
-      list.sort((a, b) => a.name.localeCompare(b.name));
-      list.forEach((n) => byName(n.children));
-    };
-    byName(roots);
-    return roots;
-  }
-
-  private toNode(r: AssetCategory): CategoryNode {
-    const iconFor = (text: string) => ICON_KEYWORDS.find(([re]) => re.test(text))?.[1] as CategoryNode['icon'] | undefined;
-    return {
-      id: r.id,
-      name: r.name,
-      code: r.code,
-      description: r.description ?? '',
-      status: toStatus(r.status),
-      icon: iconFor(r.name) ?? iconFor(r.parentCategoryName ?? '') ?? 'other',
-      image: r.imageUrl || undefined,
-      customFields: r.customFields ?? [],
-      attributes: r.attributes ?? [],
-      children: [],
-      record: r,
-    };
-  }
-
-  /** Runs a write, then reloads; shows the API's message on failure. */
-  private write<T>(call: Observable<T>, success: (result: T) => string, selectId?: string, after?: (result: T) => void): void {
-    this.saving = true;
-    call.pipe(finalize(() => (this.saving = false)), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (result) => {
-        after?.(result);
-        this.showToast(success(result));
-        this.loadCategories(selectId);
-      },
-      error: (err) => this.showToast(this.api.errorMessage(err, 'Something went wrong. Please try again.')),
-    });
+    const first = this.tree[0];
+    this.selectedId = first.id;
+    // Open the first branch fully, as in the design.
+    this.expanded.add(first.id);
+    first.children.filter((c) => c.children.length).forEach((c) => this.expanded.add(c.id));
+    this.loadDetailForm();
   }
 
   // ===== Tree helpers =====
@@ -317,7 +344,7 @@ export class AssetCategories {
     }
   }
 
-  private find(id: string | null): CategoryNode | null {
+  private find(id: number | null): CategoryNode | null {
     let found: CategoryNode | null = null;
     if (id === null) return null;
     this.walk(this.tree, (n) => {
@@ -326,7 +353,7 @@ export class AssetCategories {
     return found;
   }
 
-  private parentOf(id: string): CategoryNode | null {
+  private parentOf(id: number): CategoryNode | null {
     let parent: CategoryNode | null = null;
     this.walk(this.tree, (n, p) => {
       if (n.id === id) parent = p;
@@ -335,7 +362,7 @@ export class AssetCategories {
   }
 
   /** Root-first chain of ancestors, including the node itself. */
-  private lineage(id: string | null): CategoryNode[] {
+  private lineage(id: number): CategoryNode[] {
     const chain: CategoryNode[] = [];
     let current = this.find(id);
     while (current) {
@@ -345,14 +372,29 @@ export class AssetCategories {
     return chain;
   }
 
-  /** The selected category; null only while nothing is loaded. */
-  get selected(): CategoryNode | null {
-    return this.find(this.selectedId) ?? this.tree[0] ?? null;
+  assetCount(n: CategoryNode): number {
+    return n.ownAssets + n.children.reduce((sum, c) => sum + this.assetCount(c), 0);
   }
 
-  /** Top-level (parent) categories only, for the subcategory popup's "Parent Category" picker. */
-  get parentOptions(): FilterSelectOption[] {
-    return this.tree.filter((n) => n.id !== this.modalEditId).map((n) => ({ value: n.id, label: n.name }));
+  get selected(): CategoryNode {
+    return this.find(this.selectedId) ?? this.tree[0];
+  }
+
+  get selectedPath(): string {
+    return this.lineage(this.selectedId).map((n) => n.name).join(' › ');
+  }
+
+  /** Every category as a flat, indented list for the "Parent Category" picker. */
+  get parentOptions(): { id: number; label: string }[] {
+    const out: { id: number; label: string }[] = [];
+    const visit = (nodes: CategoryNode[], depth: number) => {
+      for (const n of nodes) {
+        out.push({ id: n.id, label: `${'   '.repeat(depth)}${n.name}` });
+        visit(n.children, depth + 1);
+      }
+    };
+    visit(this.tree, 0);
+    return out;
   }
 
   // ===== Tree interaction =====
@@ -368,13 +410,16 @@ export class AssetCategories {
   }
 
   selectCategory(n: CategoryNode): void {
+    if (this.editing && n.id !== this.selectedId && !confirm('Discard unsaved changes to this category?')) return;
     this.selectedId = n.id;
     this.lineage(n.id).slice(0, -1).forEach((a) => this.expanded.add(a.id));
+    this.editing = false;
     this.activeTab = 'subcategories';
     this.subSearch = '';
     this.subStatus = '';
     this.page = 1;
     this.selectedRows.clear();
+    this.loadDetailForm();
   }
 
   /** Nodes to render while searching: matches plus the ancestors needed to reach them. */
@@ -397,9 +442,47 @@ export class AssetCategories {
     return this.visibleChildren(this.tree).length > 0;
   }
 
-  // ===== Validation =====
+  // ===== Category details =====
 
-  isCodeTaken(code: string, exceptId: string | null): boolean {
+  private loadDetailForm(): void {
+    const n = this.selected;
+    this.detailForm = {
+      name: n.name,
+      code: n.code,
+      parentId: this.parentOf(n.id)?.id ?? null,
+      description: n.description,
+      status: n.status,
+    };
+    this.submitted = false;
+  }
+
+  startEdit(): void {
+    this.editing = true;
+  }
+
+  cancelEdit(): void {
+    this.editing = false;
+    this.loadDetailForm();
+  }
+
+  saveDetails(): void {
+    this.submitted = true;
+    const error = this.validate(this.detailForm, this.selectedId);
+    if (error) {
+      this.showToast(error);
+      return;
+    }
+    const n = this.selected;
+    n.name = this.detailForm.name.trim();
+    n.code = this.detailForm.code.trim().toUpperCase();
+    n.description = this.detailForm.description.trim();
+    n.status = this.detailForm.status;
+    this.editing = false;
+    this.loadDetailForm();
+    this.showToast(`${n.name} updated.`);
+  }
+
+  isCodeTaken(code: string, exceptId: number | null): boolean {
     const c = code.trim().toUpperCase();
     let taken = false;
     this.walk(this.tree, (n) => {
@@ -408,105 +491,80 @@ export class AssetCategories {
     return !!c && taken;
   }
 
-  private validate(form: CategoryForm, exceptId: string | null): string | null {
+  private validate(form: CategoryForm, exceptId: number | null): string | null {
     if (!form.name.trim()) return 'Category name is required.';
     if (!form.code.trim()) return 'Category code is required.';
     if (this.isCodeTaken(form.code, exceptId)) return `Code "${form.code.trim().toUpperCase()}" is already used by another category.`;
     return null;
   }
 
+  onImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      this.showToast('Please choose a JPG or PNG image.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      this.showToast('Image must be 2 MB or smaller.');
+      return;
+    }
+    const target = this.selected;
+    const reader = new FileReader();
+    reader.onload = () => {
+      target.image = reader.result as string;
+      this.showToast('Category image updated.');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  removeImage(): void {
+    this.selected.image = undefined;
+  }
+
   // ===== Delete =====
 
-  askDelete(n: CategoryNode | null): void {
+  askDelete(n: CategoryNode): void {
     this.openMenuId = null;
-    if (!n) return;
-    clearTimeout(this.deleteCloseTimer);
-    this.deleteClosing = false;
+    const assets = this.assetCount(n);
+    if (assets > 0) {
+      this.showToast(`${n.name} has ${assets} asset${assets === 1 ? '' : 's'} assigned. Reassign them before deleting.`);
+      return;
+    }
     this.deleteTarget = n;
   }
 
-  /** DELETE /api/asset-categories/{id}; the API refuses while sub-categories, asset types or custom fields remain. */
   confirmDelete(): void {
     const target = this.deleteTarget;
-    if (!target || this.saving) return;
+    if (!target) return;
     const parent = this.parentOf(target.id);
-    const wasSelected = this.lineage(this.selectedId).some((a) => a.id === target.id);
-    this.write(
-      this.api.delete(target.id),
-      () => `${target.name} deleted.`,
-      wasSelected ? parent?.id : undefined,
-      () => {
-        this.closeDelete();
-        this.selectedRows.delete(target.id);
-        if (wasSelected) this.selectedId = parent?.id ?? null;
-      },
-    );
+    const siblings = parent ? parent.children : this.tree;
+    siblings.splice(siblings.indexOf(target), 1);
+    this.selectedRows.delete(target.id);
+
+    if (this.lineage(this.selectedId).length === 0) {
+      // The selected category (or one of its ancestors) was removed.
+      this.selectedId = (parent ?? this.tree[0]).id;
+      this.editing = false;
+      this.loadDetailForm();
+    }
+    this.deleteTarget = null;
+    this.showToast(`${target.name} deleted.`);
   }
 
   // ===== Add category modal =====
 
-  openAddModal(parentId: string | null): void {
-    // The picker lists top-level categories only, so start on the top-level ancestor of the chosen one.
-    const topLevel = parentId !== null ? this.lineage(parentId)[0]?.id ?? null : null;
-    this.modalForm = { ...EMPTY_FORM, parentId: topLevel };
-    // Opened as "Add Subcategory": shows the parent picker. Top-level "Add Category" has none.
-    this.modalIsSub = parentId !== null;
-    this.modalEditId = null;
+  openAddModal(parentId: number | null): void {
+    this.modalForm = { ...EMPTY_FORM, parentId };
     this.modalSubmitted = false;
     this.modalCodeTouched = false;
-    this.cancelModalClose();
     this.modalOpen = true;
   }
 
-  /** Pencil icon / "Edit" menu item: same popup, filled with the category, saved with PUT. */
-  openEditModal(n: CategoryNode, event?: Event): void {
-    event?.stopPropagation();
-    this.openMenuId = null;
-    const parentId = this.parentOf(n.id)?.id ?? null;
-    this.modalForm = { name: n.name, code: n.code, parentId, description: n.description, status: n.status };
-    this.modalIsSub = parentId !== null;
-    this.modalEditId = n.id;
-    this.modalSubmitted = false;
-    this.modalCodeTouched = true; // keep the saved code; don't re-suggest it from the name
-    this.cancelModalClose();
-    this.modalOpen = true;
-  }
-
-  get modalEditNode(): CategoryNode | null {
-    return this.find(this.modalEditId);
-  }
-
-  /** Delete button in the edit popup. */
-  deleteFromModal(): void {
-    const n = this.modalEditNode;
-    if (!n) return;
-    this.closeModal();
-    this.askDelete(n);
-  }
-
-  /** Plays the close animation, then removes the popup. */
   closeModal(): void {
-    if (!this.modalOpen || this.modalClosing) return;
-    this.modalClosing = true;
-    this.modalCloseTimer = setTimeout(() => {
-      this.modalOpen = false;
-      this.modalClosing = false;
-    }, POPUP_CLOSE_MS);
-  }
-
-  private cancelModalClose(): void {
-    clearTimeout(this.modalCloseTimer);
-    this.modalClosing = false;
-  }
-
-  /** Same for the delete confirmation. */
-  closeDelete(): void {
-    if (!this.deleteTarget || this.deleteClosing) return;
-    this.deleteClosing = true;
-    this.deleteCloseTimer = setTimeout(() => {
-      this.deleteTarget = null;
-      this.deleteClosing = false;
-    }, POPUP_CLOSE_MS);
+    this.modalOpen = false;
   }
 
   /** Suggests a code from the name until the user types their own. */
@@ -517,57 +575,32 @@ export class AssetCategories {
   }
 
   modalCodeTouched = false;
-  modalIsSub = false;
-  /** Category being edited in the popup; null when adding. */
-  modalEditId: string | null = null;
 
-  /** POST /api/asset-categories (add) or PUT /api/asset-categories/{id} (edit). */
   saveModal(): void {
     this.modalSubmitted = true;
-    if (this.validate(this.modalForm, this.modalEditId) || this.saving) return;
-    const f = this.modalForm;
-    const parent = this.find(f.parentId);
-    const values = {
-      parentCategoryId: f.parentId,
-      name: f.name.trim(),
-      code: f.code.trim().toUpperCase(),
-      description: f.description.trim() || null,
-      status: f.status,
-    };
+    const error = this.validate(this.modalForm, null);
+    if (error) return;
 
-    const editing = this.modalEditNode;
-    if (editing) {
-      this.write(
-        this.api.update(editing.id, { ...this.api.toUpdateRequest(editing.record), ...values }),
-        (saved) => `${saved.name} updated.`,
-        undefined,
-        () => {
-          this.closeModal();
-          if (parent) this.expanded.add(parent.id);
-        },
-      );
-      return;
+    const parent = this.find(this.modalForm.parentId);
+    const created = node(this.modalForm.name.trim(), this.modalForm.code.trim().toUpperCase(), parent?.icon ?? 'other', this.modalForm.description.trim(), {
+      status: this.modalForm.status,
+    });
+    if (parent) {
+      parent.children.push(created);
+      this.expanded.add(parent.id);
+    } else {
+      this.tree.push(created);
     }
-
-    this.write(
-      this.api.create(values),
-      (created) => `${created.name} added${parent ? ` under ${parent.name}` : ''}.`,
-      undefined,
-      (created) => {
-        this.closeModal();
-        this.modalCodeTouched = false;
-        if (parent) this.expanded.add(parent.id);
-        // Stay on the parent so the new subcategory shows in its table; a new top-level category gets selected.
-        if (!parent) this.selectedId = created.id;
-      },
-    );
+    this.modalOpen = false;
+    this.modalCodeTouched = false;
+    this.showToast(`${created.name} added${parent ? ` under ${parent.name}` : ''}.`);
   }
 
   // ===== Subcategories tab =====
 
   get filteredSubs(): CategoryNode[] {
     const q = this.subSearch.trim().toLowerCase();
-    let rows = (this.selected?.children ?? []).filter(
+    let rows = this.selected.children.filter(
       (c) =>
         (!q || [c.name, c.code, c.description].some((v) => v.toLowerCase().includes(q))) &&
         (!this.subStatus || c.status === this.subStatus),
@@ -633,40 +666,31 @@ export class AssetCategories {
     }
   }
 
-  toggleRow(id: string): void {
+  toggleRow(id: number): void {
     if (this.selectedRows.has(id)) this.selectedRows.delete(id);
     else this.selectedRows.add(id);
   }
 
-  /** PUT each checked subcategory with the new status. */
   setStatusForSelected(status: CategoryStatus): void {
-    const rows = (this.selected?.children ?? []).filter((c) => this.selectedRows.has(c.id) && c.status !== status);
-    if (!rows.length || this.saving) {
-      this.selectedRows.clear();
-      return;
-    }
-    this.write(
-      forkJoin(rows.map((c) => this.api.update(c.id, { ...this.api.toUpdateRequest(c.record), status }))),
-      (saved) => `${saved.length} subcategor${saved.length === 1 ? 'y' : 'ies'} marked ${status.toLowerCase()}.`,
-      undefined,
-      () => this.selectedRows.clear(),
-    );
+    const rows = this.selected.children.filter((c) => this.selectedRows.has(c.id));
+    rows.forEach((c) => (c.status = status));
+    this.selectedRows.clear();
+    this.showToast(`${rows.length} subcategor${rows.length === 1 ? 'y' : 'ies'} marked ${status.toLowerCase()}.`);
   }
 
   toggleStatus(n: CategoryNode): void {
     this.openMenuId = null;
-    const status: CategoryStatus = n.status === 'Active' ? 'Inactive' : 'Active';
-    this.write(
-      this.api.update(n.id, { ...this.api.toUpdateRequest(n.record), status }),
-      (saved) => `${saved.name} is now ${status.toLowerCase()}.`,
-    );
+    n.status = n.status === 'Active' ? 'Inactive' : 'Active';
+    this.showToast(`${n.name} is now ${n.status.toLowerCase()}.`);
   }
 
   editSub(n: CategoryNode): void {
-    this.openEditModal(n);
+    this.openMenuId = null;
+    this.selectCategory(n);
+    this.editing = true;
   }
 
-  toggleMenu(id: string, event: MouseEvent): void {
+  toggleMenu(id: number, event: MouseEvent): void {
     event.stopPropagation();
     this.openMenuId = this.openMenuId === id ? null : id;
   }
@@ -679,79 +703,78 @@ export class AssetCategories {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     this.openMenuId = null;
-    this.closeModal();
-    this.closeDelete();
+    this.modalOpen = false;
+    this.deleteTarget = null;
   }
 
-  // ===== Custom fields & attributes (the API lists inherited ones first) =====
+  // ===== Custom fields & attributes (own + inherited from parents) =====
 
-  get fieldRows(): AssetCategoryCustomField[] {
-    return this.selected?.customFields ?? [];
+  private collect<T>(pick: (n: CategoryNode) => T[]): Inherited<T>[] {
+    return this.lineage(this.selectedId).flatMap((n) =>
+      pick(n).map((item) => ({ item, from: n.name, inherited: n.id !== this.selectedId })),
+    );
   }
 
-  get attributeRows(): AssetCategoryAttribute[] {
-    return this.selected?.attributes ?? [];
+  get fieldRows(): Inherited<CustomField>[] {
+    return this.collect((n) => n.customFields);
   }
 
-  /** POST /api/asset-categories/{id}/custom-fields */
+  get attributeRows(): Inherited<Attribute>[] {
+    return this.collect((n) => n.attributes);
+  }
+
   addField(): void {
-    const n = this.selected;
     const name = this.newField.name.trim();
-    if (!n || !name || this.saving) return;
-    if (this.fieldRows.some((r) => r.fieldName.toLowerCase() === name.toLowerCase())) {
+    if (!name) return;
+    if (this.fieldRows.some((r) => r.item.name.toLowerCase() === name.toLowerCase())) {
       this.showToast(`A field named "${name}" already exists.`);
       return;
     }
-    this.write(
-      this.api.addCustomField(n.id, { fieldName: name, type: this.newField.type, required: this.newField.required }),
-      (f) => `Field "${f.fieldName}" added.`,
-      n.id,
-      () => (this.newField = { name: '', type: 'Text', required: false }),
-    );
+    this.selected.customFields.push({ ...this.newField, name });
+    this.newField = { name: '', type: 'Text', required: false };
   }
 
-  /** DELETE /api/asset-categories/{id}/custom-fields/{fieldId} */
-  removeField(f: AssetCategoryCustomField): void {
-    if (this.saving) return;
-    this.write(this.api.deleteCustomField(f.definedOnCategoryId, f.id), () => `Field "${f.fieldName}" removed.`);
+  removeField(f: CustomField): void {
+    const list = this.selected.customFields;
+    list.splice(list.indexOf(f), 1);
   }
 
-  /** POST /api/asset-categories/{id}/attributes */
   addAttribute(): void {
-    const n = this.selected;
     const name = this.newAttribute.name.trim();
-    if (!n || !name || this.saving) return;
-    if (this.attributeRows.some((r) => r.attribute.toLowerCase() === name.toLowerCase())) {
+    if (!name) return;
+    if (this.attributeRows.some((r) => r.item.name.toLowerCase() === name.toLowerCase())) {
       this.showToast(`An attribute named "${name}" already exists.`);
       return;
     }
-    this.write(
-      this.api.addAttribute(n.id, {
-        attribute: name,
-        unit: this.newAttribute.unit.trim() || null,
-        exampleValue: this.newAttribute.example.trim() || null,
-      }),
-      (a) => `Attribute "${a.attribute}" added.`,
-      n.id,
-      () => (this.newAttribute = { name: '', unit: '', example: '' }),
-    );
+    this.selected.attributes.push({ name, unit: this.newAttribute.unit.trim(), example: this.newAttribute.example.trim() });
+    this.newAttribute = { name: '', unit: '', example: '' };
   }
 
-  /** DELETE /api/asset-categories/{id}/attributes/{attributeId} */
-  removeAttribute(a: AssetCategoryAttribute): void {
-    if (this.saving) return;
-    this.write(this.api.deleteAttribute(a.definedOnCategoryId, a.id), () => `Attribute "${a.attribute}" removed.`);
+  removeAttribute(a: Attribute): void {
+    const list = this.selected.attributes;
+    list.splice(list.indexOf(a), 1);
   }
 
   // ===== Related assets =====
 
+  /** Asset counts broken down by the leaf categories under the selection. */
+  get assetBreakdown(): { node: CategoryNode; path: string; count: number }[] {
+    const rows: { node: CategoryNode; path: string; count: number }[] = [];
+    const visit = (n: CategoryNode, path: string[]) => {
+      if (n.ownAssets) rows.push({ node: n, path: path.join(' › '), count: n.ownAssets });
+      n.children.forEach((c) => visit(c, [...path, c.name]));
+    };
+    visit(this.selected, []);
+    return rows.sort((a, b) => b.count - a.count);
+  }
+
   openAssetList(): void {
-    if (this.selected) this.router.navigate(['/assets/list'], { queryParams: { category: this.selected.code } });
+    this.router.navigate(['/assets/list'], { queryParams: { category: this.selected.code } });
   }
 
   // ===== Misc =====
 
-  trackById(_: number, n: CategoryNode): string {
+  trackById(_: number, n: CategoryNode): number {
     return n.id;
   }
 

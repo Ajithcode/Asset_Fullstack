@@ -29,10 +29,6 @@ import {
 } from 'lucide-angular';
 import DATA from './location-history.json';
 import { ASSET_RECORDS, ASSET_TYPE_ICONS, AssetRecord, findAsset } from 'shared-ui';
-import { Subscription } from 'rxjs';
-import { LocationHistoryService } from './location-history.service';
-import { AssetLookupService, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
-import { apiErrorMessage } from '../services/asset-api';
 
 type MovementType = 'In' | 'Out' | 'Move';
 
@@ -134,9 +130,47 @@ function parseLocal(s: string): Date {
   return new Date(y, m - 1, d, hh, mm);
 }
 
-/** Empty history shown until the asset's location events are loaded. */
-function emptyHistory(asset: AssetRecord): AssetHistory {
-  return { serialNumber: asset.serialNumber ?? '—', assignedTo: asset.department ? `${asset.department} Dept.` : '—', custodian: asset.custodian || '—', movements: [] };
+/**
+ * Assets without recorded history get a plausible one built from their tag, so every asset in the register
+ * can be opened here. DEMO MODE until the tracking API is wired up.
+ */
+function buildHistory(asset: AssetRecord): AssetHistory {
+  let seed = 0;
+  for (const ch of asset.tag) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 0x100000000;
+  };
+  const inside = PLACES.filter((p) => p.site === 'Main Plant');
+  const remarks: Record<string, string> = {
+    Operational: 'Moved to operating area', Maintenance: 'Sent for preventive maintenance', Storage: 'Moved to storage', Deployment: 'Deployed to client site',
+  };
+  const movements: Movement[] = [];
+  let t = parseLocal('2026-10-15T09:40').getTime();
+  let last = '';
+  const count = 5 + Math.floor(rnd() * 4);
+  for (let i = 0; i < count; i++) {
+    let place = inside[Math.floor(rnd() * inside.length)];
+    if (place.name === last) place = inside[(inside.indexOf(place) + 1) % inside.length];
+    last = place.name;
+    movements.push({
+      id: count - i, at: stamp(new Date(t)), location: place.name, movement: i === count - 1 ? 'Move' : 'In', source: rnd() > 0.35 ? 'GPS Tag' : 'Manual Update',
+      remarks: remarks[place.type] ?? 'Internal movement', by: 'System',
+    });
+    t -= (18 + Math.floor(rnd() * 60)) * 3_600_000 + Math.floor(rnd() * 4) * 15 * 60_000;
+  }
+  return { serialNumber: `${asset.model.replace(/\W/g, '').toUpperCase().slice(0, 6)}${asset.id.toString().padStart(4, '0')}`, assignedTo: `${asset.department} Dept.`, custodian: asset.custodian, movements };
+}
+
+/** DEMO MODE: histories kept in memory per asset (recorded movements survive moving between pages). */
+const HISTORIES = new Map<string, AssetHistory>();
+function historyOf(asset: AssetRecord): AssetHistory {
+  let h = HISTORIES.get(asset.tag);
+  if (!h) {
+    h = SOURCE.assets[asset.tag] ? structuredClone(SOURCE.assets[asset.tag]) : buildHistory(asset);
+    HISTORIES.set(asset.tag, h);
+  }
+  return h;
 }
 
 @Component({
@@ -152,20 +186,14 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
     Shapes, User, Users, X,
   };
   readonly typeIcons = ASSET_TYPE_ICONS;
+  readonly places = PLACES;
   readonly assets = ASSET_RECORDS;
   readonly pageSizes = [10, 25, 50];
 
   @ViewChild('mapEl') mapEl?: ElementRef<HTMLDivElement>;
 
   asset: AssetRecord = findAsset(DEFAULT_TAG) ?? ASSET_RECORDS[0];
-  /** Movements from the Tracking service's location events; serial number and custodian from the Asset API. */
-  history: AssetHistory = emptyHistory(this.asset);
-  loading = false;
-  loadError = '';
-  saving = false;
-  private loadSub?: Subscription;
-  private readonly api = inject(LocationHistoryService);
-  private readonly lookup = inject(AssetLookupService);
+  history: AssetHistory = historyOf(this.asset);
   view: 'map' | 'list' = 'map';
 
   // Filters
@@ -212,19 +240,8 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
     inject(ActivatedRoute)
       .queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef)))
       .subscribe((p) => {
-        const tag = p.get('tag');
-        const a = findAsset(tag);
-        if (a) {
-          if (a.tag !== this.asset.tag || !this.loadSub) this.setAsset(a, false);
-        } else if (tag) {
-          // not in the sample register: look the tag up in the Asset API
-          this.lookup.byTag(tag).subscribe({
-            next: (item) => (item ? this.setAsset(toAssetRecord(item), false) : this.showToast(`Asset ${tag} was not found.`)),
-            error: (err) => this.showToast(apiErrorMessage(err)),
-          });
-        } else if (!this.loadSub) {
-          this.reload();
-        }
+        const a = findAsset(p.get('tag'));
+        if (a && a.tag !== this.asset.tag) this.setAsset(a, false);
       });
   }
 
@@ -246,7 +263,6 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroyed = true;
     clearTimeout(this.toastTimer);
-    this.loadSub?.unsubscribe();
     this.resizeObserver?.disconnect();
   }
 
@@ -254,34 +270,12 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
 
   setAsset(a: AssetRecord, updateUrl = true): void {
     this.asset = a;
-    this.history = emptyHistory(a);
+    this.history = historyOf(a);
     this.selectedId = null;
     this.page = 0;
     this.pickerOpen = false;
-    this.reload();
+    this.fit();
     if (updateUrl) this.router.navigate([], { queryParams: { tag: a.tag }, replaceUrl: true });
-  }
-
-  /** (Re)loads the asset's location events. */
-  reload(): void {
-    const a = this.asset;
-    this.loadSub?.unsubscribe();
-    this.loading = true;
-    this.loadError = '';
-    this.loadSub = this.api.load(a).subscribe({
-      next: (h) => {
-        if (this.asset !== a) return;
-        this.loading = false;
-        if (h.registration) this.asset = { ...toAssetRecord(h.registration), image: a.image || h.registration.imageUrl || '' };
-        this.history = { serialNumber: h.serialNumber, assignedTo: h.assignedTo, custodian: h.custodian, movements: h.movements };
-        this.viewCache = null;
-        this.fit();
-      },
-      error: (err) => {
-        this.loading = false;
-        this.loadError = apiErrorMessage(err, 'Location history could not be loaded.');
-      },
-    });
   }
 
   get pickerAssets(): AssetRecord[] {
@@ -289,15 +283,8 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
     return this.assets.filter((a) => !q || `${a.tag} ${a.name}`.toLowerCase().includes(q));
   }
 
-  /** Known places carry map coordinates; zones only in the Tracking service are listed without a map pin. */
   place(name: string): Place {
-    return PLACES.find((p) => p.name.toLowerCase() === name.toLowerCase()) ?? { name, site: this.asset.site || '—', zone: name, type: 'Zone', lat: 0, lng: 0 };
-  }
-
-  /** Places for the Record Movement list: the known places plus zones seen in this asset's events. */
-  get places(): Place[] {
-    const extra = [...new Set(this.history.movements.map((m) => m.location))].filter((n) => !PLACES.some((p) => p.name.toLowerCase() === n.toLowerCase()));
-    return [...PLACES, ...extra.map((n) => this.place(n))];
+    return PLACES.find((p) => p.name === name) ?? { name, site: '—', zone: '—', type: '—', lat: 0, lng: 0 };
   }
 
   // ===== History rows =====
@@ -333,15 +320,15 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
   }
 
   get siteOptions(): string[] {
-    return [...new Set(this.places.map((p) => p.site))];
+    return [...new Set(PLACES.map((p) => p.site))];
   }
 
   get zoneOptions(): string[] {
-    return [...new Set(this.places.filter((p) => !this.siteFilter || p.site === this.siteFilter).map((p) => p.zone))];
+    return [...new Set(PLACES.filter((p) => !this.siteFilter || p.site === this.siteFilter).map((p) => p.zone))];
   }
 
   get typeOptions(): string[] {
-    return [...new Set(this.places.map((p) => p.type))];
+    return [...new Set(PLACES.map((p) => p.type))];
   }
 
   get filtered(): Row[] {
@@ -571,23 +558,12 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
     const cur = this.current;
     if (cur && f.at <= cur.at) return void (this.recordError = `The movement must be after the current location's arrival (${cur.at.replace('T', ' ')}).`);
     if (cur && f.location === cur.location) return void (this.recordError = `${this.asset.tag} is already at ${f.location}.`);
-    const remarks = f.remarks.trim() || 'Location updated';
-    this.saving = true;
-    this.api.record(this.asset, { at: f.at, location: f.location, movement: f.movement, source: f.source, remarks }).subscribe({
-      next: (e) => {
-        this.saving = false;
-        const id = Math.max(0, ...this.history.movements.map((m) => m.id)) + 1;
-        this.history.movements = [...this.history.movements, { id, at: f.at, location: f.location, movement: f.movement, source: f.source, remarks, by: e.createdBy || CURRENT_USER }];
-        this.recordForm = null;
-        this.page = 0;
-        this.fit();
-        this.showToast(`${this.asset.tag} moved to ${f.location}.`);
-      },
-      error: (err) => {
-        this.saving = false;
-        this.recordError = apiErrorMessage(err, 'The movement could not be recorded.');
-      },
-    });
+    const id = Math.max(0, ...this.history.movements.map((m) => m.id)) + 1;
+    this.history.movements = [...this.history.movements, { id, at: f.at, location: f.location, movement: f.movement, source: f.source, remarks: f.remarks.trim() || 'Location updated', by: CURRENT_USER }];
+    this.recordForm = null;
+    this.page = 0;
+    this.fit();
+    this.showToast(`${this.asset.tag} moved to ${f.location}.`);
   }
 
   // ===== Export =====

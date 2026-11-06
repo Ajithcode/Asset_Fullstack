@@ -1,6 +1,4 @@
-import { Component, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
-import { MaintenanceApiService } from '../maintenance-api.service';
-import { apiErrorMessage } from '../../services/asset-api';
+import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
@@ -146,26 +144,6 @@ export class PmSchedules {
   form: PmForm | null = null;
   formError = '';
   linkForm: { scheduleId: string; template: string } | null = null;
-  /** True while a schedule is being saved to the Maintenance service. */
-  saving = false;
-  private readonly api = inject(MaintenanceApiService);
-
-  /** Saves the schedule with `changes` to the Maintenance service, then applies them here. */
-  private persist(s: PmSchedule, changes: Partial<PmSchedule>, done: (saved: PmSchedule) => void): void {
-    this.saving = true;
-    this.api.savePm(this.asset, { ...s, ...changes }).subscribe({
-      next: (saved) => {
-        this.saving = false;
-        done(saved);
-      },
-      error: (err) => {
-        this.saving = false;
-        const msg = apiErrorMessage(err, `${s.name || 'The schedule'} could not be saved.`);
-        if (this.form) this.formError = msg;
-        else this.notify.emit(msg);
-      },
-    });
-  }
 
   // ===== Status & KPIs =====
 
@@ -306,24 +284,16 @@ export class PmSchedules {
 
   markPerformed(s: PmSchedule): void {
     this.menuOpen = '';
-    const changes = { lastPerformed: this.today, nextDue: addMonths(this.today, frequencyMonths(s.frequency)) };
-    this.persist(s, changes, (saved) => {
-      Object.assign(s, changes, { apiId: saved.apiId, actionsDone: [] });
-      this.activity.emit(`PM performed (${s.name})`);
-      this.notify.emit(`${s.name} recorded as performed today. Next due ${this.fmtDate(s.nextDue)}.`);
-    });
+    s.lastPerformed = this.today;
+    s.nextDue = addMonths(this.today, frequencyMonths(s.frequency));
+    s.actionsDone = [];
+    this.activity.emit(`PM performed (${s.name})`);
+    this.notify.emit(`${s.name} recorded as performed today. Next due ${this.fmtDate(s.nextDue)}.`);
   }
 
   remove(s: PmSchedule): void {
     this.menuOpen = '';
     if (!confirm(`Delete the PM schedule "${s.name}"?`)) return;
-    this.api.deletePm(s).subscribe({
-      next: () => this.dropSchedule(s),
-      error: (err) => this.notify.emit(apiErrorMessage(err, `${s.name} could not be deleted.`)),
-    });
-  }
-
-  private dropSchedule(s: PmSchedule): void {
     const i = this.schedules.indexOf(s);
     if (i >= 0) this.schedules.splice(i, 1);
     this.checked.delete(s.id);
@@ -360,29 +330,22 @@ export class PmSchedules {
     };
     const existing = f.id ? this.schedules.find((s) => s.id === f.id) : undefined;
     if (existing) {
-      this.persist(existing, fields, (saved) => {
-        if (existing.nextDue !== fields.nextDue) existing.actionsDone = [];
-        Object.assign(existing, fields, { apiId: saved.apiId });
-        this.notify.emit(`${existing.name} updated.`);
-        this.form = null;
-      });
+      if (existing.nextDue !== fields.nextDue) existing.actionsDone = [];
+      Object.assign(existing, fields);
+      this.notify.emit(`${existing.name} updated.`);
     } else {
-      // PM-<asset tag>-01, PM-<asset tag>-02 … (schedule ids are unique across assets in the Maintenance service)
-      const head = `PM-${this.asset.tag}-`;
-      const n = Math.max(0, ...this.schedules.map((s) => Number(s.id.split('-').pop()) || 0)) + 1;
+      const n = Math.max(0, ...this.schedules.map((s) => Number(s.id.split('-')[1]) || 0)) + 1;
       const s: PmSchedule = {
-        id: `${head}${String(n).padStart(2, '0')}`, ...fields, parts: 'as per checklist', match: [fields.name.split(/[ ,]/)[0].toLowerCase()],
+        id: `PM-${String(n).padStart(2, '0')}`, ...fields, parts: 'as per checklist', match: [fields.name.split(/[ ,]/)[0].toLowerCase()],
         tasks: ['Isolate the unit', fields.name, 'Test run', 'Record readings'], checklist: ['Permit / lock-out in place', 'Work done as per procedure', 'PM record signed'], documents: [],
       };
-      this.persist(s, {}, (saved) => {
-        this.schedules.push(saved);
-        this.selectedId = saved.id;
-        this.panelOpen = true;
-        this.activity.emit(`PM schedule added (${saved.name})`);
-        this.notify.emit(`${saved.name} added. Next due ${this.fmtDate(saved.nextDue)}.`);
-        this.form = null;
-      });
+      this.schedules.push(s);
+      this.selectedId = s.id;
+      this.panelOpen = true;
+      this.activity.emit(`PM schedule added (${s.name})`);
+      this.notify.emit(`${s.name} added. Next due ${this.fmtDate(s.nextDue)}.`);
     }
+    this.form = null;
   }
 
   // ===== Link template =====

@@ -54,7 +54,7 @@
                       <span class="status" [ngClass]="p.current ? 'status--overdue' : 'status--assigned'">{{ p.current ? 'Assigned' : 'Available' }}</span>
                     </button>
                   </li>
-                  <li *ngIf="!singleMatches.length" class="muted drop-empty">{{ loading ? 'Loading assets...' : 'No assets match "' + w.assetSearch.trim() + '".' }}</li>
+                  <li *ngIf="!singleMatches.length" class="muted drop-empty">No assets match "{{ w.assetSearch.trim() }}".</li>
                 </ul>
               </div>
             </div>
@@ -108,7 +108,7 @@
                     <td><span class="status" [ngClass]="p.current ? 'status--returned' : 'status--assigned'" [title]="p.current ? 'Assigned to ' + p.current.assignee : ''">{{ poolStatusOf(p) }}</span></td>
                     <td class="row-act" (click)="$event.stopPropagation()"><button type="button" class="kebab" [class.is-on]="rowMenu?.tag === p.tag" (click)="openRowMenu(p.tag, $event)" [attr.aria-label]="'Actions for ' + p.tag" aria-haspopup="menu" [attr.aria-expanded]="rowMenu?.tag === p.tag"><lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon></button></td>
                   </tr>
-                  <tr *ngIf="!poolPage.length"><td colspan="8" class="empty">{{ loading ? 'Loading assets...' : loadError || 'No assets match the search and filters.' }}</td></tr>
+                  <tr *ngIf="!poolPage.length"><td colspan="8" class="empty">No assets match the search and filters.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -629,8 +629,8 @@
         <button type="button" class="btn btn-outline" (click)="wizardBack()"><lucide-icon *ngIf="w.step > 1" [img]="icons.ArrowLeft" [size]="17"></lucide-icon>{{ w.step === 1 ? 'Cancel' : 'Back' }}</button>
         <button *ngIf="w.step < 4" type="button" class="btn btn-primary" (click)="goStep(w.step + 1)">Next<lucide-icon [img]="icons.ArrowRight" [size]="17"></lucide-icon></button>
         <span *ngIf="w.step === 4" class="foot-actions">
-          <button type="button" class="btn btn-outline" [disabled]="saving" (click)="saveDraft()">Save as Draft</button>
-          <button type="button" class="btn btn-primary" [disabled]="saving" (click)="confirmWizard()"><lucide-icon [img]="icons.Check" [size]="17"></lucide-icon>{{ saving ? 'Saving...' : 'Confirm Assignment' }}</button>
+          <button type="button" class="btn btn-outline" (click)="saveDraft()">Save as Draft</button>
+          <button type="button" class="btn btn-primary" [disabled]="saving" (click)="confirmWizard()"><lucide-icon [img]="icons.Check" [size]="17"></lucide-icon>Confirm Assignment</button>
         </span>
       </div>
     </div>

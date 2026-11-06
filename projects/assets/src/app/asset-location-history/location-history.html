@@ -13,10 +13,6 @@
     <button type="button" class="btn btn-outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export History</button>
   </div>
 
-  <!-- ===== Load state ===== -->
-  <p *ngIf="loading" class="load-note" role="status">Loading location history for {{ asset.tag }}…</p>
-  <p *ngIf="loadError && !loading" class="load-error" role="alert">{{ loadError }} <button type="button" class="btn btn-outline btn-sm" (click)="reload()">Retry</button></p>
-
   <!-- ===== Asset ===== -->
   <div class="card asset-card">
     <img *ngIf="asset.image; else typeIcon" class="asset-img" [src]="asset.image" [alt]="asset.name" />
@@ -214,7 +210,7 @@
       <label class="field"><span class="field-label">Source</span><select class="control" [(ngModel)]="f.source" name="src"><option>Manual Update</option><option>GPS Tag</option><option>RFID Gate</option><option>Barcode Scan</option></select></label>
       <label class="field"><span class="field-label">Remarks</span><input class="control" [(ngModel)]="f.remarks" name="rem" /></label>
       <p *ngIf="recordError" class="form-error" role="alert">{{ recordError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="recordForm = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Save Movement</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="recordForm = null">Cancel</button><button type="submit" class="btn btn-primary">Save Movement</button></div>
     </form>
   </div>
 </div>
