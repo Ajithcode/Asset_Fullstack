@@ -65,6 +65,8 @@ interface HierarchyNode {
   status: AssetStatus;
   description: string;
   icon: keyof AssetHierarchy['assetIcons'];
+  /** Created with "Create Hierarchy Node" in this session: shown with a "New" badge. */
+  isNew?: boolean;
   children: HierarchyNode[];
 }
 
@@ -340,6 +342,7 @@ export class AssetHierarchy {
 
   nodeIcon(n: HierarchyNode, open = false) {
     if (n.kind === 'asset') return this.assetIcons[n.icon];
+    if (n.isNew) return FolderPlus;
     if (n.kind === 'system') return open ? FolderOpen : Folder;
     return this.kindIcons[n.kind];
   }
@@ -550,14 +553,6 @@ export class AssetHierarchy {
     return out;
   }
 
-  openAdd(parent: HierarchyNode = this.selected, kind: NodeForm['kind'] = 'asset'): void {
-    this.openMenu = null;
-    this.editingNode = null;
-    this.form = { ...this.emptyForm(parent.id), kind };
-    this.formSubmitted = false;
-    this.formOpen = true;
-  }
-
   openEdit(n: HierarchyNode = this.selected): void {
     this.openMenu = null;
     if (n.kind === 'root') return;
@@ -586,9 +581,10 @@ export class AssetHierarchy {
     return !!f.name.trim() && !!f.tag.trim() && !this.isTagTaken(f.tag) && (f.kind !== 'asset' || !!f.type.trim());
   }
 
+  /** Saves the Edit form. New nodes are added through the Create Hierarchy Node form (saveNode). */
   saveForm(): void {
     this.formSubmitted = true;
-    if (!this.formValid) return;
+    if (!this.formValid || !this.editingNode) return;
     const f = this.form;
     const isAsset = f.kind === 'asset';
     const values = {
@@ -602,19 +598,12 @@ export class AssetHierarchy {
     };
     const parent = this.find(f.parentId) ?? this.root;
 
-    if (this.editingNode) {
-      const n = this.editingNode;
-      const kindChanged = n.kind !== values.kind;
-      Object.assign(n, values);
-      if (kindChanged) n.icon = n.kind === 'asset' ? this.guessIcon(n.type) : 'generic';
-      this.reparent(n, parent);
-      this.showToast(`${n.name} updated.`);
-    } else {
-      const created: HierarchyNode = { id: nextId++, ...values, description: '', icon: this.guessIcon(values.type), children: [] };
-      parent.children.push(created);
-      this.expanded.add(parent.id);
-      this.showToast(`${created.name} added under ${parent.name}.`);
-    }
+    const n = this.editingNode;
+    const kindChanged = n.kind !== values.kind;
+    Object.assign(n, values);
+    if (kindChanged) n.icon = n.kind === 'asset' ? this.guessIcon(n.type) : 'generic';
+    this.reparent(n, parent);
+    this.showToast(`${n.name} updated.`);
     this.formOpen = false;
   }
 
@@ -652,9 +641,11 @@ export class AssetHierarchy {
     return [...this.lineage(n.id)].reverse().find((a) => a.kind !== 'asset') ?? this.root;
   }
 
-  openCreateNode(parent: HierarchyNode = this.selected): void {
+  /** Opens the Create Hierarchy Node form under `parent` (or its nearest grouping node), optionally with a preset type. */
+  openCreateNode(parent: HierarchyNode = this.selected, kind?: GroupKind): void {
+    this.openMenu = null;
     const p = this.nearestGroup(parent);
-    this.nodeForm = { ...this.emptyNodeForm(p.id), kind: this.suggestKind(p) };
+    this.nodeForm = { ...this.emptyNodeForm(p.id), kind: kind ?? this.suggestKind(p) };
     this.nodeFormSubmitted = false;
     this.nodeFormOpen = true;
   }
@@ -708,12 +699,17 @@ export class AssetHierarchy {
       ...group(f.kind, f.name.trim(), f.code.trim().toUpperCase()),
       status: f.status,
       description: f.description.trim(),
+      isNew: true,
     };
     parent.children.push(created);
     this.nodeFormOpen = false;
-    this.expanded.add(parent.id);
+    // Show the new node in place: clear any search that could hide it and open every level above it
+    this.treeSearch = '';
+    this.lineage(parent.id).forEach((a) => this.expanded.add(a.id));
+    this.expanded.add(created.id);
     this.selectedId = created.id;
-    this.showToast(`${created.name} created under ${parent.name}.`);
+    setTimeout(() => document.querySelector('.tree-row.is-selected')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+    this.showToast(`${created.name} created under ${parent.name}. Use + > Add Existing Asset to place assets under it.`);
   }
 
   // ===== Move =====

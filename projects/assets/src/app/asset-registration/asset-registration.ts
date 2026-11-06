@@ -574,6 +574,16 @@ export class AssetRegistration {
     ],
   };
 
+  /** Model numbers; the value is the model number itself, so it reads the same wherever the form shows it. */
+  readonly models: Option[] = [
+    { label: 'C250D6E', value: 'C250D6E' },
+    { label: 'C500D6', value: 'C500D6' },
+    { label: 'C9.3', value: 'C9.3' },
+    { label: 'C275D5', value: 'C275D5' },
+    { label: 'KD500', value: 'KD500' },
+    { label: 'SGT-100', value: 'SGT-100' },
+  ];
+
   readonly manufacturers: Option[] = [
     { label: 'Caterpillar', value: 'caterpillar' },
     { label: 'Cummins', value: 'cummins' },
