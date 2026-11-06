@@ -264,7 +264,11 @@
 
     <footer class="drawer__footer">
       <button type="button" class="btn btn--ghost" (click)="cancelled.emit()">Cancel</button>
-      <button type="submit" [disabled]="saving" class="btn btn--primary">{{ saving ? 'Saving…' : 'Save' }}</button>
+      @if (isLastTab) {
+        <button type="submit" [disabled]="saving" class="btn btn--primary">{{ saving ? 'Saving…' : 'Save' }}</button>
+      } @else {
+        <button type="button" class="btn btn--primary" (click)="next()">Next</button>
+      }
     </footer>
   </form>
 </aside>

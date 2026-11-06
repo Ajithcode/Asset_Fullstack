@@ -88,7 +88,7 @@ function nextVersion(v: string): string {
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './job-templates.html',
   // Split to keep each stylesheet under the anyComponentStyle budget
-  styleUrls: ['./job-templates.css', './job-templates-tabs.css'],
+  styleUrls: ['./job-templates.css', './job-templates-tabs.css', '../shared/wip-purple-theme.css'],
 })
 export class JobTemplates implements OnDestroy {
   readonly icons = {

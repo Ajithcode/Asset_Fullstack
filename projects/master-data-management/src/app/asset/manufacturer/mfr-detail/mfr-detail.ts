@@ -21,7 +21,8 @@ type DetailTab = 'overview' | 'contact' | 'support' | 'defaults' | 'models' | 'a
     '../../../shared/styles/mdm-detail-extras.css',
     '../../asset-model/model-detail/model-detail.css',
     '../../asset-type/type-detail/type-detail.css',
-    './mfr-detail.css'
+    './mfr-detail.css',
+    '../../../shared/styles/mdm-purple-theme.css'
   ]
 })
 export class MfrDetail implements OnChanges {

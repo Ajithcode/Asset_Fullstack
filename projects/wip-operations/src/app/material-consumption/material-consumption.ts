@@ -69,7 +69,7 @@ const stamp = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './material-consumption.html',
   // Buttons, controls, cards, tabs, menu, modal and toast come from the Job Templates stylesheet
-  styleUrls: ['../job-templates/job-templates.css', './material-consumption.css', './material-consumption-panels.css'],
+  styleUrls: ['../job-templates/job-templates.css', './material-consumption.css', './material-consumption-panels.css', '../shared/wip-purple-theme.css'],
 })
 export class MaterialConsumption implements OnDestroy {
   readonly icons = { ArrowRight, Box, ChevronDown, CircleCheck, Coins, Info, Network, PackagePlus, Paperclip, Plus, Search, Trash2, TriangleAlert, Undo2, Upload, X };

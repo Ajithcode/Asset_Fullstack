@@ -56,7 +56,7 @@ const DEFAULT_OPTS: Record<OptKey, boolean> = { telemetry: true, alerts: true, g
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './device-replacement.html',
-  styleUrls: ['./device-replacement.css', './device-replacement-steps.css', './device-replacement-panels.css'],
+  styleUrls: ['./device-replacement.css', './device-replacement-steps.css', './device-replacement-panels.css', '../shared/iot-purple-theme.css'],
 })
 export class DeviceReplacement implements OnInit, OnDestroy {
   readonly icons = { ChevronDown, Link2, Radio, ScanLine, Activity, ArrowLeft, ArrowRight, Box, Check, CircleAlert, CircleCheck, CircleX, Clock, Database, FileText, History, Info, LoaderCircle, RotateCcw, Search, Settings, ShieldCheck, Tag, TriangleAlert, Wrench, X };

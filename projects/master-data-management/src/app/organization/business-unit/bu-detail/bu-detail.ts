@@ -28,7 +28,7 @@ const SITE_PREVIEW = 4;
   selector: 'app-bu-detail',
   imports: [DecimalPipe, LucideAngularModule],
   templateUrl: './bu-detail.html',
-  styleUrls: ['../../../shared/styles/mdm-detail.css', '../../../shared/styles/mdm-detail-extras.css']
+  styleUrls: ['../../../shared/styles/mdm-detail.css', '../../../shared/styles/mdm-detail-extras.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class BuDetail implements OnChanges {
   @Input({ required: true }) unit!: BusinessUnitRecord;

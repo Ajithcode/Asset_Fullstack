@@ -19,7 +19,8 @@ type DetailTab = 'overview' | 'health' | 'usage' | 'assets' | 'documents' | 'act
     '../../../shared/styles/mdm-detail-extras.css',
     '../../asset-model/model-detail/model-detail.css',
     '../../asset-type/type-detail/type-detail.css',
-    '../../level-detail.css'
+    '../../level-detail.css',
+    '../../../shared/styles/mdm-purple-theme.css'
   ]
 })
 export class CondDetail implements OnChanges {

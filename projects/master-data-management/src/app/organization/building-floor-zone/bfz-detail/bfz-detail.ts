@@ -30,7 +30,7 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
   selector: 'app-bfz-detail',
   imports: [DecimalPipe, LucideAngularModule, BfzPlan],
   templateUrl: './bfz-detail.html',
-  styleUrls: ['../../../shared/styles/mdm-detail.css', './bfz-detail.css']
+  styleUrls: ['../../../shared/styles/mdm-detail.css', './bfz-detail.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class BfzDetail implements OnChanges {
   @Input({ required: true }) record!: BfzRecord;

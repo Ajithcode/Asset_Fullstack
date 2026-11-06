@@ -13,7 +13,7 @@ type Tab = 'basic' | 'items';
   selector: 'app-checklist-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './checklist-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../maintenance-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../maintenance-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class ChecklistForm extends MasterForm<ChecklistRecord, Tab> {
   protected readonly store = inject(ChecklistService);

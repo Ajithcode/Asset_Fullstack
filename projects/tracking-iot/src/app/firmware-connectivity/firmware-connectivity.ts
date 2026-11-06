@@ -74,7 +74,7 @@ interface FirmwareForm { id: string; deviceModel: string; currentVersion: string
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './firmware-connectivity.html',
-  styleUrls: ['./firmware-connectivity.css', './firmware-connectivity-sections.css'],
+  styleUrls: ['./firmware-connectivity.css', './firmware-connectivity-sections.css', '../shared/iot-purple-theme.css'],
 })
 export class FirmwareConnectivity implements OnInit, OnDestroy {
   readonly icons = { Activity, Antenna, ArrowDown, ArrowRight, ArrowUp, Calendar, Check, CircleCheck, Cpu, Database, Download, Ellipsis, FileText, FlaskConical, Pause, Pencil, Play, Plus, RadioTower, RefreshCw, Router, Search, Settings, ShieldCheck, Trash2, TriangleAlert, Wifi, X };

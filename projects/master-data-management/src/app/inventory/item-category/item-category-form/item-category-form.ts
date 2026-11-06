@@ -13,7 +13,7 @@ type Tab = 'basic' | 'hierarchy' | 'settings';
   selector: 'app-item-category-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './item-category-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class ItemCategoryForm extends MasterForm<ItemCategoryRecord, Tab> {
   // Items in the category being edited, shown on the Hierarchy tab

@@ -98,7 +98,7 @@ const CH = 236;
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './device-management.html',
-  styleUrls: ['./device-management.css', './device-management-sections.css', './device-management-panel.css'],
+  styleUrls: ['./device-management.css', './device-management-sections.css', './device-management-panel.css', '../shared/iot-purple-theme.css'],
 })
 export class DeviceManagement implements OnInit, OnDestroy {
   private readonly api = inject(IoTDeviceApiService);

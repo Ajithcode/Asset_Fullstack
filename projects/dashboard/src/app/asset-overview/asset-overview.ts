@@ -1,4 +1,5 @@
-import { AfterViewInit, Component, ElementRef, HostListener, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -9,6 +10,7 @@ import {
   ArrowDown,
   ArrowUp,
   Archive,
+  Bell,
   Box,
   Building2,
   CalendarDays,
@@ -41,6 +43,7 @@ import {
   Truck,
   Upload,
   Users,
+  Radio,
   Wifi,
   WifiOff,
   Wrench,
@@ -48,6 +51,10 @@ import {
 import { AGE_BANDS, CATEGORIES, HEALTH_COLORS, HealthBand, PORTFOLIO, PortfolioAsset, PortfolioStatus, SITES, STATUSES, STATUS_COLORS, ageYears, healthBand, isoDate } from './asset-overview-data';
 import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
 import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
+import { AssetDashboardKpis, AssetTypeOption, ConnectedAssetDetail, Dashboard } from '../services/dashboard/dashboard';
+
+/** Window of GET api/asset-dashboard/kpis for the KPI cards. */
+const KPI_DAYS = 30;
 
 type AsOf = 'today' | '30' | '90';
 type Insight = '' | 'critical' | 'maintenance' | 'owner' | 'documents';
@@ -87,8 +94,8 @@ const AP = { l: 36, r: 6, t: 22, b: 8 };
 })
 export class AssetOverview implements AfterViewInit, OnDestroy {
   readonly icons = {
-    ArrowDown, ArrowUp, Archive, Box, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, CirclePause, CirclePlay, ClipboardList, Cog, Database,
-    ExternalLink, Factory, FileText, FileUp, HardHat, Heart, HeartPulse, House, Lightbulb, MapPin, Monitor, PieChart, Plus, Power, Settings, Trash2, TriangleAlert, Truck, Upload,
+    ArrowDown, ArrowUp, Archive, Bell, Box, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, CirclePause, CirclePlay, ClipboardList, Cog, Database,
+    ExternalLink, Factory, FileText, FileUp, HardHat, Heart, HeartPulse, House, Lightbulb, MapPin, Monitor, PieChart, Plus, Power, Radio, Settings, Trash2, TriangleAlert, Truck, Upload,
     Users, Wifi, WifiOff, Wrench,
   };
   readonly categoryIcons: Record<string, typeof Factory> = { factory: Factory, truck: Truck, building: Building2, monitor: Monitor, wrench: Wrench, 'hard-hat': HardHat };
@@ -96,7 +103,10 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     Active: CirclePlay, Idle: CirclePause, 'In Transit': Truck, 'Under Maintenance': Wrench, Retired: Archive, Disposed: Trash2,
   };
   readonly categories = CATEGORIES;
-  readonly sites = SITES.map((s) => s.name);
+  /** "Site" dropdown, from GET api/master-data/sites?clientId=. */
+  sites: string[] = [];
+  /** Rows of GET api/master-data/asset-types behind the "Asset Type" dropdown. */
+  private assetTypes: AssetTypeOption[] = [];
   readonly statuses = STATUSES;
   readonly statusColors = STATUS_COLORS;
   readonly healthColors = HEALTH_COLORS;
@@ -129,8 +139,6 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
 
   /** Assets on the selected date that pass the filters; rebuilt by apply(). */
   assets: Snapshot[] = [];
-  /** Same filters, 30 days before the selected date (for the KPI change). */
-  private previous: Snapshot[] = [];
 
   @ViewChild('mapEl') private mapEl?: ElementRef<HTMLDivElement>;
   @ViewChild('agingEl') private agingEl?: ElementRef<HTMLDivElement>;
@@ -141,8 +149,17 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly zone = inject(NgZone);
   private readonly today = new Date();
+  private readonly dashboardApi = inject(Dashboard);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly kpiDays = KPI_DAYS;
+  /** KPI cards from GET api/asset-dashboard/kpis?days=30; null until the first response. */
+  kpiData: AssetDashboardKpis | null = null;
+  kpiLoading = false;
 
   constructor() {
+    this.loadKpis();
+    this.loadFilterOptions();
     this.apply();
     const first = [...this.assets].filter((a) => a.criticality === 'Critical').sort((a, b) => b.value - a.value)[0] ?? this.assets[0];
     this.selectedId = first?.id ?? '';
@@ -175,9 +192,11 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     this.apply();
   }
 
-  /** Types offered for the chosen category. */
+  /** Types offered in the dropdown: the API types of the chosen category, or all when none belong to it. */
   get types(): string[] {
-    return [...new Set(PORTFOLIO.filter((a) => !this.category || a.category === this.category).map((a) => a.type))].sort();
+    const inCategory = this.assetTypes.filter((t) => t.category?.name === this.category);
+    const list = this.category && inCategory.length ? inCategory : this.assetTypes;
+    return [...new Set(list.map((t) => t.assetTypeName))].sort((a, b) => a.localeCompare(b));
   }
 
   onCategory(): void {
@@ -187,7 +206,6 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
 
   apply(): void {
     this.assets = this.snapshot(this.asOfDate, this.asOf === 'today');
-    this.previous = this.snapshot(new Date(this.asOfDate.getTime() - 30 * DAY), false);
     this.rowPage = 0;
     this.drawSites();
   }
@@ -206,31 +224,65 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
 
   // ===== KPIs =====
 
-  private figures(list: Snapshot[]) {
-    const assessed = list.filter((a) => a.hp !== null);
-    return {
-      total: list.length,
-      active: list.filter((a) => a.st === 'Active').length,
-      maintenance: list.filter((a) => a.st === 'Under Maintenance').length,
-      critical: list.filter((a) => a.criticality === 'Critical').length,
-      health: assessed.length ? Math.round((assessed.reduce((s, a) => s + (a.hp ?? 0), 0) / assessed.length) * 10) / 10 : 0,
-      value: list.filter((a) => a.st !== 'Disposed').reduce((s, a) => s + a.value, 0),
-    };
+  /** Fills the Site and Asset Type dropdowns from master data (active, non-deleted rows). */
+  loadFilterOptions(): void {
+    const live = <T extends { status: string; isDeleted: boolean }>(rows: T[] | null) => (rows ?? []).filter((r) => !r.isDeleted && r.status !== 'Inactive');
+    this.dashboardApi
+      .getSites()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => (this.sites = [...new Set(live(res).map((s) => s.siteName).filter(Boolean))].sort((a, b) => a.localeCompare(b))),
+        error: () => (this.sites = []),
+      });
+    this.dashboardApi
+      .getAssetTypes()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => (this.assetTypes = live(res).filter((t) => !!t.assetTypeName)),
+        error: () => (this.assetTypes = []),
+      });
+  }
+
+  /** Fetches the KPI cards (last 30 days). */
+  loadKpis(): void {
+    this.kpiLoading = true;
+    this.dashboardApi
+      .getKpis(KPI_DAYS)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.kpiData = res;
+          this.kpiLoading = false;
+        },
+        error: () => {
+          this.kpiData = null;
+          this.kpiLoading = false;
+        },
+      });
   }
 
   get kpis() {
-    const now = this.figures(this.assets);
-    const was = this.figures(this.previous);
-    const change = (a: number, b: number) => (b ? Math.round(((a - b) / b) * 1000) / 10 : null);
+    const api = this.kpiData;
+    const round = (v: number | null | undefined) => (v === null || v === undefined ? null : Math.round(v * 10) / 10);
     return {
-      ...now,
-      activePct: now.total ? Math.round((now.active / now.total) * 1000) / 10 : 0,
-      totalChange: change(now.total, was.total),
-      maintenanceChange: change(now.maintenance, was.maintenance),
-      criticalChange: change(now.critical, was.critical),
-      healthChange: was.health ? Math.round((now.health - was.health) * 10) / 10 : null,
-      valueChange: change(now.value, was.value),
+      total: api?.totalAssets ?? 0,
+      connected: api?.connectedAssets.value ?? 0,
+      connectedPct: round(api?.connectedAssets.percent) ?? 0,
+      connectedChange: round(api?.connectedAssets.changePercent),
+      online: api?.onlineNow.value ?? 0,
+      onlinePct: round(api?.onlineNow.percent) ?? 0,
+      alerts: api?.alerts.value ?? 0,
+      alertsChange: round(api?.alerts.changePercent),
+      coverage: round(api?.coverage.percent) ?? 0,
+      coverageChange: round(api?.coverage.changePercent),
+      freshness: round(api?.dataFreshness.percent) ?? 0,
+      freshnessChange: round(api?.dataFreshness.changePercent),
     };
+  }
+
+  /** Connected assets returned with the KPIs. */
+  get connectedAssets(): ConnectedAssetDetail[] {
+    return this.kpiData?.connectedAssetDetails ?? [];
   }
 
   // ===== Portfolio, health, status =====
@@ -501,47 +553,41 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     };
   }
 
-  openKpi(kind: 'total' | 'active' | 'maintenance' | 'critical' | 'health' | 'value'): void {
-    const list = this.assets;
+  openKpi(kind: 'total' | 'connected' | 'online' | 'alerts' | 'coverage' | 'freshness'): void {
     const k = this.kpis;
-    const service = (a: Snapshot) => ({ last: a.lastService, next: a.nextService });
-    const serviceCols: DrillColumn[] = [{ key: 'last', label: 'Last Service' }, { key: 'next', label: 'Next Service' }];
-    if (kind === 'total') {
-      this.drill = { title: 'Total Assets', subtitle: this.scope, stats: [{ label: 'Assets', value: k.total }, ...this.statusStats(list)], columns: this.assetColumns(), rows: this.assetRows(list) };
-    } else if (kind === 'active') {
-      const active = list.filter((a) => a.st === 'Active');
+    const api = this.kpiData;
+    const subtitle = `Last ${KPI_DAYS} days`;
+    const columns: DrillColumn[] = [
+      { key: 'tag', label: 'Asset Tag' }, { key: 'name', label: 'Asset Name' }, { key: 'type', label: 'Type' }, { key: 'site', label: 'Site' },
+      { key: 'network', label: 'Network', pill: { online: '#16a34a', idle: '#2563eb', offline: '#dc2626' } },
+      { key: 'gateway', label: 'Gateway' }, { key: 'lastSeen', label: 'Last Seen' }, { key: 'readings', label: 'Readings', num: true },
+    ];
+    const rows = (list: ConnectedAssetDetail[]): DrillRow[] => list.map((a) => ({
+      cells: {
+        tag: a.assetTag, name: a.assetName, type: a.assetType, site: a.siteName, network: a.networkStatus,
+        gateway: a.gatewayId ?? '-', lastSeen: a.lastSeenAt ? this.fmtDateTime(a.lastSeenAt) : '-', readings: a.readingCount,
+      },
+    }));
+    if (kind === 'total' || kind === 'connected') {
       this.drill = {
-        title: 'Active Assets', subtitle: this.scope,
-        stats: [{ label: 'Active', value: k.active, color: STATUS_COLORS.Active }, { label: 'Of total assets', value: `${k.activePct}%` }, { label: 'Value', value: this.valueOf(active) }],
-        columns: this.assetColumns(), rows: this.assetRows(active),
+        title: kind === 'total' ? 'Total Assets' : 'Connected Assets', subtitle: api?.connectedAssets.note ?? subtitle,
+        stats: [{ label: 'Registered', value: k.total }, { label: 'Connected', value: k.connected }, { label: 'Connected %', value: `${k.connectedPct}%` }],
+        tableTitle: 'Connected assets', columns, rows: rows(this.connectedAssets), empty: 'No connected assets.',
       };
-    } else if (kind === 'maintenance') {
-      const m = list.filter((a) => a.st === 'Under Maintenance');
+    } else if (kind === 'online') {
+      const online = this.connectedAssets.filter((a) => a.networkStatus?.toLowerCase() === 'online');
       this.drill = {
-        title: 'Assets Under Maintenance', subtitle: this.scope,
-        stats: [{ label: 'Under maintenance', value: k.maintenance, color: STATUS_COLORS['Under Maintenance'] }, { label: 'Of total assets', value: `${pct(k.maintenance, k.total)}%` }],
-        columns: this.assetColumns(...serviceCols), rows: this.assetRows(m, service),
-      };
-    } else if (kind === 'critical') {
-      const c = list.filter((a) => a.criticality === 'Critical').sort((a, b) => b.value - a.value);
-      this.drill = {
-        title: 'Critical Assets', subtitle: this.scope,
-        stats: [{ label: 'Critical', value: k.critical, color: '#dc2626' }, { label: 'Of total assets', value: `${pct(k.critical, k.total)}%` }, { label: 'Value', value: this.valueOf(c) }],
-        columns: this.assetColumns(...serviceCols), rows: this.assetRows(c, service),
-      };
-    } else if (kind === 'health') {
-      const bands: HealthBand[] = ['Healthy', 'Warning', 'Critical', 'Unknown'];
-      this.drill = {
-        title: 'Avg Asset Health Score', subtitle: this.scope,
-        stats: [{ label: 'Average', value: `${k.health}%` }, ...bands.map((b) => ({ label: b, value: list.filter((a) => healthBand(a.hp) === b).length, color: HEALTH_COLORS[b] }))],
-        columns: this.assetColumns(), rows: this.assetRows([...list].sort((a, b) => (a.hp ?? 101) - (b.hp ?? 101))),
+        title: 'Online Now', subtitle: api?.onlineNow.note ?? subtitle,
+        stats: [{ label: 'Online', value: k.online, color: '#16a34a' }, { label: 'Of connected assets', value: `${k.onlinePct}%` }],
+        columns, rows: rows(online), empty: 'No assets online.',
       };
     } else {
-      const owned = list.filter((a) => a.st !== 'Disposed').sort((a, b) => b.value - a.value);
+      const metric = kind === 'alerts' ? api?.alerts : kind === 'coverage' ? api?.coverage : api?.dataFreshness;
+      const title = kind === 'alerts' ? 'Alerts' : kind === 'coverage' ? 'Coverage' : 'Data Freshness';
+      const value = kind === 'alerts' ? k.alerts : `${kind === 'coverage' ? k.coverage : k.freshness}%`;
       this.drill = {
-        title: 'Lifecycle Value', subtitle: `Book value of assets not disposed · ${this.scope}`,
-        stats: [{ label: 'Total value', value: this.money(k.value) }, { label: 'Assets', value: owned.length }, { label: 'Average value', value: this.money(owned.length ? Math.round(k.value / owned.length) : 0) }],
-        columns: this.assetColumns({ key: 'acquired', label: 'Acquired' }), rows: this.assetRows(owned, (a) => ({ acquired: a.acquired })),
+        title, subtitle: metric?.note ?? subtitle,
+        stats: [{ label: title, value }, ...(metric?.changePercent != null ? [{ label: `vs. previous ${KPI_DAYS} days`, value: `${metric.changePercent > 0 ? '+' : ''}${Math.round(metric.changePercent * 10) / 10}%` }] : [])],
       };
     }
   }
@@ -638,8 +684,9 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet([
       { Metric: 'As of', Value: isoDate(this.asOfDate) },
       { Metric: 'Filters', Value: `Site: ${this.site || 'All'}; Category: ${this.category || 'All'}; Type: ${this.type || 'All'}; Status: ${this.status || 'All'}` },
-      { Metric: 'Total Assets', Value: k.total }, { Metric: 'Active Assets', Value: k.active }, { Metric: 'Under Maintenance', Value: k.maintenance },
-      { Metric: 'Critical Assets', Value: k.critical }, { Metric: 'Avg Health Score %', Value: k.health }, { Metric: 'Lifecycle Value (USD)', Value: k.value },
+      { Metric: `KPI window`, Value: `Last ${KPI_DAYS} days` },
+      { Metric: 'Total Assets', Value: k.total }, { Metric: 'Connected Assets', Value: k.connected }, { Metric: 'Online Now', Value: k.online },
+      { Metric: 'Alerts', Value: k.alerts }, { Metric: 'Coverage %', Value: k.coverage }, { Metric: 'Data Freshness %', Value: k.freshness },
     ]), 'Summary');
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.byCategory.map((c) => ({ Category: c.name, Assets: c.count, '%': c.pct }))), 'By Category');
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.byStatus.map((s) => ({ Status: s.status, Assets: s.count, '%': s.pct }))), 'By Status');

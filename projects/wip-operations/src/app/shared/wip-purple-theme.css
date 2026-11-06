@@ -1,0 +1,38 @@
+/* Purple accent for every WIP / Operations page. Loaded LAST in each component's styleUrls. */
+
+/* Primary buttons */
+.btn-primary {
+  border-color: transparent;
+  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px #6d28d940;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(90deg, #3b1574, #5b21b6);
+}
+
+/* Icon tiles: header icons and KPI cards in the default / blue / violet tone (status tones stay as they are) */
+.tpl-icon,
+.job-icon,
+.side-ic,
+.kpi-ic:not(.kpi-ic--red):not(.kpi-ic--amber):not(.kpi-ic--green):not(.kpi-ic--orange),
+.kpi-icon:not(.kpi-icon--red):not(.kpi-icon--green),
+.kpi-circle--blue {
+  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px #6d28d940;
+}
+
+/* Breadcrumb (the current item keeps its own color) */
+.breadcrumb a {
+  color: #6d28d9;
+}
+
+.breadcrumb a:hover {
+  color: #4c1d95;
+}
+
+.breadcrumb .sep {
+  color: #a78bfa;
+}

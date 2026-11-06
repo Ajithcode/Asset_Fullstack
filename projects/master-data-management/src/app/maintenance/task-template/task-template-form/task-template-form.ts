@@ -14,7 +14,7 @@ type Tab = 'basic' | 'tasks';
   selector: 'app-task-template-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './task-template-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../maintenance-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../maintenance-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class TaskTemplateForm extends MasterForm<TaskTemplateRecord, Tab> {
   protected readonly store = inject(TaskTemplateService);

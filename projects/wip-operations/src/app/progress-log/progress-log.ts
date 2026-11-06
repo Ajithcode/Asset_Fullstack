@@ -105,7 +105,7 @@ let DRAFT: UpdateForm | null = null;
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './progress-log.html',
   // Buttons, controls, tabs, switches, modal and toast come from the Job Templates stylesheet
-  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './progress-log.css'],
+  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './progress-log.css', '../shared/wip-purple-theme.css'],
 })
 export class ProgressLog implements OnDestroy {
   readonly icons = {

@@ -14,7 +14,7 @@ type Tab = 'basic' | 'settings';
   selector: 'app-store-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './store-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class StoreForm extends MasterForm<StoreRecord, Tab> {
   protected readonly store = inject(StoreService);

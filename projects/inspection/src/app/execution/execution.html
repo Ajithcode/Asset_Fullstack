@@ -2,8 +2,8 @@
   <div class="page-head">
     <div class="grow">
       <nav class="breadcrumb" aria-label="Breadcrumb">
-        <a routerLink="/inspection/overview">Inspection</a><span aria-hidden="true">/</span>
-        @if (work) { <span>{{ work.inspectionCode }}</span><span aria-hidden="true">/</span> }
+        <a routerLink="/inspection/overview">Inspection</a><span class="crumb-sep" aria-hidden="true">›</span>
+        @if (work) { <span>{{ work.inspectionCode }}</span><span class="crumb-sep" aria-hidden="true">›</span> }
         <span class="current">Execute</span>
       </nav>
       <h1>Inspection Execution @if (work) { <span [class]="pillClass(work.status)"><span class="dot"></span>{{ work.status }}</span> }

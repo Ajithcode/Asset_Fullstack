@@ -13,7 +13,7 @@ type Tab = 'basic' | 'requirements' | 'settings';
   selector: 'app-certification-type-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './certification-type-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class CertificationTypeForm extends MasterForm<CertificationTypeRecord, Tab> {
   protected readonly store = inject(CertificationTypeService);

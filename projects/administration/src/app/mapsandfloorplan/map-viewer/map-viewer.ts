@@ -103,6 +103,8 @@ import { MapsStore } from '../maps.store';
   `,
   styleUrls: ['../../shared/admin-workspace.css', '../maps.css'],
   styles: `
+    :host { display: flex; flex-direction: column; min-width: 0; }
+    .viewer { flex: 1; display: flex; flex-direction: column; }
     .viewer:fullscreen { overflow: auto; border-radius: 0; }
     .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .menu button { display: flex; align-items: center; gap: 8px; }

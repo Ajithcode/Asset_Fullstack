@@ -70,7 +70,7 @@ const ZONE_PREVIEW = 6;
   selector: 'app-location-detail',
   imports: [LucideAngularModule, LocationMap, NgTemplateOutlet],
   templateUrl: './location-detail.html',
-  styleUrl: '../../../shared/styles/mdm-detail.css'
+  styleUrls: ['../../../shared/styles/mdm-detail.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class LocationDetail implements OnChanges {
   @Input({ required: true }) location!: LocationRecord;

@@ -16,7 +16,7 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
   selector: 'app-crit-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './crit-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../level-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../level-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class CritForm implements OnChanges {
   // 'edit' changes `level`; 'add' creates a new one, pre-filled from `level` if given (Duplicate)
@@ -105,7 +105,23 @@ export class CritForm implements OnChanges {
     this.form.image = null;
   }
 
+  /** True on the final tab, where the primary button saves instead of advancing. */
+  get isLastTab(): boolean {
+    return this.tab === this.tabs[this.tabs.length - 1].id;
+  }
+
+  /** Move to the next tab. */
+  next(): void {
+    const i = this.tabs.findIndex((t) => t.id === this.tab);
+    if (i < this.tabs.length - 1) this.tab = this.tabs[i + 1].id;
+  }
+
   submit(): void {
+    // Enter key / primary button on earlier tabs just advances
+    if (!this.isLastTab) {
+      this.next();
+      return;
+    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a criticality name.';

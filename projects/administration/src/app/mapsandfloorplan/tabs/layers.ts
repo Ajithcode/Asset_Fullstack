@@ -170,9 +170,14 @@ export class LayersTab {
   }
 
   save(): void {
+    // Enter on the Details tab moves on to Style instead of saving
+    if (this.rightTab === 'details') {
+      this.rightTab = 'style';
+      return;
+    }
     const d = this.d;
-    if (!d || this.store.working) return;
-    this.store.saveLayer({ ...d, categories: [...d.categories] }, { success: `Layer ${d.name} saved` });
+    if (!d || this.store.working || !d.name.trim()) return;
+    this.store.saveLayer({ ...d, name: d.name.trim(), categories: [...d.categories] }, { success: `Layer ${d.name.trim()} saved` });
   }
 
   /* ===== Quick "Show" toggles above the map ===== */

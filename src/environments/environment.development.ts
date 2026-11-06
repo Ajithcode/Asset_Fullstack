@@ -21,6 +21,8 @@ export const environment = {
   // Asset service (5401): asset registrations, categories, models, documents, lifecycle, service requests, ...
   assetApiUrl: 'http://localhost:5401/',
   assetRegistrationApiUrl: 'http://localhost:5401/',
+  // Asset dashboard endpoints (api/asset-dashboard) live in the Asset service
+  assetDashboardApiUrl: 'http://localhost:5401/',
   // Inspection service (5410)
   inspectionApiUrl: 'http://localhost:5410/',
   // EventLog service: activity history. It has no sign-in check of its own, so it is only reached through the gateway.

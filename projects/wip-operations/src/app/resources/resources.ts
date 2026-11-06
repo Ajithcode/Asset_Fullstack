@@ -91,7 +91,7 @@ const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: string) =>
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './resources.html',
   // Buttons, controls, cards, tabs, menu, modal and toast come from the Job Templates stylesheet
-  styleUrls: ['../job-templates/job-templates.css', './resources.css', './resources-panels.css'],
+  styleUrls: ['../job-templates/job-templates.css', './resources.css', './resources-panels.css', '../shared/wip-purple-theme.css'],
 })
 export class Resources implements OnDestroy {
   readonly icons = {

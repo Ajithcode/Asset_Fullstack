@@ -22,7 +22,8 @@ const MATRIX_SHADES = ['#c9f0d8', '#d9f2cf', '#f3f4c8', '#fdf0c2', '#fde4b0', '#
     '../../../shared/styles/mdm-detail-extras.css',
     '../../asset-model/model-detail/model-detail.css',
     '../../asset-type/type-detail/type-detail.css',
-    '../../level-detail.css'
+    '../../level-detail.css',
+    '../../../shared/styles/mdm-purple-theme.css'
   ]
 })
 export class CritDetail implements OnChanges {

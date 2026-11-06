@@ -14,7 +14,7 @@ type Tab = 'basic' | 'classification';
   selector: 'app-failure-code-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './failure-code-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../maintenance-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../maintenance-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class FailureCodeForm extends MasterForm<FailureCodeRecord, Tab> {
   protected readonly store = inject(FailureCodeService);

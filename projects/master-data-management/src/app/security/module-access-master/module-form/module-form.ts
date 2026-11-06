@@ -14,7 +14,7 @@ type Tab = 'basic';
   selector: 'app-module-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './module-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class ModuleForm extends MasterForm<ModuleRecord, Tab> {
   // Permissions and roles using the module being edited

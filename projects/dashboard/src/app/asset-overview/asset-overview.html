@@ -35,38 +35,38 @@
     <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('total')" (keydown.enter)="openKpi('total')">
       <span class="io-kpi-ic ic--blue"><lucide-icon [img]="icons.Box" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Total Assets</span><strong>{{ k.total | number }}</strong></span>
-      <ng-container *ngTemplateOutlet="trend; context: { v: k.totalChange, goodUp: true }"></ng-container>
+      <span class="io-kpi-side io-kpi-side--rule"><b class="big">{{ k.connectedPct }}%</b><small>connected</small></span>
     </div>
-    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('active')" (keydown.enter)="openKpi('active')">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('connected')" (keydown.enter)="openKpi('connected')">
+      <span class="io-kpi-ic ic--sky"><lucide-icon [img]="icons.Radio" [size]="30"></lucide-icon></span>
+      <span class="io-kpi-body"><span class="io-kpi-label">Connected Assets</span><strong>{{ k.connected | number }}</strong></span>
+      <ng-container *ngTemplateOutlet="trend; context: { v: k.connectedChange, goodUp: true }"></ng-container>
+    </div>
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('online')" (keydown.enter)="openKpi('online')">
       <span class="io-kpi-ic ic--green"><lucide-icon [img]="icons.Power" [size]="30"></lucide-icon></span>
-      <span class="io-kpi-body"><span class="io-kpi-label">Active Assets</span><strong>{{ k.active | number }}</strong></span>
-      <span class="io-kpi-side io-kpi-side--rule"><b class="up big">{{ k.activePct }}%</b><small>of total assets</small></span>
+      <span class="io-kpi-body"><span class="io-kpi-label">Online Now</span><strong>{{ k.online | number }}</strong></span>
+      <span class="io-kpi-side io-kpi-side--rule"><b class="up big">{{ k.onlinePct }}%</b><small>of connected assets</small></span>
     </div>
-    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('maintenance')" (keydown.enter)="openKpi('maintenance')">
-      <span class="io-kpi-ic ic--amber"><lucide-icon [img]="icons.Wrench" [size]="30"></lucide-icon></span>
-      <span class="io-kpi-body"><span class="io-kpi-label">Assets Under Maintenance</span><strong>{{ k.maintenance | number }}</strong></span>
-      <ng-container *ngTemplateOutlet="trend; context: { v: k.maintenanceChange, goodUp: false }"></ng-container>
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('alerts')" (keydown.enter)="openKpi('alerts')">
+      <span class="io-kpi-ic ic--red"><lucide-icon [img]="icons.Bell" [size]="30"></lucide-icon></span>
+      <span class="io-kpi-body"><span class="io-kpi-label">Alerts</span><strong>{{ k.alerts | number }}</strong></span>
+      <ng-container *ngTemplateOutlet="trend; context: { v: k.alertsChange, goodUp: false }"></ng-container>
     </div>
-    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('critical')" (keydown.enter)="openKpi('critical')">
-      <span class="io-kpi-ic ic--red"><lucide-icon [img]="icons.TriangleAlert" [size]="30"></lucide-icon></span>
-      <span class="io-kpi-body"><span class="io-kpi-label">Critical Assets</span><strong>{{ k.critical | number }}</strong></span>
-      <ng-container *ngTemplateOutlet="trend; context: { v: k.criticalChange, goodUp: false }"></ng-container>
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('coverage')" (keydown.enter)="openKpi('coverage')">
+      <span class="io-kpi-ic ic--amber"><lucide-icon [img]="icons.MapPin" [size]="30"></lucide-icon></span>
+      <span class="io-kpi-body"><span class="io-kpi-label">Coverage</span><strong>{{ k.coverage }}%</strong></span>
+      <ng-container *ngTemplateOutlet="trend; context: { v: k.coverageChange, goodUp: true }"></ng-container>
     </div>
-    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('health')" (keydown.enter)="openKpi('health')">
-      <span class="io-kpi-ic ic--sky"><lucide-icon [img]="icons.HeartPulse" [size]="30"></lucide-icon></span>
-      <span class="io-kpi-body"><span class="io-kpi-label">Avg Asset Health Score</span><strong>{{ k.health }}%</strong></span>
-      <ng-container *ngTemplateOutlet="trend; context: { v: k.healthChange, goodUp: true }"></ng-container>
-    </div>
-    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('value')" (keydown.enter)="openKpi('value')">
+    <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('freshness')" (keydown.enter)="openKpi('freshness')">
       <span class="io-kpi-ic ic--violet"><lucide-icon [img]="icons.Database" [size]="30"></lucide-icon></span>
-      <span class="io-kpi-body"><span class="io-kpi-label">Lifecycle Value</span><strong>{{ money(k.value) }}</strong></span>
-      <ng-container *ngTemplateOutlet="trend; context: { v: k.valueChange, goodUp: true }"></ng-container>
+      <span class="io-kpi-body"><span class="io-kpi-label">Data Freshness</span><strong>{{ k.freshness }}%</strong></span>
+      <ng-container *ngTemplateOutlet="trend; context: { v: k.freshnessChange, goodUp: true }"></ng-container>
     </div>
   </ng-container>
-  <!-- change vs. 30 days earlier; colour says whether the move is good -->
+  <!-- change vs. the previous KPI window; colour says whether the move is good -->
   <ng-template #trend let-v="v" let-goodUp="goodUp">
     <span *ngIf="v !== null && v !== 0" class="io-kpi-side"><b [class.up]="(v > 0) === goodUp" [class.down]="(v > 0) !== goodUp">
-      <lucide-icon [img]="v > 0 ? icons.ArrowUp : icons.ArrowDown" [size]="14"></lucide-icon>{{ v > 0 ? '+' : '' }}{{ v }}%</b><small>vs. previous 30 days</small></span>
+      <lucide-icon [img]="v > 0 ? icons.ArrowUp : icons.ArrowDown" [size]="14"></lucide-icon>{{ v > 0 ? '+' : '' }}{{ v }}%</b><small>vs. previous {{ kpiDays }} days</small></span>
   </ng-template>
 
   <!-- ===== Row 1 ===== -->

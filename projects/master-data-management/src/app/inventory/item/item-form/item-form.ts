@@ -31,7 +31,7 @@ const TAB_OF: Record<string, Tab> = {
   selector: 'app-item-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './item-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class ItemForm extends MasterForm<ItemRecord, Tab> {
   protected readonly store = inject(ItemService);

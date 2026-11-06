@@ -75,7 +75,7 @@ function nextVersion(v: string): string {
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './task-master.html',
   // Buttons, controls, cards, tabs, switches, tables, modal and toast come from the Job Templates stylesheets
-  styleUrls: ['../job-templates/job-templates.css', '../job-templates/job-templates-tabs.css', './task-master.css'],
+  styleUrls: ['../job-templates/job-templates.css', '../job-templates/job-templates-tabs.css', './task-master.css', '../shared/wip-purple-theme.css'],
 })
 export class TaskMaster implements OnDestroy {
   readonly icons = { ArrowDown, ArrowUp, ChevronDown, CircleAlert, CircleCheck, ClipboardList, ExternalLink, Eye, FileText, Info, Paperclip, Plus, Save, Send, Trash2, X };

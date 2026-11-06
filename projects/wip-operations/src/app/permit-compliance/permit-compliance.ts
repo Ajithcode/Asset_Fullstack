@@ -76,7 +76,7 @@ const minutesBetween = (a: string, b: string) => Math.round((parseLocal(b).getTi
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './permit-compliance.html',
   // Buttons, controls, tabs, modal and toast come from the Job Templates stylesheet
-  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './permit-compliance.css'],
+  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './permit-compliance.css', '../shared/wip-purple-theme.css'],
 })
 export class PermitCompliance implements OnDestroy {
   readonly icons = {

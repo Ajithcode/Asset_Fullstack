@@ -22,7 +22,7 @@ type SortKey = 'id' | 'name' | 'department' | 'designation';
   selector: 'app-mdm-people-employee',
   imports: [FormsModule, RouterLink, LucideAngularModule, EmployeeForm],
   templateUrl: './employee.html',
-  styleUrls: ['../../shared/styles/mdm-page.css', '../people.css']
+  styleUrls: ['../../shared/styles/mdm-page.css', '../people.css', '../../shared/styles/mdm-purple-theme.css']
 })
 export class EmployeePage extends ListPage<EmployeeRecord, EmployeeFilters, SortKey> {
   readonly service = inject(EmployeeService);

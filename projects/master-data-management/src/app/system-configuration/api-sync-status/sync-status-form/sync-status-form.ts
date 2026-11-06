@@ -13,7 +13,7 @@ type Tab = 'basic';
   selector: 'app-sync-status-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './sync-status-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../maintenance/maintenance-form.css', '../../../asset/level-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../maintenance/maintenance-form.css', '../../../asset/level-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class SyncStatusForm extends MasterForm<SyncStatusRecord, Tab> {
   protected readonly store = inject(SyncStatusService);

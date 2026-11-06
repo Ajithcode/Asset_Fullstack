@@ -105,7 +105,7 @@ function numOrNull(v: unknown): number | null {
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './sensor-management.html',
-  styleUrls: ['./sensor-management.css', './sensor-management-table.css', './sensor-management-panel.css'],
+  styleUrls: ['./sensor-management.css', './sensor-management-table.css', './sensor-management-panel.css', '../shared/iot-purple-theme.css'],
 })
 export class SensorManagement implements OnInit, OnDestroy {
   readonly icons = {

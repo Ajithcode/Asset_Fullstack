@@ -9,7 +9,7 @@
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr) 320px;
   gap: 12px;
-  align-items: start;
+  align-items: stretch; /* left, centre and right columns share one height */
 }
 
 .mws--two {
@@ -25,6 +25,21 @@
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+
+/* Card in a stacked side column that takes the leftover height so the column bottom lines up */
+.side > .panel--grow {
+  flex: 1;
+}
+
+/* Map viewer fills its grid cell; canvas area takes the spare height */
+app-map-viewer {
+  display: flex;
+  flex-direction: column;
+}
+
+.mws app-map-canvas {
+  flex: 1;
 }
 
 .field-label {
@@ -650,4 +665,11 @@
 
 .modal.preview-modal {
   width: min(1000px, calc(100vw - 32px));
+}
+
+/* Purple accent header icon (matches Master Data Management) */
+.map-head__icon {
+  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  color: #fff;
+  box-shadow: 0 6px 16px #6d28d940;
 }

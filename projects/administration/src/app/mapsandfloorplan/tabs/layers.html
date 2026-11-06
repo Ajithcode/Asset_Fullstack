@@ -43,7 +43,7 @@
       }
     </section>
 
-    <section class="panel">
+    <section class="panel panel--grow">
       <div class="panel__head">
         <h3>Layer Sets (Views) <lucide-icon [img]="icons.CircleHelp" [size]="13" class="muted" title="A layer set remembers which layers are switched on"></lucide-icon></h3>
         <button type="button" class="btn btn--primary btn--sm" aria-label="Add layer set" [disabled]="store.working" (click)="addSet()"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon></button>
@@ -174,7 +174,11 @@
 
         <div class="rfoot">
           <button type="button" class="btn" [disabled]="store.working" (click)="reset()">Reset</button>
-          <button type="submit" class="btn btn--primary" [disabled]="store.working">{{ store.working ? 'Saving…' : 'Save Layer' }}</button>
+          @if (rightTab === 'style') {
+            <button type="submit" class="btn btn--primary" [disabled]="store.working || !d.name.trim()">{{ store.working ? 'Saving…' : 'Save Layer' }}</button>
+          } @else {
+            <button type="button" class="btn btn--primary" (click)="rightTab = 'style'">Next</button>
+          }
         </div>
       </form>
     } @else {

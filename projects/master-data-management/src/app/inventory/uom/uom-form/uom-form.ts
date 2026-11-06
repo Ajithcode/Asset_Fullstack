@@ -13,7 +13,7 @@ type Tab = 'basic' | 'conversion' | 'settings';
   selector: 'app-uom-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './uom-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class UomForm extends MasterForm<UomRecord, Tab> {
   protected readonly store = inject(UomService);

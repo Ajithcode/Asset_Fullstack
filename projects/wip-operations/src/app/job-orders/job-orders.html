@@ -4,11 +4,11 @@
     <div class="grow">
       <nav class="breadcrumb" aria-label="Breadcrumb">
         <a routerLink="/wip-operations">WIP</a>
-        <span class="sep" aria-hidden="true">/</span>
+        <span class="sep" aria-hidden="true">›</span>
         <span>Operations</span>
-        <span class="sep" aria-hidden="true">/</span>
+        <span class="sep" aria-hidden="true">›</span>
         <a routerLink="/wip-operations/job-orders">Job Orders</a>
-        <span class="sep" aria-hidden="true">/</span>
+        <span class="sep" aria-hidden="true">›</span>
         <span class="menu-wrap">
           <button type="button" class="crumb-btn crumb-btn--accent" (click)="toggleSwitcher($event)" [attr.aria-expanded]="switcherOpen" aria-haspopup="menu" title="Switch job order">
             {{ o.code }}<lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>

@@ -14,7 +14,7 @@ type Tab = 'basic' | 'scope';
   selector: 'app-regulation-form',
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './regulation-form.html',
-  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css']
+  styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
 export class RegulationForm extends MasterForm<RegulationRecord, Tab> {
   protected readonly store = inject(RegulationService);

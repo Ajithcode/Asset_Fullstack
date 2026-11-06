@@ -101,7 +101,7 @@ const overlaps = (a: { start: string; end: string }, b: { start: string; end: st
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './asset-linking.html',
   // Buttons, controls, tabs, switches, modal and toast come from the Job Templates stylesheet
-  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './asset-linking.css'],
+  styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './asset-linking.css', '../shared/wip-purple-theme.css'],
 })
 export class AssetLinking implements OnDestroy {
   readonly icons = {
