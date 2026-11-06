@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit, inject } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -48,24 +48,13 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { Observable, forkJoin } from 'rxjs';
-import { apiErrorMessage } from '../services/asset-api';
-import {
-  AssetHierarchyItemDto,
-  AssetHierarchyService,
-  HierarchyItemInput,
-  HierarchyModelOption,
-  HierarchyTypeOption,
-  toInput,
-} from './asset-hierarchy.service';
 
 /** Grouping levels plus the assets themselves. Assets can also parent other assets (sub-components). */
 type NodeKind = 'root' | 'site' | 'building' | 'area' | 'floor' | 'system' | 'asset';
-/** The API stores Active / Inactive; other values are shown as they come. */
-type AssetStatus = string;
+type AssetStatus = 'Active' | 'Under Maintenance' | 'In Repair' | 'Inactive';
 
 interface HierarchyNode {
-  id: string;
+  id: number;
   kind: NodeKind;
   name: string;
   /** Asset tag for assets, short code for grouping levels. */
@@ -76,39 +65,122 @@ interface HierarchyNode {
   status: AssetStatus;
   description: string;
   icon: keyof AssetHierarchy['assetIcons'];
+  /** Created with "Create Hierarchy Node" in this session: shown with a "New" badge. */
+  isNew?: boolean;
   children: HierarchyNode[];
-  /** The saved item; null for the "All Assets" root, which only exists on screen. */
-  dto: AssetHierarchyItemDto | null;
 }
 
 interface NodeForm {
   kind: Exclude<NodeKind, 'root'>;
   name: string;
   tag: string;
-  typeId: string;
-  modelId: string;
+  type: string;
+  model: string;
   manufacturer: string;
   status: AssetStatus;
-  parentId: string;
+  parentId: number;
 }
-
-/** Id of the on-screen "All Assets" root; top-level items are saved with no parent. */
-const ROOT_ID = '__root__';
-const NODE_KINDS: NodeKind[] = ['site', 'building', 'area', 'floor', 'system', 'asset'];
 
 type GroupKind = Exclude<NodeKind, 'root' | 'asset'>;
 
 interface HierarchyNodeForm {
   name: string;
   kind: GroupKind;
-  parentId: string;
+  parentId: number;
   code: string;
   description: string;
   status: 'Active' | 'Inactive';
 }
 
-function rootNode(children: HierarchyNode[] = []): HierarchyNode {
-  return { id: ROOT_ID, kind: 'root', name: 'All Assets', tag: 'ALL', type: '', model: '', manufacturer: '', status: 'Active', description: '', icon: 'generic', children, dto: null };
+let nextId = 1;
+
+function group(kind: NodeKind, name: string, tag: string, children: HierarchyNode[] = []): HierarchyNode {
+  return { id: nextId++, kind, name, tag, type: '', model: '', manufacturer: '', status: 'Active', description: '', icon: 'generic', children };
+}
+
+function asset(
+  name: string,
+  tag: string,
+  type: string,
+  model: string,
+  manufacturer: string,
+  icon: HierarchyNode['icon'],
+  status: AssetStatus = 'Active',
+  children: HierarchyNode[] = [],
+): HierarchyNode {
+  return { id: nextId++, kind: 'asset', name, tag, type, model, manufacturer, status, description: '', icon, children };
+}
+
+function buildMockTree(): HierarchyNode {
+  return group('root', 'All Assets', 'ALL', [
+    group('site', 'Head Office', 'HO', [
+      group('building', 'Building A', 'HO-BA', [
+        group('floor', 'Floor 1', 'HO-BA-F1', [
+          group('system', 'HVAC System', 'HO-BA-F1-HVAC', [
+            asset('Chiller-01', 'CH-001', 'Chiller', 'TR-350', 'Trane', 'chiller', 'Active', [
+              asset('Compressor CH1-A', 'CMP-101', 'Compressor', 'ZR-190', 'Copeland', 'compressor'),
+              asset('Chilled Water Pump', 'CHWP-01', 'Pump', 'NBG-125', 'Grundfos', 'pump'),
+              asset('Chiller Control Panel', 'CP-CH1', 'Control Panel', 'TS-8', 'Rittal', 'panel'),
+            ]),
+            asset('Chiller-02', 'CH-002', 'Chiller', 'TR-350', 'Trane', 'chiller', 'Under Maintenance'),
+            asset('AHU-01', 'AHU-001', 'AHU', 'AH-200', 'Daikin', 'ahu'),
+          ]),
+          group('system', 'Electrical System', 'HO-BA-F1-ELEC', [
+            asset('Main Switchgear', 'SWG-001', 'Switchgear', 'MNS-3', 'ABB', 'switchgear'),
+            asset('Transformer-01', 'TRF-001', 'Transformer', 'TX-500', 'ABB', 'transformer'),
+          ]),
+          group('system', 'Fire System', 'HO-BA-F1-FIRE', [
+            asset('Fire Pump-01', 'FP-001', 'Fire Pump', 'FP-750', 'Grundfos', 'fire'),
+            asset('Fire Alarm Panel', 'FAP-001', 'Fire Alarm Panel', 'NFS2-3030', 'Honeywell', 'alarm'),
+          ]),
+        ]),
+        group('floor', 'Floor 2', 'HO-BA-F2', [
+          group('system', 'IT Room', 'HO-BA-F2-IT', [
+            asset('Server-01', 'SRV-001', 'Server', 'R750', 'Dell', 'server'),
+            asset('Core Switch-01', 'NSW-001', 'Network Switch', 'C9300', 'Cisco', 'server'),
+            asset('UPS-01', 'UPS-001', 'UPS', 'SRT10K', 'APC', 'ups'),
+          ]),
+        ]),
+      ]),
+      group('building', 'Building B', 'HO-BB', [
+        group('floor', 'Ground Floor', 'HO-BB-GF', [
+          asset('Generator-01', 'GEN-001', 'Generator', 'C250D5', 'Caterpillar', 'generator'),
+          asset('UPS-02', 'UPS-002', 'UPS', 'SRT10K', 'APC', 'ups', 'In Repair'),
+        ]),
+        group('floor', 'Roof', 'HO-BB-RF', [
+          asset('Solar Array-01', 'SOL-001', 'Solar Panel', 'JKM550', 'Jinko Solar', 'solar'),
+          asset('Chiller-03', 'CH-003', 'Chiller', 'TR-500', 'Trane', 'chiller'),
+        ]),
+      ]),
+    ]),
+    group('site', 'Warehouse', 'WH', [
+      group('area', 'Production Line 1', 'WH-PL1', [
+        asset('Conveyor-01', 'CNV-001', 'Conveyor', 'RM-8000', 'Interroll', 'conveyor'),
+        asset('Forklift-01', 'FLT-001', 'Forklift', '8FBE20', 'Toyota', 'forklift'),
+        asset('Forklift-02', 'FLT-002', 'Forklift', '8FBE20', 'Toyota', 'forklift', 'Under Maintenance'),
+      ]),
+      group('area', 'Production Line 2', 'WH-PL2', [
+        asset('Conveyor-02', 'CNV-002', 'Conveyor', 'RM-8000', 'Interroll', 'conveyor'),
+        asset('Pallet Jack-01', 'PJK-001', 'Pallet Jack', 'EJE 120', 'Jungheinrich', 'pallet'),
+      ]),
+      group('area', 'Utilities', 'WH-UTL', [
+        asset('Air Compressor-01', 'CMP-001', 'Compressor', 'GA 37', 'Atlas Copco', 'compressor'),
+        asset('Generator-02', 'GEN-002', 'Generator', 'QSX15', 'Cummins', 'generator'),
+      ]),
+    ]),
+    group('site', 'Remote Sites', 'RS', [
+      group('area', 'Plant 1', 'RS-P1', [
+        asset('Generator-03', 'GEN-003', 'Generator', 'C250D5', 'Caterpillar', 'generator'),
+        asset('Transformer-02', 'TRF-002', 'Transformer', 'TX-1000', 'Siemens', 'transformer'),
+      ]),
+      group('area', 'Plant 2', 'RS-P2', [
+        group('system', 'Pump Station', 'RS-P2-PS', [
+          asset('Pump-01', 'PMP-001', 'Pump', 'CR-64', 'Grundfos', 'pump'),
+          asset('Pump-02', 'PMP-002', 'Pump', 'CR-64', 'Grundfos', 'pump', 'Inactive'),
+        ]),
+      ]),
+    ]),
+  ]);
 }
 
 const KIND_LABELS: Record<NodeKind, string> = {
@@ -131,7 +203,7 @@ const DIAGRAM_ROW_LIMIT = 6;
   templateUrl: './asset-hierarchy.html',
   styleUrl: './asset-hierarchy.css',
 })
-export class AssetHierarchy implements OnInit {
+export class AssetHierarchy {
   readonly icons = {
     Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Download, Ellipsis, EllipsisVertical, Eye,
     FolderPlus, Inbox, Link2, MoveRight, Network, PackagePlus, Plus, Search, SquarePen, Trash2, Workflow, X,
@@ -168,143 +240,53 @@ export class AssetHierarchy implements OnInit {
 
   readonly kindLabels = KIND_LABELS;
   readonly groupKinds: NodeForm['kind'][] = ['site', 'building', 'area', 'floor', 'system'];
-  readonly statusOptions: AssetStatus[] = ['Active', 'Inactive'];
+  readonly statusOptions: AssetStatus[] = ['Active', 'Under Maintenance', 'In Repair', 'Inactive'];
   readonly diagramRowLimit = DIAGRAM_ROW_LIMIT;
 
-  root: HierarchyNode = rootNode();
-  expanded = new Set<string>([ROOT_ID]);
-  selectedId: string = ROOT_ID;
+  root: HierarchyNode = buildMockTree();
+  expanded = new Set<number>();
+  selectedId: number;
   treeSearch = '';
 
-  /** True while the hierarchy is being fetched. */
-  loading = false;
-  /** Set when the hierarchy could not be loaded. */
-  loadError = '';
-  /** True while a create / update / move / delete request is running. */
-  saving = false;
-  /** Error from the add / edit form's save request. */
-  formError = '';
-
-  /** Asset type and model masters for the add / edit form. */
-  assetTypes: HierarchyTypeOption[] = [];
-  models: HierarchyModelOption[] = [];
-
-  checkedChildren = new Set<string>();
+  checkedChildren = new Set<number>();
   openMenu: string | null = null;
 
   // Add / edit modal
   formOpen = false;
   editingNode: HierarchyNode | null = null;
-  form: NodeForm = this.emptyForm(ROOT_ID);
+  form: NodeForm = this.emptyForm(0);
   formSubmitted = false;
 
   // "+" action menu and Create Hierarchy Node modal
   addMenuOpen = false;
   nodeFormOpen = false;
-  nodeForm: HierarchyNodeForm = this.emptyNodeForm(ROOT_ID);
+  nodeForm: HierarchyNodeForm = this.emptyNodeForm(0);
   nodeFormSubmitted = false;
   readonly nodeKinds: GroupKind[] = ['site', 'building', 'area', 'floor', 'system'];
 
   // Move modal
   moveTarget: HierarchyNode | null = null;
-  moveParentId: string | null = null;
+  moveParentId: number | null = null;
 
   // Assign-assets modal
   assignOpen = false;
   assignSearch = '';
-  assignChecked = new Set<string>();
+  assignChecked = new Set<number>();
 
   deleteTarget: HierarchyNode | null = null;
 
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  private readonly router = inject(Router);
-  private readonly api = inject(AssetHierarchyService);
-
-  ngOnInit(): void {
-    this.reload(true);
-    this.api.getAssetTypes().subscribe({ next: (types) => (this.assetTypes = types), error: () => (this.assetTypes = []) });
-    this.api.getModels().subscribe({ next: (models) => (this.models = models), error: () => (this.models = []) });
-  }
-
-  // ===== Loading =====
-
-  /** Fetches every item and rebuilds the tree, keeping the selection and open branches where they still exist. */
-  reload(first = false): void {
-    this.loading = true;
-    this.loadError = '';
-    this.api.getItems().subscribe({
-      next: (items) => {
-        this.root = this.buildTree(items);
-        this.loading = false;
-        if (!this.find(this.selectedId)) this.selectedId = ROOT_ID;
-        if (first) {
-          // Open the top two levels so the structure is visible straight away.
-          this.root.children.forEach((c) => this.expanded.add(c.id));
-        }
-        this.lineage(this.selectedId).slice(0, -1).forEach((a) => this.expanded.add(a.id));
-        [...this.checkedChildren].forEach((id) => {
-          if (!this.find(id)) this.checkedChildren.delete(id);
-        });
-      },
-      error: (err) => {
-        this.loading = false;
-        this.loadError = apiErrorMessage(err, 'Could not load the asset hierarchy.');
-      },
+  constructor(private readonly router: Router) {
+    const chiller = this.findBy((n) => n.tag === 'CH-001') ?? this.root;
+    this.selectedId = chiller.id;
+    // Match the design: open the path to Chiller-01 plus the neighbouring branches.
+    this.lineage(chiller.id).slice(0, -1).forEach((n) => this.expanded.add(n.id));
+    ['HO-BA-F1-ELEC', 'WH', 'RS'].forEach((tag) => {
+      const n = this.findBy((x) => x.tag === tag);
+      if (n) this.expanded.add(n.id);
     });
-  }
-
-  private buildTree(items: AssetHierarchyItemDto[]): HierarchyNode {
-    const nodes = new Map<string, HierarchyNode>();
-    for (const dto of items) {
-      const raw = (dto.itemKind ?? '').trim().toLowerCase();
-      const kind: NodeKind = (NODE_KINDS as string[]).includes(raw) ? (raw as NodeKind) : 'asset';
-      nodes.set(dto.id, {
-        id: dto.id,
-        kind,
-        name: dto.name,
-        tag: dto.assetTag ?? '',
-        type: dto.assetTypeName ?? '',
-        model: dto.modelName ?? '',
-        manufacturer: dto.manufacturerName ?? '',
-        status: dto.status || 'Active',
-        description: '',
-        icon: kind === 'asset' ? this.guessIcon(dto.assetTypeName ?? '') : 'generic',
-        children: [],
-        dto,
-      });
-    }
-    const root = rootNode();
-    for (const dto of items) {
-      const node = nodes.get(dto.id)!;
-      const parent = (dto.parentId && nodes.get(dto.parentId)) || root;
-      parent.children.push(node);
-    }
-    return root;
-  }
-
-  /** Runs a change request, then reloads the tree and shows the message (or the API's error). */
-  private run(request: Observable<unknown>, success: string, done?: () => void): void {
-    this.saving = true;
-    request.subscribe({
-      next: () => {
-        this.saving = false;
-        done?.();
-        this.showToast(success);
-        this.reload();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.showToast(apiErrorMessage(err));
-        this.reload();
-      },
-    });
-  }
-
-  /** The saved fields of a node with a new parent, for a move. */
-  private movedInput(n: HierarchyNode, dest: HierarchyNode): HierarchyItemInput {
-    return { ...toInput(n.dto!), parentId: dest.id === ROOT_ID ? null : dest.id };
   }
 
   // ===== Tree helpers =====
@@ -322,11 +304,11 @@ export class AssetHierarchy implements OnInit {
     return found;
   }
 
-  find(id: string | null): HierarchyNode | null {
+  find(id: number | null): HierarchyNode | null {
     return id === null ? null : this.findBy((n) => n.id === id);
   }
 
-  parentOf(id: string): HierarchyNode | null {
+  parentOf(id: number): HierarchyNode | null {
     let parent: HierarchyNode | null = null;
     this.walk(this.root, (n, p) => {
       if (n.id === id) parent = p;
@@ -335,7 +317,7 @@ export class AssetHierarchy implements OnInit {
   }
 
   /** Root-first chain from "All Assets" down to the node itself. */
-  lineage(id: string): HierarchyNode[] {
+  lineage(id: number): HierarchyNode[] {
     const chain: HierarchyNode[] = [];
     let current = this.find(id);
     while (current) {
@@ -360,6 +342,7 @@ export class AssetHierarchy implements OnInit {
 
   nodeIcon(n: HierarchyNode, open = false) {
     if (n.kind === 'asset') return this.assetIcons[n.icon];
+    if (n.isNew) return FolderPlus;
     if (n.kind === 'system') return open ? FolderOpen : Folder;
     return this.kindIcons[n.kind];
   }
@@ -434,7 +417,7 @@ export class AssetHierarchy implements OnInit {
   }
 
   private matchesQuery(n: HierarchyNode, q: string): boolean {
-    return [n.name, n.tag, n.type, n.model].some((v) => (v ?? '').toLowerCase().includes(q));
+    return [n.name, n.tag, n.type, n.model].some((v) => v.toLowerCase().includes(q));
   }
 
   isMatch(n: HierarchyNode): boolean {
@@ -502,7 +485,7 @@ export class AssetHierarchy implements OnInit {
     this.children.forEach((c) => (on ? this.checkedChildren.add(c.id) : this.checkedChildren.delete(c.id)));
   }
 
-  toggleChild(id: string): void {
+  toggleChild(id: number): void {
     if (this.checkedChildren.has(id)) this.checkedChildren.delete(id);
     else this.checkedChildren.add(id);
   }
@@ -513,7 +496,7 @@ export class AssetHierarchy implements OnInit {
   }
 
   statusClass(status: AssetStatus): string {
-    return 'status--' + (status || 'active').toLowerCase().replace(/\s+/g, '-');
+    return 'status--' + status.toLowerCase().replace(/\s+/g, '-');
   }
 
   typeLabel(n: HierarchyNode): string {
@@ -554,118 +537,74 @@ export class AssetHierarchy implements OnInit {
 
   // ===== Add / edit =====
 
-  private emptyForm(parentId: string): NodeForm {
-    return { kind: 'asset', name: '', tag: '', typeId: '', modelId: '', manufacturer: '', status: 'Active', parentId };
+  private emptyForm(parentId: number): NodeForm {
+    return { kind: 'asset', name: '', tag: '', type: '', model: '', manufacturer: '', status: 'Active', parentId };
   }
 
   /** Parents a new node can be placed under, indented by depth. */
-  get parentOptions(): { id: string; label: string }[] {
-    const out: { id: string; label: string }[] = [];
+  get parentOptions(): { id: number; label: string }[] {
+    const out: { id: number; label: string }[] = [];
     const visit = (n: HierarchyNode, depth: number) => {
       if (this.editingNode && this.isInSubtree(n, this.editingNode)) return;
-      out.push({ id: n.id, label: `${'   '.repeat(depth)}${n.name}` });
+      out.push({ id: n.id, label: `${'   '.repeat(depth)}${n.name}` });
       n.children.forEach((c) => visit(c, depth + 1));
     };
     visit(this.root, 0);
     return out;
   }
 
-  /** Models of the asset type picked in the form (all models while no type is picked). */
-  get modelOptions(): HierarchyModelOption[] {
-    const typeId = this.form.typeId;
-    return typeId ? this.models.filter((m) => m.assetTypeId === typeId) : this.models;
-  }
-
-  onTypeChange(typeId: string): void {
-    this.form.typeId = typeId;
-    const model = this.models.find((m) => m.id === this.form.modelId);
-    if (model && model.assetTypeId !== typeId) this.form.modelId = '';
-  }
-
-  onModelChange(modelId: string): void {
-    this.form.modelId = modelId;
-    const model = this.models.find((m) => m.id === modelId);
-    if (!model) return;
-    // A model belongs to one asset type; fill it (and the manufacturer when empty) to match.
-    if (!this.form.typeId) this.form.typeId = model.assetTypeId;
-    if (!this.form.manufacturer.trim()) this.form.manufacturer = model.manufacturerName;
-  }
-
-  openAdd(parent: HierarchyNode = this.selected, kind: NodeForm['kind'] = 'asset'): void {
-    this.openMenu = null;
-    this.editingNode = null;
-    this.form = { ...this.emptyForm(parent.id), kind };
-    this.formSubmitted = false;
-    this.formError = '';
-    this.formOpen = true;
-  }
-
   openEdit(n: HierarchyNode = this.selected): void {
     this.openMenu = null;
-    if (n.kind === 'root' || !n.dto) return;
+    if (n.kind === 'root') return;
     this.editingNode = n;
     this.form = {
       kind: n.kind,
       name: n.name,
       tag: n.tag,
-      typeId: n.dto.assetTypeId ?? '',
-      modelId: n.dto.modelId ?? '',
+      type: n.type,
+      model: n.model,
       manufacturer: n.manufacturer,
-      status: n.status === 'Inactive' ? 'Inactive' : 'Active',
+      status: n.status,
       parentId: this.parentOf(n.id)?.id ?? this.root.id,
     };
     this.formSubmitted = false;
-    this.formError = '';
     this.formOpen = true;
   }
 
   isTagTaken(tag: string): boolean {
     const t = tag.trim().toUpperCase();
-    return !!t && !!this.findBy((n) => n !== this.editingNode && n.kind !== 'root' && n.tag.toUpperCase() === t);
+    return !!t && !!this.findBy((n) => n !== this.editingNode && n.tag.toUpperCase() === t);
   }
 
   get formValid(): boolean {
     const f = this.form;
-    return !!f.name.trim() && !!f.tag.trim() && !this.isTagTaken(f.tag) && (f.kind !== 'asset' || !!f.typeId);
+    return !!f.name.trim() && !!f.tag.trim() && !this.isTagTaken(f.tag) && (f.kind !== 'asset' || !!f.type.trim());
   }
 
+  /** Saves the Edit form. New nodes are added through the Create Hierarchy Node form (saveNode). */
   saveForm(): void {
     this.formSubmitted = true;
-    if (!this.formValid || this.saving) return;
+    if (!this.formValid || !this.editingNode) return;
     const f = this.form;
     const isAsset = f.kind === 'asset';
-    const manufacturer = isAsset ? f.manufacturer.trim() : '';
-    const editing = this.editingNode;
-    const input: HierarchyItemInput = {
-      itemKind: f.kind,
-      parentId: f.parentId === ROOT_ID ? null : f.parentId,
+    const values = {
+      kind: f.kind,
       name: f.name.trim(),
-      assetTag: f.tag.trim().toUpperCase(),
-      assetTypeId: isAsset ? f.typeId || null : null,
-      modelId: isAsset ? f.modelId || null : null,
-      // Keep the master link while the manufacturer name is unchanged.
-      manufacturerId: editing?.dto && manufacturer && manufacturer === (editing.dto.manufacturerName ?? '') ? editing.dto.manufacturerId : null,
-      manufacturerName: manufacturer || null,
-      status: isAsset ? f.status : 'Active',
+      tag: f.tag.trim().toUpperCase(),
+      type: isAsset ? f.type.trim() : '',
+      model: isAsset ? f.model.trim() : '',
+      manufacturer: isAsset ? f.manufacturer.trim() : '',
+      status: isAsset ? f.status : ('Active' as AssetStatus),
     };
     const parent = this.find(f.parentId) ?? this.root;
-    const request = editing ? this.api.update(editing.id, input) : this.api.create(input);
 
-    this.saving = true;
-    this.formError = '';
-    request.subscribe({
-      next: (saved) => {
-        this.saving = false;
-        this.formOpen = false;
-        this.expanded.add(parent.id);
-        this.showToast(editing ? `${saved.name} updated.` : `${saved.name} added under ${parent.name}.`);
-        this.reload();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.formError = apiErrorMessage(err);
-      },
-    });
+    const n = this.editingNode;
+    const kindChanged = n.kind !== values.kind;
+    Object.assign(n, values);
+    if (kindChanged) n.icon = n.kind === 'asset' ? this.guessIcon(n.type) : 'generic';
+    this.reparent(n, parent);
+    this.showToast(`${n.name} updated.`);
+    this.formOpen = false;
   }
 
   private guessIcon(type: string): HierarchyNode['icon'] {
@@ -693,18 +632,20 @@ export class AssetHierarchy implements OnInit {
 
   // ===== Create Hierarchy Node =====
 
-  private emptyNodeForm(parentId: string): HierarchyNodeForm {
+  private emptyNodeForm(parentId: number): HierarchyNodeForm {
     return { name: '', kind: 'system', parentId, code: '', description: '', status: 'Active' };
   }
 
-  /** Nearest non-asset node at or above `n` – hierarchy nodes can only sit under other hierarchy nodes. */
+  /** Nearest non-asset node at or above `n` - hierarchy nodes can only sit under other hierarchy nodes. */
   private nearestGroup(n: HierarchyNode): HierarchyNode {
     return [...this.lineage(n.id)].reverse().find((a) => a.kind !== 'asset') ?? this.root;
   }
 
-  openCreateNode(parent: HierarchyNode = this.selected): void {
+  /** Opens the Create Hierarchy Node form under `parent` (or its nearest grouping node), optionally with a preset type. */
+  openCreateNode(parent: HierarchyNode = this.selected, kind?: GroupKind): void {
+    this.openMenu = null;
     const p = this.nearestGroup(parent);
-    this.nodeForm = { ...this.emptyNodeForm(p.id), kind: this.suggestKind(p) };
+    this.nodeForm = { ...this.emptyNodeForm(p.id), kind: kind ?? this.suggestKind(p) };
     this.nodeFormSubmitted = false;
     this.nodeFormOpen = true;
   }
@@ -720,8 +661,8 @@ export class AssetHierarchy implements OnInit {
   }
 
   /** Grouping nodes (no assets) a new hierarchy node can be placed under, indented by depth. */
-  get nodeParentOptions(): { id: string; label: string }[] {
-    const out: { id: string; label: string }[] = [];
+  get nodeParentOptions(): { id: number; label: string }[] {
+    const out: { id: number; label: string }[] = [];
     const visit = (n: HierarchyNode, depth: number) => {
       if (n.kind === 'asset') return;
       out.push({ id: n.id, label: `${'\u00a0\u00a0\u00a0'.repeat(depth)}${n.name}` });
@@ -733,7 +674,7 @@ export class AssetHierarchy implements OnInit {
 
   /** "Head Office / Building A / Floor 1 / HVAC System" preview of where the new node lands. */
   get nodePreview(): string {
-    const parent = this.find(this.nodeForm.parentId) ?? this.root;
+    const parent = this.find(Number(this.nodeForm.parentId)) ?? this.root;
     const names = this.lineage(parent.id).slice(1).map((a) => a.name);
     names.push(this.nodeForm.name.trim() || 'New Node');
     return names.join(' / ');
@@ -741,7 +682,7 @@ export class AssetHierarchy implements OnInit {
 
   get nodeFormValid(): boolean {
     const f = this.nodeForm;
-    return !!f.name.trim() && !!f.code.trim() && !this.isCodeTaken(f.code) && !!this.find(f.parentId);
+    return !!f.name.trim() && !!f.code.trim() && !this.isCodeTaken(f.code) && !!this.find(Number(f.parentId));
   }
 
   isCodeTaken(code: string): boolean {
@@ -751,35 +692,24 @@ export class AssetHierarchy implements OnInit {
 
   saveNode(): void {
     this.nodeFormSubmitted = true;
-    if (!this.nodeFormValid || this.saving) return;
+    if (!this.nodeFormValid) return;
     const f = this.nodeForm;
-    const parent = this.find(f.parentId) ?? this.root;
-    const input: HierarchyItemInput = {
-      itemKind: f.kind,
-      parentId: parent.id === ROOT_ID ? null : parent.id,
-      name: f.name.trim(),
-      assetTag: f.code.trim().toUpperCase(),
-      assetTypeId: null,
-      modelId: null,
-      manufacturerId: null,
-      manufacturerName: null,
+    const parent = this.find(Number(f.parentId)) ?? this.root;
+    const created: HierarchyNode = {
+      ...group(f.kind, f.name.trim(), f.code.trim().toUpperCase()),
       status: f.status,
+      description: f.description.trim(),
+      isNew: true,
     };
-    this.saving = true;
-    this.api.create(input).subscribe({
-      next: (saved) => {
-        this.saving = false;
-        this.nodeFormOpen = false;
-        this.expanded.add(parent.id);
-        this.selectedId = saved.id;
-        this.showToast(`${saved.name} created under ${parent.name}.`);
-        this.reload();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.showToast(apiErrorMessage(err));
-      },
-    });
+    parent.children.push(created);
+    this.nodeFormOpen = false;
+    // Show the new node in place: clear any search that could hide it and open every level above it
+    this.treeSearch = '';
+    this.lineage(parent.id).forEach((a) => this.expanded.add(a.id));
+    this.expanded.add(created.id);
+    this.selectedId = created.id;
+    setTimeout(() => document.querySelector('.tree-row.is-selected')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+    this.showToast(`${created.name} created under ${parent.name}. Use + > Add Existing Asset to place assets under it.`);
   }
 
   // ===== Move =====
@@ -791,9 +721,9 @@ export class AssetHierarchy implements OnInit {
   }
 
   /** Destinations for a move: anywhere outside the moved nodes' own subtrees. */
-  get moveOptions(): { id: string; label: string }[] {
+  get moveOptions(): { id: number; label: string }[] {
     const moving = this.movingNodes;
-    const out: { id: string; label: string }[] = [];
+    const out: { id: number; label: string }[] = [];
     const visit = (n: HierarchyNode, depth: number) => {
       if (moving.some((m) => m.id === n.id)) return;
       out.push({ id: n.id, label: `${'   '.repeat(depth)}${n.name}` });
@@ -813,22 +743,20 @@ export class AssetHierarchy implements OnInit {
 
   confirmMove(): void {
     const dest = this.find(this.moveParentId);
-    if (!dest || this.saving) return;
-    const nodes = this.movingNodes.filter((n) => this.canReparent(n, dest));
-    this.moveTarget = null;
-    this.checkedChildren.clear();
-    if (!nodes.length) return;
+    if (!dest) return;
+    const nodes = this.movingNodes;
+    nodes.forEach((n) => this.reparent(n, dest));
     this.expanded.add(dest.id);
-    this.run(
-      forkJoin(nodes.map((n) => this.api.update(n.id, this.movedInput(n, dest)))),
-      nodes.length === 1 ? `${nodes[0].name} moved to ${dest.name}.` : `${nodes.length} items moved to ${dest.name}.`,
-    );
+    this.checkedChildren.clear();
+    this.moveTarget = null;
+    this.showToast(nodes.length === 1 ? `${nodes[0].name} moved to ${dest.name}.` : `${nodes.length} items moved to ${dest.name}.`);
   }
 
-  /** False when the node is already there or the move would put it under itself. */
-  private canReparent(n: HierarchyNode, dest: HierarchyNode): boolean {
+  private reparent(n: HierarchyNode, dest: HierarchyNode): void {
     const current = this.parentOf(n.id);
-    return !!n.dto && !!current && current.id !== dest.id && !this.isInSubtree(dest, n);
+    if (!current || current.id === dest.id || this.isInSubtree(dest, n)) return;
+    current.children.splice(current.children.indexOf(n), 1);
+    dest.children.push(n);
   }
 
   // ===== Assign existing assets =====
@@ -853,24 +781,19 @@ export class AssetHierarchy implements OnInit {
     return out;
   }
 
-  toggleAssign(id: string): void {
+  toggleAssign(id: number): void {
     if (this.assignChecked.has(id)) this.assignChecked.delete(id);
     else this.assignChecked.add(id);
   }
 
   confirmAssign(): void {
     const sel = this.selected;
+    const nodes = [...this.assignChecked].map((id) => this.find(id)).filter((n): n is HierarchyNode => !!n);
     // Never move a node underneath itself.
-    const nodes = [...this.assignChecked]
-      .map((id) => this.find(id))
-      .filter((n): n is HierarchyNode => !!n && this.canReparent(n, sel));
-    this.assignOpen = false;
-    if (!nodes.length || this.saving) return;
+    nodes.filter((n) => !this.isInSubtree(sel, n)).forEach((n) => this.reparent(n, sel));
     this.expanded.add(sel.id);
-    this.run(
-      forkJoin(nodes.map((n) => this.api.update(n.id, this.movedInput(n, sel)))),
-      `${nodes.length} asset${nodes.length === 1 ? '' : 's'} assigned to ${sel.name}.`,
-    );
+    this.assignOpen = false;
+    this.showToast(`${nodes.length} asset${nodes.length === 1 ? '' : 's'} assigned to ${sel.name}.`);
   }
 
   // ===== Delete =====
@@ -887,13 +810,15 @@ export class AssetHierarchy implements OnInit {
 
   confirmDelete(): void {
     const n = this.deleteTarget;
-    if (!n || this.saving) return;
+    if (!n) return;
     const parent = this.parentOf(n.id);
+    if (parent) {
+      parent.children.splice(parent.children.indexOf(n), 1);
+      if (this.selectedId === n.id) this.selectedId = parent.id;
+    }
+    this.checkedChildren.delete(n.id);
     this.deleteTarget = null;
-    this.run(this.api.delete(n.id), `${n.name} removed from the hierarchy.`, () => {
-      if (parent && this.selectedId === n.id) this.selectedId = parent.id;
-      this.checkedChildren.delete(n.id);
-    });
+    this.showToast(`${n.name} removed from the hierarchy.`);
   }
 
   // ===== Export =====
@@ -916,7 +841,7 @@ export class AssetHierarchy implements OnInit {
     URL.revokeObjectURL(url);
   }
 
-  trackById(_: number, n: HierarchyNode): string {
+  trackById(_: number, n: HierarchyNode): number {
     return n.id;
   }
 

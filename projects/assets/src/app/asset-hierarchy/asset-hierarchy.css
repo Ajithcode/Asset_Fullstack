@@ -658,11 +658,56 @@ select.control {
 }
 
 .modal {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 520px;
+  /* Never taller than the screen: the head and buttons stay put, the body scrolls */
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+}
+
+.modal > .modal-head,
+.modal > .modal-foot {
+  flex: 0 0 auto;
+}
+
+.modal > .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Create Hierarchy Node: compact two-column layout */
+.modal--node {
+  max-width: 600px;
+}
+
+.modal--node .modal-head {
+  padding: 14px 20px;
+}
+
+.modal--node .modal-body {
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.modal--node .radio-row {
+  align-items: center;
+  height: 38px;
+}
+
+.modal--node .preview-box {
+  padding: 10px 14px;
+}
+
+@media (max-width: 560px) {
+  .modal--node .field-pair--even {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .modal--sm {
@@ -939,10 +984,6 @@ button.caret:hover {
   margin: 16px 4px;
   font-size: 13px;
   color: var(--ah-text-muted);
-}
-
-.tree-empty.error {
-  color: var(--ah-danger);
 }
 
 /* ============ Status ============ */
@@ -1407,6 +1448,32 @@ button.caret:hover {
 
 .modal-title-icon {
   color: var(--ah-accent);
+}
+
+.modal-sub {
+  margin: 2px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* ===== Node created in this session ===== */
+.node-icon--new {
+  color: var(--ah-accent);
+}
+
+.tree-row.is-new .node-name {
+  font-weight: 700;
+}
+
+.new-badge {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #e7f6ee;
+  color: #15803d;
+  font-size: 11.5px;
+  font-weight: 600;
 }
 
 .radio-row {

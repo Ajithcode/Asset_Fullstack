@@ -188,8 +188,10 @@ export class ScanPrintDialog implements OnInit {
   readonly steps: Step[] = ['choose', 'input', 'print'];
   readonly symbologies = ['Code 128', 'QR Code', 'Data Matrix', 'EAN-13'];
   readonly tagTypes = ['UHF (EPC Gen2)', 'HF (ISO 15693)', 'NFC'];
-  /** Label printers are not served by an API yet; only the browser print option is listed. */
   readonly printers: PrinterOption[] = [
+    { id: 'zebra-zd421', label: 'Zebra ZD421 · Stores (label printer)' },
+    { id: 'brother-ql820', label: 'Brother QL-820NWB · Facilities office' },
+    { id: 'zebra-zt411-rfid', label: 'Zebra ZT411 RFID · Warehouse (encodes RFID)' },
     { id: 'browser', label: 'This computer (browser print)', browser: true },
   ];
   readonly sizes = ['50 × 25 mm', '62 × 29 mm', '100 × 50 mm'];
@@ -212,7 +214,7 @@ export class ScanPrintDialog implements OnInit {
   symbology = 'Code 128';
   tagType = 'UHF (EPC Gen2)';
   readMode = 'Single';
-  printer = 'browser';
+  printer = 'zebra-zd421';
   size = '50 × 25 mm';
   copies = 1;
   error = '';
@@ -236,6 +238,8 @@ export class ScanPrintDialog implements OnInit {
     this.mode = mode;
     this.error = '';
     this.step = 'input';
+    // RFID labels go to the encoding printer by default
+    this.printer = mode === 'rfid' ? 'zebra-zt411-rfid' : 'zebra-zd421';
     setTimeout(() => (this.host.nativeElement.querySelector('.sp-big, .sp-control') as HTMLInputElement | null)?.select());
   }
 
