@@ -30,6 +30,8 @@ public static class DashboardServiceCollectionExtensions
         });
 
         services.AddA360JwtAuthentication(configuration);
+        // Sign-in + role permissions also when the frontend calls this service directly on its own port
+        services.AddA360AccessGuard(configuration, "Dashboard");
 
         services.AddScoped<EventLogRepository>();
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());

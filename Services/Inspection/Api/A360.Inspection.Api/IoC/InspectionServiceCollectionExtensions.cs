@@ -38,6 +38,8 @@ public static class InspectionServiceCollectionExtensions
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
         services.AddA360JwtAuthentication(configuration);
+        // Sign-in + role permissions also when the frontend calls this service directly on its own port
+        services.AddA360AccessGuard(configuration, "Inspection");
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Inspection",

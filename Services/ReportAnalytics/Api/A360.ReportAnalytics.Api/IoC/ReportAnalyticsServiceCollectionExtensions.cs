@@ -33,6 +33,8 @@ public static class ReportAnalyticsServiceCollectionExtensions
         services.AddSingleton<ISequenceGenerator, MongoSequenceGenerator>();
 
         services.AddA360JwtAuthentication(configuration);
+        // Sign-in + role permissions also when the frontend calls this service directly on its own port
+        services.AddA360AccessGuard(configuration, "Reports & Analytics");
 
         services.AddScoped<EventLogRepository>();
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());

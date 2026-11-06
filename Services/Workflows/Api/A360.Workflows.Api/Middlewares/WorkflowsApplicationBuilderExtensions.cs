@@ -2,6 +2,7 @@
 namespace A360.Workflows.Api.Middlewares;
 
 using A360.Workflows.Api.Endpoints;
+using A360.Security;
 
 public static class WorkflowsApplicationBuilderExtensions
 {
@@ -10,6 +11,7 @@ public static class WorkflowsApplicationBuilderExtensions
     {
         // Reads the bearer token forwarded by the gateway so event logs know who made each change.
         app.UseAuthentication();
+        app.UseA360AccessGuard();
 
         if (app.Environment.IsDevelopment() ||
             app.Configuration.GetValue<bool>("Swagger:Enabled"))

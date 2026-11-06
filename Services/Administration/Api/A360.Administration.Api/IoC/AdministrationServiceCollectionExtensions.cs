@@ -32,6 +32,8 @@ public static class AdministrationServiceCollectionExtensions
         });
 
         services.AddA360JwtAuthentication(configuration);
+        // Sign-in + role permissions also when the frontend calls this service directly on its own port
+        services.AddA360AccessGuard(configuration, "Administration");
 
         services.AddScoped<EventLogRepository>();
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
@@ -50,11 +52,15 @@ public static class AdministrationServiceCollectionExtensions
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<UserRepository>());
 
         // Sign-in accounts for User Management users live in the UserAccount service (same host in the container)
+        // The UserAccount service requires a signed-in user, so the admin's own token goes along
+        services.AddHttpContextAccessor();
+        services.AddTransient<ForwardAuthorizationHandler>();
         services.AddHttpClient<LoginAccountClient>(client =>
         {
             client.BaseAddress = new Uri(configuration["Services:UserAccountUrl"] ?? "http://localhost:5018/");
             client.Timeout = TimeSpan.FromSeconds(15);
-        });
+        })
+            .AddHttpMessageHandler<ForwardAuthorizationHandler>();
 
         services.AddScoped<RoleRepository>();
         services.AddScoped<IRoleRepository>(serviceProvider => serviceProvider.GetRequiredService<RoleRepository>());
