@@ -5,8 +5,8 @@ import { environment } from 'shared-ui';
 import { DedupRules } from './dedup-match';
 
 /** Asset Merge / Dedup API (Asset service, through the API gateway). */
-const DEDUP_API = `${environment.assetApiUrl}asset/api/asset-dedup`;
-const MERGES_API = `${environment.assetApiUrl}asset/api/asset-merges`;
+const DEDUP_API = `${environment.assetApiUrl}api/asset-dedup`;
+const MERGES_API = `${environment.assetApiUrl}api/asset-merges`;
 
 export type MergeField = 'name' | 'type' | 'model' | 'serialNumber' | 'category' | 'location' | 'status' | 'purchaseDate' | 'supplier' | 'value';
 

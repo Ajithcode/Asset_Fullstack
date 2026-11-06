@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { EMPTY, Observable, expand, map, of, reduce } from 'rxjs';
 import { AssetCondition, AssetHeader, AssetIconKey, AssetStatus, Criticality } from 'shared-ui';
-import { ASSET_API } from '../services/asset-api';
+import { ASSET_API, MEDIA_API, EVENTLOG_API } from '../services/asset-api';
 
 /**
  * Helpers shared by the Asset Documents and Asset Images pages: registered assets (read-only),
@@ -182,7 +182,7 @@ export class AssetLookupService {
     const form = new FormData();
     form.append('file', file, file.name);
     form.append('category', category);
-    return this.http.post<MediaUploadDto>(`${ASSET_API}media/upload`, form).pipe(map((res) => res.url));
+    return this.http.post<MediaUploadDto>(`${MEDIA_API}upload`, form).pipe(map((res) => res.url));
   }
 
   /** GET /api/eventlogs?entityType=&entityId= (newest first as returned by the API). */
@@ -190,7 +190,7 @@ export class AssetLookupService {
     if (!entityId) return of([]);
     const params = new HttpParams().set('entityType', entityType).set('entityId', entityId).set('page', 1).set('pageSize', 200);
     return this.http
-      .get<PagedDto<EventLogDto>>(`${ASSET_API}eventlogs`, { params })
+      .get<PagedDto<EventLogDto>>(EVENTLOG_API, { params })
       .pipe(map((res) => res.items ?? []));
   }
 

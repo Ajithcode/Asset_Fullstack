@@ -744,7 +744,7 @@ export class MapsApiService {
     form.append('file', file, file.name);
     // Media stores files under uploads/<category>/
     form.append('category', 'floor-plans');
-    return this.http.post<MediaUploadDto>(`${environment.administrationApiUrl}api/media/upload`, form).pipe(map((r) => r?.url ?? ''));
+    return this.http.post<MediaUploadDto>(`${environment.mediaApiUrl}api/media/upload`, form).pipe(map((r) => r?.url ?? ''));
   }
 
   /* ===== Location tree sources (Master Data Management) ===== */

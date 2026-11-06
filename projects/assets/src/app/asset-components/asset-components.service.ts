@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
 import { AuthService } from 'shared-ui';
-import { ASSET_API, TENANT } from '../services/asset-api';
+import { ASSET_API, TENANT, MEDIA_API } from '../services/asset-api';
 
 // ===== API contracts (System.Text.Json, camelCase) =====
 
@@ -185,7 +185,7 @@ export class AssetComponentsService {
 
   private readonly registrationsUrl = `${ASSET_API}asset-registrations`;
   private readonly documentsUrl = `${ASSET_API}asset-documents`;
-  private readonly mediaUrl = `${ASSET_API}media/upload`;
+  private readonly mediaUrl = `${MEDIA_API}upload`;
 
   get userEmail(): string | null {
     return this.auth.getUserEmail();

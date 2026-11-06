@@ -1,8 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { environment } from 'shared-ui';
 
-/** Base URL of the Asset API (through the gateway), e.g. `${ASSET_API}asset-categories`. */
+/** Base URL of the Asset service API, e.g. `${ASSET_API}asset-categories`. */
 export const ASSET_API = `${environment.assetApiUrl}api/`;
+
+/** Media service: POST `${MEDIA_API}upload` (multipart `file` + `category`). */
+export const MEDIA_API = `${environment.mediaApiUrl}api/media/`;
+
+/** EventLog service: activity history, GET `${EVENTLOG_API}?entityId=...`. */
+export const EVENTLOG_API = `${environment.eventLogApiUrl}api/eventlogs`;
 
 /** Tenant and client stamped on every create request. */
 export const TENANT = { tenantId: environment.tenantId, clientId: environment.clientId };

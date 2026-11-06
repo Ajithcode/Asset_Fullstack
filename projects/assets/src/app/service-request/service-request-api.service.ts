@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map, of, switchMap } from 'rxjs';
 import { environment } from 'shared-ui';
-import { ASSET_API, TENANT } from '../services/asset-api';
+import { ASSET_API, TENANT, MEDIA_API } from '../services/asset-api';
 
 // ===== DTOs (Asset API /api/service-requests, System.Text.Json camelCase) =====
 
@@ -415,7 +415,7 @@ export class ServiceRequestApiService {
     const form = new FormData();
     form.append('file', file);
     form.append('category', category);
-    return this.http.post<{ url: string }>(`${ASSET_API}media/upload`, form).pipe(
+    return this.http.post<{ url: string }>(`${MEDIA_API}upload`, form).pipe(
       map((res) => ({ fileName: file.name, fileUrl: res.url, contentType: file.type || null, fileSize: file.size })),
     );
   }

@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, concat, expand, forkJoin, map, of, reduce, shareReplay, takeWhile, toArray } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
-import { ASSET_API, TENANT } from '../services/asset-api';
+import { ASSET_API, TENANT, MEDIA_API, EVENTLOG_API } from '../services/asset-api';
 import {
   Assignment, AssignmentEvent, AssignmentStatus, AssignmentType, DepartmentManager, Employee, PoolAsset, SiteNode, isoDate, kindOf, stamp,
 } from './asset-assignment-data';
@@ -647,7 +647,7 @@ export class AssetAssignmentService {
   /** Changes made to an assignment: GET /api/eventlogs for it, oldest first. */
   history(id: string): Observable<AssignmentEvent[]> {
     const params = new HttpParams().set('entityType', 'AssetAssignment').set('entityId', id).set('pageSize', 100);
-    return this.http.get<{ items: EventLogDto[] }>(`${ASSET_API}eventlogs`, { params }).pipe(
+    return this.http.get<{ items: EventLogDto[] }>(EVENTLOG_API, { params }).pipe(
       map((r) =>
         (r.items ?? [])
           .map((e) => ({ at: e.createdAt ? stamp(new Date(e.createdAt)) : '', action: e.action, by: e.performedBy ?? '', note: e.entityName || e.message || '' }))
@@ -662,7 +662,7 @@ export class AssetAssignmentService {
     form.append('file', file, file.name);
     form.append('category', 'asset-assignments');
     return this.http
-      .post<{ url: string }>(`${ASSET_API}media/upload`, form)
+      .post<{ url: string }>(`${MEDIA_API}upload`, form)
       .pipe(map((r) => ({ fileName: file.name, fileUrl: r.url, contentType: file.type || null, fileSize: file.size })));
   }
 

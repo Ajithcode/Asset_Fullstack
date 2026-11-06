@@ -5,11 +5,8 @@ import { AssetRecord, AuthService, environment } from 'shared-ui';
 import { TENANT } from '../services/asset-api';
 import { AssetListItemDto, AssetLookupService } from '../asset-maintenance/asset-lookup.service';
 
-/**
- * Tracking service routes (/api/location-events), reached through the API gateway. The environment has no separate
- * tracking URL; the gateway is the same host as the Asset API.
- */
-export const TRACKING_API = `${environment.assetApiUrl}api/`;
+/** Tracking service routes (/api/location-events). */
+export const TRACKING_API = `${environment.trackingApiUrl}api/`;
 
 /** Event types of the Tracking service (LocationEventType). */
 export type LocationEventType = 'Entered Zone' | 'Departed Zone' | 'Geofence Alert' | 'Dwell Exceeded';
