@@ -72,8 +72,7 @@ import { printElement } from './checklist-utils';
     .pv-bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e6e4ee; font-size: 14px; }
     .pv-grow { flex: 1; min-width: 0; }
     .pv-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid #d6d3e0; border-radius: 8px; background: #fff; font: inherit; font-size: 13px; cursor: pointer; }
-    .pv-btn--primary { border-color: transparent; background: linear-gradient(90deg, #4c1d95, #6d28d9); color: #fff; box-shadow: 0 6px 16px #6d28d940; }
-    .pv-btn--primary:hover:not(:disabled) { background: linear-gradient(90deg, #3b1574, #5b21b6); }
+    .pv-btn--primary { background: #5b21e6; border-color: #5b21e6; color: #fff; }
     .pv-scroll { flex: 1; overflow: auto; padding: 20px; }
     .sheet { max-width: 794px; margin: 0 auto; padding: 32px 36px; background: #fff; color: #161427; font: 12px/1.45 'Red Hat Display', Arial, sans-serif; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); box-sizing: border-box; }
     .sh-head { display: flex; justify-content: space-between; border-bottom: 3px solid #5b21e6; padding-bottom: 10px; }

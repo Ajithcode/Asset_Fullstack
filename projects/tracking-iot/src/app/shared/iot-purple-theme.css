@@ -1,20 +1,3 @@
-/* Purple accent for IoT & Tracking pages (matches Master Data Management).
-   Loaded last in each page component's styleUrls so it overrides the page palette. */
-
-/* Primary buttons */
-.btn-primary {
-  border-color: transparent;
-  background: linear-gradient(90deg, #4c1d95, #6d28d9);
-  color: #fff;
-  box-shadow: 0 6px 16px #6d28d940;
-}
-
-.btn-primary:hover:not(:disabled) {
-  border-color: transparent;
-  background: linear-gradient(90deg, #3b1574, #5b21b6);
-  filter: none;
-}
-
 /* Breadcrumb: parent crumbs in accent, separators light violet, current page keeps its colour */
 .crumbs a,
 .crumbs .crumb-link,
@@ -29,16 +12,4 @@
 
 .crumbs .sep {
   color: #a78bfa;
-}
-
-/* Header and KPI icon tiles in the accent tone; green / red / amber / teal / grey keep their status colours */
-.head-ic,
-.kpi-ic--violet,
-.kpi-ic--blue,
-.kpi-ic--tracked,
-.kpi--violet .kpi-ic,
-.kpi--blue .kpi-ic {
-  background: linear-gradient(90deg, #4c1d95, #6d28d9);
-  color: #fff;
-  box-shadow: 0 6px 16px #6d28d940;
 }

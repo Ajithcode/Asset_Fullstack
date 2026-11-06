@@ -51,7 +51,7 @@ import {
 import { AGE_BANDS, CATEGORIES, HEALTH_COLORS, HealthBand, PORTFOLIO, PortfolioAsset, PortfolioStatus, SITES, STATUSES, STATUS_COLORS, ageYears, healthBand, isoDate } from './asset-overview-data';
 import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
 import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
-import { AssetDashboardKpis, AssetTypeOption, ConnectedAssetDetail, Dashboard } from '../services/dashboard/dashboard';
+import { AssetDashboardCategories, AssetDashboardKpis, AssetTypeOption, InsightAsset, InsightAssetList, InsightEndpoint, ConnectedAssetDetail, Dashboard } from '../services/dashboard/dashboard';
 
 /** Window of GET api/asset-dashboard/kpis for the KPI cards. */
 const KPI_DAYS = 30;
@@ -156,10 +156,17 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   /** KPI cards from GET api/asset-dashboard/kpis?days=30; null until the first response. */
   kpiData: AssetDashboardKpis | null = null;
   kpiLoading = false;
+  /** "Asset Portfolio by Category" from GET api/asset-dashboard/categories; null until the first response. */
+  categoryData: AssetDashboardCategories | null = null;
+  categoryLoading = false;
+  /** Quick Insights lists from the API, by insight; missing until loaded. */
+  insightData: Partial<Record<Insight, InsightAssetList>> = {};
 
   constructor() {
     this.loadKpis();
     this.loadFilterOptions();
+    this.loadCategories();
+    this.loadInsights();
     this.apply();
     const first = [...this.assets].filter((a) => a.criticality === 'Critical').sort((a, b) => b.value - a.value)[0] ?? this.assets[0];
     this.selectedId = first?.id ?? '';
@@ -243,6 +250,38 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
       });
   }
 
+  /** Fetches the Quick Insights lists that have an API (due-for-maintenance is still local). */
+  loadInsights(): void {
+    const endpoints: [Insight, InsightEndpoint][] = [['critical', 'critical-assets'], ['owner', 'assets-without-custodian'], ['documents', 'assets-without-documents']];
+    for (const [key, endpoint] of endpoints) {
+      this.dashboardApi
+        .getInsightAssets(endpoint)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (res) => (this.insightData = { ...this.insightData, [key]: res }),
+          error: () => (this.insightData = { ...this.insightData, [key]: { count: 0, totalAssets: 0, assets: [] } }),
+        });
+    }
+  }
+
+  /** Fetches the asset counts per category. */
+  loadCategories(): void {
+    this.categoryLoading = true;
+    this.dashboardApi
+      .getCategories()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.categoryData = res;
+          this.categoryLoading = false;
+        },
+        error: () => {
+          this.categoryData = null;
+          this.categoryLoading = false;
+        },
+      });
+  }
+
   /** Fetches the KPI cards (last 30 days). */
   loadKpis(): void {
     this.kpiLoading = true;
@@ -288,10 +327,16 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   // ===== Portfolio, health, status =====
 
   get byCategory() {
-    const total = this.assets.length || 1;
-    const rows = CATEGORIES.map((c) => ({ ...c, count: this.assets.filter((a) => a.category === c.name).length }));
+    const rows = this.categoryData?.categories ?? [];
     const max = Math.max(1, ...rows.map((r) => r.count));
-    return rows.map((r) => ({ ...r, pct: Math.round((r.count / total) * 1000) / 10, bar: (r.count / max) * 100 }));
+    return rows.map((r, i) => {
+      // icon and colour from the local catalogue when the name matches, else cycle through it
+      const local = CATEGORIES.find((c) => c.name.toLowerCase() === r.category.toLowerCase()) ?? CATEGORIES[i % CATEGORIES.length];
+      return {
+        name: r.category, color: local.color, icon: local.icon, count: r.count,
+        pct: Math.round(r.percent * 10) / 10, bar: (r.count / max) * 100, subCategories: r.subCategories ?? [],
+      };
+    });
   }
 
   pickCategory(name: string): void {
@@ -341,10 +386,10 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
 
   get insights(): { key: Insight; count: number; label: string; icon: typeof Factory; tone: string }[] {
     return [
-      { key: 'critical', count: this.assets.filter((a) => a.criticality === 'Critical').length, label: 'critical assets', icon: TriangleAlert, tone: 'red' },
+      { key: 'critical', count: this.insightData.critical?.count ?? 0, label: 'critical assets', icon: TriangleAlert, tone: 'red' },
       { key: 'maintenance', count: this.assets.filter((a) => this.dueSoon(a)).length, label: 'due for maintenance', icon: Wrench, tone: 'amber' },
-      { key: 'owner', count: this.assets.filter((a) => !a.owner).length, label: 'assets without owner', icon: Users, tone: 'blue' },
-      { key: 'documents', count: this.assets.filter((a) => !a.documents).length, label: 'assets with missing documents', icon: FileText, tone: 'violet' },
+      { key: 'owner', count: this.insightData.owner?.count ?? 0, label: 'assets without custodian', icon: Users, tone: 'blue' },
+      { key: 'documents', count: this.insightData.documents?.count ?? 0, label: 'assets with missing documents', icon: FileText, tone: 'violet' },
     ];
   }
 
@@ -593,12 +638,16 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   }
 
   openCategory(name: string): void {
-    const list = this.assets.filter((a) => a.category === name);
+    const c = this.byCategory.find((r) => r.name === name);
+    if (!c) return;
     const on = this.category === name;
     this.drill = {
-      title: name, subtitle: `Asset category · ${this.scope}`,
-      stats: [{ label: 'Assets', value: list.length }, { label: 'Of portfolio', value: `${pct(list.length, this.assets.length)}%` }, { label: 'Value', value: this.valueOf(list) }],
-      columns: this.assetColumns({ key: 'type', label: 'Type' }), rows: this.assetRows(list, (a) => ({ type: a.type })),
+      title: name, subtitle: 'Asset category',
+      stats: [{ label: 'Assets', value: c.count }, { label: 'Of portfolio', value: `${c.pct}%` }, { label: 'Sub-categories', value: c.subCategories.length }],
+      tableTitle: 'Sub-categories',
+      columns: [{ key: 'sub', label: 'Sub-category' }, { key: 'count', label: 'Assets', num: true }, { key: 'pct', label: 'Of category', num: true }],
+      rows: c.subCategories.map((s) => ({ cells: { sub: s.subCategory, count: s.count, pct: `${pct(s.count, c.count)}%` } })),
+      empty: 'No sub-categories.',
       actions: [{ label: on ? 'Clear category filter' : `Filter dashboard to ${name}`, run: () => this.pickCategory(name) }],
     };
   }
@@ -625,6 +674,28 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
 
   openInsightDrill(key: Insight): void {
     const i = this.insights.find((x) => x.key === key);
+    const api = this.insightData[key];
+    if (key !== 'maintenance') {
+      const list: InsightAsset[] = api?.assets ?? [];
+      this.drill = {
+        title: this.capitalize(i?.label ?? ''), subtitle: 'All registered assets',
+        stats: [{ label: 'Assets', value: api?.count ?? 0 }, { label: 'Of portfolio', value: `${pct(api?.count ?? 0, api?.totalAssets ?? 0)}%` }],
+        columns: [
+          { key: 'tag', label: 'Asset Tag' }, { key: 'name', label: 'Asset Name' }, { key: 'category', label: 'Category' }, { key: 'type', label: 'Type' },
+          { key: 'site', label: 'Site' }, { key: 'criticality', label: 'Criticality', pill: { Critical: '#dc2626', High: '#f59e0b', Medium: '#2563eb', Low: '#16a34a' } },
+          { key: 'custodian', label: 'Custodian' }, { key: 'docs', label: 'Documents', num: true },
+        ],
+        rows: list.map((a) => ({
+          cells: {
+            tag: a.assetTag, name: a.assetName, category: [a.category, a.subCategory].filter(Boolean).join(' / ') || '-', type: a.assetType ?? '-',
+            site: a.siteName ?? '-', criticality: a.criticality ?? '-',
+            custodian: a.custodianName ? `${a.custodianName}${a.custodianDepartment ? ' (' + a.custodianDepartment + ')' : ''}` : 'Not assigned', docs: a.documentCount,
+          },
+        })),
+        empty: 'No assets.',
+      };
+      return;
+    }
     const list = this.insightList(key);
     const service = key === 'maintenance';
     this.drill = {

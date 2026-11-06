@@ -1141,29 +1141,7 @@ input[type='radio'] {
   }
 }
 
-/* ===== Purple accent (matches Master Data Management) ===== */
-.btn--primary {
-  border-color: transparent;
-  background: linear-gradient(90deg, #4c1d95, #6d28d9);
-  color: #fff;
-  box-shadow: 0 6px 16px #6d28d940;
-}
-
-.btn--primary:hover:not(:disabled) {
-  border-color: transparent;
-  background: linear-gradient(90deg, #3b1574, #5b21b6);
-}
-
-/* Header and stat icons; green / orange / pink / red tones keep their meaning colours */
-.page-head__icon,
-.stat__icon:not([data-tone]),
-.stat__icon[data-tone='blue'],
-.stat__icon[data-tone='purple'] {
-  background: linear-gradient(90deg, #4c1d95, #6d28d9);
-  color: #fff;
-  box-shadow: 0 6px 16px #6d28d940;
-}
-
+/* Purple breadcrumb (matches Master Data Management) */
 .crumbs a {
   color: #6d28d9;
 }

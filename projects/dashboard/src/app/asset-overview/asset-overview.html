@@ -81,6 +81,7 @@
             <td class="num">{{ c.count | number }}</td>
             <td class="num">{{ c.pct }}%</td>
           </tr>
+          <tr *ngIf="!byCategory.length"><td colspan="4" class="muted">{{ categoryLoading ? 'Loading categories…' : 'No assets by category.' }}</td></tr>
         </tbody>
       </table>
     </section>

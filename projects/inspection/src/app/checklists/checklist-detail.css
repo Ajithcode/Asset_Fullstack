@@ -1,6 +1,6 @@
 .cd { display: flex; flex-direction: column; }
 .cd-head { display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px 6px; flex-wrap: wrap; }
-.cd-icon { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 12px; background: linear-gradient(90deg, #4c1d95, #6d28d9); color: #fff; box-shadow: 0 6px 16px #6d28d940; }
+.cd-icon { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 12px; background: var(--ip-accent-soft); color: var(--ip-accent); }
 .cd-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cd-title h2 { margin: 0; font-size: 22px; font-weight: 800; }
 .cd-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
