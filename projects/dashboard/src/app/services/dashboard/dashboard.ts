@@ -129,6 +129,48 @@ export interface SiteOption {
   isDeleted: boolean;
 }
 
+/** One category row of GET api/asset-dashboard/categories */
+export interface CategoryCount {
+  category: string;
+  count: number;
+  percent: number;
+  subCategories: { subCategory: string; count: number }[];
+}
+
+/** Response of GET api/asset-dashboard/categories */
+export interface AssetDashboardCategories {
+  totalAssets: number;
+  categories: CategoryCount[];
+}
+
+/** An asset row of the Quick Insights lists (critical-assets, assets-without-custodian, assets-without-documents). */
+export interface InsightAsset {
+  assetRegistrationId: string;
+  assetTag: string;
+  assetName: string;
+  category: string | null;
+  subCategory: string | null;
+  assetType: string | null;
+  criticality: string | null;
+  assetStatus: string | null;
+  siteId: string | null;
+  siteName: string | null;
+  locationPath: string | null;
+  custodianName: string | null;
+  custodianDepartment: string | null;
+  documentCount: number;
+}
+
+/** Response of the Quick Insights list endpoints. */
+export interface InsightAssetList {
+  count: number;
+  totalAssets: number;
+  assets: InsightAsset[];
+}
+
+/** Quick Insights endpoints under api/asset-dashboard. */
+export type InsightEndpoint = 'critical-assets' | 'assets-without-custodian' | 'assets-without-documents';
+
 @Injectable({
   providedIn: 'root',
 })
@@ -163,6 +205,16 @@ export class Dashboard {
   /** GET api/asset-dashboard/sites/{siteId} */
   getSite(siteId: string): Observable<SiteDetail> {
     return this.http.get<SiteDetail>(`${this.baseUrl}/sites/${encodeURIComponent(siteId)}`);
+  }
+
+  /** GET api/asset-dashboard/critical-assets | assets-without-custodian | assets-without-documents */
+  getInsightAssets(endpoint: InsightEndpoint): Observable<InsightAssetList> {
+    return this.http.get<InsightAssetList>(`${this.baseUrl}/${endpoint}`);
+  }
+
+  /** GET api/asset-dashboard/categories */
+  getCategories(): Observable<AssetDashboardCategories> {
+    return this.http.get<AssetDashboardCategories>(`${this.baseUrl}/categories`);
   }
 
   /** GET api/asset-dashboard/device-connectivity?days=7|30|90 */

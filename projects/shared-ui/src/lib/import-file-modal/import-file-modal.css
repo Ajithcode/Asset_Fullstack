@@ -156,18 +156,16 @@
 }
 
 .btn-submit {
-  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  background: #4f2bd8;
   border: none;
   color: #fff;
-  box-shadow: 0 6px 16px #6d28d940;
 }
 
 .btn-submit:hover:not(:disabled) {
-  background: linear-gradient(90deg, #3b1574, #5b21b6);
+  background: #2e1f80;
 }
 
 .btn-submit:disabled {
   background: #d6bcea;
-  box-shadow: none;
   cursor: not-allowed;
 }

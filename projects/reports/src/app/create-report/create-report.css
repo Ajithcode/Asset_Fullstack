@@ -469,18 +469,15 @@
 }
 
 .cr-btn--primary {
-  border: none;
-  background: linear-gradient(90deg, #4c1d95, #6d28d9);
+  background: var(--cr-purple);
   color: #fff;
-  box-shadow: 0 6px 16px #6d28d940;
 }
 
-.cr-btn--primary:hover:not(:disabled) {
-  background: linear-gradient(90deg, #3b1574, #5b21b6);
+.cr-btn--primary:hover {
+  background: var(--cr-purple-dark);
 }
 
 .cr-btn--primary:disabled {
   background: #d8cffb;
-  box-shadow: none;
   cursor: not-allowed;
 }
