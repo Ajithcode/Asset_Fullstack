@@ -24,6 +24,20 @@ public sealed class AssetComponentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<AssetComponent>> GetByAssetsAsync(IReadOnlyCollection<string> assetRegistrationIds, CancellationToken cancellationToken = default)
+    {
+        if (assetRegistrationIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await Collection
+            .Find(Builders<AssetComponent>.Filter.And(
+                Builders<AssetComponent>.Filter.In(component => component.AssetRegistrationId, assetRegistrationIds),
+                Builders<AssetComponent>.Filter.Eq(component => component.IsDeleted, false)))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> TagExistsAsync(string assetRegistrationId, string componentTag, string? excludeId, CancellationToken cancellationToken = default)
     {
         return await Collection

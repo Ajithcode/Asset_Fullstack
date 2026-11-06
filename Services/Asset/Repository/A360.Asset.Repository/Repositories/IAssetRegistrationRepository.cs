@@ -22,7 +22,34 @@ public interface IAssetRegistrationRepository : IMongoRepository<AssetRegistrati
     /// department, custodian, criticality, manufacturer, condition), for building the filter dropdowns.
     /// </summary>
     Task<IReadOnlyCollection<AssetRegistration>> GetFilterFieldsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Assets whose AssetRegistrationId is one of <paramref name="assetRegistrationIds"/> or whose tag is one of <paramref name="assetTags"/> (exact match).</summary>
+    Task<IReadOnlyCollection<AssetRegistration>> FindByIdsOrTagsAsync(
+        IReadOnlyCollection<string> assetRegistrationIds,
+        IReadOnlyCollection<string> assetTags,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Assets matching the export filters, sorted by tag; at most <paramref name="limit"/>.</summary>
+    Task<IReadOnlyCollection<AssetRegistration>> FindForExportAsync(AssetExportQuery query, int limit, CancellationToken cancellationToken = default);
+
+    Task<long> CountForExportAsync(AssetExportQuery query, CancellationToken cancellationToken = default);
 }
+
+/// <summary>Filters of the Export Assets panel. Empty values mean "all"; names are matched exactly, as in the asset list filters.</summary>
+/// <param name="LocationId">Any level of the location hierarchy; assets at or below it match.</param>
+/// <param name="NextMaintenanceFrom">With NextMaintenanceTo, the Date Range filter on the next maintenance date (inclusive).</param>
+public sealed record AssetExportQuery(
+    string? Search,
+    string? Category,
+    string? AssetType,
+    string? Status,
+    string? LocationId,
+    string? Department,
+    string? Criticality,
+    string? Condition,
+    string? Manufacturer,
+    DateTime? NextMaintenanceFrom,
+    DateTime? NextMaintenanceTo);
 
 /// <summary>An audit scope. Empty values mean "all"; names are matched exactly, as in the asset list filters.</summary>
 /// <param name="LocationId">Any level of the location hierarchy; assets at or below it match.</param>

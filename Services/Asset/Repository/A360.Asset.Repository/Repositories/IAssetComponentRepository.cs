@@ -7,6 +7,9 @@ public interface IAssetComponentRepository : IMongoRepository<AssetComponent>
 {
     Task<IReadOnlyCollection<AssetComponent>> GetByAssetAsync(string assetRegistrationId, CancellationToken cancellationToken = default);
 
+    /// <summary>Components of any of the given assets.</summary>
+    Task<IReadOnlyCollection<AssetComponent>> GetByAssetsAsync(IReadOnlyCollection<string> assetRegistrationIds, CancellationToken cancellationToken = default);
+
     /// <summary>Component tags are unique within an asset, ignoring case.</summary>
     Task<bool> TagExistsAsync(string assetRegistrationId, string componentTag, string? excludeId, CancellationToken cancellationToken = default);
 

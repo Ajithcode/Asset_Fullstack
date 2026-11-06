@@ -242,6 +242,89 @@ public sealed class AssetRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<AssetRegistration>> FindByIdsOrTagsAsync(
+        IReadOnlyCollection<string> assetRegistrationIds,
+        IReadOnlyCollection<string> assetTags,
+        CancellationToken cancellationToken = default)
+    {
+        if (assetRegistrationIds.Count == 0 && assetTags.Count == 0)
+        {
+            return [];
+        }
+
+        var filter = Builders<AssetRegistration>.Filter.And(
+            Builders<AssetRegistration>.Filter.Eq(asset => asset.IsDeleted, false),
+            Builders<AssetRegistration>.Filter.Or(
+                Builders<AssetRegistration>.Filter.In(asset => asset.AssetRegistrationId, assetRegistrationIds),
+                Builders<AssetRegistration>.Filter.In(asset => asset.BasicInformation.AssetTag, assetTags)));
+
+        return await Collection.Find(filter).ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<AssetRegistration>> FindForExportAsync(AssetExportQuery query, int limit, CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(ExportFilter(query))
+            .Sort(Builders<AssetRegistration>.Sort.Ascending(asset => asset.BasicInformation.AssetTag).Ascending(asset => asset.AssetRegistrationId))
+            .Limit(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<long> CountForExportAsync(AssetExportQuery query, CancellationToken cancellationToken = default)
+    {
+        return await Collection.CountDocumentsAsync(ExportFilter(query), cancellationToken: cancellationToken);
+    }
+
+    private static FilterDefinition<AssetRegistration> ExportFilter(AssetExportQuery query)
+    {
+        var filters = new List<FilterDefinition<AssetRegistration>>
+        {
+            Builders<AssetRegistration>.Filter.Eq(asset => asset.IsDeleted, false)
+        };
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var pattern = new BsonRegularExpression(Regex.Escape(query.Search.Trim()), "i");
+            filters.Add(Builders<AssetRegistration>.Filter.Or(
+                Builders<AssetRegistration>.Filter.Regex(asset => asset.BasicInformation.AssetName, pattern),
+                Builders<AssetRegistration>.Filter.Regex(asset => asset.BasicInformation.AssetTag, pattern),
+                Builders<AssetRegistration>.Filter.Regex(asset => asset.BasicInformation.SerialNumber, pattern),
+                Builders<AssetRegistration>.Filter.Regex(asset => asset.AssetRegistrationId, pattern)));
+        }
+
+        AddEquals(filters, asset => asset.Classification.Category, query.Category);
+        AddEquals(filters, asset => asset.Classification.AssetType, query.AssetType);
+        AddEquals(filters, asset => asset.BasicInformation.Status, query.Status);
+        AddEquals(filters, asset => asset.Classification.Department, query.Department);
+        AddEquals(filters, asset => asset.Classification.Criticality, query.Criticality);
+        AddEquals(filters, asset => asset.BasicInformation.Condition, query.Condition);
+        AddEquals(filters, asset => asset.PurchaseWarranty.Purchase.Manufacturer, query.Manufacturer);
+
+        if (!string.IsNullOrWhiteSpace(query.LocationId))
+        {
+            var locationId = query.LocationId.Trim();
+            filters.Add(Builders<AssetRegistration>.Filter.Or(
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.CountryId, locationId),
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.SiteId, locationId),
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.BuildingId, locationId),
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.FloorId, locationId),
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.ZoneId, locationId),
+                Builders<AssetRegistration>.Filter.Eq(asset => asset.LocationAssignment.Location.RoomId, locationId)));
+        }
+
+        if (query.NextMaintenanceFrom is { } from)
+        {
+            filters.Add(Builders<AssetRegistration>.Filter.Gte(asset => asset.AdditionalInformation.Operational.NextMaintenanceDate, from.Date));
+        }
+
+        if (query.NextMaintenanceTo is { } to)
+        {
+            filters.Add(Builders<AssetRegistration>.Filter.Lt(asset => asset.AdditionalInformation.Operational.NextMaintenanceDate, to.Date.AddDays(1)));
+        }
+
+        return Builders<AssetRegistration>.Filter.And(filters);
+    }
+
     private static void AddEquals(
         List<FilterDefinition<AssetRegistration>> filters,
         System.Linq.Expressions.Expression<Func<AssetRegistration, string?>> field,
