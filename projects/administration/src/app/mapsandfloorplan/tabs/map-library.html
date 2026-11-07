@@ -33,7 +33,7 @@
         <lucide-icon [img]="icons.MousePointer2" [size]="15"></lucide-icon> Select
       </button>
       <div class="dd">
-        <button type="button" class="btn" [disabled]="!store.editing || store.working || !store.currentPlan" aria-haspopup="menu" [attr.aria-expanded]="drawOpen" (click)="toggleDraw($event)">
+        <button type="button" class="btn" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" aria-haspopup="menu" [attr.aria-expanded]="drawOpen" (click)="toggleDraw($event)">
           <lucide-icon [img]="icons.Hexagon" [size]="15"></lucide-icon> Draw Zone <lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>
         </button>
         @if (drawOpen) {
@@ -44,10 +44,10 @@
           </div>
         }
       </div>
-      <button type="button" class="btn" [class.on]="placing === 'device'" [disabled]="!store.editing || store.working || !store.currentPlan" (click)="startPlacing('device')">
+      <button type="button" class="btn" [class.on]="placing === 'device'" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" (click)="startPlacing('device')">
         <lucide-icon [img]="icons.Cpu" [size]="15"></lucide-icon> Plot Device
       </button>
-      <button type="button" class="btn" [class.on]="placing === 'asset'" [disabled]="!store.editing || store.working || !store.currentPlan" (click)="startPlacing('asset')">
+      <button type="button" class="btn" [class.on]="placing === 'asset'" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" (click)="startPlacing('asset')">
         <lucide-icon [img]="icons.Package" [size]="15"></lucide-icon> Plot Asset
       </button>
     </ng-container>
@@ -64,6 +64,9 @@
       [selectedZoneId]="store.selectedZoneId"
       [selectedItemId]="store.selectedItemId"
       [placing]="!!placing"
+      [drawShape]="drawing"
+      (zoneDrawn)="zoneDrawn($event)"
+      (drawCancel)="drawing = null"
       (zoneSelect)="selectZone($event)"
       (itemSelect)="selectItem($event)"
       (place)="place($event)"

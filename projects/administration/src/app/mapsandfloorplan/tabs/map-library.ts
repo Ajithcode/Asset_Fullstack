@@ -14,7 +14,7 @@ import {
 } from 'lucide-angular';
 import { MapCanvas } from '../map-canvas/map-canvas';
 import { MapViewer } from '../map-viewer/map-viewer';
-import { MapZone, PlotItem, PlotKind, fmtDate } from '../maps.data';
+import { MapZone, PlotItem, PlotKind, ZoneGeometry, fmtDate } from '../maps.data';
 import { MapsStore } from '../maps.store';
 import { SiteTree } from '../site-tree/site-tree';
 import { UploadDialog } from '../upload-dialog/upload-dialog';
@@ -46,6 +46,8 @@ export class MapLibraryTab {
   uploadOpen = false;
   /** Plot Device / Plot Asset: the next plan click drops the first unplotted item of that kind. */
   placing: PlotKind | null = null;
+  /** Zone shape being drawn on the map (clicks draw its outline), or null. */
+  drawing: MapZone['shape'] | null = null;
   show = { zones: true, devices: true, assets: true, labels: true };
 
   /** Storage quota shown in the Storage & Usage card (no quota API yet). */
@@ -62,16 +64,33 @@ export class MapLibraryTab {
     event.stopPropagation();
     this.drawOpen = !this.drawOpen;
     this.placing = null;
+    this.drawing = null;
   }
 
   draw(shape: MapZone['shape']): void {
     this.drawOpen = false;
-    this.store.addZone(shape, () => (this.rightTab = 'zone'));
+    // Draw the outline on the map; a floor with only a Master Data image gets its floor plan first
+    this.store.ensurePlan(() => {
+      this.placing = null;
+      this.drawing = shape;
+    });
+  }
+
+  /** The outline is finished: save the zone there and open its details. */
+  zoneDrawn(geometry: ZoneGeometry): void {
+    const shape = this.drawing;
+    this.drawing = null;
+    if (shape) this.store.addZone(shape, () => (this.rightTab = 'zone'), geometry);
   }
 
   startPlacing(kind: PlotKind): void {
     if (this.placing === kind) {
       this.placing = null;
+      return;
+    }
+    this.drawing = null;
+    if (!this.store.currentPlan) {
+      this.store.ensurePlan(() => this.startPlacing(kind));
       return;
     }
     if (!this.store.unplotted.some((i) => i.kind === kind)) {

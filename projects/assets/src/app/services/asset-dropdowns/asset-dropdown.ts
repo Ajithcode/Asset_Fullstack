@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, forkJoin, map, of } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of, retry, timer } from 'rxjs';
 import { environment } from 'shared-ui';
 
 /**
@@ -105,6 +105,8 @@ export function textOptions(list: readonly string[] | null | undefined): Dropdow
 @Injectable({ providedIn: 'root' })
 export class AssetDropdownService {
   private masterUrl = `${environment.assetMasterDataApiUrl}api/master-data`;
+  /** Asset service: categories and asset types are kept there (the same lists the Assets pages edit). */
+  private assetUrl = `${environment.assetApiUrl}api`;
   private registrationUrl = `${environment.assetRegistrationApiUrl}api/asset-registrations`;
 
   constructor(private http: HttpClient) {}
@@ -115,7 +117,8 @@ export class AssetDropdownService {
   getRegistrationOptions(): Observable<AssetRegistrationOptions> {
     return this.http
       .get<AssetRegistrationOptions>(`${this.registrationUrl}/options`)
-      .pipe(catchError(() => of({} as AssetRegistrationOptions)));
+      // Retried a couple of times (e.g. while the backend restarts) before giving up with no lists
+      .pipe(retry({ count: 2, delay: (_err, n) => timer(1000 * n) }), catchError(() => of({} as AssetRegistrationOptions)));
   }
 
   // ===== Master data =====
@@ -125,19 +128,19 @@ export class AssetDropdownService {
     return this.list('criticalities', 'criticalityName', (r) => ({ isDefault: r['defaultCriticality'] === true }));
   }
 
-  /** GET /api/master-data/asset-categories — top-level categories have no parentId; sub-categories carry their parent's id. */
+  /** GET {asset service}/api/asset-categories — top-level categories have no parentId; sub-categories carry their parent's id. */
   getAssetCategories(): Observable<DropdownOption[]> {
-    return this.list('asset-categories', 'categoryName', (r) => ({ parentId: this.refId(r['parentCategory']) }));
+    return this.list(`${this.assetUrl}/asset-categories`, 'name', (r) => ({ parentId: this.text(r['parentCategoryId']) }));
   }
 
-  /** GET /api/master-data/asset-categories/{id}/children — sub-categories of one category. */
+  /** GET {asset service}/api/asset-categories?parentCategoryId={id} — sub-categories of one category. */
   getSubCategories(categoryId: string): Observable<DropdownOption[]> {
-    return this.list(`asset-categories/${encodeURIComponent(categoryId)}/children`, 'categoryName', () => ({ parentId: categoryId }));
+    return this.list(`${this.assetUrl}/asset-categories`, 'name', () => ({ parentId: categoryId }), { parentCategoryId: categoryId });
   }
 
-  /** GET /api/master-data/asset-types — parentId is the category (or sub-category) id. */
+  /** GET {asset service}/api/asset-category-types?categoryId= — the types of a category (or sub-category); parentId is its id. */
   getAssetTypes(categoryId?: string): Observable<DropdownOption[]> {
-    return this.list('asset-types', 'assetTypeName', (r) => ({ parentId: this.refId(r['category']) }), { categoryId });
+    return this.list(`${this.assetUrl}/asset-category-types`, 'typeName', (r) => ({ parentId: this.text(r['categoryId']) }), { categoryId });
   }
 
   /** GET /api/master-data/asset-models — parentId is the manufacturer id. */
@@ -261,7 +264,9 @@ export class AssetDropdownService {
   ): Observable<T[]> {
     const params: Record<string, string> = {};
     for (const [key, value] of Object.entries(filters)) if (value) params[key] = value;
-    return this.http.get<MasterRecord[] | { items?: MasterRecord[] }>(`${this.masterUrl}/${resource}`, { params }).pipe(
+    // A full URL (Asset service lists) is used as is; anything else is a master data resource
+    const url = /^https?:\/\//i.test(resource) ? resource : `${this.masterUrl}/${resource}`;
+    return this.http.get<MasterRecord[] | { items?: MasterRecord[] }>(url, { params }).pipe(
       map((res) => (Array.isArray(res) ? res : res?.items ?? [])),
       map((records) =>
         records

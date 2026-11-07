@@ -19,6 +19,7 @@ import {
   Tone,
   ZONE_TYPES,
   ZoneOptions,
+  ZoneGeometry,
   ZoneShape,
   ZoneType,
   defaultLayers,
@@ -216,24 +217,28 @@ export class MapsStore implements OnDestroy {
 
   private buildTree(src: LocationSources): SiteNode {
     const label = (name: string, code?: string | null) => (code && code !== name ? `${name} (${code})` : name);
+    // Latitude / longitude from Master Data, kept only when both are real coordinates
+    const geo = (r: { latitude?: number | null; longitude?: number | null }): Pick<SiteNode, 'lat' | 'lng'> =>
+      isCoord(r.latitude, 90) && isCoord(r.longitude, 180) ? { lat: r.latitude, lng: r.longitude } : {};
     const root: SiteNode = { id: 'org', label: src.organizationName || 'Organization', kind: 'org', children: [] };
     const sites = new Map<string, SiteNode>();
     const buildings = new Map<string, SiteNode>();
     for (const s of src.sites ?? []) {
       if (!s?.id) continue;
-      const node: SiteNode = { id: s.id, label: label(s.siteName || s.code || s.id, s.code), kind: 'site', children: [] };
+      const node: SiteNode = { id: s.id, label: label(s.siteName || s.code || s.id, s.code), kind: 'site', ...geo(s), children: [] };
       sites.set(s.id, node);
       root.children!.push(node);
     }
     for (const b of src.buildings ?? []) {
       if (!b?.id) continue;
-      const node: SiteNode = { id: b.id, label: label(b.name || b.code || b.id, b.code), kind: 'building', children: [] };
+      const node: SiteNode = { id: b.id, label: label(b.name || b.code || b.id, b.code), kind: 'building', ...geo(b), children: [] };
       buildings.set(b.id, node);
       (sites.get(b.site?.id ?? '') ?? root).children!.push(node);
     }
     for (const f of src.floors ?? []) {
       if (!f?.id) continue;
-      const node: SiteNode = { id: f.id, label: f.name || f.code || f.id, kind: 'floor' };
+      const image = f.imageUrl || f.images?.find((i) => !!i) || undefined;
+      const node: SiteNode = { id: f.id, label: f.name || f.code || f.id, kind: 'floor', ...geo(f), ...(image ? { image } : {}) };
       const siteId = typeof f.site === 'string' ? f.site : (f.site?.id ?? '');
       const parent =
         buildings.get(f.buildingId ?? '') ??
@@ -263,6 +268,99 @@ export class MapsStore implements OnDestroy {
       node.children?.forEach((c) => walk(c, next));
     };
     walk(tree, []);
+  }
+
+  /**
+   * Where a location sits on the world map: its own latitude / longitude from Master Data, else the nearest parent's
+   * (floor → building → site). `inherited` is true when it came from a parent. Null when none of them has coordinates.
+   */
+  geoAnchor(locationId: string): { lat: number; lng: number; from: SiteNode; inherited: boolean } | null {
+    const path = this.paths.get(locationId) ?? [];
+    for (let i = path.length - 1; i >= 0; i--) {
+      const n = path[i];
+      if (n.lat !== undefined && n.lng !== undefined) return { lat: n.lat, lng: n.lng, from: n, inherited: i !== path.length - 1 };
+    }
+    return null;
+  }
+
+  /**
+   * True when zones can be drawn and items plotted here: the location has a floor plan, or it is a floor with an
+   * image in Master Data (that image becomes its floor plan on the first draw / plot, see ensurePlan).
+   */
+  get canDraw(): boolean {
+    return !!this.currentPlan || (!this.plansOf(this.selectedFloorId).length && !!this.floorImage(this.selectedFloorId));
+  }
+
+  /** A floor plan is being created from the floor image (buttons wait for it). */
+  creatingPlan = false;
+
+  /**
+   * Runs `next` once the selected location has a floor plan. A floor without one but with an image in Master Data
+   * gets a draft floor plan made from that image first (uploaded to Media like any floor plan), so the drawing and
+   * plotting tools work on the picture shown on the map.
+   */
+  ensurePlan(next: () => void): void {
+    if (this.currentPlan) {
+      next();
+      return;
+    }
+    const locationId = this.selectedFloorId;
+    const image = this.floorImage(locationId);
+    if (!image || this.plansOf(locationId).length) {
+      this.notify('Upload a floor plan for this location first', 'error');
+      return;
+    }
+    if (this.creatingPlan) return;
+    this.creatingPlan = true;
+    const label = this.locationNode(locationId)?.label ?? 'Floor';
+    fetch(image)
+      .then((res) => res.blob())
+      .then((blob) => {
+        const format: FloorPlan['format'] = /png/i.test(blob.type) ? 'PNG' : /svg/i.test(blob.type) ? 'SVG' : 'JPG';
+        const file = new File([blob], `${label.replace(/[^\w.-]+/g, '-')}-layout.${format.toLowerCase()}`, { type: blob.type || 'image/png' });
+        this.addPlan(
+          file,
+          { name: `${label} layout`, description: 'Floor image from Master Data Management', type: 'Floor Plan', format },
+          () => this.whenPlanLoaded(() => {
+            this.creatingPlan = false;
+            next();
+          })
+        );
+        // addPlan reports its own errors; let the buttons work again after a failure
+        setTimeout(() => !this.currentPlan && (this.creatingPlan = false), 15_000);
+      })
+      .catch(() => {
+        this.creatingPlan = false;
+        this.notify('Could not read the floor image from Master Data', 'error');
+      });
+  }
+
+  /** Calls `next` once the selected plan's zones and items have loaded (so they don't replace what `next` adds). */
+  private whenPlanLoaded(next: () => void, tries = 0): void {
+    if ((!this.zonesLoading && !this.itemsLoading) || tries > 50) next();
+    else setTimeout(() => this.whenPlanLoaded(next, tries + 1), 100);
+  }
+
+  /** The tree node of a location (site / building / floor), or undefined when it isn't in the tree. */
+  locationNode(locationId: string): SiteNode | undefined {
+    const path = this.paths.get(locationId) ?? [];
+    return path[path.length - 1];
+  }
+
+  /** The floor's layout picture from Master Data, when the location is a floor that has one. */
+  floorImage(locationId: string): string | null {
+    const path = this.paths.get(locationId) ?? [];
+    const node = path[path.length - 1];
+    return node?.kind === 'floor' && node.image ? node.image : null;
+  }
+
+  /** First location in the tree with coordinates (used to place the map when the selected one has none). */
+  get anyGeo(): { lat: number; lng: number } | null {
+    for (const [, path] of this.paths) {
+      const n = path[path.length - 1];
+      if (n && n.lat !== undefined && n.lng !== undefined) return { lat: n.lat, lng: n.lng };
+    }
+    return null;
   }
 
   /** True when MDM has no sites, buildings or floors. */
@@ -730,8 +828,8 @@ export class MapsStore implements OnDestroy {
     return Math.round(area * 100) / 100;
   }
 
-  /** POST a new zone with defaults; the user fills in its details in the zone form. */
-  addZone(shape: ZoneShape, done?: (z: MapZone) => void): void {
+  /** POST a new zone with defaults (at the outline drawn on the map, when given); the user fills in its details in the zone form. */
+  addZone(shape: ZoneShape, done?: (z: MapZone) => void, drawn?: ZoneGeometry): void {
     const planId = this.selectedPlanId;
     if (!planId) {
       this.notify('Upload a floor plan for this location before drawing zones', 'error');
@@ -758,6 +856,7 @@ export class MapsStore implements OnDestroy {
       h,
       points: shape === 'Polygon' || shape === 'Custom' ? [{ x: 40, y: 40 }, { x: 40 + w, y: 40 }, { x: 40 + w, y: 40 + h }, { x: 40, y: 40 + h }] : [],
       radius: shape === 'Circle' ? w / 2 : null,
+      ...(drawn ?? {}),
       areaM2: 0,
       description: '',
       accessRule: this.zoneOptions.accessRules.includes('All Staff') ? 'All Staff' : (this.zoneOptions.accessRules[0] ?? ''),
@@ -1023,4 +1122,9 @@ export class MapsStore implements OnDestroy {
       if (this.activeLayerSet === id) this.activeLayerSet = null;
     });
   }
+}
+
+/** A finite number within ±limit (latitude 90, longitude 180). */
+function isCoord(v: number | null | undefined, limit: number): v is number {
+  return typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= limit;
 }

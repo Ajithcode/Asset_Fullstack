@@ -10,7 +10,7 @@ import {
 import {
   AssetDropdownService, AssetRegistrationOptions, DropdownOption, LocationHierarchy, textOptions,
 } from '../services/asset-dropdowns/asset-dropdown';
-import { Observable, concat, defer, forkJoin, last, map, of, shareReplay, switchMap } from 'rxjs';
+import { Observable, concat, defer, forkJoin, last, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import {
   LucideAngularModule,
   ArrowLeft,
@@ -120,6 +120,25 @@ const BADGE_COLORS: Record<string, string> = {
   low: '#16a34a',
 };
 const DEFAULT_BADGE_COLOR = '#94a3b8';
+
+/** Supplier / Vendor and Manufacturer choices used while Master Data Management has none (the asset saves the label). */
+const DEFAULT_SUPPLIERS: DropdownOption[] = [
+  { label: 'Global Supplies LLC', value: 'Global Supplies LLC' },
+  { label: 'Prime Industrial Traders', value: 'Prime Industrial Traders' },
+  { label: 'TechSource Distributors', value: 'TechSource Distributors' },
+];
+const DEFAULT_MANUFACTURERS: DropdownOption[] = [
+  { label: 'Caterpillar', value: 'Caterpillar' },
+  { label: 'Siemens', value: 'Siemens' },
+  { label: 'Schneider Electric', value: 'Schneider Electric' },
+];
+
+/** Criticality choices used while Master Data Management has none of its own (the asset saves the label). */
+const DEFAULT_CRITICALITIES: DropdownOption[] = [
+  { label: 'High', value: 'High' },
+  { label: 'Medium', value: 'Medium', isDefault: true },
+  { label: 'Low', value: 'Low' },
+];
 
 /** Form fields that hold a location, top to bottom. */
 type LocationLevelKey = 'country' | 'site' | 'building' | 'floor' | 'zone' | 'room';
@@ -579,7 +598,7 @@ export class AssetRegistration {
   };
 
   /** From GET master-data/manufacturers (value = record id), loaded when the page opens. */
-  readonly manufacturers: Option[] = [];
+  readonly manufacturers: Option[] = DEFAULT_MANUFACTURERS.map(({ label, value }) => ({ label, value }));
 
   readonly statuses: StatusOption[] = [
     { label: 'Active', value: 'active', color: '#16a34a' },
@@ -595,7 +614,9 @@ export class AssetRegistration {
     { label: 'Poor', value: 'poor', color: '#dc2626' },
   ];
 
-  readonly criticalities: StatusOption[] = [];
+  /** High / Medium / Low from the start, so the required field always has choices; Master Data's own replace them when it has any. */
+  readonly criticalities: StatusOption[] = DEFAULT_CRITICALITIES.map((o) => ({ label: o.label, value: o.value, color: BADGE_COLORS[o.label.toLowerCase()] ?? DEFAULT_BADGE_COLOR }));
+  private criticalitiesRequested = false;
 
   readonly functionPurposes: Option[] = [];
 
@@ -648,7 +669,8 @@ export class AssetRegistration {
 
   readonly remarksMax = REMARKS_MAX;
 
-  readonly vendors: Option[] = [];
+  /** From GET master-data/suppliers; three sample suppliers until Master Data has its own. */
+  readonly vendors: Option[] = DEFAULT_SUPPLIERS.map(({ label, value }) => ({ label, value }));
 
   readonly units: Option[] = [];
 
@@ -791,7 +813,13 @@ export class AssetRegistration {
   private departmentsLoaded = false;
 
   private get options$(): Observable<AssetRegistrationOptions> {
-    return (this.registrationOptions$ ??= this.dropdownApi.getRegistrationOptions().pipe(shareReplay(1)));
+    return (this.registrationOptions$ ??= this.dropdownApi.getRegistrationOptions().pipe(
+      // A failed load comes back empty: forget it so the next step asks again instead of keeping blank lists
+      tap((o) => {
+        if (!Object.keys(o ?? {}).length) this.registrationOptions$ = undefined;
+      }),
+      shareReplay(1),
+    ));
   }
 
   /**
@@ -816,12 +844,25 @@ export class AssetRegistration {
   /** Step 1: Criticality and Manufacturer from master data (Manufacturer is also shown on step 4). Status and Condition are built-in. */
   private loadBasicInformationDropdowns(): void {
     const f = this.form;
+    // No manufacturers in Master Data yet: keep the sample ones so the required field can be filled
     this.dropdownApi.getManufacturers().subscribe((list) =>
-      this.swapOptions(this.manufacturers, list, (re) => (f.manufacturer = re(f.manufacturer))),
+      this.swapOptions(this.manufacturers, list.length ? list : DEFAULT_MANUFACTURERS, (re) => (f.manufacturer = re(f.manufacturer))),
     );
-    this.dropdownApi.getCriticalities().subscribe((list) => {
+    this.loadCriticalities();
+  }
+
+  /** Criticality is on steps 1 and 2: loaded once by whichever is shown first (a draft can open on step 2). */
+  private loadCriticalities(): void {
+    if (this.criticalitiesRequested) return;
+    this.criticalitiesRequested = true;
+    const f = this.form;
+    // Nothing chosen yet: preselect Medium until Master Data answers
+    f.criticality ||= DEFAULT_CRITICALITIES.find((c) => c.isDefault)?.value ?? '';
+    this.dropdownApi.getCriticalities().subscribe((loaded) => {
+      // No criticalities in Master Data yet: keep High / Medium / Low so the required field can be filled
+      const list = loaded.length ? loaded : DEFAULT_CRITICALITIES;
       this.swapOptions(this.criticalities, this.withColors(list), (re) => (f.criticality = re(f.criticality)));
-      // Nothing chosen yet: preselect the record marked defaultCriticality
+      // Nothing chosen (or the choice is gone): preselect the record marked defaultCriticality
       f.criticality ||= list.find((c) => c.isDefault)?.value ?? '';
     });
   }
@@ -829,6 +870,7 @@ export class AssetRegistration {
   /** Step 2: Category, Business Unit, Department (master data) and the classification lists from /options. */
   private loadClassificationDropdowns(): void {
     const f = this.form;
+    this.loadCriticalities();
     // Only top-level categories here; sub-categories load when a category is chosen
     this.dropdownApi.getAssetCategories().subscribe((list) => {
       this.swapOptions(this.categories, list.filter((c) => !c.parentId), (re) => (f.category = re(f.category)));
@@ -859,7 +901,10 @@ export class AssetRegistration {
   /** Step 4: Vendor, Service Provider (master data) and the purchase / warranty lists from /options. */
   private loadPurchaseWarrantyDropdowns(): void {
     const f = this.form;
-    this.dropdownApi.getSuppliers().subscribe((list) => this.swapOptions(this.vendors, list, (re) => (f.vendor = re(f.vendor))));
+    // No suppliers in Master Data yet: keep the sample ones so the required field can be filled
+    this.dropdownApi.getSuppliers().subscribe((list) =>
+      this.swapOptions(this.vendors, list.length ? list : DEFAULT_SUPPLIERS, (re) => (f.vendor = re(f.vendor))),
+    );
     this.dropdownApi.getServiceProviders().subscribe((list) =>
       this.swapOptions(this.serviceProviders, list, (re) => (f.serviceProvider = re(f.serviceProvider))),
     );
@@ -1680,8 +1725,16 @@ export class AssetRegistration {
     return value ? options.find((o) => o.value === value)?.label ?? value : '';
   }
 
-  private numOrNull(value: string): number | null {
-    return value.trim() === '' || isNaN(Number(value)) ? null : Number(value);
+  /**
+   * A form value as a number, or null when blank / not a number. `type="number"` inputs hand ngModel a number once
+   * edited (a string before), so both are accepted; calling `.trim()` on the number used to throw and fail the save.
+   */
+  private numOrNull(value: string | number | null | undefined): number | null {
+    if (value === null || value === undefined) return null;
+    const text = String(value).trim();
+    if (text === '') return null;
+    const n = Number(text);
+    return Number.isFinite(n) ? n : null;
   }
 
   private toBasicInformation(): AssetBasicInformation {

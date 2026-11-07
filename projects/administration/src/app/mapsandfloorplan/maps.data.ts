@@ -46,6 +46,11 @@ export interface SiteNode {
   id: string;
   label: string;
   kind: 'org' | 'site' | 'building' | 'floor';
+  /** Map position from Master Data (WGS 84); absent when not set */
+  lat?: number;
+  lng?: number;
+  /** Floors: the layout picture uploaded in Master Data, drawn on the map at the floor's position */
+  image?: string;
   children?: SiteNode[];
 }
 
@@ -177,6 +182,9 @@ export const DEFAULT_ZONE_OPTIONS: ZoneOptions = {
 /* ===== Devices + assets plotted on the plan ===== */
 
 export type PlotKind = 'device' | 'asset';
+
+/** A zone outline drawn on the map, in % of the plan (same fields as MapZone). */
+export type ZoneGeometry = Pick<MapZone, 'x' | 'y' | 'w' | 'h' | 'points' | 'radius'>;
 
 export interface PlotItem {
   /** `${kind}:${itemId}` - unique across devices and assets */

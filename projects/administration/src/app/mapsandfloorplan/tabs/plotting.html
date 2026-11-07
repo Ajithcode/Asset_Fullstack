@@ -22,7 +22,7 @@
       </div>
 
       <div class="dd" style="display: flex; justify-content: flex-end; margin-bottom: 6px">
-        <button type="button" class="btn btn--primary btn--sm" [disabled]="!store.editing || store.working || !store.currentPlan" (click)="togglePlotMenu($event, listTab)">
+        <button type="button" class="btn btn--primary btn--sm" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" (click)="togglePlotMenu($event, listTab)">
           <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Plot {{ listTab === 'device' ? 'Device' : 'Asset' }}
         </button>
         @if (plotMenu === listTab) {
@@ -95,7 +95,7 @@
         <lucide-icon [img]="icons.MousePointer2" [size]="15"></lucide-icon> Select
       </button>
       <div class="dd">
-        <button type="button" class="btn" [disabled]="!store.editing || store.working || !store.currentPlan" (click)="togglePlotMenu($event, 'device')">
+        <button type="button" class="btn" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" (click)="togglePlotMenu($event, 'device')">
           <lucide-icon [img]="icons.Cpu" [size]="15"></lucide-icon> Plot Device <lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>
         </button>
         @if (plotMenu === 'device') {
@@ -109,7 +109,7 @@
         }
       </div>
       <div class="dd">
-        <button type="button" class="btn" [disabled]="!store.editing || store.working || !store.currentPlan" (click)="togglePlotMenu($event, 'asset')">
+        <button type="button" class="btn" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" (click)="togglePlotMenu($event, 'asset')">
           <lucide-icon [img]="icons.Package" [size]="15"></lucide-icon> Plot Asset <lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon>
         </button>
         @if (plotMenu === 'asset') {
@@ -122,7 +122,7 @@
           </div>
         }
       </div>
-      <button type="button" class="btn" [disabled]="!store.editing || store.working || !store.currentPlan" (click)="autoPlot()">
+      <button type="button" class="btn" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" (click)="autoPlot()">
         <lucide-icon [img]="icons.Sparkles" [size]="15"></lucide-icon> Auto Plot (Bulk)
       </button>
     </ng-container>
@@ -198,7 +198,7 @@
           <dt>Last Updated</dt><dd>{{ date(i.lastUpdated) }} {{ time(i.lastUpdated) }}</dd>
         </dl>
         <div class="action-grid">
-          <button type="button" class="btn btn--outline" [disabled]="!store.editing || store.working || !store.currentPlan" (click)="startPlacing(i)">
+          <button type="button" class="btn btn--outline" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" (click)="startPlacing(i)">
             <lucide-icon [img]="icons.Move" [size]="14"></lucide-icon> {{ i.x === null ? 'Plot on Map' : 'Reposition' }}
           </button>
           <button type="button" class="btn btn--outline" [disabled]="!store.editing" (click)="replaceIcon()">

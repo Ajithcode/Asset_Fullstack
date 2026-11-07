@@ -142,7 +142,8 @@ export class PlottingTab {
       return;
     }
     if (!this.store.currentPlan) {
-      this.store.notify('Upload a floor plan for this location before plotting', 'error');
+      // A floor with only a Master Data image gets its floor plan first
+      this.store.ensurePlan(() => this.startPlacing(this.store.items.find((x) => x.id === i.id) ?? i));
       return;
     }
     this.plotMenu = null;
@@ -173,6 +174,10 @@ export class PlottingTab {
 
   /** Auto Plot (Bulk): drop every unplotted item inside a zone, or on a free spot (one PUT per item). */
   autoPlot(): void {
+    if (!this.store.currentPlan) {
+      this.store.ensurePlan(() => this.autoPlot());
+      return;
+    }
     const pending = this.store.unplotted;
     if (!pending.length) {
       this.store.notify('Nothing left to plot');
