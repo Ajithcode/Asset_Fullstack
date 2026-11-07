@@ -248,6 +248,9 @@ export interface MdmSiteDto {
   id: string;
   siteName: string;
   code?: string | null;
+  /** Map position (WGS 84) from Master Data, when set */
+  latitude?: number | null;
+  longitude?: number | null;
   status?: string | null;
   isDeleted?: boolean;
 }
@@ -258,6 +261,9 @@ export interface MdmBuildingDto {
   name: string;
   code?: string | null;
   site?: { id: string | null; name?: string | null } | null;
+  /** Map position (WGS 84) from Master Data, when set */
+  latitude?: number | null;
+  longitude?: number | null;
   status?: string | null;
   isDeleted?: boolean;
 }
@@ -270,6 +276,12 @@ export interface MdmFloorDto {
   site?: { id: string | null; name?: string | null } | string | null;
   buildingId?: string | null;
   buildingName?: string | null;
+  /** Floor layout picture set in Master Data (data URL or link) */
+  imageUrl?: string | null;
+  images?: string[] | null;
+  /** Map position (WGS 84) from Master Data, when set */
+  latitude?: number | null;
+  longitude?: number | null;
   status?: string | null;
   isDeleted?: boolean;
 }

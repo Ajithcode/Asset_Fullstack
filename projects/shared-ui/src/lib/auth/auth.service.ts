@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpBackend, HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, map } from 'rxjs';
+import { Observable, finalize, map, of, shareReplay, throwError } from 'rxjs';
 import { environment } from '../environment/environment';
 import { AuthTokenResponse, AuthUser, LoginData, LoginResponse, RegisterData, RegisterResponse, SignupRole } from './auth.model';
 
@@ -10,6 +10,10 @@ const TOKEN_KEY = 'token';
 const REFRESH_KEY = 'refreshToken';
 const EMAIL_KEY = 'userEmail';
 const USER_KEY = 'authUser';
+/** Access tokens are renewed when they have less than this left, so a request never leaves with an expired one. */
+const RENEW_BEFORE_MS = 60_000;
+/** Auth endpoints that need no access token; the interceptor leaves these requests alone. */
+const ANONYMOUS_AUTH_PATHS = ['/roles', '/register', '/login', '/verify-otp', '/verify-totp', '/refresh', '/logout'];
 
 /**
  * Sign-in against the UserAccount service (through the API gateway):
@@ -21,6 +25,10 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly api = `${environment.authApiUrl}api/auth`;
+  /** Calls that must skip the interceptor (the token refresh itself). */
+  private readonly rawHttp = new HttpClient(inject(HttpBackend));
+  /** The refresh in flight: every request waiting for a new token shares it (a refresh token works only once). */
+  private refreshing: Observable<string> | null = null;
 
   /** Step 1: checks the password; the response says which second step comes next. */
   login(data: LoginData): Observable<LoginResponse> {
@@ -56,16 +64,75 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
-  /** True while this browser holds an unexpired access token from the server (old demo tokens don't count). */
+  /**
+   * True while this browser holds a session from the server: an unexpired access token, or an expired one with a
+   * refresh token to renew it (the interceptor renews it on the next request). Old demo tokens don't count.
+   */
   isLoggedIn(): boolean {
     const token = this.getToken();
     if (!token) return false;
     const expiresAt = this.tokenExpiry(token);
-    if (expiresAt === null || expiresAt <= Date.now()) {
+    if (expiresAt === null || (expiresAt <= Date.now() && !this.read(REFRESH_KEY))) {
       this.clearSession();
       return false;
     }
     return true;
+  }
+
+  /** True for the sign-in endpoints that take no access token (login, verify, refresh...). */
+  isAnonymousAuthCall(url: string): boolean {
+    if (!url.startsWith(this.api)) return false;
+    const path = url.slice(this.api.length).split(/[?#]/)[0];
+    return ANONYMOUS_AUTH_PATHS.includes(path);
+  }
+
+  /**
+   * Access token for the next request: the stored one, or a renewed one when it expires within a minute.
+   * Null when signed out. When the server refuses to renew the session, the user is sent to the sign-in page.
+   */
+  tokenForRequest(): Observable<string | null> {
+    const token = this.getToken();
+    if (!token || !this.expiresSoon(token) || !this.read(REFRESH_KEY)) return of(token);
+    return this.refresh(token);
+  }
+
+  /**
+   * A new access token from the refresh token. `staleToken` is the token a request used: if another request or
+   * browser tab has already replaced it with a fresh one, that one is used instead of refreshing again (sending a
+   * refresh token twice makes the server end every session of the user).
+   */
+  refresh(staleToken?: string | null): Observable<string> {
+    const current = this.getToken();
+    if (current && current !== staleToken && !this.expiresSoon(current)) return of(current);
+    if (this.refreshing) return this.refreshing;
+    const refreshToken = this.read(REFRESH_KEY);
+    if (!refreshToken) return throwError(() => new Error('No refresh token'));
+    this.refreshing = this.rawHttp.post<AuthTokenResponse>(`${this.api}/refresh`, { refreshToken }).pipe(
+      map((res) => {
+        this.startSession(res);
+        return res.accessToken;
+      }),
+      finalize(() => (this.refreshing = null)),
+      shareReplay(1)
+    );
+    return this.refreshing;
+  }
+
+  /** True when a refresh token is stored. */
+  canRefresh(): boolean {
+    return !!this.read(REFRESH_KEY);
+  }
+
+  /** The server refused to renew the session: forget it and go to the sign-in page. */
+  sessionExpired(): void {
+    this.clearSession();
+    if (!this.router.url.startsWith('/login')) this.router.navigate(['/login']);
+  }
+
+  /** True when the token expires within RENEW_BEFORE_MS (or can't be read). */
+  private expiresSoon(token: string): boolean {
+    const expiresAt = this.tokenExpiry(token);
+    return expiresAt === null || expiresAt - Date.now() < RENEW_BEFORE_MS;
   }
 
   /** Expiry of a JWT in ms (its `exp` claim), or null when the token is not a JWT. */
