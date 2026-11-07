@@ -7,13 +7,17 @@ public static class SiteValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateSiteRequest request)
     {
-        return ValidateFields(request.SiteName, request.Code, request.BusinessUnit, request.Department);
+        return CoordinateValidation.With(
+            ValidateFields(request.SiteName, request.Code, request.BusinessUnit, request.Department),
+            request.Latitude, request.Longitude);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateSiteRequest request)
     {
-        return ValidateFields(request.SiteName, request.Code, request.BusinessUnit, request.Department);
+        return CoordinateValidation.With(
+            ValidateFields(request.SiteName, request.Code, request.BusinessUnit, request.Department),
+            request.Latitude, request.Longitude);
     }
 
     public static Dictionary<string, string[]> Validate(

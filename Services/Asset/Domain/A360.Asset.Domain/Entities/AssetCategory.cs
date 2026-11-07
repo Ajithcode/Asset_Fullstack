@@ -30,6 +30,11 @@ public sealed class AssetCategory : BaseEntity
 
     [BsonElement("attributes")]
     public List<AssetCategoryAttribute> Attributes { get; set; } = [];
+
+    // Master Data Management's settings for the category (asset type, look, defaults for new assets...).
+    // Null for categories made on the Assets page; that page never sends it, so its saves keep what is here.
+    [BsonElement("details")]
+    public AssetCategoryDetails? Details { get; set; }
 }
 
 /// <summary>A field assets in this category fill in during registration (e.g. "Installation Date", Date, required).</summary>
@@ -76,4 +81,73 @@ public sealed class AssetCategoryAttribute
 
     [BsonElement("created_at")]
     public DateTime? CreatedAt { get; set; }
+}
+
+/// <summary>Category settings kept for Master Data Management › Category &amp; Sub-category.</summary>
+[BsonIgnoreExtraElements]
+public sealed class AssetCategoryDetails
+{
+    // How assets in the category are accounted for, e.g. Fixed Asset or Consumable
+    [BsonElement("asset_type")]
+    public string? AssetType { get; set; }
+
+    [BsonElement("icon")]
+    public string? Icon { get; set; }
+
+    [BsonElement("color")]
+    public string? Color { get; set; }
+
+    [BsonElement("subcategories")]
+    public List<AssetCategorySubcategory> Subcategories { get; set; } = [];
+
+    // Defaults for new assets in the category
+    [BsonElement("depreciation_method")]
+    public string? DepreciationMethod { get; set; }
+
+    [BsonElement("useful_life_years")]
+    public double? UsefulLifeYears { get; set; }
+
+    [BsonElement("cost_center")]
+    public string? CostCenter { get; set; }
+
+    [BsonElement("tag_prefix")]
+    public string? TagPrefix { get; set; }
+
+    [BsonElement("tracking_method")]
+    public string? TrackingMethod { get; set; }
+
+    [BsonElement("default_condition")]
+    public string? DefaultCondition { get; set; }
+
+    [BsonElement("subcategory_required")]
+    public bool SubcategoryRequired { get; set; }
+
+    [BsonElement("show_in_mobile")]
+    public bool ShowInMobile { get; set; }
+
+    [BsonElement("include_in_reports")]
+    public bool IncludeInReports { get; set; }
+
+    [BsonElement("approval_for_new_assets")]
+    public bool ApprovalForNewAssets { get; set; }
+}
+
+/// <summary>A sub-category listed inside its category on the Master Data page.</summary>
+[BsonIgnoreExtraElements]
+public sealed class AssetCategorySubcategory
+{
+    [BsonElement("code")]
+    public string Code { get; set; } = string.Empty;
+
+    [BsonElement("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [BsonElement("icon")]
+    public string? Icon { get; set; }
+
+    [BsonElement("color")]
+    public string? Color { get; set; }
+
+    [BsonElement("status")]
+    public string? Status { get; set; }
 }

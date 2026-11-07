@@ -51,6 +51,8 @@ public sealed class AssetCategoryRepository
                 .Set(existing => existing.Description, category.Description)
                 .Set(existing => existing.Status, category.Status)
                 .Set(existing => existing.ImageUrl, category.ImageUrl)
+                // Master Data's settings: the loaded value unless the request replaced it, so other saves keep it
+                .Set(existing => existing.Details, category.Details)
                 .Set(existing => existing.UpdatedBy, category.UpdatedBy)
                 .Set(existing => existing.UpdatedAt, category.UpdatedAt),
             cancellationToken: cancellationToken);

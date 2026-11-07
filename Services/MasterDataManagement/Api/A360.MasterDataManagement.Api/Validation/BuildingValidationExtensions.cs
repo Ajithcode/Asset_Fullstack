@@ -7,15 +7,17 @@ public static class BuildingValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateBuildingRequest request)
     {
-        return SpaceValidation.ValidateCommonFields(
-            request.Name, request.Code, request.Site, request.Capacity, request.Area);
+        return CoordinateValidation.With(
+            SpaceValidation.ValidateCommonFields(request.Name, request.Code, request.Site, request.Capacity, request.Area),
+            request.Latitude, request.Longitude);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateBuildingRequest request)
     {
-        return SpaceValidation.ValidateCommonFields(
-            request.Name, request.Code, request.Site, request.Capacity, request.Area);
+        return CoordinateValidation.With(
+            SpaceValidation.ValidateCommonFields(request.Name, request.Code, request.Site, request.Capacity, request.Area),
+            request.Latitude, request.Longitude);
     }
 
     public static Dictionary<string, string[]> Validate(

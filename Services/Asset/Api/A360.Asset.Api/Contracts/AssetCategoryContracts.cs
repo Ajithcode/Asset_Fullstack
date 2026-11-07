@@ -11,7 +11,9 @@ public sealed record CreateAssetCategoryRequest(
     string? Status,
     string? CreatedBy,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    string? ImageUrl = null,
+    AssetCategoryDetailsDto? Details = null)
 {
     public AssetCategory ToEntity(CurrentUser? currentUser)
     {
@@ -22,6 +24,8 @@ public sealed record CreateAssetCategoryRequest(
             Code = Code!.Trim(),
             Description = ContractText.TrimOrNull(Description),
             Status = ActiveInactiveStatuses.Normalize(Status),
+            ImageUrl = ContractText.TrimOrNull(ImageUrl),
+            Details = Details?.ToEntity(),
             CreatedBy = ContractText.FirstNonEmpty(CreatedBy, currentUser?.UserName),
             CreatedAt = DateTime.UtcNow,
             ClientId = ContractText.FirstNonEmpty(ClientId, currentUser?.ClientId),
@@ -37,7 +41,8 @@ public sealed record UpdateAssetCategoryRequest(
     string? Code,
     string? Description,
     string? Status,
-    string? ImageUrl)
+    string? ImageUrl,
+    AssetCategoryDetailsDto? Details = null)
 {
     public void ApplyTo(AssetCategory category, CurrentUser? currentUser)
     {
@@ -47,6 +52,11 @@ public sealed record UpdateAssetCategoryRequest(
         category.Description = ContractText.TrimOrNull(Description);
         category.Status = ActiveInactiveStatuses.Normalize(Status);
         category.ImageUrl = ContractText.TrimOrNull(ImageUrl);
+        // Only Master Data sends details; the Assets page leaves them as they are
+        if (Details is not null)
+        {
+            category.Details = Details.ToEntity();
+        }
         category.UpdatedBy = currentUser?.UserName;
         category.UpdatedAt = DateTime.UtcNow;
     }
@@ -68,7 +78,8 @@ public sealed record AssetCategoryResponse(
     string? UpdatedBy,
     DateTime? UpdatedAt,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    AssetCategoryDetailsDto? Details)
 {
     /// <param name="categoriesById">All categories, to resolve the parent's name and the inherited fields and attributes.</param>
     public static AssetCategoryResponse FromEntity(AssetCategory category, IReadOnlyDictionary<string, AssetCategory> categoriesById)
@@ -96,7 +107,8 @@ public sealed record AssetCategoryResponse(
             category.UpdatedBy,
             category.UpdatedAt,
             category.ClientId,
-            category.TenantId);
+            category.TenantId,
+            AssetCategoryDetailsDto.FromEntity(category.Details));
     }
 }
 
@@ -229,3 +241,69 @@ public static class AssetCategoryLineage
         }
     }
 }
+
+/// <summary>Master Data Management's settings for a category (see AssetCategoryDetails).</summary>
+public sealed record AssetCategoryDetailsDto(
+    string? AssetType,
+    string? Icon,
+    string? Color,
+    IReadOnlyList<AssetCategorySubcategoryDto>? Subcategories,
+    string? DepreciationMethod,
+    double? UsefulLifeYears,
+    string? CostCenter,
+    string? TagPrefix,
+    string? TrackingMethod,
+    string? DefaultCondition,
+    bool SubcategoryRequired,
+    bool ShowInMobile,
+    bool IncludeInReports,
+    bool ApprovalForNewAssets)
+{
+    public AssetCategoryDetails ToEntity() => new()
+    {
+        AssetType = ContractText.TrimOrNull(AssetType),
+        Icon = ContractText.TrimOrNull(Icon),
+        Color = ContractText.TrimOrNull(Color),
+        Subcategories = (Subcategories ?? [])
+            .Where(sub => !string.IsNullOrWhiteSpace(sub.Code) || !string.IsNullOrWhiteSpace(sub.Name))
+            .Select(sub => new AssetCategorySubcategory
+            {
+                Code = sub.Code?.Trim() ?? string.Empty,
+                Name = sub.Name?.Trim() ?? string.Empty,
+                Icon = ContractText.TrimOrNull(sub.Icon),
+                Color = ContractText.TrimOrNull(sub.Color),
+                Status = ActiveInactiveStatuses.Normalize(sub.Status)
+            })
+            .ToList(),
+        DepreciationMethod = ContractText.TrimOrNull(DepreciationMethod),
+        UsefulLifeYears = UsefulLifeYears,
+        CostCenter = ContractText.TrimOrNull(CostCenter),
+        TagPrefix = ContractText.TrimOrNull(TagPrefix),
+        TrackingMethod = ContractText.TrimOrNull(TrackingMethod),
+        DefaultCondition = ContractText.TrimOrNull(DefaultCondition),
+        SubcategoryRequired = SubcategoryRequired,
+        ShowInMobile = ShowInMobile,
+        IncludeInReports = IncludeInReports,
+        ApprovalForNewAssets = ApprovalForNewAssets
+    };
+
+    public static AssetCategoryDetailsDto? FromEntity(AssetCategoryDetails? details) => details is null
+        ? null
+        : new AssetCategoryDetailsDto(
+            details.AssetType,
+            details.Icon,
+            details.Color,
+            details.Subcategories.Select(sub => new AssetCategorySubcategoryDto(sub.Code, sub.Name, sub.Icon, sub.Color, sub.Status)).ToList(),
+            details.DepreciationMethod,
+            details.UsefulLifeYears,
+            details.CostCenter,
+            details.TagPrefix,
+            details.TrackingMethod,
+            details.DefaultCondition,
+            details.SubcategoryRequired,
+            details.ShowInMobile,
+            details.IncludeInReports,
+            details.ApprovalForNewAssets);
+}
+
+public sealed record AssetCategorySubcategoryDto(string? Code, string? Name, string? Icon, string? Color, string? Status);

@@ -34,4 +34,18 @@ public class Floor : BaseEntity
 
     [BsonElement("area")]
     public double? Area { get; set; }
+
+    // Floor layout picture (PNG / JPG data URL or file link), shown on the Maps & Floor Plans map.
+    [BsonElement("image_url")]
+    public string? ImageUrl { get; set; }
+
+    [BsonElement("images")]
+    public List<string>? Images { get; set; }
+
+    // Map position (WGS 84), shown on the Leaflet maps; both or neither are set.
+    [BsonElement("latitude")]
+    public double? Latitude { get; set; }
+
+    [BsonElement("longitude")]
+    public double? Longitude { get; set; }
 }

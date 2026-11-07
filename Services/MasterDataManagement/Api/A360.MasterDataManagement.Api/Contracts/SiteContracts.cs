@@ -10,6 +10,8 @@ public sealed record CreateSiteRequest(
     string? SiteType,
     string? City,
     string? Country,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -26,6 +28,8 @@ public sealed record CreateSiteRequest(
             SiteType = string.IsNullOrWhiteSpace(SiteType) ? null : SiteType.Trim(),
             City = string.IsNullOrWhiteSpace(City) ? null : City.Trim(),
             Country = string.IsNullOrWhiteSpace(Country) ? null : Country.Trim(),
+            Latitude = Latitude,
+            Longitude = Longitude,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -46,6 +50,8 @@ public sealed record UpdateSiteRequest(
     string? SiteType,
     string? City,
     string? Country,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? UpdatedBy)
 {
@@ -58,6 +64,8 @@ public sealed record UpdateSiteRequest(
         site.SiteType = string.IsNullOrWhiteSpace(SiteType) ? null : SiteType.Trim();
         site.City = string.IsNullOrWhiteSpace(City) ? null : City.Trim();
         site.Country = string.IsNullOrWhiteSpace(Country) ? null : Country.Trim();
+        site.Latitude = Latitude;
+        site.Longitude = Longitude;
 
         site.UpdatedBy = UpdatedBy;
         site.UpdatedAt = DateTime.UtcNow;
@@ -82,6 +90,8 @@ public sealed record SiteResponse(
     string? SiteType,
     string? City,
     string? Country,
+    double? Latitude,
+    double? Longitude,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -106,6 +116,8 @@ public sealed record SiteResponse(
             site.SiteType,
             site.City,
             site.Country,
+            site.Latitude,
+            site.Longitude,
             site.CreatedBy,
             site.CreatedAt,
             site.UpdatedBy,

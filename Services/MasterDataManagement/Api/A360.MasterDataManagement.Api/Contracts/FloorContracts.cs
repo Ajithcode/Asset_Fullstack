@@ -12,6 +12,10 @@ public sealed record CreateFloorRequest(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    List<string>? Images,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -30,6 +34,10 @@ public sealed record CreateFloorRequest(
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
             Capacity = Capacity,
             Area = Area,
+            ImageUrl = string.IsNullOrWhiteSpace(ImageUrl) ? null : ImageUrl.Trim(),
+            Images = FloorImageList.Clean(Images),
+            Latitude = Latitude,
+            Longitude = Longitude,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -51,6 +59,10 @@ public sealed record UpdateFloorRequest(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    List<string>? Images,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? UpdatedBy)
 {
@@ -64,6 +76,10 @@ public sealed record UpdateFloorRequest(
         floor.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
         floor.Capacity = Capacity;
         floor.Area = Area;
+        floor.ImageUrl = string.IsNullOrWhiteSpace(ImageUrl) ? null : ImageUrl.Trim();
+        floor.Images = FloorImageList.Clean(Images);
+        floor.Latitude = Latitude;
+        floor.Longitude = Longitude;
 
         floor.UpdatedBy = UpdatedBy;
         floor.UpdatedAt = DateTime.UtcNow;
@@ -90,6 +106,10 @@ public sealed record FloorResponse(
     string? Description,
     int? Capacity,
     double? Area,
+    string? ImageUrl,
+    IReadOnlyList<string>? Images,
+    double? Latitude,
+    double? Longitude,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -114,6 +134,10 @@ public sealed record FloorResponse(
             floor.Description,
             floor.Capacity,
             floor.Area,
+            floor.ImageUrl,
+            floor.Images,
+            floor.Latitude,
+            floor.Longitude,
             floor.CreatedBy,
             floor.CreatedAt,
             floor.UpdatedBy,
@@ -123,5 +147,15 @@ public sealed record FloorResponse(
             floor.Status,
             floor.IsDeleted
         );
+    }
+}
+
+internal static class FloorImageList
+{
+    /// <summary>Non-blank image entries, or null when there are none.</summary>
+    public static List<string>? Clean(IEnumerable<string>? images)
+    {
+        var list = images?.Where(image => !string.IsNullOrWhiteSpace(image)).Select(image => image.Trim()).ToList();
+        return list is { Count: > 0 } ? list : null;
     }
 }
