@@ -58,7 +58,18 @@ public static class StreamEntryMapper
         };
         AddIfPresent(doc, "meta", meta);
         foreach (var field in mapping.Fields)
-            AddIfPresent(doc, field.Name, FieldValue(field, Lookup));
+        {
+            var value = FieldValue(field, Lookup);
+            if (field.Array)
+                doc[field.Name] = value switch
+                {
+                    BsonArray array => array,
+                    BsonNull => new BsonArray(),
+                    _ => new BsonArray { value },
+                };
+            else
+                AddIfPresent(doc, field.Name, value);
+        }
 
         if (mapping.AttributesField is { } attributesField)
         {

@@ -112,7 +112,11 @@ public class RedisStreamIngestWorker(
         }
 
         if (documents.Count > 0)
+        {
+            // Re-check before every insert: if the collection was dropped, inserting would create a normal collection.
+            collection = await initializer.EnsureAsync(mapping, ct);
             await collection.InsertManyAsync(documents, new InsertManyOptions { IsOrdered = false }, ct);
+        }
 
         await db.StreamAcknowledgeAsync(mapping.Stream, mapping.Group, ackIds.ToArray());
         if (mapping.DeleteAfterAck)

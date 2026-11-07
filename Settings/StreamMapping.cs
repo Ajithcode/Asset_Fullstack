@@ -52,6 +52,8 @@ public class StreamMapping
 ///   Source                 copy the source field as-is;
 ///   Longitude + Latitude   build a GeoJSON Point (left out unless both are numbers);
 ///   Object                 build a sub-document, sub-key -> source field (left out when all are missing).
+/// With Array = true the field is always stored as an array: a source array is kept as-is, a single value is
+/// wrapped in an array, and a missing value becomes an empty array.
 /// </summary>
 public class FieldMapping
 {
@@ -60,6 +62,7 @@ public class FieldMapping
     public string? Longitude { get; set; }
     public string? Latitude { get; set; }
     public Dictionary<string, string>? Object { get; set; }
+    public bool Array { get; set; }
 
     public IEnumerable<string> SourceFields =>
         new[] { Source, Longitude, Latitude }.Concat(Object?.Values ?? Enumerable.Empty<string>())
