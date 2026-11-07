@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription, catchError, concatMap, from, map, of, toArray } from 'rxjs';
 import * as XLSX from 'xlsx';
+import { ComboOption, SmCombo } from './sm-combo';
 import {
   LucideAngularModule,
   Activity,
@@ -103,7 +104,7 @@ function numOrNull(v: unknown): number | null {
 @Component({
   selector: 'app-sensor-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, SmCombo],
   templateUrl: './sensor-management.html',
   styleUrls: ['./sensor-management.css', './sensor-management-table.css', './sensor-management-panel.css', '../shared/iot-purple-theme.css'],
 })
@@ -240,6 +241,35 @@ export class SensorManagement implements OnInit, OnDestroy {
 
   get sites(): string[] {
     return this.opts.sites;
+  }
+
+  // ===== Popup suggestion lists (sm-combo); cached so the list is not rebuilt on every change detection =====
+
+  private comboCache: { devices: unknown; assets: unknown; points: unknown; d: ComboOption[]; a: ComboOption[]; p: ComboOption[] } = { devices: null, assets: null, points: null, d: [], a: [], p: [] };
+
+  get deviceCombo(): ComboOption[] {
+    if (this.comboCache.devices !== this.deviceOptions) {
+      this.comboCache.devices = this.deviceOptions;
+      this.comboCache.d = this.deviceOptions.map((o) => ({ value: o.deviceId, hint: [o.deviceName, o.model, o.assetName].filter(Boolean).join(' · ') }));
+    }
+    return this.comboCache.d;
+  }
+
+  get assetCombo(): ComboOption[] {
+    const list = this.assetOptions;
+    if (this.comboCache.assets !== list) {
+      this.comboCache.assets = list;
+      this.comboCache.a = list.map((value) => ({ value }));
+    }
+    return this.comboCache.a;
+  }
+
+  get pointCombo(): ComboOption[] {
+    if (this.comboCache.points !== this.pointOptions) {
+      this.comboCache.points = this.pointOptions;
+      this.comboCache.p = this.pointOptions.map((value) => ({ value }));
+    }
+    return this.comboCache.p;
   }
 
   get assetOptions(): string[] {

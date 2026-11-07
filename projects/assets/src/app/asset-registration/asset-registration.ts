@@ -1680,8 +1680,11 @@ export class AssetRegistration {
     return value ? options.find((o) => o.value === value)?.label ?? value : '';
   }
 
-  private numOrNull(value: string): number | null {
-    return value.trim() === '' || isNaN(Number(value)) ? null : Number(value);
+  /** Number from a form value; '' / null / non-numeric give null. Inputs of type="number" bound with ngModel hold numbers (or null), not strings. */
+  private numOrNull(value: string | number | null | undefined): number | null {
+    if (value === null || value === undefined) return null;
+    const text = String(value).trim();
+    return text === '' || isNaN(Number(text)) ? null : Number(text);
   }
 
   private toBasicInformation(): AssetBasicInformation {
