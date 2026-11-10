@@ -316,10 +316,10 @@
         <label class="field"><span class="field-label">Sensor number <em>*</em></span><input class="control" [(ngModel)]="d.f.number" name="num" inputmode="numeric" [disabled]="!!d.f.editId" /><small class="muted">Sensor ID: <strong>{{ formPreview(d.f) }}</strong></small></label>
         <label class="field"><span class="field-label">Serial number <em>*</em></span><input class="control" [(ngModel)]="d.f.serial" name="serial" placeholder="e.g. TS300-80999-0001" /></label>
         <label class="field"><span class="field-label">Sampling interval</span><select class="control" [(ngModel)]="d.f.intervalSec" name="int"><option [ngValue]="null">Not set</option><option *ngFor="let i of intervals" [ngValue]="i.seconds">{{ i.label }}</option></select></label>
-        <label class="field"><span class="field-label">Linked device <em>*</em></span><input class="control" [(ngModel)]="d.f.deviceId" name="dev" placeholder="e.g. TS-80214" list="sm-devices" autocomplete="off" (change)="onFormDevice(d.f)" /></label>
+        <label class="field"><span class="field-label">Linked device <em>*</em></span><sm-combo [(value)]="d.f.deviceId" [options]="deviceCombo" placeholder="e.g. TS-80214" (committed)="onFormDevice(d.f)"></sm-combo></label>
         <label class="field"><span class="field-label">Channel</span><input class="control" type="number" min="1" [(ngModel)]="d.f.channel" name="ch" /><small *ngIf="channelHint" class="muted">{{ channelHint }}</small></label>
-        <label class="field"><span class="field-label">Asset <em>*</em></span><input class="control" [(ngModel)]="d.f.asset" name="asset" list="sm-assets" placeholder="e.g. Cold Room CR-03" autocomplete="off" /></label>
-        <label class="field"><span class="field-label">Measurement point <em>*</em></span><input class="control" [(ngModel)]="d.f.point" name="point" placeholder="e.g. Supply Air" list="sm-points" autocomplete="off" /></label>
+        <label class="field"><span class="field-label">Asset <em>*</em></span><sm-combo [(value)]="d.f.asset" [options]="assetCombo" placeholder="e.g. Cold Room CR-03"></sm-combo></label>
+        <label class="field"><span class="field-label">Measurement point <em>*</em></span><sm-combo [(value)]="d.f.point" [options]="pointCombo" placeholder="e.g. Supply Air"></sm-combo></label>
         <label class="field"><span class="field-label">Low alarm</span><input class="control" type="number" [(ngModel)]="d.f.low" name="low" /></label>
         <label class="field"><span class="field-label">High alarm</span><input class="control" type="number" [(ngModel)]="d.f.high" name="high" /></label>
         <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.f.site" name="site"><option value="">From linked device</option><option *ngFor="let x of sites" [value]="x">{{ x }}</option></select></label>
@@ -373,8 +373,5 @@
   </div>
 </div>
 
-<datalist id="sm-assets"><option *ngFor="let a of assetOptions" [value]="a"></option></datalist>
-<datalist id="sm-devices"><option *ngFor="let o of deviceOptions" [value]="o.deviceId">{{ o.deviceName }} · {{ o.model }}{{ o.assetName ? ' · ' + o.assetName : '' }}</option></datalist>
-<datalist id="sm-points"><option *ngFor="let p of pointOptions" [value]="p"></option></datalist>
 
 <div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

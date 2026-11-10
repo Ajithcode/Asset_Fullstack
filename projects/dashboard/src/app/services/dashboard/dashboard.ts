@@ -212,6 +212,11 @@ export class Dashboard {
     return this.http.get<InsightAssetList>(`${this.baseUrl}/${endpoint}`);
   }
 
+  /** GET api/asset-dashboard/critical-assets (Asset service, 5401); feeds the "Critical" health band and Quick Insights. */
+  getCriticalAssets(): Observable<InsightAssetList> {
+    return this.getInsightAssets('critical-assets');
+  }
+
   /** GET api/asset-dashboard/categories */
   getCategories(): Observable<AssetDashboardCategories> {
     return this.http.get<AssetDashboardCategories>(`${this.baseUrl}/categories`);

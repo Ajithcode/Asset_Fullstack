@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
 import { apiError, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
-import { TagId, TagStatus, TagType, Tech } from './tag-data';
+import { LinkedAsset, TagId, TagStatus, TagType, Tech } from './tag-data';
 
 /** A tag as GET/POST/PUT /api/tag-ids returns it (addressed by tagId). */
 export interface TagIdDto {
@@ -46,6 +46,14 @@ export interface TagTechnologyOption {
   technology: string;
   idPrefix: string;
   tagTypes: string[];
+}
+
+/** One row of GET {assetApiUrl}api/asset-registrations (Asset service). */
+interface AssetListItemDto {
+  id: string;
+  assetRegistrationId: string | null;
+  assetName: string | null;
+  assetTag: string | null;
 }
 
 /** A master-data site, for the site pickers. */
@@ -146,6 +154,18 @@ export class TagIdApiService {
       map((rows) => (Array.isArray(rows) ? rows : [])
         .filter((r) => r['id'] && r['isDeleted'] !== true)
         .map((r) => ({ id: String(r['id']), name: String(r['siteName'] ?? r['name'] ?? r['id']) }))),
+      catchError(() => of([])),
+    );
+  }
+
+  /** Registered assets for the "Link to asset" pickers (Asset service, first 1000); empty when it cannot be reached. */
+  assets(): Observable<LinkedAsset[]> {
+    const params = tenantParams({ page: 1, pageSize: 1000 });
+    return this.http.get<AssetListItemDto[] | { items?: AssetListItemDto[] }>(`${environment.assetApiUrl}api/asset-registrations`, { params }).pipe(
+      map((res) => (Array.isArray(res) ? res : res?.items ?? [])
+        .map((r) => ({ tag: (r.assetTag || r.assetRegistrationId || '').trim(), kind: r.assetName?.trim() || 'Asset', real: true }))
+        .filter((a) => !!a.tag)
+        .sort((a, b) => a.kind.localeCompare(b.kind) || a.tag.localeCompare(b.tag))),
       catchError(() => of([])),
     );
   }

@@ -174,6 +174,10 @@ export class TagManagement implements OnInit, OnDestroy {
       },
       error: () => {},
     });
+    this.api.assets().subscribe((assets) => {
+      this.registeredAssets = assets;
+      this.version++;
+    });
     this.api.sites().subscribe((sites) => {
       for (const s of sites) ensureSite(s.name, s.id);
       this.version++;
@@ -579,7 +583,7 @@ export class TagManagement implements OnInit, OnDestroy {
   viewAsset(t: TagId): void {
     this.menuOpen = '';
     if (!t.asset) return;
-    if (t.asset.real) {
+    if (t.asset.real || this.registeredAssets.some((a) => a.tag.toUpperCase() === t.asset!.tag.toUpperCase())) {
       this.router.navigate(['/assets/status-condition'], { queryParams: { tag: t.asset.tag } });
       return;
     }
@@ -646,11 +650,22 @@ export class TagManagement implements OnInit, OnDestroy {
     this.open({ kind: 'assign', tagId: t.id, asset: t.asset?.tag ?? '', site: t.site, location: t.location, note: '' });
   }
 
+  /** Assets from the asset register (GET api/asset-registrations). */
+  private registeredAssets: LinkedAsset[] = [];
   private assetCache: { version: number; list: LinkedAsset[] } = { version: -1, list: [] };
 
+  /** Picker options: registered assets, then any asset a tag is linked to that the register doesn't list. */
   get assetOptions(): LinkedAsset[] {
-    if (this.assetCache.version !== this.version) this.assetCache = { version: this.version, list: knownAssets() };
+    if (this.assetCache.version !== this.version) {
+      const seen = new Set(this.registeredAssets.map((a) => a.tag.toUpperCase()));
+      const extra = knownAssets().filter((a) => !seen.has(a.tag.toUpperCase()));
+      this.assetCache = { version: this.version, list: [...this.registeredAssets, ...extra] };
+    }
     return this.assetCache.list;
+  }
+
+  assetOptionLabel(a: LinkedAsset): string {
+    return `${a.kind} - ${a.tag}`;
   }
 
   locationsOf(site: string): string[] {
@@ -660,7 +675,7 @@ export class TagManagement implements OnInit, OnDestroy {
   private resolveAsset(code: string): LinkedAsset | null {
     const c = code.trim().toUpperCase();
     if (!c) return null;
-    return knownAssets().find((a) => a.tag.toUpperCase() === c) ?? { tag: c, kind: 'Asset', real: false };
+    return this.assetOptions.find((a) => a.tag.toUpperCase() === c) ?? { tag: c, kind: 'Asset', real: false };
   }
 
   saveAssign(): void {

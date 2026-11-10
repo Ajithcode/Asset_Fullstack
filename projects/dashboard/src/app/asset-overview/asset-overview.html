@@ -75,12 +75,20 @@
       <table class="ao-cat">
         <thead><tr><th>Category</th><th></th><th class="num">Asset Count</th><th class="num">Percentage</th></tr></thead>
         <tbody>
-          <tr *ngFor="let c of byCategory" [class.is-on]="category === c.name" (click)="openCategory(c.name)" title="Show category details">
+          <ng-container *ngFor="let c of byCategory">
+          <tr [class.is-on]="category === c.name" (click)="openCategory(c.name)" title="Show category details">
             <td><span class="ao-cat-name"><span class="ao-cat-ic" [style.color]="c.color" [style.background]="c.color + '1f'"><lucide-icon [img]="categoryIcons[c.icon]" [size]="15"></lucide-icon></span>{{ c.name }}</span></td>
             <td class="ao-cat-bar"><span><i [style.width.%]="c.bar" [style.background]="c.color"></i></span></td>
             <td class="num">{{ c.count | number }}</td>
             <td class="num">{{ c.pct }}%</td>
           </tr>
+          <tr *ngFor="let sc of c.subs" class="ao-cat-sub" (click)="openCategory(c.name)" [title]="sc.name + ': ' + sc.count + ' assets (' + sc.pct + '% of ' + c.name + ')'">
+            <td><span class="ao-cat-sub-name">{{ sc.name }}</span></td>
+            <td class="ao-cat-bar"><span><i [style.width.%]="sc.bar" [style.background]="c.color"></i></span></td>
+            <td class="num">{{ sc.count | number }}</td>
+            <td class="num">{{ sc.pct }}%</td>
+          </tr>
+          </ng-container>
           <tr *ngIf="!byCategory.length"><td colspan="4" class="muted">{{ categoryLoading ? 'Loading categories…' : 'No assets by category.' }}</td></tr>
         </tbody>
       </table>
@@ -169,12 +177,26 @@
     </section>
 
     <section class="card io-pad ao-table-card io-span-2 io-full-md" aria-labelledby="ao-tb">
-      <div class="io-sub-head"><h2 id="ao-tb" class="io-title"><lucide-icon class="ao-red" [img]="icons.TriangleAlert" [size]="18"></lucide-icon>{{ tableTitle }} <small class="muted">({{ tableRows.length | number }})</small></h2>
+      <div class="io-sub-head"><h2 id="ao-tb" class="io-title"><lucide-icon class="ao-red" [img]="icons.TriangleAlert" [size]="18"></lucide-icon>{{ tableTitle }} <small class="muted">({{ tableCount | number }})</small></h2>
         <span class="ao-tb-links">
           <button *ngIf="insight" type="button" class="io-link" (click)="openInsight('')">Clear</button>
           <button type="button" class="io-link" (click)="showAllRows = !showAllRows; rowPage = 0">{{ showAllRows ? 'Show Top 5' : 'View All' }}</button></span></div>
       <div class="io-table-wrap">
         <table class="io-table ao-table">
+          <!-- Critical assets from the API: no health score or value in the response, so Criticality replaces them -->
+          <ng-container *ngIf="apiTable; else localTable">
+          <thead><tr><th>Asset Tag</th><th>Asset Name</th><th>Category</th><th>Site</th><th>Criticality</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let a of pageApiRows" class="ao-click" (click)="openCriticalAsset(a)">
+              <td><button type="button" class="io-id" (click)="$event.stopPropagation(); openCriticalAsset(a)">{{ a.assetTag }}</button></td>
+              <td>{{ a.assetName }}</td><td>{{ a.category ?? '-' }}</td><td>{{ a.siteName ?? '-' }}</td>
+              <td><span class="io-sev" [ngClass]="critClass(a.criticality)"><lucide-icon *ngIf="critClass(a.criticality) === 'sev--critical'" [img]="icons.TriangleAlert" [size]="11"></lucide-icon>{{ a.criticality ?? '-' }}</span></td>
+              <td><span class="ao-st" [ngClass]="stClass(a.assetStatus ?? '')"><i></i>{{ a.assetStatus ?? '-' }}</span></td>
+            </tr>
+            <tr *ngIf="!pageApiRows.length"><td colspan="6" class="io-empty">No critical assets.</td></tr>
+          </tbody>
+          </ng-container>
+          <ng-template #localTable>
           <thead><tr><th>Asset ID</th><th>Asset Name</th><th>Category</th><th>Site</th><th>Health</th><th class="num">Value</th><th>Status</th></tr></thead>
           <tbody>
             <tr *ngFor="let a of pageRows" class="ao-click" [class.is-selected]="selectedId === a.id" (click)="openAsset(a)">
@@ -186,6 +208,7 @@
             </tr>
             <tr *ngIf="!pageRows.length"><td colspan="7" class="io-empty">No assets match.</td></tr>
           </tbody>
+          </ng-template>
         </table>
       </div>
       <div *ngIf="showAllRows && rowPages > 1" class="io-pager">

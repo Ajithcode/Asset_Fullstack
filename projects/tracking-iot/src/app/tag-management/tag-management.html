@@ -300,7 +300,7 @@
         <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = locationsOf(d.site).at(0) ?? ''"><option value="">—</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
         <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">—</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
       </div>
-      <label class="field"><span class="field-label">Link to asset (optional)</span><input class="control" [(ngModel)]="d.asset" name="asset" list="tm-assets" placeholder="Asset code, e.g. FL-008" /><small class="muted">Leave empty to keep the tag in stock as Available.</small></label>
+      <label class="field"><span class="field-label">Link to asset (optional)</span><select class="control" [(ngModel)]="d.asset" name="asset"><option value="">— None —</option><option *ngFor="let a of assetOptions" [value]="a.tag">{{ assetOptionLabel(a) }}</option></select><small class="muted">Leave empty to keep the tag in stock as Available.</small></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Register</button></div>
     </form>
@@ -326,7 +326,7 @@
     <div class="modal-head"><h2 id="tm-asg">{{ tagById(d.tagId)?.asset ? 'Reassign' : 'Assign' }} {{ d.tagId }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveAssign()">
       <p *ngIf="tagById(d.tagId)?.asset as cur" class="muted">Currently linked to <strong>{{ assetLabel(cur) }}</strong>. The link stays in the tag's assignment history.</p>
-      <label class="field"><span class="field-label">Asset <em>*</em></span><input class="control" [(ngModel)]="d.asset" name="asset" list="tm-assets" placeholder="Asset code, e.g. GEN-00045" autocomplete="off" /></label>
+      <label class="field"><span class="field-label">Asset <em>*</em></span><select class="control" [(ngModel)]="d.asset" name="asset"><option value="">Select an asset</option><option *ngFor="let a of assetOptions" [value]="a.tag">{{ assetOptionLabel(a) }}</option></select></label>
       <div class="two">
         <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = locationsOf(d.site).at(0) ?? ''"><option value="">—</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
         <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">—</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
@@ -420,6 +420,5 @@
   </div>
 </div>
 
-<datalist id="tm-assets"><option *ngFor="let a of assetOptions" [value]="a.tag">{{ a.kind }}</option></datalist>
 
 <div *ngIf="toast" class="toast" role="status">{{ toast }}</div>

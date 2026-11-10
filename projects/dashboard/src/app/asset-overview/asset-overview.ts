@@ -254,17 +254,19 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   loadInsights(): void {
     const endpoints: [Insight, InsightEndpoint][] = [['critical', 'critical-assets'], ['owner', 'assets-without-custodian'], ['documents', 'assets-without-documents']];
     for (const [key, endpoint] of endpoints) {
-      this.dashboardApi
-        .getInsightAssets(endpoint)
+      // critical-assets also drives the health donut's Critical band
+      const req = key === 'critical' ? this.dashboardApi.getCriticalAssets() : this.dashboardApi.getInsightAssets(endpoint);
+      req
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (res) => (this.insightData = { ...this.insightData, [key]: res }),
-          error: () => (this.insightData = { ...this.insightData, [key]: { count: 0, totalAssets: 0, assets: [] } }),
+          // critical stays unset on error so the health donut falls back to local data (Quick Insights shows 0 either way)
+          error: () => (this.insightData = key === 'critical' ? this.insightData : { ...this.insightData, [key]: { count: 0, totalAssets: 0, assets: [] } }),
         });
     }
   }
 
-  /** Fetches the asset counts per category. */
+  /** Fetches the asset counts per category once, when the page opens. */
   loadCategories(): void {
     this.categoryLoading = true;
     this.dashboardApi
@@ -335,6 +337,8 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
       return {
         name: r.category, color: local.color, icon: local.icon, count: r.count,
         pct: Math.round(r.percent * 10) / 10, bar: (r.count / max) * 100, subCategories: r.subCategories ?? [],
+        // sub-category lines under the row: bar on the same scale as categories, % is the share of this category
+        subs: (r.subCategories ?? []).map((sc) => ({ name: sc.subCategory, count: sc.count, pct: pct(sc.count, r.count), bar: (sc.count / max) * 100 })),
       };
     });
   }
@@ -344,13 +348,21 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     this.onCategory();
   }
 
+  /** Assets per health band; Critical comes from GET api/asset-dashboard/critical-assets once loaded, the rest from the local portfolio. */
+  private healthCount(b: HealthBand): number {
+    const api = this.insightData.critical;
+    if (b === 'Critical' && api) return api.count;
+    return this.assets.filter((a) => healthBand(a.hp) === b).length;
+  }
+
   get health() {
-    const total = this.assets.length;
+    const bands: HealthBand[] = ['Healthy', 'Warning', 'Critical', 'Unknown'];
+    const counts = bands.map((b) => this.healthCount(b));
+    const total = counts.reduce((s, n) => s + n, 0);
     const C = 2 * Math.PI * 46;
     let acc = 0;
-    const bands: HealthBand[] = ['Healthy', 'Warning', 'Critical', 'Unknown'];
-    const rows = bands.map((b) => {
-      const count = this.assets.filter((a) => healthBand(a.hp) === b).length;
+    const rows = bands.map((b, i) => {
+      const count = counts[i];
       const len = total ? (count / total) * C : 0;
       const mid = (acc + len / 2) / C;
       const row = {
@@ -420,12 +432,60 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Default and "Critical Assets" views list GET api/asset-dashboard/critical-assets once it has loaded; other insights stay local. */
+  get apiTable(): boolean {
+    return (this.insight === '' || this.insight === 'critical') && !!this.insightData.critical;
+  }
+
+  /** Critical assets from the API, narrowed by the Site / Category / Type filters (matched by name, case-insensitive). */
+  get apiRows(): InsightAsset[] {
+    const same = (v: string | null, f: string) => !f || (v ?? '').toLowerCase() === f.toLowerCase();
+    return (this.insightData.critical?.assets ?? []).filter((a) => same(a.siteName, this.site) && same(a.category, this.category) && same(a.assetType, this.type));
+  }
+
+  /** Row count of whichever list the table shows. */
+  get tableCount(): number {
+    return this.apiTable ? this.apiRows.length : this.tableRows.length;
+  }
+
+  private page<T>(list: T[]): T[] {
+    return this.showAllRows ? list.slice(this.rowPage * this.rowPageSize, (this.rowPage + 1) * this.rowPageSize) : list.slice(0, 5);
+  }
+
   get pageRows(): Snapshot[] {
-    return this.showAllRows ? this.tableRows.slice(this.rowPage * this.rowPageSize, (this.rowPage + 1) * this.rowPageSize) : this.tableRows.slice(0, 5);
+    return this.page(this.tableRows);
+  }
+
+  get pageApiRows(): InsightAsset[] {
+    return this.page(this.apiRows);
   }
 
   get rowPages(): number {
-    return Math.max(1, Math.ceil(this.tableRows.length / this.rowPageSize));
+    return Math.max(1, Math.ceil(this.tableCount / this.rowPageSize));
+  }
+
+  /** Pill class for an API criticality (Critical / High / Medium / Low). */
+  critClass(c: string | null): string {
+    return { critical: 'sev--critical', high: 'sev--warning', medium: 'sev--info' }[(c ?? '').toLowerCase()] ?? 'sev--low';
+  }
+
+  /** Details popup for a row of the critical-assets API. */
+  openCriticalAsset(a: InsightAsset): void {
+    this.drill = {
+      title: `${a.assetTag} · ${a.assetName}`,
+      subtitle: [[a.category, a.subCategory].filter(Boolean).join(' / '), a.assetType, a.siteName].filter(Boolean).join(' · ') || 'Critical asset',
+      stats: [
+        { label: 'Criticality', value: a.criticality ?? '-', color: (a.criticality ?? '').toLowerCase() === 'critical' ? '#dc2626' : undefined },
+        { label: 'Status', value: a.assetStatus ?? '-' },
+        { label: 'Documents', value: a.documentCount },
+      ],
+      columns: [{ key: 'field', label: 'Field' }, { key: 'value', label: 'Value' }],
+      rows: [
+        ['Asset Tag', a.assetTag], ['Asset Name', a.assetName], ['Category', a.category], ['Sub-category', a.subCategory], ['Asset Type', a.assetType],
+        ['Site', a.siteName], ['Location', a.locationPath],
+        ['Custodian', a.custodianName ? `${a.custodianName}${a.custodianDepartment ? ' (' + a.custodianDepartment + ')' : ''}` : 'Not assigned'],
+      ].map(([field, value]) => ({ cells: { field: field as string, value: (value as string | null) || '-' } })),
+    };
   }
 
   // ===== Aging =====
@@ -653,6 +713,10 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   }
 
   openHealthBand(band: HealthBand): void {
+    if (band === 'Critical' && this.insightData.critical) {
+      this.openInsightDrill('critical');
+      return;
+    }
     const list = this.assets.filter((a) => healthBand(a.hp) === band).sort((a, b) => (a.hp ?? 0) - (b.hp ?? 0));
     this.drill = {
       title: `${band} Assets`, subtitle: `Asset health distribution · ${this.scope}`,
@@ -762,9 +826,15 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.byCategory.map((c) => ({ Category: c.name, Assets: c.count, '%': c.pct }))), 'By Category');
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.byStatus.map((s) => ({ Status: s.status, Assets: s.count, '%': s.pct }))), 'By Status');
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.siteStats.map((s) => ({ Site: s.site.name, Assets: s.total, 'Healthy %': s.healthyPct }))), 'By Site');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.tableRows.map((a) => ({
-      'Asset ID': a.id, 'Asset Name': a.name, Category: a.category, Site: a.site, Health: a.hp ?? '', Criticality: a.criticality, 'Value (USD)': a.value, Status: a.st,
-    }))), this.tableTitle.slice(0, 31));
+    const tableSheet = this.apiTable
+      ? this.apiRows.map((a) => ({
+          'Asset Tag': a.assetTag, 'Asset Name': a.assetName, Category: a.category ?? '', 'Sub-category': a.subCategory ?? '', 'Asset Type': a.assetType ?? '',
+          Site: a.siteName ?? '', Criticality: a.criticality ?? '', Status: a.assetStatus ?? '',
+        }))
+      : this.tableRows.map((a) => ({
+          'Asset ID': a.id, 'Asset Name': a.name, Category: a.category, Site: a.site, Health: a.hp ?? '', Criticality: a.criticality, 'Value (USD)': a.value, Status: a.st,
+        }));
+    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(tableSheet), this.tableTitle.slice(0, 31));
     XLSX.writeFile(book, `Asset_Overview_${isoDate(this.asOfDate)}.xlsx`);
   }
 
@@ -786,7 +856,7 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     return 'sev--' + healthBand(a.hp).toLowerCase();
   }
 
-  stClass(s: PortfolioStatus): string {
+  stClass(s: PortfolioStatus | string): string {
     return 'st--' + s.toLowerCase().replace(/ /g, '-');
   }
 

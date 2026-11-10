@@ -57,7 +57,7 @@ import {
 } from './iot-overview-data';
 import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
 import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
-import { AssetDashboardKpis, ConnectedAssetDetail, Dashboard, DeviceConnectivity, SiteAsset, TopSite } from '../services/dashboard/dashboard';
+import { AssetDashboardKpis, ConnectedAssetDetail, Dashboard, DeviceConnectivity, InsightAssetList, SiteAsset, TopSite } from '../services/dashboard/dashboard';
 
 type Period = '7' | '30' | '90';
 type QuickTab = 'overview' | 'location' | 'telemetry' | 'maintenance';
@@ -164,6 +164,9 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   topSites: TopSite[] = [];
   sitesLoading = false;
 
+  /** Critical health band from GET api/asset-dashboard/critical-assets; null until loaded or on error (falls back to local). */
+  criticalData: InsightAssetList | null = null;
+
   /** Filtered fleet; rebuilt by apply() whenever a filter changes. */
   devices: Device[] = DEVICES;
 
@@ -176,6 +179,18 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     this.loadSites();
     this.loadAssetTypes();
     this.loadSiteOptions();
+    this.loadCriticalAssets();
+  }
+
+  /** Fetches the critical assets that feed the Critical band of the health donut. */
+  loadCriticalAssets(): void {
+    this.dashboardApi
+      .getCriticalAssets()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => (this.criticalData = res),
+        error: () => (this.criticalData = null),
+      });
   }
 
   /** Fills the Site dropdown with the client's active, non-deleted sites, sorted by name. */
@@ -430,13 +445,20 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
 
   // ===== Asset health & utilization =====
 
+  /** Assets per health band; Critical comes from the critical-assets API once loaded, the rest from the local fleet. */
+  private healthCount(b: HealthBand): number {
+    if (b === 'Critical' && this.criticalData) return this.criticalData.count;
+    return this.devices.filter((d) => healthBand(d.health) === b).length;
+  }
+
   get health() {
-    const total = this.devices.length;
+    const bands: HealthBand[] = ['Healthy', 'Warning', 'Critical', 'Unknown'];
+    const counts = bands.map((b) => this.healthCount(b));
+    const total = counts.reduce((s, n) => s + n, 0);
     const C = 2 * Math.PI * 48;
     let acc = 0;
-    const bands: HealthBand[] = ['Healthy', 'Warning', 'Critical', 'Unknown'];
-    const rows = bands.map((b) => {
-      const count = this.devices.filter((d) => healthBand(d.health) === b).length;
+    const rows = bands.map((b, i) => {
+      const count = counts[i];
       const len = total ? (count / total) * C : 0;
       const row = { band: b, count, pct: total ? Math.round((count / total) * 100) : 0, color: HEALTH_COLORS[b], dash: `${Math.max(0, len - (count ? 2 : 0))} ${C}`, offset: -acc };
       acc += len;
@@ -850,6 +872,26 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   }
 
   openHealth(band: HealthBand): void {
+    const api = this.criticalData;
+    if (band === 'Critical' && api) {
+      this.drill = {
+        title: 'Critical Assets', subtitle: 'Asset health score · All registered assets',
+        stats: [{ label: band, value: api.count, color: HEALTH_COLORS[band] }, { label: 'Of portfolio', value: `${pct(api.count, api.totalAssets)}%` }],
+        columns: [
+          { key: 'tag', label: 'Asset Tag' }, { key: 'name', label: 'Asset Name' }, { key: 'category', label: 'Category' }, { key: 'type', label: 'Type' },
+          { key: 'site', label: 'Site' }, { key: 'criticality', label: 'Criticality', pill: { Critical: '#dc2626', High: '#f59e0b', Medium: '#2563eb', Low: '#16a34a' } },
+          { key: 'status', label: 'Status' },
+        ],
+        rows: (api.assets ?? []).map((a) => ({
+          cells: {
+            tag: a.assetTag, name: a.assetName, category: [a.category, a.subCategory].filter(Boolean).join(' / ') || '-', type: a.assetType ?? '-',
+            site: a.siteName ?? '-', criticality: a.criticality ?? '-', status: a.assetStatus ?? '-',
+          },
+        })),
+        empty: 'No critical assets.',
+      };
+      return;
+    }
     const list = this.devices.filter((d) => healthBand(d.health) === band);
     this.drill = {
       title: `${band} Assets`, subtitle: `Asset health score · ${this.scope}`,
