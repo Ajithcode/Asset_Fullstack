@@ -6,11 +6,35 @@ import {
   distanceM, isLowConfidence, placeOf, pointAlong,
 } from './location-data';
 import { buildPlanArt } from './rl-plan-art';
+import { LayoutPlot, LayoutZone } from './floor-layout-api';
 
 type L = typeof Leaflet;
 
 export interface MapLayers { zones: boolean; labels: boolean; gateways: boolean; trails: boolean; assets: boolean }
 export interface LivePosition { id: string; lng: number; lat: number; place: string; regLng: number; regLat: number; heading: number }
+/**
+ * A floor's plan: the image (Maps & Floor Plans plan, else the Master Data floor image), where it sits (floor, else
+ * building / site coordinates), its size and the zones / assets / devices drawn on it in Maps & Floor Plans.
+ */
+export interface FloorPlan {
+  /** Candidate plan images, best first; the first one that loads is shown (a stored link can point to a lost file). */
+  urls: string[];
+  name: string;
+  lat: number | null;
+  lng: number | null;
+  /** Floor area in m² (sizes the plan when the plan has no metres). */
+  area: number | null;
+  /** Plan size in metres from Maps & Floor Plans. */
+  widthM: number | null;
+  heightM: number | null;
+  zones: LayoutZone[];
+  plots: LayoutPlot[];
+}
+
+/** Width (m) of a plan with no size entered (same default as Maps & Floor Plans, so drawings line up). */
+const DEFAULT_PLAN_WIDTH_M = 60;
+const DEFAULT_PLAN_ASPECT = 60 / 32;
+const M_PER_DEG_LAT = 111_320;
 
 /** Neutral view used until a floor plan or geofence geometry is loaded. */
 const DEFAULT_CENTER: [number, number] = [20, 0];
@@ -27,6 +51,15 @@ function svgOf(data: LucideIconData, width = 2.2): string {
 /** Invisible hover / tooltip target over equipment drawn by the plan artwork. */
 const HIT = { stroke: false, fillColor: '#0f172a', fillOpacity: 0, className: 'rl-hit' } as const;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+
+/** Marker colour of a plotted asset from its status (legend colours). */
+function plotColor(status: string): string {
+  const s = status.toLowerCase();
+  if (/offline|inactive|fault|lost|disposed|retired/.test(s)) return COLOR.offline;
+  if (/maint|repair|warn|stale|idle/.test(s)) return COLOR.stale;
+  if (/moving|in use|in transit/.test(s)) return COLOR.moving;
+  return COLOR.stationary;
+}
 
 export function stateColor(a: TrackedAsset): string {
   if (a.state === 'stationary' && isLowConfidence(a)) return COLOR.lowconf;
@@ -74,6 +107,17 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
   private nearZoom = 20;
   private geoZones?: Leaflet.FeatureGroup;
   private geoLabels?: Leaflet.LayerGroup;
+  /** The floor plan to show (undefined = never set) and its image on the map. */
+  private floorPlan: FloorPlan | null | undefined;
+  private floorImage?: Leaflet.Layer;
+  /** Zones / plots of the floor, each with the layer group it was added to (for removal). */
+  private floorLayers: [Leaflet.Layer, Leaflet.LayerGroup][] = [];
+  /** Markers of the plotted assets / devices by item id, and the one to fly to once its floor is drawn. */
+  private plotMarkers = new Map<string, Leaflet.Marker>();
+  private pendingPlot = '';
+  private floorBounds?: Leaflet.LatLngBounds;
+  /** Bumped per floor change, so a slow image load can't place an older floor. */
+  private floorToken = 0;
 
   async ngAfterViewInit(): Promise<void> {
     if (typeof window === 'undefined') return;
@@ -124,8 +168,136 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
     else this.fitPlan(true);
   }
 
+  /** Flies to a plotted asset / device and opens its tooltip (after the floor is drawn when it is still loading). */
+  focusPlot(itemId: string): void {
+    this.pendingPlot = itemId;
+    if (this.map) this.zone.runOutsideAngular(() => this.flyToPlot());
+  }
+
+  private flyToPlot(): void {
+    const map = this.map;
+    const m = this.plotMarkers.get(this.pendingPlot);
+    if (!map || !m) return;
+    this.pendingPlot = '';
+    const zoom = Math.max(map.getZoom(), this.floorBounds ? map.getBoundsZoom(this.floorBounds) + 1.5 : 21);
+    map.flyTo(m.getLatLng(), zoom, { duration: 0.8 });
+    map.once('moveend', () => m.openTooltip());
+  }
+
+  /** Shows a floor's uploaded plan image (null removes it) and frames it. */
+  showFloorPlan(plan: FloorPlan | null): void {
+    this.floorPlan = plan;
+    if (this.map) this.zone.runOutsideAngular(() => this.applyFloorPlan(true));
+  }
+
+  private applyFloorPlan(animate: boolean): void {
+    const L = this.L;
+    const map = this.map;
+    if (!L || !map || this.floorPlan === undefined) return;
+    const plan = this.floorPlan;
+    const token = ++this.floorToken;
+    if (this.floorImage) map.removeLayer(this.floorImage);
+    this.floorImage = undefined;
+    this.floorBounds = undefined;
+    for (const [layer, group] of this.floorLayers) group.removeLayer(layer);
+    this.floorLayers = [];
+    this.plotMarkers.clear();
+    this.host.nativeElement.classList.toggle('has-floor', !!plan);
+    if (!plan) {
+      this.fitPlan(animate);
+      return;
+    }
+    // the frame is sized like Maps & Floor Plans sizes it (plan metres, else the image's shape), so zones and plots
+    // stored as % of the plan land where they were drawn
+    const place = (aspect: number, url: string | null) => {
+      if (token !== this.floorToken || !this.map) return;
+      const geo = this.geoZones?.getLayers().length ? this.geoZones.getBounds() : null;
+      const center = plan.lat !== null && plan.lng !== null ? L.latLng(plan.lat, plan.lng) : geo?.isValid() ? geo.getCenter() : map.getCenter();
+      const widthM = plan.widthM ?? (plan.area ? Math.sqrt(plan.area * aspect) : DEFAULT_PLAN_WIDTH_M);
+      const heightM = plan.heightM ?? widthM / aspect;
+      const dLat = heightM / M_PER_DEG_LAT;
+      const dLng = widthM / (M_PER_DEG_LAT * Math.max(0.01, Math.cos((center.lat * Math.PI) / 180)));
+      const north = center.lat + dLat / 2;
+      const west = center.lng - dLng / 2;
+      const bounds = L.latLngBounds([north - dLat, west], [north, west + dLng]);
+      this.floorImage = url
+        ? L.imageOverlay(url, bounds, { pane: 'rl-art', className: 'rl-floor-img', interactive: false, alt: plan.name }).addTo(map)
+        : L.rectangle(bounds, { pane: 'rl-art', color: '#94a3b8', weight: 1.5, fillColor: '#ffffff', fillOpacity: 0.9, interactive: false }).addTo(map);
+      this.floorBounds = bounds;
+      const at = (x: number, y: number) => L.latLng(north - (y / 100) * dLat, west + (x / 100) * dLng);
+      this.drawLayout(L, plan, at, widthM);
+      map.setMinZoom(DEFAULT_ZOOM);
+      this.fitPlan(animate);
+      if (this.pendingPlot) this.flyToPlot();
+    };
+    // the first image that loads; with none, a plain frame still carries the zones and plots
+    const tryFrom = (i: number) => {
+      if (token !== this.floorToken) return;
+      const url = plan.urls[i];
+      if (!url) return place(DEFAULT_PLAN_ASPECT, null);
+      const img = new Image();
+      img.onload = () => this.zone.runOutsideAngular(() => place(img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : DEFAULT_PLAN_ASPECT, url));
+      img.onerror = () => this.zone.runOutsideAngular(() => tryFrom(i + 1));
+      img.src = url;
+    };
+    tryFrom(0);
+  }
+
+  /** Zones (with names), devices (gateway style) and assets (status dot + card) drawn in Maps & Floor Plans. */
+  private drawLayout(L: L, plan: FloorPlan, at: (x: number, y: number) => Leaflet.LatLng, widthM: number): void {
+    const add = (layer: Leaflet.Layer, group: Leaflet.LayerGroup) => {
+      layer.addTo(group);
+      this.floorLayers.push([layer, group]);
+    };
+    for (const z of plan.zones) {
+      const style: Leaflet.PathOptions = { color: z.color, weight: 2, dashArray: '7 6', fillColor: z.color, fillOpacity: z.restricted ? 0.13 : 0.09, className: 'rl-zone' + (z.restricted ? ' is-restricted' : '') };
+      const shape =
+        z.shape === 'Circle'
+          ? L.circle(at(z.x + z.w / 2, z.y + z.h / 2), { ...style, radius: ((z.radius ?? z.w / 2) / 100) * widthM })
+          : z.shape === 'Polygon'
+            ? L.polygon(z.points.map((p) => at(p.x, p.y)), style)
+            : L.rectangle(L.latLngBounds(at(z.x, z.y), at(z.x + z.w, z.y + z.h)), style);
+      shape.bindTooltip(`<strong>${esc(z.name)}</strong><span>${esc([z.type, z.rule].filter(Boolean).join(' · ') || 'Zone')}</span>`, { className: 'rl-tip', sticky: true, direction: 'top' });
+      add(shape, this.groups.zones);
+      const b = shape.getBounds();
+      const lbl = L.marker(L.latLng(b.getNorth(), b.getCenter().lng), {
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({ className: 'rl-lbl-wrap', html: `<span class="rl-zone-lbl${z.restricted ? ' is-red' : ''}" style="--c:${z.color}">${esc(z.name)}</span>`, iconSize: [0, 0] }),
+      });
+      add(lbl, this.groups.labels);
+    }
+    for (const p of plan.plots) {
+      const pos = at(p.x, p.y);
+      const status = p.status || (p.kind === 'device' ? 'Online' : 'Stationary');
+      if (p.kind === 'device') {
+        const m = L.marker(pos, { keyboard: false, icon: L.divIcon({ className: 'rl-wrap', html: `<span class="rl-gw">${svgOf(ICONS['gateway'], 2.6)}</span><span class="rl-gw-id">${esc(p.code)}</span>`, iconSize: [24, 24], iconAnchor: [12, 12] }) });
+        m.bindTooltip(`<strong>${esc(p.code)} · ${esc(p.name)}</strong><span>${esc([p.type, status].filter(Boolean).join(' · '))}</span>`, { className: 'rl-tip', direction: 'top', offset: [0, -10] });
+        add(m, this.groups.gateways);
+        this.plotMarkers.set(p.id, m);
+        continue;
+      }
+      const color = plotColor(status);
+      const m = L.marker(pos, { keyboard: false, riseOnHover: true, zIndexOffset: 800, icon: L.divIcon({ className: 'rl-wrap', html: `<span class="rl-mk" style="--c:${color}"><i></i></span>`, iconSize: [34, 34], iconAnchor: [17, 17] }) });
+      m.bindTooltip(`<strong>${esc(p.code)} · ${esc(p.name)}</strong><span><i class="rl-tip-dot" style="background:${color}"></i>${esc([p.type, status].filter(Boolean).join(' · '))}</span>`, { className: 'rl-tip', direction: 'top', offset: [0, -16] });
+      add(m, this.groups.featured);
+      this.plotMarkers.set(p.id, m);
+      const card = L.marker(pos, {
+        interactive: false,
+        keyboard: false,
+        zIndexOffset: 700,
+        icon: L.divIcon({ className: 'rl-card-wrap', html: `<span class="rl-card" style="--c:${color}"><b>${esc(p.code)}</b><span>${esc(p.name)}</span><span>${esc(status)}</span></span>`, iconSize: [0, 0] }),
+      });
+      add(card, this.groups.featured);
+    }
+  }
+
   fitPlan(animate: boolean): void {
     if (!this.map) return;
+    if (this.floorBounds) {
+      this.map.flyToBounds(this.floorBounds, { padding: [16, 16], maxZoom: 23, duration: animate ? 0.8 : 0, animate });
+      return;
+    }
     if (!this.planBounds) {
       // no floor plan: frame the geofences when there are any, else keep the neutral world view
       const geo = this.geoZones?.getLayers().length ? this.geoZones.getBounds() : null;
@@ -187,6 +359,7 @@ export class RlMap implements AfterViewInit, OnChanges, OnDestroy {
     if (this.planBounds) map.setMaxBounds(this.planBounds.pad(0.35));
     this.applyLayers();
     this.restyle();
+    this.applyFloorPlan(false);
     this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
     this.resize.observe(el);
     // the drawing tools own map clicks while they draw / place (container gets md-busy)

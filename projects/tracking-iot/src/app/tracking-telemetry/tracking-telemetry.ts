@@ -37,13 +37,11 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import type * as Leaflet from 'leaflet';
 import { apiErrorMessage } from '../shared/tracking-api';
-import { MapDrawTools } from '../shared/map-draw-tools/map-draw-tools';
-import { MapLayers, MapPosition, TtMap } from './tt-map';
-import { IotAlertDto, IotEventsTimelineDto, MAX_READINGS, TelemetryReadApi, TelemetryReadingDto, paramKind, timeOf } from './telemetry-api';
+import { MapLayers, MapPlace, MapPosition, TtMap } from './tt-map';
+import { IotAlertDto, IotEventsTimelineDto, MAX_READINGS, MdmBuilding, MdmSite, TelemetryReadApi, TelemetryReadingDto, paramKind, timeOf } from './telemetry-api';
 import {
-  AlertItem, BUILDINGS, CAMPUS_NAME, KPIS, LiveKey, MarkerIcon, Metric, RANGE_SPEC, Range, Series, Severity, Status,
+  AlertItem, CAMPUS_NAME, KPIS, LiveKey, MarkerIcon, Metric, RANGE_SPEC, Range, Series, Severity, Status,
   TelemetryEvent, TelemetrySource, TrackedAsset, buildAssets, buildEvents, buildingName, seriesFor,
 } from './telemetry-data';
 
@@ -86,13 +84,12 @@ function pad(n: number): string {
 @Component({
   selector: 'app-tracking-telemetry',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, TtMap, MapDrawTools],
+  imports: [CommonModule, FormsModule, LucideAngularModule, TtMap],
   templateUrl: './tracking-telemetry.html',
   styleUrls: ['./tracking-telemetry.css', './tracking-telemetry-panels.css', '../shared/iot-purple-theme.css'],
 })
 export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
   readonly icons = { Activity, ArrowUp, Battery, BatteryLow, Bell, Box, Building2, Calendar, Check, Clock, Cpu, Download, Heart, History, Info, Link, Locate, MapPin, Minus, Plus, RadioTower, Signal, Thermometer, TriangleAlert, Wifi, X };
-  readonly buildings = BUILDINGS;
   readonly campus = CAMPUS_NAME;
   readonly ranges = Object.entries(RANGE_SPEC).map(([key, v]) => ({ key: key as Range, label: v.label }));
   readonly metricMeta = METRIC_META;
@@ -104,13 +101,17 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
   private readonly api = inject(TelemetryReadApi);
   private readonly destroyRef = inject(DestroyRef);
 
+  /** Site filter of the page (Master Data site id; '' = all sites). */
   site = '';
   private _range: Range = '24h';
-  mapSite = CAMPUS_NAME;
+  /** Site and building shown on the map (Master Data ids; '' = all). */
+  mapSite = '';
   building = '';
+  /** Master Data sites and buildings (loaded once). */
+  private mdmSites: MdmSite[] = [];
+  private mdmBuildings: MdmBuilding[] = [];
   layers: MapLayers = { assets: true, devices: true, gateways: true, geofences: true };
   satellite = true;
-  drawMap: Leaflet.Map | null = null;
   selectedId = '';
   tab: Tab = 'live';
   show: Record<Metric, boolean> = { temp: true, vib: true, battery: false };
@@ -156,7 +157,25 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.refresh();
+    this.loadPlaces();
     this.timers.push(setInterval(() => this.refresh(), POLL_MS));
+  }
+
+  /** Master Data sites and buildings for the site / building pickers and the map pins. */
+  private loadPlaces(): void {
+    forkJoin({ sites: this.api.sites(), buildings: this.api.buildings() })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ sites, buildings }) => {
+        const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+        this.mdmSites = [...sites].sort(byName);
+        this.mdmBuildings = [...buildings].sort(byName);
+        // start the map on a real place: the first site with coordinates (or with a located building)
+        if (!this.mapSite) {
+          const located = this.mdmSites.find((s) => s.lat !== null || this.mdmBuildings.some((b) => this.inSite(b, s) && b.lat !== null));
+          this.mapSite = (located ?? this.mdmSites[0])?.id ?? '';
+        }
+        this.updateMap();
+      });
   }
 
   /** Time range of the trend, events table and telemetry KPI; changing it reloads from the API. */
@@ -171,12 +190,31 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
     this.refresh();
   }
 
-  get sites(): string[] {
-    return [...new Set(this.all.map((a) => a.building).filter(Boolean))].sort();
+  /** Sites for the pickers: Master Data sites, or the sites named on devices while Master Data has none. */
+  get sites(): MdmSite[] {
+    if (this.mdmSites.length) return this.mdmSites;
+    return [...new Set(this.all.map((a) => a.building).filter(Boolean))].sort().map((name) => ({ id: name, name, lat: null, lng: null }));
+  }
+
+  /** Buildings of the map's site (all buildings when no site is chosen). */
+  get mapBuildings(): MdmBuilding[] {
+    const site = this.sites.find((s) => s.id === this.mapSite);
+    return site ? this.mdmBuildings.filter((b) => this.inSite(b, site)) : this.mdmBuildings;
   }
 
   get assets(): TrackedAsset[] {
-    return this.site ? this.all.filter((a) => a.building === this.site) : this.all;
+    return this.site ? this.all.filter((a) => this.assetInSite(a, this.site)) : this.all;
+  }
+
+  /** A device belongs to a site by its site id, or by the site's name (devices registered with a name only). */
+  private assetInSite(a: { siteId?: string | null; building?: string | null; siteName?: string | null }, siteId: string): boolean {
+    const s = this.sites.find((x) => x.id === siteId);
+    const name = (a.building ?? a.siteName ?? '').trim().toLowerCase();
+    return (!!a.siteId && a.siteId === siteId) || (!!s && !!name && name === s.name.trim().toLowerCase());
+  }
+
+  private inSite(b: MdmBuilding, s: MdmSite): boolean {
+    return b.siteId ? b.siteId === s.id : b.siteName.trim().toLowerCase() === s.name.trim().toLowerCase();
   }
 
   get events(): TelemetryEvent[] {
@@ -193,7 +231,7 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
   get kpis(): { key: string; label: string; value: string; note: string; color: string }[] {
     const assets = this.assets;
     const online = assets.filter((a) => a.status !== 'offline').length;
-    const open = this.openAlertRows.filter((x) => !this.site || x.siteName === this.site || assets.some((a) => a.id === x.deviceId)).length;
+    const open = this.openAlertRows.filter((x) => !this.site || this.assetInSite(x, this.site) || assets.some((a) => a.id === x.deviceId)).length;
     const pts = this.points();
     return KPIS.map((k) => {
       let value: string;
@@ -394,8 +432,35 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
     this.mapCmp?.locate();
   }
 
+  /** Page site filter changed: the map follows it. */
+  onSite(): void {
+    if (this.site) this.mapSite = this.site;
+    this.building = '';
+    this.updateMap();
+  }
+
+  /** Map site changed: its buildings fill the building picker and the map flies to the site. */
+  onMapSite(): void {
+    this.building = '';
+    this.updateMap();
+  }
+
   onBuilding(): void {
-    this.mapCmp?.showBuilding(this.building);
+    this.updateMap();
+  }
+
+  /**
+   * Pins for the map's site and its buildings (every site when none is chosen), then flies to the chosen building,
+   * else the site. A place without coordinates is skipped; the map then fits whatever is located.
+   */
+  private updateMap(): void {
+    const located = <T extends { lat: number | null; lng: number | null }>(p: T): p is T & { lat: number; lng: number } => p.lat !== null && p.lng !== null;
+    const site = this.sites.find((s) => s.id === this.mapSite);
+    const sitePins: MapPlace[] = (site ? [site] : this.sites).filter(located).map((s) => ({ id: s.id, name: s.name, kind: 'site', lat: s.lat, lng: s.lng }));
+    const buildingPins: MapPlace[] = (site ? this.mapBuildings : []).filter(located).map((b) => ({ id: b.id, name: b.name, kind: 'building', lat: b.lat, lng: b.lng }));
+    const places = [...sitePins, ...buildingPins];
+    const focus = places.find((p) => p.id === this.building) ?? places.find((p) => p.id === this.mapSite) ?? (site ? buildingPins[0] : undefined);
+    this.mapCmp?.showPlaces(places, focus?.id ?? '');
   }
 
   toggleLayer(k: keyof MapLayers): void {

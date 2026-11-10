@@ -8,8 +8,10 @@
     <div class="head-side">
       <div class="head-status">
         <span class="live"><i></i>LIVE</span>
+        <label class="ic-select"><lucide-icon [img]="icons.Globe" [size]="15"></lucide-icon>
+          <select class="control control-sm" [(ngModel)]="country" (ngModelChange)="onCountry()" aria-label="Country"><option value="">All Countries</option><option *ngFor="let c of countries" [value]="c">{{ c }}</option></select></label>
         <label class="ic-select"><lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>
-          <select class="control control-sm" [(ngModel)]="site" (ngModelChange)="onSite($event)" aria-label="Site"><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
+          <select class="control control-sm" [(ngModel)]="site" (ngModelChange)="onSite($event)" aria-label="Site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.id">{{ s.name }}</option></select></label>
         <span class="updated"><lucide-icon [img]="icons.Clock" [size]="15"></lucide-icon>{{ updatedSec === null ? (loadingEvents ? 'Loading…' : 'Not updated') : 'Updated ' + updatedSec + ' sec ago' }}</span>
       </div>
       <div class="head-actions">
@@ -37,8 +39,9 @@
       <section class="card map-card" aria-label="Facility map">
         <div class="map-head">
           <h2 class="grow">Facility Map</h2>
-          <select class="control control-sm level-sel" [(ngModel)]="level" (ngModelChange)="onLevel($event)" aria-label="Level">
-            <option *ngFor="let l of levels" [value]="l.id">{{ l.name }}</option></select>
+          <select class="control control-sm level-sel" [(ngModel)]="level" (ngModelChange)="onLevel($event)" aria-label="Floor" [disabled]="!levels.length">
+            <option *ngIf="!levels.length" value="">No floors</option>
+            <option *ngFor="let l of levels" [value]="l.id">{{ floorLabel(l) }}</option></select>
           <span class="menu-wrap">
             <button type="button" class="tool" [class.is-on]="layersOpen" (click)="$event.stopPropagation(); layersOpen = !layersOpen" title="Layers" aria-label="Layers"><lucide-icon [img]="icons.Layers" [size]="17"></lucide-icon></button>
             <div *ngIf="layersOpen" class="pop layers-pop" (click)="$event.stopPropagation()">
@@ -56,8 +59,7 @@
           <button type="button" class="tool" (click)="zoomOut()" title="Zoom out" aria-label="Zoom out"><lucide-icon [img]="icons.Minus" [size]="17"></lucide-icon></button>
         </div>
         <div class="map-box">
-          <app-rl-map [selectedId]="selectedId" [geofences]="geoZones" [layers]="layers" [imagery]="imagery" (select)="select($event)" (live)="onLive($event)" (replayDone)="onReplayDone()" (ready)="drawMap = $event"></app-rl-map>
-          <app-map-draw-tools [map]="drawMap" storageKey="real-time-location"></app-map-draw-tools>
+          <app-rl-map [selectedId]="selectedId" [geofences]="geoZones" [layers]="layers" [imagery]="imagery" (select)="select($event)" (live)="onLive($event)" (replayDone)="onReplayDone()"></app-rl-map>
           <span *ngIf="replaying" class="replay-chip"><lucide-icon [img]="icons.Route" [size]="14"></lucide-icon>Replaying last 30 min</span>
         </div>
         <div class="legend">
@@ -173,10 +175,18 @@
   <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="rl-loc" (click)="$event.stopPropagation()">
     <div class="modal-head"><h2 id="rl-loc">Locate Asset</h2><button type="button" class="icon-btn" (click)="locateOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <div class="modal-body">
-      <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="locateQuery" placeholder="Asset ID, name or device" aria-label="Find asset" autofocus /></label>
+      <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="locateQuery" placeholder="Asset tag, ID, name, category or location" aria-label="Find asset" autofocus /></label>
+      <p *ngIf="!loadingRegistered && !registeredError && registered.length" class="muted small loc-count">
+        Showing {{ locateResults.length }} of {{ locateTotal }} registered asset{{ locateTotal === 1 ? '' : 's' }}</p>
       <ul class="loc-list">
-        <li *ngFor="let a of locateResults"><button type="button" (click)="select(a.id)"><i class="dot" [style.background]="dotColor(a)"></i><span class="grow"><strong>{{ a.id }}</strong> {{ a.name }}<small>{{ place(a) }} · {{ ago(seenSec(a)) }}</small></span><lucide-icon [img]="icons.Crosshair" [size]="15"></lucide-icon></button></li>
-        <li *ngIf="!locateResults.length" class="muted small">No asset matches “{{ locateQuery }}”.</li>
+        <li *ngFor="let a of locateResults"><button type="button" (click)="locateRegistered(a)">
+          <i class="dot" [style.background]="'#2563eb'"></i>
+          <span class="grow"><strong>{{ a.tag || a.regId }}</strong> {{ a.name }}
+            <small>{{ a.category || a.type || 'Asset' }}<ng-container *ngIf="a.location"> · {{ a.location }}</ng-container><ng-container *ngIf="a.status"> · {{ a.status }}</ng-container></small></span>
+          <lucide-icon [img]="icons.Crosshair" [size]="15"></lucide-icon></button></li>
+        <li *ngIf="loadingRegistered" class="muted small">Loading registered assets…</li>
+        <li *ngIf="registeredError" class="muted small">{{ registeredError }}</li>
+        <li *ngIf="!loadingRegistered && !registeredError && !locateResults.length" class="muted small">{{ locateQuery ? 'No asset matches “' + locateQuery + '”.' : 'No assets are registered yet.' }}</li>
       </ul>
     </div>
   </div>

@@ -1,7 +1,37 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError } from 'rxjs';
+import { Observable, catchError, map, of } from 'rxjs';
+import { environment } from 'shared-ui';
 import { apiError, tenantParams, trackingUrl } from '../shared/tracking-api';
+
+// ===== Master Data (sites and buildings for the site / building pickers and the map) =====
+
+interface MdmSiteDto {
+  id: string; siteName: string | null; code: string | null; country: string | null; address?: { country?: string | null } | null;
+  latitude: number | null; longitude: number | null; status?: string | null; isDeleted?: boolean;
+}
+interface MdmBuildingDto {
+  id: string; name: string | null; code: string | null; site: { id: string | null; name: string | null } | null;
+  latitude: number | null; longitude: number | null; status?: string | null; isDeleted?: boolean;
+}
+
+/** A Master Data site; lat / lng are null when the site has no coordinates. */
+export interface MdmSite { id: string; name: string; lat: number | null; lng: number | null; /** '' when not set */ country?: string }
+interface MdmFloorDto {
+  id: string; name: string | null; code: string | null; site: { id: string | null; name: string | null } | null; buildingId: string | null; buildingName: string | null;
+  area: number | null; imageUrl: string | null; images: string[] | null; latitude: number | null; longitude: number | null; status?: string | null; isDeleted?: boolean;
+}
+
+/** A Master Data floor with its uploaded floor plan image (null when none was uploaded). */
+export interface MdmFloor {
+  id: string; name: string; siteId: string; siteName: string; buildingId: string; buildingName: string;
+  /** Floor area in m² (sizes the plan on the map), null when not entered. */
+  area: number | null;
+  image: string | null; lat: number | null; lng: number | null;
+}
+
+/** A Master Data building with the site it belongs to. */
+export interface MdmBuilding { id: string; name: string; siteId: string; siteName: string; lat: number | null; lng: number | null }
 
 // ===== DTOs (Tracking service responses; dates are ISO strings in UTC) =====
 
@@ -177,9 +207,70 @@ export class TelemetryReadApi {
     return this.get<IotEventsTimelineDto>('iot-events/timeline', { days }, 'Could not load the IoT events timeline.');
   }
 
+  /** Sites from Master Data (GET /api/master-data/sites); an empty list when Master Data can't be reached. */
+  sites(): Observable<MdmSite[]> {
+    return this.masterData<MdmSiteDto>('sites').pipe(
+      map((rows) =>
+        rows.map((s) => ({
+          id: s.id, name: s.siteName || s.code || s.id, lat: coord(s.latitude, 90), lng: coord(s.longitude, 180), country: (s.country || s.address?.country || '').trim(),
+        })),
+      ),
+    );
+  }
+
+  /**
+   * Countries in use by the Master Data sites (GET /api/master-data/sites/countries), sorted; each site takes its
+   * country from the address entered in Organization › Site. Empty when Master Data can't be reached.
+   */
+  countries(): Observable<string[]> {
+    return this.http
+      .get<{ country: string; siteCount: number }[]>(`${environment.masterDataApiUrl}api/master-data/sites/countries`, { params: new HttpParams().set('clientId', environment.clientId) })
+      .pipe(
+        map((rows) => (Array.isArray(rows) ? rows : []).map((r) => (r.country ?? '').trim()).filter(Boolean)),
+        catchError(() => of([] as string[])),
+      );
+  }
+
+  /** Buildings from Master Data (GET /api/master-data/buildings), each with its site; empty when unavailable. */
+  buildings(): Observable<MdmBuilding[]> {
+    return this.masterData<MdmBuildingDto>('buildings').pipe(
+      map((rows) =>
+        rows.map((b) => ({ id: b.id, name: b.name || b.code || b.id, siteId: b.site?.id ?? '', siteName: b.site?.name ?? '', lat: coord(b.latitude, 90), lng: coord(b.longitude, 180) })),
+      ),
+    );
+  }
+
+  /** Floors from Master Data (GET /api/master-data/floors) with their floor plan image; empty when unavailable. */
+  floors(): Observable<MdmFloor[]> {
+    const abs = (u: string | null | undefined) => (!u ? null : /^(https?:|data:|blob:)/i.test(u) ? u : `${environment.mediaApiUrl}${u.replace(/^\/+/, '')}`);
+    return this.masterData<MdmFloorDto>('floors').pipe(
+      map((rows) =>
+        rows.map((f) => ({
+          id: f.id, name: f.name || f.code || f.id, siteId: f.site?.id ?? '', siteName: f.site?.name ?? '', buildingId: f.buildingId ?? '', buildingName: f.buildingName ?? '',
+          area: typeof f.area === 'number' && f.area > 0 ? f.area : null,
+          image: abs(f.imageUrl || f.images?.find((i) => !!i)), lat: coord(f.latitude, 90), lng: coord(f.longitude, 180),
+        })),
+      ),
+    );
+  }
+
+  private masterData<T extends { status?: string | null; isDeleted?: boolean }>(resource: string): Observable<T[]> {
+    return this.http
+      .get<T[]>(`${environment.masterDataApiUrl}api/master-data/${resource}`, { params: new HttpParams().set('clientId', environment.clientId) })
+      .pipe(
+        map((rows) => (Array.isArray(rows) ? rows : []).filter((r) => !r.isDeleted && (r.status ?? 'Active').toLowerCase() !== 'inactive')),
+        catchError(() => of([] as T[])),
+      );
+  }
+
   private get<T>(resource: string, query: Record<string, string | number | undefined>, fallback: string): Observable<T> {
     return this.http.get<T>(trackingUrl(resource), { params: tenantParams(query) }).pipe(catchError((err) => apiError(err, fallback)));
   }
+}
+
+/** Latitude / longitude when it is a real coordinate (0,0 and out-of-range values count as not set). */
+function coord(v: number | null | undefined, max: number): number | null {
+  return typeof v === 'number' && Number.isFinite(v) && v !== 0 && Math.abs(v) <= max ? v : null;
 }
 
 // ===== shared mapping helpers =====

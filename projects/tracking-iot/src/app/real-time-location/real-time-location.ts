@@ -12,6 +12,7 @@ import {
   Crosshair,
   Eye,
   Forklift,
+  Globe,
   Info,
   Layers,
   LocateFixed,
@@ -32,15 +33,19 @@ import {
   X,
 } from 'lucide-angular';
 import {
-  ASSETS, AssetState, GEOFENCE_PREFIX, LEVELS, LngLat, LocEvent, SITE, TrackedAsset, ZONES, Zone, circleRing, distanceM, isAlert, isLowConfidence, placeOf, setGeofenceZones,
+  ASSETS, AssetState, GEOFENCE_PREFIX, LngLat, LocEvent, TrackedAsset, ZONES, Zone, circleRing, distanceM, isAlert, isLowConfidence, placeOf, setGeofenceZones,
 } from './location-data';
 import { apiErrorMessage } from '../shared/tracking-api';
 import { GeofenceApiService } from '../geofence-alerts/geofence-api.service';
 import { AlertRuleApiService } from '../geofence-alerts/alert-rule-api.service';
 import { Zone as Geofence, CONDITIONS } from '../geofence-alerts/geofence-data';
 import { LocationEventApiService } from './location-event-api.service';
-import type * as Leaflet from 'leaflet';
-import { MapDrawTools } from '../shared/map-draw-tools/map-draw-tools';
+import { MdmBuilding, MdmFloor, MdmSite, TelemetryReadApi } from '../tracking-telemetry/telemetry-api';
+import { Subscription, forkJoin } from 'rxjs';
+import { FloorLayout, FloorLayoutApi, LayoutPlot, RegisteredAsset } from './floor-layout-api';
+
+/** Rows shown in the Locate Asset list (search narrows it down). */
+const LOCATE_MAX_ROWS = 50;
 import { LivePosition, MapLayers, RlMap, stateColor } from './rl-map';
 
 type StatusFilter = '' | AssetState | 'alerts';
@@ -59,21 +64,38 @@ function geofenceZone(g: Geofence): Zone {
   };
 }
 
-/** Sites with indoor floor plans (empty until loaded). */
-const SITES: string[] = [];
 const RULE_LABEL: Record<AlertForm['rule'], string> = { enter: 'Enters zone', exit: 'Leaves zone', dwell: 'Dwells longer than', boundary: 'Comes within 3 m of boundary' };
 
 @Component({
   selector: 'app-real-time-location',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, RlMap, MapDrawTools],
+  imports: [CommonModule, FormsModule, LucideAngularModule, RlMap],
   templateUrl: './real-time-location.html',
   styleUrls: ['./real-time-location.css', './real-time-location-panels.css', '../shared/iot-purple-theme.css'],
 })
 export class RealTimeLocation implements OnInit, OnDestroy {
-  readonly icons = { Bell, Box, Building2, ChevronDown, Clock, Crosshair, Eye, Forklift, Info, Layers, LocateFixed, MapPin, Minus, Package, Pause, Play, Plus, Route, Search, Settings, ShieldAlert, Signal, Tag, TriangleAlert, Wifi, X };
-  readonly levels = LEVELS;
-  readonly sites = SITES;
+  readonly icons = { Bell, Box, Building2, ChevronDown, Clock, Crosshair, Eye, Forklift, Globe, Info, Layers, LocateFixed, MapPin, Minus, Package, Pause, Play, Plus, Route, Search, Settings, ShieldAlert, Signal, Tag, TriangleAlert, Wifi, X };
+  /** Master Data floors and buildings (all sites). */
+  private allFloors: MdmFloor[] = [];
+  private allBuildings: MdmBuilding[] = [];
+  /** Floors for the Facility Map picker: those of the chosen site, else of the chosen country, else all. */
+  get levels(): MdmFloor[] {
+    if (this.site) return this.allFloors.filter((f) => this.floorSiteId(f) === this.site);
+    if (this.country) {
+      const ids = new Set(this.sites.map((s) => s.id));
+      return this.allFloors.filter((f) => ids.has(this.floorSiteId(f)));
+    }
+    return this.allFloors;
+  }
+  /** Countries used by the Master Data sites (Organization › Site address), for the Country picker. */
+  countries: string[] = [];
+  /** Master Data sites (all countries). */
+  private allSites: MdmSite[] = [];
+  /** Sites of the chosen country (all sites when no country is chosen). */
+  get sites(): MdmSite[] {
+    const c = this.country.trim().toLowerCase();
+    return c ? this.allSites.filter((s) => (s.country ?? '').toLowerCase() === c) : this.allSites;
+  }
   /** Floor-plan zones plus geofences from the API. */
   get zones(): Zone[] {
     return ZONES;
@@ -88,9 +110,17 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   private readonly eventApi = inject(LocationEventApiService);
   private readonly geofenceApi = inject(GeofenceApiService);
   private readonly ruleApi = inject(AlertRuleApiService);
+  private readonly mdm = inject(TelemetryReadApi);
+  private readonly layoutApi = inject(FloorLayoutApi);
+  /** Zones / plots drawn in Maps & Floor Plans, per floor id (loaded on first view). */
+  private layouts = new Map<string, FloorLayout | null>();
+  private layoutSub?: Subscription;
 
-  site = SITE;
-  level = LEVELS[0]?.id ?? '';
+  /** Chosen country ('' = all countries) and site (Master Data site id, '' = all sites of the country). */
+  country = '';
+  site = '';
+  /** Floor shown on the Facility Map (Master Data floor id). */
+  level = '';
   /** Seconds since the page opened; drives "updated N sec ago" and last-seen ages. */
   tick = 0;
   /** Location events poll cycle, seconds. */
@@ -102,7 +132,6 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   saving = false;
   layers: MapLayers = { zones: true, labels: true, gateways: true, trails: true, assets: true };
   imagery = false;
-  drawMap: Leaflet.Map | null = null;
   layersOpen = false;
 
   search = '';
@@ -116,6 +145,10 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   eventsAll = false;
   locateOpen = false;
   locateQuery = '';
+  /** Registered assets for Locate Asset (loaded when the dialog first opens). */
+  registered: RegisteredAsset[] = [];
+  loadingRegistered = false;
+  registeredError = '';
   alertForm: AlertForm | null = null;
   formError = '';
   toast = '';
@@ -129,7 +162,87 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadEvents();
     this.loadGeofences();
+    this.loadPlaces();
     this.pollTimer = setInterval(() => this.loadEvents(true), EVENT_POLL_MS);
+  }
+
+  /** Countries, sites, buildings and floors from Master Data for the pickers and the floor plan. */
+  private loadPlaces(): void {
+    forkJoin({ countries: this.mdm.countries(), sites: this.mdm.sites(), buildings: this.mdm.buildings(), floors: this.mdm.floors() }).subscribe(({ countries, sites, buildings, floors }) => {
+      this.allSites = [...sites].sort((a, b) => a.name.localeCompare(b.name));
+      this.allBuildings = buildings;
+      this.allFloors = [...floors].sort((a, b) => this.floorLabel(a).localeCompare(this.floorLabel(b), undefined, { numeric: true }));
+      this.pickFloor();
+      // the countries endpoint, plus any country only found on the sites (case-insensitive, sorted)
+      const seen = new Map<string, string>();
+      for (const c of [...countries, ...sites.map((s) => s.country ?? '')]) if (c && !seen.has(c.toLowerCase())) seen.set(c.toLowerCase(), c);
+      this.countries = [...seen.values()].sort((a, b) => a.localeCompare(b));
+    });
+  }
+
+  /** Country changed: the site picker shows that country's sites; a site from another country is cleared. */
+  onCountry(): void {
+    if (this.site && !this.sites.some((s) => s.id === this.site)) this.site = '';
+    this.pickFloor();
+  }
+
+  /** "Building · Floor" for the floor picker. */
+  floorLabel(f: MdmFloor): string {
+    return f.buildingName ? `${f.buildingName} · ${f.name}` : f.name;
+  }
+
+  /** Site of a floor: its own, else its building's. */
+  private floorSiteId(f: MdmFloor): string {
+    return f.siteId || this.allBuildings.find((b) => b.id === f.buildingId)?.siteId || '';
+  }
+
+  /** Keeps the chosen floor when it is still listed, else the first floor with a plan (or the first floor). */
+  private pickFloor(): void {
+    const list = this.levels;
+    if (!list.some((f) => f.id === this.level)) this.level = (list.find((f) => f.image) ?? list[0])?.id ?? '';
+    this.showFloor(false);
+  }
+
+  /**
+   * Puts the chosen floor on the map: its plan image (Maps & Floor Plans plan, else the Master Data floor image) where
+   * the floor (else its building / site) is, with the zones, assets and devices drawn on it in Maps & Floor Plans.
+   */
+  private showFloor(tell: boolean, after?: (layout: FloorLayout | null) => void): void {
+    const f = this.allFloors.find((x) => x.id === this.level);
+    this.layoutSub?.unsubscribe();
+    if (!f) {
+      this.mapRef?.showFloorPlan(null);
+      return;
+    }
+    const draw = (layout: FloorLayout | null) => {
+      after?.(layout);
+      // the plan from Maps & Floor Plans first, then the Master Data floor image (Maps & Floor Plans does the same)
+      const urls = [...new Set([layout?.imageUrl, f.image].filter((u): u is string => !!u))];
+      if (!urls.length && !layout) {
+        this.mapRef?.showFloorPlan(null);
+        if (tell) this.showToast(`No floor plan is uploaded for ${this.floorLabel(f)}. Add one in Master Data › Building / Floor / Zone or Administration › Maps & Floor Plans.`);
+        return;
+      }
+      const b = this.allBuildings.find((x) => x.id === f.buildingId);
+      const s = this.allSites.find((x) => x.id === this.floorSiteId(f));
+      const at = [f, b, s].find((p) => p && p.lat !== null && p.lng !== null);
+      this.mapRef?.showFloorPlan({
+        urls, name: this.floorLabel(f), lat: at?.lat ?? null, lng: at?.lng ?? null, area: f.area,
+        widthM: layout?.widthM ?? null, heightM: layout?.heightM ?? null, zones: layout?.zones ?? [], plots: layout?.plots ?? [],
+      });
+    };
+    if (this.layouts.has(f.id)) return draw(this.layouts.get(f.id) ?? null);
+    // show the plan straight away, then again with its zones and plots once they arrive
+    if (f.image) {
+      const pending = after;
+      after = undefined;
+      draw(null);
+      after = pending;
+    }
+    this.layoutSub = this.layoutApi.layout(f.id).subscribe((layout) => {
+      this.layouts.set(f.id, layout);
+      if (this.level === f.id) draw(layout);
+    });
   }
 
   /** GET /api/location-events (newest first). */
@@ -165,6 +278,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   ngOnDestroy(): void {
+    this.layoutSub?.unsubscribe();
     clearInterval(this.timer);
     clearInterval(this.pollTimer);
     clearTimeout(this.toastTimer);
@@ -325,30 +439,92 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     this.mapRef?.locate();
   }
 
-  onSite(s: string): void {
-    if (SITE && s !== SITE) {
-      this.showToast(`${s} has no indoor floor plan yet. Showing ${SITE}.`);
-      setTimeout(() => (this.site = SITE));
-    }
+  /** Site changed: its country becomes the chosen country (when none was chosen). */
+  onSite(id: string): void {
+    const s = this.allSites.find((x) => x.id === id);
+    if (s?.country && !this.country) this.country = this.countries.find((c) => c.toLowerCase() === s.country!.toLowerCase()) ?? s.country;
+    this.site = id;
+    this.pickFloor();
   }
 
   onLevel(id: string): void {
-    const lv = LEVELS.find((l) => l.id === id);
-    if (lv && !lv.mapped) {
-      this.showToast(`${lv.name} is not mapped for location tracking yet.`);
-      setTimeout(() => (this.level = LEVELS[0]?.id ?? ''));
-    }
+    this.level = id;
+    this.showFloor(true);
   }
 
-  get locateResults(): TrackedAsset[] {
+  /** Registered assets matching the search (tag, ID, name, category, type or location). */
+  get locateResults(): RegisteredAsset[] {
     const q = this.locateQuery.trim().toLowerCase();
-    const list = q ? ASSETS.filter((a) => `${a.id} ${a.name} ${a.device}`.toLowerCase().includes(q)) : ASSETS.filter((a) => a.featured);
-    return list.slice(0, 8);
+    const list = q
+      ? this.registered.filter((a) => [a.tag, a.regId, a.name, a.category, a.type, a.location].some((v) => v.toLowerCase().includes(q)))
+      : this.registered;
+    return list.slice(0, LOCATE_MAX_ROWS);
+  }
+
+  get locateTotal(): number {
+    const q = this.locateQuery.trim();
+    return q ? this.locateResults.length : this.registered.length;
   }
 
   openLocate(): void {
     this.locateOpen = true;
     this.locateQuery = '';
+    if (this.registered.length || this.loadingRegistered) return;
+    this.loadingRegistered = true;
+    this.registeredError = '';
+    this.layoutApi.registeredAssets().subscribe({
+      next: (rows) => {
+        this.registered = rows.sort((a, b) => (a.tag || a.name).localeCompare(b.tag || b.name, undefined, { numeric: true }));
+        this.loadingRegistered = false;
+      },
+      error: (err) => {
+        this.loadingRegistered = false;
+        this.registeredError = apiErrorMessage(err, 'Could not load the registered assets.');
+      },
+    });
+  }
+
+  /** True when a plot on a floor plan is this registered asset. */
+  private isPlotOf(p: LayoutPlot, a: RegisteredAsset): boolean {
+    return p.kind === 'asset' && (p.id === a.regId || p.id === a.id || (!!a.tag && p.code === a.tag));
+  }
+
+  /**
+   * Shows the asset on the map: the floor it is plotted on (a floor already loaded, else the floor in its registration)
+   * and zooms to it. Says so when the asset hasn't been plotted on a floor plan yet.
+   */
+  locateRegistered(a: RegisteredAsset): void {
+    this.locateOpen = false;
+    const label = a.tag ? `${a.tag} · ${a.name}` : a.name;
+    const notPlotted = () =>
+      this.showToast(`${label} is not plotted on a floor plan yet${a.location ? ` (registered at ${a.location})` : ''}. Plot it in Administration › Maps & Floor Plans.`);
+    for (const [floorId, layout] of this.layouts) {
+      const plot = layout?.plots.find((p) => this.isPlotOf(p, a));
+      if (plot) return this.goToPlot(floorId, plot.id);
+    }
+    const same = (x: string, y: string) => !!x && !!y && x.trim().toLowerCase() === y.trim().toLowerCase();
+    const floor = this.allFloors.find((f) => same(f.name, a.floor) && (!a.building || same(f.buildingName, a.building)));
+    if (!floor) return notPlotted();
+    this.goToPlot(floor.id, '', (layout) => {
+      const plot = layout?.plots.find((p) => this.isPlotOf(p, a));
+      if (plot) this.mapRef?.focusPlot(plot.id);
+      else notPlotted();
+    });
+  }
+
+  /** Switches the map to a floor (clearing a country / site filter that hides it) and zooms to a plotted item. */
+  private goToPlot(floorId: string, plotId: string, after?: (layout: FloorLayout | null) => void): void {
+    if (!this.levels.some((f) => f.id === floorId)) {
+      this.country = '';
+      this.site = '';
+    }
+    if (plotId) this.mapRef?.focusPlot(plotId);
+    if (this.level === floorId && this.layouts.has(floorId)) {
+      after?.(this.layouts.get(floorId) ?? null);
+      return;
+    }
+    this.level = floorId;
+    this.showFloor(false, after);
   }
 
   configureGeofences(): void {

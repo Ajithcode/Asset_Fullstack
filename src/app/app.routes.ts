@@ -54,7 +54,7 @@ export const routes: Routes = [
       { path: 'financial', component: ModulePlaceholder, data: { title: 'Financial' }, canActivate: [moduleGuard('Financial')], canActivateChild: [moduleGuard('Financial')] },
       { path: 'locating', redirectTo: 'tracking-iot/real-time-location', pathMatch: 'full' },
       // Reports moved into the Reports & Analytics remote; old links keep working
-      { path: 'report', redirectTo: 'reports-analytics/generated-reports', pathMatch: 'full' },
+      { path: 'report', redirectTo: 'reports-analytics/standard-reports', pathMatch: 'full' },
       { path: 'report/create', redirectTo: 'reports-analytics/create', pathMatch: 'full' },
       { path: 'report/view/:id', redirectTo: 'reports-analytics/view/:id', pathMatch: 'full' },
       // Role-based access: sections the user's roles don't allow redirect here when nothing else is open to them

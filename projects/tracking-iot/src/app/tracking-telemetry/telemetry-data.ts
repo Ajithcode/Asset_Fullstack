@@ -31,6 +31,8 @@ export interface TrackedAsset {
   health: 'Healthy' | 'Attention' | 'Critical';
   /** Site name ('' when the device has none). */
   building: string;
+  /** Master Data site id ('' when the device has none). */
+  siteId: string;
   assetCode: string;
   assetRegistrationId: string;
   device: { id: string; type: string; model: string; firmware: string; protocol: string; gateway: string; serial: string; installed: string };
@@ -200,6 +202,7 @@ export function buildAssets(src: TelemetrySource, now: number, prev: TrackedAsse
       status,
       health,
       building: d.siteName ?? h?.siteName ?? '',
+      siteId: d.siteId ?? h?.siteId ?? '',
       assetCode: d.assetCode ?? '',
       assetRegistrationId: d.assetRegistrationId ?? '',
       device: {

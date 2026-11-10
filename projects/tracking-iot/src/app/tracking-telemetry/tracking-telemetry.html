@@ -8,7 +8,7 @@
     </div>
     <span class="live" title="Live data, local time"><i></i>LIVE<span class="live-clock">{{ clock }}</span></span>
     <label class="ic-sel"><lucide-icon [img]="icons.Building2" [size]="16"></lucide-icon>
-      <select class="control" [(ngModel)]="site" aria-label="Site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
+      <select class="control" [(ngModel)]="site" (ngModelChange)="onSite()" aria-label="Site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.id">{{ s.name }}</option></select></label>
     <label class="ic-sel"><lucide-icon [img]="icons.Calendar" [size]="16"></lucide-icon>
       <select class="control" [(ngModel)]="range" aria-label="Time range"><option *ngFor="let r of ranges" [value]="r.key">{{ r.label }}</option></select></label>
     <button type="button" class="btn btn-primary" (click)="exportData()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export</button>
@@ -36,12 +36,13 @@
   <div class="tt-grid">
     <!-- Map -->
     <section class="card map-card" aria-label="Campus map">
-      <app-tt-map [selectedId]="selectedId" [layers]="layers" [statuses]="statuses" [satellite]="satellite" (select)="selectAsset($event)" (moved)="onMoved($event)" (ready)="drawMap = $event"></app-tt-map>
-      <app-map-draw-tools [map]="drawMap" storageKey="tracking-telemetry" [top]="54" [inset]="52"></app-map-draw-tools>
+      <app-tt-map [selectedId]="selectedId" [layers]="layers" [statuses]="statuses" [satellite]="satellite" (select)="selectAsset($event)" (moved)="onMoved($event)"></app-tt-map>
 
       <div class="mo mo-top">
-        <select class="control control-sm" [(ngModel)]="mapSite" aria-label="Map site"><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
-        <select class="control control-sm" [(ngModel)]="building" (ngModelChange)="onBuilding()" aria-label="Building"><option value="">All Buildings</option><option *ngFor="let b of buildings" [value]="b.id">{{ b.name }}</option></select>
+        <select class="control control-sm" [(ngModel)]="mapSite" (ngModelChange)="onMapSite()" aria-label="Map site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.id">{{ s.name }}</option></select>
+        <select class="control control-sm" [(ngModel)]="building" (ngModelChange)="onBuilding()" aria-label="Building" [disabled]="!mapBuildings.length">
+          <option value="">{{ mapBuildings.length ? 'All Buildings' : 'No buildings' }}</option><option *ngFor="let b of mapBuildings" [value]="b.id">{{ b.name }}</option>
+        </select>
       </div>
       <div class="mo mo-layers" role="group" aria-label="Map layers">
         <label><input type="checkbox" [checked]="layers.assets" (change)="toggleLayer('assets')" />Assets</label>
