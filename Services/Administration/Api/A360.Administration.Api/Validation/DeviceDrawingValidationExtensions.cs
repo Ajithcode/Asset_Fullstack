@@ -1,6 +1,6 @@
-using A360.Tracking.Api.Contracts;
+using A360.Administration.Api.Contracts;
 
-namespace A360.Tracking.Api.Validation;
+namespace A360.Administration.Api.Validation;
 
 public static class DeviceDrawingValidationExtensions
 {

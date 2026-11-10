@@ -221,6 +221,35 @@ public sealed record AssetCheckDetail(
     string? CustodianDepartment,
     int DocumentCount);
 
+/// <summary>GET /api/asset-dashboard/statuses: every asset status with its asset count and assets.</summary>
+/// <param name="TotalAssets">All registered (not deleted) assets.</param>
+/// <param name="TotalStatuses">Statuses in <see cref="Statuses"/>.</param>
+public sealed record AssetStatusCountsResponse(int TotalAssets, int TotalStatuses, IReadOnlyList<AssetStatusCount> Statuses);
+
+/// <param name="Status">A standard status (Active, Inactive, In Storage, Under Maintenance, In Repair, Out of Service,
+/// Disposed), another basic_information.status value found on assets, or "No Status" for assets without one.</param>
+/// <param name="Percent">Share of all registered assets, 0-100 with one decimal.</param>
+/// <param name="Assets">The assets with this status, by name; empty when includeAssets=false.</param>
+public sealed record AssetStatusCount(string Status, int Count, double Percent, IReadOnlyList<AssetCheckDetail> Assets);
+
+/// <summary>GET /api/asset-dashboard/assets/{assetRegistrationId}/counts: the summary cards on the asset detail page.</summary>
+/// <param name="Relationships">Related-asset links: sub assets under this asset, plus links naming it as a sub asset.</param>
+/// <param name="Documents">Asset Documents records plus files attached on the registration.</param>
+/// <param name="WorkOrders">Maintenance work orders raised on the asset (matched by registration id or tag).</param>
+/// <param name="ServiceRequests">Service requests raised on the asset, any status.</param>
+/// <param name="OpenAlerts">IoT alerts on the asset that are not Resolved.</param>
+public sealed record AssetSummaryCountsResponse(
+    string AssetRegistrationId,
+    string? AssetTag,
+    string? AssetName,
+    int Components,
+    int Relationships,
+    int Documents,
+    int Images,
+    int WorkOrders,
+    int ServiceRequests,
+    int OpenAlerts);
+
 /// <param name="Legend">Counts per pin status: Online, Idle, Offline, Alert, Unknown.</param>
 /// <param name="AssetsWithoutCoordinates">Assets that cannot be pinned because no latitude / longitude is recorded.</param>
 /// <param name="TotalSites">All sites, so the UI can show "View All" when <see cref="TopSites"/> is cut to the top N.</param>

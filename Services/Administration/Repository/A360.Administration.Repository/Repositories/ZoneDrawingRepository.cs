@@ -1,8 +1,8 @@
 using MongoDB.Driver;
 using A360.Repository.Repositories;
-using ZoneDrawingEntity = A360.Tracking.Domain.Entities.ZoneDrawing;
+using ZoneDrawingEntity = A360.Administration.Domain.Entities.ZoneDrawing;
 
-namespace A360.Tracking.Repository.Repositories;
+namespace A360.Administration.Repository.Repositories;
 
 public sealed class ZoneDrawingRepository : MongoRepository<ZoneDrawingEntity>, IZoneDrawingRepository, IMongoIndexConfigurator
 {

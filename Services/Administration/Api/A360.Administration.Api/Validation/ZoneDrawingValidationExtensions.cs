@@ -1,8 +1,8 @@
 using System.Text.Json;
-using A360.Tracking.Api.Contracts;
+using A360.Administration.Api.Contracts;
 using A360.Repository.Repositories;
 
-namespace A360.Tracking.Api.Validation;
+namespace A360.Administration.Api.Validation;
 
 public static class ZoneDrawingValidationExtensions
 {

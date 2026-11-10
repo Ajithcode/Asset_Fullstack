@@ -23,6 +23,9 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
     // Site master data, written by the MasterDataManagement service.
     private const string SiteCollection = "master_sites";
 
+    // Work orders, written by the Maintenance service; asset_id holds the asset tag (or registration id).
+    private const string WorkOrderCollection = "work_orders";
+
     // Ids and tags are matched ignoring case, as everywhere else in the services.
     private static readonly Collation CaseInsensitive = new("en", strength: CollationStrength.Secondary);
 
@@ -379,6 +382,86 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             var key = id.TryGetValue("key", out var keyValue) && keyValue.IsString ? keyValue.AsString : null;
             return new DashboardDailyCount(id["date"].AsString, key, row["count"].ToInt32());
         }).ToList();
+    }
+
+    public async Task<AssetSummaryCounts?> GetAssetSummaryCountsAsync(string assetRegistrationIdOrTag, CancellationToken cancellationToken = default)
+    {
+        var key = assetRegistrationIdOrTag.Trim();
+        var assetFilter = Builders<AssetRegistration>.Filter;
+        var asset = await _assets
+            .Find(
+                assetFilter.Eq(item => item.IsDeleted, false)
+                & assetFilter.Or(
+                    assetFilter.Eq(item => item.AssetRegistrationId, key),
+                    assetFilter.Eq(item => item.BasicInformation.AssetTag, key)),
+                new FindOptions { Collation = CaseInsensitive })
+            .Project<AssetRegistration>(Builders<AssetRegistration>.Projection
+                .Include(item => item.AssetRegistrationId)
+                .Include(item => item.BasicInformation.AssetTag)
+                .Include(item => item.BasicInformation.AssetName)
+                .Include(item => item.PurchaseWarranty.Documents)
+                .Include(item => item.AdditionalInformation.Attachments))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (asset is null)
+        {
+            return null;
+        }
+
+        var id = asset.AssetRegistrationId;
+        var tag = string.IsNullOrWhiteSpace(asset.BasicInformation?.AssetTag) ? null : asset.BasicInformation.AssetTag.Trim();
+        var filter = Builders<BsonDocument>.Filter;
+        var notDeleted = filter.Ne("is_deleted", true);
+
+        var components = CountAsync(AssetComponentRepository.CollectionName, notDeleted & filter.Eq("asset_registration_id", id), cancellationToken);
+        var documentRecords = CountAsync(AssetDocumentRepository.CollectionName, notDeleted & filter.Eq("asset_registration_id", id), cancellationToken);
+        var images = CountAsync(AssetImageRepository.CollectionName, notDeleted & filter.Eq("asset_registration_id", id), cancellationToken);
+        var serviceRequests = CountAsync(AssetServiceRequestRepository.CollectionName, notDeleted & filter.Eq("asset.asset_registration_id", id), cancellationToken);
+        var openAlerts = CountAsync(IoTAlertCollection, notDeleted & filter.Eq("asset_registration_id", id) & filter.Ne("status", "Resolved"), cancellationToken);
+        var workOrders = CountAsync(
+            WorkOrderCollection,
+            notDeleted & filter.In("asset_id", tag is null ? new[] { id } : new[] { id, tag }),
+            cancellationToken);
+        var relationships = CountRelationshipsAsync(id, cancellationToken);
+
+        await Task.WhenAll(components, documentRecords, images, serviceRequests, openAlerts, workOrders, relationships);
+
+        var attachedDocuments = (asset.PurchaseWarranty?.Documents?.Count ?? 0) + (asset.AdditionalInformation?.Attachments?.Count ?? 0);
+
+        return new AssetSummaryCounts(
+            id,
+            tag,
+            asset.BasicInformation?.AssetName,
+            components.Result,
+            relationships.Result,
+            documentRecords.Result + attachedDocuments,
+            images.Result,
+            workOrders.Result,
+            serviceRequests.Result,
+            openAlerts.Result);
+    }
+
+    private async Task<int> CountAsync(string collectionName, FilterDefinition<BsonDocument> filter, CancellationToken cancellationToken) =>
+        (int)await _database.GetCollection<BsonDocument>(collectionName)
+            .CountDocumentsAsync(filter, new CountOptions { Collation = CaseInsensitive }, cancellationToken);
+
+    /// <summary>Sub assets linked under this asset, plus the links that name it as someone else's sub asset.</summary>
+    private async Task<int> CountRelationshipsAsync(string assetRegistrationId, CancellationToken cancellationToken)
+    {
+        var filter = Builders<AssetRelationship>.Filter;
+        var records = await _database.GetCollection<AssetRelationship>(AssetRelationshipRepository.CollectionName)
+            .Find(
+                filter.Eq(record => record.IsDeleted, false)
+                & filter.Or(
+                    filter.Eq(record => record.MainAssetRegistrationId, assetRegistrationId),
+                    filter.Eq("sub_assets.asset_registration_id", assetRegistrationId)),
+                new FindOptions { Collation = CaseInsensitive })
+            .ToListAsync(cancellationToken);
+
+        return records.Sum(record =>
+            string.Equals(record.MainAssetRegistrationId, assetRegistrationId, StringComparison.OrdinalIgnoreCase)
+                ? record.SubAssets.Count
+                : record.SubAssets.Count(sub => string.Equals(sub.AssetRegistrationId, assetRegistrationId, StringComparison.OrdinalIgnoreCase)));
     }
 
     private IMongoCollection<TRecord> Collection<TRecord>(string name) => _database.GetCollection<TRecord>(name);

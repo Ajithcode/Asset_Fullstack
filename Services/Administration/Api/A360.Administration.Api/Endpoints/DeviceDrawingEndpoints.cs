@@ -1,11 +1,11 @@
 using A360.Domain.Entities;
-using A360.Tracking.Api.Contracts;
-using A360.Tracking.Api.Validation;
-using A360.Tracking.Repository.Repositories;
+using A360.Administration.Api.Contracts;
+using A360.Administration.Api.Validation;
+using A360.Administration.Repository.Repositories;
 using A360.Repository.Activity;
 using A360.Security;
 
-namespace A360.Tracking.Api.Endpoints;
+namespace A360.Administration.Api.Endpoints;
 
 public static class DeviceDrawingEndpoints
 {

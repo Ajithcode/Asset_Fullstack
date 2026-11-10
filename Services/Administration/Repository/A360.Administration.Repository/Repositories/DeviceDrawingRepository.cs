@@ -1,8 +1,8 @@
 using MongoDB.Driver;
 using A360.Repository.Repositories;
-using DeviceDrawingEntity = A360.Tracking.Domain.Entities.DeviceDrawing;
+using DeviceDrawingEntity = A360.Administration.Domain.Entities.DeviceDrawing;
 
-namespace A360.Tracking.Repository.Repositories;
+namespace A360.Administration.Repository.Repositories;
 
 public sealed class DeviceDrawingRepository : MongoRepository<DeviceDrawingEntity>, IDeviceDrawingRepository, IMongoIndexConfigurator
 {

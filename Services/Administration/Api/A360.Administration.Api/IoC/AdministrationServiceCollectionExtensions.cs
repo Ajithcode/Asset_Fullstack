@@ -110,6 +110,14 @@ public static class AdministrationServiceCollectionExtensions
         services.AddScoped<IZoneGeofenceRepository>(serviceProvider => serviceProvider.GetRequiredService<ZoneGeofenceRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<ZoneGeofenceRepository>());
 
+        services.AddScoped<ZoneDrawingRepository>();
+        services.AddScoped<IZoneDrawingRepository>(serviceProvider => serviceProvider.GetRequiredService<ZoneDrawingRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<ZoneDrawingRepository>());
+
+        services.AddScoped<DeviceDrawingRepository>();
+        services.AddScoped<IDeviceDrawingRepository>(serviceProvider => serviceProvider.GetRequiredService<DeviceDrawingRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DeviceDrawingRepository>());
+
         // Maps & Floor Plans
         services.AddScoped<FloorPlanRepository>();
         services.AddScoped<IFloorPlanRepository>(serviceProvider => serviceProvider.GetRequiredService<FloorPlanRepository>());

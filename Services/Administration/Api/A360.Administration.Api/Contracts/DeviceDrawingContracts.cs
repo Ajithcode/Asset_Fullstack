@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
-using DeviceDrawingEntity = A360.Tracking.Domain.Entities.DeviceDrawing;
+using DeviceDrawingEntity = A360.Administration.Domain.Entities.DeviceDrawing;
 
-namespace A360.Tracking.Api.Contracts;
+namespace A360.Administration.Api.Contracts;
 
 public sealed record CreateDeviceDrawingRequest(
     string? AreaId,

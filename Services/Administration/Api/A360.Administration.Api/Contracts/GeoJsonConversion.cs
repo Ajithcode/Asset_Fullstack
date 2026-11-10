@@ -2,9 +2,9 @@ using System.Text.Json;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
-using A360.Tracking.Domain.Entities;
+using A360.Administration.Domain.Entities;
 
-namespace A360.Tracking.Api.Contracts;
+namespace A360.Administration.Api.Contracts;
 
 internal static class GeoJsonConversion
 {

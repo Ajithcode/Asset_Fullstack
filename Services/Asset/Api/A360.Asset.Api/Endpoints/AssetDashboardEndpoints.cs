@@ -17,6 +17,7 @@ public static class AssetDashboardEndpoints
     private const string Unknown = "Unknown";
     private const string Resolved = "Resolved";
     private const string UnassignedSiteId = "unassigned";
+    private const string NoStatus = "No Status";
     private const string SensorAttention = "Attention";
     private const int DataFreshnessSlaMinutes = 60;
 
@@ -51,6 +52,8 @@ public static class AssetDashboardEndpoints
         group.MapGet("/events-timeline", GetEventsTimelineAsync).WithName("GetAssetDashboardEventsTimeline");
         group.MapGet("/sensors-attention", GetSensorsAttentionAsync).WithName("GetAssetDashboardSensorsAttention");
         group.MapGet("/alerts", GetAlertsAsync).WithName("GetAssetDashboardAlerts");
+        group.MapGet("/statuses", GetStatusCountsAsync).WithName("GetAssetDashboardStatusCounts");
+        group.MapGet("/assets/{assetRegistrationId}/counts", GetAssetSummaryCountsAsync).WithName("GetAssetDashboardAssetSummaryCounts");
 
         return group;
     }
@@ -315,20 +318,87 @@ public static class AssetDashboardEndpoints
         Func<AssetCheckDetail, bool> matches,
         CancellationToken cancellationToken)
     {
+        var details = await GetAssetDetailsAsync(repository, cancellationToken);
+        var matching = details.Where(matches).ToList();
+
+        return Results.Ok(new AssetCheckResponse(matching.Count, details.Count, matching));
+    }
+
+    /// <summary>
+    /// Every asset status with its asset count, share of all assets and the assets behind the count. The standard
+    /// statuses (Asset Registration's Status dropdown) always come first in their usual order, 0 when unused; any other
+    /// value found on assets follows, then "No Status" for assets without one. <paramref name="status"/> narrows it to
+    /// one status; <paramref name="includeAssets"/>=false returns the counts only.
+    /// </summary>
+    private static async Task<IResult> GetStatusCountsAsync(
+        IAssetDashboardRepository repository,
+        CancellationToken cancellationToken,
+        string? status = null,
+        bool includeAssets = true)
+    {
+        var details = await GetAssetDetailsAsync(repository, cancellationToken);
+        var byStatus = details
+            .GroupBy(detail => StatusOf(detail.AssetStatus), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var standard = AssetRegistrationOptions.Statuses.All;
+        var others = byStatus.Keys
+            .Where(key => !standard.Contains(key, StringComparer.OrdinalIgnoreCase) && key != NoStatus)
+            .OrderBy(key => key, StringComparer.OrdinalIgnoreCase);
+        var noStatus = byStatus.ContainsKey(NoStatus) ? new[] { NoStatus } : [];
+
+        var statuses = standard.Concat(others).Concat(noStatus)
+            .Where(name => string.IsNullOrWhiteSpace(status) || string.Equals(name, status.Trim(), StringComparison.OrdinalIgnoreCase))
+            .Select(name =>
+            {
+                var assets = byStatus.GetValueOrDefault(name) ?? [];
+                return new AssetStatusCount(name, assets.Count, DashboardMath.Percent(assets.Count, details.Count), includeAssets ? assets : []);
+            })
+            .ToList();
+
+        return Results.Ok(new AssetStatusCountsResponse(details.Count, statuses.Count, statuses));
+
+        // Standard statuses keep their standard spelling ("active" counts as "Active")
+        static string StatusOf(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? NoStatus : AssetRegistrationOptions.Statuses.Normalize(value) ?? value.Trim();
+    }
+
+    /// <summary>
+    /// The summary cards on the asset detail page: components, relationships, documents, images, work orders,
+    /// service requests and open alerts for one asset. <paramref name="assetRegistrationId"/> may also be the asset tag.
+    /// </summary>
+    private static async Task<IResult> GetAssetSummaryCountsAsync(
+        string assetRegistrationId,
+        IAssetDashboardRepository repository,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(assetRegistrationId))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["AssetRegistrationId"] = ["Asset registration id is required"] });
+        }
+
+        var counts = await repository.GetAssetSummaryCountsAsync(assetRegistrationId, cancellationToken);
+        return counts is null
+            ? Results.NotFound(new { message = $"Asset registration '{assetRegistrationId.Trim()}' was not found." })
+            : Results.Ok(new AssetSummaryCountsResponse(
+                counts.AssetRegistrationId, counts.AssetTag, counts.AssetName, counts.Components, counts.Relationships,
+                counts.Documents, counts.Images, counts.WorkOrders, counts.ServiceRequests, counts.OpenAlerts));
+    }
+
+    /// <summary>All registered assets as dashboard detail rows, sorted by name.</summary>
+    private static async Task<List<AssetCheckDetail>> GetAssetDetailsAsync(IAssetDashboardRepository repository, CancellationToken cancellationToken)
+    {
         var assets = await repository.GetAssetsAsync(cancellationToken);
         var documentRecords = await repository.CountDocumentRecordsByAssetAsync(cancellationToken);
 
-        var matching = assets
+        return assets
             .Select(asset => new AssetCheckDetail(asset.AssetRegistrationId, asset.AssetTag, asset.AssetName, asset.Category, asset.SubCategory,
                 asset.AssetType, asset.Criticality, asset.Status, asset.SiteId, asset.SiteName, asset.LocationPath,
                 string.IsNullOrWhiteSpace(asset.CustodianName) ? null : asset.CustodianName.Trim(), asset.CustodianDepartment,
                 asset.AttachedDocumentCount + documentRecords.GetValueOrDefault(asset.AssetRegistrationId)))
-            .Where(matches)
             .OrderBy(detail => detail.AssetName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(detail => detail.AssetRegistrationId, StringComparer.OrdinalIgnoreCase)
             .ToList();
-
-        return Results.Ok(new AssetCheckResponse(matching.Count, assets.Count, matching));
     }
 
     /// <summary>One site's counts and assets; null when the id is neither in master_sites nor on any asset.</summary>

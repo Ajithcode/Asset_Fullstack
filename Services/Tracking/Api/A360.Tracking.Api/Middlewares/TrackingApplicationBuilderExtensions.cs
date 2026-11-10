@@ -32,8 +32,6 @@ public static class TrackingApplicationBuilderExtensions
         app.MapSensorEndpoints();
         app.MapIoTDeviceEndpoints();
         app.MapLocationEventEndpoints();
-        app.MapZoneDrawingEndpoints();
-        app.MapDeviceDrawingEndpoints();
         app.MapDeviceConfigurationEndpoints();
         app.MapIoTAlertEndpoints();
         app.MapAssetUtilizationEndpoints();

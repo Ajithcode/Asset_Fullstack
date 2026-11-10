@@ -2,10 +2,10 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using A360.Domain.Entities;
 
-namespace A360.Tracking.Domain.Entities;
+namespace A360.Administration.Domain.Entities;
 
 [BsonIgnoreExtraElements]
-public sealed class ZoneDrawing : BaseEntity
+public sealed class DeviceDrawing : BaseEntity
 {
     [BsonElement("project_id")]
     [BsonRepresentation(BsonType.ObjectId)]
@@ -37,6 +37,19 @@ public sealed class ZoneDrawing : BaseEntity
     [BsonElement("top_zone")]
     public string? TopZone { get; set; }
 
+    [BsonElement("device_reference_id")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string DeviceReferenceId { get; set; } = string.Empty;
+
+    [BsonElement("device_unique_id")]
+    public string DeviceUniqueId { get; set; } = string.Empty;
+
+    [BsonElement("device_name")]
+    public string DeviceName { get; set; } = string.Empty;
+
+    [BsonElement("user_id")]
+    public string? UserId { get; set; }
+
     [BsonElement("priority")]
     public string? Priority { get; set; }
 
@@ -49,37 +62,6 @@ public sealed class ZoneDrawing : BaseEntity
     [BsonElement("is_active")]
     public new bool Status { get; set; }
 
-    [BsonElement("geo_json_data")]
-    public GeoJsonFeatureCollection GeoJsonData { get; set; } = new();
-}
-
-public sealed class GeoJsonFeatureCollection
-{
-    [BsonElement("type")]
-    public string Type { get; set; } = "FeatureCollection";
-
-    [BsonElement("features")]
-    public List<GeoJsonFeature> Features { get; set; } = [];
-}
-
-public sealed class GeoJsonFeature
-{
-    [BsonElement("type")]
-    public string Type { get; set; } = "Feature";
-
-    [BsonElement("geometry")]
-    public GeoJsonGeometry Geometry { get; set; } = new();
-
-    [BsonElement("properties")]
-    public BsonDocument Properties { get; set; } = [];
-}
-
-public sealed class GeoJsonGeometry
-{
-    [BsonElement("type")]
-    public string Type { get; set; } = string.Empty;
-
-    // Nesting depth depends on the geometry type (Point, Polygon, MultiPolygon, ...), so it is kept as a raw array.
-    [BsonElement("coordinates")]
-    public BsonArray Coordinates { get; set; } = [];
+    [BsonElement("device_geo_json_data")]
+    public GeoJsonFeatureCollection DeviceGeoJsonData { get; set; } = new();
 }

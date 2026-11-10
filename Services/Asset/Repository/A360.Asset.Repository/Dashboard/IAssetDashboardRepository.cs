@@ -56,4 +56,10 @@ public interface IAssetDashboardRepository
 
     /// <summary>Location events per UTC day and event type in [from, to) on the given asset keys (registration ids and tags).</summary>
     Task<IReadOnlyList<DashboardDailyCount>> CountLocationEventsPerDayAsync(IReadOnlyCollection<string> assetKeys, DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Counts of components, relationships, documents, images, work orders, service requests and open alerts for one
+    /// asset, found by registration id or asset tag (ignoring case); null when no such asset is registered.
+    /// </summary>
+    Task<AssetSummaryCounts?> GetAssetSummaryCountsAsync(string assetRegistrationIdOrTag, CancellationToken cancellationToken = default);
 }

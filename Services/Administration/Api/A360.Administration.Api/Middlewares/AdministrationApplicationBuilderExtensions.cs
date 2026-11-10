@@ -35,6 +35,8 @@ public static class AdministrationApplicationBuilderExtensions
         app.MapMapLibraryZoneEndpoints();
         app.MapMapGeneralSettingsEndpoints();
         app.MapZoneGeofenceEndpoints();
+        app.MapZoneDrawingEndpoints();
+        app.MapDeviceDrawingEndpoints();
         app.MapMapEndpoints();
 
         return app;

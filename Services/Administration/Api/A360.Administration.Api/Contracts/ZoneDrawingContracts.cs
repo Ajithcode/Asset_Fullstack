@@ -1,7 +1,7 @@
 using System.Text.Json;
-using ZoneDrawingEntity = A360.Tracking.Domain.Entities.ZoneDrawing;
+using ZoneDrawingEntity = A360.Administration.Domain.Entities.ZoneDrawing;
 
-namespace A360.Tracking.Api.Contracts;
+namespace A360.Administration.Api.Contracts;
 
 public sealed record CreateZoneDrawingRequest(
     string? AreaId,

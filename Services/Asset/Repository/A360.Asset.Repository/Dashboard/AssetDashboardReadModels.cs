@@ -156,3 +156,20 @@ public sealed class DashboardSite
     [BsonElement("status")] public string? Status { get; set; }
     [BsonElement("is_deleted")] public bool IsDeleted { get; set; }
 }
+
+/// <summary>Counts of the records linked to one asset, for the summary cards on the asset detail page.</summary>
+/// <param name="Relationships">Related-asset links where the asset is the main asset (one per sub asset) or a sub asset.</param>
+/// <param name="Documents">Asset Documents records plus files attached on the registration (warranty documents, attachments).</param>
+/// <param name="WorkOrders">Maintenance work orders whose asset_id is the asset's registration id or tag.</param>
+/// <param name="OpenAlerts">IoT alerts on the asset that are not Resolved.</param>
+public sealed record AssetSummaryCounts(
+    string AssetRegistrationId,
+    string? AssetTag,
+    string? AssetName,
+    int Components,
+    int Relationships,
+    int Documents,
+    int Images,
+    int WorkOrders,
+    int ServiceRequests,
+    int OpenAlerts);

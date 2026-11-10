@@ -1,12 +1,12 @@
-using ZoneDrawingEntity = A360.Tracking.Domain.Entities.ZoneDrawing;
+using DeviceDrawingEntity = A360.Administration.Domain.Entities.DeviceDrawing;
 
-namespace A360.Tracking.Api.Contracts;
+namespace A360.Administration.Api.Contracts;
 
-internal static class ZoneDrawingMappings
+internal static class DeviceDrawingMappings
 {
-    public static ZoneDrawingEntity ToEntity(this CreateZoneDrawingRequest request, string? currentUserName)
+    public static DeviceDrawingEntity ToEntity(this CreateDeviceDrawingRequest request, string? currentUserName)
     {
-        return new ZoneDrawingEntity
+        return new DeviceDrawingEntity
         {
             ProjectId = Clean(request.ProjectId),
             CountryId = Clean(request.CountryId),
@@ -16,13 +16,17 @@ internal static class ZoneDrawingMappings
             ZoneId = Clean(request.ZoneId),
             ZoneName = Clean(request.ZoneName),
             TopZone = Clean(request.TopZone),
+            DeviceReferenceId = Clean(request.DeviceReferenceId),
+            DeviceUniqueId = Clean(request.DeviceUniqueId),
+            DeviceName = Clean(request.DeviceName),
+            UserId = FirstNonEmpty(request.UserId, currentUserName),
             Priority = Clean(request.Priority),
             AssemblyPoint = request.AssemblyPoint,
             Exit = Clean(request.Exit),
             Status = request.Status,
-            GeoJsonData = GeoJsonConversion.ToEntity(request.GeoJsonData),
+            DeviceGeoJsonData = GeoJsonConversion.ToEntity(request.DeviceGeoJsonData),
             CreatedBy = FirstNonEmpty(request.CreatedBy, currentUserName),
-            // The client sends the time the zone was drawn; the server time is only a fallback.
+            // The client sends the time the device was placed; the server time is only a fallback.
             CreatedAt = request.CreatedAt?.ToUniversalTime() ?? DateTime.UtcNow,
             ClientId = Clean(request.ClientId),
             IsDeleted = false
