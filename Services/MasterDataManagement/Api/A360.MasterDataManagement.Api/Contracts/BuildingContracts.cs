@@ -10,6 +10,8 @@ public sealed record CreateBuildingRequest(
     string? Description,
     int? Capacity,
     double? Area,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? CreatedBy,
     string? ClientId,
@@ -26,6 +28,8 @@ public sealed record CreateBuildingRequest(
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
             Capacity = Capacity,
             Area = Area,
+            Latitude = Latitude,
+            Longitude = Longitude,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -46,6 +50,8 @@ public sealed record UpdateBuildingRequest(
     string? Description,
     int? Capacity,
     double? Area,
+    double? Latitude,
+    double? Longitude,
     string? Status,
     string? UpdatedBy)
 {
@@ -58,6 +64,8 @@ public sealed record UpdateBuildingRequest(
         building.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
         building.Capacity = Capacity;
         building.Area = Area;
+        building.Latitude = Latitude;
+        building.Longitude = Longitude;
 
         building.UpdatedBy = UpdatedBy;
         building.UpdatedAt = DateTime.UtcNow;
@@ -82,6 +90,8 @@ public sealed record BuildingResponse(
     string? Description,
     int? Capacity,
     double? Area,
+    double? Latitude,
+    double? Longitude,
     string? CreatedBy,
     DateTime? CreatedAt,
     string? UpdatedBy,
@@ -104,6 +114,8 @@ public sealed record BuildingResponse(
             building.Description,
             building.Capacity,
             building.Area,
+            building.Latitude,
+            building.Longitude,
             building.CreatedBy,
             building.CreatedAt,
             building.UpdatedBy,

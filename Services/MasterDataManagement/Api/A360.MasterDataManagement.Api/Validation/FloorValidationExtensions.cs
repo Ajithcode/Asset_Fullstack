@@ -7,15 +7,17 @@ public static class FloorValidationExtensions
     public static Dictionary<string, string[]> Validate(
         this CreateFloorRequest request)
     {
-        return ValidateFields(
-            request.Name, request.Code, request.Site, request.BuildingId, request.Capacity, request.Area);
+        return CoordinateValidation.With(
+            ValidateFields(request.Name, request.Code, request.Site, request.BuildingId, request.Capacity, request.Area),
+            request.Latitude, request.Longitude);
     }
 
     public static Dictionary<string, string[]> Validate(
         this UpdateFloorRequest request)
     {
-        return ValidateFields(
-            request.Name, request.Code, request.Site, request.BuildingId, request.Capacity, request.Area);
+        return CoordinateValidation.With(
+            ValidateFields(request.Name, request.Code, request.Site, request.BuildingId, request.Capacity, request.Area),
+            request.Latitude, request.Longitude);
     }
 
     public static Dictionary<string, string[]> Validate(

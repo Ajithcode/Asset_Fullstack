@@ -27,4 +27,11 @@ public class Site : BaseEntity
 
     [BsonElement("country")]
     public string? Country { get; set; }
+
+    // Map position (WGS 84), shown on the Leaflet maps; both or neither are set.
+    [BsonElement("latitude")]
+    public double? Latitude { get; set; }
+
+    [BsonElement("longitude")]
+    public double? Longitude { get; set; }
 }
