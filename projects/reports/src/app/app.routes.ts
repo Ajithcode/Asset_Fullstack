@@ -2,11 +2,13 @@ import { Routes } from '@angular/router';
 import { Reports } from './reports/reports';
 import { CreateReport } from './create-report/create-report';
 import { ReportView } from './report-view/report-view';
-import { ReportsAnalytics } from './analytics/reports-analytics/reports-analytics';
+// import { ReportsAnalytics } from './analytics/reports-analytics/reports-analytics';
 
 // Mounted by the shell at /reports-analytics (the old /report links redirect there)
 export const routes: Routes = [
-  { path: '', component: ReportsAnalytics },
+  // The Reports & Analytics overview page is not shown: the section opens on Standard Reports
+  // { path: '', component: ReportsAnalytics },
+  { path: '', redirectTo: 'standard-reports', pathMatch: 'full' },
   { path: 'generated-reports', component: Reports },
   { path: 'create', component: CreateReport },
   { path: 'view/:id', component: ReportView },

@@ -208,7 +208,8 @@ export class Sidebar {
       label: 'Reports & Analytics',
       path: REPORTS_ANALYTICS_BASE_PATH,
       icon: ChartColumn,
-      hasPage: true,
+      // no overview page: the section opens on its first page
+      landing: `${REPORTS_ANALYTICS_BASE_PATH}/standard-reports`,
       children: REPORTS_ANALYTICS_MENU.map((m) => ({ label: m.label, path: `${REPORTS_ANALYTICS_BASE_PATH}/${m.slug}` }))
     },
     // { label: 'Locating', path: '/locating', icon: this.assetUrl('trackingpurple.png') },
