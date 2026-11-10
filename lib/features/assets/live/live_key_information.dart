@@ -63,7 +63,11 @@ class _LiveKeyInformationCardState extends ConsumerState<LiveKeyInformationCard>
       });
       // The whole asset is re-checked: a problem in another field is fixed with Edit Asset.
       final other = err.fieldErrors.entries.where((f) => !_shownKeys.contains(f.key)).firstOrNull;
-      context.showSnack(other == null ? err.message : '${other.value} · fix it with Edit Asset');
+      if (other == null) {
+        context.showApiError(err, onRetry: _save);
+      } else {
+        context.showSnack('${other.value} · fix it with Edit Asset');
+      }
     }
   }
 

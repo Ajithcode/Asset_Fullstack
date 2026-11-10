@@ -159,6 +159,17 @@ final liveCriticalityProvider = FutureProvider.autoDispose.family<AssetCriticali
   (ref, id) => ref.watch(assetsApiProvider).currentCriticality(id),
 );
 
+/// Every assignment of the asset (Draft / Active / Returned), newest first.
+final liveAssignmentsProvider = FutureProvider.autoDispose.family<List<AssetAssignmentRecord>, String>((ref, id) async {
+  final page = await ref.watch(assetsApiProvider).assignments(assetRegistrationId: id, pageSize: 100);
+  return [...page.items]..sort(AssetAssignmentRecord.newestFirst);
+});
+
+/// The asset's Active assignment; null = not assigned or checked out.
+final liveActiveAssignmentProvider = FutureProvider.autoDispose.family<AssetAssignmentRecord?, String>(
+  (ref, id) => ref.watch(assetsApiProvider).activeAssignment(id),
+);
+
 /// Everything shown for one asset; invalidate them all after an upload / condition update:
 /// `for (final p in liveAssetProviders(id)) ref.invalidate(p);`
 List<ProviderOrFamily> liveAssetProviders(String id) => [
@@ -168,6 +179,8 @@ List<ProviderOrFamily> liveAssetProviders(String id) => [
   liveComponentTreeProvider(id),
   liveConditionProvider(id),
   liveCriticalityProvider(id),
+  liveAssignmentsProvider(id),
+  liveActiveAssignmentProvider(id),
 ];
 
 // ------------------------------------------------------------------ edit / delete

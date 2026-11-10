@@ -5,9 +5,12 @@ import 'package:asset360_mobile/app/router/app_router.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/api/api_config.dart';
+import 'package:asset360_mobile/data/api/api_exception.dart';
+import 'package:asset360_mobile/data/api/assets/json_read.dart';
 import 'package:asset360_mobile/data/api/token_store.dart';
 import 'package:asset360_mobile/data/repositories/network_repository.dart';
 import 'package:asset360_mobile/data/repositories/session_repository.dart';
+import 'package:asset360_mobile/features/assets/live/live_assignment_screens.dart';
 import 'package:asset360_mobile/features/auth/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +25,7 @@ class _SignedIn extends SessionNotifier {
 
 const _assignments = '/api/asset-assignments';
 const _saraId = '6650a1b2c3d4e5f600000e01';
+const _return = '/api/asset-assignments/asg-db-1/return';
 
 /// API mode Assign Custodian / Check Out (POST /api/asset-assignments with the Master Data
 /// employee) and Move Asset (Master Data location pickers, no move endpoint yet).
@@ -126,11 +130,14 @@ void main() {
     expect(find.text('Assign Custodian'), findsNothing, reason: 'back on the asset');
   });
 
-  testWidgets('Check Out: posts a "Check Out" assignment with the return date; Check In is not available yet; '
-      'a server error stays on the form', (tester) async {
+  testWidgets('Check Out: posts a "Check Out" assignment with the return date; Check In without an Active '
+      'assignment explains why; a server error stays on the form', (tester) async {
     await open(tester, Routes.moreActionFrom('/assets', 'check-in-out', 'AR000001'));
+    expect(find.text('Expected Return Date'), findsOneWidget, reason: 'not assigned: opens on Check Out');
     await tap(tester, find.descendant(of: find.byType(SegmentTabs), matching: find.text('Check In')));
-    expect(find.text(notAvailableYetMessage), findsOneWidget);
+    expect(find.text(notAssignedMessage), findsOneWidget);
+    await tap(tester, button('Check In'));
+    expect(backend.requests.where((r) => r.uri.path.endsWith('/return')), isEmpty);
     await tap(tester, find.descendant(of: find.byType(SegmentTabs), matching: find.text('Check Out')));
 
     await pickSara(tester);
@@ -178,5 +185,112 @@ void main() {
     expect(find.textContaining('Could not load the assignment options'), findsNothing);
     await tap(tester, button('Assign Custodian'));
     expect(sent()['assignTo'], 'EMPLOYEE');
+  });
+
+  Map<String, dynamic> returned() =>
+      jsonDecode(jsonEncode(backend.calls('POST', _return).single.data)) as Map<String, dynamic>;
+
+  /// A status chip inside the Assignment History card.
+  Finder chip(String label) => find.descendant(
+    of: find.ancestor(of: find.text('Assignment History'), matching: find.byType(SectionCard)),
+    matching: find.byWidgetPredicate((w) => w is StatusChip && w.label == label),
+  );
+
+  testWidgets('Check In: opens on Check In for an Active assignment; condition required; POST /return with the '
+      'asset, today and condition → remarks; asset + history refreshed', (tester) async {
+    backend.addAssignment();
+    await open(tester, Routes.moreActionFrom('/assets', 'check-in-out', 'AR000001'));
+    expect(find.text('Current Assignment'), findsOneWidget, reason: 'Active assignment: opens on Check In');
+    expect(find.text('ASG-000001'), findsOneWidget);
+    expect(find.text('Sara Ali'), findsOneWidget);
+    expect(
+      backend
+          .calls('GET', _assignments)
+          .any(
+            (r) =>
+                r.uri.queryParameters['assetRegistrationId'] == 'AR000001' &&
+                r.uri.queryParameters['status'] == 'Active',
+          ),
+      isTrue,
+    );
+
+    await tap(tester, button('Check In'));
+    expect(find.text('Choose the condition', skipOffstage: false), findsOneWidget);
+    expect(backend.calls('POST', _return), isEmpty);
+
+    await tester.scrollUntilVisible(
+      find.text('Good'),
+      200,
+      scrollable: find
+          .byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down)
+          .hitTestable()
+          .first,
+    );
+    await tap(tester, find.text('Good'));
+    await tester.enterText(find.widgetWithText(TextField, 'Anything missing or damaged?'), 'Lid scratched');
+    await tester.pumpAndSettle();
+    final assetLoads = backend.calls('GET', '/api/asset-registrations/AR000001').length;
+    await tap(tester, button('Check In'));
+    final body = returned();
+    expect(body['assetRegistrationIds'], ['AR000001']);
+    expect(body['returnDate'], jDay(DateTime.now()));
+    expect(body['remarks'], 'Condition at return: Good. Lid scratched');
+    expect(find.textContaining('checked in from Sara Ali (ASG-000001 returned)'), findsOneWidget);
+    expect(find.text('Current Assignment'), findsNothing, reason: 'back on the asset');
+    expect(backend.calls('GET', '/api/asset-registrations/AR000001').length, greaterThan(assetLoads));
+
+    await tester.ensureVisible(find.text('Assignment History'));
+    await tester.pumpAndSettle();
+    expect(chip('Returned'), findsOneWidget);
+    expect(chip('Active'), findsNothing);
+  });
+
+  testWidgets('Return Asset: no Active assignment → "isn\'t assigned", nothing sent; a permission-check 503 '
+      'offers Retry, which returns it', (tester) async {
+    await open(tester, Routes.withAsset(Routes.returnAsset, 'AR000001'));
+    expect(find.text(notAssignedMessage), findsOneWidget);
+    await tap(tester, button('Return Asset'));
+    expect(backend.requests.where((r) => r.uri.path.endsWith('/return')), isEmpty);
+
+    backend.addAssignment();
+    final c = ProviderScope.containerOf(tester.element(find.byType(Scaffold).first));
+    c.read(routerProvider).pop();
+    await tester.pumpAndSettle();
+    c.read(routerProvider).push(Routes.withAsset(Routes.returnAsset, 'AR000001'));
+    await tester.pumpAndSettle();
+    expect(find.text('ASG-000001'), findsOneWidget);
+    await tap(tester, find.text('Fair'));
+    backend.failNext['POST $_return'] = const FakeReply(503, {
+      'message': 'Your permissions could not be checked. Try again in a moment.',
+    });
+    await tap(tester, button('Return Asset'));
+    expect(find.text(ApiException.permissionCheckMessage), findsOneWidget);
+    expect(find.text('Current Assignment'), findsOneWidget, reason: 'the form stays open');
+    await tap(tester, find.widgetWithText(SnackBarAction, 'Retry'));
+    expect(backend.calls('POST', _return), hasLength(2));
+    expect(find.textContaining('returned from Sara Ali'), findsOneWidget);
+    expect(backend.assignments.single['status'], 'Returned');
+  });
+
+  testWidgets('Asset detail: Assignment History lists Draft / Active / Returned, newest first; Check In opens the '
+      'Check In tab', (tester) async {
+    backend
+      ..addAssignment(id: 'asg-old', number: 'ASG-000001', status: 'Returned', createdAt: '2026-10-01T08:00:00Z')
+      ..addAssignment(id: 'asg-draft', number: 'ASG-000002', status: 'Draft', createdAt: '2026-10-15T08:00:00Z')
+      ..addAssignment(number: 'ASG-000003', assignedToName: 'Omar Khan', createdAt: '2026-11-01T08:00:00Z');
+    await open(tester, Routes.assetDetail('AR000001'));
+    await tester.ensureVisible(find.text('Assignment History'));
+    await tester.pumpAndSettle();
+    expect(chip('Active'), findsOneWidget);
+    expect(chip('Draft'), findsOneWidget);
+    expect(chip('Returned'), findsOneWidget);
+    final y = [
+      for (final n in ['ASG-000003', 'ASG-000002', 'ASG-000001']) tester.getTopLeft(find.textContaining(n).last).dy,
+    ];
+    expect(y, orderedEquals([...y]..sort()), reason: 'newest first');
+
+    await tap(tester, find.text('Check In').last);
+    expect(find.text('Current Assignment'), findsOneWidget);
+    expect(find.text('Omar Khan'), findsWidgets);
   });
 }

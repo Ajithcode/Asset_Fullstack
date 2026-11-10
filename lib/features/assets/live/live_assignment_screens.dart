@@ -6,6 +6,7 @@ import 'package:asset360_mobile/app/theme/app_text.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/api/api_exception.dart';
 import 'package:asset360_mobile/data/api/master_data/master_data_repository.dart';
+import 'package:asset360_mobile/data/reference/asset_options.dart';
 import 'package:asset360_mobile/data/repositories/live_assets_repository.dart';
 import 'package:asset360_mobile/features/assets/live/live_detail_common.dart';
 import 'package:asset360_mobile/features/assets/more_actions/more_action_widgets.dart';
@@ -16,7 +17,12 @@ import 'package:asset360_mobile/features/assets/more_actions/more_action_widgets
 /// GET /api/asset-assignments/options and the Master Data employee (record id, employee number, name,
 /// designation, department), the way the web's Assign Asset wizard does. The server copies the
 /// employee onto the asset's assignment (assignedToUserId / assignedToName / custodianDepartment) and
-/// sets its status to "Assigned". Check In has no backend yet ("Not available yet").
+/// sets its status to "Assigned".
+///
+/// Check In and Return Asset: the asset's Active assignment (GET /api/asset-assignments?assetRegistrationId=
+/// &status=Active) is ended with POST /api/asset-assignments/{id}/return {assetRegistrationIds: [asset],
+/// returnDate, remarks}; the condition and its note go into remarks. The server gives the asset back the
+/// status it had before (or "Available").
 ///
 /// Move Asset: PUT /api/asset-registrations/{id} with the complete locationAssignment section (the
 /// new Master Data location + the asset's current assignment unchanged).
@@ -136,7 +142,7 @@ mixin _AssignmentSubmit<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         busy = false;
         errors.addAll(err.fieldErrors);
       });
-      context.showSnack(err.message);
+      context.showApiError(err, onRetry: () => submit(r, request, done));
     }
   }
 
@@ -304,17 +310,24 @@ class _LiveAssignCustodianScreenState extends ConsumerState<LiveAssignCustodianS
 // ---------------------------------------------------------------- Check Out / Check In
 
 class LiveCheckInOutScreen extends ConsumerStatefulWidget {
-  const LiveCheckInOutScreen({super.key, required this.assetId});
+  const LiveCheckInOutScreen({super.key, required this.assetId, this.initialTab});
 
   final String? assetId;
+
+  /// 0 = Check Out, 1 = Check In; null = Check In when the asset has an Active assignment, else Check Out.
+  final int? initialTab;
 
   @override
   ConsumerState<LiveCheckInOutScreen> createState() => _LiveCheckInOutScreenState();
 }
 
 class _LiveCheckInOutScreenState extends ConsumerState<LiveCheckInOutScreen>
-    with _AssignmentSubmit<LiveCheckInOutScreen> {
-  int _tab = 0;
+    with _AssignmentSubmit<LiveCheckInOutScreen>, _ReturnSubmit<LiveCheckInOutScreen> {
+  /// Null until chosen (see [LiveCheckInOutScreen.initialTab]).
+  late int? _tab = widget.initialTab?.clamp(0, 1);
+
+  int _tabOf(AssetRegistration r) =>
+      _tab ?? (ref.watch(liveActiveAssignmentProvider(r.assetRegistrationId)).value == null ? 0 : 1);
   String? _employeeId;
   DateTime? _return;
   final _purpose = TextEditingController();
@@ -354,21 +367,22 @@ class _LiveCheckInOutScreenState extends ConsumerState<LiveCheckInOutScreen>
   Widget build(BuildContext context) => LiveActionPage(
     action: MoreAction.checkInOut,
     assetId: widget.assetId,
-    button: (r) => _tab == 0
+    button: (r) => _tabOf(r) == 0
         ? busyButton(busy: busy, onPressed: () => _checkOut(r), label: 'Check Out', icon: Icons.logout_rounded)
-        : FilledButton(onPressed: () => showNotAvailableYet(context, 'Check In'), child: const Text('Check In')),
+        : returnButton(r, label: 'Check In', verb: 'checked in', icon: Icons.login_rounded),
     builder: (context, r) => [
       SegmentTabs(
         tabs: const [SegmentTab('Check Out'), SegmentTab('Check In')],
-        selected: _tab,
+        selected: _tabOf(r),
         onChanged: (i) => setState(() {
           _tab = i;
           errors.clear();
+          returnErrors.clear();
         }),
       ),
       const SizedBox(height: 14),
-      if (_tab == 1)
-        const NotAvailableYet(feature: 'Check In', icon: Icons.login_rounded)
+      if (_tabOf(r) == 1)
+        ...returnFields(r)
       else ...[
         ?assignToStatus(),
         ?assignedNotice(r),
@@ -417,6 +431,211 @@ class _LiveCheckInOutScreenState extends ConsumerState<LiveCheckInOutScreen>
         ),
       ],
     ],
+  );
+}
+
+// ---------------------------------------------------------------- Check In / Return (End Assignment)
+
+/// Shown when the asset has no Active assignment to end.
+const notAssignedMessage = "This asset isn't assigned or checked out.";
+
+/// Check In and Return Asset: the asset's current assignment, return date, condition and a note.
+mixin _ReturnSubmit<T extends ConsumerStatefulWidget> on ConsumerState<T> {
+  DateTime? returnDate = liveToday();
+  String? returnCondition;
+  final returnNote = TextEditingController();
+  final returnErrors = <String, String>{};
+  bool returning = false;
+
+  @override
+  void dispose() {
+    returnNote.dispose();
+    super.dispose();
+  }
+
+  /// "Condition at return: Good. Scratch on the lid" (null when nothing was entered).
+  String? get returnRemarks {
+    final note = blankToNull(returnNote.text);
+    final parts = [if (returnCondition != null) 'Condition at return: $returnCondition', ?note];
+    return parts.isEmpty ? null : parts.join('. ');
+  }
+
+  bool _validateReturn() {
+    returnErrors.clear();
+    if (returnCondition == null) returnErrors['condition'] = 'Choose the condition';
+    final d = returnDate;
+    if (d == null) {
+      returnErrors['ReturnDate'] = 'Choose the return date';
+    } else if (d.isAfter(liveToday())) {
+      returnErrors['ReturnDate'] = 'The return date cannot be in the future';
+    }
+    setState(() {});
+    return returnErrors.isEmpty;
+  }
+
+  /// Finds the Active assignment again (it may have changed since the screen opened) and ends it for [r].
+  Future<void> submitReturn(AssetRegistration r, String verb) async {
+    if (!_validateReturn()) return;
+    final id = r.assetRegistrationId;
+    setState(() => returning = true);
+    try {
+      final api = ref.read(assetsApiProvider);
+      final active = await api.activeAssignment(id);
+      if (!mounted) return;
+      if (active == null) {
+        ref.invalidate(liveActiveAssignmentProvider(id));
+        setState(() => returning = false);
+        context.showSnack(notAssignedMessage);
+        return;
+      }
+      await api.returnAssignment(
+        active.id,
+        ReturnAssetAssignmentRequest(assetRegistrationIds: [id], returnDate: returnDate, remarks: returnRemarks),
+      );
+      invalidateLiveAsset(ref, id);
+      ref
+        ..invalidate(liveAssetListProvider)
+        ..invalidate(recentLiveAssetsProvider)
+        ..invalidate(assetSummaryProvider);
+      final from = active.assignedToName;
+      if (mounted) {
+        finishAction(
+          context,
+          '${r.title} $verb${from == null ? '' : ' from $from'} '
+          '(${active.assignmentNumber.isEmpty ? 'assignment ended' : '${active.assignmentNumber} returned'})',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final err = ApiException.from(e);
+      setState(() {
+        returning = false;
+        returnErrors.addAll(err.fieldErrors);
+      });
+      final status = err.fieldErrors['Status'];
+      if (status != null) {
+        // "Only an active assignment can be returned": someone ended it meanwhile.
+        ref.invalidate(liveActiveAssignmentProvider(id));
+        context.showSnack(status);
+      } else {
+        context.showApiError(err, onRetry: () => submitReturn(r, verb));
+      }
+    }
+  }
+
+  /// The confirm button; with no Active assignment it only explains why.
+  Widget returnButton(AssetRegistration r, {required String label, required String verb, required IconData icon}) {
+    final active = ref.watch(liveActiveAssignmentProvider(r.assetRegistrationId));
+    if (active case AsyncData(value: null)) {
+      return FilledButton.icon(
+        onPressed: () => context.showSnack(notAssignedMessage),
+        icon: Icon(icon),
+        label: Text(label),
+      );
+    }
+    return busyButton(busy: returning, onPressed: () => submitReturn(r, verb), label: label, icon: icon);
+  }
+
+  /// Current assignment card + Return Date, Condition and Condition Note.
+  List<Widget> returnFields(AssetRegistration r) {
+    final id = r.assetRegistrationId;
+    final error = returnErrors['condition'];
+    return [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: SectionCard(
+          title: 'Current Assignment',
+          child: LiveAsync<AssetAssignmentRecord?>(
+            value: ref.watch(liveActiveAssignmentProvider(id)),
+            onRetry: () => ref.invalidate(liveActiveAssignmentProvider(id)),
+            data: (a) => a == null
+                ? const IconLine(icon: Icons.info_outline_rounded, text: notAssignedMessage)
+                : LiveInfoRows([
+                    ('Assignment', a.assignmentNumber),
+                    ('Assigned To', a.assignedToName),
+                    ('Type', a.assignmentType),
+                    ('Since', liveDate(a.fromDate)),
+                    ('Due Back', a.isOpenEnded ? 'Open ended' : liveDate(a.toDate)),
+                    ('Purpose', a.purpose),
+                  ]),
+          ),
+        ),
+      ),
+      formField(
+        'Return Date',
+        required: true,
+        DateBox(
+          value: returnDate,
+          error: returnErrors['ReturnDate'],
+          onPicked: (d) => setState(() {
+            returnDate = d;
+            returnErrors.remove('ReturnDate');
+          }),
+        ),
+      ),
+      formField(
+        'Condition',
+        required: true,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final c in AssetOptions.conditions)
+                  IconFilterChip(
+                    label: c,
+                    selected: returnCondition == c,
+                    onTap: () => setState(() {
+                      returnCondition = c;
+                      returnErrors.remove('condition');
+                    }),
+                  ),
+              ],
+            ),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(error, style: AppText.caption.copyWith(color: AppColors.red)),
+              ),
+          ],
+        ),
+      ),
+      formField(
+        'Condition Note',
+        TextField(
+          controller: returnNote,
+          maxLines: 3,
+          maxLength: 500,
+          textCapitalization: TextCapitalization.sentences,
+          style: inputStyle,
+          decoration: InputDecoration(hintText: 'Anything missing or damaged?', errorText: returnErrors['Remarks']),
+        ),
+      ),
+    ];
+  }
+}
+
+/// API mode Return Asset (/work/movement/return): ends the asset's Active assignment.
+class LiveReturnAssetScreen extends ConsumerStatefulWidget {
+  const LiveReturnAssetScreen({super.key, required this.assetId});
+
+  final String? assetId;
+
+  @override
+  ConsumerState<LiveReturnAssetScreen> createState() => _LiveReturnAssetScreenState();
+}
+
+class _LiveReturnAssetScreenState extends ConsumerState<LiveReturnAssetScreen>
+    with _ReturnSubmit<LiveReturnAssetScreen> {
+  @override
+  Widget build(BuildContext context) => LiveActionPage.titled(
+    title: 'Return Asset',
+    subtitle: 'End the asset\'s assignment and take it back',
+    assetId: widget.assetId,
+    button: (r) => returnButton(r, label: 'Return Asset', verb: 'returned', icon: Icons.undo_rounded),
+    builder: (context, r) => returnFields(r),
   );
 }
 
@@ -479,9 +698,11 @@ class _LiveMoveScreenState extends ConsumerState<LiveMoveScreen> {
         _busy = false;
         _error = location?.value;
       });
-      context.showSnack(
-        other != null && location == null ? '${other.value} · fix it with Edit Asset, then move again' : err.message,
-      );
+      if (other != null && location == null) {
+        context.showSnack('${other.value} · fix it with Edit Asset, then move again');
+      } else {
+        context.showApiError(err, onRetry: () => _move(r));
+      }
     }
   }
 

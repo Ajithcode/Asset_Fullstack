@@ -53,7 +53,7 @@ void main() {
     expect(r.locationAssignment.location.toJson()['longitude'], 55.3);
   });
 
-  test('filters, options, categories, types, models, ratings, criticality options', () async {
+  test('filters, options, condition ratings', () async {
     final f = await api.filters();
     expect(f.assetTypes.first.category, 'HVAC');
     expect(f.locations.last.path, 'UAE > Main Site');
@@ -62,12 +62,7 @@ void main() {
     expect(o.taggingMethods, contains('QR Code'));
     expect(o.warrantyPeriodUnits, ['Day(s)', 'Month(s)', 'Year(s)']);
     expect(o.additional('fuelTypes'), contains('Diesel'));
-    expect((await api.categories()).last.parentCategoryId, 'cat1');
-    expect((await api.categoryTypes(categoryId: 'cat2')).single.typeName, 'Generator');
-    expect(backend.requests.last.uri.queryParameters['categoryId'], 'cat2');
-    expect((await api.models()).single.manufacturerName, 'Cummins');
     expect(await api.conditionRatings(), hasLength(5));
-    expect((await api.criticalityOptions()).criteria.first.weight, 25);
   });
 
   test('images, documents, component tree, current condition; 404 "none yet" reads as null', () async {

@@ -42,6 +42,7 @@ class StepBasic extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final b = form.basicInformation, c = form.classification;
     final lists = RegLists(ref);
+    final statuses = lists.statuses;
     Future<void> scanInto(String title, void Function(String) set) async {
       final code = await showScanCapture(context, title: title, suggestions: const ['MTR-00123', 'QR-A360-000901']);
       if (code != null) edit(() => set(code.toUpperCase()), bump: true);
@@ -146,13 +147,16 @@ class StepBasic extends ConsumerWidget {
           caps: TextCapitalization.characters,
           onChanged: (v) => b.serialNumber = v,
         ),
+        // A status the server set itself (Assigned, Available, Disposed …) is not in /options: it stays
+        // selected, marked "set by system", and is only changed when the user picks another one.
         RegDropdown.source(
-          lists.statuses,
+          statuses,
           label: 'Status',
           required: true,
           value: b.status,
           error: errors['Status'],
           dotColor: dot,
+          labelOf: (s) => statuses.loading || statuses.options.contains(s) ? s : '$s $setBySystem',
           onChanged: (v) => edit(() => b.status = v),
         ),
         RegDropdown.source(

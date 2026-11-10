@@ -262,6 +262,22 @@ void main() {
     expect(backend.calls('PUT', _ar1), hasLength(2));
   });
 
+  testWidgets('Edit Asset: a status the server set (Assigned, not in /options) stays selected as "set by system" '
+      'and is not sent', (tester) async {
+    backend.addAssignment();
+    await open(tester, Routes.assetEdit('AR000001'));
+    final status = field('Status').first;
+    await tester.ensureVisible(status);
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: status, matching: find.text('Assigned (set by system)')), findsOneWidget);
+    for (var i = 0; i < 5; i++) {
+      await tap(tester, find.text('Next'));
+    }
+    await tap(tester, find.text('Save changes'));
+    expect(find.text('No changes to save'), findsOneWidget);
+    expect(backend.calls('PUT', _ar1), isEmpty);
+  });
+
   testWidgets('Key Information: inline Edit → Status saved with the complete Basic Information section', (
     tester,
   ) async {

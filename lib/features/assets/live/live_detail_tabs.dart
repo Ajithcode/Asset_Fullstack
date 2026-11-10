@@ -111,6 +111,8 @@ class LiveOverviewTab extends ConsumerWidget {
           ),
         ),
         gap,
+        LiveAssignmentHistoryCard(assetId: r.assetRegistrationId),
+        gap,
         SectionCard(
           title: 'Purchase & Warranty',
           child: Column(
@@ -261,6 +263,80 @@ class _FileRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------- Assignment history
+
+/// Every assignment of the asset (GET /api/asset-assignments?assetRegistrationId=), newest first, with
+/// its status (Draft / Active / Returned). An Active one offers Check In.
+class LiveAssignmentHistoryCard extends ConsumerWidget {
+  const LiveAssignmentHistoryCard({super.key, required this.assetId});
+
+  final String assetId;
+
+  static ChipTone toneOf(String? status) => switch (status?.trim().toLowerCase()) {
+    'active' => ChipTone.blue,
+    'returned' => ChipTone.green,
+    _ => ChipTone.grey,
+  };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final v = ref.watch(liveAssignmentsProvider(assetId));
+    final active = v.value?.any((a) => a.isActive) ?? false;
+    return SectionCard(
+      title: 'Assignment History',
+      actionLabel: active ? 'Check In' : null,
+      actionIcon: active ? Icons.login_rounded : null,
+      onAction: active ? () => openMoreAction(context, MoreAction.checkInOut, assetId) : null,
+      child: LiveAsync<List<AssetAssignmentRecord>>(
+        value: v,
+        onRetry: () => ref.invalidate(liveAssignmentsProvider(assetId)),
+        data: (list) => list.isEmpty
+            ? Text('No assignments yet', style: AppText.secondary)
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final (i, a) in list.indexed) ...[if (i > 0) const Divider(height: 18), _AssignmentRow(a)],
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _AssignmentRow extends StatelessWidget {
+  const _AssignmentRow(this.a);
+
+  final AssetAssignmentRecord a;
+
+  @override
+  Widget build(BuildContext context) {
+    final from = liveDate(a.fromDate);
+    final to = a.isOpenEnded && !(a.status?.toLowerCase() == 'returned') ? 'open ended' : liveDate(a.toDate);
+    final period = [?from, ?to].join(' – ');
+    final returned = a.status?.trim().toLowerCase() == 'returned';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                [a.assignmentNumber, ?a.assignmentType].where((s) => s.isNotEmpty).join(' · '),
+                style: AppText.bodyStrong,
+              ),
+            ),
+            StatusChip(a.status ?? 'Unknown', tone: LiveAssignmentHistoryCard.toneOf(a.status)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(a.assignedToName ?? a.assignTo ?? '—', style: AppText.body),
+        if (period.isNotEmpty) Text(returned ? '$period (returned)' : period, style: AppText.caption),
+        if (blankToNull(a.remarks) != null) Text(a.remarks!, style: AppText.caption),
+      ],
     );
   }
 }

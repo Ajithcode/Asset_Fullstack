@@ -304,7 +304,7 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
     if (!_show(_check(_step, mandatory: true), mandatory: true)) return;
     if (!apiMode || _editing) return _goTo(_step + 1);
     if (_uploadsRunning()) return;
-    if (await _saveSteps([_step], saveAsDraft: false)) _goTo(_step + 1);
+    if (await _saveSteps([_step], saveAsDraft: false, onRetry: _next)) _goTo(_step + 1);
   }
 
   // ---------------------------------------------------------------- server (API mode)
@@ -318,7 +318,7 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
 
   /// Saves [steps] in order (creating the draft first when needed). False after an error, which
   /// is shown under the fields of the step it belongs to (or as a SnackBar).
-  Future<bool> _saveSteps(Iterable<int> steps, {required bool saveAsDraft}) async {
+  Future<bool> _saveSteps(Iterable<int> steps, {required bool saveAsDraft, VoidCallback? onRetry}) async {
     final service = ref.read(liveRegistrationProvider);
     setState(() => _busy = true);
     var step = _step;
@@ -330,7 +330,7 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
       }
       return true;
     } catch (e) {
-      if (mounted) _showServerError(ApiException.from(e), step: step, mandatory: !saveAsDraft);
+      if (mounted) _showServerError(ApiException.from(e), step: step, mandatory: !saveAsDraft, onRetry: onRetry);
       return false;
     } finally {
       if (LiveRegistrationService.isOnServer(f)) ref.invalidate(liveDraftsProvider);
@@ -340,10 +340,10 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
 
   /// A failed server call: field errors (400) and a taken asset tag (409) under the fields of
   /// [step], anything else (no network, 404, 500 …) as a SnackBar. The input is kept.
-  void _showServerError(ApiException e, {required int step, required bool mandatory}) {
+  void _showServerError(ApiException e, {required int step, required bool mandatory, VoidCallback? onRetry}) {
     final fields = stepFieldErrors(e);
     if (fields.isEmpty) {
-      context.showSnack(e.message);
+      context.showApiError(e, onRetry: onRetry);
       return;
     }
     final target = e.kind == ApiErrorKind.conflict ? 0 : step;
@@ -394,7 +394,7 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
     if (_uploadsRunning()) return;
     final steps = {..._unsaved, if (_step < RegistrationValidator.formSteps) _step};
     if (steps.isEmpty && !LiveRegistrationService.isOnServer(f)) steps.add(0);
-    if (!await _saveSteps(steps, saveAsDraft: true) || !mounted) return;
+    if (!await _saveSteps(steps, saveAsDraft: true, onRetry: _saveDraftOnServer) || !mounted) return;
     setState(() {
       _dirty = false;
       _errors = const {};
@@ -542,7 +542,7 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
   Future<void> _submitToServer() async {
     if (_uploadsRunning()) return;
     final pending = {..._unsaved, if (!LiveRegistrationService.isOnServer(f)) 0};
-    if (pending.isNotEmpty && !await _saveSteps(pending, saveAsDraft: true)) return;
+    if (pending.isNotEmpty && !await _saveSteps(pending, saveAsDraft: true, onRetry: _submitToServer)) return;
     if (!mounted) return;
     setState(() => _busy = true);
     final AssetRegistration asset;
@@ -558,7 +558,7 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
         _showStep(first, byStep[first]!, mandatory: true);
         context.showSnack('${registrationStepTitles[first]}: ${byStep[first]!.values.first}');
       } else {
-        _showServerError(err, step: 0, mandatory: true);
+        _showServerError(err, step: 0, mandatory: true, onRetry: _submitToServer);
       }
       return;
     }
@@ -595,7 +595,7 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
         _showStep(first, byStep[first]!, mandatory: true);
         context.showSnack('${registrationStepTitles[first]}: ${byStep[first]!.values.first}');
       } else {
-        _showServerError(err, step: 0, mandatory: true);
+        _showServerError(err, step: 0, mandatory: true, onRetry: _saveChanges);
       }
       return;
     }

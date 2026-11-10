@@ -115,7 +115,10 @@
   Access (backend A360AccessGuard): every service's `/api/*` needs the Bearer token (401 → refresh → retry);
   POST/PUT/PATCH/DELETE also need the role's create / edit / delete on the service's module ("Assets", "Dashboard",
   "Master Data Management"; Media = token only) → 403 = `ApiException.isForbidden`, message "You don't have permission
-  for this. <server reason>", `LoadErrorState` shows "No access"; never a sign-out. WebSocket: Bearer header on the
+  for this. <server reason>", `LoadErrorState` shows "No access"; never a sign-out. Guard 503 =
+  `ApiErrorKind.permissionCheck` ("Permissions couldn't be checked — try again shortly"; `context.showApiError(e,
+  onRetry:)` = SnackBar with Retry). ADMIN_BASE_URL (`kAdminBaseUrl`, 5460, `BackendService.admin`) = 6th service in
+  Diagnostics / Test connection (map endpoints not called yet). WebSocket: Bearer header on the
   upgrade. `/uploads/...` files are public. Login 2FA method "email" (older "otp") = `isEmailMethod`.
 - Assets live phase (apiMode = true: NO mock assets anywhere; apiMode = false unchanged): API `lib/data/api/assets/`
   (`assets_api.dart` `AssetsApi` / `assetsApiProvider`: list, filters, get, lookup, drafts + steps + submit, options,
@@ -128,7 +131,8 @@
   `features/assets/live/` (list, filter/sort sheets, detail `live_detail_*`, upload, condition, more actions),
   registration `live_options.dart` (`RegLists`), Home `sections/live_home.dart` (`HomeNotAvailableCard`), scan
   `core/scanning/live_asset_lookup.dart` (GET /lookup, fallback search + exact match). No backend yet → `NotAvailableYet` /
-  `showNotAvailableYet` (core/widgets/live_states.dart). Tests: `test/live/` (`FakeAssetBackend`, `no_mock_assets_test.dart`).
+  `showNotAvailableYet` (core/widgets/live_states.dart). Tests: `test/live/` (`FakeAssetBackend` (+ `addAssignment`,
+  one-shot `failNext`), `no_mock_assets_test.dart`). Edit Asset Status: a server-set value not in /options = "(set by system)".
 - Master Data (port 5500, `MASTER_DATA_BASE_URL`, DEV default 172.16.100.26:5500): `lib/data/api/master_data/` —
   `master_data_models.dart` (typed `Md*` models per contract, `MdEntry` id/name/code/status, `mdParseList` drops
   inactive rows), `master_data_api.dart` (paths; lists asked with `status=Active`), `master_data_repository.dart`
@@ -141,7 +145,10 @@
   Locations: `MasterLocationField` / `MasterLocationSelector` (core/widgets/master_location_field.dart). People:
   API-mode `showPersonPicker` / `PersonField` = employees (`masterPersonProvider`, id = employee record id).
   `features/assets/live/live_assignment_screens.dart`: `LiveAssignCustodianScreen` / `LiveCheckInOutScreen`
-  (`AssetsApi.createAssignment` = POST /api/asset-assignments, assignTo Employee; Check In not available) and
+  (`AssetsApi.createAssignment` = POST /api/asset-assignments, assignTo Employee; Check In (tab opens by itself when the
+  asset has an Active assignment) and `LiveReturnAssetScreen` (`/work/movement/return`) end it: `activeAssignment` →
+  POST /{id}/return {assetRegistrationIds, returnDate, remarks = condition + note}, mixin `_ReturnSubmit`;
+  "Assignment History" card on the detail = `liveAssignmentsProvider`) and
   `LiveMoveScreen` (MasterLocationField → PUT locationAssignment, `movedTo`); routed from More Actions,
   the live asset grid and `/work/movement/{transfer,check-out,assign}` in API mode. AssignTo = `/api/asset-assignments/
   options` (`assignmentOptionsProvider`, `AssignmentOptions.employee`). Scans:

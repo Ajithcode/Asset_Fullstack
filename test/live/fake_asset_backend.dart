@@ -24,7 +24,56 @@ class FakeAssetBackend implements HttpClientAdapter {
   /// does), DELETE soft-deletes it (404 and out of the list afterwards).
   Map<String, dynamic> stored = sampleRegistration();
   final deleted = <String>{};
+
+  /// Assignments as AssetAssignmentRepository keeps them (AssetAssignmentResponse shape). GET
+  /// /api/asset-assignments filters them by assetRegistrationId and status; POST /{id}/return ends an
+  /// Active one (400 on Status otherwise) and gives AR000001 back [statusBeforeAssignment].
+  final assignments = <Map<String, dynamic>>[];
+  String statusBeforeAssignment = 'Active';
+
+  /// Adds an assignment of [assetId] and, when [status] is Active, marks AR000001 "Assigned".
+  Map<String, dynamic> addAssignment({
+    String id = 'asg-db-1',
+    String number = 'ASG-000001',
+    String status = 'Active',
+    String assetId = 'AR000001',
+    String assignedToName = 'Sara Ali',
+    String assignmentType = 'Check Out',
+    String fromDate = '2026-11-01T00:00:00Z',
+    String? toDate,
+    String createdAt = '2026-11-01T08:00:00Z',
+  }) {
+    final a = <String, dynamic>{
+      'id': id,
+      'assignmentNumber': number,
+      'status': status,
+      'assetCount': 1,
+      'assets': [
+        {'assetRegistrationId': assetId, 'assetName': 'Diesel Generator', 'assetTag': 'TAG-0001'},
+      ],
+      'assignTo': 'Employee',
+      'assignedToName': assignedToName,
+      'assignmentType': assignmentType,
+      'fromDate': fromDate,
+      'toDate': toDate,
+      'isOpenEnded': toDate == null,
+      'remarks': null,
+      'createdAt': createdAt,
+    };
+    assignments.add(a);
+    if (status == 'Active' && assetId == 'AR000001') {
+      stored = {
+        ...stored,
+        'basicInformation': {...(stored['basicInformation'] as Map), 'status': 'Assigned'},
+      };
+    }
+    return a;
+  }
+
   final _routes = <String, FakeReply Function(RequestOptions o)>{};
+
+  /// One-time replies by "METHOD /path" (exact path): used once, before the route, then removed.
+  final failNext = <String, FakeReply>{};
 
   /// `on('GET', '/api/asset-registrations', (o) => FakeReply(200, {...}))`. [path] may end with
   /// `*` to match a prefix.
@@ -40,7 +89,8 @@ class FakeAssetBackend implements HttpClientAdapter {
   Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
     requests.add(o);
     final key = '${o.method} ${o.uri.path}';
-    var handler = _routes[key];
+    final once = failNext.remove(key);
+    var handler = once == null ? _routes[key] : (_) => once;
     if (handler == null) {
       for (final e in _routes.entries) {
         if (e.key.endsWith('*') && key.startsWith(e.key.substring(0, e.key.length - 1))) {
@@ -108,6 +158,48 @@ class FakeAssetBackend implements HttpClientAdapter {
       return const FakeReply(204);
     });
     on('GET', '/api/asset-assignments/options', (_) => const FakeReply(200, sampleAssignmentOptions));
+    on('GET', '/api/asset-assignments', (o) {
+      final q = o.uri.queryParameters;
+      final items = [
+        for (final a in assignments)
+          if ((q['assetRegistrationId'] == null ||
+                  (a['assets'] as List).any((x) => (x as Map)['assetRegistrationId'] == q['assetRegistrationId'])) &&
+              (q['status'] == null || a['status'] == q['status']))
+            a,
+      ];
+      return FakeReply(200, {
+        'items': items,
+        'totalCount': items.length,
+        'statusCounts': <String, int>{},
+        'page': 1,
+        'pageSize': int.tryParse(q['pageSize'] ?? '') ?? 10,
+      });
+    });
+    on('POST', '/api/asset-assignments/*', (o) {
+      final parts = o.uri.pathSegments;
+      if (parts.length != 4 || parts.last != 'return') return const FakeReply(404, {'message': 'No route'});
+      final a = assignments.where((x) => x['id'] == parts[2]).firstOrNull;
+      if (a == null) return FakeReply(404, {'message': "Asset assignment '${parts[2]}' was not found."});
+      if (a['status'] != 'Active') {
+        return const FakeReply(400, {
+          'title': 'One or more validation errors occurred.',
+          'errors': {
+            'Status': ['Only an active assignment can be returned'],
+          },
+        });
+      }
+      final body = (o.data as Map?) ?? const {};
+      a
+        ..['status'] = 'Returned'
+        ..['toDate'] = body['returnDate'] ?? '2026-11-10T00:00:00Z'
+        ..['isOpenEnded'] = false
+        ..['remarks'] = body['remarks'];
+      stored = {
+        ...stored,
+        'basicInformation': {...(stored['basicInformation'] as Map), 'status': statusBeforeAssignment},
+      };
+      return FakeReply(200, a);
+    });
     on('GET', '/api/asset-registrations/lookup', (o) {
       final code = (o.uri.queryParameters['code'] ?? '').toUpperCase();
       if (code == 'TAG-0001' || code == 'AR000001' || code == 'E2000017221101441890ABCD') {
@@ -156,10 +248,6 @@ class FakeAssetBackend implements HttpClientAdapter {
       '/api/asset-criticality/current',
       (_) => const FakeReply(404, {'message': "Asset 'AR000001' has no criticality assessment yet."}),
     );
-    on('GET', '/api/asset-criticality/options', (_) => const FakeReply(200, sampleCriticalityOptions));
-    on('GET', '/api/asset-categories', (_) => const FakeReply(200, sampleCategories));
-    on('GET', '/api/asset-category-types', (_) => const FakeReply(200, sampleTypes));
-    on('GET', '/api/asset-models', (_) => const FakeReply(200, sampleModels));
     on('GET', '/api/asset-registrations/drafts', (_) => const FakeReply(200, []));
     seedMasterData();
     on('POST', '/api/media/upload', (o) {
@@ -650,62 +738,6 @@ const sampleCondition = {
   'createdBy': 'sara.ali',
   'createdAt': '2026-10-15T08:00:00Z',
 };
-
-const sampleCriticalityOptions = {
-  'likelihoodRatings': ['Very Low', 'Low', 'Medium', 'High', 'Very High'],
-  'consequenceRatings': ['Very Low', 'Low', 'Medium', 'High', 'Very High'],
-  'criticalityLevels': ['Low', 'Medium', 'High', 'Critical'],
-  'criteria': [
-    {'name': 'Operational Impact', 'weight': 25},
-    {'name': 'Safety Impact', 'weight': 20},
-  ],
-};
-
-const sampleCategories = [
-  {
-    'id': 'cat1',
-    'parentCategoryId': null,
-    'name': 'Machinery & Equipment',
-    'code': 'ME',
-    'status': 'Active',
-    'customFields': [],
-    'attributes': [],
-  },
-  {
-    'id': 'cat2',
-    'parentCategoryId': 'cat1',
-    'parentCategoryName': 'Machinery & Equipment',
-    'name': 'Power Generation',
-    'code': 'PG',
-    'status': 'Active',
-    'customFields': [],
-    'attributes': [],
-  },
-];
-
-const sampleTypes = [
-  {
-    'id': 't1',
-    'categoryId': 'cat2',
-    'categoryName': 'Power Generation',
-    'typeName': 'Generator',
-    'typeCode': 'GEN',
-    'status': 'Active',
-    'modelCount': 1,
-  },
-];
-
-const sampleModels = [
-  {
-    'id': 'm1',
-    'assetTypeId': 't1',
-    'assetTypeName': 'Generator',
-    'modelName': 'C500 D5',
-    'modelCode': 'C500',
-    'manufacturerName': 'Cummins',
-    'status': 'Active',
-  },
-];
 
 // ------------------------------------------------------------------ Master Data samples
 // Shapes: docs/backend_ref/Services/MasterDataManagement/Api/A360.MasterDataManagement.Api/Contracts.

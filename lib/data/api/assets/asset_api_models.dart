@@ -841,177 +841,6 @@ class AssetCriticalityAssessment {
   }
 }
 
-/// AssetCriticalityOptionsResponse (GET /api/asset-criticality/options).
-class CriticalityOptions {
-  const CriticalityOptions({
-    this.likelihoodRatings = const [],
-    this.consequenceRatings = const [],
-    this.criticalityLevels = const [],
-    this.criteria = const [],
-  });
-
-  final List<String> likelihoodRatings, consequenceRatings, criticalityLevels;
-
-  /// Default criteria with weights (no score).
-  final List<AssetCriticalityCriterion> criteria;
-
-  factory CriticalityOptions.fromJson(Object? json) {
-    final j = jMap(json);
-    return CriticalityOptions(
-      likelihoodRatings: jStrings(j['likelihoodRatings']),
-      consequenceRatings: jStrings(j['consequenceRatings']),
-      criticalityLevels: jStrings(j['criticalityLevels']),
-      criteria: [for (final c in jList(j['criteria'])) AssetCriticalityCriterion.fromJson(c)],
-    );
-  }
-}
-
-// ------------------------------------------------------------------ categories, types, models
-
-/// AssetCategoryResponse (GET /api/asset-categories, a bare array). Top-level categories have no
-/// [parentCategoryId]; their children are the Sub Categories.
-class AssetCategoryItem {
-  const AssetCategoryItem({
-    required this.id,
-    required this.name,
-    required this.code,
-    this.parentCategoryId,
-    this.parentCategoryName,
-    this.description,
-    this.status,
-    this.imageUrl,
-    this.customFields = const [],
-    this.attributes = const [],
-  });
-
-  final String id, name, code;
-  final String? parentCategoryId, parentCategoryName, description, status, imageUrl;
-  final List<AssetCategoryCustomField> customFields;
-  final List<AssetCategoryAttribute> attributes;
-
-  bool get isTopLevel => parentCategoryId == null;
-
-  factory AssetCategoryItem.fromJson(Object? json) {
-    final j = jMap(json);
-    return AssetCategoryItem(
-      id: jStr(j['id']) ?? '',
-      name: jStr(j['name']) ?? '',
-      code: jStr(j['code']) ?? '',
-      parentCategoryId: jStr(j['parentCategoryId']),
-      parentCategoryName: jStr(j['parentCategoryName']),
-      description: jStr(j['description']),
-      status: jStr(j['status']),
-      imageUrl: jStr(j['imageUrl']),
-      customFields: [for (final f in jList(j['customFields'])) AssetCategoryCustomField.fromJson(f)],
-      attributes: [for (final a in jList(j['attributes'])) AssetCategoryAttribute.fromJson(a)],
-    );
-  }
-}
-
-class AssetCategoryCustomField {
-  const AssetCategoryCustomField({
-    required this.id,
-    required this.fieldName,
-    required this.type,
-    this.required = false,
-  });
-
-  final String id, fieldName, type;
-  final bool required;
-
-  factory AssetCategoryCustomField.fromJson(Object? json) {
-    final j = jMap(json);
-    return AssetCategoryCustomField(
-      id: jStr(j['id']) ?? '',
-      fieldName: jStr(j['fieldName']) ?? '',
-      type: jStr(j['type']) ?? 'Text',
-      required: jBool(j['required']),
-    );
-  }
-}
-
-class AssetCategoryAttribute {
-  const AssetCategoryAttribute({required this.id, required this.attribute, this.unit, this.exampleValue});
-
-  final String id, attribute;
-  final String? unit, exampleValue;
-
-  factory AssetCategoryAttribute.fromJson(Object? json) {
-    final j = jMap(json);
-    return AssetCategoryAttribute(
-      id: jStr(j['id']) ?? '',
-      attribute: jStr(j['attribute']) ?? '',
-      unit: jStr(j['unit']),
-      exampleValue: jStr(j['exampleValue']),
-    );
-  }
-}
-
-/// AssetCategoryTypeResponse (GET /api/asset-category-types?categoryId=, a bare array).
-class AssetCategoryType {
-  const AssetCategoryType({
-    required this.id,
-    required this.categoryId,
-    required this.typeName,
-    required this.typeCode,
-    this.categoryName,
-    this.description,
-    this.status,
-    this.imageUrl,
-    this.modelCount = 0,
-  });
-
-  final String id, categoryId, typeName, typeCode;
-  final String? categoryName, description, status, imageUrl;
-  final int modelCount;
-
-  factory AssetCategoryType.fromJson(Object? json) {
-    final j = jMap(json);
-    return AssetCategoryType(
-      id: jStr(j['id']) ?? '',
-      categoryId: jStr(j['categoryId']) ?? '',
-      typeName: jStr(j['typeName']) ?? '',
-      typeCode: jStr(j['typeCode']) ?? '',
-      categoryName: jStr(j['categoryName']),
-      description: jStr(j['description']),
-      status: jStr(j['status']),
-      imageUrl: jStr(j['imageUrl']),
-      modelCount: jInt(j['modelCount']) ?? 0,
-    );
-  }
-}
-
-/// AssetModelResponse (GET /api/asset-models?assetTypeId=, a bare array).
-class AssetModelItem {
-  const AssetModelItem({
-    required this.id,
-    required this.assetTypeId,
-    required this.modelName,
-    required this.modelCode,
-    required this.manufacturerName,
-    this.assetTypeName,
-    this.manufacturerId,
-    this.status,
-  });
-
-  final String id, assetTypeId, modelName, modelCode, manufacturerName;
-  final String? assetTypeName, manufacturerId, status;
-
-  factory AssetModelItem.fromJson(Object? json) {
-    final j = jMap(json);
-    return AssetModelItem(
-      id: jStr(j['id']) ?? '',
-      assetTypeId: jStr(j['assetTypeId']) ?? '',
-      modelName: jStr(j['modelName']) ?? '',
-      modelCode: jStr(j['modelCode']) ?? '',
-      manufacturerName: jStr(j['manufacturerName']) ?? '',
-      assetTypeName: jStr(j['assetTypeName']),
-      manufacturerId: jStr(j['manufacturerId']),
-      status: jStr(j['status']),
-    );
-  }
-}
-
 // ------------------------------------------------------------------ registration options
 
 /// AssetRegistrationOptionsResponse (GET /api/asset-registrations/options): the fixed dropdowns of
@@ -1122,18 +951,54 @@ class CreateAssetAssignmentRequest {
   };
 }
 
-/// The parts of `AssetAssignmentResponse` the app shows.
+/// The parts of `AssetAssignmentResponse` the app shows (create, list, return).
 class AssetAssignmentRecord {
-  const AssetAssignmentRecord({required this.id, required this.assignmentNumber, this.status, this.assignedToName});
+  const AssetAssignmentRecord({
+    required this.id,
+    required this.assignmentNumber,
+    this.status,
+    this.assignedToName,
+    this.assignTo,
+    this.assignmentType,
+    this.fromDate,
+    this.toDate,
+    this.isOpenEnded = false,
+    this.purpose,
+    this.remarks,
+    this.assetIds = const [],
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  /// Assignment statuses (AssetAssignmentRepository): saved, confirmed, ended.
+  static const draft = 'Draft', active = 'Active', returned = 'Returned';
 
   final String id;
 
   /// "ASG-000001".
   final String assignmentNumber;
 
-  /// "Draft" or "Active".
+  /// [draft], [active] or [returned].
   final String? status;
   final String? assignedToName;
+
+  /// "Employee", "Department", "Location", "Other Entity".
+  final String? assignTo;
+
+  /// Free text: the app sends "Custodian" / "Check Out".
+  final String? assignmentType;
+  final DateTime? fromDate;
+
+  /// The planned end; after a return, the return date.
+  final DateTime? toDate;
+  final bool isOpenEnded;
+  final String? purpose, remarks;
+
+  /// `assets[].assetRegistrationId`.
+  final List<String> assetIds;
+  final DateTime? createdAt, updatedAt;
+
+  bool get isActive => status?.trim().toLowerCase() == active.toLowerCase();
 
   factory AssetAssignmentRecord.fromJson(Object? json) {
     final j = jMap(json);
@@ -1142,8 +1007,56 @@ class AssetAssignmentRecord {
       assignmentNumber: jStr(j['assignmentNumber']) ?? '',
       status: jStr(j['status']),
       assignedToName: jStr(j['assignedToName']),
+      assignTo: jStr(j['assignTo']),
+      assignmentType: jStr(j['assignmentType']),
+      fromDate: jDate(j['fromDate']),
+      toDate: jDate(j['toDate']),
+      isOpenEnded: jBool(j['isOpenEnded']),
+      purpose: jStr(j['purpose']),
+      remarks: jStr(j['remarks']),
+      assetIds: [for (final a in jList(j['assets'])) ?jStr(jMap(a)['assetRegistrationId'])],
+      createdAt: jDate(j['createdAt']),
+      updatedAt: jDate(j['updatedAt']),
     );
   }
+
+  /// Newest first: creation time, else the start date.
+  static int newestFirst(AssetAssignmentRecord a, AssetAssignmentRecord b) {
+    final x = a.createdAt ?? a.fromDate, y = b.createdAt ?? b.fromDate;
+    if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
+    return y.compareTo(x);
+  }
+}
+
+/// GET /api/asset-assignments (`AssetAssignmentListResponse`).
+class AssetAssignmentPage {
+  const AssetAssignmentPage({this.items = const [], this.totalCount = 0});
+
+  final List<AssetAssignmentRecord> items;
+  final int totalCount;
+
+  factory AssetAssignmentPage.fromJson(Object? json) {
+    final items = [for (final i in jItems(json)) AssetAssignmentRecord.fromJson(i)];
+    return AssetAssignmentPage(items: items, totalCount: jInt(jMap(json)['totalCount']) ?? items.length);
+  }
+}
+
+/// POST /api/asset-assignments/{id}/return (`ReturnAssetAssignmentRequest`, End Assignment). Nothing is
+/// required: the app names the one asset, so a multi-asset assignment is split and only it is returned.
+/// [returnDate] becomes the assignment's ToDate (the server moves it up to FromDate when earlier);
+/// [remarks] are added to the assignment's remarks.
+class ReturnAssetAssignmentRequest {
+  const ReturnAssetAssignmentRequest({required this.assetRegistrationIds, this.returnDate, this.remarks});
+
+  final List<String> assetRegistrationIds;
+  final DateTime? returnDate;
+  final String? remarks;
+
+  Map<String, dynamic> toJson() => {
+    'assetRegistrationIds': assetRegistrationIds,
+    'returnDate': jDay(returnDate),
+    'remarks': remarks,
+  };
 }
 
 /// GET /api/asset-assignments/options (`AssetAssignmentOptionsResponse`). AssignTo is validated

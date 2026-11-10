@@ -110,7 +110,7 @@ class _LiveAssetDetailScreenState extends ConsumerState<LiveAssetDetailScreen> {
       context.showSnack('${r.title} deleted');
       context.go(Routes.assets);
     } catch (e) {
-      if (mounted) context.showSnack('Could not delete ${r.title}: ${ApiException.from(e).message}');
+      if (mounted) context.showApiError(e, prefix: 'Could not delete ${r.title}: ', onRetry: () => _delete(r));
     }
   }
 

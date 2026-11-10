@@ -5,6 +5,10 @@ enum ApiErrorKind {
   validation,
   unauthorized,
   forbidden,
+
+  /// 503 from the access guard: the service could not read the caller's permissions (Administration
+  /// unreachable). Temporary – offer Retry.
+  permissionCheck,
   notFound,
   conflict,
   server,
@@ -35,6 +39,11 @@ class ApiException implements Exception {
   static const permissionMessage = "You don't have permission for this.";
 
   bool get isForbidden => kind == ApiErrorKind.forbidden;
+
+  /// Shown for [ApiErrorKind.permissionCheck] (with a Retry button).
+  static const permissionCheckMessage = "Permissions couldn't be checked — try again shortly";
+
+  bool get isPermissionCheck => kind == ApiErrorKind.permissionCheck;
 
   /// Any error from a repository call → ApiException (already one: returned as is).
   static ApiException from(Object error) => switch (error) {
@@ -122,6 +131,12 @@ class ApiException implements Exception {
         path: path,
       ),
       // 503 from the access guard: "Your permissions could not be checked. Try again in a moment."
+      503 when (message ?? '').toLowerCase().contains('permission') => ApiException(
+        ApiErrorKind.permissionCheck,
+        permissionCheckMessage,
+        statusCode: status,
+        path: path,
+      ),
       503 when message != null => ApiException(ApiErrorKind.server, message, statusCode: status, path: path),
       >= 500 => ApiException(
         ApiErrorKind.server,

@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 
 extension FeedbackX on BuildContext {
-  /// Shows a floating SnackBar, replacing any SnackBar that is already visible.
-  void showSnack(String message) {
+  /// Shows a floating SnackBar, replacing any SnackBar that is already visible. [actionLabel] +
+  /// [onAction] add a button (e.g. Retry).
+  void showSnack(String message, {String? actionLabel, VoidCallback? onAction}) {
     ScaffoldMessenger.of(this)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message), margin: snackMargin));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          margin: snackMargin,
+          action: actionLabel == null || onAction == null
+              ? null
+              : SnackBarAction(label: actionLabel, onPressed: onAction),
+        ),
+      );
   }
 
   /// Floating SnackBar margin: lifted above the sticky buttons of the caller's page

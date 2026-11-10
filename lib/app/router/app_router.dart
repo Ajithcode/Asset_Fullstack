@@ -393,14 +393,15 @@ GoRoute _workRoute() => GoRoute(
           GoRoute(
             path: path,
             // API mode: Check Out / Assign post an Asset-service assignment with a Master Data
-            // employee; Check In / Return are not available yet.
+            // employee; Check In / Return end the asset's Active assignment.
             builder: (_, state) {
               final asset = state.uri.queryParameters['asset'];
               if (!apiMode) return CustodyScreen(action: action, assetId: asset);
               return switch (action) {
                 CustodyAction.checkOut => LiveCheckInOutScreen(assetId: asset),
                 CustodyAction.assign => LiveAssignCustodianScreen(assetId: asset),
-                _ => AppScaffold(body: NotAvailableYet(feature: action.title)),
+                CustodyAction.checkIn => LiveCheckInOutScreen(assetId: asset, initialTab: 1),
+                CustodyAction.returnAsset => LiveReturnAssetScreen(assetId: asset),
               };
             },
           ),

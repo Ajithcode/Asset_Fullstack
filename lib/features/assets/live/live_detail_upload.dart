@@ -233,7 +233,7 @@ class _LiveAddPhotoScreenState extends ConsumerState<LiveAddPhotoScreen> {
         _busy = false;
         _errors.addAll(err.fieldErrors);
       });
-      context.showSnack(err.message);
+      context.showApiError(err, onRetry: () => _save(r));
     }
   }
 
@@ -451,7 +451,7 @@ class _LiveAddDocumentScreenState extends ConsumerState<LiveAddDocumentScreen> {
               value;
         }
       });
-      context.showSnack(err.message);
+      context.showApiError(err, onRetry: () => _upload(r));
     }
   }
 

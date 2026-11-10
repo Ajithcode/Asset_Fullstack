@@ -200,6 +200,42 @@ class AssetsApi {
         (await client.post<Object?>('/api/asset-assignments', data: request.toJson())).data,
       );
 
+  /// GET /api/asset-assignments?assetRegistrationId=&status=: the assignments holding an asset
+  /// (every status unless [status] is given).
+  Future<AssetAssignmentPage> assignments({
+    String? assetRegistrationId,
+    String? status,
+    int page = 1,
+    int pageSize = 50,
+  }) async => AssetAssignmentPage.fromJson(
+    (await client.get<Object?>(
+      '/api/asset-assignments',
+      query: {'assetRegistrationId': ?assetRegistrationId, 'status': ?status, 'page': page, 'pageSize': pageSize},
+    )).data,
+  );
+
+  /// The asset's Active assignment (the one to end on Check In / Return), or null when it has none.
+  Future<AssetAssignmentRecord?> activeAssignment(String assetRegistrationId) async {
+    final page = await assignments(
+      assetRegistrationId: assetRegistrationId,
+      status: AssetAssignmentRecord.active,
+      pageSize: 10,
+    );
+    return page.items
+        .where((a) => a.isActive && (a.assetIds.isEmpty || a.assetIds.contains(assetRegistrationId)))
+        .firstOrNull;
+  }
+
+  /// POST /api/asset-assignments/{id}/return (End Assignment): the returned assignment ("Returned").
+  /// The asset gets back the status it had before (or "Available").
+  Future<AssetAssignmentRecord> returnAssignment(String id, ReturnAssetAssignmentRequest request) async =>
+      AssetAssignmentRecord.fromJson(
+        (await client.post<Object?>(
+          '/api/asset-assignments/${Uri.encodeComponent(id)}/return',
+          data: request.toJson(),
+        )).data,
+      );
+
   /// GET /api/asset-assignments/options: AssignTo targets, other entity types, selection modes.
   Future<AssignmentOptions> assignmentOptions() async =>
       AssignmentOptions.fromJson((await client.get<Object?>('/api/asset-assignments/options')).data);
@@ -213,31 +249,6 @@ class AssetsApi {
       )).data,
     ),
   );
-
-  /// GET /api/asset-criticality/options.
-  Future<CriticalityOptions> criticalityOptions() async =>
-      CriticalityOptions.fromJson((await client.get<Object?>('/api/asset-criticality/options')).data);
-
-  // ---------------------------------------------------------------- categories, types, models
-
-  /// GET /api/asset-categories (every level; Sub Categories have a parentCategoryId).
-  Future<List<AssetCategoryItem>> categories() async => [
-    for (final c in jItems((await client.get<Object?>('/api/asset-categories')).data)) AssetCategoryItem.fromJson(c),
-  ];
-
-  /// GET /api/asset-category-types (optionally of one category).
-  Future<List<AssetCategoryType>> categoryTypes({String? categoryId}) async => [
-    for (final t in jItems(
-      (await client.get<Object?>('/api/asset-category-types', query: {'categoryId': ?categoryId})).data,
-    ))
-      AssetCategoryType.fromJson(t),
-  ];
-
-  /// GET /api/asset-models (optionally of one asset type).
-  Future<List<AssetModelItem>> models({String? assetTypeId}) async => [
-    for (final m in jItems((await client.get<Object?>('/api/asset-models', query: {'assetTypeId': ?assetTypeId})).data))
-      AssetModelItem.fromJson(m),
-  ];
 
   static Future<T?> _orNull<T>(Future<T> Function() call) async {
     try {

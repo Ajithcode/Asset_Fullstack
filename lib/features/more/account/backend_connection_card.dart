@@ -64,7 +64,7 @@ class BackendConnectionCard extends ConsumerWidget {
               ],
             ),
             AsyncLoading() => Text(
-              'Calling ${ConnectionTestNotifier.healthPath} on AUTH, ASSET, MEDIA, MASTER DATA and DASHBOARD …',
+              'Calling ${ConnectionTestNotifier.healthPath} on AUTH, ASSET, MEDIA, MASTER DATA, DASHBOARD and ADMIN …',
               style: AppText.caption,
             ),
             _ => Text(

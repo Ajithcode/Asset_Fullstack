@@ -98,7 +98,7 @@ void main() {
     expect((await _fail(_FakeAdapter(status: 503))).kind, ApiErrorKind.server);
   });
 
-  test('403 from the access guard says "no permission" with the server reason; 503 keeps its message', () async {
+  test('403 from the access guard says "no permission" with the server reason; its 503 = permission check', () async {
     final denied = await _fail(
       _FakeAdapter(
         status: 403,
@@ -116,7 +116,10 @@ void main() {
     final unchecked = await _fail(
       _FakeAdapter(status: 503, body: {'message': 'Your permissions could not be checked. Try again in a moment.'}),
     );
-    expect(unchecked.message, 'Your permissions could not be checked. Try again in a moment.');
+    expect(unchecked.kind, ApiErrorKind.permissionCheck);
+    expect(unchecked.message, "Permissions couldn't be checked — try again shortly");
+    final down = await _fail(_FakeAdapter(status: 503, body: {'message': 'Maintenance window'}));
+    expect((down.kind, down.message), (ApiErrorKind.server, 'Maintenance window'));
   });
 
   test('a 403 never refreshes the token or retries; a 401 refreshes once and retries', () async {
@@ -250,7 +253,7 @@ void main() {
     );
   });
 
-  test('Test connection: GET /health on AUTH, ASSET, MEDIA, MASTER DATA and DASHBOARD, one result each', () async {
+  test('Test connection: GET /health on all 6 services (… DASHBOARD, ADMIN), one result each', () async {
     final adapter = _HealthAdapter();
     final c = ProviderContainer(
       overrides: [
@@ -261,6 +264,7 @@ void main() {
           BackendService.media: (baseUrl: '', problem: 'MEDIA_BASE_URL is not set.'),
           BackendService.masterData: (baseUrl: 'http://h.test:5500', problem: null),
           BackendService.dashboard: (baseUrl: 'http://h.test:5470', problem: null),
+          BackendService.admin: (baseUrl: 'http://h.test:5460', problem: null),
         }),
       ],
     );
@@ -282,11 +286,15 @@ void main() {
     expect(r[3].url, 'http://h.test:5500/health');
     expect(r[4].ok, isTrue);
     expect(r[4].url, 'http://h.test:5470/health');
+    expect(r, hasLength(6));
+    expect(r[5].ok, isTrue);
+    expect(r[5].url, 'http://h.test:5460/health');
     expect(adapter.calls, [
       'http://h.test:5018/health',
       'http://h.test:5401/health',
       'http://h.test:5500/health',
       'http://h.test:5470/health',
+      'http://h.test:5460/health',
     ]);
   });
 }
@@ -298,7 +306,7 @@ class _HealthAdapter implements HttpClientAdapter {
   @override
   Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
     calls.add(o.uri.toString());
-    final ok = o.uri.port == 5018 || o.uri.port == 5500 || o.uri.port == 5470;
+    final ok = o.uri.port == 5018 || o.uri.port == 5500 || o.uri.port == 5470 || o.uri.port == 5460;
     return ResponseBody.fromString(
       ok ? jsonEncode({'status': 'Healthy', 'service': 'UserAccount'}) : '',
       ok ? 200 : 503,

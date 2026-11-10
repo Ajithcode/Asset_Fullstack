@@ -7,7 +7,8 @@
 ///   --dart-define=MEDIA_BASE_URL=http://<backend-ip>:5300 \
 ///   --dart-define=AUTH_BASE_URL=http://<backend-ip>:5018 \
 ///   --dart-define=MASTER_DATA_BASE_URL=http://<backend-ip>:5500 \
-///   --dart-define=DASHBOARD_BASE_URL=http://<backend-ip>:5470
+///   --dart-define=DASHBOARD_BASE_URL=http://<backend-ip>:5470 \
+///   --dart-define=ADMIN_BASE_URL=http://<backend-ip>:5460
 /// ```
 ///
 /// See README → "Connecting to the backend".
@@ -46,6 +47,13 @@ const String kDashboardBaseUrl = String.fromEnvironment(
   defaultValue: 'http://172.16.100.26:5470',
 );
 
+/// Administration service root (permissions GET /api/users/me, map system: floor plans, zones, plots).
+/// Only the health check calls it for now.
+///
+/// DEV default: the shared test server, like [kMasterDataBaseUrl]. Override it with
+/// --dart-define=ADMIN_BASE_URL=... (env/api_dev.json sets it) before any release build.
+const String kAdminBaseUrl = String.fromEnvironment('ADMIN_BASE_URL', defaultValue: 'http://172.16.100.26:5460');
+
 /// Optional debug override: a Bearer token for the Asset / Media services, used only while nobody is signed in.
 const String kDevToken = String.fromEnvironment('DEV_TOKEN');
 
@@ -77,13 +85,17 @@ String? get masterDataConfigProblem => _urlProblem('MASTER_DATA_BASE_URL', kMast
 /// What is missing to call the Dashboard service, or null when DASHBOARD_BASE_URL is usable.
 String? get dashboardConfigProblem => _urlProblem('DASHBOARD_BASE_URL', kDashboardBaseUrl, '5470');
 
+/// What is missing to call the Administration service, or null when ADMIN_BASE_URL is usable.
+String? get adminConfigProblem => _urlProblem('ADMIN_BASE_URL', kAdminBaseUrl, '5460');
+
 /// The backend services the app calls directly.
 enum BackendService {
   auth('AUTH', 'AUTH_BASE_URL', 'Login service'),
   asset('ASSET', 'API_BASE_URL', 'Asset service'),
   media('MEDIA', 'MEDIA_BASE_URL', 'Media service'),
   masterData('MASTER DATA', 'MASTER_DATA_BASE_URL', 'Master Data service'),
-  dashboard('DASHBOARD', 'DASHBOARD_BASE_URL', 'Dashboard service');
+  dashboard('DASHBOARD', 'DASHBOARD_BASE_URL', 'Dashboard service'),
+  admin('ADMIN', 'ADMIN_BASE_URL', 'Administration service');
 
   const BackendService(this.code, this.define, this.label);
 
@@ -100,6 +112,7 @@ enum BackendService {
     media => kMediaBaseUrl,
     masterData => kMasterDataBaseUrl,
     dashboard => kDashboardBaseUrl,
+    admin => kAdminBaseUrl,
   };
 
   String? get configProblem => switch (this) {
@@ -108,5 +121,6 @@ enum BackendService {
     media => mediaConfigProblem,
     masterData => masterDataConfigProblem,
     dashboard => dashboardConfigProblem,
+    admin => adminConfigProblem,
   };
 }

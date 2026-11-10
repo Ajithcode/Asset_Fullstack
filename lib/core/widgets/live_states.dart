@@ -57,8 +57,11 @@ class LoadErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     final e = ApiException.from(error);
     // 403: the role lacks access – a lock and "No access", not a connection problem.
+    // 503 permission check: temporary, Retry.
     return EmptyState(
-      icon: e.isForbidden ? Icons.lock_outline_rounded : Icons.cloud_off_rounded,
+      icon: e.isForbidden
+          ? Icons.lock_outline_rounded
+          : (e.isPermissionCheck ? Icons.lock_clock_outlined : Icons.cloud_off_rounded),
       title: e.isForbidden ? 'No access' : title,
       message: e.message,
       actionLabel: 'Retry',
@@ -108,4 +111,18 @@ class InlineRetry extends StatelessWidget {
       ),
     ],
   );
+}
+
+extension ApiErrorFeedback on BuildContext {
+  /// A failed server action as a SnackBar: the readable message, with [prefix] ("Could not delete X: ")
+  /// in front. A permission-check 503 ("Permissions couldn't be checked — try again shortly") gets a
+  /// Retry button that runs [onRetry].
+  void showApiError(Object error, {VoidCallback? onRetry, String prefix = ''}) {
+    final e = ApiException.from(error);
+    showSnack(
+      '$prefix${e.message}',
+      actionLabel: e.isPermissionCheck && onRetry != null ? 'Retry' : null,
+      onAction: onRetry,
+    );
+  }
 }

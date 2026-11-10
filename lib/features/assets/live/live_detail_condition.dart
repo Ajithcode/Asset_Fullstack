@@ -82,7 +82,7 @@ class _LiveUpdateConditionScreenState extends ConsumerState<LiveUpdateConditionS
         _busy = false;
         _errors.addAll(err.fieldErrors);
       });
-      context.showSnack(err.message);
+      context.showApiError(err, onRetry: () => _save(r));
     }
   }
 

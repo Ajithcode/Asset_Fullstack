@@ -10,6 +10,10 @@ import 'package:asset360_mobile/data/repositories/live_assets_repository.dart';
 
 /// The options of one Register Asset dropdown: a local list (apiMode = false) or a server list
 /// that may still be loading or have failed (apiMode = true).
+/// Suffix for a saved value the server list does not hold because the backend set it (asset Status
+/// "Assigned" / "Available" after an assignment).
+const setBySystem = '(set by system)';
+
 class OptionSource {
   const OptionSource(this.options, {this.loading = false, this.error, this.onRetry, this.empty});
 
