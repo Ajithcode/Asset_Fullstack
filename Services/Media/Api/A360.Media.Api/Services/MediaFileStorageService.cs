@@ -11,7 +11,7 @@ public sealed class MediaFileStorageService : IMediaFileStorageService
     public MediaFileStorageService(IConfiguration configuration)
     {
         _uploadRootFolder = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
-        _baseUrl = (configuration["BaseUrl"] ?? "http://localhost:5300").TrimEnd('/');
+        _baseUrl = (configuration["BaseUrl"] ?? "http://172.16.100.26:5300").TrimEnd('/');
     }
 
     public async Task<string> SaveFileAsync(IFormFile file, string category, CancellationToken cancellationToken = default)

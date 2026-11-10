@@ -16,10 +16,11 @@ public sealed record TagRecordCountResponse(
     string TagId,
     long Count,
     string? AssetId,
-    string? AssetName)
+    string? AssetName,
+    string? AssetRegistrationId)
 {
     public static TagRecordCountResponse FromTagRecordCount(TagRecordCount tag)
     {
-        return new TagRecordCountResponse(tag.TagId, tag.Count, tag.AssetId, tag.AssetName);
+        return new TagRecordCountResponse(tag.TagId, tag.Count, tag.AssetId, tag.AssetName, tag.AssetRegistrationId);
     }
 }

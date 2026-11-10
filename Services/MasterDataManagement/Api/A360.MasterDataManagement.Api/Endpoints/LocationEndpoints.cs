@@ -22,6 +22,10 @@ public static class LocationEndpoints
         group.MapGet("", GetLocationsAsync)
             .WithName("GetLocations");
 
+        // Literal routes win over "/{id}", so "tree" is never treated as an id.
+        group.MapGet("/tree", GetLocationTreeAsync)
+            .WithName("GetLocationTree");
+
         group.MapGet("/{id}", GetLocationByIdAsync)
             .WithName("GetLocationById");
 
@@ -61,6 +65,46 @@ public static class LocationEndpoints
 
         return Results.Ok(
             locations.Select(LocationResponse.FromEntity));
+    }
+
+    /// <summary>The whole hierarchy (or one branch with rootId) as nested nodes, for pickers such as the mobile app's.</summary>
+    private static async Task<IResult> GetLocationTreeAsync(
+        string? rootId,
+        string? status,
+        int? depth,
+        string? clientId,
+        ILocationRepository repository,
+        CancellationToken cancellationToken)
+    {
+        if (depth is < 1)
+        {
+            return Results.BadRequest(
+                new { message = "depth must be 1 or more." });
+        }
+
+        var root = string.IsNullOrWhiteSpace(rootId) ? null : rootId.Trim();
+
+        if (root is not null)
+        {
+            if (!MongoObjectId.IsValid(root))
+            {
+                return Results.BadRequest(
+                    new { message = "Invalid location id." });
+            }
+
+            if (await repository.GetByIdAsync(root, cancellationToken) is null)
+            {
+                return Results.NotFound();
+            }
+        }
+
+        // Status is applied while building the tree so an excluded location hides its whole branch.
+        var locations = await repository.SearchAsync(
+            new LocationFilter(null, null, null, null, null, null, null, clientId),
+            cancellationToken);
+
+        return Results.Ok(
+            LocationTreeNodeResponse.Build(locations, root, depth, status));
     }
 
     private static async Task<IResult> GetLocationByIdAsync(

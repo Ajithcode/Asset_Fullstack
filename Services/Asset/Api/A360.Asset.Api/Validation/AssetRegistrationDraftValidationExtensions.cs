@@ -256,6 +256,20 @@ public static class AssetRegistrationDraftValidationExtensions
         return errors;
     }
 
+    /// <summary>Checks an edited registered asset with the same rules as a draft submit, keyed the same way.</summary>
+    public static Dictionary<string, string[]> ValidateForUpdate(this AssetRegistration asset)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        AddStepErrors(errors, "BasicInformation", AssetBasicInformationDto.FromSection(asset.BasicInformation).Validate(saveAsDraft: false));
+        AddStepErrors(errors, "Classification", AssetClassificationDto.FromSection(asset.Classification).Validate(saveAsDraft: false));
+        AddStepErrors(errors, "LocationAssignment", AssetLocationAssignmentDto.FromSection(asset.LocationAssignment).Validate(saveAsDraft: false));
+        AddStepErrors(errors, "PurchaseWarranty", AssetPurchaseWarrantyDto.FromSection(asset.PurchaseWarranty).Validate(saveAsDraft: false));
+        AddStepErrors(errors, "AdditionalInformation", AssetAdditionalInformationDto.FromSection(asset.AdditionalInformation).Validate(saveAsDraft: false));
+
+        return errors;
+    }
+
     private static void AddStepErrors(Dictionary<string, string[]> errors, string step, Dictionary<string, string[]> stepErrors)
     {
         foreach (var (field, messages) in stepErrors)

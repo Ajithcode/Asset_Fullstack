@@ -18,6 +18,10 @@ public sealed class AssetBasicInformation
     [BsonElement("rfid_tag_id")]
     public string? RfidTagId { get; set; }
 
+    // UID read from the asset's NFC tag (e.g. "04:A2:3B:1C:5D:80:00").
+    [BsonElement("nfc_uid")]
+    public string? NfcUid { get; set; }
+
     // Category, sub category and asset type are captured in step 2 (Classification).
 
     [BsonElement("model")]

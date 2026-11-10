@@ -5,7 +5,11 @@ namespace A360.Asset.Repository.Repositories;
 
 public interface IAssetRegistrationRepository : IMongoRepository<AssetRegistration>
 {
-    Task<bool> AssetTagExistsAsync(string assetTag, CancellationToken cancellationToken = default);
+    /// <summary>Whether a registered (not deleted) asset uses the tag, ignoring <paramref name="excludeAssetRegistrationId"/>.</summary>
+    Task<bool> AssetTagExistsAsync(string assetTag, CancellationToken cancellationToken = default, string? excludeAssetRegistrationId = null);
+
+    /// <summary>Marks the asset deleted; false when no live asset has that id.</summary>
+    Task<bool> SoftDeleteByAssetRegistrationIdAsync(string assetRegistrationId, string? deletedBy, CancellationToken cancellationToken = default);
 
     Task<AssetRegistration?> GetByAssetTagAsync(string assetTag, CancellationToken cancellationToken = default);
 
@@ -16,6 +20,12 @@ public interface IAssetRegistrationRepository : IMongoRepository<AssetRegistrati
 
     /// <summary>Every asset matching an audit scope, sorted by tag; at most <paramref name="limit"/>.</summary>
     Task<IReadOnlyCollection<AssetRegistration>> FindInScopeAsync(AssetScopeQuery query, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Registered assets whose identifier of one of the given types exactly equals the scanned code (case-insensitive).</summary>
+    Task<IReadOnlyList<AssetRegistration>> FindByScanCodeAsync(
+        string code,
+        IReadOnlyCollection<AssetScanCodeType> codeTypes,
+        CancellationToken cancellationToken = default);
 
     Task<AssetRegistrationQueryResult> QueryAsync(AssetRegistrationQuery query, CancellationToken cancellationToken = default);
 

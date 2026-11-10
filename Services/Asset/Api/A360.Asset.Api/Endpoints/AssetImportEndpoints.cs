@@ -279,7 +279,8 @@ public static class AssetImportEndpoints
             row.Text(AssetImportColumns.Condition),
             row.Text(AssetImportColumns.Criticality),
             row.Text(AssetImportColumns.Description),
-            null);
+            null,
+            row.Text(AssetImportColumns.NfcUid));
 
         var classification = new AssetClassificationDto(
             row.Text(AssetImportColumns.Category),

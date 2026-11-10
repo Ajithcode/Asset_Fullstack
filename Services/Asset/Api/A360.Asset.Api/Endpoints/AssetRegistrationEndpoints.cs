@@ -57,7 +57,12 @@ public static class AssetRegistrationEndpoints
         // Registered assets.
         group.MapGet("/", GetAssetRegistrationsAsync).WithName("GetAssetRegistrations");
         group.MapGet("/filters", GetAssetListFiltersAsync).WithName("GetAssetRegistrationListFilters");
+
+        // Scanning: resolve a scanned asset tag / barcode / QR / RFID / NFC value to one asset.
+        group.MapGet("/lookup", LookupAssetRegistrationAsync).WithName("LookupAssetRegistration");
         group.MapGet("/{assetRegistrationId}", GetAssetRegistrationAsync).WithName("GetAssetRegistration");
+        group.MapPut("/{assetRegistrationId}", UpdateAssetRegistrationAsync).WithName("UpdateAssetRegistration");
+        group.MapDelete("/{assetRegistrationId}", DeleteAssetRegistrationAsync).WithName("DeleteAssetRegistration");
 
         return group;
     }
@@ -387,6 +392,58 @@ public static class AssetRegistrationEndpoints
             pageSize is < 1 or > AssetRegistrationRepository.MaxPageSize ? AssetRegistrationRepository.DefaultPageSize : pageSize));
     }
 
+    private static async Task<IResult> LookupAssetRegistrationAsync(
+        IAssetRegistrationRepository assetRegistrationRepository,
+        CancellationToken cancellationToken,
+        string? code = null,
+        string? type = null)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["code"] = ["A scanned code is required."] });
+        }
+
+        IReadOnlyList<AssetScanCodeType> codeTypes = AssetLookupCodeTypes.All;
+        if (!string.IsNullOrWhiteSpace(type))
+        {
+            if (!AssetLookupCodeTypes.TryParse(type, out var codeType))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["type"] = ["Type must be one of: assetTag, barcode, qr, rfid, nfc, assetRegistrationId."]
+                });
+            }
+
+            codeTypes = [codeType];
+        }
+
+        var trimmedCode = code.Trim();
+        var matches = await assetRegistrationRepository.FindByScanCodeAsync(trimmedCode, codeTypes, cancellationToken);
+
+        if (matches.Count == 0)
+        {
+            return Results.NotFound(new { message = $"No asset matches the scanned code '{trimmedCode}'." });
+        }
+
+        if (matches.Count > 1)
+        {
+            return Results.Conflict(new
+            {
+                message = $"The scanned code '{trimmedCode}' matches more than one asset.",
+                assetRegistrationIds = matches.Select(asset => asset.AssetRegistrationId)
+            });
+        }
+
+        var asset = matches[0];
+        var matchedBy = codeTypes.FirstOrDefault(codeType =>
+            string.Equals(AssetLookupCodeTypes.ValueOf(asset, codeType), trimmedCode, StringComparison.OrdinalIgnoreCase));
+
+        return Results.Ok(new AssetLookupResponse(
+            trimmedCode,
+            AssetLookupCodeTypes.ToName(matchedBy),
+            AssetRegistrationResponse.FromEntity(asset)));
+    }
+
     private static async Task<IResult> GetAssetRegistrationAsync(
         string assetRegistrationId,
         IAssetRegistrationRepository assetRegistrationRepository,
@@ -396,6 +453,103 @@ public static class AssetRegistrationEndpoints
         return asset is null
             ? Results.NotFound(new { message = $"Asset registration '{assetRegistrationId}' was not found." })
             : Results.Ok(AssetRegistrationResponse.FromEntity(asset));
+    }
+
+    private static async Task<IResult> UpdateAssetRegistrationAsync(
+        string assetRegistrationId,
+        UpdateAssetRegistrationRequest request,
+        IAssetRegistrationDraftRepository draftRepository,
+        IAssetRegistrationRepository assetRegistrationRepository,
+        ICurrentUserAccessor currentUserAccessor,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var asset = await assetRegistrationRepository.GetByAssetRegistrationIdAsync(assetRegistrationId, cancellationToken);
+        if (asset is null)
+        {
+            return AssetRegistrationNotFound(assetRegistrationId);
+        }
+
+        // Sections left out keep their stored values.
+        if (request.BasicInformation is not null)
+        {
+            asset.BasicInformation = request.BasicInformation.ToSection();
+        }
+
+        if (request.Classification is not null)
+        {
+            asset.Classification = request.Classification.ToSection();
+        }
+
+        if (request.LocationAssignment is not null)
+        {
+            asset.LocationAssignment = request.LocationAssignment.ToSection();
+        }
+
+        if (request.PurchaseWarranty is not null)
+        {
+            asset.PurchaseWarranty = request.PurchaseWarranty.ToSection();
+        }
+
+        if (request.AdditionalInformation is not null)
+        {
+            asset.AdditionalInformation = request.AdditionalInformation.ToSection();
+        }
+
+        var validationErrors = asset.ValidateForUpdate();
+        if (validationErrors.Count > 0)
+        {
+            return Results.ValidationProblem(validationErrors);
+        }
+
+        var assetTag = asset.BasicInformation.AssetTag;
+        if (assetTag is not null)
+        {
+            if (await assetRegistrationRepository.AssetTagExistsAsync(assetTag, cancellationToken, excludeAssetRegistrationId: assetRegistrationId))
+            {
+                return Results.Conflict(new { message = $"An asset with tag '{assetTag}' is already registered." });
+            }
+
+            if (await draftRepository.AssetTagExistsAsync(assetTag, assetRegistrationId, cancellationToken))
+            {
+                return Results.Conflict(new { message = $"Asset tag '{assetTag}' is already used by another draft registration." });
+            }
+        }
+
+        asset.UpdatedBy = currentUserAccessor.GetCurrentUser()?.UserName;
+        asset.UpdatedAt = DateTime.UtcNow;
+
+        if (!await assetRegistrationRepository.UpdateAsync(asset.Id, asset, cancellationToken))
+        {
+            return AssetRegistrationNotFound(assetRegistrationId);
+        }
+
+        await eventLogger.LogAsync(AssetRegistrationEntityType, asset.AssetRegistrationId, asset.BasicInformation.AssetName ?? asset.AssetRegistrationId, EventAction.Updated, cancellationToken);
+        return Results.Ok(AssetRegistrationResponse.FromEntity(asset));
+    }
+
+    // Soft delete: the record stays in AssetRegistration with is_deleted = true and drops out of every list and lookup.
+    private static async Task<IResult> DeleteAssetRegistrationAsync(
+        string assetRegistrationId,
+        IAssetRegistrationRepository assetRegistrationRepository,
+        ICurrentUserAccessor currentUserAccessor,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var asset = await assetRegistrationRepository.GetByAssetRegistrationIdAsync(assetRegistrationId, cancellationToken);
+        if (asset is null
+            || !await assetRegistrationRepository.SoftDeleteByAssetRegistrationIdAsync(assetRegistrationId, currentUserAccessor.GetCurrentUser()?.UserName, cancellationToken))
+        {
+            return AssetRegistrationNotFound(assetRegistrationId);
+        }
+
+        await eventLogger.LogAsync(AssetRegistrationEntityType, assetRegistrationId, asset.BasicInformation.AssetName ?? assetRegistrationId, EventAction.Deleted, cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static IResult AssetRegistrationNotFound(string assetRegistrationId)
+    {
+        return Results.NotFound(new { message = $"Asset registration '{assetRegistrationId}' was not found." });
     }
 
     private static async Task<IResult> SaveSectionAsync<TSection>(
