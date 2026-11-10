@@ -269,6 +269,28 @@ void main() {
       expect(t.store.refreshToken, isNull);
     });
 
+    test('method "email" (current UserAccount, no loginToken) → emailed code via verify-otp', () async {
+      final t = _setup(
+        _Server(
+          _routes(
+            login: {
+              'twoFactorRequired': true,
+              'method': 'email',
+              'message': 'An OTP has been sent to your registered email address.',
+              'maskedEmail': 'a***@purpleiq.ae',
+              'otpExpiresInSeconds': 300,
+            },
+          ),
+        ),
+      );
+      final auth = t.c.read(authProvider.notifier);
+      expect(await auth.login('ahmed', 'secret', rememberMe: false), LoginStep.enterCode);
+      expect((t.c.read(authProvider) as AuthTwoFactorPending).isEmailOtp, isTrue);
+      await auth.verifyCode('123456');
+      expect(t.server.bodies['POST /api/auth/verify-otp'], {'userName': 'ahmed', 'otp': '123456'});
+      expect(t.c.read(authProvider), isA<AuthSignedIn>());
+    });
+
     test('wrong password and wrong code show the server message; still pending after a wrong code', () async {
       final t = _setup(_Server(_routes()));
       final auth = t.c.read(authProvider.notifier);

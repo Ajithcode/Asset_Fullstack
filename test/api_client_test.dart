@@ -98,6 +98,61 @@ void main() {
     expect((await _fail(_FakeAdapter(status: 503))).kind, ApiErrorKind.server);
   });
 
+  test('403 from the access guard says "no permission" with the server reason; 503 keeps its message', () async {
+    final denied = await _fail(
+      _FakeAdapter(
+        status: 403,
+        body: {'message': "Your role doesn't allow you to create in Assets. Ask an administrator for access."},
+      ),
+    );
+    expect(denied.kind, ApiErrorKind.forbidden);
+    expect(denied.isForbidden, isTrue);
+    expect(
+      denied.message,
+      "You don't have permission for this. Your role doesn't allow you to create in Assets. Ask an administrator for access.",
+    );
+    expect(denied.message, isNot(contains('expired')));
+    expect((await _fail(_FakeAdapter(status: 403))).message, startsWith("You don't have permission for this."));
+    final unchecked = await _fail(
+      _FakeAdapter(status: 503, body: {'message': 'Your permissions could not be checked. Try again in a moment.'}),
+    );
+    expect(unchecked.message, 'Your permissions could not be checked. Try again in a moment.');
+  });
+
+  test('a 403 never refreshes the token or retries; a 401 refreshes once and retries', () async {
+    var refreshes = 0;
+    var current = 'old';
+    Dio make(_FakeAdapter a) {
+      final dio = Dio(BaseOptions(baseUrl: 'http://backend.test:5401'))..httpClientAdapter = a;
+      dio.interceptors.add(
+        AuthInterceptor(
+          token: () async => current,
+          onUnauthorized: () async {
+            refreshes++;
+            return current = 'new';
+          },
+          retry: dio.fetch,
+        ),
+      );
+      return dio;
+    }
+
+    final forbidden = _FakeAdapter(status: 403, body: {'message': 'No.'});
+    await expectLater(
+      ApiClient(make(forbidden), checkConfig: false).post<Object?>('/api/asset-assignments'),
+      throwsA(isA<ApiException>().having((e) => e.kind, 'kind', ApiErrorKind.forbidden)),
+    );
+    expect(refreshes, 0);
+
+    final unauthorized = _FakeAdapter(status: 401);
+    await expectLater(
+      ApiClient(make(unauthorized), checkConfig: false).get<Object?>('/api/asset-registrations'),
+      throwsA(isA<ApiException>().having((e) => e.kind, 'kind', ApiErrorKind.unauthorized)),
+    );
+    expect(refreshes, 1);
+    expect(unauthorized.last!.headers['Authorization'], 'Bearer new');
+  });
+
   test('timeouts and no network', () async {
     expect((await _fail(_FakeAdapter(error: DioExceptionType.connectionTimeout))).kind, ApiErrorKind.timeout);
     expect((await _fail(_FakeAdapter(error: DioExceptionType.receiveTimeout))).kind, ApiErrorKind.timeout);
@@ -178,6 +233,15 @@ void main() {
       'http://cdn.example.com/uploads/d.jpg',
     );
     expect(resolveMediaUrl('http://localhost/uploads/e.jpg', mediaBase: ''), 'http://localhost/uploads/e.jpg');
+    // Media now returns its configured BaseUrl; the phone may reach the same service under another host.
+    expect(
+      resolveMediaUrl('http://172.16.100.26:5300/uploads/asset-images/g.jpg', mediaBase: 'http://10.0.2.2:5300'),
+      'http://10.0.2.2:5300/uploads/asset-images/g.jpg',
+    );
+    expect(
+      resolveMediaUrl('http://other.host:8080/uploads/h.jpg', mediaBase: media),
+      'http://other.host:8080/uploads/h.jpg',
+    );
     expect(
       MediaUpload.fromJson({
         'data': {'filePath': '/uploads/f.jpg'},

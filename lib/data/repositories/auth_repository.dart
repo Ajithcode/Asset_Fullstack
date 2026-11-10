@@ -45,7 +45,7 @@ class AuthTwoFactorPending extends AuthState {
   /// Needed by verify-totp (not by verify-otp).
   final String? loginToken;
 
-  /// "totp" or "otp".
+  /// "totp" or "email" ("otp" from older servers).
   final String method;
   final bool setupRequired;
   final String? qrCodeImage;
@@ -56,7 +56,7 @@ class AuthTwoFactorPending extends AuthState {
   final DateTime expiresAt;
   final bool rememberMe;
 
-  bool get isEmailOtp => method.toLowerCase() == 'otp';
+  bool get isEmailOtp => isEmailMethod(method);
 }
 
 class AuthSignedIn extends AuthState {
@@ -123,7 +123,7 @@ class AuthNotifier extends Notifier<AuthState> {
     final r = await _api.login(user, password);
     if (r.twoFactorRequired) {
       final method = (r.method ?? 'totp').toLowerCase();
-      if (method != 'otp' && r.loginToken == null) {
+      if (!isEmailMethod(method) && r.loginToken == null) {
         throw const ApiException(ApiErrorKind.unknown, AuthApi.unrecognisedMessage);
       }
       final lifetime = (r.otpExpiresInSeconds ?? 0) > 0

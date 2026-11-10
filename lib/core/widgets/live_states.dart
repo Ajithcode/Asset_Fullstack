@@ -54,13 +54,17 @@ class LoadErrorState extends StatelessWidget {
   final String title;
 
   @override
-  Widget build(BuildContext context) => EmptyState(
-    icon: Icons.cloud_off_rounded,
-    title: title,
-    message: ApiException.from(error).message,
-    actionLabel: 'Retry',
-    onAction: onRetry,
-  );
+  Widget build(BuildContext context) {
+    final e = ApiException.from(error);
+    // 403: the role lacks access – a lock and "No access", not a connection problem.
+    return EmptyState(
+      icon: e.isForbidden ? Icons.lock_outline_rounded : Icons.cloud_off_rounded,
+      title: e.isForbidden ? 'No access' : title,
+      message: e.message,
+      actionLabel: 'Retry',
+      onAction: onRetry,
+    );
+  }
 }
 
 /// One line for a server list inside a form field: a spinner while it loads, the error with Retry,

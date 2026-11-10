@@ -16,7 +16,9 @@ class MediaApi {
 
   /// POST /api/media/upload (multipart: `file` + `category`, both required; MediaEndpoints.cs).
   /// [category] is the folder under /uploads/ ("asset-images", "asset-documents").
-  /// Give a local [filePath] or [bytes]. The server accepts only jpg, jpeg, png, webp and pdf.
+  /// Give a local [filePath] or [bytes]. The server accepts images (jpg, jpeg, png, webp, gif, bmp, svg),
+  /// drawings (dwg, dxf) and documents (pdf, doc(x), xls(x), csv, txt); the app uploads only what
+  /// AssetFileRules allows.
   ///
   /// [MediaUpload.storedUrl] is the URL exactly as the server returned it (store that in records);
   /// [MediaUpload.url] is the same file made loadable on the phone ([resolveMediaUrl]).
@@ -37,7 +39,8 @@ class MediaApi {
 
 final mediaApiProvider = Provider<MediaApi>((ref) => MediaApi(ref.watch(mediaClientProvider)));
 
-/// The upload reply: MediaUploadResponse `{"url": "http://localhost:5300/uploads/<category>/<file>"}`.
+/// The upload reply: MediaUploadResponse `{"url": "<BaseUrl>/uploads/<category>/<file>"}` (BaseUrl from the
+/// Media service's appsettings, e.g. http://172.16.100.26:5300; older builds returned localhost).
 /// Read tolerantly (`url`, `fileUrl`, `filePath`, `path`, `location`, optionally inside `data`).
 class MediaUpload {
   const MediaUpload({required this.url, this.storedUrl = '', this.raw});
@@ -67,6 +70,8 @@ class MediaUpload {
 
 /// A media URL from the server, made loadable on the phone:
 /// - host localhost / 127.0.0.1 (the server's own view) → MEDIA_BASE_URL + the same path and query;
+/// - an absolute /uploads/... URL on MEDIA_BASE_URL's port (the Media service's configured BaseUrl, which
+///   the phone may reach under another host, e.g. the emulator's 10.0.2.2) → MEDIA_BASE_URL + the same path;
 /// - a relative path ("/uploads/a.jpg") → MEDIA_BASE_URL + path;
 /// - anything else is returned unchanged.
 /// [mediaBase] defaults to [kMediaBaseUrl] (tests pass their own).
@@ -75,7 +80,8 @@ String resolveMediaUrl(String url, {String? mediaBase}) {
   final u = Uri.tryParse(url.trim());
   if (u == null || base == null || !base.hasScheme) return url;
   final local = u.hasScheme && const {'localhost', '127.0.0.1'}.contains(u.host.toLowerCase());
-  if (u.hasScheme && !local) return url;
+  final mediaFile = u.hasScheme && u.path.startsWith('/uploads/') && u.port == base.port;
+  if (u.hasScheme && !local && !mediaFile) return url;
   final path = u.path.startsWith('/') ? u.path : '/${u.path}';
   return base
       .replace(path: path, query: u.hasQuery ? u.query : null, fragment: u.hasFragment ? u.fragment : null)

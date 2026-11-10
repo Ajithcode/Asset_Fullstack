@@ -532,7 +532,7 @@ class MdEmployee extends _Simple {
 
 /// One node of GET /api/master-data/locations/tree (`LocationTreeNodeResponse`). [type] is free
 /// text on the server ("Country", "Site", "Building" …); the levels are taken from the tree depth.
-/// The tree has no coordinates, floor plans or zone shapes (none exist in the service).
+/// The tree has no coordinates (sites / buildings / floors have them on their own endpoints).
 class MdLocationNode extends MdEntry {
   const MdLocationNode({
     required this.id,
@@ -589,8 +589,13 @@ class MdSite extends _Simple {
     this.country,
     this.businessUnit,
     this.department,
+    this.latitude,
+    this.longitude,
     String? status,
   }) : super(id, name, code, status);
+
+  /// WGS84 degrees (`latitude` / `longitude`, both or neither; CoordinateValidation).
+  final double? latitude, longitude;
 
   final String? siteType;
   final String? city;
@@ -609,12 +614,15 @@ class MdSite extends _Simple {
     country: jStr(j['country']),
     businessUnit: MdRef.fromJson(j['businessUnit']),
     department: MdRef.fromJson(j['department']),
+    latitude: jNum(j['latitude']),
+    longitude: jNum(j['longitude']),
     status: jStr(j['status']),
   );
 }
 
 /// GET /api/master-data/buildings | floors | zones (`BuildingResponse`, `FloorResponse`,
-/// `ZoneResponse`): the "space" records, with capacity and area (no geometry).
+/// `ZoneResponse`): the "space" records, with capacity and area. Buildings and floors carry
+/// `latitude` / `longitude` (zones none); floors also an `imageUrl` + `images` (floor plan pictures).
 class MdSpace extends _Simple {
   const MdSpace({
     required String id,
@@ -627,8 +635,19 @@ class MdSpace extends _Simple {
     this.floorName,
     this.capacity,
     this.area,
+    this.latitude,
+    this.longitude,
+    this.imageUrl,
+    this.images = const [],
     String? status,
   }) : super(id, name, code, status);
+
+  /// WGS84 degrees (buildings and floors; null for zones).
+  final double? latitude, longitude;
+
+  /// Floors: the main picture and all pictures (Media URLs as stored).
+  final String? imageUrl;
+  final List<String> images;
 
   final MdRef? site;
   final String? buildingId, buildingName, floorId, floorName;
@@ -648,6 +667,13 @@ class MdSpace extends _Simple {
     floorName: jStr(j['floorName']),
     capacity: jInt(j['capacity']),
     area: jNum(j['area']),
+    latitude: jNum(j['latitude']),
+    longitude: jNum(j['longitude']),
+    imageUrl: jStr(j['imageUrl']),
+    images: [
+      for (final i in jList(j['images']))
+        if (i is String && i.trim().isNotEmpty) i.trim(),
+    ],
     status: jStr(j['status']),
   );
 }

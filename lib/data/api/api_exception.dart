@@ -31,6 +31,11 @@ class ApiException implements Exception {
 
   static const unauthorizedMessage = 'Token expired or invalid – ask backend for a new dev token';
 
+  /// First words of every 403 message (the server's reason follows).
+  static const permissionMessage = "You don't have permission for this.";
+
+  bool get isForbidden => kind == ApiErrorKind.forbidden;
+
   /// Any error from a repository call → ApiException (already one: returned as is).
   static ApiException from(Object error) => switch (error) {
     final ApiException e => e,
@@ -101,9 +106,11 @@ class ApiException implements Exception {
         statusCode: status,
         path: path,
       ),
+      // Signed in, but the role does not allow this (A360AccessGuard: "Your role doesn't allow you to
+      // create in Assets. …"). Never a session problem: no refresh, no sign-out.
       403 => ApiException(
         ApiErrorKind.forbidden,
-        message ?? 'You are not allowed to do that (403). Ask your administrator for the right permissions.',
+        '$permissionMessage ${message ?? 'Ask your administrator for access.'}',
         statusCode: status,
         path: path,
       ),
@@ -114,6 +121,8 @@ class ApiException implements Exception {
         statusCode: status,
         path: path,
       ),
+      // 503 from the access guard: "Your permissions could not be checked. Try again in a moment."
+      503 when message != null => ApiException(ApiErrorKind.server, message, statusCode: status, path: path),
       >= 500 => ApiException(
         ApiErrorKind.server,
         'The server had a problem ($status). Try again later or tell the backend developer.',

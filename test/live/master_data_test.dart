@@ -15,6 +15,29 @@ import 'fake_asset_backend.dart';
 /// Master Data Management (port 5500): contract-shaped parsing, the repository's status filter and
 /// offline cache, and location scans resolved through the Master Data tree.
 void main() {
+  test('sites / buildings / floors read latitude + longitude; floors their images (backend refresh)', () {
+    final site = MdSite.fromJson({
+      'id': 's1',
+      'siteName': 'HQ',
+      'latitude': 25.2,
+      'longitude': '55.3',
+      'status': 'Active',
+    });
+    expect((site.latitude, site.longitude), (25.2, 55.3));
+    final floor = MdSpace.fromJson({
+      'id': 'f1',
+      'name': 'Floor 2',
+      'latitude': 25.21,
+      'longitude': 55.31,
+      'imageUrl': 'http://172.16.100.26:5300/uploads/floors/a.png',
+      'images': ['http://172.16.100.26:5300/uploads/floors/a.png', ''],
+    });
+    expect((floor.latitude, floor.longitude), (25.21, 55.31));
+    expect(floor.images, hasLength(1));
+    final zone = MdSpace.fromJson({'id': 'z1', 'name': 'Zone A'});
+    expect((zone.latitude, zone.longitude, zone.imageUrl), (null, null, null));
+  });
+
   group('parsing (contract-shaped JSON)', () {
     test('categories: name = categoryName, parent reference, inactive dropped', () {
       final l = mdParseList(mdCategories, MdCategory.fromJson);

@@ -26,7 +26,7 @@ class LoginResult {
 
   final bool twoFactorRequired;
 
-  /// "totp" (authenticator app) or "otp" (code sent by email).
+  /// "totp" (authenticator app) or "email" (code sent by email; older servers said "otp").
   final String? method;
   final String? message;
   final int? otpExpiresInSeconds;
@@ -43,7 +43,7 @@ class LoginResult {
   /// Set when the server signs the user in without a second step.
   final TokenPair? tokens;
 
-  bool get isEmailOtp => (method ?? '').toLowerCase() == 'otp';
+  bool get isEmailOtp => isEmailMethod(method);
 
   factory LoginResult.fromJson(Object? json, {DateTime? now}) {
     final j = _root(json);
@@ -288,3 +288,7 @@ bool? _bool(Map<String, dynamic> m, List<String> keys) {
   }
   return null;
 }
+
+/// The login reply's second-factor `method` for an emailed code: "email" (current UserAccount)
+/// or "otp" (older builds).
+bool isEmailMethod(String? method) => const {'email', 'otp'}.contains((method ?? '').trim().toLowerCase());

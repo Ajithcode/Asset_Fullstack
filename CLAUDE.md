@@ -112,6 +112,11 @@
   (auth_widgets.dart). `connection_repository.dart` (Test connection = GET /health on AUTH / ASSET / MEDIA / MASTER DATA) + `backend_connection_card.dart` (Administration). Sources:
   `docs/api/useraccount_swagger.json` (requests only), `docs/api/openapi.json` (not downloaded yet); unknowns in
   `docs/questions_for_backend.md`. Tests: test/api_client_test.dart, test/auth_api_test.dart (fake adapters).
+  Access (backend A360AccessGuard): every service's `/api/*` needs the Bearer token (401 → refresh → retry);
+  POST/PUT/PATCH/DELETE also need the role's create / edit / delete on the service's module ("Assets", "Dashboard",
+  "Master Data Management"; Media = token only) → 403 = `ApiException.isForbidden`, message "You don't have permission
+  for this. <server reason>", `LoadErrorState` shows "No access"; never a sign-out. WebSocket: Bearer header on the
+  upgrade. `/uploads/...` files are public. Login 2FA method "email" (older "otp") = `isEmailMethod`.
 - Assets live phase (apiMode = true: NO mock assets anywhere; apiMode = false unchanged): API `lib/data/api/assets/`
   (`assets_api.dart` `AssetsApi` / `assetsApiProvider`: list, filters, get, lookup, drafts + steps + submit, options,
   categories / types / models, images, documents, components tree, condition, criticality; `asset_api_models.dart`; full
