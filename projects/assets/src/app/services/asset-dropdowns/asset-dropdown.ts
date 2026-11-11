@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, forkJoin, map, of, retry, timer } from 'rxjs';
 import { environment } from 'shared-ui';
+import { TENANT } from '../asset-api';
 
 /**
  * Dropdown data for the asset screens.
@@ -143,9 +144,12 @@ export class AssetDropdownService {
     return this.list(`${this.assetUrl}/asset-category-types`, 'typeName', (r) => ({ parentId: this.text(r['categoryId']) }), { categoryId });
   }
 
-  /** GET /api/master-data/asset-models — parentId is the manufacturer id. */
+  /** GET /api/master-data/asset-models?clientId= — the client's models; parentId is the manufacturer id. */
   getAssetModels(manufacturerId?: string): Observable<DropdownOption[]> {
-    return this.list('asset-models', 'modelName', (r) => ({ parentId: this.refId(r['manufacturer']) }), { manufacturerId });
+    return this.list('asset-models', 'modelName', (r) => ({ parentId: this.refId(r['manufacturer']) }), {
+      clientId: TENANT.clientId,
+      manufacturerId,
+    });
   }
 
   /** GET /api/master-data/manufacturers */

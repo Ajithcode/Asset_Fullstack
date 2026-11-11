@@ -559,7 +559,8 @@ export class AssetList {
   /** Opens the asset's detail page (Overview tab) for this row. */
   viewAsset(asset: AssetRow): void {
     this.openMenuId = null;
-    this.router.navigate(['/assets/overview'], { queryParams: { tag: asset.tag } });
+    // id: the overview reads GET /api/asset-registrations/{id}; tag: the other detail tabs find the asset by tag
+    this.router.navigate(['/assets/overview'], { queryParams: { id: asset.registrationId, tag: asset.tag } });
   }
 
   // ===== Export / print =====

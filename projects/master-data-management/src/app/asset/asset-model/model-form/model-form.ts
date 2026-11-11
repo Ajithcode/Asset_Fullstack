@@ -1,8 +1,9 @@
-import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Plus, Trash2, X } from 'lucide-angular';
 import { CURRENCIES } from '../../../organization/organization/organization.data';
 import { AssetTypeService } from '../../asset-type/asset-type.service';
+import { CategoryService } from '../../category-subcategory/category.service';
 import { ManufacturerService } from '../../manufacturer/manufacturer.service';
 import { CRITICALITIES, PM_FREQUENCIES, TRACKING_METHODS, blankAssetModel, hasRunningNumber, sampleTag, specsFor } from '../asset-model.data';
 import { MODEL_ICONS } from '../asset-model.icons';
@@ -47,7 +48,7 @@ const TAB_OF: Record<FieldKey, ModelFormTab> = {
   templateUrl: './model-form.html',
   styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', './model-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
-export class ModelForm implements OnChanges {
+export class ModelForm implements OnInit, OnChanges {
   // 'edit' changes `model`; 'add' creates a new one, pre-filled from `model` if given (Duplicate)
   @Input() mode: 'add' | 'edit' = 'add';
   @Input() model: AssetModelRecord | null = null;
@@ -58,6 +59,7 @@ export class ModelForm implements OnChanges {
   readonly service = inject(AssetModelService);
   readonly types = inject(AssetTypeService);
   readonly makers = inject(ManufacturerService);
+  private readonly categoryStore = inject(CategoryService);
   readonly icons = { X, Plus, Trash2 };
   readonly modelIcons = MODEL_ICONS;
   readonly currencies = CURRENCIES;
@@ -78,6 +80,22 @@ export class ModelForm implements OnChanges {
   subcategoriesText = '';
   errors: Partial<Record<FieldKey, string>> = {};
   private original: AssetModelRecord | null = null;
+
+  /**
+   * Refreshes the Basic Information lists every time the form opens. The stores otherwise load once per session,
+   * so a first load that failed (e.g. before the token was ready) or masters added since would leave them empty or stale.
+   */
+  ngOnInit(): void {
+    // A failed load leaves the list as it was; the store records the error
+    const ignoreError = { error: () => undefined };
+    this.types.reload().subscribe(ignoreError);
+    this.makers.reload().subscribe(ignoreError);
+    this.categoryStore.reload().subscribe(ignoreError);
+  }
+
+  get listsLoading(): boolean {
+    return this.types.loading() || this.makers.loading() || this.categoryStore.loading();
+  }
 
   ngOnChanges(): void {
     this.original = this.mode === 'edit' ? this.model : null;
@@ -106,7 +124,7 @@ export class ModelForm implements OnChanges {
 
   // Active types from the Asset Type master; the current one stays listed even if it was deactivated
   get typesInCategory() {
-    return this.types.all().filter((t) => (t.status === 'Active' || t.name === this.form.assetType) && (!this.form.category || t.category === this.form.category));
+    return this.types.all().filter((t) => (t.status === 'Active' || t.name === this.form.assetType) && (!this.form.category || !t.category || t.category === this.form.category));
   }
 
   get sample(): string {

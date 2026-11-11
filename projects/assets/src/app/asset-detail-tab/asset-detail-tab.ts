@@ -63,6 +63,20 @@ interface HistoryEvent {
   path: string;
 }
 
+/** One label / value line of a registration section on the Overview. */
+interface InfoRow {
+  label: string;
+  value: string;
+  /** Spans the whole row (long text). */
+  wide?: boolean;
+}
+
+/** A panel of the Overview built from GET /api/asset-registrations/{id}. */
+interface InfoSection {
+  title: string;
+  rows: InfoRow[];
+}
+
 interface FieldRow {
   field: CustomField;
   value: string;
@@ -126,6 +140,8 @@ export class AssetDetailTab implements OnDestroy {
 
   /** The asset's registration from the Asset API; null when not registered. */
   registration: AssetRegistrationDto | null = null;
+  /** Summary counts from GET api/asset-dashboard/assets/{id}/counts; null until loaded or on error (local counts are shown). */
+  private apiCounts: Record<string, number> | null = null;
   /** The asset's service requests from the API; null until loaded. */
   private apiRequests: ServiceRequestListItemDto[] | null = null;
   /** Field definitions from the API (empty until loaded). */
@@ -142,7 +158,7 @@ export class AssetDetailTab implements OnDestroy {
   private readonly assetsApi = inject(AssetDetailsService);
   private readonly componentsApi = inject(AssetComponentsService);
   private readonly requestsApi = inject(ServiceRequestApiService);
-  private readonly load$ = new Subject<string | null>();
+  private readonly load$ = new Subject<{ tag: string | null; id: string | null }>();
 
   constructor() {
     const route = inject(ActivatedRoute);
@@ -158,8 +174,8 @@ export class AssetDetailTab implements OnDestroy {
       },
       error: () => undefined, // no definitions: the Custom Fields tab stays empty
     });
-    this.load$.pipe(switchMap((tag) => this.loadApi(tag)), takeUntilDestroyed(destroyRef)).subscribe();
-    route.queryParamMap.pipe(takeUntilDestroyed(destroyRef)).subscribe((p) => this.load(p.get('tag')));
+    this.load$.pipe(switchMap(({ tag, id }) => this.loadApi(tag, id)), takeUntilDestroyed(destroyRef)).subscribe();
+    route.queryParamMap.pipe(takeUntilDestroyed(destroyRef)).subscribe((p) => this.load(p.get('tag'), p.get('id')));
   }
 
   ngOnDestroy(): void {
@@ -168,13 +184,15 @@ export class AssetDetailTab implements OnDestroy {
 
   // ===== Loading =====
 
-  private load(tag: string | null): void {
-    this.requestedTag = tag ?? '';
+  /** ?id= (asset registration id) is read directly; without it the asset is found by ?tag=. */
+  private load(tag: string | null, id: string | null = null): void {
+    this.requestedTag = tag ?? id ?? '';
     this.registration = null;
     this.apiRequests = null;
-    this.notFound = !tag; // opened without an asset
-    this.loading = !!tag;
-    this.load$.next(tag); // the Asset API record is shown when it arrives
+    this.apiCounts = null;
+    this.notFound = !tag && !id; // opened without an asset
+    this.loading = !this.notFound;
+    this.load$.next({ tag, id }); // the Asset API record is shown when it arrives
   }
 
   /** Shows a register record: header, maintenance data, components and the detail data. */
@@ -202,15 +220,20 @@ export class AssetDetailTab implements OnDestroy {
   }
 
   /**
-   * Reads the asset from the Asset API by tag (registration, components, service requests). A tag that is in
-   * the API does not have shows "not found".
+   * Reads the asset from the Asset API (registration, components, service requests, counts): by registration id
+   * when given (GET /api/asset-registrations/{id}), else by tag. An asset the API does not have shows "not found".
    */
-  private loadApi(tag: string | null) {
-    if (!tag) return of(null);
-    return this.assetsApi.getByTag(tag).pipe(
+  private loadApi(tagParam: string | null, id: string | null) {
+    const key = tagParam ?? id;
+    if (!key) return of(null);
+    const asset$ = id ? this.assetsApi.getById(id) : this.assetsApi.getByTag(key);
+    // Components are looked up by tag: the registration's own tag once loaded
+    let tag = key;
+    return asset$.pipe(
       catchError(() => of(null)),
       tap((a) => {
-        if (this.requestedTag !== tag) return;
+        if (this.requestedTag !== key) return;
+        if (a?.record.tag) tag = a.record.tag;
         if (!a) {
           this.loading = false;
           this.notFound = true;
@@ -220,18 +243,20 @@ export class AssetDetailTab implements OnDestroy {
         this.setRecord(a.record);
       }),
       switchMap((a) => {
-        if (!a || this.requestedTag !== tag) return of(null);
+        if (!a || this.requestedTag !== key) return of(null);
         return forkJoin({
           tree: loadComponentTree(this.componentsApi, tag).pipe(catchError(() => of(null))),
           requests: this.requestsApi.list({ assetRegistrationId: a.registration.assetRegistrationId, pageSize: 200 }).pipe(catchError(() => of(null))),
+          counts: this.assetsApi.getDashboardCounts(a.registration.assetRegistrationId).pipe(catchError(() => of(null))),
         }).pipe(
           tap((r) => {
-            if (this.requestedTag !== tag) return;
+            if (this.requestedTag !== key) return;
             if (r.tree) {
               this.tree = r.tree;
               this.components = componentsOf(tag);
               this.selectedComponent = null;
             }
+            if (r.counts && Object.keys(r.counts).length) this.apiCounts = r.counts;
             if (r.requests) {
               this.apiRequests = r.requests.items.filter((x) => x.status !== 'Draft');
               this.rebuild();
@@ -311,17 +336,138 @@ export class AssetDetailTab implements OnDestroy {
     return this.detail?.status.lifecycle.nextMaintenance || this.record.nextMaintenance || '';
   }
 
-  /** Counts that link to the other detail tabs. */
+  /** A count from the counts API under the first of its key spellings that it has; undefined when it has none. */
+  private apiCount(...keys: string[]): number | undefined {
+    const c = this.apiCounts;
+    return c ? keys.map((k) => c[k]).find((n) => n !== undefined) : undefined;
+  }
+
+  /**
+   * Overview panels from the asset's registration (GET /api/asset-registrations/{id}). Empty values show "-";
+   * a section with no value at all is left out.
+   */
+  get registrationSections(): InfoSection[] {
+    const reg = this.registration;
+    if (!reg) return [];
+    const b = reg.basicInformation;
+    const c = reg.classification;
+    const loc = reg.locationAssignment?.location;
+    const as = reg.locationAssignment?.assignment;
+    const p = reg.purchaseWarranty?.purchase;
+    const w = reg.purchaseWarranty?.warranty;
+    const t = reg.additionalInformation?.technical;
+    const op = reg.additionalInformation?.operational;
+    const day = (v: string | null | undefined) => {
+      const d = isoDay(v);
+      return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+    };
+    const join = (...v: (string | number | null | undefined)[]) => v.filter((x) => x !== null && x !== undefined && x !== '').join(' ');
+    const money = (n: number | null | undefined) => (n === null || n === undefined ? '' : join(p?.currency, n.toLocaleString()));
+    const dims = [t?.dimensionLength, t?.dimensionWidth, t?.dimensionHeight].some((n) => n != null)
+      ? join([t?.dimensionLength, t?.dimensionWidth, t?.dimensionHeight].map((n) => n ?? '-').join(' x '), t?.dimensionUnit)
+      : '';
+    const row = (label: string, value: string | number | boolean | null | undefined, wide = false): InfoRow => ({
+      label,
+      value: value === null || value === undefined ? '' : typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value),
+      wide,
+    });
+    const sections: InfoSection[] = [
+      {
+        title: 'Basic Information',
+        rows: [
+          row('Asset Name', b?.assetName), row('Asset Tag', b?.assetTag), row('Registration ID', reg.assetRegistrationId),
+          row('Barcode', b?.barcode), row('RFID Tag', b?.rfidTagId), row('Serial Number', b?.serialNumber),
+          row('Manufacturer', b?.manufacturer ?? p?.manufacturer), row('Model', b?.model), row('Status', b?.status),
+          row('Condition', b?.condition), row('Criticality', b?.criticality ?? c?.criticality), row('Description', b?.description, true),
+        ],
+      },
+      {
+        title: 'Classification',
+        rows: [
+          row('Category', c?.category), row('Sub-category', c?.subCategory), row('Asset Type', c?.assetType),
+          row('Asset Sub-type', c?.assetSubType), row('Function / Purpose', c?.functionPurpose), row('Department', c?.department),
+          row('Cost Center', c?.costCenter), row('Business Unit', c?.businessUnit), row('Tagging Method', c?.taggingMethod),
+          row('Compliance Category', c?.complianceCategory), row('Lifecycle Stage', c?.lifecycleStage), row('Keywords', c?.keywords?.join(', '), true),
+        ],
+      },
+      {
+        title: 'Location & Assignment',
+        rows: [
+          row('Country', loc?.countryName), row('Site', loc?.siteName), row('Building', loc?.buildingName),
+          row('Floor', loc?.floorName), row('Zone', loc?.zoneName), row('Room', loc?.roomName),
+          row('Custodian Department', as?.custodianDepartment), row('Assigned To', as?.assignedToName), row('Ownership', as?.ownershipType),
+          row('Responsible Team', as?.responsibleTeam), row('Assignment Start', day(as?.assignmentStartDate)), row('Assignment End', day(as?.assignmentEndDate)),
+          row('Location Path', loc?.locationPath, true),
+        ],
+      },
+      {
+        title: 'Purchase & Warranty',
+        rows: [
+          row('Purchase Order', p?.purchaseOrderNumber), row('Invoice Number', p?.invoiceNumber), row('Supplier / Vendor', p?.supplierVendor),
+          row('Purchase Date', day(p?.purchaseDate)), row('Delivery Date', day(p?.deliveryDate)), row('Purchase Cost', money(p?.purchaseCost)),
+          row('Quantity', join(p?.quantity, p?.quantityUnit)), row('Tax', p?.taxPercent != null ? p.taxPercent + '%' : ''), row('Total Cost', money(p?.totalCost)),
+          row('Payment Terms', p?.paymentTerms), row('Procurement Method', p?.procurementMethod), row('Project Reference', p?.projectReference),
+          row('Warranty Type', w?.warrantyType), row('Warranty Start', day(w?.warrantyStartDate)), row('Warranty End', day(w?.warrantyEndDate)),
+          row('Warranty Period', join(w?.warrantyPeriod, w?.warrantyPeriodUnit)), row('AMC Included', w?.amcIncluded), row('Service Provider', w?.serviceProvider),
+          row('Support Coverage', w?.supportCoverage), row('Warranty Reference', w?.warrantyReference), row('Remarks', p?.remarks, true),
+        ],
+      },
+      {
+        title: 'Technical & Operational',
+        rows: [
+          ...(t?.specifications ?? []).filter((s) => s.name).map((s) => row(s.name!, join(s.value, s.unit))),
+          row('Dimensions (L x W x H)', dims), row('Weight', join(t?.weight, t?.weightUnit)), row('Expected Lifespan', join(t?.expectedLifespan, t?.expectedLifespanUnit)),
+          row('Operating Hours', join(op?.operatingHoursPerDay, op?.operatingHoursUnit)), row('Operating Shift', op?.operatingShift), row('Utilization', op?.utilization),
+          row('Maintenance Frequency', join(op?.maintenanceFrequency, op?.maintenanceFrequencyUnit)), row('Last Maintenance', day(op?.lastMaintenanceDate)),
+          row('Next Maintenance', day(op?.nextMaintenanceDate)), row('Compliance Standards', op?.complianceStandards?.join(', '), true),
+          row('Technical Remarks', t?.technicalRemarks, true),
+        ],
+      },
+    ];
+    return sections.filter((s) => s.rows.some((r) => r.value));
+  }
+
+  /** Operational Details card rows from the registration, used when the asset has no status detail data. */
+  get operationalRows(): InfoRow[] {
+    const reg = this.registration;
+    if (!reg) return [];
+    const b = reg.basicInformation;
+    const c = reg.classification;
+    const t = reg.additionalInformation?.technical;
+    const op = reg.additionalInformation?.operational;
+    const day = (v: string | null | undefined) => {
+      const d = isoDay(v);
+      return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+    };
+    const join = (...v: (string | number | null | undefined)[]) => v.filter((x) => x !== null && x !== undefined && x !== '').join(' ');
+    const commissioned = customFieldValue(reg, 'Commissioning Date') ?? customFieldValue(reg, 'Installation Date');
+    const rows: InfoRow[] = [
+      { label: 'Operational Status', value: join(b?.status) },
+      { label: 'Operating Shift', value: join(op?.operatingShift) },
+      { label: 'Utilization', value: join(op?.utilization) },
+      { label: 'Operating Hours', value: join(op?.operatingHoursPerDay, op?.operatingHoursUnit ? `${op.operatingHoursUnit} / day` : '') },
+      { label: 'Maintenance Frequency', value: join(op?.maintenanceFrequency, op?.maintenanceFrequencyUnit) },
+      { label: 'Last Maintenance', value: day(op?.lastMaintenanceDate) },
+      { label: 'Next Maintenance', value: day(op?.nextMaintenanceDate) },
+      { label: 'Lifecycle Stage', value: join(c?.lifecycleStage) },
+      { label: 'Commissioned On', value: commissioned ? day(String(commissioned)) : '' },
+      { label: 'Expected Life', value: join(t?.expectedLifespan, t?.expectedLifespanUnit) },
+      { label: 'Compliance Standards', value: op?.complianceStandards?.join(', ') ?? '' },
+    ];
+    return rows.some((r) => r.value) ? rows : [];
+  }
+
+  /** Counts that link to the other detail tabs: from the counts API when it has the figure, else counted locally. */
   get glance(): { label: string; value: number; icon: typeof Info; path: string }[] {
     const d = this.detail;
     return [
-      { label: 'Components', value: this.components.length, icon: Puzzle, path: '/assets/component-details' },
-      { label: 'Relationships', value: d?.relationships.links.length ?? 0, icon: Network, path: '/assets/relationships' },
-      { label: 'Documents', value: d?.documents.length ?? 0, icon: FileText, path: '/assets/documents' },
-      { label: 'Images', value: d?.images.length ?? 0, icon: Images, path: '/assets/images' },
-      { label: 'Work Orders', value: this.maintenance.workOrders.length, icon: Wrench, path: '/assets/maintenance-details' },
-      { label: 'Service Requests', value: this.apiRequests?.length ?? this.maintenance.serviceRequests.length, icon: MessageSquarePlus, path: '/assets/service-history' },
-      { label: 'Open Alerts', value: this.openAlerts, icon: TriangleAlert, path: '/assets/status-condition' },
+      { label: 'Components', value: this.apiCount('components', 'component', 'assetcomponents') ?? this.components.length, icon: Puzzle, path: '/assets/component-details' },
+      { label: 'Relationships', value: this.apiCount('relationships', 'relationship', 'assetrelationships') ?? d?.relationships.links.length ?? 0, icon: Network, path: '/assets/relationships' },
+      { label: 'Documents', value: this.apiCount('documents', 'document', 'assetdocuments') ?? d?.documents.length ?? 0, icon: FileText, path: '/assets/documents' },
+      { label: 'Images', value: this.apiCount('images', 'image', 'assetimages') ?? d?.images.length ?? 0, icon: Images, path: '/assets/images' },
+      { label: 'Work Orders', value: this.apiCount('workorders', 'workorder') ?? this.maintenance.workOrders.length, icon: Wrench, path: '/assets/maintenance-details' },
+      { label: 'Service Requests', value: this.apiCount('servicerequests', 'servicerequest') ?? this.apiRequests?.length ?? this.maintenance.serviceRequests.length, icon: MessageSquarePlus, path: '/assets/service-history' },
+      { label: 'Open Alerts', value: this.apiCount('openalerts', 'alertsopen', 'activealerts', 'alerts', 'alert') ?? this.openAlerts, icon: TriangleAlert, path: '/assets/status-condition' },
     ];
   }
 

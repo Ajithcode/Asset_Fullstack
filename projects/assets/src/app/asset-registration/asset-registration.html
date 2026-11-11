@@ -78,7 +78,16 @@
 
           <label class="field">
             <span class="field-label">Model</span>
-            <input class="control" [(ngModel)]="form.model" placeholder="Enter model" />
+            <span class="select-wrap">
+              <select class="control control--clearable" [(ngModel)]="form.model" (ngModelChange)="onModelChange()">
+                <option value="" disabled>Select model</option>
+                <option *ngFor="let m of modelOptions" [value]="m">{{ m }}</option>
+              </select>
+              <button type="button" class="clear-btn" *ngIf="form.model" title="Clear"
+                (click)="$event.preventDefault(); form.model = ''">
+                <lucide-icon [img]="icons.X" [size]="10" [strokeWidth]="3"></lucide-icon>
+              </button>
+            </span>
           </label>
 
           <label class="field">

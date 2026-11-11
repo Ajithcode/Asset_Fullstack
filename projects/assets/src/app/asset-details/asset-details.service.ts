@@ -338,11 +338,54 @@ export function customFieldValue(dto: AssetRegistrationDto | null | undefined, f
  * custom field definitions. The demo JSON files in this folder remain the source for status, health, criticality
  * and the other per-asset sections the API does not hold.
  */
+/**
+ * Flattens a counts response to { key: number }. Accepts a flat object, one wrapped in data / counts / summary,
+ * nested objects ({ workOrders: { total: 4, open: 1 } } gives workorders 4 and workordersopen 1) or a list of
+ * { key|name|label, count|value|total } items.
+ */
+export function normaliseCounts(res: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  const clean = (k: string) => k.toLowerCase().replace(/[^a-z]/g, '').replace(/^(total|count)|(count|total)$/g, '');
+  const walk = (value: unknown, prefix: string): void => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      if (prefix && !(prefix in out)) out[prefix] = value;
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (!item || typeof item !== 'object') continue;
+        const r = item as Record<string, unknown>;
+        const key = r['key'] ?? r['name'] ?? r['label'] ?? r['type'];
+        const n = r['count'] ?? r['value'] ?? r['total'];
+        if (typeof key === 'string' && typeof n === 'number') walk(n, prefix + clean(key));
+      }
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      // Wrappers and an inner "total" / "count" belong to the parent key
+      const wrapper = /^(data|counts?|summary|results?|totals?)$/i.test(k);
+      walk(v, wrapper ? prefix : prefix + clean(k));
+    }
+  };
+  walk(res, '');
+  return out;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AssetDetailsService {
   private readonly http = inject(HttpClient);
   private readonly base = `${ASSET_API}asset-registrations`;
   private readonly byTag = new Map<string, Observable<AssetRegistrationDto | null>>();
+
+  /**
+   * GET api/asset-dashboard/assets/{assetRegistrationId}/counts: the asset's summary counts (components, documents, …).
+   * Keys are normalised to lower case without a "count"/"total" prefix or suffix, e.g. { components: 3, workorders: 2 }.
+   */
+  getDashboardCounts(assetRegistrationId: string): Observable<Record<string, number>> {
+    const url = `${environment.assetDashboardApiUrl}api/asset-dashboard/assets/${encodeURIComponent(assetRegistrationId)}/counts`;
+    return this.http.get<unknown>(url).pipe(map(normaliseCounts));
+  }
 
   /** Asset by its tag: the list is searched for the tag, then the full record is read. Null when no asset has the tag. */
   getRegistrationByTag(tag: string): Observable<AssetRegistrationDto | null> {
@@ -366,6 +409,14 @@ export class AssetDetailsService {
 
   getRegistration(assetRegistrationId: string): Observable<AssetRegistrationDto> {
     return this.http.get<AssetRegistrationDto>(`${this.base}/${encodeURIComponent(assetRegistrationId)}`);
+  }
+
+  /** Asset by its registration id (GET /api/asset-registrations/{id}) mapped to the detail page shape; null when not found. */
+  getById(assetRegistrationId: string, fallback?: AssetRecord): Observable<ApiAssetDetails | null> {
+    return this.getRegistration(assetRegistrationId).pipe(
+      map((registration) => (registration ? { registration, record: toAssetRecord(registration, fallback) } : null)),
+      catchError((err) => (err?.status === 404 ? of(null) : throwError(() => err))),
+    );
   }
 
   /** Asset by tag mapped to the shape the detail pages use; null when not registered. */

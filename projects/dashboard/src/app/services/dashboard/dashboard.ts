@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../../../src/environments/environment';
+import type { AssetRegistrationDetail, AssetRegistrationList } from '../../shared/asset-quick-view/quick-view';
 
 /** One KPI tile from GET api/asset-dashboard/kpis */
 export interface KpiMetric {
@@ -226,5 +227,17 @@ export class Dashboard {
   getDeviceConnectivity(days: number): Observable<DeviceConnectivity> {
     const params = new HttpParams().set('days', days);
     return this.http.get<DeviceConnectivity>(`${this.baseUrl}/device-connectivity`, { params });
+  }
+
+  /** GET api/asset-registrations: registered assets, newest first (pageSize 1-200). */
+  getAssetRegistrations(pageSize = 200, search?: string): Observable<AssetRegistrationList> {
+    let params = new HttpParams().set('page', 1).set('pageSize', pageSize);
+    if (search) params = params.set('search', search);
+    return this.http.get<AssetRegistrationList>(`${environment.assetRegistrationApiUrl}api/asset-registrations`, { params });
+  }
+
+  /** GET api/asset-registrations/{assetRegistrationId}: the full registration. */
+  getAssetRegistration(assetRegistrationId: string): Observable<AssetRegistrationDetail> {
+    return this.http.get<AssetRegistrationDetail>(`${environment.assetRegistrationApiUrl}api/asset-registrations/${encodeURIComponent(assetRegistrationId)}`);
   }
 }

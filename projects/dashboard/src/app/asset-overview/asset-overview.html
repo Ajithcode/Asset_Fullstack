@@ -218,48 +218,64 @@
       </div>
     </section>
 
+    <!-- Asset Quick View: registered assets from GET api/asset-registrations(/{id}) -->
     <section class="card io-pad io-quick io-span-1 io-full-md" aria-labelledby="ao-qv">
       <div class="io-sub-head"><h2 id="ao-qv" class="io-title"><lucide-icon [img]="icons.Box" [size]="18"></lucide-icon>Asset Quick View</h2>
-        <button type="button" class="icon-btn" (click)="go('/assets/list')" aria-label="Open asset list" title="Open asset list"><lucide-icon [img]="icons.ExternalLink" [size]="16"></lucide-icon></button></div>
-      <ng-container *ngIf="selected as d; else noSel">
-        <div class="io-qv-head">
-          <img *ngIf="imageOf(d) as src; else qvIcon" [src]="src" [alt]="d.name" />
+        <div class="io-qv-nav">
+          <ng-container *ngIf="qv.items.length > 1">
+            <button type="button" class="icon-btn" (click)="quickTab = 'overview'; qv.step(-1)" aria-label="Previous asset" title="Previous asset"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+            <small class="muted">{{ qv.index + 1 }} / {{ qv.items.length }}</small>
+            <button type="button" class="icon-btn" (click)="quickTab = 'overview'; qv.step(1)" aria-label="Next asset" title="Next asset"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+          </ng-container>
+          <button type="button" class="icon-btn" (click)="qv.asset ? openDetails(qv.asset) : go('/assets/list')" aria-label="Open asset details" title="Open asset details"><lucide-icon [img]="icons.ExternalLink" [size]="16"></lucide-icon></button>
+        </div></div>
+      <ng-container *ngIf="qv.asset as d; else noSel">
+        <div class="io-qv-head" [class.is-loading]="qv.loading">
+          <img *ngIf="d.image; else qvIcon" [src]="d.image" [alt]="d.name" />
           <ng-template #qvIcon><span class="io-qv-ic"><lucide-icon [img]="icons.Cog" [size]="34"></lucide-icon></span></ng-template>
           <div class="grow">
-            <div class="io-qv-title"><strong>{{ d.id }}</strong><span class="ao-st ao-st--pill" [ngClass]="stClass(d.st)"><i></i>{{ d.st }}</span></div>
-            <small>{{ d.name }}</small>
+            <div class="io-qv-title"><strong>{{ d.tag }}</strong><span *ngIf="d.status" class="ao-st ao-st--pill" [ngClass]="'st--' + statusKey(d.status)"><i></i>{{ d.status }}</span></div>
+            <small>{{ d.name }}{{ d.model ? ' - ' + d.model : '' }}</small>
             <div class="io-qv-meta">
-              <span><lucide-icon [img]="icons.MapPin" [size]="13"></lucide-icon><small>Site</small>{{ d.site }}</span>
-              <span><lucide-icon class="heart" [img]="icons.Heart" [size]="13"></lucide-icon><small>Health Score</small><b [style.color]="healthColors[healthBand(d.hp)]">{{ d.hp === null ? '-' : d.hp + '%' }}</b></span>
+              <span><lucide-icon [img]="icons.MapPin" [size]="13"></lucide-icon><small>Site</small>{{ d.site || '-' }}</span>
+              <span><lucide-icon class="heart" [img]="icons.TriangleAlert" [size]="13"></lucide-icon><small>Criticality</small><b [style.color]="d.criticality.toLowerCase() === 'critical' ? '#dc2626' : d.criticality.toLowerCase() === 'high' ? '#d97706' : null">{{ d.criticality || '-' }}</b></span>
             </div>
           </div>
         </div>
+        <p *ngIf="qv.error" class="io-bad">{{ qv.error }}</p>
         <nav class="io-qv-tabs" role="tablist" aria-label="Asset details">
           <button *ngFor="let t of ['overview', 'location', 'maintenance', 'financial', 'documents']" type="button" role="tab" [class.is-active]="quickTab === t" [attr.aria-selected]="quickTab === t" (click)="quickTab = $any(t)">{{ t | titlecase }}</button>
         </nav>
         <dl *ngIf="quickTab === 'overview'" class="io-qv-kv">
-          <dt>Asset Type</dt><dd>{{ d.type }}</dd><dt>Site</dt><dd>{{ d.site }}</dd>
-          <dt>Manufacturer</dt><dd>{{ d.manufacturer }}</dd><dt>Commissioned</dt><dd>{{ fmtDate(d.acquired) }}</dd>
-          <dt>Model</dt><dd>{{ d.model }}</dd><dt>Connectivity</dt><dd><span class="io-conn" [style.color]="d.connected ? '#16a34a' : '#6b7280'"><lucide-icon [img]="d.connected ? icons.Wifi : icons.WifiOff" [size]="13"></lucide-icon>{{ d.connected ? 'Online' : 'Not connected' }}</span></dd>
-          <dt>Serial Number</dt><dd>{{ d.serial }}</dd><dt>Last Update</dt><dd>{{ fmtDateTime(d.lastUpdate) }}</dd>
+          <dt>Asset Type</dt><dd>{{ d.type || '-' }}</dd><dt>Site</dt><dd>{{ d.site || '-' }}</dd>
+          <dt>Manufacturer</dt><dd>{{ d.manufacturer || '-' }}</dd><dt>Commissioned</dt><dd>{{ qvDate(d.commissioned) }}</dd>
+          <dt>Model</dt><dd>{{ d.model || '-' }}</dd>
+          <dt>Connectivity</dt><dd><span class="io-conn" [style.color]="d.iot?.network?.toLowerCase() === 'online' ? '#16a34a' : '#6b7280'"><lucide-icon [img]="d.iot ? icons.Wifi : icons.WifiOff" [size]="13"></lucide-icon>{{ d.iot ? (d.iot.network | titlecase) : 'Not connected' }}</span></dd>
+          <dt>Serial Number</dt><dd>{{ d.serial || '-' }}</dd><dt>Last Update</dt><dd>{{ qvDateTime(d.iot?.lastSeen || d.lastUpdate) }}</dd>
         </dl>
         <dl *ngIf="quickTab === 'location'" class="io-qv-kv">
-          <dt>Site</dt><dd>{{ d.site }}</dd><dt>Department</dt><dd>{{ d.department }}</dd>
-          <dt>Owner</dt><dd [class.io-bad]="!d.owner">{{ d.owner || 'Not assigned' }}</dd><dt>Category</dt><dd>{{ d.category }}</dd>
+          <dt>Site</dt><dd>{{ d.site || '-' }}</dd><dt>Building</dt><dd>{{ d.building || '-' }}</dd>
+          <dt>Floor</dt><dd>{{ d.floor || '-' }}</dd><dt>Zone</dt><dd>{{ d.zone || '-' }}</dd>
+          <dt>Room</dt><dd>{{ d.room || '-' }}</dd><dt>Department</dt><dd>{{ d.department || '-' }}</dd>
+          <dt>Custodian</dt><dd [class.io-bad]="!d.custodian">{{ d.custodian || 'Not assigned' }}</dd><dt>Category</dt><dd>{{ d.category || '-' }}</dd>
         </dl>
         <dl *ngIf="quickTab === 'maintenance'" class="io-qv-kv">
-          <dt>Last Service</dt><dd>{{ fmtDate(d.lastService) }}</dd><dt>Next Service</dt><dd>{{ fmtDate(d.nextService) }}</dd>
-          <dt>Criticality</dt><dd>{{ d.criticality }}</dd><dt>Health</dt><dd>{{ healthBand(d.hp) }}</dd>
+          <dt>Last Service</dt><dd>{{ qvDate(d.lastService) }}</dd><dt>Next Service</dt><dd>{{ qvDate(d.nextService) }}</dd>
+          <dt>Frequency</dt><dd>{{ d.maintenanceFrequency || '-' }}</dd><dt>Criticality</dt><dd>{{ d.criticality || '-' }}</dd>
+          <dt>Condition</dt><dd>{{ d.condition || '-' }}</dd>
         </dl>
         <dl *ngIf="quickTab === 'financial'" class="io-qv-kv">
-          <dt>Book Value</dt><dd>{{ money(d.value) }}</dd><dt>Acquired</dt><dd>{{ fmtDate(d.acquired) }}</dd>
-          <dt>Age</dt><dd>{{ ageOf(d) }} years</dd><dt>Status</dt><dd>{{ d.st }}</dd>
+          <dt>Cost</dt><dd>{{ d.cost === null ? '-' : (d.cost | number: '1.0-2') + (d.currency ? ' ' + d.currency : '') }}</dd><dt>Purchased</dt><dd>{{ qvDate(d.purchaseDate) }}</dd>
+          <dt>Vendor</dt><dd>{{ d.vendor || '-' }}</dd><dt>Warranty Ends</dt><dd>{{ qvDate(d.warrantyEnd) }}</dd>
+          <dt>Status</dt><dd>{{ d.status || '-' }}</dd>
         </dl>
         <dl *ngIf="quickTab === 'documents'" class="io-qv-kv">
-          <dt>Documents</dt><dd [class.io-bad]="!d.documents">{{ d.documents || 'None on file' }}</dd><dt>Owner</dt><dd>{{ d.owner || '-' }}</dd>
+          <ng-container *ngFor="let f of d.documents"><dt>Document</dt><dd><a [href]="f.url" target="_blank" rel="noopener">{{ f.name }}</a></dd></ng-container>
+          <ng-container *ngIf="!d.documents.length"><dt>Documents</dt><dd class="io-bad">None on file</dd></ng-container>
+          <dt>Custodian</dt><dd>{{ d.custodian || '-' }}</dd>
         </dl>
       </ng-container>
-      <ng-template #noSel><p class="muted">Select an asset in the table to see its details.</p></ng-template>
+      <ng-template #noSel><p class="muted">{{ qv.loading ? 'Loading asset…' : qv.error || 'No registered assets yet.' }}</p></ng-template>
     </section>
   </div>
 </section>

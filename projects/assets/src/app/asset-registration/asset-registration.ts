@@ -597,6 +597,9 @@ export class AssetRegistration {
     ],
   };
 
+  /** From GET master-data/asset-models (parentId = manufacturer id), loaded when the page opens. The asset saves the model name. */
+  private assetModels: DropdownOption[] = [];
+
   /** From GET master-data/manufacturers (value = record id), loaded when the page opens. */
   readonly manufacturers: Option[] = DEFAULT_MANUFACTURERS.map(({ label, value }) => ({ label, value }));
 
@@ -848,7 +851,26 @@ export class AssetRegistration {
     this.dropdownApi.getManufacturers().subscribe((list) =>
       this.swapOptions(this.manufacturers, list.length ? list : DEFAULT_MANUFACTURERS, (re) => (f.manufacturer = re(f.manufacturer))),
     );
+    this.dropdownApi.getAssetModels().subscribe((list) => (this.assetModels = list));
     this.loadCriticalities();
+  }
+
+  /**
+   * Model choices: the models of the chosen manufacturer (all of them when none is chosen),
+   * plus the current value so a draft keeps a model that is no longer listed.
+   */
+  get modelOptions(): string[] {
+    const maker = this.manufacturers.find((m) => m.value === this.form.manufacturer);
+    const names = this.assetModels
+      .filter((m) => !maker || m.parentId === maker.value)
+      .map((m) => m.label);
+    return [...new Set([...names, this.form.model].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }
+
+  /** Picking a model fills its manufacturer when the manufacturer is listed. */
+  onModelChange(): void {
+    const model = this.assetModels.find((m) => m.label === this.form.model);
+    if (model?.parentId && this.manufacturers.some((o) => o.value === model.parentId)) this.form.manufacturer = model.parentId;
   }
 
   /** Criticality is on steps 1 and 2: loaded once by whichever is shown first (a draft can open on step 2). */
