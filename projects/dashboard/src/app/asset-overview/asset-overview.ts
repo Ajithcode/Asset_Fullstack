@@ -51,11 +51,14 @@ import {
 import { AGE_BANDS, CATEGORIES, HEALTH_COLORS, HealthBand, PORTFOLIO, PortfolioAsset, PortfolioStatus, SITES, STATUSES, STATUS_COLORS, ageYears, healthBand, isoDate } from './asset-overview-data';
 import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
 import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
-import { AssetQuickView, QuickViewAsset, connectedAssetDrill, qvDate, qvDateTime, statusKey } from '../shared/asset-quick-view/quick-view';
-import { AssetDashboardCategories, AssetDashboardKpis, AssetTypeOption, InsightAsset, InsightAssetList, InsightEndpoint, ConnectedAssetDetail, Dashboard } from '../services/dashboard/dashboard';
+import { AssetQuickView, QuickViewAsset, qvDate, qvDateTime, statusKey } from '../shared/asset-quick-view/quick-view';
+import { AssetDashboardCategories, AssetDashboardKpis, AssetPerformanceSummary, AssetStatusCounts, AssetTypeOption, InsightAsset, InsightAssetList, InsightEndpoint, ConnectedAssetDetail, Dashboard } from '../services/dashboard/dashboard';
 
-/** Window of GET api/asset-dashboard/kpis for the KPI cards. */
+/** KPI window: "Last 30 days" for api/asset-performance/summary (vs. previous 30 days) and days=30 for api/asset-dashboard/kpis. */
 const KPI_DAYS = 30;
+
+type KpiKind = 'total' | 'active' | 'maintenance' | 'critical' | 'health';
+type KpiState = 'loading' | 'ok' | 'error';
 
 type AsOf = 'today' | '30' | '90';
 type Insight = '' | 'critical' | 'maintenance' | 'owner' | 'documents';
@@ -159,17 +162,24 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   readonly qvDateTime = qvDateTime;
 
   readonly kpiDays = KPI_DAYS;
-  /** KPI cards from GET api/asset-dashboard/kpis?days=30; null until the first response. */
+  // KPI cards, each from an existing API; a source is null until it answers and 'error' when it failed.
+  /** Total / Active / Under Maintenance: GET api/asset-dashboard/statuses?includeAssets=false (Asset service). */
+  statusData: AssetStatusCounts | null | 'error' = null;
+  /** Total Assets change and Avg Asset Health Score: GET api/asset-performance/summary?datePreset=Last 30 days (Report Analytics). */
+  performance: AssetPerformanceSummary | null | 'error' = null;
+  /** GET api/asset-dashboard/kpis: only its connected assets are used here (Quick View connectivity). */
   kpiData: AssetDashboardKpis | null = null;
-  kpiLoading = false;
   /** "Asset Portfolio by Category" from GET api/asset-dashboard/categories; null until the first response. */
   categoryData: AssetDashboardCategories | null = null;
   categoryLoading = false;
   /** Quick Insights lists from the API, by insight; missing until loaded. */
   insightData: Partial<Record<Insight, InsightAssetList>> = {};
+  /** GET api/asset-dashboard/critical-assets failed (Critical Assets card shows "Could not load"). */
+  criticalFailed = false;
 
   constructor() {
-    this.loadKpis();
+    this.loadKpiSources();
+    this.loadConnected();
     this.loadFilterOptions();
     this.loadCategories();
     this.loadInsights();
@@ -268,7 +278,10 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
         .subscribe({
           next: (res) => (this.insightData = { ...this.insightData, [key]: res }),
           // critical stays unset on error so the health donut falls back to local data (Quick Insights shows 0 either way)
-          error: () => (this.insightData = key === 'critical' ? this.insightData : { ...this.insightData, [key]: { count: 0, totalAssets: 0, assets: [] } }),
+          error: () => {
+            if (key === 'critical') this.criticalFailed = true;
+            else this.insightData = { ...this.insightData, [key]: { count: 0, totalAssets: 0, assets: [] } };
+          },
         });
     }
   }
@@ -291,42 +304,65 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
       });
   }
 
-  /** Fetches the KPI cards (last 30 days). */
-  loadKpis(): void {
-    this.kpiLoading = true;
+  /** Fetches the KPI cards' sources: asset statuses (Asset service) and the asset performance summary (Report Analytics). */
+  loadKpiSources(): void {
+    this.dashboardApi
+      .getStatusCounts(undefined, false)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (res) => (this.statusData = res), error: () => (this.statusData = 'error') });
+    this.dashboardApi
+      .getAssetPerformanceSummary(`Last ${KPI_DAYS} days`)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (res) => (this.performance = res), error: () => (this.performance = 'error') });
+  }
+
+  /** Connected assets (GET api/asset-dashboard/kpis) for the Quick View's connectivity; not shown as cards here. */
+  loadConnected(): void {
     this.dashboardApi
       .getKpis(KPI_DAYS)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {
           this.kpiData = res;
-          this.kpiLoading = false;
           this.qv.setConnected(res?.connectedAssetDetails ?? []);
         },
-        error: () => {
-          this.kpiData = null;
-          this.kpiLoading = false;
-        },
+        error: () => (this.kpiData = null),
       });
   }
 
+  /**
+   * The KPI cards' figures from the existing APIs. A figure is null while its source loads or when it failed;
+   * the matching *State says which ('loading' shows …, 'error' shows – with "Could not load").
+   * Lifecycle Value has no API in any service yet, so it is not here.
+   */
   get kpis() {
-    const api = this.kpiData;
+    const st = this.statusData === 'error' ? null : this.statusData;
+    const perf = this.performance === 'error' ? null : this.performance?.data ?? null;
+    const crit = this.insightData.critical;
+    const state = (src: unknown, failed: boolean): KpiState => (src ? 'ok' : failed ? 'error' : 'loading');
+    const statusState = state(st, this.statusData === 'error');
+    const perfState = state(perf, this.performance === 'error');
+    const count = (status: string) => st?.statuses.find((s) => s.status.toLowerCase() === status.toLowerCase())?.count ?? 0;
     const round = (v: number | null | undefined) => (v === null || v === undefined ? null : Math.round(v * 10) / 10);
+    const active = st ? count('Active') : null;
+    const maintenance = st ? count('Under Maintenance') : null;
+    const health = perf?.averageHealthScore;
     return {
-      total: api?.totalAssets ?? 0,
-      connected: api?.connectedAssets.value ?? 0,
-      connectedPct: round(api?.connectedAssets.percent) ?? 0,
-      connectedChange: round(api?.connectedAssets.changePercent),
-      online: api?.onlineNow.value ?? 0,
-      onlinePct: round(api?.onlineNow.percent) ?? 0,
-      alerts: api?.alerts.value ?? 0,
-      alertsChange: round(api?.alerts.changePercent),
-      coverage: round(api?.coverage.percent) ?? 0,
-      coverageChange: round(api?.coverage.changePercent),
-      freshness: round(api?.dataFreshness.percent) ?? 0,
-      freshnessChange: round(api?.dataFreshness.changePercent),
+      total: st?.totalAssets ?? null, totalState: statusState,
+      // Report Analytics: assets in service vs. the previous 30 days
+      totalChange: round(perf?.totalAssets.change),
+      active, activePct: st && active !== null ? pct(active, st.totalAssets) : 0, activeState: statusState,
+      maintenance, maintenancePct: st && maintenance !== null ? pct(maintenance, st.totalAssets) : 0, maintenanceState: statusState,
+      critical: crit?.count ?? null, criticalPct: crit ? pct(crit.count, crit.totalAssets) : 0, criticalState: state(crit, this.criticalFailed),
+      // null value with the summary loaded = no asset has a condition assessment yet
+      health: round(health?.value), healthState: perfState,
+      healthChange: round(health?.change), healthUnit: health?.changeUnit === 'points' ? ' pts' : '%',
     };
+  }
+
+  /** Placeholder for a figure that is not there: … while loading, – when it could not be loaded or has no data. */
+  blank(s: KpiState): string {
+    return s === 'loading' ? '…' : '–';
   }
 
   /** Connected assets returned with the KPIs. */
@@ -479,10 +515,15 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
 
   /** Details popup for a row of the critical-assets API. */
   openCriticalAsset(a: InsightAsset): void {
+    this.drill = this.insightAssetDrill(a);
+  }
+
+  /** Details of one dashboard-API asset row (also opened from the KPI card lists); shows it in Quick View too. */
+  private insightAssetDrill(a: InsightAsset): Drill {
     this.showQuick(a.assetRegistrationId);
-    this.drill = {
+    return {
       title: `${a.assetTag} · ${a.assetName}`,
-      subtitle: [[a.category, a.subCategory].filter(Boolean).join(' / '), a.assetType, a.siteName].filter(Boolean).join(' · ') || 'Critical asset',
+      subtitle: [[a.category, a.subCategory].filter(Boolean).join(' / '), a.assetType, a.siteName].filter(Boolean).join(' · ') || 'Asset',
       stats: [
         { label: 'Criticality', value: a.criticality ?? '-', color: (a.criticality ?? '').toLowerCase() === 'critical' ? '#dc2626' : undefined },
         { label: 'Status', value: a.assetStatus ?? '-' },
@@ -674,42 +715,69 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     };
   }
 
-  openKpi(kind: 'total' | 'connected' | 'online' | 'alerts' | 'coverage' | 'freshness'): void {
+  /** Drill-down of a KPI card; asset lists come from GET api/asset-dashboard/statuses and /critical-assets. */
+  openKpi(kind: KpiKind): void {
     const k = this.kpis;
-    const api = this.kpiData;
-    const subtitle = `Last ${KPI_DAYS} days`;
+    const change = (v: number | null, unit = '%') => (v === null ? [] : [{ label: `vs. previous ${KPI_DAYS} days`, value: `${v > 0 ? '+' : ''}${v}${unit}` }]);
     const columns: DrillColumn[] = [
-      { key: 'tag', label: 'Asset Tag' }, { key: 'name', label: 'Asset Name' }, { key: 'type', label: 'Type' }, { key: 'site', label: 'Site' },
-      { key: 'network', label: 'Network', pill: { online: '#16a34a', idle: '#2563eb', offline: '#dc2626' } },
-      { key: 'gateway', label: 'Gateway' }, { key: 'lastSeen', label: 'Last Seen' }, { key: 'readings', label: 'Readings', num: true },
+      { key: 'tag', label: 'Asset Tag' }, { key: 'name', label: 'Asset Name' }, { key: 'category', label: 'Category' }, { key: 'type', label: 'Type' },
+      { key: 'site', label: 'Site' }, { key: 'criticality', label: 'Criticality' }, { key: 'status', label: 'Status' },
     ];
-    const rows = (list: ConnectedAssetDetail[]): DrillRow[] => list.map((a) => ({
+    const rows = (list: InsightAsset[]): DrillRow[] => list.map((a) => ({
       cells: {
-        tag: a.assetTag, name: a.assetName, type: a.assetType, site: a.siteName, network: a.networkStatus,
-        gateway: a.gatewayId ?? '-', lastSeen: a.lastSeenAt ? this.fmtDateTime(a.lastSeenAt) : '-', readings: a.readingCount,
+        tag: a.assetTag, name: a.assetName, category: a.category ?? '-', type: a.assetType ?? '-', site: a.siteName ?? '-',
+        criticality: a.criticality ?? '-', status: a.assetStatus ?? '-',
       },
-      open: () => connectedAssetDrill(a, (id) => this.showQuick(id)),
+      open: () => this.insightAssetDrill(a),
     }));
-    if (kind === 'total' || kind === 'connected') {
+    // asset list of one status, fetched when the card is opened
+    const byStatus = (title: string, status: string, stats: Drill['stats']) => {
+      this.drill = { title, subtitle: 'Registered assets by status', stats, tableTitle: `${status} assets`, columns, rows: [], empty: 'Loading assets…' };
+      this.dashboardApi
+        .getStatusCounts(status)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (res) => {
+            if (this.drill?.title !== title) return;
+            const assets = res.statuses.find((s) => s.status.toLowerCase() === status.toLowerCase())?.assets ?? [];
+            this.drill = { ...this.drill, rows: rows(assets), empty: `No ${status.toLowerCase()} assets.` };
+          },
+          error: () => this.drill?.title === title && (this.drill = { ...this.drill, empty: 'Could not load the assets.' }),
+        });
+    };
+
+    if (kind === 'total') {
       this.drill = {
-        title: kind === 'total' ? 'Total Assets' : 'Connected Assets', subtitle: api?.connectedAssets.note ?? subtitle,
-        stats: [{ label: 'Registered', value: k.total }, { label: 'Connected', value: k.connected }, { label: 'Connected %', value: `${k.connectedPct}%` }],
-        tableTitle: 'Connected assets', columns, rows: rows(this.connectedAssets), empty: 'No connected assets.',
+        title: 'Total Assets', subtitle: 'Registered assets by status',
+        stats: [{ label: 'Registered', value: k.total ?? '-' }, ...change(k.totalChange)],
+        tableTitle: 'Assets by status',
+        columns: [{ key: 'status', label: 'Status' }, { key: 'count', label: 'Assets', num: true }, { key: 'pct', label: 'Of total', num: true }],
+        rows: [], empty: 'Loading statuses…',
       };
-    } else if (kind === 'online') {
-      const online = this.connectedAssets.filter((a) => a.networkStatus?.toLowerCase() === 'online');
+      this.dashboardApi
+        .getStatusCounts(undefined, false)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (res) => {
+            if (this.drill?.title !== 'Total Assets') return;
+            this.drill = { ...this.drill, rows: res.statuses.map((s) => ({ cells: { status: s.status, count: s.count, pct: `${s.percent}%` } })), empty: 'No assets.' };
+          },
+          error: () => this.drill?.title === 'Total Assets' && (this.drill = { ...this.drill, empty: 'Could not load the statuses.' }),
+        });
+    } else if (kind === 'active') {
+      byStatus('Active Assets', 'Active', [{ label: 'Active', value: k.active ?? '-', color: '#16a34a' }, { label: 'Of total assets', value: `${k.activePct}%` }]);
+    } else if (kind === 'maintenance') {
+      byStatus('Assets Under Maintenance', 'Under Maintenance', [{ label: 'Under maintenance', value: k.maintenance ?? '-', color: '#d97706' }, { label: 'Of total assets', value: `${k.maintenancePct}%` }]);
+    } else if (kind === 'critical') {
       this.drill = {
-        title: 'Online Now', subtitle: api?.onlineNow.note ?? subtitle,
-        stats: [{ label: 'Online', value: k.online, color: '#16a34a' }, { label: 'Of connected assets', value: `${k.onlinePct}%` }],
-        columns, rows: rows(online), empty: 'No assets online.',
+        title: 'Critical Assets', subtitle: 'Assets with criticality Critical',
+        stats: [{ label: 'Critical', value: k.critical ?? '-', color: '#dc2626' }, { label: 'Of total assets', value: `${k.criticalPct}%` }],
+        tableTitle: 'Critical assets', columns, rows: rows(this.insightData.critical?.assets ?? []), empty: 'No critical assets.',
       };
     } else {
-      const metric = kind === 'alerts' ? api?.alerts : kind === 'coverage' ? api?.coverage : api?.dataFreshness;
-      const title = kind === 'alerts' ? 'Alerts' : kind === 'coverage' ? 'Coverage' : 'Data Freshness';
-      const value = kind === 'alerts' ? k.alerts : `${kind === 'coverage' ? k.coverage : k.freshness}%`;
       this.drill = {
-        title, subtitle: metric?.note ?? subtitle,
-        stats: [{ label: title, value }, ...(metric?.changePercent != null ? [{ label: `vs. previous ${KPI_DAYS} days`, value: `${metric.changePercent > 0 ? '+' : ''}${Math.round(metric.changePercent * 10) / 10}%` }] : [])],
+        title: 'Avg Asset Health Score', subtitle: `Latest condition assessment of each asset · last ${KPI_DAYS} days`,
+        stats: [{ label: 'Average score', value: k.health === null ? '-' : `${k.health}%` }, ...change(k.healthChange, k.healthUnit)],
       };
     }
   }
@@ -842,8 +910,9 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
       { Metric: 'As of', Value: isoDate(this.asOfDate) },
       { Metric: 'Filters', Value: `Site: ${this.site || 'All'}; Category: ${this.category || 'All'}; Type: ${this.type || 'All'}; Status: ${this.status || 'All'}` },
       { Metric: `KPI window`, Value: `Last ${KPI_DAYS} days` },
-      { Metric: 'Total Assets', Value: k.total }, { Metric: 'Connected Assets', Value: k.connected }, { Metric: 'Online Now', Value: k.online },
-      { Metric: 'Alerts', Value: k.alerts }, { Metric: 'Coverage %', Value: k.coverage }, { Metric: 'Data Freshness %', Value: k.freshness },
+      { Metric: 'Total Assets', Value: k.total ?? '' }, { Metric: 'Active Assets', Value: k.active ?? '' },
+      { Metric: 'Assets Under Maintenance', Value: k.maintenance ?? '' }, { Metric: 'Critical Assets', Value: k.critical ?? '' },
+      { Metric: 'Avg Asset Health Score %', Value: k.health ?? '' },
     ]), 'Summary');
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.byCategory.map((c) => ({ Category: c.name, Assets: c.count, '%': c.pct }))), 'By Category');
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.byStatus.map((s) => ({ Status: s.status, Assets: s.count, '%': s.pct }))), 'By Status');

@@ -41,6 +41,31 @@ export interface AssetDashboardKpis {
   connectedAssetDetails: ConnectedAssetDetail[];
 }
 
+/** A KPI of the Report Analytics API (KpiWidgetData): value, previous period and the change between them. */
+export interface ReportKpi {
+  value: number | null;
+  format: string;
+  previousValue: number | null;
+  change: number | null;
+  /** "percent" (relative change) or "points" (difference of two percentages). */
+  changeUnit: string;
+  trend: string;
+  comparisonLabel: string;
+}
+
+/** Response of GET {reports}api/asset-performance/summary (Report Analytics service, 5480). */
+export interface AssetPerformanceSummary {
+  generatedAt: string;
+  data: {
+    totalAssets: ReportKpi;
+    averageHealthScore: ReportKpi;
+    utilizationRate: ReportKpi;
+    availability: ReportKpi;
+    mtbf: ReportKpi;
+    mttr: ReportKpi;
+  };
+}
+
 /** One donut band from GET api/asset-dashboard/device-connectivity */
 export interface ConnectivityBand {
   name: string;
@@ -169,6 +194,13 @@ export interface InsightAssetList {
   assets: InsightAsset[];
 }
 
+/** Response of GET api/asset-dashboard/statuses: asset count per status (assets listed unless includeAssets=false). */
+export interface AssetStatusCounts {
+  totalAssets: number;
+  totalStatuses: number;
+  statuses: { status: string; count: number; percent: number; assets: InsightAsset[] }[];
+}
+
 /** Quick Insights endpoints under api/asset-dashboard. */
 export type InsightEndpoint = 'critical-assets' | 'assets-without-custodian' | 'assets-without-documents';
 
@@ -183,6 +215,19 @@ export class Dashboard {
   getKpis(days: number): Observable<AssetDashboardKpis> {
     const params = new HttpParams().set('days', days);
     return this.http.get<AssetDashboardKpis>(`${this.baseUrl}/kpis`, { params });
+  }
+
+  /** GET {reports}api/asset-performance/summary?datePreset= : total assets and average health score vs. the previous period. */
+  getAssetPerformanceSummary(datePreset = 'Last 30 days'): Observable<AssetPerformanceSummary> {
+    const params = new HttpParams().set('datePreset', datePreset);
+    return this.http.get<AssetPerformanceSummary>(`${environment.reportsApiUrl}api/asset-performance/summary`, { params });
+  }
+
+  /** GET api/asset-dashboard/statuses?status=&includeAssets= : assets per status (one status when given). */
+  getStatusCounts(status?: string, includeAssets = true): Observable<AssetStatusCounts> {
+    let params = new HttpParams().set('includeAssets', includeAssets);
+    if (status) params = params.set('status', status);
+    return this.http.get<AssetStatusCounts>(`${this.baseUrl}/statuses`, { params });
   }
 
   /** GET api/master-data/asset-types */
