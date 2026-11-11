@@ -53,7 +53,7 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, nextNumber, tagIdOf } from './tag-data';
+import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, nextNumber, tagIdFromNumber } from './tag-data';
 import { TagIdApiService } from './tag-id-api.service';
 
 /** Tag IDs = the identifier registry; Assignments = lifecycle of each tag on assets; Audit = every change. */
@@ -100,6 +100,17 @@ function eventKind(text: string): EventKind {
   return EVENT_KINDS.find((k) => text.startsWith(k)) ?? 'Edited';
 }
 
+type ToastTone = 'success' | 'error' | 'warning' | 'info';
+interface Toast {
+  /** New for every toast, so the card (and its countdown bar) restarts. */
+  id: number;
+  tone: ToastTone;
+  title: string;
+  message: string;
+}
+/** How long a toast stays up (errors included); hovering pauses it. */
+const TOAST_MS = 4000;
+
 @Component({
   selector: 'app-tag-management',
   standalone: true,
@@ -145,7 +156,14 @@ export class TagManagement implements OnInit, OnDestroy {
   menuOpen = '';
   dialog: Dialog | null = null;
   formError = '';
-  toast = '';
+  /** Top-right toast; replaced by the next one, closed after TOAST_MS (paused while hovered). */
+  toast: Toast | null = null;
+  readonly toastMs = TOAST_MS;
+  /** True while the pointer is on the toast: its countdown stops. */
+  toastPaused = false;
+  private toastEndsAt = 0;
+  private toastLeft = 0;
+  private toastSeq = 0;
   /** True while the tag list is being fetched. */
   loading = false;
   /** Why the tag list could not be loaded. */
@@ -282,7 +300,7 @@ export class TagManagement implements OnInit, OnDestroy {
       this.log(t, v === 'Valid' ? 'Validated: format and uniqueness OK' : `Validation failed: ${this.validationDetail(t)}`);
     }
     const one = list.length === 1 ? list[0].id : `${list.length} tags`;
-    this.showToast(bad ? `${one} checked: ${bad} with issues.` : `${one} validated. No issues found.`);
+    this.showToast(bad ? 'Issues found' : 'Validated', bad ? `${bad} of ${one} need attention` : one, bad ? 'warning' : 'success');
   }
 
   validateChecked(): void {
@@ -588,7 +606,7 @@ export class TagManagement implements OnInit, OnDestroy {
       return;
     }
     this.showAssetTags(t.asset.tag);
-    this.showToast(`${t.asset.tag} isn't in the asset register. Showing its tags instead.`);
+    this.showToast('Asset not registered', `Showing tags of ${t.asset.tag}`, 'info');
   }
 
   viewOnMap(t: TagId): void {
@@ -637,7 +655,7 @@ export class TagManagement implements OnInit, OnDestroy {
   private failed(e: Error): void {
     this.saving = false;
     if (this.dialog) this.formError = e.message;
-    else this.showToast(e.message);
+    else this.showToast('Action failed', e.message, 'error');
   }
 
   private open(d: Dialog): void {
@@ -698,7 +716,7 @@ export class TagManagement implements OnInit, OnDestroy {
         this.saving = false;
         this.dialog = null;
         this.selectedId = n.id;
-        this.showToast(`${n.id} ${previous ? 'reassigned' : 'assigned'} to ${asset.tag}.`);
+        this.showToast(previous ? 'Tag reassigned' : 'Tag assigned', `${n.id} → ${asset.tag}`);
       },
       error: (e: Error) => this.failed(e),
     });
@@ -748,7 +766,7 @@ export class TagManagement implements OnInit, OnDestroy {
         this.saving = false;
         this.dialog = null;
         this.selectedId = n.id;
-        this.showToast(`${n.id} now identifies ${asset.tag}. ${old.id} is ${d.oldTo.toLowerCase()}.`);
+        this.showToast('Tag replaced', `${old.id} → ${n.id} on ${asset.tag}`);
       },
       error: (e: Error) => {
         this.failed(oldSaved ? new Error(`${old.id} was updated, but ${next.id} could not be assigned: ${e.message}`) : e);
@@ -775,7 +793,7 @@ export class TagManagement implements OnInit, OnDestroy {
         this.log(n, `Unassigned from ${this.assetLabel(from)}${d.reason.trim() ? ': ' + d.reason.trim() : ''}`);
         this.saving = false;
         this.dialog = null;
-        this.showToast(`${n.id} is now available.`);
+        this.showToast('Tag unassigned', `${n.id} is available`);
       },
       error: (e: Error) => this.failed(e),
     });
@@ -802,7 +820,7 @@ export class TagManagement implements OnInit, OnDestroy {
         this.log(n, d.to === 'Inactive' ? `Deactivated${from ? ' and unlinked from ' + this.assetLabel(from) : ''}: ${d.reason.trim()}` : `Reactivated${d.reason.trim() ? ': ' + d.reason.trim() : ''}`);
         this.saving = false;
         this.dialog = null;
-        this.showToast(`${n.id} ${d.to === 'Inactive' ? 'deactivated' : 'reactivated'}.`);
+        this.showToast(d.to === 'Inactive' ? 'Tag deactivated' : 'Tag reactivated', n.id);
       },
       error: (e: Error) => this.failed(e),
     });
@@ -835,7 +853,7 @@ export class TagManagement implements OnInit, OnDestroy {
         this.log(n, `Edited: type ${t.type} → ${d.type}`);
         this.saving = false;
         this.dialog = null;
-        this.showToast(`${n.id} updated.`);
+        this.showToast('Tag updated', n.id);
       },
       error: (e: Error) => this.failed(e),
     });
@@ -861,7 +879,7 @@ export class TagManagement implements OnInit, OnDestroy {
         this.dialog = null;
         this.version++;
         this.page = Math.min(this.page, this.pageCount - 1);
-        this.showToast(`${d.tagId} deleted.`);
+        this.showToast('Tag deleted', d.tagId);
       },
       error: (e: Error) => this.failed(e),
     });
@@ -884,16 +902,16 @@ export class TagManagement implements OnInit, OnDestroy {
 
   get registerPreview(): string {
     const d = this.dialog;
-    return d?.kind === 'register' ? tagIdOf(d.tech, Number(d.number) || 0) : '';
+    return d?.kind === 'register' ? (tagIdFromNumber(d.tech, d.number) ?? '–') : '';
   }
 
   saveRegister(): void {
     const d = this.dialog;
     if (d?.kind !== 'register' || this.saving) return;
-    const n = Number(d.number);
-    if (!Number.isInteger(n) || n <= 0) return void (this.formError = 'Enter a tag number.');
-    const id = tagIdOf(d.tech, n);
-    if (TAGS.some((t) => t.id === id)) return void (this.formError = `${id} already exists.`);
+    if (!String(d.number ?? '').trim()) return void (this.formError = 'Enter a tag number.');
+    const id = tagIdFromNumber(d.tech, d.number);
+    if (!id) return void (this.formError = "Tag number can only contain letters, digits, '-' and '_' (up to 50 characters).");
+    if (TAGS.some((t) => t.id.toLowerCase() === id.toLowerCase())) return void (this.formError = `${id} already exists.`);
     const draft = this.newTag(d.tech, id, d.type, d.site, d.location, d.asset);
     this.saving = true;
     this.api.create(draft).subscribe({
@@ -906,7 +924,7 @@ export class TagManagement implements OnInit, OnDestroy {
         this.clearFilters();
         this.sortKey = 'activity';
         this.sortDesc = true;
-        this.showToast(`${t.id} registered${t.asset ? ' and assigned to ' + t.asset.tag : ''}.`);
+        this.showToast('Tag registered', t.asset ? `${t.id} → ${t.asset.tag}` : t.id);
       },
       error: (e: Error) => this.failed(e),
     });
@@ -968,8 +986,8 @@ export class TagManagement implements OnInit, OnDestroy {
     return raw.map((r, i) => {
       const techText = get(r, 'technology', 'tech');
       const tech = TECH_ALIASES[techText.toLowerCase()] ?? null;
-      const num = Number(get(r, 'tag number', 'number', 'tag no'));
-      const id = tech && num > 0 ? tagIdOf(tech, num) : '';
+      const numText = get(r, 'tag number', 'number', 'tag no');
+      const id = (tech && tagIdFromNumber(tech, numText)) || '';
       const typeText = get(r, 'type');
       const type = (TYPES.find((x) => x.toLowerCase() === typeText.toLowerCase()) ?? (tech ? DEFAULT_TYPE[tech] : 'Label')) as TagType;
       const siteText = get(r, 'site');
@@ -977,7 +995,8 @@ export class TagManagement implements OnInit, OnDestroy {
       const location = get(r, 'location');
       let error = '';
       if (!tech) error = techText ? `Unknown technology "${techText}"` : 'Technology missing';
-      else if (!(num > 0)) error = 'Tag number missing';
+      else if (!numText) error = 'Tag number missing';
+      else if (!id) error = `Tag number "${numText}" can only contain letters, digits, '-' and '_'`;
       else if (ids.has(id)) error = `${id} already exists`;
       if (!error) ids.add(id);
       // the encoded value column is accepted but not stored: the API has no field for it
@@ -1023,7 +1042,7 @@ export class TagManagement implements OnInit, OnDestroy {
         return;
       }
       this.dialog = null;
-      this.showToast(`${done} tag${done === 1 ? '' : 's'} imported${skipped ? `, ${skipped} skipped` : ''}.`);
+      this.showToast('Import complete', `${done} imported${skipped ? ` · ${skipped} skipped` : ''}`, skipped ? 'warning' : 'success');
     });
   }
 
@@ -1066,10 +1085,45 @@ export class TagManagement implements OnInit, OnDestroy {
     else if (window.innerWidth < 1200) this.selectedId = null;
   }
 
-  private showToast(message: string): void {
-    this.toast = message;
+  /** Short action title ("Tag registered") and a one-line detail ("c3000071fe4c → TV12333"). */
+  private showToast(title: string, message: string, tone: ToastTone = 'success'): void {
+    this.toast = { id: ++this.toastSeq, tone, title, message };
+    this.toastPaused = false;
+    this.runToastTimer(TOAST_MS);
+  }
+
+  closeToast(): void {
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    this.toast = null;
+    this.toastPaused = false;
+  }
+
+  /** Hovering the toast stops its countdown; leaving resumes it with the time that was left. */
+  pauseToast(): void {
+    if (!this.toast || this.toastPaused) return;
+    clearTimeout(this.toastTimer);
+    this.toastLeft = Math.max(0, this.toastEndsAt - Date.now());
+    this.toastPaused = true;
+  }
+
+  resumeToast(): void {
+    if (!this.toast || !this.toastPaused) return;
+    this.toastPaused = false;
+    this.runToastTimer(this.toastLeft);
+  }
+
+  private runToastTimer(ms: number): void {
+    clearTimeout(this.toastTimer);
+    this.toastEndsAt = Date.now() + ms;
+    this.toastTimer = setTimeout(() => this.closeToast(), ms);
+  }
+
+  trackToast(_: number, t: Toast): number {
+    return t.id;
+  }
+
+  toastIcon(tone: ToastTone) {
+    return tone === 'success' ? this.icons.CircleCheck : tone === 'info' ? this.icons.Info : this.icons.CircleAlert;
   }
 
   /** Narrow a dialog for the template (strict templates cannot narrow a union on their own). */

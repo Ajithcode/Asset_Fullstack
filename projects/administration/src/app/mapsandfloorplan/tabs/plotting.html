@@ -130,18 +130,29 @@
     @if (placingId) {
       <p class="note placing-hint">Click on the map to place {{ selected?.name }} ({{ selected?.code }}). <button type="button" class="btn--link btn" (click)="placingId = null">Cancel</button></p>
     }
-    <app-map-canvas
-      [zoom]="v.zoom"
-      [showZones]="show.zones"
-      [showDevices]="show.devices && showFilter !== 'assets'"
-      [showAssets]="show.assets && showFilter !== 'devices'"
-      [showLabels]="show.labels"
-      [showItemLabels]="settings.labelMode !== 'None'"
-      [selectedItemId]="store.selectedItemId"
-      [placing]="!!placingId"
-      (itemSelect)="select($event)"
-      (place)="place($event)"
-    ></app-map-canvas>
+    <!-- the map, with the live asset popup over its top-right corner -->
+    <div class="map-stage">
+      <app-map-canvas
+        [zoom]="v.zoom"
+        [showZones]="show.zones"
+        [showDevices]="show.devices && showFilter !== 'assets'"
+        [showAssets]="show.assets && showFilter !== 'devices'"
+        [showLabels]="show.labels"
+        [showItemLabels]="settings.labelMode !== 'None'"
+        [selectedItemId]="store.selectedItemId"
+        [placing]="!!placingId"
+        [anchorItemId]="livePopup?.id ?? null"
+        [anchorZoneId]="zonePopup?.zone?.id ?? null"
+        (zoneTotalSelect)="openZoneTotals($event)"
+        [gatewayCounts]="gatewayCounts"
+        (anchorMove)="popupAnchor = $event"
+        (itemSelect)="select($event)"
+        (place)="place($event)"
+      ></app-map-canvas>
+      @if (livePopup; as p) {
+        <app-asset-live-popup [item]="p" [anchor]="popupAnchor" [zone]="zonePopupInfo" [gateway]="p.kind === 'device' ? gatewayOf(p) : null" [gatewayState]="gatewayState" (close)="closePopup()"></app-asset-live-popup>
+      }
+    </div>
 
     <div class="map-foot" foot>
       <label><input type="checkbox" [(ngModel)]="show.devices" /> Devices ({{ count('device') }})</label>

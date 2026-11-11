@@ -3,7 +3,15 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
 import { apiError, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
-import { Conn, DevEvent, Device, Health, Power } from './device-data';
+import { Conn, DevEvent, Device, Health, LinkedAsset, Power } from './device-data';
+
+/** One row of GET {assetApiUrl}api/asset-registrations (Asset service): what the asset picker needs. */
+interface AssetListItemDto {
+  id: string;
+  assetRegistrationId: string | null;
+  assetName: string | null;
+  assetTag: string | null;
+}
 
 /** A device as GET/POST/PUT /api/iot-devices returns it (addressed by deviceId). */
 export interface IoTDeviceDto {
@@ -193,6 +201,24 @@ export class IoTDeviceApiService {
     return this.http.get<GatewayOption[]>(`${this.url}/gateways`, { params: tenantParams({ siteId }) }).pipe(catchError(() => of([])));
   }
 
+  /**
+   * Registered assets for the "Link to asset" pickers: GET {assetApiUrl}api/asset-registrations (Asset service, first 1000),
+   * the same list Tag Management offers. Empty when the Asset service cannot be reached.
+   */
+  registeredAssets(): Observable<LinkedAsset[]> {
+    const params = tenantParams({ page: 1, pageSize: 1000 });
+    return this.http.get<AssetListItemDto[] | { items?: AssetListItemDto[] }>(`${environment.assetApiUrl}api/asset-registrations`, { params }).pipe(
+      map((res) => (Array.isArray(res) ? res : res?.items ?? [])
+        .map((r): LinkedAsset => {
+          const code = (r.assetTag || r.assetRegistrationId || '').trim();
+          return { name: r.assetName?.trim() || code, code, registrationId: r.assetRegistrationId ?? undefined };
+        })
+        .filter((a) => !!a.code)
+        .sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code))),
+      catchError(() => of([])),
+    );
+  }
+
   /** Master-data sites; empty when the service cannot be reached. */
   sites(): Observable<SiteOption[]> {
     return this.http.get<Record<string, unknown>[]>(`${environment.assetMasterDataApiUrl}api/master-data/sites`).pipe(
@@ -238,7 +264,8 @@ export class IoTDeviceApiService {
       connectivity: d.protocol,
       siteId,
       siteName: d.site || null,
-      assetRegistrationId: sameAsset ? api!.assetRegistrationId : null,
+      // a registered asset picked from the list carries its registration id; otherwise keep the one already stored
+      assetRegistrationId: d.asset?.registrationId ?? (sameAsset ? api!.assetRegistrationId : null),
       assetCode: d.asset?.code ?? null,
       assetName: d.asset && d.asset.name !== d.asset.code ? d.asset.name : sameAsset ? api!.assetName : null,
       gateway: d.gateway || null,

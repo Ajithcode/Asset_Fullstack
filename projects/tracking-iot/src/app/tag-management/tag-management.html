@@ -296,7 +296,7 @@
       <div class="two">
         <label class="field"><span class="field-label">Technology</span><select class="control" [(ngModel)]="d.tech" name="tech" (ngModelChange)="onRegisterTech()"><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Tag type</span><select class="control" [(ngModel)]="d.type" name="type"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
-        <label class="field"><span class="field-label">Tag number <em>*</em></span><input class="control" [(ngModel)]="d.number" name="num" inputmode="numeric" /><small class="muted">Tag ID: <strong>{{ registerPreview }}</strong></small></label>
+        <label class="field"><span class="field-label">Tag number <em>*</em></span><input class="control" [(ngModel)]="d.number" name="num" autocomplete="off" spellcheck="false" placeholder="e.g. 123 or c300009aaf43" /><small class="muted">Tag ID: <strong>{{ registerPreview }}</strong> · a number gives {{ d.tech }}-000123; a device ID is kept as entered</small></label>
         <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = locationsOf(d.site).at(0) ?? ''"><option value="">—</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
         <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">—</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
       </div>
@@ -421,4 +421,16 @@
 </div>
 
 
-<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>
+<!-- Toast: top-right card; errors are announced assertively, others politely -->
+<div class="toast-region" aria-live="polite">
+  <div *ngFor="let t of toast ? [toast] : []; trackBy: trackToast" class="toast" [ngClass]="'toast--' + t.tone" [class.is-paused]="toastPaused"
+    [attr.role]="t.tone === 'error' ? 'alert' : 'status'" (mouseenter)="pauseToast()" (mouseleave)="resumeToast()" (focusin)="pauseToast()" (focusout)="resumeToast()">
+    <span class="toast-ic"><lucide-icon [img]="toastIcon(t.tone)" [size]="16"></lucide-icon></span>
+    <div class="toast-body">
+      <strong class="toast-title">{{ t.title }}</strong>
+      <p class="toast-msg" [title]="t.message">{{ t.message }}</p>
+    </div>
+    <button type="button" class="toast-close" (click)="closeToast()" aria-label="Dismiss notification"><lucide-icon [img]="icons.X" [size]="14"></lucide-icon></button>
+    <span class="toast-bar" [style.animation-duration.ms]="toastMs" aria-hidden="true"></span>
+  </div>
+</div>

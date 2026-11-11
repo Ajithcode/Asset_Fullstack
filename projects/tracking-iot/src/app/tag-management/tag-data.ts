@@ -85,6 +85,22 @@ export function tagIdOf(tech: Tech, n: number): string {
   return `${PREFIX[tech] ?? 'TAG'}-${String(n).padStart(6, '0')}`;
 }
 
+/** Same rule as the Tracking API (TagId): letters, digits, '-' and '_', at most 50 characters. */
+const TAG_ID_PATTERN = /^[A-Za-z0-9_-]{1,50}$/;
+
+/**
+ * Tag ID from the "Tag number" field (Register and Import):
+ * - a plain number becomes the numbered id, e.g. 123 -> BLE-000123;
+ * - a device id such as a BLE MAC "c300009aaf43" is kept exactly as entered, because readings are matched to
+ *   registered tags by this id (NetworkTimeSeries meta.tagid = TrackingTag tag_id).
+ * Null when empty, zero or not allowed by the API.
+ */
+export function tagIdFromNumber(tech: Tech, input: string | number | null | undefined): string | null {
+  const value = String(input ?? '').trim();
+  if (/^\d+$/.test(value)) return Number(value) > 0 ? tagIdOf(tech, Number(value)) : null;
+  return TAG_ID_PATTERN.test(value) ? value : null;
+}
+
 /** Tags loaded from the API. */
 export const TAGS: TagId[] = [];
 

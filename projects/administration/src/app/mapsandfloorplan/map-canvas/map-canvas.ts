@@ -150,6 +150,26 @@ interface Frame {
       box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(15, 23, 42, 0.3);
     }
     .mfp-marker--asset .mfp-marker__dot { border-radius: 6px; }
+    /* "Total Assets N" at the centre of a zone with a gateway: linked assets heard by the zone's gateway(s) */
+    .mfp-ztotal {
+      position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
+      display: inline-flex; align-items: center; gap: 8px; padding: 5px 6px 5px 12px; white-space: nowrap; cursor: pointer;
+      border-radius: 999px; background: #fff; border: 1px solid #ddd6fe;
+      box-shadow: 0 6px 16px -6px rgba(46, 26, 140, 0.45), 0 1px 3px rgba(15, 23, 42, 0.12);
+      font: 600 12px/1 system-ui, sans-serif; color: #4c1d95; animation: mfp-ztotal-in 0.25s ease-out;
+    }
+    .mfp-ztotal small { font: inherit; letter-spacing: 0.01em; }
+    .mfp-ztotal b {
+      display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; box-sizing: border-box;
+      border-radius: 999px; background: linear-gradient(145deg, #7c5cff, #5b3fd4); color: #fff; font-size: 13px;
+    }
+    .mfp-ztotal:hover { border-color: #a78bfa; }
+    /* zone drawn too small for the text: only the count */
+    .mfp-ztotal--compact { gap: 0; padding: 3px; }
+    .mfp-ztotal--compact small { display: none; }
+    .mfp-ztotal--zero { color: #6b7280; border-color: #e5e7eb; }
+    .mfp-ztotal--zero b { background: #e5e7eb; color: #6b7280; }
+    @keyframes mfp-ztotal-in { from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); } to { opacity: 1; transform: translate(-50%, -50%); } }
     .mfp-marker--active .mfp-marker__dot { box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--tone); }
     .mfp-marker__label, .mfp-pin__label {
       padding: 0 4px;
@@ -189,6 +209,7 @@ interface Frame {
 export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
   readonly store = inject(MapsStore);
   private readonly ngZone = inject(NgZone);
+  private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   @ViewChild('mapEl', { static: true }) mapEl?: ElementRef<HTMLDivElement>;
@@ -222,6 +243,29 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
 
   /** Plan to draw (defaults to the store's current plan). Zones and plots are drawn only for the current plan. */
   @Input() plan: FloorPlan | undefined;
+  /**
+   * Assets per gateway, keyed by gateway id in lower case (NetworkTimeSeries meta.gatewayid). A plotted device whose
+   * device id or code is a gateway id shows the count on its icon.
+   */
+  @Input() gatewayCounts: Record<string, { count: number; names: string[] }> | null = null;
+
+  private gatewayCount(i: PlotItem): { count: number; names: string[] } | null {
+    if (!this.gatewayCounts) return null;
+    return this.gatewayCounts[i.itemId?.toLowerCase()] ?? this.gatewayCounts[i.code?.toLowerCase()] ?? null;
+  }
+
+  /** A zone's "Total Assets" label was clicked: the zone and the plotted gateways in it. */
+  @Output() zoneTotalSelect = new EventEmitter<{ zone: MapZone; gateways: PlotItem[] }>();
+
+  /** Item to track on screen (e.g. for a popup above it); its position is reported through `anchorMove`. */
+  @Input() anchorItemId: string | null = null;
+  /** Or a zone: its "Total Assets" label (the zone's centre) is tracked instead; takes precedence over `anchorItemId`. */
+  @Input() anchorZoneId: string | null = null;
+  /**
+   * Where the anchored item's marker sits, in pixels from the map's top-left corner (null when it is not plotted
+   * or the map is not ready). Re-sent while the map pans, zooms or resizes.
+   */
+  @Output() anchorMove = new EventEmitter<{ x: number; y: number; inView: boolean } | null>();
   /** A version's file (Versions tab): shown instead of the plan's current file when it is an image. */
   @Input() fileUrl: string | null = null;
   @Input() fileFormat: string | null = null;
@@ -368,6 +412,53 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
       this.ngZone.runOutsideAngular(() => this.draw());
     }
     this.syncScale();
+    // after this check (item moved, anchor changed): emitting during change detection would change the parent mid-check
+    // (scheduled outside Angular so the wait itself does not start another check; emitAnchor re-enters only on a change)
+    if (!this.anchorQueued) {
+      this.anchorQueued = true;
+      this.ngZone.runOutsideAngular(() =>
+        Promise.resolve().then(() => {
+          this.anchorQueued = false;
+          this.emitAnchor();
+        })
+      );
+    }
+  }
+
+  private anchorKey = '';
+  private anchorQueued = false;
+
+  /** Reports the anchored zone label's or item marker's position in map pixels, only when it changed. */
+  private emitAnchor(): void {
+    let next: { x: number; y: number; inView: boolean } | null = null;
+    let at: { x: number; y: number } | null = null;
+    let lift = 0;
+    const zone = this.anchorZoneId ? this.store.zones.find((z) => z.id === this.anchorZoneId) : undefined;
+    if (zone) {
+      // the Total Assets label sits on the zone's centre; aim at its top edge so the popup does not cover it
+      at = { x: zone.x + zone.w / 2, y: zone.y + zone.h / 2 };
+      lift = 14;
+    } else {
+      const item = this.anchorItemId ? this.store.items.find((i) => i.id === this.anchorItemId) : undefined;
+      if (item && item.x !== null && item.y !== null) at = { x: item.x, y: item.y };
+    }
+    if (at && this.map && this.frame) {
+      const p = this.map.latLngToContainerPoint(this.toLatLng(at.x, at.y));
+      p.y -= lift;
+      const size = this.map.getSize();
+      // measured from this component's box (the map element may sit inside a border / padding)
+      const mapBox = (this.map.getContainer() as HTMLElement).getBoundingClientRect();
+      const hostBox = this.hostEl.nativeElement.getBoundingClientRect();
+      next = {
+        x: Math.round(p.x + mapBox.left - hostBox.left),
+        y: Math.round(p.y + mapBox.top - hostBox.top),
+        inView: p.x >= 0 && p.y >= 0 && p.x <= size.x && p.y <= size.y
+      };
+    }
+    const key = next ? `${next.x},${next.y},${next.inView}` : '';
+    if (key === this.anchorKey) return;
+    this.anchorKey = key;
+    this.ngZone.run(() => this.anchorMove.emit(next));
   }
 
   ngOnDestroy(): void {
@@ -399,6 +490,10 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
     this.overlay = L.layerGroup().addTo(this.map);
     this.drawLayer = L.layerGroup().addTo(this.map);
     this.map.on('click', (e: { latlng: { lat: number; lng: number } }) => this.onMapClick(e.latlng));
+    // keep a popup anchored to its marker while the map moves
+    this.map.on('move zoom zoomend moveend resize viewreset', () => this.emitAnchor());
+    // a zone's Total Assets label shrinks to the count when the zone is drawn too small for the text
+    this.map.on('zoomend resize viewreset', () => this.fitZoneTotals());
     this.map.on('mousemove', (e: { latlng: { lat: number; lng: number } }) => {
       if (!this.drawShape || !this.drawPoints.length) return;
       this.hover = e.latlng;
@@ -556,7 +651,11 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
     const zones = this.visibleZones().map((z) => [z.id, z.x, z.y, z.w, z.h, z.shape, z.radius, this.store.zoneHex(z), z.name, z.code, z.type, JSON.stringify(z.points)]);
     const items = this.visibleItems().map((i) => [i.id, i.x, i.y, i.tone, i.kind, i.code]);
     const pins = this.pins().map((p) => [p.node.id, p.lat, p.lng, p.self]);
-    return JSON.stringify([this.viewKey, zones, items, pins, this.selectedZoneId, this.selectedItemId, this.showLabels, this.showItemLabels, this.preview, this.placing]);
+    // gateways: drawn as their count at their zone's centre, so their count, zone and gateway status redraw the map
+    const counts = this.visibleItems()
+      .filter((i) => i.kind === 'device')
+      .map((i) => [i.id, this.isGateway(i), this.zoneOf(i)?.id ?? '', this.gatewayCount(i)?.count ?? 0]);
+    return JSON.stringify([this.viewKey, zones, items, pins, counts, this.selectedZoneId, this.selectedItemId, this.showLabels, this.showItemLabels, this.preview, this.placing]);
   }
 
   private draw(): void {
@@ -574,6 +673,7 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
 
     for (const z of this.visibleZones()) this.drawZone(z);
     for (const i of this.visibleItems()) this.drawItem(i);
+    this.drawZoneTotals();
     for (const p of this.pins()) this.drawPin(p);
   }
 
@@ -637,15 +737,97 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
     layer.addTo(this.overlay);
   }
 
+  /** A gateway device: reported as a gateway by the readings feed, or registered with the Gateway type. */
+  private isGateway(i: PlotItem): boolean {
+    return i.kind === 'device' && (this.gatewayCount(i) !== null || i.type?.toLowerCase() === 'gateway');
+  }
+
+  /**
+   * "Total Assets" at the centre of each zone that holds a plotted gateway: the distinct linked assets heard by the
+   * gateways in the zone. Clicking it opens the (first) gateway's popup.
+   */
+  private drawZoneTotals(): void {
+    const L = this.L;
+    this.zoneTotals = [];
+    const gateways = this.visibleItems().filter((i) => this.isGateway(i));
+    if (!gateways.length) return;
+    for (const zone of this.visibleZones()) {
+      const inZone = gateways.filter((g) => this.zoneOf(g)?.id === zone.id);
+      if (!inZone.length) continue;
+      const names = [...new Set(inZone.flatMap((g) => this.gatewayCount(g)?.names ?? []))];
+      const n = names.length;
+      const html = `<span class="mfp-ztotal${n ? '' : ' mfp-ztotal--zero'}"><small>Total Assets</small><b>${n}</b></span>`;
+      const marker = L.marker(this.toLatLng(zone.x + zone.w / 2, zone.y + zone.h / 2), {
+        // zero-size icon: the label centres itself on the point (it sizes to its text)
+        icon: L.divIcon({ className: 'mfp-marker', html, iconSize: [0, 0], iconAnchor: [0, 0] }),
+        title: `${zone.name} (${zone.code}) · ${n} linked asset${n === 1 ? '' : 's'}${n ? ': ' + names.join(', ') : ''}`,
+        keyboard: true,
+        // under the device / asset markers, so a device plotted near the centre stays visible and clickable
+        zIndexOffset: -500
+      });
+      marker.on('click', (e: unknown) => {
+        if (this.placing || this.drawShape) return;
+        L.DomEvent.stop(e);
+        this.ngZone.run(() => this.zoneTotalSelect.emit({ zone, gateways: inZone }));
+      });
+      marker.addTo(this.overlay);
+      this.zoneTotals.push({ marker, zone });
+    }
+    this.fitZoneTotals();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private zoneTotals: { marker: any; zone: MapZone }[] = [];
+
+  /**
+   * Shows the "Total Assets" text only while the whole label fits inside its zone's outline on screen; when the zone
+   * is drawn smaller (zoomed out), only the count is shown.
+   */
+  private fitZoneTotals(): void {
+    if (!this.map || !this.frame) return;
+    for (const { marker, zone } of this.zoneTotals) {
+      const label = (marker.getElement() as HTMLElement | undefined)?.querySelector('.mfp-ztotal') as HTMLElement | null;
+      if (!label) continue;
+      const a = this.map.latLngToContainerPoint(this.toLatLng(zone.x, zone.y));
+      const b = this.map.latLngToContainerPoint(this.toLatLng(zone.x + zone.w, zone.y + zone.h));
+      const zoneW = Math.abs(b.x - a.x);
+      const zoneH = Math.abs(b.y - a.y);
+      // measure the full label, then decide (a little margin so it does not touch the outline)
+      label.classList.remove('mfp-ztotal--compact');
+      const fits = label.offsetWidth + 12 <= zoneW && label.offsetHeight + 8 <= zoneH;
+      label.classList.toggle('mfp-ztotal--compact', !fits);
+    }
+  }
+
+  /**
+   * The zone an item sits in on the map: the smallest zone whose outline box contains its plotted point (so a small
+   * zone inside a large polygon's box wins), else the zone saved with the plot.
+   */
+  private zoneOf(i: PlotItem): MapZone | undefined {
+    if (i.x !== null && i.y !== null) {
+      const x = i.x, y = i.y;
+      const containing = this.store.zones
+        .filter((z) => x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h)
+        .sort((a, b) => a.w * a.h - b.w * b.h);
+      if (containing.length) return containing[0];
+    }
+    return i.zoneId ? this.store.zones.find((z) => z.id === i.zoneId) : undefined;
+  }
+
   private drawItem(i: PlotItem): void {
     const L = this.L;
     const tone = TONE_HEX[i.tone];
-    const classes = ['mfp-marker__wrap', i.kind === 'asset' ? 'mfp-marker--asset' : '', i.id === this.selectedItemId ? 'mfp-marker--active' : ''].join(' ');
-    const label = this.showLabels && this.showItemLabels ? `<span class="mfp-marker__label">${esc(i.code)}</span>` : '';
+    const active = i.id === this.selectedItemId;
+    const classes = ['mfp-marker__wrap', i.kind === 'asset' ? 'mfp-marker--asset' : '', active ? 'mfp-marker--active' : ''].join(' ');
+    // a gateway shows no id label: its zone carries the Total Assets count, and the tooltip names it
+    const label = this.showLabels && this.showItemLabels && !this.isGateway(i) ? `<span class="mfp-marker__label">${esc(i.code)}</span>` : '';
     const html = `<span class="${classes}" style="--tone:${tone}"><span class="mfp-marker__dot">${svgIcon(i.icon, 13)}</span>${label}</span>`;
+    // a gateway's tooltip names the linked assets it hears (the count is shown at its zone's centre)
+    const gw = this.isGateway(i) ? this.gatewayCount(i) : null;
+    const title = gw ? `${i.name} ${i.code} · ${gw.count} linked asset${gw.count === 1 ? '' : 's'}${gw.count ? ': ' + gw.names.join(', ') : ''}` : `${i.name} ${i.code}`;
     const marker = L.marker(this.toLatLng(i.x ?? 0, i.y ?? 0), {
       icon: L.divIcon({ className: 'mfp-marker', html, iconSize: [24, 24], iconAnchor: [12, 12] }),
-      title: `${i.name} ${i.code}`,
+      title,
       keyboard: true,
       zIndexOffset: i.id === this.selectedItemId ? 1000 : 0
     });

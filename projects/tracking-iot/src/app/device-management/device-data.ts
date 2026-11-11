@@ -11,7 +11,8 @@ export type Power = 'Battery' | 'External' | 'PoE';
 export type Protocol = string;
 export type Level = 'red' | 'amber' | 'green' | 'purple' | 'grey';
 
-export interface LinkedAsset { name: string; code: string }
+/** code: asset tag (or registration id); registrationId: set for assets picked from the asset register. */
+export interface LinkedAsset { name: string; code: string; registrationId?: string }
 
 export interface DevEvent { at: number; title: string; detail: string; level: Level }
 

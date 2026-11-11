@@ -199,6 +199,10 @@ export class DeviceManagement implements OnInit, OnDestroy {
       for (const s of sites) ensureSite(s.name, s.id);
       this.version++;
     });
+    this.api.registeredAssets().subscribe((assets) => {
+      this.registeredAssets = assets;
+      this.version++;
+    });
   }
 
   /** Makes a loaded device's type, site and gateway selectable in the filters. */
@@ -579,11 +583,29 @@ export class DeviceManagement implements OnInit, OnDestroy {
 
   // link / unlink
 
+  /** Assets from the asset register (GET api/asset-registrations), name and code. */
+  private registeredAssets: LinkedAsset[] = [];
   private assetCache = { version: -1, list: [] as LinkedAsset[] };
 
+  /** "Link to asset" choices: the registered assets, then any asset already linked on a device that is not in the register. */
   get assetOptions(): LinkedAsset[] {
-    if (this.assetCache.version !== this.version) this.assetCache = { version: this.version, list: knownAssets() };
+    if (this.assetCache.version !== this.version) {
+      const seen = new Set(this.registeredAssets.map((a) => a.code.toUpperCase()));
+      const extra = knownAssets().filter((a) => !seen.has(a.code.toUpperCase()));
+      this.assetCache = { version: this.version, list: [...this.registeredAssets, ...extra] };
+    }
     return this.assetCache.list;
+  }
+
+  /** "Tv - TV12333": asset name and code, as in Tag Management. */
+  assetOptionLabel(a: LinkedAsset): string {
+    return a.name && a.name !== a.code ? `${a.name} - ${a.code}` : a.code;
+  }
+
+  /** The picked code as a linked asset (with its name and registration id when it is registered). */
+  private resolveAsset(code: string): LinkedAsset {
+    const c = code.trim().toUpperCase();
+    return this.assetOptions.find((a) => a.code.toUpperCase() === c) ?? { name: code.trim(), code: code.trim() };
   }
 
   openLink(d: Device): void {
@@ -596,10 +618,9 @@ export class DeviceManagement implements OnInit, OnDestroy {
     const dl = this.dialog;
     if (dl?.kind !== 'link' || this.saving) return;
     const d = this.byId(dl.deviceId);
-    const code = dl.asset.trim().toUpperCase();
     if (!d) return;
-    if (!code) return void (this.formError = 'Choose the asset to link.');
-    const asset = knownAssets().find((a) => a.code.toUpperCase() === code) ?? { name: code, code };
+    if (!dl.asset.trim()) return void (this.formError = 'Choose the asset to link.');
+    const asset = this.resolveAsset(dl.asset);
     this.saving = true;
     this.api.update({ ...d, asset }).subscribe({
       next: (saved) => {
@@ -779,8 +800,7 @@ export class DeviceManagement implements OnInit, OnDestroy {
 
   /** A new device to POST; the API fills in power source, health and who registered it. */
   private newDevice(id: string, name: string, type: DeviceType, model: string, serial: string, protocol: Protocol, site: string, gateway: string, assetCode: string): Device {
-    const code = assetCode.trim().toUpperCase();
-    const asset = code ? knownAssets().find((a) => a.code.toUpperCase() === code) ?? { name: code, code } : null;
+    const asset = assetCode.trim() ? this.resolveAsset(assetCode) : null;
     return {
       id, name, type, model, serial, imei: '', protocol, conn: 'Pending', health: 'Good', asset, site, gateway, power: 'External', battery: null,
       rssi: null, lastSeenSec: null, firmware: '', installedDaysAgo: 0, settings: { intervalMin: 10, lowBattery: 20, offlineAfterMin: 30, alerts: true }, log: [],
