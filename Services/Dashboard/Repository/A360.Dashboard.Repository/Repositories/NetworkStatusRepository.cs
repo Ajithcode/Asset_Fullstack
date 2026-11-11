@@ -17,6 +17,9 @@ public sealed class NetworkStatusRepository : INetworkStatusRepository
 
     private static readonly Collation CaseInsensitive = new("en", strength: CollationStrength.Secondary);
 
+    /// <summary>Assets per gateway: a tag counts at a gateway when its newest reading in this many hours came through it.</summary>
+    public const int GatewayWindowHours = 24;
+
     private const string Online = "online";
     private const string Offline = "offline";
 
@@ -156,6 +159,164 @@ public sealed class NetworkStatusRepository : INetworkStatusRepository
         }
 
         return resolved;
+    }
+
+    public async Task<AssetTagTelemetry?> GetAssetTagTelemetryAsync(string assetRegistrationIdOrTag, CancellationToken cancellationToken = default)
+    {
+        var id = assetRegistrationIdOrTag.Trim();
+        var filter = Builders<BsonDocument>.Filter;
+        var notDeleted = filter.Ne("is_deleted", true);
+        var options = new FindOptions { Collation = CaseInsensitive };
+
+        var asset = await _database.GetCollection<BsonDocument>(AssetRegistrationCollectionName)
+            .Find(notDeleted & filter.Or(filter.Eq("asset_registration_id", id), filter.Eq("basic_information.asset_tag", id)), options)
+            .Project(Builders<BsonDocument>.Projection.Include("asset_registration_id").Include("basic_information"))
+            .FirstOrDefaultAsync(cancellationToken);
+        var basic = asset is not null && asset.TryGetValue("basic_information", out var info) && info.IsBsonDocument ? info.AsBsonDocument : null;
+        var registrationId = asset.GetStringOrNull("asset_registration_id") ?? id;
+
+        // Tags assigned to the asset in Tag Management, then the asset's own identifiers that may report as a tag.
+        // Tag Management stores the asset's tag (e.g. TB123) in asset_registration_id, older records the registration id.
+        var assetKeys = new BsonArray(new[] { registrationId, basic.GetStringOrNull("asset_tag"), id }
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .Distinct(StringComparer.OrdinalIgnoreCase));
+        var assigned = (await _database.GetCollection<BsonDocument>(TrackingTagCollectionName)
+                .Find(notDeleted & filter.In("asset_registration_id", assetKeys), options)
+                .Project(Builders<BsonDocument>.Projection.Include("tag_id"))
+                .ToListAsync(cancellationToken))
+            .Select(tag => tag.GetStringOrNull("tag_id")?.Trim())
+            .OfType<string>()
+            .Where(tagId => tagId.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var own = new[] { "rfid_tag_id", "nfc_uid", "barcode", "asset_tag" }
+            .Select(field => basic.GetStringOrNull(field)?.Trim())
+            .OfType<string>()
+            .Where(value => value.Length > 0 && !assigned.Contains(value, StringComparer.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var readings = await LatestReadingsAsync(assigned.Concat(own).ToList(), cancellationToken);
+
+        // Assigned tags are always listed (even before their first reading); own identifiers only once they report.
+        var tags = assigned
+            .Select(tagId => Reading(tagId, isAssigned: true))
+            .Concat(own.Where(value => readings.ContainsKey(value)).Select(value => Reading(value, isAssigned: false)))
+            .ToList();
+
+        if (asset is null && tags.Count == 0)
+        {
+            return null;
+        }
+
+        return new AssetTagTelemetry(registrationId, basic.GetStringOrNull("asset_tag"), basic.GetStringOrNull("asset_name"), tags);
+
+        TagLatestReading Reading(string tagId, bool isAssigned) =>
+            readings.TryGetValue(tagId, out var reading)
+                ? reading with { TagId = tagId, IsAssigned = isAssigned }
+                : new TagLatestReading(tagId, isAssigned, null, null, null, null, null);
+    }
+
+    public async Task<IReadOnlyList<GatewayTags>> GetGatewayTagsAsync(CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<BsonDocument>.Filter;
+
+        // Each tag once, with the gateway of its newest reading (a moving asset's tag switches gateway). Only tags heard
+        // within the window count: one silent for longer is no longer at that gateway (and the scan stays small).
+        var since = DateTime.UtcNow.AddHours(-GatewayWindowHours);
+        var rows = await _collection
+            .Aggregate()
+            .Match(filter.Gte("timestamp", since) & filter.Type("meta.tagid", BsonType.String) & filter.Type("meta.gatewayid", BsonType.String))
+            .Sort(Builders<BsonDocument>.Sort.Descending("timestamp"))
+            .Group(new BsonDocument
+            {
+                { "_id", new BsonDocument("$toLower", "$meta.tagid") },
+                { "tagId", new BsonDocument("$first", "$meta.tagid") },
+                { "gatewayId", new BsonDocument("$first", "$meta.gatewayid") },
+                { "timestamp", new BsonDocument("$first", "$timestamp") }
+            })
+            .ToListAsync(cancellationToken);
+
+        var tags = rows
+            .Select(row => (
+                TagId: row.GetStringOrNull("tagId")!,
+                GatewayId: row.GetStringOrNull("gatewayId")!,
+                LastSeen: row.TryGetValue("timestamp", out var time) && time.IsValidDateTime ? time.ToUniversalTime() : (DateTime?)null))
+            .Where(tag => tag.TagId is not null && tag.GatewayId is not null)
+            .ToList();
+
+        var assets = await ResolveRegistrationsAsync(tags.Select(tag => (tag.TagId, (string?)null)).ToList(), cancellationToken);
+
+        return tags
+            .GroupBy(tag => tag.GatewayId, StringComparer.OrdinalIgnoreCase)
+            .Select(gateway => new GatewayTags(
+                gateway.First().GatewayId,
+                gateway
+                    .Select(tag =>
+                    {
+                        assets.TryGetValue(tag.TagId, out var asset);
+                        return new GatewayTag(tag.TagId, asset.AssetRegistrationId, asset.AssetName, tag.LastSeen);
+                    })
+                    .OrderBy(tag => tag.AssetName ?? tag.TagId, StringComparer.OrdinalIgnoreCase)
+                    .ToList()))
+            .OrderBy(gateway => gateway.GatewayId, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
+    /// The newest reading of each tag id, keyed ignoring case. Readings store meta.tagid as the device reports it
+    /// (BLE MACs in lower case), so each id is also matched in lower and upper case.
+    /// </summary>
+    private async Task<Dictionary<string, TagLatestReading>> LatestReadingsAsync(IReadOnlyCollection<string> tagIds, CancellationToken cancellationToken)
+    {
+        var latest = new Dictionary<string, TagLatestReading>(StringComparer.OrdinalIgnoreCase);
+        if (tagIds.Count == 0)
+        {
+            return latest;
+        }
+
+        var variants = new BsonArray(tagIds
+            .SelectMany(tagId => new[] { tagId, tagId.ToLowerInvariant(), tagId.ToUpperInvariant() })
+            .Distinct());
+
+        var rows = await _collection
+            .Aggregate()
+            .Match(Builders<BsonDocument>.Filter.In("meta.tagid", variants))
+            .Sort(Builders<BsonDocument>.Sort.Descending("timestamp"))
+            .Group(new BsonDocument
+            {
+                { "_id", new BsonDocument("$toLower", "$meta.tagid") },
+                { "tagId", new BsonDocument("$first", "$meta.tagid") },
+                { "gatewayId", new BsonDocument("$first", "$meta.gatewayid") },
+                { "timestamp", new BsonDocument("$first", "$timestamp") },
+                { "status", new BsonDocument("$first", "$status") },
+                { "battery", new BsonDocument("$first", "$battery") },
+                { "rssi", new BsonDocument("$first", "$rssi") }
+            })
+            .ToListAsync(cancellationToken);
+
+        foreach (var row in rows)
+        {
+            var tagId = row.GetStringOrNull("tagId");
+            if (tagId is null)
+            {
+                continue;
+            }
+
+            latest[tagId] = new TagLatestReading(
+                tagId,
+                false,
+                row.GetStringOrNull("gatewayId"),
+                row.TryGetValue("timestamp", out var time) && time.IsValidDateTime ? time.ToUniversalTime() : null,
+                row.GetStringOrNull("status"),
+                Number(row, "battery"),
+                Number(row, "rssi"));
+        }
+
+        return latest;
+
+        static double? Number(BsonDocument document, string name) =>
+            document.TryGetValue(name, out var value) && value.IsNumeric ? value.ToDouble() : null;
     }
 
     private static bool Has(BsonDocument asset, string value, params string[] basicFields)
