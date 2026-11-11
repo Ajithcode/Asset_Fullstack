@@ -45,7 +45,7 @@
             <div class="field" [class.invalid]="errors.manufacturer">
               <label for="model-mfr"><span class="req">*</span> Manufacturer</label>
               <select id="model-mfr" name="manufacturer" [(ngModel)]="form.manufacturer">
-                <option value="" disabled>Select manufacturer</option>
+                <option value="" disabled>{{ listsLoading ? 'Loading...' : 'Select manufacturer' }}</option>
                 @for (m of manufacturers; track m) { <option [value]="m">{{ m }}</option> }
               </select>
               @if (errors.manufacturer) { <small>{{ errors.manufacturer }}</small> }
@@ -53,7 +53,7 @@
             <div class="field" [class.invalid]="errors.assetType">
               <label for="model-type"><span class="req">*</span> Asset Type</label>
               <select id="model-type" name="assetType" [(ngModel)]="form.assetType" (ngModelChange)="onTypeChange()">
-                <option value="" disabled>Select asset type</option>
+                <option value="" disabled>{{ listsLoading ? 'Loading...' : 'Select asset type' }}</option>
                 @for (t of typesInCategory; track t.name) { <option [value]="t.name">{{ t.name }}</option> }
               </select>
               @if (errors.assetType) { <small>{{ errors.assetType }}</small> }
@@ -61,7 +61,7 @@
             <div class="field" [class.invalid]="errors.category">
               <label for="model-cat"><span class="req">*</span> Category</label>
               <select id="model-cat" name="category" [(ngModel)]="form.category" (ngModelChange)="onCategoryChange()">
-                <option value="" disabled>Select category</option>
+                <option value="" disabled>{{ listsLoading ? 'Loading...' : 'Select category' }}</option>
                 @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
               </select>
               @if (errors.category) { <small>{{ errors.category }}</small> }

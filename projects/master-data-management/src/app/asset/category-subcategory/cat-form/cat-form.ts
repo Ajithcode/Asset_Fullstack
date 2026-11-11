@@ -4,8 +4,9 @@ import { LucideAngularModule, Plus, Trash2, X } from 'lucide-angular';
 import { TRACKING_METHODS } from '../../asset-model/asset-model.data';
 import { MODEL_ICONS, MODEL_ICON_KEYS } from '../../asset-model/asset-model.icons';
 import { CUSTOM_FIELD_TYPES } from '../../asset-type/asset-type.data';
+import { AssetTypeService } from '../../asset-type/asset-type.service';
 import { HEX_COLOR } from '../../level-icons';
-import { CATEGORY_ASSET_TYPES, CATEGORY_TYPE_DEFAULTS, blankCategory } from '../category.data';
+import { CATEGORY_TYPE_DEFAULTS, blankCategory } from '../category.data';
 import { CategoryRecord } from '../category.model';
 import { CategoryService } from '../category.service';
 
@@ -50,7 +51,8 @@ export class CatForm implements OnChanges {
   readonly icons = { X, Plus, Trash2 };
   readonly typeIcons = MODEL_ICONS;
   readonly iconKeys = MODEL_ICON_KEYS;
-  readonly assetTypes = CATEGORY_ASSET_TYPES;
+  // Asset types from GET /api/master-data/asset-types?clientId=...
+  private readonly typeStore = inject(AssetTypeService);
   readonly trackingMethods = TRACKING_METHODS;
   readonly fieldTypes = CUSTOM_FIELD_TYPES;
   readonly tabs: { id: CatFormTab; label: string }[] = [
@@ -70,6 +72,12 @@ export class CatForm implements OnChanges {
     this.form = this.category ? structuredClone(this.category) : blankCategory();
     this.errors = {};
     this.tab = this.startTab;
+  }
+
+  /** Active asset type names from Master Data, plus the category's current value so an edit keeps it. */
+  get assetTypes(): string[] {
+    const names = this.typeStore.active().map((t) => t.name);
+    return [...new Set([...names, this.form.assetType].filter(Boolean))].sort((a, b) => a.localeCompare(b));
   }
 
   get isEdit(): boolean {
@@ -93,9 +101,16 @@ export class CatForm implements OnChanges {
 
   // New categories pick up the usual accounting defaults for their asset type
   onAssetTypeChange(): void {
+    if (this.isEdit) return;
+    const type = this.typeStore.findByName(this.form.assetType);
+    if (type) {
+      this.form.depreciationMethod = type.depreciationMethod;
+      this.form.usefulLifeYears = type.lifecycleYears;
+      this.form.trackingMethod = type.trackingMethod;
+      return;
+    }
     const d = CATEGORY_TYPE_DEFAULTS[this.form.assetType];
-    if (!d || this.isEdit) return;
-    [this.form.depreciationMethod, this.form.usefulLifeYears, this.form.trackingMethod] = d;
+    if (d) [this.form.depreciationMethod, this.form.usefulLifeYears, this.form.trackingMethod] = d;
   }
 
   // Suggest the tag prefix from the code (CAT-IT gives IT) until one is typed

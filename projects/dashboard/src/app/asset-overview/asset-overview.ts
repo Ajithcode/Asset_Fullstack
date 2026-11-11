@@ -51,6 +51,7 @@ import {
 import { AGE_BANDS, CATEGORIES, HEALTH_COLORS, HealthBand, PORTFOLIO, PortfolioAsset, PortfolioStatus, SITES, STATUSES, STATUS_COLORS, ageYears, healthBand, isoDate } from './asset-overview-data';
 import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
 import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
+import { AssetQuickView, QuickViewAsset, connectedAssetDrill, qvDate, qvDateTime, statusKey } from '../shared/asset-quick-view/quick-view';
 import { AssetDashboardCategories, AssetDashboardKpis, AssetTypeOption, InsightAsset, InsightAssetList, InsightEndpoint, ConnectedAssetDetail, Dashboard } from '../services/dashboard/dashboard';
 
 /** Window of GET api/asset-dashboard/kpis for the KPI cards. */
@@ -151,6 +152,11 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   private readonly today = new Date();
   private readonly dashboardApi = inject(Dashboard);
   private readonly destroyRef = inject(DestroyRef);
+  /** Asset Quick View: registered assets from GET api/asset-registrations, one at a time. */
+  readonly qv = new AssetQuickView(this.dashboardApi, this.destroyRef);
+  readonly statusKey = statusKey;
+  readonly qvDate = qvDate;
+  readonly qvDateTime = qvDateTime;
 
   readonly kpiDays = KPI_DAYS;
   /** KPI cards from GET api/asset-dashboard/kpis?days=30; null until the first response. */
@@ -167,6 +173,7 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     this.loadFilterOptions();
     this.loadCategories();
     this.loadInsights();
+    this.qv.load();
     this.apply();
     const first = [...this.assets].filter((a) => a.criticality === 'Critical').sort((a, b) => b.value - a.value)[0] ?? this.assets[0];
     this.selectedId = first?.id ?? '';
@@ -294,6 +301,7 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
         next: (res) => {
           this.kpiData = res;
           this.kpiLoading = false;
+          this.qv.setConnected(res?.connectedAssetDetails ?? []);
         },
         error: () => {
           this.kpiData = null;
@@ -471,6 +479,7 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
 
   /** Details popup for a row of the critical-assets API. */
   openCriticalAsset(a: InsightAsset): void {
+    this.showQuick(a.assetRegistrationId);
     this.drill = {
       title: `${a.assetTag} · ${a.assetName}`,
       subtitle: [[a.category, a.subCategory].filter(Boolean).join(' / '), a.assetType, a.siteName].filter(Boolean).join(' · ') || 'Critical asset',
@@ -594,9 +603,16 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     return this.assets.find((a) => a.id === this.selectedId) ?? null;
   }
 
+  /** Highlights the row and shows the asset in the Quick View when it is registered under the same tag. */
   select(a: Snapshot): void {
     this.selectedId = a.id;
+    if (this.qv.showTag(a.id)) this.quickTab = 'overview';
+  }
+
+  /** Shows a registered asset in the Quick View. */
+  showQuick(assetRegistrationId: string): void {
     this.quickTab = 'overview';
+    this.qv.show(assetRegistrationId);
   }
 
   imageOf(a: PortfolioAsset): string | null {
@@ -654,7 +670,7 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
         { label: 'Last Service', value: this.fmtDate(a.lastService) }, { label: 'Next Service', value: this.fmtDate(a.nextService) },
         { label: 'Connectivity', value: a.connected ? 'Online' : 'Not connected' }, { label: 'Last Update', value: this.fmtDateTime(a.lastUpdate) },
       ],
-      actions: [{ label: 'Show in Quick View', run: () => this.select(a) }],
+      actions: this.qv.hasTag(a.id) ? [{ label: 'Show in Quick View', run: () => this.select(a) }] : [],
     };
   }
 
@@ -672,6 +688,7 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
         tag: a.assetTag, name: a.assetName, type: a.assetType, site: a.siteName, network: a.networkStatus,
         gateway: a.gatewayId ?? '-', lastSeen: a.lastSeenAt ? this.fmtDateTime(a.lastSeenAt) : '-', readings: a.readingCount,
       },
+      open: () => connectedAssetDrill(a, (id) => this.showQuick(id)),
     }));
     if (kind === 'total' || kind === 'connected') {
       this.drill = {
@@ -811,6 +828,11 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
 
   go(path: string): void {
     this.router.navigate([path]);
+  }
+
+  /** Opens the asset's detail page in the Assets app. */
+  openDetails(a: QuickViewAsset): void {
+    this.router.navigate(['/assets/overview'], { queryParams: { id: a.registrationId, tag: a.tag } });
   }
 
   exportReport(): void {

@@ -57,6 +57,7 @@ import {
 } from './iot-overview-data';
 import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
 import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
+import { AssetQuickView, QuickViewAsset, connectedAssetDrill, qvDate, qvDateTime, statusKey } from '../shared/asset-quick-view/quick-view';
 import { AssetDashboardKpis, ConnectedAssetDetail, Dashboard, DeviceConnectivity, InsightAssetList, SiteAsset, TopSite } from '../services/dashboard/dashboard';
 
 type Period = '7' | '30' | '90';
@@ -150,6 +151,11 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   private readonly now = new Date();
   private readonly dashboardApi = inject(Dashboard);
   private readonly destroyRef = inject(DestroyRef);
+  /** Asset Quick View: registered assets from GET api/asset-registrations, one at a time. */
+  readonly qv = new AssetQuickView(this.dashboardApi, this.destroyRef);
+  readonly statusKey = statusKey;
+  readonly qvDate = qvDate;
+  readonly qvDateTime = qvDateTime;
 
   /** KPI cards from GET api/asset-dashboard/kpis; null until the first response. */
   kpiData: AssetDashboardKpis | null = null;
@@ -180,6 +186,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     this.loadAssetTypes();
     this.loadSiteOptions();
     this.loadCriticalAssets();
+    this.qv.load();
   }
 
   /** Fetches the critical assets that feed the Critical band of the health donut. */
@@ -276,6 +283,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
         next: (res) => {
           this.kpiData = res;
           this.kpiLoading = false;
+          this.qv.setConnected(res?.connectedAssetDetails ?? []);
         },
         error: () => {
           this.kpiData = null;
@@ -387,6 +395,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
         tag: a.assetTag, name: a.assetName, type: a.assetType, site: a.siteName, network: a.networkStatus,
         gateway: a.gatewayId, lastSeen: a.lastSeenAt ? this.fmtDateTime(a.lastSeenAt) : '-', readings: a.readingCount,
       },
+      open: () => connectedAssetDrill(a, (id) => this.showQuick(id)),
     }));
   }
 
@@ -554,8 +563,26 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   select(id: string, pan = false): void {
     this.menuOpen = '';
     this.selectedId = id;
-    this.quickTab = 'overview';
     this.markSelected(pan);
+    // the Quick View follows when the device's asset is registered under the same tag
+    if (this.qv.showTag(DEVICES.find((d) => d.id === id)?.assetId)) this.quickTab = 'overview';
+  }
+
+  /** Shows a registered asset in the Quick View. */
+  showQuick(assetRegistrationId: string): void {
+    this.quickTab = 'overview';
+    this.qv.show(assetRegistrationId);
+  }
+
+  /** Pill colour of a registration status. */
+  pillOf(status: string): string {
+    const k = statusKey(status);
+    return k === 'active' ? 'online' : /maintenance|repair|idle|transit/.test(k) ? 'idle' : /disposed|retired|inactive/.test(k) ? 'offline' : 'unknown';
+  }
+
+  /** Opens the asset's detail page in the Assets app. */
+  openDetails(a: QuickViewAsset): void {
+    this.router.navigate(['/assets/overview'], { queryParams: { id: a.registrationId, tag: a.tag } });
   }
 
   imageOf(d: Device): string | null {

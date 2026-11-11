@@ -246,23 +246,31 @@
       </div>
     </section>
 
-    <!-- ===== Asset quick view ===== -->
+    <!-- ===== Asset quick view: registered assets from GET api/asset-registrations(/{id}) ===== -->
     <section class="card io-pad io-quick io-span-2 io-full-md" aria-labelledby="io-qv">
       <div class="io-sub-head"><h2 id="io-qv" class="io-title"><lucide-icon [img]="icons.ClipboardList" [size]="18"></lucide-icon>Asset Quick View</h2>
-        <button *ngIf="selected as d" type="button" class="icon-btn" (click)="locate(d)" aria-label="Show on map" title="Show on map"><lucide-icon [img]="icons.ExternalLink" [size]="16"></lucide-icon></button></div>
-      <ng-container *ngIf="selected as d; else noSel">
-        <div class="io-qv-head">
-          <img *ngIf="imageOf(d) as src; else qvIcon" [src]="src" [alt]="d.name" />
+        <div class="io-qv-nav">
+          <ng-container *ngIf="qv.items.length > 1">
+            <button type="button" class="icon-btn" (click)="quickTab = 'overview'; qv.step(-1)" aria-label="Previous asset" title="Previous asset"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+            <small class="muted">{{ qv.index + 1 }} / {{ qv.items.length }}</small>
+            <button type="button" class="icon-btn" (click)="quickTab = 'overview'; qv.step(1)" aria-label="Next asset" title="Next asset"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+          </ng-container>
+          <button *ngIf="qv.asset as a" type="button" class="icon-btn" (click)="openDetails(a)" aria-label="Open asset details" title="Open asset details"><lucide-icon [img]="icons.ExternalLink" [size]="16"></lucide-icon></button>
+        </div></div>
+      <ng-container *ngIf="qv.asset as d; else noSel">
+        <div class="io-qv-head" [class.is-loading]="qv.loading">
+          <img *ngIf="d.image; else qvIcon" [src]="d.image" [alt]="d.name" />
           <ng-template #qvIcon><span class="io-qv-ic"><lucide-icon [img]="icons.Cog" [size]="34"></lucide-icon></span></ng-template>
           <div class="grow">
-            <div class="io-qv-title"><strong>{{ d.assetId }}</strong><span class="io-pill" [ngClass]="'pill--' + d.status.toLowerCase()">{{ d.status === 'Online' ? 'Active' : d.status }}</span></div>
-            <small>{{ d.name }}</small>
+            <div class="io-qv-title"><strong>{{ d.tag }}</strong><span *ngIf="d.status" class="io-pill" [ngClass]="'pill--' + pillOf(d.status)">{{ d.status }}</span></div>
+            <small>{{ d.name }}{{ d.model ? ' - ' + d.model : '' }}</small>
             <div class="io-qv-meta">
-              <span><lucide-icon [img]="icons.MapPin" [size]="13"></lucide-icon><small>Location</small>{{ d.site }}</span>
-              <span><lucide-icon class="heart" [img]="icons.Heart" [size]="13"></lucide-icon><small>Health Score</small><b [style.color]="healthColors[healthBand(d.health)]">{{ d.health ?? '-' }}{{ d.health !== null ? '%' : '' }}</b></span>
+              <span><lucide-icon [img]="icons.MapPin" [size]="13"></lucide-icon><small>Location</small>{{ d.site || '-' }}</span>
+              <span><lucide-icon class="heart" [img]="icons.TriangleAlert" [size]="13"></lucide-icon><small>Criticality</small><b [style.color]="d.criticality.toLowerCase() === 'critical' ? '#dc2626' : d.criticality.toLowerCase() === 'high' ? '#d97706' : null">{{ d.criticality || '-' }}</b></span>
             </div>
           </div>
         </div>
+        <p *ngIf="qv.error" class="io-bad">{{ qv.error }}</p>
         <nav class="io-qv-tabs" role="tablist" aria-label="Asset details">
           <button type="button" role="tab" [class.is-active]="quickTab === 'overview'" [attr.aria-selected]="quickTab === 'overview'" (click)="quickTab = 'overview'">Overview</button>
           <button type="button" role="tab" [class.is-active]="quickTab === 'location'" [attr.aria-selected]="quickTab === 'location'" (click)="quickTab = 'location'">Location</button>
@@ -270,32 +278,30 @@
           <button type="button" role="tab" [class.is-active]="quickTab === 'maintenance'" [attr.aria-selected]="quickTab === 'maintenance'" (click)="quickTab = 'maintenance'">Maintenance</button>
         </nav>
         <dl *ngIf="quickTab === 'overview'" class="io-qv-kv">
-          <dt>Asset Type</dt><dd>{{ d.type }}</dd><dt>Site</dt><dd>{{ d.site }}</dd>
-          <dt>Manufacturer</dt><dd>{{ d.manufacturer }}</dd><dt>Commissioned</dt><dd>{{ fmtDate(d.commissioned) }}</dd>
-          <dt>Model</dt><dd>{{ d.model }}</dd><dt>Connectivity</dt><dd><span class="io-conn" [style.color]="statusColors[d.status]"><lucide-icon [img]="d.status === 'Offline' || d.status === 'Unknown' ? icons.WifiOff : icons.Wifi" [size]="13"></lucide-icon>{{ d.status }}</span></dd>
-          <dt>Serial Number</dt><dd>{{ d.serial }}</dd><dt>Last Update</dt><dd>{{ fmtDateTime(d.lastUpdate) }}</dd>
+          <dt>Asset Type</dt><dd>{{ d.type || '-' }}</dd><dt>Site</dt><dd>{{ d.site || '-' }}</dd>
+          <dt>Manufacturer</dt><dd>{{ d.manufacturer || '-' }}</dd><dt>Commissioned</dt><dd>{{ qvDate(d.commissioned) }}</dd>
+          <dt>Model</dt><dd>{{ d.model || '-' }}</dd>
+          <dt>Connectivity</dt><dd><span class="io-conn" [style.color]="d.iot?.network?.toLowerCase() === 'online' ? '#16a34a' : '#6b7280'"><lucide-icon [img]="d.iot ? icons.Wifi : icons.WifiOff" [size]="13"></lucide-icon>{{ d.iot ? (d.iot.network | titlecase) : 'Not connected' }}</span></dd>
+          <dt>Serial Number</dt><dd>{{ d.serial || '-' }}</dd><dt>Last Update</dt><dd>{{ qvDateTime(d.iot?.lastSeen || d.lastUpdate) }}</dd>
         </dl>
         <dl *ngIf="quickTab === 'location'" class="io-qv-kv">
-          <dt>Site</dt><dd>{{ d.site }}</dd><dt>Last Seen</dt><dd>{{ ago(d.lastUpdate) }}</dd>
-          <dt>Latitude</dt><dd>{{ d.lat | number: '1.5-5' }}</dd><dt>Longitude</dt><dd>{{ d.lng | number: '1.5-5' }}</dd>
-          <dt>Device</dt><dd>{{ d.id }}</dd><dt>Geofence</dt><dd>Inside {{ d.site }}</dd>
+          <dt>Site</dt><dd>{{ d.site || '-' }}</dd><dt>Building</dt><dd>{{ d.building || '-' }}</dd>
+          <dt>Floor</dt><dd>{{ d.floor || '-' }}</dd><dt>Zone</dt><dd>{{ d.zone || '-' }}</dd>
+          <dt>Room</dt><dd>{{ d.room || '-' }}</dd><dt>Custodian</dt><dd [class.io-bad]="!d.custodian">{{ d.custodian || 'Not assigned' }}</dd>
         </dl>
         <dl *ngIf="quickTab === 'telemetry'" class="io-qv-kv">
-          <dt>Temperature</dt><dd>{{ d.temperature }} °C</dd><dt>Vibration</dt><dd [class.io-bad]="d.abnormal">{{ d.vibration }} mm/s</dd>
-          <dt>Battery</dt><dd>{{ d.battery }}%</dd><dt>Signal</dt><dd>{{ d.signal ? d.signal + ' dBm' : '-' }}</dd>
-          <dt>Firmware</dt><dd [class.io-bad]="!d.firmwareLatest">{{ d.firmware }}</dd><dt>Utilization</dt><dd>{{ d.utilization }}%</dd>
+          <ng-container *ngIf="d.iot as t; else noIot">
+            <dt>Network</dt><dd>{{ t.network | titlecase }}</dd><dt>Gateway</dt><dd>{{ t.gateway || '-' }}</dd>
+            <dt>Last Seen</dt><dd>{{ qvDateTime(t.lastSeen) }}</dd><dt>Readings</dt><dd>{{ t.readings | number }}</dd>
+          </ng-container>
+          <ng-template #noIot><dt>Device</dt><dd class="io-bad">No IoT device linked</dd></ng-template>
         </dl>
-        <div *ngIf="quickTab === 'maintenance'">
-          <dl class="io-qv-kv">
-            <dt>Last Service</dt><dd>{{ fmtDate(d.lastService) }}</dd><dt>Next Service</dt><dd>{{ fmtDate(d.nextService) }}</dd>
-          </dl>
-          <ul class="io-qv-alerts">
-            <li *ngFor="let a of alertsOf(d).slice(0, 3)" class="io-click" (click)="openAlert(a)"><span class="io-sev" [ngClass]="sevClass(a.severity)">{{ a.severity }}</span><span class="grow">{{ a.event }}</span><small class="muted">{{ fmtDate(a.at.slice(0, 10)) }}</small></li>
-            <li *ngIf="!alertsOf(d).length" class="muted">No alerts recorded.</li>
-          </ul>
-        </div>
+        <dl *ngIf="quickTab === 'maintenance'" class="io-qv-kv">
+          <dt>Last Service</dt><dd>{{ qvDate(d.lastService) }}</dd><dt>Next Service</dt><dd>{{ qvDate(d.nextService) }}</dd>
+          <dt>Frequency</dt><dd>{{ d.maintenanceFrequency || '-' }}</dd><dt>Condition</dt><dd>{{ d.condition || '-' }}</dd>
+        </dl>
       </ng-container>
-      <ng-template #noSel><p class="muted">Select an asset on the map or in the alerts.</p></ng-template>
+      <ng-template #noSel><p class="muted">{{ qv.loading ? 'Loading asset…' : qv.error || 'No registered assets yet.' }}</p></ng-template>
     </section>
   </div>
 </section>

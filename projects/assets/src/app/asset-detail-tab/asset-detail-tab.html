@@ -132,12 +132,12 @@
           <dt>Type</dt><dd>{{ record.type }}</dd>
           <dt>Manufacturer</dt><dd>{{ record.manufacturer }}</dd>
           <dt>Model</dt><dd>{{ record.model }}</dd>
-          <dt>Serial Number</dt><dd>{{ maintenance.overview.serialNumber }}</dd>
+          <dt>Serial Number</dt><dd>{{ registration?.basicInformation?.serialNumber || record.serialNumber || maintenance.overview.serialNumber }}</dd>
           <dt>Purchase Date</dt><dd>{{ record.purchaseDate ? (record.purchaseDate | date: 'dd MMM yyyy') : '-' }}</dd>
           <dt>Location</dt><dd>{{ location }}</dd>
           <dt>Department</dt><dd>{{ record.department }}</dd>
           <dt>Custodian</dt><dd>{{ record.custodian }}</dd>
-          <dt>AMC Vendor</dt><dd>{{ maintenance.overview.amcVendor }}</dd>
+          <dt>AMC Vendor</dt><dd>{{ registration?.purchaseWarranty?.warranty?.serviceProvider || maintenance.overview.amcVendor }}</dd>
         </dl>
       </div>
 
@@ -147,7 +147,14 @@
           <h3 class="grow">Operational Details</h3>
           <button type="button" class="link-btn" (click)="go('/assets/status-condition')">Status &amp; Condition</button>
         </div>
-        <dl *ngIf="detail?.status as s; else loadingTpl" class="info-grid">
+        <ng-template #regOpsTpl>
+          <dl *ngIf="operationalRows.length; else loadingTpl" class="info-grid">
+            <ng-container *ngFor="let r of operationalRows">
+              <dt>{{ r.label }}</dt><dd>{{ r.value || '-' }}</dd>
+            </ng-container>
+          </dl>
+        </ng-template>
+        <dl *ngIf="detail?.status as s; else regOpsTpl" class="info-grid">
           <dt>Operational Status</dt><dd>{{ s.operational.status }} <small class="sub-inline">since {{ s.operational.statusSince | date: 'dd MMM yyyy' }}</small></dd>
           <dt>Operating Mode</dt><dd>{{ s.operational.operatingMode }}</dd>
           <dt>{{ s.operational.loadLabel }}</dt><dd>{{ s.operational.currentLoad | number }} {{ s.operational.loadUnit }}</dd>
@@ -158,6 +165,21 @@
           <dt>Commissioned On</dt><dd>{{ s.lifecycle.commissionedOn | date: 'dd MMM yyyy' }}</dd>
           <dt>Expected Life</dt><dd>{{ s.lifecycle.expectedLifeYears }} years</dd>
           <dt>Next Assessment</dt><dd>{{ s.lifecycle.nextAssessment ? (s.lifecycle.nextAssessment | date: 'dd MMM yyyy') : '-' }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Registration details from GET /api/asset-registrations/{id} -->
+    <div *ngIf="registrationSections.length" class="mt-row">
+      <div *ngFor="let s of registrationSections" class="card panel">
+        <div class="card-head">
+          <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
+          <h3 class="grow">{{ s.title }}</h3>
+        </div>
+        <dl class="info-grid">
+          <ng-container *ngFor="let r of s.rows">
+            <dt>{{ r.label }}</dt><dd [class.span-3]="r.wide">{{ r.value || '-' }}</dd>
+          </ng-container>
         </dl>
       </div>
     </div>
