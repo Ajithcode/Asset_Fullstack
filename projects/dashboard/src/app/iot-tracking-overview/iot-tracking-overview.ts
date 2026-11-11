@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subscription, from, map, mergeMap, toArray } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -43,13 +44,14 @@ import {
   DEVICES,
   Device,
   DeviceStatus,
-  EVENT_HISTORY,
   EventSeries,
   HEALTH_COLORS,
   HealthBand,
   IotAlert,
   LATEST_FIRMWARE,
   SERIES,
+  EventDay,
+  dailyLocationUpdates,
   SITES,
   STATUSES,
   STATUS_COLORS,
@@ -166,6 +168,15 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   connectivityData: DeviceConnectivity | null = null;
   connectivityLoading = false;
 
+  /** IoT Events Timeline: daily location updates derived from GET api/asset-dashboard/location-updates; null on error. */
+  eventDays: EventDay[] | null = null;
+  /** Series the timeline has data for; the API only reports location updates. */
+  eventSeries: EventSeries[] = [];
+  /** Each day's location updates per tag, for the day popup. */
+  private dayTags = new Map<string, { tagId: string; count: number }[]>();
+  private timelineSub?: Subscription;
+  timelineLoading = false;
+
   /** Sites ranked by the API (GET api/asset-dashboard/locations). */
   topSites: TopSite[] = [];
   sitesLoading = false;
@@ -182,6 +193,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     this.selectedId = first?.deviceId ?? DEVICES[0]?.id ?? '';
     this.loadKpis();
     this.loadConnectivity();
+    this.loadTimeline();
     this.loadSites();
     this.loadAssetTypes();
     this.loadSiteOptions();
@@ -272,6 +284,41 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
       });
   }
 
+  /** Fetches the IoT Events Timeline for its period and the dashboard's Site / Type / Status filters. */
+  loadTimeline(): void {
+    const n = Number(this.timelinePeriod);
+    // the API filters by site id; the Site dropdown holds names, so match them against the ranked sites
+    const siteId = this.site ? this.topSites.find((s) => s.siteName === this.site)?.siteId : undefined;
+    const filters = { siteId, assetType: this.type || undefined, status: this.status || undefined };
+    // the API has no daily split: fetch the "last k days" totals for k = 1..n and take the differences
+    this.timelineSub?.unsubscribe();
+    this.timelineLoading = true;
+    this.timelineSub = from(Array.from({ length: n }, (_, i) => i + 1))
+      .pipe(
+        mergeMap((k) => this.dashboardApi.getLocationUpdates(k, filters).pipe(map((res) => ({ k, res }))), 6),
+        toArray(),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (list) => {
+          const windows = list.sort((a, b) => a.k - b.k).map(({ res }) => ({ from: res?.from ?? '', totalCount: res?.totalCount ?? 0, tags: res?.tags ?? [] }));
+          const daily = dailyLocationUpdates(windows);
+          this.eventDays = daily.days;
+          this.dayTags = daily.tagsByDay;
+          this.eventSeries = ['location'];
+          this.hoverDay = null;
+          this.timelineLoading = false;
+        },
+        error: () => {
+          this.eventDays = null;
+          this.dayTags.clear();
+          this.eventSeries = [];
+          this.timelineLoading = false;
+          this.showToast('Could not load location updates');
+        },
+      });
+  }
+
   /** Fetches the KPI cards for the selected period. */
   loadKpis(): void {
     this.kpiLoading = true;
@@ -324,6 +371,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     this.alertPage = 0;
     this.drawMarkers();
     this.fitToFilter();
+    this.loadTimeline();
   }
 
   setPeriod(p: Period): void {
@@ -335,6 +383,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     this.drawMarkers();
     this.loadKpis();
     this.loadConnectivity();
+    this.loadTimeline();
   }
 
   get periodLabel(): string {
@@ -476,6 +525,11 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     return { total, rows, healthyPct: rows[0].pct };
   }
 
+  /** Health donut needs fleet devices; the Critical count alone (critical-assets API) would draw a misleading 100% Critical ring. */
+  get hasHealthData(): boolean {
+    return this.devices.length > 0 && this.health.total > 0;
+  }
+
   /** Running share (blue) and idle share (amber) per asset type. */
   get utilization() {
     return ASSET_TYPES.map((t) => {
@@ -487,14 +541,24 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     });
   }
 
+  /** Utilization rows for asset types that have assets; empty means the widget shows "No data". */
+  get utilizationRows() {
+    return this.utilization.filter((u) => u.count > 0);
+  }
+
   // ===== Events timeline =====
 
+  /** Legend entries: only the series the API returned. */
+  get timelineSeries() {
+    return SERIES.filter((s) => this.eventSeries.includes(s.key));
+  }
+
+  /** Chart geometry; null while there is nothing to draw (no response, no dated rows, or no updates in the window). */
   get timeline() {
-    const days = EVENT_HISTORY.slice(-Number(this.timelinePeriod));
-    // the fleet filter scales the event volume to the share of devices shown
-    const scale = DEVICES.length ? this.devices.length / DEVICES.length : 0;
-    const vals = days.map((d) => ({ date: d.date, telemetry: Math.round(d.telemetry * scale), location: Math.round(d.location * scale), geofence: Math.round(d.geofence * scale), alerts: Math.round(d.alerts * scale) }));
-    const visible = SERIES.filter((s) => !this.hiddenSeries.has(s.key));
+    const vals = this.eventDays ?? [];
+    const shown = this.timelineSeries;
+    if (!vals.length || !shown.length || vals.every((v) => shown.every((s) => !v[s.key]))) return null;
+    const visible = shown.filter((s) => !this.hiddenSeries.has(s.key));
     const max = Math.max(10, ...vals.flatMap((v) => visible.map((s) => v[s.key])));
     const step = max > 150 ? 50 : max > 60 ? 20 : 10;
     const top = Math.ceil(max / step) * step;
@@ -513,7 +577,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   toggleSeries(key: EventSeries): void {
     this.hiddenSeries.has(key) ? this.hiddenSeries.delete(key) : this.hiddenSeries.add(key);
     // keep at least one line
-    if (this.hiddenSeries.size === SERIES.length) this.hiddenSeries.delete(key);
+    if (this.timelineSeries.every((s) => this.hiddenSeries.has(s.key))) this.hiddenSeries.delete(key);
   }
 
   // ===== Alerts =====
@@ -942,15 +1006,16 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   }
 
   openDay(i: number): void {
-    const v = this.timeline.vals[i];
+    const v = this.timeline?.vals[i];
     if (!v) return;
-    const ids = new Set(this.devices.map((d) => d.id));
-    const byId = new Map(DEVICES.map((d) => [d.id, d]));
-    const alerts = ALERTS.filter((a) => a.at.startsWith(v.date) && ids.has(a.deviceId)).map((a) => ({ ...a, device: byId.get(a.deviceId)! }));
+    const tags = this.dayTags.get(v.date) ?? [];
     this.drill = {
       title: `IoT Events · ${this.fmtDate(v.date)}`, subtitle: this.scope,
-      stats: SERIES.map((s) => ({ label: s.label, value: v[s.key], color: s.color })),
-      tableTitle: 'Alerts raised this day', columns: this.alertColumns(true), rows: this.alertRowsOf(alerts), empty: 'No alerts raised this day.',
+      stats: [...this.timelineSeries.map((s) => ({ label: s.label, value: v[s.key], color: s.color })), { label: 'Tags Moved', value: tags.length }],
+      tableTitle: 'Location updates per tag',
+      columns: [{ key: 'tag', label: 'Tag ID' }, { key: 'count', label: 'Location Updates', num: true }],
+      rows: tags.map((t) => ({ cells: { tag: t.tagId, count: t.count } })),
+      empty: 'No location updates this day.',
     };
   }
 

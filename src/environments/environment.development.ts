@@ -2,24 +2,23 @@
  * Backend service URLs. Each microservice runs on its own port and each frontend API call uses the URL of the
  * service it talks to. Every service checks the sign-in token and the caller's role permissions itself.
  */
-const HOST = 'http://localhost';
+const HOST = 'http://172.16.100.29';
 
 export const environment = {
   production: false,
   apiUrl: `${HOST}:5039/`,
   reportsApiUrl: `${HOST}:5480/`,
 
-  // UserAccount service: sign-in through the gateway (5296); its own port 5018 is not published by docker-compose.local.yml
-  authApiUrl: `${HOST}:5296/`,
-  userAccountApiUrl: `${HOST}:5296/`,
-  usersApiUrl: `${HOST}:5296/`,
+  // UserAccount service (5018): sign-in and user accounts
+  authApiUrl: `${HOST}:5018/`,
+  userAccountApiUrl: `${HOST}:5018/`,
+  usersApiUrl: `${HOST}:5018/`,
   // Media service (5300): file uploads
   mediaApiUrl: `${HOST}:5300/`,
   // Asset service (5401)
   assetApiUrl: `${HOST}:5401/`,
   assetRegistrationApiUrl: `${HOST}:5401/`,
-  // Master-data dropdowns (api/master-data/...) are served by Master Data (5500), not the Asset service
-  assetMasterDataApiUrl: `${HOST}:5500/`,
+  assetMasterDataApiUrl: `${HOST}:5401/`,
   assetDashboardApiUrl: `${HOST}:5401/`,
   // Inspection service (5410)
   inspectionApiUrl: `${HOST}:5410/`,

@@ -96,21 +96,8 @@
 
     <section class="card io-pad ao-fill io-span-1" aria-labelledby="ao-hd">
       <h2 id="ao-hd" class="io-title"><lucide-icon [img]="icons.Heart" [size]="18"></lucide-icon>Asset Health Distribution</h2>
-      <div class="ao-health" *ngIf="health as h">
-        <svg viewBox="0 0 140 140" role="img" [attr.aria-label]="h.total + ' assets by health'" (mouseleave)="hoverHealth = null">
-          <ng-container *ngFor="let r of h.rows">
-            <circle *ngIf="r.count" cx="70" cy="70" r="46" fill="none" [attr.stroke]="r.color" [attr.stroke-width]="hoverHealth === r.band ? 26 : 22"
-              [attr.stroke-dasharray]="r.dash" [attr.stroke-dashoffset]="r.offset" transform="rotate(-90 70 70)" (mouseenter)="hoverHealth = r.band" (click)="openHealthBand(r.band)" class="io-click"></circle>
-            <text *ngIf="r.count" class="ao-seg-label" [attr.x]="r.lx" [attr.y]="r.ly" text-anchor="middle" [attr.fill]="r.band === 'Healthy' ? '#15803d' : r.color">{{ r.pct }}%</text>
-          </ng-container>
-          <text x="70" y="70" class="ao-health-num">{{ hoverHealth ? (h.rows[['Healthy', 'Warning', 'Critical', 'Unknown'].indexOf(hoverHealth)].count | number) : (h.total | number) }}</text>
-          <text x="70" y="84" class="io-donut-cap">{{ hoverHealth ?? 'Total Assets' }}</text>
-        </svg>
-        <ul class="ao-health-legend">
-          <li *ngFor="let r of h.rows" class="io-click" (mouseenter)="hoverHealth = r.band" (mouseleave)="hoverHealth = null" (click)="openHealthBand(r.band)"><i [style.background]="r.color"></i>
-            <span><strong>{{ r.band }}</strong><span class="ao-hl-row"><b>{{ r.count | number }}</b><small [style.color]="r.band === 'Unknown' ? '#6b7280' : r.color">{{ r.pct }}%</small></span></span></li>
-        </ul>
-      </div>
+      <!-- No API for health bands yet: no mock data -->
+      <p class="io-empty">No data</p>
     </section>
 
     <section class="card io-pad ao-fill io-span-2" aria-labelledby="ao-st">
@@ -150,30 +137,20 @@
     <section class="card io-pad ao-map-card io-span-2" aria-labelledby="ao-map">
       <div class="io-sub-head"><h2 id="ao-map" class="io-title"><lucide-icon [img]="icons.MapPin" [size]="18"></lucide-icon>Asset Distribution by Site</h2>
         <button type="button" class="io-link" (click)="showAllSites = !showAllSites">{{ showAllSites ? 'Show Map' : 'View All Sites' }}</button></div>
-      <div class="ao-map-wrap" [hidden]="showAllSites"><div #mapEl class="ao-map" role="application" aria-label="Asset distribution map"></div></div>
+      <div class="ao-map-wrap" [hidden]="showAllSites"><div #mapEl class="ao-map" role="application" aria-label="Asset distribution map"></div>
+        <p *ngIf="sitesLoading || !pinnedSites.length" class="ao-map-note">{{ sitesLoading ? 'Loading sites…' : siteRows.length ? siteRows.length + ' site(s) have no map coordinates. Use View All Sites.' : 'No data' }}</p></div>
       <table *ngIf="showAllSites" class="io-table">
-        <thead><tr><th>Site</th><th class="num">Assets</th><th class="num">Healthy</th></tr></thead>
-        <tbody><tr *ngFor="let s of siteStats" (click)="openSite(s.site.name)" [class.is-selected]="site === s.site.name" class="ao-click">
-          <td>{{ s.site.name }}</td><td class="num">{{ s.total | number }}</td><td class="num">{{ s.healthyPct }}%</td></tr>
-          <tr *ngIf="!siteStats.length"><td colspan="3" class="io-empty">No sites yet.</td></tr></tbody>
+        <thead><tr><th>Site</th><th class="num">Assets</th><th class="num">Online</th><th class="num">Location Updates ({{ siteDays }}d)</th></tr></thead>
+        <tbody><tr *ngFor="let s of siteRows" (click)="openSite(s)" [class.is-selected]="site === s.name" class="ao-click">
+          <td>{{ s.name }}</td><td class="num">{{ s.totalAssets | number }}</td><td class="num">{{ s.onlinePercent }}%</td><td class="num">{{ s.updates | number }}</td></tr>
+          <tr *ngIf="!siteRows.length"><td colspan="4" class="io-empty">{{ sitesLoading ? 'Loading…' : 'No data' }}</td></tr></tbody>
       </table>
     </section>
 
     <section class="card io-pad io-span-1" aria-labelledby="ao-age">
       <h2 id="ao-age" class="io-title"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon>Asset Lifecycle Aging</h2>
-      <div #agingEl class="ao-aging" *ngIf="aging as g" (mouseleave)="hoverAge = null">
-        <svg [attr.viewBox]="'0 0 ' + aw + ' ' + ah" role="img" aria-label="Assets by age">
-          <g class="grid"><line *ngFor="let t of g.ticks" [attr.x1]="ap.l" [attr.x2]="aw - ap.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
-          <g class="axis"><text *ngFor="let t of g.ticks" [attr.x]="ap.l - 5" [attr.y]="t.y + 3" text-anchor="end">{{ t.label }}</text></g>
-          <g *ngFor="let b of g.bars; let i = index" class="io-click" (click)="openAge(i)" (mouseenter)="hoverAge = i" [class.is-dim]="hoverAge !== null && hoverAge !== i">
-            <rect [attr.x]="b.x" [attr.y]="b.y" [attr.width]="g.barW" [attr.height]="b.h" [attr.fill]="b.color" rx="2"></rect>
-            <text class="ao-bar-val" [attr.x]="b.x + g.barW / 2" [attr.y]="b.y - 5" text-anchor="middle">{{ b.count | number }}</text>
-          </g>
-        </svg>
-        <ul class="ao-age-keys">
-          <li *ngFor="let b of g.bars; let i = index" class="io-click" (click)="openAge(i)"><strong>{{ b.band }}</strong><small>{{ b.label }}</small><b [style.color]="b.color">{{ b.pct }}%</b></li>
-        </ul>
-      </div>
+      <!-- No API for lifecycle aging yet: no mock data -->
+      <p class="io-empty">No data</p>
     </section>
 
     <section class="card io-pad ao-table-card io-span-2 io-full-md" aria-labelledby="ao-tb">
