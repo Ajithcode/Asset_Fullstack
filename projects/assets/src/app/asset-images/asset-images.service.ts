@@ -5,6 +5,7 @@ import { AuthService } from 'shared-ui';
 import { ASSET_API, TENANT } from '../services/asset-api';
 import { AssetImage, ImageEvent } from '../asset-details/asset-details';
 import { AssetLookupService, EventLogDto, toLocalDateTime } from '../asset-documents/asset-lookup.service';
+import { num, splitAssetFiles, str, strList } from '../asset-documents/asset-files';
 
 /** Raw shape returned by /api/asset-images (AssetImageResponse). */
 interface AssetImageDto {
@@ -145,6 +146,35 @@ export function toApiImage(dto: AssetImageDto, id = nextImageId++): ApiImage {
   };
 }
 
+/** An image record of GET /api/asset-registrations/{id}/files, read with fallbacks for plainer field names. */
+function fromFileRecord(f: Record<string, unknown>, assetRegistrationId: string): AssetImageDto {
+  return {
+    id: str(f, 'id', 'imageId', 'assetImageId', 'fileId') ?? '',
+    assetRegistrationId: str(f, 'assetRegistrationId') ?? assetRegistrationId,
+    assetName: str(f, 'assetName'),
+    assetTag: str(f, 'assetTag'),
+    imageName: str(f, 'imageName', 'title', 'name', 'fileName') ?? 'Image',
+    imageType: str(f, 'imageType') ?? 'Other',
+    tags: strList(f, 'tags'),
+    location: str(f, 'location'),
+    remarks: str(f, 'remarks'),
+    description: str(f, 'description'),
+    fileName: str(f, 'fileName', 'originalFileName', 'name') ?? '',
+    fileUrl: str(f, 'fileUrl', 'url', 'filePath', 'path', 'downloadUrl') ?? '',
+    contentType: str(f, 'contentType', 'mimeType'),
+    fileSize: num(f, 'fileSize', 'size', 'sizeBytes'),
+    width: num(f, 'width'),
+    height: num(f, 'height'),
+    resolution: str(f, 'resolution'),
+    uploadedBy: str(f, 'uploadedBy', 'createdBy'),
+    uploadDate: str(f, 'uploadDate', 'uploadedAt', 'createdAt', 'createdOn'),
+    updatedBy: str(f, 'updatedBy'),
+    updatedAt: str(f, 'updatedAt', 'updatedOn'),
+    clientId: str(f, 'clientId'),
+    tenantId: str(f, 'tenantId'),
+  };
+}
+
 function toFileRequest(item: ImageUploadItem, url: string): AssetImageFileRequest {
   return {
     imageName: item.title.trim() || null,
@@ -165,11 +195,17 @@ export class AssetImagesService {
   private readonly lookup = inject(AssetLookupService);
   private readonly apiUrl = `${ASSET_API}asset-images`;
 
-  /** GET /api/asset-images (every page), optionally for one asset. */
+  /**
+   * One asset: its images from GET /api/asset-registrations/{id}/files.
+   * No asset: every image, GET /api/asset-images (every page).
+   */
   list(assetRegistrationId?: string): Observable<ApiImage[]> {
-    return this.lookup
-      .fetchAll<AssetImageDto>(this.apiUrl, assetRegistrationId ? { assetRegistrationId } : {})
-      .pipe(map((items) => items.map((d) => toApiImage(d))));
+    if (assetRegistrationId) {
+      return this.http
+        .get<unknown>(`${ASSET_API}asset-registrations/${encodeURIComponent(assetRegistrationId)}/files`)
+        .pipe(map((res) => splitAssetFiles(res).images.map((f) => toApiImage(fromFileRecord(f, assetRegistrationId)))));
+    }
+    return this.lookup.fetchAll<AssetImageDto>(this.apiUrl, {}).pipe(map((items) => items.map((d) => toApiImage(d))));
   }
 
   /** Uploads each file (POST /api/media/upload, category "asset-images"), then POST /api/asset-images. */

@@ -5,9 +5,10 @@ import { AuthService } from 'shared-ui';
 import { ASSET_API, TENANT } from '../services/asset-api';
 import { AssetDocument, DocVersion } from '../asset-details/asset-details';
 import { AssetLookupService, toLocalDateTime } from './asset-lookup.service';
+import { num, splitAssetFiles, str, strList } from './asset-files';
 
 /** Raw shape returned by /api/asset-documents (AssetDocumentResponse). */
-interface AssetDocumentDto {
+export interface AssetDocumentDto {
   id: string;
   assetRegistrationId: string;
   assetName: string | null;
@@ -139,6 +140,35 @@ export function toApiDocument(dto: AssetDocumentDto, id = nextDocId++): ApiDocum
   };
 }
 
+/** A document record of GET /api/asset-registrations/{id}/files, read with fallbacks for plainer field names. */
+function fromFileRecord(f: Record<string, unknown>, assetRegistrationId: string): AssetDocumentDto {
+  const fileName = str(f, 'fileName', 'originalFileName', 'name') ?? '';
+  return {
+    id: str(f, 'id', 'documentId', 'assetDocumentId', 'fileId') ?? '',
+    assetRegistrationId: str(f, 'assetRegistrationId') ?? assetRegistrationId,
+    assetName: str(f, 'assetName'),
+    assetTag: str(f, 'assetTag'),
+    documentName: str(f, 'documentName', 'title', 'name', 'fileName') ?? 'Document',
+    documentType: str(f, 'documentType', 'docType') ?? 'Other',
+    lifecycleStage: str(f, 'lifecycleStage', 'stage') ?? '',
+    version: str(f, 'version') ?? '1.0',
+    expiryDate: str(f, 'expiryDate'),
+    description: str(f, 'description', 'remarks'),
+    tags: strList(f, 'tags'),
+    status: str(f, 'status'),
+    fileName,
+    fileUrl: str(f, 'fileUrl', 'url', 'filePath', 'path', 'downloadUrl') ?? '',
+    contentType: str(f, 'contentType', 'mimeType'),
+    fileSize: num(f, 'fileSize', 'size', 'sizeBytes'),
+    uploadedBy: str(f, 'uploadedBy', 'createdBy'),
+    uploadDate: str(f, 'uploadDate', 'uploadedAt', 'createdAt', 'createdOn'),
+    updatedBy: str(f, 'updatedBy'),
+    updatedAt: str(f, 'updatedAt', 'updatedOn'),
+    clientId: str(f, 'clientId'),
+    tenantId: str(f, 'tenantId'),
+  };
+}
+
 function toBody(v: DocumentFormValue): DocumentBody {
   return {
     documentName: v.name.trim(),
@@ -165,11 +195,17 @@ export class AssetDocumentsService {
   private readonly lookup = inject(AssetLookupService);
   private readonly apiUrl = `${ASSET_API}asset-documents`;
 
-  /** GET /api/asset-documents (every page), optionally for one asset. */
+  /**
+   * One asset: its documents from GET /api/asset-registrations/{id}/files.
+   * No asset: every document, GET /api/asset-documents (every page).
+   */
   list(assetRegistrationId?: string): Observable<ApiDocument[]> {
-    return this.lookup
-      .fetchAll<AssetDocumentDto>(this.apiUrl, assetRegistrationId ? { assetRegistrationId } : {})
-      .pipe(map((items) => items.map((d) => toApiDocument(d))));
+    if (assetRegistrationId) {
+      return this.http
+        .get<unknown>(`${ASSET_API}asset-registrations/${encodeURIComponent(assetRegistrationId)}/files`)
+        .pipe(map((res) => splitAssetFiles(res).documents.map((f) => toApiDocument(fromFileRecord(f, assetRegistrationId)))));
+    }
+    return this.lookup.fetchAll<AssetDocumentDto>(this.apiUrl, {}).pipe(map((items) => items.map((d) => toApiDocument(d))));
   }
 
   /** POST /api/media/upload with category "asset-documents". */

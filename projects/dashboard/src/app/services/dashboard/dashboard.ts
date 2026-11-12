@@ -4,6 +4,30 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../../../src/environments/environment';
 import type { AssetRegistrationDetail, AssetRegistrationList } from '../../shared/asset-quick-view/quick-view';
 
+/** One tag in GET api/asset-dashboard/location-updates: how often it moved between gateways in the window. */
+export interface LocationUpdateTag {
+  tagId: string;
+  count: number;
+  lastChangedAt: string | null;
+  lastFromGatewayId: string | null;
+  lastToGatewayId: string | null;
+  /** Gateway positions of the last move; null when the gateway has none. */
+  lastFromLatitude?: number | null;
+  lastFromLongitude?: number | null;
+  lastToLatitude?: number | null;
+  lastToLongitude?: number | null;
+}
+
+/** Response of GET api/asset-dashboard/location-updates?days= */
+export interface LocationUpdates {
+  days: number;
+  from: string;
+  to: string;
+  totalCount: number;
+  tagCount: number;
+  tags: LocationUpdateTag[];
+}
+
 /** One KPI tile from GET api/asset-dashboard/kpis */
 export interface KpiMetric {
   value: number;
@@ -151,6 +175,9 @@ export interface SiteOption {
   siteType: string | null;
   city: string | null;
   country: string | null;
+  /** Map position; null when the site has none. */
+  latitude?: number | null;
+  longitude?: number | null;
   status: string;
   isDeleted: boolean;
 }
@@ -246,6 +273,19 @@ export class Dashboard {
     let params = new HttpParams();
     if (top) params = params.set('top', top);
     return this.http.get<AssetDashboardLocations>(`${this.baseUrl}/locations`, { params });
+  }
+
+  /**
+   * GET api/asset-dashboard/location-updates?days=&siteId=&assetType=&status=
+   * Returns totals per tag for the last `days` days (no per-day split); the IoT Events Timeline derives daily
+   * counts from several windows, see dailyLocationUpdates() in iot-overview-data.ts.
+   */
+  getLocationUpdates(days: number, filters: { siteId?: string; assetType?: string; status?: string } = {}): Observable<LocationUpdates> {
+    let params = new HttpParams().set('days', days);
+    if (filters.siteId) params = params.set('siteId', filters.siteId);
+    if (filters.assetType) params = params.set('assetType', filters.assetType);
+    if (filters.status) params = params.set('status', filters.status);
+    return this.http.get<LocationUpdates>(`${this.baseUrl}/location-updates`, { params });
   }
 
   /** GET api/asset-dashboard/sites/{siteId} */

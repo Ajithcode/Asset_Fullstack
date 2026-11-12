@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subscription, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -48,11 +49,16 @@ import {
   WifiOff,
   Wrench,
 } from 'lucide-angular';
-import { AGE_BANDS, CATEGORIES, HEALTH_COLORS, HealthBand, PORTFOLIO, PortfolioAsset, PortfolioStatus, SITES, STATUSES, STATUS_COLORS, ageYears, healthBand, isoDate } from './asset-overview-data';
+import { AGE_BANDS, CATEGORIES, HEALTH_COLORS, HealthBand, PORTFOLIO, PortfolioAsset, PortfolioStatus, STATUSES, STATUS_COLORS, ageYears, healthBand, isoDate } from './asset-overview-data';
 import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
 import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
+<<<<<<< HEAD
 import { AssetQuickView, QuickViewAsset, qvDate, qvDateTime, statusKey } from '../shared/asset-quick-view/quick-view';
 import { AssetDashboardCategories, AssetDashboardKpis, AssetPerformanceSummary, AssetStatusCounts, AssetTypeOption, InsightAsset, InsightAssetList, InsightEndpoint, ConnectedAssetDetail, Dashboard } from '../services/dashboard/dashboard';
+=======
+import { AssetQuickView, QuickViewAsset, connectedAssetDrill, qvDate, qvDateTime, statusKey } from '../shared/asset-quick-view/quick-view';
+import { AssetDashboardCategories, AssetDashboardKpis, AssetTypeOption, InsightAsset, InsightAssetList, InsightEndpoint, ConnectedAssetDetail, Dashboard, LocationUpdateTag, LocationUpdates, SiteOption, TopSite } from '../services/dashboard/dashboard';
+>>>>>>> origin/feature/dashboardupdates
 
 /** KPI window: "Last 30 days" for api/asset-performance/summary (vs. previous 30 days) and days=30 for api/asset-dashboard/kpis. */
 const KPI_DAYS = 30;
@@ -63,6 +69,37 @@ type KpiState = 'loading' | 'ok' | 'error';
 type AsOf = 'today' | '30' | '90';
 type Insight = '' | 'critical' | 'maintenance' | 'owner' | 'documents';
 type QuickTab = 'overview' | 'location' | 'maintenance' | 'financial' | 'documents';
+
+/** A site on "Asset Distribution by Site": counts from GET api/asset-dashboard/locations, movement from
+ * GET api/asset-dashboard/location-updates?siteId=, position from the master-data site (null when it has none). */
+interface SiteMapRow {
+  siteId: string;
+  name: string;
+  lat: number | null;
+  lng: number | null;
+  totalAssets: number;
+  onlinePercent: number;
+  /** Location updates in the last KPI_DAYS days. */
+  updates: number;
+  tags: LocationUpdateTag[];
+  /** Which side of the pin the card sits on. */
+  card: 'left' | 'right';
+}
+
+/** [lat, lng] when both are real coordinates (0,0 counts as unset). */
+function point(lat: number | null | undefined, lng: number | null | undefined): [number, number] | null {
+  if (lat == null || lng == null) return null;
+  const a = Number(lat);
+  const b = Number(lng);
+  return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a) <= 90 && Math.abs(b) <= 180 && !(a === 0 && b === 0) ? [a, b] : null;
+}
+
+/** Average of the given points; null when there are none. */
+function centre(points: ([number, number] | null)[]): [number, number] | null {
+  const ok = points.filter((p): p is [number, number] => !!p);
+  if (!ok.length) return null;
+  return [ok.reduce((s, p) => s + p[0], 0) / ok.length, ok.reduce((s, p) => s + p[1], 0) / ok.length];
+}
 
 /** One asset as it stood on the selected date. */
 interface Snapshot extends PortfolioAsset {
@@ -174,8 +211,18 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   categoryLoading = false;
   /** Quick Insights lists from the API, by insight; missing until loaded. */
   insightData: Partial<Record<Insight, InsightAssetList>> = {};
+<<<<<<< HEAD
   /** GET api/asset-dashboard/critical-assets failed (Critical Assets card shows "Could not load"). */
   criticalFailed = false;
+=======
+  /** "Asset Distribution by Site", one row per site the dashboard API knows. */
+  siteRows: SiteMapRow[] = [];
+  sitesLoading = false;
+  readonly siteDays = KPI_DAYS;
+  private siteSub?: Subscription;
+  /** Asset type the site rows were fetched for; null before the first fetch. */
+  private siteMapType: string | null = null;
+>>>>>>> origin/feature/dashboardupdates
 
   constructor() {
     this.loadKpiSources();
@@ -231,6 +278,11 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   apply(): void {
     this.assets = this.snapshot(this.asOfDate, this.asOf === 'today');
     this.rowPage = 0;
+    // location-updates filters by asset type; site / category / status only highlight on the map
+    if (this.siteMapType !== this.type) {
+      this.siteMapType = this.type;
+      this.loadSiteMap();
+    }
     this.drawSites();
   }
 
@@ -575,20 +627,68 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
 
   // ===== Sites & map =====
 
-  get siteStats() {
-    return SITES.map((s) => {
-      const list = this.assets.filter((a) => a.site === s.name);
-      const healthy = list.filter((a) => healthBand(a.hp) === 'Healthy').length;
-      return { site: s, total: list.length, healthyPct: list.length ? Math.round((healthy / list.length) * 1000) / 10 : 0 };
-    });
+  /** Sites that can be pinned on the map. */
+  get pinnedSites(): SiteMapRow[] {
+    return this.siteRows.filter((r) => r.lat !== null && r.lng !== null);
+  }
+
+  /**
+   * Sites (GET api/asset-dashboard/locations) with their location updates for the last KPI_DAYS days
+   * (GET api/asset-dashboard/location-updates?siteId=, one call per site) and map position (master-data sites).
+   */
+  loadSiteMap(): void {
+    this.siteSub?.unsubscribe();
+    this.sitesLoading = true;
+    const assetType = this.type || undefined;
+    this.siteSub = forkJoin({
+      master: this.dashboardApi.getSites().pipe(catchError(() => of([] as SiteOption[]))),
+      locations: this.dashboardApi.getLocations().pipe(catchError(() => of(null))),
+    })
+      .pipe(
+        switchMap(({ master, locations }) => {
+          const sites = locations?.topSites ?? [];
+          if (!sites.length) return of([] as SiteMapRow[]);
+          return forkJoin(
+            sites.map((site) =>
+              this.dashboardApi.getLocationUpdates(KPI_DAYS, { siteId: site.siteId, assetType }).pipe(
+                catchError(() => of(null)),
+                map((u) => this.siteRow(site, u, master ?? [])),
+              ),
+            ),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((rows) => {
+        // cards sit right of their pin, except the easternmost site's, which opens to the left
+        const east = rows.filter((r) => r.lng !== null).sort((a, b) => b.lng! - a.lng!)[0];
+        if (east && rows.filter((r) => r.lng !== null).length > 1) east.card = 'left';
+        this.siteRows = rows.sort((a, b) => b.totalAssets - a.totalAssets || a.name.localeCompare(b.name));
+        this.sitesLoading = false;
+        this.fitSites();
+        this.drawSites();
+      });
+  }
+
+  private siteRow(site: TopSite, u: LocationUpdates | null, master: SiteOption[]): SiteMapRow {
+    const name = site.siteName || site.siteId;
+    const m = master.find((x) => x.id === site.siteId) ?? master.find((x) => x.siteName?.trim().toLowerCase() === name.trim().toLowerCase());
+    const tags = u?.tags ?? [];
+    // the master-data site's position; without one, the centre of where the site's tags last moved to
+    const pos = point(m?.latitude, m?.longitude) ?? centre(tags.map((t) => point(t.lastToLatitude, t.lastToLongitude)));
+    return {
+      siteId: site.siteId, name, lat: pos?.[0] ?? null, lng: pos?.[1] ?? null,
+      totalAssets: site.totalAssets ?? 0, onlinePercent: Math.round((site.onlinePercent ?? 0) * 10) / 10,
+      updates: u?.totalCount ?? 0, tags, card: 'right',
+    };
   }
 
   private initMap(): void {
     const el = this.mapEl?.nativeElement;
     if (!el) return;
     this.map = L.map(el, { zoomControl: false, attributionControl: true, scrollWheelZoom: false });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 18, subdomains: 'abcd', attribution: '&copy; OpenStreetMap &copy; CARTO',
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(this.map);
     this.siteLayer = L.layerGroup().addTo(this.map);
     this.fitSites();
@@ -602,33 +702,35 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     this.mapResize.observe(el);
   }
 
-  /** Fits all sites, with padding scaled to the map so small cards still get a usable zoom. */
+  /** Fits all pinned sites, with padding scaled to the map so small cards still get a usable zoom. */
   private fitSites(): void {
     const size = this.map?.getSize();
     if (!this.map || !size?.x || !size.y) return;
-    // No sites yet: show a world view instead of fitting empty (invalid) bounds
-    if (!SITES.length) {
+    const pins = this.pinnedSites;
+    // No sites with coordinates: show a world view instead of fitting empty (invalid) bounds
+    if (!pins.length) {
       this.map.setView([20, 0], 2);
       return;
     }
     const pad: [number, number] = [Math.min(120, size.x * 0.2), Math.min(70, size.y * 0.2)];
-    this.map.fitBounds(L.latLngBounds(SITES.map((s) => [s.lat, s.lng] as [number, number])), { padding: pad });
+    this.map.fitBounds(L.latLngBounds(pins.map((s) => [s.lat!, s.lng!] as [number, number])), { padding: pad, maxZoom: 12 });
   }
 
-  /** Each site: a pin plus a card with its asset count and healthy share. */
+  /** Each site: a pin plus a card with its asset count and online share (location updates are in the site popup). */
   private drawSites(): void {
     if (!this.map || !this.siteLayer) return;
     this.siteLayer.clearLayers();
-    for (const s of this.siteStats) {
-      const on = this.site === s.site.name;
+    const esc = (v: string) => v.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    for (const s of this.pinnedSites) {
+      const on = this.site === s.name;
       const dim = !!this.site && !on;
       const C = 2 * Math.PI * 9;
-      const ring = `<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="9" fill="none" stroke="#e5e7eb" stroke-width="4"/><circle cx="12" cy="12" r="9" fill="none" stroke="#16a34a" stroke-width="4" stroke-dasharray="${(C * s.healthyPct) / 100} ${C}" transform="rotate(-90 12 12)"/></svg>`;
-      const html = `<div class="ao-site-card ao-site-card--${s.site.card}${on ? ' is-on' : ''}${dim ? ' is-dim' : ''}">
-          <strong>${s.site.name}</strong><span>${s.total.toLocaleString()} assets</span>
-          <span class="ao-site-health">${ring}<b>${s.healthyPct}%</b> Healthy</span></div><i class="ao-site-pin"></i>`;
-      L.marker([s.site.lat, s.site.lng], { icon: L.divIcon({ className: 'ao-site', html, iconSize: [0, 0] }), keyboard: true, title: s.site.name })
-        .on('click', () => this.openSite(s.site.name))
+      const ring = `<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="9" fill="none" stroke="#e5e7eb" stroke-width="4"/><circle cx="12" cy="12" r="9" fill="none" stroke="#16a34a" stroke-width="4" stroke-dasharray="${(C * s.onlinePercent) / 100} ${C}" transform="rotate(-90 12 12)"/></svg>`;
+      const html = `<div class="ao-site-card ao-site-card--${s.card}${on ? ' is-on' : ''}${dim ? ' is-dim' : ''}">
+          <strong>${esc(s.name)}</strong><span>${s.totalAssets.toLocaleString()} assets</span>
+          <span class="ao-site-health">${ring}<b>${s.onlinePercent}%</b> Online</span></div><i class="ao-site-pin"></i>`;
+      L.marker([s.lat!, s.lng!], { icon: L.divIcon({ className: 'ao-site', html, iconSize: [0, 0] }), keyboard: true, title: s.name })
+        .on('click', () => this.zone.run(() => this.openSite(s)))
         .addTo(this.siteLayer);
     }
   }
@@ -856,15 +958,28 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     };
   }
 
-  openSite(name: string): void {
-    const list = this.assets.filter((a) => a.site === name);
-    const s = this.siteStats.find((x) => x.site.name === name);
-    const on = this.site === name;
+  openSite(s: SiteMapRow): void {
+    const on = this.site === s.name;
+    const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '-');
     this.drill = {
-      title: name, subtitle: `Site · ${this.scope}`,
-      stats: [{ label: 'Assets', value: list.length }, { label: 'Healthy', value: `${s?.healthyPct ?? 0}%`, color: HEALTH_COLORS.Healthy }, { label: 'Value', value: this.valueOf(list) }],
-      columns: this.assetColumns(), rows: this.assetRows(list),
-      actions: [{ label: on ? 'Clear site filter' : `Filter dashboard to ${name}`, run: () => this.pickSite(name) }],
+      title: s.name, subtitle: `Site · last ${KPI_DAYS} days${this.type ? ` · ${this.type}` : ''}`,
+      stats: [
+        { label: 'Assets', value: s.totalAssets }, { label: 'Online', value: `${s.onlinePercent}%`, color: HEALTH_COLORS.Healthy },
+        { label: 'Location Updates', value: s.updates }, { label: 'Tags Moved', value: s.tags.length },
+      ],
+      tableTitle: 'Location updates per tag',
+      columns: [
+        { key: 'tag', label: 'Tag ID' }, { key: 'count', label: 'Updates', num: true }, { key: 'at', label: 'Last Moved' },
+        { key: 'from', label: 'From Gateway' }, { key: 'to', label: 'To Gateway' }, { key: 'pos', label: 'Last Position' },
+      ],
+      rows: [...s.tags].sort((a, b) => b.count - a.count).map((t) => ({
+        cells: {
+          tag: t.tagId, count: t.count, at: fmt(t.lastChangedAt), from: t.lastFromGatewayId ?? '-', to: t.lastToGatewayId ?? '-',
+          pos: point(t.lastToLatitude, t.lastToLongitude)?.map((v) => v.toFixed(5)).join(', ') ?? '-',
+        },
+      })),
+      empty: `No location updates in the last ${KPI_DAYS} days.`,
+      actions: [{ label: on ? 'Clear site filter' : `Filter dashboard to ${s.name}`, run: () => this.pickSite(s.name) }],
     };
   }
 
@@ -916,7 +1031,7 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     ]), 'Summary');
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.byCategory.map((c) => ({ Category: c.name, Assets: c.count, '%': c.pct }))), 'By Category');
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.byStatus.map((s) => ({ Status: s.status, Assets: s.count, '%': s.pct }))), 'By Status');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.siteStats.map((s) => ({ Site: s.site.name, Assets: s.total, 'Healthy %': s.healthyPct }))), 'By Site');
+    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.siteRows.map((s) => ({ Site: s.name, Assets: s.totalAssets, 'Online %': s.onlinePercent, [`Location Updates (${KPI_DAYS}d)`]: s.updates }))), 'By Site');
     const tableSheet = this.apiTable
       ? this.apiRows.map((a) => ({
           'Asset Tag': a.assetTag, 'Asset Name': a.assetName, Category: a.category ?? '', 'Sub-category': a.subCategory ?? '', 'Asset Type': a.assetType ?? '',

@@ -118,7 +118,11 @@
             </ul>
           </div>
         </div>
-        <div class="io-fw io-click" *ngIf="firmware as f" role="button" tabindex="0" (click)="openFirmware()" (keydown.enter)="openFirmware()">
+        <div class="io-fw" *ngIf="!firmware.total">
+          <div class="io-fw-head"><strong>Firmware Updates</strong></div>
+          <p class="io-empty">No data</p>
+        </div>
+        <div class="io-fw io-click" *ngIf="firmware.total ? firmware : null as f" role="button" tabindex="0" (click)="openFirmware()" (keydown.enter)="openFirmware()">
           <div class="io-fw-head"><strong>Firmware Updates</strong><b>{{ f.pct }}%</b></div>
           <div class="io-bar"><span [style.width.%]="f.pct"></span></div>
           <small class="muted">{{ f.latest | number }} of {{ f.total | number }} devices on latest firmware<ng-container *ngIf="latestFirmware"> ({{ latestFirmware }})</ng-container></small>
@@ -133,7 +137,8 @@
       <div class="io-hu-row">
         <div>
           <h3>Asset Health Score</h3>
-          <div class="io-donut io-donut--sm" *ngIf="health as h">
+          <p *ngIf="!hasHealthData" class="io-empty">No data</p>
+          <div class="io-donut io-donut--sm" *ngIf="hasHealthData ? health : null as h">
             <svg viewBox="0 0 120 120" role="img" [attr.aria-label]="h.healthyPct + '% healthy'" (mouseleave)="hoverHealth = null">
               <circle cx="60" cy="60" r="48" fill="none" stroke="#eef0f4" stroke-width="14"></circle>
               <ng-container *ngFor="let r of h.rows">
@@ -150,14 +155,15 @@
         </div>
         <div class="io-util">
           <h3>Utilization Rate (by Asset Type)</h3>
-          <ul>
-            <li *ngFor="let u of utilization" [class.is-on]="type === u.type" (click)="openType(u.type)" [title]="u.count + ' assets · ' + u.running + '% running, ' + u.idle + '% idle'">
+          <p *ngIf="!utilizationRows.length" class="io-empty">No data</p>
+          <ul *ngIf="utilizationRows.length">
+            <li *ngFor="let u of utilizationRows" [class.is-on]="type === u.type" (click)="openType(u.type)" [title]="u.count + ' assets · ' + u.running + '% running, ' + u.idle + '% idle'">
               <span class="io-util-label">{{ u.type }}</span>
               <span class="io-util-bar"><span class="run" [style.width.%]="u.running"></span><span class="idle" [style.width.%]="u.idle"></span></span>
               <b>{{ u.running }}%</b>
             </li>
           </ul>
-          <p class="io-util-key"><span><i class="run"></i>Running</span><span><i class="idle"></i>Idle</span></p>
+          <p class="io-util-key" *ngIf="utilizationRows.length"><span><i class="run"></i>Running</span><span><i class="idle"></i>Idle</span></p>
         </div>
       </div>
     </section>
@@ -165,8 +171,11 @@
     <!-- ===== Events timeline ===== -->
     <section class="card io-pad io-events io-span-2" aria-labelledby="io-ev">
       <div class="io-sub-head"><h2 id="io-ev" class="io-title"><lucide-icon [img]="icons.Download" [size]="18"></lucide-icon>IoT Events Timeline</h2>
-        <select class="control io-ev-period" [(ngModel)]="timelinePeriod" aria-label="Timeline period"><option value="7">Last 7 Days</option><option value="30">Last 30 Days</option><option value="90">Last 90 Days</option></select></div>
-      <div #chartEl class="io-chart" *ngIf="timeline as t" (mouseleave)="hoverDay = null">
+        <select class="control io-ev-period" [(ngModel)]="timelinePeriod" (ngModelChange)="loadTimeline()" aria-label="Timeline period"><option value="7">Last 7 Days</option><option value="30">Last 30 Days</option><option value="90">Last 90 Days</option></select></div>
+      <!-- #chartEl stays rendered so the resize observer can size the chart once data arrives -->
+      <div #chartEl class="io-chart" (mouseleave)="hoverDay = null">
+        <p *ngIf="!timeline" class="io-empty">{{ timelineLoading ? 'Loading…' : 'No location updates in this period' }}</p>
+        <ng-container *ngIf="timeline as t">
         <svg [attr.viewBox]="'0 0 ' + tw + ' ' + th" role="img" [attr.aria-label]="'IoT events per day, last ' + timelinePeriod + ' days'">
           <g class="grid"><line *ngFor="let k of t.ticks" [attr.x1]="tp.l" [attr.x2]="tw - tp.r" [attr.y1]="k.y" [attr.y2]="k.y"></line></g>
           <g class="axis"><text *ngFor="let k of t.ticks" [attr.x]="tp.l - 5" [attr.y]="k.y + 3" text-anchor="end">{{ k.label }}</text>
@@ -182,18 +191,19 @@
           <strong>{{ fmtDate(v.date) }}</strong>
           <span *ngFor="let s of t.lines"><i [style.background]="s.color"></i>{{ s.label }}<b>{{ $any(v)[s.key] }}</b></span>
         </div>
+        </ng-container>
       </div>
-      <p class="io-series">
-        <button *ngFor="let s of series" type="button" [class.is-off]="hiddenSeries.has(s.key)" (click)="toggleSeries(s.key)" [attr.aria-pressed]="!hiddenSeries.has(s.key)"><i [style.background]="s.color"></i>{{ s.label }}</button>
+      <p class="io-series" *ngIf="timeline">
+        <button *ngFor="let s of timelineSeries" type="button" [class.is-off]="hiddenSeries.has(s.key)" (click)="toggleSeries(s.key)" [attr.aria-pressed]="!hiddenSeries.has(s.key)"><i [style.background]="s.color"></i>{{ s.label }}</button>
       </p>
     </section>
 
     <!-- ===== Attention & quick actions ===== -->
     <aside class="io-side io-span-1">
-      <button type="button" class="card io-attn" (click)="openAttention()">
+      <button type="button" class="card io-attn" [disabled]="!devices.length" (click)="openAttention()">
         <lucide-icon [img]="icons.TriangleAlert" [size]="20"></lucide-icon>
-        <span class="grow"><strong>Sensors Requiring Attention</strong><small>Sensors with abnormal readings</small></span>
-        <b>{{ attention }}</b>
+        <span class="grow"><strong>Sensors Requiring Attention</strong><small>{{ devices.length ? 'Sensors with abnormal readings' : 'No data' }}</small></span>
+        <b *ngIf="devices.length">{{ attention }}</b>
       </button>
 
       <section class="card io-pad" aria-labelledby="io-qa">

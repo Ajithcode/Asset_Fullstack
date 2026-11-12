@@ -97,6 +97,10 @@
 :host ::ng-deep .ao-site-card.is-dim { opacity: 0.55; }
 :host ::ng-deep .ao-site-health { display: inline-flex; align-items: center; gap: 4px; color: #15803d; }
 :host ::ng-deep .ao-site-health b { font-size: 12px; }
+.ao-map-note {
+  position: absolute; left: 50%; top: 50%; z-index: 500; transform: translate(-50%, -50%); margin: 0; padding: 6px 12px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92); color: #6b7280; font-size: 12.5px; text-align: center; pointer-events: none;
+}
 
 /* ===== Aging ===== */
 .ao-aging svg { display: block; width: 100%; height: auto; }
