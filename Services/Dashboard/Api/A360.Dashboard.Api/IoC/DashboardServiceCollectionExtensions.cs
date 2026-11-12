@@ -1,4 +1,6 @@
 using MongoDB.Driver;
+using A360.Dashboard.Api.Mobile;
+using A360.Dashboard.Repository.Mobile;
 using A360.Dashboard.Repository.Repositories;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
@@ -54,6 +56,10 @@ public static class DashboardServiceCollectionExtensions
 
         services.AddScoped<INetworkStatusRepository, NetworkStatusRepository>();
         services.AddScoped<IDashboardAssetRepository, DashboardAssetRepository>();
+
+        // Mobile app dashboard: reads other services' collections in the shared database.
+        services.AddScoped<IMobileDashboardRepository, MobileDashboardRepository>();
+        services.AddScoped<MobileDashboardService>();
 
         services.AddHostedService<MongoIndexHostedService>();
 

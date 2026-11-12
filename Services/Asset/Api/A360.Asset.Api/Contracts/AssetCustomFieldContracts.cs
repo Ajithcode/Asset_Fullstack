@@ -48,6 +48,7 @@ public static class BuiltInAssetFields
         new("asset_tag", "Asset Tag / ID", CustomFieldTypes.Text, true, AvailableLayoutFieldResponse.BuiltIn),
         new("barcode", "Barcode / QR Code", CustomFieldTypes.Text, false, AvailableLayoutFieldResponse.BuiltIn),
         new("rfid_tag_id", "RFID Tag ID", CustomFieldTypes.Text, false, AvailableLayoutFieldResponse.BuiltIn),
+        new("nfc_uid", "NFC UID", CustomFieldTypes.Text, false, AvailableLayoutFieldResponse.BuiltIn),
         new("model", "Model", CustomFieldTypes.Text, false, AvailableLayoutFieldResponse.BuiltIn),
         new("manufacturer", "Manufacturer", CustomFieldTypes.Text, false, AvailableLayoutFieldResponse.BuiltIn)
     ];

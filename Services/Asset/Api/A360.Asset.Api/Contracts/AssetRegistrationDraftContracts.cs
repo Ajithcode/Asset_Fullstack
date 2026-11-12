@@ -21,7 +21,8 @@ public sealed record AssetBasicInformationDto(
     string? Condition,
     string? Criticality,
     string? Description,
-    List<string>? Images)
+    List<string>? Images,
+    string? NfcUid = null)
 {
     public AssetBasicInformation ToSection()
     {
@@ -38,7 +39,8 @@ public sealed record AssetBasicInformationDto(
             Condition = ContractText.TrimOrNull(Condition),
             Criticality = ContractText.TrimOrNull(Criticality),
             Description = ContractText.TrimOrNull(Description),
-            Images = ContractText.CleanList(Images, StringComparer.Ordinal)
+            Images = ContractText.CleanList(Images, StringComparer.Ordinal),
+            NfcUid = ContractText.TrimOrNull(NfcUid)
         };
     }
 
@@ -58,7 +60,8 @@ public sealed record AssetBasicInformationDto(
                 section.Condition,
                 section.Criticality,
                 section.Description,
-                section.Images);
+                section.Images,
+                section.NfcUid);
     }
 }
 
@@ -624,6 +627,17 @@ public sealed record AssetOperationalDetailsDto(
             section.ComplianceStandards);
     }
 }
+
+/// <summary>
+/// Edits a registered asset. Only the sections sent are replaced; a section left out (null) keeps its stored value.
+/// The asset as a whole must still pass the same checks as a draft submit.
+/// </summary>
+public sealed record UpdateAssetRegistrationRequest(
+    AssetBasicInformationDto? BasicInformation,
+    AssetClassificationDto? Classification,
+    AssetLocationAssignmentDto? LocationAssignment,
+    AssetPurchaseWarrantyDto? PurchaseWarranty,
+    AssetAdditionalInformationDto? AdditionalInformation);
 
 public sealed record AssetRegistrationResponse(
     string Id,

@@ -52,10 +52,12 @@ public sealed class AssetRegistrationRepository
     {
     }
 
-    public async Task<bool> AssetTagExistsAsync(string assetTag, CancellationToken cancellationToken = default)
+    public async Task<bool> AssetTagExistsAsync(string assetTag, CancellationToken cancellationToken = default, string? excludeAssetRegistrationId = null)
     {
         return await Collection
-            .Find(asset => asset.BasicInformation.AssetTag == assetTag && !asset.IsDeleted)
+            .Find(asset => asset.BasicInformation.AssetTag == assetTag
+                && !asset.IsDeleted
+                && asset.AssetRegistrationId != excludeAssetRegistrationId)
             .AnyAsync(cancellationToken);
     }
 
@@ -64,6 +66,21 @@ public sealed class AssetRegistrationRepository
         return await Collection
             .Find(asset => asset.BasicInformation.AssetTag == assetTag && !asset.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<bool> SoftDeleteByAssetRegistrationIdAsync(string assetRegistrationId, string? deletedBy, CancellationToken cancellationToken = default)
+    {
+        var update = Builders<AssetRegistration>.Update
+            .Set(asset => asset.IsDeleted, true)
+            .Set(asset => asset.UpdatedBy, deletedBy)
+            .Set(asset => asset.UpdatedAt, DateTime.UtcNow);
+
+        var result = await Collection.UpdateOneAsync(
+            asset => asset.AssetRegistrationId == assetRegistrationId && !asset.IsDeleted,
+            update,
+            cancellationToken: cancellationToken);
+
+        return result.IsAcknowledged && result.ModifiedCount > 0;
     }
 
     public async Task<AssetRegistration?> GetByAssetRegistrationIdAsync(string assetRegistrationId, CancellationToken cancellationToken = default)
@@ -89,6 +106,38 @@ public sealed class AssetRegistrationRepository
         return await Collection.Find(filter).ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<AssetRegistration>> FindByScanCodeAsync(
+        string code,
+        IReadOnlyCollection<AssetScanCodeType> codeTypes,
+        CancellationToken cancellationToken = default)
+    {
+        // Exact match (so the field indexes are used), tolerating upper/lower case differences
+        // between what a scanner reads and what was registered (common with hex RFID/NFC values).
+        var trimmed = code.Trim();
+        var candidates = new[] { trimmed, trimmed.ToUpperInvariant(), trimmed.ToLowerInvariant() }.Distinct().ToArray();
+
+        var filter = Builders<AssetRegistration>.Filter;
+        var codeFilters = codeTypes.Distinct().Select(codeType => codeType switch
+        {
+            AssetScanCodeType.AssetTag => filter.In(asset => asset.BasicInformation.AssetTag, candidates),
+            AssetScanCodeType.Barcode => filter.In(asset => asset.BasicInformation.Barcode, candidates),
+            AssetScanCodeType.Rfid => filter.In(asset => asset.BasicInformation.RfidTagId, candidates),
+            AssetScanCodeType.Nfc => filter.In(asset => asset.BasicInformation.NfcUid, candidates),
+            AssetScanCodeType.AssetRegistrationId => filter.In(asset => asset.AssetRegistrationId, candidates),
+            _ => throw new ArgumentOutOfRangeException(nameof(codeTypes), codeType, null)
+        }).ToList();
+
+        if (codeFilters.Count == 0)
+        {
+            return [];
+        }
+
+        return await Collection
+            .Find(filter.And(filter.Eq(asset => asset.IsDeleted, false), filter.Or(codeFilters)))
+            .Limit(10)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<AssetRegistrationQueryResult> QueryAsync(AssetRegistrationQuery query, CancellationToken cancellationToken = default)
     {
         var filters = new List<FilterDefinition<AssetRegistration>>
@@ -104,6 +153,8 @@ public sealed class AssetRegistrationRepository
                 Builders<AssetRegistration>.Filter.Regex(asset => asset.BasicInformation.AssetTag, pattern),
                 Builders<AssetRegistration>.Filter.Regex(asset => asset.BasicInformation.SerialNumber, pattern),
                 Builders<AssetRegistration>.Filter.Regex(asset => asset.BasicInformation.Barcode, pattern),
+                Builders<AssetRegistration>.Filter.Regex(asset => asset.BasicInformation.RfidTagId, pattern),
+                Builders<AssetRegistration>.Filter.Regex(asset => asset.BasicInformation.NfcUid, pattern),
                 Builders<AssetRegistration>.Filter.Regex(asset => asset.AssetRegistrationId, pattern)));
         }
 
@@ -370,6 +421,9 @@ public sealed class AssetRegistrationRepository
             new CreateIndexModel<AssetRegistration>(
                 Builders<AssetRegistration>.IndexKeys.Ascending(asset => asset.BasicInformation.RfidTagId),
                 new CreateIndexOptions { Name = "ix_asset_registration_rfid_tag_id" }),
+            new CreateIndexModel<AssetRegistration>(
+                Builders<AssetRegistration>.IndexKeys.Ascending(asset => asset.BasicInformation.NfcUid),
+                new CreateIndexOptions { Name = "ix_asset_registration_nfc_uid" }),
             new CreateIndexModel<AssetRegistration>(
                 Builders<AssetRegistration>.IndexKeys
                     .Ascending(asset => asset.Classification.Category)

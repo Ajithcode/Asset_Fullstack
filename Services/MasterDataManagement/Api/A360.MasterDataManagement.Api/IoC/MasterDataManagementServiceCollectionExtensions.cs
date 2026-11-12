@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using A360.MasterDataManagement.Api.Seed;
 using A360.MasterDataManagement.Repository.Repositories;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
@@ -239,6 +240,7 @@ public static class MasterDataManagementServiceCollectionExtensions
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<SystemUserRepository>());
 
         services.AddHostedService<MongoIndexHostedService>();
+        services.AddHostedService<MasterDataSeedHostedService>();
 
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>

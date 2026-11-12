@@ -31,6 +31,7 @@ public static class DashboardApplicationBuilderExtensions
         app.MapAddWidgetEndpoints();
         app.MapNetworkStatusEndpoints();
         app.MapDashboardAssetEndpoints();
+        app.MapMobileDashboardEndpoints();
 
         return app;
     }
