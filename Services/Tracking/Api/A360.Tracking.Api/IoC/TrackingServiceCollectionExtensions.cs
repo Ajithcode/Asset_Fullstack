@@ -42,7 +42,8 @@ public static class TrackingServiceCollectionExtensions
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Tracking",
-            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>(),
+            serviceProvider.GetService<IHttpContextAccessor>()));
 
         services.AddScoped<TrackingTagRepository>();
         services.AddScoped<ITrackingTagRepository>(serviceProvider => serviceProvider.GetRequiredService<TrackingTagRepository>());

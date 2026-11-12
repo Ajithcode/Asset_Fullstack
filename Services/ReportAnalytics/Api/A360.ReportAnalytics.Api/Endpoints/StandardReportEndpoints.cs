@@ -30,7 +30,8 @@ public static class StandardReportEndpoints
 
         // All Standard Reports table.
         group.MapGet("", GetReportsAsync).WithName("GetStandardReports");
-        group.MapGet("/export", ExportReportsAsync).WithName("ExportStandardReports");
+        group.MapGet("/export", ExportReportsAsync).WithName("ExportStandardReports")
+            .LogsExport("StandardReport", "Standard reports list");
         group.MapPut("/report-period", ApplyReportPeriodAsync).WithName("ApplyStandardReportPeriod");
 
         group.MapGet("/{reportId}", GetReportByIdAsync).WithName("GetStandardReportById");

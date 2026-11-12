@@ -1,3 +1,4 @@
+using A360.Repository.Activity;
 using A360.UserAccount.Api.Endpoints;
 using A360.Security;
 
@@ -15,6 +16,7 @@ public static class UserAccountApplicationBuilderExtensions
 
         app.UseAuthentication();
         app.UseA360AccessGuard();
+        app.UseA360WriteAudit();
         app.UseAuthorization();
 
         app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "UserAccount" }))

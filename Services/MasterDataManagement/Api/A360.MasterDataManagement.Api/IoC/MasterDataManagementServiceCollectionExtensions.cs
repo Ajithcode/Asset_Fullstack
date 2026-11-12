@@ -39,7 +39,8 @@ public static class MasterDataManagementServiceCollectionExtensions
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "MasterDataManagement",
-            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>(),
+            serviceProvider.GetService<IHttpContextAccessor>()));
 
         services.AddScoped<MasterDataItemRepository>();
         services.AddScoped<IMasterDataItemRepository>(serviceProvider => serviceProvider.GetRequiredService<MasterDataItemRepository>());

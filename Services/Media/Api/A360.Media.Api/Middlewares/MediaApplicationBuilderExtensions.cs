@@ -1,3 +1,4 @@
+using A360.Repository.Activity;
 using Microsoft.Extensions.FileProviders;
 using A360.Media.Api.Endpoints;
 using A360.Security;
@@ -12,6 +13,7 @@ public static class MediaApplicationBuilderExtensions
         // Reads the bearer token forwarded by the gateway so event logs know who made each change.
         app.UseAuthentication();
         app.UseA360AccessGuard();
+        app.UseA360WriteAudit();
 
         var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
         Directory.CreateDirectory(uploadsFolder);

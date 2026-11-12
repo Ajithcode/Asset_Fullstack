@@ -1,3 +1,4 @@
+using A360.Repository.Activity;
 using System.Globalization;
 using System.Text;
 using ClosedXML.Excel;
@@ -27,7 +28,8 @@ public static class CustomReportBuilderEndpoints
         // Step 6 / Preview Report, and Export on a saved report.
         group.MapPost("/preview", PreviewDefinitionAsync).WithName("PreviewCustomReportDefinition");
         group.MapGet("/{reportId}/preview", PreviewReportAsync).WithName("PreviewCustomReport");
-        group.MapGet("/{reportId}/export", ExportReportDataAsync).WithName("ExportCustomReportData");
+        group.MapGet("/{reportId}/export", ExportReportDataAsync).WithName("ExportCustomReportData")
+            .LogsExport("CustomReport", "Custom report data");
 
         return group;
     }

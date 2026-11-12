@@ -41,7 +41,8 @@ public static class AssetAuditEndpoints
 
         // List page.
         group.MapGet("", GetAuditsAsync).WithName("GetAssetAudits");
-        group.MapGet("/export", ExportAuditsAsync).WithName("ExportAssetAudits");
+        group.MapGet("/export", ExportAuditsAsync).WithName("ExportAssetAudits")
+            .LogsExport("AssetAudit", "Asset audits");
         group.MapPost("/bulk-delete", DeleteAuditsAsync).WithName("DeleteAssetAudits");
 
         // Wizard lookups.
@@ -56,7 +57,8 @@ public static class AssetAuditEndpoints
         // Step 2 of 5: Scope & Assets.
         group.MapGet("/{id}/assets", GetAuditAssetsAsync).WithName("GetAssetAuditAssets");
         group.MapPut("/{id}/assets", UpdateAssetsAsync).WithName("UpdateAssetAuditAssets");
-        group.MapPost("/{id}/assets/import", ImportAssetsAsync).WithName("ImportAssetAuditAssets").DisableAntiforgery();
+        group.MapPost("/{id}/assets/import", ImportAssetsAsync).WithName("ImportAssetAuditAssets").DisableAntiforgery()
+            .LogsImport("AssetAudit", "Assets for an asset audit");
 
         // Step 3 of 5: Audit Criteria.
         group.MapPut("/{id}/criteria", UpdateCriteriaAsync).WithName("UpdateAssetAuditCriteria");

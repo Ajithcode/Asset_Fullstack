@@ -52,7 +52,8 @@ public static class WipServiceCollectionExtensions
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Wip",
-            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>(),
+            serviceProvider.GetService<IHttpContextAccessor>()));
 
         // Job Master Repository Registration
 

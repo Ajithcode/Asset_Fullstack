@@ -209,6 +209,212 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
         }
     }
 
+    public async Task<NetworkActivity> GetNetworkActivityAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        IReadOnlyCollection<string>? tagIds,
+        CancellationToken cancellationToken = default)
+    {
+        var empty = new NetworkActivity(new Dictionary<string, NetworkSeen>(), new Dictionary<string, NetworkSeen>());
+        if (tagIds is { Count: 0 })
+        {
+            return empty;
+        }
+
+        var filter = new BsonDocument();
+        if (tagIds is not null)
+        {
+            // Matched with the case-insensitive collation below.
+            filter["meta.tagid"] = new BsonDocument("$in", new BsonArray(tagIds.Select(tag => tag.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)));
+        }
+
+        var time = new BsonDocument();
+        if (fromUtc is not null)
+        {
+            time["$gte"] = fromUtc.Value;
+        }
+
+        if (toUtc is not null)
+        {
+            time["$lt"] = toUtc.Value;
+        }
+
+        if (time.ElementCount > 0)
+        {
+            filter["timestamp"] = time;
+        }
+
+        BsonDocument[] SeenBy(string field) =>
+        [
+            new("$match", new BsonDocument(field, new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }))),
+            new("$group", new BsonDocument
+            {
+                { "_id", new BsonDocument("$toLower", new BsonDocument("$trim", new BsonDocument("input", new BsonDocument("$toString", "$" + field)))) },
+                { "first", new BsonDocument("$min", "$timestamp") },
+                { "last", new BsonDocument("$max", "$timestamp") },
+                { "lastStatus", new BsonDocument("$top", new BsonDocument
+                    {
+                        { "sortBy", new BsonDocument { { "timestamp", -1 }, { "_id", -1 } } },
+                        { "output", "$status" }
+                    }) }
+            })
+        ];
+
+        var stages = new[]
+        {
+            new BsonDocument("$match", filter),
+            new BsonDocument("$facet", new BsonDocument
+            {
+                { "tags", new BsonArray(SeenBy("meta.tagid")) },
+                { "gateways", new BsonArray(SeenBy("meta.gatewayid")) }
+            })
+        };
+
+        var result = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
+            .Aggregate(
+                PipelineDefinition<BsonDocument, BsonDocument>.Create(stages),
+                new AggregateOptions { Collation = CaseInsensitive, AllowDiskUse = true },
+                cancellationToken)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (result is null)
+        {
+            return empty;
+        }
+
+        return new NetworkActivity(Seen(result["tags"].AsBsonArray), Seen(result["gateways"].AsBsonArray));
+
+        static IReadOnlyDictionary<string, NetworkSeen> Seen(BsonArray rows)
+        {
+            var seen = new Dictionary<string, NetworkSeen>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in rows.Select(value => value.AsBsonDocument))
+            {
+                var id = row["_id"].ToString();
+                if (string.IsNullOrEmpty(id) || !row["first"].IsValidDateTime || !row["last"].IsValidDateTime)
+                {
+                    continue;
+                }
+
+                var status = row.TryGetValue("lastStatus", out var value) && !value.IsBsonNull ? value.ToString()?.Trim().ToLowerInvariant() : null;
+                seen[id] = new NetworkSeen(row["first"].ToUniversalTime(), row["last"].ToUniversalTime(), status);
+            }
+
+            return seen;
+        }
+    }
+
+    public async Task<IReadOnlyList<NetworkTagGatewayChanges>> CountGatewayChangesAsync(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        IReadOnlyCollection<string>? tagIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (tagIds is { Count: 0 })
+        {
+            return [];
+        }
+
+        var readingFilter = new BsonDocument
+        {
+            { "meta.tagid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) },
+            { "meta.gatewayid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) }
+        };
+        if (tagIds is not null)
+        {
+            // Matched with the case-insensitive collation below, as GetNetworkTagAsync does.
+            readingFilter["meta.tagid"] = new BsonDocument("$in", new BsonArray(tagIds.Select(tag => tag.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)));
+        }
+
+        // Only readings before the window's end matter; earlier readings are kept so a window's first reading
+        // can still be compared with the tag's reading just before the window.
+        if (toUtc is not null)
+        {
+            readingFilter["timestamp"] = new BsonDocument("$lt", toUtc.Value);
+        }
+
+        var changeFilter = new BsonDocument("$expr", new BsonDocument("$and", new BsonArray
+        {
+            new BsonDocument("$ne", new BsonArray { "$previousGateway", BsonNull.Value }),
+            new BsonDocument("$ne", new BsonArray { "$previousGateway", "$gateway" })
+        }));
+        if (fromUtc is not null)
+        {
+            changeFilter["timestamp"] = new BsonDocument("$gte", fromUtc.Value);
+        }
+
+        var newestFirst = new BsonDocument { { "timestamp", -1 }, { "_id", -1 } };
+        var stages = new[]
+        {
+            new BsonDocument("$match", readingFilter),
+            new BsonDocument("$project", new BsonDocument
+            {
+                { "timestamp", 1 },
+                { "tag", Normalised("$meta.tagid") },
+                { "gateway", Normalised("$meta.gatewayid") },
+                { "latitude", 1 },
+                { "longitude", 1 }
+            }),
+            // Each reading paired with the gateway of the same tag's previous reading.
+            new BsonDocument("$setWindowFields", new BsonDocument
+            {
+                { "partitionBy", "$tag" },
+                { "sortBy", new BsonDocument { { "timestamp", 1 }, { "_id", 1 } } },
+                { "output", new BsonDocument
+                    {
+                        { "previousGateway", new BsonDocument("$shift", new BsonDocument { { "output", "$gateway" }, { "by", -1 } }) },
+                        { "previousLatitude", new BsonDocument("$shift", new BsonDocument { { "output", "$latitude" }, { "by", -1 } }) },
+                        { "previousLongitude", new BsonDocument("$shift", new BsonDocument { { "output", "$longitude" }, { "by", -1 } }) }
+                    } }
+            }),
+            new BsonDocument("$match", changeFilter),
+            new BsonDocument("$group", new BsonDocument
+            {
+                { "_id", "$tag" },
+                { "changes", new BsonDocument("$sum", 1) },
+                { "lastChange", new BsonDocument("$top", new BsonDocument
+                    {
+                        { "sortBy", newestFirst },
+                        { "output", new BsonDocument
+                            {
+                                { "at", "$timestamp" }, { "from", "$previousGateway" }, { "to", "$gateway" },
+                                { "fromLatitude", "$previousLatitude" }, { "fromLongitude", "$previousLongitude" },
+                                { "toLatitude", "$latitude" }, { "toLongitude", "$longitude" }
+                            } }
+                    }) }
+            }),
+            new BsonDocument("$sort", new BsonDocument { { "changes", -1 }, { "_id", 1 } })
+        };
+
+        var rows = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
+            .Aggregate(
+                PipelineDefinition<BsonDocument, BsonDocument>.Create(stages),
+                new AggregateOptions { Collation = CaseInsensitive, AllowDiskUse = true },
+                cancellationToken)
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(row =>
+            {
+                var last = row["lastChange"].AsBsonDocument;
+                return new NetworkTagGatewayChanges(
+                    row["_id"].ToString()!,
+                    row["changes"].ToInt64(),
+                    last.TryGetValue("at", out var at) && at.IsValidDateTime ? at.ToUniversalTime() : null,
+                    last.TryGetValue("from", out var from) && !from.IsBsonNull ? from.ToString() : null,
+                    last.TryGetValue("to", out var to) && !to.IsBsonNull ? to.ToString() : null,
+                    Number(last, "fromLatitude"),
+                    Number(last, "fromLongitude"),
+                    Number(last, "toLatitude"),
+                    Number(last, "toLongitude"));
+            })
+            .ToList();
+
+        static BsonDocument Normalised(string field) =>
+            new("$toLower", new BsonDocument("$trim", new BsonDocument("input", new BsonDocument("$toString", field))));
+
+        static double? Number(BsonDocument document, string field) =>
+            document.TryGetValue(field, out var value) && value.IsNumeric ? value.ToDouble() : null;
+    }
+
     public Task<IReadOnlyList<DashboardDevice>> GetDevicesAsync(IReadOnlyCollection<string> assetRegistrationIds, CancellationToken cancellationToken = default)
     {
         return FindAsync(

@@ -60,6 +60,18 @@ public sealed class AssetDocumentRepository
         return new AssetDocumentQueryResult(items, totalCount);
     }
 
+    public async Task<IReadOnlyCollection<AssetDocumentRecord>> GetByAssetRegistrationIdAsync(string assetRegistrationId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<AssetDocumentRecord>.Filter.And(
+            Builders<AssetDocumentRecord>.Filter.Eq(document => document.AssetRegistrationId, assetRegistrationId.Trim()),
+            Builders<AssetDocumentRecord>.Filter.Eq(document => document.IsDeleted, false));
+
+        return await Collection
+            .Find(filter)
+            .Sort(Builders<AssetDocumentRecord>.Sort.Descending(document => document.CreatedAt).Ascending(document => document.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     private static void AddEquals(
         List<FilterDefinition<AssetDocumentRecord>> filters,
         System.Linq.Expressions.Expression<Func<AssetDocumentRecord, string?>> field,

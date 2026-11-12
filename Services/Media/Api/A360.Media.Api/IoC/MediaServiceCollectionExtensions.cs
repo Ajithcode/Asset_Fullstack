@@ -38,7 +38,8 @@ public static class MediaServiceCollectionExtensions
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Media",
-            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>(),
+            serviceProvider.GetService<IHttpContextAccessor>()));
 
         services.AddHostedService<MongoIndexHostedService>();
 

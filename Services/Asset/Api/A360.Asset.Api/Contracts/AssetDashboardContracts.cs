@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+
 namespace A360.Asset.Api.Contracts;
 
 /// <summary>
@@ -34,6 +36,60 @@ public sealed record AssetDashboardPeriod(int Days, DateTime FromUtc, DateTime T
         }
     }
 }
+
+/// <summary>
+/// The IoT &amp; Tracking Overview's Site / Asset Type / Status dropdowns, sent as query parameters to every widget endpoint
+/// (with days for the period). Each narrows the registered assets the widget is built from; empty or "all" means no filter.
+/// Status is the asset's network status: Online, Offline, Idle or Unknown (see GET /api/asset-dashboard/filters).
+/// </summary>
+public sealed class AssetDashboardFilter
+{
+    public static readonly string[] Statuses = ["Online", "Offline", "Idle", "Unknown"];
+
+    /// <summary>Site id (location.site_id); "unassigned" for assets without a site.</summary>
+    [FromQuery(Name = "siteId")]
+    public string? SiteId { get; init; }
+
+    /// <summary>Asset type as stored on the asset registration (classification.asset_type).</summary>
+    [FromQuery(Name = "assetType")]
+    public string? AssetType { get; init; }
+
+    [FromQuery(Name = "status")]
+    public string? Status { get; init; }
+
+    public string? Site => Value(SiteId);
+
+    public string? Type => Value(AssetType);
+
+    /// <summary>The status in its standard spelling, or null when not filtering by status.</summary>
+    public string? State => Value(Status) is { } status ? Statuses.FirstOrDefault(s => string.Equals(s, status, StringComparison.OrdinalIgnoreCase)) : null;
+
+    /// <summary>True when any of the three dropdowns is set.</summary>
+    public bool IsSet => Site is not null || Type is not null || State is not null;
+
+    /// <summary>Null when valid; otherwise a validation problem for the "status" query parameter.</summary>
+    public IResult? Invalid()
+    {
+        return Value(Status) is { } status && State is null
+            ? Results.ValidationProblem(new Dictionary<string, string[]> { ["status"] = [$"status must be one of: {string.Join(", ", Statuses)} (or omitted for all)"] })
+            : null;
+    }
+
+    private static string? Value(string? value) =>
+        string.IsNullOrWhiteSpace(value) || string.Equals(value.Trim(), "all", StringComparison.OrdinalIgnoreCase) ? null : value.Trim();
+}
+
+// ---- Filter dropdowns ----
+
+public sealed record DashboardSiteOption(string SiteId, string SiteName, string? Code, int AssetCount);
+
+public sealed record DashboardAssetTypeOption(string AssetType, int AssetCount);
+
+public sealed record AssetDashboardFiltersResponse(
+    IReadOnlyList<int> Days,
+    IReadOnlyList<DashboardSiteOption> Sites,
+    IReadOnlyList<DashboardAssetTypeOption> AssetTypes,
+    IReadOnlyList<string> Statuses);
 
 internal static class DashboardMath
 {
@@ -145,6 +201,10 @@ public sealed record AssetSiteDetailResponse(
     int TotalAssets,
     double OnlinePercent,
     IReadOnlyList<SiteStatusGroup> Statuses);
+
+/// <summary>Every site with its asset counts and assets (GET /api/asset-dashboard/sites).</summary>
+/// <param name="TotalAssets">Assets across all returned sites.</param>
+public sealed record AllSitesAssetsResponse(int TotalSites, int TotalAssets, IReadOnlyList<AssetSiteDetailResponse> Sites);
 
 /// <summary>One status in a site (Online, Idle, Offline, Unknown): its count and the assets behind it. Highest count first.</summary>
 public sealed record SiteStatusGroup(string Status, int Count, IReadOnlyList<SiteAssetDetail> Assets);
@@ -301,6 +361,32 @@ public sealed record AssetEventsTimelineResponse(
     DateTime To,
     AssetEventsTimelinePoint Totals,
     IReadOnlyList<AssetEventsTimelinePoint> Points);
+
+// ---- Location updates: gateway changes per tag ----
+
+/// <param name="LastFromLatitude">Where the tag was (reading before the last change); null when the reading had no coordinates.</param>
+/// <param name="LastToLatitude">Where the tag moved to (reading of the last change); null when the reading had no coordinates.</param>
+public sealed record TagLocationUpdates(
+    string TagId,
+    long Count,
+    DateTime? LastChangedAt,
+    string? LastFromGatewayId,
+    string? LastToGatewayId,
+    double? LastFromLatitude,
+    double? LastFromLongitude,
+    double? LastToLatitude,
+    double? LastToLongitude);
+
+/// <param name="Days">The window in days; null when no window was asked for (all time).</param>
+/// <param name="TotalCount">Gateway changes across every tag.</param>
+/// <param name="TagCount">Tags that changed gateway at least once.</param>
+public sealed record AssetLocationUpdatesResponse(
+    int? Days,
+    DateTime? From,
+    DateTime? To,
+    long TotalCount,
+    int TagCount,
+    IReadOnlyList<TagLocationUpdates> Tags);
 
 // ---- 12: Sensors Requiring Attention ----
 

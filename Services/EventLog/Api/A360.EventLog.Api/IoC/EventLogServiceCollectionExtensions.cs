@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using A360.EventLog.Api.Background;
 using A360.Repository.Repositories;
 using A360.Repository.Settings;
 
@@ -31,6 +32,7 @@ public static class EventLogServiceCollectionExtensions
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
 
         services.AddHostedService<MongoIndexHostedService>();
+        services.AddHostedService<AuditClassificationBackfillService>();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
 

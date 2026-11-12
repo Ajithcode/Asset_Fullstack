@@ -42,7 +42,8 @@ public static class ReportAnalyticsServiceCollectionExtensions
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "ReportAnalytics",
-            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>(),
+            serviceProvider.GetService<IHttpContextAccessor>()));
 
         services.AddScoped<StandardReportRepository>();
         services.AddScoped<IStandardReportRepository>(serviceProvider => serviceProvider.GetRequiredService<StandardReportRepository>());

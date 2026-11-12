@@ -27,6 +27,23 @@ public interface IAssetDashboardRepository
     /// <summary>One tag's newest readings from NetworkTimeSeries, newest first.</summary>
     Task<IReadOnlyList<NetworkTagReading>> GetNetworkTagReadingsAsync(string tagId, int limit, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Gateway changes per tag from NetworkTimeSeries: walking each tag's readings in time order, every reading whose
+    /// gateway differs from the tag's previous reading counts once. Only changes whose new reading falls in
+    /// [<paramref name="fromUtc"/>, <paramref name="toUtc"/>) count (either bound optional); the previous reading may be older.
+    /// Tags and gateways are compared ignoring case and spacing. <paramref name="tagIds"/> limits it to those tags (null for
+    /// every tag). Tags with no change are absent; most changes first.
+    /// </summary>
+    Task<IReadOnlyList<NetworkTagGatewayChanges>> CountGatewayChangesAsync(DateTime? fromUtc, DateTime? toUtc, IReadOnlyCollection<string>? tagIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// First and last reading, and the newest reading's status, per tag (meta.tagid) and per gateway (meta.gatewayid) in
+    /// NetworkTimeSeries, keyed ignoring case
+    /// and spacing. Only readings in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>) count (either bound optional);
+    /// <paramref name="tagIds"/> limits it to readings of those tags (null for every tag).
+    /// </summary>
+    Task<NetworkActivity> GetNetworkActivityAsync(DateTime? fromUtc, DateTime? toUtc, IReadOnlyCollection<string>? tagIds, CancellationToken cancellationToken = default);
+
     /// <summary>Devices assigned to one of <paramref name="assetRegistrationIds"/>.</summary>
     Task<IReadOnlyList<DashboardDevice>> GetDevicesAsync(IReadOnlyCollection<string> assetRegistrationIds, CancellationToken cancellationToken = default);
 

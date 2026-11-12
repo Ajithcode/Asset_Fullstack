@@ -23,8 +23,10 @@ public static class AssetFieldGroupEndpoints
         var group = routes.MapGroup("/api/asset-field-groups").WithTags("Asset Field Groups");
 
         group.MapGet("", GetGroupsAsync).WithName("GetAssetFieldGroups");
-        group.MapGet("/export", ExportGroupsAsync).WithName("ExportAssetFieldGroups");
-        group.MapPost("/import", ImportGroupsAsync).WithName("ImportAssetFieldGroups");
+        group.MapGet("/export", ExportGroupsAsync).WithName("ExportAssetFieldGroups")
+            .LogsExport("AssetFieldGroup", "Asset field groups");
+        group.MapPost("/import", ImportGroupsAsync).WithName("ImportAssetFieldGroups")
+            .LogsImport("AssetFieldGroup", "Asset field groups");
         group.MapGet("/{id}", GetGroupByIdAsync).WithName("GetAssetFieldGroupById");
         group.MapPost("", CreateGroupAsync).WithName("CreateAssetFieldGroup");
         group.MapPut("/{id}", UpdateGroupAsync).WithName("UpdateAssetFieldGroup");
