@@ -80,6 +80,8 @@ export class ComponentOverview implements OnChanges {
   @Input({ required: true }) assetTag = '';
   /** Icon lookup shared with the parent page, so the tree matches the Components tab. */
   @Input({ required: true }) iconFor!: (c: AssetComponent) => typeof Settings;
+  /** Figures from the components summary API (normalised keys); each one falls back to counting the tree. */
+  @Input() summary: Record<string, number> | null = null;
 
   /** Open a component on the Components tab. */
   @Output() openComponent = new EventEmitter<AssetComponent>();
@@ -143,8 +145,25 @@ export class ComponentOverview implements OnChanges {
 
   // ===== KPIs & health =====
 
+  /** The summary API's figure under the first of its key spellings that it has; undefined when it has none. */
+  private fromSummary(...keys: string[]): number | undefined {
+    const s = this.summary;
+    return s ? keys.map((k) => s[k]).find((n) => n !== undefined) : undefined;
+  }
+
+  /** Total components: the summary API's figure, else the tree's. */
+  get total(): number {
+    return this.fromSummary('components', 'component', 'all') ?? this.all.length;
+  }
+
   countByStatus(status: string): number {
-    return this.all.filter((c) => c.status === status).length;
+    const keys: Record<string, string[]> = {
+      Active: ['operational', 'active'],
+      'Under Maintenance': ['undermaintenance', 'maintenance', 'inmaintenance'],
+      'Needs Replacement': ['needsreplacement', 'failedneedsreplacement', 'failed', 'replacementdue'],
+      Inactive: ['inactive'],
+    };
+    return this.fromSummary(...(keys[status] ?? [])) ?? this.all.filter((c) => c.status === status).length;
   }
 
   get slices(): HealthSlice[] {
@@ -159,7 +178,7 @@ export class ComponentOverview implements OnChanges {
   }
 
   percent(count: number): number {
-    return this.all.length ? Math.round((count / this.all.length) * 100) : 0;
+    return this.total ? Math.round((count / this.total) * 100) : 0;
   }
 
   /**
@@ -174,6 +193,8 @@ export class ComponentOverview implements OnChanges {
   }
 
   get averageHealth(): number {
+    const api = this.fromSummary('averagehealth', 'averagehealthscore', 'averagecomponenthealth', 'healthscore', 'health');
+    if (api !== undefined) return Math.round(api);
     const all = this.all;
     return all.length ? Math.round(all.reduce((sum, c) => sum + this.score(c), 0) / all.length) : 0;
   }
@@ -185,7 +206,7 @@ export class ComponentOverview implements OnChanges {
 
   /** SVG donut segments as stroke-dasharray arcs on a circle of circumference 100, with 1-unit gaps. */
   get arcs(): { key: HealthSlice['key']; label: string; count: number; dash: string; offset: number }[] {
-    const total = this.all.length;
+    const total = this.total;
     const visible = this.slices.filter((s) => s.count > 0);
     const gap = visible.length > 1 ? 1 : 0;
     let start = 0;

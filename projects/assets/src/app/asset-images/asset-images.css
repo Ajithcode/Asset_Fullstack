@@ -598,7 +598,8 @@ select.control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 440px);
   gap: 14px;
-  align-items: start;
+  /* Both cards fill the row, so the list card is as tall as the preview beside it. */
+  align-items: stretch;
 }
 
 .img-body--full {

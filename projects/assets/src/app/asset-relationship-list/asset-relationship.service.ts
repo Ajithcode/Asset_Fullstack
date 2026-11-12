@@ -153,6 +153,79 @@ export function toSubAssetRef(sub: SubAssetDto, relationshipType: string = sub.r
     : { assetRegistrationId: sub.assetRegistrationId, relationshipType };
 }
 
+/** GET /api/asset-relationships/assets/{id} (AssetRelationshipDetailsResponse), the parts the Relationships tab reads. */
+interface AssetRelationshipDetailsDto {
+  asset: { assetRegistrationId: string; assetName: string | null; assetTag: string | null } | null;
+  location: { locationPath: string | null } | null;
+  components: {
+    items: { id: string; componentName: string | null; componentTag: string | null; parentComponentId: string | null }[] | null;
+  } | null;
+  relationshipId: string | null;
+  /** The sub assets linked to this asset. */
+  linkedAssets: Record<string, unknown>[] | null;
+  /** The main assets this asset is linked under. */
+  parentAssets: Record<string, unknown>[] | null;
+}
+
+/** The Relationships tab's data from GET /api/asset-relationships/assets/{id}. */
+export interface AssetRelationshipDetails {
+  /** The saved relationship with this asset as the main asset; null when it has none. */
+  saved: AssetRelationshipDto | null;
+  /** The asset's components as sub-asset entries (componentId set), for the "add relationship" catalog. */
+  components: SubAssetDto[];
+}
+
+/** A linked asset entry as a SubAssetDto: accepts the sub-asset fields or the asset list's own names. */
+function toSubAsset(r: Record<string, unknown>): SubAssetDto {
+  const str = (...keys: string[]): string | null => {
+    for (const k of keys) if (typeof r[k] === 'string' && (r[k] as string).trim()) return r[k] as string;
+    return null;
+  };
+  return {
+    assetRegistrationId: str('assetRegistrationId', 'subAssetRegistrationId'),
+    componentId: str('componentId'),
+    name: str('name', 'assetName', 'componentName') ?? '',
+    tag: str('tag', 'assetTag', 'componentTag'),
+    relationshipType: str('relationshipType', 'type') ?? 'Connected Asset',
+    category: str('category'),
+    location: str('location', 'locationPath'),
+  };
+}
+
+function toRelationshipDetails(dto: AssetRelationshipDetailsDto, assetRegistrationId: string): AssetRelationshipDetails {
+  const linked = (dto.linkedAssets ?? []).map(toSubAsset);
+  const saved: AssetRelationshipDto | null =
+    dto.relationshipId || linked.length
+      ? {
+          id: dto.relationshipId ?? '',
+          mainAssetRegistrationId: dto.asset?.assetRegistrationId || assetRegistrationId,
+          mainAssetName: dto.asset?.assetName ?? null,
+          mainAssetTag: dto.asset?.assetTag ?? null,
+          mainCategory: null,
+          mainLocation: dto.location?.locationPath ?? null,
+          subAssetCount: linked.length,
+          subAssets: linked,
+          createdBy: null,
+          createdAt: null,
+          updatedBy: null,
+          updatedAt: null,
+          lastUpdated: null,
+          clientId: null,
+          tenantId: null,
+        }
+      : null;
+  const components: SubAssetDto[] = (dto.components?.items ?? []).map((c) => ({
+    assetRegistrationId: dto.asset?.assetRegistrationId || assetRegistrationId,
+    componentId: c.id,
+    name: c.componentName ?? c.componentTag ?? c.id,
+    tag: c.componentTag,
+    relationshipType: 'Component',
+    category: null,
+    location: dto.location?.locationPath ?? null,
+  }));
+  return { saved, components };
+}
+
 @Injectable({ providedIn: 'root' })
 export class AssetRelationshipService {
   private readonly http = inject(HttpClient);
@@ -171,6 +244,16 @@ export class AssetRelationshipService {
     return this.getRelationships(assetRegistrationId).pipe(
       map((items) => items.find((r) => r.mainAssetRegistrationId === assetRegistrationId) ?? null),
     );
+  }
+
+  /**
+   * GET /api/asset-relationships/assets/{assetRegistrationId}: the asset's saved relationship (relationshipId and
+   * linkedAssets) and its components, in one call for the Relationships tab.
+   */
+  getAssetDetails(assetRegistrationId: string): Observable<AssetRelationshipDetails> {
+    return this.http
+      .get<AssetRelationshipDetailsDto>(`${this.url}/assets/${encodeURIComponent(assetRegistrationId)}`)
+      .pipe(map((dto) => toRelationshipDetails(dto, assetRegistrationId)));
   }
 
   /** Related Assets popup: saved sub assets plus not-yet-linked components, per asset. */
