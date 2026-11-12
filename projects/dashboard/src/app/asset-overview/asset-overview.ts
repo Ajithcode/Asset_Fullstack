@@ -52,13 +52,8 @@ import {
 import { AGE_BANDS, CATEGORIES, HEALTH_COLORS, HealthBand, PORTFOLIO, PortfolioAsset, PortfolioStatus, STATUSES, STATUS_COLORS, ageYears, healthBand, isoDate } from './asset-overview-data';
 import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
 import { Drill, DrillColumn, DrillRow, DrillValue, pct } from '../shared/drill-dialog/drill';
-<<<<<<< HEAD
-import { AssetQuickView, QuickViewAsset, qvDate, qvDateTime, statusKey } from '../shared/asset-quick-view/quick-view';
-import { AssetDashboardCategories, AssetDashboardKpis, AssetPerformanceSummary, AssetStatusCounts, AssetTypeOption, InsightAsset, InsightAssetList, InsightEndpoint, ConnectedAssetDetail, Dashboard } from '../services/dashboard/dashboard';
-=======
 import { AssetQuickView, QuickViewAsset, connectedAssetDrill, qvDate, qvDateTime, statusKey } from '../shared/asset-quick-view/quick-view';
-import { AssetDashboardCategories, AssetDashboardKpis, AssetTypeOption, InsightAsset, InsightAssetList, InsightEndpoint, ConnectedAssetDetail, Dashboard, LocationUpdateTag, LocationUpdates, SiteOption, TopSite } from '../services/dashboard/dashboard';
->>>>>>> origin/feature/dashboardupdates
+import { AssetDashboardCategories, AssetDashboardKpis, AssetPerformanceSummary, AssetStatusCounts, AssetTypeOption, InsightAsset, InsightAssetList, InsightEndpoint, ConnectedAssetDetail, Dashboard, LocationUpdateTag, LocationUpdates, SiteOption, TopSite } from '../services/dashboard/dashboard';
 
 /** KPI window: "Last 30 days" for api/asset-performance/summary (vs. previous 30 days) and days=30 for api/asset-dashboard/kpis. */
 const KPI_DAYS = 30;
@@ -211,10 +206,8 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   categoryLoading = false;
   /** Quick Insights lists from the API, by insight; missing until loaded. */
   insightData: Partial<Record<Insight, InsightAssetList>> = {};
-<<<<<<< HEAD
   /** GET api/asset-dashboard/critical-assets failed (Critical Assets card shows "Could not load"). */
   criticalFailed = false;
-=======
   /** "Asset Distribution by Site", one row per site the dashboard API knows. */
   siteRows: SiteMapRow[] = [];
   sitesLoading = false;
@@ -222,7 +215,6 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
   private siteSub?: Subscription;
   /** Asset type the site rows were fetched for; null before the first fetch. */
   private siteMapType: string | null = null;
->>>>>>> origin/feature/dashboardupdates
 
   constructor() {
     this.loadKpiSources();
