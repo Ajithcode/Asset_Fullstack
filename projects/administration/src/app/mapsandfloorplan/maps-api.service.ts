@@ -310,11 +310,23 @@ interface IoTDeviceDto {
   lastSeenAt: string | null;
 }
 
+/** One row of GET api/master-data/zones: a zone on a floor (or on a whole building when it has no floor). */
+export interface MdmZoneDto {
+  id: string;
+  name: string;
+  code: string;
+  buildingId?: string | null;
+  floorId?: string | null;
+  status?: string | null;
+  isDeleted?: boolean;
+}
+
 export interface LocationSources {
   organizationName: string;
   sites: MdmSiteDto[];
   buildings: MdmBuildingDto[];
   floors: MdmFloorDto[];
+  zones: MdmZoneDto[];
 }
 
 /* ===== Mappers ===== */
@@ -771,7 +783,12 @@ export class MapsApiService {
     const sites = this.http.get<MdmSiteDto[] | { items?: MdmSiteDto[] }>(`${this.mdm}/sites`).pipe(map((r) => live(rows(r))));
     const buildings = this.http.get<MdmBuildingDto[] | { items?: MdmBuildingDto[] }>(`${this.mdm}/buildings`).pipe(map((r) => live(rows(r))));
     const floors = this.http.get<MdmFloorDto[] | { items?: MdmFloorDto[] }>(`${this.mdm}/floors`).pipe(map((r) => live(rows(r))));
-    return forkJoin({ organizationName: orgs, sites, buildings, floors });
+    // Zones are the level zones are drawn at; the tree still loads when they fail
+    const zones = this.http.get<MdmZoneDto[] | { items?: MdmZoneDto[] }>(`${this.mdm}/zones`).pipe(
+      map((r) => live(rows(r))),
+      catchError(() => of<MdmZoneDto[]>([]))
+    );
+    return forkJoin({ organizationName: orgs, sites, buildings, floors, zones });
   }
 
   /* ===== Plot candidates ===== */

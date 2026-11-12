@@ -6,8 +6,9 @@ import { KIND_ICONS, SiteNode } from '../maps.data';
 import { MapsStore } from '../maps.store';
 
 /**
- * Organization > site > building > floor tree (from Master Data Management) with search. Sites, buildings and floors
- * are selectable, since floor plans can hang on any of them; the caret folds a branch. Counts = floor plans on the node.
+ * Organization > site > building > floor > zone tree (from Master Data Management) with search. Sites, buildings and
+ * floors are selectable, since floor plans can hang on any of them; a zone opens its floor's plan and is the one Draw
+ * Zone draws. The caret folds a branch. Counts = floor plans on the node; zones show "Drawn" once outlined.
  */
 @Component({
   standalone: true,
@@ -38,11 +39,13 @@ import { MapsStore } from '../maps.store';
 
     <ng-template #branch let-node let-depth="depth">
       @if (matches(node)) {
-        <li role="treeitem" [attr.aria-expanded]="node.children ? isOpen(node) : null" [attr.aria-selected]="node.id === store.selectedFloorId">
+        <li role="treeitem" [attr.aria-expanded]="node.children ? isOpen(node) : null" [attr.aria-selected]="isActive(node)">
           <div
             class="node"
             [class.node--floor]="node.kind === 'floor'"
-            [class.active]="node.id === store.selectedFloorId"
+            [class.node--zone]="node.kind === 'zone'"
+            [class.active]="isActive(node)"
+            [title]="node.kind === 'zone' ? zoneHint(node) : node.label"
             [style.padding-left.px]="depth * 16 + 4"
             (click)="onNode(node)"
           >
@@ -52,8 +55,10 @@ import { MapsStore } from '../maps.store';
               }
             </span>
             <lucide-icon class="node__icon" [img]="kindIcon(node)" [size]="15"></lucide-icon>
-            <span class="node__label" [title]="node.label">{{ node.label }}</span>
-            @if (node.kind !== 'org') {
+            <span class="node__label">{{ node.label }}</span>
+            @if (node.kind === 'zone') {
+              @if (drawn(node)) { <span class="node__drawn">Drawn</span> }
+            } @else if (node.kind !== 'org') {
               <span class="node__count">{{ store.countOf(node.id) }}</span>
             }
           </div>
@@ -84,6 +89,9 @@ import { MapsStore } from '../maps.store';
     .node__caret { display: grid; place-items: center; width: 14px; min-height: 20px; color: #64748b; }
     .node__icon { color: #5b2aa8; }
     .node--floor .node__icon { color: #7c6bb0; }
+    .node--zone { height: 30px; font-size: 13px; color: #334155; }
+    .node--zone .node__icon { color: #0d9488; }
+    .node__drawn { padding: 1px 7px; border-radius: 999px; background: #dcfce7; color: #15803d; font-size: 10.5px; font-weight: 600; }
     .node__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .node__count { min-width: 20px; padding: 0 6px; border-radius: 6px; background: #f1f5f9; font-size: 11px; text-align: center; color: #475569; }
     .node.active .node__count { background: #fff; color: #5b2aa8; }
@@ -116,9 +124,28 @@ export class SiteTree {
       this.flip(node.id);
       return;
     }
+    if (node.kind === 'zone') {
+      this.store.selectMdmZone(node.id);
+      if (node.locationId) this.floorSelect.emit(node.locationId);
+      return;
+    }
     this.closed.delete(node.id);
     this.store.selectFloor(node.id);
     this.floorSelect.emit(node.id);
+  }
+
+  /** A zone is active when it is the picked Master Data zone; a location when it is selected and no zone is. */
+  isActive(node: SiteNode): boolean {
+    return node.kind === 'zone' ? node.id === this.store.selectedMdmZoneId : node.id === this.store.selectedFloorId && !this.store.selectedMdmZoneId;
+  }
+
+  /** Drawn on the plan shown now (only known for the selected floor's plan). */
+  drawn(node: SiteNode): boolean {
+    return node.locationId === this.store.selectedFloorId && !!this.store.drawnZoneOf(node);
+  }
+
+  zoneHint(node: SiteNode): string {
+    return this.drawn(node) ? `${node.label} - drawn on the map` : `${node.label} - select, then use Draw Zone`;
   }
 
   toggle(event: MouseEvent, node: SiteNode): void {

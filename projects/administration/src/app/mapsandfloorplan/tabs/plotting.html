@@ -22,10 +22,10 @@
       </div>
 
       <div class="dd" style="display: flex; justify-content: flex-end; margin-bottom: 6px">
-        <button type="button" class="btn btn--primary btn--sm" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" (click)="togglePlotMenu($event, listTab)">
+        <button type="button" class="btn btn--primary btn--sm" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" (click)="togglePlotMenu($event, 'list-' + listTab)">
           <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Plot {{ listTab === 'device' ? 'Device' : 'Asset' }}
         </button>
-        @if (plotMenu === listTab) {
+        @if (plotMenu === 'list-' + listTab) {
           <div class="menu" role="menu" style="left: auto; right: 0">
             @for (i of unplottedOf(listTab); track i.id) {
               <button type="button" role="menuitem" (click)="startPlacing(i)"><lucide-icon [img]="i.icon" [size]="14"></lucide-icon> {{ i.name }} ({{ i.code }})</button>
@@ -141,16 +141,16 @@
         [showItemLabels]="settings.labelMode !== 'None'"
         [selectedItemId]="store.selectedItemId"
         [placing]="!!placingId"
-        [anchorItemId]="livePopup?.id ?? null"
-        [anchorZoneId]="zonePopup?.zone?.id ?? null"
-        (zoneTotalSelect)="openZoneTotals($event)"
-        [gatewayCounts]="gatewayCounts"
-        (anchorMove)="popupAnchor = $event"
+        [anchorItemId]="live.popupItem?.id ?? null"
+        [anchorZoneId]="live.zonePopup?.zone?.id ?? null"
+        (zoneTotalSelect)="live.openZoneTotals($event)"
+        [gatewayCounts]="live.gatewayCounts"
+        (anchorMove)="live.popupAnchor = $event"
         (itemSelect)="select($event)"
         (place)="place($event)"
       ></app-map-canvas>
-      @if (livePopup; as p) {
-        <app-asset-live-popup [item]="p" [anchor]="popupAnchor" [zone]="zonePopupInfo" [gateway]="p.kind === 'device' ? gatewayOf(p) : null" [gatewayState]="gatewayState" (close)="closePopup()"></app-asset-live-popup>
+      @if (live.popupItem; as p) {
+        <app-asset-live-popup [item]="p" [anchor]="live.popupAnchor" [zone]="live.zonePopupInfo" [gateway]="p.kind === 'device' ? live.gatewayOf(p) : null" [gatewayState]="live.gatewayState" (close)="live.close()"></app-asset-live-popup>
       }
     </div>
 

@@ -20,10 +20,8 @@ import {
 import { MapCanvas } from '../map-canvas/map-canvas';
 import { MapViewer } from '../map-viewer/map-viewer';
 import { AssetLivePopup } from '../asset-live-popup/asset-live-popup';
-import { AssetTelemetryService, GatewayAsset, GatewayAssets, LiveState } from '../asset-telemetry.service';
-import { ZonePopupInfo } from '../asset-live-popup/asset-live-popup';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MapZone, PlotItem, PlotKind, TONE_HEX, Tone, fmtDate, fmtTime } from '../maps.data';
+import { LiveMap } from '../live-map';
+import { PlotItem, PlotKind, TONE_HEX, Tone, fmtDate, fmtTime } from '../maps.data';
 import { MapsStore } from '../maps.store';
 
 /** Device & Asset Plotting: place devices and assets on the plan, reposition them, and inspect a plot. */
@@ -58,7 +56,8 @@ export class PlottingTab {
   unplottedOpen = true;
   /** Item waiting for a click on the plan (plot or reposition). */
   placingId: string | null = null;
-  plotMenu: PlotKind | null = null;
+  /** Open plot menu: the toolbar's 'device' / 'asset', or the side list's 'list-device' / 'list-asset'. */
+  plotMenu: string | null = null;
   menuFor: string | null = null;
   show = { devices: true, assets: true, zones: true, labels: true };
   showFilter: 'all' | 'devices' | 'assets' = 'all';
@@ -112,101 +111,18 @@ export class PlottingTab {
     return this.store.items.filter((i) => i.kind === kind).length;
   }
 
-  /**
-   * Assets per gateway from the Dashboard service (live): a tag counts at the gateway of its newest reading
-   * (NetworkTimeSeries meta.gatewayid), and the tag's asset comes from Tag Management. Keyed by gateway id in lower case.
-   */
-  gatewayCounts: Record<string, { count: number; names: string[] }> | null = null;
-  /** The same feed in full (assets, tags, last reading) for the device popup, keyed by gateway id in lower case. */
-  private gateways: Record<string, GatewayAssets> = {};
-  gatewayState: LiveState = 'connecting';
-
-  constructor() {
-    inject(AssetTelemetryService)
-      .gatewaysLive()
-      .pipe(takeUntilDestroyed())
-      .subscribe((m) => {
-        this.gatewayState = m.state;
-        if (!m.data) return;
-        const counts: Record<string, { count: number; names: string[] }> = {};
-        const full: Record<string, GatewayAssets> = {};
-        for (const g of m.data) {
-          const key = g.gatewayId.toLowerCase();
-          full[key] = g;
-          counts[key] = { count: g.assetCount, names: g.assets.map((a) => (a.assetName ? `${a.assetName} (${a.assetId})` : a.assetId)) };
-        }
-        this.gateways = full;
-        this.gatewayCounts = counts;
-      });
-  }
-
-  /** What the gateways feed says about a device (matched by device id or code); null when it reports nothing. */
-  gatewayOf(i: PlotItem): GatewayAssets | null {
-    return this.gateways[i.itemId?.toLowerCase()] ?? this.gateways[i.code?.toLowerCase()] ?? null;
-  }
-
-  /** Asset whose live readings (tags, battery, RSSI, online status) are shown over the map; null when closed. */
-  livePopup: PlotItem | null = null;
-  /** Where the popup's asset sits on the map (pixels), so the popup opens above it; null when it is not plotted. */
-  popupAnchor: { x: number; y: number; inView: boolean } | null = null;
+  /** Live gateway counts on the zones and the asset / device / zone popup over the map. */
+  readonly live = new LiveMap();
 
   select(i: PlotItem): void {
     this.store.selectedItemId = i.id;
     this.listTab = i.kind;
     this.rightTab = 'details';
     // clicking an asset or a device (on the map or in the list) opens its own popup
-    this.livePopup = i;
-    this.zonePopup = null;
+    this.live.open(i);
   }
 
-  /** A zone whose "Total Assets" label was clicked: its popup lists the linked assets its gateways hear. */
-  zonePopup: { zone: MapZone; gateways: PlotItem[] } | null = null;
-
-  openZoneTotals(e: { zone: MapZone; gateways: PlotItem[] }): void {
-    if (!e.gateways.length) return;
-    this.zonePopup = e;
-    // the popup needs an item; the zone's first gateway (a device opens no socket of its own)
-    this.livePopup = e.gateways[0];
-  }
-
-  closePopup(): void {
-    this.livePopup = null;
-    this.zonePopup = null;
-  }
-
-  /** The zone popup's content from the live gateways feed: one row per asset across the zone's gateways. */
-  get zonePopupInfo(): ZonePopupInfo | null {
-    const zp = this.zonePopup;
-    if (!zp) return null;
-    // same object until the zone or the feed changes (a new object on every check would trip change detection)
-    if (this.zoneInfoCache?.zp === zp && this.zoneInfoCache.feed === this.gateways) return this.zoneInfoCache.info;
-    const info = this.buildZoneInfo(zp);
-    this.zoneInfoCache = { zp, feed: this.gateways, info };
-    return info;
-  }
-
-  private zoneInfoCache: { zp: { zone: MapZone; gateways: PlotItem[] }; feed: Record<string, GatewayAssets>; info: ZonePopupInfo } | null = null;
-
-  private buildZoneInfo(zp: { zone: MapZone; gateways: PlotItem[] }): ZonePopupInfo {
-    const feeds = zp.gateways.map((g) => this.gatewayOf(g)).filter((g): g is GatewayAssets => !!g);
-    const assets = new Map<string, GatewayAsset>();
-    for (const a of feeds.flatMap((f) => f.assets)) {
-      const key = a.assetId.toLowerCase();
-      const seen = assets.get(key);
-      assets.set(key, seen
-        ? { ...seen, tagIds: [...new Set([...seen.tagIds, ...a.tagIds])], lastSeenAt: [seen.lastSeenAt, a.lastSeenAt].filter(Boolean).sort().at(-1) ?? null }
-        : a);
-    }
-    return {
-      name: zp.zone.name,
-      code: zp.zone.code,
-      gateways: zp.gateways.map((g) => g.name),
-      assets: [...assets.values()].sort((a, b) => (a.assetName ?? a.assetId).localeCompare(b.assetName ?? b.assetId)),
-      unlinkedTags: new Set(feeds.flatMap((f) => f.unlinkedTagIds.map((t) => t.toLowerCase()))).size
-    };
-  }
-
-  togglePlotMenu(event: MouseEvent, kind: PlotKind): void {
+  togglePlotMenu(event: MouseEvent, kind: string): void {
     event.stopPropagation();
     this.plotMenu = this.plotMenu === kind ? null : kind;
     this.menuFor = null;
@@ -242,7 +158,7 @@ export class PlottingTab {
     this.plotMenu = null;
     this.menuFor = null;
     this.select(i);
-    this.livePopup = null;
+    this.live.close();
     this.placingId = i.id;
   }
 

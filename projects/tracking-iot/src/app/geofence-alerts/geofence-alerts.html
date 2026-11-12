@@ -38,6 +38,25 @@
     <button type="button" role="tab" [class.is-active]="tab === 'geofences'" [attr.aria-selected]="tab === 'geofences'" (click)="tab = 'geofences'"><lucide-icon [img]="icons.Pentagon" [size]="16"></lucide-icon>Geofences</button>
     <button type="button" role="tab" [class.is-active]="tab === 'rules'" [attr.aria-selected]="tab === 'rules'" (click)="tab = 'rules'"><lucide-icon [img]="icons.Bell" [size]="16"></lucide-icon>Alert Rules</button>
     <button type="button" role="tab" [class.is-active]="tab === 'history'" [attr.aria-selected]="tab === 'history'" (click)="tab = 'history'"><lucide-icon [img]="icons.History" [size]="16"></lucide-icon>Event History</button>
+    <!-- map location: Building > Floor (or the outdoor geofence map), then the floor's zone (outdoor: the site) -->
+    <div *ngIf="tab === 'geofences'" class="tab-filters">
+      <label class="tab-filter">
+        <lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>
+        <select class="control control-sm map-floor" [ngModel]="floorId" (ngModelChange)="selectFloor($event)" [disabled]="mapMode !== 'view'" aria-label="Building and floor" [title]="floorPlan?.name || 'Building > Floor'">
+          <option value="">Outdoor geofences</option>
+          <option *ngIf="!floorOptions.length" value="" disabled>{{ floorsLoaded ? 'No floors found in Master Data' : 'Loading floors…' }}</option>
+          <option *ngFor="let f of floorOptions" [value]="f.id">{{ f.label }}</option>
+        </select>
+      </label>
+      <label class="tab-filter">
+        <lucide-icon [img]="icons.Pentagon" [size]="15"></lucide-icon>
+        <select *ngIf="floorId" class="control control-sm" [(ngModel)]="floorZoneId" aria-label="Zone">
+          <option value="">{{ floorZones.length ? 'All zones' : 'No zones on this floor' }}</option>
+          <option *ngFor="let z of floorZones" [value]="z.id">{{ z.name }} ({{ z.code }})</option>
+        </select>
+        <select *ngIf="!floorId" class="control control-sm" [(ngModel)]="mapSite" [disabled]="mapMode !== 'view'" aria-label="Map site" [title]="mapArea"><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
+      </label>
+    </div>
   </nav>
 
   <!-- ================= Geofences ================= -->
@@ -50,13 +69,16 @@
             [showAssets]="showAssets" [showGateways]="showGateways" [showLabels]="showLabels" [mode]="mapMode" [editId]="editId"
             (zoneClick)="selectZoneById($event)" (alertClick)="onAlertClick()" (drawPoints)="drawCount = $event" (drawDone)="onDrawDone($event)"
             (editChange)="onEditChange($event)" (zoomChange)="zoomInfo = $event" (ready)="drawMap = $event"></app-geofence-map>
-          <app-map-draw-tools [map]="drawMap" storageKey="geofence-alerts" side="right" [top]="96"></app-map-draw-tools>
+          <!-- floor picked: that floor's plan with its zones and plotted devices / assets (zone picked: only that zone) -->
+          <app-floor-plan-map *ngIf="floorId" [imageUrl]="floorImage" [zones]="planZones" [plots]="planPlots" [zoneId]="floorScope"
+            [feed]="gatewayFeed" [showLabels]="showLabels" [showAssets]="showAssets" [showDevices]="showGateways" [note]="floorNote"></app-floor-plan-map>
+          <app-map-draw-tools *ngIf="!floorId" [map]="drawMap" storageKey="geofence-alerts" side="right" [top]="96"></app-map-draw-tools>
 
-          <div class="seg map-seg" role="group" aria-label="Map style">
+          <div *ngIf="!floorId" class="seg map-seg" role="group" aria-label="Map style">
             <button type="button" [class.is-on]="!satellite" (click)="satellite = false">Map</button>
             <button type="button" [class.is-on]="satellite" (click)="satellite = true">Satellite</button>
           </div>
-          <div class="map-ctrl">
+          <div *ngIf="!floorId" class="map-ctrl">
             <button type="button" (click)="zoomIn()" [disabled]="zoomInfo.zoom >= zoomInfo.max" title="Zoom in" aria-label="Zoom in"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon></button>
             <button type="button" (click)="zoomOut()" [disabled]="zoomInfo.zoom <= zoomInfo.min" title="Zoom out" aria-label="Zoom out"><lucide-icon [img]="icons.Minus" [size]="16"></lucide-icon></button>
             <button type="button" (click)="locate()" title="Locate selected zone" aria-label="Locate selected zone"><lucide-icon [img]="icons.Locate" [size]="16"></lucide-icon></button>
@@ -71,8 +93,7 @@
               </div>
             </span>
           </div>
-          <div class="map-site">
-            <select class="control control-xs" [(ngModel)]="mapSite" [disabled]="mapMode !== 'view'" aria-label="Map site" [title]="mapArea"><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
+          <div *ngIf="!floorId" class="map-site">
             <span class="north" aria-label="North"><i></i>N</span>
           </div>
 
@@ -88,7 +109,13 @@
             <button type="button" class="btn btn-grey btn-xs" (click)="cancelShape()">Cancel</button>
           </div>
         </div>
-        <div class="legend-strip">
+        <div *ngIf="floorId" class="legend-strip">
+          <label><input type="checkbox" [(ngModel)]="showGateways" /><i class="fp-dot fp-dot--device"></i>Devices ({{ floorCount('device') }})</label>
+          <label><input type="checkbox" [(ngModel)]="showAssets" /><i class="fp-dot fp-dot--asset"></i>Assets ({{ floorCount('asset') }})</label>
+          <label><input type="checkbox" [(ngModel)]="showLabels" />Labels</label>
+          <span><i class="fp-total-key">N</i>Total Assets (live)</span>
+        </div>
+        <div *ngIf="!floorId" class="legend-strip">
           <span><i class="sq sq--blue"></i>Allowed zone</span>
           <span><i class="sq sq--amber"></i>Warning zone</span>
           <span><i class="sq sq--red"></i>Restricted zone</span>

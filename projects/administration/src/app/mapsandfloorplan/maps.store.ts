@@ -173,7 +173,7 @@ export class MapsStore implements OnDestroy {
       catchError((err) => {
         this.treeError = `Could not load locations from Master Data Management: ${this.errorText(err)}`;
         this.notify(this.treeError, 'error');
-        return of<LocationSources>({ organizationName: 'Organization', sites: [], buildings: [], floors: [] });
+        return of<LocationSources>({ organizationName: 'Organization', sites: [], buildings: [], floors: [], zones: [] });
       })
     );
     const plans = this.api.listFloorPlans().pipe(
@@ -235,10 +235,12 @@ export class MapsStore implements OnDestroy {
       buildings.set(b.id, node);
       (sites.get(b.site?.id ?? '') ?? root).children!.push(node);
     }
+    const floors = new Map<string, SiteNode>();
     for (const f of src.floors ?? []) {
       if (!f?.id) continue;
       const image = f.imageUrl || f.images?.find((i) => !!i) || undefined;
-      const node: SiteNode = { id: f.id, label: f.name || f.code || f.id, kind: 'floor', ...geo(f), ...(image ? { image } : {}) };
+      const node: SiteNode = { id: f.id, label: f.name || f.code || f.id, kind: 'floor', ...geo(f), ...(image ? { image } : {}), children: [] };
+      floors.set(f.id, node);
       const siteId = typeof f.site === 'string' ? f.site : (f.site?.id ?? '');
       const parent =
         buildings.get(f.buildingId ?? '') ??
@@ -248,7 +250,14 @@ export class MapsStore implements OnDestroy {
         root;
       parent.children!.push(node);
     }
-    // Leaf sites / buildings have no children to expand
+    // Zones under their floor (or their building when the zone covers the whole building); zones are drawn on that plan
+    for (const z of src.zones ?? []) {
+      if (!z?.id) continue;
+      const parent = floors.get(z.floorId ?? '') ?? (z.floorId ? undefined : buildings.get(z.buildingId ?? ''));
+      if (!parent) continue;
+      parent.children!.push({ id: z.id, label: label(z.name || z.code || z.id, z.code), kind: 'zone', code: z.code || z.name, locationId: parent.id });
+    }
+    // Leaf sites / buildings / floors have no children to expand
     const prune = (n: SiteNode) => {
       if (n.children && !n.children.length && n.kind !== 'org') delete n.children;
       n.children?.forEach(prune);
@@ -264,7 +273,8 @@ export class MapsStore implements OnDestroy {
     const walk = (node: SiteNode, trail: SiteNode[]) => {
       const next = [...trail, node];
       this.paths.set(node.id, next.slice(1));
-      if (node.kind !== 'org') this.floors.push({ id: node.id, label: this.locationLabel(node.id), kind: node.kind });
+      // Zones are not plan locations: they are drawn on their floor's plan
+      if (node.kind !== 'org' && node.kind !== 'zone') this.floors.push({ id: node.id, label: this.locationLabel(node.id), kind: node.kind });
       node.children?.forEach((c) => walk(c, next));
     };
     walk(tree, []);
@@ -460,7 +470,9 @@ export class MapsStore implements OnDestroy {
         this.layers = r.layers.length ? r.layers : defaultLayers();
         this.versions = r.versions;
         this.rebuildItems();
-        if (!this.zones.some((z) => z.id === this.selectedZoneId)) this.selectedZoneId = this.zones[0]?.id ?? null;
+        const scope = this.zoneScope;
+        if (scope !== undefined) this.selectedZoneId = scope?.id ?? null;
+        else if (!this.zones.some((z) => z.id === this.selectedZoneId)) this.selectedZoneId = this.zones[0]?.id ?? null;
         if (failed.length) this.notify(`Could not load ${failed.join(', ')}`, 'error');
       });
   }
@@ -606,17 +618,77 @@ export class MapsStore implements OnDestroy {
   floorTitle(id = this.selectedFloorId): string {
     const path = this.pathOf(id);
     if (!path.length) return this.treeLoading ? 'Loading…' : 'No location selected';
-    return path
+    const title = path
       .slice(-2)
       .map((n) => n.label.replace(/\s*\(.*\)$/, ''))
       .join(' – ');
+    // Zone view: "BuildingA2 – Floor2 – zone1"
+    const zone = id === this.selectedFloorId ? this.mdmZone : undefined;
+    return zone ? `${title} – ${zone.label.replace(/\s*\(.*\)$/, '')}` : title;
   }
 
   selectedKind(): LocationKind {
     return (this.pathOf(this.selectedFloorId).at(-1)?.kind as LocationKind | undefined) ?? 'floor';
   }
 
+  /* ===== Master Data zones (the level zones are drawn at) ===== */
+
+  /** Master Data zone picked in the tree: Draw Zone draws its outline on its floor's plan. */
+  selectedMdmZoneId: string | null = null;
+
+  /** Master Data zones on a floor (or building). */
+  mdmZonesOf(locationId = this.selectedFloorId): SiteNode[] {
+    return (this.locationNode(locationId)?.children ?? []).filter((c) => c.kind === 'zone');
+  }
+
+  /** The selected Master Data zone, when it is on the selected location. */
+  get mdmZone(): SiteNode | undefined {
+    return this.mdmZonesOf().find((z) => z.id === this.selectedMdmZoneId);
+  }
+
+  /** The zone drawn on the current plan for a Master Data zone (same code). */
+  drawnZoneOf(mdm: SiteNode | undefined): MapZone | undefined {
+    const code = mdm?.code?.trim().toUpperCase();
+    return code ? this.zones.find((z) => z.code.trim().toUpperCase() === code) : undefined;
+  }
+
+  /** Tree click on a zone: opens its floor's plan and selects its outline when it is already drawn. */
+  selectMdmZone(id: string): void {
+    const node = this.locationNode(id);
+    if (node?.kind !== 'zone' || !node.locationId) return;
+    if (node.locationId !== this.selectedFloorId) this.selectFloor(node.locationId);
+    this.selectedMdmZoneId = id;
+    // Zone Details shows this zone's outline, or nothing until it is drawn
+    this.selectedZoneId = this.drawnZoneOf(node)?.id ?? null;
+  }
+
+  /**
+   * Zones are drawn per Master Data zone: true when one is selected and not drawn yet on this plan; otherwise
+   * says what to do and returns false.
+   */
+  canDrawMdmZone(): boolean {
+    const mdm = this.mdmZone;
+    if (!mdm) {
+      const floor = this.floorTitle();
+      this.notify(
+        this.mdmZonesOf().length
+          ? `Select a zone under ${floor} in the location tree, then draw it`
+          : `${floor} has no zones - add them in Master Data Management first`,
+        'error'
+      );
+      return false;
+    }
+    const drawn = this.drawnZoneOf(mdm);
+    if (drawn) {
+      this.selectedZoneId = drawn.id;
+      this.notify(`${drawn.name} (${drawn.code}) is already drawn - edit it in Zone Details`, 'error');
+      return false;
+    }
+    return true;
+  }
+
   selectFloor(id: string): void {
+    this.selectedMdmZoneId = null;
     this.selectedFloorId = id;
     const plans = this.plansOf(id);
     this.selectPlan((plans.find((p) => p.status === 'Published') ?? plans[0])?.id ?? '');
@@ -841,11 +913,13 @@ export class MapsStore implements OnDestroy {
     const w = shape === 'Circle' ? 12 : 18;
     const h = shape === 'Circle' ? 22 : 18;
     const type = (this.zoneOptions.zoneTypes.includes('Operational') ? 'Operational' : this.zoneOptions.zoneTypes[0] ?? 'Operational') as ZoneType;
+    // Drawn for the Master Data zone picked in the tree: it takes that zone's name and code (the code links them)
+    const mdm = this.mdmZone;
     const zone: MapZone = {
       id: '',
       floorPlanId: planId,
-      code: `ZN-${String(n).padStart(2, '0')}`,
-      name: `New ${shape} Zone`,
+      code: mdm?.code || `ZN-${String(n).padStart(2, '0')}`,
+      name: mdm ? mdm.label.replace(/\s*\(.*\)$/, '') : `New ${shape} Zone`,
       type,
       tone: zoneTone(type),
       color: TONE_HEX[zoneTone(type)],
@@ -868,7 +942,7 @@ export class MapsStore implements OnDestroy {
       geofence: false
     };
     zone.areaM2 = this.areaOf(zone);
-    this.run(this.api.createZone(planId, zone), { pending: 'Saving zone…', success: (z) => `${z.name} added - fill in its details and save`, error: 'Could not add the zone' }, (z) => {
+    this.run(this.api.createZone(planId, zone), { pending: 'Saving zone…', success: (z) => `${z.name} (${z.code}) drawn - fill in its details and save`, error: 'Could not add the zone' }, (z) => {
       this.zones = [...this.zones, z];
       this.selectedZoneId = z.id;
       this.clearHistory();
@@ -929,6 +1003,29 @@ export class MapsStore implements OnDestroy {
     return this.items.filter((i) => i.x !== null);
   }
 
+  /*
+   * Zone view: the floor and its zones share the floor's plan image. With a floor selected the map shows every zone
+   * drawn on it and everything plotted on it; with a zone selected (tree) only that zone's outline and the devices /
+   * assets plotted in it. undefined = floor view, null = zone selected but not drawn yet.
+   */
+  get zoneScope(): MapZone | null | undefined {
+    const mdm = this.mdmZone;
+    return mdm ? (this.drawnZoneOf(mdm) ?? null) : undefined;
+  }
+
+  /** Zones shown on the map for the floor / zone selected. */
+  get scopedZones(): MapZone[] {
+    const scope = this.zoneScope;
+    return scope === undefined ? this.zones : scope ? [scope] : [];
+  }
+
+  /** Plotted items shown on the map for the floor / zone selected. */
+  get scopedPlotted(): PlotItem[] {
+    const scope = this.zoneScope;
+    if (scope === undefined) return this.plotted;
+    return scope ? this.plotted.filter((i) => i.zoneId === scope.id) : [];
+  }
+
   get unplotted(): PlotItem[] {
     return this.items.filter((i) => i.x === null);
   }
@@ -950,6 +1047,12 @@ export class MapsStore implements OnDestroy {
   plotMany(moves: { id: string; x: number; y: number }[], success: string): void {
     const planId = this.requirePlan();
     if (!planId || !moves.length) return;
+    // In a zone view, items are plotted into that zone (it has to be drawn first)
+    const scope = this.zoneScope;
+    if (scope === null) {
+      this.notify(`Draw ${this.mdmZone?.label ?? 'the zone'} first, then plot into it`, 'error');
+      return;
+    }
     const before = this.snapshotOf();
     const targets: PlotItem[] = [];
     for (const m of moves) {
@@ -957,7 +1060,7 @@ export class MapsStore implements OnDestroy {
       if (!item) continue;
       item.x = Math.round(m.x * 10) / 10;
       item.y = Math.round(m.y * 10) / 10;
-      item.zoneId = this.zoneAt(item.x, item.y)?.id;
+      item.zoneId = scope ? scope.id : this.zoneAt(item.x, item.y)?.id;
       targets.push(item);
     }
     this.undoStack.push(before);

@@ -52,6 +52,9 @@ import { LL, areaM2 } from './geofence-geo';
 import { DEFAULT_GEOFENCE_OPTIONS, GeofenceApiService, GeofenceOptionsDto, SiteOption } from './geofence-api.service';
 import { AlertRuleApiService } from './alert-rule-api.service';
 import { IoTAlertApiService, IoTAlertDto, IoTAlertStatus, toAlertEvent } from './iot-alert-api.service';
+import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone, ZoneOption } from './floor-map-api.service';
+import { FloorPlanMap } from './floor-plan-map';
+import { Subscription } from 'rxjs';
 
 type Tab = 'geofences' | 'rules' | 'history';
 type RuleForm = Omit<Rule, 'id' | 'name' | 'zoneId' | 'enabled'>;
@@ -78,7 +81,7 @@ const GEOFENCE_EVENT = /geofence|zone|dwell|enter|exit/i;
 @Component({
   selector: 'app-geofence-alerts',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, GeofenceMap, MapDrawTools],
+  imports: [CommonModule, FormsModule, LucideAngularModule, GeofenceMap, MapDrawTools, FloorPlanMap],
   templateUrl: './geofence-alerts.html',
   styleUrls: ['./geofence-alerts.css', './geofence-alerts-sections.css', '../shared/iot-purple-theme.css'],
 })
@@ -179,12 +182,134 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.load();
+    this.loadFloors();
     this.pollTimer = setInterval(() => this.loadAlerts(true), ALERT_POLL_MS);
   }
 
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
     clearInterval(this.pollTimer);
+    this.planSub?.unsubscribe();
+    this.feedSub?.unsubscribe();
+  }
+
+  // ===== floor plan view (Building > Floor, then Zone) =====
+  /*
+   * The map dropdowns: "Outdoor geofences" keeps the street / satellite map of the site's geofences; a floor shows that
+   * floor's plan from Maps & Floor Plans with every device and asset plotted on it, and a zone of that floor shows
+   * only that zone and what is plotted in it.
+   */
+  private readonly floorApi = inject(FloorMapApiService);
+  floorOptions: FloorOption[] = [];
+  /** Floors request finished (the dropdown says when there are none). */
+  floorsLoaded = false;
+  private zoneOptions: ZoneOption[] = [];
+  private floorPlans = new Map<string, FloorPlanRef>();
+  /** Selected floor; '' = outdoor geofence map. */
+  floorId = '';
+  /** Selected Master Data zone of the floor; '' = the whole floor. */
+  floorZoneId = '';
+  planZones: PlanZone[] = [];
+  planPlots: PlanPlot[] = [];
+  planLoading = false;
+  private planError = '';
+  /** Live assets per gateway (lower-case gateway id) for the zones' "Total Assets". */
+  gatewayFeed: Record<string, GatewayFeed> = {};
+  private planSub?: Subscription;
+  private feedSub?: Subscription;
+
+  private loadFloors(): void {
+    forkJoin({
+      locations: this.floorApi.locations(),
+      plans: this.floorApi.floorPlans().pipe(catchError(() => of(new Map<string, FloorPlanRef>()))),
+    }).subscribe({
+      next: ({ locations, plans }) => {
+        this.floorOptions = locations.floors;
+        this.zoneOptions = locations.zones;
+        this.floorPlans = plans;
+        this.floorsLoaded = true;
+        // open on the first floor that has a floor plan (the outdoor geofence map stays one pick away)
+        const first = this.floorOptions.find((f) => plans.has(f.id));
+        if (first && !this.floorId && this.mapMode === 'view') this.selectFloor(first.id);
+      },
+      error: (err) => {
+        this.floorsLoaded = true;
+        this.showToast(apiErrorMessage(err, 'Could not load buildings and floors.'));
+      },
+    });
+  }
+
+  /** Zones of the selected floor (Master Data). */
+  get floorZones(): ZoneOption[] {
+    return this.zoneOptions.filter((z) => z.floorId === this.floorId);
+  }
+
+  get floorPlan(): FloorPlanRef | undefined {
+    return this.floorPlans.get(this.floorId);
+  }
+
+  /** Floor plan file, else the floor picture from Master Data. */
+  get floorImage(): string | null {
+    return this.floorPlan?.fileUrl ?? this.floorOptions.find((f) => f.id === this.floorId)?.image ?? null;
+  }
+
+  /** The drawn zone shown alone: undefined = whole floor, null = the picked zone is not drawn on the plan yet. */
+  get floorScope(): string | null | undefined {
+    const z = this.zoneOptions.find((o) => o.id === this.floorZoneId);
+    if (!z) return undefined;
+    const code = z.code.trim().toUpperCase();
+    return this.planZones.find((p) => p.code.trim().toUpperCase() === code)?.id ?? null;
+  }
+
+  get floorNote(): string {
+    if (this.planLoading) return 'Loading floor plan…';
+    if (this.planError) return this.planError;
+    if (!this.floorImage) return 'No floor plan for this floor yet - upload one in Maps & Floor Plans.';
+    if (this.floorScope === null) return 'This zone is not drawn on the floor plan yet - draw it in Maps & Floor Plans.';
+    return '';
+  }
+
+  /** Devices / assets on the map now (floor, or the picked zone). */
+  floorCount(kind: 'device' | 'asset'): number {
+    const scope = this.floorScope;
+    return this.planPlots.filter((p) => p.kind === kind && (scope === undefined || (!!scope && p.zoneId === scope))).length;
+  }
+
+  selectFloor(id: string): void {
+    this.floorId = id;
+    this.floorZoneId = '';
+    this.planZones = [];
+    this.planPlots = [];
+    this.planError = '';
+    this.planSub?.unsubscribe();
+    if (!id) return;
+    this.startFeed();
+    const plan = this.floorPlan;
+    if (!plan) return;
+    this.planLoading = true;
+    this.planSub = forkJoin({ zones: this.floorApi.zones(plan.id), plots: this.floorApi.plots(plan.id) }).subscribe({
+      next: ({ zones, plots }) => {
+        if (id !== this.floorId) return;
+        this.planZones = zones;
+        this.planPlots = plots;
+        this.planLoading = false;
+      },
+      error: (err) => {
+        this.planLoading = false;
+        this.planError = apiErrorMessage(err, 'Could not load the floor plan.');
+      },
+    });
+  }
+
+  /** Live gateway feed, started with the first floor shown. */
+  private startFeed(): void {
+    if (this.feedSub) return;
+    this.feedSub = this.floorApi.gatewaysLive().subscribe((m) => {
+      if (!m.data) return;
+      const next: Record<string, GatewayFeed> = {};
+      for (const g of m.data) next[g.gatewayId.toLowerCase()] = g;
+      this.gatewayFeed = next;
+    });
   }
 
   // ===== loading =====

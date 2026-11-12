@@ -28,7 +28,7 @@ const DEFAULT_HEIGHT_M = 32;
 const FALLBACK_CENTER = { lat: 20.5937, lng: 78.9629 };
 const FALLBACK_ZOOM = 4;
 /** Street-map zoom for each kind of location: a whole site, one building, one floor. */
-const KIND_ZOOM: Record<SiteNode['kind'], number> = { org: 14, site: 16, building: 18, floor: 19 };
+const KIND_ZOOM: Record<SiteNode['kind'], number> = { org: 14, site: 16, building: 18, floor: 19, zone: 20 };
 const METRES_PER_DEGREE_LAT = 111_320;
 const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
@@ -622,11 +622,12 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
 
   private visibleItems(): PlotItem[] {
     if (this.preview || !this.ownZones || !(this.imageMode || this.showFrame)) return [];
-    return this.store.plotted.filter((i) => (i.kind === 'device' && this.showDevices) || (i.kind === 'asset' && this.showAssets));
+    // Floor view: everything on the floor; zone view: only what is plotted in that zone
+    return this.store.scopedPlotted.filter((i) => (i.kind === 'device' && this.showDevices) || (i.kind === 'asset' && this.showAssets));
   }
 
   private visibleZones(): MapZone[] {
-    return this.showZones && this.ownZones && (this.imageMode || this.showFrame) ? this.store.zones : [];
+    return this.showZones && this.ownZones && (this.imageMode || this.showFrame) ? this.store.scopedZones : [];
   }
 
   /** Pins on the street map: the location itself and its child locations that have their own coordinates. */

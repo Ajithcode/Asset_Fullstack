@@ -20,12 +20,12 @@ import { MapsStore } from '../maps.store';
       <form class="rform" (ngSubmit)="save()">
         <div class="field" [class.invalid]="tried && !draft.name.trim()">
           <label for="zf-name">Zone Name <span class="req">*</span></label>
-          <input id="zf-name" name="name" [(ngModel)]="draft.name" [disabled]="!store.editing" />
+          <input id="zf-name" name="name" [(ngModel)]="draft.name" [disabled]="!store.editing" [readonly]="linked" [title]="linked ? 'From Master Data Management' : ''" />
           @if (tried && !draft.name.trim()) { <small>Zone name is required</small> }
         </div>
         <div class="field" [class.invalid]="tried && !codeOk">
           <label for="zf-code">Zone Code <span class="req">*</span></label>
-          <input id="zf-code" name="code" [(ngModel)]="draft.code" [disabled]="!store.editing" />
+          <input id="zf-code" name="code" [(ngModel)]="draft.code" [disabled]="!store.editing" [readonly]="linked" [title]="linked ? 'From Master Data Management' : ''" />
           @if (tried && !codeOk) { <small>{{ draft.code.trim() ? 'Code already used by another zone' : 'Zone code is required' }}</small> }
         </div>
         <div class="field">
@@ -102,6 +102,12 @@ export class ZoneForm implements OnChanges {
 
   get icon() {
     return zoneIcon(this.draft!.type);
+  }
+
+  /** Drawn for a Master Data zone: name and code come from Master Data (the code links them), so they are read-only. */
+  get linked(): boolean {
+    const code = this.zone?.code.trim().toUpperCase();
+    return !!code && this.store.mdmZonesOf().some((z) => z.code?.trim().toUpperCase() === code);
   }
 
   get codeOk(): boolean {

@@ -143,3 +143,22 @@
 @keyframes ga-banner-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .draw-row { display: flex; align-items: center; gap: 10px; }
 .btn-xs { height: 28px; padding: 0 10px; font-size: 12px; }
+
+/* Floor plan view (Building > Floor and Zone dropdowns) */
+.map-wrap > app-floor-plan-map { z-index: 1; }
+/* Floor / zone dropdowns on the tab row, right of Event History (off the map, so using them never moves it) */
+.tabs { align-items: center; }
+.tab-filters { display: flex; align-items: center; gap: 8px; margin-left: auto; padding: 4px 0 6px 12px; flex: 0 0 auto; }
+.tab-filter { display: inline-flex; align-items: center; gap: 6px; color: var(--ga-text-2); }
+.tab-filter .control { min-width: 150px; max-width: 280px; }
+.tab-filter .control.map-floor { min-width: 230px; }
+.legend-strip label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
+.legend-strip label input { margin: 0; accent-color: #6d28d9; }
+.fp-dot { width: 11px; height: 11px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.18); }
+.fp-dot--device { background: #059669; }
+.fp-dot--asset { background: #7c3aed; }
+.fp-total-key { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #6d28d9; color: #fff; font-size: 9.5px; font-style: normal; font-weight: 700; }
+@media (max-width: 640px) {
+  .tab-filters { margin-left: 0; padding-left: 4px; }
+  .tab-filter .control, .tab-filter .control.map-floor { min-width: 0; max-width: 180px; }
+}

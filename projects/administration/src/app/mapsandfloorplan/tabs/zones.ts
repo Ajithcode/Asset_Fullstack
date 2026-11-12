@@ -21,11 +21,20 @@ import { ZoneForm } from '../zone-form/zone-form';
             @for (f of store.floors; track f.id) { <option [value]="f.id">{{ f.label }}</option> }
           </select>
         </div>
+        <div>
+          <span class="field-label">Zone (Master Data)</span>
+          <select class="select select--full" aria-label="Zone" [ngModel]="store.mdmZone?.id ?? ''" (ngModelChange)="$event && store.selectMdmZone($event)">
+            <option value="" disabled>{{ store.mdmZonesOf().length ? 'Select a zone to draw' : 'No zones on this location' }}</option>
+            @for (z of store.mdmZonesOf(); track z.id) {
+              <option [value]="z.id">{{ z.label }}{{ store.drawnZoneOf(z) ? ' - drawn' : '' }}</option>
+            }
+          </select>
+        </div>
 
         <div class="panel__head" style="margin: 0">
           <h3>Zones ({{ store.zones.length }})</h3>
           <button type="button" class="btn btn--primary btn--sm" [disabled]="!store.editing || store.working || store.creatingPlan || !store.canDraw" (click)="draw('Rectangle')">
-            <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Add Zone
+            <lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon> Draw Zone
           </button>
         </div>
 
@@ -86,8 +95,8 @@ import { ZoneForm } from '../zone-form/zone-form';
 
         <app-map-canvas
           [zoom]="v.zoom"
-          [showDevices]="false"
-          [showAssets]="false"
+          [showDevices]="showDevices"
+          [showAssets]="showAssets"
           [showLabels]="labels"
           [selectedZoneId]="store.selectedZoneId"
           (zoneSelect)="store.selectedZoneId = $event.id"
@@ -97,6 +106,8 @@ import { ZoneForm } from '../zone-form/zone-form';
         ></app-map-canvas>
 
         <div class="map-foot" foot>
+          <label><input type="checkbox" [(ngModel)]="showDevices" /> Devices ({{ shownCount('device') }})</label>
+          <label><input type="checkbox" [(ngModel)]="showAssets" /> Assets ({{ shownCount('asset') }})</label>
           <label><input type="checkbox" [(ngModel)]="labels" /> Labels</label>
           @for (t of types; track t.type) {
             @if (store.zoneCountOf(t.type)) {
@@ -139,7 +150,14 @@ export class ZonesTab {
   search = '';
   typeFilter: '' | ZoneType = '';
   labels = true;
+  /** Devices / assets plotted in the zones (floor view: the whole floor; zone picked above: that zone). */
+  showDevices = true;
+  showAssets = true;
   drawOpen = false;
+
+  shownCount(kind: 'device' | 'asset'): number {
+    return this.store.scopedPlotted.filter((i) => i.kind === kind).length;
+  }
   /** Zone shape being drawn on the map (clicks draw its outline), or null. */
   drawing: MapZone['shape'] | null = null;
 
@@ -179,6 +197,8 @@ export class ZonesTab {
 
   draw(shape: MapZone['shape']): void {
     this.drawOpen = false;
+    // Zones are drawn per Master Data zone (picked in the Zone list above)
+    if (!this.store.canDrawMdmZone()) return;
     // Draw the outline on the map; a floor with only a Master Data image gets its floor plan first
     this.store.ensurePlan(() => (this.drawing = shape));
   }

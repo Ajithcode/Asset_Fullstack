@@ -12,6 +12,8 @@ import {
   Square,
   Upload
 } from 'lucide-angular';
+import { AssetLivePopup } from '../asset-live-popup/asset-live-popup';
+import { LiveMap } from '../live-map';
 import { MapCanvas } from '../map-canvas/map-canvas';
 import { MapViewer } from '../map-viewer/map-viewer';
 import { MapZone, PlotItem, PlotKind, ZoneGeometry, fmtDate } from '../maps.data';
@@ -24,9 +26,10 @@ import { ZoneForm } from '../zone-form/zone-form';
 @Component({
   standalone: true,
   selector: 'app-maps-library',
-  imports: [FormsModule, LucideAngularModule, SiteTree, MapViewer, MapCanvas, ZoneForm, UploadDialog],
+  imports: [FormsModule, LucideAngularModule, SiteTree, MapViewer, MapCanvas, ZoneForm, UploadDialog, AssetLivePopup],
   templateUrl: './map-library.html',
-  styleUrls: ['../../shared/admin-workspace.css', '../maps.css']
+  styleUrls: ['../../shared/admin-workspace.css', '../maps.css'],
+  styles: `.map-stage { position: relative; flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }`
 })
 export class MapLibraryTab {
   readonly store = inject(MapsStore);
@@ -39,6 +42,9 @@ export class MapLibraryTab {
   ];
 
   @Output() goTo = new EventEmitter<string>();
+
+  /** Live "Total Assets" count on each zone (from its gateways) and the popup listing them. */
+  readonly live = new LiveMap();
 
   rightTab: 'zone' | 'layers' | 'info' = 'zone';
   drawOpen = false;
@@ -69,6 +75,8 @@ export class MapLibraryTab {
 
   draw(shape: MapZone['shape']): void {
     this.drawOpen = false;
+    // Zones are drawn per Master Data zone (picked in the tree)
+    if (!this.store.canDrawMdmZone()) return;
     // Draw the outline on the map; a floor with only a Master Data image gets its floor plan first
     this.store.ensurePlan(() => {
       this.placing = null;
@@ -106,6 +114,11 @@ export class MapLibraryTab {
     if (!item) return;
     this.store.selectedItemId = item.id;
     this.store.plot(item.id, pos.x, pos.y, `${item.name} (${item.code}) plotted`);
+  }
+
+  /** Devices / assets plotted on the floor, or in the zone when a zone is selected in the tree. */
+  shownCount(kind: PlotKind): number {
+    return this.store.scopedPlotted.filter((i) => i.kind === kind).length;
   }
 
   selectZone(z: MapZone): void {

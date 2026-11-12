@@ -55,27 +55,38 @@
     @if (placing) {
       <p class="note placing-hint">Click on the map to place the next unplotted {{ placing }}.</p>
     }
-    <app-map-canvas
-      [zoom]="v.zoom"
-      [showZones]="show.zones"
-      [showDevices]="show.devices"
-      [showAssets]="show.assets"
-      [showLabels]="show.labels"
-      [selectedZoneId]="store.selectedZoneId"
-      [selectedItemId]="store.selectedItemId"
-      [placing]="!!placing"
-      [drawShape]="drawing"
-      (zoneDrawn)="zoneDrawn($event)"
-      (drawCancel)="drawing = null"
-      (zoneSelect)="selectZone($event)"
-      (itemSelect)="selectItem($event)"
-      (place)="place($event)"
-    ></app-map-canvas>
+    <!-- the map, with the "Total Assets" count on each zone and its popup -->
+    <div class="map-stage">
+      <app-map-canvas
+        [zoom]="v.zoom"
+        [showZones]="show.zones"
+        [showDevices]="show.devices"
+        [showAssets]="show.assets"
+        [showLabels]="show.labels"
+        [selectedZoneId]="store.selectedZoneId"
+        [selectedItemId]="store.selectedItemId"
+        [placing]="!!placing"
+        [drawShape]="drawing"
+        [gatewayCounts]="live.gatewayCounts"
+        [anchorItemId]="live.popupItem?.id ?? null"
+        [anchorZoneId]="live.zonePopup?.zone?.id ?? null"
+        (zoneTotalSelect)="live.openZoneTotals($event)"
+        (anchorMove)="live.popupAnchor = $event"
+        (zoneDrawn)="zoneDrawn($event)"
+        (drawCancel)="drawing = null"
+        (zoneSelect)="selectZone($event)"
+        (itemSelect)="selectItem($event)"
+        (place)="place($event)"
+      ></app-map-canvas>
+      @if (live.popupItem; as p) {
+        <app-asset-live-popup [item]="p" [anchor]="live.popupAnchor" [zone]="live.zonePopupInfo" [gateway]="p.kind === 'device' ? live.gatewayOf(p) : null" [gatewayState]="live.gatewayState" (close)="live.close()"></app-asset-live-popup>
+      }
+    </div>
 
     <div class="map-foot" foot>
-      <label><input type="checkbox" [(ngModel)]="show.zones" /> Zones ({{ store.zones.length }})</label>
-      <label><input type="checkbox" [(ngModel)]="show.devices" /> Devices ({{ store.devices.length }})</label>
-      <label><input type="checkbox" [(ngModel)]="show.assets" /> Assets ({{ store.assets.length }})</label>
+      <label><input type="checkbox" [(ngModel)]="show.zones" /> Zones ({{ store.scopedZones.length }})</label>
+      <label><input type="checkbox" [(ngModel)]="show.devices" /> Devices ({{ shownCount('device') }})</label>
+      <label><input type="checkbox" [(ngModel)]="show.assets" /> Assets ({{ shownCount('asset') }})</label>
       <label><input type="checkbox" [(ngModel)]="show.labels" /> Labels</label>
     </div>
   </app-map-viewer>

@@ -9,6 +9,7 @@ import {
   Fan,
   Gauge,
   Hand,
+  Hexagon,
   Layers,
   LucideIconData,
   Package,
@@ -45,7 +46,11 @@ export interface SiteNode {
   /** MDM id ('org' for the root) */
   id: string;
   label: string;
-  kind: 'org' | 'site' | 'building' | 'floor';
+  kind: 'org' | 'site' | 'building' | 'floor' | 'zone';
+  /** Zones: the Master Data zone code (drawn zones on the plan carry the same code) */
+  code?: string;
+  /** Zones: the floor (or building) the zone is on, whose floor plan it is drawn on */
+  locationId?: string;
   /** Map position from Master Data (WGS 84); absent when not set */
   lat?: number;
   lng?: number;
@@ -58,7 +63,8 @@ export const KIND_ICONS: Record<SiteNode['kind'], LucideIconData> = {
   org: Building2,
   site: Building2,
   building: Building,
-  floor: Layers
+  floor: Layers,
+  zone: Hexagon
 };
 
 /* ===== Floor plans + versions ===== */
