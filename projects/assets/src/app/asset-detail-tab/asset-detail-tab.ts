@@ -33,7 +33,10 @@ import { ASSET_TYPE_ICONS, AssetCondition, AssetHeader, AssetRecord, AssetTabLin
 import { blankAssetRecord } from '../shared/blank-asset';
 import { AssetDetail, Assessment, loadAssetDetail } from '../asset-details/asset-details';
 import {
+  AssetActivityItem,
+  AssetCustomFieldValue,
   AssetDetailsService,
+  AssetHealthSummary,
   AssetRegistrationDto,
   customFieldValue,
   isoDay,
@@ -87,6 +90,154 @@ const KIND_TONES: Record<HistoryKind, string> = {
   Status: 'good', Condition: 'warn', Health: 'good', Criticality: 'serious', Maintenance: 'warn', 'Service Request': 'serious', Document: 'good', Image: 'good', Relationship: 'warn',
 };
 const HISTORY_KINDS = Object.keys(KIND_TONES) as HistoryKind[];
+/** Detail tab each history kind opens. */
+const KIND_PATHS: Record<HistoryKind, string> = {
+  Status: '/assets/status-condition', Condition: '/assets/status-condition', Health: '/assets/health-score',
+  Criticality: '/assets/criticality', Maintenance: '/assets/maintenance-details', 'Service Request': '/assets/service-history',
+  Document: '/assets/documents', Image: '/assets/images', Relationship: '/assets/relationships',
+};
+
+/** A Recent Activity row: a history event, or an activity API row whose type may not be a known kind. */
+type ActivityRow = Omit<HistoryEvent, 'kind'> & { kind: string };
+
+/** "25.2048, 55.2708" from a location with coordinates; undefined without them. */
+function gps(loc: { latitude?: number | null; longitude?: number | null } | null | undefined): string | undefined {
+  return loc?.latitude != null && loc?.longitude != null ? `${loc.latitude}, ${loc.longitude}` : undefined;
+}
+
+/** Label / name as a match key: lowercase letters and digits only. */
+function fieldKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** Same, without a trailing unit in brackets: "Power Rating (kVA)" -> "powerrating". */
+function fieldBaseKey(s: string): string {
+  return fieldKey(s.replace(/\([^)]*\)\s*$/, ''));
+}
+
+type StdField = [name: string, label: string, type?: CustomField['type'], required?: boolean];
+
+/** Field groups the Custom Fields tab always shows, in this order; values come from the Asset API. */
+const STANDARD_FIELD_GROUPS: { name: string; fields: StdField[] }[] = [
+  {
+    name: 'Purchase & Warranty',
+    fields: [
+      ['warranty_expiry', 'Warranty Expiry Date', 'Date', true],
+      ['purchase_date', 'Purchase Date', 'Date'],
+      ['warranty_period', 'Warranty Period (Months)', 'Number'],
+      ['warranty_provider', 'Warranty Provider'],
+      ['supplier', 'Supplier'],
+    ],
+  },
+  {
+    name: 'General Information',
+    fields: [
+      ['asset_condition', 'Current Condition', 'Text', true],
+      ['installation_date', 'Installation Date', 'Date'],
+      ['serial_number', 'Serial Number', 'Text', true],
+      ['criticality', 'Criticality'],
+      ['manufacturer', 'Manufacturer'],
+      ['model', 'Model'],
+    ],
+  },
+  {
+    name: 'Technical Specifications',
+    fields: [
+      ['power_rating', 'Power Rating (kVA)', 'Number', true],
+      ['voltage', 'Voltage (V)', 'Number'],
+      ['frequency', 'Frequency (Hz)', 'Number'],
+      ['engine_type', 'Engine Type'],
+      ['cooling_system', 'Cooling System'],
+      ['fuel_type', 'Fuel Type'],
+      ['emissions_standard', 'Emissions Standard'],
+      ['efficiency', 'Efficiency (%)', 'Number'],
+    ],
+  },
+  {
+    name: 'Financial Information',
+    fields: [
+      ['cost_center', 'Cost Center'],
+      ['purchase_order', 'Purchase Order No.'],
+      ['depreciation_method', 'Depreciation Method'],
+      ['purchase_cost', 'Purchase Cost (AED)', 'Number'],
+    ],
+  },
+  {
+    name: 'Location & Assignment',
+    fields: [
+      ['location_zone', 'Location Zone'],
+      ['gps_coordinates', 'GPS Coordinates'],
+      ['assigned_department', 'Assigned Department'],
+      ['custodian', 'Custodian'],
+      ['building_floor', 'Building / Floor'],
+    ],
+  },
+  {
+    name: 'Compliance & Certification',
+    fields: [
+      ['last_calibration_date', 'Last Calibration Date', 'Date'],
+      ['next_calibration_date', 'Next Calibration Date', 'Date'],
+      ['certification_no', 'Certification No.'],
+    ],
+  },
+  {
+    name: 'Maintenance Information',
+    fields: [
+      ['maintenance_frequency', 'Maintenance Frequency'],
+      ['last_service_date', 'Last Service Date', 'Date'],
+      ['next_service_date', 'Next Service Date', 'Date'],
+      ['service_provider', 'Service Provider'],
+      ['amc_contract_no', 'AMC Contract No.'],
+      ['runtime_hours', 'Runtime Hours', 'Number'],
+      ['maintenance_notes', 'Maintenance Notes', 'Text Area'],
+    ],
+  },
+  {
+    name: 'Operational Details',
+    fields: [
+      ['fuel_tank_capacity', 'Fuel Tank Capacity (L)', 'Number', true],
+      ['rated_output', 'Rated Output', 'Text', true],
+    ],
+  },
+];
+
+function standardField(group: string, [name, label, type = 'Text', required = false]: StdField, order: number): CustomField {
+  return {
+    id: `std:${name}`, scope: 'asset', appliesTo: '', appliesToId: '', name, label, type, group, groupId: '', required,
+    showInDetails: true, searchable: false, defaultValue: '', options: [], parts: [], partDefs: [], lookupSource: '',
+    description: '', tooltip: '', status: 'Active', order,
+  };
+}
+
+/** A field from the asset custom-fields API as the tab's field definition (only what the tab reads is filled). */
+function apiCustomField(f: AssetCustomFieldValue): CustomField {
+  const types = ['Text', 'Text Area', 'Number', 'Date', 'Dropdown', 'Checkbox', 'Compound', 'Lookup'];
+  const key = f.type.toLowerCase().replace(/[\s_-]/g, '');
+  const aliases: Record<string, string> = { select: 'Dropdown', multiselect: 'Dropdown', boolean: 'Checkbox', bool: 'Checkbox', textarea: 'Text Area', datetime: 'Date' };
+  const type = aliases[key] ?? types.find((t) => t.toLowerCase().replace(/\s/g, '') === key) ?? 'Text';
+  return {
+    id: f.id, scope: 'asset', appliesTo: '', appliesToId: '', name: f.name, label: f.label, type: type as CustomField['type'],
+    group: f.group, groupId: '', required: f.required, showInDetails: true, searchable: false, defaultValue: '', options: [],
+    parts: [], partDefs: [], lookupSource: '', description: '', tooltip: '', status: 'Active', order: f.order,
+  };
+}
+
+/** API fields grouped by field group, each group in field order. */
+function groupFieldValues(fields: AssetCustomFieldValue[]): { name: string; rows: FieldRow[] }[] {
+  const groups = new Map<string, FieldRow[]>();
+  for (const f of fields) {
+    if (!groups.has(f.group)) groups.set(f.group, []);
+    const value = f.type.toLowerCase() === 'checkbox' && /^(yes|no)$/i.test(f.value) ? String(/^yes$/i.test(f.value)) : f.value;
+    groups.get(f.group)!.push({ field: apiCustomField(f), value });
+  }
+  return [...groups].map(([name, rows]) => ({ name, rows: rows.sort((a, b) => a.field.order - b.field.order) }));
+}
+
+/** History kind for an activity API type, e.g. "ServiceRequest" or "service_request" is "Service Request". */
+function kindOf(type: string): HistoryKind | null {
+  const t = type.toLowerCase().replace(/[^a-z]/g, '');
+  return HISTORY_KINDS.find((k) => t.includes(k.toLowerCase().replace(/[^a-z]/g, ''))) ?? (t.includes('workorder') ? 'Maintenance' : null);
+}
 const HISTORY_PAGE = 15;
 
 
@@ -142,6 +293,12 @@ export class AssetDetailTab implements OnDestroy {
   registration: AssetRegistrationDto | null = null;
   /** Summary counts from GET api/asset-dashboard/assets/{id}/counts; null until loaded or on error (local counts are shown). */
   private apiCounts: Record<string, number> | null = null;
+  /** Overview card figures from GET api/asset-registrations/{id}/health-summary; null until loaded or on error. */
+  health: AssetHealthSummary | null = null;
+  /** Recent Activity rows from GET api/asset-registrations/{id}/activity; null until loaded or on error (local history is shown). */
+  private apiActivity: ActivityRow[] | null = null;
+  /** Components tab figures from GET api/asset-registrations/{id}/components/summary; null until loaded or on error. */
+  componentSummary: Record<string, number> | null = null;
   /** The asset's service requests from the API; null until loaded. */
   private apiRequests: ServiceRequestListItemDto[] | null = null;
   /** Field definitions from the API (empty until loaded). */
@@ -149,6 +306,11 @@ export class AssetDetailTab implements OnDestroy {
 
   // Custom fields
   fieldGroups: { name: string; rows: FieldRow[] }[] = [];
+  /**
+   * Field groups from GET api/asset-registrations/{id}/custom-fields; null until loaded or on error. Merged into the
+   * defined field groups: API values fill matching fields, API fields with no definition are added to their own group.
+   */
+  private apiFieldGroups: { name: string; rows: FieldRow[] }[] | null = null;
   emptyOnly = false;
 
   actionsOpen = false;
@@ -190,6 +352,10 @@ export class AssetDetailTab implements OnDestroy {
     this.registration = null;
     this.apiRequests = null;
     this.apiCounts = null;
+    this.health = null;
+    this.apiActivity = null;
+    this.componentSummary = null;
+    this.apiFieldGroups = null;
     this.notFound = !tag && !id; // opened without an asset
     this.loading = !this.notFound;
     this.load$.next({ tag, id }); // the Asset API record is shown when it arrives
@@ -248,6 +414,16 @@ export class AssetDetailTab implements OnDestroy {
           tree: loadComponentTree(this.componentsApi, tag).pipe(catchError(() => of(null))),
           requests: this.requestsApi.list({ assetRegistrationId: a.registration.assetRegistrationId, pageSize: 200 }).pipe(catchError(() => of(null))),
           counts: this.assetsApi.getDashboardCounts(a.registration.assetRegistrationId).pipe(catchError(() => of(null))),
+          health: this.assetsApi.getHealthSummary(a.registration.assetRegistrationId).pipe(catchError(() => of(null))),
+          activity: this.assetsApi.getActivity(a.registration.assetRegistrationId, 1, 10).pipe(catchError(() => of(null))),
+          customFields:
+            this.view === 'fields'
+              ? this.assetsApi.getAssetCustomFields(a.registration.assetRegistrationId).pipe(catchError(() => of(null)))
+              : of(null),
+          componentSummary:
+            this.view === 'components'
+              ? this.assetsApi.getComponentSummary(a.registration.assetRegistrationId).pipe(catchError(() => of(null)))
+              : of(null),
         }).pipe(
           tap((r) => {
             if (this.requestedTag !== key) return;
@@ -257,6 +433,13 @@ export class AssetDetailTab implements OnDestroy {
               this.selectedComponent = null;
             }
             if (r.counts && Object.keys(r.counts).length) this.apiCounts = r.counts;
+            this.health = r.health;
+            if (r.activity) this.apiActivity = r.activity.map((x) => this.activityRow(x));
+            if (r.componentSummary && Object.keys(r.componentSummary).length) this.componentSummary = r.componentSummary;
+            if (r.customFields) {
+              this.apiFieldGroups = groupFieldValues(r.customFields);
+              this.rebuild();
+            }
             if (r.requests) {
               this.apiRequests = r.requests.items.filter((x) => x.status !== 'Draft');
               this.rebuild();
@@ -300,8 +483,8 @@ export class AssetDetailTab implements OnDestroy {
     return status === 'Healthy' || status === 'Good' ? 'good' : status === 'Fair' ? 'warn' : status === 'Poor' ? 'serious' : 'critical';
   }
 
-  kindTone(k: HistoryKind): string {
-    return KIND_TONES[k];
+  kindTone(k: string): string {
+    return KIND_TONES[k as HistoryKind] ?? 'warn';
   }
 
   componentTone(status: string): string {
@@ -319,7 +502,52 @@ export class AssetDetailTab implements OnDestroy {
     return [...(this.detail?.status.assessments ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
   }
 
+  // Overview cards: the health-summary API first, else the asset's own data.
+
+  get healthScore(): number | null {
+    return this.health?.healthScore ?? this.detail?.health.score ?? null;
+  }
+
+  get healthStatus(): string | null {
+    // The API gives a score only; the status label still comes from the detail data when it has one
+    return this.detail?.health.status ?? null;
+  }
+
+  get criticalityMaxScore(): number {
+    return this.health?.criticalityMaxScore ?? 100;
+  }
+
+  /** When the condition was assessed: the API's assessment date, else the latest local assessment. */
+  get conditionAssessedAt(): string | null {
+    return this.health?.conditionAssessedAt ?? this.latestAssessment?.date ?? null;
+  }
+
+  get condition(): string {
+    return this.health?.condition ?? this.latestAssessment?.overall ?? this.asset.condition;
+  }
+
+  get criticality(): string {
+    return this.health?.criticality ?? this.detail?.criticality?.level ?? this.asset.criticality;
+  }
+
+  get criticalityScore(): number | null {
+    return this.health?.criticalityScore ?? this.detail?.criticality?.score ?? null;
+  }
+
+  get availability(): number | null {
+    return this.health?.availability ?? this.detail?.status.availability ?? null;
+  }
+
+  get utilization(): number | null {
+    return this.health?.utilization ?? this.detail?.status.utilization ?? null;
+  }
+
+  get lastMaintenance(): string | null {
+    return this.health?.lastMaintenance ?? this.detail?.status?.lastMaintenance ?? null;
+  }
+
   get openWorkOrders(): number {
+    if (this.health?.openWorkOrders != null) return this.health.openWorkOrders;
     return this.maintenance.workOrders.filter((w) => w.status !== 'Completed').length;
   }
 
@@ -333,7 +561,7 @@ export class AssetDetailTab implements OnDestroy {
   }
 
   get nextMaintenance(): string {
-    return this.detail?.status.lifecycle.nextMaintenance || this.record.nextMaintenance || '';
+    return this.health?.nextMaintenance || this.detail?.status.lifecycle.nextMaintenance || this.record.nextMaintenance || '';
   }
 
   /** A count from the counts API under the first of its key spellings that it has; undefined when it has none. */
@@ -471,8 +699,21 @@ export class AssetDetailTab implements OnDestroy {
     ];
   }
 
-  get recentHistory(): HistoryEvent[] {
-    return this.history.slice(0, 6);
+  /** Recent Activity: the activity API's rows when it answered, else the newest local history events. */
+  get recentHistory(): ActivityRow[] {
+    return this.apiActivity ?? this.history.slice(0, 6);
+  }
+
+  private activityRow(a: AssetActivityItem): ActivityRow {
+    const kind = kindOf(a.type);
+    return {
+      at: a.at,
+      kind: kind ?? (a.type || 'Activity'),
+      title: a.title || a.type || 'Activity',
+      detail: a.detail,
+      by: a.by,
+      path: kind ? KIND_PATHS[kind] : '/assets/history',
+    };
   }
 
   // ===== Components =====
@@ -498,7 +739,11 @@ export class AssetDetailTab implements OnDestroy {
 
   /** The asset's value for a field, from its record and detail data; '' when it has none. */
   private valueOf(f: CustomField): string {
-    const fromApi = customFieldValue(this.registration, f.name) ?? this.registrationValue(f.name);
+    const fromApi =
+      customFieldValue(this.registration, f.name) ??
+      customFieldValue(this.registration, f.label) ??
+      this.registrationValue(f.name) ??
+      this.specificationValue(f.label);
     if (fromApi !== undefined && fromApi !== null && fromApi !== '') return String(fromApi);
     const r = this.record;
     const d = this.detail;
@@ -506,7 +751,7 @@ export class AssetDetailTab implements OnDestroy {
     const life = d?.status.lifecycle;
     const m = this.maintenance.overview;
     const purchase = r.purchaseDate ?? '';
-    const warrantyEnd = purchase ? `${Number(purchase.slice(0, 4)) + m.warrantyYears}${purchase.slice(4)}` : '';
+    const warrantyEnd = purchase && Number.isFinite(m.warrantyYears) ? `${Number(purchase.slice(0, 4)) + m.warrantyYears}${purchase.slice(4)}` : '';
     const values: Record<string, string | number | undefined> = {
       warranty_expiry: warrantyEnd,
       asset_condition: this.latestAssessment?.overall,
@@ -562,21 +807,60 @@ export class AssetDetailTab implements OnDestroy {
       last_service_date: isoDay(op?.lastMaintenanceDate),
       next_service_date: isoDay(op?.nextMaintenanceDate),
       maintenance_frequency: op?.maintenanceFrequency != null ? `${op.maintenanceFrequency} ${op.maintenanceFrequencyUnit ?? ''}`.trim() : undefined,
+      supplier: p?.supplierVendor,
+      purchase_order: p?.purchaseOrderNumber,
+      purchase_cost: p?.purchaseCost ?? undefined,
+      cost_center: reg.classification?.costCenter ?? reg.locationAssignment?.assignment?.costCenter,
+      gps_coordinates: gps(loc as { latitude?: number | null; longitude?: number | null } | null | undefined),
+      maintenance_notes: reg.additionalInformation?.technical?.technicalRemarks,
     };
     const v = values[name];
-    return v === null || v === '' ? undefined : v;
+    return v === null || v === '' || (typeof v === 'number' && !Number.isFinite(v)) ? undefined : v;
+  }
+
+  /** A technical specification of the registration whose name matches the label, e.g. "Voltage" for "Voltage (V)". */
+  private specificationValue(label: string): string | undefined {
+    const key = fieldBaseKey(label);
+    const spec = this.registration?.additionalInformation?.technical?.specifications?.find((s) => fieldBaseKey(s.name ?? '') === key);
+    if (!spec?.value) return undefined;
+    // The label already names the unit for unit fields, e.g. "Voltage (V)"
+    return /\)\s*$/.test(label) || !spec.unit ? spec.value : `${spec.value} ${spec.unit}`;
   }
 
   private buildFields(): { name: string; rows: FieldRow[] }[] {
-    const fields = this.fields.filter(
+    const groups = new Map<string, FieldRow[]>();
+    const byKey = new Map<string, FieldRow>();
+    const find = (f: CustomField): FieldRow | undefined =>
+      byKey.get(fieldKey(f.label)) ?? byKey.get(fieldKey(f.name)) ?? byKey.get(fieldBaseKey(f.label));
+    const add = (group: string, row: FieldRow): void => {
+      if (!groups.has(group)) groups.set(group, []);
+      groups.get(group)!.push(row);
+      for (const k of [fieldKey(row.field.label), fieldKey(row.field.name), fieldBaseKey(row.field.label)]) if (k && !byKey.has(k)) byKey.set(k, row);
+    };
+    // 1. The standard groups, always shown
+    for (const g of STANDARD_FIELD_GROUPS)
+      g.fields.forEach((s, i) => {
+        const f = standardField(g.name, s, i);
+        add(g.name, { field: f, value: this.valueOf(f) });
+      });
+    // 2. Defined asset fields and this category's fields that are not standard ones
+    const defined = this.fields.filter(
       (f) => f.status === 'Active' && (f.scope === 'asset' || (f.scope === 'category' && f.appliesTo === this.record.category)),
     );
-    const groups = new Map<string, FieldRow[]>();
-    for (const f of fields) {
-      const name = f.group || 'Other';
-      if (!groups.has(name)) groups.set(name, []);
-      groups.get(name)!.push({ field: f, value: this.valueOf(f) });
+    for (const f of defined) {
+      const row = find(f);
+      if (row) {
+        if (!row.value) row.value = this.valueOf(f);
+      } else add(f.group || 'Other', { field: f, value: this.valueOf(f) });
     }
+    // 3. Values from the custom-fields API fill matching fields; the rest go in their own group
+    for (const g of this.apiFieldGroups ?? [])
+      for (const r of g.rows) {
+        const row = find(r.field);
+        if (row) {
+          if (r.value) row.value = r.value;
+        } else add(g.name, r);
+      }
     return [...groups].map(([name, rows]) => ({ name, rows: rows.sort((a, b) => a.field.order - b.field.order) }));
   }
 
@@ -600,6 +884,11 @@ export class AssetDetailTab implements OnDestroy {
   displayValue(r: FieldRow): string {
     if (!r.value) return '';
     if (r.field.type === 'Checkbox') return r.value === 'true' ? 'Yes' : 'No';
+    if (r.field.type === 'Date') {
+      // Shown as "07 Nov 2026"; a value that is not a date is shown as it is (the date pipe would throw).
+      const d = /^\d{4}-\d{2}-\d{2}/.test(r.value) ? new Date(r.value.slice(0, 10) + 'T00:00:00') : new Date(NaN);
+      if (!Number.isNaN(d.getTime())) return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
     return r.value;
   }
 

@@ -445,11 +445,25 @@ export class AssetRelationship {
     const registered = await firstValueFrom(this.api.findAssetOrNull(tag));
     if (registered) {
       try {
-        const [saved, related, register] = await firstValueFrom(
+        // One call for the saved links and components; the older list + related calls only if it fails
+        const [details, register] = await firstValueFrom(
+          forkJoin([
+            this.api.getAssetDetails(registered.id).pipe(catchError(() => of(null))),
+            this.api.getAssets().pipe(catchError(() => of([] as RegisteredAsset[]))),
+          ]),
+        );
+        if (details) {
+          const related: RelatedAssetsDto[] = [{
+            relationshipId: details.saved?.id || null, mainAssetRegistrationId: registered.id, mainAssetName: registered.name,
+            mainAssetTag: registered.assetTag, mainCategory: registered.category, mainLocation: registered.location,
+            status: registered.status, subAssetCount: details.components.length, subAssets: details.components,
+          }];
+          return { header: apiHeader(registered), graph: buildApiGraph(registered, details.saved, related, register) };
+        }
+        const [saved, related] = await firstValueFrom(
           forkJoin([
             this.api.getByMainAsset(registered.id),
             this.api.getRelated([registered.id]).pipe(catchError(() => of([] as RelatedAssetsDto[]))),
-            this.api.getAssets().pipe(catchError(() => of([] as RegisteredAsset[]))),
           ]),
         );
         return { header: apiHeader(registered), graph: buildApiGraph(registered, saved, related, register) };

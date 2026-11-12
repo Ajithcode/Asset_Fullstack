@@ -188,6 +188,19 @@ function toFileRequest(item: ImageUploadItem, url: string): AssetImageFileReques
   };
 }
 
+/** The image record(s) in an upload response: the record itself, a list, or a { data / image / items } wrapper. */
+function createdRecords(res: unknown): Record<string, unknown>[] {
+  const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+  if (Array.isArray(res)) return res.filter(isObj);
+  if (!isObj(res)) return [];
+  for (const k of ['data', 'image', 'items', 'images']) {
+    const v = res[k];
+    if (Array.isArray(v)) return v.filter(isObj);
+    if (isObj(v)) return [v];
+  }
+  return [res];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AssetImagesService {
   private readonly http = inject(HttpClient);
@@ -206,6 +219,39 @@ export class AssetImagesService {
         .pipe(map((res) => splitAssetFiles(res).images.map((f) => toApiImage(fromFileRecord(f, assetRegistrationId)))));
     }
     return this.lookup.fetchAll<AssetImageDto>(this.apiUrl, {}).pipe(map((items) => items.map((d) => toApiImage(d))));
+  }
+
+  /**
+   * POST /api/asset-registrations/{assetRegistrationId}/images (multipart/form-data): uploads one image and creates it
+   * on that asset in one call. Sent for every selected asset and every chosen file.
+   */
+  uploadToAssets(assetRegistrationIds: string[], items: ImageUploadItem[], value: ImageUploadValue): Observable<ApiImage[]> {
+    const calls = assetRegistrationIds.flatMap((id) => items.map((item) => this.uploadToAsset(id, item, value)));
+    return forkJoin(calls).pipe(map((lists) => lists.flat()));
+  }
+
+  private uploadToAsset(assetRegistrationId: string, item: ImageUploadItem, value: ImageUploadValue): Observable<ApiImage[]> {
+    const form = new FormData();
+    form.append('file', item.file, item.file.name);
+    form.append('imageName', item.title.trim() || item.file.name);
+    form.append('imageType', value.type);
+    for (const tag of value.tags) form.append('tags', tag);
+    if (value.location.trim()) form.append('location', value.location.trim());
+    if (value.remarks.trim()) form.append('remarks', value.remarks.trim());
+    if (value.description.trim()) form.append('description', value.description.trim());
+    form.append('fileName', item.file.name);
+    if (item.file.type) form.append('contentType', item.file.type);
+    form.append('fileSize', String(item.file.size));
+    // The API rejects a zero size, so send none when the browser could not read it
+    if (item.width > 0) form.append('width', String(item.width));
+    if (item.height > 0) form.append('height', String(item.height));
+    const by = this.auth.getUserEmail();
+    if (by) form.append('createdBy', by);
+    form.append('clientId', TENANT.clientId);
+    form.append('tenantId', TENANT.tenantId);
+    return this.http
+      .post<unknown>(`${ASSET_API}asset-registrations/${encodeURIComponent(assetRegistrationId)}/images`, form)
+      .pipe(map((res) => createdRecords(res).map((r) => toApiImage(fromFileRecord(r, assetRegistrationId)))));
   }
 
   /** Uploads each file (POST /api/media/upload, category "asset-images"), then POST /api/asset-images. */

@@ -102,7 +102,8 @@
     'structure health activity'
     'structure replace docs';
   gap: 14px;
-  align-items: start;
+  /* Cards in a row share its height, so the right column lines up with the middle one. */
+  align-items: stretch;
 }
 
 .area-structure { grid-area: structure; }
@@ -459,4 +460,45 @@ button.caret:hover {
   .donut {
     align-self: center;
   }
+}
+
+/* Activity and Documents cards: fill the row height; an empty list centres its message and the link stays at the bottom. */
+.area-activity,
+.area-docs {
+  display: flex;
+  flex-direction: column;
+}
+
+.area-activity > .timeline,
+.area-docs > .doc-list {
+  flex: 1 1 auto;
+}
+
+.area-activity > .view-all,
+.area-docs > .view-all {
+  align-self: flex-start;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.timeline.is-empty,
+.doc-list.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  border: 1px dashed #e5e7eb;
+  border-radius: 10px;
+  background: #fafafb;
+}
+
+.timeline.is-empty::before {
+  display: none;
+}
+
+.timeline.is-empty li.muted,
+.doc-list.is-empty li.muted {
+  padding: 0;
+  border: 0;
+  text-align: center;
 }

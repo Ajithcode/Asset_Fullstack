@@ -24,6 +24,16 @@
   font-weight: 400;
 }
 
+/* A wide row (Description, Keywords, Remarks) starts on its own line, so its value sits beside its label. */
+.info-grid .wide-label {
+  grid-column-start: 1;
+}
+
+/* The last registration card on its own fills the row instead of leaving an empty half. */
+.mt-row > .card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .sub-inline {
   font-weight: 400;
   color: var(--sc-text-muted);
@@ -117,14 +127,22 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  align-items: start;
+  /* Cards side by side share one height, so the rows below line up. */
+  align-items: stretch;
+}
+
+/* The last group on its own (e.g. Additional Fields) fills the row instead of leaving an empty half. */
+.field-groups > .card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
 .field-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(140px, 45%) minmax(0, 1fr);
+  column-gap: 16px;
   margin: 0;
   font-size: 13.5px;
+  align-content: start;
 }
 
 .field-list dt,
@@ -211,4 +229,18 @@
   .info-grid .span-3 {
     grid-column: auto;
   }
+}
+
+/* Overview and Components tabs: the content below the asset header and tabs scrolls inside a fixed-height area. */
+.overview-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: calc(100vh - 300px);
+  min-height: 420px;
+  overflow-y: auto;
+  /* Room for the scrollbar, so it never covers the right-hand cards. */
+  scrollbar-gutter: stable;
+  padding-right: 8px;
+  scrollbar-width: thin;
 }

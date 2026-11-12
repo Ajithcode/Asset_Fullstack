@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, forkJoin, map } from 'rxjs';
 import { AuthService } from 'shared-ui';
 import { ASSET_API, TENANT } from '../services/asset-api';
 import { AssetDocument, DocVersion } from '../asset-details/asset-details';
@@ -188,6 +188,19 @@ function toFileBody(file: StoredFile | null): FileBody {
     : { fileName: null, fileUrl: null, contentType: null, fileSize: null };
 }
 
+/** The document record(s) in an upload response: the record itself, a list, or a { data / document / items } wrapper. */
+function createdRecords(res: unknown): Record<string, unknown>[] {
+  const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+  if (Array.isArray(res)) return res.filter(isObj);
+  if (!isObj(res)) return [];
+  for (const k of ['data', 'document', 'items', 'documents']) {
+    const v = res[k];
+    if (Array.isArray(v)) return v.filter(isObj);
+    if (isObj(v)) return [v];
+  }
+  return [res];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AssetDocumentsService {
   private readonly http = inject(HttpClient);
@@ -213,6 +226,38 @@ export class AssetDocumentsService {
     return this.lookup
       .uploadFile(file, 'asset-documents')
       .pipe(map((url) => ({ url, name: file.name, contentType: file.type || null, size: file.size })));
+  }
+
+  /**
+   * POST /api/asset-registrations/{assetRegistrationId}/documents (multipart/form-data): uploads the file and creates
+   * the document on that asset in one call. Sent once per selected asset.
+   */
+  uploadToAssets(assetRegistrationIds: string[], value: DocumentFormValue, file: File): Observable<ApiDocument[]> {
+    return forkJoin(assetRegistrationIds.map((id) => this.uploadToAsset(id, value, file))).pipe(map((lists) => lists.flat()));
+  }
+
+  private uploadToAsset(assetRegistrationId: string, value: DocumentFormValue, file: File): Observable<ApiDocument[]> {
+    const body = toBody(value);
+    const form = new FormData();
+    form.append('file', file, file.name);
+    form.append('documentName', body.documentName);
+    form.append('documentType', body.documentType);
+    form.append('lifecycleStage', body.lifecycleStage);
+    form.append('version', body.version);
+    if (body.expiryDate) form.append('expiryDate', body.expiryDate);
+    if (body.description) form.append('description', body.description);
+    for (const tag of body.tags) form.append('tags', tag);
+    form.append('status', body.status);
+    form.append('fileName', file.name);
+    if (file.type) form.append('contentType', file.type);
+    form.append('fileSize', String(file.size));
+    const by = this.auth.getUserEmail();
+    if (by) form.append('createdBy', by);
+    form.append('clientId', TENANT.clientId);
+    form.append('tenantId', TENANT.tenantId);
+    return this.http
+      .post<unknown>(`${ASSET_API}asset-registrations/${encodeURIComponent(assetRegistrationId)}/documents`, form)
+      .pipe(map((res) => createdRecords(res).map((r) => toApiDocument(fromFileRecord(r, assetRegistrationId)))));
   }
 
   /** POST /api/asset-documents: one document per asset, sharing the stored file. */

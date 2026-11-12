@@ -737,9 +737,16 @@ export class AssetDocuments implements OnDestroy {
     // One document per selected asset; they share the uploaded file
     const ids = u.assets.map((tag) => this.assetOptions.find((a) => a.tag === tag)?.id ?? tag);
     this.runSave(
-      this.api.uploadFile(u.file).pipe(switchMap((file: StoredFile) => this.api.create(ids, value, file))),
+      this.api.uploadToAssets(ids, value, u.file),
       (created) => {
-        if (!created.length) return;
+        if (!created.length) {
+          // The API saved the document but returned no record: reload the list to show it
+          this.upload = null;
+          this.showToast(`${value.name.trim()} uploaded.`);
+          if (this.allAssets) this.loadAll();
+          else this.load(this.requestedTag || null);
+          return;
+        }
         created.forEach((d) => d.versions.forEach((v) => (v.note = note)));
         this.documents = [...created, ...this.documents];
         this.upload = null;

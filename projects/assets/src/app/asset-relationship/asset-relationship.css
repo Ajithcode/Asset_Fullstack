@@ -580,7 +580,27 @@ select.control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 14px;
-  align-items: start;
+  /* The details panel is as tall as the diagram beside it */
+  align-items: stretch;
+}
+
+.details-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Nothing selected: the hint sits centred in the panel instead of hugging the top */
+.details-card > .empty-line {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  margin-top: 4px;
+  padding: 16px;
+  border: 1px dashed #e5e7eb;
+  border-radius: 10px;
+  background: #fafafb;
 }
 
 /* Several assets opened together: one diagram each; the active one has the details panel beside it */

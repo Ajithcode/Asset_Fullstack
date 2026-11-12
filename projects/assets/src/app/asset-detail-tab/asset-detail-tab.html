@@ -67,38 +67,38 @@
   </nav>
 
   <!-- ===================== Overview ===================== -->
-  <ng-container *ngIf="view === 'overview'">
+  <div *ngIf="view === 'overview'" class="overview-scroll">
     <div class="kpis">
       <div class="card kpi">
         <span class="kpi-icon"><lucide-icon [img]="icons.HeartPulse" [size]="22"></lucide-icon></span>
         <div class="kpi-body">
           <h3>Health Score</h3>
-          <strong class="kpi-value">{{ detail ? detail.health.score + '%' : '-' }}</strong>
-          <span *ngIf="detail" class="pill pill--xs" [ngClass]="'pill--' + healthTone(detail.health.status)"><span class="dot"></span>{{ detail.health.status }}</span>
+          <strong class="kpi-value">{{ healthScore !== null ? healthScore + '%' : '-' }}</strong>
+          <span *ngIf="healthStatus" class="pill pill--xs" [ngClass]="'pill--' + healthTone(healthStatus)"><span class="dot"></span>{{ healthStatus }}</span>
         </div>
       </div>
       <div class="card kpi">
         <span class="kpi-icon"><lucide-icon [img]="icons.Activity" [size]="22"></lucide-icon></span>
         <div class="kpi-body">
           <h3>Condition</h3>
-          <span class="pill pill--lg" [ngClass]="'pill--' + conditionTone(latestAssessment?.overall ?? asset.condition)"><span class="dot"></span>{{ latestAssessment?.overall ?? asset.condition }}</span>
-          <p *ngIf="latestAssessment as a">Assessed {{ a.date | date: 'dd MMM yyyy' }}</p>
+          <span class="pill pill--lg" [ngClass]="'pill--' + conditionTone(condition)"><span class="dot"></span>{{ condition }}</span>
+          <p *ngIf="conditionAssessedAt as at">Assessed {{ at | date: 'dd MMM yyyy' }}</p>
         </div>
       </div>
       <div class="card kpi">
         <span class="kpi-icon"><lucide-icon [img]="icons.ShieldAlert" [size]="22"></lucide-icon></span>
         <div class="kpi-body">
           <h3>Criticality</h3>
-          <span class="pill pill--lg" [ngClass]="'pill--' + criticalityTone(detail?.criticality?.level ?? asset.criticality)"><span class="dot"></span>{{ detail?.criticality?.level ?? asset.criticality }}</span>
-          <p *ngIf="detail">Score {{ detail.criticality.score }} / 100</p>
+          <span class="pill pill--lg" [ngClass]="'pill--' + criticalityTone(criticality)"><span class="dot"></span>{{ criticality }}</span>
+          <p *ngIf="criticalityScore !== null">Score {{ criticalityScore }} / {{ criticalityMaxScore }}</p>
         </div>
       </div>
       <div class="card kpi">
         <span class="kpi-icon"><lucide-icon [img]="icons.Timer" [size]="22"></lucide-icon></span>
         <div class="kpi-body">
           <h3>Availability</h3>
-          <strong class="kpi-value">{{ detail ? detail.status.availability + '%' : '-' }}</strong>
-          <p *ngIf="detail">Utilization {{ detail.status.utilization }}%</p>
+          <strong class="kpi-value">{{ availability !== null ? availability + '%' : '-' }}</strong>
+          <p *ngIf="utilization !== null">Utilization {{ utilization }}%</p>
         </div>
       </div>
       <div class="card kpi">
@@ -106,7 +106,7 @@
         <div class="kpi-body">
           <h3>Next Maintenance</h3>
           <strong class="kpi-date" [class.text-danger]="nextMaintenance && nextMaintenance < today">{{ nextMaintenance ? (nextMaintenance | date: 'dd MMM yyyy') : '-' }}</strong>
-          <p *ngIf="detail?.status?.lastMaintenance as last">Last {{ last | date: 'dd MMM yyyy' }}</p>
+          <p *ngIf="lastMaintenance as last">Last {{ last | date: 'dd MMM yyyy' }}</p>
         </div>
       </div>
       <div class="card kpi">
@@ -178,7 +178,7 @@
         </div>
         <dl class="info-grid">
           <ng-container *ngFor="let r of s.rows">
-            <dt>{{ r.label }}</dt><dd [class.span-3]="r.wide">{{ r.value || '-' }}</dd>
+            <dt [class.wide-label]="r.wide">{{ r.label }}</dt><dd [class.span-3]="r.wide">{{ r.value || '-' }}</dd>
           </ng-container>
         </dl>
       </div>
@@ -200,22 +200,18 @@
       </div>
       <ng-container *ngTemplateOutlet="historyTable; context: { rows: recentHistory }"></ng-container>
     </div>
-  </ng-container>
+  </div>
 
   <!-- ===================== Components ===================== -->
-  <ng-container *ngIf="view === 'components'">
-    <div *ngIf="!tree.length" class="card not-found">
-      <h2>No components recorded</h2>
-      <p>No components, parts or sub-assets are recorded for <strong>{{ asset.tag }}</strong> ({{ asset.name }}).</p>
-      <button type="button" class="btn btn-primary" (click)="go('/assets/components')">Add Components</button>
-    </div>
-
-    <ng-container *ngIf="tree.length">
+  <div *ngIf="view === 'components'" class="overview-scroll">
+    <!-- Always shown, so an asset without components still gets the summary layout with empty states -->
+    <ng-container>
       <app-component-overview
         [components]="tree"
         [assetName]="asset.name"
         [assetTag]="asset.tag"
         [iconFor]="iconFor"
+        [summary]="componentSummary"
         (openComponent)="selectedComponent = $event"
         (openTab)="onComponentTab($event)"
       ></app-component-overview>
@@ -241,6 +237,12 @@
                   <ng-container *ngIf="c.lifeTotal; else dash">
                     <span class="life"><span [style.width.%]="lifePct(c)" [class.is-high]="lifePct(c) >= 80"></span></span>{{ lifePct(c) }}%
                   </ng-container>
+                </td>
+              </tr>
+              <tr *ngIf="!components.length">
+                <td colspan="7" class="empty-line">
+                  {{ loading ? 'Loading…' : 'No components, parts or sub-assets are recorded for this asset.' }}
+                  <button *ngIf="!loading" type="button" class="link-btn" (click)="go('/assets/components')">Add Components</button>
                 </td>
               </tr>
             </tbody>
@@ -272,7 +274,7 @@
         </dl>
       </div>
     </ng-container>
-  </ng-container>
+  </div>
 
   <!-- ===================== Custom Fields ===================== -->
   <ng-container *ngIf="view === 'fields'">
@@ -284,7 +286,7 @@
         <label class="check"><input type="checkbox" [(ngModel)]="emptyOnly" />Show empty only</label>
         <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
       </div>
-      <p class="hint">Values recorded for {{ asset.tag }}. The fields themselves are defined for all assets, plus the {{ record.category }} category, in
+      <p class="hint">Values recorded for {{ asset.tag }}. The fields themselves are defined in
         <a routerLink="/assets/custom-fields">Assets › Custom Fields</a>.</p>
       <p *ngIf="loading" class="hint">Loading asset data…</p>
     </div>
@@ -296,7 +298,7 @@
           <ng-container *ngFor="let r of g.rows">
             <dt>{{ r.field.label }}<em *ngIf="r.field.required" title="Required">*</em></dt>
             <dd [class.is-empty]="!r.value">
-              <ng-container *ngIf="r.value; else notSet">{{ r.field.type === 'Date' ? (r.value | date: 'dd MMM yyyy') : displayValue(r) }}</ng-container>
+              <ng-container *ngIf="r.value; else notSet">{{ displayValue(r) }}</ng-container>
               <ng-template #notSet><span [class.text-danger]="r.field.required">{{ r.field.required ? 'Missing' : 'Not set' }}</span></ng-template>
             </dd>
           </ng-container>
@@ -334,7 +336,7 @@
         <thead><tr><th>Date</th><th>Type</th><th>Event</th><th>By</th></tr></thead>
         <tbody>
           <tr *ngFor="let e of rows" class="row-link" (click)="go(e.path)" title="Open the related tab">
-            <td class="nowrap">{{ e.at | date: (e.at.length > 10 ? 'dd MMM yyyy, HH:mm' : 'dd MMM yyyy') }}</td>
+            <td class="nowrap">{{ e.at ? (e.at | date: (e.at.length > 10 ? 'dd MMM yyyy, HH:mm' : 'dd MMM yyyy')) : '-' }}</td>
             <td><span class="tag" [ngClass]="'tag--' + kindTone(e.kind)">{{ e.kind }}</span></td>
             <td class="wrap"><strong>{{ e.title }}</strong><small *ngIf="e.detail" class="sub">{{ e.detail }}</small></td>
             <td>{{ e.by || '-' }}</td>

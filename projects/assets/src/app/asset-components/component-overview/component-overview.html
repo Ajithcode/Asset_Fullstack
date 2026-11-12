@@ -2,7 +2,7 @@
 <div class="kpis">
   <div class="card kpi">
     <span class="kpi-icon"><lucide-icon [img]="icons.Settings" [size]="22"></lucide-icon></span>
-    <div><span class="kpi-label">Total Components</span><strong class="kpi-value">{{ all.length }}</strong></div>
+    <div><span class="kpi-label">Total Components</span><strong class="kpi-value">{{ total }}</strong></div>
   </div>
   <div class="card kpi">
     <span class="kpi-icon kpi-icon--good"><lucide-icon [img]="icons.CircleCheck" [size]="22"></lucide-icon></span>
@@ -81,7 +81,7 @@
       <h3 class="grow">Component Health Status</h3>
     </div>
     <div class="donut-wrap">
-      <svg class="donut" viewBox="0 0 42 42" role="img" [attr.aria-label]="'Component status breakdown of ' + all.length + ' components'">
+      <svg class="donut" viewBox="0 0 42 42" role="img" [attr.aria-label]="'Component status breakdown of ' + total + ' components'">
         <circle cx="21" cy="21" r="15.9155" class="donut-track"></circle>
         <circle
           *ngFor="let a of arcs"
@@ -95,7 +95,7 @@
         >
           <title>{{ a.label }}: {{ a.count }} ({{ percent(a.count) }}%)</title>
         </circle>
-        <text x="21" y="21" text-anchor="middle" class="donut-total">{{ all.length }}</text>
+        <text x="21" y="21" text-anchor="middle" class="donut-total">{{ total }}</text>
         <text x="21" y="26.5" text-anchor="middle" class="donut-caption">Components</text>
       </svg>
       <ul class="legend">
@@ -114,7 +114,7 @@
       <span class="icon-tile"><lucide-icon [img]="icons.History" [size]="18"></lucide-icon></span>
       <h3 class="grow">Recent Component Activity</h3>
     </div>
-    <ol class="timeline">
+    <ol class="timeline" [class.is-empty]="!activity.length">
       <li *ngFor="let item of activity" (click)="openTab.emit({ tab: 'service', component: item.component })" tabindex="0" (keydown.enter)="openTab.emit({ tab: 'service', component: item.component })">
         <span class="t-dot" [ngClass]="activityDot(item.record)"></span>
         <span class="t-date">{{ item.record.date | date: 'dd MMM yyyy' }}</span>
@@ -168,7 +168,7 @@
       <span class="icon-tile"><lucide-icon [img]="icons.Files" [size]="18"></lucide-icon></span>
       <h3 class="grow">Component Documents</h3>
     </div>
-    <ul class="doc-list">
+    <ul class="doc-list" [class.is-empty]="!recentDocuments.length">
       <li *ngFor="let item of recentDocuments">
         <span class="doc-icon"><lucide-icon [img]="icons.FileText" [size]="16"></lucide-icon></span>
         <span class="doc-main">

@@ -372,6 +372,192 @@ export function normaliseCounts(res: unknown): Record<string, number> {
   return out;
 }
 
+/** GET api/asset-registrations/{id}/health-summary response. */
+interface HealthSummaryDto {
+  assetRegistrationId?: string;
+  condition?: {
+    value?: string | null;
+    healthScore?: number | null;
+    source?: string | null;
+    assessedAt?: string | null;
+    assessedBy?: string | null;
+  } | null;
+  criticality?: {
+    level?: string | null;
+    score?: number | null;
+    maxScore?: number | null;
+    source?: string | null;
+    assessedAt?: string | null;
+    nextReviewDate?: string | null;
+    assessedBy?: string | null;
+  } | null;
+  availability?: number | null;
+  utilization?: number | null;
+  nextMaintenanceDate?: string | null;
+  lastMaintenanceDate?: string | null;
+  openWorkOrders?: number | null;
+}
+
+/** The Overview cards' figures from the health summary; null where the API has no value. */
+export interface AssetHealthSummary {
+  healthScore: number | null;
+  condition: string | null;
+  conditionAssessedAt: string | null;
+  criticality: string | null;
+  criticalityScore: number | null;
+  criticalityMaxScore: number;
+  availability: number | null;
+  utilization: number | null;
+  nextMaintenance: string | null;
+  lastMaintenance: string | null;
+  openWorkOrders: number | null;
+}
+
+export function normaliseHealthSummary(res: HealthSummaryDto | null): AssetHealthSummary {
+  const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const text = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v : null);
+  const c = res?.condition;
+  const k = res?.criticality;
+  return {
+    healthScore: num(c?.healthScore),
+    condition: text(c?.value),
+    conditionAssessedAt: text(c?.assessedAt),
+    criticality: text(k?.level),
+    criticalityScore: num(k?.score),
+    criticalityMaxScore: num(k?.maxScore) ?? 100,
+    availability: num(res?.availability),
+    utilization: num(res?.utilization),
+    nextMaintenance: text(res?.nextMaintenanceDate),
+    lastMaintenance: text(res?.lastMaintenanceDate),
+    openWorkOrders: num(res?.openWorkOrders),
+  };
+}
+
+/** One row of GET api/asset-registrations/{id}/activity. */
+export interface AssetActivityItem {
+  /** ISO date-time */
+  at: string;
+  type: string;
+  title: string;
+  detail: string;
+  by: string;
+}
+
+/**
+ * Reads the activity response: a list, or a page object with items / data / results. Field names are matched loosely
+ * (e.g. occurredAt / timestamp / createdAt for the time) until the API's exact shape is confirmed.
+ */
+/** First field whose name looks like a time (…At, …On, …Date, …Time) and whose value parses as a date; '' when none. */
+function dateField(r: Record<string, unknown>): string {
+  for (const [k, v] of Object.entries(r)) {
+    if (!/(at|on|date|time|timestamp)$/i.test(k) || typeof v !== 'string') continue;
+    if (/^\d{4}-\d{2}-\d{2}/.test(v) && !Number.isNaN(Date.parse(v))) return v;
+  }
+  return '';
+}
+
+export function normaliseActivity(res: unknown): AssetActivityItem[] {
+  const page = res as Record<string, unknown> | null;
+  const list = Array.isArray(res) ? res : [page?.['items'], page?.['data'], page?.['results'], page?.['activities']].find(Array.isArray) ?? [];
+  const str = (r: Record<string, unknown>, ...keys: string[]): string => {
+    for (const k of keys) {
+      const v = r[k];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+      if (v && typeof v === 'object') {
+        const o = v as Record<string, unknown>;
+        const n = o['name'] ?? o['fullName'] ?? o['userName'];
+        if (typeof n === 'string' && n.trim()) return n.trim();
+      }
+    }
+    return '';
+  };
+  return (list as unknown[])
+    .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+    .map((r) => {
+      const title = str(r, 'title', 'action', 'activity', 'event', 'eventName', 'summary', 'message', 'description');
+      const detail = str(r, 'description', 'details', 'detail', 'remarks', 'notes', 'changes');
+      return {
+        at: str(r, 'occurredAt', 'timestamp', 'activityDate', 'performedAt', 'createdAt', 'date', 'eventDate') || dateField(r),
+        type: str(r, 'type', 'activityType', 'category', 'module', 'entityType', 'source'),
+        title,
+        detail: detail === title ? '' : detail,
+        by: str(r, 'performedBy', 'performedByName', 'userName', 'user', 'createdBy', 'actor', 'by'),
+      };
+    })
+    .filter((a) => a.at || a.title);
+}
+
+/** One custom field of an asset with its value, from GET api/asset-registrations/{id}/custom-fields. */
+export interface AssetCustomFieldValue {
+  id: string;
+  name: string;
+  label: string;
+  type: string;
+  group: string;
+  required: boolean;
+  order: number;
+  /** '' when not set; Checkbox values are 'true' / 'false'. */
+  value: string;
+}
+
+/** A field value as text: lists and compound parts joined, booleans as 'true' / 'false'. */
+function fieldValueText(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'string') return v.trim();
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (Array.isArray(v)) return v.map(fieldValueText).filter(Boolean).join(', ');
+  if (typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    if ('value' in o && Object.keys(o).length <= 3) return fieldValueText(o['value']);
+    return Object.entries(o).map(([k, x]) => (fieldValueText(x) ? `${k}: ${fieldValueText(x)}` : '')).filter(Boolean).join(', ');
+  }
+  return '';
+}
+
+/**
+ * Reads the custom-fields response: a list of fields, a { items / fields / data } wrapper, or groups
+ * ({ groups: [{ groupName, fields: [...] }] }). Field names are matched loosely until the exact shape is confirmed.
+ */
+export function normaliseAssetCustomFields(res: unknown): AssetCustomFieldValue[] {
+  const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+  const s = (r: Record<string, unknown>, ...keys: string[]): string => {
+    for (const k of keys) if (typeof r[k] === 'string' && (r[k] as string).trim()) return (r[k] as string).trim();
+    return '';
+  };
+  const out: AssetCustomFieldValue[] = [];
+  const addField = (r: Record<string, unknown>, group: string): void => {
+    const def = isObj(r['field']) ? (r['field'] as Record<string, unknown>) : isObj(r['definition']) ? (r['definition'] as Record<string, unknown>) : r;
+    const label = s(def, 'label', 'fieldLabel', 'displayName', 'fieldName', 'name');
+    if (!label || r['isActive'] === false) return;
+    const valueKey = ['value', 'fieldValue', 'displayValue', 'values'].find((k) => k in r);
+    const order = Number(def['order'] ?? def['displayOrder'] ?? def['sortOrder'] ?? out.length);
+    out.push({
+      id: s(def, 'id', 'fieldId', 'customFieldId') || label,
+      name: s(def, 'name', 'fieldName', 'key') || label,
+      label,
+      type: s(def, 'type', 'fieldType', 'dataType') || 'Text',
+      group: s(r, 'group', 'groupName', 'fieldGroup', 'category') || s(def, 'group', 'groupName', 'fieldGroup') || group || 'Other',
+      required: def['required'] === true || def['isRequired'] === true || r['required'] === true || r['isRequired'] === true,
+      order: Number.isFinite(order) ? order : out.length,
+      value: valueKey ? fieldValueText(r[valueKey]) : '',
+    });
+  };
+  const walk = (list: unknown[], group: string): void => {
+    for (const item of list) {
+      if (!isObj(item)) continue;
+      const inner = ['fields', 'items', 'customFields'].map((k) => item[k]).find(Array.isArray) as unknown[] | undefined;
+      if (inner) walk(inner, s(item, 'groupName', 'name', 'group', 'title') || group);
+      else addField(item, group);
+    }
+  };
+  if (Array.isArray(res)) walk(res, '');
+  else if (isObj(res)) {
+    const list = ['groups', 'fields', 'items', 'customFields', 'data'].map((k) => res[k]).find(Array.isArray) as unknown[] | undefined;
+    if (list) walk(list, '');
+  }
+  return out;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AssetDetailsService {
   private readonly http = inject(HttpClient);
@@ -382,6 +568,37 @@ export class AssetDetailsService {
    * GET api/asset-dashboard/assets/{assetRegistrationId}/counts: the asset's summary counts (components, documents, …).
    * Keys are normalised to lower case without a "count"/"total" prefix or suffix, e.g. { components: 3, workorders: 2 }.
    */
+  /** GET api/asset-registrations/{assetRegistrationId}/health-summary: figures for the Overview cards. */
+  getHealthSummary(assetRegistrationId: string): Observable<AssetHealthSummary> {
+    return this.http.get<HealthSummaryDto | null>(`${this.base}/${encodeURIComponent(assetRegistrationId)}/health-summary`).pipe(map(normaliseHealthSummary));
+  }
+
+  /** GET api/asset-registrations/{assetRegistrationId}/activity?page=&pageSize=: the asset's recent activity, newest first. */
+  getActivity(assetRegistrationId: string, page = 1, pageSize = 10): Observable<AssetActivityItem[]> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    return this.http
+      .get<unknown>(`${this.base}/${encodeURIComponent(assetRegistrationId)}/activity`, { params })
+      .pipe(map(normaliseActivity));
+  }
+
+  /**
+   * GET api/asset-registrations/{assetRegistrationId}/components/summary: component totals, status counts and health.
+   * Keys are normalised like the counts API, e.g. { components: 5, active: 3, undermaintenance: 1, averagehealth: 72 }.
+   */
+  getComponentSummary(assetRegistrationId: string): Observable<Record<string, number>> {
+    return this.http
+      .get<unknown>(`${this.base}/${encodeURIComponent(assetRegistrationId)}/components/summary`)
+      .pipe(map(normaliseCounts));
+  }
+
+  /** GET api/asset-registrations/{assetRegistrationId}/custom-fields?emptyOnly=: the asset's custom fields and values. */
+  getAssetCustomFields(assetRegistrationId: string, emptyOnly = false): Observable<AssetCustomFieldValue[]> {
+    const params = new HttpParams().set('emptyOnly', emptyOnly);
+    return this.http
+      .get<unknown>(`${this.base}/${encodeURIComponent(assetRegistrationId)}/custom-fields`, { params })
+      .pipe(map(normaliseAssetCustomFields));
+  }
+
   getDashboardCounts(assetRegistrationId: string): Observable<Record<string, number>> {
     const url = `${environment.assetDashboardApiUrl}api/asset-dashboard/assets/${encodeURIComponent(assetRegistrationId)}/counts`;
     return this.http.get<unknown>(url).pipe(map(normaliseCounts));

@@ -748,10 +748,16 @@ export class AssetImages implements OnDestroy {
     const items = u.items.map((p) => ({ file: p.file, title: p.title, width: p.width, height: p.height }));
     const value = { type: u.type, tags: splitTags(u.tags), location: u.location, description: u.description, remarks: u.remarks };
     this.runSave(
-      this.api.create(ids, items, value),
+      this.api.uploadToAssets(ids, items, value),
       (added) => {
         this.closeUpload();
-        if (!added.length) return;
+        if (!added.length) {
+          // The API saved the images but returned no records: reload the list to show them
+          this.showToast(`${u.items.length} image${u.items.length > 1 ? 's' : ''} uploaded.`);
+          if (this.allAssets) this.loadAll();
+          else this.load(this.requestedTag || null);
+          return;
+        }
         this.images = [...added, ...this.images];
         this.clearFilters();
         this.page = 1;
