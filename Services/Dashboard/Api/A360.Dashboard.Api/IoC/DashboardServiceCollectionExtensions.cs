@@ -41,7 +41,8 @@ public static class DashboardServiceCollectionExtensions
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Dashboard",
-            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>(),
+            serviceProvider.GetService<IHttpContextAccessor>()));
 
         services.AddScoped<DashboardRepository>();
         services.AddScoped<IDashboardRepository>(serviceProvider => serviceProvider.GetRequiredService<DashboardRepository>());

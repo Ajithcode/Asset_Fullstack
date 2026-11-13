@@ -1,3 +1,4 @@
+using A360.Repository.Activity;
 using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using A360.ReportAnalytics.Api.Analytics;
@@ -22,7 +23,8 @@ public static class InteractiveDashboardDataEndpoints
         group.MapGet("/{dashboardId}/data", GetDashboardDataAsync).WithName("GetInteractiveDashboardData");
         group.MapGet("/{dashboardId}/widgets/{widgetId}/data", GetWidgetDataAsync).WithName("GetInteractiveDashboardWidgetData");
         group.MapPost("/widgets/preview", PreviewWidgetAsync).WithName("PreviewInteractiveDashboardWidget");
-        group.MapGet("/{dashboardId}/export", ExportDashboardAsync).WithName("ExportInteractiveDashboard");
+        group.MapGet("/{dashboardId}/export", ExportDashboardAsync).WithName("ExportInteractiveDashboard")
+            .LogsExport("InteractiveDashboard", "Interactive dashboard");
 
         return group;
     }

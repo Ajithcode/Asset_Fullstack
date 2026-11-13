@@ -237,6 +237,19 @@ public static class AssetImportEndpoints
                 results.Add(new AssetImportRowResult(row.RowNumber, asset.BasicInformation.AssetName, assetTag, AssetImportResults.Imported, asset.AssetRegistrationId, []));
             }
 
+            if (saveRows)
+            {
+                var importedCount = results.Count(result => result.Result == AssetImportResults.Imported);
+                var failedCount = results.Count(result => result.Result == AssetImportResults.Failed);
+                await eventLogger.LogDetailedAsync(
+                    "AssetBulkImport",
+                    file.FileName,
+                    file.FileName,
+                    importedCount > 0 ? EventAction.Imported : EventAction.ImportFailed,
+                    $"Assets: {importedCount} imported, {failedCount} failed of {results.Count} rows",
+                    cancellationToken);
+            }
+
             return Results.Ok(new AssetImportResponse(
                 file.FileName,
                 !saveRows,

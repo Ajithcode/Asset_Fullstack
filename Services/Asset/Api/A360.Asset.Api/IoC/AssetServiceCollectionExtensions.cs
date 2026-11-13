@@ -42,7 +42,8 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Asset",
-            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>(),
+            serviceProvider.GetService<IHttpContextAccessor>()));
 
         services.AddScoped<AssetRegistrationDraftRepository>();
         services.AddScoped<IAssetRegistrationDraftRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetRegistrationDraftRepository>());

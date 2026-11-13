@@ -6,6 +6,9 @@ namespace A360.Asset.Repository.Repositories;
 public interface IAssetDocumentRepository : IMongoRepository<AssetDocumentRecord>
 {
     Task<AssetDocumentQueryResult> QueryAsync(AssetDocumentQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>Every document of one asset that is not deleted, newest first.</summary>
+    Task<IReadOnlyCollection<AssetDocumentRecord>> GetByAssetRegistrationIdAsync(string assetRegistrationId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Filters and paging for the document list. Empty values mean "all".</summary>

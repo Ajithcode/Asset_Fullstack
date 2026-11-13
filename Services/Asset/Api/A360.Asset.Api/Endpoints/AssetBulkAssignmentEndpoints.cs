@@ -80,7 +80,8 @@ public static class AssetBulkAssignmentEndpoints
         group.MapPut("/{id}/records", UpdateRecordsAsync).WithName("UpdateAssetBulkAssignmentRecords");
         group.MapPost("/{id}/validate", RevalidateAsync).WithName("ValidateAssetBulkAssignment");
         group.MapGet("/{id}/issues", GetIssuesAsync).WithName("GetAssetBulkAssignmentIssues");
-        group.MapGet("/{id}/issues/export", ExportIssuesAsync).WithName("ExportAssetBulkAssignmentIssues");
+        group.MapGet("/{id}/issues/export", ExportIssuesAsync).WithName("ExportAssetBulkAssignmentIssues")
+            .LogsExport("AssetBulkAssignment", "Bulk assignment issues");
 
         // Step 4
         group.MapPut("/{id}/details", SaveDetailsAsync).WithName("SaveAssetBulkAssignmentDetails");

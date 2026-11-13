@@ -43,7 +43,8 @@ public static class InspectionServiceCollectionExtensions
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Inspection",
-            serviceProvider.GetRequiredService<ICurrentUserAccessor>()));
+            serviceProvider.GetRequiredService<ICurrentUserAccessor>(),
+            serviceProvider.GetService<IHttpContextAccessor>()));
 
         services.AddScoped<InspectionTypeRepository>();
         services.AddScoped<IInspectionTypeRepository>(serviceProvider => serviceProvider.GetRequiredService<InspectionTypeRepository>());

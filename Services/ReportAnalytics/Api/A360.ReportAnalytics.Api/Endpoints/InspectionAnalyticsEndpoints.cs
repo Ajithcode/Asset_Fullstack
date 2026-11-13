@@ -51,7 +51,8 @@ public static class InspectionAnalyticsEndpoints
 
         // Compare Periods and Export.
         group.MapGet("/compare-periods", ComparePeriodsAsync).WithName("CompareInspectionPeriods");
-        group.MapGet("/export", ExportAsync).WithName("ExportInspectionAnalytics");
+        group.MapGet("/export", ExportAsync).WithName("ExportInspectionAnalytics")
+            .LogsExport("InspectionAnalyticsView", "Inspection analytics");
 
         return group;
     }

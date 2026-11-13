@@ -74,7 +74,8 @@ public static class AssetImportExportEndpoints
         // Step 4
         group.MapPost("/imports/{id}/validate", ValidateAsync).WithName("ValidateAssetImport");
         group.MapGet("/imports/{id}/records", GetRecordsAsync).WithName("GetAssetImportRecords");
-        group.MapGet("/imports/{id}/errors/export", ExportProblemsAsync).WithName("ExportAssetImportErrors");
+        group.MapGet("/imports/{id}/errors/export", ExportProblemsAsync).WithName("ExportAssetImportErrors")
+            .LogsExport("AssetImportExport", "Asset import errors");
 
         // Step 5
         group.MapPost("/imports/{id}/confirm", ConfirmAsync).WithName("ConfirmAssetImport");
@@ -681,9 +682,10 @@ public static class AssetImportExportEndpoints
         job.CompletedBy = currentUser?.UserName;
         await SaveAsync(job, repository, currentUserAccessor, cancellationToken);
 
-        await eventLogger.LogAsync(EntityType, job.Id,
-            $"{job.JobNumber} - {job.FileName} imported: {created} created, {updated} updated, {summary.Failed} failed",
-            EventAction.Updated, cancellationToken);
+        await eventLogger.LogDetailedAsync(EntityType, job.Id, job.JobNumber,
+            created + updated > 0 ? EventAction.Imported : EventAction.ImportFailed,
+            $"Assets from {job.FileName}: {created} created, {updated} updated, {summary.Failed} failed",
+            cancellationToken);
 
         return Results.Ok(new AssetImportConfirmResponse(
             AssetImportJobResponse.FromEntity(job),
@@ -856,7 +858,8 @@ public static class AssetImportExportEndpoints
         };
 
         await repository.CreateAsync(job, cancellationToken);
-        await eventLogger.LogAsync(EntityType, job.Id, $"{job.JobNumber} - {assets.Count} assets exported", EventAction.Created, cancellationToken);
+        await eventLogger.LogDetailedAsync(EntityType, job.Id, job.JobNumber, EventAction.Exported,
+            $"{assets.Count} assets exported to {fileName}", cancellationToken);
 
         return Results.File(content, contentType, fileName);
     }

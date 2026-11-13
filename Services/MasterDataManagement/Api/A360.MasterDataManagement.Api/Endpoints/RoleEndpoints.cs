@@ -35,10 +35,12 @@ public static class RoleEndpoints
             .WithName("GetRolePermissionMatrixTemplate");
 
         group.MapGet("/export", ExportRolesAsync)
-            .WithName("ExportRoles");
+            .WithName("ExportRoles")
+            .LogsExport("Role", "Roles");
 
         group.MapPost("/import", ImportRolesAsync)
-            .WithName("ImportRoles");
+            .WithName("ImportRoles")
+            .LogsImport("Role", "Roles");
 
         group.MapGet("/{id}", GetRoleByIdAsync)
             .WithName("GetRoleById");

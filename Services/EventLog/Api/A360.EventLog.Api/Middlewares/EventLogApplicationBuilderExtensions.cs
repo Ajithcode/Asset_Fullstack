@@ -17,6 +17,7 @@ public static class EventLogApplicationBuilderExtensions
             .WithTags("Health");
 
         app.MapEventLogEndpoints();
+        app.MapAuditLogEndpoints();
 
         return app;
     }

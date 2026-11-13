@@ -48,7 +48,8 @@ public static class AssetDisposalEndpoints
         // Step 2 of 5: Select Assets.
         group.MapPut("/{id}/assets", UpdateAssetsAsync).WithName("UpdateAssetDisposalAssets");
         group.MapPost("/{id}/assets/by-tag", AddAssetsByTagAsync).WithName("AddAssetDisposalAssetsByTag");
-        group.MapPost("/{id}/assets/import", ImportAssetsAsync).WithName("ImportAssetDisposalAssets").DisableAntiforgery();
+        group.MapPost("/{id}/assets/import", ImportAssetsAsync).WithName("ImportAssetDisposalAssets").DisableAntiforgery()
+            .LogsImport("AssetDisposalRequest", "Assets for a disposal request");
 
         // Step 3 of 5: Disposal Method.
         group.MapPut("/{id}/method", UpdateMethodAsync).WithName("UpdateAssetDisposalMethod");

@@ -59,6 +59,18 @@ public sealed class AssetImageRepository
         return new AssetImageQueryResult(items, totalCount);
     }
 
+    public async Task<IReadOnlyCollection<AssetImage>> GetByAssetRegistrationIdAsync(string assetRegistrationId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<AssetImage>.Filter.And(
+            Builders<AssetImage>.Filter.Eq(image => image.AssetRegistrationId, assetRegistrationId.Trim()),
+            Builders<AssetImage>.Filter.Eq(image => image.IsDeleted, false));
+
+        return await Collection
+            .Find(filter)
+            .Sort(Builders<AssetImage>.Sort.Descending(image => image.CreatedAt).Ascending(image => image.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     private static void AddEquals(
         List<FilterDefinition<AssetImage>> filters,
         System.Linq.Expressions.Expression<Func<AssetImage, string?>> field,

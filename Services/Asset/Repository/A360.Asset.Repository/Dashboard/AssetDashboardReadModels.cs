@@ -140,6 +140,25 @@ public sealed record NetworkTagSummary(
 /// <summary>One NetworkTimeSeries reading of a tag.</summary>
 public sealed record NetworkTagReading(DateTime? Timestamp, string? GatewayId, string? Status, double? Rssi, string? Raw);
 
+/// <summary>When a tag or gateway first and last reported, and the status of its newest reading (lower case).</summary>
+public sealed record NetworkSeen(DateTime FirstSeenAt, DateTime LastSeenAt, string? LastStatus);
+
+/// <summary>Tags and gateways that reported, with their first and last reading, keyed case-insensitively.</summary>
+public sealed record NetworkActivity(IReadOnlyDictionary<string, NetworkSeen> Tags, IReadOnlyDictionary<string, NetworkSeen> Gateways);
+
+/// <summary>How many times one tag moved from one gateway to another, and its latest move.</summary>
+/// <remarks>Coordinates are the readings' latitude/longitude (WGS84) on either side of the last change; null when not sent.</remarks>
+public sealed record NetworkTagGatewayChanges(
+    string TagId,
+    long Changes,
+    DateTime? LastChangedAt,
+    string? LastFromGatewayId,
+    string? LastToGatewayId,
+    double? LastFromLatitude = null,
+    double? LastFromLongitude = null,
+    double? LastToLatitude = null,
+    double? LastToLongitude = null);
+
 /// <summary>A site from master data (master_sites), owned by the MasterDataManagement service.</summary>
 [BsonIgnoreExtraElements]
 public sealed class DashboardSite

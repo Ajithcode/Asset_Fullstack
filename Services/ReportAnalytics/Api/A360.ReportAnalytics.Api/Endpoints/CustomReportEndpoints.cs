@@ -33,8 +33,10 @@ public static class CustomReportEndpoints
 
         // Custom Report Library, Export Reports and Import Template.
         group.MapGet("", GetReportsAsync).WithName("GetCustomReports");
-        group.MapGet("/export", ExportReportsAsync).WithName("ExportCustomReports");
-        group.MapPost("/import", ImportTemplatesAsync).WithName("ImportCustomReportTemplates").DisableAntiforgery();
+        group.MapGet("/export", ExportReportsAsync).WithName("ExportCustomReports")
+            .LogsExport("CustomReport", "Custom report templates");
+        group.MapPost("/import", ImportTemplatesAsync).WithName("ImportCustomReportTemplates").DisableAntiforgery()
+            .LogsImport("CustomReport", "Custom report templates");
 
         // Create Custom Report / Save Draft / Save Report.
         group.MapGet("/{reportId}", GetReportByIdAsync).WithName("GetCustomReportById");

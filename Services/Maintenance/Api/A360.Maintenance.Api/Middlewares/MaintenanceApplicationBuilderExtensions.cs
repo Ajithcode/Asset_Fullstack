@@ -1,3 +1,4 @@
+using A360.Repository.Activity;
 
 namespace A360.Maintenance.Api.Middlewares;
 
@@ -12,6 +13,7 @@ public static class MaintenanceApplicationBuilderExtensions
         // Reads the bearer token forwarded by the gateway so event logs know who made each change.
         app.UseAuthentication();
         app.UseA360AccessGuard();
+        app.UseA360WriteAudit();
 
         if (app.Environment.IsDevelopment() ||
             app.Configuration.GetValue<bool>("Swagger:Enabled"))

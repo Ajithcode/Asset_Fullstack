@@ -6,6 +6,9 @@ namespace A360.Asset.Repository.Repositories;
 public interface IAssetImageRepository : IMongoRepository<AssetImage>
 {
     Task<AssetImageQueryResult> QueryAsync(AssetImageQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>Every image of one asset that is not deleted, newest first.</summary>
+    Task<IReadOnlyCollection<AssetImage>> GetByAssetRegistrationIdAsync(string assetRegistrationId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Filters and paging for the image list. Empty values mean "all".</summary>

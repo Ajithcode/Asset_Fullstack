@@ -22,8 +22,10 @@ public static class AssetCustomFieldEndpoints
 
         group.MapGet("", GetFieldsAsync).WithName("GetAssetCustomFields");
         group.MapGet("/names", GetFieldNamesAsync).WithName("GetAssetCustomFieldNames");
-        group.MapGet("/export", ExportFieldsAsync).WithName("ExportAssetCustomFields");
-        group.MapPost("/import", ImportFieldsAsync).WithName("ImportAssetCustomFields");
+        group.MapGet("/export", ExportFieldsAsync).WithName("ExportAssetCustomFields")
+            .LogsExport("AssetCustomFieldDefinition", "Asset custom fields");
+        group.MapPost("/import", ImportFieldsAsync).WithName("ImportAssetCustomFields")
+            .LogsImport("AssetCustomFieldDefinition", "Asset custom fields");
         group.MapGet("/{id}", GetFieldByIdAsync).WithName("GetAssetCustomFieldById");
         group.MapPost("", CreateFieldAsync).WithName("CreateAssetCustomField");
         group.MapPut("/{id}", UpdateFieldAsync).WithName("UpdateAssetCustomField");

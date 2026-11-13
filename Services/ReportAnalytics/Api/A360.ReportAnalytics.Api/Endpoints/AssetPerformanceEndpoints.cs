@@ -51,7 +51,8 @@ public static class AssetPerformanceEndpoints
 
         // Compare Assets and Export.
         group.MapPost("/compare", CompareAssetsAsync).WithName("CompareAssetPerformance");
-        group.MapGet("/export", ExportAsync).WithName("ExportAssetPerformance");
+        group.MapGet("/export", ExportAsync).WithName("ExportAssetPerformance")
+            .LogsExport("AssetPerformanceView", "Asset performance analytics");
 
         return group;
     }

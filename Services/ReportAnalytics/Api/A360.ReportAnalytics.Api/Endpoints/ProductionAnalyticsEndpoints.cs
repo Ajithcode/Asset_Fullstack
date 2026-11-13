@@ -51,7 +51,8 @@ public static class ProductionAnalyticsEndpoints
 
         // Compare Periods and Export.
         group.MapGet("/compare-periods", ComparePeriodsAsync).WithName("CompareProductionPeriods");
-        group.MapGet("/export", ExportAsync).WithName("ExportProductionAnalytics");
+        group.MapGet("/export", ExportAsync).WithName("ExportProductionAnalytics")
+            .LogsExport("ProductionAnalyticsView", "Production analytics");
 
         return group;
     }
