@@ -31,6 +31,11 @@ public static class StandardReportOptions
         "Audit & Compliance",
         "Financial");
 
+    public const string AssetMovementType = "Asset Movement";
+
+    // Report types with data behind them; see StandardReportEndpoints.GetReportDetailsAsync.
+    public static readonly OptionList ReportTypes = new(AssetMovementType);
+
     public static readonly OptionList Frequencies = new(
         "Daily",
         "Weekly",
@@ -52,6 +57,7 @@ public static class StandardReportOptions
 
 public sealed record StandardReportOptionsResponse(
     IReadOnlyList<string> Categories,
+    IReadOnlyList<string> ReportTypes,
     IReadOnlyList<string> Frequencies,
     IReadOnlyList<string> Statuses,
     IReadOnlyList<string> PeriodPresets,

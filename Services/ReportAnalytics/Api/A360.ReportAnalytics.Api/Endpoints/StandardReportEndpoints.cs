@@ -4,6 +4,7 @@ using ClosedXML.Excel;
 using A360.Domain.Entities;
 using A360.Repository.Activity;
 using A360.Repository.Sequences;
+using A360.ReportAnalytics.Api.Analytics;
 using A360.ReportAnalytics.Api.Contracts;
 using A360.ReportAnalytics.Api.Validation;
 using A360.ReportAnalytics.Domain.Entities;
@@ -35,6 +36,7 @@ public static class StandardReportEndpoints
         group.MapPut("/report-period", ApplyReportPeriodAsync).WithName("ApplyStandardReportPeriod");
 
         group.MapGet("/{reportId}", GetReportByIdAsync).WithName("GetStandardReportById");
+        group.MapGet("/{reportId}/details", GetReportDetailsAsync).WithName("GetStandardReportDetails");
         group.MapPost("", CreateReportAsync).WithName("CreateStandardReport");
         group.MapPut("/{reportId}", UpdateReportAsync).WithName("UpdateStandardReport");
         group.MapDelete("/{reportId}", DeleteReportAsync).WithName("DeleteStandardReport");
@@ -171,6 +173,7 @@ public static class StandardReportEndpoints
 
     private static IResult GetOptions() => Results.Ok(new StandardReportOptionsResponse(
         StandardReportOptions.Categories.All,
+        StandardReportOptions.ReportTypes.All,
         StandardReportOptions.Frequencies.All,
         StandardReportOptions.Statuses.All,
         StandardReportOptions.PeriodPresets.All,
@@ -297,6 +300,50 @@ public static class StandardReportEndpoints
         await eventLogger.LogAsync(EntityType, report.Id, report.ReportName, EventAction.Viewed, cancellationToken);
 
         return Results.Ok(StandardReportResponse.FromEntity(report));
+    }
+
+    /// <summary>
+    /// The report and its rows. Uses the report's saved period and time zone; date / startDate / endDate / startTime / endTime /
+    /// timeZone in the query replace them for this call (nothing is saved). Rows are read live, never stored.
+    /// </summary>
+    private static async Task<IResult> GetReportDetailsAsync(
+        string reportId,
+        [AsParameters] AssetMovementReportRequest request,
+        IStandardReportRepository repository,
+        IAssetMovementReportRepository movementRepository,
+        ICurrentUserAccessor currentUserAccessor,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        var report = await repository.GetByReportIdAsync(reportId, cancellationToken);
+        if (report is null)
+        {
+            return Results.NotFound();
+        }
+
+        AssetMovementReportResponse? data = null;
+        if (string.Equals(report.ReportType, StandardReportOptions.AssetMovementType, StringComparison.OrdinalIgnoreCase))
+        {
+            var currentUser = currentUserAccessor.GetCurrentUser();
+            var built = await AssetMovementReport.BuildAsync(
+                report,
+                request,
+                movementRepository,
+                string.IsNullOrWhiteSpace(report.TenantId) ? currentUser?.TenantId : report.TenantId,
+                string.IsNullOrWhiteSpace(report.ClientId) ? currentUser?.ClientId : report.ClientId,
+                cancellationToken);
+
+            if (built.Errors is not null)
+            {
+                return Results.ValidationProblem(built.Errors);
+            }
+
+            data = built.Data;
+        }
+
+        await eventLogger.LogAsync(EntityType, report.Id, report.ReportName, EventAction.Viewed, cancellationToken);
+
+        return Results.Ok(new StandardReportDetailsResponse(StandardReportResponse.FromEntity(report), data));
     }
 
     private static async Task<IResult> CreateReportAsync(

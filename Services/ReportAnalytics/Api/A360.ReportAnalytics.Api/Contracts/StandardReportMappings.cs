@@ -32,6 +32,8 @@ internal static class StandardReportMappings
             request.ReviewDueOn,
             request.Status);
 
+        report.ReportType = StandardReportOptions.ReportTypes.Normalize(request.ReportType);
+
         return report;
     }
 
@@ -50,6 +52,12 @@ internal static class StandardReportMappings
             request.NextScheduledOn,
             request.ReviewDueOn,
             request.Status);
+
+        // Left out of the request: the report keeps its type.
+        if (!string.IsNullOrWhiteSpace(request.ReportType))
+        {
+            report.ReportType = StandardReportOptions.ReportTypes.Normalize(request.ReportType);
+        }
 
         report.UpdatedBy = FirstNonEmpty(request.UpdatedBy, currentUser?.UserName);
         report.UpdatedAt = DateTime.UtcNow;
