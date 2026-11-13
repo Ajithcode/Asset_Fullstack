@@ -23,6 +23,7 @@ public static class AssetRelationshipEndpoints
 
         group.MapGet("", GetRelationshipsAsync).WithName("GetAssetRelationships");
         group.MapGet("/related", GetRelatedAssetsAsync).WithName("GetAssetRelatedAssets");
+        group.MapGet("/assets/{assetRegistrationId}", GetAssetRelationshipDetailsAsync).WithName("GetAssetRelationshipDetails");
         group.MapGet("/types", () => Results.Ok(AssetRelationshipTypes.All)).WithName("GetAssetRelationshipTypes");
         group.MapGet("/{id}", GetRelationshipByIdAsync).WithName("GetAssetRelationshipById");
         group.MapPost("", SaveRelationshipsAsync).WithName("SaveAssetRelationships");
@@ -61,6 +62,56 @@ public static class AssetRelationshipEndpoints
     /// Related Assets popup for the ticked assets (?assetRegistrationIds=A&amp;assetRegistrationIds=B, or "A,B").
     /// Each section lists the sub assets already saved for that asset, then its components not linked yet.
     /// </summary>
+    /// <summary>
+    /// One asset with its location and assignment, all of its components, the assets linked under it, and the
+    /// assets it is linked under.
+    /// </summary>
+    private static async Task<IResult> GetAssetRelationshipDetailsAsync(
+        string assetRegistrationId,
+        IAssetRelationshipRepository repository,
+        IAssetRegistrationRepository assetRepository,
+        IAssetComponentRepository componentRepository,
+        CancellationToken cancellationToken)
+    {
+        var asset = await assetRepository.GetByAssetRegistrationIdAsync(assetRegistrationId.Trim(), cancellationToken);
+        if (asset is null)
+        {
+            return Results.NotFound(new { message = $"Asset '{assetRegistrationId}' was not found." });
+        }
+
+        var id = asset.AssetRegistrationId;
+        var components = await componentRepository.GetByAssetAsync(id, cancellationToken);
+        var relationship = await repository.GetByMainAssetAsync(id, cancellationToken);
+        var parents = await repository.GetBySubAssetAsync(id, cancellationToken);
+
+        // Components are returned in Components; only other assets are listed as linked assets.
+        var linkedAssets = (relationship?.SubAssets ?? [])
+            .Where(subAsset => string.IsNullOrWhiteSpace(subAsset.ComponentId))
+            .Select(AssetRelationshipSubAssetResponse.FromEntity)
+            .ToList();
+
+        var parentAssets = parents
+            .Where(parent => parent.MainAssetRegistrationId != id)
+            .Select(parent => new AssetRelationshipParentResponse(
+                parent.Id,
+                parent.MainAssetRegistrationId,
+                parent.MainAssetName,
+                parent.MainAssetTag,
+                parent.SubAssets.First(subAsset => subAsset.AssetRegistrationId == id).RelationshipType,
+                parent.MainCategory,
+                parent.MainLocation))
+            .ToList();
+
+        return Results.Ok(new AssetRelationshipDetailsResponse(
+            AssetRelationshipAssetDetails.FromEntity(asset),
+            AssetLocationDto.FromSection(asset.LocationAssignment.Location),
+            AssetAssignmentDto.FromSection(asset.LocationAssignment.Assignment),
+            AssetComponentSummary.From(components),
+            relationship?.Id,
+            linkedAssets,
+            parentAssets));
+    }
+
     private static async Task<IResult> GetRelatedAssetsAsync(
         string[]? assetRegistrationIds,
         IAssetRelationshipRepository repository,

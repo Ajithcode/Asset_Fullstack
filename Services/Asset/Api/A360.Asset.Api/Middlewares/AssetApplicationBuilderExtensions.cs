@@ -35,6 +35,8 @@ public static class AssetApplicationBuilderExtensions
         app.MapAssetDocumentEndpoints();
         app.MapAssetImageEndpoints();
         app.MapAssetFilesEndpoints();
+        app.MapAssetFileUploadEndpoints();
+        app.MapAssetCustomFieldValueEndpoints();
         app.MapAssetRelationshipEndpoints();
         app.MapAssetConditionAssessmentEndpoints();
         app.MapAssetCriticalityEndpoints();

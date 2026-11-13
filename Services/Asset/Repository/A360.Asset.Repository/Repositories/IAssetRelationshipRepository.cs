@@ -8,6 +8,9 @@ public interface IAssetRelationshipRepository : IMongoRepository<AssetRelationsh
     Task<AssetRelationshipQueryResult> QueryAsync(AssetRelationshipQuery query, CancellationToken cancellationToken = default);
 
     Task<AssetRelationship?> GetByMainAssetAsync(string mainAssetRegistrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>Relationships that list the asset as one of their sub assets.</summary>
+    Task<IReadOnlyCollection<AssetRelationship>> GetBySubAssetAsync(string assetRegistrationId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Filters and paging for the relationship list. Empty values mean "all".</summary>

@@ -39,6 +39,14 @@ public static class AssetServiceCollectionExtensions
         services.AddA360JwtAuthentication(configuration);
         // Sign-in + role permissions also when the frontend calls this service directly on its own port
         services.AddA360AccessGuard(configuration, "Assets");
+
+        // Upload Images / Upload Document store their files through the Media service.
+        services.AddHttpClient(A360.Asset.Api.Services.MediaUploadClient.ClientName, client =>
+        {
+            client.BaseAddress = new Uri((configuration["Services:MediaUrl"] ?? "http://localhost:5300").TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromMinutes(2);
+        });
+        services.AddScoped<A360.Asset.Api.Services.IMediaUploadClient, A360.Asset.Api.Services.MediaUploadClient>();
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Asset",
@@ -142,6 +150,7 @@ public static class AssetServiceCollectionExtensions
 
         // Read-only: the dashboard reads tracking records from the shared database, so it needs no indexes of its own.
         services.AddScoped<A360.Asset.Repository.Dashboard.IAssetDashboardRepository, A360.Asset.Repository.Dashboard.AssetDashboardRepository>();
+        services.AddScoped<A360.Asset.Repository.Activity.IAssetActivityRepository, A360.Asset.Repository.Activity.AssetActivityRepository>();
 
         services.AddScoped<AssetDedupRulesRepository>();
         services.AddScoped<IAssetDedupRulesRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetDedupRulesRepository>());

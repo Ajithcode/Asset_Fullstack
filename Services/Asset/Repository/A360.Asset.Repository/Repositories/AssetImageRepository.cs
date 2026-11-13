@@ -41,6 +41,24 @@ public sealed class AssetImageRepository
 
         AddEquals(filters, image => image.AssetRegistrationId, query.AssetRegistrationId);
         AddEquals(filters, image => image.ImageType, query.ImageType);
+        AddEquals(filters, image => image.CreatedBy, query.UploadedBy);
+
+        if (!string.IsNullOrWhiteSpace(query.Tag))
+        {
+            filters.Add(Builders<AssetImage>.Filter.Regex("tags", new BsonRegularExpression($"^{Regex.Escape(query.Tag.Trim())}$", "i")));
+        }
+
+        if (query.UploadedFrom is not null)
+        {
+            filters.Add(Builders<AssetImage>.Filter.Gte(image => image.CreatedAt, query.UploadedFrom.Value));
+        }
+
+        // A date without a time includes that whole day.
+        if (query.UploadedTo is not null)
+        {
+            var until = query.UploadedTo.Value.TimeOfDay == TimeSpan.Zero ? query.UploadedTo.Value.AddDays(1) : query.UploadedTo.Value;
+            filters.Add(Builders<AssetImage>.Filter.Lt(image => image.CreatedAt, until));
+        }
 
         var filter = Builders<AssetImage>.Filter.And(filters);
 
@@ -57,6 +75,23 @@ public sealed class AssetImageRepository
         var totalCount = await Collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
 
         return new AssetImageQueryResult(items, totalCount);
+    }
+
+    public async Task<IReadOnlyCollection<AssetImage>> GetFilterFieldsAsync(string? assetRegistrationId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<AssetImage>.Filter.Eq(image => image.IsDeleted, false);
+        if (!string.IsNullOrWhiteSpace(assetRegistrationId))
+        {
+            filter &= Builders<AssetImage>.Filter.Eq(image => image.AssetRegistrationId, assetRegistrationId.Trim());
+        }
+
+        return await Collection
+            .Find(filter)
+            .Project<AssetImage>(Builders<AssetImage>.Projection
+                .Include(image => image.ImageType)
+                .Include(image => image.Tags)
+                .Include(image => image.CreatedBy))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<AssetImage>> GetByAssetRegistrationIdAsync(string assetRegistrationId, CancellationToken cancellationToken = default)

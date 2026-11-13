@@ -173,3 +173,15 @@ public sealed record AssetImageListResponse(
     long TotalCount,
     int Page,
     int PageSize);
+
+/// <summary>Options for the Asset Images filter dropdowns, from the images already uploaded.</summary>
+public sealed record AssetImageFilterOptionsResponse(
+    IReadOnlyList<string> ImageTypes,
+    IReadOnlyList<string> Tags,
+    IReadOnlyList<string> Uploaders)
+{
+    public static AssetImageFilterOptionsResponse From(IReadOnlyCollection<AssetImage> images) => new(
+        FilterOptionValues.Distinct(images.Select(image => image.ImageType)),
+        FilterOptionValues.Distinct(images.SelectMany(image => image.Tags)),
+        FilterOptionValues.Distinct(images.Select(image => image.CreatedBy)));
+}

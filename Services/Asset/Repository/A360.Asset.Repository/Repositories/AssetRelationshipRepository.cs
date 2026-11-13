@@ -80,6 +80,15 @@ public sealed class AssetRelationshipRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<AssetRelationship>> GetBySubAssetAsync(string assetRegistrationId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<AssetRelationship>.Filter;
+        return await Collection
+            .Find(filter.Eq(relationship => relationship.IsDeleted, false)
+                & filter.ElemMatch(relationship => relationship.SubAssets, subAsset => subAsset.AssetRegistrationId == assetRegistrationId))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
     {
         var indexes = new[]

@@ -22,6 +22,7 @@ public static class AssetComponentEndpoints
 
         group.MapGet("", GetComponentsAsync).WithName("GetAssetComponents");
         group.MapGet("/tree", GetComponentTreeAsync).WithName("GetAssetComponentTree");
+        group.MapGet("/summary", GetComponentSummaryAsync).WithName("GetAssetComponentSummary");
         group.MapGet("/{componentId}", GetComponentByIdAsync).WithName("GetAssetComponentById");
         group.MapPost("", CreateComponentAsync).WithName("CreateAssetComponent");
         group.MapPut("/{componentId}", UpdateComponentAsync).WithName("UpdateAssetComponent");
@@ -98,23 +99,23 @@ public static class AssetComponentEndpoints
         }
 
         var all = await repository.GetByAssetAsync(assetRegistrationId, cancellationToken);
-        var childrenByParent = all.ToLookup(component => component.ParentComponentId ?? string.Empty);
+        return Results.Ok(AssetComponentSummary.BuildTree(all));
+    }
 
-        IReadOnlyList<AssetComponentNodeResponse> Build(string parentKey, HashSet<string> path) =>
-            childrenByParent[parentKey]
-                .Where(child => !path.Contains(child.Id))
-                .OrderBy(child => child.ComponentName, StringComparer.OrdinalIgnoreCase)
-                .Select(child => new AssetComponentNodeResponse(
-                    child.Id,
-                    child.ComponentName,
-                    child.ComponentTag,
-                    child.Status,
-                    AssetComponentResponse.LifecyclePercentOf(child),
-                    child.ExpectedReplacementDate,
-                    Build(child.Id, [.. path, child.Id])))
-                .ToList();
+    /// <summary>Every component of the asset in one call: counts, full details of each, and the tree.</summary>
+    private static async Task<IResult> GetComponentSummaryAsync(
+        string assetRegistrationId,
+        IAssetComponentRepository repository,
+        IAssetRegistrationRepository assetRepository,
+        CancellationToken cancellationToken)
+    {
+        if (await assetRepository.GetByAssetRegistrationIdAsync(assetRegistrationId, cancellationToken) is null)
+        {
+            return AssetNotFound(assetRegistrationId);
+        }
 
-        return Results.Ok(Build(string.Empty, []));
+        var all = await repository.GetByAssetAsync(assetRegistrationId, cancellationToken);
+        return Results.Ok(AssetComponentSummary.From(all));
     }
 
     private static async Task<IResult> GetComponentByIdAsync(
