@@ -437,6 +437,7 @@ public static class MapEndpoints
         SaveZoneRequest request,
         IFloorPlanRepository floorPlanRepository,
         IMapZoneRepository repository,
+        IMapLocationResolver locationResolver,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -460,6 +461,9 @@ public static class MapEndpoints
             return Results.Conflict(new { message = $"Zone code '{zone.Code}' is already used on this floor plan" });
         }
 
+        // Site > building > floor > Master Data zone (same code) of the drawn zone
+        zone.Location = await locationResolver.ForZoneAsync(plan, zone.Code, cancellationToken);
+
         zone = await repository.CreateAsync(zone, cancellationToken);
 
         await eventLogger.LogAsync(ZoneEntity, zone.Id, zone.Name, EventAction.Created, cancellationToken);
@@ -471,6 +475,9 @@ public static class MapEndpoints
         string zoneId,
         SaveZoneRequest request,
         IMapZoneRepository repository,
+        IFloorPlanRepository floorPlanRepository,
+        IMapPlotRepository plotRepository,
+        IMapLocationResolver locationResolver,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -494,9 +501,26 @@ public static class MapEndpoints
             return Results.Conflict(new { message = $"Zone code '{zone.Code}' is already used on this floor plan" });
         }
 
+        // The code links the drawn zone to its Master Data zone: refresh the location, and the items plotted in it
+        var plan = await floorPlanRepository.GetByFloorPlanIdAsync(zone.FloorPlanId, cancellationToken);
+        if (plan is not null)
+        {
+            zone.Location = await locationResolver.ForZoneAsync(plan, zone.Code, cancellationToken);
+        }
+
         if (!await repository.UpdateAsync(zone.Id, zone, cancellationToken))
         {
             return Results.NotFound();
+        }
+
+        if (plan is not null)
+        {
+            var plots = await plotRepository.GetByFloorPlanAsync(zone.FloorPlanId, null, null, null, cancellationToken);
+            foreach (var plot in plots.Where(p => p.ZoneId == zone.ZoneId))
+            {
+                await locationResolver.ApplyToPlotAsync(plan, plot, cancellationToken);
+                await plotRepository.UpdateAsync(plot.Id, plot, cancellationToken);
+            }
         }
 
         await eventLogger.LogAsync(ZoneEntity, zone.Id, zone.Name, EventAction.Updated, cancellationToken);
@@ -573,6 +597,7 @@ public static class MapEndpoints
         SavePlotRequest request,
         IFloorPlanRepository floorPlanRepository,
         IMapPlotRepository repository,
+        IMapLocationResolver locationResolver,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -605,6 +630,8 @@ public static class MapEndpoints
                 CreatedAt = DateTime.UtcNow
             };
             request.ApplyTo(plot, plan, currentUser);
+            // Site > building > floor > zone, drawn zone name / code, device / asset ids
+            await locationResolver.ApplyToPlotAsync(plan, plot, cancellationToken);
             plot = await repository.CreateAsync(plot, cancellationToken);
 
             await eventLogger.LogAsync(PlotEntity, plot.Id, plot.Name ?? plot.ItemId, EventAction.Created, cancellationToken);
@@ -613,6 +640,7 @@ public static class MapEndpoints
         }
 
         request.ApplyTo(plot, plan, currentUser);
+        await locationResolver.ApplyToPlotAsync(plan, plot, cancellationToken);
 
         if (!await repository.UpdateAsync(plot.Id, plot, cancellationToken))
         {

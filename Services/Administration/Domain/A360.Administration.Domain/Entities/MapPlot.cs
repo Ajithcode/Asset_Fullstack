@@ -51,4 +51,26 @@ public sealed class MapPlot : BaseEntity
     // Zone the item sits in, if any.
     [BsonElement("zone_id")]
     public string? ZoneId { get; set; }
+
+    // Name / code of that drawn zone (maps_zones), copied on save.
+    [BsonElement("zone_name")]
+    public string? ZoneName { get; set; }
+
+    [BsonElement("zone_code")]
+    public string? ZoneCode { get; set; }
+
+    // Site > building > floor > Master Data zone where the item is plotted (set by the server on save).
+    [BsonElement("location")]
+    public MapLocation? Location { get; set; }
+
+    // Devices: the device's unique id (IoTDevice.device_id, e.g. AC233FC28E11) and its record's Mongo id.
+    [BsonElement("device_id")]
+    public string? DeviceId { get; set; }
+
+    [BsonElement("device_record_id")]
+    public string? DeviceRecordId { get; set; }
+
+    // Assets: the plotted asset; devices: the asset the device is linked to in IoT Device Management.
+    [BsonElement("asset_registration_id")]
+    public string? AssetRegistrationId { get; set; }
 }

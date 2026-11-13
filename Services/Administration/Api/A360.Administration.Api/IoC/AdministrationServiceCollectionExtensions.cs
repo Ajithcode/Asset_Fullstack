@@ -127,6 +127,9 @@ public static class AdministrationServiceCollectionExtensions
         services.AddScoped<IMapZoneRepository>(serviceProvider => serviceProvider.GetRequiredService<MapZoneRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapZoneRepository>());
 
+        // Location (site > building > floor > zone) and device ids of drawn zones / plots
+        services.AddScoped<IMapLocationResolver, MapLocationResolver>();
+
         services.AddScoped<MapPlotRepository>();
         services.AddScoped<IMapPlotRepository>(serviceProvider => serviceProvider.GetRequiredService<MapPlotRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapPlotRepository>());

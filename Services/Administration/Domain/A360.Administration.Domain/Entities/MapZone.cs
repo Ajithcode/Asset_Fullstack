@@ -81,6 +81,10 @@ public sealed class MapZone : BaseEntity
 
     [BsonElement("dwell_minutes")]
     public int DwellMinutes { get; set; }
+
+    // Site > building > floor > Master Data zone of the drawn zone (set by the server on save).
+    [BsonElement("location")]
+    public MapLocation? Location { get; set; }
 }
 
 [BsonIgnoreExtraElements]

@@ -188,6 +188,23 @@ public sealed record ZoneOptionsResponse(
 
 public sealed record MapPointDto(double X, double Y);
 
+/// <summary>Site &gt; building &gt; floor &gt; Master Data zone of a drawn zone or plotted item (Master Data ids and names).</summary>
+public sealed record MapLocationDto(
+    string? SiteId,
+    string? SiteName,
+    string? BuildingId,
+    string? BuildingName,
+    string? FloorId,
+    string? FloorName,
+    string? ZoneId,
+    string? ZoneName,
+    string? ZoneCode,
+    string? LocationPath)
+{
+    public static MapLocationDto? FromEntity(MapLocation? l) =>
+        l is null ? null : new MapLocationDto(l.SiteId, l.SiteName, l.BuildingId, l.BuildingName, l.FloorId, l.FloorName, l.ZoneId, l.ZoneName, l.ZoneCode, l.LocationPath);
+}
+
 // POST /api/administration/maps/floor-plans/{floorPlanId}/zones and PUT /api/administration/maps/zones/{zoneId}
 public sealed record SaveZoneRequest(
     string? Code,
@@ -243,7 +260,8 @@ public sealed record ZoneResponse(
     string? UpdatedBy,
     DateTime? UpdatedAt,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    MapLocationDto? Location = null)
 {
     public static ZoneResponse FromEntity(MapZone zone)
     {
@@ -275,7 +293,8 @@ public sealed record ZoneResponse(
             zone.UpdatedBy,
             zone.UpdatedAt,
             zone.ClientId,
-            zone.TenantId);
+            zone.TenantId,
+            MapLocationDto.FromEntity(zone.Location));
     }
 }
 
@@ -314,7 +333,13 @@ public sealed record PlotResponse(
     string FloorPlanId,
     string Kind,
     string ItemId,
-    DateTime? UpdatedAt)
+    DateTime? UpdatedAt,
+    string? ZoneName = null,
+    string? ZoneCode = null,
+    MapLocationDto? Location = null,
+    string? DeviceId = null,
+    string? DeviceRecordId = null,
+    string? AssetRegistrationId = null)
 {
     public static PlotResponse FromEntity(MapPlot plot)
     {
@@ -336,7 +361,13 @@ public sealed record PlotResponse(
             plot.FloorPlanId,
             plot.Kind,
             plot.ItemId,
-            plot.UpdatedAt);
+            plot.UpdatedAt,
+            plot.ZoneName,
+            plot.ZoneCode,
+            MapLocationDto.FromEntity(plot.Location),
+            plot.DeviceId,
+            plot.DeviceRecordId,
+            plot.AssetRegistrationId);
     }
 }
 
