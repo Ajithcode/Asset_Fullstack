@@ -4,7 +4,7 @@ using MongoDB.Driver;
 namespace NetworkServer.Services;
 
 /// <summary>
-/// Writes a copy of every DeviceMessage to the time-series collection {Mongo:TimeSeriesCollection}
+/// Writes every DeviceMessage (the only Mongo copy of it) to the time-series collection {Mongo:TimeSeriesCollection}
 /// (timeField "timestamp", metaField "meta"):
 ///   { timestamp, meta: { gatewayid, source, deviceId, topic, format }, Raw, Data }
 /// An insert into a missing collection would create a normal collection, so callers run <see cref="EnsureAsync"/>
@@ -44,6 +44,7 @@ public class TimeSeriesWriter(IMongoDatabase database, IConfiguration config, IL
 
     public static BsonDocument ToDocument(DeviceMessage message, string? gatewayId) => new()
     {
+        { "_id", message.Id },
         { "timestamp", message.ReceivedAt },
         { "meta", new BsonDocument
             {
@@ -57,4 +58,21 @@ public class TimeSeriesWriter(IMongoDatabase database, IConfiguration config, IL
         { "Raw", message.Raw },
         { "Data", message.Data },
     };
+
+    public static DeviceMessage FromDocument(BsonDocument doc)
+    {
+        var meta = doc.GetValue("meta", new BsonDocument()).AsBsonDocument;
+        string? Str(BsonDocument d, string name) => d.TryGetValue(name, out var v) && v.IsString ? v.AsString : null;
+        return new DeviceMessage
+        {
+            Id = doc.GetValue("_id", ObjectId.Empty).IsObjectId ? doc["_id"].AsObjectId : ObjectId.Empty,
+            ReceivedAt = doc.GetValue("timestamp", BsonNull.Value).IsValidDateTime ? doc["timestamp"].ToUniversalTime() : default,
+            Source = Str(meta, "source") ?? "",
+            DeviceId = Str(meta, "deviceId"),
+            Topic = Str(meta, "topic"),
+            Format = Str(meta, "format") ?? "",
+            Raw = Str(doc, "Raw") ?? "",
+            Data = doc.GetValue("Data", BsonNull.Value),
+        };
+    }
 }

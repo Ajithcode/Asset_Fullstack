@@ -5,7 +5,7 @@ using MongoDB.Driver;
 namespace NetworkServer.Services;
 
 /// <summary>
-/// Keeps gateway messages in memory. Every {Aggregation:WindowSeconds} (default 15) it writes one DeviceMessage per
+/// Keeps gateway messages in memory. Every {Aggregation:WindowSeconds} (default 15) it writes one message per
 /// gateway (and per sender/topic/format) holding each tag only once - the one with the closest (strongest) RSSI
 /// seen in that window - and then clears the buffer for the next window. Data is stored as
 ///   [{"gatewayid":"c851fbf72b00","timestamp":"2026-10-08T04:05:39.000Z"},{"tagid":..,"rssi":..,"raw":..,
@@ -13,7 +13,7 @@ namespace NetworkServer.Services;
 /// Only tags listed in {Aggregation:AllowedTags} are kept (an empty or missing list keeps every tag); a gateway
 /// with no allowed tags in the window writes nothing. Repeaters ({Aggregation:RepeaterTags}) are written as gateways
 /// of their own, holding the tags they relay (see Add).
-/// Each message is also copied to the time-series collection (see TimeSeriesWriter) and added to the Redis stream
+/// Each message is written to the time-series collection (see TimeSeriesWriter) and added to the Redis stream
 /// (see RedisStreamPublisher).
 /// </summary>
 public class TagAggregator : BackgroundService
@@ -27,10 +27,8 @@ public class TagAggregator : BackgroundService
     // Tags only send their battery in some frames, so the last known value is kept across windows.
     private readonly Dictionary<string, int> _lastBattery = new(); // tagid -> battery %
     // Messages whose insert / publish failed, retried next window.
-    private readonly List<DeviceMessage> _unsentMessages = [];
     private readonly List<BsonDocument> _unsentTimeSeries = [];
     private readonly List<DeviceMessage> _unpublished = [];
-    private readonly IMongoCollection<DeviceMessage> _collection;
     private readonly TimeSeriesWriter _timeSeries;
     private readonly RedisStreamPublisher _publisher;
     private readonly TimeSpan _interval;
@@ -38,12 +36,11 @@ public class TagAggregator : BackgroundService
     private readonly HashSet<string> _repeaterTags;
     private readonly ILogger<TagAggregator> _logger;
 
-    public TagAggregator(IMongoDatabase database, IConfiguration config, TimeSeriesWriter timeSeries,
+    public TagAggregator(IConfiguration config, TimeSeriesWriter timeSeries,
         RedisStreamPublisher publisher, ILogger<TagAggregator> logger)
     {
         _timeSeries = timeSeries;
         _publisher = publisher;
-        _collection = database.GetCollection<DeviceMessage>(config["Mongo:Collection"] ?? "DeviceMessages");
         _interval = TimeSpan.FromSeconds(config.GetValue("Aggregation:WindowSeconds", 15));
         _allowedTags = (config.GetSection("Aggregation:AllowedTags").Get<string[]>() ?? [])
             .Select(t => t.Replace(":", "").Trim().ToLowerInvariant())
@@ -162,7 +159,6 @@ public class TagAggregator : BackgroundService
                 Raw = json,
                 Data = MongoMessageStore.ToBson(data),
             };
-            _unsentMessages.Add(message);
             _unsentTimeSeries.Add(TimeSeriesWriter.ToDocument(message, key.GatewayId));
             _unpublished.Add(message);
         }
@@ -171,7 +167,6 @@ public class TagAggregator : BackgroundService
             _logger.LogInformation("Window closed: {Gateways} gateway messages, {Tags} unique tags",
                 window.Count, window.Values.Sum(tags => tags.Count));
 
-        await WriteAsync(_collection, _unsentMessages, "gateway messages", ct);
         await WriteAsync(_timeSeries.Collection, _unsentTimeSeries, "time-series documents", ct, _timeSeries.EnsureAsync);
         await PublishAsync();
     }
