@@ -28,6 +28,12 @@ public class StreamMapping
     /// </summary>
     public Dictionary<string, string> Meta { get; set; } = [];
 
+    /// <summary>
+    /// Meta keys every document must have (e.g. gatewayid, tagid). A tag missing any of them is skipped and logged
+    /// instead of being stored, so payloads in another layout don't end up in the collection.
+    /// </summary>
+    public List<string> RequiredMeta { get; set; } = [];
+
     /// <summary>Document fields, written in list order after timestamp and meta.</summary>
     public List<FieldMapping> Fields { get; set; } = [];
 

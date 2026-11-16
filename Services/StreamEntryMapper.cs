@@ -14,6 +14,18 @@ namespace WorkerNetworkService.Services;
 /// </summary>
 public static class StreamEntryMapper
 {
+    /// <summary>
+    /// Maps the entry; tags missing a key in mapping.RequiredMeta are left out and counted in <paramref name="skipped"/>.
+    /// </summary>
+    public static List<BsonDocument> ToDocuments(StreamEntry entry, StreamMapping mapping, out int skipped)
+    {
+        var documents = ToDocuments(entry, mapping);
+        var kept = documents.Where(doc => mapping.RequiredMeta.All(key =>
+            doc.TryGetValue("meta", out var meta) && meta.AsBsonDocument.Contains(key))).ToList();
+        skipped = documents.Count - kept.Count;
+        return kept;
+    }
+
     public static List<BsonDocument> ToDocuments(StreamEntry entry, StreamMapping mapping)
     {
         var fields = entry.Values.ToDictionary(v => v.Name.ToString(), v => v.Value.ToString());

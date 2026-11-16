@@ -101,7 +101,10 @@ public class RedisStreamIngestWorker(
 
             try
             {
-                documents.AddRange(StreamEntryMapper.ToDocuments(entry, mapping));
+                documents.AddRange(StreamEntryMapper.ToDocuments(entry, mapping, out var skipped));
+                if (skipped > 0)
+                    logger.LogWarning("Skipped {Count} tag(s) in entry {Id} on {Stream}: missing required meta ({Required})",
+                        skipped, entry.Id, mapping.Stream, string.Join(", ", mapping.RequiredMeta));
             }
             catch (Exception ex)
             {
