@@ -33,3 +33,6 @@ Thumbs.db
 .env
 .dev.vars
 logs/
+
+# npm packages (Cloudflare worker / wrangler)
+node_modules/
