@@ -3,3 +3,7 @@ obj/
 *.user
 .vs/
 .vscode/
+
+# Local secrets
+.env
+.env.local
