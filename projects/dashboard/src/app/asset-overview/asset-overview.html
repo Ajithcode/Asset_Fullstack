@@ -17,13 +17,13 @@
         </span>
       </span>
       <label class="io-filter"><span>Site</span>
-        <select class="control" [(ngModel)]="site" (ngModelChange)="apply()"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
+        <select class="control" [(ngModel)]="site" (ngModelChange)="apply()"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
       <label class="io-filter"><span>Asset Category</span>
-        <select class="control" [(ngModel)]="category" (ngModelChange)="onCategory()"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c.name">{{ c.name }}</option></select></label>
+        <select class="control" [(ngModel)]="category" (ngModelChange)="onCategory()"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c.name">{{ c.name }}</option></select></label>
       <label class="io-filter"><span>Asset Type</span>
-        <select class="control" [(ngModel)]="type" (ngModelChange)="apply()"><option value="">All Types</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <select class="control" [(ngModel)]="type" (ngModelChange)="apply()"><option value="">Select Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
       <label class="io-filter"><span>Asset Status</span>
-        <select class="control" [(ngModel)]="status" (ngModelChange)="apply()"><option value="">All Statuses</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
+        <select class="control" [(ngModel)]="status" (ngModelChange)="apply()"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
       <button type="button" class="btn btn-primary" (click)="exportReport()"><lucide-icon [img]="icons.Upload" [size]="17"></lucide-icon>Export Report</button>
     </div>
   </header>

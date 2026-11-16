@@ -43,11 +43,11 @@
   <!-- ===== Filters ===== -->
   <form class="card filters" (ngSubmit)="onFilter()">
     <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" name="q" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by asset name, tag, serial number, assignee..." aria-label="Search assignments" /></label>
-    <label class="field"><span class="field-label">Assignment Type</span><select class="control" name="type" [(ngModel)]="typeFilter" (ngModelChange)="onTypeFilter()"><option value="">All Types</option><option *ngFor="let t of assignmentTypes" [value]="t">{{ targetLabels[t] }}</option></select></label>
-    <label class="field"><span class="field-label">Assignee Type</span><select class="control" name="assignee" [(ngModel)]="assigneeFilter" (ngModelChange)="onFilter()"><option value="">All</option><option *ngFor="let a of assigneeOptions" [value]="a">{{ a }}</option></select></label>
-    <label class="field"><span class="field-label">Department</span><select class="control" name="dept" [(ngModel)]="departmentFilter" (ngModelChange)="onFilter()"><option value="">All Departments</option><option *ngFor="let d of departments" [value]="d">{{ d }}</option></select></label>
-    <label class="field"><span class="field-label">Location</span><select class="control" name="loc" [(ngModel)]="locationFilter" (ngModelChange)="onFilter()"><option value="">All Locations</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
-    <label class="field"><span class="field-label">Status</span><select class="control" name="status" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
+    <label class="field"><span class="field-label">Assignment Type</span><select class="control" name="type" [(ngModel)]="typeFilter" (ngModelChange)="onTypeFilter()"><option value="">Select Assignment Type</option><option *ngFor="let t of assignmentTypes" [value]="t">{{ targetLabels[t] }}</option></select></label>
+    <label class="field"><span class="field-label">Assignee Type</span><select class="control" name="assignee" [(ngModel)]="assigneeFilter" (ngModelChange)="onFilter()"><option value="">Select Assignee Type</option><option *ngFor="let a of assigneeOptions" [value]="a">{{ a }}</option></select></label>
+    <label class="field"><span class="field-label">Department</span><select class="control" name="dept" [(ngModel)]="departmentFilter" (ngModelChange)="onFilter()"><option value="">Select Department</option><option *ngFor="let d of departments" [value]="d">{{ d }}</option></select></label>
+    <label class="field"><span class="field-label">Location</span><select class="control" name="loc" [(ngModel)]="locationFilter" (ngModelChange)="onFilter()"><option value="">Select Location</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
+    <label class="field"><span class="field-label">Status</span><select class="control" name="status" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
     <div class="filter-actions">
       <button type="button" class="btn btn-outline" [class.is-on]="moreFilters" (click)="moreFilters = !moreFilters" [attr.aria-expanded]="moreFilters"><lucide-icon [img]="icons.SlidersHorizontal" [size]="16"></lucide-icon>More Filters</button>
       <button type="button" class="link-btn" (click)="resetFilters()">Reset</button>
@@ -233,8 +233,8 @@
     <form class="modal-body" (ngSubmit)="saveAssign()">
       <p *ngIf="f.mode === 'reassign'" class="muted">{{ f.assetName }} · SN {{ f.serial }}</p>
       <div class="two">
-        <label class="field"><span class="field-label">Assignment Type</span><select class="control" [(ngModel)]="f.type" name="type" (ngModelChange)="onFormType()"><option *ngFor="let t of assignmentTypes" [value]="t">{{ targetLabels[t] }}</option></select></label>
-        <label class="field"><span class="field-label">Assign To <em>*</em></span><select class="control" [(ngModel)]="f.assignee" name="assignee"><option value="" disabled>Select {{ targetLabels[f.type].toLowerCase() }}</option><option *ngFor="let c of assigneeChoices(f.type)" [value]="c">{{ c }}</option></select></label>
+        <label class="field"><span class="field-label">Assignment Type</span><select class="control" [(ngModel)]="f.type" name="type" (ngModelChange)="onFormType()"><option value="" disabled>Select Assignment Type</option><option *ngFor="let t of assignmentTypes" [value]="t">{{ targetLabels[t] }}</option></select></label>
+        <label class="field"><span class="field-label">Assign To <em>*</em></span><select class="control" [(ngModel)]="f.assignee" name="assignee"><option value="" disabled>Select {{ f.type ? targetLabels[f.type] : 'Assignee' }}</option><option *ngFor="let c of (f.type ? assigneeChoices(f.type) : [])" [value]="c">{{ c }}</option></select></label>
       </div>
       <div class="two">
         <label class="field"><span class="field-label">From Date <em>*</em></span><input class="control" type="date" [(ngModel)]="f.from" name="from" /></label>

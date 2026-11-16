@@ -82,7 +82,7 @@ export class KpiDashboardPage extends AnalyticsPage {
   views: KpiViewDef[] = KPI_VIEWS.map((v) => ({ ...v, ids: [...v.ids] }));
   layouts: Record<string, { id: string; visible: boolean }[]> = {};
   activeKey = 'executive';
-  businessUnit = BUSINESS_UNITS[0];
+  businessUnit = '';
   granularity = 'Monthly';
   exceptionStatus = EXCEPTION_STATUSES[0];
 
@@ -398,8 +398,8 @@ export class KpiDashboardPage extends AnalyticsPage {
         { label: 'Change vs previous period', value: s.changeText },
         { label: 'Owner', value: s.def.owner },
         { label: 'Next review due', value: s.due },
-        { label: 'Scope', value: `${this.location} · ${this.businessUnit}` },
-        { label: 'Period', value: this.period }
+        { label: 'Scope', value: `${this.locationLabel} · ${this.businessUnit || BUSINESS_UNITS[0]}` },
+        { label: 'Period', value: this.periodLabel }
       ]
     };
   }

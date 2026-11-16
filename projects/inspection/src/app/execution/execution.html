@@ -15,7 +15,7 @@
     <div class="head-actions">
       @if (choices().length) {
         <select class="control pick" aria-label="Switch inspection" [ngModel]="work?.inspectionCode ?? ''" (ngModelChange)="switchTo($event)">
-          @if (!work) { <option value="">Select inspection</option> }
+          <option value="" disabled>Select Inspection</option>
           @for (i of choices(); track i.id) { <option [value]="i.inspectionCode">{{ i.inspectionCode }} – {{ i.title }}</option> }
         </select>
       }

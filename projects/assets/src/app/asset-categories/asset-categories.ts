@@ -94,13 +94,13 @@ interface CategoryForm {
   code: string;
   parentId: string | null;
   description: string;
-  status: CategoryStatus;
+  status: CategoryStatus | '';
 }
 
 /** Matches the popup-out animation length in the stylesheet. */
 const POPUP_CLOSE_MS = 180;
 
-const EMPTY_FORM: CategoryForm = { name: '', code: '', parentId: null, description: '', status: 'Active' };
+const EMPTY_FORM: CategoryForm = { name: '', code: '', parentId: null, description: '', status: '' };
 
 /** Keyword → icon, so categories from the API get a fitting icon. First match wins. */
 const ICON_KEYWORDS: [RegExp, string][] = [
@@ -217,7 +217,7 @@ export class AssetCategories {
   modalSubmitted = false;
 
   // Add custom field / attribute inline rows
-  newField: { name: string; type: CategoryFieldType; required: boolean } = { name: '', type: 'Text', required: false };
+  newField: { name: string; type: CategoryFieldType | ''; required: boolean } = { name: '', type: '', required: false };
   newAttribute = { name: '', unit: '', example: '' };
 
   deleteTarget: CategoryNode | null = null;
@@ -412,6 +412,7 @@ export class AssetCategories {
     if (!form.name.trim()) return 'Category name is required.';
     if (!form.code.trim()) return 'Category code is required.';
     if (this.isCodeTaken(form.code, exceptId)) return `Code "${form.code.trim().toUpperCase()}" is already used by another category.`;
+    if (!form.status) return 'Status is required.';
     return null;
   }
 
@@ -532,7 +533,7 @@ export class AssetCategories {
       name: f.name.trim(),
       code: f.code.trim().toUpperCase(),
       description: f.description.trim() || null,
-      status: f.status,
+      status: f.status as CategoryStatus,
     };
 
     const editing = this.modalEditNode;
@@ -697,16 +698,17 @@ export class AssetCategories {
   addField(): void {
     const n = this.selected;
     const name = this.newField.name.trim();
-    if (!n || !name || this.saving) return;
+    const type = this.newField.type;
+    if (!n || !name || !type || this.saving) return;
     if (this.fieldRows.some((r) => r.fieldName.toLowerCase() === name.toLowerCase())) {
       this.showToast(`A field named "${name}" already exists.`);
       return;
     }
     this.write(
-      this.api.addCustomField(n.id, { fieldName: name, type: this.newField.type, required: this.newField.required }),
+      this.api.addCustomField(n.id, { fieldName: name, type, required: this.newField.required }),
       (f) => `Field "${f.fieldName}" added.`,
       n.id,
-      () => (this.newField = { name: '', type: 'Text', required: false }),
+      () => (this.newField = { name: '', type: '', required: false }),
     );
   }
 

@@ -14,6 +14,7 @@
     <label class="org-picker">
       Organization
       <select [(ngModel)]="organization" aria-label="Organization">
+        <option value="" disabled>Select Organization</option>
         @for (o of organizations; track o) {
           <option [value]="o">{{ o }}</option>
         }
@@ -87,21 +88,21 @@
     <div class="panel rac-filters">
       <label>Role Type
         <select class="select" [(ngModel)]="filters.type">
-          <option value="">All types</option>
+          <option value="">Select Role Type</option>
           <option value="System">System</option>
           <option value="Custom">Custom</option>
         </select>
       </label>
       <label>Status
         <select class="select" [(ngModel)]="filters.status">
-          <option value="">All statuses</option>
+          <option value="">Select Status</option>
           <option value="Active">Active</option>
           <option value="Inactive">Inactive</option>
         </select>
       </label>
       <label>Data Scope
         <select class="select" [(ngModel)]="filters.scope">
-          <option value="">All scopes</option>
+          <option value="">Select Data Scope</option>
           @for (s of scopes; track s.id) {
             <option [value]="s.id">{{ s.id }}</option>
           }

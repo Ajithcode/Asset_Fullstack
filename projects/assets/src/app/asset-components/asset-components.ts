@@ -113,7 +113,11 @@ interface AssetRecord {
   components: AssetComponent[];
 }
 
-type ComponentForm = Omit<AssetComponent, 'id' | 'children' | 'icon'> & { parentId: number | null };
+type ComponentForm = Omit<AssetComponent, 'id' | 'children' | 'icon' | 'lifeUnit' | 'status'> & {
+  parentId: number | null;
+  lifeUnit: LifeUnit | '';
+  status: ComponentStatus | '';
+};
 
 /** Stable numeric ids for API components, so the selection survives reloads. */
 const NUMERIC_IDS = new Map<string, number>();
@@ -309,8 +313,8 @@ const EMPTY_FORM: ComponentForm = {
   expectedReplacement: '',
   lifeUsed: 0,
   lifeTotal: 0,
-  lifeUnit: 'hrs',
-  status: 'Active',
+  lifeUnit: '',
+  status: '',
   description: '',
   parentId: null,
 };
@@ -877,6 +881,11 @@ export class AssetComponents {
     return this.form.lifeUsed < 0 || this.form.lifeTotal < 0 || (this.form.lifeTotal > 0 && this.form.lifeUsed > this.form.lifeTotal);
   }
 
+  /** A unit is needed once a rated life is entered. */
+  get lifeUnitMissing(): boolean {
+    return Number(this.form.lifeTotal) > 0 && !this.form.lifeUnit;
+  }
+
   get datesInvalid(): boolean {
     return !!this.form.installedDate && !!this.form.expectedReplacement && this.form.expectedReplacement < this.form.installedDate;
   }
@@ -885,14 +894,14 @@ export class AssetComponents {
     this.formSubmitted = true;
     this.formError = '';
     const f = this.form;
-    if (this.saving || !f.name.trim() || !f.tag.trim() || this.isTagTaken(f.tag) || this.lifeInvalid || this.datesInvalid) return;
+    if (this.saving || !f.name.trim() || !f.tag.trim() || this.isTagTaken(f.tag) || !f.status || this.lifeUnitMissing || this.lifeInvalid || this.datesInvalid) return;
 
     const parent = this.find(f.parentId);
     const body: SaveAssetComponentRequest = {
       parentComponentId: parent?.apiId ?? null,
       componentName: f.name.trim(),
       componentTag: f.tag.trim().toUpperCase(),
-      status: f.status,
+      status: f.status as ComponentStatus,
       model: f.model.trim() || null,
       manufacturer: f.manufacturer.trim() || null,
       partNumber: f.partNumber.trim() || null,
@@ -901,7 +910,7 @@ export class AssetComponents {
       expectedReplacementDate: f.expectedReplacement || null,
       lifecycleUsed: Number(f.lifeUsed) || 0,
       lifecycleRatedLife: Number(f.lifeTotal) || 0,
-      lifecycleUnit: LIFE_UNIT_API[f.lifeUnit],
+      lifecycleUnit: LIFE_UNIT_API[f.lifeUnit || 'hrs'],
       description: f.description.trim() || null,
       createdBy: null,
       clientId: '',

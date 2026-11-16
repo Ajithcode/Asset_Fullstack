@@ -1,6 +1,6 @@
 <section class="lh-page">
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a routerLink="/assets/list">Assets</a><span class="sep" aria-hidden="true">›</span><span class="crumb-current">Location History</span>
+    <a routerLink="/assets/list">Assets</a><span class="sep" aria-hidden="true">›</span><a routerLink="/assets/location-history">Location History</a><span class="sep" aria-hidden="true">›</span><span class="crumb-current">{{ asset.tag }}</span>
   </nav>
 
   <!-- ===== Page header ===== -->
@@ -137,10 +137,10 @@
             <div class="date-btns"><button type="button" class="link-btn" (click)="clearDates()">Clear</button><button type="button" class="btn btn-primary btn-sm" (click)="dateOpen = false">Done</button></div>
           </div>
         </div>
-        <label class="field"><span class="field-label">Location Type</span><select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">All Locations</option><option *ngFor="let t of typeOptions" [value]="t">{{ t }}</option></select></label>
-        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onSite()"><option value="">All Sites</option><option *ngFor="let s of siteOptions" [value]="s">{{ s }}</option></select></label>
-        <label class="field"><span class="field-label">Zone</span><select class="control" [(ngModel)]="zoneFilter" (ngModelChange)="onFilter()"><option value="">All Zones</option><option *ngFor="let z of zoneOptions" [value]="z">{{ z }}</option></select></label>
-        <label class="field"><span class="field-label">Movement Type</span><select class="control" [(ngModel)]="movementFilter" (ngModelChange)="onFilter()"><option value="">All Types</option><option value="In">In</option><option value="Out">Out</option><option value="Move">Move</option></select></label>
+        <label class="field"><span class="field-label">Location Type</span><select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">Select Location Type</option><option *ngFor="let t of typeOptions" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onSite()"><option value="">Select Site</option><option *ngFor="let s of siteOptions" [value]="s">{{ s }}</option></select></label>
+        <label class="field"><span class="field-label">Zone</span><select class="control" [(ngModel)]="zoneFilter" (ngModelChange)="onFilter()"><option value="">Select Zone</option><option *ngFor="let z of zoneOptions" [value]="z">{{ z }}</option></select></label>
+        <label class="field"><span class="field-label">Movement Type</span><select class="control" [(ngModel)]="movementFilter" (ngModelChange)="onFilter()"><option value="">Select Movement Type</option><option value="In">In</option><option value="Out">Out</option><option value="Move">Move</option></select></label>
         <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by location, remarks..." aria-label="Search history" /></label>
         <span class="menu-wrap">
           <button type="button" class="btn btn-outline btn-icon" (click)="toggleMenu('table', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'table'" aria-label="Table actions"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button>
@@ -206,12 +206,12 @@
     <form class="modal-body" (ngSubmit)="saveRecord()">
       <p class="muted">Current location: <strong>{{ current?.location || '—' }}</strong></p>
       <label class="field"><span class="field-label">New Location <em>*</em></span>
-        <select class="control" [(ngModel)]="f.location" name="loc"><option value="" disabled>Select location</option><option *ngFor="let p of places" [value]="p.name">{{ p.name }} · {{ p.zone }}</option></select></label>
+        <select class="control" [(ngModel)]="f.location" name="loc"><option value="" disabled>Select Location</option><option *ngFor="let p of places" [value]="p.name">{{ p.name }} · {{ p.zone }}</option></select></label>
       <div class="two">
-        <label class="field"><span class="field-label">Movement Type</span><select class="control" [(ngModel)]="f.movement" name="mv"><option value="In">In</option><option value="Out">Out</option><option value="Move">Move</option></select></label>
+        <label class="field"><span class="field-label">Movement Type</span><select class="control" [(ngModel)]="f.movement" name="mv"><option value="" disabled>Select Movement Type</option><option value="In">In</option><option value="Out">Out</option><option value="Move">Move</option></select></label>
         <label class="field"><span class="field-label">Date &amp; Time <em>*</em></span><input class="control" type="datetime-local" [(ngModel)]="f.at" name="at" /></label>
       </div>
-      <label class="field"><span class="field-label">Source</span><select class="control" [(ngModel)]="f.source" name="src"><option>Manual Update</option><option>GPS Tag</option><option>RFID Gate</option><option>Barcode Scan</option></select></label>
+      <label class="field"><span class="field-label">Source</span><select class="control" [(ngModel)]="f.source" name="src"><option value="" disabled>Select Source</option><option>Manual Update</option><option>GPS Tag</option><option>RFID Gate</option><option>Barcode Scan</option></select></label>
       <label class="field"><span class="field-label">Remarks</span><input class="control" [(ngModel)]="f.remarks" name="rem" /></label>
       <p *ngIf="recordError" class="form-error" role="alert">{{ recordError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="recordForm = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Save Movement</button></div>

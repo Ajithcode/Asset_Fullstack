@@ -11,14 +11,16 @@ import { TechnicianRecord } from '../technician.model';
 import { TechnicianService } from '../technician.service';
 
 type FormTab = 'basic' | 'skills' | 'employment' | 'contact' | 'settings';
-type FieldKey = 'id' | 'name' | 'email' | 'photo' | 'team' | 'certifications' | 'hourlyRate' | 'maxOpenWorkOrders';
+type FieldKey = 'id' | 'name' | 'email' | 'photo' | 'status' | 'team' | 'skillLevel' | 'certifications' | 'hourlyRate' | 'maxOpenWorkOrders';
 
 const TAB_OF: Record<FieldKey, FormTab> = {
   id: 'basic',
   name: 'basic',
   email: 'basic',
   photo: 'basic',
+  status: 'basic',
   team: 'basic',
+  skillLevel: 'skills',
   certifications: 'skills',
   hourlyRate: 'employment',
   maxOpenWorkOrders: 'settings'
@@ -170,6 +172,8 @@ export class TechnicianForm implements OnChanges {
     if (!f.email.trim()) errors.email = 'Enter an email address.';
     else if (!EMAIL.test(f.email.trim())) errors.email = 'Enter a valid email address.';
     else if (this.service.isEmailTaken(f.email, originalId)) errors.email = 'Another technician uses this email.';
+    if (!f.status) errors.status = 'Select a status.';
+    if (!f.skillLevel) errors.skillLevel = 'Select a skill level.';
     // A leader stays in the team they lead
     const led = originalId ? this.teams.teamsLedBy(originalId).find((t) => t.code === this.originalTeam) : undefined;
     if (led && this.teamCode !== this.originalTeam) errors.team = `${f.name.trim() || 'This technician'} leads ${led.name}. Choose another leader there first.`;

@@ -43,6 +43,7 @@ export class PermissionForm extends MasterForm<PermissionRecord, Tab> {
     const errors: Record<string, string> = {};
     if (!f.module) errors['module'] = 'Select a module.';
     if (!f.type) errors['type'] = 'Select a permission type.';
+    if (!f.status) errors['status'] = 'Select a status.';
     return { errors, tab: 'basic' as Tab };
   }
 

@@ -338,19 +338,20 @@ export class PmSchedules {
     this.formError = '';
     this.form = s
       ? { id: s.id, name: s.name, description: s.description, component: s.component, category: s.category, frequency: s.frequency, lastPerformed: s.lastPerformed, nextDue: s.nextDue, assignedTo: s.assignedTo, durationHours: s.durationHours, estCost: s.estCost, template: s.template }
-      : { id: null, name: '', description: '', component: '', category: 'Routine', frequency: 'Monthly', lastPerformed: '', nextDue: '', assignedTo: this.assignees[0] ?? '', durationHours: 1, estCost: 0, template: '' };
+      : { id: null, name: '', description: '', component: '', category: '' as PmCategory, frequency: '', lastPerformed: '', nextDue: '', assignedTo: this.assignees[0] ?? '', durationHours: 1, estCost: 0, template: '' };
   }
 
   /** Changing the last date or the frequency proposes the next due date. */
   onFormDates(): void {
     const f = this.form;
-    if (f?.lastPerformed) f.nextDue = addMonths(f.lastPerformed, frequencyMonths(f.frequency));
+    if (f?.lastPerformed && f.frequency) f.nextDue = addMonths(f.lastPerformed, frequencyMonths(f.frequency));
   }
 
   saveForm(): void {
     const f = this.form;
     if (!f) return;
     if (!f.name.trim()) return void (this.formError = 'Enter the PM name.');
+    if (!f.category || !f.frequency) return void (this.formError = 'Select the category and the frequency.');
     if (!f.nextDue) return void (this.formError = 'Enter the next due date (or the last performed date).');
     if (f.lastPerformed && f.nextDue <= f.lastPerformed) return void (this.formError = 'Next due date must be after the last performed date.');
     const fields = {
@@ -389,9 +390,9 @@ export class PmSchedules {
 
   openLink(): void {
     this.menuOpen = '';
-    const s = this.selected ?? this.schedules[0];
-    if (!s) return;
-    this.linkForm = { scheduleId: s.id, template: s.template || this.templates[0]?.code || '' };
+    if (!this.schedules.length) return;
+    const s = this.selected;
+    this.linkForm = { scheduleId: s?.id ?? '', template: s?.template || this.templates[0]?.code || '' };
   }
 
   saveLink(): void {

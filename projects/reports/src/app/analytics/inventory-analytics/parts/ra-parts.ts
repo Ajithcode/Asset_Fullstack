@@ -10,8 +10,8 @@ export const SITE_ORG: Record<string, string> = {};
 /** True when a site is inside the organization + location filters. Sites with no known organization are kept. */
 export function siteInScope(site: string, organization: string, location: string): boolean {
   const org = SITE_ORG[site];
-  const orgOk = organization === 'All organizations' || !org || org === organization;
-  const locOk = location === 'All locations' || location === site;
+  const orgOk = !organization || organization === 'All organizations' || !org || org === organization;
+  const locOk = !location || location === 'All locations' || location === site;
   return orgOk && locOk;
 }
 
@@ -33,7 +33,7 @@ export interface PeriodWindow {
 }
 
 export function periodWindow(period: string): PeriodWindow {
-  const caption = period;
+  const caption = period || RA_PERIODS[0];
   switch (RA_PERIODS.indexOf(period)) {
     case 1:
     case 3:

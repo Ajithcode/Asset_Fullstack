@@ -295,7 +295,7 @@
         <input type="search" placeholder="Search events..." [(ngModel)]="historySearch" aria-label="Search events" />
       </div>
       <select class="control" [(ngModel)]="historyKind" aria-label="Filter by event type">
-        <option value="">All Event Types</option>
+        <option value="">Select Event Type</option>
         <option *ngFor="let k of eventKinds" [value]="k">{{ k }}</option>
       </select>
     </div>
@@ -488,7 +488,7 @@
           <label class="field"><span class="field-label">Type / Model <em>*</em></span><input class="control" name="typeModel" [(ngModel)]="infoDraft.typeModel" [class.is-invalid]="submitted && !infoDraft.typeModel.trim()" /></label>
           <label class="field"><span class="field-label">Serial Number <em>*</em></span><input class="control" name="serial" [(ngModel)]="infoDraft.serial" [class.is-invalid]="submitted && !infoDraft.serial.trim()" /></label>
           <label class="field"><span class="field-label">Criticality</span>
-            <select class="control" name="criticality" [(ngModel)]="infoDraft.criticality"><option *ngFor="let c of criticalities" [value]="c">{{ c }}</option></select>
+            <select class="control" name="criticality" [(ngModel)]="infoDraft.criticality"><option value="" disabled>Select Criticality</option><option *ngFor="let c of criticalities" [value]="c">{{ c }}</option></select>
           </label>
           <label class="field"><span class="field-label">Location <em>*</em></span><input class="control" name="location" [(ngModel)]="infoDraft.location" [class.is-invalid]="submitted && !infoDraft.location.trim()" /></label>
           <label class="field"><span class="field-label">Custodian <em>*</em></span><input class="control" name="custodian" [(ngModel)]="infoDraft.custodian" [class.is-invalid]="submitted && !infoDraft.custodian.trim()" /></label>
@@ -521,10 +521,10 @@
       <div class="modal-body">
         <div class="grid-2">
           <label class="field"><span class="field-label">Operational Status</span>
-            <select class="control" name="operational" [(ngModel)]="statusDraft.operational"><option *ngFor="let o of operationalStatuses" [value]="o">{{ o }}</option></select>
+            <select class="control" name="operational" [(ngModel)]="statusDraft.operational"><option value="" disabled>Select Operational Status</option><option *ngFor="let o of operationalStatuses" [value]="o">{{ o }}</option></select>
           </label>
           <label class="field"><span class="field-label">Condition</span>
-            <select class="control" name="condition" [(ngModel)]="statusDraft.condition"><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
+            <select class="control" name="condition" [(ngModel)]="statusDraft.condition"><option value="" disabled>Select Condition</option><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
           </label>
         </div>
         <div class="grid-3">
@@ -552,12 +552,13 @@
             <input class="control" type="date" name="cDate" [max]="todayIso" [(ngModel)]="conditionDraft.date" [class.is-invalid]="submitted && (!conditionDraft.date || conditionDraft.date > todayIso)" />
           </label>
           <label class="field"><span class="field-label">Condition <em>*</em></span>
-            <select class="control" name="cCondition" [(ngModel)]="conditionDraft.condition"><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
+            <select class="control" name="cCondition" [(ngModel)]="conditionDraft.condition" [class.is-invalid]="submitted && !conditionDraft.condition"><option value="" disabled>Select Condition</option><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
           </label>
         </div>
         <label class="field"><span class="field-label">Notes</span><textarea class="control" name="cNotes" rows="3" maxlength="250" [(ngModel)]="conditionDraft.notes"></textarea></label>
         <span class="hint">The latest assessment updates the current condition and sets the next assessment six months later.</span>
         <span *ngIf="submitted && (!conditionDraft.date || conditionDraft.date > todayIso)" class="error">Pick an assessment date that isn't in the future.</span>
+        <span *ngIf="submitted && !conditionDraft.condition" class="error">Condition is required.</span>
       </div>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Record</button></div>
     </form>
@@ -570,7 +571,7 @@
         <div class="grid-3">
           <label class="field"><span class="field-label">Date <em>*</em></span><input class="control" type="date" name="eDate" [(ngModel)]="eventDraft.date" [class.is-invalid]="submitted && !eventDraft.date" /></label>
           <label class="field"><span class="field-label">Type</span>
-            <select class="control" name="eKind" [(ngModel)]="eventDraft.kind"><option *ngFor="let k of eventKinds" [value]="k">{{ k }}</option></select>
+            <select class="control" name="eKind" [(ngModel)]="eventDraft.kind"><option value="" disabled>Select Type</option><option *ngFor="let k of eventKinds" [value]="k">{{ k }}</option></select>
           </label>
           <label class="field"><span class="field-label">By</span><input class="control" name="eBy" maxlength="60" [(ngModel)]="eventDraft.by" placeholder="Rex Kumar" /></label>
         </div>
@@ -585,7 +586,7 @@
       <div class="modal-body">
         <div class="grid-2">
           <label class="field"><span class="field-label">Status</span>
-            <select class="control" name="sStatus" [(ngModel)]="stageDraft.status"><option *ngFor="let s of stageStatuses" [value]="s">{{ s === 'Current' ? 'Current Stage' : s }}</option></select>
+            <select class="control" name="sStatus" [(ngModel)]="stageDraft.status"><option value="" disabled>Select Status</option><option *ngFor="let s of stageStatuses" [value]="s">{{ s === 'Current' ? 'Current Stage' : s }}</option></select>
           </label>
           <label class="field"><span class="field-label">Date</span><input class="control" type="date" name="sDate" [(ngModel)]="stageDraft.date" [class.is-invalid]="submitted && !!stageError" /></label>
         </div>

@@ -26,20 +26,21 @@ import { CalcField, CalcOperator, CustomReport, FieldDef } from '../custom-repor
             <div class="field" [class.invalid]="submitted && !left">
               <label for="cr-calc-left">Field</label>
               <select id="cr-calc-left" name="left" [(ngModel)]="left">
-                <option value="">Select…</option>
+                <option value="">Select Field</option>
                 @for (f of numericFields; track f.key) { <option [value]="f.key">{{ f.label }}</option> }
               </select>
             </div>
-            <div class="field cr-calc-op">
+            <div class="field cr-calc-op" [class.invalid]="submitted && !op">
               <label for="cr-calc-op">Operator</label>
               <select id="cr-calc-op" name="op" [(ngModel)]="op">
+                <option value="" disabled>Select Operator</option>
                 @for (o of operators; track o) { <option [value]="o">{{ o }}</option> }
               </select>
             </div>
             <div class="field" [class.invalid]="submitted && !right">
               <label for="cr-calc-right">Field</label>
               <select id="cr-calc-right" name="right" [(ngModel)]="right">
-                <option value="">Select…</option>
+                <option value="">Select Field</option>
                 @for (f of numericFields; track f.key) { <option [value]="f.key">{{ f.label }}</option> }
               </select>
             </div>
@@ -68,7 +69,7 @@ export class CalcFieldDialog implements OnInit {
   numericFields: FieldDef[] = [];
   name = '';
   left = '';
-  op: CalcOperator = '÷';
+  op: CalcOperator | '' = '';
   right = '';
   submitted = false;
 
@@ -91,6 +92,7 @@ export class CalcFieldDialog implements OnInit {
 
   get exprError(): string {
     if (!this.left || !this.right) return 'Choose both fields.';
+    if (!this.op) return 'Choose an operator.';
     if (this.left === this.right && (this.op === '-' || this.op === '÷')) return 'Choose two different fields for this operator.';
     return '';
   }
@@ -102,6 +104,6 @@ export class CalcFieldDialog implements OnInit {
     let key = `calc:${slug}`;
     let i = 1;
     while (this.report.calcFields.some((c) => c.key === key)) key = `calc:${slug}-${++i}`;
-    this.save.emit({ key, label: this.name.trim(), left: this.left, op: this.op, right: this.right });
+    this.save.emit({ key, label: this.name.trim(), left: this.left, op: this.op as CalcOperator, right: this.right });
   }
 }

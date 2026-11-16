@@ -45,11 +45,11 @@
         <input type="search" placeholder="Search attachments..." [(ngModel)]="search" (ngModelChange)="onFilterChange()" aria-label="Search attachments" />
       </div>
       <select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by file type">
-        <option value="">All File Types</option>
+        <option value="">Select File Type</option>
         <option *ngFor="let t of fileTypes" [value]="t">{{ formatLabels[t] }}</option>
       </select>
       <select class="control" [(ngModel)]="categoryFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by category">
-        <option value="">All Categories</option>
+        <option value="">Select Category</option>
         <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
       </select>
     </div>
@@ -236,6 +236,7 @@
       <label class="field">
         <span class="field-label">Category</span>
         <select class="control" name="category" [(ngModel)]="editForm.category">
+          <option value="" disabled>Select Category</option>
           <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
         </select>
       </label>

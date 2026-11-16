@@ -65,6 +65,27 @@ export function defaultConfig(): NodeConfig {
   };
 }
 
+/** Settings a node added in the builder starts with: every dropdown unselected (templates keep defaultConfig). */
+export function blankConfig(): NodeConfig {
+  return {
+    ...defaultConfig(),
+    triggerEvent: '',
+    triggerModule: '',
+    conditionField: '',
+    operator: '',
+    approvalType: '',
+    approverSource: '',
+    approverRole: '',
+    approverUser: '',
+    actionType: '',
+    actionTarget: '',
+    template: '',
+    channel: '',
+    recipient: '',
+    outcome: ''
+  };
+}
+
 // Main row sits at y=110 (cards) / y=104 (diamonds); end paths drop to y=270
 const ROW = 110;
 const DIAMOND_ROW = 104;

@@ -117,7 +117,8 @@
             <div class="grow"><h2>3. Preview &amp; Validate</h2><p>Review the imported data and fix any issues before proceeding to the next step.</p></div>
             <label class="search head-search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="page = 0" placeholder="Search by asset name, tag, or error..." aria-label="Search records" /></label>
             <select class="control filter-select" [ngModel]="filter" (ngModelChange)="setFilter($event)" aria-label="Filter records">
-              <option value="all">Filter: All</option><option value="valid">Valid</option><option value="warning">Warnings</option><option value="error">Errors</option>
+              <option value="">Select Records</option>
+              <option value="valid">Valid</option><option value="warning">Warnings</option><option value="error">Errors</option>
             </select>
           </div>
           <ng-container *ngTemplateOutlet="statCards; context: { clickable: true }"></ng-container>
@@ -145,7 +146,7 @@
                       <td><input class="control cell-input" [ngModel]="r.tag" (ngModelChange)="edit(r, 'tag', $event)" aria-label="Asset tag" /></td>
                       <td>{{ r.asset?.assetName || r.assetName || '-' }}</td>
                       <td>{{ r.asset?.assetType || '-' }}</td>
-                      <td><select class="control cell-input" [ngModel]="r.type" (ngModelChange)="edit(r, 'type', $event)" aria-label="Assignment type"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></td>
+                      <td><select class="control cell-input" [ngModel]="r.type" (ngModelChange)="edit(r, 'type', $event)" aria-label="Assignment type"><option value="" disabled>Select Assignment Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></td>
                       <td><input class="control cell-input" [ngModel]="r.assignee" (ngModelChange)="edit(r, 'assignee', $event)" aria-label="Assign to" /></td>
                       <td><input class="control cell-input" [ngModel]="r.department" (ngModelChange)="edit(r, 'department', $event)" aria-label="Department" /></td>
                       <td><input class="control cell-input" [ngModel]="r.location" (ngModelChange)="edit(r, 'location', $event)" aria-label="Location" /></td>
@@ -208,10 +209,10 @@
             <section class="sub-card">
               <div class="sub-head"><lucide-icon [img]="icons.MapPin" [size]="20"></lucide-icon><h3>Location / Site Details <span class="muted-inline">(Optional)</span></h3></div>
               <div class="sub-body loc-grid">
-                <span class="field-label">Site</span><select class="control" [(ngModel)]="common.site" (ngModelChange)="onSite()" aria-label="Site"><option value="">Select site</option><option *ngFor="let x of sites" [value]="x">{{ x }}</option></select>
-                <span class="field-label">Building</span><select class="control" [(ngModel)]="common.building" (ngModelChange)="onBuilding()" [disabled]="!common.site" aria-label="Building"><option value="">Select building</option><option *ngFor="let x of buildings" [value]="x">{{ x }}</option></select>
-                <span class="field-label">Floor</span><select class="control" [(ngModel)]="common.floor" (ngModelChange)="onFloor()" [disabled]="!common.building" aria-label="Floor"><option value="">Select floor</option><option *ngFor="let x of floors" [value]="x">{{ x }}</option></select>
-                <span class="field-label">Room / Space</span><select class="control" [(ngModel)]="common.room" [disabled]="!common.floor" aria-label="Room or space"><option value="">Select room / space</option><option *ngFor="let x of rooms" [value]="x">{{ x }}</option></select>
+                <span class="field-label">Site</span><select class="control" [(ngModel)]="common.site" (ngModelChange)="onSite()" aria-label="Site"><option value="">Select Site</option><option *ngFor="let x of sites" [value]="x">{{ x }}</option></select>
+                <span class="field-label">Building</span><select class="control" [(ngModel)]="common.building" (ngModelChange)="onBuilding()" [disabled]="!common.site" aria-label="Building"><option value="">Select Building</option><option *ngFor="let x of buildings" [value]="x">{{ x }}</option></select>
+                <span class="field-label">Floor</span><select class="control" [(ngModel)]="common.floor" (ngModelChange)="onFloor()" [disabled]="!common.building" aria-label="Floor"><option value="">Select Floor</option><option *ngFor="let x of floors" [value]="x">{{ x }}</option></select>
+                <span class="field-label">Room / Space</span><select class="control" [(ngModel)]="common.room" [disabled]="!common.floor" aria-label="Room or space"><option value="">Select Room / Space</option><option *ngFor="let x of rooms" [value]="x">{{ x }}</option></select>
               </div>
             </section>
             <section class="sub-card">
@@ -229,7 +230,7 @@
             <section class="sub-card">
               <div class="sub-head"><lucide-icon [img]="icons.FileText" [size]="20"></lucide-icon><h3>Purpose / Reason</h3></div>
               <div class="sub-body two-col">
-                <label class="field"><span class="field-label">Assignment Reason <em>*</em></span><select class="control" [(ngModel)]="common.reason"><option value="">Select reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+                <label class="field"><span class="field-label">Assignment Reason <em>*</em></span><select class="control" [(ngModel)]="common.reason"><option value="">Select Reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
                 <label class="field"><span class="field-label">Reference (Optional)</span><input class="control" [(ngModel)]="common.reference" /></label>
                 <label class="field span-2"><span class="field-label">Notes (Optional)</span><textarea class="control remarks" rows="2" [(ngModel)]="common.notes" [maxlength]="notesMax" placeholder="Added to the remarks of every assignment"></textarea><small class="counter">{{ common.notes.length }}/{{ notesMax }}</small></label>
               </div>
@@ -477,7 +478,7 @@
 <!-- Total / valid / warnings / errors cards; on step 3 they filter the table -->
 <ng-template #statCards let-clickable="clickable">
   <div class="bulk-stats">
-    <button type="button" class="bstat" [class.is-on]="clickable && filter === 'all'" [disabled]="!clickable" (click)="setFilter('all')">
+    <button type="button" class="bstat" [class.is-on]="clickable && !filter" [disabled]="!clickable" (click)="setFilter('all')">
       <span class="bstat-ic"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></span>
       <span class="grow"><small>Total Records</small><strong>{{ records.length }}</strong></span>
     </button>

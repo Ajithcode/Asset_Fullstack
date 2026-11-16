@@ -65,14 +65,14 @@ interface HealthForm {
   siteId: string;
   siteName: string;
   gateway: string;
-  connectivity: ApiConnectivity;
+  connectivity: ApiConnectivity | '';
   signalStrengthDbm: number | null;
   snrDb: number | null;
-  powerSource: ApiPowerSource;
+  powerSource: ApiPowerSource | '';
   batteryLevel: number | null;
   /** datetime-local value or ''. */
   lastSeen: string;
-  health: ApiHealth;
+  health: ApiHealth | '';
 }
 
 const RANGE_MIN: Record<Range, number> = { '1h': 60, '24h': 1440, '7d': 10080 };
@@ -127,7 +127,7 @@ export class DeviceHealth implements OnInit, OnDestroy {
 
   // page filters
   site = '';
-  range: Range = '24h';
+  range: Range | '' = '';
   // table filters
   search = '';
   statusFilter: '' | 'attention' | Status = '';
@@ -239,7 +239,7 @@ export class DeviceHealth implements OnInit, OnDestroy {
   get scoped(): Device[] {
     const key = `${this.site}|${this.range}`;
     if (this.scopeCache?.key !== key || this.scopeCache.src !== this.devices) {
-      const r = RANGE_MIN[this.range];
+      const r = this.range ? RANGE_MIN[this.range] : Infinity;
       this.scopeCache = { key, src: this.devices, rows: this.devices.filter((d) => (!this.site || d.site === this.site) && (d.lastSeenMin === null || d.lastSeenMin <= r || d.conn !== 'Online')) };
     }
     return this.scopeCache.rows;
@@ -258,7 +258,7 @@ export class DeviceHealth implements OnInit, OnDestroy {
     return of ? ((n / of) * 100).toFixed(1) : '0.0';
   }
 
-  setRange(r: Range): void {
+  setRange(r: Range | ''): void {
     this.range = r;
     this.onFilter();
   }
@@ -474,7 +474,7 @@ export class DeviceHealth implements OnInit, OnDestroy {
     this.formError = '';
     this.healthForm = {
       id: '', deviceId: '', deviceModel: '', assetRegistrationId: '', assetName: '', siteId: '', siteName: '', gateway: '',
-      connectivity: 'Online', signalStrengthDbm: null, snrDb: null, powerSource: 'Battery', batteryLevel: null, lastSeen: '', health: 'Healthy',
+      connectivity: '', signalStrengthDbm: null, snrDb: null, powerSource: '', batteryLevel: null, lastSeen: '', health: '',
     };
   }
 
@@ -518,6 +518,9 @@ export class DeviceHealth implements OnInit, OnDestroy {
     if (!f || this.busy) return;
     if (!f.deviceId.trim()) return void (this.formError = 'Choose or enter the device ID.');
     if (!f.deviceModel.trim()) return void (this.formError = 'Enter the device model.');
+    if (!f.connectivity) return void (this.formError = 'Select the connectivity.');
+    if (!f.powerSource) return void (this.formError = 'Select the power source.');
+    if (!f.health) return void (this.formError = 'Select the health.');
     const dbm = num(f.signalStrengthDbm);
     if (dbm !== null && (dbm < -150 || dbm > 0)) return void (this.formError = 'Signal strength must be between -150 and 0 dBm.');
     const battery = num(f.batteryLevel);
@@ -748,7 +751,7 @@ export class DeviceHealth implements OnInit, OnDestroy {
     this.select(d, this.tab);
     this.formError = '';
     const what = this.callout.text.replace(/^Device /, '').replace(/\.$/, '');
-    this.issueForm = { title: `${d.id} ${d.status === 'Healthy' ? 'requires inspection' : '— ' + what}`, priority: d.status === 'Critical' || d.status === 'Offline' ? 'High' : 'Medium', assignee: ASSIGNEES[0] ?? '', notes: '' };
+    this.issueForm = { title: `${d.id} ${d.status === 'Healthy' ? 'requires inspection' : '— ' + what}`, priority: '', assignee: '', notes: '' };
   }
 
   saveIssue(): void {
@@ -756,6 +759,7 @@ export class DeviceHealth implements OnInit, OnDestroy {
     const d = this.selected;
     if (!f || !d) return;
     if (!f.title.trim()) return void (this.formError = 'Enter an issue title.');
+    if (!f.priority) return void (this.formError = 'Select a priority.');
     const id = `ISS-${new Date().getFullYear()}-${String(++this.issueSeq).padStart(4, '0')}`;
     this.addEvent(d, { min: 0, title: `Issue ${id} noted`, detail: `${f.priority} priority${f.assignee ? ' · assigned to ' + f.assignee : ''}`, level: 'purple' });
     this.issueForm = null;

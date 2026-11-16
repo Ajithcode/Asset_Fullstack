@@ -8,6 +8,20 @@ import { ManufacturerService } from '../../manufacturer/manufacturer.service';
 import { CRITICALITIES, PM_FREQUENCIES, TRACKING_METHODS, blankAssetModel, hasRunningNumber, sampleTag, specsFor } from '../asset-model.data';
 import { MODEL_ICONS } from '../asset-model.icons';
 import { AssetModelRecord } from '../asset-model.model';
+
+/** A new model starts with every dropdown empty so the user picks each value. */
+function newAssetModel(): AssetModelRecord {
+  return {
+    ...blankAssetModel(),
+    pmFrequency: '' as AssetModelRecord['pmFrequency'],
+    maintenanceStrategy: '' as AssetModelRecord['maintenanceStrategy'],
+    criticality: '' as AssetModelRecord['criticality'],
+    currency: '',
+    depreciationMethod: '' as AssetModelRecord['depreciationMethod'],
+    trackingMethod: '' as AssetModelRecord['trackingMethod'],
+    defaultCondition: '' as AssetModelRecord['defaultCondition']
+  };
+}
 import { AssetModelService } from '../asset-model.service';
 
 export type ModelFormTab = 'basic' | 'specs' | 'lifecycle' | 'financial' | 'defaults';
@@ -76,7 +90,7 @@ export class ModelForm implements OnInit, OnChanges {
   ];
 
   tab: ModelFormTab = 'basic';
-  form: AssetModelRecord = blankAssetModel();
+  form: AssetModelRecord = newAssetModel();
   subcategoriesText = '';
   errors: Partial<Record<FieldKey, string>> = {};
   private original: AssetModelRecord | null = null;
@@ -99,7 +113,7 @@ export class ModelForm implements OnInit, OnChanges {
 
   ngOnChanges(): void {
     this.original = this.mode === 'edit' ? this.model : null;
-    this.form = this.model ? structuredClone(this.model) : blankAssetModel();
+    this.form = this.model ? structuredClone(this.model) : newAssetModel();
     this.subcategoriesText = this.form.subcategories.join(', ');
     this.errors = {};
     this.tab = this.startTab;

@@ -33,6 +33,7 @@
     <label class="asset-switch" [hidden]="!!tabMeta">
       <span>Asset</span>
       <select class="control" [(ngModel)]="assetTag" (ngModelChange)="onAssetChange()" aria-label="Choose asset">
+        <option value="" disabled>Select Asset</option>
         <option *ngFor="let a of assets" [value]="a.tag">{{ a.name }} ({{ a.tag }})</option>
       </select>
     </label>
@@ -62,6 +63,7 @@
           <dt>Component</dt>
           <dd>
             <select class="control control--inline" [(ngModel)]="focusId" aria-label="Choose component">
+              <option [ngValue]="null" disabled>Select Component</option>
               <option *ngFor="let o of componentOptions" [ngValue]="o.id">{{ o.label }}</option>
             </select>
           </dd>
@@ -186,7 +188,7 @@
           <input type="search" placeholder="Search components..." [(ngModel)]="search" (ngModelChange)="onFilterChange()" aria-label="Search components" />
         </div>
         <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by status">
-          <option value="">All Status</option>
+          <option value="">Select Status</option>
           <option *ngFor="let s of statusOptions" [value]="s">{{ s }}</option>
         </select>
       </div>
@@ -419,9 +421,11 @@
           </label>
           <label class="field">
             <span class="field-label">Status</span>
-            <select class="control" name="status" [(ngModel)]="form.status">
+            <select class="control" name="status" [(ngModel)]="form.status" [class.is-invalid]="formSubmitted && !form.status">
+              <option value="" disabled>Select Status</option>
               <option *ngFor="let s of statusOptions" [value]="s">{{ s }}</option>
             </select>
+            <span *ngIf="formSubmitted && !form.status" class="error">Status is required.</span>
           </label>
           <label class="field">
             <span class="field-label">Model</span>
@@ -463,13 +467,15 @@
             </label>
             <label class="field">
               <span class="field-label">Unit</span>
-              <select class="control" name="lifeUnit" [(ngModel)]="form.lifeUnit">
+              <select class="control" name="lifeUnit" [(ngModel)]="form.lifeUnit" [class.is-invalid]="formSubmitted && lifeUnitMissing">
+                <option value="" disabled>Select Unit</option>
                 <option value="hrs">Running hours</option>
                 <option value="months">Months</option>
               </select>
             </label>
           </div>
           <span *ngIf="lifeInvalid" class="error">Used can't be negative or exceed the rated life.</span>
+          <span *ngIf="formSubmitted && lifeUnitMissing" class="error">Choose the unit for the rated life.</span>
         </fieldset>
 
         <label class="field">

@@ -376,11 +376,11 @@ export class AssignAsset implements OnInit, OnDestroy {
   private newWizard(target: AssignmentType, tags: string[]): Wizard {
     return {
       step: tags.length ? 2 : 1, tags, selectMode: tags.length > 1 ? 'multiple' : 'single', assetSearch: '', target, assignee: '', entityKind: 'Vendor / Supplier', entity: '',
-      contact: '', phone: '', email: '', agreement: '', approvalRef: '', costCenter: '', site: '', building: '', floor: '', room: '', reason: '', transfer: TRANSFER_TYPES[target][0], from: isoDate(new Date()),
-      to: '', openEnded: target !== 'Other', serviceType: '', workOrder: '', serviceLocation: '', expectedReturn: '', returnCondition: 'Same as Assigned', responsible: '',
+      contact: '', phone: '', email: '', agreement: '', approvalRef: '', costCenter: '', site: '', building: '', floor: '', room: '', reason: '', transfer: '', from: isoDate(new Date()),
+      to: '', openEnded: target !== 'Other', serviceType: '', workOrder: '', serviceLocation: '', expectedReturn: '', returnCondition: '', responsible: '',
       remarks: '', notes: '', files: [], notify: true, notifyMessage: 'Your asset(s) have been assigned to you. Please check the details in Asset360.', notifyManager: true,
       notifyDepartment: false, reminder: false, reminderDate: '', reminderMessage: '', reference: '',
-      requestor: this.api.user, priority: 'Normal', customReason: '',
+      requestor: this.api.user, priority: '', customReason: '',
     };
   }
 
@@ -700,7 +700,7 @@ export class AssignAsset implements OnInit, OnDestroy {
     if (w.target === t) return;
     w.target = t;
     w.assignee = '';
-    w.transfer = TRANSFER_TYPES[t][0];
+    w.transfer = '';
     if (t === 'Other') w.openEnded = false;
     this.wizardError = '';
     this.profileOpen = false;

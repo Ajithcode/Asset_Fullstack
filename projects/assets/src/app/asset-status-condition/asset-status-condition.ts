@@ -501,11 +501,11 @@ export class AssetStatusCondition implements OnDestroy {
       id: null,
       date: this.today,
       assessedBy: this.currentUser,
-      overall: base?.overall ?? 'Good',
+      overall: '' as Condition,
       healthScore: base?.healthScore ?? 85,
-      physical: base?.physical ?? 'Good',
-      performance: base?.performance ?? 'Good',
-      safety: base?.safety ?? 'Good',
+      physical: '' as Condition,
+      performance: '' as Condition,
+      safety: '' as Condition,
       remarks: '',
     };
   }
@@ -528,6 +528,10 @@ export class AssetStatusCondition implements OnDestroy {
     const score = Number(f.healthScore);
     if (!f.date || !f.assessedBy.trim()) {
       this.formError = 'Enter the assessment date and who assessed it.';
+      return;
+    }
+    if (!f.overall) {
+      this.formError = 'Select the overall condition.';
       return;
     }
     if (!(score >= 0 && score <= 100)) {

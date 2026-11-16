@@ -1046,16 +1046,17 @@ export class AssetMaintenance implements OnDestroy {
     this.histRangeOpen = false;
   }
 
-  openWorkOrder(type: WoType = 'Corrective'): void {
+  openWorkOrder(type: WoType | '' = ''): void {
     this.menuOpen = '';
     this.woError = '';
-    this.woForm = { type, description: '', date: toIsoDate(TODAY), technician: '' };
+    this.woForm = { type: type as WoType, description: '', date: toIsoDate(TODAY), technician: '' };
     this.pendingRequest = null;
   }
 
   saveWorkOrder(): void {
     const f = this.woForm;
     if (!f) return;
+    if (!f.type) return void (this.woError = 'Select the work order type.');
     if (!f.description.trim() || !f.date) return void (this.woError = 'Enter the description and the date.');
     const head = `WO-${this.data.year}-`;
     const n = Math.max(0, ...this.data.workOrders.filter((w) => w.id.startsWith(head)).map((w) => Number(w.id.split('-')[2]) || 0)) + 1;

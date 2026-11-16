@@ -260,7 +260,7 @@ export class BulkAssignment implements OnInit, OnDestroy {
   excluded = new Set<number>();
   common: CommonDetails = {
     type: 'Department', assignee: '', manager: '', site: '', building: '', floor: '', room: '', from: isoDate(new Date()), to: '', setEnd: false,
-    reason: 'Department Use', reference: `BULK-ASSIGN-${new Date().getFullYear()}-${pad(new Date().getMonth() + 1)}${pad(new Date().getDate())}`, notes: '', override: true,
+    reason: '', reference: `BULK-ASSIGN-${new Date().getFullYear()}-${pad(new Date().getMonth() + 1)}${pad(new Date().getDate())}`, notes: '', override: true,
     notifyManager: true, notifyAssignee: false, notifyDepartment: false,
   };
   private allRecords: BulkRecord[] = [];
@@ -270,7 +270,8 @@ export class BulkAssignment implements OnInit, OnDestroy {
   busy = false;
 
   // Preview & Validate
-  filter: RecordFilter = 'all';
+  /** '' = no filter (all records). */
+  filter: RecordState | '' = '';
   search = '';
   page = 0;
   pageSize = 10;
@@ -637,15 +638,15 @@ export class BulkAssignment implements OnInit, OnDestroy {
     return this.records.filter((r) => r.state !== 'valid' && (this.issueTab === 'all' || r.state === this.issueTab));
   }
 
-  setFilter(f: RecordFilter): void {
-    this.filter = f;
+  setFilter(f: RecordFilter | ''): void {
+    this.filter = f === 'all' ? '' : f;
     this.page = 0;
   }
 
   get filtered(): BulkRecord[] {
     const q = this.search.trim().toLowerCase();
     return this.records.filter(
-      (r) => (this.filter === 'all' || r.state === this.filter) && (!q || `${r.tag} ${r.asset?.assetName ?? r.assetName} ${r.assignee} ${r.issue}`.toLowerCase().includes(q)),
+      (r) => (!this.filter || r.state === this.filter) && (!q || `${r.tag} ${r.asset?.assetName ?? r.assetName} ${r.assignee} ${r.issue}`.toLowerCase().includes(q)),
     );
   }
 

@@ -58,8 +58,8 @@
           <div class="sec-head">
             <span class="sec-ic"><lucide-icon [img]="icons.Cpu" [size]="18"></lucide-icon></span><h2 class="grow">Firmware Versions by Device Model</h2>
             <label class="search search--sm"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="modelSearch" placeholder="Search device model..." aria-label="Search device model" /></label>
-            <select class="control control-sm" [(ngModel)]="modelStatus" aria-label="Update status"><option value="">All Status</option><option value="update">Update available</option><option value="current">Up to date</option></select>
-            <select class="control control-sm" [(ngModel)]="modelFilter" aria-label="Model"><option value="">All Models</option><option *ngFor="let m of models" [value]="m.id">{{ m.name }}</option></select>
+            <select class="control control-sm" [(ngModel)]="modelStatus" aria-label="Update status"><option value="">Select Update Status</option><option value="update">Update available</option><option value="current">Up to date</option></select>
+            <select class="control control-sm" [(ngModel)]="modelFilter" aria-label="Model"><option value="">Select Device Model</option><option *ngFor="let m of models" [value]="m.id">{{ m.name }}</option></select>
             <button type="button" class="btn btn-primary btn-sm" (click)="editFirmware()" [disabled]="loading || busy"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Firmware</button>
           </div>
           <div class="table-wrap">
@@ -201,9 +201,9 @@
       <span class="policy-ic"><lucide-icon [img]="icons.Settings" [size]="20"></lucide-icon></span>
       <div class="grow"><h2 id="fc-pol">Rollout Policy – Staged Deployment</h2><p>Control how firmware updates are rolled out to your device fleet.</p></div>
       <label class="policy-field"><span><lucide-icon [img]="icons.Calendar" [size]="15"></lucide-icon>Maintenance Window</span>
-        <select class="control control-sm" [(ngModel)]="window"><option *ngFor="let w of windows" [value]="w">{{ w }}</option></select></label>
+        <select class="control control-sm" [(ngModel)]="window"><option value="" disabled>Select Maintenance Window</option><option *ngFor="let w of windows" [value]="w">{{ w }}</option></select></label>
       <label class="policy-field"><span><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Retry Policy</span>
-        <select class="control control-sm" [(ngModel)]="retry"><option *ngFor="let r of retries" [value]="r">{{ r }}</option></select></label>
+        <select class="control control-sm" [(ngModel)]="retry"><option value="" disabled>Select Retry Policy</option><option *ngFor="let r of retries" [value]="r">{{ r }}</option></select></label>
       <div class="policy-field"><span>Enable Rollback</span>
         <button type="button" class="switch" [class.is-on]="rollback" (click)="rollback = !rollback" role="switch" [attr.aria-checked]="rollback" aria-label="Enable rollback"><i></i></button>
         <small>Automatically rollback on failure</small></div>
@@ -223,10 +223,10 @@
     <div class="sec-head sec-head--wrap">
       <span class="sec-ic"><lucide-icon [img]="icons.Wifi" [size]="18"></lucide-icon></span>
       <div class="grow"><h2 id="fc-diag">Connectivity Diagnostics</h2><small class="muted">Real-time network status for gateways and cellular connections.</small></div>
-      <label class="inline-field">Site <select class="control control-sm" [(ngModel)]="dSite"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.code">{{ s.name }}</option></select></label>
-      <label class="inline-field">Protocol <select class="control control-sm" [(ngModel)]="dProtocol"><option value="">All Protocols</option><option *ngFor="let p of protocols" [value]="p">{{ p }}</option></select></label>
-      <label class="inline-field">Status <select class="control control-sm" [(ngModel)]="dStatus"><option value="">All Status</option><option value="Online">Online</option><option value="Stable">Stable</option><option value="Degraded">Degraded</option><option value="Offline">Offline</option></select></label>
-      <label class="inline-field">Device Model <select class="control control-sm" [(ngModel)]="dModel"><option value="">All Models</option><option *ngFor="let m of gatewayModels" [value]="m">{{ m }}</option></select></label>
+      <label class="inline-field">Site <select class="control control-sm" [(ngModel)]="dSite"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s.code">{{ s.name }}</option></select></label>
+      <label class="inline-field">Protocol <select class="control control-sm" [(ngModel)]="dProtocol"><option value="">Select Protocol</option><option *ngFor="let p of protocols" [value]="p">{{ p }}</option></select></label>
+      <label class="inline-field">Status <select class="control control-sm" [(ngModel)]="dStatus"><option value="">Select Status</option><option value="Online">Online</option><option value="Stable">Stable</option><option value="Degraded">Degraded</option><option value="Offline">Offline</option></select></label>
+      <label class="inline-field">Device Model <select class="control control-sm" [(ngModel)]="dModel"><option value="">Select Device Model</option><option *ngFor="let m of gatewayModels" [value]="m">{{ m }}</option></select></label>
     </div>
     <div class="diag-grid">
       <div class="sub-card">
@@ -263,7 +263,7 @@
       </div>
       <div class="sub-card">
         <div class="sub-head"><h3 class="grow">Signal Quality (Last 24 Hours)</h3>
-          <select class="control control-xs" [(ngModel)]="signalGateway" aria-label="Gateway"><option value="">All Gateways</option><option *ngFor="let g of gateways" [value]="g.id">{{ g.id }}</option></select></div>
+          <select class="control control-xs" [(ngModel)]="signalGateway" aria-label="Gateway"><option value="">Select Gateway</option><option *ngFor="let g of gateways" [value]="g.id">{{ g.id }}</option></select></div>
         <div class="chart-wrap" (mouseleave)="hoverSignal = null" *ngIf="signal as sg; else noSignal">
           <svg [attr.viewBox]="'0 0 ' + sw + ' ' + sh" class="chart" role="img" aria-label="Signal quality over the last 24 hours, Wi-Fi/Ethernet and cellular">
             <g class="grid"><line *ngFor="let t of signalTicks" [attr.x1]="spad.l" [attr.x2]="sw - spad.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
@@ -367,7 +367,7 @@
     <form class="modal-body" (ngSubmit)="saveProfile()">
       <div class="two">
         <label class="field"><span class="field-label">Name <em>*</em></span><input class="control" [(ngModel)]="p.name" name="name" /></label>
-        <label class="field"><span class="field-label">Type</span><select class="control" [(ngModel)]="p.type" name="type"><option *ngFor="let t of profileTypes" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Type</span><select class="control" [(ngModel)]="p.type" name="type"><option value="" disabled>Select Type</option><option *ngFor="let t of profileTypes" [value]="t">{{ t }}</option></select></label>
       </div>
       <label class="field"><span class="field-label">Settings</span><input class="control" [(ngModel)]="p.detail" name="detail" placeholder="e.g. SSID, APN, band" /></label>
       <label class="field"><span class="field-label">Security</span><input class="control" [(ngModel)]="p.security" name="sec" placeholder="e.g. WPA2-Enterprise" /></label>

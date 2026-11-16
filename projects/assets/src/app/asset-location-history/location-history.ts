@@ -556,7 +556,7 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
     this.menuOpen = '';
     const now = new Date();
     this.recordError = '';
-    this.recordForm = { location: '', movement: 'In', at: stamp(now), source: 'Manual Update', remarks: '' };
+    this.recordForm = { location: '', movement: '' as MovementType, at: stamp(now), source: '', remarks: '' };
   }
 
   saveRecord(): void {
@@ -567,12 +567,15 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
     if (cur && f.at <= cur.at) return void (this.recordError = `The movement must be after the current location's arrival (${cur.at.replace('T', ' ')}).`);
     if (cur && f.location === cur.location) return void (this.recordError = `${this.asset.tag} is already at ${f.location}.`);
     const remarks = f.remarks.trim() || 'Location updated';
+    // Movement type and source are optional; fall back to the usual values when left unselected.
+    const movement: MovementType = f.movement || 'In';
+    const source = f.source || 'Manual Update';
     this.saving = true;
-    this.api.record(this.asset, { at: f.at, location: f.location, movement: f.movement, source: f.source, remarks }).subscribe({
+    this.api.record(this.asset, { at: f.at, location: f.location, movement, source, remarks }).subscribe({
       next: (e) => {
         this.saving = false;
         const id = Math.max(0, ...this.history.movements.map((m) => m.id)) + 1;
-        this.history.movements = [...this.history.movements, { id, at: f.at, location: f.location, movement: f.movement, source: f.source, remarks, by: e.createdBy || '—' }];
+        this.history.movements = [...this.history.movements, { id, at: f.at, location: f.location, movement, source, remarks, by: e.createdBy || '—' }];
         this.recordForm = null;
         this.page = 0;
         this.fit();

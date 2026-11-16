@@ -11,7 +11,7 @@ import { TeamRecord } from '../team.model';
 import { TeamService } from '../team.service';
 
 type FormTab = 'basic' | 'members' | 'roles' | 'settings';
-type FieldKey = 'name' | 'code' | 'department' | 'members';
+type FieldKey = 'name' | 'code' | 'department' | 'status' | 'members';
 
 interface Person {
   id: string;
@@ -139,11 +139,12 @@ export class TeamForm implements OnChanges {
     if (!f.code.trim()) errors.code = 'Enter a code.';
     else if (this.service.isCodeTaken(f.code, this.original?.code ?? null)) errors.code = `${f.code.trim()} is already used.`;
     if (!f.department) errors.department = 'Select a department.';
+    if (!f.status) errors.status = 'Select a status.';
     if (f.status === 'Active' && !f.members.length) errors.members = 'An active team needs at least one member.';
     this.errors = errors;
 
     if (Object.keys(errors).length) {
-      this.tab = errors.name || errors.code || errors.department ? 'basic' : 'members';
+      this.tab = errors.name || errors.code || errors.department || errors.status ? 'basic' : 'members';
       return;
     }
 

@@ -38,6 +38,7 @@ export class MaintenanceTypeForm extends MasterForm<MaintenanceTypeRecord, Tab> 
   protected validate(f: MaintenanceTypeRecord) {
     const errors: Record<string, string> = {};
     if (!f.description.trim()) errors['description'] = 'Enter a description.';
+    if (!f.status) errors['status'] = 'Select a status.';
     return { errors, tab: 'basic' as Tab };
   }
 

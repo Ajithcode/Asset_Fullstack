@@ -34,10 +34,10 @@
     <section class="card table-card" aria-label="Devices">
       <div class="filters">
         <label class="search"><lucide-icon [img]="icons.Search" [size]="17"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search device, serial, IMEI or asset" aria-label="Search devices" /></label>
-        <label class="lsel"><span>Device Type</span><select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">All Types</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
-        <label class="lsel"><span>Connectivity</span><select class="control" [(ngModel)]="connFilter" (ngModelChange)="onFilter()"><option value="">All</option><option *ngFor="let c of conns" [value]="c">{{ c }}</option></select></label>
-        <label class="lsel"><span>Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onFilter()"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
-        <label class="lsel"><span>Health</span><select class="control" [(ngModel)]="healthFilter" (ngModelChange)="onFilter()"><option value="">All Statuses</option><option *ngFor="let h of healths" [value]="h">{{ h }}</option></select></label>
+        <label class="lsel"><span>Device Type</span><select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">Select Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <label class="lsel"><span>Connectivity</span><select class="control" [(ngModel)]="connFilter" (ngModelChange)="onFilter()"><option value="">Select Connection</option><option *ngFor="let c of connectivityOptions" [value]="c">{{ c }}</option></select></label>
+        <label class="lsel"><span>Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onFilter()"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
+        <label class="lsel"><span>Health</span><select class="control" [(ngModel)]="healthFilter" (ngModelChange)="onFilter()"><option value="">Select Health</option><option *ngFor="let h of healths" [value]="h">{{ h }}</option></select></label>
       </div>
       <p *ngIf="loading" class="muted small" role="status">Loading devices…</p>
       <p *ngIf="loadError" class="form-error" role="alert">{{ loadError }} <button type="button" class="link-btn" (click)="load()">Retry</button></p>
@@ -101,7 +101,7 @@
       <section class="card health" aria-labelledby="dv-health">
         <div class="health-head">
           <h2 id="dv-health" class="grow">Device Health Overview <small *ngIf="chartDevice as cd">{{ cd.name }} · {{ cd.id }}</small></h2>
-          <select class="control control-sm" [(ngModel)]="range" (ngModelChange)="hover = null" aria-label="Chart range"><option value="24h">Last 24 hours</option><option value="7d">Last 7 days</option></select>
+          <select class="control control-sm" [(ngModel)]="range" (ngModelChange)="hover = null" aria-label="Chart range"><option value="" disabled>Select Chart Range</option><option value="24h">Last 24 hours</option><option value="7d">Last 7 days</option></select>
         </div>
         <div class="legend">
           <span><i class="lg lg--sig"></i>Signal Strength (dBm)</span>
@@ -247,18 +247,18 @@
     <div class="modal-head"><h2 id="dv-add">Add Device</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveAdd()">
       <div class="two">
-        <label class="field"><span class="field-label">Device type</span><select class="control" [(ngModel)]="dl.f.type" name="type" (ngModelChange)="onAddType(dl.f)"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
-        <label class="field"><span class="field-label">Model</span><select class="control" [(ngModel)]="dl.f.model" name="model" (ngModelChange)="onAddModel(dl.f)"><option *ngFor="let m of modelsFor(dl.f.type)" [value]="m">{{ m }}</option></select></label>
+        <label class="field"><span class="field-label">Device type</span><select class="control" [(ngModel)]="dl.f.type" name="type" (ngModelChange)="onAddType(dl.f)"><option value="" disabled>Select Device Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Model</span><select class="control" [(ngModel)]="dl.f.model" name="model" (ngModelChange)="onAddModel(dl.f)"><option value="" disabled>Select Model</option><option *ngFor="let m of modelsFor(dl.f.type)" [value]="m">{{ m }}</option></select></label>
         <label class="field"><span class="field-label">Device name <em>*</em></span><input class="control" [(ngModel)]="dl.f.name" name="name" /></label>
         <label class="field"><span class="field-label">Device ID <em>*</em></span><input class="control" [(ngModel)]="dl.f.id" name="id" placeholder="e.g. BL-29901" /></label>
         <label class="field"><span class="field-label">Serial number <em>*</em></span><input class="control" [(ngModel)]="dl.f.serial" name="serial" placeholder="e.g. SN-BL-29901" /></label>
-        <label class="field"><span class="field-label">Connectivity</span><select class="control" [(ngModel)]="dl.f.protocol" name="proto"><option *ngFor="let p of protocols" [value]="p">{{ p }}</option></select></label>
-        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="dl.f.site" name="site" (ngModelChange)="onAddSite(dl.f)"><option value="">—</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
-        <label class="field"><span class="field-label">Gateway</span><select class="control" [(ngModel)]="dl.f.gateway" name="gw"><option value="">—</option><option *ngIf="cellular(dl.f)" value="Cellular">Cellular</option><option *ngFor="let g of gatewaysFor(dl.f.site)" [value]="g">{{ g }}</option></select></label>
+        <label class="field"><span class="field-label">Connectivity</span><select class="control" [(ngModel)]="dl.f.protocol" name="proto"><option value="" disabled>Select Connectivity</option><option *ngFor="let p of protocols" [value]="p">{{ p }}</option></select></label>
+        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="dl.f.site" name="site" (ngModelChange)="onAddSite(dl.f)"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
+        <label class="field"><span class="field-label">Gateway</span><select class="control" [(ngModel)]="dl.f.gateway" name="gw"><option value="">Select Gateway</option><option *ngIf="cellular(dl.f)" value="Cellular">Cellular</option><option *ngFor="let g of gatewaysFor(dl.f.site)" [value]="g">{{ g }}</option></select></label>
       </div>
       <label class="field"><span class="field-label">Link to asset (optional)</span>
         <select class="control" [(ngModel)]="dl.f.asset" name="asset">
-          <option value="">— None —</option>
+          <option value="">Select Asset</option>
           <option *ngFor="let a of assetOptions" [value]="a.code">{{ assetOptionLabel(a) }}</option>
         </select>
         <small class="muted">{{ assetOptions.length ? 'Registered assets: name - asset ID.' : 'No registered assets found.' }}</small></label>
@@ -300,7 +300,7 @@
       <p *ngIf="byId(dl.deviceId)?.asset as cur" class="muted small">Currently linked to <b>{{ cur.name }}</b>. The previous link stays in the device's events.</p>
       <label class="field"><span class="field-label">Asset <em>*</em></span>
         <select class="control" [(ngModel)]="dl.asset" name="asset">
-          <option value="">Select an asset</option>
+          <option value="">Select Asset</option>
           <option *ngFor="let a of assetOptions" [value]="a.code">{{ assetOptionLabel(a) }}</option>
         </select></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
