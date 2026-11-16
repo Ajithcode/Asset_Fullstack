@@ -36,8 +36,8 @@ export class FinancialAnalyticsPage extends RaDashboardPage implements OnInit {
   readonly costCenterOptions = [ALL_COST_CENTERS, ...COST_CENTERS.map((c) => `${c.code} ${c.name}`)];
   readonly currencies = CURRENCIES;
   readonly budgetTarget = BUDGET_TARGET;
-  category = ALL_CATEGORIES;
-  costCenter = ALL_COST_CENTERS;
+  category = '';
+  costCenter = '';
   currency: Currency = 'AED';
   /** CAPEX requests decided from the approvals dialog this session */
   private decided = new Set<string>();
@@ -92,7 +92,7 @@ export class FinancialAnalyticsPage extends RaDashboardPage implements OnInit {
 
   /** Recomputes the view whenever a filter changes. */
   apply(): void {
-    const v = buildFinancialView({ period: this.period, organization: this.organization, location: this.location, category: this.category, costCenter: this.costCenter });
+    const v = buildFinancialView({ period: this.period, organization: this.organization, location: this.location, category: this.category, costCenter: this.costCenter || ALL_COST_CENTERS });
     v.capexRequests = v.capexRequests.filter((r) => !this.decided.has(r.ref));
     this.view = v;
     this.buildKpis(v);

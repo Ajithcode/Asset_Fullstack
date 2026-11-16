@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError } from 'rxjs';
-import { apiError, tenantParams, trackingUrl } from '../shared/tracking-api';
+import { apiError, getAllPages, trackingUrl } from '../shared/tracking-api';
 
 /** A device as GET /api/iot-devices returns it. Read-only here: the IoT Device Management page owns create / update / delete. */
 export interface IoTDeviceDto {
@@ -49,10 +49,8 @@ export function sameModel(deviceModel: string | null | undefined, firmwareModel:
 export class IoTDeviceLookupService {
   private readonly http = inject(HttpClient);
 
-  /** Every registered device. */
+  /** Every registered device (all pages of the list). */
   list(): Observable<IoTDeviceDto[]> {
-    return this.http
-      .get<IoTDeviceDto[]>(trackingUrl('iot-devices'), { params: tenantParams() })
-      .pipe(catchError((e) => apiError(e, 'Could not load IoT devices.')));
+    return getAllPages<IoTDeviceDto>(this.http, trackingUrl('iot-devices')).pipe(catchError((e) => apiError(e, 'Could not load IoT devices.')));
   }
 }

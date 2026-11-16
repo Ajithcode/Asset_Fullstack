@@ -194,7 +194,8 @@ export class ModuleAccessPage extends AdminPage {
   // ===== Toolbar actions =====
   createPolicy(): void {
     this.guard(() => {
-      this.startDraft(blankPolicy());
+      // New policies open with Data Scope / Landing Module unselected
+      this.startDraft({ ...blankPolicy(), dataScope: '', landingModule: '' });
       this.tab = 'modules';
     });
   }

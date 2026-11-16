@@ -64,8 +64,8 @@ interface AssessmentForm {
   date: string;
   assessedBy: string;
   approvedBy: string;
-  likelihood: number;
-  consequence: number;
+  likelihood: number | null;
+  consequence: number | null;
   criteria: CriticalityCriterion[];
   remarks: string;
 }
@@ -79,8 +79,8 @@ interface MitigationForm {
   action: string;
   owner: string;
   dueDate: string;
-  status: MitigationStatus;
-  reducesTo: CriticalityLevel;
+  status: MitigationStatus | null;
+  reducesTo: CriticalityLevel | null;
 }
 
 const LEVELS: CriticalityLevel[] = ['Critical', 'High', 'Medium', 'Low'];
@@ -430,8 +430,7 @@ export class AssetCriticality implements OnDestroy {
   openMitigation(): void {
     this.closeMenus();
     this.formError = '';
-    const next = this.crit ? LEVELS[Math.min(LEVELS.length - 1, LEVELS.indexOf(this.crit.level) + 1)] : 'Low';
-    this.mitigationForm = { action: '', owner: this.currentUser, dueDate: addMonths(this.today, 1), status: 'Open', reducesTo: next };
+    this.mitigationForm = { action: '', owner: this.currentUser, dueDate: addMonths(this.today, 1), status: null, reducesTo: null };
   }
 
   saveMitigation(): void {
@@ -442,9 +441,13 @@ export class AssetCriticality implements OnDestroy {
       this.formError = 'Enter the action, owner and due date.';
       return;
     }
+    if (!f.status || !f.reducesTo) {
+      this.formError = 'Select the status and expected criticality.';
+      return;
+    }
     this.saving = true;
     this.formError = '';
-    this.api.createMitigation(this.assetId, f).subscribe({
+    this.api.createMitigation(this.assetId, { ...f, status: f.status, reducesTo: f.reducesTo }).subscribe({
       next: (action) => {
         this.saving = false;
         crit.mitigations = [...crit.mitigations, action];
@@ -484,15 +487,15 @@ export class AssetCriticality implements OnDestroy {
           key: x.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
           name: x.name,
           weight: Number(x.weight),
-          score: 3,
+          score: null as unknown as number,
           justification: '',
         }));
     this.assessForm = {
       date: this.today,
       assessedBy: this.currentUser,
       approvedBy: c?.approvedBy ?? '',
-      likelihood: c?.likelihood ?? 3,
-      consequence: c?.consequence ?? 3,
+      likelihood: c?.likelihood ?? null,
+      consequence: c?.consequence ?? null,
       criteria,
       remarks: '',
     };
@@ -513,6 +516,10 @@ export class AssetCriticality implements OnDestroy {
       this.formError = 'Enter the assessment date, assessed by and approved by.';
       return;
     }
+    if (f.criteria.some((c) => c.score == null)) {
+      this.formError = 'Select a score for every criterion.';
+      return;
+    }
     if (f.criteria.some((c) => !c.justification.trim())) {
       this.formError = 'Give a justification for every criterion.';
       return;
@@ -524,6 +531,8 @@ export class AssetCriticality implements OnDestroy {
     this.api
       .create(this.assetId, {
         ...f,
+        likelihood: f.likelihood as number,
+        consequence: f.consequence as number,
         validUntil: addMonths(f.date, 12),
         nextReview: addMonths(f.date, months),
       })

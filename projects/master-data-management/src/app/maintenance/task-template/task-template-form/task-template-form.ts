@@ -55,6 +55,7 @@ export class TaskTemplateForm extends MasterForm<TaskTemplateRecord, Tab> {
   protected validate(f: TaskTemplateRecord) {
     const errors: Record<string, string> = {};
     if (!f.maintenanceType) errors['maintenanceType'] = 'Select a maintenance type.';
+    if (!f.status) errors['status'] = 'Select a status.';
     if (!(f.estimatedHours > 0)) errors['hours'] = 'Enter a duration above 0.';
     if (Object.keys(errors).length) return { errors, tab: 'basic' as Tab };
     if (!f.tasks.length) errors['tasks'] = 'Add at least one task.';

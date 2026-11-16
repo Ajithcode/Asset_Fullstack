@@ -87,6 +87,7 @@ export class BinForm implements OnChanges {
     const f = this.form;
     const errors: Record<string, string> = {};
     if (!f.storeCode) errors['storeCode'] = 'Select a store.';
+    if (!f.status) errors['status'] = 'Select a status.';
     if (!f.code.trim()) errors['code'] = 'Enter a bin code.';
     else if (this.service.isCodeTaken(f.code, this.original?.code ?? null)) errors['code'] = `${f.code.trim()} is already used.`;
     if (f.capacity !== null && !(f.capacity > 0)) errors['capacity'] = 'Enter a capacity greater than 0.';

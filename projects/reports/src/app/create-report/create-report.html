@@ -80,6 +80,7 @@
             name="timeRangeMode"
             (ngModelChange)="selectTimeRange($event)"
           >
+            <option value="" disabled>Select Time Range</option>
             <option value="custom">Custom</option>
           </select>
 
@@ -137,7 +138,7 @@
               [(ngModel)]="selectedTemplate"
               name="template"
             >
-              <option value="" disabled selected>Choose a template</option>
+              <option value="" disabled selected>Select Template</option>
               <option *ngFor="let tpl of templateOptions" [value]="tpl">{{ tpl }}</option>
             </select>
           </div>
@@ -201,6 +202,7 @@
                   name="weeklyDay"
                   [disabled]="recurrence !== 'weekly'"
                 >
+                  <option value="" disabled>Select Weekly Day</option>
                   <option *ngFor="let day of weekDays" [value]="day">{{ day }}</option>
                 </select>
                 <span class="cr-inline-label">at</span>

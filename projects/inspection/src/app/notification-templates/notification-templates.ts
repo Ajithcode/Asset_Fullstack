@@ -188,14 +188,14 @@ export class NotificationTemplatesPage implements OnInit {
       tenantId: null,
       templateCode: '',
       templateName: 'New Template',
-      event: EVENTS[0]!,
+      event: '',
       channels: ['Email', 'In-app'],
       subject: 'Inspection {{inspection_id}}',
       messageBody: 'Hello {{inspector_name}},\n\n',
       recipients: ['Assigned inspector'],
       ccRecipients: [],
       buttonLabel: 'Open Inspection',
-      timing: this.timings[1]!,
+      timing: '',
       respectUserLocale: true,
       preventDuplicates: true,
       isActive: false
@@ -335,6 +335,10 @@ export class NotificationTemplatesPage implements OnInit {
     if (!d || this.saving) return;
     if (!d.templateName.trim() || !d.subject.trim()) {
       this.flash('Template name and subject are required.');
+      return;
+    }
+    if (!d.event || !d.timing) {
+      this.flash('Select an event and a notification timing.');
       return;
     }
     if (activate && !d.channels.length) {

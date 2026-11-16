@@ -43,7 +43,7 @@ export class AssetPerformancePage extends ScopedAnalyticsPage {
 
   view!: AssetPerformanceView;
   insights: RaInsight[] = [];
-  currentView = ALL_ASSETS_VIEW;
+  currentView = '';
   assetSort: AssetSortKey = 'health';
   assetDir: SortDir = -1;
   locationSort: LocationSortKey = 'health';

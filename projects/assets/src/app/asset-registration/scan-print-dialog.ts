@@ -64,7 +64,7 @@ interface PrinterOption {
             <label class="sp-field"><span>Barcode / QR Code <em>*</em></span>
               <input class="sp-control sp-big" name="barcode" [(ngModel)]="barcode" autocomplete="off" placeholder="Scan now..." /></label>
             <label class="sp-field"><span>Symbology</span>
-              <select class="sp-control" name="symbology" [(ngModel)]="symbology"><option *ngFor="let s of symbologies" [value]="s">{{ s }}</option></select></label>
+              <select class="sp-control" name="symbology" [(ngModel)]="symbology"><option value="" disabled>Select Symbology</option><option *ngFor="let s of symbologies" [value]="s">{{ s }}</option></select></label>
           </ng-container>
 
           <ng-container *ngIf="mode === 'rfid'">
@@ -73,9 +73,9 @@ interface PrinterOption {
               <input class="sp-control sp-big sp-mono" name="rfid" [(ngModel)]="rfidTag" autocomplete="off" placeholder="Waiting for tag..." /></label>
             <div class="sp-grid">
               <label class="sp-field"><span>Tag Type</span>
-                <select class="sp-control" name="tagType" [(ngModel)]="tagType"><option *ngFor="let t of tagTypes" [value]="t">{{ t }}</option></select></label>
+                <select class="sp-control" name="tagType" [(ngModel)]="tagType"><option value="" disabled>Select Tag Type</option><option *ngFor="let t of tagTypes" [value]="t">{{ t }}</option></select></label>
               <label class="sp-field"><span>Read Mode</span>
-                <select class="sp-control" name="readMode" [(ngModel)]="readMode"><option value="Single">Single read</option><option value="Continuous">Continuous</option></select></label>
+                <select class="sp-control" name="readMode" [(ngModel)]="readMode"><option value="" disabled>Select Read Mode</option><option value="Single">Single read</option><option value="Continuous">Continuous</option></select></label>
             </div>
           </ng-container>
 
@@ -113,9 +113,9 @@ interface PrinterOption {
           </div>
           <div class="sp-grid">
             <label class="sp-field sp-span"><span>Printer</span>
-              <select class="sp-control" [(ngModel)]="printer"><option *ngFor="let p of printers" [value]="p.id">{{ p.label }}</option></select></label>
+              <select class="sp-control" [(ngModel)]="printer"><option value="" disabled>Select Printer</option><option *ngFor="let p of printers" [value]="p.id">{{ p.label }}</option></select></label>
             <label class="sp-field"><span>Label Size</span>
-              <select class="sp-control" [(ngModel)]="size"><option *ngFor="let s of sizes" [value]="s">{{ s }}</option></select></label>
+              <select class="sp-control" [(ngModel)]="size"><option value="" disabled>Select Label Size</option><option *ngFor="let s of sizes" [value]="s">{{ s }}</option></select></label>
             <label class="sp-field"><span>Copies</span><input class="sp-control" type="number" min="1" max="50" [(ngModel)]="copies" /></label>
           </div>
           <p *ngIf="error" class="sp-error" role="alert">{{ error }}</p>
@@ -209,11 +209,11 @@ export class ScanPrintDialog implements OnInit {
   tag = '';
   barcode = '';
   rfidTag = '';
-  symbology = 'Code 128';
-  tagType = 'UHF (EPC Gen2)';
-  readMode = 'Single';
-  printer = 'browser';
-  size = '50 × 25 mm';
+  symbology = '';
+  tagType = '';
+  readMode = '';
+  printer = '';
+  size = '';
   copies = 1;
   error = '';
 
@@ -261,7 +261,9 @@ export class ScanPrintDialog implements OnInit {
   print(): void {
     const copies = Math.floor(Number(this.copies));
     if (!(copies >= 1 && copies <= 50)) return void (this.error = 'Copies must be between 1 and 50.');
-    const printer = this.printers.find((p) => p.id === this.printer)!;
+    const printer = this.printers.find((p) => p.id === this.printer);
+    if (!printer) return void (this.error = 'Select a printer.');
+    if (!this.size) return void (this.error = 'Select a label size.');
     if (printer.browser && !this.browserPrint(copies)) return void (this.error = 'The print window was blocked. Allow pop-ups for this site and try again.');
     this.completed.emit({ mode: this.mode, assetTag: this.tag, barcode: this.barcode, rfidTag: this.rfidTag, printer: printer.label, copies });
   }

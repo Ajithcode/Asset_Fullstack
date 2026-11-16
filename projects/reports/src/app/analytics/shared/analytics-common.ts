@@ -63,9 +63,23 @@ export abstract class AnalyticsPage implements OnDestroy {
   readonly organizations = RA_ORGANIZATIONS;
   readonly locations = RA_LOCATIONS;
   readonly periods = RA_PERIODS;
-  period = RA_PERIODS[0];
-  organization = RA_ORGANIZATIONS[0];
-  location = RA_LOCATIONS[0];
+  /** Filter values start empty ('' = no filter; an empty period reads as the default, Year to date). */
+  period = '';
+  organization = '';
+  location = '';
+
+  /** Period used for captions and exports: the selected one, or the default when none is picked. */
+  get periodLabel(): string {
+    return this.period || RA_PERIODS[0];
+  }
+
+  get organizationLabel(): string {
+    return this.organization || RA_ORGANIZATIONS[0];
+  }
+
+  get locationLabel(): string {
+    return this.location || RA_LOCATIONS[0];
+  }
 
   /** Minutes since the data was refreshed */
   updatedMinutes = 0;

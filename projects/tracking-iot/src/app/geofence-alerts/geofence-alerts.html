@@ -93,7 +93,12 @@
               </div>
             </span>
           </div>
+<<<<<<< HEAD
           <div *ngIf="!floorId" class="map-site">
+=======
+          <div class="map-site">
+            <select class="control control-xs" [(ngModel)]="mapSite" [disabled]="mapMode !== 'view'" aria-label="Map site" [title]="mapArea"><option value="" disabled>Select Map Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
+>>>>>>> origin/feature/tracking
             <span class="north" aria-label="North"><i></i>N</span>
           </div>
 
@@ -178,7 +183,7 @@
         <div class="sec-head">
           <h2 class="grow">Geofence List ({{ zones.length }})</h2>
           <label class="search search--sm"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="listSearch" (ngModelChange)="listPage = 0" placeholder="Search geofences..." aria-label="Search geofences" /></label>
-          <select class="control control-sm" [(ngModel)]="listSite" (ngModelChange)="listPage = 0" aria-label="Site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
+          <select class="control control-sm" [(ngModel)]="listSite" (ngModelChange)="listPage = 0" aria-label="Site"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
         </div>
         <div class="table-wrap">
           <table class="dt">
@@ -245,7 +250,7 @@
       <span class="sec-ic"><lucide-icon [img]="icons.Bell" [size]="16"></lucide-icon></span>
       <h2 class="grow">Alert Rules <span class="muted count">{{ rulesFiltered.length }} of {{ rules.length }} · {{ enabledRules }} enabled</span></h2>
       <label class="search search--sm"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="ruleSearch" placeholder="Search rules..." aria-label="Search rules" /></label>
-      <select class="control control-sm" [(ngModel)]="ruleZone" aria-label="Geofence"><option value="">All Geofences</option><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></select>
+      <select class="control control-sm" [(ngModel)]="ruleZone" aria-label="Geofence"><option value="">Select Geofence</option><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></select>
       <button type="button" class="btn btn-primary btn-sm" (click)="openRule()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>New Rule</button>
     </div>
     <div class="table-wrap">
@@ -282,10 +287,10 @@
     </div>
     <div class="filters">
       <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="hSearch" (ngModelChange)="hPage = 0" placeholder="Search asset, zone, owner..." aria-label="Search events" /></label>
-      <select class="control control-sm" [(ngModel)]="hDate" (ngModelChange)="hPage = 0" aria-label="Date range"><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="all">All time</option></select>
-      <select class="control control-sm" [(ngModel)]="hZone" (ngModelChange)="hPage = 0" aria-label="Geofence"><option value="">All Geofences</option><option *ngFor="let z of zones" [value]="z.id">{{ z.name }}</option></select>
-      <select class="control control-sm" [(ngModel)]="hType" (ngModelChange)="hPage = 0" aria-label="Event type"><option value="">All Events</option><option *ngFor="let t of eventTypes" [value]="t">{{ t }}</option></select>
-      <select class="control control-sm" [(ngModel)]="hStatus" (ngModelChange)="hPage = 0" aria-label="Status"><option value="">All Status</option><option *ngFor="let s of eventStatuses" [value]="s">{{ s }}</option></select>
+      <select class="control control-sm" [(ngModel)]="hDate" (ngModelChange)="hPage = 0" aria-label="Date range"><option value="">Select Date Range</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="all">All time</option></select>
+      <select class="control control-sm" [(ngModel)]="hZone" (ngModelChange)="hPage = 0" aria-label="Geofence"><option value="">Select Geofence</option><option *ngFor="let z of zones" [value]="z.id">{{ z.name }}</option></select>
+      <select class="control control-sm" [(ngModel)]="hType" (ngModelChange)="hPage = 0" aria-label="Event type"><option value="">Select Event Type</option><option *ngFor="let t of eventTypes" [value]="t">{{ t }}</option></select>
+      <select class="control control-sm" [(ngModel)]="hStatus" (ngModelChange)="hPage = 0" aria-label="Status"><option value="">Select Status</option><option *ngFor="let s of eventStatuses" [value]="s">{{ s }}</option></select>
       <button type="button" class="link-btn" (click)="clearHistoryFilters()">Clear</button>
     </div>
     <div class="table-wrap">
@@ -342,17 +347,17 @@
 <ng-template #ruleFields let-f let-idp="idp">
   <div class="rb-grid">
     <label class="rb-label" [attr.for]="idp + '-trig'">Trigger</label>
-    <select class="control control-sm" [id]="idp + '-trig'" [(ngModel)]="f.trigger"><option *ngFor="let t of triggers" [value]="t.value">{{ t.label }}</option></select>
+    <select class="control control-sm" [id]="idp + '-trig'" [(ngModel)]="f.trigger"><option value="" disabled>Select Trigger</option><option *ngFor="let t of triggers" [value]="t.value">{{ t.label }}</option></select>
     <ng-container *ngIf="f.trigger === 'dwell'">
       <label class="rb-label" [attr.for]="idp + '-dw'">Dwell time</label>
       <span class="inline"><input class="control control-sm num-in" type="number" min="1" [id]="idp + '-dw'" [(ngModel)]="f.dwellMin" /> minutes</span>
     </ng-container>
     <label class="rb-label" [attr.for]="idp + '-sev'">Severity</label>
-    <span class="sev-sel"><i class="sev-dot" [ngClass]="sevClass(f.severity)"></i><select class="control control-sm" [id]="idp + '-sev'" [(ngModel)]="f.severity"><option *ngFor="let s of severities" [value]="s">{{ s }}</option></select></span>
+    <span class="sev-sel"><i class="sev-dot" [ngClass]="sevClass(f.severity)"></i><select class="control control-sm" [id]="idp + '-sev'" [(ngModel)]="f.severity"><option value="" disabled>Select Severity</option><option *ngFor="let s of severities" [value]="s">{{ s }}</option></select></span>
     <label class="rb-label" [attr.for]="idp + '-grp'">Applies to asset group</label>
-    <select class="control control-sm" [id]="idp + '-grp'" [(ngModel)]="f.group"><option *ngFor="let g of groups" [value]="g">{{ g }}</option></select>
+    <select class="control control-sm" [id]="idp + '-grp'" [(ngModel)]="f.group"><option value="" disabled>Select Applies to Asset Group</option><option *ngFor="let g of groups" [value]="g">{{ g }}</option></select>
     <label class="rb-label" [attr.for]="idp + '-cond'">Condition</label>
-    <select class="control control-sm" [id]="idp + '-cond'" [(ngModel)]="f.condition"><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
+    <select class="control control-sm" [id]="idp + '-cond'" [(ngModel)]="f.condition"><option value="" disabled>Select Condition</option><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
   </div>
   <div class="rb-sec">Actions</div>
   <label class="cb"><input type="checkbox" [(ngModel)]="f.createAlert" />Create alert in the system</label>
@@ -395,7 +400,7 @@
     <div class="modal-body">
       <div class="two">
         <label class="field"><span class="field-label">Name <em>*</em></span><input class="control" [(ngModel)]="f.name" placeholder="e.g. Battery Room" /></label>
-        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="f.site"><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
+        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="f.site"><option value="" disabled>Select Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
       </div>
       <div class="field"><span class="field-label">Zone type</span>
         <div class="seg seg--form" role="group" aria-label="Zone type"><button *ngFor="let t of zoneTypes" type="button" [class.is-on]="f.type === t" (click)="setFormType(t)">{{ t }}</button></div></div>
@@ -405,7 +410,7 @@
         <div class="chips"><button *ngFor="let g of groups" type="button" class="chip" [class.is-on]="f.groups.includes(g)" (click)="toggleFormGroup(g)">{{ g }}</button></div>
         <small *ngIf="formAssetCount !== null" class="muted">{{ formAssetCount }} assets monitored.</small></div>
       <div class="two">
-        <label class="field"><span class="field-label">Schedule</span><select class="control" [(ngModel)]="f.schedule"><option *ngFor="let s of schedules" [value]="s">{{ s }}</option></select></label>
+        <label class="field"><span class="field-label">Schedule</span><select class="control" [(ngModel)]="f.schedule"><option value="" disabled>Select Schedule</option><option *ngFor="let s of schedules" [value]="s">{{ s }}</option></select></label>
         <label class="field"><span class="field-label">Dwell alert after (minutes)</span><input class="control" type="number" min="1" [(ngModel)]="f.dwellMin" /></label>
       </div>
       <div class="two">
@@ -413,7 +418,7 @@
         <div class="toggle-row"><span>Monitor asset exit</span><button type="button" class="switch" role="switch" [class.is-on]="f.monitorExit" [attr.aria-checked]="f.monitorExit" aria-label="Monitor asset exit" (click)="f.monitorExit = !f.monitorExit"><i></i></button></div>
       </div>
       <div class="two">
-        <label class="field"><span class="field-label">Shape</span><select class="control" [(ngModel)]="f.shape"><option *ngFor="let s of shapes" [value]="s">{{ s }}</option></select></label>
+        <label class="field"><span class="field-label">Shape</span><select class="control" [(ngModel)]="f.shape"><option value="" disabled>Select Shape</option><option *ngFor="let s of shapes" [value]="s">{{ s }}</option></select></label>
         <label class="field"><span class="field-label">Polygon points</span><input class="control" type="number" [min]="options.minPolygonPoints" [max]="options.maxPolygonPoints" [(ngModel)]="f.points" [disabled]="f.shape !== 'Polygon' || editingDrawn || !!f.drawn" /></label>
       </div>
       <div class="draw-row" *ngIf="f.shape !== 'Circle'">
@@ -434,10 +439,14 @@
     <div class="modal-body">
       <div class="two">
         <label class="field"><span class="field-label">Rule name</span><input class="control" [(ngModel)]="d.name" placeholder="Generated from the trigger if empty" /></label>
+<<<<<<< HEAD
         <label class="field"><span class="field-label">Geofence / zone <em>*</em></span><select class="control" [(ngModel)]="d.zoneId">
           <optgroup *ngIf="mapZoneRuleTargets.length" label="Floor plan zones (live tracking)"><option *ngFor="let t of mapZoneRuleTargets" [value]="t.id">{{ t.label }}</option></optgroup>
           <optgroup label="Outdoor geofences"><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></optgroup>
         </select></label>
+=======
+        <label class="field"><span class="field-label">Geofence <em>*</em></span><select class="control" [(ngModel)]="d.zoneId"><option value="" disabled>Select Geofence</option><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></select></label>
+>>>>>>> origin/feature/tracking
       </div>
       <p *ngIf="ruleZoneWithoutGateway" class="desk-row desk-warn" role="note">No gateway is plotted in this zone, so it cannot detect assets. Plot a device in this zone in Maps &amp; Floor Plans first.</p>
       <ng-container *ngTemplateOutlet="ruleFields; context: { $implicit: d, idp: 'rd' }"></ng-container>

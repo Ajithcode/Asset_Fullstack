@@ -46,42 +46,42 @@
 
         <div class="field">
           <span class="field-label">Category</span>
-          <app-filter-select name="category" [(ngModel)]="draft.category" (ngModelChange)="onCategoryChange()" [options]="categoryOptions" allLabel="All Categories" ariaLabel="Category"></app-filter-select>
+          <app-filter-select name="category" [(ngModel)]="draft.category" (ngModelChange)="onCategoryChange()" [options]="categoryOptions" allLabel="Select Category" ariaLabel="Category"></app-filter-select>
         </div>
 
         <div class="field">
           <span class="field-label">Asset Type</span>
-          <app-filter-select name="type" [(ngModel)]="draft.type" [options]="typeOptions" allLabel="All Types" ariaLabel="Asset Type"></app-filter-select>
+          <app-filter-select name="type" [(ngModel)]="draft.type" [options]="typeOptions" allLabel="Select Asset Type" ariaLabel="Asset Type"></app-filter-select>
         </div>
 
         <div class="field">
           <span class="field-label">Status</span>
-          <app-filter-select name="status" [(ngModel)]="draft.status" [options]="statusFilterOptions" allLabel="All Status" ariaLabel="Status"></app-filter-select>
+          <app-filter-select name="status" [(ngModel)]="draft.status" [options]="statusFilterOptions" allLabel="Select Status" ariaLabel="Status"></app-filter-select>
         </div>
 
         <div class="field">
           <span class="field-label">Location</span>
-          <app-filter-select name="location" [(ngModel)]="draft.location" [options]="locationOptions" allLabel="All Locations" ariaLabel="Location"></app-filter-select>
+          <app-filter-select name="location" [(ngModel)]="draft.location" [options]="locationOptions" allLabel="Select Location" ariaLabel="Location"></app-filter-select>
         </div>
 
         <div class="field">
           <span class="field-label">Department</span>
-          <app-filter-select name="department" [(ngModel)]="draft.department" [options]="departmentOptions" allLabel="All Departments" ariaLabel="Department"></app-filter-select>
+          <app-filter-select name="department" [(ngModel)]="draft.department" [options]="departmentOptions" allLabel="Select Department" ariaLabel="Department"></app-filter-select>
         </div>
 
         <div class="field">
           <span class="field-label">Custodian</span>
-          <app-filter-select name="custodian" [(ngModel)]="draft.custodian" [options]="custodianOptions" allLabel="All Custodians" ariaLabel="Custodian"></app-filter-select>
+          <app-filter-select name="custodian" [(ngModel)]="draft.custodian" [options]="custodianOptions" allLabel="Select Custodian" ariaLabel="Custodian"></app-filter-select>
         </div>
 
         <div class="field">
           <span class="field-label">Criticality</span>
-          <app-filter-select name="criticality" [(ngModel)]="draft.criticality" [options]="criticalityOptions" allLabel="All" ariaLabel="Criticality"></app-filter-select>
+          <app-filter-select name="criticality" [(ngModel)]="draft.criticality" [options]="criticalityOptions" allLabel="Select Criticality" ariaLabel="Criticality"></app-filter-select>
         </div>
 
         <div class="field">
           <span class="field-label">Manufacturer</span>
-          <app-filter-select name="manufacturer" [(ngModel)]="draft.manufacturer" [options]="manufacturerOptions" allLabel="All Manufacturers" ariaLabel="Manufacturer"></app-filter-select>
+          <app-filter-select name="manufacturer" [(ngModel)]="draft.manufacturer" [options]="manufacturerOptions" allLabel="Select Manufacturer" ariaLabel="Manufacturer"></app-filter-select>
         </div>
 
         <div class="filter-actions">
@@ -104,7 +104,7 @@
       <div *ngIf="showMoreFilters" class="more-filters">
         <div class="field">
           <span class="field-label">Next Maintenance</span>
-          <app-filter-select name="maintenanceDue" [(ngModel)]="draft.maintenanceDue" [options]="maintenanceOptions" allLabel="Any time" ariaLabel="Next Maintenance"></app-filter-select>
+          <app-filter-select name="maintenanceDue" [(ngModel)]="draft.maintenanceDue" [options]="maintenanceOptions" allLabel="Select Next Maintenance" ariaLabel="Next Maintenance"></app-filter-select>
         </div>
       </div>
     </form>

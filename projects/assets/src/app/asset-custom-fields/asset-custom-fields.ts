@@ -88,7 +88,6 @@ const ALL_COMPONENTS = 'All Components';
 /** The API keeps component type as free text and has no list of types; these are offered, plus any already in use. */
 const COMPONENT_TYPES = ['Engine', 'Alternator', 'Control Panel', 'Cooling System', 'Fuel System', 'Battery', 'Exhaust System'];
 /** Group new asset fields go into by default, when it exists. */
-const DEFAULT_GROUP = 'General Information';
 
 function importSummary(result: ImportResult, noun: string): string {
   const parts = [`${result.created} ${noun}${result.created === 1 ? '' : 's'} created`, `${result.updated} updated`];
@@ -290,10 +289,6 @@ export class AssetCustomFields implements OnInit {
 
   private groupIdOf(name: string): string {
     return this.groups.find((g) => g.name === name)?.id ?? '';
-  }
-
-  private get defaultGroupName(): string {
-    return this.groups.find((g) => g.name === DEFAULT_GROUP)?.name ?? '';
   }
 
   // ===== Tabs =====
@@ -518,19 +513,19 @@ export class AssetCustomFields implements OnInit {
   // ===== Field side panel =====
 
   private defaultAppliesTo(scope: FieldScope): string {
-    if (scope === 'category') return (this.activeTab === 'category' && this.appliesToFilter) || this.assetCategories[0] || '';
-    if (scope === 'component') return (this.activeTab === 'component' && this.appliesToFilter) || ALL_COMPONENTS;
+    if (scope === 'category') return (this.activeTab === 'category' && this.appliesToFilter) || '';
+    if (scope === 'component') return (this.activeTab === 'component' && this.appliesToFilter) || '';
     return '';
   }
 
-  private emptyForm(scope: FieldScope, type: FieldType = 'Text'): FieldForm {
+  private emptyForm(scope: FieldScope, type: FieldType = '' as FieldType): FieldForm {
     return {
       scope,
       appliesTo: this.defaultAppliesTo(scope),
       name: '',
       label: '',
       type,
-      group: scope === 'component' ? '' : this.defaultGroupName,
+      group: '',
       required: false,
       showInDetails: true,
       searchable: false,
@@ -562,7 +557,7 @@ export class AssetCustomFields implements OnInit {
     this.openMenu = null;
     if (!this.isFieldTab) this.selectTab('asset');
     this.editing = null;
-    this.form = this.emptyForm(this.scope, this.activeTab === 'compound' ? 'Compound' : 'Text');
+    this.form = this.emptyForm(this.scope, this.activeTab === 'compound' ? 'Compound' : ('' as FieldType));
     this.nameTouched = false;
     this.formSubmitted = false;
     this.addingGroup = false;
@@ -617,13 +612,12 @@ export class AssetCustomFields implements OnInit {
 
   onScopeChange(): void {
     this.form.appliesTo = this.defaultAppliesTo(this.form.scope);
-    this.form.group = this.form.scope === 'component' ? '' : this.form.group || this.defaultGroupName;
+    if (this.form.scope === 'component') this.form.group = '';
   }
 
   onTypeChange(): void {
     // A default that doesn't fit the new type would be rejected later; clear it.
     this.form.defaultValue = this.form.type === 'Checkbox' ? 'false' : '';
-    if (this.form.type === 'Lookup' && !this.form.lookupSource) this.form.lookupSource = this.lookupSources[0];
   }
 
   get formOptions(): string[] {
@@ -679,6 +673,7 @@ export class AssetCustomFields implements OnInit {
     if (this.nameError || !f.label.trim() || this.defaultError || this.optionsError || this.partsError) return;
     if (f.description.length > DESCRIPTION_MAX || f.tooltip.length > TOOLTIP_MAX) return;
     if (f.scope !== 'asset' && !f.appliesTo) return;
+    if (!f.type || (f.type === 'Lookup' && !f.lookupSource)) return;
 
     const appliesToId = f.scope === 'category' ? this.categoryIdOf(f.appliesTo) : '';
     if (f.scope === 'category' && !appliesToId) {
@@ -898,7 +893,7 @@ export class AssetCustomFields implements OnInit {
       original: g ?? null,
       name: g?.name ?? '',
       description: g?.description ?? '',
-      status: g?.status ?? 'Active',
+      status: g?.status ?? ('' as FieldStatus),
       fieldIds: g ? this.groupFields(g.name).map((f) => f.id) : [],
     };
     this.groupSubmitted = false;
@@ -968,7 +963,7 @@ export class AssetCustomFields implements OnInit {
   saveGroup(): void {
     this.groupSubmitted = true;
     const e = this.groupForm;
-    if (!e || this.saving || this.groupNameError || e.description.length > GROUP_DESCRIPTION_MAX) return;
+    if (!e || this.saving || this.groupNameError || !e.status || e.description.length > GROUP_DESCRIPTION_MAX) return;
     const body: SaveFieldGroupRequest = {
       groupName: e.name.trim(),
       description: e.description.trim() || null,

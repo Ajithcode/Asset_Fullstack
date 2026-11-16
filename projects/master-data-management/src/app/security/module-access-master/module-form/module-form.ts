@@ -36,6 +36,7 @@ export class ModuleForm extends MasterForm<ModuleRecord, Tab> {
   protected validate(f: ModuleRecord) {
     const errors: Record<string, string> = {};
     if (!f.category) errors['category'] = 'Select a category.';
+    if (!f.status) errors['status'] = 'Select a status.';
     return { errors, tab: 'basic' as Tab };
   }
 

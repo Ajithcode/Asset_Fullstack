@@ -54,6 +54,7 @@ export class FailureCodeForm extends MasterForm<FailureCodeRecord, Tab> {
     const errors: Record<string, string> = {};
     if (!f.category) errors['category'] = 'Select a category.';
     if (!f.severity) errors['severity'] = 'Select a severity.';
+    if (!f.status) errors['status'] = 'Select a status.';
     return { errors, tab: 'basic' as Tab };
   }
 

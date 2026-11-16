@@ -18,6 +18,7 @@ import { DataExportService } from './data-export-api.service';
           <lucide-icon class="widget__info" [img]="icons.Info" [size]="14" title="Export runs and reporting API calls per day (Asia/Dubai)"></lucide-icon>
         </h2>
         <select class="select dx-select-sm" [(ngModel)]="range" (ngModelChange)="build()" aria-label="Range">
+          <option value="" disabled>Select Range</option>
           <option value="7">Last 7 days</option>
           <option value="30">Last 30 days</option>
         </select>

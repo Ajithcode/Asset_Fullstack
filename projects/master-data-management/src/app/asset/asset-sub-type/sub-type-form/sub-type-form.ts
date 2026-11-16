@@ -8,6 +8,16 @@ import { blankAssetSubType } from '../asset-sub-type.data';
 import { AssetSubTypeRecord } from '../asset-sub-type.model';
 import { AssetSubTypeService } from '../asset-sub-type.service';
 
+/** A new sub type starts with every dropdown empty so the user picks each value. */
+function newAssetSubType(): AssetSubTypeRecord {
+  return {
+    ...blankAssetSubType(),
+    maintenanceType: '' as AssetSubTypeRecord['maintenanceType'],
+    defaultCondition: '' as AssetSubTypeRecord['defaultCondition'],
+    trackingMethod: '' as AssetSubTypeRecord['trackingMethod']
+  };
+}
+
 export type SubTypeFormTab = 'basic' | 'specifications' | 'lifecycle' | 'defaults' | 'fields';
 type FieldKey = 'name' | 'code' | 'assetType' | 'image' | 'taggingFormat' | 'specifications' | 'lifecycleYears' | 'maintenanceFrequencyDays' | 'warrantyMonths' | 'customFields';
 
@@ -62,13 +72,13 @@ export class SubTypeForm implements OnChanges {
   ];
 
   tab: SubTypeFormTab = 'basic';
-  form: AssetSubTypeRecord = blankAssetSubType();
+  form: AssetSubTypeRecord = newAssetSubType();
   errors: Partial<Record<FieldKey, string>> = {};
   private original: AssetSubTypeRecord | null = null;
 
   ngOnChanges(): void {
     this.original = this.mode === 'edit' ? this.subType : null;
-    this.form = this.subType ? structuredClone(this.subType) : blankAssetSubType();
+    this.form = this.subType ? structuredClone(this.subType) : newAssetSubType();
     this.errors = {};
     this.tab = this.startTab;
   }
@@ -89,7 +99,7 @@ export class SubTypeForm implements OnChanges {
   onTypeChange(): void {
     this.form.category = this.service.categoryOf(this.form.assetType);
     const subs = this.subcategories;
-    if (!subs.includes(this.form.subcategory)) this.form.subcategory = subs[0] ?? '';
+    if (!subs.includes(this.form.subcategory)) this.form.subcategory = '';
   }
 
   // Suggest a tagging format from the code (AST-DG-STB gives STB-{YY}-{0000}) until one is typed
@@ -110,7 +120,7 @@ export class SubTypeForm implements OnChanges {
   }
 
   addField(): void {
-    this.form.customFields = [...this.form.customFields, { name: '', type: 'Text', required: false }];
+    this.form.customFields = [...this.form.customFields, { name: '', type: '' as AssetSubTypeRecord['customFields'][number]['type'], required: false }];
   }
 
   removeField(index: number): void {
@@ -175,6 +185,7 @@ export class SubTypeForm implements OnChanges {
     const names = f.customFields.map((c) => c.name.trim().toLowerCase());
     if (names.some((n) => !n)) errors.customFields = 'Every custom field needs a name.';
     else if (new Set(names).size !== names.length) errors.customFields = 'Custom field names must be unique.';
+    else if (f.customFields.some((c) => !c.type)) errors.customFields = 'Every custom field needs a type.';
     this.errors = errors;
 
     const keys = Object.keys(errors) as FieldKey[];

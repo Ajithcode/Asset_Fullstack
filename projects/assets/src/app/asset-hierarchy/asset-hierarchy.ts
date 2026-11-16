@@ -88,7 +88,7 @@ interface NodeForm {
   typeId: string;
   modelId: string;
   manufacturer: string;
-  status: AssetStatus;
+  status: AssetStatus | '';
   parentId: string;
 }
 
@@ -100,7 +100,7 @@ type GroupKind = Exclude<NodeKind, 'root' | 'asset'>;
 
 interface HierarchyNodeForm {
   name: string;
-  kind: GroupKind;
+  kind: GroupKind | '';
   parentId: string;
   code: string;
   description: string;
@@ -555,7 +555,7 @@ export class AssetHierarchy implements OnInit {
   // ===== Add / edit =====
 
   private emptyForm(parentId: string): NodeForm {
-    return { kind: 'asset', name: '', tag: '', typeId: '', modelId: '', manufacturer: '', status: 'Active', parentId };
+    return { kind: 'asset', name: '', tag: '', typeId: '', modelId: '', manufacturer: '', status: '', parentId };
   }
 
   /** Parents a new node can be placed under, indented by depth. */
@@ -626,7 +626,7 @@ export class AssetHierarchy implements OnInit {
 
   get formValid(): boolean {
     const f = this.form;
-    return !!f.name.trim() && !!f.tag.trim() && !this.isTagTaken(f.tag) && (f.kind !== 'asset' || !!f.typeId);
+    return !!f.name.trim() && !!f.tag.trim() && !this.isTagTaken(f.tag) && (f.kind !== 'asset' || (!!f.typeId && !!f.status));
   }
 
   saveForm(): void {
@@ -646,7 +646,7 @@ export class AssetHierarchy implements OnInit {
       // Keep the master link while the manufacturer name is unchanged.
       manufacturerId: editing?.dto && manufacturer && manufacturer === (editing.dto.manufacturerName ?? '') ? editing.dto.manufacturerId : null,
       manufacturerName: manufacturer || null,
-      status: isAsset ? f.status : 'Active',
+      status: isAsset ? (f.status as AssetStatus) : 'Active',
     };
     const parent = this.find(f.parentId) ?? this.root;
     const request = editing ? this.api.update(editing.id, input) : this.api.create(input);
@@ -694,7 +694,7 @@ export class AssetHierarchy implements OnInit {
   // ===== Create Hierarchy Node =====
 
   private emptyNodeForm(parentId: string): HierarchyNodeForm {
-    return { name: '', kind: 'system', parentId, code: '', description: '', status: 'Active' };
+    return { name: '', kind: '', parentId, code: '', description: '', status: 'Active' };
   }
 
   /** Nearest non-asset node at or above `n` – hierarchy nodes can only sit under other hierarchy nodes. */
@@ -704,19 +704,9 @@ export class AssetHierarchy implements OnInit {
 
   openCreateNode(parent: HierarchyNode = this.selected): void {
     const p = this.nearestGroup(parent);
-    this.nodeForm = { ...this.emptyNodeForm(p.id), kind: this.suggestKind(p) };
+    this.nodeForm = this.emptyNodeForm(p.id);
     this.nodeFormSubmitted = false;
     this.nodeFormOpen = true;
-  }
-
-  /** Sensible default level for a node created under `parent`. */
-  private suggestKind(parent: HierarchyNode): GroupKind {
-    switch (parent.kind) {
-      case 'root': return 'site';
-      case 'site': return 'building';
-      case 'building': return 'floor';
-      default: return 'system';
-    }
   }
 
   /** Grouping nodes (no assets) a new hierarchy node can be placed under, indented by depth. */
@@ -741,7 +731,7 @@ export class AssetHierarchy implements OnInit {
 
   get nodeFormValid(): boolean {
     const f = this.nodeForm;
-    return !!f.name.trim() && !!f.code.trim() && !this.isCodeTaken(f.code) && !!this.find(f.parentId);
+    return !!f.name.trim() && !!f.kind && !!f.code.trim() && !this.isCodeTaken(f.code) && !!this.find(f.parentId);
   }
 
   isCodeTaken(code: string): boolean {
@@ -755,7 +745,7 @@ export class AssetHierarchy implements OnInit {
     const f = this.nodeForm;
     const parent = this.find(f.parentId) ?? this.root;
     const input: HierarchyItemInput = {
-      itemKind: f.kind,
+      itemKind: f.kind as GroupKind,
       parentId: parent.id === ROOT_ID ? null : parent.id,
       name: f.name.trim(),
       assetTag: f.code.trim().toUpperCase(),

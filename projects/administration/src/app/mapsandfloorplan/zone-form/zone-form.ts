@@ -31,6 +31,7 @@ import { MapsStore } from '../maps.store';
         <div class="field">
           <label for="zf-type">Zone Type <span class="req">*</span></label>
           <select id="zf-type" name="type" [(ngModel)]="draft.type" [disabled]="!store.editing">
+            <option [ngValue]="null" disabled>Select Zone Type</option>
             @for (t of types; track t.type) { <option [ngValue]="t.type">{{ t.type }}</option> }
           </select>
         </div>
@@ -49,6 +50,7 @@ import { MapsStore } from '../maps.store';
         <div class="field">
           <label for="zf-access">Access Rule</label>
           <select id="zf-access" name="access" [(ngModel)]="draft.accessRule" [disabled]="!store.editing">
+            <option value="" disabled>Select Access Rule</option>
             @for (r of accessRules; track r) { <option [value]="r">{{ r }}</option> }
           </select>
         </div>
