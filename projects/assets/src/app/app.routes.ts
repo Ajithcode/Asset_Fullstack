@@ -11,6 +11,8 @@ import { AssetRelationshipList } from './asset-relationship-list/asset-relations
 import { AssetDocuments } from './asset-documents/asset-documents';
 import { AssetImages } from './asset-images/asset-images';
 import { AssetStatusCondition } from './asset-status-condition/asset-status-condition';
+import { AssetStatusConditionOverview } from './asset-status-condition-overview/asset-status-condition-overview';
+import { UpdateStatusCondition } from './asset-status-condition-overview/update-status-condition/update-status-condition';
 import { AssetCriticality } from './asset-criticality/asset-criticality';
 import { AssetHealthScore } from './asset-health-score/asset-health-score';
 import { AssetBulk } from './asset-bulk/asset-bulk';
@@ -74,7 +76,12 @@ export const routes: Routes = [
   { path: 'images', component: AssetImages },
   // Menu page: images of every asset, uploaded to one or more assets at a time
   { path: 'all-images', component: AssetImages, data: { allAssets: true } },
+  // Asset detail tab (?tag=): one asset's operational status, condition assessments, readings and alarms
   { path: 'status-condition', component: AssetStatusCondition },
+  // Menu page: status & condition of every asset and the history of changes
+  { path: 'asset-status-condition', component: AssetStatusConditionOverview },
+  // ?tag= preselects the asset, ?change= reopens a draft or rejected change
+  { path: 'asset-status-condition/update', component: UpdateStatusCondition },
   { path: 'criticality', component: AssetCriticality },
   { path: 'health-score', component: AssetHealthScore },
   { path: 'bulk-import-export', component: AssetBulk },

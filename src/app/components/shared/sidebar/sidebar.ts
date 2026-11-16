@@ -116,7 +116,7 @@ export class Sidebar {
         { label: 'Custom Fields', path: '/assets/custom-fields' },
         { label: 'Asset Documents', path: '/assets/all-documents' },
         { label: 'Asset Images', path: '/assets/all-images' },
-        { label: 'Asset Status & Condition', path: '/assets/status-condition' },
+        { label: 'Asset Status & Condition', path: '/assets/asset-status-condition' },
         { label: 'Asset Criticality', path: '/assets/criticality' },
         { label: 'Asset Health Score', path: '/assets/health-score' },
         { label: 'Asset Lifecycle', path: '/assets/lifecycle' },
