@@ -22,14 +22,22 @@ const ASSET_SVG =
 @Component({
   selector: 'app-floor-plan-map',
   standalone: true,
-  template: `<div #host class="fp-map"></div>
-    @if (note) { <div class="fp-note" role="status">{{ note }}</div> }`,
+  template: `<div #host class="fp-map" [class.fp-map--blank]="imageMissing"></div>
+    @if (note) {
+      <div class="fp-note" role="status">{{ note }}</div>
+    } @else if (imageMissing) {
+      <div class="fp-note fp-note--top" role="status">Floor plan image is missing - upload it again in Maps &amp; Floor Plans. Zones and items are shown on a blank plan.</div>
+    }`,
   styles: `
     app-floor-plan-map { position: absolute; inset: 0; display: block; }
     .fp-map { position: absolute; inset: 0; background: #f8fafc; }
     .fp-map .leaflet-container, .fp-map.leaflet-container { background: #f8fafc; font: inherit; }
     .fp-note { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 500; padding: 10px 16px; border-radius: 10px;
       background: #fff; box-shadow: 0 6px 24px rgba(15, 23, 42, .12); color: #475569; font-size: 13px; text-align: center; max-width: 80%; }
+    .fp-note--top { top: 14px; transform: translateX(-50%); padding: 7px 14px; font-size: 12px; border: 1px solid #fde68a; background: #fffbeb; color: #92400e; }
+    .fp-map--blank { background-color: #fff; background-image: linear-gradient(#eef2f7 1px, transparent 1px), linear-gradient(90deg, #eef2f7 1px, transparent 1px);
+      background-size: 32px 32px; }
+    .fp-zone-shape { cursor: zoom-in; }
     .fp-pin { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; border: 2.5px solid #fff; color: #fff;
       box-shadow: 0 3px 10px rgba(15, 23, 42, .28); transition: transform .15s; }
     .fp-pin:hover { transform: scale(1.12); }
@@ -51,6 +59,8 @@ const ASSET_SVG =
 export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   /** Plan picture (floor plan file, or the floor image from Master Data). */
   @Input() imageUrl: string | null = null;
+  /** Floor picture from Master Data, used when the plan file cannot be loaded. */
+  @Input() fallbackUrl: string | null = null;
   @Input() zones: PlanZone[] = [];
   @Input() plots: PlanPlot[] = [];
   /** Zone view: the drawn zone shown alone; undefined = whole floor; null = the picked zone is not drawn yet. */
@@ -114,25 +124,53 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.shownImage = this.imageUrl;
       this.image?.remove();
       this.image = undefined;
+      this.planReady = false;
       this.shapes!.clearLayers();
       this.markers!.clearLayers();
       const url = this.imageUrl;
       if (!url) return;
+      this.setImageMissing(false);
       const img = new Image();
       img.onload = () => {
         if (url !== this.shownImage || !this.map) return;
         this.h = img.naturalWidth ? (W * img.naturalHeight) / img.naturalWidth : W * 0.6;
         const bounds = L.latLngBounds([0, 0], [this.h, W]);
-        this.image = L.imageOverlay(url, bounds, { interactive: false }).addTo(map);
+        this.image = L.imageOverlay(img.src, bounds, { interactive: false }).addTo(map);
         this.image.bringToBack();
-        map.setMaxBounds(bounds.pad(0.4));
-        this.shownScope = '\u0000';
-        this.draw();
+        this.ready(bounds);
+      };
+      // The file is gone (e.g. deleted from Media): use the floor picture from Master Data, else a blank plan
+      img.onerror = () => {
+        if (url !== this.shownImage || !this.map) return;
+        if (this.fallbackUrl && img.src !== this.fallbackUrl && !img.dataset['fallback']) {
+          img.dataset['fallback'] = '1';
+          img.src = this.fallbackUrl;
+          return;
+        }
+        this.h = W * 0.6;
+        this.setImageMissing(true);
+        this.ready(L.latLngBounds([0, 0], [this.h, W]));
       };
       img.src = url;
       return;
     }
-    if (this.image) this.draw();
+    if (this.planReady) this.draw();
+  }
+
+  /** The plan (image or blank) is in place: zones and items can be drawn. */
+  private planReady = false;
+  /** The plan image could not be loaded. */
+  imageMissing = false;
+
+  private ready(bounds: Leaflet.LatLngBounds): void {
+    this.planReady = true;
+    this.map!.setMaxBounds(bounds.pad(0.4));
+    this.shownScope = '\u0000';
+    this.draw();
+  }
+
+  private setImageMissing(missing: boolean): void {
+    if (missing !== this.imageMissing) this.ngZone.run(() => (this.imageMissing = missing));
   }
 
   /** % of the plan (x right, y down) → map point. */
@@ -152,7 +190,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     let focus: Leaflet.LatLngBounds | null = null;
 
     for (const z of zones) {
-      const style: Leaflet.PathOptions = { color: z.color || '#7c3aed', weight: 2.2, fillColor: z.color || '#7c3aed', fillOpacity: 0.22, dashArray: z.active ? undefined : '6 6' };
+      const style: Leaflet.PathOptions = { color: z.color || '#7c3aed', weight: 2.2, fillColor: z.color || '#7c3aed', fillOpacity: 0.22, dashArray: z.active ? undefined : '6 6', className: 'fp-zone-shape' };
       let shape: Leaflet.Path & { getBounds(): Leaflet.LatLngBounds };
       if (z.shape === 'Circle') {
         shape = L.circle(this.at(z.x + z.w / 2, z.y + z.h / 2), { ...style, radius: ((z.radius ?? z.w / 2) / 100) * W });
@@ -164,6 +202,8 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       shape.bindTooltip(`<div class="fp-tip"><strong>${esc(z.name)} (${esc(z.code)})</strong><span>${esc(z.type)}</span></div>`, { sticky: true, direction: 'top', opacity: 1 });
       shape.addTo(this.shapes!);
       const b = shape.getBounds();
+      // Click a zone: zoom in on it
+      shape.on('click', () => map.flyToBounds(b, { padding: [40, 40], maxZoom: 2, duration: 0.6 }));
       focus = focus ? focus.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast());
       if (this.showLabels) {
         L.marker([b.getNorth(), b.getCenter().lng], {

@@ -70,7 +70,7 @@
             (zoneClick)="selectZoneById($event)" (alertClick)="onAlertClick()" (drawPoints)="drawCount = $event" (drawDone)="onDrawDone($event)"
             (editChange)="onEditChange($event)" (zoomChange)="zoomInfo = $event" (ready)="drawMap = $event"></app-geofence-map>
           <!-- floor picked: that floor's plan with its zones and plotted devices / assets (zone picked: only that zone) -->
-          <app-floor-plan-map *ngIf="floorId" [imageUrl]="floorImage" [zones]="planZones" [plots]="planPlots" [zoneId]="floorScope"
+          <app-floor-plan-map *ngIf="floorId" [imageUrl]="floorImage" [fallbackUrl]="floorMdmImage" [zones]="planZones" [plots]="planPlots" [zoneId]="floorScope"
             [feed]="gatewayFeed" [showLabels]="showLabels" [showAssets]="showAssets" [showDevices]="showGateways" [note]="floorNote"></app-floor-plan-map>
           <app-map-draw-tools *ngIf="!floorId" [map]="drawMap" storageKey="geofence-alerts" side="right" [top]="96"></app-map-draw-tools>
 
@@ -364,8 +364,28 @@
   <div class="cb-row">
     <label class="cb"><input type="checkbox" [(ngModel)]="f.inApp" />In-app</label>
     <label class="cb"><input type="checkbox" [(ngModel)]="f.email" />Email</label>
-    <label class="cb"><input type="checkbox" [(ngModel)]="f.push" />Push</label>
+    <label class="cb"><input type="checkbox" [(ngModel)]="f.push" />Desktop (push)</label>
   </div>
+  <ng-container *ngIf="f.push">
+    <div class="rb-sec">Desktop notification</div>
+    <div class="rb-grid">
+      <label class="rb-label" [attr.for]="idp + '-every'">Notify every</label>
+      <select class="control control-sm" [id]="idp + '-every'" [(ngModel)]="f.notifyEvery"><option *ngFor="let o of notifyEvery" [ngValue]="o.value">{{ o.label }}</option></select>
+      <label class="rb-label" [attr.for]="idp + '-rep'">Repeat</label>
+      <select class="control control-sm" [id]="idp + '-rep'" [(ngModel)]="f.notifyRepeat"><option *ngFor="let o of notifyRepeat" [ngValue]="o.value">{{ o.label }}</option></select>
+    </div>
+    <label class="cb"><input type="checkbox" [(ngModel)]="f.notifySound" />Play notification sound</label>
+    <p class="muted small rb-note">Each notification has <b>Acknowledge</b> and <b>Remind me</b> buttons and arrives even when Asset360 is closed or in another tab.</p>
+    <div class="desk-row" [ngSwitch]="desktop.state">
+      <span *ngSwitchCase="'enabled'" class="desk-ok">Desktop notifications are on for this browser.</span>
+      <span *ngSwitchCase="'denied'" class="desk-warn">Notifications are blocked for this site. Allow them in the browser's site settings.</span>
+      <span *ngSwitchCase="'unsupported'" class="desk-warn">This browser does not support desktop notifications.</span>
+      <ng-container *ngSwitchDefault>
+        <span class="muted small grow">Not enabled on this browser yet.</span>
+        <button type="button" class="btn btn-outline btn-xs" (click)="enableDesktop()">Enable on this device</button>
+      </ng-container>
+    </div>
+  </ng-container>
 </ng-template>
 
 <!-- ===== Create / edit geofence ===== -->
@@ -414,8 +434,12 @@
     <div class="modal-body">
       <div class="two">
         <label class="field"><span class="field-label">Rule name</span><input class="control" [(ngModel)]="d.name" placeholder="Generated from the trigger if empty" /></label>
-        <label class="field"><span class="field-label">Geofence <em>*</em></span><select class="control" [(ngModel)]="d.zoneId"><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></select></label>
+        <label class="field"><span class="field-label">Geofence / zone <em>*</em></span><select class="control" [(ngModel)]="d.zoneId">
+          <optgroup *ngIf="mapZoneRuleTargets.length" label="Floor plan zones (live tracking)"><option *ngFor="let t of mapZoneRuleTargets" [value]="t.id">{{ t.label }}</option></optgroup>
+          <optgroup label="Outdoor geofences"><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></optgroup>
+        </select></label>
       </div>
+      <p *ngIf="ruleZoneWithoutGateway" class="desk-row desk-warn" role="note">No gateway is plotted in this zone, so it cannot detect assets. Plot a device in this zone in Maps &amp; Floor Plans first.</p>
       <ng-container *ngTemplateOutlet="ruleFields; context: { $implicit: d, idp: 'rd' }"></ng-container>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="ruleDialog = null">Cancel</button><button type="button" class="btn btn-primary" [disabled]="saving" (click)="saveRuleDialog()">Save Rule</button></div>

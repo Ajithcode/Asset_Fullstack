@@ -4,7 +4,7 @@ import { Observable, catchError, map } from 'rxjs';
 import { AuthService } from 'shared-ui';
 import { apiError, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
 import { actorName } from './geofence-api.service';
-import { Rule, SEVERITIES, Severity, Trigger } from './geofence-data';
+import { MAP_ZONE_PREFIX, Rule, SEVERITIES, Severity, Trigger } from './geofence-data';
 
 /** GET /api/alert-rules row. */
 export interface AlertRuleDto {
@@ -28,6 +28,10 @@ export interface AlertRuleDto {
   createdAt: string | null;
   clientId: string | null;
   tenantId: string | null;
+  mapZoneId?: string | null;
+  notifyIntervalSeconds?: number;
+  notifyRepeat?: number;
+  notifySound?: boolean;
 }
 
 /** POST / PUT /api/alert-rules body. */
@@ -49,6 +53,11 @@ export interface AlertRuleRequest {
   createdBy: string;
   clientId: string;
   tenantId: string;
+  /** Floor plan zone (maps zone id) instead of an outdoor geofence. */
+  mapZoneId: string | null;
+  notifyIntervalSeconds: number;
+  notifyRepeat: number;
+  notifySound: boolean;
 }
 
 /** Page trigger ↔ API trigger text (AlertRuleTrigger in the Tracking service). */
@@ -84,13 +93,21 @@ export function toRule(d: AlertRuleDto): Rule {
     email: channels.includes('email'),
     push: channels.includes('push'),
     enabled: d.status !== 'Disabled',
+    notifyEvery: d.notifyIntervalSeconds ?? 5,
+    notifyRepeat: d.notifyRepeat ?? 1,
+    notifySound: d.notifySound ?? true,
+    zoneLabel: d.geofenceName,
   };
 }
 
 export function toAlertRuleRequest(r: Omit<Rule, 'id'>, createdBy: string): AlertRuleRequest {
   return {
     name: r.name,
-    geofenceId: r.zoneId,
+    geofenceId: r.zoneId.startsWith(MAP_ZONE_PREFIX) ? '' : r.zoneId,
+    mapZoneId: r.zoneId.startsWith(MAP_ZONE_PREFIX) ? r.zoneId.slice(MAP_ZONE_PREFIX.length) : null,
+    notifyIntervalSeconds: r.notifyEvery || 5,
+    notifyRepeat: Math.max(0, r.notifyRepeat ?? 1),
+    notifySound: r.notifySound !== false,
     trigger: TRIGGER_TO_API[r.trigger],
     severity: r.severity,
     assetGroup: r.group,

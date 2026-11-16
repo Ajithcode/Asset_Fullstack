@@ -775,6 +775,15 @@
   color: #94a3b8;
 }
 
+// Desktop (push) notifications on / off for this browser
+.notifications-desktop {
+  padding: 10px 16px;
+  border-top: 1px solid #eef0f5;
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+}
+
 @keyframes topbar-in {
   from {
     opacity: 0;

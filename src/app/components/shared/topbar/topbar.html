@@ -1,3 +1,5 @@
+<!-- live IoT alert pop-ups (Acknowledge / Remind me) -->
+<app-alert-popups></app-alert-popups>
 <div class="topbar-shell">
   <button class="menu-toggle" type="button" (click)="toggleMenu()" aria-label="Toggle menu">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -165,5 +167,11 @@
       </span>
     </button>
     <div class="notifications-empty" *ngIf="notifications.length === 0">You're all caught up.</div>
+  </div>
+  <div class="notifications-desktop" [ngSwitch]="desktopAlerts.state">
+    <span *ngSwitchCase="'enabled'">Desktop notifications are on for this browser.</span>
+    <span *ngSwitchCase="'denied'">Desktop notifications are blocked — allow them in the browser's site settings.</span>
+    <span *ngSwitchCase="'unsupported'">This browser does not support desktop notifications.</span>
+    <button *ngSwitchDefault type="button" class="mark-read-btn" (click)="enableDesktopAlerts()">Enable desktop notifications</button>
   </div>
 </div>

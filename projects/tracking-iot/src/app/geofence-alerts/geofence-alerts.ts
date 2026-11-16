@@ -41,7 +41,7 @@ import {
   X,
 } from 'lucide-angular';
 import {
-  AlertEvent, CONDITIONS, EVENT_STATUSES, EventStatus, Rule, SEVERITIES, Severity, TRIGGERS, Trigger,
+  AlertEvent, CONDITIONS, EVENT_STATUSES, MAP_ZONE_PREFIX, NOTIFY_EVERY, NOTIFY_REPEAT, EventStatus, Rule, SEVERITIES, Severity, TRIGGERS, Trigger,
   Zone, ZoneShape, ZoneType, startOfToday,
 } from './geofence-data';
 import type * as Leaflet from 'leaflet';
@@ -54,6 +54,7 @@ import { AlertRuleApiService } from './alert-rule-api.service';
 import { IoTAlertApiService, IoTAlertDto, IoTAlertStatus, toAlertEvent } from './iot-alert-api.service';
 import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone, ZoneOption } from './floor-map-api.service';
 import { FloorPlanMap } from './floor-plan-map';
+import { DesktopAlertsService } from 'shared-ui';
 import { Subscription } from 'rxjs';
 
 type Tab = 'geofences' | 'rules' | 'history';
@@ -66,9 +67,10 @@ interface Confirm { title: string; message: string; label: string; run: () => vo
 const TYPE_COLOR: Record<ZoneType, string> = { Allowed: '#2563EB', Warning: '#F5B40B', Restricted: '#EF4444' };
 
 const DEFAULT_RULE: RuleForm = {
-  trigger: 'enter-exit', dwellMin: 5, severity: 'High', group: 'Forklifts', condition: CONDITIONS[0],
+  trigger: 'enter-exit', dwellMin: 5, severity: 'High', group: 'All assets', condition: CONDITIONS[0],
   createAlert: true, notify: false, team: '', workflow: false, workflowName: '',
-  inApp: true, email: true, push: false,
+  inApp: true, email: true, push: true,
+  notifyEvery: 5, notifyRepeat: 1, notifySound: true,
 };
 
 const LIST_PAGE = 5;
@@ -91,6 +93,14 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   readonly severities = SEVERITIES;
   readonly triggers = TRIGGERS;
   readonly eventStatuses = EVENT_STATUSES;
+  readonly notifyEvery = NOTIFY_EVERY;
+  readonly notifyRepeat = NOTIFY_REPEAT;
+  /** Desktop notifications on this browser (Web Push). */
+  readonly desktop = inject(DesktopAlertsService);
+
+  enableDesktop(): void {
+    this.desktop.enable().then((ok) => this.showToast(ok ? 'Desktop notifications are on for this browser.' : this.desktop.state === 'denied' ? 'Notifications are blocked for this site in the browser settings.' : 'Could not turn on desktop notifications.'));
+  }
   /** Teams / workflows have no API list yet; the inputs accept free text (suggestions from existing rules). */
   get teams(): string[] {
     return [...new Set(this.rules.map((r) => r.team).filter(Boolean))].sort();
@@ -228,6 +238,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
         this.zoneOptions = locations.zones;
         this.floorPlans = plans;
         this.floorsLoaded = true;
+        this.loadMapZoneTargets(locations.floors, plans);
         // open on the first floor that has a floor plan (the outdoor geofence map stays one pick away)
         const first = this.floorOptions.find((f) => plans.has(f.id));
         if (first && !this.floorId && this.mapMode === 'view') this.selectFloor(first.id);
@@ -236,6 +247,33 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
         this.floorsLoaded = true;
         this.showToast(apiErrorMessage(err, 'Could not load buildings and floors.'));
       },
+    });
+  }
+
+  /** Floor plan zones (drawn in Maps & Floor Plans) that alert rules can watch: "zone:{id}". */
+  mapZoneRuleTargets: { id: string; label: string; gateways: number }[] = [];
+
+  /** The rule dialog's floor zone has no gateway plotted in it: it can never raise alerts. */
+  get ruleZoneWithoutGateway(): boolean {
+    const id = this.ruleDialog?.zoneId ?? '';
+    return id.startsWith(MAP_ZONE_PREFIX) && this.mapZoneRuleTargets.find((t) => t.id === id)?.gateways === 0;
+  }
+
+  private loadMapZoneTargets(floors: FloorOption[], plans: Map<string, FloorPlanRef>): void {
+    const list = [...plans.values()];
+    if (!list.length) return;
+    const perPlan$ = list.map((p) => forkJoin({ zones: this.floorApi.zones(p.id).pipe(catchError(() => of<PlanZone[]>([]))), plots: this.floorApi.plots(p.id).pipe(catchError(() => of<PlanPlot[]>([]))) }));
+    forkJoin(perPlan$).subscribe((perPlan) => {
+      const targets: { id: string; label: string; gateways: number }[] = [];
+      perPlan.forEach(({ zones, plots }, i) => {
+        const floor = floors.find((f) => f.id === list[i].locationId)?.label ?? list[i].name;
+        for (const z of zones) {
+          // live alerts need a gateway (device) plotted inside the zone
+          const gateways = plots.filter((p) => p.kind === 'device' && p.zoneId === z.id).length;
+          targets.push({ id: MAP_ZONE_PREFIX + z.id, label: `${z.name} (${z.code}) · ${floor}${gateways ? '' : ' — no gateway'}`, gateways });
+        }
+      });
+      this.mapZoneRuleTargets = targets.sort((a, b) => a.label.localeCompare(b.label));
     });
   }
 
@@ -251,6 +289,11 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   /** Floor plan file, else the floor picture from Master Data. */
   get floorImage(): string | null {
     return this.floorPlan?.fileUrl ?? this.floorOptions.find((f) => f.id === this.floorId)?.image ?? null;
+  }
+
+  /** The floor picture from Master Data (fallback when the plan file is missing). */
+  get floorMdmImage(): string | null {
+    return this.floorOptions.find((f) => f.id === this.floorId)?.image ?? null;
   }
 
   /** The drawn zone shown alone: undefined = whole floor, null = the picked zone is not drawn on the plan yet. */
@@ -444,7 +487,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   zoneColor(id: string): string {
-    return this.zoneById(id)?.color ?? '#9ca3af';
+    return this.zoneById(id)?.color ?? (id.startsWith(MAP_ZONE_PREFIX) ? '#7c3aed' : '#9ca3af');
   }
 
   ruleCount(z: Zone): number {
@@ -918,13 +961,16 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   zoneName(id: string): string {
-    return this.zoneById(id)?.name ?? '—';
+    return this.zoneById(id)?.name ?? this.mapZoneRuleTargets.find((t) => t.id === id)?.label ?? this.rules.find((r) => r.zoneId === id)?.zoneLabel ?? '—';
   }
 
   openRule(r?: Rule): void {
     this.menuOpen = '';
     this.formError = '';
-    const zoneId = r ? r.zoneId : this.ruleZone || this.selected?.id || '';
+    // New rule: the floor zone being viewed (picked zone, else the floor's first drawn zone), else the outdoor geofence
+    const scope = this.floorId ? this.floorScope : undefined;
+    const floorZone = scope ? MAP_ZONE_PREFIX + scope : this.floorId && this.planZones.length ? MAP_ZONE_PREFIX + this.planZones[0].id : '';
+    const zoneId = r ? r.zoneId : this.ruleZone || floorZone || this.selected?.id || '';
     this.ruleDialog = r ? { ...r } : { ...DEFAULT_RULE, group: this.builder.group, id: '', name: '', zoneId, enabled: true };
   }
 

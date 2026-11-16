@@ -162,3 +162,9 @@
   .tab-filters { margin-left: 0; padding-left: 4px; }
   .tab-filter .control, .tab-filter .control.map-floor { min-width: 0; max-width: 180px; }
 }
+
+/* Alert rule: desktop notification settings */
+.rb-note { margin: 4px 0 6px; line-height: 1.45; }
+.desk-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: #faf5ff; border: 1px solid #ede9fe; font-size: 12px; }
+.desk-ok { color: #15803d; font-weight: 600; }
+.desk-warn { color: #b45309; }

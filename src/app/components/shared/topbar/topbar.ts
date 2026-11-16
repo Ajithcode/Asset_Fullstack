@@ -22,9 +22,10 @@ import {
 } from 'lucide-angular';
 import { Router, NavigationEnd, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
-import { AccessService, AuthService } from 'shared-ui';
+import { AccessService, AuthService, DesktopAlertsService } from 'shared-ui';
 import { environment } from '../../../../environments/environment';
 import { NotificationService, AppNotification } from '../../services/notification.service';
+import { AlertPopups } from '../alert-popups/alert-popups';
 
 type ProfileSection = '' | 'language' | 'site' | 'help';
 type ProfileDialog = '' | 'profile' | 'preferences' | 'whatsNew' | 'docs' | 'password';
@@ -70,7 +71,7 @@ interface BreadcrumbItem {
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, AlertPopups],
   templateUrl: './topbar.html',
   styleUrls: ['./topbar.scss']
 })
@@ -131,6 +132,21 @@ export class Topbar {
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => this.updateBreadcrumbs());
+
+    // Desktop notifications for IoT alerts: service worker + this browser's push subscription; live alerts go to the bell
+    this.desktopAlerts.soundEnabled = this.prefs.notifySound;
+    this.desktopAlerts.alerts$.subscribe((a) =>
+      this.notificationService.push(`${a.title}${a.body ? ' — ' + a.body : ''}`, a.severity === 'Critical' || a.severity === 'High' ? 'error' : 'warning', '/tracking-iot/geofence-alerts')
+    );
+    void this.desktopAlerts.init();
+  }
+
+  readonly desktopAlerts = inject(DesktopAlertsService);
+
+  enableDesktopAlerts(): void {
+    void this.desktopAlerts.enable().then((ok) =>
+      this.showToast(ok ? 'Desktop notifications are on for this browser.' : this.desktopAlerts.state === 'denied' ? 'Notifications are blocked for this site in the browser settings.' : 'Could not turn on desktop notifications.')
+    );
   }
 
   get notifications(): AppNotification[] {
@@ -251,6 +267,7 @@ export class Topbar {
   savePrefs(): void {
     this.prefs = { ...this.prefsForm };
     writeValue(PREFS_KEY, this.prefs);
+    this.desktopAlerts.soundEnabled = this.prefs.notifySound;
     this.dialog = '';
     this.showToast('Preferences saved.');
   }

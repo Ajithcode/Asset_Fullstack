@@ -575,6 +575,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     this.ruleApi.create({
       name: f.assetId + ' ' + label, zoneId: zone.id.slice(GEOFENCE_PREFIX.length), trigger: f.rule, dwellMin: f.minutes, severity: 'High', group: f.assetId,
       condition: CONDITIONS[0], createAlert: true, notify: !meOnly, team: meOnly ? '' : f.notify, workflow: false, workflowName: '', inApp: true, email: !meOnly, push: false, enabled: true,
+      notifyEvery: 5, notifyRepeat: 1, notifySound: true,
     }).subscribe({
       next: () => {
         this.saving = false;

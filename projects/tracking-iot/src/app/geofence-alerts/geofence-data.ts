@@ -74,7 +74,25 @@ export interface Rule {
   email: boolean;
   push: boolean;
   enabled: boolean;
+  /** Seconds between desktop notifications of one alert. */
+  notifyEvery: number;
+  /** Notifications per alert; 0 = until acknowledged. */
+  notifyRepeat: number;
+  notifySound: boolean;
+  /** Name the API stored for the rule's geofence / floor zone (shown when it is not an outdoor geofence). */
+  zoneLabel?: string;
 }
+
+/** Floor plan zones are rule targets as "zone:{maps zone id}"; outdoor geofences use their own id. */
+export const MAP_ZONE_PREFIX = 'zone:';
+
+export const NOTIFY_EVERY: { value: number; label: string }[] = [
+  { value: 5, label: '5 seconds' }, { value: 15, label: '15 seconds' }, { value: 30, label: '30 seconds' },
+  { value: 60, label: '1 minute' }, { value: 300, label: '5 minutes' }, { value: 900, label: '15 minutes' },
+];
+export const NOTIFY_REPEAT: { value: number; label: string }[] = [
+  { value: 1, label: 'One time' }, { value: 3, label: '3 times' }, { value: 5, label: '5 times' }, { value: 0, label: 'Until acknowledged' },
+];
 
 /** An IoT alert shown in the event lists. */
 export interface AlertEvent {
