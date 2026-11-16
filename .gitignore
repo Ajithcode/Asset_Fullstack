@@ -1,0 +1,10 @@
+# .NET build output
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+
+# Local secrets
+.env
+.env.local
