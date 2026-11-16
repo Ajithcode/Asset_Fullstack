@@ -12,6 +12,7 @@ import 'package:asset360_mobile/data/repositories/live_assets_repository.dart';
 import 'package:asset360_mobile/features/assets/asset_actions.dart';
 import 'package:asset360_mobile/features/assets/asset_detail_screen.dart';
 import 'package:asset360_mobile/features/assets/live/live_detail_common.dart';
+import 'package:asset360_mobile/features/assets/live/live_detail_iot.dart';
 import 'package:asset360_mobile/features/assets/live/live_detail_tabs.dart';
 import 'package:asset360_mobile/features/assets/live/live_detail_upload.dart';
 import 'package:asset360_mobile/features/assets/more_actions/more_action_widgets.dart';
@@ -166,7 +167,7 @@ class _LiveAssetDetailScreenState extends ConsumerState<LiveAssetDetailScreen> {
                   switch (_tab) {
                     AssetTab.overview => LiveOverviewTab(asset: r),
                     AssetTab.location => LiveLocationTab(asset: r),
-                    AssetTab.iot => const NotAvailableYet(feature: 'IoT telemetry', icon: Icons.sensors_rounded),
+                    AssetTab.iot => LiveIotTab(asset: r),
                     AssetTab.maintenance => const NotAvailableYet(
                       feature: 'Maintenance history',
                       icon: Icons.build_outlined,

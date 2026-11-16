@@ -157,10 +157,10 @@ class _TrackingMapState extends State<TrackingMap> {
                   child: Column(
                     children: [
                       if (widget.onLayers != null) ...[
-                        _MapButton(icon: Icons.layers_outlined, tooltip: 'Layers', onTap: widget.onLayers!),
+                        MapRoundButton(icon: Icons.layers_outlined, tooltip: 'Layers', onTap: widget.onLayers!),
                         const SizedBox(height: 8),
                       ],
-                      _MapButton(
+                      MapRoundButton(
                         label: _tilted ? '3D' : '2D',
                         tooltip: _tilted ? 'Switch to 2D' : 'Switch to 3D',
                         onTap: () => setState(() => _tilted = !_tilted),
@@ -350,8 +350,9 @@ class _Bubble extends StatelessWidget {
   }
 }
 
-class _MapButton extends StatelessWidget {
-  const _MapButton({required this.tooltip, required this.onTap, this.icon, this.label});
+/// A round white map control (layers, 2D / 3D, zoom).
+class MapRoundButton extends StatelessWidget {
+  const MapRoundButton({super.key, required this.tooltip, required this.onTap, this.icon, this.label});
 
   final String tooltip;
   final VoidCallback onTap;

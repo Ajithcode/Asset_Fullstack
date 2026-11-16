@@ -253,7 +253,7 @@ void main() {
     );
   });
 
-  test('Test connection: GET /health on all 6 services (… DASHBOARD, ADMIN), one result each', () async {
+  test('Test connection: GET /health on all 7 services (… DASHBOARD, ADMIN, TRACKING), one result each', () async {
     final adapter = _HealthAdapter();
     final c = ProviderContainer(
       overrides: [
@@ -265,6 +265,7 @@ void main() {
           BackendService.masterData: (baseUrl: 'http://h.test:5500', problem: null),
           BackendService.dashboard: (baseUrl: 'http://h.test:5470', problem: null),
           BackendService.admin: (baseUrl: 'http://h.test:5460', problem: null),
+          BackendService.tracking: (baseUrl: 'http://h.test:5490', problem: null),
         }),
       ],
     );
@@ -286,15 +287,18 @@ void main() {
     expect(r[3].url, 'http://h.test:5500/health');
     expect(r[4].ok, isTrue);
     expect(r[4].url, 'http://h.test:5470/health');
-    expect(r, hasLength(6));
+    expect(r, hasLength(7));
     expect(r[5].ok, isTrue);
     expect(r[5].url, 'http://h.test:5460/health');
+    expect(r[6].ok, isTrue);
+    expect(r[6].url, 'http://h.test:5490/health');
     expect(adapter.calls, [
       'http://h.test:5018/health',
       'http://h.test:5401/health',
       'http://h.test:5500/health',
       'http://h.test:5470/health',
       'http://h.test:5460/health',
+      'http://h.test:5490/health',
     ]);
   });
 }
@@ -306,7 +310,7 @@ class _HealthAdapter implements HttpClientAdapter {
   @override
   Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
     calls.add(o.uri.toString());
-    final ok = o.uri.port == 5018 || o.uri.port == 5500 || o.uri.port == 5470 || o.uri.port == 5460;
+    final ok = o.uri.port == 5018 || o.uri.port == 5500 || o.uri.port == 5470 || o.uri.port == 5460 || o.uri.port == 5490;
     return ResponseBody.fromString(
       ok ? jsonEncode({'status': 'Healthy', 'service': 'UserAccount'}) : '',
       ok ? 200 : 503,

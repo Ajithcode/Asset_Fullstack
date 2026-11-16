@@ -124,9 +124,18 @@ void main() {
     expect(find.text('Operation Manual'), findsOneWidget);
     expect(find.text('Manual · v1.0 · 500 KB'), findsOneWidget);
 
-    // A tab without a backend.
+    // IoT tab: Tracking service with nothing linked to AR000001.
+    for (final path in [
+      '/api/iot-devices',
+      '/api/device-health',
+      '/api/tag-ids',
+      '/api/sensors',
+      '/api/location-events',
+    ]) {
+      backend.on('GET', path, (_) => const FakeReply(200, <Object>[]));
+    }
     await tapTab(tester, 'IoT');
-    expect(find.text('Not available yet'), findsOneWidget);
+    expect(find.text('No sensors linked to this asset'), findsOneWidget);
     await tapTab(tester, 'Maintenance');
     expect(find.text('Maintenance history is not connected to the server yet.'), findsOneWidget);
 

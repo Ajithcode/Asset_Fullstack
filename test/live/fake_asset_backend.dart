@@ -359,6 +359,12 @@ class FakeAssetBackend implements HttpClientAdapter {
       dashboardClientProvider.overrideWithValue(
         ApiClient(dio('http://dash.test:5470'), checkConfig: false, service: BackendService.dashboard),
       ),
+      trackingClientProvider.overrideWithValue(
+        ApiClient(dio('http://trk.test:5490'), checkConfig: false, service: BackendService.tracking),
+      ),
+      adminClientProvider.overrideWithValue(
+        ApiClient(dio('http://admin.test:5460'), checkConfig: false, service: BackendService.admin),
+      ),
     ];
   }
 

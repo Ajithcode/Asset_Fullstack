@@ -23,6 +23,7 @@ const _params = {
   'moId': 'MO-2026-0018',
   'partId': 'BR-6205',
   'action': 'print-tag',
+  'sensorId': 'SEN-T-80900',
 };
 
 /// Every concrete path in the router, with parameters filled in.

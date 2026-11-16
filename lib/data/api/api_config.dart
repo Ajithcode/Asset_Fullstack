@@ -8,7 +8,8 @@
 ///   --dart-define=AUTH_BASE_URL=http://<backend-ip>:5018 \
 ///   --dart-define=MASTER_DATA_BASE_URL=http://<backend-ip>:5500 \
 ///   --dart-define=DASHBOARD_BASE_URL=http://<backend-ip>:5470 \
-///   --dart-define=ADMIN_BASE_URL=http://<backend-ip>:5460
+///   --dart-define=ADMIN_BASE_URL=http://<backend-ip>:5460 \
+///   --dart-define=TRACKING_BASE_URL=http://<backend-ip>:5490
 /// ```
 ///
 /// See README → "Connecting to the backend".
@@ -35,7 +36,7 @@ const String kAuthBaseUrl = String.fromEnvironment('AUTH_BASE_URL');
 /// with --dart-define=MASTER_DATA_BASE_URL=... (env/api_dev.json sets it) before any release build.
 const String kMasterDataBaseUrl = String.fromEnvironment(
   'MASTER_DATA_BASE_URL',
-  defaultValue: 'http://172.16.100.26:5500',
+  defaultValue: 'http://172.16.100.29:5500',
 );
 
 /// Dashboard service root (Home dashboard, GET /api/dashboards/mobile/*, network status + its WebSocket).
@@ -44,15 +45,22 @@ const String kMasterDataBaseUrl = String.fromEnvironment(
 /// --dart-define=DASHBOARD_BASE_URL=... (env/api_dev.json sets it) before any release build.
 const String kDashboardBaseUrl = String.fromEnvironment(
   'DASHBOARD_BASE_URL',
-  defaultValue: 'http://172.16.100.26:5470',
+  defaultValue: 'http://172.16.100.29:5470',
 );
 
-/// Administration service root (permissions GET /api/users/me, map system: floor plans, zones, plots).
-/// Only the health check calls it for now.
+/// Administration service root (map system: published floor plans, zones, plots, layers,
+/// GET /api/administration/maps/*; the Tracking Live Map reads it).
 ///
 /// DEV default: the shared test server, like [kMasterDataBaseUrl]. Override it with
 /// --dart-define=ADMIN_BASE_URL=... (env/api_dev.json sets it) before any release build.
-const String kAdminBaseUrl = String.fromEnvironment('ADMIN_BASE_URL', defaultValue: 'http://172.16.100.26:5460');
+const String kAdminBaseUrl = String.fromEnvironment('ADMIN_BASE_URL', defaultValue: 'http://172.16.100.29:5460');
+
+/// Tracking service root (IoT devices, tags, sensors, telemetry readings, location events,
+/// geofences, IoT alerts; the Tracking & IoT module and the asset IoT tab read it).
+///
+/// DEV default: the shared test server, like [kMasterDataBaseUrl]. Override it with
+/// --dart-define=TRACKING_BASE_URL=... (env/api_dev.json sets it) before any release build.
+const String kTrackingBaseUrl = String.fromEnvironment('TRACKING_BASE_URL', defaultValue: 'http://172.16.100.29:5490');
 
 /// Optional debug override: a Bearer token for the Asset / Media services, used only while nobody is signed in.
 const String kDevToken = String.fromEnvironment('DEV_TOKEN');
@@ -88,6 +96,9 @@ String? get dashboardConfigProblem => _urlProblem('DASHBOARD_BASE_URL', kDashboa
 /// What is missing to call the Administration service, or null when ADMIN_BASE_URL is usable.
 String? get adminConfigProblem => _urlProblem('ADMIN_BASE_URL', kAdminBaseUrl, '5460');
 
+/// What is missing to call the Tracking service, or null when TRACKING_BASE_URL is usable.
+String? get trackingConfigProblem => _urlProblem('TRACKING_BASE_URL', kTrackingBaseUrl, '5490');
+
 /// The backend services the app calls directly.
 enum BackendService {
   auth('AUTH', 'AUTH_BASE_URL', 'Login service'),
@@ -95,7 +106,8 @@ enum BackendService {
   media('MEDIA', 'MEDIA_BASE_URL', 'Media service'),
   masterData('MASTER DATA', 'MASTER_DATA_BASE_URL', 'Master Data service'),
   dashboard('DASHBOARD', 'DASHBOARD_BASE_URL', 'Dashboard service'),
-  admin('ADMIN', 'ADMIN_BASE_URL', 'Administration service');
+  admin('ADMIN', 'ADMIN_BASE_URL', 'Administration service'),
+  tracking('TRACKING', 'TRACKING_BASE_URL', 'Tracking service');
 
   const BackendService(this.code, this.define, this.label);
 
@@ -113,6 +125,7 @@ enum BackendService {
     masterData => kMasterDataBaseUrl,
     dashboard => kDashboardBaseUrl,
     admin => kAdminBaseUrl,
+    tracking => kTrackingBaseUrl,
   };
 
   String? get configProblem => switch (this) {
@@ -122,5 +135,6 @@ enum BackendService {
     masterData => masterDataConfigProblem,
     dashboard => dashboardConfigProblem,
     admin => adminConfigProblem,
+    tracking => trackingConfigProblem,
   };
 }

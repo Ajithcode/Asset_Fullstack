@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
+import 'package:asset360_mobile/app/theme/app_theme.dart';
 import 'package:asset360_mobile/core/demo_clock.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/models/tracking.dart';
@@ -202,6 +203,118 @@ class SignalBars extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// The big icon tabs of the Tracking hub (design 06, left screen): one tile per (value, label, icon).
+class TrackingHubTabs<T> extends StatelessWidget {
+  const TrackingHubTabs({super.key, required this.tabs, required this.selected, required this.onChanged});
+
+  final List<(T, String, IconData)> tabs;
+  final T selected;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (final (i, (value, label, icon)) in tabs.indexed) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: Material(
+              color: value == selected ? AppColors.tileLavender : AppColors.tileSky.withValues(alpha: .6),
+              borderRadius: BorderRadius.circular(AppRadius.tile),
+              child: InkWell(
+                onTap: () => onChanged(value),
+                borderRadius: BorderRadius.circular(AppRadius.tile),
+                child: Container(
+                  height: 64,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadius.tile),
+                    border: Border(
+                      bottom: BorderSide(color: value == selected ? AppColors.primary : Colors.transparent, width: 2.5),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, color: AppColors.primary, size: 24),
+                      const SizedBox(height: 4),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.text,
+                            fontWeight: value == selected ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// A row of counter tiles (Online / Offline / Low Battery / Alerts): (value, icon, count, label,
+/// tone). Tapping one selects it (outlined).
+class CounterTiles<T> extends StatelessWidget {
+  const CounterTiles({super.key, required this.items, required this.selected, required this.onTap});
+
+  final List<(T, IconData, int, String, TileTone)> items;
+  final T? selected;
+  final ValueChanged<T> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (final (i, (c, icon, n, label, tone)) in items.indexed) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(
+            child: Material(
+              color: tone.background,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: selected == c ? tone.foreground : Colors.transparent, width: 1.5),
+              ),
+              child: InkWell(
+                onTap: () => onTap(c),
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(icon, color: tone.foreground, size: 20),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('$n', style: AppText.bodyStrong.copyWith(fontSize: 15, color: tone.foreground)),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(label, style: AppText.caption.copyWith(fontSize: 10.5)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

@@ -20,6 +20,13 @@ final masterDataDioProvider = Provider<Dio>((ref) => _serviceDio(ref, kMasterDat
 /// The Dio instance for the Dashboard service (DASHBOARD_BASE_URL: Home dashboard + network status).
 final dashboardDioProvider = Provider<Dio>((ref) => _serviceDio(ref, kDashboardBaseUrl));
 
+/// The Dio instance for the Administration service (ADMIN_BASE_URL: map floor plans, zones, plots).
+final adminDioProvider = Provider<Dio>((ref) => _serviceDio(ref, kAdminBaseUrl));
+
+/// The Dio instance for the Tracking service (TRACKING_BASE_URL: IoT devices, sensors, telemetry,
+/// location events, geofences, IoT alerts).
+final trackingDioProvider = Provider<Dio>((ref) => _serviceDio(ref, kTrackingBaseUrl));
+
 /// Every service reads the Bearer token (for CreatedBy) but a missing token never blocks a call.
 Dio _serviceDio(Ref ref, String baseUrl) {
   final dio = Dio(
@@ -57,6 +64,16 @@ final masterDataClientProvider = Provider<ApiClient>(
 /// The same wrapper for the Dashboard service.
 final dashboardClientProvider = Provider<ApiClient>(
   (ref) => ApiClient(ref.watch(dashboardDioProvider), service: BackendService.dashboard),
+);
+
+/// The same wrapper for the Administration service.
+final adminClientProvider = Provider<ApiClient>(
+  (ref) => ApiClient(ref.watch(adminDioProvider), service: BackendService.admin),
+);
+
+/// The same wrapper for the Tracking service.
+final trackingClientProvider = Provider<ApiClient>(
+  (ref) => ApiClient(ref.watch(trackingDioProvider), service: BackendService.tracking),
 );
 
 class ApiClient {

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:asset360_mobile/data/api/api_config.dart';
+import 'package:asset360_mobile/features/more/tracking/live/live_asset_tracking_screen.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
@@ -59,6 +61,7 @@ class _AssetTrackingScreenState extends ConsumerState<AssetTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (apiMode) return LiveAssetTrackingScreen(assetKey: widget.assetId, initialTab: widget.initialTab);
     ref.watch(trackingLiveProvider);
     final asset = ref.watch(assetsProvider).firstWhereOrNull((a) => a.id == widget.assetId);
     if (asset == null) {

@@ -1,0 +1,3859 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "A360 Administration API",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/access-policies": {
+      "get": {
+        "tags": [
+          "Access Policies"
+        ],
+        "operationId": "GetAccessPolicies",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policyType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Access Policies"
+        ],
+        "operationId": "CreateAccessPolicy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccessPolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/access-policies/{policyId}": {
+      "get": {
+        "tags": [
+          "Access Policies"
+        ],
+        "operationId": "GetAccessPolicyById",
+        "parameters": [
+          {
+            "name": "policyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/checklist-items": {
+      "post": {
+        "tags": [
+          "Checklist Items"
+        ],
+        "operationId": "CreateChecklistItem",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChecklistItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/data-imports": {
+      "post": {
+        "tags": [
+          "Data Imports"
+        ],
+        "operationId": "CreateDataImportJob",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDataImportJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/device-asset-plotting/{plotId}": {
+      "get": {
+        "tags": [
+          "Device & Asset Plotting"
+        ],
+        "operationId": "GetDeviceAssetPlotById",
+        "parameters": [
+          {
+            "name": "plotId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/device-asset-plotting": {
+      "post": {
+        "tags": [
+          "Device & Asset Plotting"
+        ],
+        "operationId": "CreateDeviceAssetPlot",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDeviceAssetPlotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/device-drawings": {
+      "post": {
+        "tags": [
+          "Device Drawings"
+        ],
+        "operationId": "CreateDeviceDrawing",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDeviceDrawingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/general-settings": {
+      "get": {
+        "tags": [
+          "General Settings"
+        ],
+        "operationId": "GetGeneralSettings",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "General Settings"
+        ],
+        "operationId": "SaveGeneralSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveMapGeneralSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/general-settings/options": {
+      "get": {
+        "tags": [
+          "General Settings"
+        ],
+        "operationId": "GetGeneralSettingsOptions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/general-settings/{settingsId}": {
+      "get": {
+        "tags": [
+          "General Settings"
+        ],
+        "operationId": "GetGeneralSettingsById",
+        "parameters": [
+          {
+            "name": "settingsId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "operationId": "AdministrationHealth",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/integrations": {
+      "post": {
+        "tags": [
+          "Integrations"
+        ],
+        "operationId": "CreateIntegration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIntegrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/map-library/zones/options": {
+      "get": {
+        "tags": [
+          "Map Library"
+        ],
+        "operationId": "GetMapLibraryZoneOptions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/map-library/zones/{zoneId}": {
+      "get": {
+        "tags": [
+          "Map Library"
+        ],
+        "operationId": "GetMapLibraryZoneById",
+        "parameters": [
+          {
+            "name": "zoneId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/map-library/zones": {
+      "post": {
+        "tags": [
+          "Map Library"
+        ],
+        "operationId": "CreateMapLibraryZone",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMapLibraryZoneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/summary": {
+      "get": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "GetMapSummary",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans": {
+      "get": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "GetFloorPlans",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "CreateFloorPlan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFloorPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}": {
+      "get": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "GetFloorPlanById",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "UpdateFloorPlan",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFloorPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "DeleteFloorPlan",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}/publish": {
+      "post": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "PublishFloorPlan",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MapActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}/archive": {
+      "post": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "ArchiveFloorPlan",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MapActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}/versions": {
+      "get": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "GetFloorPlanVersions",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "CreateFloorPlanVersion",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}/versions/{version}/publish": {
+      "post": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "PublishFloorPlanVersion",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MapActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}/versions/{version}/restore": {
+      "post": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "RestoreFloorPlanVersion",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MapActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/zones/options": {
+      "get": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "GetMapZoneOptions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}/zones": {
+      "get": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "GetMapZones",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "CreateMapZone",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveZoneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/zones/{zoneId}": {
+      "put": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "UpdateMapZone",
+        "parameters": [
+          {
+            "name": "zoneId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveZoneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "DeleteMapZone",
+        "parameters": [
+          {
+            "name": "zoneId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}/plots": {
+      "get": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "GetMapPlots",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}/plots/{kind}/{itemId}": {
+      "put": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "SaveMapPlot",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePlotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "DeleteMapPlot",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}/layers": {
+      "get": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "GetMapLayers",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/floor-plans/{floorPlanId}/layers/{layerKey}": {
+      "put": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "SaveMapLayer",
+        "parameters": [
+          {
+            "name": "floorPlanId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "layerKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLayerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/layer-sets": {
+      "get": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "GetMapLayerSets",
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "CreateMapLayerSet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLayerSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/layer-sets/{layerSetId}": {
+      "delete": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "DeleteMapLayerSet",
+        "parameters": [
+          {
+            "name": "layerSetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/maps/settings": {
+      "get": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "GetMapSettings",
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Maps & Floor Plans"
+        ],
+        "operationId": "SaveMapSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveMapSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/notification-templates": {
+      "post": {
+        "tags": [
+          "Notification Templates"
+        ],
+        "operationId": "CreateNotificationTemplate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNotificationTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/numbering-sequences": {
+      "post": {
+        "tags": [
+          "Numbering Sequences"
+        ],
+        "operationId": "CreateNumberingSequence",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNumberingSequenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/organization/locations/{locationId}": {
+      "get": {
+        "tags": [
+          "Organization Locations"
+        ],
+        "operationId": "GetOrganizationLocationById",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/organization/locations": {
+      "post": {
+        "tags": [
+          "Organization Locations"
+        ],
+        "operationId": "CreateOrganizationLocation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/roles": {
+      "get": {
+        "tags": [
+          "Roles"
+        ],
+        "operationId": "GetRoles",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "roleType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Roles"
+        ],
+        "operationId": "CreateRole",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/roles/{roleId}": {
+      "get": {
+        "tags": [
+          "Roles"
+        ],
+        "operationId": "GetRoleById",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Roles"
+        ],
+        "operationId": "UpdateRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Roles"
+        ],
+        "operationId": "DeleteRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/administration/system-configuration": {
+      "get": {
+        "tags": [
+          "System Configuration"
+        ],
+        "operationId": "GetSystemConfiguration",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "System Configuration"
+        ],
+        "operationId": "SaveSystemConfiguration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSystemConfigurationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "GetUsers",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "CreateUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "GetMyAccess",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/users/{userId}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "GetUserById",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "UpdateUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "DeleteUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/zone-drawings": {
+      "post": {
+        "tags": [
+          "Zone Drawings"
+        ],
+        "operationId": "CreateZoneDrawing",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateZoneDrawingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/zones-geofences/options": {
+      "get": {
+        "tags": [
+          "Zones & Geofences"
+        ],
+        "operationId": "GetZoneGeofenceOptions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/zones-geofences/{zoneId}": {
+      "get": {
+        "tags": [
+          "Zones & Geofences"
+        ],
+        "operationId": "GetZoneGeofenceById",
+        "parameters": [
+          {
+            "name": "zoneId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/zones-geofences": {
+      "post": {
+        "tags": [
+          "Zones & Geofences"
+        ],
+        "operationId": "CreateZoneGeofence",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateZoneGeofenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateAccessPolicyRequest": {
+        "type": "object",
+        "properties": {
+          "policyName": {
+            "type": "string",
+            "nullable": true
+          },
+          "policyCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "policyType": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "assignedRoles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateChecklistItemRequest": {
+        "type": "object",
+        "properties": {
+          "itemText": {
+            "type": "string",
+            "nullable": true
+          },
+          "section": {
+            "type": "string",
+            "nullable": true
+          },
+          "responseType": {
+            "type": "string",
+            "nullable": true
+          },
+          "isRequired": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "isCritical": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "helpText": {
+            "type": "string",
+            "nullable": true
+          },
+          "expectedValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "attachmentRequired": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "scoreValue": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "failureAction": {
+            "type": "string",
+            "nullable": true
+          },
+          "escalateIssue": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateDataImportJobRequest": {
+        "type": "object",
+        "properties": {
+          "jobName": {
+            "type": "string",
+            "nullable": true
+          },
+          "dataObject": {
+            "type": "string",
+            "nullable": true
+          },
+          "operation": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceFile": {
+            "type": "string",
+            "nullable": true
+          },
+          "fileFormat": {
+            "type": "string",
+            "nullable": true
+          },
+          "duplicateHandling": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateFormat": {
+            "type": "string",
+            "nullable": true
+          },
+          "delimiter": {
+            "type": "string",
+            "nullable": true
+          },
+          "encoding": {
+            "type": "string",
+            "nullable": true
+          },
+          "batchSize": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "schedule": {
+            "type": "string",
+            "nullable": true
+          },
+          "notificationRecipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateDeviceAssetPlotRequest": {
+        "type": "object",
+        "properties": {
+          "floorPlanId": {
+            "type": "string",
+            "nullable": true
+          },
+          "floorPlanName": {
+            "type": "string",
+            "nullable": true
+          },
+          "itemType": {
+            "type": "string",
+            "nullable": true
+          },
+          "itemId": {
+            "type": "string",
+            "nullable": true
+          },
+          "itemCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "itemName": {
+            "type": "string",
+            "nullable": true
+          },
+          "assetCategory": {
+            "type": "string",
+            "nullable": true
+          },
+          "assetType": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "serialNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneId": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneName": {
+            "type": "string",
+            "nullable": true
+          },
+          "positionX": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "positionY": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "orientation": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateDeviceDrawingRequest": {
+        "type": "object",
+        "properties": {
+          "areaId": {
+            "type": "string",
+            "nullable": true
+          },
+          "assemblyPoint": {
+            "type": "boolean"
+          },
+          "buildingId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "countryId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceGeoJsonData": {
+            "$ref": "#/components/schemas/GeoJsonFeatureCollectionContract"
+          },
+          "deviceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceReferenceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceUniqueId": {
+            "type": "string",
+            "nullable": true
+          },
+          "exit": {
+            "type": "string",
+            "nullable": true
+          },
+          "floorId": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority": {
+            "type": "string",
+            "nullable": true
+          },
+          "projectId": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "boolean"
+          },
+          "topZone": {
+            "type": "string",
+            "nullable": true
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneId": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateFloorPlanRequest": {
+        "type": "object",
+        "properties": {
+          "locationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationType": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "fileUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "fileName": {
+            "type": "string",
+            "nullable": true
+          },
+          "format": {
+            "type": "string",
+            "nullable": true
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "widthMeters": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "heightMeters": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "scale": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "versionNote": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateIntegrationRequest": {
+        "type": "object",
+        "properties": {
+          "integrationName": {
+            "type": "string",
+            "nullable": true
+          },
+          "integrationCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "provider": {
+            "type": "string",
+            "nullable": true
+          },
+          "environment": {
+            "type": "string",
+            "nullable": true
+          },
+          "baseUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "authenticationMethod": {
+            "type": "string",
+            "nullable": true
+          },
+          "authClientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "secretKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "syncFrequency": {
+            "type": "string",
+            "nullable": true
+          },
+          "timeoutSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "retryPolicy": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateLayerSetRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "layers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateLocationRequest": {
+        "type": "object",
+        "properties": {
+          "locationCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationName": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationType": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentLocationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "country": {
+            "type": "string",
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "timeZone": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationManager": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateMapLibraryZoneRequest": {
+        "type": "object",
+        "properties": {
+          "floorPlanId": {
+            "type": "string",
+            "nullable": true
+          },
+          "floorPlanName": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneName": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneType": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentLocationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentLocationPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "area": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "accessRule": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateNotificationTemplateRequest": {
+        "type": "object",
+        "properties": {
+          "templateName": {
+            "type": "string",
+            "nullable": true
+          },
+          "templateCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "triggerEvent": {
+            "type": "string",
+            "nullable": true
+          },
+          "deliveryChannels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "language": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority": {
+            "type": "string",
+            "nullable": true
+          },
+          "deliveryTiming": {
+            "type": "string",
+            "nullable": true
+          },
+          "retryPolicy": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateNumberingSequenceRequest": {
+        "type": "object",
+        "properties": {
+          "sequenceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "sequenceCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "module": {
+            "type": "string",
+            "nullable": true
+          },
+          "recordType": {
+            "type": "string",
+            "nullable": true
+          },
+          "prefix": {
+            "type": "string",
+            "nullable": true
+          },
+          "separator": {
+            "type": "string",
+            "nullable": true
+          },
+          "numberLength": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "startNumber": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "incrementBy": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "resetFrequency": {
+            "type": "string",
+            "nullable": true
+          },
+          "scope": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateRoleRequest": {
+        "type": "object",
+        "properties": {
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleType": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "permissions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "nullable": true
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "employeeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "department": {
+            "type": "string",
+            "nullable": true
+          },
+          "jobTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "location": {
+            "type": "string",
+            "nullable": true
+          },
+          "timeZone": {
+            "type": "string",
+            "nullable": true
+          },
+          "primaryRole": {
+            "type": "string",
+            "nullable": true
+          },
+          "secondaryRoles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "accessScope": {
+            "type": "string",
+            "nullable": true
+          },
+          "mfaEnabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "moduleAccess": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "accountStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateVersionRequest": {
+        "type": "object",
+        "properties": {
+          "fileUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "fileName": {
+            "type": "string",
+            "nullable": true
+          },
+          "format": {
+            "type": "string",
+            "nullable": true
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "bump": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateZoneDrawingRequest": {
+        "type": "object",
+        "properties": {
+          "areaId": {
+            "type": "string",
+            "nullable": true
+          },
+          "assemblyPoint": {
+            "type": "boolean"
+          },
+          "buildingId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "countryId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "exit": {
+            "type": "string",
+            "nullable": true
+          },
+          "floorId": {
+            "type": "string",
+            "nullable": true
+          },
+          "geoJsonData": {
+            "$ref": "#/components/schemas/GeoJsonFeatureCollectionContract"
+          },
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority": {
+            "type": "string",
+            "nullable": true
+          },
+          "projectId": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "boolean"
+          },
+          "topZone": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneId": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateZoneGeofenceRequest": {
+        "type": "object",
+        "properties": {
+          "floorPlanId": {
+            "type": "string",
+            "nullable": true
+          },
+          "floorPlanName": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneName": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneType": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "area": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "perimeter": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "accessRule": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DataAndRecordsRequest": {
+        "type": "object",
+        "properties": {
+          "defaultStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "autoSaveIntervalSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "requireDeleteConfirmation": {
+            "type": "boolean",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GeoJsonFeatureCollectionContract": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GeoJsonFeatureContract"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GeoJsonFeatureContract": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/GeoJsonGeometryContract"
+          },
+          "properties": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GeoJsonGeometryContract": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "coordinates": { }
+        },
+        "additionalProperties": false
+      },
+      "MapAccessSecuritySettingsDto": {
+        "type": "object",
+        "properties": {
+          "defaultMapAccess": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowDownloadOfMapFiles": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "watermarkPublishedMaps": {
+            "type": "boolean",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MapActionRequest": {
+        "type": "object",
+        "properties": {
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MapManagementSettingsDto": {
+        "type": "object",
+        "properties": {
+          "defaultMapView": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultZoomLevel": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "measurementUnit": {
+            "type": "string",
+            "nullable": true
+          },
+          "supportedFileTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "maxFileSizeMb": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "defaultCoordinateSystem": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MapNotificationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "notifyOnMapPublication": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "notifyOnGeofenceEvents": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "notifyOnVersionChange": {
+            "type": "boolean",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MapPlottingDisplaySettingsDto": {
+        "type": "object",
+        "properties": {
+          "defaultPlottedItems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "assetLabelDisplay": {
+            "type": "string",
+            "nullable": true
+          },
+          "labelPosition": {
+            "type": "string",
+            "nullable": true
+          },
+          "showAssetStatusIcon": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "snapToGrid": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gridSize": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MapPointDto": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "format": "double"
+          },
+          "y": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MapVersioningSettingsDto": {
+        "type": "object",
+        "properties": {
+          "versionNumbering": {
+            "type": "string",
+            "nullable": true
+          },
+          "requireApprovalToPublish": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "keepVersionHistory": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "autoArchiveOlderVersions": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "archiveAfterDays": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MapZoneGeofenceSettingsDto": {
+        "type": "object",
+        "properties": {
+          "defaultZoneType": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultGeofenceDwellTimeMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "zoneColorScheme": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "allowZoneOverlap": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "geofenceEventLogging": {
+            "type": "boolean",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlatformIdentityRequest": {
+        "type": "object",
+        "properties": {
+          "platformName": {
+            "type": "string",
+            "nullable": true
+          },
+          "organizationName": {
+            "type": "string",
+            "nullable": true
+          },
+          "logo": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultLandingPage": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegionalDefaultsRequest": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": "string",
+            "nullable": true
+          },
+          "timeZone": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateFormat": {
+            "type": "string",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "language": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SaveLayerRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "visible": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "locked": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "showLabel": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "showId": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "showStatusIcon": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "useCategoryColor": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "labelPosition": {
+            "type": "string",
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "statusFilter": {
+            "type": "string",
+            "nullable": true
+          },
+          "opacity": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SaveMapGeneralSettingsRequest": {
+        "type": "object",
+        "properties": {
+          "mapManagement": {
+            "$ref": "#/components/schemas/MapManagementSettingsDto"
+          },
+          "plottingDisplay": {
+            "$ref": "#/components/schemas/MapPlottingDisplaySettingsDto"
+          },
+          "zoneGeofence": {
+            "$ref": "#/components/schemas/MapZoneGeofenceSettingsDto"
+          },
+          "versioningPublishing": {
+            "$ref": "#/components/schemas/MapVersioningSettingsDto"
+          },
+          "accessSecurity": {
+            "$ref": "#/components/schemas/MapAccessSecuritySettingsDto"
+          },
+          "notifications": {
+            "$ref": "#/components/schemas/MapNotificationSettingsDto"
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SaveMapSettingsRequest": {
+        "type": "object",
+        "properties": {
+          "defaultView": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultZoom": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "unit": {
+            "type": "string",
+            "nullable": true
+          },
+          "fileTypes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "maxFileMb": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "coordinateSystem": {
+            "type": "string",
+            "nullable": true
+          },
+          "plotted": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "assetLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "labelPosition": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusIcon": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "snap": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gridSize": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "zoneType": {
+            "type": "string",
+            "nullable": true
+          },
+          "dwellMinutes": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "zoneColor": {
+            "type": "string",
+            "nullable": true
+          },
+          "zoneOverlap": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "geofenceLogging": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "versioning": {
+            "type": "string",
+            "nullable": true
+          },
+          "approval": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "keepVersions": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "autoArchive": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "archiveAfter": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "mapAccess": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowDownload": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "watermark": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "notifyPublish": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "notifyGeofence": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "notifyVersion": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "calibrationPoints": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "calibrationTolerance": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "originX": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "originY": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "rotation": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "integrations": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "tileCache": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "cacheHours": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "auditEdits": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "extra": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": { }
+      },
+      "SavePlotRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "assetType": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "serial": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "x": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "y": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "orientation": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "zoneId": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SaveSystemConfigurationRequest": {
+        "type": "object",
+        "properties": {
+          "platformIdentity": {
+            "$ref": "#/components/schemas/PlatformIdentityRequest"
+          },
+          "regionalDefaults": {
+            "$ref": "#/components/schemas/RegionalDefaultsRequest"
+          },
+          "userExperience": {
+            "$ref": "#/components/schemas/UserExperienceRequest"
+          },
+          "dataAndRecords": {
+            "$ref": "#/components/schemas/DataAndRecordsRequest"
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SaveZoneRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "shape": {
+            "type": "string",
+            "nullable": true
+          },
+          "x": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "y": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "w": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "h": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MapPointDto"
+            },
+            "nullable": true
+          },
+          "radius": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "areaM2": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "accessRule": {
+            "type": "string",
+            "nullable": true
+          },
+          "active": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "geofence": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "entryAlert": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "exitAlert": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "dwellAlert": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "dwellMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateFloorPlanRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "widthMeters": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "heightMeters": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "scale": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationType": {
+            "type": "string",
+            "nullable": true
+          },
+          "locationPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateRoleRequest": {
+        "type": "object",
+        "properties": {
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleType": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "permissions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "nullable": true
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "employeeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "department": {
+            "type": "string",
+            "nullable": true
+          },
+          "jobTitle": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "location": {
+            "type": "string",
+            "nullable": true
+          },
+          "timeZone": {
+            "type": "string",
+            "nullable": true
+          },
+          "primaryRole": {
+            "type": "string",
+            "nullable": true
+          },
+          "secondaryRoles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "accountStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "accessScope": {
+            "type": "string",
+            "nullable": true
+          },
+          "mfaEnabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "moduleAccess": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UserExperienceRequest": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "string",
+            "nullable": true
+          },
+          "compactMode": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "defaultRowsPerPage": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "enableTooltips": {
+            "type": "boolean",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

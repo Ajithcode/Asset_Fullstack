@@ -1,0 +1,10 @@
+{
+  "USE_API": "true",
+  "API_BASE_URL": "http://172.16.100.26:5401",
+  "AUTH_BASE_URL": "http://172.16.100.26:5018",
+  "MEDIA_BASE_URL": "http://172.16.100.26:5300",
+  "MASTER_DATA_BASE_URL": "http://172.16.100.26:5500",
+  "DASHBOARD_BASE_URL": "http://172.16.100.26:5470",
+  "ADMIN_BASE_URL": "http://172.16.100.26:5460",
+  "TRACKING_BASE_URL": "http://172.16.100.26:5490"
+}

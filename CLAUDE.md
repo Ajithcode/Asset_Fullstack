@@ -117,8 +117,8 @@
   "Master Data Management"; Media = token only) → 403 = `ApiException.isForbidden`, message "You don't have permission
   for this. <server reason>", `LoadErrorState` shows "No access"; never a sign-out. Guard 503 =
   `ApiErrorKind.permissionCheck` ("Permissions couldn't be checked — try again shortly"; `context.showApiError(e,
-  onRetry:)` = SnackBar with Retry). ADMIN_BASE_URL (`kAdminBaseUrl`, 5460, `BackendService.admin`) = 6th service in
-  Diagnostics / Test connection (map endpoints not called yet). WebSocket: Bearer header on the
+  onRetry:)` = SnackBar with Retry). ADMIN_BASE_URL (`kAdminBaseUrl`, 5460, `BackendService.admin`) and TRACKING_BASE_URL
+  (`kTrackingBaseUrl`, 5490, `BackendService.tracking`) = 6th / 7th services in Diagnostics / Test connection. WebSocket: Bearer header on the
   upgrade. `/uploads/...` files are public. Login 2FA method "email" (older "otp") = `isEmailMethod`.
 - Assets live phase (apiMode = true: NO mock assets anywhere; apiMode = false unchanged): API `lib/data/api/assets/`
   (`assets_api.dart` `AssetsApi` / `assetsApiProvider`: list, filters, get, lookup, drafts + steps + submit, options,
@@ -182,6 +182,21 @@
   shared bits `dash_ui.dart`. Tests: `test/live/dashboard_test.dart` (samples in
   `dashboard_samples.dart`; `flutter_test_config.dart` gives every test an idle fake socket). Report:
   `docs/home_dashboard_report.md`.
+- Tracking & IoT live (API mode; TRACKING_BASE_URL 5490 = `BackendService.tracking`, `trackingClientProvider`;
+  Administration maps via `adminClientProvider`): API `lib/data/api/tracking/` (`TrackingApi`, `Trk*` models, `jUtc` =
+  unmarked times are UTC) and `lib/data/api/admin/` (`AdminMapsApi`, `MapFloorPlan` / `MapZone` / `MapPlot` / `MapLayer`,
+  `MapLayerToggles.fromServer`, `PlanFrame` = plan % → `CrsSimple` LatLng, longer side 1 unit). Join + rules:
+  `lib/data/tracking/tracked_assets.dart` (`buildTrackedAssets`, `TrackingSnapshot`, `staleAfter` 10 min, `TrackRange`
+  1 h / 24 h / 7 d with `serverDays`). Providers: `tracking_live_repository.dart` (`trkLiveProvider` poller: 5 s devices +
+  health + alert count, location events / tags / sensors every 6th round; `attach`/`detach` via `LivePollingScope`
+  (TickerMode + lifecycle); `trkSensorsProvider`, `trkReadingsProvider`, `trkAlertsProvider`, `publishedPlanProvider`,
+  `planZones/Plots/LayersProvider`, `geofenceZonesProvider`, `FloorPlanImageCache` memory + disk). Positions are
+  ZONE-LEVEL (zone name of the newest location event); plot markers are admin placements — never invent x / y.
+  UI `lib/features/more/tracking/live/` (hub + `Routes.trackingMap(view:, location:, zone:, geofence:)`,
+  `FloorPlanMap`, `OutdoorMap`, `AssetZoneMap`, `LiveAssetTrackingScreen`, `/more/tracking/sensor/:sensorId`,
+  `/more/tracking/alerts`); asset IoT tab `features/assets/live/live_detail_iot.dart`. The mock hub / asset tracking
+  screens return the live ones when `apiMode`. Shared: `TrackingHubTabs`, `CounterTiles`, `MapRoundButton`.
+  Report: `docs/tracking_iot_report.md`; tests `test/live/tracking_live_test.dart` (+ `tracking_samples.dart`).
 - Scan (prompt 07): `features/assets/scan/` — `scan_screen.dart` (QR camera + simulated NFC/RFID/BLE, Manual Entry, Multi Scan,
   debug "Simulate scan" chip), `scan_result_screen.dart` (Asset Identified), `scan_history_screen.dart`. Every scan goes
   through `openScannedCode` (`scan_flow.dart`), which records history and routes. Code matching = `ScanHistoryNotifier.resolve`

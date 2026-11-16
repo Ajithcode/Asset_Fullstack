@@ -159,6 +159,26 @@ abstract final class Routes {
   static String trackChart(String assetId, String metric, {String? range}) =>
       '/more/tracking/asset/$assetId/chart?metric=$metric${range == null ? '' : '&range=$range'}';
   static const trackingActivity = '/more/tracking/activity';
+
+  /// API mode Live Map: [view] = outdoor | floor; [location] = Master Data site / building / floor
+  /// id whose published plan to show; [zone] = floor-plan zone id to highlight; [geofence] = GPS
+  /// geofence id to focus.
+  static String trackingMap({String? view, String? location, String? zone, String? geofence}) => Uri(
+    path: tracking,
+    queryParameters: {
+      'tab': 'map',
+      'view': ?view,
+      'location': ?location,
+      'zone': ?zone,
+      'geofence': ?geofence,
+    },
+  ).toString();
+
+  /// API mode sensor detail (Tracking service sensor id, e.g. SEN-T-80900).
+  static String trackSensor(String sensorId) => '/more/tracking/sensor/${Uri.encodeComponent(sensorId)}';
+
+  /// API mode IoT alerts (Tracking service).
+  static const trackingAlerts = '/more/tracking/alerts';
   static const addGeofence = '/more/tracking/zones/new';
   static const inventory = '/more/inventory';
   static String partDetail(String partId) => '/more/inventory/part/$partId';

@@ -5,14 +5,15 @@ import 'package:go_router/go_router.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
-import 'package:asset360_mobile/app/theme/app_theme.dart';
 import 'package:asset360_mobile/core/demo_clock.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
+import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/models/asset.dart';
 import 'package:asset360_mobile/data/models/tracking.dart';
 import 'package:asset360_mobile/data/repositories/repo_utils.dart';
 import 'package:asset360_mobile/data/repositories/tracking_repository.dart';
 import 'package:asset360_mobile/features/assets/asset_ui.dart';
+import 'package:asset360_mobile/features/more/tracking/live/live_tracking_hub.dart';
 import 'package:asset360_mobile/features/more/tracking/tracking_map.dart';
 import 'package:asset360_mobile/features/more/tracking/tracking_widgets.dart';
 
@@ -31,11 +32,15 @@ enum HubTab {
 enum _Counter { online, offline, lowBattery, alerts }
 
 /// Tracking & IoT hub (left screen of design/06_tracking_iot.jpg).
+/// In API mode it is [LiveTrackingHubScreen] (Tracking service + Administration maps, no mock data).
 class TrackingHubScreen extends ConsumerStatefulWidget {
-  const TrackingHubScreen({super.key, this.initialTab});
+  const TrackingHubScreen({super.key, this.initialTab, this.view, this.location, this.zone, this.geofence});
 
   /// HubTab name, e.g. "sensors".
   final String? initialTab;
+
+  /// API mode Live Map deep link ([Routes.trackingMap]).
+  final String? view, location, zone, geofence;
 
   @override
   ConsumerState<TrackingHubScreen> createState() => _TrackingHubScreenState();
@@ -116,6 +121,15 @@ class _TrackingHubScreenState extends ConsumerState<TrackingHubScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (apiMode) {
+      return LiveTrackingHubScreen(
+        initialTab: widget.initialTab,
+        view: widget.view,
+        location: widget.location,
+        zone: widget.zone,
+        geofence: widget.geofence,
+      );
+    }
     ref.watch(trackingLiveProvider);
     final t = ref.watch(trackingProvider);
     return AppScaffold(
@@ -130,7 +144,11 @@ class _TrackingHubScreenState extends ConsumerState<TrackingHubScreen> {
                 'chips to filter, and open Geofencing to set alerts when assets enter or leave a zone.',
           ),
           const SizedBox(height: 14),
-          _HubTabs(selected: _tab, onChanged: (v) => setState(() => _tab = v)),
+          TrackingHubTabs<HubTab>(
+            tabs: [for (final t in HubTab.values) (t, t.label, t.icon)],
+            selected: _tab,
+            onChanged: (v) => setState(() => _tab = v),
+          ),
           const SizedBox(height: 14),
           if (_tab == HubTab.map || _tab == HubTab.list) ...[
             SearchFilterBar(
@@ -141,8 +159,19 @@ class _TrackingHubScreenState extends ConsumerState<TrackingHubScreen> {
               onFiltersChanged: _tab == HubTab.map ? (f) => setState(() => _filters = f) : null,
             ),
             const SizedBox(height: 12),
-            _Counters(
-              summary: t.summary,
+            CounterTiles<_Counter>(
+              items: [
+                (_Counter.online, Icons.battery_full_rounded, t.summary.online, 'Online', TileTone.mint),
+                (_Counter.offline, Icons.battery_alert_rounded, t.summary.offline, 'Offline', TileTone.pink),
+                (
+                  _Counter.lowBattery,
+                  Icons.signal_cellular_alt_rounded,
+                  t.summary.lowBattery,
+                  'Low Battery',
+                  TileTone.peach,
+                ),
+                (_Counter.alerts, Icons.warning_rounded, t.summary.alerts, 'Alerts', TileTone.sky),
+              ],
               selected: _counter,
               onTap: (c) => setState(() => _counter = _counter == c ? null : c),
             ),
@@ -240,120 +269,6 @@ class _TrackingHubScreenState extends ConsumerState<TrackingHubScreen> {
 }
 
 // ---------------------------------------------------------------- Top tabs and counters
-
-class _HubTabs extends StatelessWidget {
-  const _HubTabs({required this.selected, required this.onChanged});
-
-  final HubTab selected;
-  final ValueChanged<HubTab> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (final t in HubTab.values) ...[
-          if (t.index > 0) const SizedBox(width: 8),
-          Expanded(
-            child: Material(
-              color: t == selected ? AppColors.tileLavender : AppColors.tileSky.withValues(alpha: .6),
-              borderRadius: BorderRadius.circular(AppRadius.tile),
-              child: InkWell(
-                onTap: () => onChanged(t),
-                borderRadius: BorderRadius.circular(AppRadius.tile),
-                child: Container(
-                  height: 64,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadius.tile),
-                    border: Border(
-                      bottom: BorderSide(color: t == selected ? AppColors.primary : Colors.transparent, width: 2.5),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(t.icon, color: AppColors.primary, size: 24),
-                      const SizedBox(height: 4),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          t.label,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: AppColors.text,
-                            fontWeight: t == selected ? FontWeight.w600 : FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _Counters extends StatelessWidget {
-  const _Counters({required this.summary, required this.selected, required this.onTap});
-
-  final TrackingSummary summary;
-  final _Counter? selected;
-  final ValueChanged<_Counter> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      (_Counter.online, Icons.battery_full_rounded, summary.online, 'Online', TileTone.mint),
-      (_Counter.offline, Icons.battery_alert_rounded, summary.offline, 'Offline', TileTone.pink),
-      (_Counter.lowBattery, Icons.signal_cellular_alt_rounded, summary.lowBattery, 'Low Battery', TileTone.peach),
-      (_Counter.alerts, Icons.warning_rounded, summary.alerts, 'Alerts', TileTone.sky),
-    ];
-    return Row(
-      children: [
-        for (final (i, (c, icon, n, label, tone)) in items.indexed) ...[
-          if (i > 0) const SizedBox(width: 6),
-          Expanded(
-            child: Material(
-              color: tone.background,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-                side: BorderSide(color: selected == c ? tone.foreground : Colors.transparent, width: 1.5),
-              ),
-              child: InkWell(
-                onTap: () => onTap(c),
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                  child: Row(
-                    children: [
-                      Icon(icon, color: tone.foreground, size: 20),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('$n', style: AppText.bodyStrong.copyWith(fontSize: 15, color: tone.foreground)),
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(label, style: AppText.caption.copyWith(fontSize: 10.5)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
 
 // ---------------------------------------------------------------- Asset List
 

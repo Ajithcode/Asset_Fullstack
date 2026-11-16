@@ -182,6 +182,20 @@ server. The app calls it directly at `MASTER_DATA_BASE_URL` (DEV default `http:/
 22. **Connection test** — the app's "Test connection" calls `GET /api/asset-categories`. Is that a good cheap,
     read-only, authenticated endpoint?
 
+## Tracking (port 5490) / Administration maps (5460) — see docs/tracking_iot_report.md §6
+
+23. **Positions** — location events have only `zoneName`. Will events (or a new collection) carry `x`/`y` (plan %)
+    with `floorPlanId`, and/or `latitude`/`longitude` for GPS trackers?
+24. **Ids on events** — `assetId` is free text ("FL-008"). Which code is it (asset tag? device id?), and can events
+    also carry `assetRegistrationId`, `zoneId` and `deviceId`/`tagId`?
+25. **Latest only + filters** — can `GET /api/location-events` take `assetRegistrationId`, `from`/`to`, paging, or
+    can there be a `/latest` endpoint (one row per asset)? Today the phone downloads the whole log every 30 s.
+26. **Telemetry window** — `days` counts whole UTC days ending today; could `from`/`to` be added (for "last hour")?
+27. **Push** — is a WebSocket for position / alert changes planned (like `/api/dashboards/network-status/live`)?
+28. **Plots** — are map plots ever updated by the RTLS engine (live), or only placed by an administrator?
+29. **Circle zones** — is the centre of a Circle zone the centre of its `x/y/w/h` box?
+30. **Timestamps** — are all DateTimes serialised with `Z` (UTC)? The app treats an unmarked time as UTC.
+
 ## Answered
 
 - ~~Security scheme~~ — Bearer JWT (useraccount_swagger.json: "Access token returned by POST /api/auth/verify-totp").

@@ -40,7 +40,7 @@ class MediaApi {
 final mediaApiProvider = Provider<MediaApi>((ref) => MediaApi(ref.watch(mediaClientProvider)));
 
 /// The upload reply: MediaUploadResponse `{"url": "<BaseUrl>/uploads/<category>/<file>"}` (BaseUrl from the
-/// Media service's appsettings, e.g. http://172.16.100.26:5300; older builds returned localhost).
+/// Media service's appsettings, e.g. http://172.16.100.29:5300; older builds returned localhost).
 /// Read tolerantly (`url`, `fileUrl`, `filePath`, `path`, `location`, optionally inside `data`).
 class MediaUpload {
   const MediaUpload({required this.url, this.storedUrl = '', this.raw});
