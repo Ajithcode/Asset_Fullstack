@@ -236,7 +236,8 @@ public sealed record AssetCriticalityResponse(
     string? UpdatedBy,
     DateTime? UpdatedAt,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    string ApprovalStatus = AssetCriticalityApprovalStatuses.Approved)
 {
     public static AssetCriticalityResponse FromEntity(AssetCriticalityAssessment assessment)
     {
@@ -269,7 +270,8 @@ public sealed record AssetCriticalityResponse(
             assessment.UpdatedBy,
             assessment.UpdatedAt,
             assessment.ClientId,
-            assessment.TenantId);
+            assessment.TenantId,
+            assessment.ApprovalStatus ?? AssetCriticalityApprovalStatuses.Approved);
     }
 }
 

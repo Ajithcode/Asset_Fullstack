@@ -54,6 +54,7 @@ public static class AssetServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(10);
         });
         services.AddScoped<A360.Asset.Api.Services.ICriticalityLevelClient, A360.Asset.Api.Services.CriticalityLevelClient>();
+        services.AddScoped<A360.Asset.Api.Security.ICriticalityPermissionService, A360.Asset.Api.Security.CriticalityPermissionService>();
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Asset",
