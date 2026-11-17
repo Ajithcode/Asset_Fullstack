@@ -545,6 +545,12 @@ export class AssetCriticality implements OnDestroy {
       .subscribe({
         next: (saved) => {
           this.saving = false;
+          // Saved for approval: the asset keeps its current criticality until it is approved.
+          if (saved.approvalStatus === 'PendingApproval') {
+            this.assessForm = null;
+            this.showToast(`Assessment submitted for approval: ${saved.score} / 100 (${saved.level}). The current criticality stays until it is approved.`);
+            return;
+          }
           // The previous assessment moves into the review history
           const { impact = null, mitigations = [], history = [], ...previous } = old ?? {};
           this.crit = {

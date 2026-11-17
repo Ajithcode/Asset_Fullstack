@@ -40,6 +40,8 @@ export interface CriticalityAssessment {
   reviewFrequency: string;
   department: string;
   assetGroup: string;
+  /** Approved, or PendingApproval when the assessor may not publish this level. */
+  approvalStatus: string;
 }
 
 /** A risk mitigation action (AssetRiskMitigationActionResponse). */
@@ -123,6 +125,7 @@ interface CriterionDto {
 
 interface CriticalityDto {
   id: string;
+  approvalStatus?: string | null;
   assetRegistrationId: string;
   assetName: string | null;
   assetTag: string | null;
@@ -302,6 +305,7 @@ function toAssessment(dto: CriticalityDto): CriticalityAssessment {
     reviewFrequency: dto.reviewFrequency ?? '',
     department: dto.department ?? '',
     assetGroup: dto.assetGroup ?? '',
+    approvalStatus: dto.approvalStatus ?? 'Approved',
   };
 }
 
