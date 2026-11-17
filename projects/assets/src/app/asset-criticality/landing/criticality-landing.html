@@ -1,0 +1,275 @@
+<section class="sc-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">Asset Criticality</span>
+  </nav>
+
+  <div class="acl-layout" [class.has-panel]="!!selected">
+    <section class="card panel acl-main">
+      <!-- Title -->
+      <header class="acl-head">
+        <div class="grow">
+          <h1>Asset Criticality</h1>
+          <p class="muted">Assess and prioritize assets based on business impact</p>
+        </div>
+        <button type="button" class="btn btn-outline" (click)="refresh()" aria-label="Refresh" title="Refresh">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon>
+        </button>
+        <button type="button" class="btn btn-outline" (click)="exportExcel()" [disabled]="exporting || view !== 'assets'" title="Export the filtered list to Excel">
+          <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>{{ exporting ? 'Exporting…' : 'Export' }}
+        </button>
+        <!-- The guided assessment form arrives in the next phase; until then assess from a row. -->
+        <button type="button" class="btn btn-primary" disabled title="Coming soon: the new assessment form. Use Assess on an asset row for now.">
+          <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>New Assessment
+        </button>
+      </header>
+
+      <!-- KPI cards: click to filter the list -->
+      <div class="acl-kpis">
+        <button *ngFor="let k of kpis" type="button" class="acl-kpi" (click)="pickKpi(k)" [class.is-active]="isKpiActive(k)" [attr.title]="'Show ' + k.label">
+          <span class="acl-kpi-icon" [style.color]="k.color || null" [style.background]="k.color ? k.color + '1a' : null">
+            <lucide-icon [img]="k.icon" [size]="18"></lucide-icon>
+          </span>
+          <strong>{{ k.value | number }}</strong>
+          <span class="acl-kpi-label">{{ k.label }}</span>
+        </button>
+        <ng-container *ngIf="!kpis.length">
+          <div *ngFor="let _ of [1, 2, 3, 4, 5, 6, 7, 8]" class="acl-kpi acl-kpi--loading" aria-hidden="true"></div>
+        </ng-container>
+      </div>
+
+      <!-- Search & filters -->
+      <ng-container *ngIf="view === 'assets'; else historyFilters">
+        <label class="search acl-search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" [(ngModel)]="filters.search" (ngModelChange)="onSearch()" placeholder="Search asset ID, name or type..." aria-label="Search assets" />
+        </label>
+        <div class="acl-filters">
+          <app-filter-select name="organization" [(ngModel)]="filters.organization" (ngModelChange)="reload()" [options]="options?.organizations ?? []" allLabel="All Organizations" ariaLabel="Organization"></app-filter-select>
+          <app-filter-select name="site" [(ngModel)]="filters.site" (ngModelChange)="reload()" [options]="siteOptions" allLabel="All Sites" ariaLabel="Site"></app-filter-select>
+          <app-filter-select name="department" [(ngModel)]="filters.department" (ngModelChange)="reload()" [options]="options?.departments ?? []" allLabel="All Departments" ariaLabel="Department"></app-filter-select>
+          <app-filter-select name="category" [(ngModel)]="filters.category" (ngModelChange)="reload()" [options]="options?.categories ?? []" allLabel="All Categories" ariaLabel="Asset category"></app-filter-select>
+          <app-filter-select name="assetType" [(ngModel)]="filters.assetType" (ngModelChange)="reload()" [options]="options?.assetTypes ?? []" allLabel="All Asset Types" ariaLabel="Asset type"></app-filter-select>
+          <app-filter-select name="level" [(ngModel)]="filters.level" (ngModelChange)="reload()" [options]="levelOptions" allLabel="All Criticality Levels" ariaLabel="Criticality level"></app-filter-select>
+          <app-filter-select name="approvalStatus" [(ngModel)]="filters.approvalStatus" (ngModelChange)="reload()" [options]="statusOptions" allLabel="All Assessment Statuses" ariaLabel="Assessment status"></app-filter-select>
+          <app-filter-select name="assessor" [(ngModel)]="filters.assessor" (ngModelChange)="reload()" [options]="options?.assessors ?? []" allLabel="All Assessors" ariaLabel="Assessor"></app-filter-select>
+          <app-filter-select name="operationalStatus" [(ngModel)]="filters.operationalStatus" (ngModelChange)="reload()" [options]="options?.operationalStatuses ?? []" allLabel="All Operational Statuses" ariaLabel="Operational status"></app-filter-select>
+          <label class="acl-date" title="Next review date from">
+            <span>Review due from</span>
+            <input type="date" class="control" [(ngModel)]="filters.reviewDueFrom" (ngModelChange)="reload()" aria-label="Review due from" />
+          </label>
+          <label class="acl-date" title="Next review date to">
+            <span>Review due to</span>
+            <input type="date" class="control" [(ngModel)]="filters.reviewDueTo" (ngModelChange)="reload()" aria-label="Review due to" />
+          </label>
+          <label class="acl-check">
+            <input type="checkbox" [(ngModel)]="filters.overdue" (ngModelChange)="reload()" />
+            Reassessment overdue
+          </label>
+        </div>
+      </ng-container>
+      <ng-template #historyFilters>
+        <label class="search acl-search">
+          <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+          <input type="search" [(ngModel)]="history.search" (ngModelChange)="onSearch()" placeholder="Search asset ID, name or assessor..." aria-label="Search assessments" />
+        </label>
+        <div class="acl-filters">
+          <app-filter-select name="hStatus" [(ngModel)]="history.approvalStatus" (ngModelChange)="reload()" [options]="historyStatusOptions" allLabel="All Statuses" ariaLabel="Assessment status"></app-filter-select>
+          <app-filter-select name="hAssessor" [(ngModel)]="history.assessor" (ngModelChange)="reload()" [options]="options?.assessors ?? []" allLabel="All Assessors" ariaLabel="Assessor"></app-filter-select>
+          <label class="acl-date"><span>Assessed from</span><input type="date" class="control" [(ngModel)]="history.from" (ngModelChange)="reload()" aria-label="Assessed from" /></label>
+          <label class="acl-date"><span>Assessed to</span><input type="date" class="control" [(ngModel)]="history.to" (ngModelChange)="reload()" aria-label="Assessed to" /></label>
+          <span *ngIf="historyAssetLabel" class="chip acl-chip">
+            Asset {{ historyAssetLabel }}
+            <button type="button" class="icon-btn" (click)="clearHistoryAsset()" aria-label="Show all assets"><lucide-icon [img]="icons.X" [size]="13"></lucide-icon></button>
+          </span>
+        </div>
+      </ng-template>
+
+      <!-- Asset Summary / Assessment History -->
+      <div class="acl-bar">
+        <div class="acl-toggle" role="tablist">
+          <button type="button" role="tab" [attr.aria-selected]="view === 'assets'" [class.is-active]="view === 'assets'" (click)="setView('assets')">Asset Summary</button>
+          <button type="button" role="tab" [attr.aria-selected]="view === 'history'" [class.is-active]="view === 'history'" (click)="setView('history')">Assessment History</button>
+        </div>
+        <span class="grow"></span>
+        <button *ngIf="hasFilters || historyAssetLabel" type="button" class="btn btn-outline btn-sm" (click)="clearFilters()">
+          <lucide-icon [img]="icons.FilterX" [size]="14"></lucide-icon>Clear filters
+        </button>
+        <button *ngIf="view === 'assets'" type="button" class="btn btn-outline btn-sm" (click)="showAnalytics = !showAnalytics" [attr.aria-pressed]="showAnalytics">
+          <lucide-icon [img]="icons.ChartColumn" [size]="14"></lucide-icon>Analytics
+        </button>
+        <div *ngIf="view === 'assets'" class="menu-wrap">
+          <button type="button" class="btn btn-outline btn-sm" (click)="showColumnMenu = !showColumnMenu" [attr.aria-expanded]="showColumnMenu">
+            <lucide-icon [img]="icons.Columns3" [size]="14"></lucide-icon>Columns
+          </button>
+          <div *ngIf="showColumnMenu" class="menu acl-col-menu" role="menu">
+            <label *ngFor="let c of columns" class="acl-col-item">
+              <input type="checkbox" [checked]="!hidden.has(c.key)" (change)="toggleColumn(c.key)" />{{ c.label }}
+            </label>
+            <button type="button" class="link-btn" (click)="resetColumns()">Reset to default</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Criticality analytics (distribution) -->
+      <section *ngIf="view === 'assets' && showAnalytics && distribution" class="acl-analytics" aria-label="Criticality distribution">
+        <div class="acl-dist">
+          <h3>By criticality level</h3>
+          <div *ngFor="let l of distribution.byLevel" class="acl-dist-row">
+            <span class="acl-dist-label">{{ l.level }}</span>
+            <span class="acl-dist-track"><span class="acl-dist-bar" [style.width]="barWidth(l.count, maxLevelCount)" [style.background]="levelColor(l.level === 'Unassessed' ? null : l.level)"></span></span>
+            <span class="acl-dist-count">{{ l.count | number }}</span>
+          </div>
+          <p *ngIf="!distribution.byLevel.length" class="muted">No assets in this scope.</p>
+        </div>
+        <div class="acl-dist">
+          <h3>By category</h3>
+          <div *ngFor="let c of topCategories" class="acl-dist-row" [attr.title]="c.category + ': ' + c.total + ' assets'">
+            <span class="acl-dist-label">{{ c.category }}</span>
+            <span class="acl-dist-track acl-dist-stack">
+              <span *ngFor="let l of c.levels" class="acl-dist-seg" [style.flex-grow]="l.count" [style.background]="levelColor(l.level === 'Unassessed' ? null : l.level)" [attr.title]="l.level + ': ' + l.count"></span>
+            </span>
+            <span class="acl-dist-count">{{ c.total | number }}</span>
+          </div>
+          <p *ngIf="!topCategories.length" class="muted">No assets in this scope.</p>
+        </div>
+      </section>
+
+      <p *ngIf="loadError" class="form-error" role="alert">
+        {{ loadError }} <button type="button" class="link-btn" (click)="refresh()">Retry</button>
+      </p>
+
+      <!-- Asset Summary -->
+      <div *ngIf="view === 'assets'" class="table-wrap">
+        <table class="data-table acl-table">
+          <thead>
+            <tr>
+              <th *ngFor="let c of visibleColumns" [class.is-sortable]="!!c.sort" (click)="sort(c)" [attr.aria-sort]="sortBy === c.sort ? (sortDir === 'asc' ? 'ascending' : 'descending') : null">
+                <span class="acl-th">{{ c.label }}
+                  <lucide-icon *ngIf="sortBy === c.sort" [img]="sortDir === 'asc' ? icons.ArrowUp : icons.ArrowDown" [size]="12"></lucide-icon>
+                </span>
+              </th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of rows; trackBy: trackRow" [class.is-selected]="selected?.assetRegistrationId === r.assetRegistrationId" (click)="select(r)">
+              <td *ngFor="let c of visibleColumns" [ngSwitch]="c.key" [class.nowrap]="c.key !== 'assetName'">
+                <ng-container *ngSwitchCase="'assetId'">
+                  <a class="acl-link" [routerLink]="['/assets/criticality/asset', r.assetTag || r.assetRegistrationId]" (click)="$event.stopPropagation()">{{ r.assetTag || r.assetRegistrationId }}</a>
+                </ng-container>
+                <ng-container *ngSwitchCase="'assetName'">{{ r.assetName || '-' }}</ng-container>
+                <ng-container *ngSwitchCase="'category'">{{ r.category || '-' }}<span *ngIf="r.assetType" class="muted acl-sub">{{ r.assetType }}</span></ng-container>
+                <ng-container *ngSwitchCase="'site'">{{ r.siteName || '-' }}<span *ngIf="r.locationPath" class="muted acl-sub">{{ r.locationPath }}</span></ng-container>
+                <ng-container *ngSwitchCase="'department'">{{ r.department || '-' }}<span *ngIf="r.owner" class="muted acl-sub">{{ r.owner }}</span></ng-container>
+                <ng-container *ngSwitchCase="'operationalStatus'">{{ r.operationalStatus || '-' }}</ng-container>
+                <ng-container *ngSwitchCase="'condition'">{{ r.condition || '-' }}</ng-container>
+                <ng-container *ngSwitchCase="'level'">
+                  <span *ngIf="r.level; else unassessed" class="acl-level" [style.--lvl]="levelColor(r.level)"><span class="dot"></span>{{ r.level }}</span>
+                </ng-container>
+                <ng-container *ngSwitchCase="'score'">{{ r.score != null ? (r.score | number: '1.0-1') + '/100' : '-' }}</ng-container>
+                <ng-container *ngSwitchCase="'assessmentDate'">{{ formatDate(r.assessmentDate) }}</ng-container>
+                <ng-container *ngSwitchCase="'assessedBy'">{{ r.assessedBy || '-' }}</ng-container>
+                <ng-container *ngSwitchCase="'nextReviewDate'">
+                  <span [class.text-danger]="r.reviewOverdue" [attr.title]="r.reviewOverdue ? 'Reassessment overdue' : null">{{ formatDate(r.nextReviewDate) }}</span>
+                  <lucide-icon *ngIf="r.reviewOverdue" class="text-danger acl-warn" [img]="icons.TriangleAlert" [size]="13"></lucide-icon>
+                </ng-container>
+                <ng-container *ngSwitchCase="'approvalStatus'">
+                  <span class="acl-status" [ngClass]="statusTone(r.approvalStatus)">{{ statusLabel(r.approvalStatus) }}</span>
+                </ng-container>
+              </td>
+              <td class="col-actions nowrap" (click)="$event.stopPropagation()">
+                <button type="button" class="btn btn-outline btn-xs" (click)="openAsset(r)" [attr.aria-label]="'View ' + (r.assetTag || r.assetRegistrationId)">
+                  <lucide-icon [img]="icons.Eye" [size]="13"></lucide-icon>View
+                </button>
+                <button type="button" class="btn btn-outline btn-xs" (click)="openAsset(r, true)">{{ r.level ? 'Reassess' : 'Assess' }}</button>
+                <button type="button" class="btn btn-outline btn-xs" (click)="showHistory(r)" [attr.aria-label]="'Assessment history of ' + (r.assetTag || r.assetRegistrationId)">
+                  <lucide-icon [img]="icons.History" [size]="13"></lucide-icon>History
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="loading && !rows.length"><td [attr.colspan]="visibleColumns.length + 1" class="empty-line">Loading assets…</td></tr>
+            <tr *ngIf="!loading && !rows.length && !loadError"><td [attr.colspan]="visibleColumns.length + 1" class="empty-line">No assets match these filters.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Assessment History -->
+      <div *ngIf="view === 'history'" class="table-wrap">
+        <table class="data-table acl-table">
+          <thead>
+            <tr>
+              <th>Asset ID</th><th>Asset Name</th><th>Type</th><th>Assessment Date</th><th>Level</th><th>Score</th>
+              <th>Assessed By</th><th>Approved By</th><th>Status</th><th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of assessments; trackBy: trackAssessment">
+              <td class="nowrap"><a class="acl-link" [routerLink]="['/assets/criticality/asset', a.assetTag || a.assetRegistrationId]">{{ a.assetTag || a.assetRegistrationId }}</a></td>
+              <td>{{ a.assetName || '-' }}</td>
+              <td class="nowrap">{{ a.assessmentType || '-' }}<span *ngIf="a.isCurrent" class="acl-current">Current</span></td>
+              <td class="nowrap">{{ formatDate(a.assessmentDate) }}</td>
+              <td class="nowrap"><span *ngIf="a.level; else noValue" class="acl-level" [style.--lvl]="levelColor(a.level)"><span class="dot"></span>{{ a.level }}</span></td>
+              <td class="nowrap">{{ a.score != null ? (a.score | number: '1.0-1') + '/100' : '-' }}</td>
+              <td>{{ a.assessedBy || '-' }}</td>
+              <td>{{ a.approvedBy || '-' }}</td>
+              <td class="nowrap"><span class="acl-status" [ngClass]="statusTone(a.approvalStatus)">{{ statusLabel(a.approvalStatus) }}</span></td>
+              <td class="col-actions">
+                <button type="button" class="btn btn-outline btn-xs" (click)="openAssessment(a)"><lucide-icon [img]="icons.Eye" [size]="13"></lucide-icon>View</button>
+              </td>
+            </tr>
+            <tr *ngIf="loading && !assessments.length"><td colspan="10" class="empty-line">Loading assessments…</td></tr>
+            <tr *ngIf="!loading && !assessments.length && !loadError"><td colspan="10" class="empty-line">No assessments recorded yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer *ngIf="total > pageSize" class="acl-pager">
+        <span class="muted grow">{{ rangeLabel }}</span>
+        <button type="button" class="btn btn-outline btn-sm" [disabled]="page <= 1 || loading" (click)="reload(page - 1)">Previous</button>
+        <span class="muted">Page {{ page }} of {{ pageCount }}</span>
+        <button type="button" class="btn btn-outline btn-sm" [disabled]="page >= pageCount || loading" (click)="reload(page + 1)">Next</button>
+      </footer>
+      <p *ngIf="total > 0 && total <= pageSize" class="muted acl-count">{{ total }} {{ view === 'assets' ? 'asset' : 'assessment' }}{{ total === 1 ? '' : 's' }}</p>
+    </section>
+
+    <!-- Right-side quick view of the selected asset -->
+    <aside *ngIf="selected as s" class="card panel acl-side" aria-label="Selected asset">
+      <header class="acl-side-head">
+        <div class="grow">
+          <h2>{{ s.assetTag || s.assetRegistrationId }}</h2>
+          <p class="muted">{{ s.assetName || '-' }}</p>
+        </div>
+        <button type="button" class="icon-btn" (click)="selected = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+      </header>
+      <div class="acl-side-score">
+        <ng-container *ngIf="s.level; else sideUnassessed">
+          <span class="acl-level acl-level--lg" [style.--lvl]="levelColor(s.level)"><span class="dot"></span>{{ s.level }}</span>
+          <strong>{{ s.score | number: '1.0-1' }}<small>/100</small></strong>
+        </ng-container>
+        <ng-template #sideUnassessed><span class="muted">No approved assessment yet.</span></ng-template>
+      </div>
+      <dl class="acl-side-list">
+        <dt>Category / Type</dt><dd>{{ s.category || '-' }}{{ s.assetType ? ' · ' + s.assetType : '' }}</dd>
+        <dt>Site / Location</dt><dd>{{ s.locationPath || s.siteName || '-' }}</dd>
+        <dt>Department / Owner</dt><dd>{{ s.department || '-' }}{{ s.owner ? ' · ' + s.owner : '' }}</dd>
+        <dt>Operational Status</dt><dd>{{ s.operationalStatus || '-' }}</dd>
+        <dt>Condition</dt><dd>{{ s.condition || '-' }}</dd>
+        <dt>Assessed</dt><dd>{{ formatDate(s.assessmentDate) }}{{ s.assessedBy ? ' by ' + s.assessedBy : '' }}</dd>
+        <dt>Next Review</dt><dd [class.text-danger]="s.reviewOverdue">{{ formatDate(s.nextReviewDate) }}{{ s.reviewOverdue ? ' (overdue)' : '' }}</dd>
+        <dt>Approval Status</dt><dd><span class="acl-status" [ngClass]="statusTone(s.approvalStatus)">{{ statusLabel(s.approvalStatus) }}</span></dd>
+      </dl>
+      <div class="acl-side-actions">
+        <button type="button" class="btn btn-primary btn-sm" (click)="openAsset(s)"><lucide-icon [img]="icons.Eye" [size]="14"></lucide-icon>View details</button>
+        <button type="button" class="btn btn-outline btn-sm" (click)="openAsset(s, true)">{{ s.level ? 'Reassess' : 'Assess' }}</button>
+        <button type="button" class="btn btn-outline btn-sm" (click)="showHistory(s)"><lucide-icon [img]="icons.History" [size]="14"></lucide-icon>History</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<ng-template #noValue>-</ng-template>
+<ng-template #unassessed><span class="acl-status tone-muted">Unassessed</span></ng-template>
+
+<div *ngIf="toast" class="acl-toast" role="status">{{ toast }}</div>
