@@ -1,4 +1,5 @@
 using A360.Tracking.Domain.Entities;
+using A360.Tracking.Repository.Repositories;
 
 namespace A360.Tracking.Api.Contracts;
 
@@ -298,39 +299,89 @@ public sealed record ConfigurationValidationResponse(bool Passed, int PassedCoun
     }
 }
 
-/// <summary>The page header and the Overview → Device Status card.</summary>
-/// <param name="Status">Online, Offline or Warning from the latest health report, else the device's own connectivity.</param>
+/// <summary>
+/// The page header and the Overview → Device Status card, joined from two sources:
+/// the registered device (IoT Device Management: name, model, linked asset, configured gateway, firmware) and its latest
+/// NetworkTimeSeries reading (online / offline, last seen, battery, RSSI, position, and the gateway that relayed it).
+/// The reading is matched on meta.tagid = device id, or for a gateway on meta.gatewayid = device id; the relaying
+/// gateway id is matched back to a registered gateway device for its name.
+/// </summary>
+/// <param name="Status">Online / Offline from the latest reading; without readings, the last stored health status.</param>
+/// <param name="Gateway">The gateway that relayed the latest reading, else the configured one.</param>
+/// <param name="ConfiguredGateway">The gateway set when the device was added.</param>
+/// <param name="SnrDb">NetworkTimeSeries has no SNR, so this comes from the last stored health report.</param>
+/// <param name="StatusSource">NetworkTimeSeries when a reading was found, otherwise Device record.</param>
 public sealed record ConfigurationDeviceResponse(
     string DeviceId,
     string DeviceName,
     string DeviceType,
     string Model,
+    string ModelDisplayName,
     string? Gateway,
+    string? GatewayName,
+    string? ConfiguredGateway,
     string? AssetRegistrationId,
+    string? AssetCode,
     string? AssetName,
+    string? SiteName,
     string? Status,
+    bool NeverReported,
     DateTime? LastSeenAt,
     int? BatteryLevel,
+    bool LowBattery,
+    string PowerSource,
     int? RssiDbm,
+    string? SignalQuality,
     double? SnrDb,
-    string? FirmwareVersion)
+    double? Latitude,
+    double? Longitude,
+    string? FirmwareVersion,
+    string StatusSource)
 {
-    public static ConfigurationDeviceResponse FromEntity(IoTDevice device, DeviceHealth? health)
+    public const string FromReadings = "NetworkTimeSeries";
+    public const string FromDeviceRecord = "Device record";
+
+    /// <param name="model">The device's model, for "Milesight EM300-TH".</param>
+    /// <param name="reading">The device's latest NetworkTimeSeries reading, if any.</param>
+    /// <param name="gateway">The registered gateway device that relayed the reading (or the configured one), if found.</param>
+    public static ConfigurationDeviceResponse From(
+        IoTDevice device,
+        DeviceModel? model,
+        DeviceHealth? health,
+        NetworkReading? reading,
+        IoTDevice? gateway)
     {
+        var battery = reading is not null ? reading.Battery : health?.BatteryLevel ?? device.BatteryLevel;
+        var rssi = reading is not null ? reading.Rssi : health?.SignalStrengthDbm;
+
         return new ConfigurationDeviceResponse(
             device.DeviceId,
             device.DeviceName,
             device.DeviceType,
             device.Model,
+            model is null || string.IsNullOrWhiteSpace(model.Manufacturer) ? device.Model : $"{model.Manufacturer} {model.ModelNumber}",
+            gateway?.DeviceId ?? reading?.GatewayId ?? device.Gateway,
+            gateway?.DeviceName,
             device.Gateway,
             device.AssetRegistrationId,
+            device.AssetCode,
             device.AssetName,
-            health?.Connectivity ?? device.Connectivity,
-            health?.LastSeenAt ?? device.LastSeenAt,
-            health?.BatteryLevel ?? device.BatteryLevel,
-            health?.SignalStrengthDbm,
+            device.SiteName,
+            reading is not null
+                ? string.Equals(reading.Status, "online", StringComparison.OrdinalIgnoreCase) ? DeviceConnection.Online : DeviceConnection.Offline
+                : health?.Connectivity ?? DeviceConnection.Offline,
+            reading is null,
+            reading?.Timestamp ?? health?.LastSeenAt ?? device.LastSeenAt,
+            battery,
+            battery < DeviceConnection.LowBatteryPercent,
+            device.PowerSource,
+            rssi,
+            rssi switch { null => null, >= -55 => "Excellent", >= -70 => "Good", >= -85 => "Fair", _ => "Poor" },
             health?.SnrDb,
-            device.FirmwareVersion);
+            reading?.Latitude,
+            reading?.Longitude,
+            device.FirmwareVersion,
+            reading is null ? FromDeviceRecord : FromReadings);
     }
 }
 

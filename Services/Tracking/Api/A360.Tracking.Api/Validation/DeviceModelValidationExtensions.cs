@@ -7,7 +7,7 @@ public static class DeviceModelValidationExtensions
 {
     private const int CodeMaxLength = 50;
     private const int NameMaxLength = 100;
-    private const int MaxMeasurements = 30;
+    private const int DescriptionMaxLength = 500;
     private const int MaxListItems = 30;
 
     public static Dictionary<string, string[]> Validate(this CreateDeviceModelRequest request)
@@ -29,18 +29,62 @@ public static class DeviceModelValidationExtensions
         MaxLength(errors, "FirmwareFrom", request.FirmwareFrom, CodeMaxLength);
         MaxLength(errors, "FirmwareTo", request.FirmwareTo, CodeMaxLength);
         ListItems(errors, "FrequencyBands", request.FrequencyBands, CodeMaxLength);
-        ListItems(errors, "ConfigurableAttributes", request.ConfigurableAttributes, NameMaxLength);
+        KnownItems(errors, "SupportedMeasurements", request.SupportedMeasurements, DeviceMeasurement.All.Select(m => m.Name).ToList());
+        KnownItems(errors, "ConfigurableAttributes", request.ConfigurableAttributes, DeviceModelAttribute.All);
 
-        if (request.SupportedMeasurements?.Count > MaxMeasurements)
+        return errors;
+    }
+
+    public static Dictionary<string, string[]> Validate(this CreateDeviceTypeRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        RequireText(errors, "Name", request.Name, NameMaxLength);
+        OneOf(errors, "Icon", request.Icon, DeviceTypeIcon.All, required: false);
+        OneOf(errors, "ThumbnailStyle", request.ThumbnailStyle, DeviceTypeThumbnail.All, required: false);
+        MaxLength(errors, "Description", request.Description, DescriptionMaxLength);
+
+        return errors;
+    }
+
+    public static Dictionary<string, string[]> Validate(this DeviceModelListQuery query)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        OneOf(errors, "connectivity", query.Connectivity, DeviceModelConnectivity.All, required: false);
+        OneOf(errors, "status", query.Status, DeviceModelStatus.All, required: false);
+
+        if (query.Page is < 1)
         {
-            errors["SupportedMeasurements"] = [$"At most {MaxMeasurements} supported measurements are allowed"];
+            errors["page"] = ["page must be 1 or more"];
         }
-        else if (request.SupportedMeasurements?.Any(measurement => measurement?.Trim().Length > NameMaxLength) == true)
+
+        if (query.PageSize is < 1 or > 200)
         {
-            errors["SupportedMeasurements"] = [$"Each supported measurement cannot be longer than {NameMaxLength} characters"];
+            errors["pageSize"] = ["pageSize must be between 1 and 200"];
         }
 
         return errors;
+    }
+
+    /// <summary>An array whose items must each be one of the listed options (ignoring case).</summary>
+    private static void KnownItems(Dictionary<string, string[]> errors, string field, IReadOnlyList<string>? values, IReadOnlyList<string> allowed)
+    {
+        if (values?.Count > MaxListItems)
+        {
+            errors[field] = [$"At most {MaxListItems} {field} are allowed"];
+            return;
+        }
+
+        var unknown = (values ?? [])
+            .Where(value => !string.IsNullOrWhiteSpace(value) && ContractText.Canonical(value, allowed) is null)
+            .Select(value => value.Trim())
+            .ToList();
+
+        if (unknown.Count > 0)
+        {
+            errors[field] = [$"Unknown {field}: {string.Join(", ", unknown)}. Allowed: {string.Join(", ", allowed)}"];
+        }
     }
 
     private static void ListItems(Dictionary<string, string[]> errors, string field, IReadOnlyList<string>? values, int maxLength)
