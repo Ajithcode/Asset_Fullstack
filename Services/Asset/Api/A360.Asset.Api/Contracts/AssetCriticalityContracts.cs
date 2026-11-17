@@ -63,6 +63,10 @@ public sealed record CreateAssetCriticalityRequest(
             ReviewFrequency = ContractText.TrimOrNull(ReviewFrequency) ?? previous?.ReviewFrequency,
             Department = ContractText.TrimOrNull(Department) ?? previous?.Department ?? ContractText.TrimOrNull(asset.Classification.Department),
             AssetGroup = ContractText.TrimOrNull(AssetGroup) ?? previous?.AssetGroup,
+            // Re-assess on the asset page publishes at once (direct publish, Manager / Administrator only).
+            ApprovalStatus = AssetCriticalityApprovalStatuses.Approved,
+            AssessmentType = previous is null ? AssetCriticalityAssessmentTypes.Initial : AssetCriticalityAssessmentTypes.Reassessment,
+            TemplateCode = "LEGACY",
             CreatedBy = ContractText.FirstNonEmpty(CreatedBy, currentUser?.UserName),
             CreatedAt = DateTime.UtcNow,
             ClientId = ContractText.FirstNonEmpty(ClientId, currentUser?.ClientId),
