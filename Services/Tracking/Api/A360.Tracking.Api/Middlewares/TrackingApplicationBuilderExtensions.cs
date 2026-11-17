@@ -1,5 +1,6 @@
 using A360.Repository.Activity;
 using A360.Tracking.Api.Endpoints;
+using A360.Tracking.Api.Locating;
 using A360.Security;
 
 namespace A360.Tracking.Api.Middlewares;
@@ -40,6 +41,7 @@ public static class TrackingApplicationBuilderExtensions
         app.MapTelemetryReadingEndpoints();
         app.MapIoTEventEndpoints();
         app.MapPushEndpoints();
+        app.MapLocating();
 
         return app;
     }

@@ -1,6 +1,7 @@
 using MongoDB.Driver;
 using A360.Tracking.Api.Alerts;
 using A360.Tracking.Api.Endpoints;
+using A360.Tracking.Api.Locating;
 using A360.Tracking.Repository.Repositories;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
@@ -126,6 +127,7 @@ public static class TrackingServiceCollectionExtensions
         services.AddSingleton<AlertNotifications>();
         services.AddHostedService<ZoneGeofenceEngine>();
         services.AddHostedService<AlertNotificationDispatcher>();
+        services.AddLocating(configuration);
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
 
