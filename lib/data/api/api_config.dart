@@ -72,6 +72,99 @@ bool? debugApiMode;
 /// True when the app talks to the backend ([kUseApi], or a test override).
 bool get apiMode => debugApiMode ?? kUseApi;
 
+/// Build flag: shows the "Backend server" switcher (Settings → Developer, Login → Diagnostics) and
+/// lets a saved choice override the build's host. Off in client release builds; env/api_dev.json sets it.
+const bool kShowServerSwitcher = bool.fromEnvironment('SHOW_SERVER_SWITCHER');
+
+/// Tests set this to show the server switcher without --dart-define.
+@visibleForTesting
+bool? debugShowServerSwitcher;
+
+/// True when this build may switch servers ([kShowServerSwitcher], or a test override).
+bool get showServerSwitcher => debugShowServerSwitcher ?? kShowServerSwitcher;
+
+/// A server the switcher offers: [origin] = scheme + host, no port (each service keeps its own port).
+class ServerPreset {
+  const ServerPreset(this.label, this.origin);
+
+  final String label;
+  final String origin;
+}
+
+const serverPresets = [
+  ServerPreset('Server .29', 'http://172.16.100.29'),
+  ServerPreset('Server .26', 'http://172.16.100.26'),
+];
+
+String? _serverOverride;
+
+/// The chosen server (scheme + host, e.g. http://172.16.100.26) replacing the host of every base URL,
+/// or null = the build's own URLs. Set from shared_preferences at start-up (server_repository.dart).
+String? get serverOverride => _serverOverride;
+
+/// Use [origin] (see [normalizeServerOrigin]) for every service from now on; null = the build's URLs.
+/// Only server_repository.dart (and tests) call this; the switch itself also signs out and restarts.
+void applyServerOverride(String? origin) => _serverOverride = normalizeServerOrigin(origin);
+
+/// "172.16.100.40", "172.16.100.40:5018", "https://dev.example.com/x" → scheme + host only
+/// ("http://172.16.100.40", "https://dev.example.com"); null when there is no usable host.
+String? normalizeServerOrigin(String? input) {
+  final raw = input?.trim() ?? '';
+  if (raw.isEmpty) return null;
+  final u = Uri.tryParse(raw.contains('://') ? raw : 'http://$raw');
+  if (u == null || u.host.isEmpty || !const {'http', 'https'}.contains(u.scheme)) return null;
+  if (!RegExp(r'^[A-Za-z0-9.\-]+$').hasMatch(u.host)) return null;
+  return Uri(scheme: u.scheme, host: u.host).toString();
+}
+
+/// The server of the build's --dart-defines (scheme + host of the first service URL that is set), or null.
+String? get buildServerOrigin {
+  for (final s in BackendService.values) {
+    final o = normalizeServerOrigin(s.buildUrl);
+    if (o != null) return o;
+  }
+  return null;
+}
+
+/// The server the app talks to now: the saved choice, else the build's.
+String? get currentServerOrigin => _serverOverride ?? buildServerOrigin;
+
+/// "Server .29" for a preset, else the host ("dev.example.com"); "Not set" without a server.
+String serverLabelOf(String? origin) {
+  if (origin == null) return 'Not set';
+  for (final p in serverPresets) {
+    if (p.origin == origin) return p.label;
+  }
+  return Uri.parse(origin).host;
+}
+
+/// "Server .29 (172.16.100.29)" for a preset, else the host.
+String serverDisplayOf(String? origin) {
+  final label = serverLabelOf(origin);
+  if (origin == null) return label;
+  final host = Uri.parse(origin).host;
+  return label == host ? host : '$label ($host)';
+}
+
+/// [build] with its host replaced by [serverOverride]; the port (the build's, else [port]) and path stay.
+String _withServer(String build, String port) {
+  final o = _serverOverride;
+  if (o == null) return build;
+  final origin = Uri.parse(o);
+  final b = Uri.tryParse(build);
+  final keepPort = b != null && b.hasAuthority && b.hasPort ? b.port : int.parse(port);
+  return origin.replace(port: keepPort, path: b != null && b.hasAuthority ? b.path : '').toString();
+}
+
+/// Effective service roots: the build's URL, or the same port on the chosen server ([serverOverride]).
+String get apiBaseUrl => _withServer(kApiBaseUrl, '5401');
+String get mediaBaseUrl => _withServer(kMediaBaseUrl, '5300');
+String get authBaseUrl => _withServer(kAuthBaseUrl, '5018');
+String get masterDataBaseUrl => _withServer(kMasterDataBaseUrl, '5500');
+String get dashboardBaseUrl => _withServer(kDashboardBaseUrl, '5470');
+String get adminBaseUrl => _withServer(kAdminBaseUrl, '5460');
+String get trackingBaseUrl => _withServer(kTrackingBaseUrl, '5490');
+
 String? _urlProblem(String name, String value, String port) => switch (value) {
   '' => '$name is not set. Run with --dart-define=$name=http://<backend-ip>:$port',
   _ when Uri.tryParse(value)?.hasScheme != true => '$name "$value" must start with http:// or https://',
@@ -79,25 +172,25 @@ String? _urlProblem(String name, String value, String port) => switch (value) {
 };
 
 /// What is missing to call the Asset service, or null when API_BASE_URL is usable.
-String? get apiConfigProblem => _urlProblem('API_BASE_URL', kApiBaseUrl, '5401');
+String? get apiConfigProblem => _urlProblem('API_BASE_URL', apiBaseUrl, '5401');
 
 /// What is missing to call the Media service, or null when MEDIA_BASE_URL is usable.
-String? get mediaConfigProblem => _urlProblem('MEDIA_BASE_URL', kMediaBaseUrl, '5300');
+String? get mediaConfigProblem => _urlProblem('MEDIA_BASE_URL', mediaBaseUrl, '5300');
 
 /// What is missing to call the login service, or null when AUTH_BASE_URL is usable.
-String? get authConfigProblem => _urlProblem('AUTH_BASE_URL', kAuthBaseUrl, '5018');
+String? get authConfigProblem => _urlProblem('AUTH_BASE_URL', authBaseUrl, '5018');
 
 /// What is missing to call the Master Data service, or null when MASTER_DATA_BASE_URL is usable.
-String? get masterDataConfigProblem => _urlProblem('MASTER_DATA_BASE_URL', kMasterDataBaseUrl, '5500');
+String? get masterDataConfigProblem => _urlProblem('MASTER_DATA_BASE_URL', masterDataBaseUrl, '5500');
 
 /// What is missing to call the Dashboard service, or null when DASHBOARD_BASE_URL is usable.
-String? get dashboardConfigProblem => _urlProblem('DASHBOARD_BASE_URL', kDashboardBaseUrl, '5470');
+String? get dashboardConfigProblem => _urlProblem('DASHBOARD_BASE_URL', dashboardBaseUrl, '5470');
 
 /// What is missing to call the Administration service, or null when ADMIN_BASE_URL is usable.
-String? get adminConfigProblem => _urlProblem('ADMIN_BASE_URL', kAdminBaseUrl, '5460');
+String? get adminConfigProblem => _urlProblem('ADMIN_BASE_URL', adminBaseUrl, '5460');
 
 /// What is missing to call the Tracking service, or null when TRACKING_BASE_URL is usable.
-String? get trackingConfigProblem => _urlProblem('TRACKING_BASE_URL', kTrackingBaseUrl, '5490');
+String? get trackingConfigProblem => _urlProblem('TRACKING_BASE_URL', trackingBaseUrl, '5490');
 
 /// The backend services the app calls directly.
 enum BackendService {
@@ -118,7 +211,19 @@ enum BackendService {
   final String define;
   final String label;
 
+  /// The URL the app calls: [buildUrl], or the same port on the chosen server ([serverOverride]).
   String get baseUrl => switch (this) {
+    auth => authBaseUrl,
+    asset => apiBaseUrl,
+    media => mediaBaseUrl,
+    masterData => masterDataBaseUrl,
+    dashboard => dashboardBaseUrl,
+    admin => adminBaseUrl,
+    tracking => trackingBaseUrl,
+  };
+
+  /// The URL from the build's --dart-define.
+  String get buildUrl => switch (this) {
     auth => kAuthBaseUrl,
     asset => kApiBaseUrl,
     media => kMediaBaseUrl,

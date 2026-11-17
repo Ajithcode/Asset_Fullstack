@@ -75,6 +75,7 @@ class AuthDiagnosticsNotifier extends Notifier<Map<String, AuthCallRecord>> {
       ..writeln('USE_API: $apiMode')
       ..writeln(
         [
+          'Server: ${serverDisplayOf(currentServerOrigin)}',
           for (final s in BackendService.values) '${s.define}: ${s.baseUrl.isEmpty ? '(not set)' : s.baseUrl}',
         ].join('\n'),
       )

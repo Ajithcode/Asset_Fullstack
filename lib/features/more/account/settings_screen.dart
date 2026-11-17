@@ -8,7 +8,9 @@ import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
 import 'package:asset360_mobile/core/scanning/hht_scanner.dart';
+import 'package:asset360_mobile/core/widgets/server_switcher.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
+import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/models/alert.dart';
 import 'package:asset360_mobile/data/repositories/alerts_repository.dart';
 import 'package:asset360_mobile/data/repositories/network_repository.dart';
@@ -205,69 +207,79 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
-          if (kDebugMode) ...[
+          if (kDebugMode || showServerSwitcher) ...[
             section('Developer'),
             AppCard(
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
-                  nav(
-                    Icons.fact_check_outlined,
-                    TileTone.mint,
-                    'Data check',
-                    'Every count and total in the mock data',
-                    () => context.push(Routes.dataCheck),
-                  ),
-                  nav(
-                    Icons.wifi_tethering_rounded,
-                    TileTone.sky,
-                    'Backend API',
-                    'Base URL, dev token and Test connection (Administration)',
-                    () => context.push(Routes.admin),
-                  ),
-                  nav(
-                    Icons.qr_code_2_rounded,
-                    TileTone.lavender,
-                    'Print demo tags',
-                    'QR codes for the demo assets, to scan from a second phone',
-                    () => context.push(Routes.demoTags),
-                  ),
-                  toggle(
-                    Icons.cloud_off_rounded,
-                    TileTone.peach,
-                    'Simulate offline',
-                    'Changes are queued for Offline Sync; switching back starts auto-sync',
-                    net.simulatedOffline,
-                    ref.read(networkProvider.notifier).setSimulatedOffline,
-                  ),
-                  toggle(
-                    Icons.sync_problem_rounded,
-                    TileTone.pink,
-                    'Simulate sync failures',
-                    'Each item has a 10% chance to fail while syncing',
-                    sync.simulateFailures,
-                    ref.read(syncProvider.notifier).setSimulateFailures,
-                  ),
-                  nav(
-                    Icons.restart_alt_rounded,
-                    TileTone.grey,
-                    'Reset demo data',
-                    'Reload every seed record',
-                    () async {
-                      final ok = await showConfirmDialog(
-                        context,
-                        title: 'Reset demo data?',
-                        message:
-                            'Every change made in this session (work orders, scans, sync queue …) is discarded and '
-                            'the seed data is loaded again. You stay signed in.',
-                        confirmLabel: 'Reset',
-                        destructive: true,
-                      );
-                      if (!ok || !context.mounted) return;
-                      resetDemoData(ref);
-                      context.showSnack('Demo data reset');
-                    },
-                  ),
+                  if (showServerSwitcher)
+                    nav(
+                      Icons.dns_outlined,
+                      TileTone.sky,
+                      'Backend server',
+                      '${serverDisplayOf(currentServerOrigin)} · switching signs you out',
+                      () => showServerSwitcherSheet(context, ref),
+                    ),
+                  if (kDebugMode) ...[
+                    nav(
+                      Icons.fact_check_outlined,
+                      TileTone.mint,
+                      'Data check',
+                      'Every count and total in the mock data',
+                      () => context.push(Routes.dataCheck),
+                    ),
+                    nav(
+                      Icons.wifi_tethering_rounded,
+                      TileTone.sky,
+                      'Backend API',
+                      'Base URL, dev token and Test connection (Administration)',
+                      () => context.push(Routes.admin),
+                    ),
+                    nav(
+                      Icons.qr_code_2_rounded,
+                      TileTone.lavender,
+                      'Print demo tags',
+                      'QR codes for the demo assets, to scan from a second phone',
+                      () => context.push(Routes.demoTags),
+                    ),
+                    toggle(
+                      Icons.cloud_off_rounded,
+                      TileTone.peach,
+                      'Simulate offline',
+                      'Changes are queued for Offline Sync; switching back starts auto-sync',
+                      net.simulatedOffline,
+                      ref.read(networkProvider.notifier).setSimulatedOffline,
+                    ),
+                    toggle(
+                      Icons.sync_problem_rounded,
+                      TileTone.pink,
+                      'Simulate sync failures',
+                      'Each item has a 10% chance to fail while syncing',
+                      sync.simulateFailures,
+                      ref.read(syncProvider.notifier).setSimulateFailures,
+                    ),
+                    nav(
+                      Icons.restart_alt_rounded,
+                      TileTone.grey,
+                      'Reset demo data',
+                      'Reload every seed record',
+                      () async {
+                        final ok = await showConfirmDialog(
+                          context,
+                          title: 'Reset demo data?',
+                          message:
+                              'Every change made in this session (work orders, scans, sync queue …) is discarded and '
+                              'the seed data is loaded again. You stay signed in.',
+                          confirmLabel: 'Reset',
+                          destructive: true,
+                        );
+                        if (!ok || !context.mounted) return;
+                        resetDemoData(ref);
+                        context.showSnack('Demo data reset');
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),

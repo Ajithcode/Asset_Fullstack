@@ -74,9 +74,9 @@ class MediaUpload {
 ///   the phone may reach under another host, e.g. the emulator's 10.0.2.2) → MEDIA_BASE_URL + the same path;
 /// - a relative path ("/uploads/a.jpg") → MEDIA_BASE_URL + path;
 /// - anything else is returned unchanged.
-/// [mediaBase] defaults to [kMediaBaseUrl] (tests pass their own).
+/// [mediaBase] defaults to [mediaBaseUrl] (tests pass their own).
 String resolveMediaUrl(String url, {String? mediaBase}) {
-  final base = Uri.tryParse(mediaBase ?? kMediaBaseUrl);
+  final base = Uri.tryParse(mediaBase ?? mediaBaseUrl);
   final u = Uri.tryParse(url.trim());
   if (u == null || base == null || !base.hasScheme) return url;
   final local = u.hasScheme && const {'localhost', '127.0.0.1'}.contains(u.host.toLowerCase());

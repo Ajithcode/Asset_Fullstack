@@ -279,7 +279,7 @@ class LiveDevicesNotifier extends Notifier<LiveDevicesState> {
   NetworkStatusSocket _create() {
     final auth = ref.read(authProvider.notifier);
     return NetworkStatusSocket(
-      uri: DashboardApi.liveUri(kDashboardBaseUrl),
+      uri: DashboardApi.liveUri(dashboardBaseUrl),
       token: auth.validAccessToken,
       connect: debugConnector,
       schedule: debugScheduler,

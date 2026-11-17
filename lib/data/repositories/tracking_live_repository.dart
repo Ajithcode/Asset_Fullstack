@@ -377,6 +377,15 @@ class FloorPlanImageCache {
     return '${hex32(h >> 32)}${hex32(h)}';
   }
 
+  /// Deletes the drawings saved on disk (server switch: they belong to the old server).
+  static Future<void> clearDisk() async {
+    if (!useDisk) return;
+    try {
+      final dir = Directory('${(await getApplicationCacheDirectory()).path}/floor_plans');
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } catch (_) {}
+  }
+
   static Future<File?> _file(String url) async {
     if (!useDisk) return null;
     try {

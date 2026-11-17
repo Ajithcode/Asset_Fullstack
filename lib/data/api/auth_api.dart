@@ -7,13 +7,15 @@ import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/api_exception.dart';
 import 'package:asset360_mobile/data/api/auth_diagnostics.dart';
 import 'package:asset360_mobile/data/api/auth_models.dart';
+import 'package:asset360_mobile/data/repositories/server_repository.dart';
 
 /// Dio for the UserAccount (login) service at AUTH_BASE_URL. No Bearer interceptor: only /me and
 /// /roles send a token, passed per call. No request logging (bodies hold passwords and tokens).
 final authDioProvider = Provider<Dio>((ref) {
+  ref.watch(serverProvider);
   final dio = Dio(
     BaseOptions(
-      baseUrl: kAuthBaseUrl,
+      baseUrl: authBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       sendTimeout: const Duration(seconds: 20),
       receiveTimeout: const Duration(seconds: 20),

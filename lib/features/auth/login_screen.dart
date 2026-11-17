@@ -7,11 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
+import 'package:asset360_mobile/core/widgets/server_switcher.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/api_exception.dart';
 import 'package:asset360_mobile/data/api/auth_api.dart';
 import 'package:asset360_mobile/data/repositories/auth_repository.dart';
+import 'package:asset360_mobile/data/repositories/server_repository.dart';
 import 'package:asset360_mobile/data/repositories/session_repository.dart';
 import 'package:asset360_mobile/features/auth/auth_widgets.dart';
 
@@ -441,6 +443,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     if (apiMode) Center(child: DiagnosticsLink(onTap: () => context.push(Routes.authDiagnostics))),
+                    if (apiMode && showServerSwitcher) const Center(child: _ServerLabel()),
                   ],
                 ),
               ),
@@ -453,6 +456,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 }
 
 const _fieldPadding = EdgeInsets.symmetric(horizontal: 14, vertical: 9);
+
+/// Dev builds: the backend server in small grey text; tap = Backend server switcher.
+class _ServerLabel extends ConsumerWidget {
+  const _ServerLabel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => InkWell(
+    key: const ValueKey('login-server'),
+    onTap: () => showServerSwitcherSheet(context, ref),
+    borderRadius: BorderRadius.circular(6),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Text(
+        'Server: ${serverDisplayOf(ref.watch(serverProvider) ?? buildServerOrigin)}',
+        style: TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+      ),
+    ),
+  );
+}
 
 /// Hero photo with its left and top edges faded into the background.
 class _HeroImage extends StatelessWidget {

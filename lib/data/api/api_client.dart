@@ -5,33 +5,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/api_exception.dart';
 import 'package:asset360_mobile/data/repositories/auth_repository.dart';
+import 'package:asset360_mobile/data/repositories/server_repository.dart';
 
 /// The Dio instance for the Asset service (API_BASE_URL, every /api/asset-* call). Only repositories
 /// and API classes use it; screens never call HTTP directly. Tests override this provider with a fake adapter.
-final dioProvider = Provider<Dio>((ref) => _serviceDio(ref, kApiBaseUrl));
+final dioProvider = Provider<Dio>((ref) => _serviceDio(ref, () => apiBaseUrl));
 
 /// The Dio instance for the Media service (MEDIA_BASE_URL: uploads and /uploads/... files).
-final mediaDioProvider = Provider<Dio>((ref) => _serviceDio(ref, kMediaBaseUrl));
+final mediaDioProvider = Provider<Dio>((ref) => _serviceDio(ref, () => mediaBaseUrl));
 
 /// The Dio instance for the Master Data service (MASTER_DATA_BASE_URL: dropdown lists, locations,
 /// employees). Same Bearer handling as the others.
-final masterDataDioProvider = Provider<Dio>((ref) => _serviceDio(ref, kMasterDataBaseUrl));
+final masterDataDioProvider = Provider<Dio>((ref) => _serviceDio(ref, () => masterDataBaseUrl));
 
 /// The Dio instance for the Dashboard service (DASHBOARD_BASE_URL: Home dashboard + network status).
-final dashboardDioProvider = Provider<Dio>((ref) => _serviceDio(ref, kDashboardBaseUrl));
+final dashboardDioProvider = Provider<Dio>((ref) => _serviceDio(ref, () => dashboardBaseUrl));
 
 /// The Dio instance for the Administration service (ADMIN_BASE_URL: map floor plans, zones, plots).
-final adminDioProvider = Provider<Dio>((ref) => _serviceDio(ref, kAdminBaseUrl));
+final adminDioProvider = Provider<Dio>((ref) => _serviceDio(ref, () => adminBaseUrl));
 
 /// The Dio instance for the Tracking service (TRACKING_BASE_URL: IoT devices, sensors, telemetry,
 /// location events, geofences, IoT alerts).
-final trackingDioProvider = Provider<Dio>((ref) => _serviceDio(ref, kTrackingBaseUrl));
+final trackingDioProvider = Provider<Dio>((ref) => _serviceDio(ref, () => trackingBaseUrl));
 
 /// Every service reads the Bearer token (for CreatedBy) but a missing token never blocks a call.
-Dio _serviceDio(Ref ref, String baseUrl) {
+/// [baseUrl] is read after watching [serverProvider]: switching servers builds a new Dio.
+Dio _serviceDio(Ref ref, String Function() baseUrl) {
+  ref.watch(serverProvider);
   final dio = Dio(
     BaseOptions(
-      baseUrl: baseUrl,
+      baseUrl: baseUrl(),
       connectTimeout: const Duration(seconds: 10),
       sendTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),

@@ -95,6 +95,13 @@ flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build
   --dart-define=TRACKING_BASE_URL=http://<backend-ip>:5490
 ```
 
+**Switching servers without rebuilding (dev builds only).** Builds made with `env/api_dev.json` (it sets
+`SHOW_SERVER_SWITCHER=true`) show **Settings → Developer → Backend server** and, on Login, a small grey
+"Server: …" line (tap it) plus a **Backend server** button in Diagnostics. Pick *Server .29*, *Server .26* or
+*Custom* (IP / host): every service keeps its port, the choice is saved on the phone, and switching signs you out,
+clears cached server data and returns to Login. Builds without the flag (client releases) hide it and always use
+their own `--dart-define` URLs.
+
 Example for the current test server: `API_BASE_URL=http://172.16.100.29:5401`,
 `MEDIA_BASE_URL=http://172.16.100.29:5300`, `AUTH_BASE_URL=http://172.16.100.29:5018`,
 `MASTER_DATA_BASE_URL=http://172.16.100.29:5500`, `DASHBOARD_BASE_URL=http://172.16.100.29:5470`, `ADMIN_BASE_URL=http://172.16.100.29:5460`, `TRACKING_BASE_URL=http://172.16.100.29:5490`

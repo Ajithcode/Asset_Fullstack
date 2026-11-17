@@ -283,6 +283,16 @@ class AuthNotifier extends Notifier<AuthState> {
     _signOutLocally();
   }
 
+  /// Server switch: the tokens belong to the old server. Logout is sent to it without waiting (it may be
+  /// unreachable, the reason to switch); the stored token and the session are cleared at once.
+  Future<void> signOutForServerSwitch() async {
+    final s = state;
+    final refresh = s is AuthSignedIn ? s.tokens.refreshToken : await _store.readRefreshToken();
+    if (refresh != null) unawaited(_api.logout(refresh).then<void>((_) {}, onError: (_) {}));
+    await _store.clear();
+    _signOutLocally();
+  }
+
   void _signOutLocally({String? notice}) {
     _refreshTimer?.cancel();
     state = AuthSignedOut(notice: notice);

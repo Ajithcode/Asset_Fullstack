@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:asset360_mobile/data/api/api_config.dart';
+import 'package:asset360_mobile/data/repositories/server_repository.dart';
 import 'package:asset360_mobile/data/api/api_exception.dart';
 
 /// One line of Administration → Backend API → Test connection.
@@ -45,9 +46,10 @@ final healthDioProvider = Provider<Dio>((ref) {
 });
 
 /// Base URL and config problem of each service (tests override it).
-final serviceTargetsProvider = Provider<Map<BackendService, ({String baseUrl, String? problem})>>(
-  (ref) => {for (final s in BackendService.values) s: (baseUrl: s.baseUrl, problem: s.configProblem)},
-);
+final serviceTargetsProvider = Provider<Map<BackendService, ({String baseUrl, String? problem})>>((ref) {
+  ref.watch(serverProvider);
+  return {for (final s in BackendService.values) s: (baseUrl: s.baseUrl, problem: s.configProblem)};
+});
 
 /// Test connection: GET /health on AUTH, ASSET, MEDIA, MASTER DATA, DASHBOARD and ADMIN (in parallel), one result each.
 /// State: null = not tested yet; loading while the calls run. Never an error: failures are per service.

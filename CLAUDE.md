@@ -120,6 +120,16 @@
   onRetry:)` = SnackBar with Retry). ADMIN_BASE_URL (`kAdminBaseUrl`, 5460, `BackendService.admin`) and TRACKING_BASE_URL
   (`kTrackingBaseUrl`, 5490, `BackendService.tracking`) = 6th / 7th services in Diagnostics / Test connection. WebSocket: Bearer header on the
   upgrade. `/uploads/...` files are public. Login 2FA method "email" (older "otp") = `isEmailMethod`.
+- Server switcher (dev builds, `SHOW_SERVER_SWITCHER=true` in env/api_dev.json; `showServerSwitcher` /
+  `debugShowServerSwitcher`): code reads the EFFECTIVE URLs (`apiBaseUrl`, `authBaseUrl` … / `BackendService.baseUrl`;
+  `buildUrl` = the dart-define) — never the `k*BaseUrl` consts. `serverOverride` (scheme + host) replaces the host, ports
+  stay; presets `serverPresets` (.29 / .26) + Custom; `serverDisplayOf`. Saved by `ServerNotifier` (`serverProvider`,
+  data/repositories/server_repository.dart, shared_preferences; `loadSavedServer()` in main before runApp; ignored when
+  the flag is off). Every service Dio watches `serverProvider`. UI = `showServerSwitcherSheet` / `switchServer`
+  (core/widgets/server_switcher.dart: sign-out via `signOutForServerSwitch`, clears drift CachedResponses + floor-plan
+  disk cache + image cache, then `AppRestartScope.restart` (app/app_restart.dart, fresh ProviderScope → Splash → Login)).
+  Entry points: Settings → Developer "Backend server", Login grey "Server: …" label, Auth diagnostics button.
+  Tests: test/server_switcher_test.dart.
 - Assets live phase (apiMode = true: NO mock assets anywhere; apiMode = false unchanged): API `lib/data/api/assets/`
   (`assets_api.dart` `AssetsApi` / `assetsApiProvider`: list, filters, get, lookup, drafts + steps + submit, options,
   categories / types / models, images, documents, components tree, condition, criticality; `asset_api_models.dart`; full

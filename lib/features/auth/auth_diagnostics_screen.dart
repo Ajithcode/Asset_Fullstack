@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
+import 'package:asset360_mobile/core/widgets/server_switcher.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/auth_diagnostics.dart';
@@ -42,11 +43,20 @@ class AuthDiagnosticsScreen extends ConsumerWidget {
           child: Column(
             children: [
               InfoRow(label: 'USE_API', value: '$apiMode', labelWidth: 168),
+              InfoRow(label: 'Server', value: serverDisplayOf(currentServerOrigin), labelWidth: 168),
               for (final s in BackendService.values)
                 InfoRow(label: s.define, value: s.baseUrl.isEmpty ? 'Not set' : s.baseUrl, labelWidth: 168),
             ],
           ),
         ),
+        if (showServerSwitcher) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => showServerSwitcherSheet(context, ref),
+            icon: const Icon(Icons.dns_outlined, size: 18),
+            label: const Text('Backend server'),
+          ),
+        ],
         const SizedBox(height: 10),
         Row(
           children: [
