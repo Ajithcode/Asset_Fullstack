@@ -1,3 +1,4 @@
+using A360.Asset.Repository.Repositories;
 using A360.Asset.Domain.Entities;
 using A360.Security;
 
@@ -140,10 +141,12 @@ public sealed record AssetDocumentResponse(
     string? UpdatedBy,
     DateTime? UpdatedAt,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    bool IsExpired = false)
 {
     public static AssetDocumentResponse FromEntity(AssetDocumentRecord document)
     {
+        var status = AssetDocumentEffectiveStatus.Of(document, DateTime.UtcNow);
         return new AssetDocumentResponse(
             document.Id,
             document.AssetRegistrationId,
@@ -156,7 +159,7 @@ public sealed record AssetDocumentResponse(
             document.ExpiryDate,
             document.Description,
             document.Tags,
-            document.Status,
+            status,
             document.FileName,
             document.FileUrl,
             document.ContentType,
@@ -166,8 +169,35 @@ public sealed record AssetDocumentResponse(
             document.UpdatedBy,
             document.UpdatedAt,
             document.ClientId,
-            document.TenantId);
+            document.TenantId,
+            status == AssetDocumentEffectiveStatus.Expired);
     }
+}
+
+/// <summary>Options for the Asset Documents filter dropdowns, from the documents already uploaded.</summary>
+public sealed record AssetDocumentFilterOptionsResponse(
+    IReadOnlyList<string> DocumentTypes,
+    IReadOnlyList<string> LifecycleStages,
+    IReadOnlyList<string> Statuses,
+    IReadOnlyList<string> Tags,
+    IReadOnlyList<string> Uploaders)
+{
+    public static AssetDocumentFilterOptionsResponse From(IReadOnlyCollection<AssetDocumentRecord> documents) => new(
+        FilterOptionValues.Distinct(documents.Select(document => document.DocumentType)),
+        FilterOptionValues.Distinct(documents.Select(document => document.LifecycleStage)),
+        [AssetDocumentEffectiveStatus.Active, AssetDocumentEffectiveStatus.Expired, AssetDocumentEffectiveStatus.Inactive],
+        FilterOptionValues.Distinct(documents.SelectMany(document => document.Tags)),
+        FilterOptionValues.Distinct(documents.Select(document => document.CreatedBy)));
+}
+
+public static class FilterOptionValues
+{
+    public static List<string> Distinct(IEnumerable<string?> values) => values
+        .Where(value => !string.IsNullOrWhiteSpace(value))
+        .Select(value => value!.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+        .ToList();
 }
 
 public sealed record AssetDocumentListResponse(

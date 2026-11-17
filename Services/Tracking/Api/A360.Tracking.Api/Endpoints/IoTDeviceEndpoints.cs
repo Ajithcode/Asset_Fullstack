@@ -8,11 +8,14 @@ using A360.Tracking.Repository.Repositories;
 
 namespace A360.Tracking.Api.Endpoints;
 
-/// <summary>IoT Device Management: connected devices, addressed by device id (e.g. VS-30018).</summary>
+/// <summary>
+/// IoT Device Management: connected devices, addressed by device id (e.g. VS-30018). Online / offline, battery,
+/// signal and last seen come from each device's latest reading in NetworkTimeSeries.
+/// </summary>
 public static class IoTDeviceEndpoints
 {
     private const string EntityType = "IoTDevice";
-    private const int MaxSearchResults = 100;
+    private const int DefaultPageSize = 10;
 
     public static RouteGroupBuilder MapIoTDeviceEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -20,6 +23,7 @@ public static class IoTDeviceEndpoints
 
         group.MapGet("", GetIoTDevicesAsync).WithName("GetIoTDevices");
         // Literal segments take precedence over /{deviceId}, so these are not read as device ids.
+        group.MapGet("/summary", GetSummaryAsync).WithName("GetIoTDeviceSummary");
         group.MapGet("/device-types", GetDeviceTypesAsync).WithName("GetIoTDeviceTypes");
         group.MapGet("/models", GetModelsAsync).WithName("GetIoTDeviceModelOptions");
         group.MapGet("/connectivities", GetConnectivitiesAsync).WithName("GetIoTDeviceConnectivities");
@@ -33,22 +37,80 @@ public static class IoTDeviceEndpoints
     }
 
     /// <summary>
-    /// Every device; with search or limit, the Device dropdown search by id or name (at most limit, default 50).
+    /// The device table, paged and filtered, with live status. With limit it is the Device dropdown search instead:
+    /// at most limit matching devices as a plain list.
     /// </summary>
     private static async Task<IResult> GetIoTDevicesAsync(
-        string? search,
-        int? limit,
+        [AsParameters] IoTDeviceListQuery query,
         IIoTDeviceRepository repository,
+        IDeviceModelRepository models,
+        INetworkReadingRepository readings,
         CancellationToken cancellationToken)
     {
-        if (search is null && limit is null)
+        var errors = query.Validate();
+        if (errors.Count > 0)
         {
-            var all = await repository.GetAllAsync(cancellationToken);
-            return Results.Ok(TrackingRecords.Listed(all).Select(IoTDeviceResponse.FromEntity).ToList());
+            return Results.ValidationProblem(errors);
         }
 
-        var devices = await repository.SearchAsync(search, Math.Clamp(limit ?? 50, 1, MaxSearchResults), cancellationToken);
-        return Results.Ok(devices.Select(IoTDeviceResponse.FromEntity));
+        if (query.Limit is { } limit)
+        {
+            var found = await repository.SearchAsync(query.Search, limit, cancellationToken);
+            var foundLive = await LiveAsync(found, models, readings, cancellationToken);
+            return Results.Ok(foundLive.Select(IoTDeviceListItemResponse.From).ToList());
+        }
+
+        var all = await LiveAsync(TrackingRecords.Listed(await repository.GetAllAsync(cancellationToken)).ToList(),
+            models, readings, cancellationToken);
+
+        var search = ContractText.TrimOrNull(query.Search);
+        var deviceType = ContractText.TrimOrNull(query.DeviceType);
+        var connectivity = ContractText.TrimOrNull(query.Connectivity);
+        var siteId = ContractText.TrimOrNull(query.SiteId);
+        var status = ContractText.Canonical(query.Status, DeviceConnection.All);
+        var health = ContractText.Canonical(query.Health, IoTDeviceHealth.All);
+
+        var matching = all.Where(live =>
+                (deviceType is null || string.Equals(live.Device.DeviceType, deviceType, StringComparison.OrdinalIgnoreCase))
+                && (connectivity is null || string.Equals(live.Device.Connectivity, connectivity, StringComparison.OrdinalIgnoreCase))
+                && (siteId is null || string.Equals(live.Device.SiteId, siteId, StringComparison.OrdinalIgnoreCase))
+                && (status is null || live.Connection == status)
+                && (health is null || live.Health == health)
+                && (query.Attention != true || live.LowBattery)
+                && (search is null || Matches(live, search)))
+            .ToList();
+
+        var page = query.Page ?? 1;
+        var pageSize = query.PageSize ?? DefaultPageSize;
+        var items = matching
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(IoTDeviceListItemResponse.From)
+            .ToList();
+
+        return Results.Ok(PagedResponse<IoTDeviceListItemResponse>.Of(items, matching.Count, page, pageSize));
+    }
+
+    /// <summary>Total Devices, Online, Offline and Attention Required (battery under 50%) cards.</summary>
+    private static async Task<IResult> GetSummaryAsync(
+        IIoTDeviceRepository repository,
+        IDeviceModelRepository models,
+        INetworkReadingRepository readings,
+        CancellationToken cancellationToken)
+    {
+        var all = await LiveAsync(TrackingRecords.Listed(await repository.GetAllAsync(cancellationToken)).ToList(),
+            models, readings, cancellationToken);
+        var total = all.Count;
+
+        return Results.Ok(new IoTDeviceSummaryResponse(
+            total,
+            DeviceCountResponse.Of(all.Count(live => live.Connection == DeviceConnection.Online), total),
+            DeviceCountResponse.Of(all.Count(live => live.Connection == DeviceConnection.Offline), total),
+            DeviceCountResponse.Of(all.Count(live => live.LowBattery), total),
+            all.Count(live => live.NeverReported),
+            all.GroupBy(live => live.Device.DeviceType, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Count())));
     }
 
     /// <summary>The device types of the selectable models, so every type offered has at least one model.</summary>
@@ -111,21 +173,27 @@ public static class IoTDeviceEndpoints
         return Results.Ok(gateways.Select(GatewayOptionResponse.FromEntity));
     }
 
+    /// <summary>The device side panel: identity, association and live status.</summary>
     private static async Task<IResult> GetIoTDeviceAsync(
         string deviceId,
         IIoTDeviceRepository repository,
+        IDeviceModelRepository models,
+        INetworkReadingRepository readings,
         CancellationToken cancellationToken)
     {
         var device = await repository.GetByDeviceIdAsync(deviceId.Trim(), cancellationToken);
         return device is null
             ? NotFound(deviceId)
-            : Results.Ok(IoTDeviceResponse.FromEntity(device));
+            : Results.Ok(IoTDeviceDetailsResponse.From((await LiveAsync([device], models, readings, cancellationToken))[0]));
     }
 
+    /// <summary>The Add Device form.</summary>
     private static async Task<IResult> CreateIoTDeviceAsync(
-        CreateIoTDeviceRequest request,
+        AddIoTDeviceRequest request,
         IIoTDeviceRepository repository,
         IDeviceModelRepository models,
+        INetworkReadingRepository readings,
+        ITagAssetLookup assets,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -136,31 +204,40 @@ public static class IoTDeviceEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var model = await models.GetByModelNumberAsync(request.Model!.Trim(), cancellationToken);
-        var device = request.ToEntity(currentUserAccessor.GetCurrentUser(), model?.PowerSource);
-
-        if (await repository.DeviceIdExistsAsync(device.DeviceId, cancellationToken))
+        var deviceId = request.DeviceId!.Trim();
+        if (await repository.DeviceIdExistsAsync(deviceId, cancellationToken))
         {
-            return Results.Conflict(new { message = $"IoT device '{device.DeviceId}' is already registered." });
+            return Results.Conflict(new { message = $"IoT device '{deviceId}' is already registered." });
         }
 
-        if (await repository.SerialNumberExistsAsync(device.SerialNumber!, null, cancellationToken))
+        if (await repository.SerialNumberExistsAsync(request.SerialNumber!.Trim(), null, cancellationToken))
         {
-            return Results.Conflict(new { message = $"Serial number '{device.SerialNumber}' is already registered to another device." });
+            return Results.Conflict(new { message = $"Serial number '{request.SerialNumber.Trim()}' is already registered to another device." });
         }
+
+        var (model, asset, problem) = await ResolveAsync(request, models, assets, cancellationToken);
+        if (problem is not null)
+        {
+            return problem;
+        }
+
+        var device = request.ToEntity(currentUserAccessor.GetCurrentUser(), model!, asset);
 
         await repository.CreateAsync(device, cancellationToken);
         await eventLogger.LogAsync(EntityType, device.DeviceId, $"{device.DeviceId} - {device.DeviceName}", EventAction.Created, cancellationToken);
 
-        return Results.Created($"/api/iot-devices/{device.DeviceId}", IoTDeviceResponse.FromEntity(device));
+        var live = (await LiveAsync([device], models, readings, cancellationToken))[0];
+        return Results.Created($"/api/iot-devices/{device.DeviceId}", IoTDeviceDetailsResponse.From(live));
     }
 
-    /// <summary>Takes the same body as create; its DeviceId must match the one in the URL.</summary>
+    /// <summary>Takes the same body as Add Device; its DeviceId must match the one in the URL.</summary>
     private static async Task<IResult> UpdateIoTDeviceAsync(
         string deviceId,
-        CreateIoTDeviceRequest request,
+        AddIoTDeviceRequest request,
         IIoTDeviceRepository repository,
         IDeviceModelRepository models,
+        INetworkReadingRepository readings,
+        ITagAssetLookup assets,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -184,15 +261,26 @@ public static class IoTDeviceEndpoints
 
         if (await repository.SerialNumberExistsAsync(request.SerialNumber!.Trim(), existing.Id, cancellationToken))
         {
-            return Results.Conflict(new { message = $"Serial number '{request.SerialNumber!.Trim()}' is already registered to another device." });
+            return Results.Conflict(new { message = $"Serial number '{request.SerialNumber.Trim()}' is already registered to another device." });
         }
 
-        // Without a PowerSource in the body, keep the device's current one rather than re-deriving it.
-        var model = await models.GetByModelNumberAsync(request.Model!.Trim(), cancellationToken);
+        var (model, asset, problem) = await ResolveAsync(request, models, assets, cancellationToken);
+        if (problem is not null)
+        {
+            return problem;
+        }
+
         var currentUser = currentUserAccessor.GetCurrentUser();
-        var device = request.ToEntity(currentUser, string.IsNullOrWhiteSpace(existing.PowerSource) ? model?.PowerSource : existing.PowerSource)
-            .Replacing(existing, currentUser);
+        var device = request.ToEntity(currentUser, model!, asset).Replacing(existing, currentUser);
         device.DeviceId = existing.DeviceId;
+
+        // Kept from the device: what the gateways and the firmware module report or schedule.
+        device.Status = existing.Status;
+        device.BatteryLevel = existing.BatteryLevel;
+        device.LastSeenAt = existing.LastSeenAt;
+        device.FirmwareVersion ??= existing.FirmwareVersion;
+        device.PendingFirmwareVersion = existing.PendingFirmwareVersion;
+        device.FirmwareUpdateScheduledAt = existing.FirmwareUpdateScheduledAt;
 
         if (!await repository.UpdateAsync(existing.Id, device, cancellationToken))
         {
@@ -201,7 +289,8 @@ public static class IoTDeviceEndpoints
 
         await eventLogger.LogAsync(EntityType, device.DeviceId, $"{device.DeviceId} - {device.DeviceName}", EventAction.Updated, cancellationToken);
 
-        return Results.Ok(IoTDeviceResponse.FromEntity(device));
+        var live = (await LiveAsync([device], models, readings, cancellationToken))[0];
+        return Results.Ok(IoTDeviceDetailsResponse.From(live));
     }
 
     private static async Task<IResult> DeleteIoTDeviceAsync(
@@ -218,6 +307,69 @@ public static class IoTDeviceEndpoints
 
         await eventLogger.LogAsync(EntityType, device.DeviceId, $"{device.DeviceId} - {device.DeviceName}", EventAction.Deleted, cancellationToken);
         return Results.NoContent();
+    }
+
+    /// <summary>The model must exist and match the device type; the linked asset, when given, must exist.</summary>
+    private static async Task<(DeviceModel? Model, TagAsset? Asset, IResult? Problem)> ResolveAsync(
+        AddIoTDeviceRequest request,
+        IDeviceModelRepository models,
+        ITagAssetLookup assets,
+        CancellationToken cancellationToken)
+    {
+        var model = await models.GetByModelNumberAsync(request.Model!.Trim(), cancellationToken);
+        if (model is null)
+        {
+            return (null, null, Invalid("Model", $"Model '{request.Model.Trim()}' was not found; pick one from GET /api/iot-devices/models"));
+        }
+
+        if (!string.Equals(model.DeviceType, request.DeviceType!.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return (null, null, Invalid("Model", $"Model '{model.ModelNumber}' is a {model.DeviceType}, not a {request.DeviceType.Trim()}"));
+        }
+
+        TagAsset? asset = null;
+        if (ContractText.TrimOrNull(request.AssetCode) is { } assetCode)
+        {
+            asset = await assets.FindAsync(assetCode, cancellationToken);
+            if (asset is null)
+            {
+                return (null, null, Invalid("AssetCode", $"No asset found with code or registration id '{assetCode}'"));
+            }
+        }
+
+        return (model, asset, null);
+    }
+
+    /// <summary>Joins each device with its model and its latest NetworkTimeSeries reading.</summary>
+    private static async Task<IReadOnlyList<LiveIoTDevice>> LiveAsync(
+        IReadOnlyList<IoTDevice> devices,
+        IDeviceModelRepository models,
+        INetworkReadingRepository readings,
+        CancellationToken cancellationToken)
+    {
+        var latest = await readings.GetLatestAsync(devices.Select(device => device.DeviceId), cancellationToken);
+        var modelsByNumber = (await models.GetAllAsync(cancellationToken))
+            .Where(model => !model.IsDeleted)
+            .GroupBy(model => model.ModelNumber, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        return devices.Select(device => new LiveIoTDevice(
+                device,
+                latest.GetValueOrDefault(NetworkReadingKeys.Normalize(device.DeviceId)),
+                modelsByNumber.GetValueOrDefault(device.Model)))
+            .ToList();
+    }
+
+    private static bool Matches(LiveIoTDevice live, string search)
+    {
+        var device = live.Device;
+        return new[] { device.DeviceId, device.DeviceName, device.SerialNumber, device.AssetCode, device.AssetName, device.AssetRegistrationId, live.Gateway }
+            .Any(field => field?.Contains(search, StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    private static IResult Invalid(string field, string message)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { [field] = [message] });
     }
 
     private static IResult NotFound(string deviceId)

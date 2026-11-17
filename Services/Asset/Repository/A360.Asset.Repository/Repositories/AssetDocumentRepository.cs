@@ -41,7 +41,24 @@ public sealed class AssetDocumentRepository
         AddEquals(filters, document => document.AssetRegistrationId, query.AssetRegistrationId);
         AddEquals(filters, document => document.DocumentType, query.DocumentType);
         AddEquals(filters, document => document.LifecycleStage, query.LifecycleStage);
-        AddEquals(filters, document => document.Status, query.Status);
+        // Expired is not stored: it is an active document whose expiry date has passed.
+        var today = (query.Today ?? DateTime.UtcNow).Date;
+        var status = query.Status?.Trim();
+        var document = Builders<AssetDocumentRecord>.Filter;
+        var notInactive = document.Ne(item => item.Status, AssetDocumentEffectiveStatus.Inactive);
+        var expired = document.Lt(item => item.ExpiryDate, today);
+        if (string.Equals(status, AssetDocumentEffectiveStatus.Expired, StringComparison.OrdinalIgnoreCase))
+        {
+            filters.Add(notInactive & expired);
+        }
+        else if (string.Equals(status, AssetDocumentEffectiveStatus.Active, StringComparison.OrdinalIgnoreCase))
+        {
+            filters.Add(notInactive & document.Not(expired));
+        }
+        else
+        {
+            AddEquals(filters, item => item.Status, status);
+        }
 
         var filter = Builders<AssetDocumentRecord>.Filter.And(filters);
 
@@ -58,6 +75,24 @@ public sealed class AssetDocumentRepository
         var totalCount = await Collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
 
         return new AssetDocumentQueryResult(items, totalCount);
+    }
+
+    public async Task<IReadOnlyCollection<AssetDocumentRecord>> GetFilterFieldsAsync(string? assetRegistrationId, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<AssetDocumentRecord>.Filter.Eq(document => document.IsDeleted, false);
+        if (!string.IsNullOrWhiteSpace(assetRegistrationId))
+        {
+            filter &= Builders<AssetDocumentRecord>.Filter.Eq(document => document.AssetRegistrationId, assetRegistrationId.Trim());
+        }
+
+        return await Collection
+            .Find(filter)
+            .Project<AssetDocumentRecord>(Builders<AssetDocumentRecord>.Projection
+                .Include(document => document.DocumentType)
+                .Include(document => document.LifecycleStage)
+                .Include(document => document.Tags)
+                .Include(document => document.CreatedBy))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<AssetDocumentRecord>> GetByAssetRegistrationIdAsync(string assetRegistrationId, CancellationToken cancellationToken = default)

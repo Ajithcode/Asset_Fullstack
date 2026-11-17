@@ -17,7 +17,7 @@ public sealed class DeviceModel : BaseEntity
     [BsonElement("manufacturer")]
     public string Manufacturer { get; set; } = string.Empty;
 
-    /// <summary>Category, e.g. Asset Tracker, Environmental Sensor, Gateway.</summary>
+    /// <summary>Name of a <see cref="DeviceType"/>, e.g. Asset Tracker, Environmental Sensor, Gateway.</summary>
     [BsonElement("device_type")]
     public string DeviceType { get; set; } = string.Empty;
 
@@ -64,16 +64,6 @@ public sealed class DeviceModel : BaseEntity
     /// <summary>Settings a device of this model exposes, e.g. Reporting Interval, Threshold Alerts.</summary>
     [BsonElement("configurable_attributes")]
     public List<string> ConfigurableAttributes { get; set; } = [];
-}
-
-/// <summary>The device type categories listed in Device Type & Model, including ones with no models yet.</summary>
-public static class DeviceModelType
-{
-    public static readonly IReadOnlyList<string> All =
-    [
-        "Asset Tracker", "Environmental Sensor", "Condition Sensor", "Gateway",
-        "RFID Reader", "BLE Beacon", "Smart Meter", "People Counter"
-    ];
 }
 
 /// <summary>Power options of a model; separate from <see cref="DevicePowerSource"/>, which device battery checks rely on.</summary>

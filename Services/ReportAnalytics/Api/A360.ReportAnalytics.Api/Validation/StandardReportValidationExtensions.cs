@@ -13,6 +13,8 @@ public static class StandardReportValidationExtensions
     {
         var errors = new Dictionary<string, string[]>();
 
+        ValidateOption(errors, "ReportType", request.ReportType, StandardReportOptions.ReportTypes, required: false);
+
         ValidateReport(
             errors,
             request.ReportName,
@@ -30,6 +32,8 @@ public static class StandardReportValidationExtensions
     public static Dictionary<string, string[]> Validate(this UpdateStandardReportRequest request)
     {
         var errors = new Dictionary<string, string[]>();
+
+        ValidateOption(errors, "ReportType", request.ReportType, StandardReportOptions.ReportTypes, required: false);
 
         ValidateReport(
             errors,

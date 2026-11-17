@@ -20,6 +20,11 @@ public sealed class StandardReport : BaseEntity
     [BsonElement("category")]
     public string Category { get; set; } = string.Empty;
 
+    // What the report shows (e.g. Asset Movement); decides the rows GET /api/standard-reports/{id}/details returns.
+    // Null for reports that only carry their schedule and period.
+    [BsonElement("report_type")]
+    public string? ReportType { get; set; }
+
     // Report Period column; both are null when the report has no date filter. Stored in UTC.
     [BsonElement("report_period_from")]
     public DateTime? ReportPeriodFrom { get; set; }

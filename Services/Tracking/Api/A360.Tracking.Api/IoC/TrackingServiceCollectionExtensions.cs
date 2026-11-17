@@ -50,6 +50,12 @@ public static class TrackingServiceCollectionExtensions
         services.AddScoped<ITrackingTagRepository>(serviceProvider => serviceProvider.GetRequiredService<TrackingTagRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<TrackingTagRepository>());
 
+        services.AddScoped<TagEventRepository>();
+        services.AddScoped<ITagEventRepository>(serviceProvider => serviceProvider.GetRequiredService<TagEventRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<TagEventRepository>());
+        services.AddScoped<ITagAssetLookup, TagAssetLookup>();
+        services.AddScoped<INetworkReadingRepository, NetworkReadingRepository>();
+
         services.AddScoped<FirmwareVersionRepository>();
         services.AddScoped<IFirmwareVersionRepository>(serviceProvider => serviceProvider.GetRequiredService<FirmwareVersionRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<FirmwareVersionRepository>());
@@ -73,6 +79,10 @@ public static class TrackingServiceCollectionExtensions
         services.AddScoped<DeviceModelRepository>();
         services.AddScoped<IDeviceModelRepository>(serviceProvider => serviceProvider.GetRequiredService<DeviceModelRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DeviceModelRepository>());
+
+        services.AddScoped<DeviceTypeRepository>();
+        services.AddScoped<IDeviceTypeRepository>(serviceProvider => serviceProvider.GetRequiredService<DeviceTypeRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<DeviceTypeRepository>());
 
         services.AddScoped<ReplacementDeviceRepository>();
         services.AddScoped<IReplacementDeviceRepository>(serviceProvider => serviceProvider.GetRequiredService<ReplacementDeviceRepository>());

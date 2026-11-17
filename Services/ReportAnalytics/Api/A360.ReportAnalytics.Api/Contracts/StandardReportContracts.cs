@@ -20,7 +20,8 @@ public sealed record CreateStandardReportRequest(
     string? Status,
     string? CreatedBy,
     string? TenantId,
-    string? ClientId);
+    string? ClientId,
+    string? ReportType = null);
 
 public sealed record UpdateStandardReportRequest(
     string? ReportName,
@@ -34,7 +35,8 @@ public sealed record UpdateStandardReportRequest(
     DateTime? NextScheduledOn,
     DateTime? ReviewDueOn,
     string? Status,
-    string? UpdatedBy);
+    string? UpdatedBy,
+    string? ReportType = null);
 
 /// <summary>Schedule action. On demand clears the next run.</summary>
 public sealed record ScheduleStandardReportRequest(
@@ -57,6 +59,7 @@ public sealed record StandardReportResponse(
     string ReportName,
     string? Description,
     string Category,
+    string? ReportType,
     DateTime? ReportPeriodFrom,
     DateTime? ReportPeriodTo,
     string TimeZone,
@@ -81,6 +84,7 @@ public sealed record StandardReportResponse(
             report.ReportName,
             report.Description,
             report.Category,
+            report.ReportType,
             report.ReportPeriodFrom,
             report.ReportPeriodTo,
             report.TimeZone,
@@ -136,3 +140,8 @@ public sealed record ReportPeriodResponse(
 public sealed record ApplyReportPeriodResponse(
     int UpdatedCount,
     IReadOnlyCollection<string> NotFound);
+
+/// <summary>A saved report with its rows for the period. Data is null for a report type without data behind it.</summary>
+public sealed record StandardReportDetailsResponse(
+    StandardReportResponse Report,
+    AssetMovementReportResponse? Data);

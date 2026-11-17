@@ -61,6 +61,8 @@ public static class AssetRegistrationEndpoints
         // Scanning: resolve a scanned asset tag / barcode / QR / RFID / NFC value to one asset.
         group.MapGet("/lookup", LookupAssetRegistrationAsync).WithName("LookupAssetRegistration");
         group.MapGet("/{assetRegistrationId}", GetAssetRegistrationAsync).WithName("GetAssetRegistration");
+        group.MapGet("/{assetRegistrationId}/health-summary", GetHealthSummaryAsync).WithName("GetAssetHealthSummary");
+        group.MapGet("/{assetRegistrationId}/activity", GetActivityAsync).WithName("GetAssetActivity");
         group.MapPut("/{assetRegistrationId}", UpdateAssetRegistrationAsync).WithName("UpdateAssetRegistration");
         group.MapDelete("/{assetRegistrationId}", DeleteAssetRegistrationAsync).WithName("DeleteAssetRegistration");
 
@@ -453,6 +455,52 @@ public static class AssetRegistrationEndpoints
         return asset is null
             ? Results.NotFound(new { message = $"Asset registration '{assetRegistrationId}' was not found." })
             : Results.Ok(AssetRegistrationResponse.FromEntity(asset));
+    }
+
+    private static async Task<IResult> GetHealthSummaryAsync(
+        string assetRegistrationId,
+        IAssetRegistrationRepository assetRegistrationRepository,
+        IAssetConditionAssessmentRepository conditionAssessmentRepository,
+        IAssetCriticalityAssessmentRepository criticalityAssessmentRepository,
+        CancellationToken cancellationToken)
+    {
+        var id = assetRegistrationId.Trim();
+        var asset = await assetRegistrationRepository.GetByAssetRegistrationIdAsync(id, cancellationToken);
+        if (asset is null)
+        {
+            return AssetRegistrationNotFound(id);
+        }
+
+        var conditionAssessment = await conditionAssessmentRepository.GetLatestAsync(asset.AssetRegistrationId, cancellationToken);
+        var criticalityAssessment = await criticalityAssessmentRepository.GetCurrentAsync(asset.AssetRegistrationId, cancellationToken);
+
+        return Results.Ok(AssetHealthSummaryResponse.From(asset, conditionAssessment, criticalityAssessment));
+    }
+
+    /// <summary>
+    /// Recent Activity on the asset detail page: everything done to the asset, newest first. Use a small pageSize
+    /// for the card and page through for "View full history"; type narrows to one kind (e.g. "Maintenance").
+    /// </summary>
+    private static async Task<IResult> GetActivityAsync(
+        string assetRegistrationId,
+        IAssetRegistrationRepository assetRegistrationRepository,
+        A360.Asset.Repository.Activity.IAssetActivityRepository activityRepository,
+        CancellationToken cancellationToken,
+        string? type = null,
+        DateTime? from = null,
+        DateTime? to = null,
+        int page = 1,
+        int pageSize = AssetActivityResponse.DefaultPageSize)
+    {
+        var id = assetRegistrationId.Trim();
+        var asset = await assetRegistrationRepository.GetByAssetRegistrationIdAsync(id, cancellationToken);
+        if (asset is null)
+        {
+            return AssetRegistrationNotFound(id);
+        }
+
+        var activity = await activityRepository.GetActivityAsync(asset.AssetRegistrationId, cancellationToken);
+        return Results.Ok(AssetActivityResponse.From(asset.AssetRegistrationId, activity, type, from, to, page, pageSize));
     }
 
     private static async Task<IResult> UpdateAssetRegistrationAsync(

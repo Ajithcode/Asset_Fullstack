@@ -53,7 +53,12 @@ public static class DeviceConfigurationEndpoints
         return group;
     }
 
-    private static async Task<IResult> GetOverviewAsync(string deviceId, DeviceConfigurationDependencies repositories, CancellationToken cancellationToken)
+    /// <summary>Everything the page shows for one device; the header status, battery and signal come from NetworkTimeSeries.</summary>
+    private static async Task<IResult> GetOverviewAsync(
+        string deviceId,
+        DeviceConfigurationDependencies repositories,
+        INetworkReadingRepository readings,
+        CancellationToken cancellationToken)
     {
         var context = await DeviceContext.LoadAsync(deviceId, repositories, cancellationToken);
         if (context is null)
@@ -62,10 +67,19 @@ public static class DeviceConfigurationEndpoints
         }
 
         var health = await repositories.Health.GetByDeviceIdAsync(context.Device.DeviceId, cancellationToken);
+        var device = context.Device;
+
+        // Device Status: the registered device joined with its latest reading (meta.tagid, or meta.gatewayid for a gateway).
+        var reading = (await readings.GetLatestAsync([device.DeviceId], cancellationToken))
+            .GetValueOrDefault(NetworkReadingKeys.Normalize(device.DeviceId));
+
+        // The gateway that relayed the reading (meta.gatewayid), else the one configured on the device, as a registered gateway.
+        var gatewayId = reading?.GatewayId ?? device.Gateway;
+        var gateway = string.IsNullOrWhiteSpace(gatewayId) ? null : await FindGatewayAsync(repositories.Devices, gatewayId, cancellationToken);
         var editable = context.Draft ?? context.Current ?? context.CreateDefaults();
 
         return Results.Ok(new DeviceConfigurationOverviewResponse(
-            ConfigurationDeviceResponse.FromEntity(context.Device, health),
+            ConfigurationDeviceResponse.From(device, context.Model, health, reading, gateway),
             context.Current is null ? null : DeviceConfigurationResponse.FromEntity(context.Current),
             context.Running?.Version,
             context.Draft is null ? null : DeviceConfigurationResponse.FromEntity(context.Draft),
@@ -73,6 +87,20 @@ public static class DeviceConfigurationEndpoints
             DeviceAlertCountsResponse.FromRules(editable.AlertRules),
             context.ToFirmwareResponse(),
             context.Validate(editable)));
+    }
+
+    /// <summary>A registered device with this id, spelled as the gateways write it (c851fbf72b00) or with colons.</summary>
+    private static async Task<IoTDevice?> FindGatewayAsync(IIoTDeviceRepository devices, string gatewayId, CancellationToken cancellationToken)
+    {
+        foreach (var variant in NetworkReadingKeys.Variants(gatewayId))
+        {
+            if (await devices.GetByDeviceIdAsync(variant, cancellationToken) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private static async Task<IResult> SaveDraftAsync(
@@ -695,7 +723,10 @@ public static class DeviceConfigurationEndpoints
             var protocol = Model?.Protocol ?? Model?.Connectivity;
             var isLoRaWan = protocol?.Contains("LoRaWAN", StringComparison.OrdinalIgnoreCase) == true;
 
+            // Battery and RSSI are listed once, as the Battery Level and RSSI diagnostics added below.
             var parameters = (Model?.SupportedMeasurements ?? [])
+                .Where(name => !string.Equals(name, "Battery", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(name, "RSSI", StringComparison.OrdinalIgnoreCase))
                 .Select(name => new TelemetryParameter
                 {
                     Name = name,

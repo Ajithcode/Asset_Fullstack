@@ -60,6 +60,7 @@ public static class ReportAnalyticsServiceCollectionExtensions
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<InteractiveDashboardRepository>());
 
         services.AddScoped<IDashboardDataRepository, DashboardDataRepository>();
+        services.AddScoped<IAssetMovementReportRepository, AssetMovementReportRepository>();
 
         services.AddScoped<AssetPerformanceViewRepository>();
         services.AddScoped<IAssetPerformanceViewRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetPerformanceViewRepository>());

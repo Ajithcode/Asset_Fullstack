@@ -18,6 +18,7 @@ public static class AssetDocumentEndpoints
         var group = routes.MapGroup("/api/asset-documents").WithTags("Asset Documents");
 
         group.MapGet("", GetDocumentsAsync).WithName("GetAssetDocuments");
+        group.MapGet("/filters", GetDocumentFiltersAsync).WithName("GetAssetDocumentFilters");
         group.MapGet("/{id}", GetDocumentByIdAsync).WithName("GetAssetDocumentById");
         group.MapPost("", CreateDocumentsAsync).WithName("CreateAssetDocuments");
         group.MapPut("/{id}", UpdateDocumentAsync).WithName("UpdateAssetDocument");
@@ -50,6 +51,15 @@ public static class AssetDocumentEndpoints
             result.TotalCount,
             page,
             pageSize));
+    }
+
+    private static async Task<IResult> GetDocumentFiltersAsync(
+        IAssetDocumentRepository repository,
+        CancellationToken cancellationToken,
+        string? assetRegistrationId = null)
+    {
+        var documents = await repository.GetFilterFieldsAsync(assetRegistrationId, cancellationToken);
+        return Results.Ok(AssetDocumentFilterOptionsResponse.From(documents));
     }
 
     private static async Task<IResult> GetDocumentByIdAsync(

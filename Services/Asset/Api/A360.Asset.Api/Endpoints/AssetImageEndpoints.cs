@@ -19,6 +19,7 @@ public static class AssetImageEndpoints
         var group = routes.MapGroup("/api/asset-images").WithTags("Asset Images");
 
         group.MapGet("", GetImagesAsync).WithName("GetAssetImages");
+        group.MapGet("/filters", GetImageFiltersAsync).WithName("GetAssetImageFilters");
         group.MapGet("/{id}", GetImageByIdAsync).WithName("GetAssetImageById");
         group.MapPost("", CreateImagesAsync).WithName("CreateAssetImages");
         group.MapPut("/{id}", UpdateImageAsync).WithName("UpdateAssetImage");
@@ -34,6 +35,10 @@ public static class AssetImageEndpoints
         string? search = null,
         string? assetRegistrationId = null,
         string? imageType = null,
+        string? tag = null,
+        string? uploadedBy = null,
+        DateTime? from = null,
+        DateTime? to = null,
         int page = 1,
         int pageSize = AssetImageRepository.DefaultPageSize)
     {
@@ -41,7 +46,7 @@ public static class AssetImageEndpoints
         pageSize = pageSize is < 1 or > AssetImageRepository.MaxPageSize ? AssetImageRepository.DefaultPageSize : pageSize;
 
         var result = await repository.QueryAsync(
-            new AssetImageQuery(search, assetRegistrationId, imageType, page, pageSize),
+            new AssetImageQuery(search, assetRegistrationId, imageType, page, pageSize, tag, uploadedBy, from, to),
             cancellationToken);
 
         return Results.Ok(new AssetImageListResponse(
@@ -49,6 +54,15 @@ public static class AssetImageEndpoints
             result.TotalCount,
             page,
             pageSize));
+    }
+
+    private static async Task<IResult> GetImageFiltersAsync(
+        IAssetImageRepository repository,
+        CancellationToken cancellationToken,
+        string? assetRegistrationId = null)
+    {
+        var images = await repository.GetFilterFieldsAsync(assetRegistrationId, cancellationToken);
+        return Results.Ok(AssetImageFilterOptionsResponse.From(images));
     }
 
     private static async Task<IResult> GetImageByIdAsync(

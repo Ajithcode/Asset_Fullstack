@@ -14,6 +14,9 @@ services:
       # Development: without SMTP settings the login OTP is written to the container log instead of emailed.
       ASPNETCORE_ENVIRONMENT: Development
       MONGODB_URI: ${MONGODB_URI:?set MONGODB_URI in .env.local}
+      # Keys are not in appsettings.json; set them in .env.local (openssl rand -base64 48 / openssl rand -base64 32)
+      Jwt__SigningKey: ${Jwt__SigningKey:?set Jwt__SigningKey in .env.local}
+      Integrations__SecretEncryptionKey: ${Integrations__SecretEncryptionKey:?set Integrations__SecretEncryptionKey in .env.local}
       # Media builds file links from this: the Media service's own published port
       BaseUrl: http://localhost:5300
     ports:
