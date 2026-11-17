@@ -67,11 +67,7 @@ interface Confirm { title: string; message: string; label: string; run: () => vo
 const TYPE_COLOR: Record<ZoneType, string> = { Allowed: '#2563EB', Warning: '#F5B40B', Restricted: '#EF4444' };
 
 const DEFAULT_RULE: RuleForm = {
-<<<<<<< HEAD
-  trigger: 'enter-exit', dwellMin: 5, severity: 'High', group: 'All assets', condition: CONDITIONS[0],
-=======
   trigger: '' as Trigger, dwellMin: 5, severity: '' as Severity, group: '', condition: '',
->>>>>>> origin/feature/tracking
   createAlert: true, notify: false, team: '', workflow: false, workflowName: '',
   inApp: true, email: true, push: true,
   notifyEvery: 5, notifyRepeat: 1, notifySound: true,
@@ -977,16 +973,11 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   openRule(r?: Rule): void {
     this.menuOpen = '';
     this.formError = '';
-<<<<<<< HEAD
     // New rule: the floor zone being viewed (picked zone, else the floor's first drawn zone), else the outdoor geofence
     const scope = this.floorId ? this.floorScope : undefined;
     const floorZone = scope ? MAP_ZONE_PREFIX + scope : this.floorId && this.planZones.length ? MAP_ZONE_PREFIX + this.planZones[0].id : '';
     const zoneId = r ? r.zoneId : this.ruleZone || floorZone || this.selected?.id || '';
-    this.ruleDialog = r ? { ...r } : { ...DEFAULT_RULE, group: this.builder.group, id: '', name: '', zoneId, enabled: true };
-=======
-    const zoneId = r ? r.zoneId : this.ruleZone || this.selected?.id || '';
     this.ruleDialog = r ? { ...r } : { ...DEFAULT_RULE, id: '', name: '', zoneId, enabled: true };
->>>>>>> origin/feature/tracking
   }
 
   saveRuleDialog(): void {
