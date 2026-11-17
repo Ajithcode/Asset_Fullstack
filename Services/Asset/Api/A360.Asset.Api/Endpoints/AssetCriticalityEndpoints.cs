@@ -1,4 +1,5 @@
 using A360.Asset.Api.Contracts;
+using A360.Asset.Api.Security;
 using A360.Asset.Api.Validation;
 using A360.Asset.Domain.Entities;
 using A360.Asset.Repository.Repositories;
@@ -16,15 +17,18 @@ public static class AssetCriticalityEndpoints
 
     public static RouteGroupBuilder MapAssetCriticalityEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/api/asset-criticality").WithTags("Asset Criticality");
+        var group = routes.MapGroup("/api/asset-criticality").WithTags("Asset Criticality").RequireSignedIn();
+
+        // Landing page: /assets, /kpis, /distribution, /assessments, /filter-options, /export.
+        group.MapAssetCriticalityLandingEndpoints();
 
         group.MapGet("", GetCriticalityListAsync).WithName("GetAssetCriticalityList");
         group.MapGet("/options", GetOptions).WithName("GetAssetCriticalityOptions");
         group.MapGet("/current", GetCurrentAssessmentAsync).WithName("GetCurrentAssetCriticality");
         group.MapGet("/history", GetHistoryAsync).WithName("GetAssetCriticalityHistory");
         group.MapGet("/{id}", GetAssessmentByIdAsync).WithName("GetAssetCriticalityById");
-        group.MapPost("", CreateAssessmentAsync).WithName("CreateAssetCriticality");
-        group.MapPut("/{id}", UpdateDetailsAsync).WithName("UpdateAssetCriticalityDetails");
+        group.MapPost("", CreateAssessmentAsync).WithName("CreateAssetCriticality").RequireAssessor();
+        group.MapPut("/{id}", UpdateDetailsAsync).WithName("UpdateAssetCriticalityDetails").RequireAssessor();
 
         return group;
     }
@@ -105,6 +109,7 @@ public static class AssetCriticalityEndpoints
         IAssetRegistrationRepository assetRepository,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var validationErrors = request.Validate();
@@ -126,6 +131,12 @@ public static class AssetCriticalityEndpoints
         var previous = await repository.GetCurrentAsync(assetRegistrationId, cancellationToken);
         var assessment = request.ToEntity(asset, previous, currentUserAccessor.GetCurrentUser());
 
+        // This saves and publishes in one step, so the caller must be allowed to approve the resulting level.
+        if (!CriticalityAccess.CanApprove(httpContext.User, assessment.CriticalityLevel, previous?.CriticalityLevel))
+        {
+            return CriticalityAccess.Forbidden(ApproveDeniedMessage(assessment.CriticalityLevel, previous?.CriticalityLevel));
+        }
+
         await repository.ClearCurrentAsync(assetRegistrationId, cancellationToken);
         await repository.CreateAsync(assessment, cancellationToken);
         await eventLogger.LogAsync(EntityType, assessment.Id, Describe(assessment), EventAction.Created, cancellationToken);
@@ -140,6 +151,7 @@ public static class AssetCriticalityEndpoints
         IAssetCriticalityAssessmentRepository repository,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var validationErrors = request.Validate();
@@ -152,6 +164,12 @@ public static class AssetCriticalityEndpoints
         if (assessment is null || assessment.IsDeleted)
         {
             return AssessmentNotFound(id);
+        }
+
+        // Editing a published assessment needs the same role as approving its level.
+        if (!CriticalityAccess.CanApprove(httpContext.User, assessment.CriticalityLevel, null))
+        {
+            return CriticalityAccess.Forbidden(ApproveDeniedMessage(assessment.CriticalityLevel, null));
         }
 
         var validUntil = ContractText.DateOnly(request.ValidUntil);
@@ -178,6 +196,11 @@ public static class AssetCriticalityEndpoints
 
     private static string Describe(AssetCriticalityAssessment assessment) =>
         $"{assessment.AssetRegistrationId} - {assessment.CriticalityLevel} ({assessment.CriticalityScore}/100)";
+
+    private static string ApproveDeniedMessage(string? level, string? previousLevel) =>
+        CriticalityAccess.LevelRank(level) == 4 || CriticalityAccess.IsReduction(previousLevel, level)
+            ? "Only an Administrator can publish a Critical level or lower an asset's criticality."
+            : "Only a Manager or Administrator can publish an asset's criticality.";
 
     private static IResult AssessmentNotFound(string id)
     {

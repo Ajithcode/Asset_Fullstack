@@ -106,7 +106,21 @@ public sealed class AssetCriticalityAssessmentRepository
                 Builders<AssetCriticalityAssessment>.IndexKeys
                     .Ascending(assessment => assessment.IsCurrent)
                     .Ascending(assessment => assessment.AssetRegistrationId),
-                new CreateIndexOptions { Name = "ix_asset_criticality_is_current_asset_registration_id" })
+                new CreateIndexOptions { Name = "ix_asset_criticality_is_current_asset_registration_id" }),
+            // Landing page: open / pending assessments per asset, the history tab and the review-due filter.
+            new CreateIndexModel<AssetCriticalityAssessment>(
+                Builders<AssetCriticalityAssessment>.IndexKeys
+                    .Ascending(assessment => assessment.AssetRegistrationId)
+                    .Ascending(assessment => assessment.ApprovalStatus),
+                new CreateIndexOptions { Name = "ix_asset_criticality_asset_registration_id_approval_status" }),
+            new CreateIndexModel<AssetCriticalityAssessment>(
+                Builders<AssetCriticalityAssessment>.IndexKeys
+                    .Ascending(assessment => assessment.ApprovalStatus)
+                    .Descending(assessment => assessment.CreatedAt),
+                new CreateIndexOptions { Name = "ix_asset_criticality_approval_status_created_at" }),
+            new CreateIndexModel<AssetCriticalityAssessment>(
+                Builders<AssetCriticalityAssessment>.IndexKeys.Ascending(assessment => assessment.NextReviewDate),
+                new CreateIndexOptions { Name = "ix_asset_criticality_next_review_date" })
         };
 
         await Collection.Indexes.CreateManyAsync(indexes, cancellationToken);
