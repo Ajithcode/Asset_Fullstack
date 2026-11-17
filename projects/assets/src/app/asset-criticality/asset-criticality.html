@@ -3,11 +3,9 @@
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a routerLink="/assets/list">Assets</a>
     <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
-    <a routerLink="/assets/list">Asset List</a>
+    <a routerLink="/assets/criticality">Asset Criticality</a>
     <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
-    <span>{{ asset.tag }}</span>
-    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
-    <span class="breadcrumb-current">Asset Criticality</span>
+    <span class="breadcrumb-current">{{ asset.tag }}</span>
   </nav>
 
   <!-- Unknown or missing ?tag= -->

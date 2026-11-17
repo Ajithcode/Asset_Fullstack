@@ -25,7 +25,7 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-angular';
-import { Subscription, catchError, forkJoin, from, of } from 'rxjs';
+import { Subscription, catchError, combineLatest, forkJoin, from, of } from 'rxjs';
 import { ASSET_TYPE_ICONS, AssetHeader, AssetTabLink, AuthService, assetTabs } from 'shared-ui';
 import { CriticalityCriterion, CriticalityImpact, CriticalityLevel, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
 import { apiErrorMessage } from '../services/asset-api';
@@ -207,9 +207,15 @@ export class AssetCriticality implements OnDestroy {
   readonly today = toIsoDate(new Date());
 
   constructor() {
-    inject(ActivatedRoute)
-      .queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef)))
-      .subscribe((params) => this.load(params.get('tag')));
+    // /assets/criticality/asset/:tag (old ?tag= links are redirected here); ?assess=1 opens the Re-assess dialog.
+    const route = inject(ActivatedRoute);
+    combineLatest([route.paramMap, route.queryParamMap])
+      .pipe(takeUntilDestroyed(inject(DestroyRef)))
+      .subscribe(([params, query]) => {
+        const tag = params.get('tag') ?? query.get('tag');
+        if (query.get('assess') === '1' && tag) this.assessOnLoad = tag;
+        this.load(tag);
+      });
     this.loadList();
     this.api.getOptions().subscribe({ next: (o) => (this.options = o), error: () => (this.options = null) });
   }
@@ -464,7 +470,7 @@ export class AssetCriticality implements OnDestroy {
   viewAsset(tag: string, assess = false): void {
     this.closeMenus();
     if (assess) this.assessOnLoad = tag;
-    this.router.navigate(['/assets/criticality'], { queryParams: { tag } }).then(() => {
+    this.router.navigate(['/assets/criticality/asset', tag]).then(() => {
       if (tag === this.asset.tag && assess && !this.loading) {
         this.assessOnLoad = null;
         this.openAssessment();

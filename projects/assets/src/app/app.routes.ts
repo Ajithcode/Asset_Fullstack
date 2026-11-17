@@ -14,6 +14,8 @@ import { AssetStatusCondition } from './asset-status-condition/asset-status-cond
 import { AssetStatusConditionOverview } from './asset-status-condition-overview/asset-status-condition-overview';
 import { UpdateStatusCondition } from './asset-status-condition-overview/update-status-condition/update-status-condition';
 import { AssetCriticality } from './asset-criticality/asset-criticality';
+import { CriticalityLanding } from './asset-criticality/landing/criticality-landing';
+import { legacyCriticalityRedirect } from './asset-criticality/legacy-redirect';
 import { AssetHealthScore } from './asset-health-score/asset-health-score';
 import { AssetBulk } from './asset-bulk/asset-bulk';
 import { BulkAssignment } from './asset-bulk/bulk-assignment/bulk-assignment';
@@ -83,7 +85,10 @@ export const routes: Routes = [
   { path: 'asset-status-condition', component: AssetStatusConditionOverview },
   // ?tag= preselects the asset, ?change= reopens a draft or rejected change
   { path: 'asset-status-condition/update', component: UpdateStatusCondition },
-  { path: 'criticality', component: AssetCriticality },
+  // Menu page: every asset's criticality; old ?tag= links redirect to the asset's page below
+  { path: 'criticality', pathMatch: 'full', canMatch: [legacyCriticalityRedirect], component: CriticalityLanding },
+  // Asset detail tab: one asset's criticality
+  { path: 'criticality/asset/:tag', component: AssetCriticality },
   { path: 'health-score', component: AssetHealthScore },
   { path: 'bulk-import-export', component: AssetBulk },
   { path: 'merge-dedup', component: AssetMerge }
