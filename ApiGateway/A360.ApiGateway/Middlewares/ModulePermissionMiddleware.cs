@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using A360.Security;
 using Yarp.ReverseProxy.Model;
 
 namespace A360.ApiGateway.Middlewares;
@@ -41,14 +42,28 @@ public sealed class ModulePermissionMiddleware(
         ["master-data-management-cluster"] = "Master Data Management"
     };
 
+    /// <summary>
+    /// Gateway route -> module, checked before the cluster map. Asset Criticality runs in the Asset service but has its own
+    /// module, so assessing and approving don't need create / edit rights on Assets.
+    /// </summary>
+    private static readonly Dictionary<string, string> RouteModules = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["asset-criticality-root"] = AssetCriticalityPermissions.Module,
+        ["asset-criticality"] = AssetCriticalityPermissions.Module
+    };
+
     /// <summary>POSTs ending in one of these only read data (searches, previews, exports, checks): they need View.</summary>
     private static readonly string[] ReadOnlyPostSuffixes = ["search", "query", "filter", "preview", "export", "validate", "count", "lookup"];
 
     public async Task InvokeAsync(HttpContext context)
     {
         var action = ActionOf(context.Request);
-        var clusterId = context.GetReverseProxyFeature().Route.Config.ClusterId;
-        if (action is null || clusterId is null || !ClusterModules.TryGetValue(clusterId, out var module))
+        var routeConfig = context.GetReverseProxyFeature().Route.Config;
+        var clusterId = routeConfig.ClusterId;
+        string? module = null;
+        if (action is null
+            || !((routeConfig.RouteId is not null && RouteModules.TryGetValue(routeConfig.RouteId, out module))
+                 || (clusterId is not null && ClusterModules.TryGetValue(clusterId, out module))))
         {
             await next(context);
             return;
@@ -62,7 +77,7 @@ public sealed class ModulePermissionMiddleware(
             return;
         }
 
-        if (!access.Allows(module, action))
+        if (!access.Allows(module!, action))
         {
             logger.LogInformation("Denied {Action} on {Module} for {User}: {Method} {Path}", action, module, access.Email, context.Request.Method, context.Request.Path);
             await DenyAsync(context, StatusCodes.Status403Forbidden, $"Your role doesn't allow you to {action} in {module}. Ask an administrator for access.");
@@ -140,11 +155,31 @@ public sealed class ModulePermissionMiddleware(
 
     private sealed record ModuleAccess(string Module, List<string>? Actions);
 
-    private sealed record CallerAccess(string? Email, bool FullAccess, List<ModuleAccess>? Modules)
+    private sealed record CallerAccess(string? Email, bool FullAccess, List<ModuleAccess>? Modules, List<string>? Roles = null)
     {
-        public bool Allows(string module, string action) =>
-            FullAccess
-            || (Modules ?? []).Any(m => string.Equals(m.Module, module, StringComparison.OrdinalIgnoreCase)
-                && (m.Actions ?? []).Contains(action, StringComparer.OrdinalIgnoreCase));
+        public bool Allows(string module, string action)
+        {
+            if (module.Equals(AssetCriticalityPermissions.Module, StringComparison.OrdinalIgnoreCase))
+            {
+                return AllowsAssetCriticality(action);
+            }
+
+            return FullAccess
+                || (Modules ?? []).Any(m => string.Equals(m.Module, module, StringComparison.OrdinalIgnoreCase)
+                    && (m.Actions ?? []).Contains(action, StringComparer.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Writes need any criticality write permission (the Asset service checks which one); a read-only POST needs View.
+        /// Roles that don't configure the module get the defaults by role name.
+        /// </summary>
+        private bool AllowsAssetCriticality(string action)
+        {
+            var configured = (Modules ?? []).FirstOrDefault(m => string.Equals(m.Module, AssetCriticalityPermissions.Module, StringComparison.OrdinalIgnoreCase));
+            var granted = AssetCriticalityPermissions.Resolve(FullAccess, configured?.Actions, Roles);
+            return action.Equals("view", StringComparison.OrdinalIgnoreCase)
+                ? granted.Contains(AssetCriticalityPermissions.View)
+                : AssetCriticalityPermissions.Writes.Any(granted.Contains);
+        }
     }
 }

@@ -64,10 +64,21 @@ public sealed class AssetCriticalityAssessmentRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<AssetCriticalityAssessment?> GetOpenAsync(string assetRegistrationId, CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(assessment => assessment.AssetRegistrationId == assetRegistrationId && !assessment.IsDeleted
+                && AssetCriticalityApprovalStatuses.Open.Contains(assessment.ApprovalStatus))
+            .SortByDescending(assessment => assessment.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    /// <summary>Approved assessments only (legacy ones without a status count as approved); open ones are on the landing page.</summary>
     public async Task<IReadOnlyCollection<AssetCriticalityAssessment>> GetHistoryAsync(string assetRegistrationId, CancellationToken cancellationToken = default)
     {
         return await Collection
-            .Find(assessment => assessment.AssetRegistrationId == assetRegistrationId && !assessment.IsDeleted)
+            .Find(assessment => assessment.AssetRegistrationId == assetRegistrationId && !assessment.IsDeleted
+                && (assessment.ApprovalStatus == null || assessment.ApprovalStatus == AssetCriticalityApprovalStatuses.Approved))
             .Sort(Builders<AssetCriticalityAssessment>.Sort
                 .Descending(assessment => assessment.AssessmentDate)
                 .Descending(assessment => assessment.CreatedAt))
