@@ -1,5 +1,6 @@
 using A360.Tracking.Domain.Entities;
 using A360.Security;
+using A360.Tracking.Api.Alerts;
 
 namespace A360.Tracking.Api.Contracts;
 
@@ -27,9 +28,14 @@ public sealed record CreateAlertRuleRequest(
     string? Status,
     string? CreatedBy,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    string? MapZoneId = null,
+    int? NotifyIntervalSeconds = null,
+    int? NotifyRepeat = null,
+    bool? NotifySound = null)
 {
-    public AlertRule ToEntity(Geofence geofence, CurrentUser? currentUser)
+    /// <summary>Builds the rule for an outdoor geofence, or for a floor plan zone when <paramref name="zone"/> is given.</summary>
+    public AlertRule ToEntity(Geofence? geofence, MapZoneRef? zone, CurrentUser? currentUser)
     {
         var notifyTeam = NotifyTeam ?? false;
         var startWorkflow = StartWorkflow ?? false;
@@ -37,8 +43,13 @@ public sealed record CreateAlertRuleRequest(
         return new AlertRule
         {
             Name = Name!.Trim(),
-            GeofenceId = geofence.Id,
-            GeofenceName = geofence.Name,
+            GeofenceId = zone is not null ? AlertNotifyDefaults.MapZonePrefix + zone.ZoneId : geofence!.Id,
+            GeofenceName = zone is not null ? zone.Label : geofence!.Name,
+            MapZoneId = zone?.ZoneId,
+            MapFloorPlanId = zone?.FloorPlanId,
+            NotifyIntervalSeconds = NotifyIntervalSeconds ?? AlertNotifyDefaults.IntervalSeconds,
+            NotifyRepeat = NotifyRepeat ?? AlertNotifyDefaults.Repeat,
+            NotifySound = NotifySound ?? true,
             Trigger = ContractText.Canonical(Trigger, AlertRuleTrigger.All)!,
             Severity = ContractText.Canonical(Severity, AlertRuleSeverity.All)!,
             AssetGroup = AssetGroup!.Trim(),
@@ -83,7 +94,12 @@ public sealed record AlertRuleResponse(
     string? CreatedBy,
     DateTime? CreatedAt,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    string? MapZoneId,
+    string? MapFloorPlanId,
+    int NotifyIntervalSeconds,
+    int NotifyRepeat,
+    bool NotifySound)
 {
     public static AlertRuleResponse FromEntity(AlertRule rule)
     {
@@ -107,6 +123,11 @@ public sealed record AlertRuleResponse(
             rule.CreatedBy,
             rule.CreatedAt,
             rule.ClientId,
-            rule.TenantId);
+            rule.TenantId,
+            rule.MapZoneId,
+            rule.MapFloorPlanId,
+            rule.NotifyIntervalSeconds,
+            rule.NotifyRepeat,
+            rule.NotifySound);
     }
 }

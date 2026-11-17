@@ -1,6 +1,7 @@
 using A360.Domain.Entities;
 using A360.Repository.Activity;
 using A360.Security;
+using A360.Tracking.Api.Alerts;
 using A360.Tracking.Api.Contracts;
 using A360.Tracking.Api.Validation;
 using A360.Tracking.Domain.Entities;
@@ -56,6 +57,7 @@ public static class AlertRuleEndpoints
         CreateAlertRuleRequest request,
         IAlertRuleRepository repository,
         IGeofenceRepository geofenceRepository,
+        MapZoneLookup zoneLookup,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -66,22 +68,26 @@ public static class AlertRuleEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
-        var geofence = await GetGeofenceAsync(request.GeofenceId!, geofenceRepository, cancellationToken);
-        if (geofence is null)
+        var (geofence, zone, notFound) = await ResolveTargetAsync(request, geofenceRepository, zoneLookup, cancellationToken);
+        if (notFound is not null)
         {
-            return GeofenceNotFound(request.GeofenceId!);
+            return notFound;
         }
 
-        var rule = request.ToEntity(geofence, currentUserAccessor.GetCurrentUser());
+        var rule = request.ToEntity(geofence, zone, currentUserAccessor.GetCurrentUser());
 
         if (await repository.NameExistsAsync(rule.GeofenceId, rule.Name, cancellationToken: cancellationToken))
         {
-            return Results.Conflict(new { message = $"Alert rule '{rule.Name}' already exists for {geofence.Name}." });
+            return Results.Conflict(new { message = $"Alert rule '{rule.Name}' already exists for {rule.GeofenceName}." });
         }
 
         await repository.CreateAsync(rule, cancellationToken);
-        await geofenceRepository.IncrementRuleCountAsync(geofence.Id, cancellationToken);
-        await eventLogger.LogAsync(EntityType, rule.Id, $"{geofence.Name} - {rule.Name}", EventAction.Created, cancellationToken);
+        if (geofence is not null)
+        {
+            await geofenceRepository.IncrementRuleCountAsync(geofence.Id, cancellationToken);
+        }
+
+        await eventLogger.LogAsync(EntityType, rule.Id, $"{rule.GeofenceName} - {rule.Name}", EventAction.Created, cancellationToken);
 
         return Results.Created($"/api/alert-rules/{rule.Id}", AlertRuleResponse.FromEntity(rule));
     }
@@ -92,6 +98,7 @@ public static class AlertRuleEndpoints
         CreateAlertRuleRequest request,
         IAlertRuleRepository repository,
         IGeofenceRepository geofenceRepository,
+        MapZoneLookup zoneLookup,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -108,18 +115,18 @@ public static class AlertRuleEndpoints
             return NotFound(id);
         }
 
-        var geofence = await GetGeofenceAsync(request.GeofenceId!, geofenceRepository, cancellationToken);
-        if (geofence is null)
+        var (geofence, zone, notFound) = await ResolveTargetAsync(request, geofenceRepository, zoneLookup, cancellationToken);
+        if (notFound is not null)
         {
-            return GeofenceNotFound(request.GeofenceId!);
+            return notFound;
         }
 
         var currentUser = currentUserAccessor.GetCurrentUser();
-        var rule = request.ToEntity(geofence, currentUser).Replacing(existing, currentUser);
+        var rule = request.ToEntity(geofence, zone, currentUser).Replacing(existing, currentUser);
 
         if (await repository.NameExistsAsync(rule.GeofenceId, rule.Name, existing.Id, cancellationToken))
         {
-            return Results.Conflict(new { message = $"Alert rule '{rule.Name}' already exists for {geofence.Name}." });
+            return Results.Conflict(new { message = $"Alert rule '{rule.Name}' already exists for {rule.GeofenceName}." });
         }
 
         if (!await repository.UpdateAsync(existing.Id, rule, cancellationToken))
@@ -129,11 +136,18 @@ public static class AlertRuleEndpoints
 
         if (rule.GeofenceId != existing.GeofenceId)
         {
-            await geofenceRepository.DecrementRuleCountAsync(existing.GeofenceId, cancellationToken);
-            await geofenceRepository.IncrementRuleCountAsync(rule.GeofenceId, cancellationToken);
+            if (existing.MapZoneId is null)
+            {
+                await geofenceRepository.DecrementRuleCountAsync(existing.GeofenceId, cancellationToken);
+            }
+
+            if (geofence is not null)
+            {
+                await geofenceRepository.IncrementRuleCountAsync(rule.GeofenceId, cancellationToken);
+            }
         }
 
-        await eventLogger.LogAsync(EntityType, rule.Id, $"{geofence.Name} - {rule.Name}", EventAction.Updated, cancellationToken);
+        await eventLogger.LogAsync(EntityType, rule.Id, $"{rule.GeofenceName} - {rule.Name}", EventAction.Updated, cancellationToken);
 
         return Results.Ok(AlertRuleResponse.FromEntity(rule));
     }
@@ -156,9 +170,32 @@ public static class AlertRuleEndpoints
             return NotFound(id);
         }
 
-        await geofenceRepository.DecrementRuleCountAsync(rule.GeofenceId, cancellationToken);
+        if (rule.MapZoneId is null)
+        {
+            await geofenceRepository.DecrementRuleCountAsync(rule.GeofenceId, cancellationToken);
+        }
+
         await eventLogger.LogAsync(EntityType, rule.Id, $"{rule.GeofenceName} - {rule.Name}", EventAction.Deleted, cancellationToken);
         return Results.NoContent();
+    }
+
+    /// <summary>The rule watches a floor plan zone (MapZoneId) or an outdoor geofence (GeofenceId).</summary>
+    private static async Task<(Geofence? Geofence, MapZoneRef? Zone, IResult? NotFound)> ResolveTargetAsync(
+        CreateAlertRuleRequest request,
+        IGeofenceRepository geofenceRepository,
+        MapZoneLookup zoneLookup,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(request.MapZoneId))
+        {
+            var zone = await zoneLookup.GetAsync(request.MapZoneId, cancellationToken);
+            return zone is null
+                ? (null, null, Results.ValidationProblem(new Dictionary<string, string[]> { ["MapZoneId"] = [$"Floor plan zone '{request.MapZoneId}' was not found"] }))
+                : (null, zone, null);
+        }
+
+        var geofence = await GetGeofenceAsync(request.GeofenceId!, geofenceRepository, cancellationToken);
+        return geofence is null ? (null, null, GeofenceNotFound(request.GeofenceId!)) : (geofence, null, null);
     }
 
     private static async Task<Geofence?> GetGeofenceAsync(string geofenceId, IGeofenceRepository geofenceRepository, CancellationToken cancellationToken)

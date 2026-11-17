@@ -108,6 +108,8 @@ public static class IoTAlertEndpoints
     private static async Task<IResult> CreateAlertAsync(
         CreateIoTAlertRequest request,
         IIoTAlertRepository repository,
+        IAlertRuleRepository ruleRepository,
+        A360.Tracking.Api.Alerts.AlertNotifications notifications,
         ISequenceGenerator sequenceGenerator,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
@@ -124,6 +126,13 @@ public static class IoTAlertEndpoints
 
         await repository.CreateAsync(alert, cancellationToken);
         await eventLogger.LogAsync(EntityType, alert.AlertId, Describe(alert), EventAction.Created, cancellationToken);
+
+        // Desktop notifications when the alert comes from a rule with the Push channel
+        if (alert.AlertRuleId is not null && alert.Status == IoTAlertStatus.Open)
+        {
+            var rule = await ruleRepository.GetByIdAsync(alert.AlertRuleId, cancellationToken);
+            await notifications.ScheduleAsync(alert, rule is null || rule.IsDeleted ? null : rule, cancellationToken);
+        }
 
         return Results.Created($"/api/iot-alerts/{alert.AlertId}", IoTAlertResponse.FromEntity(alert));
     }

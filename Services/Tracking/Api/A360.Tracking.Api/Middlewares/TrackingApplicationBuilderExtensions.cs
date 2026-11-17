@@ -39,6 +39,7 @@ public static class TrackingApplicationBuilderExtensions
         app.MapAssetUtilizationEndpoints();
         app.MapTelemetryReadingEndpoints();
         app.MapIoTEventEndpoints();
+        app.MapPushEndpoints();
 
         return app;
     }

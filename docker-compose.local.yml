@@ -33,4 +33,10 @@ services:
       # - UserAccount (5018): the gateway exposes only its sign-in routes (/api/auth); its own user / role endpoints
       #   must stay internal (Administration calls them inside the container)
       # - EventLog (5420): has no sign-in check of its own
+    volumes:
+      # Uploaded files (floor plans, asset images, documents) live outside the container, so a rebuild keeps them
+      - media-uploads:/app/media/uploads
     restart: unless-stopped
+
+volumes:
+  media-uploads:

@@ -15,9 +15,19 @@ public static class AlertRuleValidationExtensions
         RequireText(errors, "Name", request.Name, NameMaxLength);
         RequireText(errors, "AssetGroup", request.AssetGroup, NameMaxLength);
 
-        if (string.IsNullOrWhiteSpace(request.GeofenceId))
+        if (string.IsNullOrWhiteSpace(request.GeofenceId) && string.IsNullOrWhiteSpace(request.MapZoneId))
         {
-            errors["GeofenceId"] = ["GeofenceId is required"];
+            errors["GeofenceId"] = ["GeofenceId or MapZoneId is required"];
+        }
+
+        if (request.NotifyIntervalSeconds is < 1 or > AlertNotifyDefaults.MaxIntervalSeconds)
+        {
+            errors["NotifyIntervalSeconds"] = [$"NotifyIntervalSeconds must be between 1 and {AlertNotifyDefaults.MaxIntervalSeconds}"];
+        }
+
+        if (request.NotifyRepeat is < 0 or > AlertNotifyDefaults.MaxRepeat)
+        {
+            errors["NotifyRepeat"] = [$"NotifyRepeat must be between 0 (until acknowledged) and {AlertNotifyDefaults.MaxRepeat}"];
         }
 
         OneOf(errors, "Trigger", request.Trigger, AlertRuleTrigger.All, required: true);
