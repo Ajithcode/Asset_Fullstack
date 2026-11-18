@@ -34,13 +34,22 @@ enum _Counter { online, offline, lowBattery, alerts }
 /// Tracking & IoT hub (left screen of design/06_tracking_iot.jpg).
 /// In API mode it is [LiveTrackingHubScreen] (Tracking service + Administration maps, no mock data).
 class TrackingHubScreen extends ConsumerStatefulWidget {
-  const TrackingHubScreen({super.key, this.initialTab, this.view, this.location, this.zone, this.geofence});
+  const TrackingHubScreen({
+    super.key,
+    this.initialTab,
+    this.view,
+    this.location,
+    this.zone,
+    this.geofence,
+    this.asset,
+    this.plot,
+  });
 
   /// HubTab name, e.g. "sensors".
   final String? initialTab;
 
   /// API mode Live Map deep link ([Routes.trackingMap]).
-  final String? view, location, zone, geofence;
+  final String? view, location, zone, geofence, asset, plot;
 
   @override
   ConsumerState<TrackingHubScreen> createState() => _TrackingHubScreenState();
@@ -128,6 +137,8 @@ class _TrackingHubScreenState extends ConsumerState<TrackingHubScreen> {
         location: widget.location,
         zone: widget.zone,
         geofence: widget.geofence,
+        asset: widget.asset,
+        plot: widget.plot,
       );
     }
     ref.watch(trackingLiveProvider);

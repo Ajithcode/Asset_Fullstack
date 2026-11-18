@@ -16,6 +16,7 @@ import 'package:asset360_mobile/data/repositories/movements_repository.dart';
 import 'package:asset360_mobile/features/assets/asset_ui.dart';
 import 'package:asset360_mobile/features/assets/live/live_detail_upload.dart';
 import 'package:asset360_mobile/features/assets/more_actions/more_action_widgets.dart';
+import 'package:asset360_mobile/features/more/tracking/live/open_asset_on_map.dart';
 
 // ---------------------------------------------------------------- Action grid
 
@@ -60,7 +61,12 @@ List<AssetAction> assetActions(BuildContext context, WidgetRef ref, Asset asset,
       plain,
       DemoGuard.tap(DemoAction.assetCheckOut, () => showCheckOutSheet(context, ref, asset)),
     ),
-    (Icons.location_on_rounded, 'View on Map', plain, DemoGuard.push(context, Routes.trackAsset(id))),
+    (
+      Icons.location_on_rounded,
+      'View on Map',
+      plain,
+      DemoGuard.open(Routes.trackAsset(id), () => openAssetOnMap(context, id)),
+    ),
     (
       Icons.photo_camera_rounded,
       'Add Photo',
@@ -100,7 +106,7 @@ List<AssetAction> liveAssetActions(BuildContext context, WidgetRef ref, String r
     ),
     (Icons.warning_rounded, 'Report Issue', TileTone.peach, notYet('Report Issue')),
     (Icons.person_rounded, 'Check Out', plain, () => openMoreAction(context, MoreAction.checkInOut, registrationId)),
-    (Icons.location_on_rounded, 'View on Map', plain, notYet('View on Map')),
+    (Icons.location_on_rounded, 'View on Map', plain, () => openAssetOnMap(context, registrationId)),
     (Icons.photo_camera_rounded, 'Add Photo', plain, () => addLivePhoto(context, ref, registrationId)),
     (Icons.more_horiz_rounded, 'More Actions', plain, () => openMoreActions(context, assetId: registrationId)),
   ];

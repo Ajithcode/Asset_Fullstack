@@ -312,7 +312,13 @@ class _AddDocumentScreenState extends ConsumerState<AddDocumentScreen> {
 
 /// Dashed "Tap to upload" box, or the chosen file with a remove button.
 class DocumentUploadBox extends StatelessWidget {
-  const DocumentUploadBox({super.key, required this.file, required this.error, required this.onTap, required this.onClear});
+  const DocumentUploadBox({
+    super.key,
+    required this.file,
+    required this.error,
+    required this.onTap,
+    required this.onClear,
+  });
 
   final (String, String, double)? file;
   final bool error;

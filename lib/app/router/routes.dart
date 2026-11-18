@@ -163,9 +163,25 @@ abstract final class Routes {
   /// API mode Live Map: [view] = outdoor | floor; [location] = Master Data site / building / floor
   /// id whose published plan to show; [zone] = floor-plan zone id to highlight; [geofence] = GPS
   /// geofence id to focus.
-  static String trackingMap({String? view, String? location, String? zone, String? geofence}) => Uri(
+  /// [asset] = registration id to focus (View on Map); [plot] = its plot key on the plan.
+  static String trackingMap({
+    String? view,
+    String? location,
+    String? zone,
+    String? geofence,
+    String? asset,
+    String? plot,
+  }) => Uri(
     path: tracking,
-    queryParameters: {'tab': 'map', 'view': ?view, 'location': ?location, 'zone': ?zone, 'geofence': ?geofence},
+    queryParameters: {
+      'tab': 'map',
+      'view': ?view,
+      'location': ?location,
+      'zone': ?zone,
+      'geofence': ?geofence,
+      'asset': ?asset,
+      'plot': ?plot,
+    },
   ).toString();
 
   /// API mode sensor detail (Tracking service sensor id, e.g. SEN-T-80900).

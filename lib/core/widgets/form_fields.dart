@@ -177,10 +177,7 @@ class ScanSuffix extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Tooltip(
           message: tooltip,
-          child: SizedBox.square(
-            dimension: 32,
-            child: Icon(icon, size: 20, color: AppColors.primary),
-          ),
+          child: SizedBox.square(dimension: 32, child: Icon(icon, size: 20, color: AppColors.primary)),
         ),
       ),
     ),

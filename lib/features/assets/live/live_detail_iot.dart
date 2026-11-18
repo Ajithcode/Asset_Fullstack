@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
@@ -11,6 +9,7 @@ import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart'
 import 'package:asset360_mobile/features/home/dash_ui.dart' show dashTimeAgo;
 import 'package:asset360_mobile/features/more/tracking/live/live_asset_tracking_screen.dart';
 import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dart';
+import 'package:asset360_mobile/features/more/tracking/live/open_asset_on_map.dart';
 
 /// API mode Asset detail → IoT tab: the asset's devices / tags and sensors (Tracking service),
 /// their latest readings, a 24 h chart, and the last known (zone-level) position with
@@ -50,14 +49,13 @@ class _LiveIotTabState extends ConsumerState<LiveIotTab> {
     final sensors = sensorsOfAsset(sensorsV.requireValue, assetRegistrationId: id, keys: keys);
     final now = trackingNow();
     final chosen = sensors.where((s) => s.sensorId == _sensorId).firstOrNull ?? sensors.firstOrNull;
-    final trackKey = tracked?.key ?? id;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SectionCard(
           title: 'Last known position',
           actionLabel: 'Show on map',
-          onAction: () => context.push(Routes.trackAsset(trackKey)),
+          onAction: () => openAssetOnMap(context, id),
           child: tracked == null
               ? Text(
                   'The Tracking service has no tag, device or location event for this asset.',

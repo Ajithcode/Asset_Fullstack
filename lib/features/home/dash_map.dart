@@ -64,7 +64,7 @@ class DashAssetMap extends StatelessWidget {
                 width: 40,
                 height: 40,
                 alignment: Alignment.topCenter,
-                child: _Pin(
+                child: DashAssetPin(
                   color: dashStatusColor(a.statusGroup),
                   selected: a.assetRegistrationId == selectedId,
                   label: a.assetName ?? a.assetTag ?? a.assetRegistrationId,
@@ -87,8 +87,9 @@ class DashAssetMap extends StatelessWidget {
   }
 }
 
-class _Pin extends StatelessWidget {
-  const _Pin({required this.color, required this.selected, required this.label, this.onTap});
+/// The Home Asset Location pin (also used by the Live Map outdoor view).
+class DashAssetPin extends StatelessWidget {
+  const DashAssetPin({super.key, required this.color, required this.selected, required this.label, this.onTap});
 
   final Color color;
   final bool selected;

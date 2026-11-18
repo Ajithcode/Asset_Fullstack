@@ -26,7 +26,10 @@ class AssessLink extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TextButton.icon(
     onPressed: onTap,
-    style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 6)),
+    style: TextButton.styleFrom(
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+    ),
     icon: const Icon(Icons.calculate_outlined, size: 18),
     label: const Text('Assess'),
   );
@@ -128,10 +131,7 @@ class _AssessmentSheetState extends State<_AssessmentSheet> {
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.greyBg,
-            borderRadius: BorderRadius.circular(AppRadius.tile),
-          ),
+          decoration: BoxDecoration(color: AppColors.greyBg, borderRadius: BorderRadius.circular(AppRadius.tile)),
           child: Row(
             children: [
               Expanded(

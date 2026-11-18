@@ -21,12 +21,24 @@ enum LiveCounter { online, offline, lowBattery, alerts }
 /// Geofencing over the Tracking service and the Administration map system. No mock data.
 /// Live data polls every 5 s while this screen is visible ([LivePollingScope]).
 class LiveTrackingHubScreen extends ConsumerStatefulWidget {
-  const LiveTrackingHubScreen({super.key, this.initialTab, this.view, this.location, this.zone, this.geofence});
+  const LiveTrackingHubScreen({
+    super.key,
+    this.initialTab,
+    this.view,
+    this.location,
+    this.zone,
+    this.geofence,
+    this.asset,
+    this.plot,
+  });
 
   final String? initialTab;
 
   /// Live Map deep link (see [Routes.trackingMap]).
   final String? view, location, zone, geofence;
+
+  /// View on Map: the asset to focus and its plot key on the plan.
+  final String? asset, plot;
 
   @override
   ConsumerState<LiveTrackingHubScreen> createState() => _LiveTrackingHubScreenState();
@@ -43,7 +55,10 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
   @override
   void didUpdateWidget(LiveTrackingHubScreen old) {
     super.didUpdateWidget(old);
-    if (widget.initialTab != old.initialTab || widget.location != old.location || widget.geofence != old.geofence) {
+    if (widget.initialTab != old.initialTab ||
+        widget.location != old.location ||
+        widget.geofence != old.geofence ||
+        widget.asset != old.asset) {
       _tab = _tabOf(widget.initialTab) ?? _tab;
     }
   }
@@ -163,7 +178,11 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
                   // Geofencing shows the same live location view (no zone drawing on mobile).
                   HubTab.map || HubTab.zones => [
                     LiveLocationView(
-                      key: ValueKey('loc-${widget.view}-${widget.location}-${widget.geofence}-${widget.zone}'),
+                      key: ValueKey(
+                        'loc-${widget.view}-${widget.location}-${widget.geofence}-${widget.zone}-${widget.asset}',
+                      ),
+                      focusAsset: widget.asset,
+                      focusPlot: widget.plot,
                       initialView: widget.view,
                       initialLocation: widget.location,
                       focusZone: widget.zone,

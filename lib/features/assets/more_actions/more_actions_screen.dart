@@ -24,6 +24,7 @@ import 'package:asset360_mobile/features/assets/more_actions/print_tag_screen.da
 import 'package:asset360_mobile/features/assets/more_actions/share_asset_screen.dart';
 import 'package:asset360_mobile/features/assets/more_actions/update_condition_screen.dart';
 import 'package:asset360_mobile/features/assets/more_actions/view_on_map_screen.dart';
+import 'package:asset360_mobile/features/more/tracking/live/open_asset_on_map.dart';
 
 /// The screen for `/<tab>/more-actions/<slug>?asset=…`.
 Widget moreActionScreen(String slug, String? assetId) => switch (MoreAction.bySlug(slug)) {
@@ -33,6 +34,7 @@ Widget moreActionScreen(String slug, String? assetId) => switch (MoreAction.bySl
       child: NotAvailableYet(feature: a.title, icon: a.icon),
     ),
   ),
+  MoreAction.viewOnMap when apiMode => _LiveViewOnMap(assetId: assetId),
   MoreAction.updateCondition when apiMode => LiveUpdateConditionScreen(assetId: assetId),
   MoreAction.addDocument when apiMode => LiveAddDocumentScreen(assetId: assetId),
   MoreAction.addMedia when apiMode => LiveAddPhotoScreen(assetId: assetId),
@@ -116,6 +118,10 @@ class _MoreActionsScreenState extends ConsumerState<MoreActionsScreen> {
     }
     // A SnackBar from this screen would cover the action's sticky button.
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    if (apiMode && action == MoreAction.viewOnMap) {
+      openAssetOnMap(context, _assetId!);
+      return;
+    }
     context.push(Routes.moreActionFrom(GoRouterState.of(context).uri.path, action.slug, _assetId!));
   }
 
@@ -242,4 +248,27 @@ class MoreActionRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// API mode `/…/more-actions/map` opened directly (a link): one button to the shared View on Map.
+class _LiveViewOnMap extends StatelessWidget {
+  const _LiveViewOnMap({required this.assetId});
+
+  final String? assetId;
+
+  @override
+  Widget build(BuildContext context) => AppScaffold(
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: assetId == null
+            ? const EmptyState(icon: Icons.location_off_outlined, title: 'Select an asset first')
+            : FilledButton.icon(
+                onPressed: () => openAssetOnMap(context, assetId!),
+                icon: const Icon(Icons.location_on_outlined),
+                label: const Text('View on Map'),
+              ),
+      ),
+    ),
+  );
 }

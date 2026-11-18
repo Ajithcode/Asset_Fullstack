@@ -225,7 +225,13 @@ class _Thumb extends StatelessWidget {
           onTap: onTap,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: Image(image: photoProvider(path), errorBuilder: photoError, width: width, height: double.infinity, fit: BoxFit.cover),
+            child: Image(
+              image: photoProvider(path),
+              errorBuilder: photoError,
+              width: width,
+              height: double.infinity,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
         if (onRemove != null)

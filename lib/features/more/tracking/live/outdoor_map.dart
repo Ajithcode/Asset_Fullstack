@@ -7,7 +7,9 @@ import 'package:asset360_mobile/app/theme/app_text.dart';
 import 'package:asset360_mobile/core/platform/app_launcher.dart';
 import 'package:asset360_mobile/data/api/master_data/master_data_models.dart';
 import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart';
-import 'package:asset360_mobile/features/home/dash_map.dart' show DashAssetMap;
+import 'package:asset360_mobile/data/api/dashboard/dashboard_models.dart' show DashGeoPoint, DashLocatedAsset;
+import 'package:asset360_mobile/features/home/dash_map.dart' show DashAssetMap, DashAssetPin;
+import 'package:asset360_mobile/features/home/dash_ui.dart' show dashStatusColor;
 import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dart';
 import 'package:asset360_mobile/features/more/tracking/tracking_map.dart' show MapRoundButton;
 
@@ -104,9 +106,9 @@ List<LatLng> geofenceOutline(TrkGeofence g) {
   return pts;
 }
 
-/// OpenStreetMap view of the Live Map: site / building pins (Master Data coordinates, sites with
-/// a tracked-asset count badge), and the Tracking service's GPS geofences. There are no asset GPS
-/// positions on the server, so no asset dots are drawn here.
+/// OpenStreetMap view of the Live Map: asset pins with REAL coordinates (the Home Asset Location
+/// pins), site / building / floor pins (Master Data coordinates, live count badges), and the
+/// Tracking service's GPS geofences. Nothing is drawn at a guessed position.
 class OutdoorMap extends StatefulWidget {
   const OutdoorMap({
     super.key,
@@ -117,7 +119,22 @@ class OutdoorMap extends StatefulWidget {
     this.onPlaceTap,
     this.onGeofenceTap,
     this.onLayers,
+    this.assets = const [],
+    this.center,
+    this.selectedAssetId,
+    this.focusAssetId,
+    this.onAssetTap,
   });
+
+  /// Assets with real coordinates (Dashboard asset-locations / Asset asset-dashboard/locations),
+  /// drawn with the Home Asset Location pins.
+  final List<DashLocatedAsset> assets;
+  final DashGeoPoint? center;
+  final String? selectedAssetId;
+
+  /// View on Map: start centred on this asset.
+  final String? focusAssetId;
+  final ValueChanged<DashLocatedAsset>? onAssetTap;
 
   final List<GeoPlace> places;
   final List<TrkGeofence> geofences;
@@ -135,10 +152,16 @@ class _OutdoorMapState extends State<OutdoorMap> {
   final _map = MapController();
 
   List<LatLng> get _focusPoints {
+    final focus = widget.focusAssetId?.toLowerCase();
+    final a = focus == null
+        ? null
+        : widget.assets.where((a) => a.assetRegistrationId.toLowerCase() == focus).firstOrNull;
+    if (a != null) return [DashAssetMap.point(a)];
     final g = widget.geofences.where((g) => g.id == widget.focusGeofenceId).firstOrNull;
     if (g != null && g.coordinates.isNotEmpty) return geofenceOutline(g);
     return [
       for (final p in widget.places) p.point,
+      for (final a in widget.assets) DashAssetMap.point(a),
       if (widget.showGeofences)
         for (final g in widget.geofences) ...geofenceOutline(g),
     ];
@@ -150,7 +173,7 @@ class _OutdoorMapState extends State<OutdoorMap> {
   @override
   void didUpdateWidget(OutdoorMap old) {
     super.didUpdateWidget(old);
-    if (old.focusGeofenceId != widget.focusGeofenceId) _recenter();
+    if (old.focusGeofenceId != widget.focusGeofenceId || old.focusAssetId != widget.focusAssetId) _recenter();
   }
 
   void _recenter() {
@@ -182,7 +205,11 @@ class _OutdoorMapState extends State<OutdoorMap> {
           FlutterMap(
             mapController: _map,
             options: MapOptions(
-              initialCenter: pts.isEmpty ? const LatLng(25.2048, 55.2708) : pts.first,
+              initialCenter: pts.isNotEmpty
+                  ? pts.first
+                  : (widget.center == null
+                        ? const LatLng(25.2048, 55.2708)
+                        : LatLng(widget.center!.latitude, widget.center!.longitude)),
               initialZoom: pts.length == 1 ? 16 : 11,
               initialCameraFit: _fit(pts),
               interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
@@ -234,6 +261,19 @@ class _OutdoorMapState extends State<OutdoorMap> {
                       child: _FenceLabel(
                         fence: g,
                         onTap: widget.onGeofenceTap == null ? null : () => widget.onGeofenceTap!(g),
+                      ),
+                    ),
+                  for (final a in widget.assets)
+                    Marker(
+                      point: DashAssetMap.point(a),
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.topCenter,
+                      child: DashAssetPin(
+                        color: dashStatusColor(a.statusGroup),
+                        selected: a.assetRegistrationId == widget.selectedAssetId,
+                        label: 'Asset ${a.assetName ?? a.assetTag ?? a.assetRegistrationId}',
+                        onTap: widget.onAssetTap == null ? null : () => widget.onAssetTap!(a),
                       ),
                     ),
                   for (final p in widget.places)

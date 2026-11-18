@@ -323,6 +323,18 @@ const mapZonesJson = [
     'points': <Object>[],
     'radius': null,
     'areaM2': 864.0,
+    'location': {
+      'siteId': 'site-1',
+      'siteName': 'Dubai Factory',
+      'buildingId': 'bld-1',
+      'buildingName': 'Building A',
+      'floorId': 'flr-1',
+      'floorName': 'Ground Floor',
+      'zoneId': 'md-zb',
+      'zoneName': 'Zone B',
+      'zoneCode': 'ZB',
+      'locationPath': 'Dubai Factory > Building A > Ground Floor > Zone B',
+    },
     'active': true,
     'geofence': false,
     'entryAlert': false,
@@ -412,6 +424,30 @@ const mapPlotsJson = [
     'kind': 'asset',
     'itemId': 'AR000002',
   },
+  // Readers that hear tags (KEY RULE: lastToGatewayId = a plotted device, any letter case).
+  {
+    'code': 'C851FBF764C0',
+    'name': 'Bay reader',
+    'x': 15.0,
+    'y': 50.0,
+    'zoneId': 'Z-1',
+    'zoneName': 'Zone B',
+    'floorPlanId': 'FP-0001',
+    'kind': 'device',
+    'itemId': 'C851FBF764C0',
+    'deviceId': 'C851FBF764C0',
+  },
+  {
+    'code': 'STORE-RDR-2',
+    'name': 'Store reader',
+    'x': 62.0,
+    'y': 18.0,
+    'zoneId': 'Z-2',
+    'zoneName': 'Restricted Store',
+    'floorPlanId': 'FP-0001',
+    'kind': 'device',
+    'itemId': 'STORE-RDR-2',
+  },
 ];
 
 const mapLayersJson = [
@@ -482,17 +518,21 @@ const trkGatewaysJson = [
   {'deviceId': 'GW-DXB-01', 'deviceName': 'Dubai Gate 1', 'siteId': 'site-1', 'siteName': 'Dubai Factory'},
 ];
 
-/// Asset GET /api/asset-dashboard/location-updates: CHL-30002 (AR000001, via TS-80214) heard 2 min ago,
-/// PMP-10001 (AR000002, via BT-1001) 30 min ago — both at GW-DXB-01 → Dubai Factory; TAG-LOST
-/// last heard by a gateway that is not in the gateways list. No coordinates (as on .29).
+/// Asset GET /api/asset-dashboard/location-updates (no coordinates, as on .26 / .29):
+/// - CHL-30002 (AR000001, via TS-80214) 2 min ago by the plotted Store reader → Ground Floor ›
+///   Restricted Store (plotted in Zone B → moved);
+/// - E2801170000002089FFF (no asset) 3 min ago by the plotted Bay reader → Zone B, clustered;
+/// - PMP-10001 (AR000002, via BT-1001) 30 min ago at GW-DXB-01 → Dubai Factory (gateways list);
+/// - TAG-LOST by a gateway that is neither plotted nor in the gateways list → Unplaced.
 Map<String, Object?> locationUpdatesJson(DateTime now) => {
   'tags': [
+    // AR000001 is plotted in Zone B but was last heard by the Store reader (Restricted Store) → moved.
     {
       'tagId': 'CHL-30002',
       'count': 4,
       'lastChangedAt': now.toUtc().subtract(const Duration(minutes: 2)).toIso8601String(),
       'lastFromGatewayId': 'GW-OLD',
-      'lastToGatewayId': 'GW-DXB-01',
+      'lastToGatewayId': 'store-rdr-2',
       'lastToLatitude': null,
       'lastToLongitude': null,
     },
@@ -501,6 +541,13 @@ Map<String, Object?> locationUpdatesJson(DateTime now) => {
       'count': 1,
       'lastChangedAt': now.toUtc().subtract(const Duration(minutes: 30)).toIso8601String(),
       'lastToGatewayId': 'GW-DXB-01',
+    },
+    // A tag with no asset plot, heard by the Bay reader ("c851…" = "C851…") → clustered there.
+    {
+      'tagId': 'E2801170000002089FFF',
+      'count': 1,
+      'lastChangedAt': now.toUtc().subtract(const Duration(minutes: 3)).toIso8601String(),
+      'lastToGatewayId': 'c851fbf764c0',
     },
     {
       'tagId': 'TAG-LOST',

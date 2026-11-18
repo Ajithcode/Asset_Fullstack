@@ -16,6 +16,7 @@ import 'package:asset360_mobile/features/more/tracking/live/asset_zone_map.dart'
 import 'package:asset360_mobile/features/more/tracking/live/live_hub_lists.dart' show IotEventsCard, SensorRow;
 import 'package:asset360_mobile/features/more/tracking/live/live_map_tab.dart' show LocationEventRow;
 import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dart';
+import 'package:asset360_mobile/features/more/tracking/live/open_asset_on_map.dart';
 
 /// Sensors of an asset: same registration id, or an asset code the asset is known by.
 List<TrkSensor> sensorsOfAsset(List<TrkSensor> all, {String? assetRegistrationId, Set<String> keys = const {}}) {
@@ -195,7 +196,14 @@ class _LiveAssetTrackingScreenState extends ConsumerState<LiveAssetTrackingScree
         zoneName: zoneName,
         trail: _replay && step != null ? trail.sublist(0, _step + 1) : trail,
       ),
-      const SizedBox(height: 8),
+      Align(
+        alignment: Alignment.centerRight,
+        child: TextButton.icon(
+          onPressed: () => openAssetOnMap(context, a.assetRegistrationId ?? a.key),
+          icon: const Icon(Icons.location_on_outlined, size: 18),
+          label: const Text('View on Map'),
+        ),
+      ),
       if (_replay)
         _Replay(
           trail: trail,

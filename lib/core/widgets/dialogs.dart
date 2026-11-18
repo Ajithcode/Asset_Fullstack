@@ -139,13 +139,8 @@ Future<String?> showReasonDialog(
   return showDialog<String>(
     context: context,
     useRootNavigator: false,
-    builder: (_) => _ReasonDialog(
-      title: title,
-      message: message,
-      confirmLabel: confirmLabel,
-      hint: hint,
-      destructive: destructive,
-    ),
+    builder: (_) =>
+        _ReasonDialog(title: title, message: message, confirmLabel: confirmLabel, hint: hint, destructive: destructive),
   );
 }
 

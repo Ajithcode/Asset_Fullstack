@@ -44,7 +44,9 @@ class FloorPlan extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned.fill(
-              child: CustomPaint(painter: FloorPlanPainter(showZoneLabels: showZoneLabels, variant: variant)),
+              child: CustomPaint(
+                painter: FloorPlanPainter(showZoneLabels: showZoneLabels, variant: variant),
+              ),
             ),
             if (showLabels)
               for (final e in entities)

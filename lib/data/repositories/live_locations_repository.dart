@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:asset360_mobile/data/api/api_client.dart';
+import 'package:asset360_mobile/data/api/api_config.dart' show showServerSwitcher;
 import 'package:asset360_mobile/data/api/assets/assets_api.dart';
 import 'package:asset360_mobile/data/api/master_data/master_data_repository.dart';
 import 'package:asset360_mobile/data/repositories/dashboard_repository.dart' show dashboardApiProvider;
@@ -122,7 +123,7 @@ class LiveLocNotifier extends Notifier<LiveLocState> implements LivePoller {
     try {
       // Future.wait listens to every call, so a second failure is never left unhandled.
       final r = await Future.wait<Object?>([
-        ref.read(apiClientProvider).get<Object?>(locationUpdatesPath).then((r) => r.data),
+        ref.read(apiClientProvider).get<Object?>(locationUpdatesPath, query: {'days': 1}).then((r) => r.data),
         if (slow) ref.read(trackingClientProvider).get<Object?>(gatewaysPath).then((r) => r.data),
         if (slow) _networkTags(),
       ]);
@@ -161,14 +162,42 @@ class LiveLocNotifier extends Notifier<LiveLocState> implements LivePoller {
 
 final liveLocProvider = NotifierProvider<LiveLocNotifier, LiveLocState>(LiveLocNotifier.new);
 
-/// Location ids with a PUBLISHED Administration floor plan (empty when the call fails).
-final publishedPlanLocationsProvider = FutureProvider.autoDispose<Set<String>>((ref) async {
-  try {
-    final plans = await ref.watch(adminMapsApiProvider).getFloorPlans(status: 'Published');
-    return {for (final p in plans) p.locationId};
-  } catch (_) {
-    return const {};
+/// Floor plans the phone shows ([planVisible]: Published; Draft too in developer builds).
+final visibleFloorPlansProvider = FutureProvider.autoDispose<List<MapFloorPlan>>((ref) async {
+  final plans = await ref.watch(adminMapsApiProvider).getFloorPlans();
+  return [
+    for (final p in plans)
+      if (planVisible(p, dev: showServerSwitcher)) p,
+  ];
+});
+
+/// The plan shown for a Master Data location (floor) id, or null.
+final floorPlanForProvider = FutureProvider.autoDispose.family<MapFloorPlan?, String>((ref, locationId) async {
+  final plans = await ref.watch(visibleFloorPlansProvider.future);
+  return planForLocation(plans, locationId, dev: showServerSwitcher);
+});
+
+/// Zones + plots of every visible plan (4 plans at a time; a plan that fails is left out): the
+/// device plots that place tags (KEY RULE).
+final planDataProvider = FutureProvider.autoDispose<List<PlanData>>((ref) async {
+  final api = ref.watch(adminMapsApiProvider);
+  final plans = await ref.watch(visibleFloorPlansProvider.future);
+  final out = <PlanData>[];
+  for (var i = 0; i < plans.length; i += 4) {
+    final chunk = plans.skip(i).take(4).toList();
+    final got = await Future.wait(
+      chunk.map((p) async {
+        try {
+          final r = await Future.wait<Object>([api.getZones(p.floorPlanId), api.getPlots(p.floorPlanId)]);
+          return (plan: p, zones: r[0] as List<MapZone>, plots: r[1] as List<MapPlot>);
+        } catch (_) {
+          return null;
+        }
+      }),
+    );
+    out.addAll(got.nonNulls);
   }
+  return out;
 });
 
 /// Registered places of the linked assets; key = registration ids joined by ",". One GET per
@@ -225,8 +254,11 @@ final locationTreeProvider = Provider.autoDispose.family<LocationTreeData, Strin
     buildings: ref.watch(mdBuildingsProvider).value ?? const [],
     floors: ref.watch(mdFloorsProvider).value ?? const [],
     zones: ref.watch(mdZonesProvider).value ?? const [],
-    planLocationIds: ref.watch(publishedPlanLocationsProvider).value ?? const {},
+    planLocationIds: {
+      for (final p in ref.watch(visibleFloorPlansProvider).value ?? const <MapFloorPlan>[]) p.locationId,
+    },
   );
+  final places = devicePlaces(ref.watch(planDataProvider).value ?? const [], md);
   if (!live.loaded) return LocationTreeData(md: md, error: live.error);
   final links = tagLinks(devices, live.networkTags);
   final heard = {for (final u in live.updates!) u.tagId.trim().toLowerCase()};
@@ -244,6 +276,7 @@ final locationTreeProvider = Provider.autoDispose.family<LocationTreeData, Strin
       registered: registered,
       alerts: alerts,
       md: md,
+      devicePlaces: places,
       query: query,
     ),
     md: md,
@@ -257,5 +290,6 @@ void refreshLocations(WidgetRef ref) {
   unawaited(ref.read(liveLocProvider.notifier).refresh());
   ref
     ..invalidate(registeredPlacesProvider)
-    ..invalidate(publishedPlanLocationsProvider);
+    ..invalidate(visibleFloorPlansProvider)
+    ..invalidate(planDataProvider);
 }

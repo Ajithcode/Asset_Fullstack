@@ -1,3 +1,4 @@
+import 'package:asset360_mobile/data/api/admin/map_models.dart';
 import 'package:asset360_mobile/data/api/assets/json_read.dart';
 import 'package:asset360_mobile/data/api/master_data/master_data_models.dart';
 import 'package:asset360_mobile/data/api/tracking/tracking_models.dart';
@@ -149,7 +150,12 @@ class LiveTagAsset {
     this.registered,
     this.unplaced,
     this.moves = 0,
+    this.near,
   });
+
+  /// The PLOTTED device that last heard the tag (KEY RULE: lastToGatewayId = a device plot):
+  /// gives the live floor / zone and "near" position. Null = placed by the gateways list only.
+  final DevicePlace? near;
 
   final String tagId;
   final String? assetRegistrationId, assetName;
@@ -171,7 +177,9 @@ class LiveTagAsset {
   String get title => assetName ?? assetRegistrationId ?? 'Tag $tagId';
 
   /// "near Gate 1" / "Unknown gateway GW-9" / "No gateway reported".
-  String get nearLabel => gatewayId == null
+  String get nearLabel => near != null
+      ? 'near ${near!.deviceLabel}'
+      : gatewayId == null
       ? 'No gateway reported'
       : gateway == null
       ? 'Unknown gateway $gatewayId'
@@ -183,7 +191,14 @@ class LiveTagAsset {
   bool matches(String query) {
     final q = _norm(query);
     if (q.isEmpty) return true;
-    return [tagId, assetRegistrationId, assetName, gatewayId, gateway?.deviceName].any((s) => _norm(s).contains(q));
+    return [
+      tagId,
+      assetRegistrationId,
+      assetName,
+      gatewayId,
+      gateway?.deviceName,
+      near?.deviceLabel,
+    ].any((s) => _norm(s).contains(q));
   }
 }
 
@@ -296,6 +311,7 @@ LocationTree buildLocationTree({
   Map<String, RegisteredPlace> registered = const {},
   List<TrkAlert> alerts = const [],
   LocationMasterData md = const LocationMasterData(),
+  Map<String, DevicePlace> devicePlaces = const {},
   String query = '',
 }) {
   final gw = {for (final g in gateways) _norm(g.deviceId): g};
@@ -335,6 +351,36 @@ LocationTree buildLocationTree({
     final link = links[_norm(u.tagId)];
     final regId = link?.assetRegistrationId;
     final gwId = u.lastToGatewayId;
+    // KEY RULE first: the gateway id is a PLOTTED device (case-insensitive) → its zone / floor / site.
+    final dp = gwId == null ? null : devicePlaces[_norm(gwId)];
+    if (dp != null && dp.siteId != null) {
+      final asset = LiveTagAsset(
+        tagId: u.tagId,
+        assetRegistrationId: regId,
+        assetName: link?.assetName,
+        gatewayId: gwId,
+        gateway: gw[_norm(gwId)],
+        lastChangedAt: u.lastChangedAt,
+        battery: link?.battery,
+        alerts: regId == null ? 0 : (alertsOf[_norm(regId)] ?? 0),
+        moves: u.count,
+        near: dp,
+      );
+      if (!asset.matches(query)) continue;
+      var at = sites.putIfAbsent(
+        dp.siteId!,
+        () => LocNode(level: LocLevel.site, id: dp.siteId!, name: siteName(dp.siteId!, dp.siteName)),
+      );
+      if (dp.buildingId != null) {
+        at = child(at, LocLevel.building, dp.buildingId!, spaceName(md.buildings, dp.buildingId!, dp.buildingName));
+        if (dp.floorId != null) {
+          at = child(at, LocLevel.floor, dp.floorId!, spaceName(md.floors, dp.floorId!, dp.floorName));
+          if (dp.zoneId != null) at = child(at, LocLevel.zone, dp.zoneId!, dp.zoneName ?? dp.zoneId!);
+        }
+      }
+      at.assets.add(asset);
+      continue;
+    }
     final g = gwId == null ? null : gw[_norm(gwId)];
     final reason = gwId == null
         ? UnplacedReason.noGateway
@@ -398,4 +444,166 @@ bool hasMapCoordinates(LocationMasterData md) {
   return md.sites.any((s) => ok(s.latitude, s.longitude)) ||
       md.buildings.any((b) => ok(b.latitude, b.longitude)) ||
       md.floors.any((f) => ok(f.latitude, f.longitude));
+}
+
+// ------------------------------------------------------------------ device plots (KEY RULE)
+
+/// `asset:{id}` / `device:{id}`.
+String plotKeyOf(MapPlot p) => '${p.kind}:${p.itemId}';
+
+/// One floor plan with its zones and plots.
+typedef PlanData = ({MapFloorPlan plan, List<MapZone> zones, List<MapPlot> plots});
+
+/// A PLOTTED device and where it is: plan, map zone, and the Master Data site / building / floor /
+/// zone (from the zone's `location`, else the plot's, else the plan's floor).
+class DevicePlace {
+  const DevicePlace({
+    required this.plot,
+    required this.plan,
+    this.zone,
+    this.siteId,
+    this.siteName,
+    this.buildingId,
+    this.buildingName,
+    this.floorId,
+    this.floorName,
+    this.zoneId,
+    this.zoneName,
+  });
+
+  final MapPlot plot;
+  final MapFloorPlan plan;
+
+  /// The map zone the device is plotted in.
+  final MapZone? zone;
+  final String? siteId, siteName, buildingId, buildingName, floorId, floorName;
+
+  /// Tree zone id: the Master Data zone, else `map:{map zoneId}`.
+  final String? zoneId, zoneName;
+
+  String get deviceLabel => plot.label;
+  String? get mapZoneId => plot.zoneId;
+}
+
+/// Every plotted device of [plans], keyed by each of its ids (itemId / deviceId / code) in lower
+/// case, so "c851fbf764c0" finds the plot "C851FBF764C0". Published plans win over drafts.
+Map<String, DevicePlace> devicePlaces(List<PlanData> plans, LocationMasterData md) {
+  final out = <String, DevicePlace>{};
+  final ordered = [...plans]..sort((a, b) => (a.plan.isPublished ? 0 : 1).compareTo(b.plan.isPublished ? 0 : 1));
+  for (final d in ordered) {
+    final floor = md.floors.where((f) => f.id == d.plan.locationId).firstOrNull;
+    final building = md.buildings.where((b) => b.id == floor?.buildingId).firstOrNull;
+    for (final p in d.plots) {
+      if (!p.isDevice) continue;
+      final zone = d.zones.where((z) => z.zoneId == p.zoneId).firstOrNull;
+      final loc = zone?.location ?? p.location;
+      final place = DevicePlace(
+        plot: p,
+        plan: d.plan,
+        zone: zone,
+        siteId: loc?.siteId ?? floor?.site?.id ?? building?.site?.id,
+        siteName: loc?.siteName ?? floor?.site?.name ?? building?.site?.name,
+        buildingId: loc?.buildingId ?? floor?.buildingId,
+        buildingName: loc?.buildingName ?? floor?.buildingName,
+        floorId: loc?.floorId ?? floor?.id ?? (d.plan.locationType.toLowerCase() == 'floor' ? d.plan.locationId : null),
+        floorName: loc?.floorName ?? floor?.name,
+        zoneId: zone == null && p.zoneId == null ? null : (loc?.zoneId ?? 'map:${zone?.zoneId ?? p.zoneId}'),
+        zoneName: zone?.label ?? loc?.zoneName ?? p.zoneName,
+      );
+      for (final k in p.deviceKeys) {
+        out.putIfAbsent(k, () => place);
+      }
+    }
+  }
+  return out;
+}
+
+/// Floor plans the phone shows: Published always; Draft only in developer builds; Archived never.
+bool planVisible(MapFloorPlan p, {required bool dev}) => p.isPublished || (dev && p.isDraft);
+
+/// The plan to show for a floor: the newest Published, else (dev builds) the newest Draft.
+MapFloorPlan? planForLocation(List<MapFloorPlan> plans, String locationId, {required bool dev}) {
+  final mine =
+      [
+        for (final p in plans)
+          if (p.locationId == locationId && planVisible(p, dev: dev)) p,
+      ]..sort((a, b) {
+        final s = (a.isPublished ? 0 : 1).compareTo(b.isPublished ? 0 : 1);
+        return s != 0 ? s : (b.publishedAt ?? DateTime(0)).compareTo(a.publishedAt ?? DateTime(0));
+      });
+  return mine.firstOrNull;
+}
+
+/// Online state of a plotted device: the server's status when it says online / offline, else
+/// last seen within [staleAfter].
+bool deviceOnline(TrkDevice? d, DateTime now) {
+  if (d == null) return false;
+  final s = _norm(d.status);
+  if (const {'online', 'active', 'connected'}.contains(s)) return true;
+  if (const {'offline', 'inactive', 'disconnected'}.contains(s)) return false;
+  final seen = d.lastSeenAt;
+  return seen != null && now.difference(seen) <= staleAfter;
+}
+
+/// What one floor plan shows live.
+class FloorLive {
+  const FloorLive({
+    this.byZone = const {},
+    this.clusters = const {},
+    this.plotted = const {},
+    this.moved = const {},
+    this.live = const [],
+  });
+
+  /// Map zone id → live assets whose tag was last heard by a device plotted in that zone.
+  final Map<String, List<LiveTagAsset>> byZone;
+
+  /// Device [plotKeyOf] → live assets near it that have NO asset plot on this plan.
+  final Map<String, List<LiveTagAsset>> clusters;
+
+  /// Asset [plotKeyOf] → its live tag (anywhere).
+  final Map<String, LiveTagAsset> plotted;
+
+  /// Asset plot keys whose live zone differs from the plotted zone.
+  final Set<String> moved;
+
+  /// Every live asset heard on this plan.
+  final List<LiveTagAsset> live;
+}
+
+/// Joins the tree's live assets with one plan's plots.
+FloorLive buildFloorLive({
+  required MapFloorPlan plan,
+  required List<MapPlot> plots,
+  required Iterable<LiveTagAsset> assets,
+}) {
+  final all = assets.toList();
+  final live = [
+    for (final a in all)
+      if (a.near?.plan.floorPlanId == plan.floorPlanId) a,
+  ];
+  final byZone = <String, List<LiveTagAsset>>{};
+  for (final a in live) {
+    final z = a.near!.mapZoneId;
+    if (z != null) (byZone[z] ??= []).add(a);
+  }
+  final plotted = <String, LiveTagAsset>{};
+  final moved = <String>{};
+  final plottedIds = <String>{};
+  for (final p in plots) {
+    final id = p.assetId;
+    if (id == null) continue;
+    plottedIds.add(_norm(id));
+    final a = all.where((a) => _norm(a.assetRegistrationId) == _norm(id)).firstOrNull;
+    if (a == null) continue;
+    plotted[plotKeyOf(p)] = a;
+    final n = a.near;
+    if (n != null && (n.plan.floorPlanId != plan.floorPlanId || n.mapZoneId != p.zoneId)) moved.add(plotKeyOf(p));
+  }
+  final clusters = <String, List<LiveTagAsset>>{};
+  for (final a in live) {
+    if (a.assetRegistrationId != null && plottedIds.contains(_norm(a.assetRegistrationId))) continue;
+    (clusters[plotKeyOf(a.near!.plot)] ??= []).add(a);
+  }
+  return FloorLive(byZone: byZone, clusters: clusters, plotted: plotted, moved: moved, live: live);
 }

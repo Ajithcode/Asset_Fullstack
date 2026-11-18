@@ -224,6 +224,22 @@
   `LivePollingScope(poller:)`; `locationTreeProvider(query)`, `registeredPlacesProvider`). Map pins = live counts
   (`geoPlaces(liveCount:)`, floors too); a floor without a published plan but with a Master Data picture =
   `FloorPictureView` + `LiveZoneCounts`. Never invent coordinates; no zone drawing on mobile (`LiveGeofencingTab` unused).
+  KEY RULE (wins over the gateways list): `lastToGatewayId` = a PLOTTED device (plot itemId / deviceId / code, case-
+  insensitive) → `devicePlaces` (that device's map zone, zone `location` / plan floor → Master Data site / building /
+  floor / zone). Plans: `visibleFloorPlansProvider` (`planVisible`: Published; Draft only when SHOW_SERVER_SWITCHER;
+  Archived never), `floorPlanForProvider(floorId)`, `planDataProvider` (zones + plots of every visible plan). Floor plan
+  view (`_PlanView` in live_map_tab.dart + `FloorPlanMap(live:)`): frame = image's real pixels (`frameFor`), zones 25 %
+  fill (geofence dashed), live badge "N assets · M alerts", `buildFloorLive` → asset plot status / "moved" badge /
+  device clusters (`FloorLive`), `showLiveZoneSheet`, `FloorPlanLegend`, `LiveUpdatedAgo`; markers keyed
+  `plot-{kind}:{itemId}`. location-updates polled with `days=1`. Without coordinates the second toggle is "Floor plans"
+  (Site → Building → Floor pickers, map icon on floors with a plan); the Outdoor view only with coordinates.
+  OUTDOOR map whenever ANY source has coordinates (`geoAssetsProvider` in data/repositories/asset_map_repository.dart:
+  Dashboard /mobile/asset-locations + Asset /api/asset-dashboard/locations pins, or Master Data): `OutdoorMap(assets:)`
+  draws the Home `DashAssetPin`s; a pin's card offers "Floor plan". Toggle order Map → Floor plans → Tree (`LocationMode`;
+  `LiveMapTab(view:, onViewChanged:)` is controlled). VIEW ON MAP = `openAssetOnMap(context, id)`
+  (live/open_asset_on_map.dart → `resolveAssetMapTarget`: live zone via tag → plot → coordinates → SnackBar "This asset
+  has no map location yet"); route `Routes.trackingMap(asset:, plot:)` zooms (`FloorPlanMap(focus:)`) / centres
+  (`OutdoorMap(focusAssetId:)`). Used by the asset grids, More Actions, live scan result, IoT tab, Asset Tracking.
   Tests `test/live/live_location_tree_test.dart`.
   Report: `docs/tracking_iot_report.md`; tests `test/live/tracking_live_test.dart` (+ `tracking_samples.dart`).
 - Scan (prompt 07): `features/assets/scan/` — `scan_screen.dart` (QR camera + simulated NFC/RFID/BLE, Manual Entry, Multi Scan,

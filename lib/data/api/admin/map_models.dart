@@ -53,6 +53,8 @@ class MapFloorPlan {
   final int zoneCount, plotCount;
 
   bool get isPublished => status == 'Published';
+  bool get isDraft => status == 'Draft';
+  bool get isArchived => status == 'Archived';
 
   /// PNG / JPG can be drawn as the map; PDF / SVG / DWG / DXF cannot (no renderer on the phone).
   bool get isImage =>
@@ -84,6 +86,43 @@ class MapFloorPlan {
       _list(body, MapFloorPlan.fromJson).where((p) => p.floorPlanId.isNotEmpty).toList();
 }
 
+/// The Master Data location a zone / plot belongs to (`location {…}` of zones and plots):
+/// [zoneId] = the MASTER DATA zone (not the map zoneId).
+class MapLocationRef {
+  const MapLocationRef({
+    this.siteId,
+    this.siteName,
+    this.buildingId,
+    this.buildingName,
+    this.floorId,
+    this.floorName,
+    this.zoneId,
+    this.zoneName,
+    this.zoneCode,
+    this.locationPath,
+  });
+
+  final String? siteId, siteName, buildingId, buildingName, floorId, floorName, zoneId, zoneName, zoneCode;
+  final String? locationPath;
+
+  static MapLocationRef? fromJson(Object? v) {
+    if (v is! Map) return null;
+    final j = jMap(v);
+    return MapLocationRef(
+      siteId: _o(j, 'siteId'),
+      siteName: _o(j, 'siteName'),
+      buildingId: _o(j, 'buildingId'),
+      buildingName: _o(j, 'buildingName'),
+      floorId: _o(j, 'floorId'),
+      floorName: _o(j, 'floorName'),
+      zoneId: _o(j, 'zoneId'),
+      zoneName: _o(j, 'zoneName'),
+      zoneCode: _o(j, 'zoneCode'),
+      locationPath: _o(j, 'locationPath'),
+    );
+  }
+}
+
 /// GET /maps/floor-plans/{id}/zones (`ZoneResponse`). [shape] = Polygon / Rectangle / Circle /
 /// Custom. [x] / [y] / [w] / [h] = bounding box (always sent); [points] = outline of Polygon /
 /// Custom; [radius] = circle radius in percent of the plan width.
@@ -111,7 +150,10 @@ class MapZone {
     this.exitAlert = false,
     this.dwellAlert = false,
     this.dwellMinutes = 0,
+    this.location,
   });
+
+  final MapLocationRef? location;
 
   final String zoneId, floorPlanId, code, name, type, shape;
   final String? color, description, accessRule;
@@ -123,9 +165,11 @@ class MapZone {
 
   String get label => name.isNotEmpty ? name : code;
 
-  /// Centre of the bounding box (a circle's centre: the server keeps no separate centre, so
-  /// the box centre is used; a zero-size box means [x] / [y] IS the centre).
-  PlanPoint get center => (w == 0 && h == 0) ? (x: x, y: y) : (x: x + w / 2, y: y + h / 2);
+  bool get isCircle => shape.toLowerCase() == 'circle';
+
+  /// A circle's centre is [x] / [y]; other shapes: the centre of the bounding box (a zero-size
+  /// box means [x] / [y] IS the centre).
+  PlanPoint get center => (isCircle || (w == 0 && h == 0)) ? (x: x, y: y) : (x: x + w / 2, y: y + h / 2);
 
   /// The outline in plan percent: polygon points; a rectangle's 4 corners; a circle as a
   /// [segments]-sided polygon (radius = percent of the plan WIDTH, so it is scaled by
@@ -172,6 +216,7 @@ class MapZone {
     exitAlert: jBool(j['exitAlert']),
     dwellAlert: jBool(j['dwellAlert']),
     dwellMinutes: jInt(j['dwellMinutes']) ?? 0,
+    location: MapLocationRef.fromJson(j['location']),
   );
 
   static List<MapZone> parseList(Object? body) =>
@@ -197,12 +242,31 @@ class MapPlot {
     this.status,
     this.orientation = 0,
     this.zoneId,
+    this.zoneName,
+    this.assetRegistrationId,
+    this.deviceId,
+    this.location,
     this.updatedAt,
   });
 
   final String kind, itemId, floorPlanId;
   final double x, y, orientation;
-  final String? code, name, type, assetType, model, serial, status, zoneId;
+  final String? code, name, type, assetType, model, serial, status, zoneId, zoneName;
+
+  /// Asset plots: the registration id ([itemId] when not sent); device plots: the IoT device id.
+  final String? assetRegistrationId, deviceId;
+  final MapLocationRef? location;
+
+  /// The asset this plot shows (asset plots only).
+  String? get assetId => isAsset ? (assetRegistrationId ?? itemId) : null;
+
+  /// Every id a gateway / device may be reported by (device plots), lower case.
+  Set<String> get deviceKeys => isDevice
+      ? {
+          for (final k in [itemId, deviceId, code])
+            if (k != null && k.trim().isNotEmpty) k.trim().toLowerCase(),
+        }
+      : const {};
   final DateTime? updatedAt;
 
   bool get isAsset => kind == 'asset';
@@ -224,6 +288,10 @@ class MapPlot {
     status: _o(j, 'status'),
     orientation: jNum(j['orientation']) ?? 0,
     zoneId: _o(j, 'zoneId'),
+    zoneName: _o(j, 'zoneName'),
+    assetRegistrationId: _o(j, 'assetRegistrationId'),
+    deviceId: _o(j, 'deviceId'),
+    location: MapLocationRef.fromJson(j['location']),
     updatedAt: jUtc(j['updatedAt']),
   );
 

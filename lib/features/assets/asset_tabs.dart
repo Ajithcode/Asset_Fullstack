@@ -20,6 +20,7 @@ import 'package:asset360_mobile/data/repositories/session_repository.dart';
 import 'package:asset360_mobile/data/repositories/sync_repository.dart';
 import 'package:asset360_mobile/data/repositories/tracking_repository.dart';
 import 'package:asset360_mobile/features/assets/asset_ui.dart';
+import 'package:asset360_mobile/features/more/tracking/live/open_asset_on_map.dart';
 
 /// Full-width primary button under a tab's cards.
 class _TabButton extends StatelessWidget {
@@ -186,7 +187,7 @@ class AssetLocationTab extends ConsumerWidget {
               DemoGuard(
                 route: Routes.trackAsset(asset.id),
                 child: OutlinedButton.icon(
-                  onPressed: () => context.push(Routes.trackAsset(asset.id)),
+                  onPressed: () => openAssetOnMap(context, asset.id),
                   icon: const Icon(Icons.map_outlined, size: 20),
                   label: const Text('View on Map'),
                 ),

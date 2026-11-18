@@ -9,6 +9,7 @@ import 'package:asset360_mobile/data/api/api_client.dart';
 import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/token_store.dart';
 import 'package:asset360_mobile/data/repositories/network_repository.dart';
+import 'package:asset360_mobile/data/repositories/live_locations_repository.dart';
 import 'package:asset360_mobile/data/repositories/session_repository.dart';
 import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart';
 import 'package:asset360_mobile/features/auth/splash_screen.dart';
@@ -213,9 +214,10 @@ void main() {
       expect(f.topLeft.latitude, lessThanOrEqualTo(90));
     });
 
-    test('plan size: metres when both are set, else the drawing', () {
+    test('plan size: the image\'s real pixels first (zones are % of the image), else metres', () {
       final p = MapFloorPlan.parseList(mapFloorPlansJson).single;
-      expect(frameFor(p, null).aspect, closeTo(2, 1e-9));
+      expect(frameFor(p, null).aspect, closeTo(2, 1e-9), reason: '120 x 60 m, no image');
+      expect(frameFor(p, PlanImage(Uint8List(0), 1600, 1200)).aspect, closeTo(4 / 3, 1e-9));
       const noSize = MapFloorPlan(floorPlanId: 'x', locationId: 'y');
       expect(frameFor(noSize, PlanImage(Uint8List(0), 300, 100)).aspect, closeTo(3, 1e-9));
       expect(frameFor(noSize, null).aspect, 1);
@@ -554,30 +556,79 @@ void main() {
       expect(f, findsWidgets, reason: reason);
     }
 
-    testWidgets('floor plan: zones, zone occupancy, plotted markers, counters; polling while visible', (tester) async {
+    testWidgets('floor plan: live zone counts, moved asset, device cluster, legend; polling while visible', (
+      tester,
+    ) async {
       final c = await open(tester, '/more/tracking?tab=map&view=floor&location=flr-1');
       expect(c.read(trkLiveProvider).polling, isTrue);
+      expect(c.read(liveLocProvider).polling, isTrue);
       expect(find.byType(FloorPlanMap), findsOneWidget);
-      expect(find.text('Zone B · 1'), findsOneWidget, reason: 'AR000001 entered Zone B');
-      expect(find.text('Restricted Store'), findsOneWidget);
-      // Server layer defaults: devices hidden → 2 asset markers.
-      expect(find.bySemanticsLabel('Asset Chiller Unit 2'), findsOneWidget);
+      // LIVE counts (KEY RULE): the Bay reader heard one tag in Zone B, the Store reader CHL-30002.
+      expect(find.bySemanticsLabel('Zone B, 1 asset'), findsOneWidget);
+      // AR000001 has an open IoT alert → "1 asset · 1 alert".
+      expect(find.bySemanticsLabel('Restricted Store, 1 asset · 1 alert, geofence'), findsOneWidget);
+      expect(find.text('1 asset · 1 alert'), findsOneWidget);
+      expect(find.bySemanticsLabel('Charging Zone, 0 assets'), findsOneWidget);
+      // Server layer defaults: devices hidden → 2 asset markers; AR000001 was plotted in Zone B
+      // but heard in Restricted Store → "moved".
+      expect(find.bySemanticsLabel('Asset Chiller Unit 2, moved'), findsOneWidget);
       expect(find.bySemanticsLabel('Asset Pump 1'), findsOneWidget);
-      expect(find.bySemanticsLabel('Device Chiller tracker'), findsNothing);
+      expect(find.bySemanticsLabel(RegExp('^Device ')), findsNothing);
       expect(find.text('Ground Floor'), findsWidgets);
       expect(find.textContaining('PDF'), findsOneWidget, reason: 'non-image plan note');
-      // Counters: 1 online, 2 offline, 1 low battery, 1 open alert.
-      expect(find.text('Online'), findsWidgets);
-      await tester.tap(find.bySemanticsLabel('Asset Chiller Unit 2'));
+      expect(find.textContaining(RegExp(r'^Updated \d+ s ago')), findsOneWidget);
+      expect(find.text('Moved'), findsOneWidget, reason: 'legend');
+      // Devices on: the Bay reader carries a cluster badge (1 unplotted live tag); tap → list.
+      await tester.tap(find.byTooltip('Layers'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Devices'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+      final bay = find.byKey(const ValueKey('plot-device:C851FBF764C0'));
+      expect(bay, findsOneWidget);
+      expect(find.byKey(const ValueKey('plot-device:STORE-RDR-2')), findsOneWidget);
+      expect(
+        find.descendant(of: bay, matching: find.text('1')),
+        findsOneWidget,
+        reason: 'cluster badge',
+      );
+      // Lift the map above the bottom bar (drag in the page gutter: a drag on the map pans it).
+      await tester.dragFrom(const Offset(4, 400), const Offset(0, -250));
+      await tester.pumpAndSettle();
+      await tester.tap(bay);
+      await tester.pumpAndSettle();
+      expect(find.text('Near Bay reader'), findsOneWidget);
+      expect(find.text('Tag E2801170000002089FFF'), findsOneWidget);
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Asset Chiller Unit 2, moved'));
       await tester.pumpAndSettle();
       await see(tester, find.text('View Details'));
+      expect(find.text('Now near Store reader in Restricted Store'), findsOneWidget);
       expect(find.text('Plotted position (Administration → Maps)'), findsOneWidget);
-      await see(tester, find.text('Tracked assets by zone (2)'), reason: 'Zone B + Charging Zone');
+      await see(tester, find.text('Live assets by zone (2)'), reason: 'Zone B + Restricted Store');
 
-      // Leaving the screen stops polling.
+      // Zone sheet: location path, live assets, plotted devices.
+      // (Its map label sits under the Store reader marker: open it from the live zone list.)
+      final row = find.widgetWithText(ListTile, 'Restricted Store');
+      await see(tester, row);
+      await tester.ensureVisible(row);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(find.text('Live assets (1)'), findsOneWidget);
+      expect(find.text('Plotted devices (1)'), findsOneWidget);
+      expect(find.text('Store reader'), findsOneWidget);
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      // Leaving the screen stops both pollers.
       c.read(routerProvider).go('/more');
       await tester.pumpAndSettle();
       expect(c.read(trkLiveProvider).polling, isFalse);
+      expect(c.read(liveLocProvider).polling, isFalse);
     });
 
     testWidgets('a floor without a published plan says so', (tester) async {
@@ -588,7 +639,7 @@ void main() {
     testWidgets('outdoor: site pin with its tracked count and the GPS geofences', (tester) async {
       await open(tester, '/more/tracking?tab=map&view=outdoor');
       expect(find.byType(OutdoorMap), findsOneWidget);
-      expect(find.bySemanticsLabel('Site Dubai Factory, 2 tracked'), findsOneWidget);
+      expect(find.bySemanticsLabel('Site Dubai Factory, 3 tracked'), findsOneWidget, reason: 'live count');
       expect(find.text('Factory perimeter'), findsOneWidget);
     });
 

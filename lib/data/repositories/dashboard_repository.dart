@@ -73,8 +73,7 @@ final dashMaintenanceProvider = FutureProvider.autoDispose.family<DashMaintenanc
 typedef DashActivitiesQuery = ({DateTime? from, DateTime? to, String? type, String? site});
 
 final dashActivitiesProvider = FutureProvider.autoDispose.family<DashActivities, DashActivitiesQuery>(
-  (ref, q) =>
-      ref.watch(dashboardApiProvider).getUpcomingActivities(from: q.from, to: q.to, type: q.type, site: q.site),
+  (ref, q) => ref.watch(dashboardApiProvider).getUpcomingActivities(from: q.from, to: q.to, type: q.type, site: q.site),
 );
 
 /// Query of GET /mobile/asset-locations.

@@ -90,6 +90,7 @@ enum MoreAction {
     printTag ||
     share ||
     checkInOut ||
+    viewOnMap ||
     assignCustodian => true,
     _ => false,
   };

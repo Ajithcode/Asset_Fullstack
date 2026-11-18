@@ -107,10 +107,14 @@ class TrkDevice {
     this.lastSeenAt,
     this.health,
     this.firmwareVersion,
+    this.status,
   });
 
   final String deviceId, deviceName, deviceType, model, connectivity, powerSource;
   final String? siteId, siteName, assetRegistrationId, assetCode, assetName, gateway, health, firmwareVersion;
+
+  /// Online / Offline / Active … as the server sends it (the .26 / .29 servers).
+  final String? status;
   final int? batteryLevel;
   final DateTime? lastSeenAt;
 
@@ -132,7 +136,8 @@ class TrkDevice {
     // The .29 server sends `batteryPercent`; the contract says `batteryLevel`.
     batteryLevel: jInt(j['batteryLevel']) ?? jInt(j['batteryPercent']),
     lastSeenAt: jUtc(j['lastSeenAt']),
-    health: _o(j, 'health') ?? _o(j, 'status'),
+    health: _o(j, 'health'),
+    status: _o(j, 'status'),
     firmwareVersion: _o(j, 'firmwareVersion'),
   );
 

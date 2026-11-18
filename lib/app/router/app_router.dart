@@ -482,6 +482,8 @@ GoRoute _moreRoute() => GoRoute(
         location: state.uri.queryParameters['location'],
         zone: state.uri.queryParameters['zone'],
         geofence: state.uri.queryParameters['geofence'],
+        asset: state.uri.queryParameters['asset'],
+        plot: state.uri.queryParameters['plot'],
       ),
       routes: [
         GoRoute(

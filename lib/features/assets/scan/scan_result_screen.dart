@@ -13,6 +13,7 @@ import 'package:asset360_mobile/data/models/asset.dart';
 import 'package:asset360_mobile/data/repositories/assets_repository.dart';
 import 'package:asset360_mobile/features/assets/asset_actions.dart';
 import 'package:asset360_mobile/features/assets/asset_ui.dart';
+import 'package:asset360_mobile/features/more/tracking/live/open_asset_on_map.dart';
 
 /// Asset Identified (middle screen of design/05_scan_identify.jpg): success banner, the asset
 /// card and a 3×3 grid of actions, each opened for this asset.
@@ -193,6 +194,12 @@ class _LiveScanResult extends ConsumerWidget {
             onPressed: open,
             icon: const Icon(Icons.view_list_rounded),
             label: const Text('View Details'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => openAssetOnMap(context, assetId),
+            icon: const Icon(Icons.location_on_outlined),
+            label: const Text('View on Map'),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(

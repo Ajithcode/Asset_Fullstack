@@ -7,12 +7,12 @@ import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/api/master_data/master_data_repository.dart';
+import 'package:asset360_mobile/data/repositories/asset_map_repository.dart';
 import 'package:asset360_mobile/data/repositories/live_locations_repository.dart';
 import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart';
-import 'package:asset360_mobile/features/home/dash_ui.dart' show dashTimeAgo;
+import 'package:asset360_mobile/features/home/dash_ui.dart' show DashStatusChip, dashTimeAgo;
 import 'package:asset360_mobile/features/more/tracking/live/floor_plan_map.dart';
 import 'package:asset360_mobile/features/more/tracking/live/live_location_tree.dart';
-import 'package:asset360_mobile/features/more/tracking/live/live_hub_lists.dart' show TrackedAssetRow;
 import 'package:asset360_mobile/features/more/tracking/live/outdoor_map.dart';
 import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dart';
 
@@ -52,9 +52,21 @@ class LiveMapTab extends ConsumerStatefulWidget {
     this.focusGeofence,
     required this.visibleAssets,
     this.tree,
+    this.view,
+    this.onViewChanged,
+    this.focusAsset,
+    this.focusPlot,
   });
 
   final String? initialView, initialLocation, focusZone, focusGeofence;
+
+  /// Controlled view (the Live Map / Floor plans toggle above): no Outdoor / Floor plan tabs here,
+  /// and a pin that opens a floor asks [onViewChanged].
+  final LiveMapView? view;
+  final ValueChanged<LiveMapView>? onViewChanged;
+
+  /// View on Map: the asset (registration id) to centre / highlight and its plot key.
+  final String? focusAsset, focusPlot;
 
   /// The live location tree: pin badges and each zone's live count.
   final LocationTree? tree;
@@ -74,7 +86,30 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
   PlanLocation _loc = const PlanLocation();
   bool _resolved = false;
   MapLayerToggles? _layers;
-  String? _selectedPlot;
+  late String? _selectedPlot = widget.focusPlot;
+
+  /// The outdoor marker whose card is open (View on Map opens it).
+  late String? _geoSelected = widget.focusAsset;
+
+  LiveMapView get _v => widget.view ?? _view;
+
+  void _setView(LiveMapView v) {
+    if (widget.view != null) {
+      widget.onViewChanged?.call(v);
+    } else {
+      setState(() => _view = v);
+    }
+  }
+
+  /// Opens a floor's plan view.
+  void _openFloor(PlanLocation loc, {String? plot}) {
+    setState(() {
+      _loc = loc;
+      _selectedPlot = plot;
+      if (widget.view == null) _view = LiveMapView.floor;
+    });
+    if (widget.view != null) widget.onViewChanged?.call(LiveMapView.floor);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,13 +128,15 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SegmentTabs(
-          tabs: const [SegmentTab('Outdoor'), SegmentTab('Floor plan')],
-          selected: _view.index,
-          onChanged: (i) => setState(() => _view = LiveMapView.values[i]),
-        ),
-        const SizedBox(height: 12),
-        if (_view == LiveMapView.outdoor) _outdoor(sites, buildings, floors) else ..._floor(sites, buildings, floors),
+        if (widget.view == null) ...[
+          SegmentTabs(
+            tabs: const [SegmentTab('Outdoor'), SegmentTab('Floor plan')],
+            selected: _view.index,
+            onChanged: (i) => _setView(LiveMapView.values[i]),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (_v == LiveMapView.outdoor) _outdoor(sites, buildings, floors) else ..._floor(sites, buildings, floors),
         const SizedBox(height: 14),
         const _RecentEvents(),
       ],
@@ -122,9 +159,15 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
           ..invalidate(mdBuildingsProvider),
       );
     }
-    if (!sites.hasValue || !buildings.hasValue || !fences.hasValue && !fences.hasError) {
+    final geoV = ref.watch(geoAssetsProvider);
+    if (!sites.hasValue ||
+        !buildings.hasValue ||
+        !fences.hasValue && !fences.hasError ||
+        geoV.isLoading && !geoV.hasValue) {
       return const SizedBox(height: 300, child: ListSkeleton(rows: 3, card: false));
     }
+    final geo = geoV.value ?? const GeoAssets();
+    final selectedGeo = _geoSelected == null ? null : geo.byId(_geoSelected!);
     final tree = widget.tree;
     final places = geoPlaces(
       sites.requireValue,
@@ -140,16 +183,23 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
       children: [
         SizedBox(
           height: 300,
-          child: places.isEmpty && geofences.isEmpty
+          child: places.isEmpty && geofences.isEmpty && geo.assets.isEmpty
               ? const AppCard(
                   child: EmptyState(
                     icon: Icons.public_off_rounded,
                     title: 'No mapped locations',
-                    message: 'Sites, buildings or floors need latitude / longitude in Master Data to appear here.',
+                    message: 'No asset, site, building or floor has latitude / longitude yet.',
                   ),
                 )
               : OutdoorMap(
                   places: places,
+                  assets: geo.assets,
+                  center: geo.center,
+                  selectedAssetId: _geoSelected,
+                  focusAssetId: widget.focusAsset,
+                  onAssetTap: (a) => setState(
+                    () => _geoSelected = _geoSelected == a.assetRegistrationId ? null : a.assetRegistrationId,
+                  ),
                   geofences: geofences,
                   showGeofences: layers.geofences,
                   focusGeofenceId: widget.focusGeofence,
@@ -158,6 +208,22 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
                   onLayers: () => _editLayers(layers),
                 ),
         ),
+        if (selectedGeo != null) ...[
+          const SizedBox(height: 10),
+          _GeoAssetCard(
+            asset: selectedGeo,
+            floorPlan: _floorPlanOf(selectedGeo.assetRegistrationId),
+            onFloorPlan: _openFloor,
+          ),
+        ],
+        if (geoV.hasError) ...[
+          const SizedBox(height: 6),
+          InlineRetry(
+            text: 'Asset coordinates could not be loaded',
+            error: true,
+            onRetry: () => ref.invalidate(geoAssetsProvider),
+          ),
+        ],
         if (fences.hasError) ...[
           const SizedBox(height: 6),
           InlineRetry(
@@ -170,9 +236,9 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
         const LiveUpdatedBar(),
         const SizedBox(height: 8),
         const _InfoNote(
-          'Tags and gateways have no GPS position, so assets are never drawn as dots here. Badges count the '
-          'assets placed at each site (the site of the gateway that last heard their tag); tap a pin to open '
-          'its floors.',
+          'Asset pins use the coordinates the Dashboard and Asset services report (as on Home → Asset '
+          'Location); tags without coordinates are never drawn at a guessed spot. Site badges count the live '
+          'assets placed at each site; tap a site, or an asset\'s "Floor plan", to open its floor plan.',
         ),
       ],
     );
@@ -180,11 +246,7 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
 
   Future<void> _openPlace(GeoPlace p, List<MdSpace> buildings, List<MdSpace> floors) async {
     if (p.isFloor) {
-      setState(() {
-        _loc = PlanLocation(siteId: p.siteId, buildingId: p.buildingId, floorId: p.id);
-        _view = LiveMapView.floor;
-        _selectedPlot = null;
-      });
+      _openFloor(PlanLocation(siteId: p.siteId, buildingId: p.buildingId, floorId: p.id));
       return;
     }
     final chosen = await showModalBottomSheet<PlanLocation>(
@@ -226,11 +288,35 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
       },
     );
     if (chosen == null || !mounted) return;
-    setState(() {
-      _loc = chosen;
-      _view = LiveMapView.floor;
-      _selectedPlot = null;
-    });
+    _openFloor(chosen);
+  }
+
+  /// The floor plan an outdoor asset can open: its live zone's plan (tag → plotted device), else a
+  /// plan where it is plotted. Null = none.
+  ({PlanLocation loc, String? plot})? _floorPlanOf(String assetId) {
+    final id = assetId.toLowerCase();
+    final plans = ref.watch(planDataProvider).value ?? const <PlanData>[];
+    final floors = ref.watch(mdFloorsProvider).value ?? const <MdSpace>[];
+    PlanLocation locOf(String floorId) {
+      final f = floors.where((f) => f.id == floorId).firstOrNull;
+      return PlanLocation(siteId: f?.site?.id, buildingId: f?.buildingId, floorId: floorId);
+    }
+
+    final live = widget.tree?.all.where((a) => a.assetRegistrationId?.toLowerCase() == id && a.near != null);
+    final near = live?.firstOrNull?.near;
+    if (near != null) {
+      final plot = plans
+          .where((d) => d.plan.floorPlanId == near.plan.floorPlanId)
+          .expand((d) => d.plots)
+          .where((p) => p.assetId?.toLowerCase() == id)
+          .firstOrNull;
+      return (loc: locOf(near.plan.locationId), plot: plot == null ? null : plotKey(plot));
+    }
+    for (final d in plans) {
+      final plot = d.plots.where((p) => p.assetId?.toLowerCase() == id).firstOrNull;
+      if (plot != null) return (loc: locOf(d.plan.locationId), plot: plotKey(plot));
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------- floor plan
@@ -274,6 +360,9 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
             onTap: () => _pick(
               'Floor',
               buildingFloors,
+              withPlan: {
+                for (final p in ref.read(visibleFloorPlansProvider).value ?? const <MapFloorPlan>[]) p.locationId,
+              },
               (id) => PlanLocation(siteId: _loc.siteId, buildingId: _loc.buildingId, floorId: id),
             ),
           ),
@@ -292,7 +381,7 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
           child: EmptyState(
             icon: Icons.layers_outlined,
             title: 'Choose a site, building and floor',
-            message: 'Its published floor plan opens here with zones and plotted assets.',
+            message: 'Floors with a map icon have a floor plan: it opens here with zones and live assets.',
           ),
         )
       else
@@ -303,6 +392,8 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
           visibleAssets: widget.visibleAssets,
           floor: f.where((x) => x.id == id).firstOrNull,
           liveNode: widget.tree?.find(id),
+          tree: widget.tree,
+          focusAsset: widget.focusAsset,
           layers: _layers,
           selectedPlot: _selectedPlot,
           onSelectPlot: (k) => setState(() => _selectedPlot = _selectedPlot == k ? null : k),
@@ -311,7 +402,13 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
     ];
   }
 
-  Future<void> _pick(String what, List<MdEntry> options, PlanLocation Function(String id) apply) async {
+  /// [withPlan] = ids that have a floor plan (map icon).
+  Future<void> _pick(
+    String what,
+    List<MdEntry> options,
+    PlanLocation Function(String id) apply, {
+    Set<String> withPlan = const {},
+  }) async {
     final id = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -323,6 +420,12 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
             contentPadding: EdgeInsets.zero,
             title: Text(o.name),
             subtitle: o.code.isEmpty ? null : Text(o.code),
+            trailing: withPlan.contains(o.id)
+                ? Tooltip(
+                    message: 'Has a floor plan',
+                    child: Icon(Icons.map_rounded, color: AppColors.primary),
+                  )
+                : null,
             onTap: () => Navigator.pop(context, o.id),
           ),
       ]),
@@ -340,8 +443,9 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
   }
 }
 
-/// One plan: loads the published plan of [locationId], its drawing, zones, plots and layer
-/// defaults, and draws them.
+/// One floor plan (Published; Draft too in developer builds): the drawing at its real pixel size,
+/// zones with their LIVE counts, plotted devices / assets with live status, live assets without
+/// a plot clustered on the device that heard them (KEY RULE), the legend and the live zone list.
 class _PlanView extends ConsumerWidget {
   const _PlanView({
     super.key,
@@ -354,13 +458,21 @@ class _PlanView extends ConsumerWidget {
     required this.onLayers,
     this.floor,
     this.liveNode,
+    this.tree,
+    this.focusAsset,
   });
 
-  /// The Master Data floor (its picture when no plan is published).
+  /// View on Map: the asset whose plot / live zone the plan zooms to.
+  final String? focusAsset;
+
+  /// The Master Data floor (its picture when no plan exists).
   final MdSpace? floor;
 
   /// This location in the live tree (zone live counts).
   final LocNode? liveNode;
+
+  /// The whole live tree (live assets heard by this plan's devices).
+  final LocationTree? tree;
 
   final String locationId;
   final String? focusZone, selectedPlot;
@@ -371,10 +483,10 @@ class _PlanView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final planV = ref.watch(publishedPlanProvider(locationId));
+    final planV = ref.watch(floorPlanForProvider(locationId));
     return asyncBody(
       planV,
-      onRetry: () => ref.invalidate(publishedPlanProvider(locationId)),
+      onRetry: () => ref.invalidate(visibleFloorPlansProvider),
       builder: (plan) {
         final picture = floor?.imageUrl ?? floor?.images.firstOrNull;
         if (plan == null && picture != null && picture.isNotEmpty) {
@@ -402,33 +514,72 @@ class _PlanView extends ConsumerWidget {
             onRetry: () => ref.invalidate(planZonesProvider(plan.floorPlanId)),
           );
         }
+        if (imageV != null && imageV.hasError && !imageV.hasValue && !imageV.isLoading) {
+          return AppCard(
+            child: LoadErrorState(
+              title: 'The floor plan image could not be loaded',
+              error: imageV.error!,
+              onRetry: () => ref.invalidate(planImageProvider(url!)),
+            ),
+          );
+        }
         if (!zonesV.hasValue ||
             (!plotsV.hasValue && !plotsV.hasError) ||
             (imageV != null && imageV.isLoading && !imageV.hasValue)) {
-          return const SizedBox(height: 340, child: ListSkeleton(rows: 3, card: false));
+          return const SizedBox(
+            height: 340,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [CircularProgressIndicator(), SizedBox(height: 10), Text('Loading floor plan…')],
+              ),
+            ),
+          );
         }
-        final live = ref.watch(trkLiveProvider);
-        final snapshot = live.snapshot;
+        final snapshot = ref.watch(trkLiveProvider).snapshot;
         final now = trackingNow();
         final zones = zonesV.requireValue;
         final allowed = visibleAssets == null ? null : {for (final a in visibleAssets!) a.key.toLowerCase()};
+        final allPlots = plotsV.value ?? const <MapPlot>[];
         final plots = [
-          for (final p in plotsV.value ?? const <MapPlot>[])
+          for (final p in allPlots)
             if (p.isDevice || allowed == null || allowed.contains(p.itemId.toLowerCase())) p,
         ];
+        final live = buildFloorLive(plan: plan, plots: allPlots, assets: tree?.all ?? const []);
+        final devices = <String, TrkDevice>{
+          for (final d in snapshot?.devices ?? const <TrkDevice>[]) ...{
+            d.deviceId.toLowerCase(): d,
+            if (d.assetCode != null) d.assetCode!.toLowerCase(): d,
+          },
+        };
+        bool devOnline(MapPlot p) => deviceOnline(p.deviceKeys.map((k) => devices[k]).nonNulls.firstOrNull, now);
         final toggles = layers ?? MapLayerToggles.fromServer(layersV.value ?? const []);
         final focus = zones.where((z) => z.zoneId == focusZone).firstOrNull;
-        final occupied = [
-          for (final z in zones)
-            if ((snapshot?.inZone(name: z.name, code: z.code) ?? const []).isNotEmpty) z,
-        ];
         final selected = plots.where((p) => plotKey(p) == selectedPlot).firstOrNull;
+        // View on Map zooms to the asset's plot, else its live / focused zone.
+        final PlanPoint? focusPoint = focusAsset == null
+            ? null
+            : (selected != null && plotKeyFocus(focusAsset, selected) != null
+                  ? (x: selected.x, y: selected.y)
+                  : focus?.center);
+        void openZone(MapZone z) => showLiveZoneSheet(context, z, plan, live, allPlots, devOnline);
+        final liveZones = [
+          for (final z in zones)
+            if ((live.byZone[z.zoneId] ?? const []).isNotEmpty) z,
+        ];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              [plan.name, plan.locationPath ?? '', plan.currentVersion].where((s) => s.isNotEmpty).join(' · '),
-              style: AppText.caption,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    [plan.name, plan.locationPath ?? '', plan.currentVersion].where((s) => s.isNotEmpty).join(' · '),
+                    style: AppText.caption,
+                  ),
+                ),
+                if (plan.isDraft) const StatusChip('Draft', tone: ChipTone.amber),
+              ],
             ),
             const SizedBox(height: 6),
             SizedBox(
@@ -441,10 +592,14 @@ class _PlanView extends ConsumerWidget {
                 layers: toggles,
                 snapshot: snapshot,
                 now: now,
+                live: live,
+                deviceOnline: devOnline,
+                focus: focusPoint,
                 selectedPlot: selectedPlot,
                 highlightZones: {if (focus != null) focus.zoneId, if (selected?.zoneId != null) selected!.zoneId!},
                 onPlotTap: (p) => onSelectPlot(plotKey(p)),
-                onZoneTap: (z) => showZoneSheet(context, z, snapshot),
+                onClusterTap: (p, list) => showLiveAssetsSheet(context, 'Near ${p.label}', list),
+                onZoneTap: openZone,
                 onLayers: () => onLayers(toggles),
               ),
             ),
@@ -457,14 +612,6 @@ class _PlanView extends ConsumerWidget {
                           'drawings only, so zones and plots are drawn on a blank plan.',
               ),
             ],
-            if (imageV != null && imageV.hasError) ...[
-              const SizedBox(height: 6),
-              InlineRetry(
-                text: 'The plan drawing could not be loaded',
-                error: true,
-                onRetry: () => ref.invalidate(planImageProvider(url!)),
-              ),
-            ],
             if (plotsV.hasError) ...[
               const SizedBox(height: 6),
               InlineRetry(
@@ -474,28 +621,43 @@ class _PlanView extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 8),
-            const LiveUpdatedBar(),
+            const LiveUpdatedAgo(),
+            const SizedBox(height: 8),
+            const FloorPlanLegend(),
             if (selected != null) ...[
               const SizedBox(height: 10),
-              _PlotCard(plot: selected, zones: zones, snapshot: snapshot, now: now),
+              _PlotCard(
+                plot: selected,
+                zones: zones,
+                snapshot: snapshot,
+                now: now,
+                live: live.plotted[plotKey(selected)],
+                moved: live.moved.contains(plotKey(selected)),
+                nearby: live.clusters[plotKey(selected)] ?? const [],
+                deviceIsOnline: selected.isDevice && devOnline(selected),
+              ),
             ],
-            if (focus != null) ...[const SizedBox(height: 10), _ZoneCard(zone: focus, snapshot: snapshot)],
-            if (liveNode != null) ...[const SizedBox(height: 14), LiveZoneCounts(node: liveNode!)],
+            if (focus != null) ...[
+              const SizedBox(height: 10),
+              AppCard(
+                onTap: () => openZone(focus),
+                child: _ZoneFacts(zone: focus, counts: LocCounts.of(live.byZone[focus.zoneId] ?? const [], now)),
+              ),
+            ],
             const SizedBox(height: 14),
-            SectionHeader(title: 'Tracked assets by zone (${occupied.length})'),
+            SectionHeader(title: 'Live assets by zone (${liveZones.length})'),
             const SizedBox(height: 8),
-            if (plots.where((p) => p.isAsset).isEmpty && occupied.isEmpty)
-              const AppCard(
-                child: EmptyState(icon: Icons.location_off_outlined, title: 'No tracked assets here'),
+            if (live.live.isEmpty)
+              Text(
+                'No tag on this floor right now: no location update names a device plotted on this plan.',
+                style: AppText.caption,
               )
-            else if (occupied.isEmpty)
-              Text('No tracked asset\'s latest zone event names a zone of this plan.', style: AppText.caption)
             else
               AppCard(
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: [
-                    for (final (i, z) in occupied.indexed) ...[
+                    for (final (i, z) in liveZones.indexed) ...[
                       if (i > 0) const Divider(height: 1, indent: 16),
                       ListTile(
                         leading: Icon(
@@ -503,12 +665,11 @@ class _PlanView extends ConsumerWidget {
                           color: hexColor(z.color, AppColors.primary),
                         ),
                         title: Text(z.label, style: AppText.bodyStrong),
-                        subtitle: Text(z.type),
-                        trailing: StatusChip(
-                          '${snapshot!.inZone(name: z.name, code: z.code).length} assets',
-                          tone: ChipTone.purple,
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: LocCountsLine(counts: LocCounts.of(live.byZone[z.zoneId]!, now)),
                         ),
-                        onTap: () => showZoneSheet(context, z, snapshot),
+                        onTap: () => openZone(z),
                       ),
                     ],
                   ],
@@ -521,60 +682,61 @@ class _PlanView extends ConsumerWidget {
   }
 }
 
-/// The card under a tapped marker: asset / device, zone, last seen, battery; View Details opens
-/// the live Asset detail (or the device's asset).
-class _PlotCard extends StatelessWidget {
-  const _PlotCard({required this.plot, required this.zones, required this.snapshot, required this.now});
+/// `asset:{id}` when [plot] is [assetId]'s plot (View on Map focus), else null.
+String? plotKeyFocus(String? assetId, MapPlot plot) =>
+    assetId != null && plot.assetId?.toLowerCase() == assetId.toLowerCase() ? plotKey(plot) : null;
 
-  final MapPlot plot;
-  final List<MapZone> zones;
-  final TrackingSnapshot? snapshot;
-  final DateTime now;
+/// The card of a tapped outdoor asset pin: name, status, location; Floor plan (when one exists),
+/// Track and View Details.
+class _GeoAssetCard extends StatelessWidget {
+  const _GeoAssetCard({required this.asset, required this.floorPlan, required this.onFloorPlan});
+
+  final DashLocatedAsset asset;
+  final ({PlanLocation loc, String? plot})? floorPlan;
+  final void Function(PlanLocation loc, {String? plot}) onFloorPlan;
 
   @override
   Widget build(BuildContext context) {
-    final p = plot;
-    final device = p.isDevice ? snapshot?.device(p.itemId) : null;
-    final asset = p.isAsset ? snapshot?.byKey(p.itemId) : null;
-    final assetId = p.isAsset ? p.itemId : device?.assetRegistrationId;
-    final zone = asset?.zone?.zoneName ?? zones.where((z) => z.zoneId == p.zoneId).firstOrNull?.label;
-    final lastSeen = p.isDevice ? device?.lastSeenAt : asset?.lastSeen;
-    final battery = p.isDevice ? device?.batteryLevel : asset?.battery;
+    final a = asset;
+    final plan = floorPlan;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(p.isDevice ? Icons.router_rounded : Icons.inventory_2_rounded, color: plotColor(p, snapshot, now)),
+              Icon(Icons.location_on_rounded, color: AppColors.primary),
               const SizedBox(width: 8),
-              Expanded(child: Text(p.label, style: AppText.bodyStrong)),
-              FreshnessChip(freshness: freshnessOf(lastSeen, now)),
+              Expanded(child: Text(a.assetName ?? a.assetTag ?? a.assetRegistrationId, style: AppText.bodyStrong)),
+              if (a.status != null) DashStatusChip(label: a.status!, groupKey: a.statusGroup),
             ],
           ),
           const SizedBox(height: 8),
-          InfoRow(label: p.isDevice ? 'Device ID' : 'Asset', value: p.code ?? p.itemId),
-          if (p.isDevice && device?.assetName != null) InfoRow(label: 'Linked asset', value: device!.assetName!),
-          InfoRow(label: 'Zone', value: zone ?? '—'),
-          InfoRow(label: 'Last seen', value: lastSeen == null ? 'Never' : dashTimeAgo(lastSeen)),
-          if (battery != null) InfoRow(label: 'Battery', value: '$battery%'),
-          const InfoRow(label: 'Marker', value: 'Plotted position (Administration → Maps)'),
+          InfoRow(label: 'Asset', value: [a.assetRegistrationId, ?a.assetTag].join(' · ')),
+          if (a.locationLabel != null) InfoRow(label: 'Location', value: a.locationLabel!),
+          InfoRow(label: 'Position', value: '${a.latitude.toStringAsFixed(5)}, ${a.longitude.toStringAsFixed(5)}'),
           const SizedBox(height: 10),
           Row(
             children: [
-              if (assetId != null)
+              if (plan != null) ...[
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => context.push(Routes.trackAsset(assetId)),
-                    child: const Text('Track'),
+                    onPressed: () => onFloorPlan(plan.loc, plot: plan.plot),
+                    child: const Text('Floor plan'),
                   ),
                 ),
-              if (assetId != null) const SizedBox(width: 8),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => context.push(Routes.trackAsset(a.assetRegistrationId)),
+                  child: const Text('Track'),
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: FilledButton(
-                  onPressed: assetId == null
-                      ? () => context.showSnack('Device ${p.itemId} has no linked asset')
-                      : () => context.push(Routes.assetDetail(assetId)),
+                  onPressed: () => context.push(Routes.assetDetail(a.assetRegistrationId)),
                   child: const Text('View Details'),
                 ),
               ),
@@ -586,27 +748,111 @@ class _PlotCard extends StatelessWidget {
   }
 }
 
-class _ZoneCard extends StatelessWidget {
-  const _ZoneCard({required this.zone, required this.snapshot});
+/// The card under a tapped marker. Assets: plotted zone, live status, "Now near DEVICE in ZONE"
+/// when the tag was last heard elsewhere (moved). Devices: online state and the live assets near it.
+class _PlotCard extends StatelessWidget {
+  const _PlotCard({
+    required this.plot,
+    required this.zones,
+    required this.snapshot,
+    required this.now,
+    this.live,
+    this.moved = false,
+    this.nearby = const [],
+    this.deviceIsOnline = false,
+  });
 
-  final MapZone zone;
+  final MapPlot plot;
+  final List<MapZone> zones;
   final TrackingSnapshot? snapshot;
+  final DateTime now;
+  final LiveTagAsset? live;
+  final bool moved, deviceIsOnline;
+  final List<LiveTagAsset> nearby;
 
   @override
-  Widget build(BuildContext context) => AppCard(
-    onTap: () => showZoneSheet(context, zone, snapshot),
-    child: _ZoneFacts(
-      zone: zone,
-      count: snapshot?.inZone(name: zone.name, code: zone.code).length ?? 0,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final p = plot;
+    final device = p.isDevice ? snapshot?.device(p.itemId) : null;
+    final assetId = p.isAsset ? p.assetId : device?.assetRegistrationId;
+    final plottedZone = zones.where((z) => z.zoneId == p.zoneId).firstOrNull?.label ?? p.zoneName;
+    final l = live;
+    final online = p.isDevice ? deviceIsOnline : (l?.isOnline(now) ?? false);
+    final near = l?.near;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(p.isDevice ? Icons.router_rounded : Icons.inventory_2_rounded, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(child: Text(p.label, style: AppText.bodyStrong)),
+              if (moved) ...[const StatusChip('Moved', tone: ChipTone.orange), const SizedBox(width: 6)],
+              StatusChip(
+                p.isAsset && l == null ? 'No live tag' : (online ? 'Online' : 'Offline'),
+                tone: online ? ChipTone.green : ChipTone.grey,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          InfoRow(label: p.isDevice ? 'Device ID' : 'Asset', value: p.code ?? p.itemId),
+          if (p.isDevice && device?.assetName != null) InfoRow(label: 'Linked asset', value: device!.assetName!),
+          InfoRow(label: 'Plotted zone', value: plottedZone ?? '—'),
+          if (l != null) ...[
+            InfoRow(label: 'Tag', value: l.tagId),
+            InfoRow(
+              label: 'Live',
+              value: moved && near != null
+                  ? 'Now near ${near.deviceLabel} in ${near.zoneName ?? near.floorName ?? near.plan.name}'
+                  : l.nearLabel,
+            ),
+            InfoRow(label: 'Last update', value: l.lastChangedAt == null ? '—' : dashTimeAgo(l.lastChangedAt)),
+            if (l.battery != null) InfoRow(label: 'Battery', value: '${l.battery}%'),
+          ],
+          if (p.isDevice) InfoRow(label: 'Live assets near it', value: '${nearby.length}'),
+          const InfoRow(label: 'Marker', value: 'Plotted position (Administration → Maps)'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              if (p.isDevice && nearby.isNotEmpty)
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => showLiveAssetsSheet(context, 'Near ${p.label}', nearby),
+                    child: const Text('Nearby assets'),
+                  ),
+                ),
+              if (assetId != null) ...[
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => context.push(Routes.trackAsset(assetId)),
+                    child: const Text('Track'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (assetId != null || nearby.isEmpty)
+                Expanded(
+                  child: FilledButton(
+                    onPressed: assetId == null
+                        ? () => context.showSnack('Device ${p.itemId} has no linked asset')
+                        : () => context.push(Routes.assetDetail(assetId)),
+                    child: const Text('View Details'),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ZoneFacts extends StatelessWidget {
-  const _ZoneFacts({required this.zone, required this.count});
+  const _ZoneFacts({required this.zone, required this.counts});
 
   final MapZone zone;
-  final int count;
+  final LocCounts counts;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -620,9 +866,14 @@ class _ZoneFacts extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(child: Text(zone.label, style: AppText.bodyStrong)),
-          StatusChip('$count assets', tone: ChipTone.purple),
         ],
       ),
+      if (zone.location?.locationPath case final path?) ...[
+        const SizedBox(height: 4),
+        Text(path, style: AppText.caption),
+      ],
+      const SizedBox(height: 6),
+      LocCountsLine(counts: counts),
       const SizedBox(height: 6),
       Wrap(
         spacing: 6,
@@ -641,21 +892,59 @@ class _ZoneFacts extends StatelessWidget {
   );
 }
 
-/// A zone and the tracked assets whose latest location event put them in it (zone-level: the
-/// server has no position inside the zone).
-Future<void> showZoneSheet(BuildContext context, MapZone zone, TrackingSnapshot? snapshot) {
-  final assets = snapshot?.inZone(name: zone.name, code: zone.code) ?? const <TrackedAsset>[];
+/// A zone: name, location path, the LIVE assets inside (tag last heard by a device plotted in the
+/// zone) and the devices plotted in it. Read-only.
+Future<void> showLiveZoneSheet(
+  BuildContext context,
+  MapZone zone,
+  MapFloorPlan plan,
+  FloorLive live,
+  List<MapPlot> plots,
+  bool Function(MapPlot) deviceIsOnline,
+) {
+  final assets = live.byZone[zone.zoneId] ?? const <LiveTagAsset>[];
+  final devices = [
+    for (final p in plots)
+      if (p.isDevice && p.zoneId == zone.zoneId) p,
+  ];
   final now = trackingNow();
   return showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: false,
     isScrollControlled: true,
-    builder: (context) => sheetFrame(context, [
-      _ZoneFacts(zone: zone, count: assets.length),
+    builder: (ctx) => sheetFrame(ctx, [
+      SheetTitle(zone.label, subtitle: zone.location?.locationPath ?? plan.locationPath),
+      _ZoneFacts(zone: zone, counts: LocCounts.of(assets, now)),
       const SizedBox(height: 12),
+      Text('Live assets (${assets.length})', style: AppText.sectionTitle),
       if (assets.isEmpty)
-        const EmptyState(icon: Icons.location_off_outlined, title: 'No tracked assets in this zone')
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text('No tag was last heard by a device in this zone.', style: AppText.caption),
+        )
       else
-        for (final a in assets) TrackedAssetRow(asset: a, now: now),
+        for (final a in assets) LiveTagAssetRow(asset: a, now: now),
+      const SizedBox(height: 8),
+      Text('Plotted devices (${devices.length})', style: AppText.sectionTitle),
+      for (final d in devices)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.router_rounded, color: deviceIsOnline(d) ? AppColors.iconBlue : AppColors.grey),
+          title: Text(d.label, style: AppText.bodyStrong),
+          subtitle: Text(
+            [
+              d.code ?? d.itemId,
+              '${(live.clusters[plotKey(d)] ?? const []).length} unplotted live assets near it',
+            ].join(' · '),
+            style: AppText.caption,
+          ),
+          trailing: StatusChip(
+            deviceIsOnline(d) ? 'Online' : 'Offline',
+            tone: deviceIsOnline(d) ? ChipTone.green : ChipTone.grey,
+          ),
+        ),
+      const SizedBox(height: 8),
+      OutlinedButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
     ]),
   );
 }

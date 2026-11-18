@@ -7,18 +7,20 @@ import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/api/master_data/master_data_repository.dart';
+import 'package:asset360_mobile/data/repositories/asset_map_repository.dart';
 import 'package:asset360_mobile/data/repositories/live_locations_repository.dart';
 import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart';
 import 'package:asset360_mobile/features/home/dash_ui.dart' show dashTimeAgo;
 import 'package:asset360_mobile/features/more/tracking/live/live_map_tab.dart';
 import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dart';
 
-enum LocationMode { tree, map }
+/// Toggle order: Map (only when a source has coordinates), Floor plans, Tree.
+enum LocationMode { map, floor, tree }
 
-/// Tracking → Live Map / Geofencing (API mode): the LIVE LOCATION TREE (Site → Building → Floor →
-/// Zone, from location-updates + gateways) while no location has coordinates; the map
-/// ([LiveMapTab]) when Master Data gives any site / building / floor a latitude / longitude, with a
-/// Tree / Map toggle. Location updates poll every 10 s while this view is visible.
+/// Tracking → Live Map / Geofencing (API mode). MAP (outdoor, [LiveMapTab]) whenever ANY source has
+/// coordinates — Dashboard asset-locations, Asset asset-dashboard/locations or Master Data sites /
+/// buildings / floors; FLOOR PLANS (Site → Building → Floor, the live floor-plan view); the LIVE
+/// LOCATION TREE (Site → Building → Floor → Zone). Location updates poll every 10 s while visible.
 class LiveLocationView extends ConsumerStatefulWidget {
   const LiveLocationView({
     super.key,
@@ -26,12 +28,17 @@ class LiveLocationView extends ConsumerStatefulWidget {
     this.initialLocation,
     this.focusZone,
     this.focusGeofence,
+    this.focusAsset,
+    this.focusPlot,
     required this.visibleAssets,
     this.query = '',
   });
 
-  /// Map deep link (see [Routes.trackingMap]); any of them opens the map.
+  /// Map deep link (see [Routes.trackingMap]): `outdoor` opens the map, `floor` / a location the plan.
   final String? initialView, initialLocation, focusZone, focusGeofence;
+
+  /// View on Map: the asset (registration id) and its plot key.
+  final String? focusAsset, focusPlot;
   final List<TrackedAsset>? visibleAssets;
 
   /// The hub's search text.
@@ -47,48 +54,67 @@ class _LiveLocationViewState extends ConsumerState<LiveLocationView> {
   /// A floor opened from the tree ("Floor plan").
   String? _floor;
 
-  bool get _deepLink =>
-      widget.initialView != null ||
-      widget.initialLocation != null ||
-      widget.focusZone != null ||
-      widget.focusGeofence != null;
+  LocationMode? get _linked => switch (widget.initialView) {
+    'outdoor' => LocationMode.map,
+    'floor' => LocationMode.floor,
+    _ =>
+      widget.initialLocation != null || widget.focusZone != null
+          ? LocationMode.floor
+          : (widget.focusGeofence != null ? LocationMode.map : null),
+  };
 
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(locationTreeProvider(widget.query.trim()));
-    final mode = _mode ?? (_deepLink || data.mapPossible ? LocationMode.map : LocationMode.tree);
-    final toggle = data.mapPossible || mode == LocationMode.map;
+    final geo = ref.watch(geoAssetsProvider).value;
+    final mapPossible = data.mapPossible || (geo?.assets.isNotEmpty ?? false);
+    var mode = _mode ?? _linked ?? (mapPossible ? LocationMode.map : LocationMode.tree);
+    if (mode == LocationMode.map && !mapPossible && _linked != LocationMode.map) mode = LocationMode.tree;
+    final modes = [
+      if (mapPossible || mode == LocationMode.map) LocationMode.map,
+      LocationMode.floor,
+      LocationMode.tree,
+    ];
     return LivePollingScope(
       poller: (ref) => ref.read(liveLocProvider.notifier),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (toggle) ...[
-            SegmentTabs(
-              tabs: const [SegmentTab('Tree'), SegmentTab('Map')],
-              selected: mode.index,
-              onChanged: (i) => setState(() {
-                _mode = LocationMode.values[i];
-                if (_mode == LocationMode.tree) _floor = null;
-              }),
-            ),
-            const SizedBox(height: 12),
-          ],
+          SegmentTabs(
+            tabs: [
+              for (final m in modes)
+                SegmentTab(switch (m) {
+                  LocationMode.map => 'Map',
+                  LocationMode.floor => 'Floor plans',
+                  LocationMode.tree => 'Tree',
+                }),
+            ],
+            selected: modes.indexOf(mode),
+            onChanged: (i) => setState(() {
+              _mode = modes[i];
+              if (_mode == LocationMode.tree) _floor = null;
+            }),
+          ),
+          const SizedBox(height: 12),
           if (mode == LocationMode.tree)
             LocationTreeList(
               data: data,
               onOpenFloor: (id) => setState(() {
                 _floor = id;
-                _mode = LocationMode.map;
+                _mode = LocationMode.floor;
               }),
             )
           else
             LiveMapTab(
               key: ValueKey('map-${_floor ?? widget.initialLocation}-${widget.focusGeofence}-${widget.focusZone}'),
-              initialView: _floor != null ? 'floor' : widget.initialView,
+              view: mode == LocationMode.map ? LiveMapView.outdoor : LiveMapView.floor,
+              onViewChanged: (v) =>
+                  setState(() => _mode = v == LiveMapView.outdoor ? LocationMode.map : LocationMode.floor),
               initialLocation: _floor ?? widget.initialLocation,
               focusZone: widget.focusZone,
               focusGeofence: widget.focusGeofence,
+              focusAsset: widget.focusAsset,
+              focusPlot: widget.focusPlot,
               visibleAssets: widget.visibleAssets,
               tree: data.tree,
             ),
@@ -170,9 +196,9 @@ class LocationTreeList extends ConsumerWidget {
           ],
         ],
         const _Note(
-          'Each asset is placed at the site of the gateway that last heard its tag. Building, floor and zone '
-          'are the asset\'s registered location, shown only when it is in that same site. Online = the tag '
-          'reported within the last 10 minutes.',
+          'A tag last heard by a device plotted on a floor plan is placed at that device\'s zone and floor. '
+          'Otherwise it is placed at the site of the gateway that heard it, with the asset\'s registered building, '
+          'floor and zone when they are in that same site. Online = the tag reported within the last 10 minutes.',
         ),
       ],
     );
