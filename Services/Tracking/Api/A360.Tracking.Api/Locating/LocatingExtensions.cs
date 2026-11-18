@@ -22,12 +22,16 @@ public static class LocatingExtensions
     {
         app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
 
-        // ws://host:5490/ws/locate?tagid=c3000099138f  (protocol: see LocatingSession).
-        // Outside /api, so the access guard doesn't apply: browsers can't send a bearer header on a WebSocket.
+        // ws://host:5490/ws/locate?access_token=<JWT>&tagid=c3000099138f  (protocol: see LocatingSession).
+        // Browsers can't send a bearer header on a WebSocket, so the sign-in token comes as ?access_token=
+        // (read by AddA360JwtAuthentication); an Authorization header works too. No valid token = 401, no socket.
         app.Map("/ws/locate", async (HttpContext context, IServiceProvider services) =>
         {
             if (!context.WebSockets.IsWebSocketRequest)
                 return Results.BadRequest("WebSocket connection expected.");
+
+            if (context.User.Identity?.IsAuthenticated != true)
+                return Results.Json(new { message = "Sign in to continue. Pass the token as ?access_token=." }, statusCode: StatusCodes.Status401Unauthorized);
 
             using var socket = await context.WebSockets.AcceptWebSocketAsync();
             var session = ActivatorUtilities.CreateInstance<LocatingSession>(services, socket);

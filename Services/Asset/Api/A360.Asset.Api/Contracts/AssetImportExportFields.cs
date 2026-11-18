@@ -50,6 +50,9 @@ public sealed record AssetImportField(
     Func<AssetRegistration, object?> Get,
     Action<AssetRegistration, object?>? Set)
 {
+    /// <summary>Set for custom fields (configured under Asset Fields); null for the built-in fields.</summary>
+    public AssetImportCustomFieldInfo? Custom { get; init; }
+
     /// <summary>Mandatory in the Field Mapping table for the given import type.</summary>
     public bool IsMandatory(string importType) => importType switch
     {
@@ -87,9 +90,10 @@ public static class AssetImportExportFields
 
         // Basic Information
         Text("assetName", "Asset Name", BasicInformation, required: true, standard: true, errorKey: "AssetName",
-            aliases: ["name", "asset"], get: a => a.BasicInformation.AssetName, set: (a, v) => a.BasicInformation.AssetName = v),
+            aliases: ["name", "asset", "equipmentname", "equipment", "assetdescription"], get: a => a.BasicInformation.AssetName, set: (a, v) => a.BasicInformation.AssetName = v),
         Text(AssetImportFields.AssetTag, "Asset Tag", BasicInformation, required: true, standard: true, errorKey: "AssetTag",
-            hint: "Unique across all assets", aliases: ["tag", "tagno", "tagnumber", "assettagno", "assettagnumber"],
+            hint: "Unique across all assets",
+            aliases: ["tag", "tagno", "tagnumber", "assettagno", "assettagnumber", "assetcode", "equipmentno", "equipmentid", "equipmentnumber", "equipmentcode"],
             get: a => a.BasicInformation.AssetTag, set: (a, v) => a.BasicInformation.AssetTag = v),
         Text("barcode", "Barcode", BasicInformation, standard: false, get: a => a.BasicInformation.Barcode, set: (a, v) => a.BasicInformation.Barcode = v),
         Text("rfidTagId", "RFID Tag ID", BasicInformation, standard: false, aliases: ["rfid", "rfidtag"],
@@ -115,7 +119,7 @@ public static class AssetImportExportFields
         Lookup("subCategory", "Sub Category", Classification, null, required: true, standard: true, errorKey: "SubCategory",
             aliases: ["subcat", "assetsubcategory"], get: a => a.Classification.SubCategory, set: (a, v) => a.Classification.SubCategory = v),
         Lookup("assetType", "Asset Type", Classification, null, required: true, standard: true, errorKey: "AssetType",
-            aliases: ["type"], get: a => a.Classification.AssetType, set: (a, v) => a.Classification.AssetType = v),
+            aliases: ["type", "equipmentgroup", "equipmenttype"], get: a => a.Classification.AssetType, set: (a, v) => a.Classification.AssetType = v),
         Lookup("assetSubType", "Asset Sub Type", Classification, null, standard: false, aliases: ["subtype"],
             get: a => a.Classification.AssetSubType, set: (a, v) => a.Classification.AssetSubType = v),
         Lookup("functionPurpose", "Function / Purpose", Classification, AssetRegistrationOptions.FunctionPurposes, standard: false,
@@ -141,7 +145,7 @@ public static class AssetImportExportFields
         Text("country", "Country", LocationAssignment, required: true, standard: false,
             get: a => a.LocationAssignment.Location.CountryName,
             set: (a, v) => SetLevel(a.LocationAssignment.Location, l => l.CountryName, (l, n) => { l.CountryName = n; l.CountryId = null; }, v)),
-        Text("site", "Site", LocationAssignment, required: true, standard: true, aliases: ["location", "sitename"],
+        Text("site", "Site", LocationAssignment, required: true, standard: true, aliases: ["location", "sitename", "plant", "plantname", "facility"],
             get: a => a.LocationAssignment.Location.SiteName,
             set: (a, v) => SetLevel(a.LocationAssignment.Location, l => l.SiteName, (l, n) => { l.SiteName = n; l.SiteId = null; }, v)),
         Text("building", "Building", LocationAssignment, required: true, standard: true,
@@ -300,6 +304,107 @@ public static class AssetImportExportFields
 
     private static bool SameText(string? left, object? right) =>
         string.Equals(left?.Trim(), (right as string)?.Trim(), StringComparison.OrdinalIgnoreCase);
+}
+
+/// <param name="Scope">"Asset" (every asset) or "Category" (assets of AppliesToCategoryId only).</param>
+public sealed record AssetImportCustomFieldInfo(string FieldName, string FieldType, string Scope, string? AppliesToCategoryId, bool Required);
+
+/// <summary>
+/// The fields one import can use: the built-in ones plus the active custom fields (keys "custom:&lt;field_name&gt;").
+/// Custom fields are configured per tenant, so the catalog is built per request.
+/// </summary>
+public sealed class AssetImportFieldCatalog
+{
+    public const string CustomPrefix = "custom:";
+    public const string CustomGroup = "Custom Fields";
+
+    private readonly Dictionary<string, AssetImportField> byKey;
+
+    public AssetImportFieldCatalog(IEnumerable<AssetCustomFieldDefinition> definitions)
+    {
+        CustomFields = definitions
+            .Where(definition => !definition.IsDeleted
+                && !string.Equals(definition.Status, "Inactive", StringComparison.OrdinalIgnoreCase)
+                && definition.Scope is CustomFieldScopes.Asset or CustomFieldScopes.Category
+                && !string.IsNullOrWhiteSpace(definition.FieldName))
+            .GroupBy(definition => definition.FieldName.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(group => CustomField(group.First()))
+            .ToList();
+        Importable = AssetImportExportFields.Importable.Concat(CustomFields).ToList();
+        byKey = Importable.ToDictionary(field => field.Key, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public IReadOnlyList<AssetImportField> CustomFields { get; }
+
+    /// <summary>Built-in importable fields first, then custom fields.</summary>
+    public IReadOnlyList<AssetImportField> Importable { get; }
+
+    /// <summary>An importable field by key; export-only built-in fields are found too, so they can be reported as not importable.</summary>
+    public AssetImportField? Find(string? key) =>
+        key is not null && byKey.TryGetValue(key.Trim(), out var field) ? field : AssetImportExportFields.Find(key);
+
+    private static AssetImportField CustomField(AssetCustomFieldDefinition definition)
+    {
+        var name = definition.FieldName.Trim();
+        var label = string.IsNullOrWhiteSpace(definition.DisplayLabel) ? name : definition.DisplayLabel.Trim();
+        var (dataType, options) = definition.FieldType switch
+        {
+            CustomFieldTypes.Number => (AssetImportDataTypes.Number, (OptionList?)null),
+            CustomFieldTypes.Date => (AssetImportDataTypes.Date, null),
+            CustomFieldTypes.Dropdown => (AssetImportDataTypes.Lookup, new OptionList(definition.Options.Where(option => !string.IsNullOrWhiteSpace(option)).ToArray())),
+            CustomFieldTypes.Checkbox => (AssetImportDataTypes.Lookup, CheckboxValues),
+            _ => (AssetImportDataTypes.Text, null)
+        };
+
+        var hint = definition.HelpText
+            ?? (options is not null ? $"One of: {string.Join(", ", options.All)}" : dataType == AssetImportDataTypes.Date ? "Date, e.g. 2025-01-15" : null);
+        var scopeText = definition.Scope == CustomFieldScopes.Category ? " (category-specific)" : string.Empty;
+
+        return new AssetImportField(
+            CustomPrefix + name,
+            label,
+            CustomGroup,
+            dataType,
+            RequiredForCreate: false,
+            Importable: true,
+            Standard: false,
+            hint is null ? null : hint + scopeText,
+            ErrorKey: null,
+            Aliases: [AssetImportExportFields.NormalizeHeader(name)],
+            options,
+            asset => FindValue(asset, name)?.Value,
+            (asset, value) => SetValue(asset, name, definition.FieldType, Format(value)))
+        {
+            Custom = new AssetImportCustomFieldInfo(name, definition.FieldType, definition.Scope, definition.AppliesToCategoryId, definition.Required)
+        };
+    }
+
+    private static readonly OptionList CheckboxValues = new("Yes", "No");
+
+    private static string? Format(object? value) => value switch
+    {
+        null => null,
+        DateTime date => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+        decimal number => number.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        _ => value.ToString()
+    };
+
+    private static AssetCustomField? FindValue(AssetRegistration asset, string name) =>
+        asset.AdditionalInformation.CustomFields.FirstOrDefault(field => SameName(field.FieldName, name));
+
+    private static void SetValue(AssetRegistration asset, string name, string fieldType, string? value)
+    {
+        var fields = asset.AdditionalInformation.CustomFields;
+        fields.RemoveAll(field => SameName(field.FieldName, name));
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            fields.Add(new AssetCustomField { FieldName = name, FieldType = fieldType, Value = value });
+        }
+    }
+
+    // Recorded values are matched ignoring case, spaces and underscores, as on the Custom Field Values page.
+    private static bool SameName(string? left, string? right) =>
+        AssetImportExportFields.NormalizeHeader(left) == AssetImportExportFields.NormalizeHeader(right);
 }
 
 /// <summary>Keys of the fields the import logic itself relies on.</summary>

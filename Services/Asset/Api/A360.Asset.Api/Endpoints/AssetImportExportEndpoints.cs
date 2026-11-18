@@ -23,7 +23,8 @@ namespace A360.Asset.Api.Endpoints;
 /// 1. Download Template: GET /template.
 /// 2. Upload File: POST /imports stores the file's rows (Excel or CSV) and auto maps its columns.
 /// 3. Map Fields: GET/PUT /imports/{id}/mapping; Auto Map is POST /imports/{id}/mapping/auto.
-/// 4. Validate: POST /imports/{id}/validate checks every row; GET /imports/{id}/records lists them by status
+///    Columns can also be mapped to custom fields (keys "custom:&lt;field_name&gt;").
+/// 4. Validate: POST /imports/{id}/validate checks every row (formats, mandatory values, duplicates, master data and custom fields); GET /imports/{id}/records lists them by status
 ///    (Validation Results › View Details, Import Preview) and GET /imports/{id}/errors/export downloads the problem rows.
 /// 5. Import: POST /imports/{id}/confirm creates or updates the valid rows' assets.
 /// Export Assets is POST /exports (the file) and GET /exports/count (the number on the Export button).
@@ -64,6 +65,7 @@ public static class AssetImportExportEndpoints
         // Step 2
         group.MapPost("/imports", UploadAsync).WithName("UploadAssetImport").DisableAntiforgery();
         group.MapGet("/imports/{id}", GetImportAsync).WithName("GetAssetImport");
+        group.MapGet("/imports/{id}/rows", GetFileRowsAsync).WithName("GetAssetImportFileRows");
         group.MapDelete("/imports/{id}", DeleteImportAsync).WithName("DeleteAssetImport");
 
         // Step 3
@@ -90,12 +92,21 @@ public static class AssetImportExportEndpoints
         return group;
     }
 
-    /// <summary>The Asset360 fields a column can be mapped to (and that can be exported), with Mandatory set for the import type.</summary>
-    private static IResult GetFields(string? importType = null, bool importableOnly = false)
+    /// <summary>
+    /// The Asset360 fields a column can be mapped to (and that can be exported), with Mandatory set for the import type.
+    /// Active custom fields follow the built-in ones (group "Custom Fields"; they can be imported, not exported).
+    /// </summary>
+    private static async Task<IResult> GetFields(
+        IAssetCustomFieldRepository fieldRepository,
+        CancellationToken cancellationToken,
+        string? importType = null,
+        bool importableOnly = false)
     {
         var type = AssetImportTypes.Normalize(importType) ?? AssetImportTypes.Create;
+        var catalog = await LoadCatalogAsync(fieldRepository, cancellationToken);
         return Results.Ok(AssetImportExportFields.All
             .Where(field => !importableOnly || field.Importable)
+            .Concat(catalog.CustomFields)
             .Select(field => AssetImportFieldResponse.FromField(field, type)));
     }
 
@@ -177,6 +188,7 @@ public static class AssetImportExportEndpoints
         [FromForm] string? importType,
         [FromForm] string? template,
         IAssetImportExportJobRepository repository,
+        IAssetCustomFieldRepository fieldRepository,
         ISequenceGenerator sequenceGenerator,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
@@ -239,9 +251,10 @@ public static class AssetImportExportEndpoints
             return Problem("File", $"At most {AssetImportExportFields.MaxRows} assets can be imported at once; the file has {table.Rows.Count}");
         }
 
+        var catalog = await LoadCatalogAsync(fieldRepository, cancellationToken);
         var nextSequence = await sequenceGenerator.GetNextValueAsync(ImportSequenceName, cancellationToken);
         var currentUser = currentUserAccessor.GetCurrentUser();
-        var suggested = SuggestMapping(table.Columns, type);
+        var suggested = SuggestMapping(table.Columns, type, catalog);
 
         var job = new AssetImportExportJob
         {
@@ -272,7 +285,7 @@ public static class AssetImportExportEndpoints
         await repository.CreateAsync(job, cancellationToken);
         await eventLogger.LogAsync(EntityType, job.Id, $"{job.JobNumber} - {job.FileName} uploaded", EventAction.Created, cancellationToken);
 
-        var mapping = BuildMappingResponse(job);
+        var mapping = BuildMappingResponse(job, catalog);
         var fileChecks = new List<AssetImportFileCheck>
         {
             new("File format is valid", true, null),
@@ -292,6 +305,50 @@ public static class AssetImportExportEndpoints
     {
         var job = await FindImportAsync(id, repository, cancellationToken);
         return job is null ? ImportNotFound(id) : Results.Ok(AssetImportJobResponse.FromEntity(job));
+    }
+
+    /// <summary>
+    /// The uploaded file as read: every column header and every row's values (all columns, mapped or not), paged.
+    /// Each row is keyed by column header; RowNumber is the row in the file.
+    /// </summary>
+    private static async Task<IResult> GetFileRowsAsync(
+        string id,
+        IAssetImportExportJobRepository repository,
+        CancellationToken cancellationToken,
+        string? search = null,
+        int page = 1,
+        int pageSize = DefaultPageSize)
+    {
+        var job = await FindImportAsync(id, repository, cancellationToken);
+        if (job is null)
+        {
+            return ImportNotFound(id);
+        }
+
+        var import = job.Import!;
+        IEnumerable<AssetImportJobRow> rows = import.Rows;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var text = search.Trim();
+            rows = rows.Where(row => row.Cells.Any(cell => cell?.Contains(text, StringComparison.OrdinalIgnoreCase) == true));
+        }
+
+        var matching = rows.ToList();
+        (page, pageSize) = Paging(page, pageSize);
+        return Results.Ok(new AssetImportFileRowsResponse(
+            job.Id,
+            job.FileName,
+            import.Columns,
+            matching.Skip((page - 1) * pageSize).Take(pageSize)
+                .Select(row => new AssetImportFileRowResponse(
+                    row.RowNumber,
+                    import.Columns.Select((column, index) => (column, value: index < row.Cells.Count ? row.Cells[index] : null))
+                        .GroupBy(pair => pair.column, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(group => group.Key, group => group.First().value, StringComparer.OrdinalIgnoreCase)))
+                .ToList(),
+            matching.Count,
+            page,
+            pageSize));
     }
 
     /// <summary>Cancel / remove the file (×): deletes an import that has not been imported. Imported ones stay in the history.</summary>
@@ -322,10 +379,14 @@ public static class AssetImportExportEndpoints
     }
 
     /// <summary>Step 3: the Field Mapping table, one row per file column.</summary>
-    private static async Task<IResult> GetMappingAsync(string id, IAssetImportExportJobRepository repository, CancellationToken cancellationToken)
+    private static async Task<IResult> GetMappingAsync(
+        string id,
+        IAssetImportExportJobRepository repository,
+        IAssetCustomFieldRepository fieldRepository,
+        CancellationToken cancellationToken)
     {
         var job = await FindImportAsync(id, repository, cancellationToken);
-        return job is null ? ImportNotFound(id) : Results.Ok(BuildMappingResponse(job));
+        return job is null ? ImportNotFound(id) : Results.Ok(BuildMappingResponse(job, await LoadCatalogAsync(fieldRepository, cancellationToken)));
     }
 
     /// <summary>
@@ -336,6 +397,7 @@ public static class AssetImportExportEndpoints
         string id,
         SaveAssetImportMappingRequest request,
         IAssetImportExportJobRepository repository,
+        IAssetCustomFieldRepository fieldRepository,
         ICurrentUserAccessor currentUserAccessor,
         CancellationToken cancellationToken)
     {
@@ -351,6 +413,7 @@ public static class AssetImportExportEndpoints
         }
 
         var import = job.Import!;
+        var catalog = await LoadCatalogAsync(fieldRepository, cancellationToken);
         var errors = new Dictionary<string, string[]>();
 
         var importType = import.ImportType;
@@ -377,7 +440,7 @@ public static class AssetImportExportEndpoints
             }
 
             var fileColumn = import.Columns.FirstOrDefault(name => string.Equals(name, column?.Trim(), StringComparison.OrdinalIgnoreCase));
-            var field = AssetImportExportFields.Find(key);
+            var field = catalog.Find(key);
             if (fileColumn is null)
             {
                 errors[$"Mapping.{column}"] = [$"Column '{column}' is not in the file"];
@@ -415,13 +478,14 @@ public static class AssetImportExportEndpoints
             return ImportNotFound(id);
         }
 
-        return Results.Ok(BuildMappingResponse(job));
+        return Results.Ok(BuildMappingResponse(job, catalog));
     }
 
     /// <summary>Auto Map: maps every column whose header matches a field name (or a common alternative name), replacing the current mapping.</summary>
     private static async Task<IResult> AutoMapAsync(
         string id,
         IAssetImportExportJobRepository repository,
+        IAssetCustomFieldRepository fieldRepository,
         ICurrentUserAccessor currentUserAccessor,
         CancellationToken cancellationToken)
     {
@@ -437,7 +501,8 @@ public static class AssetImportExportEndpoints
         }
 
         var import = job.Import!;
-        import.Mapping = SuggestMapping(import.Columns, import.ImportType)
+        var catalog = await LoadCatalogAsync(fieldRepository, cancellationToken);
+        import.Mapping = SuggestMapping(import.Columns, import.ImportType, catalog)
             .Select(pair => new AssetImportColumnMap { Column = pair.Key, Field = pair.Value })
             .ToList();
         ResetValidation(job, AssetImportExportJobRepository.MappedStatus, step: 3);
@@ -447,11 +512,12 @@ public static class AssetImportExportEndpoints
             return ImportNotFound(id);
         }
 
-        return Results.Ok(BuildMappingResponse(job));
+        return Results.Ok(BuildMappingResponse(job, catalog));
     }
 
     /// <summary>
-    /// Step 4: checks every row with the registration wizard's rules and sorts it into Valid, Invalid or Duplicate.
+    /// Step 4: checks every row with the registration wizard's rules, the master lists and the custom field rules,
+    /// and sorts it into Valid, Invalid or Duplicate.
     /// Nothing is saved to the assets yet.
     /// </summary>
     private static async Task<IResult> ValidateAsync(
@@ -459,6 +525,10 @@ public static class AssetImportExportEndpoints
         IAssetImportExportJobRepository repository,
         IAssetRegistrationRepository assetRepository,
         IAssetRegistrationDraftRepository draftRepository,
+        IAssetCustomFieldRepository fieldRepository,
+        IAssetCategoryRepository categoryRepository,
+        IAssetImportMasterDataRepository masterDataRepository,
+        IAssignmentMasterDataRepository peopleRepository,
         ICurrentUserAccessor currentUserAccessor,
         CancellationToken cancellationToken)
     {
@@ -473,12 +543,14 @@ public static class AssetImportExportEndpoints
             return AlreadyImported(job);
         }
 
-        if (MissingMandatory(job.Import!) is { Count: > 0 } missing)
+        var catalog = await LoadCatalogAsync(fieldRepository, cancellationToken);
+        if (MissingMandatory(job.Import!, catalog) is { Count: > 0 } missing)
         {
             return Problem("Mapping", $"Map the mandatory fields: {string.Join(", ", missing)}");
         }
 
-        await CheckRowsAsync(job, assetRepository, draftRepository, cancellationToken);
+        var services = new ImportCheckServices(assetRepository, draftRepository, categoryRepository, masterDataRepository, peopleRepository);
+        await CheckRowsAsync(job, catalog, services, cancellationToken);
         job.Status = AssetImportExportJobRepository.ValidatedStatus;
         job.Import!.CurrentStep = 4;
 
@@ -491,15 +563,16 @@ public static class AssetImportExportEndpoints
         return Results.Ok(new AssetImportValidationResponse(
             AssetImportJobResponse.FromEntity(job),
             AssetImportJobSummaryResponse.FromEntity(import.Summary)!,
-            import.Rows.Where(row => row.Status == AssetImportRowStatuses.Valid).Take(PreviewRowCount).Select(row => ToRecord(import, row)).ToList(),
+            import.Rows.Where(row => row.Status == AssetImportRowStatuses.Valid).Take(PreviewRowCount).Select(row => ToRecord(import, row, catalog)).ToList(),
             import.Rows.Where(row => row.Status is AssetImportRowStatuses.Invalid or AssetImportRowStatuses.Duplicate)
-                .Take(ProblemPreviewCount).Select(row => ToRecord(import, row)).ToList()));
+                .Take(ProblemPreviewCount).Select(row => ToRecord(import, row, catalog)).ToList()));
     }
 
     /// <summary>View Details / Import Preview: the rows with their mapped values and issues; status = Valid, Invalid, Duplicate, Imported or Failed.</summary>
     private static async Task<IResult> GetRecordsAsync(
         string id,
         IAssetImportExportJobRepository repository,
+        IAssetCustomFieldRepository fieldRepository,
         CancellationToken cancellationToken,
         string? status = null,
         string? search = null,
@@ -530,10 +603,11 @@ public static class AssetImportExportEndpoints
             rows = rows.Where(row => row.Cells.Any(cell => cell?.Contains(text, StringComparison.OrdinalIgnoreCase) == true));
         }
 
+        var catalog = await LoadCatalogAsync(fieldRepository, cancellationToken);
         var matching = rows.ToList();
         (page, pageSize) = Paging(page, pageSize);
         return Results.Ok(new AssetImportRecordsResponse(
-            matching.Skip((page - 1) * pageSize).Take(pageSize).Select(row => ToRecord(job.Import, row)).ToList(),
+            matching.Skip((page - 1) * pageSize).Take(pageSize).Select(row => ToRecord(job.Import, row, catalog)).ToList(),
             matching.Count,
             page,
             pageSize));
@@ -579,6 +653,10 @@ public static class AssetImportExportEndpoints
         IAssetImportExportJobRepository repository,
         IAssetRegistrationRepository assetRepository,
         IAssetRegistrationDraftRepository draftRepository,
+        IAssetCustomFieldRepository fieldRepository,
+        IAssetCategoryRepository categoryRepository,
+        IAssetImportMasterDataRepository masterDataRepository,
+        IAssignmentMasterDataRepository peopleRepository,
         ISequenceGenerator sequenceGenerator,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
@@ -601,12 +679,14 @@ public static class AssetImportExportEndpoints
             return Problem("Import", "Validate the file before importing");
         }
 
-        if (MissingMandatory(import) is { Count: > 0 } missing)
+        var catalog = await LoadCatalogAsync(fieldRepository, cancellationToken);
+        if (MissingMandatory(import, catalog) is { Count: > 0 } missing)
         {
             return Problem("Mapping", $"Map the mandatory fields: {string.Join(", ", missing)}");
         }
 
-        var checkedRows = await CheckRowsAsync(job, assetRepository, draftRepository, cancellationToken);
+        var services = new ImportCheckServices(assetRepository, draftRepository, categoryRepository, masterDataRepository, peopleRepository);
+        var checkedRows = await CheckRowsAsync(job, catalog, services, cancellationToken);
         if (import.Summary.Valid == 0)
         {
             await SaveAsync(job, repository, currentUserAccessor, cancellationToken);
@@ -690,7 +770,7 @@ public static class AssetImportExportEndpoints
         return Results.Ok(new AssetImportConfirmResponse(
             AssetImportJobResponse.FromEntity(job),
             AssetImportJobSummaryResponse.FromEntity(summary)!,
-            import.Rows.Where(row => row.Status == AssetImportRowStatuses.Failed).Take(ProblemPreviewCount).Select(row => ToRecord(import, row)).ToList()));
+            import.Rows.Where(row => row.Status == AssetImportRowStatuses.Failed).Take(ProblemPreviewCount).Select(row => ToRecord(import, row, catalog)).ToList()));
     }
 
     /// <summary>The number of assets the current export filters match (the count on the Export button).</summary>
@@ -906,18 +986,19 @@ public static class AssetImportExportEndpoints
     /// </summary>
     /// <remarks>
     /// A row is Duplicate when its asset tag is already registered (Create), used by a draft registration, repeated in the file,
-    /// or when two rows update the same asset; Invalid when a value cannot be read, a mandatory value is missing or the asset to
-    /// update is not found. Blank cells keep the asset's current value when updating.
+    /// or when two rows update the same asset; Invalid when a value cannot be read, a mandatory value is missing, a value is not in
+    /// its master list (category, asset type, location, …), a custom field does not apply, or the asset to update is not found.
+    /// Blank cells keep the asset's current value when updating.
     /// </remarks>
     private static async Task<List<(AssetImportJobRow Row, AssetRegistration? Asset)>> CheckRowsAsync(
         AssetImportExportJob job,
-        IAssetRegistrationRepository assetRepository,
-        IAssetRegistrationDraftRepository draftRepository,
+        AssetImportFieldCatalog catalog,
+        ImportCheckServices services,
         CancellationToken cancellationToken)
     {
         var import = job.Import!;
         var importType = import.ImportType;
-        var mapped = MappedFields(import);
+        var mapped = MappedFields(import, catalog);
         var idIndex = mapped.FirstOrDefault(map => map.Field.Key == AssetImportFields.AssetId).Index;
         var tagIndex = mapped.FirstOrDefault(map => map.Field.Key == AssetImportFields.AssetTag).Index;
         var hasId = mapped.Any(map => map.Field.Key == AssetImportFields.AssetId);
@@ -929,7 +1010,7 @@ public static class AssetImportExportEndpoints
         // One query for every asset the file refers to, by ID or by tag.
         var ids = import.Rows.Select(IdOf).OfType<string>().Distinct(StringComparer.Ordinal).ToList();
         var tags = import.Rows.Select(TagOf).OfType<string>().Distinct(StringComparer.Ordinal).ToList();
-        var existingAssets = await assetRepository.FindByIdsOrTagsAsync(ids, tags, cancellationToken);
+        var existingAssets = await services.Assets.FindByIdsOrTagsAsync(ids, tags, cancellationToken);
         var byId = existingAssets
             .GroupBy(asset => asset.AssetRegistrationId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
@@ -937,6 +1018,18 @@ public static class AssetImportExportEndpoints
             .Where(asset => asset.BasicInformation.AssetTag is not null)
             .GroupBy(asset => asset.BasicInformation.AssetTag!, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+        // Master lists, the employees the file names, and the asset categories custom fields are scoped to: read once.
+        var masterData = await services.MasterData.LoadAsync(cancellationToken);
+        var assigneeIndex = mapped.FirstOrDefault(map => map.Field.Key == "assignedTo").Index;
+        var assigneeNames = mapped.Any(map => map.Field.Key == "assignedTo")
+            ? import.Rows.Select(row => CellAt(row, assigneeIndex)).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            : [];
+        var employees = await services.People.FindEmployeesAsync(assigneeNames, cancellationToken);
+        var masterCheck = new AssetImportMasterDataCheck(masterData, employees);
+        var assetCategories = catalog.CustomFields.Any(field => field.Custom!.Scope == CustomFieldScopes.Category)
+            ? (await services.Categories.GetAllAsync(cancellationToken)).Where(category => !category.IsDeleted).ToList()
+            : [];
 
         var assetsInFile = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var tagsInFile = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -984,8 +1077,8 @@ public static class AssetImportExportEndpoints
             var idText = IdOf(row);
             var tagText = TagOf(row);
             AssetRegistration? existing = null;
-            var idField = AssetImportExportFields.Find(AssetImportFields.AssetId);
-            var tagField = AssetImportExportFields.Find(AssetImportFields.AssetTag);
+            var idField = catalog.Find(AssetImportFields.AssetId);
+            var tagField = catalog.Find(AssetImportFields.AssetTag);
             if (importType != AssetImportTypes.Create)
             {
                 if (idText is not null)
@@ -1025,6 +1118,8 @@ public static class AssetImportExportEndpoints
                 field.Set!(asset, value);
             }
 
+            var provided = values.Select(item => item.Field.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            masterCheck.Check(asset, provided, (key, message) => AddIssue(catalog.Find(key), message));
             Normalize(asset);
 
             // A row that keeps its asset's tag owns it; only rows giving out a new tag can clash, with the system or with each other.
@@ -1048,7 +1143,7 @@ public static class AssetImportExportEndpoints
                 {
                     AddIssue(tagField, $"An asset with tag '{finalTag}' is already registered ({owner.AssetRegistrationId})", isDuplicate: true);
                 }
-                else if (await draftRepository.AssetTagExistsAsync(finalTag, null, cancellationToken))
+                else if (await services.Drafts.AssetTagExistsAsync(finalTag, null, cancellationToken))
                 {
                     AddIssue(tagField, $"Asset tag '{finalTag}' is already used by a draft registration", isDuplicate: true);
                 }
@@ -1058,6 +1153,7 @@ public static class AssetImportExportEndpoints
             if (!notFound)
             {
                 AddValidationIssues(asset, unreadable, AddIssue);
+                CheckCustomFields(asset, catalog, assetCategories, provided, existing is null, (field, message) => AddIssue(field, message));
             }
 
             row.Issues = issues;
@@ -1085,6 +1181,54 @@ public static class AssetImportExportEndpoints
         };
 
         return results;
+    }
+
+    /// <summary>The repositories the row checks read from.</summary>
+    private sealed record ImportCheckServices(
+        IAssetRegistrationRepository Assets,
+        IAssetRegistrationDraftRepository Drafts,
+        IAssetCategoryRepository Categories,
+        IAssetImportMasterDataRepository MasterData,
+        IAssignmentMasterDataRepository People);
+
+    /// <summary>
+    /// Custom fields: a category-specific field may only be filled for assets of its category (or a sub-category of it),
+    /// and a required field that applies must have a value on new assets.
+    /// </summary>
+    private static void CheckCustomFields(
+        AssetRegistration asset,
+        AssetImportFieldCatalog catalog,
+        IReadOnlyCollection<AssetCategory> assetCategories,
+        IReadOnlySet<string> provided,
+        bool isCreate,
+        Action<AssetImportField, string> addIssue)
+    {
+        if (catalog.CustomFields.Count == 0)
+        {
+            return;
+        }
+
+        var categoryIds = assetCategories.Count == 0
+            ? []
+            : AssetCustomFieldValues.CategoriesOf(asset, assetCategories).Select(category => category.Id).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var field in catalog.CustomFields)
+        {
+            var info = field.Custom!;
+            var applies = info.Scope == CustomFieldScopes.Asset
+                || (info.AppliesToCategoryId is not null && categoryIds.Contains(info.AppliesToCategoryId));
+            var hasValue = !string.IsNullOrWhiteSpace(field.Get(asset) as string);
+
+            if (!applies && hasValue && provided.Contains(field.Key))
+            {
+                var categoryName = assetCategories.FirstOrDefault(category => category.Id == info.AppliesToCategoryId)?.Name ?? "another category";
+                addIssue(field, $"{field.Label} applies only to assets in category '{categoryName}'");
+            }
+            else if (applies && info.Required && !hasValue && isCreate)
+            {
+                addIssue(field, $"{field.Label} is required for this asset");
+            }
+        }
     }
 
     private static void AddValidationIssues(AssetRegistration asset, HashSet<string> unreadable, Action<AssetImportField?, string, bool> addIssue)
@@ -1136,7 +1280,10 @@ public static class AssetImportExportEndpoints
         }
     }
 
-    /// <summary>Converts cell text to the field's type. Lookups with a fixed list take the listed spelling; Status must be listed.</summary>
+    /// <summary>
+    /// Converts cell text to the field's type. Fields with a fixed list (Status, Tagging Method, dropdown custom fields, …)
+    /// only take listed values, in the listed spelling.
+    /// </summary>
     private static (object? Value, string? Error) Parse(AssetImportField field, string text)
     {
         switch (field.DataType)
@@ -1167,15 +1314,21 @@ public static class AssetImportExportEndpoints
                     : (null, $"{field.Label} must be a whole number");
 
             default:
-                if (field.Options is { } options)
+                if (field.Custom?.FieldType == CustomFieldTypes.Checkbox)
                 {
-                    var listed = options.Normalize(text);
-                    if (listed is null && field.Key == "status")
+                    text = text.Trim().ToLowerInvariant() switch
                     {
-                        return (null, $"'{text}' is not a valid Status; use one of: {string.Join(", ", options.All)}");
-                    }
+                        "true" or "y" or "1" => "Yes",
+                        "false" or "n" or "0" => "No",
+                        _ => text
+                    };
+                }
 
-                    return (listed ?? text, null);
+                if (field.Options is { All.Count: > 0 } options)
+                {
+                    return options.Normalize(text) is { } listed
+                        ? (listed, null)
+                        : (null, $"'{text}' is not a valid {field.Label}; use one of: {string.Join(", ", options.All)}");
                 }
 
                 if (field.Key == "warrantyPeriodUnit")
@@ -1224,9 +1377,9 @@ public static class AssetImportExportEndpoints
     }
 
     /// <summary>The mapped fields with the index of their file column.</summary>
-    private static List<(AssetImportField Field, int Index, string Column)> MappedFields(AssetImportJobDetails import) =>
+    private static List<(AssetImportField Field, int Index, string Column)> MappedFields(AssetImportJobDetails import, AssetImportFieldCatalog catalog) =>
         import.Mapping
-            .Select(map => (Field: AssetImportExportFields.Find(map.Field), Index: import.Columns.FindIndex(column => string.Equals(column, map.Column, StringComparison.OrdinalIgnoreCase)), map.Column))
+            .Select(map => (Field: catalog.Find(map.Field), Index: import.Columns.FindIndex(column => string.Equals(column, map.Column, StringComparison.OrdinalIgnoreCase)), map.Column))
             .Where(map => map.Field is { Importable: true } && map.Index >= 0)
             .Select(map => (map.Field!, map.Index, map.Column))
             .ToList();
@@ -1235,9 +1388,9 @@ public static class AssetImportExportEndpoints
         index >= 0 && index < row.Cells.Count ? ContractText.TrimOrNull(row.Cells[index]) : null;
 
     /// <summary>Labels of the mandatory fields not mapped yet, for the import type.</summary>
-    private static List<string> MissingMandatory(AssetImportJobDetails import)
+    private static List<string> MissingMandatory(AssetImportJobDetails import, AssetImportFieldCatalog catalog)
     {
-        var mappedKeys = MappedFields(import).Select(map => map.Field.Key).ToHashSet();
+        var mappedKeys = MappedFields(import, catalog).Select(map => map.Field.Key).ToHashSet();
         if (import.ImportType == AssetImportTypes.Update)
         {
             return mappedKeys.Contains(AssetImportFields.AssetId) || mappedKeys.Contains(AssetImportFields.AssetTag)
@@ -1253,14 +1406,14 @@ public static class AssetImportExportEndpoints
 
     /// <summary>
     /// Matches file headers to fields: first by the field's label or key, then by its alternative names. Each field is used once.
-    /// The Asset ID column is left out when creating, since new assets get their ID from Asset360.
+    /// The Asset ID column is left out when creating, since new assets get their ID from Asset360. Custom fields match by label or name.
     /// </summary>
-    private static Dictionary<string, string> SuggestMapping(IReadOnlyCollection<string> columns, string importType)
+    private static Dictionary<string, string> SuggestMapping(IReadOnlyCollection<string> columns, string importType, AssetImportFieldCatalog catalog)
     {
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var usedFields = new HashSet<string>();
         var normalized = columns.Select(column => (Column: column, Name: AssetImportExportFields.NormalizeHeader(column))).ToList();
-        var fields = AssetImportExportFields.Importable
+        var fields = catalog.Importable
             .Where(field => importType != AssetImportTypes.Create || field.Key != AssetImportFields.AssetId)
             .ToList();
 
@@ -1270,7 +1423,7 @@ public static class AssetImportExportEndpoints
             {
                 var field = fields.FirstOrDefault(field => !usedFields.Contains(field.Key) && (useAliases
                     ? field.Aliases.Contains(name)
-                    : name == AssetImportExportFields.NormalizeHeader(field.Label) || name == field.Key.ToLowerInvariant()));
+                    : name == AssetImportExportFields.NormalizeHeader(field.Label) || name == AssetImportExportFields.NormalizeHeader(field.Key)));
                 if (field is not null)
                 {
                     mapping[column] = field.Key;
@@ -1282,7 +1435,7 @@ public static class AssetImportExportEndpoints
         return mapping;
     }
 
-    private static AssetImportMappingResponse BuildMappingResponse(AssetImportExportJob job)
+    private static AssetImportMappingResponse BuildMappingResponse(AssetImportExportJob job, AssetImportFieldCatalog catalog)
     {
         var import = job.Import!;
         var mappedBy = import.Mapping.ToDictionary(map => map.Column, map => map.Field, StringComparer.OrdinalIgnoreCase);
@@ -1290,7 +1443,7 @@ public static class AssetImportExportEndpoints
         var columns = import.Columns
             .Select((column, index) =>
             {
-                var field = mappedBy.TryGetValue(column, out var key) ? AssetImportExportFields.Find(key) : null;
+                var field = mappedBy.TryGetValue(column, out var key) ? catalog.Find(key) : null;
                 return new AssetImportColumnMappingResponse(
                     column,
                     field?.Key,
@@ -1302,20 +1455,20 @@ public static class AssetImportExportEndpoints
             })
             .ToList();
 
-        var missing = MissingMandatory(import);
+        var missing = MissingMandatory(import, catalog);
         return new AssetImportMappingResponse(
             AssetImportJobResponse.FromEntity(job),
             columns,
             columns.Count(column => column.MappedTo is not null),
             missing,
             missing.Count == 0,
-            SuggestMapping(import.Columns, import.ImportType),
-            AssetImportExportFields.Importable.Select(field => AssetImportFieldResponse.FromField(field, import.ImportType)).ToList());
+            SuggestMapping(import.Columns, import.ImportType, catalog),
+            catalog.Importable.Select(field => AssetImportFieldResponse.FromField(field, import.ImportType)).ToList());
     }
 
-    private static AssetImportRecordResponse ToRecord(AssetImportJobDetails import, AssetImportJobRow row)
+    private static AssetImportRecordResponse ToRecord(AssetImportJobDetails import, AssetImportJobRow row, AssetImportFieldCatalog catalog)
     {
-        var values = MappedFields(import).ToDictionary(map => map.Field.Key, map => CellAt(row, map.Index));
+        var values = MappedFields(import, catalog).ToDictionary(map => map.Field.Key, map => CellAt(row, map.Index));
         return new AssetImportRecordResponse(
             row.RowNumber,
             row.Status,
@@ -1326,6 +1479,9 @@ public static class AssetImportExportEndpoints
             values,
             row.Issues.Select(issue => new AssetImportIssueResponse(issue.Field, issue.Column, issue.Message)).ToList());
     }
+
+    private static async Task<AssetImportFieldCatalog> LoadCatalogAsync(IAssetCustomFieldRepository fieldRepository, CancellationToken cancellationToken) =>
+        new(await fieldRepository.GetByScopesAsync([CustomFieldScopes.Asset, CustomFieldScopes.Category], cancellationToken));
 
     private static string IssueText(AssetImportJobIssue issue) =>
         issue.Column is null ? issue.Message : $"{issue.Column}: {issue.Message}";

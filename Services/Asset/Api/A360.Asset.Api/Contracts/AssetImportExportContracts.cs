@@ -222,6 +222,20 @@ public sealed record AssetImportRecordResponse(
     IReadOnlyDictionary<string, string?> Values,
     IReadOnlyCollection<AssetImportIssueResponse> Issues);
 
+/// <summary>One row of the uploaded file: column header → cell text.</summary>
+public sealed record AssetImportFileRowResponse(int RowNumber, IReadOnlyDictionary<string, string?> Values);
+
+/// <param name="Columns">The file's column headers, in file order.</param>
+/// <param name="TotalCount">Rows matching the search (all rows when there is none).</param>
+public sealed record AssetImportFileRowsResponse(
+    string ImportId,
+    string FileName,
+    IReadOnlyCollection<string> Columns,
+    IReadOnlyCollection<AssetImportFileRowResponse> Rows,
+    long TotalCount,
+    int Page,
+    int PageSize);
+
 public sealed record AssetImportRecordsResponse(
     IReadOnlyCollection<AssetImportRecordResponse> Items,
     long TotalCount,
