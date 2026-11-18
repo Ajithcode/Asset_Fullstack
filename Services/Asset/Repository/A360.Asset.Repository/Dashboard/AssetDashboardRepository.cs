@@ -25,6 +25,7 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
 
     // Work orders, written by the Maintenance service; asset_id holds the asset tag (or registration id).
     private const string WorkOrderCollection = "work_orders";
+    private static readonly string[] ClosedWorkOrderStatuses = ["Completed", "Cancelled", "Canceled", "Closed"];
 
     // Ids and tags are matched ignoring case, as everywhere else in the services.
     private static readonly Collation CaseInsensitive = new("en", strength: CollationStrength.Secondary);
@@ -60,7 +61,9 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             .Include(asset => asset.LocationAssignment.Location.ZoneName)
             .Include(asset => asset.LocationAssignment.Location.LocationPath)
             .Include(asset => asset.LocationAssignment.Location.Latitude)
-            .Include(asset => asset.LocationAssignment.Location.Longitude);
+            .Include(asset => asset.LocationAssignment.Location.Longitude)
+            .Include(asset => asset.PurchaseWarranty.Purchase.PurchaseDate)
+            .Include(asset => asset.AdditionalInformation.Operational.NextMaintenanceDate);
 
         var assets = await _assets
             .Find(asset => !asset.IsDeleted)
@@ -86,7 +89,42 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
                 asset.Classification?.Criticality,
                 asset.LocationAssignment?.Assignment?.AssignedToName,
                 asset.LocationAssignment?.Assignment?.CustodianDepartment,
-                (asset.PurchaseWarranty?.Documents?.Count ?? 0) + (asset.AdditionalInformation?.Attachments?.Count ?? 0)))
+                (asset.PurchaseWarranty?.Documents?.Count ?? 0) + (asset.AdditionalInformation?.Attachments?.Count ?? 0),
+                asset.PurchaseWarranty?.Purchase?.PurchaseDate,
+                asset.AdditionalInformation?.Operational?.NextMaintenanceDate))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<DashboardOpenWorkOrder>> GetOpenWorkOrdersDueAsync(
+        IReadOnlyCollection<string> assetKeys, DateTime dueBeforeUtc, CancellationToken cancellationToken = default)
+    {
+        if (assetKeys.Count == 0)
+        {
+            return [];
+        }
+
+        var filter = Builders<BsonDocument>.Filter;
+        var rows = await _database.GetCollection<BsonDocument>(WorkOrderCollection)
+            .Find(filter.Ne("is_deleted", true)
+                & filter.In("asset_id", assetKeys)
+                & filter.Nin("status", ClosedWorkOrderStatuses))
+            .Project(Builders<BsonDocument>.Projection
+                .Include("work_order_id").Include("asset_id").Include("status")
+                .Include("due_date").Include("scheduled_date").Include("planned_start_date"))
+            .ToListAsync(cancellationToken);
+
+        // due_date, else scheduled_date, else planned_start_date; orders with none of them are not "due"
+        static DateTime? DateOf(BsonDocument row, string name) =>
+            row.TryGetValue(name, out var value) && value.IsValidDateTime ? value.ToUniversalTime() : null;
+
+        return rows
+            .Select(row => (Row: row, Due: DateOf(row, "due_date") ?? DateOf(row, "scheduled_date") ?? DateOf(row, "planned_start_date")))
+            .Where(item => item.Due is not null && item.Due < dueBeforeUtc)
+            .Select(item => new DashboardOpenWorkOrder(
+                item.Row.GetValue("work_order_id", BsonNull.Value).IsString ? item.Row["work_order_id"].AsString : item.Row["_id"].ToString()!,
+                item.Row["asset_id"].AsString,
+                item.Row.GetValue("status", BsonNull.Value).IsString ? item.Row["status"].AsString : null,
+                item.Due!.Value))
             .ToList();
     }
 

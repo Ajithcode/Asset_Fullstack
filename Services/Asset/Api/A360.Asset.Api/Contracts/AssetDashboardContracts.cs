@@ -417,3 +417,48 @@ public sealed record AssetDashboardAlert(
     string? Status,
     string? DeviceId,
     string? Message);
+
+// ---- Quick Insights: Due for Maintenance ----
+
+/// <param name="DueDate">The earlier of the asset's next maintenance date (additional_information.operational) and its
+/// earliest open work order's due date; in the past when overdue.</param>
+/// <param name="DueSource">"Next maintenance date" or "Work order".</param>
+/// <param name="WorkOrderId">The work order behind <paramref name="DueDate"/>, when it comes from one.</param>
+public sealed record AssetMaintenanceDue(
+    string AssetRegistrationId,
+    string? AssetTag,
+    string? AssetName,
+    string? Category,
+    string? SubCategory,
+    string? AssetType,
+    string? Criticality,
+    string? AssetStatus,
+    string? SiteName,
+    DateTime DueDate,
+    string DueSource,
+    string? WorkOrderId,
+    int OpenWorkOrders);
+
+/// <summary>GET /api/asset-dashboard/assets-due-maintenance?days=: assets due (or overdue) for maintenance within the window.</summary>
+public sealed record AssetMaintenanceDueResponse(int Days, DateTime DueBefore, int Count, int TotalAssets, IReadOnlyList<AssetMaintenanceDue> Assets);
+
+// ---- Asset Lifecycle Aging ----
+
+public sealed record AssetAgeDetail(
+    string AssetRegistrationId,
+    string? AssetTag,
+    string? AssetName,
+    string? Category,
+    string? SiteName,
+    string? AssetStatus,
+    DateTime PurchaseDate,
+    double AgeYears);
+
+/// <param name="MinYears">Completed years of age, inclusive.</param>
+/// <param name="MaxYears">Completed years of age, inclusive; null for the open-ended band.</param>
+public sealed record AssetAgeBand(string Band, string Label, int MinYears, int? MaxYears, int Count, double Percent, IReadOnlyList<AssetAgeDetail> Assets);
+
+/// <summary>GET /api/asset-dashboard/aging: assets by age since purchase (purchase_warranty.purchase.purchase_date).</summary>
+/// <param name="Dated">Assets with a purchase date (the bands' total; Percent is a share of it).</param>
+/// <param name="WithoutPurchaseDate">Assets left out because they have no purchase date.</param>
+public sealed record AssetAgingResponse(DateTime AsOf, int TotalAssets, int Dated, int WithoutPurchaseDate, IReadOnlyList<AssetAgeBand> Bands);
