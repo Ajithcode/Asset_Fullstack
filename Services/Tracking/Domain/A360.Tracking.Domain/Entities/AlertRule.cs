@@ -57,6 +57,37 @@ public sealed class AlertRule : BaseEntity
     /// <summary>Each one of <see cref="AlertNotificationChannel.All"/>.</summary>
     [BsonElement("notification_channels")]
     public List<string> NotificationChannels { get; set; } = [];
+
+    /// <summary>
+    /// Floor plan zone the rule watches (maps_zones.zone_id, Maps &amp; Floor Plans) instead of an outdoor geofence.
+    /// Such rules keep <see cref="GeofenceId"/> as "zone:{id}" so names stay unique per zone.
+    /// </summary>
+    [BsonElement("map_zone_id")]
+    public string? MapZoneId { get; set; }
+
+    [BsonElement("map_floor_plan_id")]
+    public string? MapFloorPlanId { get; set; }
+
+    /// <summary>Seconds between desktop notifications of one alert (e.g. 5).</summary>
+    [BsonElement("notify_interval_seconds")]
+    public int NotifyIntervalSeconds { get; set; } = AlertNotifyDefaults.IntervalSeconds;
+
+    /// <summary>How many notifications per alert; 0 = repeat until the alert is acknowledged.</summary>
+    [BsonElement("notify_repeat")]
+    public int NotifyRepeat { get; set; } = AlertNotifyDefaults.Repeat;
+
+    /// <summary>Play a sound with the notification.</summary>
+    [BsonElement("notify_sound")]
+    public bool NotifySound { get; set; } = true;
+}
+
+public static class AlertNotifyDefaults
+{
+    public const int IntervalSeconds = 5;
+    public const int Repeat = 1;
+    public const int MaxIntervalSeconds = 24 * 60 * 60;
+    public const int MaxRepeat = 20;
+    public const string MapZonePrefix = "zone:";
 }
 
 public static class AlertRuleTrigger

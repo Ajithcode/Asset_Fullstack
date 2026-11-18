@@ -1,5 +1,7 @@
 using MongoDB.Driver;
+using A360.Tracking.Api.Alerts;
 using A360.Tracking.Api.Endpoints;
+using A360.Tracking.Api.Locating;
 using A360.Tracking.Repository.Repositories;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
@@ -38,7 +40,7 @@ public static class TrackingServiceCollectionExtensions
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
         services.AddA360JwtAuthentication(configuration);
         // Sign-in + role permissions also when the frontend calls this service directly on its own port
-        services.AddA360AccessGuard(configuration, "Tracking & IoT");
+        services.AddA360AccessGuard(configuration, "Tracking & IoT", PushEndpoints.ActionsPath);
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Tracking",
@@ -118,6 +120,14 @@ public static class TrackingServiceCollectionExtensions
         services.AddScoped<DeviceConfigurationDependencies>();
 
         services.AddHostedService<MongoIndexHostedService>();
+
+        // Floor plan zone alerts (enter / exit / dwell from live tag readings) and their desktop notifications
+        services.AddSingleton<MapZoneLookup>();
+        services.AddSingleton<PushSender>();
+        services.AddSingleton<AlertNotifications>();
+        services.AddHostedService<ZoneGeofenceEngine>();
+        services.AddHostedService<AlertNotificationDispatcher>();
+        services.AddLocating(configuration);
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
 
