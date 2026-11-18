@@ -95,7 +95,8 @@ export class Sidebar {
       children: [
         { label: 'IoT & Tracking Overview', path: '/dashboard/iot-tracking-overview' },
         { label: 'Asset Overview', path: '/dashboard/asset-overview' },
-        { label: 'Reports', path: '/dashboard/reports' },
+        // DEMO-HIDDEN: Dashboard > Reports hidden for the demo (route/component kept)
+        // { label: 'Reports', path: '/dashboard/reports' },
       ],
     },
     {

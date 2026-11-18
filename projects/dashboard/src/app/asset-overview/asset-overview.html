@@ -11,15 +11,16 @@
         <button type="button" class="control io-period ao-asof" (click)="$event.stopPropagation(); asOfOpen = !asOfOpen; menuOpen = ''" aria-haspopup="menu" [attr.aria-expanded]="asOfOpen">
           <lucide-icon [img]="icons.CalendarDays" [size]="16"></lucide-icon><span class="grow">{{ asOfLabel }}</span><lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon></button>
         <span *ngIf="asOfOpen" class="menu io-menu-left" role="menu" (click)="$event.stopPropagation()">
-          <button type="button" role="menuitem" [class.is-on]="asOf === 'today'" (click)="setAsOf('today')">As of Today</button>
-          <button type="button" role="menuitem" [class.is-on]="asOf === '30'" (click)="setAsOf('30')">30 Days Ago</button>
-          <button type="button" role="menuitem" [class.is-on]="asOf === '90'" (click)="setAsOf('90')">90 Days Ago</button>
+          <button type="button" role="menuitem" class="is-on" (click)="asOfOpen = false">As of Today</button>
+          <!-- no API keeps the portfolio's history yet -->
+          <button type="button" role="menuitem" disabled title="No history API yet">30 Days Ago</button>
+          <button type="button" role="menuitem" disabled title="No history API yet">90 Days Ago</button>
         </span>
       </span>
       <label class="io-filter"><span>Site</span>
-        <select class="control" [(ngModel)]="site" (ngModelChange)="apply()"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
+        <select class="control" [(ngModel)]="site" (ngModelChange)="apply()"><option value="">Select Site</option><option *ngFor="let s of siteOptions" [value]="s">{{ s }}</option></select></label>
       <label class="io-filter"><span>Asset Category</span>
-        <select class="control" [(ngModel)]="category" (ngModelChange)="onCategory()"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c.name">{{ c.name }}</option></select></label>
+        <select class="control" [(ngModel)]="category" (ngModelChange)="onCategory()"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
       <label class="io-filter"><span>Asset Type</span>
         <select class="control" [(ngModel)]="type" (ngModelChange)="apply()"><option value="">Select Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
       <label class="io-filter"><span>Asset Status</span>
@@ -58,11 +59,11 @@
       <span class="io-kpi-body"><span class="io-kpi-label">Avg Asset Health Score</span><strong>{{ k.health === null ? blank(k.healthState) : k.health + '%' }}</strong></span>
       <ng-container *ngTemplateOutlet="trend; context: { v: k.healthChange, goodUp: true, unit: k.healthUnit, state: k.healthState, none: k.health === null ? 'No assessments yet' : '' }"></ng-container>
     </div>
-    <!-- no API returns an asset lifecycle / book value yet -->
+    <!-- MISSING-API: no API returns an asset lifecycle / book value yet -->
     <div class="card io-kpi" title="No API provides the lifecycle value yet">
       <span class="io-kpi-ic ic--violet"><lucide-icon [img]="icons.Database" [size]="30"></lucide-icon></span>
       <span class="io-kpi-body"><span class="io-kpi-label">Lifecycle Value</span><strong>–</strong></span>
-      <span class="io-kpi-side"><small>No API yet</small></span>
+      <span class="io-kpi-side"><small>No data available</small></span>
     </div>
   </ng-container>
   <!-- change vs. the previous KPI window (colour says whether the move is good); without a change, the share of total assets when given -->
@@ -98,22 +99,38 @@
             <td class="num">{{ sc.pct }}%</td>
           </tr>
           </ng-container>
-          <tr *ngIf="!byCategory.length"><td colspan="4" class="muted">{{ categoryLoading ? 'Loading categories…' : 'No assets by category.' }}</td></tr>
+          <tr *ngIf="!byCategory.length"><td colspan="4" class="muted">{{ categoryData === null ? 'Loading categories…' : categoryData === 'error' ? 'Could not load categories.' : 'No data available' }}</td></tr>
         </tbody>
       </table>
     </section>
 
     <section class="card io-pad ao-fill io-span-1" aria-labelledby="ao-hd">
       <h2 id="ao-hd" class="io-title"><lucide-icon [img]="icons.Heart" [size]="18"></lucide-icon>Asset Health Distribution</h2>
-      <!-- No API for health bands yet: no mock data -->
-      <p class="io-empty">No data</p>
+      <!-- GET api/asset-dashboard/health-scores (Site / Asset Type filters) -->
+      <p *ngIf="!health || !health.total" class="io-empty">{{ healthData === null ? 'Loading…' : healthData === 'error' ? 'Could not load health scores.' : 'No data available' }}</p>
+      <div class="ao-health" *ngIf="health?.total ? health : null as h">
+        <svg viewBox="0 0 140 140" role="img" [attr.aria-label]="h.total + ' assets by health'" (mouseleave)="hoverHealth = null">
+          <ng-container *ngFor="let r of h.rows">
+            <circle *ngIf="r.count" cx="70" cy="70" r="46" fill="none" [attr.stroke]="r.color" [attr.stroke-width]="hoverHealth === r.band ? 26 : 22"
+              [attr.stroke-dasharray]="r.dash" [attr.stroke-dashoffset]="r.offset" transform="rotate(-90 70 70)" (mouseenter)="hoverHealth = r.band" (click)="openHealthBand(r.band)" class="io-click"></circle>
+            <text *ngIf="r.count" class="ao-seg-label" [attr.x]="r.lx" [attr.y]="r.ly" text-anchor="middle" [attr.fill]="r.band === 'Healthy' ? '#15803d' : r.color">{{ r.pct }}%</text>
+          </ng-container>
+          <text x="70" y="70" class="ao-health-num">{{ hoverHealth ? (h.rows[['Healthy', 'Warning', 'Critical', 'Unknown'].indexOf(hoverHealth)].count | number) : (h.total | number) }}</text>
+          <text x="70" y="84" class="io-donut-cap">{{ hoverHealth ?? 'Total Assets' }}</text>
+        </svg>
+        <ul class="ao-health-legend">
+          <li *ngFor="let r of h.rows" class="io-click" (mouseenter)="hoverHealth = r.band" (mouseleave)="hoverHealth = null" (click)="openHealthBand(r.band)"><i [style.background]="r.color"></i>
+            <span><strong>{{ r.band }}</strong><span class="ao-hl-row"><b>{{ r.count | number }}</b><small [style.color]="r.band === 'Unknown' ? '#6b7280' : r.color">{{ r.pct }}%</small></span></span></li>
+        </ul>
+      </div>
     </section>
 
     <section class="card io-pad ao-fill io-span-2" aria-labelledby="ao-st">
       <h2 id="ao-st" class="io-title"><lucide-icon [img]="icons.PieChart" [size]="18"></lucide-icon>Asset Status Overview</h2>
-      <ul class="ao-status">
+      <p *ngIf="statusData === null || statusData === 'error'" class="io-empty">{{ statusData === null ? 'Loading…' : 'Could not load statuses.' }}</p>
+      <ul *ngIf="statusData && statusData !== 'error'" class="ao-status">
         <li *ngFor="let s of byStatus" [class.is-on]="status === s.status" (click)="openStatus(s.status)" title="Show status details">
-          <span class="ao-st-ic" [style.color]="s.color" [style.background]="s.color + '1c'"><lucide-icon [img]="statusIcons[s.status]" [size]="15"></lucide-icon></span>
+          <span class="ao-st-ic" [style.color]="s.color" [style.background]="s.color + '1c'"><lucide-icon [img]="statusIcon(s.status)" [size]="15"></lucide-icon></span>
           <span class="ao-st-name">{{ s.status }}</span>
           <span class="ao-st-bar"><i [style.width.%]="s.pct" [style.background]="s.color"></i></span>
           <b>{{ s.count | number }}</b><small>{{ s.pct }}%</small>
@@ -128,7 +145,7 @@
           <li *ngFor="let i of insights">
             <button type="button" [class.is-on]="insight === i.key" (click)="openInsightDrill(i.key)" [attr.aria-pressed]="insight === i.key">
               <span class="ao-in-ic" [ngClass]="'tone--' + i.tone"><lucide-icon [img]="i.icon" [size]="18"></lucide-icon></span>
-              <span class="grow"><strong>{{ i.count | number }}</strong><small>{{ i.label }}</small></span>
+              <span class="grow"><strong>{{ i.count === null ? (i.failed ? '–' : '…') : (i.count | number) }}</strong><small>{{ i.failed ? 'Could not load · ' : '' }}{{ i.label }}</small></span>
               <lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon>
             </button>
           </li>
@@ -158,43 +175,45 @@
 
     <section class="card io-pad io-span-1" aria-labelledby="ao-age">
       <h2 id="ao-age" class="io-title"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon>Asset Lifecycle Aging</h2>
-      <!-- No API for lifecycle aging yet: no mock data -->
-      <p class="io-empty">No data</p>
+      <!-- GET api/asset-dashboard/aging (age from purchase date); #agingEl stays rendered so the resize observer can size the chart -->
+      <div #agingEl class="ao-aging" (mouseleave)="hoverAge = null">
+        <p *ngIf="!aging || !aging.total" class="io-empty">{{ agingData === null ? 'Loading…' : agingData === 'error' ? 'Could not load aging.' : 'No data available' }}</p>
+        <ng-container *ngIf="aging?.total ? aging : null as g">
+        <svg [attr.viewBox]="'0 0 ' + aw + ' ' + ah" role="img" aria-label="Assets by age">
+          <g class="grid"><line *ngFor="let t of g.ticks" [attr.x1]="ap.l" [attr.x2]="aw - ap.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
+          <g class="axis"><text *ngFor="let t of g.ticks" [attr.x]="ap.l - 5" [attr.y]="t.y + 3" text-anchor="end">{{ t.label }}</text></g>
+          <g *ngFor="let b of g.bars; let i = index" class="io-click" (click)="openAge(i)" (mouseenter)="hoverAge = i" [class.is-dim]="hoverAge !== null && hoverAge !== i">
+            <rect [attr.x]="b.x" [attr.y]="b.y" [attr.width]="g.barW" [attr.height]="b.h" [attr.fill]="b.color" rx="2"></rect>
+            <text class="ao-bar-val" [attr.x]="b.x + g.barW / 2" [attr.y]="b.y - 5" text-anchor="middle">{{ b.count | number }}</text>
+          </g>
+        </svg>
+        <ul class="ao-age-keys">
+          <li *ngFor="let b of g.bars; let i = index" class="io-click" (click)="openAge(i)"><strong>{{ b.band }}</strong><small>{{ b.label }}</small><b [style.color]="b.color">{{ b.pct }}%</b></li>
+        </ul>
+        <small *ngIf="g.undated" class="muted">{{ g.undated | number }} asset(s) without a purchase date not shown</small>
+        </ng-container>
+      </div>
     </section>
 
     <section class="card io-pad ao-table-card io-span-2 io-full-md" aria-labelledby="ao-tb">
-      <div class="io-sub-head"><h2 id="ao-tb" class="io-title"><lucide-icon class="ao-red" [img]="icons.TriangleAlert" [size]="18"></lucide-icon>{{ tableTitle }} <small class="muted">({{ tableCount | number }})</small></h2>
+      <div class="io-sub-head"><h2 id="ao-tb" class="io-title"><lucide-icon class="ao-red" [img]="icons.TriangleAlert" [size]="18"></lucide-icon>{{ tableTitle }} <small class="muted">({{ tableRows.length | number }})</small></h2>
         <span class="ao-tb-links">
           <button *ngIf="insight" type="button" class="io-link" (click)="openInsight('')">Clear</button>
           <button type="button" class="io-link" (click)="showAllRows = !showAllRows; rowPage = 0">{{ showAllRows ? 'Show Top 5' : 'View All' }}</button></span></div>
       <div class="io-table-wrap">
         <table class="io-table ao-table">
-          <!-- Critical assets from the API: no health score or value in the response, so Criticality replaces them -->
-          <ng-container *ngIf="apiTable; else localTable">
-          <thead><tr><th>Asset Tag</th><th>Asset Name</th><th>Category</th><th>Site</th><th>Criticality</th><th>Status</th></tr></thead>
+          <!-- Rows from the selected Quick Insight's API (critical-assets by default) -->
+          <thead><tr><th>Asset Tag</th><th>Asset Name</th><th>Category</th><th>Site</th><th>Criticality</th><th>{{ insight === 'maintenance' ? 'Due' : 'Status' }}</th></tr></thead>
           <tbody>
-            <tr *ngFor="let a of pageApiRows" class="ao-click" (click)="openCriticalAsset(a)">
-              <td><button type="button" class="io-id" (click)="$event.stopPropagation(); openCriticalAsset(a)">{{ a.assetTag }}</button></td>
-              <td>{{ a.assetName }}</td><td>{{ a.category ?? '-' }}</td><td>{{ a.siteName ?? '-' }}</td>
-              <td><span class="io-sev" [ngClass]="critClass(a.criticality)"><lucide-icon *ngIf="critClass(a.criticality) === 'sev--critical'" [img]="icons.TriangleAlert" [size]="11"></lucide-icon>{{ a.criticality ?? '-' }}</span></td>
-              <td><span class="ao-st" [ngClass]="stClass(a.assetStatus ?? '')"><i></i>{{ a.assetStatus ?? '-' }}</span></td>
+            <tr *ngFor="let r of pageRows" class="ao-click" (click)="openRow(r)">
+              <td><button type="button" class="io-id" (click)="$event.stopPropagation(); openRow(r)">{{ r.tag }}</button></td>
+              <td>{{ r.name }}</td><td>{{ r.category ?? '-' }}</td><td>{{ r.site ?? '-' }}</td>
+              <td><span class="io-sev" [ngClass]="critClass(r.criticality)"><lucide-icon *ngIf="critClass(r.criticality) === 'sev--critical'" [img]="icons.TriangleAlert" [size]="11"></lucide-icon>{{ r.criticality ?? '-' }}</span></td>
+              <td *ngIf="!r.due"><span class="ao-st" [ngClass]="stClass(r.status ?? '')"><i></i>{{ r.status ?? '-' }}</span></td>
+              <td *ngIf="r.due" class="nowrap">{{ fmtDate(r.due) }}</td>
             </tr>
-            <tr *ngIf="!pageApiRows.length"><td colspan="6" class="io-empty">No critical assets.</td></tr>
+            <tr *ngIf="!pageRows.length"><td colspan="6" class="io-empty">{{ tableEmpty }}</td></tr>
           </tbody>
-          </ng-container>
-          <ng-template #localTable>
-          <thead><tr><th>Asset ID</th><th>Asset Name</th><th>Category</th><th>Site</th><th>Health</th><th class="num">Value</th><th>Status</th></tr></thead>
-          <tbody>
-            <tr *ngFor="let a of pageRows" class="ao-click" [class.is-selected]="selectedId === a.id" (click)="openAsset(a)">
-              <td><button type="button" class="io-id" (click)="$event.stopPropagation(); openAsset(a)">{{ a.id }}</button></td>
-              <td>{{ a.name }}</td><td>{{ a.category }}</td><td>{{ a.site }}</td>
-              <td><span class="io-sev" [ngClass]="sevClass(a)"><lucide-icon *ngIf="healthBand(a.hp) === 'Critical' || healthBand(a.hp) === 'Warning'" [img]="icons.TriangleAlert" [size]="11"></lucide-icon>{{ a.hp === null ? 'Unknown' : healthBand(a.hp) === 'Healthy' ? a.hp + '%' : healthBand(a.hp) }}</span></td>
-              <td class="num">{{ money(a.value) }}</td>
-              <td><span class="ao-st" [ngClass]="stClass(a.st)"><i></i>{{ a.st }}</span></td>
-            </tr>
-            <tr *ngIf="!pageRows.length"><td colspan="7" class="io-empty">No assets match.</td></tr>
-          </tbody>
-          </ng-template>
         </table>
       </div>
       <div *ngIf="showAllRows && rowPages > 1" class="io-pager">

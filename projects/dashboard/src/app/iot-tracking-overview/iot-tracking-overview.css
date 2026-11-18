@@ -121,6 +121,11 @@ h3 lucide-icon { color: var(--io-accent); }
 /* ===== Map ===== */
 .io-map-row { display: grid; flex: 1 1 auto; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; height: 260px; }
 .io-map-wrap { position: relative; min-height: 0; overflow: hidden; border-radius: 10px; background: #e5e7eb; }
+/* shown over the map when no asset can be pinned (loading, error, no data, no coordinates) */
+.io-map-note {
+  position: absolute; left: 50%; top: 50%; z-index: 500; transform: translate(-50%, -50%); margin: 0; padding: 6px 12px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92); color: #6b7280; font-size: 12.5px; text-align: center; pointer-events: none;
+}
 .io-map { position: absolute; inset: 0; z-index: 0; }
 .io-map-ctrl { position: absolute; top: 10px; left: 10px; z-index: 500; display: flex; flex-direction: column; gap: 4px; }
 .io-map-ctrl button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--io-border); border-radius: 6px; background: #fff; color: var(--io-ink); cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15); }

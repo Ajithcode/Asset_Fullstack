@@ -231,6 +231,133 @@ export interface AssetStatusCounts {
 /** Quick Insights endpoints under api/asset-dashboard. */
 export type InsightEndpoint = 'critical-assets' | 'assets-without-custodian' | 'assets-without-documents';
 
+/** Site / asset type / network status narrowing of the api/asset-dashboard widget endpoints. */
+export interface DashboardFilters {
+  siteId?: string;
+  assetType?: string;
+  status?: string;
+}
+
+/** Response of GET api/asset-dashboard/health-scores (same donut shape as device-connectivity). */
+export type HealthScores = DeviceConnectivity;
+
+/** Response of GET api/asset-dashboard/firmware */
+export interface FirmwareStatus {
+  totalDevices: number;
+  onLatest: number;
+  percent: number;
+  devicesWithoutFirmwareInfo: number;
+  models: { deviceModel: string; latestVersion: string; devices: number; onLatest: number }[];
+}
+
+/** Response of GET api/asset-dashboard/utilization?days= */
+export interface UtilizationByType {
+  days: number;
+  overallRunningPercent: number;
+  overallIdlePercent: number;
+  items: { assetType: string; assetCount: number; runningHours: number; idleHours: number; runningPercent: number; idlePercent: number }[];
+}
+
+/** One day of GET api/asset-dashboard/events-timeline?days= */
+export interface EventsTimelinePoint {
+  date: string;
+  telemetryData: number;
+  locationUpdates: number;
+  geofenceEvents: number;
+  alerts: number;
+}
+
+/** Response of GET api/asset-dashboard/events-timeline?days= */
+export interface EventsTimeline {
+  days: number;
+  totals: EventsTimelinePoint;
+  points: EventsTimelinePoint[];
+}
+
+/** Response of GET api/asset-dashboard/sensors-attention */
+export interface SensorsAttention {
+  count: number;
+  sensors: {
+    sensorId: string; name: string | null; sensorType: string | null; measuredParameter: string | null; liveReading: number | null;
+    unit: string | null; deviceId: string | null; assetRegistrationId: string | null; assetName: string | null;
+  }[];
+}
+
+/** One row of GET api/asset-dashboard/alerts */
+export interface DashboardAlert {
+  alertId: string;
+  raisedAt: string;
+  assetRegistrationId: string | null;
+  assetName: string | null;
+  siteName: string | null;
+  eventType: string | null;
+  severity: string | null;
+  status: string | null;
+  deviceId: string | null;
+  message: string | null;
+}
+
+/** Response of GET api/asset-dashboard/sites: every site with its assets (and their latest network reading). */
+export interface AllSitesAssets {
+  totalSites: number;
+  totalAssets: number;
+  sites: SiteDetail[];
+}
+
+/** One asset of GET api/asset-dashboard/assets-due-maintenance */
+export interface MaintenanceDueAsset {
+  assetRegistrationId: string;
+  assetTag: string | null;
+  assetName: string | null;
+  category: string | null;
+  subCategory: string | null;
+  assetType: string | null;
+  criticality: string | null;
+  assetStatus: string | null;
+  siteName: string | null;
+  dueDate: string;
+  dueSource: string;
+  workOrderId: string | null;
+  openWorkOrders: number;
+}
+
+/** Response of GET api/asset-dashboard/assets-due-maintenance?days= */
+export interface MaintenanceDue {
+  days: number;
+  dueBefore: string;
+  count: number;
+  totalAssets: number;
+  assets: MaintenanceDueAsset[];
+}
+
+/** One asset of an age band in GET api/asset-dashboard/aging */
+export interface AgeAsset {
+  assetRegistrationId: string;
+  assetTag: string | null;
+  assetName: string | null;
+  category: string | null;
+  siteName: string | null;
+  assetStatus: string | null;
+  purchaseDate: string;
+  ageYears: number;
+}
+
+/** Response of GET api/asset-dashboard/aging */
+export interface AssetAging {
+  asOf: string;
+  totalAssets: number;
+  dated: number;
+  withoutPurchaseDate: number;
+  bands: { band: string; label: string; minYears: number; maxYears: number | null; count: number; percent: number; assets: AgeAsset[] }[];
+}
+
+function filterParams(filters: DashboardFilters, params = new HttpParams()): HttpParams {
+  if (filters.siteId) params = params.set('siteId', filters.siteId);
+  if (filters.assetType) params = params.set('assetType', filters.assetType);
+  if (filters.status) params = params.set('status', filters.status);
+  return params;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -312,6 +439,57 @@ export class Dashboard {
   getDeviceConnectivity(days: number): Observable<DeviceConnectivity> {
     const params = new HttpParams().set('days', days);
     return this.http.get<DeviceConnectivity>(`${this.baseUrl}/device-connectivity`, { params });
+  }
+
+  /** GET api/asset-dashboard/health-scores: latest condition-assessment score per asset, as Healthy / Warning / Critical / Unknown. */
+  getHealthScores(filters: DashboardFilters = {}): Observable<HealthScores> {
+    return this.http.get<HealthScores>(`${this.baseUrl}/health-scores`, { params: filterParams(filters) });
+  }
+
+  /** GET api/asset-dashboard/firmware */
+  getFirmware(filters: DashboardFilters = {}): Observable<FirmwareStatus> {
+    return this.http.get<FirmwareStatus>(`${this.baseUrl}/firmware`, { params: filterParams(filters) });
+  }
+
+  /** GET api/asset-dashboard/utilization?days= */
+  getUtilization(days: number, filters: DashboardFilters = {}): Observable<UtilizationByType> {
+    return this.http.get<UtilizationByType>(`${this.baseUrl}/utilization`, { params: filterParams(filters, new HttpParams().set('days', days)) });
+  }
+
+  /** GET api/asset-dashboard/events-timeline?days= */
+  getEventsTimeline(days: number, filters: DashboardFilters = {}): Observable<EventsTimeline> {
+    return this.http.get<EventsTimeline>(`${this.baseUrl}/events-timeline`, { params: filterParams(filters, new HttpParams().set('days', days)) });
+  }
+
+  /** GET api/asset-dashboard/sensors-attention */
+  getSensorsAttention(filters: DashboardFilters = {}): Observable<SensorsAttention> {
+    return this.http.get<SensorsAttention>(`${this.baseUrl}/sensors-attention`, { params: filterParams(filters) });
+  }
+
+  /** GET api/asset-dashboard/alerts?days=&limit=: alerts on registered assets, newest first. */
+  getAlerts(days: number, limit: number, filters: DashboardFilters = {}): Observable<DashboardAlert[]> {
+    return this.http.get<DashboardAlert[]>(`${this.baseUrl}/alerts`, { params: filterParams(filters, new HttpParams().set('days', days).set('limit', limit)) });
+  }
+
+  /** PATCH {tracking}api/iot-alerts/{alertId}/status (Tracking service). */
+  setAlertStatus(alertId: string, status: string): Observable<unknown> {
+    const params = new HttpParams().set('clientId', environment.clientId).set('tenantId', environment.tenantId);
+    return this.http.patch(`${environment.trackingApiUrl}api/iot-alerts/${encodeURIComponent(alertId)}/status`, { status }, { params });
+  }
+
+  /** GET api/asset-dashboard/sites: every site with its assets, positions and network status. */
+  getAllSiteAssets(filters: DashboardFilters = {}): Observable<AllSitesAssets> {
+    return this.http.get<AllSitesAssets>(`${this.baseUrl}/sites`, { params: filterParams(filters) });
+  }
+
+  /** GET api/asset-dashboard/assets-due-maintenance?days= */
+  getMaintenanceDue(days: number): Observable<MaintenanceDue> {
+    return this.http.get<MaintenanceDue>(`${this.baseUrl}/assets-due-maintenance`, { params: new HttpParams().set('days', days) });
+  }
+
+  /** GET api/asset-dashboard/aging */
+  getAging(): Observable<AssetAging> {
+    return this.http.get<AssetAging>(`${this.baseUrl}/aging`);
   }
 
   /** GET api/asset-registrations: registered assets, newest first (pageSize 1-200). */
