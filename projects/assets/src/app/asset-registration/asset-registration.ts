@@ -1,15 +1,16 @@
 import { Component, ElementRef, HostListener, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Coords } from 'shared-ui';
 import {
-  AssetAdditionalInformation, AssetBasicInformation, AssetClassification, AssetLocationAssignment, AssetPurchaseWarranty, AssetRegistrationSection,
-  AssetRegistrationSectionBody, AssetRegistrationService,
+  AssetAdditionalInformation, AssetBasicInformation, AssetClassification, AssetDocumentRef, AssetLocationAssignment, AssetPurchaseWarranty,
+  AssetRegistrationResult, AssetRegistrationSection, AssetRegistrationSectionBody, AssetRegistrationService,
 } from '../services/asset-registration/asset-registration';
 import {
-  AssetDropdownService, AssetRegistrationOptions, DropdownOption, LocationHierarchy, textOptions,
+  AssetCustomFieldDefinition, AssetDropdownService, AssetRegistrationOptions, DropdownOption, LocationHierarchy, textOptions,
 } from '../services/asset-dropdowns/asset-dropdown';
+import { apiErrorMessage } from '../services/asset-api';
 import { Observable, concat, defer, forkJoin, last, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import {
   LucideAngularModule,
@@ -121,25 +122,6 @@ const BADGE_COLORS: Record<string, string> = {
 };
 const DEFAULT_BADGE_COLOR = '#94a3b8';
 
-/** Supplier / Vendor and Manufacturer choices used while Master Data Management has none (the asset saves the label). */
-const DEFAULT_SUPPLIERS: DropdownOption[] = [
-  { label: 'Global Supplies LLC', value: 'Global Supplies LLC' },
-  { label: 'Prime Industrial Traders', value: 'Prime Industrial Traders' },
-  { label: 'TechSource Distributors', value: 'TechSource Distributors' },
-];
-const DEFAULT_MANUFACTURERS: DropdownOption[] = [
-  { label: 'Caterpillar', value: 'Caterpillar' },
-  { label: 'Siemens', value: 'Siemens' },
-  { label: 'Schneider Electric', value: 'Schneider Electric' },
-];
-
-/** Criticality choices used while Master Data Management has none of its own (the asset saves the label). */
-const DEFAULT_CRITICALITIES: DropdownOption[] = [
-  { label: 'High', value: 'High' },
-  { label: 'Medium', value: 'Medium', isDefault: true },
-  { label: 'Low', value: 'Low' },
-];
-
 /** Form fields that hold a location, top to bottom. */
 type LocationLevelKey = 'country' | 'site' | 'building' | 'floor' | 'zone' | 'room';
 
@@ -178,8 +160,11 @@ interface PlanPin {
 }
 
 interface AssetImage {
+  /** Stored file URL (Media service), or a local preview while the upload runs. */
   src: string;
   alt: string;
+  /** Set once the Media service has stored the file; only uploaded images are saved with the asset. */
+  url?: string;
 }
 
 /** A row of the Custom Fields table; organisation fields are fixed, user-added ones can be renamed and removed. */
@@ -190,6 +175,8 @@ interface CustomField {
   options?: Option[];
   maxLength?: number;
   userAdded?: boolean;
+  /** Field type name saved with the asset (the API's fieldType, e.g. "Dropdown"). */
+  apiType?: string;
 }
 
 /** An uploaded file: purchase documents (step 4) or attachments (step 5). */
@@ -201,6 +188,9 @@ interface AssetDocument {
   uploadedAt: string;
   /** Present for files picked in this session. */
   file?: File;
+  /** Stored file URL (Media service); empty while the upload runs. */
+  url?: string;
+  contentType?: string;
 }
 
 type DocumentList = 'purchaseDocuments' | 'attachments';
@@ -339,11 +329,6 @@ const PLAN_ZOOM_MIN = 1;
 const PLAN_ZOOM_MAX = 3;
 const PLAN_ZOOM_STEP = 0.5;
 
-/** Options whose label and value are the same, e.g. units('kVA', 'kW'). */
-function units(...labels: string[]): Option[] {
-  return labels.map((label) => ({ label, value: label }));
-}
-
 const LOCATION_LEVELS: LocationLevelKey[] = ['country', 'site', 'building', 'floor', 'zone', 'room'];
 
 /** Which form field a tree level fills; projects fill none. */
@@ -372,11 +357,17 @@ const LOCATION_KIND_LABELS: Record<LocationKind, string> = {
 /** Levels that can carry their own map image. */
 const MAP_LEVEL_KINDS: LocationKind[] = ['floor', 'zone', 'outdoorZone', 'subZone'];
 
-/** Floor plan the Locating module shows when a level has no uploaded map. */
-const DEFAULT_MAP_IMAGE = 'map1.png';
-
 /** Master data has no map coordinates yet; the floor plan lays pins with equal coordinates out on a grid. */
 const NO_COORDS: Coords = { lat: 0, lng: 0, zoom: 0 };
+
+/** Custom field type from GET /api/asset-custom-fields -> the control the table renders. */
+function customFieldControl(fieldType: string): CustomField['type'] {
+  const t = (fieldType || '').toLowerCase();
+  if (t === 'dropdown' || t === 'yes/no' || t === 'multiselect' || t === 'multi-select') return 'select';
+  if (t === 'date') return 'date';
+  if (t === 'textarea') return 'textarea';
+  return 'text';
+}
 
 const sameName = (a?: string, b?: string) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
 
@@ -401,7 +392,13 @@ function buildMasterLocationTree(h: LocationHierarchy): LocationNode[] {
     add(country, node(site.value, site.label, 'site'));
   }
   for (const b of h.buildings) if (b.parentId && byId[b.parentId]) add(byId[b.parentId], node(b.value, b.label, 'building'));
-  for (const f of h.floors) if (f.parentId && byId[f.parentId]) add(byId[f.parentId], node(f.value, f.label, 'floor'));
+  for (const f of h.floors) {
+    if (!f.parentId || !byId[f.parentId]) continue;
+    const floor = node(f.value, f.label, 'floor');
+    // Floor plan uploaded in Master Data (floors.imageUrl); floors without one show an empty map panel
+    if (f.imageUrl) floor.mapImage = f.imageUrl;
+    add(byId[f.parentId], floor);
+  }
   for (const z of h.zones) {
     const floor = z.parentId ? byId[z.parentId] : undefined;
     const building = z.buildingId ? byId[z.buildingId] : undefined;
@@ -578,47 +575,26 @@ export class AssetRegistration {
 
   readonly assetTypesBySubCategory: Record<string, Option[]> = {};
 
-  /** Built-in (no API list yet), keyed by asset type name in lower case. */
-  readonly assetSubTypesByType: Record<string, SubTypeOption[]> = {
-    generator: [
-      { label: 'Diesel Generator', value: 'diesel', image: 'subtype-diesel-generator.svg' },
-      { label: 'Gas Generator', value: 'gas', image: 'subtype-gas-generator.svg' },
-      { label: 'UPS Generator', value: 'ups', image: 'subtype-ups-generator.svg' },
-      { label: 'Solar Generator', value: 'solar', image: 'subtype-solar-generator.svg' },
-    ],
-    transformer: [
-      { label: 'Step-Up Transformer', value: 'step-up' },
-      { label: 'Step-Down Transformer', value: 'step-down' },
-      { label: 'Isolation Transformer', value: 'isolation' },
-    ],
-    ups: [
-      { label: 'Online UPS', value: 'online' },
-      { label: 'Line-Interactive UPS', value: 'line-interactive' },
-    ],
-  };
+  /**
+   * MISSING-API: there is no asset sub type list in any service, so this starts empty per asset type; sub types
+   * added with the ⋮ menu are kept for this form and saved with the asset by name.
+   */
+  readonly assetSubTypesByType: Record<string, SubTypeOption[]> = {};
 
   /** From GET master-data/asset-models (parentId = manufacturer id), loaded when the page opens. The asset saves the model name. */
   private assetModels: DropdownOption[] = [];
 
   /** From GET master-data/manufacturers (value = record id), loaded when the page opens. */
-  readonly manufacturers: Option[] = DEFAULT_MANUFACTURERS.map(({ label, value }) => ({ label, value }));
+  readonly manufacturers: Option[] = [];
 
-  readonly statuses: StatusOption[] = [
-    { label: 'Active', value: 'active', color: '#16a34a' },
-    { label: 'Inactive', value: 'inactive', color: '#94a3b8' },
-    { label: 'Under Maintenance', value: 'maintenance', color: '#f59e0b' },
-    { label: 'Retired', value: 'retired', color: '#64748b' },
-  ];
+  /** From GET /api/asset-registrations/options (basicInformation.statuses). */
+  readonly statuses: StatusOption[] = [];
 
-  readonly conditions: StatusOption[] = [
-    { label: 'Excellent', value: 'excellent', color: '#15803d' },
-    { label: 'Good', value: 'good', color: '#16a34a' },
-    { label: 'Fair', value: 'fair', color: '#f59e0b' },
-    { label: 'Poor', value: 'poor', color: '#dc2626' },
-  ];
+  /** From GET master-data/conditions. */
+  readonly conditions: StatusOption[] = [];
 
-  /** High / Medium / Low from the start, so the required field always has choices; Master Data's own replace them when it has any. */
-  readonly criticalities: StatusOption[] = DEFAULT_CRITICALITIES.map((o) => ({ label: o.label, value: o.value, color: BADGE_COLORS[o.label.toLowerCase()] ?? DEFAULT_BADGE_COLOR }));
+  /** From GET master-data/criticalities. */
+  readonly criticalities: StatusOption[] = [];
   private criticalitiesRequested = false;
 
   readonly functionPurposes: Option[] = [];
@@ -672,8 +648,8 @@ export class AssetRegistration {
 
   readonly remarksMax = REMARKS_MAX;
 
-  /** From GET master-data/suppliers; three sample suppliers until Master Data has its own. */
-  readonly vendors: Option[] = DEFAULT_SUPPLIERS.map(({ label, value }) => ({ label, value }));
+  /** From GET master-data/suppliers. */
+  readonly vendors: Option[] = [];
 
   readonly units: Option[] = [];
 
@@ -756,28 +732,10 @@ export class AssetRegistration {
   readonly utilizations: Option[] = [];
   readonly complianceOptions: Option[] = [];
 
-  customFields: CustomField[] = [
-    {
-      label: 'Asset Criticality Level', type: 'select', value: '',
-      options: [
-        { label: 'Critical', value: 'critical' },
-        { label: 'High', value: 'high' },
-        { label: 'Medium', value: 'medium' },
-        { label: 'Low', value: 'low' },
-      ],
-    },
-    {
-      label: 'Environmental Impact', type: 'select', value: '',
-      options: [{ label: 'High', value: 'high' }, { label: 'Medium', value: 'medium' }, { label: 'Low', value: 'low' }],
-    },
-    { label: 'Installation Date', type: 'date', value: '' },
-    { label: 'Commissioning Date', type: 'date', value: '' },
-    {
-      label: 'Asset Color', type: 'select', value: '',
-      options: units('Yellow', 'White', 'Grey', 'Black', 'Green').map((o) => ({ ...o, value: o.value.toLowerCase() })),
-    },
-    { label: 'Notes', type: 'textarea', value: '', maxLength: NOTES_MAX },
-  ];
+  /** The organisation's asset custom fields (GET /api/asset-custom-fields), plus rows the user adds here. */
+  customFields: CustomField[] = [];
+  /** True once the custom field definitions have loaded (the table shows an empty state when there are none). */
+  customFieldsLoaded = false;
 
   attachments: AssetDocument[] = [];
 
@@ -793,10 +751,169 @@ export class AssetRegistration {
   toastMessage = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
-  constructor(private readonly router: Router) {
+  /** Business id (e.g. AR000012) of the registered asset being edited; empty when registering a new one. */
+  editId = '';
+  /** True while the asset to edit is loading. */
+  loadingAsset = false;
+
+  constructor(private readonly router: Router, route: ActivatedRoute) {
     this.generateQr();
-    this.ensureLocationSelection();
-    this.loadStepDropdowns(0);
+    // Asset List > Edit Asset opens /assets/registration?id=AR000012&tag=GEN-00045
+    const params = route.snapshot.queryParamMap;
+    const id = params.get('id') ?? '';
+    const tag = params.get('tag') ?? '';
+    if (id || tag) {
+      this.loadAssetForEdit(id, tag);
+    } else {
+      this.ensureLocationSelection();
+      this.loadStepDropdowns(0);
+    }
+  }
+
+  // ===== Edit a registered asset =====
+
+  /** Saved location of the asset being edited; kept as is unless the user picks another location. */
+  private originalLocation?: AssetLocationAssignment['location'];
+  /** Sub type of the asset being edited (there is no sub type list to find it in), by asset type name. */
+  private editSubType?: { type: string; subType: string };
+
+  /** GET /api/asset-registrations/{id} (or lookup by tag), fills the form, then loads every step's dropdowns. */
+  private loadAssetForEdit(id: string, tag: string): void {
+    this.loadingAsset = true;
+    const request$ = id ? this.registrationApi.getById(id) : this.registrationApi.lookupByTag(tag);
+    request$.subscribe({
+      next: (asset) => {
+        this.loadingAsset = false;
+        this.editId = asset.assetRegistrationId;
+        this.applyAsset(asset);
+        this.steps.forEach((_, step) => this.loadStepDropdowns(step));
+      },
+      error: (err) => {
+        this.loadingAsset = false;
+        this.showToast(`The asset could not be loaded. ${apiErrorMessage(err, '')}`.trim());
+        this.ensureLocationSelection();
+        this.loadStepDropdowns(0);
+      },
+    });
+  }
+
+  /**
+   * Puts a registered asset into the form. Dropdowns hold labels until their lists load, then swapOptions maps
+   * each label to its option (a value no longer listed is cleared, as for drafts).
+   */
+  private applyAsset(asset: AssetRegistrationResult): void {
+    const f = this.form;
+    const b = asset.basicInformation;
+    const c = asset.classification;
+    const la = asset.locationAssignment;
+    const pw = asset.purchaseWarranty;
+    const ai = asset.additionalInformation;
+    const t = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+    const day = (v: string | null | undefined) => (v ? v.slice(0, 10) : '');
+
+    Object.assign(f, {
+      assetName: t(b?.assetName), assetTag: t(b?.assetTag), barcode: t(b?.barcode), rfidTag: t(b?.rfidTagId), model: t(b?.model),
+      manufacturer: t(b?.manufacturer || pw?.purchase?.manufacturer), serialNumber: t(b?.serialNumber), status: t(b?.status),
+      condition: t(b?.condition), criticality: t(c?.criticality || b?.criticality), description: t(b?.description),
+      category: t(c?.category), subCategory: t(c?.subCategory), assetType: t(c?.assetType), assetSubType: t(c?.assetSubType),
+      functionPurpose: t(c?.functionPurpose), costCenter: t(c?.costCenter || la?.assignment?.costCenter), businessUnit: t(c?.businessUnit),
+      taggingMethod: t(c?.taggingMethod), complianceCategory: t(c?.complianceCategory), lifecycleStage: t(c?.lifecycleStage),
+      keywords: [...(c?.keywords ?? [])],
+      department: t(c?.department || la?.assignment?.custodianDepartment), assignedTo: t(la?.assignment?.assignedToUserId),
+      ownershipType: t(la?.assignment?.ownershipType), responsibleTeam: t(la?.assignment?.responsibleTeam),
+      assignmentStart: day(la?.assignment?.assignmentStartDate), assignmentEnd: day(la?.assignment?.assignmentEndDate),
+      setAsCurrent: la?.assignment?.isCurrent ?? true,
+    });
+    if (c?.assetSubType) this.editSubType = { type: t(c.assetType), subType: c.assetSubType };
+    // Cost centers have no list; keep the saved one as an option
+    if (f.costCenter && !this.costCenters.some((o) => o.value === f.costCenter)) this.costCenters.push({ label: f.costCenter, value: f.costCenter });
+
+    const loc = la?.location;
+    if (loc) {
+      this.originalLocation = loc;
+      Object.assign(f, {
+        country: t(loc.countryId || loc.countryName), site: t(loc.siteId), building: t(loc.buildingId),
+        floor: t(loc.floorId), zone: t(loc.zoneId), room: t(loc.roomId),
+      });
+    }
+
+    const p = pw?.purchase;
+    if (p) {
+      Object.assign(f, {
+        purchaseOrder: t(p.purchaseOrderNumber), invoiceNumber: t(p.invoiceNumber), vendor: t(p.supplierVendor),
+        purchaseDate: day(p.purchaseDate), deliveryDate: day(p.deliveryDate), purchaseCost: t(p.purchaseCost),
+        quantity: t(p.quantity ?? 1), unit: t(p.quantityUnit), currency: t(p.currency), taxRate: t(p.taxPercent),
+        paymentTerms: t(p.paymentTerms), procurementMethod: t(p.procurementMethod), projectReference: t(p.projectReference), remarks: t(p.remarks),
+      });
+    }
+    const w = pw?.warranty;
+    if (w) {
+      Object.assign(f, {
+        warrantyType: t(w.warrantyType), warrantyStart: day(w.warrantyStartDate), warrantyPeriod: t(w.warrantyPeriod),
+        warrantyPeriodUnit: t(w.warrantyPeriodUnit), amcIncluded: !!w.amcIncluded, supportCoverage: t(w.supportCoverage),
+        serviceProvider: t(w.serviceProvider), warrantyReference: t(w.warrantyReference),
+      });
+    }
+
+    const tech = ai?.technical;
+    if (tech) {
+      for (const spec of tech.specifications ?? []) {
+        const field = this.specFields.find((s) => this.sameLabel(s.label, spec.name ?? ''));
+        if (!field) continue;
+        f.specs[field.key] = t(spec.value);
+        if (field.unitKey && spec.unit) f.specs[field.unitKey] = spec.unit;
+      }
+      Object.assign(f.specs, {
+        length: t(tech.dimensionLength), width: t(tech.dimensionWidth), height: t(tech.dimensionHeight), dimensionUnit: t(tech.dimensionUnit),
+        weight: t(tech.weight), weightUnit: t(tech.weightUnit), lifespan: t(tech.expectedLifespan), lifespanUnit: t(tech.expectedLifespanUnit),
+        remarks: t(tech.technicalRemarks),
+      });
+    }
+    const op = ai?.operational;
+    if (op) {
+      Object.assign(f.operations, {
+        operatingHours: t(op.operatingHoursPerDay), operatingHoursUnit: t(op.operatingHoursUnit), operatingShift: t(op.operatingShift),
+        utilization: t(op.utilization), maintenanceFrequency: t(op.maintenanceFrequency), maintenanceFrequencyUnit: t(op.maintenanceFrequencyUnit),
+        lastMaintenance: day(op.lastMaintenanceDate), nextMaintenance: day(op.nextMaintenanceDate),
+        complianceStandards: [...(op.complianceStandards ?? [])],
+      });
+    }
+    // Saved values; loadCustomFields matches them to the organisation's field definitions
+    this.customFields = (ai?.customFields ?? []).map((cf) => ({
+      label: t(cf.fieldName), type: 'text', value: t(cf.value), apiType: t(cf.fieldType), userAdded: true,
+    }));
+
+    const toDoc = (d: AssetDocumentRef): AssetDocument => ({
+      name: d.fileName || d.url.split('/').pop() || 'Document', size: d.fileSize ?? 0, uploadedAt: day(d.uploadedAt),
+      url: d.url, contentType: d.contentType,
+    });
+    this.purchaseDocuments = (pw?.documents ?? []).filter((d) => d?.url).map(toDoc);
+    this.attachments = (ai?.attachments ?? []).filter((d) => d?.url).map(toDoc);
+    this.images = (b?.images ?? []).filter(Boolean).map((url) => ({ src: url, url, alt: url.split('/').pop() ?? 'Asset image' }));
+    this.activeImageIndex = 0;
+    this.generateQr();
+  }
+
+  /** GET /api/asset-custom-fields: one row per field definition, keeping values already entered or saved. */
+  private loadCustomFields(): void {
+    this.dropdownApi.getAssetCustomFields().subscribe((defs) => this.applyCustomFieldDefinitions(defs));
+  }
+
+  private applyCustomFieldDefinitions(defs: AssetCustomFieldDefinition[]): void {
+    const current = [...this.customFields];
+    const rows: CustomField[] = defs.map((d) => {
+      const label = d.displayLabel || d.fieldName;
+      const i = current.findIndex((c) => this.sameLabel(c.label, label) || this.sameLabel(c.label, d.fieldName));
+      const existing = i >= 0 ? current.splice(i, 1)[0] : undefined;
+      const type = customFieldControl(d.fieldType);
+      const listed = d.options?.length ? d.options : d.fieldType?.toLowerCase() === 'yes/no' ? ['Yes', 'No'] : [];
+      return {
+        label, type, apiType: d.fieldType, value: existing?.value ?? d.defaultValue ?? '',
+        options: type === 'select' ? textOptions(listed) : undefined, maxLength: type === 'textarea' ? NOTES_MAX : undefined,
+      };
+    });
+    this.customFields = [...rows, ...current];
+    this.customFieldsLoaded = true;
   }
 
   // ===== Dropdown data =====
@@ -844,14 +961,19 @@ export class AssetRegistration {
     loaders[step]();
   }
 
-  /** Step 1: Criticality and Manufacturer from master data (Manufacturer is also shown on step 4). Status and Condition are built-in. */
+  /** Step 1: Criticality, Condition and Manufacturer from master data (Manufacturer is also shown on step 4); Status from /options. */
   private loadBasicInformationDropdowns(): void {
     const f = this.form;
-    // No manufacturers in Master Data yet: keep the sample ones so the required field can be filled
     this.dropdownApi.getManufacturers().subscribe((list) =>
-      this.swapOptions(this.manufacturers, list.length ? list : DEFAULT_MANUFACTURERS, (re) => (f.manufacturer = re(f.manufacturer))),
+      this.swapOptions(this.manufacturers, list, (re) => (f.manufacturer = re(f.manufacturer))),
     );
     this.dropdownApi.getAssetModels().subscribe((list) => (this.assetModels = list));
+    this.dropdownApi.getConditions().subscribe((list) =>
+      this.swapOptions(this.conditions, this.withColors(list), (re) => (f.condition = re(f.condition))),
+    );
+    this.options$.subscribe(({ basicInformation: b = {} }) =>
+      this.swapOptions(this.statuses, this.withColors(textOptions(b.statuses)), (re) => (f.status = re(f.status))),
+    );
     this.loadCriticalities();
   }
 
@@ -878,11 +1000,9 @@ export class AssetRegistration {
     if (this.criticalitiesRequested) return;
     this.criticalitiesRequested = true;
     const f = this.form;
-    this.dropdownApi.getCriticalities().subscribe((loaded) => {
-      // No criticalities in Master Data yet: keep High / Medium / Low so the required field can be filled
-      const list = loaded.length ? loaded : DEFAULT_CRITICALITIES;
-      this.swapOptions(this.criticalities, this.withColors(list), (re) => (f.criticality = re(f.criticality)));
-    });
+    this.dropdownApi.getCriticalities().subscribe((list) =>
+      this.swapOptions(this.criticalities, this.withColors(list), (re) => (f.criticality = re(f.criticality))),
+    );
   }
 
   /** Step 2: Category, Business Unit, Department (master data) and the classification lists from /options. */
@@ -919,9 +1039,8 @@ export class AssetRegistration {
   /** Step 4: Vendor, Service Provider (master data) and the purchase / warranty lists from /options. */
   private loadPurchaseWarrantyDropdowns(): void {
     const f = this.form;
-    // No suppliers in Master Data yet: keep the sample ones so the required field can be filled
     this.dropdownApi.getSuppliers().subscribe((list) =>
-      this.swapOptions(this.vendors, list.length ? list : DEFAULT_SUPPLIERS, (re) => (f.vendor = re(f.vendor))),
+      this.swapOptions(this.vendors, list, (re) => (f.vendor = re(f.vendor))),
     );
     this.dropdownApi.getServiceProviders().subscribe((list) =>
       this.swapOptions(this.serviceProviders, list, (re) => (f.serviceProvider = re(f.serviceProvider))),
@@ -939,9 +1058,10 @@ export class AssetRegistration {
     });
   }
 
-  /** Step 5: spec units and selects, operational lists and compliance standards, all from /options. */
+  /** Step 5: spec units and selects, operational lists and compliance standards from /options; custom fields from the Asset service. */
   private loadAdditionalInformationDropdowns(): void {
     const f = this.form;
+    this.loadCustomFields();
     this.options$.subscribe(({ additionalInformation: a = {} }) => {
       const specLists: Partial<Record<keyof TechnicalSpecs, { units?: string[]; options?: string[] }>> = {
         powerRating: { units: a.powerRatingUnits },
@@ -1050,9 +1170,10 @@ export class AssetRegistration {
       const f = this.form;
       const people: Person[] = employees.map((e) => ({ label: e.label, value: e.value, initials: this.initialsOf(e.label), department: departmentId }));
       this.people.splice(0, this.people.length, ...people);
-      if (!people.some((p) => p.value === f.assignedTo)) f.assignedTo = '';
+      f.assignedTo = this.relabel([], people, f.assignedTo);
       this.teams.splice(0, this.teams.length, ...teams);
-      if (!teams.some((t) => t.value === f.responsibleTeam)) f.responsibleTeam = '';
+      // An edited asset holds the team's name until the list loads
+      f.responsibleTeam = this.relabel([], teams, f.responsibleTeam);
     });
   }
 
@@ -1104,7 +1225,14 @@ export class AssetRegistration {
 
   get assetSubTypes(): SubTypeOption[] {
     const typeName = this.assetTypes.find((t) => t.value === this.form.assetType)?.label.trim().toLowerCase();
-    return typeName ? (this.assetSubTypesByType[typeName] ??= []) : [];
+    if (!typeName) return [];
+    const list = (this.assetSubTypesByType[typeName] ??= []);
+    // The edited asset's own sub type stays selectable for its asset type
+    const saved = this.editSubType;
+    if (saved && this.sameLabel(saved.type, typeName) && !list.some((o) => this.sameLabel(o.label, saved.subType))) {
+      list.push({ label: saved.subType, value: saved.subType });
+    }
+    return list;
   }
 
   /** Sub types that have a picture, shown as tiles in the Category Reference card. */
@@ -1187,6 +1315,8 @@ export class AssetRegistration {
       this.selectLocation(this.selectedLocation);
       return;
     }
+    // An edited asset whose saved location is not (all) in master data keeps it until the user picks another
+    if (this.editId) return;
     const floor = this.findFirst(this.locationTree, 'floor');
     this.selectLocation(floor?.children[0] ?? floor ?? this.findFirst(this.locationTree, 'country'));
   }
@@ -1319,8 +1449,9 @@ export class AssetRegistration {
     );
   }
 
+  /** Uploaded floor plan of the shown level; '' when Master Data has none (the panel then shows an empty state). */
   get mapImageSrc(): string {
-    return this.mapLevel?.mapImage || DEFAULT_MAP_IMAGE;
+    return this.mapLevel?.mapImage || '';
   }
 
   /** e.g. "Street One - Third Right" for a floor, "Third Right - Second Colony" for a zone map. */
@@ -1528,7 +1659,7 @@ export class AssetRegistration {
     for (const file of files) {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
       if (DOCUMENT_EXTENSIONS.includes(ext) && file.size <= DOCUMENT_MAX_BYTES) {
-        accepted.push({ name: file.name, size: file.size, uploadedAt, file });
+        accepted.push({ name: file.name, size: file.size, uploadedAt, file, contentType: file.type });
       } else {
         rejected.push(file.name);
       }
@@ -1537,12 +1668,49 @@ export class AssetRegistration {
     if (rejected.length) {
       this.showToast(`Not added (only PDF, JPG, PNG, DOC, XLS up to 10 MB): ${rejected.join(', ')}`);
     } else if (accepted.length) {
-      this.showToast(`${accepted.length} file${accepted.length > 1 ? 's' : ''} added.`);
+      this.showToast(`Uploading ${accepted.length} file${accepted.length > 1 ? 's' : ''}...`);
     }
+    // Each file is stored through the Media service right away; the asset saves its URL with the step
+    for (const doc of accepted) {
+      this.uploadsInFlight++;
+      this.registrationApi.uploadFile(doc.file!, 'asset-documents').subscribe({
+        next: (url) => {
+          this.uploadsInFlight--;
+          doc.url = url;
+          this[list] = [...this[list]];
+          if (!this.uploadsInFlight) this.showToast(`${doc.name} uploaded.`);
+        },
+        error: (err) => {
+          this.uploadsInFlight--;
+          this[list] = this[list].filter((d) => d !== doc);
+          this.showToast(`${doc.name} could not be uploaded. ${apiErrorMessage(err, '')}`.trim());
+        },
+      });
+    }
+  }
+
+  /** Files still being uploaded to the Media service; Next / Submit wait until they are done. */
+  uploadsInFlight = 0;
+
+  /** Uploaded documents of a list, as the API stores them. */
+  private documentRefs(list: DocumentList): AssetDocumentRef[] {
+    return this[list]
+      .filter((d) => d.url)
+      .map((d) => ({
+        fileName: d.name,
+        url: d.url!,
+        contentType: d.contentType || '',
+        fileSize: d.size || null,
+        uploadedAt: d.uploadedAt ? new Date(`${d.uploadedAt}T00:00:00`).toISOString() : null,
+      }));
   }
 
   downloadDocument(doc: AssetDocument): void {
     this.docMenuKey = null;
+    if (doc.url && !doc.file) {
+      window.open(doc.url, '_blank', 'noopener');
+      return;
+    }
     if (!doc.file) {
       this.showToast(`${doc.name} has no file to download.`);
       return;
@@ -1650,10 +1818,12 @@ export class AssetRegistration {
     }
     if (this.registering) return;
     const step = this.currentStep;
-    if (!this.stepValid(step)) {
+    // Editing a registered asset: the steps are saved together by Submit (PUT), so Next only moves on
+    if (!this.stepValid(step) || this.editId) {
       this.goToStep(step + 1);
       return;
     }
+    if (this.waitForUploads()) return;
     this.registering = true;
     this.saveStep(step).subscribe({
       next: () => {
@@ -1676,7 +1846,11 @@ export class AssetRegistration {
       this.goToStep(this.steps.length);
       return;
     }
-    if (this.registering) return;
+    if (this.registering || this.waitForUploads()) return;
+    if (this.editId) {
+      this.saveChanges();
+      return;
+    }
     this.registering = true;
     // Steps already saved by Next are skipped unless they changed since; a retry after a failure resumes where it stopped
     concat(...this.steps.map((_, step) => this.saveStep(step)))
@@ -1763,6 +1937,7 @@ export class AssetRegistration {
       manufacturer: this.optionLabel(this.manufacturers, f.manufacturer), serialNumber: f.serialNumber,
       status: this.optionLabel(this.statuses, f.status), condition: this.optionLabel(this.conditions, f.condition),
       criticality: this.optionLabel(this.criticalities, f.criticality), description: f.description,
+      images: this.images.filter((i) => i.url).map((i) => i.url!),
     };
   }
 
@@ -1786,8 +1961,11 @@ export class AssetRegistration {
     const deepest = [...LOCATION_LEVELS].reverse().map((level) => index[f[level]]).find(Boolean);
     const chain = deepest ? this.ancestorsOf(deepest) : [];
     const person = this.assignedPerson;
+    const o = this.originalLocation;
+    const unchanged = !!o && f.country === (o.countryId || o.countryName || '') && f.site === (o.siteId ?? '') && f.building === (o.buildingId ?? '')
+      && f.floor === (o.floorId ?? '') && f.zone === (o.zoneId ?? '') && f.room === (o.roomId ?? '');
     return {
-      location: {
+      location: unchanged && o ? { ...o } : {
         projectId: chain[0]?.kind === 'project' ? chain[0].id : '',
         countryId: f.country, countryName: name(f.country), siteId: f.site, siteName: name(f.site), buildingId: f.building, buildingName: name(f.building),
         floorId: f.floor, floorName: name(f.floor), zoneId: f.zone, zoneName: name(f.zone), roomId: f.room, roomName: name(f.room),
@@ -1802,7 +1980,7 @@ export class AssetRegistration {
     };
   }
 
-  // Documents need the url returned by the media upload, which this page does not call yet, so none are sent
+  // Documents are uploaded when added (Media service); their URLs are saved here
   private toPurchaseWarranty(): AssetPurchaseWarranty {
     const f = this.form;
     const total = this.totalCost;
@@ -1814,7 +1992,7 @@ export class AssetRegistration {
         taxPercent: this.numOrNull(f.taxRate), totalCost: total === '' ? null : total, paymentTerms: this.optionLabel(this.paymentTermsOptions, f.paymentTerms),
         procurementMethod: this.optionLabel(this.procurementMethods, f.procurementMethod), projectReference: f.projectReference, remarks: f.remarks,
       },
-      documents: [],
+      documents: this.documentRefs('purchaseDocuments'),
       warranty: {
         warrantyType: this.optionLabel(this.warrantyTypes, f.warrantyType), warrantyStartDate: this.isoOrNull(f.warrantyStart),
         warrantyPeriod: this.numOrNull(f.warrantyPeriod), warrantyPeriodUnit: f.warrantyPeriod ? this.optionLabel(this.warrantyPeriodUnits, f.warrantyPeriodUnit) : '',
@@ -1850,8 +2028,8 @@ export class AssetRegistration {
       },
       customFields: this.customFields
         .filter((c) => c.label.trim())
-        .map((c) => ({ fieldName: c.label.trim(), fieldType: c.type, value: c.options ? this.optionLabel(c.options, c.value) : c.value })),
-      attachments: [],
+        .map((c) => ({ fieldName: c.label.trim(), fieldType: c.apiType || c.type, value: c.options ? this.optionLabel(c.options, c.value) : c.value })),
+      attachments: this.documentRefs('attachments'),
     };
   }
 
@@ -1863,9 +2041,43 @@ export class AssetRegistration {
     return d ? new Date(`${d}T00:00:00`).toISOString() : null;
   }
 
-  /** Saves the current step as a draft; required fields are not enforced. */
+  /** True (with a message) while files are still uploading, so a save does not leave them out. */
+  private waitForUploads(): boolean {
+    if (!this.uploadsInFlight) return false;
+    this.showToast('Please wait until the files have finished uploading.');
+    return true;
+  }
+
+  /** PUT /api/asset-registrations/{id} with every section (edit mode). */
+  private saveChanges(): void {
+    this.registering = true;
+    this.registrationApi
+      .update(this.editId, {
+        basicInformation: this.toBasicInformation(),
+        classification: this.toClassification(),
+        locationAssignment: this.toLocationAssignment(),
+        purchaseWarranty: this.toPurchaseWarranty(),
+        additionalInformation: this.toAdditionalInformation(),
+      })
+      .subscribe({
+        next: (r) => {
+          this.registering = false;
+          this.showToast(`${this.form.assetName} (${r.assetRegistrationId}) saved.`);
+        },
+        error: (err) => {
+          this.registering = false;
+          this.showApiError('The changes could not be saved', err);
+        },
+      });
+  }
+
+  /** Saves the current step as a draft; required fields are not enforced. In edit mode, saves the asset's changes. */
   saveDraft(): void {
-    if (this.registering) return;
+    if (this.registering || this.waitForUploads()) return;
+    if (this.editId) {
+      this.saveChanges();
+      return;
+    }
     this.registering = true;
     this.saveStep(this.currentStep, true).subscribe({
       next: () => {
@@ -1889,17 +2101,30 @@ export class AssetRegistration {
     this.imageInput?.nativeElement.click();
   }
 
+  /** Stores each picked image through the Media service (POST /api/media/upload); the asset saves the image URLs. */
   onImagesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     Array.from(input.files ?? [])
       .filter((file) => file.type.startsWith('image/'))
       .forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          this.images = [...this.images, { src: String(reader.result), alt: file.name }];
-          this.activeImageIndex = this.images.length - 1;
-        };
-        reader.readAsDataURL(file);
+        const image: AssetImage = { src: URL.createObjectURL(file), alt: file.name };
+        this.images = [...this.images, image];
+        this.activeImageIndex = this.images.length - 1;
+        this.uploadsInFlight++;
+        this.registrationApi.uploadFile(file, 'asset-images').subscribe({
+          next: (url) => {
+            this.uploadsInFlight--;
+            image.url = url;
+            this.showToast(`${file.name} uploaded.`);
+          },
+          error: (err) => {
+            this.uploadsInFlight--;
+            URL.revokeObjectURL(image.src);
+            this.images = this.images.filter((i) => i !== image);
+            this.activeImageIndex = Math.max(0, Math.min(this.activeImageIndex, this.images.length - 1));
+            this.showToast(`${file.name} could not be uploaded. ${apiErrorMessage(err, '')}`.trim());
+          },
+        });
       });
     input.value = '';
   }
@@ -1941,14 +2166,6 @@ export class AssetRegistration {
     this.showToast('QR code generated for ' + this.form.assetTag + '.');
   }
 
-  scanBarcode(): void {
-    this.showToast('Scanner not connected. Demo barcode kept: ' + this.form.barcode);
-  }
-
-  readRfid(): void {
-    this.showToast('RFID reader not connected. Demo tag kept: ' + this.form.rfidTag);
-  }
-
   /** Quick Actions → Submit dialog. */
   scanPrintOpen = false;
 
@@ -1961,10 +2178,6 @@ export class AssetRegistration {
     this.form.rfidTag = r.rfidTag;
     if (changed) this.generateQr();
     this.showToast(`${r.copies} label${r.copies > 1 ? 's' : ''} for ${r.assetTag || 'the asset'} sent to ${r.printer}${changed ? '; identifiers updated on the form' : ''}.`);
-  }
-
-  printLabel(): void {
-    this.showToast('Label for ' + this.form.assetTag + ' sent to printer (demo).');
   }
 
   // ===== Step 5 =====
