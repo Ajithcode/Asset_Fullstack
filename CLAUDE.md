@@ -133,7 +133,7 @@
   API samples (same flag): Settings → Developer "API samples" = `/more/settings/api-samples`
   (`features/more/account/api_samples_screen.dart`; logic `data/api/api_samples.dart`: `apiSamples` presets, Custom
   row, `fetchSample` via the app's ApiClients (token + current server), `shortenSample` = lists → 3 items + secret keys
-  token|key|password|secret|qrcode|otp → 6 chars + "…", `prettySample` ≤ 4,000 chars, `copyText`). Tests:
+  token|password|secret|otp|qrcode|apiKey|privateKey (not plain "key") → 6 chars + "…", `prettySample` ≤ 4,000 chars, `copyText`). Tests:
   test/api_samples_test.dart.
 - Assets live phase (apiMode = true: NO mock assets anywhere; apiMode = false unchanged): API `lib/data/api/assets/`
   (`assets_api.dart` `AssetsApi` / `assetsApiProvider`: list, filters, get, lookup, drafts + steps + submit, options,
@@ -215,7 +215,16 @@
   `showLiveFilterSheet`, Load more; tracking facts via `TrackingSnapshot.forRegistered(id, tag)` /
   `TrackingRegistry.recordFor`, else "Not tracked"); records matching no registered asset = `trackingRegistryProvider`
   (data/repositories/tracking_registry.dart, GET /lookup per record) → "Unregistered tracking records: N" read-only sheet.
-  Geofencing tab = the live map for now (`LiveGeofencingTab` kept, unused).
+  Live Map + Geofencing tabs = `LiveLocationView` (`live_location_tree.dart`): LIVE LOCATION TREE Site → Building →
+  Floor → Zone while no Master Data site / building / floor has coordinates, else the map (`LiveMapTab`) with a Tree / Map
+  toggle; deep links open the map. Placement = pure `lib/data/tracking/live_locations.dart` (`buildLocationTree`: tag →
+  latest `lastToGatewayId` → gateway's site; registered building / floor / zone only when in that site; unknown / missing
+  gateways → Unplaced; online = `lastChangedAt` ≤ 10 min). Data: `live_locations_repository.dart` (`liveLocProvider`
+  poller = location-updates every 10 s + gateways / network-status tags every 6th round, `LivePoller` via
+  `LivePollingScope(poller:)`; `locationTreeProvider(query)`, `registeredPlacesProvider`). Map pins = live counts
+  (`geoPlaces(liveCount:)`, floors too); a floor without a published plan but with a Master Data picture =
+  `FloorPictureView` + `LiveZoneCounts`. Never invent coordinates; no zone drawing on mobile (`LiveGeofencingTab` unused).
+  Tests `test/live/live_location_tree_test.dart`.
   Report: `docs/tracking_iot_report.md`; tests `test/live/tracking_live_test.dart` (+ `tracking_samples.dart`).
 - Scan (prompt 07): `features/assets/scan/` — `scan_screen.dart` (QR camera + simulated NFC/RFID/BLE, Manual Entry, Multi Scan,
   debug "Simulate scan" chip), `scan_result_screen.dart` (Asset Identified), `scan_history_screen.dart`. Every scan goes

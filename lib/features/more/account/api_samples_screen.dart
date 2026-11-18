@@ -65,8 +65,8 @@ class _ApiSamplesScreenState extends ConsumerState<ApiSamplesScreen> {
             help:
                 'Each Fetch calls the endpoint with the signed-in user\'s token on the current server. Replies are '
                 'shortened: lists to their first $sampleListItems items, the text to '
-                '${sampleMaxChars ~/ 1000},000 characters; values whose key contains token, key, password, secret, '
-                'qrcode or otp show their first 6 characters only.',
+                '${sampleMaxChars ~/ 1000},000 characters; values whose key name contains token, password, secret, '
+                'otp, qrcode, apiKey or privateKey show their first 6 characters only.',
           ),
           for (final service in {for (final s in apiSamples) s.service}) ...[
             const SizedBox(height: 14),

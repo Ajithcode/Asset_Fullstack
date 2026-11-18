@@ -465,6 +465,52 @@ const mdFloorsJson = [
   },
 ];
 
+const mdZonesJson = [
+  {
+    'id': 'zn-1',
+    'name': 'Pump Room',
+    'code': 'PR',
+    'site': {'id': 'site-1', 'name': 'Dubai Factory'},
+    'buildingId': 'bld-1',
+    'floorId': 'flr-2',
+    'status': 'Active',
+  },
+];
+
+/// Tracking GET /api/iot-devices/gateways: site only.
+const trkGatewaysJson = [
+  {'deviceId': 'GW-DXB-01', 'deviceName': 'Dubai Gate 1', 'siteId': 'site-1', 'siteName': 'Dubai Factory'},
+];
+
+/// Asset GET /api/asset-dashboard/location-updates: CHL-30002 (AR000001, via TS-80214) heard 2 min ago,
+/// PMP-10001 (AR000002, via BT-1001) 30 min ago — both at GW-DXB-01 → Dubai Factory; TAG-LOST
+/// last heard by a gateway that is not in the gateways list. No coordinates (as on .29).
+Map<String, Object?> locationUpdatesJson(DateTime now) => {
+  'tags': [
+    {
+      'tagId': 'CHL-30002',
+      'count': 4,
+      'lastChangedAt': now.toUtc().subtract(const Duration(minutes: 2)).toIso8601String(),
+      'lastFromGatewayId': 'GW-OLD',
+      'lastToGatewayId': 'GW-DXB-01',
+      'lastToLatitude': null,
+      'lastToLongitude': null,
+    },
+    {
+      'tagId': 'PMP-10001',
+      'count': 1,
+      'lastChangedAt': now.toUtc().subtract(const Duration(minutes: 30)).toIso8601String(),
+      'lastToGatewayId': 'GW-DXB-01',
+    },
+    {
+      'tagId': 'TAG-LOST',
+      'count': 2,
+      'lastChangedAt': now.toUtc().subtract(const Duration(minutes: 1)).toIso8601String(),
+      'lastToGatewayId': 'GW-UNKNOWN-9',
+    },
+  ],
+};
+
 extension TrackingFake on FakeAssetBackend {
   /// Every Tracking / Administration map / Master Data location route the Tracking screens read.
   void seedTracking(DateTime Function() now) {
@@ -504,6 +550,32 @@ extension TrackingFake on FakeAssetBackend {
     on('GET', '/api/master-data/sites', (_) => const FakeReply(200, mdSitesJson));
     on('GET', '/api/master-data/buildings', (_) => const FakeReply(200, mdBuildingsJson));
     on('GET', '/api/master-data/floors', (_) => const FakeReply(200, mdFloorsJson));
+    on('GET', '/api/master-data/zones', (_) => const FakeReply(200, mdZonesJson));
+    on('GET', '/api/iot-devices/gateways', (_) => const FakeReply(200, trkGatewaysJson));
+    on('GET', '/api/asset-dashboard/location-updates', (_) => FakeReply(200, locationUpdatesJson(now())));
+    // AR000002 is registered in Dubai Factory › Building A › First Floor › Pump Room (AR000001 is
+    // registered at another site, so it stays at site level).
+    on(
+      'GET',
+      '/api/asset-registrations/AR000002',
+      (_) => FakeReply(200, {
+        ...sampleRegistration(),
+        'assetRegistrationId': 'AR000002',
+        'locationAssignment': {
+          ...(sampleRegistration()['locationAssignment'] as Map),
+          'location': {
+            'siteId': 'site-1',
+            'siteName': 'Dubai Factory',
+            'buildingId': 'bld-1',
+            'buildingName': 'Building A',
+            'floorId': 'flr-2',
+            'floorName': 'First Floor',
+            'zoneId': 'zn-1',
+            'zoneName': 'Pump Room',
+          },
+        },
+      }),
+    );
     // The Asset service knows AR000001 / TAG-0001 and AR000002 / TAG-0002 (sampleAssets); the
     // tracking record "FL-008" (location events only) matches no registered asset.
     on('GET', '/api/asset-registrations/lookup', (o) {

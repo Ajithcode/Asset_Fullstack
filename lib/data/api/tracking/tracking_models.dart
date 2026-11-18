@@ -129,9 +129,10 @@ class TrkDevice {
     assetName: _o(j, 'assetName'),
     gateway: _o(j, 'gateway'),
     powerSource: _s(j, 'powerSource'),
-    batteryLevel: jInt(j['batteryLevel']),
+    // The .29 server sends `batteryPercent`; the contract says `batteryLevel`.
+    batteryLevel: jInt(j['batteryLevel']) ?? jInt(j['batteryPercent']),
     lastSeenAt: jUtc(j['lastSeenAt']),
-    health: _o(j, 'health'),
+    health: _o(j, 'health') ?? _o(j, 'status'),
     firmwareVersion: _o(j, 'firmwareVersion'),
   );
 

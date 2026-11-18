@@ -5,9 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
+import 'package:asset360_mobile/data/repositories/live_locations_repository.dart' show refreshLocations;
 import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart';
 import 'package:asset360_mobile/features/more/tracking/live/live_hub_lists.dart';
-import 'package:asset360_mobile/features/more/tracking/live/live_map_tab.dart';
+import 'package:asset360_mobile/features/more/tracking/live/live_location_tree.dart';
 import 'package:asset360_mobile/features/more/tracking/live/live_tracking_assets_tab.dart';
 import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dart';
 import 'package:asset360_mobile/features/more/tracking/tracking_hub_screen.dart' show HubTab;
@@ -93,7 +94,10 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
     return LivePollingScope(
       child: AppScaffold(
         body: RefreshIndicator(
-          onRefresh: () async => refreshTracking(ref),
+          onRefresh: () async {
+            refreshTracking(ref);
+            if (_tab == HubTab.map || _tab == HubTab.zones) refreshLocations(ref);
+          },
           child: ListView(
             padding: context.pagePadding,
             children: [
@@ -102,9 +106,10 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
                 subtitle: 'Real-time location, telemetry and asset monitoring',
                 help:
                     'Live data from the Tracking service, refreshed every 5 seconds while this screen is open. '
-                    'Positions are zone-level (the zone of each asset\'s latest location event); floor plans and '
-                    'their zones come from Administration → Maps. Markers turn grey when a device has not been '
-                    'heard from for 10 minutes.',
+                    'Live Map places each asset at the site of the gateway that last heard its tag (location '
+                    'updates every 10 seconds); it switches to the map when sites, buildings or floors have '
+                    'coordinates. Floor plans come from Administration → Maps or the Master Data floor picture. '
+                    'Assets are offline when not heard from for 10 minutes.',
               ),
               const SizedBox(height: 14),
               TrackingHubTabs<HubTab>(
@@ -155,15 +160,16 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
                 LoadErrorState(error: live.error!, onRetry: () => ref.read(trkLiveProvider.notifier).refresh())
               else
                 ...switch (_tab) {
-                  // Geofencing shows the live map for now (zone drawing is not offered in API mode).
+                  // Geofencing shows the same live location view (no zone drawing on mobile).
                   HubTab.map || HubTab.zones => [
-                    LiveMapTab(
-                      key: ValueKey('map-${widget.location}-${widget.geofence}-${widget.zone}'),
+                    LiveLocationView(
+                      key: ValueKey('loc-${widget.view}-${widget.location}-${widget.geofence}-${widget.zone}'),
                       initialView: widget.view,
                       initialLocation: widget.location,
                       focusZone: widget.zone,
                       focusGeofence: widget.geofence,
                       visibleAssets: s == null ? null : _filtered(s),
+                      query: _query,
                     ),
                   ],
                   HubTab.list => [TrackingAssetsTab(counter: _counter)],

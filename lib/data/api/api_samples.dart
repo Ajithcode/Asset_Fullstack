@@ -64,7 +64,9 @@ const sampleListItems = 3;
 /// The pretty JSON is cut to this many characters.
 const sampleMaxChars = 4000;
 
-final _secretKey = RegExp('token|key|password|secret|qrcode|otp', caseSensitive: false);
+/// Key NAMES that are masked: token, password, secret, otp, qrcode, apiKey, privateKey (plain "key",
+/// e.g. "assetKey" / "key", is not).
+final _secretKey = RegExp('token|password|secret|otp|qrcode|apikey|privatekey', caseSensitive: false);
 
 String _redact(Object v) {
   final s = '$v';
@@ -72,7 +74,8 @@ String _redact(Object v) {
 }
 
 /// Every list cut to its first [sampleListItems] items (a note says how many there were); every value
-/// whose key contains token / key / password / secret / qrcode / otp = first 6 characters + "…".
+/// whose key name contains token / password / secret / otp / qrcode / apiKey / privateKey = first 6
+/// characters + "…".
 Object? shortenSample(Object? json) => switch (json) {
   final Map m => {
     for (final MapEntry(:key, :value) in m.entries)

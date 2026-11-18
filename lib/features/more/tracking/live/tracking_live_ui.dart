@@ -20,16 +20,19 @@ DateTime trackingNow() => DateTime.now().toUtc();
 /// Keeps [trkLiveProvider] polling while this widget is on screen (its route on top and its
 /// tab selected: [TickerMode]) and the app is in the foreground; stops it otherwise and on dispose.
 class LivePollingScope extends ConsumerStatefulWidget {
-  const LivePollingScope({super.key, required this.child});
+  const LivePollingScope({super.key, required this.child, this.poller});
 
   final Widget child;
+
+  /// The poller to drive (default: [trkLiveProvider]).
+  final LivePoller Function(WidgetRef ref)? poller;
 
   @override
   ConsumerState<LivePollingScope> createState() => _LivePollingScopeState();
 }
 
 class _LivePollingScopeState extends ConsumerState<LivePollingScope> {
-  late final TrkLiveNotifier _live = ref.read(trkLiveProvider.notifier);
+  late final LivePoller _live = widget.poller?.call(ref) ?? ref.read(trkLiveProvider.notifier);
   late final AppLifecycleListener _lifecycle;
   ValueListenable<bool>? _ticker;
   bool _foreground = true;

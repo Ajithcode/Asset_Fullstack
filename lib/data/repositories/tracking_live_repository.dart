@@ -29,6 +29,12 @@ final adminMapsApiProvider = Provider<AdminMapsApi>((ref) => AdminMapsApi(ref.wa
 
 // ------------------------------------------------------------------ live polling
 
+/// Something that polls while at least one visible screen is attached (`LivePollingScope`).
+abstract interface class LivePoller {
+  void attach(Object owner);
+  void detach(Object owner);
+}
+
 /// The live state the Tracking screens share.
 class TrkLiveState {
   const TrkLiveState({this.snapshot, this.alertCount, this.error, this.tick = 0, this.polling = false});
@@ -72,13 +78,16 @@ class TrkLiveState {
 /// [fullEvery]-th round (and the first) also location events, tags and sensors: GET
 /// /api/location-events has NO filters or paging and returns the whole log, so it is fetched
 /// 6× less often and only the last 7 days are kept (see docs/tracking_iot_report.md).
-class TrkLiveNotifier extends Notifier<TrkLiveState> {
+class TrkLiveNotifier extends Notifier<TrkLiveState> implements LivePoller {
   static const interval = Duration(seconds: 5);
   static const fullEvery = 6;
 
   /// Tests replace the timer.
   @visibleForTesting
   static LiveScheduler? debugSchedule;
+
+  /// A timer of the live pollers ([debugSchedule] in tests).
+  static Timer startTimer(Duration delay, void Function() callback) => (debugSchedule ?? Timer.new)(delay, callback);
 
   /// Tests pin "now".
   @visibleForTesting
@@ -100,11 +109,13 @@ class TrkLiveNotifier extends Notifier<TrkLiveState> {
   /// Number of visible screens asking for live data.
   int get listeners => _owners.length;
 
+  @override
   void attach(Object owner) {
     _owners.add(owner);
     _sync();
   }
 
+  @override
   void detach(Object owner) {
     _owners.remove(owner);
     _sync();

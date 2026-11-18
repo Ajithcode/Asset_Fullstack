@@ -36,7 +36,7 @@ void main() {
       expect((items.first as Map)['tags'], [1, 2, 3, '… 1 more (4 items)']);
     });
 
-    test('token / key / password / secret / qrcode / otp values: first 6 characters + "…"', () {
+    test('token / password / secret / otp / qrcode / apiKey / privateKey values: first 6 characters + "…"', () {
       final out =
           shortenSample({
                 'accessToken': 'eyJhbGciOiJIUzI1NiJ9.payload',
@@ -45,6 +45,10 @@ void main() {
                 'clientSecret': 'shh-very-secret',
                 'qrCodeValue': 'QR-000123-XYZ',
                 'otp': 123456,
+                'privateKey': 'MIIEvQIBADANBg',
+                'key': 'plain-key-value',
+                'assetKey': 'AK-000123',
+                'keyword': 'pump',
                 'name': 'Pump 1',
                 'nested': {'refreshToken': 'r-1234567890'},
               })!
@@ -55,6 +59,10 @@ void main() {
       expect(out['clientSecret'], 'shh-ve…');
       expect(out['qrCodeValue'], 'QR-000…');
       expect(out['otp'], '******…');
+      expect(out['privateKey'], 'MIIEvQ…');
+      expect(out['key'], 'plain-key-value', reason: 'plain "key" is not masked');
+      expect(out['assetKey'], 'AK-000123');
+      expect(out['keyword'], 'pump');
       expect(out['name'], 'Pump 1');
       expect((out['nested'] as Map)['refreshToken'], 'r-1234…');
     });

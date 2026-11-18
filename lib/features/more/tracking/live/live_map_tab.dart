@@ -7,9 +7,11 @@ import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/api/master_data/master_data_repository.dart';
+import 'package:asset360_mobile/data/repositories/live_locations_repository.dart';
 import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart';
 import 'package:asset360_mobile/features/home/dash_ui.dart' show dashTimeAgo;
 import 'package:asset360_mobile/features/more/tracking/live/floor_plan_map.dart';
+import 'package:asset360_mobile/features/more/tracking/live/live_location_tree.dart';
 import 'package:asset360_mobile/features/more/tracking/live/live_hub_lists.dart' show TrackedAssetRow;
 import 'package:asset360_mobile/features/more/tracking/live/outdoor_map.dart';
 import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dart';
@@ -49,9 +51,13 @@ class LiveMapTab extends ConsumerStatefulWidget {
     this.focusZone,
     this.focusGeofence,
     required this.visibleAssets,
+    this.tree,
   });
 
   final String? initialView, initialLocation, focusZone, focusGeofence;
+
+  /// The live location tree: pin badges and each zone's live count.
+  final LocationTree? tree;
 
   /// Null while the first live round loads.
   final List<TrackedAsset>? visibleAssets;
@@ -119,7 +125,14 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
     if (!sites.hasValue || !buildings.hasValue || !fences.hasValue && !fences.hasError) {
       return const SizedBox(height: 300, child: ListSkeleton(rows: 3, card: false));
     }
-    final places = geoPlaces(sites.requireValue, buildings.requireValue, widget.visibleAssets ?? const []);
+    final tree = widget.tree;
+    final places = geoPlaces(
+      sites.requireValue,
+      buildings.requireValue,
+      widget.visibleAssets ?? const [],
+      floors: floors.value ?? const [],
+      liveCount: tree == null ? null : (id) => tree.find(id)?.allAssets.length ?? 0,
+    );
     final geofences = fences.value ?? const <TrkGeofence>[];
     final layers = _layers ?? const MapLayerToggles();
     return Column(
@@ -132,7 +145,7 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
                   child: EmptyState(
                     icon: Icons.public_off_rounded,
                     title: 'No mapped locations',
-                    message: 'Sites and buildings need latitude / longitude in Master Data to appear here.',
+                    message: 'Sites, buildings or floors need latitude / longitude in Master Data to appear here.',
                   ),
                 )
               : OutdoorMap(
@@ -157,14 +170,23 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
         const LiveUpdatedBar(),
         const SizedBox(height: 8),
         const _InfoNote(
-          'The Tracking service reports zone-level positions only (no GPS), so assets are not drawn as dots '
-          'here. Site badges count the tracked assets at each site; tap a site or building to open its floors.',
+          'Tags and gateways have no GPS position, so assets are never drawn as dots here. Badges count the '
+          'assets placed at each site (the site of the gateway that last heard their tag); tap a pin to open '
+          'its floors.',
         ),
       ],
     );
   }
 
   Future<void> _openPlace(GeoPlace p, List<MdSpace> buildings, List<MdSpace> floors) async {
+    if (p.isFloor) {
+      setState(() {
+        _loc = PlanLocation(siteId: p.siteId, buildingId: p.buildingId, floorId: p.id);
+        _view = LiveMapView.floor;
+        _selectedPlot = null;
+      });
+      return;
+    }
     final chosen = await showModalBottomSheet<PlanLocation>(
       context: context,
       isScrollControlled: true,
@@ -279,6 +301,8 @@ class _LiveMapTabState extends ConsumerState<LiveMapTab> {
           locationId: id,
           focusZone: widget.focusZone,
           visibleAssets: widget.visibleAssets,
+          floor: f.where((x) => x.id == id).firstOrNull,
+          liveNode: widget.tree?.find(id),
           layers: _layers,
           selectedPlot: _selectedPlot,
           onSelectPlot: (k) => setState(() => _selectedPlot = _selectedPlot == k ? null : k),
@@ -328,7 +352,15 @@ class _PlanView extends ConsumerWidget {
     required this.selectedPlot,
     required this.onSelectPlot,
     required this.onLayers,
+    this.floor,
+    this.liveNode,
   });
+
+  /// The Master Data floor (its picture when no plan is published).
+  final MdSpace? floor;
+
+  /// This location in the live tree (zone live counts).
+  final LocNode? liveNode;
 
   final String locationId;
   final String? focusZone, selectedPlot;
@@ -344,9 +376,19 @@ class _PlanView extends ConsumerWidget {
       planV,
       onRetry: () => ref.invalidate(publishedPlanProvider(locationId)),
       builder: (plan) {
+        final picture = floor?.imageUrl ?? floor?.images.firstOrNull;
+        if (plan == null && picture != null && picture.isNotEmpty) {
+          return FloorPictureView(floor: floor!, imageUrl: picture, liveNode: liveNode);
+        }
         if (plan == null) {
-          return const AppCard(
-            child: EmptyState(icon: Icons.map_outlined, title: 'No floor plan published for this floor'),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AppCard(
+                child: EmptyState(icon: Icons.map_outlined, title: 'No floor plan published for this floor'),
+              ),
+              if (liveNode != null) ...[const SizedBox(height: 12), LiveZoneCounts(node: liveNode!)],
+            ],
           );
         }
         final zonesV = ref.watch(planZonesProvider(plan.floorPlanId));
@@ -438,6 +480,7 @@ class _PlanView extends ConsumerWidget {
               _PlotCard(plot: selected, zones: zones, snapshot: snapshot, now: now),
             ],
             if (focus != null) ...[const SizedBox(height: 10), _ZoneCard(zone: focus, snapshot: snapshot)],
+            if (liveNode != null) ...[const SizedBox(height: 14), LiveZoneCounts(node: liveNode!)],
             const SizedBox(height: 14),
             SectionHeader(title: 'Tracked assets by zone (${occupied.length})'),
             const SizedBox(height: 8),

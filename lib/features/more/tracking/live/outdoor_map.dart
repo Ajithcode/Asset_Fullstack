@@ -20,11 +20,17 @@ class GeoPlace {
     required this.isSite,
     this.siteId,
     this.tracked = 0,
+    this.isFloor = false,
+    this.buildingId,
   });
 
   final String id, name;
   final LatLng point;
   final bool isSite;
+
+  /// A floor pin (Master Data floor with coordinates); [buildingId] = its building.
+  final bool isFloor;
+  final String? buildingId;
 
   /// The building's site.
   final String? siteId;
@@ -34,9 +40,16 @@ class GeoPlace {
   final int tracked;
 }
 
-/// Sites and buildings with latitude / longitude (both set and not 0, 0), sites with their
-/// tracked-asset counts.
-List<GeoPlace> geoPlaces(List<MdSite> sites, List<MdSpace> buildings, List<TrackedAsset> assets) {
+/// Sites, buildings and floors with latitude / longitude (both set and not 0, 0). Badges: the
+/// LIVE asset count of each place when [liveCount] is given (location tree), else sites count the
+/// Tracking service's assets at the site.
+List<GeoPlace> geoPlaces(
+  List<MdSite> sites,
+  List<MdSpace> buildings,
+  List<TrackedAsset> assets, {
+  List<MdSpace> floors = const [],
+  int Function(String id)? liveCount,
+}) {
   bool ok(double? lat, double? lng) => lat != null && lng != null && !(lat == 0 && lng == 0);
   int trackedAt(MdSite s) => assets
       .where(
@@ -48,10 +61,35 @@ List<GeoPlace> geoPlaces(List<MdSite> sites, List<MdSpace> buildings, List<Track
   return [
     for (final s in sites)
       if (ok(s.latitude, s.longitude))
-        GeoPlace(id: s.id, name: s.name, point: LatLng(s.latitude!, s.longitude!), isSite: true, tracked: trackedAt(s)),
+        GeoPlace(
+          id: s.id,
+          name: s.name,
+          point: LatLng(s.latitude!, s.longitude!),
+          isSite: true,
+          tracked: liveCount?.call(s.id) ?? trackedAt(s),
+        ),
     for (final b in buildings)
       if (ok(b.latitude, b.longitude))
-        GeoPlace(id: b.id, name: b.name, point: LatLng(b.latitude!, b.longitude!), isSite: false, siteId: b.site?.id),
+        GeoPlace(
+          id: b.id,
+          name: b.name,
+          point: LatLng(b.latitude!, b.longitude!),
+          isSite: false,
+          siteId: b.site?.id,
+          tracked: liveCount?.call(b.id) ?? 0,
+        ),
+    for (final f in floors)
+      if (ok(f.latitude, f.longitude))
+        GeoPlace(
+          id: f.id,
+          name: f.name,
+          point: LatLng(f.latitude!, f.longitude!),
+          isSite: false,
+          isFloor: true,
+          siteId: f.site?.id,
+          buildingId: f.buildingId,
+          tracked: liveCount?.call(f.id) ?? 0,
+        ),
   ];
 }
 
@@ -254,7 +292,7 @@ class _PlacePin extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     button: onTap != null,
     label:
-        '${place.isSite ? 'Site' : 'Building'} ${place.name}${place.tracked > 0 ? ', ${place.tracked} tracked' : ''}',
+        '${place.isSite ? 'Site' : (place.isFloor ? 'Floor' : 'Building')} ${place.name}${place.tracked > 0 ? ', ${place.tracked} tracked' : ''}',
     child: GestureDetector(
       onTap: onTap,
       // The label above already says the count; the badge text would repeat it.
@@ -264,7 +302,9 @@ class _PlacePin extends StatelessWidget {
           alignment: Alignment.topCenter,
           children: [
             Icon(
-              place.isSite ? Icons.location_city_rounded : Icons.apartment_rounded,
+              place.isSite
+                  ? Icons.location_city_rounded
+                  : (place.isFloor ? Icons.layers_rounded : Icons.apartment_rounded),
               size: place.isSite ? 38 : 30,
               color: place.isSite ? AppColors.primary : AppColors.iconBlue,
               shadows: [Shadow(color: AppColors.text.withValues(alpha: .35), blurRadius: 4)],
