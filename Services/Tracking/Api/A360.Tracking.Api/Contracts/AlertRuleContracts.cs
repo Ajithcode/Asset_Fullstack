@@ -32,8 +32,24 @@ public sealed record CreateAlertRuleRequest(
     string? MapZoneId = null,
     int? NotifyIntervalSeconds = null,
     int? NotifyRepeat = null,
-    bool? NotifySound = null)
+    bool? NotifySound = null,
+    string? Description = null,
+    IReadOnlyList<string>? AssetIds = null,
+    IReadOnlyList<string>? AuthorizedGroups = null,
+    IReadOnlyList<string>? ScheduleDays = null,
+    string? ScheduleFrom = null,
+    string? ScheduleTo = null,
+    int? DebounceSeconds = null,
+    int? CooldownMinutes = null,
+    int? EscalateAfterMinutes = null,
+    string? EscalateTo = null,
+    bool? AutoResolveOnExit = null,
+    DateTime? EffectiveFrom = null,
+    DateTime? EffectiveTo = null)
 {
+    private static List<string> CleanList(IReadOnlyList<string>? values) =>
+        (values ?? []).Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
     /// <summary>Builds the rule for an outdoor geofence, or for a floor plan zone when <paramref name="zone"/> is given.</summary>
     public AlertRule ToEntity(Geofence? geofence, MapZoneRef? zone, CurrentUser? currentUser)
     {
@@ -65,6 +81,19 @@ public sealed record CreateAlertRuleRequest(
                 .Distinct()
                 .ToList(),
             Status = ContractText.Canonical(Status, AlertRuleStatus.All) ?? AlertRuleStatus.Active,
+            Description = ContractText.TrimOrNull(Description),
+            AssetIds = CleanList(AssetIds),
+            AuthorizedGroups = CleanList(AuthorizedGroups),
+            ScheduleDays = CleanList(ScheduleDays).Select(d => ContractText.Canonical(d, AlertRuleCondition.Weekdays)).OfType<string>().ToList(),
+            ScheduleFrom = ContractText.TrimOrNull(ScheduleFrom),
+            ScheduleTo = ContractText.TrimOrNull(ScheduleTo),
+            DebounceSeconds = Math.Max(0, DebounceSeconds ?? 0),
+            CooldownMinutes = Math.Max(0, CooldownMinutes ?? 0),
+            EscalateAfterMinutes = EscalateAfterMinutes is > 0 ? EscalateAfterMinutes : null,
+            EscalateTo = EscalateAfterMinutes is > 0 ? ContractText.TrimOrNull(EscalateTo) : null,
+            AutoResolveOnExit = AutoResolveOnExit ?? false,
+            EffectiveFrom = EffectiveFrom?.ToUniversalTime(),
+            EffectiveTo = EffectiveTo?.ToUniversalTime(),
             CreatedBy = ContractText.FirstNonEmpty(CreatedBy, currentUser?.UserName),
             CreatedAt = DateTime.UtcNow,
             ClientId = ContractText.FirstNonEmpty(ClientId, currentUser?.ClientId),
@@ -99,7 +128,22 @@ public sealed record AlertRuleResponse(
     string? MapFloorPlanId,
     int NotifyIntervalSeconds,
     int NotifyRepeat,
-    bool NotifySound)
+    bool NotifySound,
+    string? Description,
+    IReadOnlyList<string> AssetIds,
+    IReadOnlyList<string> AuthorizedGroups,
+    IReadOnlyList<string> ScheduleDays,
+    string? ScheduleFrom,
+    string? ScheduleTo,
+    int DebounceSeconds,
+    int CooldownMinutes,
+    int? EscalateAfterMinutes,
+    string? EscalateTo,
+    bool AutoResolveOnExit,
+    DateTime? EffectiveFrom,
+    DateTime? EffectiveTo,
+    string? UpdatedBy,
+    DateTime? UpdatedAt)
 {
     public static AlertRuleResponse FromEntity(AlertRule rule)
     {
@@ -128,6 +172,21 @@ public sealed record AlertRuleResponse(
             rule.MapFloorPlanId,
             rule.NotifyIntervalSeconds,
             rule.NotifyRepeat,
-            rule.NotifySound);
+            rule.NotifySound,
+            rule.Description,
+            rule.AssetIds,
+            rule.AuthorizedGroups,
+            rule.ScheduleDays,
+            rule.ScheduleFrom,
+            rule.ScheduleTo,
+            rule.DebounceSeconds,
+            rule.CooldownMinutes,
+            rule.EscalateAfterMinutes,
+            rule.EscalateTo,
+            rule.AutoResolveOnExit,
+            rule.EffectiveFrom,
+            rule.EffectiveTo,
+            rule.UpdatedBy,
+            rule.UpdatedAt);
     }
 }

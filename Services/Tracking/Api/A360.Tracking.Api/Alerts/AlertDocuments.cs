@@ -141,6 +141,29 @@ public sealed class ZonePresenceDocument
     /// <summary>Dwell rules already alerted for this stay.</summary>
     [BsonElement("dwell_alerted_rule_ids")]
     public List<string> DwellAlertedRuleIds { get; set; } = [];
+
+    /// <summary>Entry rules already alerted (or skipped) for this stay; an entry waits for the rule's debounce.</summary>
+    [BsonElement("entry_alerted_rule_ids")]
+    public List<string> EntryAlertedRuleIds { get; set; } = [];
+
+    /// <summary>Exit / location-lost rules already handled since the asset went missing.</summary>
+    [BsonElement("exit_alerted_rule_ids")]
+    public List<string> ExitAlertedRuleIds { get; set; } = [];
+
+    /// <summary>When no zone gateway heard the asset any more; cleared if it comes back within the debounce.</summary>
+    [BsonElement("gone_since")]
+    public DateTime? GoneSince { get; set; }
+
+    /// <summary>Already inside when the zone started being watched: no entry alert for this stay.</summary>
+    [BsonElement("initial")]
+    public bool Initial { get; set; }
+
+    [BsonElement("registration_id")]
+    public string? RegistrationId { get; set; }
+
+    /// <summary>Asset category / sub-category / type, for the rules' asset-group scope after the asset left.</summary>
+    [BsonElement("asset_groups")]
+    public List<string> AssetGroups { get; set; } = [];
 }
 
 /// <summary>Zones the engine has started watching; the first look only records who is already inside (no alerts).</summary>

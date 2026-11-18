@@ -122,6 +122,12 @@ public static class TrackingServiceCollectionExtensions
         services.AddHostedService<MongoIndexHostedService>();
 
         // Floor plan zone alerts (enter / exit / dwell from live tag readings) and their desktop notifications
+        // Tracking & Telemetry page data (live tag readings → assets, location, KPIs)
+        services.AddSingleton<A360.Tracking.Api.Telemetry.TelemetryOverviewService>();
+        services.AddSingleton<A360.Tracking.Api.Telemetry.RealTimeLocationService>();
+        services.AddSingleton<A360.Tracking.Api.Alerts.GeofenceAlertsService>();
+        services.AddSingleton<A360.Tracking.Api.Endpoints.SensorParameterStore>();
+
         services.AddSingleton<MapZoneLookup>();
         services.AddSingleton<PushSender>();
         services.AddSingleton<AlertNotifications>();

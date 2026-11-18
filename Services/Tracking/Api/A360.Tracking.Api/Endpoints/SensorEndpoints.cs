@@ -19,7 +19,7 @@ public static class SensorEndpoints
 
         group.MapGet("", GetSensorsAsync).WithName("GetSensors");
         // Literal segments take precedence over /{sensorId}, so these are not read as sensor ids.
-        group.MapGet("/types", () => Results.Ok(SensorTypeOption.All)).WithName("GetSensorTypes");
+        group.MapGet("/types", async (SensorParameterStore store, CancellationToken ct) => Results.Ok(await store.AllAsync(ct))).WithName("GetSensorTypes");
         group.MapGet("/sampling-intervals", () => Results.Ok(TelemetrySamplingInterval.Seconds)).WithName("GetSensorSamplingIntervals");
         group.MapGet("/statuses", () => Results.Ok(SensorStatus.All)).WithName("GetSensorStatuses");
         group.MapGet("/measurement-points", GetMeasurementPointsAsync).WithName("GetSensorMeasurementPoints");
@@ -107,10 +107,11 @@ public static class SensorEndpoints
         return Results.Ok(new SensorChannelsResponse(device.DeviceId, used, NextChannel(used)));
     }
 
-    private static IResult GetFormOptions()
+    /// <summary>Sensor types include the measurement parameters users added (Measurement Parameters tab).</summary>
+    private static async Task<IResult> GetFormOptions(SensorParameterStore store, CancellationToken cancellationToken)
     {
         return Results.Ok(new SensorFormOptionsResponse(
-            SensorTypeOption.All,
+            await store.AllAsync(cancellationToken),
             TelemetrySamplingInterval.Seconds.Select(seconds => new SamplingIntervalOptionResponse(seconds, IntervalLabel(seconds))).ToList(),
             SensorMeasurementPoint.BySensorType,
             SensorStatus.All));

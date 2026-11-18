@@ -9,6 +9,7 @@ public static class DeviceModelValidationExtensions
     private const int NameMaxLength = 100;
     private const int DescriptionMaxLength = 500;
     private const int MaxListItems = 30;
+    private const int CustomItemMaxLength = 60;
 
     public static Dictionary<string, string[]> Validate(this CreateDeviceModelRequest request)
     {
@@ -76,14 +77,15 @@ public static class DeviceModelValidationExtensions
             return;
         }
 
-        var unknown = (values ?? [])
-            .Where(value => !string.IsNullOrWhiteSpace(value) && ContractText.Canonical(value, allowed) is null)
+        // Catalog names are matched to their spelling; other values are custom entries typed by the user
+        var tooLong = (values ?? [])
+            .Where(value => !string.IsNullOrWhiteSpace(value) && ContractText.Canonical(value, allowed) is null && value.Trim().Length > CustomItemMaxLength)
             .Select(value => value.Trim())
             .ToList();
 
-        if (unknown.Count > 0)
+        if (tooLong.Count > 0)
         {
-            errors[field] = [$"Unknown {field}: {string.Join(", ", unknown)}. Allowed: {string.Join(", ", allowed)}"];
+            errors[field] = [$"Custom {field} cannot be longer than {CustomItemMaxLength} characters: {string.Join(", ", tooLong)}"];
         }
     }
 

@@ -188,7 +188,7 @@ public sealed record SamplingIntervalOptionResponse(int Seconds, string Label);
 
 /// <summary>Every dropdown of the Add Sensor form in one response.</summary>
 public sealed record SensorFormOptionsResponse(
-    IReadOnlyList<SensorTypeOption> SensorTypes,
+    IReadOnlyList<A360.Tracking.Api.Endpoints.SensorParameterOption> SensorTypes,
     IReadOnlyList<SamplingIntervalOptionResponse> SamplingIntervals,
     IReadOnlyDictionary<string, IReadOnlyList<string>> MeasurementPointsBySensorType,
     IReadOnlyList<string> Statuses);
