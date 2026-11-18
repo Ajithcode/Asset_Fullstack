@@ -47,6 +47,14 @@ public static class AssetServiceCollectionExtensions
             client.Timeout = TimeSpan.FromMinutes(2);
         });
         services.AddScoped<A360.Asset.Api.Services.IMediaUploadClient, A360.Asset.Api.Services.MediaUploadClient>();
+        // Asset Criticality reads its levels from the MDM Criticality master (cached).
+        services.AddHttpClient(A360.Asset.Api.Services.CriticalityLevelClient.ClientName, client =>
+        {
+            client.BaseAddress = new Uri((configuration["Services:MasterDataUrl"] ?? "http://masterdatamanagement:5500").TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddScoped<A360.Asset.Api.Services.ICriticalityLevelClient, A360.Asset.Api.Services.CriticalityLevelClient>();
+        services.AddScoped<A360.Asset.Api.Security.ICriticalityPermissionService, A360.Asset.Api.Security.CriticalityPermissionService>();
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Asset",
@@ -117,6 +125,7 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<AssetCriticalityAssessmentRepository>();
         services.AddScoped<IAssetCriticalityAssessmentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityAssessmentRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityAssessmentRepository>());
+        services.AddScoped<IAssetCriticalityLandingRepository, AssetCriticalityLandingRepository>();
 
         services.AddScoped<AssetRiskMitigationActionRepository>();
         services.AddScoped<IAssetRiskMitigationActionRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetRiskMitigationActionRepository>());

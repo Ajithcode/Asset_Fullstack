@@ -82,6 +82,47 @@ public sealed class AssetCriticalityAssessment : BaseEntity
 
     [BsonElement("asset_group")]
     public string? AssetGroup { get; set; }
+
+    // Workflow state, see AssetCriticalityApprovalStatuses. Records saved before the approval workflow have none and
+    // count as Approved (they were published when saved).
+    [BsonElement("approval_status")]
+    public string? ApprovalStatus { get; set; }
+
+    // "Initial" or "Reassessment".
+    [BsonElement("assessment_type")]
+    public string? AssessmentType { get; set; }
+
+    // Template the ratings were made with; "LEGACY" for assessments saved before templates existed.
+    [BsonElement("template_code")]
+    public string? TemplateCode { get; set; }
+}
+
+/// <summary>Workflow states of a criticality assessment.</summary>
+public static class AssetCriticalityApprovalStatuses
+{
+    public const string Draft = "Draft";
+    public const string Submitted = "Submitted";
+    public const string PendingApproval = "PendingApproval";
+    public const string Approved = "Approved";
+    public const string Rejected = "Rejected";
+    public const string Cancelled = "Cancelled";
+
+    /// <summary>Shown on the landing page for assets without an approved assessment.</summary>
+    public const string Unassessed = "Unassessed";
+
+    /// <summary>Assessments still being worked on or waiting for a decision.</summary>
+    public static readonly string[] Open = [Draft, Submitted, PendingApproval, Rejected];
+
+    /// <summary>Waiting for an approver (Pending Approvals KPI).</summary>
+    public static readonly string[] AwaitingApproval = [Submitted, PendingApproval];
+
+    public static readonly string[] All = [Draft, Submitted, PendingApproval, Approved, Rejected, Cancelled];
+}
+
+public static class AssetCriticalityAssessmentTypes
+{
+    public const string Initial = "Initial";
+    public const string Reassessment = "Reassessment";
 }
 
 /// <summary>One row of the criteria table, e.g. Operational Impact, weight 25, score 5, weighted 25.0.</summary>

@@ -107,10 +107,12 @@ public sealed class A360AccessGuardMiddleware(
             return;
         }
 
-        if (!access.Allows(options.Module, action))
+        // /api/asset-criticality has its own module (same rule as the gateway's route mapping).
+        var module = AssetCriticalityPermissions.IsModulePath(request.Path.Value) ? AssetCriticalityPermissions.Module : options.Module;
+        if (!access.Allows(module, action))
         {
-            logger.LogInformation("Denied {Action} on {Module} for {User}: {Method} {Path}", action, options.Module, access.Email, request.Method, request.Path);
-            await DenyAsync(context, StatusCodes.Status403Forbidden, $"Your role doesn't allow you to {action} in {options.Module}. Ask an administrator for access.");
+            logger.LogInformation("Denied {Action} on {Module} for {User}: {Method} {Path}", action, module, access.Email, request.Method, request.Path);
+            await DenyAsync(context, StatusCodes.Status403Forbidden, $"Your role doesn't allow you to {action} in {module}. Ask an administrator for access.");
             return;
         }
 
@@ -180,11 +182,23 @@ public sealed class A360AccessGuardMiddleware(
 
     private sealed record ModuleAccess(string Module, List<string>? Actions);
 
-    private sealed record CallerAccess(string? Email, bool FullAccess, List<ModuleAccess>? Modules)
+    private sealed record CallerAccess(string? Email, bool FullAccess, List<ModuleAccess>? Modules, List<string>? Roles = null)
     {
-        public bool Allows(string module, string action) =>
-            FullAccess
-            || (Modules ?? []).Any(m => string.Equals(m.Module, module, StringComparison.OrdinalIgnoreCase)
-                && (m.Actions ?? []).Contains(action, StringComparer.OrdinalIgnoreCase));
+        public bool Allows(string module, string action)
+        {
+            if (module.Equals(AssetCriticalityPermissions.Module, StringComparison.OrdinalIgnoreCase))
+            {
+                // Any criticality write permission passes here; the endpoint checks the exact one.
+                var configured = (Modules ?? []).FirstOrDefault(m => string.Equals(m.Module, module, StringComparison.OrdinalIgnoreCase));
+                var granted = AssetCriticalityPermissions.Resolve(FullAccess, configured?.Actions, Roles);
+                return action.Equals("view", StringComparison.OrdinalIgnoreCase)
+                    ? granted.Contains(AssetCriticalityPermissions.View)
+                    : AssetCriticalityPermissions.Writes.Any(granted.Contains);
+            }
+
+            return FullAccess
+                || (Modules ?? []).Any(m => string.Equals(m.Module, module, StringComparison.OrdinalIgnoreCase)
+                    && (m.Actions ?? []).Contains(action, StringComparer.OrdinalIgnoreCase));
+        }
     }
 }
