@@ -79,4 +79,10 @@ public interface IAssetDashboardRepository
     /// asset, found by registration id or asset tag (ignoring case); null when no such asset is registered.
     /// </summary>
     Task<AssetSummaryCounts?> GetAssetSummaryCountsAsync(string assetRegistrationIdOrTag, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Open work orders (status not Completed / Cancelled / Closed) on the given asset ids or tags (work_orders.asset_id)
+    /// that are due before <paramref name="dueBeforeUtc"/> (due_date, else scheduled_date, else planned_start_date).
+    /// </summary>
+    Task<IReadOnlyList<DashboardOpenWorkOrder>> GetOpenWorkOrdersDueAsync(IReadOnlyCollection<string> assetKeys, DateTime dueBeforeUtc, CancellationToken cancellationToken = default);
 }

@@ -26,7 +26,12 @@ public sealed record DashboardAsset(
     string? Criticality = null,
     string? CustodianName = null,
     string? CustodianDepartment = null,
-    int AttachedDocumentCount = 0);
+    int AttachedDocumentCount = 0,
+    DateTime? PurchaseDate = null,
+    DateTime? NextMaintenanceDate = null);
+
+/// <summary>An open maintenance work order (not Completed / Cancelled / Closed) with the date it is due.</summary>
+public sealed record DashboardOpenWorkOrder(string WorkOrderId, string AssetId, string? Status, DateTime DueDate);
 
 /// <summary>Tracking IoTDevice: a connected device and the asset it is assigned to.</summary>
 [BsonIgnoreExtraElements]

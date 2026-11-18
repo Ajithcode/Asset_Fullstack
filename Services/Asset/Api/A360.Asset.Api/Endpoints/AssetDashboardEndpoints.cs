@@ -29,6 +29,12 @@ public static class AssetDashboardEndpoints
     private const int MaxTagReadings = 500;
     private const int DefaultTopSites = 3;
     private const int DefaultAlertLimit = 10;
+    private const int DefaultDueDays = 30;
+
+    private static readonly (string Name, string Label, int Min, int? Max)[] AgeBands =
+    [
+        ("New", "0-2 years", 0, 2), ("Mature", "3-5 years", 3, 5), ("Aging", "6-10 years", 6, 10), ("End of Life", "11+ years", 11, null)
+    ];
 
     private static readonly string[] LocationUpdateTypes = ["Entered Zone", "Departed Zone"];
     private static readonly string[] GeofenceEventTypes = ["Geofence Alert", "Dwell Exceeded"];
@@ -47,6 +53,8 @@ public static class AssetDashboardEndpoints
         group.MapGet("/critical-assets", GetCriticalAssetsAsync).WithName("GetAssetDashboardCriticalAssets");
         group.MapGet("/assets-without-custodian", GetAssetsWithoutCustodianAsync).WithName("GetAssetDashboardAssetsWithoutCustodian");
         group.MapGet("/assets-without-documents", GetAssetsWithoutDocumentsAsync).WithName("GetAssetDashboardAssetsWithoutDocuments");
+        group.MapGet("/assets-due-maintenance", GetAssetsDueMaintenanceAsync).WithName("GetAssetDashboardAssetsDueMaintenance");
+        group.MapGet("/aging", GetAgingAsync).WithName("GetAssetDashboardAging");
         group.MapGet("/device-connectivity", GetDeviceConnectivityAsync).WithName("GetAssetDashboardDeviceConnectivity");
         group.MapGet("/firmware", GetFirmwareAsync).WithName("GetAssetDashboardFirmware");
         group.MapGet("/health-scores", GetHealthScoresAsync).WithName("GetAssetDashboardHealthScores");
@@ -379,6 +387,96 @@ public static class AssetDashboardEndpoints
     /// </summary>
     private static Task<IResult> GetAssetsWithoutDocumentsAsync(IAssetDashboardRepository repository, CancellationToken cancellationToken) =>
         AssetCheckAsync(repository, detail => detail.DocumentCount == 0, cancellationToken);
+
+    /// <summary>
+    /// Quick Insights "due for maintenance": assets whose next maintenance date (additional_information.operational) or
+    /// earliest open work order (work_orders.asset_id = registration id or asset tag) falls before now + <paramref name="days"/>
+    /// days (default 30, 1-365); overdue ones included. Soonest first.
+    /// </summary>
+    private static async Task<IResult> GetAssetsDueMaintenanceAsync(
+        IAssetDashboardRepository repository, [AsParameters] AssetDashboardFilter filter, CancellationToken cancellationToken, int? days = null)
+    {
+        if (filter.Invalid() is { } invalidFilter)
+        {
+            return invalidFilter;
+        }
+
+        if (days is < 1 or > 365)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["days"] = ["days must be between 1 and 365"] });
+        }
+
+        var window = days ?? DefaultDueDays;
+        var dueBefore = DateTime.UtcNow.Date.AddDays(window + 1);
+        var assets = await FilteredAssetsAsync(repository, filter, cancellationToken);
+        var keys = AssetKeys(assets);
+        var workOrders = await repository.GetOpenWorkOrdersDueAsync(keys.Keys.ToList(), dueBefore, cancellationToken);
+        var ordersByAsset = workOrders
+            .Where(order => keys.ContainsKey(order.AssetId))
+            .GroupBy(order => keys[order.AssetId], StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.OrderBy(order => order.DueDate).ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var due = assets
+            .Select(asset =>
+            {
+                var orders = ordersByAsset.GetValueOrDefault(asset.AssetRegistrationId) ?? [];
+                var next = asset.NextMaintenanceDate is { } date && date.ToUniversalTime() < dueBefore ? date.ToUniversalTime() : (DateTime?)null;
+                var order = orders.FirstOrDefault();
+                if (next is null && order is null)
+                {
+                    return null;
+                }
+
+                var fromOrder = order is not null && (next is null || order.DueDate < next);
+                return new AssetMaintenanceDue(asset.AssetRegistrationId, asset.AssetTag, asset.AssetName, asset.Category, asset.SubCategory,
+                    asset.AssetType, asset.Criticality, asset.Status, asset.SiteName,
+                    fromOrder ? order!.DueDate : next!.Value, fromOrder ? "Work order" : "Next maintenance date", fromOrder ? order!.WorkOrderId : null, orders.Count);
+            })
+            .OfType<AssetMaintenanceDue>()
+            .OrderBy(item => item.DueDate)
+            .ThenBy(item => item.AssetName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Results.Ok(new AssetMaintenanceDueResponse(window, dueBefore, due.Count, assets.Count, due));
+    }
+
+    /// <summary>
+    /// Asset Lifecycle Aging: assets by completed years since their purchase date — New 0-2, Mature 3-5, Aging 6-10,
+    /// End of Life 11+. Assets without a purchase date are counted separately.
+    /// </summary>
+    private static async Task<IResult> GetAgingAsync(IAssetDashboardRepository repository, [AsParameters] AssetDashboardFilter filter, CancellationToken cancellationToken)
+    {
+        if (filter.Invalid() is { } invalidFilter)
+        {
+            return invalidFilter;
+        }
+
+        var asOf = DateTime.UtcNow;
+        var assets = await FilteredAssetsAsync(repository, filter, cancellationToken);
+        var dated = assets
+            .Where(asset => asset.PurchaseDate is not null)
+            .Select(asset =>
+            {
+                var bought = asset.PurchaseDate!.Value.ToUniversalTime();
+                var age = Math.Max(0, (asOf - bought).TotalDays / 365.25);
+                return new AssetAgeDetail(asset.AssetRegistrationId, asset.AssetTag, asset.AssetName, asset.Category, asset.SiteName, asset.Status,
+                    bought, Math.Round(age, 1));
+            })
+            .ToList();
+
+        var bands = AgeBands
+            .Select(band =>
+            {
+                var inBand = dated
+                    .Where(detail => Math.Floor(detail.AgeYears) >= band.Min && (band.Max is null || Math.Floor(detail.AgeYears) <= band.Max))
+                    .OrderByDescending(detail => detail.AgeYears)
+                    .ToList();
+                return new AssetAgeBand(band.Name, band.Label, band.Min, band.Max, inBand.Count, DashboardMath.Percent(inBand.Count, dated.Count), inBand);
+            })
+            .ToList();
+
+        return Results.Ok(new AssetAgingResponse(asOf, assets.Count, dated.Count, assets.Count - dated.Count, bands));
+    }
 
     private static async Task<IResult> AssetCheckAsync(
         IAssetDashboardRepository repository,
