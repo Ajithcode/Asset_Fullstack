@@ -8,9 +8,9 @@
     </div>
     <span class="live" title="Live data, local time"><i></i>LIVE<span class="live-clock">{{ clock }}</span></span>
     <label class="ic-sel"><lucide-icon [img]="icons.Building2" [size]="16"></lucide-icon>
-      <select class="control" [(ngModel)]="site" (ngModelChange)="onSite()" aria-label="Site"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s.id">{{ s.name }}</option></select></label>
+      <select class="control" [(ngModel)]="site" (ngModelChange)="onSite()" aria-label="Site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.id">{{ s.name }}</option></select></label>
     <label class="ic-sel"><lucide-icon [img]="icons.Calendar" [size]="16"></lucide-icon>
-      <select class="control" [(ngModel)]="range" aria-label="Time range"><option value="" disabled>Select Time Range</option><option *ngFor="let r of ranges" [value]="r.key">{{ r.label }}</option></select></label>
+      <select class="control" [(ngModel)]="range" aria-label="Time range"><option *ngFor="let r of ranges" [value]="r.key">{{ r.label }}</option></select></label>
     <button type="button" class="btn btn-primary" (click)="exportData()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export</button>
   </header>
 
@@ -39,9 +39,9 @@
       <app-tt-map [selectedId]="selectedId" [layers]="layers" [statuses]="statuses" [satellite]="satellite" (select)="selectAsset($event)" (moved)="onMoved($event)"></app-tt-map>
 
       <div class="mo mo-top">
-        <select class="control control-sm" [(ngModel)]="mapSite" (ngModelChange)="onMapSite()" aria-label="Map site"><option value="">Select Map Site</option><option *ngFor="let s of sites" [value]="s.id">{{ s.name }}</option></select>
+        <select class="control control-sm" [(ngModel)]="mapSite" (ngModelChange)="onMapSite()" aria-label="Map site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.id">{{ s.name }}</option></select>
         <select class="control control-sm" [(ngModel)]="building" (ngModelChange)="onBuilding()" aria-label="Building" [disabled]="!mapBuildings.length">
-          <option value="">{{ mapBuildings.length ? 'Select Building' : 'No buildings' }}</option><option *ngFor="let b of mapBuildings" [value]="b.id">{{ b.name }}</option>
+          <option value="">{{ mapBuildings.length ? 'All Buildings' : 'No buildings' }}</option><option *ngFor="let b of mapBuildings" [value]="b.id">{{ b.name }}</option>
         </select>
       </div>
       <div class="mo mo-layers" role="group" aria-label="Map layers">
@@ -168,7 +168,7 @@
       <h2>Telemetry Trend ({{ ranges[range === '1h' ? 0 : range === '24h' ? 1 : 2].label }})<span class="muted"> · {{ selected?.name }}</span></h2>
       <label *ngFor="let m of metrics" class="ck"><input type="checkbox" [checked]="show[m]" (change)="toggleMetric(m)" [style.accent-color]="metricMeta[m].color" />{{ metricMeta[m].label }}</label>
       <span class="grow"></span>
-      <select class="control control-sm" [(ngModel)]="range" aria-label="Trend range"><option value="" disabled>Select Trend Range</option><option *ngFor="let r of ranges" [value]="r.key">{{ r.label }}</option></select>
+      <select class="control control-sm" [(ngModel)]="range" aria-label="Trend range"><option *ngFor="let r of ranges" [value]="r.key">{{ r.label }}</option></select>
     </div>
     <div class="chart-box" #chartBox (mousemove)="onChartMove($event)" (mouseleave)="hoverIdx = null">
       <p *ngIf="!trend" class="muted">{{ selected ? "No telemetry reported for this range." : "No tracked assets found." }}</p>
@@ -235,7 +235,7 @@
     <div class="modal-head"><h2 id="tt-cfg">Configure alert · {{ configAsset()?.name }}</h2><button type="button" class="icon-btn" (click)="config = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveConfig()">
       <label class="field"><span class="field-label">Metric</span>
-        <select class="control" [(ngModel)]="c.metric" name="metric" (ngModelChange)="onConfigMetric()"><option value="" disabled>Select Metric</option><option *ngFor="let m of metrics" [value]="m">{{ metricMeta[m].label }}</option></select></label>
+        <select class="control" [(ngModel)]="c.metric" name="metric" (ngModelChange)="onConfigMetric()"><option *ngFor="let m of metrics" [value]="m">{{ metricMeta[m].label }}</option></select></label>
       <label class="field"><span class="field-label">{{ c.metric === 'battery' ? 'Alert when below' : 'Alert when above' }} ({{ metricMeta[c.metric].unit }})</span>
         <input class="control" type="number" step="0.1" [(ngModel)]="c.value" name="value" /></label>
       <div class="field"><span class="field-label">Notify</span>

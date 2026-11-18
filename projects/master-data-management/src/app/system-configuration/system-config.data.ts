@@ -1,4 +1,4 @@
-import { ChartTypeRecord, ConfigStatus, SyncStatusRecord, SystemSettings, UpdateSourceRecord } from './system-config.model';
+import { ChartTypeRecord, SyncStatusRecord, SystemSettings, UpdateSourceRecord } from './system-config.model';
 
 /* Option lists, blank records and default settings for System Configuration. */
 
@@ -7,15 +7,15 @@ export const CHART_CATEGORIES = ['Comparison', 'Trend', 'Distribution', 'KPI', '
 export const SOURCE_TYPES = ['Manual', 'Device', 'External', 'File', 'API', 'System'];
 
 export function blankSyncStatus(): SyncStatusRecord {
-  return { code: '', name: '', description: '', color: SYNC_COLORS[0], isSuccess: false, status: '' as ConfigStatus, createdOn: '', updatedOn: '' };
+  return { code: '', name: '', description: '', color: SYNC_COLORS[0], isSuccess: false, status: 'Active', createdOn: '', updatedOn: '' };
 }
 
 export function blankChartType(): ChartTypeRecord {
-  return { code: '', name: '', category: '', description: '', preview: 'column', image: null, status: '' as ConfigStatus, createdOn: '', updatedOn: '' };
+  return { code: '', name: '', category: '', description: '', preview: 'column', image: null, status: 'Active', createdOn: '', updatedOn: '' };
 }
 
 export function blankUpdateSource(): UpdateSourceRecord {
-  return { code: '', name: '', type: '', description: '', status: '' as ConfigStatus, createdOn: '', updatedOn: '' };
+  return { code: '', name: '', type: '', description: '', status: 'Active', createdOn: '', updatedOn: '' };
 }
 
 /* System Settings choices */

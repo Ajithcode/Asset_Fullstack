@@ -17,13 +17,13 @@
         </span>
       </span>
       <label class="io-filter"><span>Module</span>
-        <select class="control" [(ngModel)]="module" (ngModelChange)="onFilter()"><option value="">Select Module</option><option *ngFor="let m of modules" [value]="m.name">{{ m.name }}</option></select></label>
+        <select class="control" [(ngModel)]="module" (ngModelChange)="onFilter()"><option value="">All Modules</option><option *ngFor="let m of modules" [value]="m.name">{{ m.name }}</option></select></label>
       <label class="io-filter"><span>Report Type</span>
-        <select class="control" [(ngModel)]="fileType" (ngModelChange)="onFilter()"><option value="">Select File Type</option><option *ngFor="let t of fileTypes" [value]="t">{{ t }}</option></select></label>
+        <select class="control" [(ngModel)]="fileType" (ngModelChange)="onFilter()"><option value="">All Types</option><option *ngFor="let t of fileTypes" [value]="t">{{ t }}</option></select></label>
       <label class="io-filter"><span>Site</span>
-        <select class="control" [(ngModel)]="site" (ngModelChange)="onFilter()"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
+        <select class="control" [(ngModel)]="site" (ngModelChange)="onFilter()"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
       <label class="io-filter"><span>Owner</span>
-        <select class="control" [(ngModel)]="owner" (ngModelChange)="onFilter()"><option value="">Select Owner</option><option *ngFor="let o of owners" [value]="o">{{ o }}</option></select></label>
+        <select class="control" [(ngModel)]="owner" (ngModelChange)="onFilter()"><option value="">All Owners</option><option *ngFor="let o of owners" [value]="o">{{ o }}</option></select></label>
       <button type="button" class="btn btn-primary" (click)="go('/report/create')"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Create Report</button>
       <button type="button" class="btn rp-btn-outline" (click)="exportAll()"><lucide-icon [img]="icons.Upload" [size]="17"></lucide-icon>Export</button>
     </div>
@@ -140,8 +140,8 @@
       <div class="rp-lib-tools">
         <label class="rp-search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
           <input type="search" class="control" placeholder="Search reports..." [(ngModel)]="search" (ngModelChange)="page = 0" aria-label="Search reports" /></label>
-        <select class="control" [(ngModel)]="libModule" (ngModelChange)="page = 0" aria-label="Library module"><option value="">Select Module</option><option *ngFor="let m of modules" [value]="m.name">{{ m.name }}</option></select>
-        <select class="control" [(ngModel)]="libType" (ngModelChange)="page = 0" aria-label="Library file type"><option value="">Select File Type</option><option *ngFor="let t of fileTypes" [value]="t">{{ t }}</option></select>
+        <select class="control" [(ngModel)]="libModule" (ngModelChange)="page = 0" aria-label="Library module"><option value="">All Modules</option><option *ngFor="let m of modules" [value]="m.name">{{ m.name }}</option></select>
+        <select class="control" [(ngModel)]="libType" (ngModelChange)="page = 0" aria-label="Library file type"><option value="">All File Types</option><option *ngFor="let t of fileTypes" [value]="t">{{ t }}</option></select>
       </div>
       <p *ngIf="insight" class="rp-chip">{{ insightLabel }} <small>({{ libraryRows.length }})</small><button type="button" class="io-link" (click)="openInsight(insight)">Clear</button></p>
       <div class="io-table-wrap">

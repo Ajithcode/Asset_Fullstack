@@ -36,7 +36,7 @@
             <div class="grid3">
               <label class="field"><span class="field-label">Audit Name <em>*</em></span><input class="control" [(ngModel)]="d.name" placeholder="e.g. Q4 Asset Audit - Main Plant" /></label>
               <label class="field"><span class="field-label">Audit Type <em>*</em></span>
-                <select class="control" [(ngModel)]="d.type"><option value="" disabled>Select Audit Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select>
+                <select class="control" [(ngModel)]="d.type"><option value="" disabled>Select audit type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select>
               </label>
               <label class="field"><span class="field-label">Audit Reference <span class="opt">(Optional)</span></span><input class="control" [(ngModel)]="d.reference" [placeholder]="suggestedReference" /></label>
             </div>
@@ -54,13 +54,13 @@
             <div class="sec-head"><h3>Scope &amp; Assets</h3><p>Define the scope of this audit and select the assets.</p></div>
             <div class="grid3">
               <label class="field"><span class="field-label">Location / Site <em>*</em></span>
-                <select class="control" [(ngModel)]="d.location" (ngModelChange)="onScopeChange()"><option value="" disabled>Select Location</option><option *ngFor="let l of locations" [value]="l.id">{{ l.name }}</option></select>
+                <select class="control" [(ngModel)]="d.location" (ngModelChange)="onScopeChange()"><option value="" disabled>Select location</option><option *ngFor="let l of locations" [value]="l.id">{{ l.name }}</option></select>
               </label>
               <label class="field"><span class="field-label">Department <span class="opt">(Optional)</span></span>
-                <select class="control" [(ngModel)]="d.department" (ngModelChange)="onScopeChange()"><option value="">Select Department</option><option *ngFor="let x of departments" [value]="x">{{ x }}</option></select>
+                <select class="control" [(ngModel)]="d.department" (ngModelChange)="onScopeChange()"><option value="">All Departments</option><option *ngFor="let x of departments" [value]="x">{{ x }}</option></select>
               </label>
               <label class="field"><span class="field-label">Asset Category <span class="opt">(Optional)</span></span>
-                <select class="control" [(ngModel)]="d.category" (ngModelChange)="onScopeChange()"><option value="">Select Asset Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
+                <select class="control" [(ngModel)]="d.category" (ngModelChange)="onScopeChange()"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
               </label>
             </div>
 
@@ -81,7 +81,7 @@
             </div>
             <div *ngIf="d.selection === 'filter'" class="sel-extra">
               <label class="field"><span class="field-label">Asset Status</span>
-                <select class="control" [(ngModel)]="d.filterStatus"><option value="">Select Asset Status</option><option *ngFor="let s of assetStatuses" [value]="s">{{ s }}</option></select>
+                <select class="control" [(ngModel)]="d.filterStatus"><option value="">Any Status</option><option *ngFor="let s of assetStatuses" [value]="s">{{ s }}</option></select>
               </label>
               <label class="field"><span class="field-label">Name / Tag Contains</span><input class="control" [(ngModel)]="d.filterText" placeholder="e.g. Generator" /></label>
             </div>
@@ -116,18 +116,18 @@
             <div class="filters">
               <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="assetSearch" (ngModelChange)="onAssetFilter()" placeholder="Search assets by name, tag, serial number..." aria-label="Search assets" /></label>
               <label class="field"><span class="field-label">Location</span>
-                <select class="control" [(ngModel)]="assetLocation" (ngModelChange)="onAssetFilter()"><option value="">Select Location</option><option *ngFor="let l of assetLocations" [value]="l">{{ l }}</option></select>
+                <select class="control" [(ngModel)]="assetLocation" (ngModelChange)="onAssetFilter()"><option value="">All Locations</option><option *ngFor="let l of assetLocations" [value]="l">{{ l }}</option></select>
               </label>
               <label class="field"><span class="field-label">Category</span>
-                <select class="control" [(ngModel)]="assetCategory" (ngModelChange)="onAssetFilter()"><option value="">Select Category</option><option *ngFor="let c of assetCategories" [value]="c">{{ c }}</option></select>
+                <select class="control" [(ngModel)]="assetCategory" (ngModelChange)="onAssetFilter()"><option value="">All Categories</option><option *ngFor="let c of assetCategories" [value]="c">{{ c }}</option></select>
               </label>
               <label class="field"><span class="field-label">Status</span>
-                <select class="control" [(ngModel)]="assetStatus" (ngModelChange)="onAssetFilter()"><option value="">Select Status</option><option *ngFor="let s of assetStatuses" [value]="s">{{ s }}</option></select>
+                <select class="control" [(ngModel)]="assetStatus" (ngModelChange)="onAssetFilter()"><option value="">All Status</option><option *ngFor="let s of assetStatuses" [value]="s">{{ s }}</option></select>
               </label>
               <button type="button" class="btn btn-outline btn-sm filter-btn" [class.is-on]="moreFilters" (click)="moreFilters = !moreFilters" [attr.aria-expanded]="moreFilters"><lucide-icon [img]="icons.Funnel" [size]="15"></lucide-icon>More Filters</button>
               <div *ngIf="moreFilters" class="more">
                 <label class="field"><span class="field-label">Department</span>
-                  <select class="control" [(ngModel)]="assetDepartment" (ngModelChange)="onAssetFilter()"><option value="">Select Department</option><option *ngFor="let x of departments" [value]="x">{{ x }}</option></select>
+                  <select class="control" [(ngModel)]="assetDepartment" (ngModelChange)="onAssetFilter()"><option value="">All Departments</option><option *ngFor="let x of departments" [value]="x">{{ x }}</option></select>
                 </label>
                 <button type="button" class="link-btn" (click)="resetAssetFilters()">Reset filters</button>
               </div>
@@ -308,18 +308,18 @@
             <div class="filters">
               <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="criteriaSearch" (ngModelChange)="onCriteriaFilter()" placeholder="Search criteria by name or description..." aria-label="Search criteria" /></label>
               <label class="field"><span class="field-label">Category</span>
-                <select class="control" [(ngModel)]="criteriaCategory" (ngModelChange)="onCriteriaFilter()"><option value="">Select Category</option><option *ngFor="let c of criterionCategories" [value]="c">{{ c }}</option></select>
+                <select class="control" [(ngModel)]="criteriaCategory" (ngModelChange)="onCriteriaFilter()"><option value="">All Categories</option><option *ngFor="let c of criterionCategories" [value]="c">{{ c }}</option></select>
               </label>
               <label class="field"><span class="field-label">Applies To</span>
-                <select class="control" [(ngModel)]="criteriaApplies" (ngModelChange)="onCriteriaFilter()"><option value="">Select Applies To</option><option *ngFor="let a of appliesOptions" [value]="a">{{ a }} only</option></select>
+                <select class="control" [(ngModel)]="criteriaApplies" (ngModelChange)="onCriteriaFilter()"><option value="">All Assets</option><option *ngFor="let a of appliesOptions" [value]="a">{{ a }} only</option></select>
               </label>
               <label class="field"><span class="field-label">Mandatory</span>
-                <select class="control" [(ngModel)]="criteriaMandatory" (ngModelChange)="onCriteriaFilter()"><option value="">Select Mandatory</option><option value="yes">Mandatory</option><option value="no">Optional</option></select>
+                <select class="control" [(ngModel)]="criteriaMandatory" (ngModelChange)="onCriteriaFilter()"><option value="">All Criteria</option><option value="yes">Mandatory</option><option value="no">Optional</option></select>
               </label>
               <button type="button" class="btn btn-outline btn-sm filter-btn" [class.is-on]="criteriaMoreFilters" (click)="criteriaMoreFilters = !criteriaMoreFilters" [attr.aria-expanded]="criteriaMoreFilters"><lucide-icon [img]="icons.Funnel" [size]="15"></lucide-icon>More Filters</button>
               <div *ngIf="criteriaMoreFilters" class="more">
                 <label class="field"><span class="field-label">Check Method</span>
-                  <select class="control" [(ngModel)]="criteriaMethod" (ngModelChange)="onCriteriaFilter()"><option value="">Select Check Method</option><option *ngFor="let m of checkMethods" [value]="m">{{ m }}</option></select>
+                  <select class="control" [(ngModel)]="criteriaMethod" (ngModelChange)="onCriteriaFilter()"><option value="">All Methods</option><option *ngFor="let m of checkMethods" [value]="m">{{ m }}</option></select>
                 </label>
                 <button type="button" class="link-btn" (click)="resetCriteriaFilters()">Reset filters</button>
               </div>
@@ -422,7 +422,7 @@
                         <span><strong>{{ m.user.name }}</strong><small>{{ m.user.email }}</small></span>
                       </span>
                     </td>
-                    <td><select class="control role-select" [ngModel]="m.role" (ngModelChange)="setRole(m, $event)" [attr.aria-label]="'Role of ' + m.user.name"><option value="" disabled>Select Role</option><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select></td>
+                    <td><select class="control role-select" [ngModel]="m.role" (ngModelChange)="setRole(m, $event)" [attr.aria-label]="'Role of ' + m.user.name"><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select></td>
                     <td>{{ m.user.department }}</td>
                     <td class="nowrap">{{ m.role === 'Observer' ? '-' : assignedCount(m.user.name) + ' assets' }}</td>
                     <td class="center"><button type="button" class="kebab" (click)="openMemberMenu(m, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + m.user.name"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button></td>
@@ -441,7 +441,7 @@
               <label class="field"><span class="field-label">Start Date <em>*</em></span><input class="control" type="date" [(ngModel)]="schedule.start" (ngModelChange)="showStartMonth()" /></label>
               <label class="field"><span class="field-label">End Date <em>*</em></span><input class="control" type="date" [(ngModel)]="schedule.end" [min]="schedule.start" /></label>
               <label class="field"><span class="field-label">Working Days</span>
-                <select class="control" [(ngModel)]="schedule.workingDays"><option value="" disabled>Select Working Days</option><option *ngFor="let w of workingDayOptions" [value]="w">{{ w }}</option></select>
+                <select class="control" [(ngModel)]="schedule.workingDays"><option *ngFor="let w of workingDayOptions" [value]="w">{{ w }}</option></select>
               </label>
               <label class="field"><span class="field-label">Daily Start Time</span><input class="control" type="time" [(ngModel)]="schedule.startTime" /></label>
               <label class="field"><span class="field-label">Daily End Time</span><input class="control" type="time" [(ngModel)]="schedule.endTime" /></label>
@@ -467,7 +467,7 @@
 
             <div *ngIf="checkedPlanRows.size" class="bulk">
               <span>{{ checkedPlanRows.size }} selected · Assign to</span>
-              <select class="control bulk-select" [(ngModel)]="bulkAssignee" aria-label="Assign selected days to"><option value="" disabled>Select Auditor</option><option *ngFor="let a of auditorNames" [value]="a">{{ a }}</option></select>
+              <select class="control bulk-select" [(ngModel)]="bulkAssignee" aria-label="Assign selected days to"><option value="" disabled>Choose auditor</option><option *ngFor="let a of auditorNames" [value]="a">{{ a }}</option></select>
               <button type="button" class="btn btn-primary btn-sm" [disabled]="!bulkAssignee" (click)="assignChecked()">Apply</button>
               <button type="button" class="link-btn" (click)="checkedPlanRows.clear()">Clear</button>
             </div>
@@ -763,10 +763,10 @@
       <label class="field"><span class="field-label">Criteria Name <em>*</em></span><input class="control" name="name" [(ngModel)]="f.name" placeholder="e.g. Fire Extinguisher Pressure" /></label>
       <label class="field"><span class="field-label">Description</span><textarea class="control textarea" rows="2" name="description" [(ngModel)]="f.description" placeholder="What the auditor should check"></textarea></label>
       <div class="two">
-        <label class="field"><span class="field-label">Type</span><select class="control" name="type" [(ngModel)]="f.type"><option value="" disabled>Select Type</option><option *ngFor="let t of criterionTypes" [value]="t">{{ t }}</option></select></label>
-        <label class="field"><span class="field-label">Category</span><select class="control" name="category" [(ngModel)]="f.category"><option value="" disabled>Select Category</option><option *ngFor="let c of criterionCategories" [value]="c">{{ c }}</option></select></label>
-        <label class="field"><span class="field-label">Check Method</span><select class="control" name="method" [(ngModel)]="f.method"><option value="" disabled>Select Check Method</option><option *ngFor="let m of checkMethods" [value]="m">{{ m }}</option></select></label>
-        <label class="field"><span class="field-label">Applies To</span><select class="control" name="appliesTo" [(ngModel)]="f.appliesTo"><option value="" disabled>Select Applies To</option><option *ngFor="let a of appliesOptions" [value]="a">{{ a }}</option></select></label>
+        <label class="field"><span class="field-label">Type</span><select class="control" name="type" [(ngModel)]="f.type"><option *ngFor="let t of criterionTypes" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Category</span><select class="control" name="category" [(ngModel)]="f.category"><option *ngFor="let c of criterionCategories" [value]="c">{{ c }}</option></select></label>
+        <label class="field"><span class="field-label">Check Method</span><select class="control" name="method" [(ngModel)]="f.method"><option *ngFor="let m of checkMethods" [value]="m">{{ m }}</option></select></label>
+        <label class="field"><span class="field-label">Applies To</span><select class="control" name="appliesTo" [(ngModel)]="f.appliesTo"><option *ngFor="let a of appliesOptions" [value]="a">{{ a }}</option></select></label>
       </div>
       <label class="check"><input type="checkbox" name="mandatory" [(ngModel)]="f.mandatory" />Mandatory: the audit can't be closed until this is checked</label>
       <p *ngIf="criterionError" class="form-error" role="alert">{{ criterionError }}</p>
@@ -820,7 +820,7 @@
         <p *ngIf="!addChoices.length" class="empty">Everyone matching is already on the team.</p>
       </div>
       <label class="field role-field"><span class="field-label">Role</span>
-        <select class="control" name="role" [(ngModel)]="f.role"><option value="" disabled>Select Role</option><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select>
+        <select class="control" name="role" [(ngModel)]="f.role"><option *ngFor="let r of roles" [value]="r">{{ r }}</option></select>
       </label>
       <p *ngIf="teamError" class="form-error" role="alert">{{ teamError }}</p>
       <div class="modal-foot">
@@ -842,7 +842,7 @@
     <form class="modal-body" (ngSubmit)="saveRowEdit()">
       <label class="field"><span class="field-label">Date <em>*</em></span><input class="control" type="date" name="date" [(ngModel)]="f.date" [min]="schedule.start" [max]="schedule.end" /></label>
       <label class="field"><span class="field-label">Assigned To <em>*</em></span>
-        <select class="control" name="assignee" [(ngModel)]="f.assignee"><option value="" disabled>Select Auditor</option><option *ngFor="let a of auditorNames" [value]="a">{{ a }}</option></select>
+        <select class="control" name="assignee" [(ngModel)]="f.assignee"><option value="" disabled>Choose auditor</option><option *ngFor="let a of auditorNames" [value]="a">{{ a }}</option></select>
       </label>
       <p *ngIf="!auditorNames.length" class="muted">Add an auditor to the team first.</p>
       <p *ngIf="teamError" class="form-error" role="alert">{{ teamError }}</p>

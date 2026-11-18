@@ -12,7 +12,7 @@
         <input type="search" placeholder="Search field layouts..." [(ngModel)]="search" (ngModelChange)="page = 1" aria-label="Search field layouts" />
       </div>
       <select class="control" [(ngModel)]="typeFilter" (ngModelChange)="page = 1" aria-label="Filter by asset type">
-        <option value="">Select Asset Type</option>
+        <option value="">All Asset Types</option>
         <option *ngFor="let t of assetTypes" [value]="t">{{ t }}</option>
       </select>
     </div>
@@ -316,20 +316,16 @@
       <div class="grid-2">
         <label class="field">
           <span class="field-label">Asset Type <em>*</em></span>
-          <select class="control" name="assetType" [(ngModel)]="layoutForm.assetType" [class.is-invalid]="layoutSubmitted && !layoutForm.assetType">
-            <option value="" disabled>Select Asset Type</option>
+          <select class="control" name="assetType" [(ngModel)]="layoutForm.assetType">
             <option *ngFor="let t of assetTypes" [value]="t">{{ t }}</option>
           </select>
-          <span *ngIf="layoutSubmitted && !layoutForm.assetType" class="error">Asset type is required.</span>
         </label>
         <label class="field">
-          <span class="field-label">Status <em>*</em></span>
-          <select class="control" name="layoutStatus" [(ngModel)]="layoutForm.status" [class.is-invalid]="layoutSubmitted && !layoutForm.status">
-            <option value="" disabled>Select Status</option>
+          <span class="field-label">Status</span>
+          <select class="control" name="layoutStatus" [(ngModel)]="layoutForm.status">
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
-          <span *ngIf="layoutSubmitted && !layoutForm.status" class="error">Status is required.</span>
         </label>
       </div>
       <span *ngIf="layoutForm.original && layoutForm.assetType !== layoutForm.original.assetType" class="hint">
@@ -343,7 +339,6 @@
       <label *ngIf="!layoutForm.original" class="field">
         <span class="field-label">Start From</span>
         <select class="control" name="copyFrom" [(ngModel)]="layoutForm.copyFrom">
-          <option [ngValue]="null" disabled>Select Start From</option>
           <option [ngValue]="''">Blank layout (Asset Name and Asset Tag only)</option>
           <option *ngFor="let l of layouts" [ngValue]="l.id">Copy of {{ l.name }}</option>
         </select>

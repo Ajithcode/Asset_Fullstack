@@ -8,7 +8,7 @@ import { SkillRecord } from '../skill.model';
 import { SkillService } from '../skill.service';
 
 type FormTab = 'basic' | 'levels' | 'roles' | 'settings';
-type FieldKey = 'name' | 'code' | 'category' | 'status' | 'levels' | 'validity';
+type FieldKey = 'name' | 'code' | 'category' | 'levels' | 'validity';
 
 /** Right-hand "Add / Edit Skill" panel. Emits the finished record; the page saves it. */
 @Component({
@@ -109,7 +109,6 @@ export class SkillForm implements OnChanges {
     if (!f.code.trim()) errors.code = 'Enter a code.';
     else if (this.service.isCodeTaken(f.code, this.original?.code ?? null)) errors.code = `${f.code.trim()} is already used.`;
     if (!f.category) errors.category = 'Select a category.';
-    if (!f.status) errors.status = 'Select a status.';
     const levels = f.levels.map((l) => l.trim());
     if (levels.some((l) => !l)) errors.levels = 'Name every level or remove the empty ones.';
     else if (new Set(levels.map((l) => l.toLowerCase())).size !== levels.length) errors.levels = 'Level names must be different.';
@@ -119,7 +118,7 @@ export class SkillForm implements OnChanges {
     this.errors = errors;
 
     if (Object.keys(errors).length) {
-      this.tab = errors.name || errors.code || errors.category || errors.status ? 'basic' : errors.levels ? 'levels' : 'settings';
+      this.tab = errors.name || errors.code || errors.category ? 'basic' : errors.levels ? 'levels' : 'settings';
       return;
     }
 

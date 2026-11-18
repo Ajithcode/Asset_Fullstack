@@ -60,8 +60,8 @@
           <h3 id="mc-ledger">Job Material Ledger</h3>
           <div class="ledger-filters">
             <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" placeholder="Search material..." aria-label="Search material" /></label>
-            <label class="inline-field"><span>Category</span><select class="control" [(ngModel)]="category"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
-            <label class="inline-field"><span>Stage</span><select class="control" [(ngModel)]="stageFilter"><option value="">Select Stage</option><option *ngFor="let s of stages" [value]="s">{{ s }}</option></select></label>
+            <label class="inline-field"><span>Category</span><select class="control" [(ngModel)]="category"><option value="">All</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+            <label class="inline-field"><span>Stage</span><select class="control" [(ngModel)]="stageFilter"><option value="">All</option><option *ngFor="let s of stages" [value]="s">{{ s }}</option></select></label>
           </div>
           <div class="table-wrap">
             <table class="ledger">
@@ -94,7 +94,7 @@
       <!-- ===== Transactions ===== -->
       <section *ngIf="tab === 'transactions'" class="card panel">
         <div class="section-head"><h3 class="grow">Consumption Transactions ({{ transactions.length }})</h3>
-          <select class="control control--auto" [(ngModel)]="txType" aria-label="Transaction type"><option value="">Select Transaction Type</option><option *ngFor="let t of txTypes" [value]="t">{{ t }}</option></select></div>
+          <select class="control control--auto" [(ngModel)]="txType" aria-label="Transaction type"><option value="">All types</option><option *ngFor="let t of txTypes" [value]="t">{{ t }}</option></select></div>
         <ng-container *ngTemplateOutlet="txTable; context: { $implicit: transactions, full: true }"></ng-container>
         <p class="hint">Posted entries cannot be edited; Reverse posts an opposite entry instead.</p>
       </section>
@@ -189,11 +189,11 @@
         <form class="rec-form" (ngSubmit)="submitConsumption()">
           <div class="grid-2">
             <label class="field"><span class="field-label">Material</span>
-              <select class="control" [ngModel]="form.code" (ngModelChange)="onFormMaterial($event)" name="code"><option value="" disabled>Select Material</option><option *ngFor="let m of j.materials" [value]="m.code">{{ m.name }} ({{ m.code }})</option></select>
+              <select class="control" [ngModel]="form.code" (ngModelChange)="onFormMaterial($event)" name="code"><option *ngFor="let m of j.materials" [value]="m.code">{{ m.name }} ({{ m.code }})</option></select>
             </label>
-            <label class="field"><span class="field-label">Stage</span><select class="control" [(ngModel)]="form.stage" name="stage"><option value="" disabled>Select Stage</option><option *ngFor="let s of stages" [value]="s">{{ s }}</option></select></label>
+            <label class="field"><span class="field-label">Stage</span><select class="control" [(ngModel)]="form.stage" name="stage"><option *ngFor="let s of stages" [value]="s">{{ s }}</option></select></label>
             <label class="field"><span class="field-label">Batch / Lot</span>
-              <select class="control" [(ngModel)]="form.lot" name="lot"><option value="" disabled>Select Batch / Lot</option><option *ngFor="let b of formMaterial?.batches" [value]="b.lot">{{ b.lot }}</option></select>
+              <select class="control" [(ngModel)]="form.lot" name="lot"><option *ngFor="let b of formMaterial?.batches" [value]="b.lot">{{ b.lot }}</option></select>
             </label>
             <label class="field"><span class="field-label">Issue Reference</span><input class="control" [(ngModel)]="form.ref" name="ref" /></label>
           </div>
@@ -205,7 +205,7 @@
           <div class="grid-2">
             <label class="field"><span class="field-label">Unit Cost (AED)</span><input class="control" [value]="'AED ' + (formMaterial?.unitCost ?? 0)" readonly /></label>
             <label class="field"><span class="field-label">Line Cost (AED)</span><input class="control" [value]="'AED ' + (lineCost | number)" readonly /></label>
-            <label class="field"><span class="field-label">Operator</span><select class="control" [(ngModel)]="form.operator" name="operator"><option value="" disabled>Select Operator</option><option *ngFor="let o of operators" [value]="o">{{ o }}</option></select></label>
+            <label class="field"><span class="field-label">Operator</span><select class="control" [(ngModel)]="form.operator" name="operator"><option *ngFor="let o of operators" [value]="o">{{ o }}</option></select></label>
             <label class="field"><span class="field-label">Consumption Time</span><input type="datetime-local" class="control" [(ngModel)]="form.at" name="at" /></label>
           </div>
           <label class="field"><span class="field-label">Notes</span><textarea class="control" rows="2" [(ngModel)]="form.notes" name="notes" placeholder="e.g. Installed on pump unit SN-P-006"></textarea></label>
@@ -280,9 +280,9 @@
     <form class="modal-body" (ngSubmit)="saveMove()">
       <div class="grid-2">
         <label class="field"><span class="field-label">Material</span>
-          <select class="control" [ngModel]="move.code" (ngModelChange)="onMoveMaterial($event)" name="mcode"><option value="" disabled>Select Material</option><option *ngFor="let m of j.materials" [value]="m.code">{{ m.name }} ({{ m.code }})</option></select>
+          <select class="control" [ngModel]="move.code" (ngModelChange)="onMoveMaterial($event)" name="mcode"><option *ngFor="let m of j.materials" [value]="m.code">{{ m.name }} ({{ m.code }})</option></select>
         </label>
-        <label class="field"><span class="field-label">Batch / Lot</span><select class="control" [(ngModel)]="move.lot" name="mlot"><option value="" disabled>Select Batch / Lot</option><option *ngFor="let b of moveMaterial?.batches" [value]="b.lot">{{ b.lot }}</option></select></label>
+        <label class="field"><span class="field-label">Batch / Lot</span><select class="control" [(ngModel)]="move.lot" name="mlot"><option *ngFor="let b of moveMaterial?.batches" [value]="b.lot">{{ b.lot }}</option></select></label>
         <label class="field"><span class="field-label">Quantity <em>*</em></span><input type="number" class="control" [(ngModel)]="move.qty" name="mqty" min="0" /></label>
         <label class="field"><span class="field-label">{{ dialog === 'issue' ? 'From Store' : 'At Job Now' }}</span>
           <input class="control" readonly [value]="dialog === 'issue' ? j.store : (moveMaterial ? atJob(moveMaterial) + ' ' + moveMaterial.uom : '')" /></label>

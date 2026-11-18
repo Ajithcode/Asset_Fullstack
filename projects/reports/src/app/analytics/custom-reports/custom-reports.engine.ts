@@ -61,7 +61,6 @@ function buildRows(_def: ReportDefinition): ReportRow[] {
 export function filterError(def: ReportDefinition, f: ReportFilter): string {
   const field = fieldOf(def, f.field);
   if (!field) return 'Choose a field.';
-  if (!f.op) return 'Choose an operator.';
   const value = f.value.trim();
   if (!value) return 'Enter a value.';
   if (isNumeric(field.kind) && Number.isNaN(Number(value))) return 'Enter a number.';
@@ -110,7 +109,7 @@ export function outputColumns(def: ReportDefinition): PreviewColumn[] {
   return [
     { key: group.key, label: group.label, kind: group.kind },
     { key: COUNT_KEY, label: 'Records', kind: 'number' },
-    ...numeric.map((f) => ({ key: f.key, label: `${f.label} (${(def.aggregate || 'Sum').toLowerCase()})`, kind: f.kind }))
+    ...numeric.map((f) => ({ key: f.key, label: `${f.label} (${def.aggregate.toLowerCase()})`, kind: f.kind }))
   ];
 }
 
@@ -149,7 +148,7 @@ export function runReport(def: ReportDefinition): PreviewResult {
   }
 
   const matched = rows.length;
-  if (def.rowLimit) rows = rows.slice(0, def.rowLimit);
+  rows = rows.slice(0, def.rowLimit);
 
   const labelKey = group?.key ?? columns.find((c) => !isNumeric(c.kind))?.key ?? '';
   const numericCols = columns.filter((c) => isNumeric(c.kind));

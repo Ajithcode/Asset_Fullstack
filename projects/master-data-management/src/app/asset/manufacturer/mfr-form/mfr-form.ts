@@ -6,11 +6,6 @@ import { BRAND_PALETTE, MANUFACTURER_COUNTRIES, PAYMENT_TERMS, badgeInk, badgeTe
 import { ManufacturerRecord } from '../manufacturer.model';
 import { ManufacturerService } from '../manufacturer.service';
 
-/** A new manufacturer starts with every dropdown empty so the user picks each value. */
-function newManufacturer(): ManufacturerRecord {
-  return { ...blankManufacturer(), defaultCurrency: '', paymentTerms: '' as ManufacturerRecord['paymentTerms'] };
-}
-
 export type MfrFormTab = 'basic' | 'contact' | 'support' | 'defaults';
 type FieldKey = 'name' | 'code' | 'country' | 'logo' | 'website' | 'email' | 'secondaryEmail' | 'supportPortal' | 'supportEmail' | 'standardWarrantyMonths' | 'slaResponseHours';
 
@@ -62,13 +57,13 @@ export class MfrForm implements OnChanges {
   ];
 
   tab: MfrFormTab = 'basic';
-  form: ManufacturerRecord = newManufacturer();
+  form: ManufacturerRecord = blankManufacturer();
   errors: Partial<Record<FieldKey, string>> = {};
   private original: ManufacturerRecord | null = null;
 
   ngOnChanges(): void {
     this.original = this.mode === 'edit' ? this.manufacturer : null;
-    this.form = this.manufacturer ? structuredClone(this.manufacturer) : newManufacturer();
+    this.form = this.manufacturer ? structuredClone(this.manufacturer) : blankManufacturer();
     this.errors = {};
     this.tab = this.startTab;
   }

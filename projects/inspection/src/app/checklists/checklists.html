@@ -30,7 +30,7 @@
           <input type="search" placeholder="Search checklists by name or code..." aria-label="Search checklists" [(ngModel)]="search" (ngModelChange)="resetPage()" />
         </label>
         <select class="control" aria-label="Module" [(ngModel)]="moduleFilter" (ngModelChange)="resetPage()">
-          <option value="">Select Module</option>
+          <option value="All">All Modules</option>
           @for (m of modules; track m) { <option [value]="m">{{ m }}</option> }
         </select>
       </div>
@@ -91,7 +91,7 @@
           <input class="control" [(ngModel)]="f.templateName" placeholder="e.g. Equipment Safety" /></label>
         <label class="field span-2"><span class="field-label">Inspection type</span>
           <select class="control" [ngModel]="f.inspectionTypeId" (ngModelChange)="pickType($event)">
-            <option value="">Select Inspection Type</option>
+            <option value="">— None —</option>
             @for (t of api.types.items(); track t.id) { <option [value]="t.id">{{ t.inspectionTypeName }}</option> }
           </select></label>
         <label class="field"><span class="field-label">Applicable assets (category)</span>
@@ -107,7 +107,6 @@
         </div>
         <label class="field"><span class="field-label">Scoring</span>
           <select class="control" [(ngModel)]="f.scoring">
-            <option value="" disabled>Select Scoring</option>
             @for (s of scoringMethods; track s) { <option [value]="s">{{ s }}</option> }
           </select></label>
         <label class="field"><span class="field-label">Owner</span>

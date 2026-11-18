@@ -38,7 +38,7 @@ export class InviteDialog {
   emails = '';
   department = '';
   primaryRole = '';
-  location = '';
+  location = ADMIN_LOCATIONS[0] ?? '';
   errors: Record<string, string> = {};
 
   /** Addresses split on commas, semicolons, spaces or new lines. */

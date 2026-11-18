@@ -49,8 +49,8 @@ const STEPS = ['Details', 'Assets & Scope', 'Checklist', 'Assign & Schedule', 'R
 
 function blankForm(): WizardForm {
   return {
-    title: '', inspectionTypeName: '', priority: '', siteName: '', department: '', planCode: '', trigger: '',
-    description: '', scope: 'Asset-based', category: '', referenceStandard: '', permitRequired: false, evidenceRequired: true,
+    title: '', inspectionTypeName: '', priority: 'Medium', siteName: '', department: '', planCode: '', trigger: 'Manual',
+    description: '', scope: 'Asset-based', category: 'Internal', referenceStandard: '', permitRequired: false, evidenceRequired: true,
     assetCode: '', assetName: '', location: '', checklistCode: '', assignedTo: '', assignedTeam: '', dueDate: '', startTime: '09:00', endTime: '10:00'
   };
 }
@@ -194,7 +194,7 @@ export class NewInspectionPage {
   // ===== Validation =====
   private required(step: number): Field[] {
     switch (step) {
-      case 1: return ['title', 'inspectionTypeName', 'priority', 'siteName', 'trigger', 'description', 'category'];
+      case 1: return ['title', 'inspectionTypeName', 'priority', 'siteName', 'description', 'category'];
       case 2: return this.form.scope === 'Location-based' ? ['location'] : ['assetCode', 'assetName'];
       case 3: return ['checklistCode'];
       case 4: return ['assignedTo', 'dueDate'];

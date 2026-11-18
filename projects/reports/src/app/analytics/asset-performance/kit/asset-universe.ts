@@ -123,10 +123,10 @@ export function periodMonths(period: string): number[] {
 }
 
 export function inScope(a: RaAsset, s: RaScope): boolean {
-  if (s.organization && s.organization !== 'All organizations' && a.site.org !== s.organization) return false;
-  if (s.location && s.location !== 'All locations' && a.site.name !== s.location) return false;
-  if (s.category && s.category !== ALL_CATEGORIES && a.category !== s.category) return false;
-  if (s.type && s.type !== ALL_TYPES && a.type !== s.type) return false;
+  if (s.organization !== 'All organizations' && a.site.org !== s.organization) return false;
+  if (s.location !== 'All locations' && a.site.name !== s.location) return false;
+  if (s.category !== ALL_CATEGORIES && a.category !== s.category) return false;
+  if (s.type !== ALL_TYPES && a.type !== s.type) return false;
   return true;
 }
 

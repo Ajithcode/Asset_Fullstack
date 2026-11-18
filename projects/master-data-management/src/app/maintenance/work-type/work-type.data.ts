@@ -7,9 +7,8 @@ export function blankWorkType(): WorkTypeRecord {
     maintenanceType: '',
     description: '',
     durationHours: 1,
-    // Left empty so the drawer shows "Select …" until the user picks
-    status: '' as WorkTypeRecord['status'],
-    defaultPriority: '',
+    status: 'Active',
+    defaultPriority: 'Medium',
     requiredSkill: '',
     checklistCode: '',
     permitRequired: false,

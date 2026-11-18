@@ -7,7 +7,7 @@ import scopeOptions from '../role-scope-options.json';
 import { DATA_SCOPES, DataScope, ROLE_TYPES, RoleRecord, SESSION_TIMEOUTS } from '../role-access.data';
 import { RoleAccessService } from '../role-access.service';
 
-export type RoleErrors = Partial<Record<'name' | 'code' | 'dataScope' | 'sessionTimeout' | 'locations' | 'departments' | 'approvalLimit', string>>;
+export type RoleErrors = Partial<Record<'name' | 'code' | 'locations' | 'departments' | 'approvalLimit', string>>;
 
 /** Validation shared by the drawer (inline messages) and the page (blocks Save). */
 export function roleErrors(r: RoleRecord, codeTaken: boolean): RoleErrors {
@@ -17,8 +17,6 @@ export function roleErrors(r: RoleRecord, codeTaken: boolean): RoleErrors {
   if (!r.code.trim()) e.code = 'Role code is required.';
   else if (!/^[A-Z][A-Z0-9_]{1,29}$/.test(r.code.trim())) e.code = 'Use A–Z, 0–9 and _ (2–30 characters).';
   else if (codeTaken) e.code = 'Another role already uses this code.';
-  if (!r.dataScope) e.dataScope = 'Data scope is required.';
-  if (!r.sessionTimeout) e.sessionTimeout = 'Session timeout is required.';
   if (r.dataScope === 'Assigned Locations' && !r.locations.length) e.locations = 'Pick at least one location.';
   if (r.dataScope === 'Own Department' && !r.departments.length) e.departments = 'Pick at least one department.';
   if (!(r.approvalLimit >= 0)) e.approvalLimit = 'Enter 0 or a positive amount.';

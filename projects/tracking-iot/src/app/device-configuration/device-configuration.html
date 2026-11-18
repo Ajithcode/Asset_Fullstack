@@ -11,14 +11,12 @@
       <label class="hd-field"><span>Device</span>
         <span class="ic-select"><lucide-icon [img]="deviceIcon" [size]="15"></lucide-icon>
           <select class="control control-sm" [ngModel]="deviceId" (ngModelChange)="selectDevice($event)" [disabled]="loadingDevices || !devices.length" aria-label="Device">
-            <option value="" disabled>Select Device</option>
             <option *ngIf="loadingDevices" value="">Loading devices…</option>
             <option *ngFor="let d of devices" [value]="d.id">{{ d.label }}</option>
           </select></span></label>
       <label class="hd-field"><span>Linked Asset</span>
         <span class="ic-select" title="The linked asset is changed on the IoT Device Management page."><lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>
           <select class="control control-sm" disabled aria-label="Linked asset">
-            <option value="" disabled>Select Linked Asset</option>
             <option>{{ device?.asset || '—' }}</option>
           </select></span></label>
       <div class="hd-field"><span>Status</span>
@@ -101,8 +99,8 @@
         <div class="sec-head"><span class="sec-ic"><lucide-icon [img]="protocolIcon" [size]="16"></lucide-icon></span><h2>Connectivity Settings</h2><span class="grow"></span><span class="small muted">{{ device.protocol || '—' }}</span></div>
         <div class="form2">
           <ng-container *ngIf="device.protocolKind === 'LoRaWAN'">
-            <label class="field"><span class="field-label">LoRaWAN Region</span><select class="control" [(ngModel)]="form.region"><option *ngIf="!form.region" value="">Select Region</option><option *ngFor="let r of regions" [value]="r">{{ r }}</option></select></label>
-            <label class="field"><span class="field-label">Join Mode</span><select class="control" [(ngModel)]="form.joinMode"><option *ngIf="!form.joinMode" value="">Select Join Mode</option><option *ngFor="let j of joinModes" [value]="j">{{ j }}</option></select></label>
+            <label class="field"><span class="field-label">LoRaWAN Region</span><select class="control" [(ngModel)]="form.region"><option *ngIf="!form.region" value="">Select region</option><option *ngFor="let r of regions" [value]="r">{{ r }}</option></select></label>
+            <label class="field"><span class="field-label">Join Mode</span><select class="control" [(ngModel)]="form.joinMode"><option *ngIf="!form.joinMode" value="">Select join mode</option><option *ngFor="let j of joinModes" [value]="j">{{ j }}</option></select></label>
             <label class="field"><span class="field-label">AppEUI</span>
               <span class="in-btn"><input class="control mono" [class.is-bad]="appEuiError" [(ngModel)]="form.appEui" maxlength="16" spellcheck="false" /><button type="button" class="icon-btn" (click)="copy(form.appEui, 'AppEUI')" [disabled]="!form.appEui" aria-label="Copy AppEUI"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon></button></span>
               <small *ngIf="appEuiError" class="err">{{ appEuiError }}</small></label>
@@ -115,7 +113,7 @@
           <div class="field"><span class="field-label">{{ device.protocolKind === 'BLE' ? 'Gateway Upload Interval' : 'Reporting Interval' }}</span>
             <div class="row-inline">
               <input type="number" class="control w-num" [class.is-bad]="intervalError" [(ngModel)]="form.interval" min="1" aria-label="Interval" />
-              <select class="control w-unit" [(ngModel)]="form.intervalUnit" aria-label="Interval unit"><option value="" disabled>Select Interval Unit</option><option *ngFor="let u of intervalUnits" [value]="u">{{ u }}</option></select>
+              <select class="control w-unit" [(ngModel)]="form.intervalUnit" aria-label="Interval unit"><option *ngFor="let u of intervalUnits" [value]="u">{{ u }}</option></select>
               <span class="menu-wrap"><button type="button" class="icon-btn info" (click)="toggleMenu('info', $event)" aria-label="About reporting interval"><lucide-icon [img]="icons.Info" [size]="16"></lucide-icon></button>
                 <div *ngIf="menuOpen === 'info'" class="pop" (click)="$event.stopPropagation()">How often the device sends a scheduled uplink. Values that change by more than the transmit threshold are also sent between reports. Shorter intervals reduce battery life.</div></span>
             </div>
@@ -127,7 +125,7 @@
             <div class="field"><span class="field-label">ADR (Adaptive Data Rate)</span>
               <span class="tg-line"><button type="button" class="switch" [class.is-on]="form.adr" (click)="onAdr(!form.adr)" role="switch" [attr.aria-checked]="form.adr" aria-label="Adaptive data rate"><i></i></button>Enable ADR to optimize data rate and battery life</span></div>
             <label class="field"><span class="field-label">Data Rate</span>
-              <select class="control" [(ngModel)]="form.dataRate" [disabled]="form.adr"><option value="" disabled>Select Data Rate</option><option *ngIf="form.adr" [value]="autoRate">{{ autoRate }}</option><option *ngFor="let r of dataRates" [value]="r">{{ r }}</option></select>
+              <select class="control" [(ngModel)]="form.dataRate" [disabled]="form.adr"><option *ngIf="form.adr" [value]="autoRate">{{ autoRate }}</option><option *ngFor="let r of dataRates" [value]="r">{{ r }}</option></select>
               <small class="hint">{{ form.adr ? 'Data rate will be negotiated by the network (ADR).' : 'Fixed data rate; lower DR = longer range, more airtime.' }}</small></label>
           </ng-container>
         </div>
@@ -137,14 +135,14 @@
     <div class="col">
       <div class="card panel">
         <div class="sec-head"><span class="sec-ic"><lucide-icon [img]="icons.ChartColumn" [size]="16"></lucide-icon></span><h2>Telemetry Configuration</h2><span class="grow"></span>
-          <label class="inline-field">Sampling Interval <select class="control control-sm" [(ngModel)]="form.sampling"><option [ngValue]="null" disabled>Select Sampling Interval</option><option *ngFor="let s of samplings" [ngValue]="s">{{ samplingLabel(s) }}</option></select></label></div>
+          <label class="inline-field">Sampling Interval <select class="control control-sm" [(ngModel)]="form.sampling"><option *ngFor="let s of samplings" [ngValue]="s">{{ samplingLabel(s) }}</option></select></label></div>
         <div class="tgrid" role="table">
           <div class="tg-h" role="row"><span>Parameter</span><span>Unit</span><span>Enabled</span><span>Aggregation</span><span>Transmit Threshold (Change)</span></div>
           <div *ngFor="let p of sensorParams" class="tg-r" role="row" [class.is-off]="!p.enabled">
             <span class="pname"><span class="p-ic"><lucide-icon [img]="paramIcon(p)" [size]="15"></lucide-icon></span>{{ p.name }}</span>
             <span>{{ p.unit || '—' }}</span>
             <span><button type="button" class="switch" [class.is-on]="p.enabled" (click)="p.enabled = !p.enabled" role="switch" [attr.aria-checked]="p.enabled" [attr.aria-label]="'Transmit ' + p.name"><i></i></button></span>
-            <span><select class="control control-xs" [(ngModel)]="p.agg" [disabled]="!p.enabled" [attr.aria-label]="p.name + ' aggregation'"><option value="" disabled>Select Agg</option><option *ngFor="let a of aggs" [value]="a">{{ a }}</option></select></span>
+            <span><select class="control control-xs" [(ngModel)]="p.agg" [disabled]="!p.enabled" [attr.aria-label]="p.name + ' aggregation'"><option *ngFor="let a of aggs" [value]="a">{{ a }}</option></select></span>
             <span class="thr">≥ <input type="number" class="control control-xs" [(ngModel)]="p.threshold" [disabled]="!p.enabled" min="0" step="0.1" [attr.aria-label]="p.name + ' threshold'" /> {{ p.unit }}</span>
           </div>
           <p *ngIf="!sensorParams.length" class="muted small">No measured parameters for this device model.</p>
@@ -155,7 +153,7 @@
           <strong>Battery Reporting</strong>
           <span class="tg-line"><button type="button" class="switch" [class.is-on]="form.batteryReporting" (click)="toggleBattery()" role="switch" [attr.aria-checked]="form.batteryReporting" aria-label="Battery reporting"><i></i></button>Enable battery level reporting</span>
           <span class="grow"></span>
-          <label class="inline-field">Reporting Interval <select class="control control-sm" [(ngModel)]="form.batteryInterval" [disabled]="!form.batteryReporting"><option *ngIf="!form.batteryInterval" value="">Select Battery Interval</option><option *ngFor="let i of batteryIntervals" [value]="i">{{ i }}</option></select></label>
+          <label class="inline-field">Reporting Interval <select class="control control-sm" [(ngModel)]="form.batteryInterval" [disabled]="!form.batteryReporting"><option *ngIf="!form.batteryInterval" value="">—</option><option *ngFor="let i of batteryIntervals" [value]="i">{{ i }}</option></select></label>
         </div>
 
         <div class="prev-head"><h3>Live Preview <span class="muted">(Last 24 hours)</span></h3>
@@ -189,8 +187,8 @@
   <!-- ===== Telemetry ===== -->
   <div *ngIf="tab === 'telemetry'" class="card panel">
     <div class="sec-head"><span class="sec-ic"><lucide-icon [img]="icons.ChartColumn" [size]="16"></lucide-icon></span><h2>Telemetry Parameters</h2><span class="small muted">{{ enabledCount }} of {{ form.params.length }} transmitted</span><span class="grow"></span>
-      <label class="inline-field">Sampling <select class="control control-sm" [(ngModel)]="form.sampling"><option [ngValue]="null" disabled>Select Sampling Interval</option><option *ngFor="let s of samplings" [ngValue]="s">{{ samplingLabel(s) }}</option></select></label>
-      <label class="inline-field">Battery report <select class="control control-sm" [(ngModel)]="form.batteryInterval" [disabled]="!form.batteryReporting"><option *ngIf="!form.batteryInterval" value="">Select Battery Interval</option><option *ngFor="let i of batteryIntervals" [value]="i">{{ i }}</option></select></label></div>
+      <label class="inline-field">Sampling <select class="control control-sm" [(ngModel)]="form.sampling"><option *ngFor="let s of samplings" [ngValue]="s">{{ samplingLabel(s) }}</option></select></label>
+      <label class="inline-field">Battery report <select class="control control-sm" [(ngModel)]="form.batteryInterval" [disabled]="!form.batteryReporting"><option *ngIf="!form.batteryInterval" value="">—</option><option *ngFor="let i of batteryIntervals" [value]="i">{{ i }}</option></select></label></div>
     <div class="table-wrap">
       <table class="dt">
         <thead><tr><th>Parameter</th><th>Type</th><th>Unit</th><th>Enabled</th><th>Aggregation</th><th>Transmit Threshold (Change)</th><th>Alert Rules</th></tr></thead>
@@ -198,9 +196,9 @@
           <tr *ngFor="let p of form.params" [class.is-off]="!p.enabled">
             <td><span class="pname"><span class="p-ic"><lucide-icon [img]="paramIcon(p)" [size]="15"></lucide-icon></span>{{ p.name }}</span></td>
             <td><span class="tag">{{ p.kind === 'sensor' ? 'Measurement' : 'Diagnostic' }}</span></td>
-            <td><select *ngIf="p.units.length > 1" class="control control-xs" [ngModel]="p.unit" (ngModelChange)="changeUnit(p, $event)" [attr.aria-label]="p.name + ' unit'"><option value="" disabled>Select Unit</option><option *ngFor="let u of p.units" [value]="u">{{ u }}</option></select><span *ngIf="p.units.length < 2">{{ p.unit || '—' }}</span></td>
+            <td><select *ngIf="p.units.length > 1" class="control control-xs" [ngModel]="p.unit" (ngModelChange)="changeUnit(p, $event)" [attr.aria-label]="p.name + ' unit'"><option *ngFor="let u of p.units" [value]="u">{{ u }}</option></select><span *ngIf="p.units.length < 2">{{ p.unit || '—' }}</span></td>
             <td><button type="button" class="switch" [class.is-on]="p.enabled" (click)="p.enabled = !p.enabled" role="switch" [attr.aria-checked]="p.enabled" [attr.aria-label]="'Transmit ' + p.name"><i></i></button></td>
-            <td><select class="control control-xs" [(ngModel)]="p.agg" [disabled]="!p.enabled"><option value="" disabled>Select Agg</option><option *ngFor="let a of aggs" [value]="a">{{ a }}</option></select></td>
+            <td><select class="control control-xs" [(ngModel)]="p.agg" [disabled]="!p.enabled"><option *ngFor="let a of aggs" [value]="a">{{ a }}</option></select></td>
             <td><span class="thr">≥ <input type="number" class="control control-xs" [(ngModel)]="p.threshold" [disabled]="!p.enabled" min="0" step="0.1" /> {{ p.unit }}</span></td>
             <td><button type="button" class="link-btn" (click)="tab = 'alerts'">{{ rulesFor(p.key) }} active</button></td>
           </tr>
@@ -347,13 +345,13 @@
   <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="dc-alert" (click)="$event.stopPropagation()">
     <div class="modal-head"><h2 id="dc-alert">{{ f.isNew ? 'Add' : 'Edit' }} Alert Rule</h2><button type="button" class="icon-btn" (click)="alertForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveAlert()">
-      <label class="field"><span class="field-label">Parameter</span><select class="control" [(ngModel)]="f.param" name="param"><option value="" disabled>Select Parameter</option><option *ngFor="let p of form.params" [value]="p.key">{{ p.name }}{{ p.unit ? ' (' + p.unit + ')' : '' }}{{ p.enabled ? '' : ' – not transmitted' }}</option></select></label>
+      <label class="field"><span class="field-label">Parameter</span><select class="control" [(ngModel)]="f.param" name="param"><option *ngFor="let p of form.params" [value]="p.key">{{ p.name }}{{ p.unit ? ' (' + p.unit + ')' : '' }}{{ p.enabled ? '' : ' – not transmitted' }}</option></select></label>
       <div class="two">
-        <label class="field"><span class="field-label">Condition</span><select class="control" [(ngModel)]="f.cond" name="cond"><option value="" disabled>Select Condition</option><option *ngFor="let c of conds" [value]="c">{{ c }}</option></select></label>
+        <label class="field"><span class="field-label">Condition</span><select class="control" [(ngModel)]="f.cond" name="cond"><option *ngFor="let c of conds" [value]="c">{{ c }}</option></select></label>
         <label class="field"><span class="field-label">Value{{ paramUnit(f.param) ? ' (' + paramUnit(f.param) + ')' : '' }}</span><input type="number" class="control" [(ngModel)]="f.value" name="value" step="0.1" /></label>
       </div>
       <div class="two">
-        <label class="field"><span class="field-label">Severity</span><select class="control" [(ngModel)]="f.severity" name="sev"><option value="" disabled>Select Severity</option><option *ngFor="let s of severities" [value]="s">{{ s }}</option></select></label>
+        <label class="field"><span class="field-label">Severity</span><select class="control" [(ngModel)]="f.severity" name="sev"><option *ngFor="let s of severities" [value]="s">{{ s }}</option></select></label>
         <fieldset class="field"><legend class="field-label">Notify</legend>
           <label *ngFor="let n of notifyOptions" class="small"><input type="checkbox" [checked]="f.notify.includes(n)" (change)="toggleNotify(f, n)" /> {{ n }}</label></fieldset>
       </div>

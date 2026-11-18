@@ -581,7 +581,7 @@ export class FirmwareConnectivity implements OnInit, OnDestroy {
 
   editProfile(p?: NetworkProfile): void {
     this.formError = '';
-    this.profileForm = p ? { ...p, sites: [...p.sites] } : { id: '', name: '', type: '' as Protocol, detail: '', security: '', sites: [], devices: 0, active: true };
+    this.profileForm = p ? { ...p, sites: [...p.sites] } : { id: '', name: '', type: 'Wi-Fi / Ethernet', detail: '', security: '', sites: [], devices: 0, active: true };
   }
 
   toggleProfileSite(code: string): void {
@@ -593,7 +593,6 @@ export class FirmwareConnectivity implements OnInit, OnDestroy {
     const f = this.profileForm;
     if (!f) return;
     if (!f.name.trim()) return void (this.formError = 'Enter a profile name.');
-    if (!f.type) return void (this.formError = 'Choose a profile type.');
     if (!f.sites.length) return void (this.formError = 'Choose at least one site.');
     const existing = PROFILES.find((p) => p.id === f.id);
     if (existing) Object.assign(existing, { ...f, name: f.name.trim() });

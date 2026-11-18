@@ -18,7 +18,7 @@ function blankChecklist(): Partial<Checklist> {
     assetCategory: '',
     assetType: '',
     modules: ['Inspection'],
-    scoring: '',
+    scoring: 'Weighted',
     owner: '',
     version: 1,
     versionLabel: '1.0',
@@ -52,7 +52,7 @@ export class ChecklistsPage implements OnInit {
   readonly scoringMethods = SCORING_METHODS;
 
   readonly search = signal('');
-  readonly moduleFilter = signal('');
+  readonly moduleFilter = signal('All');
   readonly selectedId = signal<string | null>(null);
   readonly toast = signal<string | null>(null);
   readonly pager = new Pager(5);
@@ -70,7 +70,7 @@ export class ChecklistsPage implements OnInit {
       .items()
       .filter(
         (c) =>
-          (!q || `${c.checklistCode} ${c.templateName}`.toLowerCase().includes(q)) && (!m || (c.modules ?? []).includes(m))
+          (!q || `${c.checklistCode} ${c.templateName}`.toLowerCase().includes(q)) && (m === 'All' || (c.modules ?? []).includes(m))
       )
       .sort((a, b) => a.templateName.localeCompare(b.templateName) || (b.version ?? 0) - (a.version ?? 0));
   });
@@ -127,7 +127,6 @@ export class ChecklistsPage implements OnInit {
     void id; void createdAt; void createdBy; void updatedAt; void updatedBy;
     const record: Partial<Checklist> = {
       ...blankChecklist(),
-      scoring: 'Weighted',
       ...rest,
       checklistCode: '',
       status: 'Draft',
@@ -179,10 +178,6 @@ export class ChecklistsPage implements OnInit {
       this.formError = 'Select at least one module.';
       return;
     }
-    if (!f.scoring) {
-      this.formError = 'Select a scoring method.';
-      return;
-    }
     this.saving = true;
     this.formError = '';
     this.store.save({ ...f, templateName: name }).subscribe({
@@ -190,7 +185,7 @@ export class ChecklistsPage implements OnInit {
         this.saving = false;
         this.form = null;
         this.search.set('');
-        this.moduleFilter.set('');
+        this.moduleFilter.set('All');
         this.select(saved.id);
         this.flash(`${saved.templateName} created as a draft.`);
       },

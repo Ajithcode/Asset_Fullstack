@@ -106,23 +106,23 @@
           <input type="search" placeholder="Search images..." aria-label="Search images" [(ngModel)]="search" (ngModelChange)="onFilterChange()" />
         </label>
         <select *ngIf="allAssets" class="control control--sm" aria-label="Asset" [(ngModel)]="assetFilter" (ngModelChange)="onFilterChange()">
-          <option value="">Select Asset</option>
+          <option value="">All Assets</option>
           <option *ngFor="let a of assetOptions" [value]="a.tag">{{ a.name }} ({{ a.tag }})</option>
         </select>
         <select class="control control--sm" aria-label="Image type" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()">
-          <option value="">Select Image Type</option>
+          <option value="">All Image Types</option>
           <option *ngFor="let t of imageTypes" [value]="t">{{ t }}</option>
         </select>
         <select class="control control--xs" aria-label="Tag" [(ngModel)]="tagFilter" (ngModelChange)="onFilterChange()">
-          <option value="">Select Tag</option>
+          <option value="">All Tags</option>
           <option *ngFor="let t of tagOptions" [value]="t">{{ t }}</option>
         </select>
         <select class="control control--xs" aria-label="Uploaded by" [(ngModel)]="uploaderFilter" (ngModelChange)="onFilterChange()">
-          <option value="">Select Uploaded by</option>
+          <option value="">All Uploaders</option>
           <option *ngFor="let u of uploaderOptions" [value]="u">{{ u }}</option>
         </select>
         <select class="control control--xs" aria-label="Upload date" [(ngModel)]="dateFilter" (ngModelChange)="onFilterChange()">
-          <option value="">Select Upload Date</option>
+          <option value="">All Dates</option>
           <option value="last30">Last 30 days</option>
           <option value="last365">Last 12 months</option>
           <option *ngFor="let y of yearOptions" [value]="y">{{ y }}</option>
@@ -509,7 +509,7 @@
         <label class="field">
           <span class="field-label">Image Type <em>*</em></span>
           <select class="control" [(ngModel)]="u.type" name="type">
-            <option value="" disabled>Select Type</option>
+            <option value="" disabled>Select type</option>
             <option *ngFor="let t of imageTypes" [value]="t">{{ t }}</option>
           </select>
         </label>
@@ -557,7 +557,6 @@
         <label class="field">
           <span class="field-label">Image Type <em>*</em></span>
           <select class="control" [(ngModel)]="e.type" name="type">
-            <option value="" disabled>Select Image Type</option>
             <option *ngFor="let t of imageTypes" [value]="t">{{ t }}</option>
           </select>
         </label>

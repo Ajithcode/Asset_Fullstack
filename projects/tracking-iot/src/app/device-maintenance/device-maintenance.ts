@@ -60,8 +60,8 @@ interface Chart { line: string; area: string; min: number; max: number; last: nu
 type Dialog =
   | { kind: 'assign'; task: Task | null; req: ServiceRequest | null; value: string }
   | { kind: 'reschedule'; task: Task; value: string }
-  | { kind: 'request'; deviceId: string; type: MaintType | null; priority: Priority | null; due: string; assignee: string; site: string; description: string; error: string }
-  | { kind: 'plan'; plan: Plan | null; name: string; deviceKind: DeviceKind | null; interval: number; type: MaintType | null; checklist: string; error: string };
+  | { kind: 'request'; deviceId: string; type: MaintType; priority: Priority; due: string; assignee: string; site: string; description: string; error: string }
+  | { kind: 'plan'; plan: Plan | null; name: string; deviceKind: DeviceKind; interval: number; type: MaintType; checklist: string; error: string };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const KIND_ICONS = { gateway: RouterIcon, vibration: Activity, temp: Thermometer, beacon: Bluetooth, tracker: Truck, meter: Gauge, other: Cpu };
@@ -126,7 +126,7 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
 
   // requests tab
   rSearch = '';
-  rStatus = '';
+  rStatus = 'active';
   rPriority = '';
   rPage = 0;
 
@@ -134,7 +134,7 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
   hSearch = '';
   hDevice = '';
   hType = '';
-  hRange: '' | 'month' | '90' | '365' | 'all' = '';
+  hRange: 'month' | '90' | '365' | 'all' = 'all';
   hPage = 0;
 
   menuOpen = '';
@@ -696,7 +696,7 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
     const q = this.rSearch.trim().toLowerCase();
     return REQUESTS.filter((r) => {
       if (this.rStatus === 'active' && !this.isOpenReq(r)) return false;
-      if (this.rStatus && this.rStatus !== 'active' && this.rStatus !== 'all' && r.status !== this.rStatus) return false;
+      if (this.rStatus !== 'active' && this.rStatus !== 'all' && r.status !== this.rStatus) return false;
       if (this.rPriority && r.priority !== this.rPriority) return false;
       const d = this.device(r.deviceId);
       return !q || `${r.id} ${d.id} ${d.name} ${r.assignee} ${r.description}`.toLowerCase().includes(q);
@@ -812,8 +812,7 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
 
   openAssign(task: Task | null, req: ServiceRequest | null = null): void {
     this.menuOpen = '';
-    const current = (task ?? req)?.assignee;
-    this.dialog = { kind: 'assign', task, req, value: current && current !== UNASSIGNED ? current : '' };
+    this.dialog = { kind: 'assign', task, req, value: (task ?? req)?.assignee ?? UNASSIGNED };
   }
 
   openReschedule(task: Task): void {
@@ -825,8 +824,8 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
     this.menuOpen = '';
     const id = deviceId || this.selectedId || '';
     this.dialog = {
-      kind: 'request', deviceId: id, type: null, priority: null, due: rel(7),
-      assignee: '', site: id ? this.device(id).site : '', description: '', error: '',
+      kind: 'request', deviceId: id, type: this.defaultType || MAINT_TYPES[0] || '', priority: this.defaultPriority || PRIORITIES[0] || '', due: rel(7),
+      assignee: UNASSIGNED, site: id ? this.device(id).site : '', description: '', error: '',
     };
   }
 
@@ -837,10 +836,10 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
   }
 
   openPlan(plan: Plan | null): void {
-    const kind: DeviceKind | null = plan ? plan.kind : this.selected ? this.selected.kind : null;
+    const kind: DeviceKind = plan ? plan.kind : this.selected ? this.selected.kind : 'gateway';
     this.dialog = {
-      kind: 'plan', plan, error: '', name: plan ? plan.name : kind ? `${KIND_LABELS[kind]} service` : '', deviceKind: kind,
-      interval: plan ? plan.interval : 90, type: plan ? plan.type : null, checklist: plan ? plan.checklist.join('\n') : '',
+      kind: 'plan', plan, error: '', name: plan ? plan.name : `${KIND_LABELS[kind]} service`, deviceKind: kind,
+      interval: plan ? plan.interval : 90, type: plan ? plan.type : MAINT_TYPES[0] ?? 'Preventive', checklist: plan ? plan.checklist.join('\n') : '',
     };
   }
 
@@ -864,7 +863,7 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
     const g = this.assignDialog;
     if (!g) return;
     const job = (g.task ?? g.req)?.job;
-    if (!job || !g.value) return;
+    if (!job) return;
     const label = g.task ? g.task.deviceId : g.req ? g.req.id : '';
     this.saveJob(job, this.assigneeFields(g.value), () => {
       this.dialog = null;
@@ -894,7 +893,7 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
       deviceId: d.id, deviceName: d.name || null, model: d.model || null, assetRegistrationId: d.asset?.id || null, assetName: d.asset?.name || null,
       siteId: site === d.site ? d.siteId || null : DEVICES.find((x) => x.site === site && x.siteId)?.siteId ?? null, siteName: site,
       maintenanceType: g.type, dueDate: g.due, ...this.assigneeFields(g.assignee), priority: g.priority || null,
-      description: g.description.trim() || null, status: this.dateStatus(g.due, !!g.assignee && g.assignee !== UNASSIGNED),
+      description: g.description.trim() || null, status: this.dateStatus(g.due, g.assignee !== UNASSIGNED),
     };
     this.busy = true;
     g.error = '';
@@ -920,8 +919,6 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
     if (!g) return;
     const items = g.checklist.split('\n').map((s) => s.trim()).filter((s) => s);
     if (!g.name.trim()) return void (g.error = 'Enter a plan name.');
-    if (!g.deviceKind) return void (g.error = 'Choose a device type.');
-    if (!g.type) return void (g.error = 'Choose a maintenance type.');
     if (!g.interval || g.interval < 1) return void (g.error = 'Interval must be at least 1 day.');
     if (!items.length) return void (g.error = 'Add at least one checklist item.');
     const data = { name: g.name.trim(), kind: g.deviceKind, interval: Math.round(g.interval), type: g.type, checklist: items };

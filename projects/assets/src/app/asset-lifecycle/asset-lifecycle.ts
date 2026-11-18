@@ -263,8 +263,8 @@ export class AssetLifecycle implements OnDestroy {
   infoDraft: AssetInfo = { ...this.asset };
   datesDraft: KeyDates = { ...this.dates };
   statusDraft: StatusInfo = { ...this.status };
-  conditionDraft: ConditionPoint = { date: '', condition: '' as Condition, notes: '' };
-  eventDraft: Omit<LifecycleEvent, 'id'> = { date: '', title: '', by: '', kind: '' as EventKind };
+  conditionDraft: ConditionPoint = { date: '', condition: 'Good', notes: '' };
+  eventDraft: Omit<LifecycleEvent, 'id'> = { date: '', title: '', by: '', kind: 'Other' };
   stageDraft: Stage | null = null;
   private stageTarget: Stage | null = null;
 
@@ -726,8 +726,8 @@ export class AssetLifecycle implements OnDestroy {
     if (kind === 'info') this.infoDraft = { ...this.asset };
     if (kind === 'dates') this.datesDraft = { ...this.dates };
     if (kind === 'status') this.statusDraft = { ...this.status };
-    if (kind === 'condition') this.conditionDraft = { date: this.todayIso, condition: '' as Condition, notes: '' };
-    if (kind === 'event') this.eventDraft = { date: this.todayIso, title: '', by: '', kind: '' as EventKind };
+    if (kind === 'condition') this.conditionDraft = { date: this.todayIso, condition: this.status.condition, notes: '' };
+    if (kind === 'event') this.eventDraft = { date: this.todayIso, title: '', by: '', kind: 'Other' };
     if (kind === 'stage' && stage) {
       this.stageTarget = stage;
       this.stageDraft = { ...stage };
@@ -794,7 +794,7 @@ export class AssetLifecycle implements OnDestroy {
   saveCondition(): void {
     this.submitted = true;
     const d = this.conditionDraft;
-    if (!d.date || d.date > this.todayIso || !d.condition) return;
+    if (!d.date || d.date > this.todayIso) return;
     if (this.registrationId) {
       // condition assessments are kept in the Asset API
       this.saving = true;
@@ -828,7 +828,7 @@ export class AssetLifecycle implements OnDestroy {
     this.submitted = true;
     const d = this.eventDraft;
     if (!d.date || !d.title.trim()) return;
-    const e = { ...d, kind: d.kind || ('Other' as EventKind), title: d.title.trim(), by: d.by.trim() || this.api.user || '' };
+    const e = { ...d, title: d.title.trim(), by: d.by.trim() || this.api.user || '' };
     const apply = () => {
       this.addEvent(e);
       this.closeModal();

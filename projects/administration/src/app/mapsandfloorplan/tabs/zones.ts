@@ -18,7 +18,6 @@ import { ZoneForm } from '../zone-form/zone-form';
         <div>
           <span class="field-label">Location</span>
           <select class="select select--full" aria-label="Location" [ngModel]="store.selectedFloorId" (ngModelChange)="store.selectFloor($event)">
-            <option value="" disabled>Select Location</option>
             @for (f of store.floors; track f.id) { <option [value]="f.id">{{ f.label }}</option> }
           </select>
         </div>

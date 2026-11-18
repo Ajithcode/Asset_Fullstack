@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of, switchMap } from 'rxjs';
+import { Observable, catchError, map, of } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
-import { apiError, getAllPages, savedRecord, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
+import { apiError, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
 import { Conn, DevEvent, Device, Health, LinkedAsset, Power } from './device-data';
 
 /** One row of GET {assetApiUrl}api/asset-registrations (Asset service): what the asset picker needs. */
@@ -41,12 +41,6 @@ export interface IoTDeviceDto {
   updatedAt: string | null;
   clientId: string | null;
   tenantId: string | null;
-  /** List rows only (GET /api/iot-devices): connection state, battery % and signal as the API reports them. */
-  status?: string | null;
-  batteryPercent?: number | null;
-  lowBattery?: boolean | null;
-  signalDbm?: number | null;
-  modelDisplayName?: string | null;
 }
 
 /** Body of POST /api/iot-devices and PUT /api/iot-devices/{deviceId}. */
@@ -135,7 +129,6 @@ export function deviceFromDto(dto: IoTDeviceDto): Device {
   if (created !== null) log.push({ at: created, title: 'Device registered', detail: [dto.model, dto.serialNumber, dto.createdBy ? `by ${dto.createdBy}` : ''].filter(Boolean).join(' · '), level: 'grey' });
   log.sort((a, b) => b.at - a.at);
   const code = dto.assetCode || dto.assetRegistrationId;
-  const status = (['Online', 'Offline', 'Pending'] as Conn[]).find((c) => c.toLowerCase() === (dto.status ?? '').toLowerCase());
   return {
     id: dto.deviceId,
     name: dto.deviceName,
@@ -144,14 +137,14 @@ export function deviceFromDto(dto: IoTDeviceDto): Device {
     serial: dto.serialNumber ?? '',
     imei: '',
     protocol: dto.connectivity,
-    conn: status ?? connOf(lastSeenSec),
+    conn: connOf(lastSeenSec),
     health,
     asset: code ? { name: dto.assetName || code, code } : null,
     site: dto.siteName ?? '',
     gateway: dto.gateway ?? '',
     power: powerOf(dto.powerSource),
-    battery: dto.batteryPercent ?? dto.batteryLevel ?? null,
-    rssi: dto.signalDbm ?? null,
+    battery: dto.batteryLevel ?? null,
+    rssi: null,
     lastSeenSec,
     firmware: dto.firmwareVersion ?? '',
     installedDaysAgo: created === null ? 0 : Math.max(0, Math.floor((Date.now() - created) / 86_400_000)),
@@ -159,11 +152,6 @@ export function deviceFromDto(dto: IoTDeviceDto): Device {
     log,
     api: dto,
   };
-}
-
-/** Fields of a list row the full record should keep (drops undefined so they do not overwrite it). */
-function stripUndefined(o: IoTDeviceDto | undefined): Partial<IoTDeviceDto> {
-  return Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => v !== undefined)) as Partial<IoTDeviceDto>;
 }
 
 /** IoT Device Management → /api/iot-devices (Tracking service). */
@@ -177,10 +165,10 @@ export class IoTDeviceApiService {
     return this.auth.getUser()?.userName || this.auth.getUserEmail() || 'Unknown user';
   }
 
-  /** GET /api/iot-devices: every page (a plain array is still accepted). */
+  /** GET /api/iot-devices */
   getAll(): Observable<Device[]> {
-    return getAllPages<IoTDeviceDto>(this.http, this.url).pipe(
-      map((rows) => rows.map(deviceFromDto)),
+    return this.http.get<IoTDeviceDto[]>(this.url, { params: tenantParams() }).pipe(
+      map((rows) => (rows ?? []).map(deviceFromDto)),
       catchError((e) => apiError(e, 'Could not load devices.')),
     );
   }
@@ -233,49 +221,26 @@ export class IoTDeviceApiService {
 
   /** Master-data sites; empty when the service cannot be reached. */
   sites(): Observable<SiteOption[]> {
-    type SiteRow = { id?: string; siteName?: string; name?: string; status?: string; isDeleted?: boolean };
-    // Master Data service (GET /api/master-data/sites); a list or a page of { items }
-    return this.http.get<SiteRow[] | { items?: SiteRow[] }>(`${environment.masterDataApiUrl}api/master-data/sites`, { params: tenantParams() }).pipe(
-      map((res) => (Array.isArray(res) ? res : res?.items ?? [])),
-      map((rows) =>
-        rows
-          .filter((r) => r.id && r.isDeleted !== true && !/^(inactive|disabled|deleted)$/i.test(r.status ?? ''))
-          .map((r) => ({ id: String(r.id), name: String(r.siteName ?? r.name ?? r.id) })),
-      ),
+    return this.http.get<Record<string, unknown>[]>(`${environment.assetMasterDataApiUrl}api/master-data/sites`).pipe(
+      map((rows) => (Array.isArray(rows) ? rows : [])
+        .filter((r) => r['id'] && r['isDeleted'] !== true)
+        .map((r) => ({ id: String(r['id']), name: String(r['siteName'] ?? r['name'] ?? r['id']) }))),
       catchError(() => of([])),
     );
   }
 
   /** POST /api/iot-devices */
   create(d: Device, siteId: string | null): Observable<Device> {
-    return this.http.post(this.url, this.request(d, siteId), { params: tenantParams(), responseType: 'text' }).pipe(
-      switchMap((body) => this.saved(body, d)),
+    return this.http.post<IoTDeviceDto>(this.url, this.request(d, siteId), { params: tenantParams() }).pipe(
+      map(deviceFromDto),
       catchError((e) => apiError(e, `Could not register ${d.id}.`)),
     );
   }
 
-  /**
-   * The device a successful POST / PUT returned. The body may be the device, a wrapper ({ data } / { item }),
-   * plain text or empty: when it is not a device, reload it by id, or keep the page's copy if that fails too.
-   */
-  private saved(body: string, d: Device): Observable<Device> {
-    const dto = savedRecord<IoTDeviceDto>(body, 'deviceId');
-    if (dto) return of(deviceFromDto(dto));
-    return this.get(d.id).pipe(catchError(() => of(d)));
-  }
-
   /** PUT /api/iot-devices/{deviceId}: full replace; fields the page does not edit are sent back as loaded. */
   update(d: Device, siteId?: string | null): Observable<Device> {
-    const one = `${this.url}/${encodeURIComponent(d.id)}`;
-    // list rows leave out serial, firmware, etc.: read the full record first so the PUT does not blank them
-    return this.http.get<IoTDeviceDto>(one, { params: tenantParams() }).pipe(
-      catchError(() => of(d.api ?? null)),
-      map((full) => (full ? { ...d, serial: d.serial || full.serialNumber || '', api: { ...full, ...stripUndefined(d.api) } as IoTDeviceDto } : d)),
-      switchMap((dev) =>
-        this.http.put(one, this.request(dev, siteId === undefined ? dev.api?.siteId ?? null : siteId), { params: tenantParams(), responseType: 'text' }).pipe(
-          switchMap((body) => this.saved(body, dev)),
-        ),
-      ),
+    return this.http.put<IoTDeviceDto>(`${this.url}/${encodeURIComponent(d.id)}`, this.request(d, siteId === undefined ? d.api?.siteId ?? null : siteId), { params: tenantParams() }).pipe(
+      map(deviceFromDto),
       catchError((e) => apiError(e, `Could not save ${d.id}.`)),
     );
   }

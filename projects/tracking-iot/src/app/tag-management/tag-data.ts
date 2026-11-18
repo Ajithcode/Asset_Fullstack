@@ -33,7 +33,7 @@ export interface TagId {
   id: string;
   tech: Tech;
   type: TagType;
-  /** EPC, barcode number, QR payload or BLE MAC (`value` of the API; empty when not recorded). */
+  /** EPC, barcode number, QR payload or BLE MAC. Not stored by the API, so empty for loaded tags. */
   code: string;
   asset: LinkedAsset | null;
   site: string;
@@ -59,18 +59,13 @@ export interface TagId {
   siteId?: string | null;
   /** The tag type text as the API stores it (e.g. "Barcode Label"). */
   apiTagType?: string;
-  /** Server-side validation ("Valid" / "Invalid") and its reason, from GET /api/tag-ids. */
-  apiValidation?: string | null;
-  apiValidationMessage?: string | null;
-  /** Name of the encoded value for the technology (EPC, MAC Address, ...). */
-  valueLabel?: string | null;
 }
 
-/** Technologies offered (replaced by GET /api/tag-ids/options on load). */
+/** Technologies offered (replaced by GET /api/tag-ids/technologies on load). */
 export const TECHS: Tech[] = ['Barcode', 'QR Code', 'Passive RFID', 'Active RFID', 'BLE', 'NFC'];
 export const TYPES: TagType[] = ['Label', 'Hard Tag', 'Beacon'];
 export const STATUSES: TagStatus[] = ['Assigned', 'Available', 'Inactive'];
-/** Tag id prefix per technology (updated from GET /api/tag-ids/options). */
+/** Tag id prefix per technology (updated from GET /api/tag-ids/technologies). */
 export const PREFIX: Record<Tech, string> = { Barcode: 'BC', 'QR Code': 'QR', 'Passive RFID': 'RFID', 'Active RFID': 'RFID', BLE: 'BLE', NFC: 'NFC' };
 export const DEFAULT_TYPE: Record<Tech, TagType> = { Barcode: 'Label', 'QR Code': 'Label', 'Passive RFID': 'Hard Tag', 'Active RFID': 'Hard Tag', BLE: 'Beacon', NFC: 'Label' };
 
@@ -121,11 +116,8 @@ export function knownAssets(): LinkedAsset[] {
   return [...map.values()].sort((a, b) => a.tag.localeCompare(b.tag));
 }
 
-/**
- * 'Invalid': the server's validation failed (e.g. "EPC is missing"); 'Invalid format' / 'Duplicate': the page's checks of the
- * encoded value; 'Not recorded': no value and no server verdict.
- */
-export type Validation = 'Valid' | 'Invalid' | 'Invalid format' | 'Duplicate' | 'Not recorded';
+/** 'Not recorded': the API keeps no encoded value, so there is nothing to validate. */
+export type Validation = 'Valid' | 'Invalid format' | 'Duplicate' | 'Not recorded';
 
 /** Format rule per technology: 12–13 digit barcode, any QR payload, 96-bit EPC (24 hex), BLE MAC. */
 export function formatError(tech: Tech, code: string): string {

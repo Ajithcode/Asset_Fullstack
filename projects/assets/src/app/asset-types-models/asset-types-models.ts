@@ -149,8 +149,8 @@ class Pager {
   }
 }
 
-const EMPTY_TYPE: TypeForm = { name: '', code: '', categoryId: '', description: '', status: '' as Status };
-const EMPTY_MODEL: ModelForm = { name: '', code: '', manufacturerId: '', status: '' as Status };
+const EMPTY_TYPE: TypeForm = { name: '', code: '', categoryId: '', description: '', status: 'Active' };
+const EMPTY_MODEL: ModelForm = { name: '', code: '', manufacturerId: '', status: 'Active' };
 /** Matches the popup-out animation length in the stylesheet. */
 const POPUP_CLOSE_MS = 180;
 
@@ -492,7 +492,6 @@ export class AssetTypesModels {
     if (!f.name.trim()) return 'Type name is required.';
     if (!f.code.trim()) return 'Type code is required.';
     if (!f.categoryId) return 'Category is required.';
-    if (!f.status) return 'Status is required.';
     if (this.isTypeCodeTaken(f.code, exceptId)) return `Code "${f.code.trim().toUpperCase()}" is already used by another type.`;
     return null;
   }
@@ -504,7 +503,7 @@ export class AssetTypesModels {
     this.editingTypeId = t?.id ?? null;
     this.typeModal = t
       ? { name: t.name, code: t.code, categoryId: t.categoryId, description: t.description, status: t.status }
-      : { ...EMPTY_TYPE };
+      : { ...EMPTY_TYPE, categoryId: this.categories.find((c) => c.label.endsWith(this.typeCategory) && this.typeCategory)?.value ?? '' };
     this.typeModalSubmitted = false;
     this.typeCodeTouched = !!t; // editing keeps the saved code
     this.cancelClose('type');
@@ -671,7 +670,8 @@ export class AssetTypesModels {
           status: m.status,
         }
       : { ...EMPTY_MODEL };
-    this.modelModalTypeId = m ? m.typeId : null;
+    // a new model goes to the type the table is filtered to, else the highlighted type
+    this.modelModalTypeId = m ? m.typeId : this.modelType || this.selectedTypeId;
     this.modelModalSubmitted = false;
     this.cancelClose('model');
     this.modelModalOpen = true;
@@ -691,7 +691,7 @@ export class AssetTypesModels {
     // the type chosen in the popup; changing it on an existing model moves the model to that type
     const t = this.modalType;
     const manufacturer = this.manufacturers.find((o) => o.value === f.manufacturerId);
-    if (!t || !f.name.trim() || !f.code.trim() || !manufacturer || !f.status || this.isModelCodeTaken(f.code) || this.saving) return;
+    if (!t || !f.name.trim() || !f.code.trim() || !manufacturer || this.isModelCodeTaken(f.code) || this.saving) return;
 
     const request = {
       assetTypeId: t.id,

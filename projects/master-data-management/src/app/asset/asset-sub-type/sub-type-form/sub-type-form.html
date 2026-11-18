@@ -45,7 +45,7 @@
             <div class="field" [class.invalid]="errors.assetType">
               <label for="st-type"><span class="req">*</span> Asset Type</label>
               <select id="st-type" name="assetType" [(ngModel)]="form.assetType" (ngModelChange)="onTypeChange()">
-                <option value="" disabled>Select Asset Type</option>
+                <option value="" disabled>Select asset type</option>
                 @for (t of service.parentTypes(); track t) { <option [value]="t">{{ t }}</option> }
               </select>
               @if (errors.assetType) { <small>{{ errors.assetType }}</small> }
@@ -139,7 +139,6 @@
           <div class="field">
             <label for="st-mtype">Maintenance Type</label>
             <select id="st-mtype" name="maintenanceType" [(ngModel)]="form.maintenanceType">
-              <option value="" disabled>Select Maintenance Type</option>
               @for (m of maintenanceTypes; track m) { <option [value]="m">{{ m }}</option> }
             </select>
           </div>
@@ -163,7 +162,6 @@
           <div class="field">
             <label for="st-condition">Default Condition</label>
             <select id="st-condition" name="defaultCondition" [(ngModel)]="form.defaultCondition">
-              <option value="" disabled>Select Default Condition</option>
               <option value="New">New</option>
               <option value="Good">Good</option>
               <option value="Fair">Fair</option>
@@ -172,7 +170,6 @@
           <div class="field">
             <label for="st-tracking">Tracking Method</label>
             <select id="st-tracking" name="trackingMethod" [(ngModel)]="form.trackingMethod">
-              <option value="" disabled>Select Tracking Method</option>
               @for (t of trackingMethods; track t) { <option [value]="t">{{ t }}</option> }
             </select>
           </div>
@@ -196,7 +193,6 @@
             <div class="spec-row field-row">
               <input [name]="'fieldName' + $index" placeholder="Field name, e.g. ATS Model" [attr.aria-label]="'Custom field ' + ($index + 1) + ' name'" [(ngModel)]="c.name" />
               <select [name]="'fieldType' + $index" [attr.aria-label]="'Custom field ' + ($index + 1) + ' type'" [(ngModel)]="c.type">
-                <option value="" disabled>Select Type</option>
                 @for (t of fieldTypes; track t) { <option [value]="t">{{ t }}</option> }
               </select>
               <label class="field-row__req"><input type="checkbox" [name]="'fieldReq' + $index" [(ngModel)]="c.required" /> Required</label>

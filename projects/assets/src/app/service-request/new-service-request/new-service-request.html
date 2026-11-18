@@ -54,12 +54,10 @@
             <input class="control" [class.is-invalid]="submitted && errors.title" [(ngModel)]="form.title" (ngModelChange)="validate()" name="title" maxlength="150" placeholder="Short summary of the problem" />
             <small *ngIf="submitted && errors.title" class="nsr-err">{{ errors.title }}</small></label>
           <label class="field"><span class="field-label">Request Type <em>*</em></span>
-            <select class="control" [class.is-invalid]="submitted && errors.category" [(ngModel)]="form.category" (ngModelChange)="validate()" name="category"><option value="" disabled>Select Request Type</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
-            <small *ngIf="submitted && errors.category" class="nsr-err">{{ errors.category }}</small></label>
+            <select class="control" [(ngModel)]="form.category" name="category"><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
           <label class="field"><span class="field-label">Priority <em>*</em></span>
             <span class="nsr-prio" [ngClass]="prioClass(form.priority)"><lucide-icon *ngIf="form.priority === 'High'" [img]="icons.TriangleAlert" [size]="14"></lucide-icon>
-              <select class="control" [class.is-invalid]="submitted && errors.priority" [(ngModel)]="form.priority" (ngModelChange)="onSchedule()" name="priority"><option value="" disabled>Select Priority</option><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></span>
-            <small *ngIf="submitted && errors.priority" class="nsr-err">{{ errors.priority }}</small></label>
+              <select class="control" [(ngModel)]="form.priority" (ngModelChange)="onSchedule()" name="priority"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></span></label>
           <label class="field"><span class="field-label">Requested Date <em>*</em></span>
             <input class="control" type="date" [class.is-invalid]="submitted && errors.requestedDate" [(ngModel)]="form.requestedDate" (ngModelChange)="onSchedule()" name="requestedDate" />
             <small *ngIf="submitted && errors.requestedDate" class="nsr-err">{{ errors.requestedDate }}</small></label>
@@ -78,12 +76,12 @@
         <legend>Location &amp; Assignment</legend>
         <div class="nsr-grid nsr-grid--4">
           <label class="field"><span class="field-label">Location <em>*</em></span>
-            <select class="control" [class.is-invalid]="submitted && errors.location" [(ngModel)]="form.location" (ngModelChange)="validate()" name="location"><option value="" disabled>Select Location</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select>
+            <select class="control" [class.is-invalid]="submitted && errors.location" [(ngModel)]="form.location" (ngModelChange)="validate()" name="location"><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select>
             <small *ngIf="submitted && errors.location" class="nsr-err">{{ errors.location }}</small></label>
           <label class="field"><span class="field-label">Department</span>
-            <select class="control" [(ngModel)]="form.department" name="department"><option value="" disabled>Select Department</option><option *ngFor="let d of departments" [value]="d">{{ d }}</option></select></label>
+            <select class="control" [(ngModel)]="form.department" name="department"><option *ngFor="let d of departments" [value]="d">{{ d }}</option></select></label>
           <label class="field"><span class="field-label">Requested By <em>*</em></span>
-            <select class="control" [class.is-invalid]="submitted && errors.requestedBy" [(ngModel)]="form.requestedBy" (ngModelChange)="validate()" name="requestedBy"><option value="" disabled>Select Requested By</option><option *ngFor="let p of people" [value]="p">{{ p }}</option></select>
+            <select class="control" [class.is-invalid]="submitted && errors.requestedBy" [(ngModel)]="form.requestedBy" (ngModelChange)="validate()" name="requestedBy"><option *ngFor="let p of people" [value]="p">{{ p }}</option></select>
             <small *ngIf="submitted && errors.requestedBy" class="nsr-err">{{ errors.requestedBy }}</small></label>
           <label class="field"><span class="field-label">Assign To</span>
             <span class="nsr-ic-field"><lucide-icon [img]="icons.User" [size]="15"></lucide-icon>
@@ -104,10 +102,10 @@
             <input class="control" type="datetime-local" [class.is-invalid]="submitted && errors.plannedEnd" [(ngModel)]="form.plannedEnd" (ngModelChange)="validate()" name="plannedEnd" [min]="form.plannedStart" />
             <small *ngIf="submitted && errors.plannedEnd" class="nsr-err">{{ errors.plannedEnd }}</small></label>
           <label class="field"><span class="field-label">Related Work Order</span>
-            <select class="control" [(ngModel)]="form.workOrder" name="workOrder"><option value="">Select Work Order</option>
+            <select class="control" [(ngModel)]="form.workOrder" name="workOrder"><option value="">Select Work Order (Optional)</option>
               <option *ngFor="let w of workOrders" [value]="w.id">{{ w.id }} · {{ w.description }}</option></select></label>
           <label class="field"><span class="field-label">Related Service Request</span>
-            <select class="control" [(ngModel)]="form.relatedRequest" name="relatedRequest"><option value="">Select SR</option>
+            <select class="control" [(ngModel)]="form.relatedRequest" name="relatedRequest"><option value="">Select SR (Optional)</option>
               <option *ngFor="let r of requestsByDate" [value]="r.id">{{ r.id }} · {{ r.title }}</option></select></label>
         </div>
       </fieldset>

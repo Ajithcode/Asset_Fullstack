@@ -104,19 +104,19 @@
             (ngModelChange)="onFilterChange()" />
         </label>
         <select *ngIf="allAssets" class="control control--sm" aria-label="Asset" [(ngModel)]="assetFilter" (ngModelChange)="onFilterChange()">
-          <option value="">Select Asset</option>
+          <option value="">All Assets</option>
           <option *ngFor="let a of assetOptions" [value]="a.tag">{{ a.name }} ({{ a.tag }})</option>
         </select>
         <select class="control control--sm" aria-label="Document type" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()">
-          <option value="">Select Document Type</option>
+          <option value="">All Document Types</option>
           <option *ngFor="let t of documentTypes" [value]="t">{{ t }}</option>
         </select>
         <select class="control control--sm" aria-label="Lifecycle stage" [(ngModel)]="stageFilter" (ngModelChange)="onFilterChange()">
-          <option value="">Select Lifecycle Stage</option>
+          <option value="">All Lifecycle Stages</option>
           <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
         </select>
         <select class="control control--xs" aria-label="Status" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
-          <option value="">Select Status</option>
+          <option value="">All Status</option>
           <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
         </select>
         <button type="button" class="link-btn" *ngIf="hasFilters" (click)="clearFilters()">Clear filters</button>
@@ -489,14 +489,14 @@
           <label class="field">
             <span class="field-label">Document Type <em>*</em></span>
             <select class="control" [(ngModel)]="u.type" name="type">
-              <option value="" disabled>Select Type</option>
+              <option value="" disabled>Select type</option>
               <option *ngFor="let t of documentTypes" [value]="t">{{ t }}</option>
             </select>
           </label>
           <label class="field">
             <span class="field-label">Lifecycle Stage <em>*</em></span>
             <select class="control" [(ngModel)]="u.stage" name="stage">
-              <option value="" disabled>Select Stage</option>
+              <option value="" disabled>Select stage</option>
               <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
             </select>
           </label>
@@ -519,9 +519,8 @@
             <input type="text" class="control" [(ngModel)]="u.tags" name="tags" placeholder="Comma separated, e.g. Manual, Caterpillar" />
           </label>
           <label class="field">
-            <span class="field-label">Status <em>*</em></span>
+            <span class="field-label">Status</span>
             <select class="control" [(ngModel)]="u.draft" name="draft">
-              <option [ngValue]="null" disabled>Select Status</option>
               <option [ngValue]="false">Active</option>
               <option [ngValue]="true">Draft</option>
             </select>
@@ -565,14 +564,12 @@
         <label class="field">
           <span class="field-label">Document Type <em>*</em></span>
           <select class="control" [(ngModel)]="e.type" name="type">
-            <option value="" disabled>Select Document Type</option>
             <option *ngFor="let t of documentTypes" [value]="t">{{ t }}</option>
           </select>
         </label>
         <label class="field">
           <span class="field-label">Lifecycle Stage <em>*</em></span>
           <select class="control" [(ngModel)]="e.stage" name="stage">
-            <option value="" disabled>Select Lifecycle Stage</option>
             <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
           </select>
         </label>
@@ -583,7 +580,6 @@
         <label class="field">
           <span class="field-label">Status</span>
           <select class="control" [(ngModel)]="e.draft" name="draft">
-            <option [ngValue]="null" disabled>Select Status</option>
             <option [ngValue]="false">Active</option>
             <option [ngValue]="true">Draft</option>
           </select>

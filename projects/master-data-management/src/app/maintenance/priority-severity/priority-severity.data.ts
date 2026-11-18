@@ -11,7 +11,7 @@ export function blankPriority(): PriorityRecord {
     color: LEVEL_COLORS[0],
     responseTime: '',
     description: '',
-    status: '' as PriorityRecord['status'],
+    status: 'Active',
     appliesTo: ['Work Orders'],
     escalateAfterHours: null,
     notifyManager: false,

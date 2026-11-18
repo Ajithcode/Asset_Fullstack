@@ -107,10 +107,8 @@ export class DeviceManagement implements OnInit, OnDestroy {
   readonly conns = CONNS;
   readonly healths = HEALTHS;
   readonly sites = SITES;
-  /** Connectivity options of the Add form (GET /api/iot-devices/connectivities, narrowed to the chosen model). */
+  /** Connectivity options (GET /api/iot-devices/connectivities). */
   protocols: string[] = [];
-  /** Connectivity filter options: every connectivity the API offers plus those of loaded devices. */
-  connectivityOptions: string[] = [];
   readonly pageSizes = [5, 10, 25, 50];
   readonly cw = CW;
   readonly ch = CH;
@@ -192,11 +190,7 @@ export class DeviceManagement implements OnInit, OnDestroy {
       }
       this.version++;
     });
-    this.api.connectivities().subscribe((list) => {
-      this.protocols = list;
-      for (const c of list) this.addConnectivity(c);
-      this.version++;
-    });
+    this.api.connectivities().subscribe((list) => (this.protocols = list));
     this.api.gateways().subscribe((gws) => {
       for (const g of gws) ensureSite(g.siteName ?? '', g.siteId, g.deviceId);
       this.version++;
@@ -215,12 +209,6 @@ export class DeviceManagement implements OnInit, OnDestroy {
   private addOptions(d: Device): void {
     if (d.type && !TYPES.includes(d.type)) TYPES.push(d.type);
     ensureSite(d.site, d.api?.siteId, d.gateway);
-    this.addConnectivity(d.protocol);
-  }
-
-  private addConnectivity(c: string | null | undefined): void {
-    if (!c || this.connectivityOptions.some((o) => o.toLowerCase() === c.toLowerCase())) return;
-    this.connectivityOptions = [...this.connectivityOptions, c].sort((a, b) => a.localeCompare(b));
   }
 
   ngOnDestroy(): void {
@@ -257,7 +245,7 @@ export class DeviceManagement implements OnInit, OnDestroy {
     if (key === this.cache.key) return this.cache.rows;
     const q = this.search.trim().toLowerCase();
     const rows = DEVICES.filter((d) =>
-      (!this.typeFilter || d.type === this.typeFilter) && (!this.connFilter || d.protocol.toLowerCase() === this.connFilter.toLowerCase()) && (!this.siteFilter || d.site === this.siteFilter) &&
+      (!this.typeFilter || d.type === this.typeFilter) && (!this.connFilter || d.conn === this.connFilter) && (!this.siteFilter || d.site === this.siteFilter) &&
       (!this.healthFilter || d.health === this.healthFilter) && (!this.kpi || bucketOf(d) === this.kpi) &&
       (!q || `${d.id} ${d.name} ${d.serial} ${d.imei} ${d.model} ${d.asset ? d.asset.name : ''} ${d.gateway} ${d.site}`.toLowerCase().includes(q)));
     this.cache = { key, rows };
@@ -738,31 +726,31 @@ export class DeviceManagement implements OnInit, OnDestroy {
   }
 
   openAdd(): void {
+    const type = this.types[0] ?? '';
+    const site = SITES.at(0);
     this.formError = '';
-    const f: DeviceForm = { name: '', id: '', type: '', model: '', serial: '', protocol: '', site: '', gateway: '', asset: '' };
+    const f: DeviceForm = { name: '', id: '', type, model: this.modelsFor(type)[0] ?? '', serial: '', protocol: this.protocols[0] ?? '', site: site?.name ?? '', gateway: site?.gateways.at(0) ?? '', asset: '' };
     this.dialog = { kind: 'add', f };
-    this.onAddModel(f, false);
+    this.onAddModel(f);
   }
 
   onAddType(f: DeviceForm): void {
-    f.model = '';
-    this.onAddModel(f, false);
+    f.model = this.modelsFor(f.type)[0] ?? '';
+    this.onAddModel(f);
   }
 
-  /** GET /api/iot-devices/connectivities?model: once a model is picked, its protocol comes first and is pre-selected. */
-  onAddModel(f: DeviceForm, pick = true): void {
+  /** GET /api/iot-devices/connectivities?model: the model's protocol comes first and is pre-selected. */
+  onAddModel(f: DeviceForm): void {
     this.api.connectivities(f.model || undefined, f.type || undefined).subscribe((list) => {
       if (!list.length) return;
       this.protocols = list;
-      if (!pick || !f.model) return;
       f.protocol = list[0];
-      if (this.cellular(f)) f.gateway = 'Cellular';
-      else if (f.gateway === 'Cellular') f.gateway = '';
+      f.gateway = this.cellular(f) ? 'Cellular' : this.gatewaysFor(f.site)[0] ?? '';
     });
   }
 
   onAddSite(f: DeviceForm): void {
-    if (f.gateway !== 'Cellular') f.gateway = '';
+    if (f.gateway !== 'Cellular') f.gateway = this.gatewaysFor(f.site)[0] ?? '';
   }
 
   private validateDevice(id: string, serial: string, type: DeviceType | null, model: string, site: string, gateway: string, ids: Set<string>, serials: Set<string>): string {

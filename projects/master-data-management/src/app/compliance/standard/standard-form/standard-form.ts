@@ -44,8 +44,7 @@ export class StandardForm extends MasterForm<StandardRecord, Tab> {
     const errors: Record<string, string> = {};
     if (!f.organization) errors['organization'] = 'Select an organization.';
     if (!f.category) errors['category'] = 'Select a category.';
-    if (!f.status) errors['status'] = 'Select a status.';
-    if (errors['organization'] || errors['category'] || errors['status']) return { errors, tab: 'basic' as Tab };
+    if (errors['organization'] || errors['category']) return { errors, tab: 'basic' as Tab };
     if (f.url.trim() && !WEB_URL.test(f.url.trim())) errors['url'] = 'Enter a full URL, e.g. https://www.iso.org';
     if (f.publishedOn && f.nextReview && f.nextReview <= f.publishedOn) errors['nextReview'] = 'Must be after the publication date.';
     return { errors, tab: 'details' as Tab };

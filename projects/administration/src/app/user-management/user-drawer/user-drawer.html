@@ -91,7 +91,7 @@
         <div class="field" [class.invalid]="errors['department']">
           <label for="u-dept">Department <span class="req">*</span></label>
           <select id="u-dept" name="department" [(ngModel)]="form.department">
-            <option value="" disabled>Select Department</option>
+            <option value="">Select...</option>
             @for (d of departments; track d) { <option [value]="d">{{ d }}</option> }
           </select>
           @if (errors['department']) { <small>{{ errors['department'] }}</small> }
@@ -108,14 +108,12 @@
         <div class="field">
           <label for="u-loc">Location</label>
           <select id="u-loc" name="location" [(ngModel)]="form.location" (ngModelChange)="onLocationChange()">
-            <option value="" disabled>Select Location</option>
             @for (l of locations; track l) { <option [value]="l">{{ l }}</option> }
           </select>
         </div>
         <div class="field">
           <label for="u-tz">Time Zone</label>
           <select id="u-tz" name="timeZone" [(ngModel)]="form.timeZone">
-            <option value="" disabled>Select Time Zone</option>
             @for (z of timeZones; track z) { <option [value]="z">{{ z }}</option> }
           </select>
         </div>
@@ -136,7 +134,7 @@
     <div class="row-field" [class.invalid]="errors['primaryRole']">
       <label for="u-role">Primary Role</label>
       <select id="u-role" name="primaryRole" [(ngModel)]="form.primaryRole" (ngModelChange)="onPrimaryChange()">
-        <option value="" disabled>Select Primary Role</option>
+        <option value="">Select...</option>
         @for (r of primaryOptions; track r.name) { <option [value]="r.name">{{ r.name }}</option> }
         @empty { <option value="" disabled>No active roles. Create one in Role &amp; Access Control.</option> }
       </select>
@@ -154,22 +152,20 @@
           </div>
         }
         <select id="u-roles" (change)="addSecondary($event)">
-          <option value="" disabled>Select Secondary Roles</option>
+          <option value="">Add a role...</option>
           @for (r of secondaryOptions; track r.name) { <option [value]="r.name">{{ r.name }}</option> }
           @empty { <option value="" disabled>No other roles available</option> }
         </select>
       </div>
     </div>
 
-    <div class="row-field" [class.invalid]="errors['accessScope']">
+    <div class="row-field">
       <label for="u-scope">Access Scope</label>
       <select id="u-scope" name="accessScope" [(ngModel)]="form.accessScope">
-        <option value="" disabled>Select Access Scope</option>
         <option [value]="allLocations">{{ allLocations }}</option>
         @for (l of locations; track l) { <option [value]="l">{{ l }} only</option> }
       </select>
     </div>
-    @if (errors['accessScope']) { <p class="field-error">{{ errors['accessScope'] }}</p> }
 
     <div class="row-field">
       <span class="row-label">Multi-Factor Authentication</span>
@@ -186,7 +182,6 @@
         <span class="muted">Active: the user can sign in with their email and password</span>
       } @else {
         <select id="u-status" name="status" [(ngModel)]="form.status" [disabled]="isSelf">
-          <option value="" disabled>Select Account Status</option>
           @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
         </select>
       }

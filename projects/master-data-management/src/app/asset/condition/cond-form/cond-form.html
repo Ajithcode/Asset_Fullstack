@@ -42,13 +42,11 @@
               <input id="cond-code" name="code" placeholder="Enter unique code" [(ngModel)]="form.code" />
               @if (errors.code) { <small>{{ errors.code }}</small> }
             </div>
-            <div class="field" [class.invalid]="errors.type">
+            <div class="field">
               <label for="cond-type"><span class="req">*</span> Type</label>
               <select id="cond-type" name="type" [(ngModel)]="form.type">
-                <option value="" disabled>Select Type</option>
                 @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
               </select>
-              @if (errors.type) { <small>{{ errors.type }}</small> }
             </div>
             <div class="field" [class.invalid]="errors.color">
               <label for="cond-color"><span class="req">*</span> Color</label>

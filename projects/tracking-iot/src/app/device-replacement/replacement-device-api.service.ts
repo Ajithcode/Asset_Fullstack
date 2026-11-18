@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError } from 'rxjs';
 import { AuthService } from 'shared-ui';
-import { apiError, getAllPages, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
+import { apiError, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
 import { Candidate, Compat, ExistingDevice, HistoryEvent, kindOf } from './replacement-data';
 
 /** A spare device as /api/replacement-devices returns it (addressed by deviceId). */
@@ -83,7 +83,7 @@ export class ReplacementDeviceApiService {
 
   /** Every IoT device (read only here; the queue is built from their health). */
   iotDevices(): Observable<IoTDeviceDto[]> {
-    return getAllPages<IoTDeviceDto>(this.http, trackingUrl('iot-devices')).pipe(catchError((e) => apiError(e, 'Could not load IoT devices.')));
+    return this.http.get<IoTDeviceDto[]>(trackingUrl('iot-devices'), { params: tenantParams() }).pipe(catchError((e) => apiError(e, 'Could not load IoT devices.')));
   }
 
   iotDevice(deviceId: string): Observable<IoTDeviceDto> {

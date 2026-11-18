@@ -36,14 +36,14 @@
 
       <div class="pm-filters">
         <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by PM name, description..." aria-label="Search PM schedules" /></label>
-        <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()" aria-label="Status"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
-        <select class="control" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()" aria-label="Category"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
-        <select class="control" [(ngModel)]="frequencyFilter" (ngModelChange)="onFilter()" aria-label="Frequency"><option value="">Select Frequency</option><option *ngFor="let f of frequencies" [value]="f">{{ f }}</option></select>
+        <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()" aria-label="Status"><option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+        <select class="control" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()" aria-label="Category"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
+        <select class="control" [(ngModel)]="frequencyFilter" (ngModelChange)="onFilter()" aria-label="Frequency"><option value="">All Frequencies</option><option *ngFor="let f of frequencies" [value]="f">{{ f }}</option></select>
         <button type="button" class="btn btn-outline btn-sm pm-adv" [class.is-on]="advOpen || assigneeFilter" (click)="advOpen = !advOpen" [attr.aria-expanded]="advOpen"><lucide-icon [img]="icons.Filter" [size]="15"></lucide-icon>Advanced Filters{{ assigneeFilter ? ' (1)' : '' }}</button>
       </div>
       <div *ngIf="advOpen" class="pm-adv-panel">
         <label class="field"><span class="field-label">Assigned To</span>
-          <select class="control" [(ngModel)]="assigneeFilter" (ngModelChange)="onFilter()"><option value="">Select Assigned To</option><option *ngFor="let a of assignees" [value]="a">{{ a }}</option></select></label>
+          <select class="control" [(ngModel)]="assigneeFilter" (ngModelChange)="onFilter()"><option value="">Anyone</option><option *ngFor="let a of assignees" [value]="a">{{ a }}</option></select></label>
         <button type="button" class="btn btn-outline btn-xs" (click)="assigneeFilter = ''; onFilter()" [disabled]="!assigneeFilter">Clear</button>
       </div>
 
@@ -201,8 +201,8 @@
       <label class="field"><span class="field-label">Description</span><textarea class="control pm-textarea" [(ngModel)]="f.description" name="desc" rows="2"></textarea></label>
       <div class="two">
         <label class="field"><span class="field-label">Asset Component</span><input class="control" [(ngModel)]="f.component" name="component" placeholder="e.g. Engine" /></label>
-        <label class="field"><span class="field-label">Category <em>*</em></span><select class="control" [(ngModel)]="f.category" name="category"><option value="" disabled>Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
-        <label class="field"><span class="field-label">Frequency <em>*</em></span><select class="control" [(ngModel)]="f.frequency" name="frequency" (ngModelChange)="onFormDates()"><option value="" disabled>Select Frequency</option><option *ngFor="let q of frequencies" [value]="q">{{ q }}</option></select></label>
+        <label class="field"><span class="field-label">Category</span><select class="control" [(ngModel)]="f.category" name="category"><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+        <label class="field"><span class="field-label">Frequency</span><select class="control" [(ngModel)]="f.frequency" name="frequency" (ngModelChange)="onFormDates()"><option *ngFor="let q of frequencies" [value]="q">{{ q }}</option></select></label>
         <label class="field"><span class="field-label">Assigned To</span><input class="control" [(ngModel)]="f.assignedTo" name="assigned" list="pm-assignees" /></label>
         <label class="field"><span class="field-label">Last Performed</span><input class="control" type="date" [(ngModel)]="f.lastPerformed" name="last" (ngModelChange)="onFormDates()" /></label>
         <label class="field"><span class="field-label">Next Due Date <em>*</em></span><input class="control" type="date" [(ngModel)]="f.nextDue" name="next" /></label>
@@ -222,11 +222,11 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pm-link-title" (click)="$event.stopPropagation()">
     <div class="modal-head"><h2 id="pm-link-title">Link Template</h2><button type="button" class="icon-btn" (click)="linkForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveLink()">
-      <label class="field"><span class="field-label">PM Schedule</span><select class="control" [(ngModel)]="l.scheduleId" name="sched"><option value="" disabled>Select PM Schedule</option><option *ngFor="let s of schedules" [value]="s.id">{{ s.name }}</option></select></label>
+      <label class="field"><span class="field-label">PM Schedule</span><select class="control" [(ngModel)]="l.scheduleId" name="sched"><option *ngFor="let s of schedules" [value]="s.id">{{ s.name }}</option></select></label>
       <fieldset class="pm-templates"><legend class="field-label">Template</legend>
         <label *ngFor="let t of templates" class="pm-template" [class.is-on]="l.template === t.code"><input type="radio" name="tpl" [value]="t.code" [(ngModel)]="l.template" /><strong>{{ t.code }}</strong><span class="muted">{{ t.name }}</span></label>
       </fieldset>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="linkForm = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="!l.scheduleId || !l.template">Link</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="linkForm = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="!l.template">Link</button></div>
     </form>
   </div>
 </div>

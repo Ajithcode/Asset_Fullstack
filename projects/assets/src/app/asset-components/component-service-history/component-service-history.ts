@@ -434,7 +434,7 @@ export class ComponentServiceHistory {
     return {
       date: toIso(today()),
       nextDue: '',
-      type: '' as ServiceType,
+      type: 'Preventive',
       description: '',
       performedBy: '',
       technician: '',
@@ -442,11 +442,11 @@ export class ComponentServiceHistory {
       startTime: '',
       endTime: '',
       runningHours: null,
-      status: '' as ServiceStatus,
+      status: 'Completed',
       remarks: '',
       labourCost: 0,
       otherCost: 0,
-      health: '' as HealthRating,
+      health: 'Good',
       healthScore: 85,
       workText: '',
     };
@@ -516,9 +516,6 @@ export class ComponentServiceHistory {
       !f.description.trim() ||
       !f.date ||
       !f.performedBy.trim() ||
-      !f.type ||
-      !f.status ||
-      !f.health ||
       this.timesInvalid ||
       this.nextDueInvalid ||
       this.scoreInvalid ||

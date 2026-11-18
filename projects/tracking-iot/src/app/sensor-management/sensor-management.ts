@@ -68,7 +68,7 @@ interface SensorForm {
   calDue: string;
 }
 
-interface CalForm { id: string; date: string; certificate: string; result: '' | 'Pass' | 'Adjusted'; note: string }
+interface CalForm { id: string; date: string; certificate: string; result: 'Pass' | 'Adjusted'; note: string }
 
 interface ImportRow { line: number; type: SensorType | null; number: string; id: string; serial: string; deviceId: string; channel: number; asset: string; point: string; site: string; calDue: string; error: string }
 
@@ -708,10 +708,10 @@ export class SensorManagement implements OnInit, OnDestroy {
     this.menuId = '';
     this.formError = '';
     this.channelHint = '';
-    const type: SensorType = '';
+    const type: SensorType = PARAMETERS[0]?.type ?? '';
     this.dialog = {
       kind: 'form',
-      f: { editId: '', type, number: type ? String(nextNumber(type)) : '', serial: '', deviceId: '', channel: 1, asset: '', point: '', site: '', intervalSec: null, low: null, high: null, calDue: this.toIsoDate(NOW + 365 * DAY) },
+      f: { editId: '', type, number: type ? String(nextNumber(type)) : '', serial: '', deviceId: '', channel: 1, asset: '', point: '', site: '', intervalSec: INTERVALS.find((i) => i.seconds === 60)?.seconds ?? INTERVALS[0]?.seconds ?? null, low: null, high: null, calDue: this.toIsoDate(NOW + 365 * DAY) },
     };
     this.loadDevices();
     this.loadPoints(type);
@@ -888,7 +888,7 @@ export class SensorManagement implements OnInit, OnDestroy {
     this.menuId = '';
     this.formError = '';
     const year = new Date(NOW).getFullYear();
-    this.dialog = { kind: 'calibrate', f: { id: s.id, date: this.toIsoDate(Date.now()), certificate: `CAL-${s.id}-${year}.pdf`, result: '', note: '' } };
+    this.dialog = { kind: 'calibrate', f: { id: s.id, date: this.toIsoDate(Date.now()), certificate: `CAL-${s.id}-${year}.pdf`, result: 'Pass', note: '' } };
   }
 
   calTarget(f: CalForm): Sensor | undefined {
@@ -903,7 +903,6 @@ export class SensorManagement implements OnInit, OnDestroy {
     const s = this.calTarget(f);
     if (!s) return;
     if (!f.date) return void (this.formError = 'Enter the calibration date.');
-    if (!f.result) return void (this.formError = 'Choose the calibration result.');
     const at = new Date(f.date + 'T09:00').getTime();
     if (at > Date.now() + DAY) return void (this.formError = 'The calibration date cannot be in the future.');
     if (!f.certificate.trim()) return void (this.formError = 'Enter the certificate reference.');

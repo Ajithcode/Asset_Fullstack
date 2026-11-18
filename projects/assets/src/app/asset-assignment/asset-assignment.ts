@@ -53,7 +53,7 @@ interface AssignForm {
   assetType: string;
   tag: string;
   serial: string;
-  type: AssignmentType | '';
+  type: AssignmentType;
   assignee: string;
   from: string;
   to: string;
@@ -372,7 +372,7 @@ export class AssetAssignment implements OnInit, OnDestroy {
   openReassign(a: Assignment): void {
     this.closeMenus();
     this.formError = '';
-    this.assignForm = { mode: 'reassign', ids: [a.id], assetName: a.assetName, assetType: a.assetType, tag: a.tag, serial: a.serial, type: '', assignee: '', from: isoDate(new Date()), to: '', remarks: '' };
+    this.assignForm = { mode: 'reassign', ids: [a.id], assetName: a.assetName, assetType: a.assetType, tag: a.tag, serial: a.serial, type: a.type, assignee: '', from: isoDate(new Date()), to: '', remarks: '' };
   }
 
   openBulk(): void {
@@ -380,7 +380,7 @@ export class AssetAssignment implements OnInit, OnDestroy {
     this.formError = '';
     const ids = [...this.checked].filter((id) => this.assignments.some((a) => a.id === id && a.status !== 'Returned'));
     if (!ids.length) return this.showToast('Tick the assignments to move in the table first.');
-    this.assignForm = { mode: 'bulk', ids, assetName: '', assetType: '', tag: '', serial: '', type: '', assignee: '', from: isoDate(new Date()), to: '', remarks: '' };
+    this.assignForm = { mode: 'bulk', ids, assetName: '', assetType: '', tag: '', serial: '', type: 'Employee', assignee: '', from: isoDate(new Date()), to: '', remarks: '' };
   }
 
   onFormType(): void {
@@ -391,7 +391,6 @@ export class AssetAssignment implements OnInit, OnDestroy {
   saveAssign(): void {
     const f = this.assignForm;
     if (!f) return;
-    if (!f.type) return void (this.formError = 'Choose the assignment type.');
     if (!f.assignee) return void (this.formError = `Choose the ${f.type.toLowerCase()} to assign to.`);
     if (!f.from) return void (this.formError = 'Choose the from date.');
     if (f.to && f.to < f.from) return void (this.formError = 'The to date must be on or after the from date.');

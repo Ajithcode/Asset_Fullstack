@@ -8,18 +8,6 @@ import { ASSET_CLASSES, CUSTOM_FIELD_TYPES, MAINTENANCE_TYPES, blankAssetType } 
 import { AssetTypeRecord } from '../asset-type.model';
 import { AssetTypeService } from '../asset-type.service';
 
-/** A new asset type starts with every dropdown empty so the user picks each value. */
-function newAssetType(): AssetTypeRecord {
-  return {
-    ...blankAssetType(),
-    maintenanceType: '' as AssetTypeRecord['maintenanceType'],
-    depreciationMethod: '' as AssetTypeRecord['depreciationMethod'],
-    currency: '',
-    defaultCondition: '' as AssetTypeRecord['defaultCondition'],
-    trackingMethod: '' as AssetTypeRecord['trackingMethod']
-  };
-}
-
 export type TypeFormTab = 'basic' | 'classification' | 'lifecycle' | 'financial' | 'defaults' | 'fields';
 type FieldKey =
   | 'name'
@@ -89,14 +77,14 @@ export class TypeForm implements OnChanges {
   ];
 
   tab: TypeFormTab = 'basic';
-  form: AssetTypeRecord = newAssetType();
+  form: AssetTypeRecord = blankAssetType();
   newSubcategory = '';
   errors: Partial<Record<FieldKey, string>> = {};
   private original: AssetTypeRecord | null = null;
 
   ngOnChanges(): void {
     this.original = this.mode === 'edit' ? this.type : null;
-    this.form = this.type ? structuredClone(this.type) : newAssetType();
+    this.form = this.type ? structuredClone(this.type) : blankAssetType();
     this.newSubcategory = '';
     this.errors = {};
     this.tab = this.startTab;
@@ -157,7 +145,7 @@ export class TypeForm implements OnChanges {
   }
 
   addField(): void {
-    this.form.customFields = [...this.form.customFields, { name: '', type: '' as AssetTypeRecord['customFields'][number]['type'], required: false }];
+    this.form.customFields = [...this.form.customFields, { name: '', type: 'Text', required: false }];
   }
 
   removeField(index: number): void {
@@ -224,7 +212,6 @@ export class TypeForm implements OnChanges {
     const names = f.customFields.map((c) => c.name.trim().toLowerCase());
     if (names.some((n) => !n)) errors.customFields = 'Every custom field needs a name.';
     else if (new Set(names).size !== names.length) errors.customFields = 'Custom field names must be unique.';
-    else if (f.customFields.some((c) => !c.type)) errors.customFields = 'Every custom field needs a type.';
     this.errors = errors;
 
     const keys = Object.keys(errors) as FieldKey[];

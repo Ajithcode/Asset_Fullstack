@@ -38,8 +38,7 @@ export class PermitTypeForm extends MasterForm<PermitTypeRecord, Tab> {
     const errors: Record<string, string> = {};
     if (!f.category) errors['category'] = 'Select a category.';
     if (!Number.isInteger(f.validDays) || f.validDays < 1 || f.validDays > 365) errors['validDays'] = 'Enter 1 to 365 days.';
-    if (!f.status) errors['status'] = 'Select a status.';
-    if (errors['category'] || errors['validDays'] || errors['status']) return { errors, tab: 'basic' as Tab };
+    if (errors['category'] || errors['validDays']) return { errors, tab: 'basic' as Tab };
     if (!Number.isInteger(f.approvalLevels) || f.approvalLevels < 1 || f.approvalLevels > 5) errors['approvalLevels'] = 'Enter 1 to 5.';
     else if (f.approverRoles.length < f.approvalLevels) errors['approverRoles'] = `Pick at least ${f.approvalLevels} approver roles, one per level.`;
     if (!Number.isInteger(f.maxExtensionDays) || f.maxExtensionDays < 0 || f.maxExtensionDays > f.validDays * 2) {

@@ -21,13 +21,13 @@ interface Group {
         <input type="search" placeholder="Search features..." aria-label="Search features" [(ngModel)]="term" />
       </label>
       <select class="select" aria-label="Module" [(ngModel)]="module">
-        <option value="">Select Module</option>
+        <option value="">All modules</option>
         @for (m of modules; track m) {
           <option [value]="m">{{ m }}</option>
         }
       </select>
       <select class="select" aria-label="Sensitivity" [(ngModel)]="sensitivity">
-        <option value="">Select Sensitivity</option>
+        <option value="">All features</option>
         <option value="restricted">Restricted only</option>
         <option value="standard">Standard only</option>
       </select>

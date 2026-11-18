@@ -35,9 +35,9 @@
   <!-- ===== Filters ===== -->
   <form class="card filters" (ngSubmit)="onFilter()">
     <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" name="q" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by audit name, reference, location, or auditor..." aria-label="Search audits" /></label>
-    <label class="field"><span class="field-label">Audit Type</span><select class="control" name="type" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">Select Audit Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
-    <label class="field"><span class="field-label">Status</span><select class="control" name="status" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
-    <label class="field"><span class="field-label">Location</span><select class="control" name="loc" [(ngModel)]="locationFilter" (ngModelChange)="onFilter()"><option value="">Select Location</option><option *ngFor="let l of locations" [value]="l.id">{{ l.name }}</option></select></label>
+    <label class="field"><span class="field-label">Audit Type</span><select class="control" name="type" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">All Types</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+    <label class="field"><span class="field-label">Status</span><select class="control" name="status" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
+    <label class="field"><span class="field-label">Location</span><select class="control" name="loc" [(ngModel)]="locationFilter" (ngModelChange)="onFilter()"><option value="">All Locations</option><option *ngFor="let l of locations" [value]="l.id">{{ l.name }}</option></select></label>
     <div class="field field--range">
       <span class="field-label">Date Range</span>
       <span class="range">
@@ -49,10 +49,10 @@
     </div>
     <button type="button" class="btn btn-outline" [class.is-on]="moreFilters" (click)="moreFilters = !moreFilters" [attr.aria-expanded]="moreFilters"><lucide-icon [img]="icons.Funnel" [size]="16"></lucide-icon>More Filters</button>
     <div *ngIf="moreFilters" class="more">
-      <label class="field"><span class="field-label">Audited By</span><select class="control" name="auditor" [(ngModel)]="auditorFilter" (ngModelChange)="page = 0"><option value="">Select Auditor</option><option *ngFor="let a of auditors" [value]="a">{{ a }}</option></select></label>
+      <label class="field"><span class="field-label">Audited By</span><select class="control" name="auditor" [(ngModel)]="auditorFilter" (ngModelChange)="page = 0"><option value="">All Auditors</option><option *ngFor="let a of auditors" [value]="a">{{ a }}</option></select></label>
       <label class="field"><span class="field-label">Findings</span>
         <select class="control" name="findings" [(ngModel)]="findingsFilter" (ngModelChange)="page = 0">
-          <option value="">Select Findings</option>
+          <option value="">All</option>
           <option value="with">With discrepancies</option>
           <option value="none">No discrepancies</option>
           <option value="pending">Not yet recorded</option>

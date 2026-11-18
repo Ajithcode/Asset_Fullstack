@@ -141,10 +141,10 @@ const APPROVERS: Approver[] = [];
 
 /** Default approval chain for a new request. */
 const DEFAULT_CHAIN: ApprovalStep[] = [
-  { level: 'Line Manager', approver: '', type: '' as ApprovalType },
-  { level: 'Department Head', approver: '', type: '' as ApprovalType },
-  { level: 'Finance Approval', approver: '', type: '' as ApprovalType },
-  { level: 'Final Approval', approver: '', type: '' as ApprovalType },
+  { level: 'Line Manager', approver: '', type: 'Mandatory' },
+  { level: 'Department Head', approver: '', type: 'Mandatory' },
+  { level: 'Finance Approval', approver: '', type: 'Mandatory' },
+  { level: 'Final Approval', approver: '', type: 'Mandatory' },
 ];
 
 const STEPS = [
@@ -212,9 +212,9 @@ export class NewDisposal implements OnInit, OnDestroy {
   title = '';
   requestDate = isoDate(new Date());
   requestedBy = '';
-  reason = '';
+  reason = REASONS[0];
   category = '';
-  priority: Priority = '';
+  priority: Priority = 'Normal';
   justification = '';
 
   // 2. Assets: the register, filtered and sorted, and the tags picked for disposal
@@ -230,7 +230,7 @@ export class NewDisposal implements OnInit, OnDestroy {
   categoryFilter = '';
   locationFilter = '';
   conditionFilter = '';
-  statusFilter = '';
+  statusFilter = 'Active';
   manufacturerFilter = '';
   minValue: number | null = null;
   maxValue: number | null = null;
@@ -246,7 +246,7 @@ export class NewDisposal implements OnInit, OnDestroy {
   tagText = '';
 
   // 3. Method
-  method: DisposalMethod = '' as DisposalMethod;
+  method: DisposalMethod = 'Recycle';
   /** Vendor register plus vendors already saved on a loaded request. */
   vendorList: Vendor[] = [...VENDORS];
   vendor = '';
@@ -427,7 +427,6 @@ export class NewDisposal implements OnInit, OnDestroy {
         if (!this.approvals.length) return 'Add at least one approver.';
         if (this.approvals.some((a) => !a.approver)) return 'Choose an approver for every approval level.';
         if (this.approvals.some((a) => !a.level.trim())) return 'Name every approval level.';
-        if (this.approvals.some((a) => !a.type)) return 'Choose the approval type for every approval level.';
         if (!this.approvals.some((a) => a.type === 'Mandatory')) return 'At least one approval level must be Mandatory.';
         return '';
       default:
@@ -510,7 +509,7 @@ export class NewDisposal implements OnInit, OnDestroy {
   setMethod(m: DisposalMethod): void {
     this.method = m;
     // Keep the vendor only when it handles the new method
-    if (!this.vendors.some((v) => v.name === this.vendor)) this.setVendor('');
+    if (!this.vendors.some((v) => v.name === this.vendor)) this.setVendor(this.vendors[0]?.name ?? '');
   }
 
   setVendor(name: string): void {
@@ -629,7 +628,7 @@ export class NewDisposal implements OnInit, OnDestroy {
 
   resetFilters(): void {
     this.assetSearch = this.categoryFilter = this.locationFilter = this.conditionFilter = this.manufacturerFilter = '';
-    this.statusFilter = '';
+    this.statusFilter = 'Active';
     this.minValue = this.maxValue = null;
     this.onFilter();
   }
@@ -728,7 +727,8 @@ export class NewDisposal implements OnInit, OnDestroy {
   }
 
   addApprover(): void {
-    this.approvals.push({ level: `Approval Level ${this.approvals.length + 1}`, approver: '', type: '' as ApprovalType });
+    const free = this.approverChoices.find((a) => !this.approvals.some((r) => r.approver === a.name));
+    this.approvals.push({ level: `Approval Level ${this.approvals.length + 1}`, approver: free?.name ?? '', type: 'Mandatory' });
   }
 
   removeApprover(i: number): void {

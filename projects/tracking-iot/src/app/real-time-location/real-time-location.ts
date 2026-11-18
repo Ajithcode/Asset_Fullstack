@@ -49,7 +49,7 @@ const LOCATE_MAX_ROWS = 50;
 import { LivePosition, MapLayers, RlMap, stateColor } from './rl-map';
 
 type StatusFilter = '' | AssetState | 'alerts';
-interface AlertForm { assetId: string; rule: '' | 'enter' | 'exit' | 'dwell' | 'boundary'; zone: string; minutes: number; notify: string }
+interface AlertForm { assetId: string; rule: 'enter' | 'exit' | 'dwell' | 'boundary'; zone: string; minutes: number; notify: string }
 
 /** Location events are re-polled this often (ms). */
 const EVENT_POLL_MS = 15_000;
@@ -64,7 +64,7 @@ function geofenceZone(g: Geofence): Zone {
   };
 }
 
-const RULE_LABEL: Record<Exclude<AlertForm['rule'], ''>, string> = { enter: 'Enters zone', exit: 'Leaves zone', dwell: 'Dwells longer than', boundary: 'Comes within 3 m of boundary' };
+const RULE_LABEL: Record<AlertForm['rule'], string> = { enter: 'Enters zone', exit: 'Leaves zone', dwell: 'Dwells longer than', boundary: 'Comes within 3 m of boundary' };
 
 @Component({
   selector: 'app-real-time-location',
@@ -551,7 +551,8 @@ export class RealTimeLocation implements OnInit, OnDestroy {
 
   openAlert(a: TrackedAsset): void {
     this.formError = '';
-    this.alertForm = { assetId: a.id, rule: '', zone: '', minutes: 15, notify: '' };
+    const geo = this.alertZones;
+    this.alertForm = { assetId: a.id, rule: 'enter', zone: (geo.find((z) => z.restricted) ?? geo[0])?.id ?? '', minutes: 15, notify: 'Operations team' };
   }
 
   /** Geofences the alert form can attach a rule to. */
@@ -563,12 +564,10 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   saveAlert(): void {
     const f = this.alertForm;
     if (!f || this.saving) return;
-    if (!f.rule) return void (this.formError = 'Choose a trigger.');
     if (f.rule === 'boundary') return void (this.formError = 'Boundary-distance alerts are not supported by the alert rule API yet.');
     if (f.rule === 'dwell' && !(f.minutes > 0)) return void (this.formError = 'Enter the dwell time in minutes.');
     const zone = this.alertZones.find((z) => z.id === f.zone);
     if (!zone) return void (this.formError = 'Choose a geofence.');
-    if (!f.notify) return void (this.formError = 'Choose who to notify.');
     const meOnly = f.notify === 'Me only';
     const label = RULE_LABEL[f.rule].toLowerCase() + (f.rule === 'dwell' ? ' ' + f.minutes + ' min' : '');
     this.saving = true;

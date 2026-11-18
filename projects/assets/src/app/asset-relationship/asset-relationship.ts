@@ -363,7 +363,7 @@ export class AssetRelationship {
   }
 
   // Toolbar
-  viewFilter: RelType | '' = '';
+  viewFilter: RelType | 'all' = 'all';
   layout: Layout = 'hierarchical';
   fullScreen = false;
   actionsOpen = false;
@@ -373,8 +373,8 @@ export class AssetRelationship {
 
   // Related assets table
   search = '';
-  typeFilter: RelType | '' = '';
-  statusFilter: RelStatus | '' = '';
+  typeFilter: RelType | 'all' = 'all';
+  statusFilter: RelStatus | 'all' = 'all';
   tableView: 'list' | 'grid' = 'list';
   checked = new Set<number>();
   rowMenuId: number | null = null;
@@ -521,9 +521,9 @@ export class AssetRelationship {
       : graph.relationships.find((r) => r.type !== 'Parent Asset')?.id ?? graph.relationships[0]?.id ?? null;
     this.checked.clear();
     this.search = '';
-    this.typeFilter = '';
-    this.statusFilter = '';
-    this.viewFilter = '';
+    this.typeFilter = 'all';
+    this.statusFilter = 'all';
+    this.viewFilter = 'all';
     this.closeMenus();
     this.formOpen = false;
     this.removeIds = null;
@@ -569,7 +569,7 @@ export class AssetRelationship {
 
   /** Places nodes around the asset: parents above, components below, the rest split left/right. */
   private layoutDiagram(graph: AssetGraph): Diagram {
-    const rels = !this.viewFilter ? graph.relationships : graph.relationships.filter((r) => r.type === this.viewFilter);
+    const rels = this.viewFilter === 'all' ? graph.relationships : graph.relationships.filter((r) => r.type === this.viewFilter);
     const sides: Record<Side, Relationship[]> = { top: [], bottom: [], left: [], right: [] };
     if (this.layout === 'horizontal') {
       for (const r of rels) (r.type === 'Parent Asset' ? sides.left : sides.right).push(r);
@@ -657,8 +657,8 @@ export class AssetRelationship {
   get filteredRels(): Relationship[] {
     const q = this.search.trim().toLowerCase();
     return this.relationships.filter((r) => {
-      if (this.typeFilter && r.type !== this.typeFilter) return false;
-      if (this.statusFilter && r.status !== this.statusFilter) return false;
+      if (this.typeFilter !== 'all' && r.type !== this.typeFilter) return false;
+      if (this.statusFilter !== 'all' && r.status !== this.statusFilter) return false;
       if (!q) return true;
       const a = this.assetFor(r.tag);
       return [r.tag, a.name, a.category, a.location, r.type, r.direction].some((v) => v.toLowerCase().includes(q));
@@ -707,7 +707,7 @@ export class AssetRelationship {
 
   // ===== Add / edit =====
   private emptyForm(): RelationshipForm {
-    return { tag: '', type: '' as RelType, direction: '' as Direction, since: new Date().toISOString().slice(0, 10), to: '', status: '' as RelStatus, description: '', reference: '', remarks: '' };
+    return { tag: '', type: 'Connected Asset', direction: 'Child', since: new Date().toISOString().slice(0, 10), to: '', status: 'Active', description: '', reference: '', remarks: '' };
   }
 
   /** Catalogue assets not yet linked (plus the one being edited). */
@@ -744,10 +744,6 @@ export class AssetRelationship {
       this.formError = 'Select the related asset and the start date.';
       return;
     }
-    if (!f.type || !f.direction || !f.status) {
-      this.formError = 'Select the relationship type, direction and status.';
-      return;
-    }
     if (f.to && f.to < f.since) {
       this.formError = 'The end date cannot be before the start date.';
       return;
@@ -770,10 +766,6 @@ export class AssetRelationship {
     const f = this.form;
     if (!f.tag) {
       this.formError = 'Select the related asset.';
-      return;
-    }
-    if (!f.type) {
-      this.formError = 'Select the relationship type.';
       return;
     }
     const target = this.catalog.find((a) => a.tag === f.tag);

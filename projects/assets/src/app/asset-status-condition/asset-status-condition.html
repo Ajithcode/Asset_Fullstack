@@ -149,7 +149,7 @@
         <lucide-icon class="head-icon" [img]="icons.CalendarDays" [size]="20"></lucide-icon>
         <h3 class="grow">Condition Trend</h3>
         <select class="control control--sm" aria-label="Trend period" [(ngModel)]="trendRange" (ngModelChange)="onTrendRangeChange()">
-          <option value="all">Select Trend Period</option>
+          <option value="all">All Time</option>
           <option value="3y">Last 3 Years</option>
           <option value="1y">Last 12 Months</option>
         </select>
@@ -503,7 +503,6 @@
         <label class="field">
           <span class="field-label">Overall Condition <em>*</em></span>
           <select class="control" [(ngModel)]="f.overall" name="overall">
-            <option value="" disabled>Select Overall Condition</option>
             <option *ngFor="let c of conditions" [value]="c">{{ c }}</option>
           </select>
         </label>
@@ -514,21 +513,18 @@
         <label class="field">
           <span class="field-label">Physical Condition</span>
           <select class="control" [(ngModel)]="f.physical" name="physical">
-            <option value="" disabled>Select Physical Condition</option>
             <option *ngFor="let c of conditions" [value]="c">{{ c }}</option>
           </select>
         </label>
         <label class="field">
           <span class="field-label">Performance</span>
           <select class="control" [(ngModel)]="f.performance" name="performance">
-            <option value="" disabled>Select Performance</option>
             <option *ngFor="let c of conditions" [value]="c">{{ c }}</option>
           </select>
         </label>
         <label class="field">
           <span class="field-label">Safety</span>
           <select class="control" [(ngModel)]="f.safety" name="safety">
-            <option value="" disabled>Select Safety</option>
             <option *ngFor="let c of conditions" [value]="c">{{ c }}</option>
           </select>
         </label>
@@ -558,7 +554,6 @@
         <label class="field">
           <span class="field-label">Operational Status <em>*</em></span>
           <select class="control" [(ngModel)]="f.status" name="status">
-            <option value="" disabled>Select Operational Status</option>
             <option *ngFor="let s of operationalStatuses" [value]="s">{{ s }}</option>
           </select>
         </label>
@@ -569,7 +564,6 @@
         <label class="field">
           <span class="field-label">Operating Mode</span>
           <select class="control" [(ngModel)]="f.operatingMode" name="operatingMode">
-            <option value="" disabled>Select Operating Mode</option>
             <option *ngFor="let m of operatingModes" [value]="m">{{ m }}</option>
           </select>
         </label>
@@ -626,7 +620,6 @@
       <label class="field">
         <span class="field-label">Lifecycle Stage <em>*</em></span>
         <select class="control" [(ngModel)]="f.stage" name="stage">
-          <option value="" disabled>Select Lifecycle Stage</option>
           <option *ngFor="let s of lifecycleStages" [value]="s">{{ s }}</option>
         </select>
       </label>

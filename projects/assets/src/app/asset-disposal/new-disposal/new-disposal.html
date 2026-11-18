@@ -34,12 +34,12 @@
             <div class="form-grid">
               <label class="field"><span class="field-label">Request Title <em>*</em></span><input class="control" name="title" [(ngModel)]="title" placeholder="e.g. Disposal of Old Laptops - IT Dept" /></label>
               <label class="field"><span class="field-label">Request Date <em>*</em></span><input class="control" type="date" name="reqDate" [(ngModel)]="requestDate" /></label>
-              <label class="field"><span class="field-label">Requested By</span><select class="control" name="by" [(ngModel)]="requestedBy"><option value="" disabled>Select Requested By</option><option *ngFor="let p of people" [value]="p">{{ p }}</option></select></label>
-              <label class="field"><span class="field-label">Reason for Disposal <em>*</em></span><select class="control" name="reason" [(ngModel)]="reason"><option value="" disabled>Select Reason for Disposal</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
-              <label class="field"><span class="field-label">Disposal Category</span><select class="control" name="cat" [(ngModel)]="category"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+              <label class="field"><span class="field-label">Requested By</span><select class="control" name="by" [(ngModel)]="requestedBy"><option *ngFor="let p of people" [value]="p">{{ p }}</option></select></label>
+              <label class="field"><span class="field-label">Reason for Disposal <em>*</em></span><select class="control" name="reason" [(ngModel)]="reason"><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+              <label class="field"><span class="field-label">Disposal Category</span><select class="control" name="cat" [(ngModel)]="category"><option value="">Select category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
               <label class="field"><span class="field-label">Priority</span>
                 <span class="nd-priority" [ngClass]="'nd-priority--' + priority.toLowerCase()">
-                  <select class="control" name="priority" [(ngModel)]="priority"><option value="" disabled>Select Priority</option><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select>
+                  <select class="control" name="priority" [(ngModel)]="priority"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select>
                 </span>
               </label>
             </div>
@@ -62,13 +62,13 @@
 
           <div class="nd-filters">
             <label class="search nd-search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" name="assetSearch" [(ngModel)]="assetSearch" (ngModelChange)="onFilter()" placeholder="Search assets by name, tag, serial number..." aria-label="Search assets" /></label>
-            <label class="field"><span class="field-label">Category</span><select class="control" name="fCat" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
-            <label class="field"><span class="field-label">Location</span><select class="control" name="fLoc" [(ngModel)]="locationFilter" (ngModelChange)="onFilter()"><option value="">Select Location</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
-            <label class="field"><span class="field-label">Condition</span><select class="control" name="fCond" [(ngModel)]="conditionFilter" (ngModelChange)="onFilter()"><option value="">Select Condition</option><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select></label>
-            <label class="field"><span class="field-label">Status</span><select class="control" name="fStatus" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">Select Status</option><option *ngFor="let st of assetStatuses" [value]="st">{{ st }}</option></select></label>
+            <label class="field"><span class="field-label">Category</span><select class="control" name="fCat" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Location</span><select class="control" name="fLoc" [(ngModel)]="locationFilter" (ngModelChange)="onFilter()"><option value="">All Locations</option><option *ngFor="let l of locations" [value]="l">{{ l }}</option></select></label>
+            <label class="field"><span class="field-label">Condition</span><select class="control" name="fCond" [(ngModel)]="conditionFilter" (ngModelChange)="onFilter()"><option value="">All Conditions</option><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Status</span><select class="control" name="fStatus" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All Status</option><option *ngFor="let st of assetStatuses" [value]="st">{{ st }}</option></select></label>
             <button type="button" class="btn btn-outline" [class.is-on]="moreFilters" (click)="moreFilters = !moreFilters" [attr.aria-expanded]="moreFilters"><lucide-icon [img]="icons.Funnel" [size]="16"></lucide-icon>More Filters</button>
             <div *ngIf="moreFilters" class="nd-more">
-              <label class="field"><span class="field-label">Manufacturer</span><select class="control" name="fMaker" [(ngModel)]="manufacturerFilter" (ngModelChange)="onFilter()"><option value="">Select Manufacturer</option><option *ngFor="let m of manufacturers" [value]="m">{{ m }}</option></select></label>
+              <label class="field"><span class="field-label">Manufacturer</span><select class="control" name="fMaker" [(ngModel)]="manufacturerFilter" (ngModelChange)="onFilter()"><option value="">All Manufacturers</option><option *ngFor="let m of manufacturers" [value]="m">{{ m }}</option></select></label>
               <label class="field"><span class="field-label">Min. Value (AED)</span><input class="control" type="number" min="0" name="fMin" [(ngModel)]="minValue" (ngModelChange)="onFilter()" /></label>
               <label class="field"><span class="field-label">Max. Value (AED)</span><input class="control" type="number" min="0" name="fMax" [(ngModel)]="maxValue" (ngModelChange)="onFilter()" /></label>
               <button type="button" class="link-btn" (click)="resetFilters()">Reset filters</button>
@@ -141,11 +141,11 @@
           <fieldset class="group">
             <legend>Method Details</legend>
             <div class="form-grid form-grid--2">
-              <label class="field"><span class="field-label">Disposal Method <em>*</em></span><select class="control" name="method" [ngModel]="method" (ngModelChange)="setMethod($event)"><option value="" disabled>Select Disposal Method</option><option *ngFor="let m of methods" [value]="m">{{ m }}</option></select></label>
+              <label class="field"><span class="field-label">Disposal Method <em>*</em></span><select class="control" name="method" [ngModel]="method" (ngModelChange)="setMethod($event)"><option *ngFor="let m of methods" [value]="m">{{ m }}</option></select></label>
               <label class="field"><span class="field-label">Expected Disposal Date <em>*</em></span><input class="control" type="date" name="expDate" [(ngModel)]="expectedDate" [min]="requestDate" /></label>
             </div>
             <div class="form-grid nd-vendor-grid">
-              <label class="field"><span class="field-label">Vendor <em>*</em></span><select class="control" name="vendor" [ngModel]="vendor" (ngModelChange)="setVendor($event)"><option value="">Select Vendor</option><option *ngFor="let v of vendors" [value]="v.name">{{ v.name }}</option></select></label>
+              <label class="field"><span class="field-label">Vendor <em>*</em></span><select class="control" name="vendor" [ngModel]="vendor" (ngModelChange)="setVendor($event)"><option value="">Select vendor</option><option *ngFor="let v of vendors" [value]="v.name">{{ v.name }}</option></select></label>
               <label class="field"><span class="field-label">Contact Person</span><input class="control" name="contact" [(ngModel)]="contactPerson" /></label>
               <label class="field"><span class="field-label">Contact Number</span><input class="control" type="tel" name="phone" [(ngModel)]="contactNumber" /></label>
             </div>
@@ -191,11 +191,11 @@
                     <td>
                       <span class="nd-person">
                         <span class="avatar" [style.background]="approverOf(a.approver)?.color ?? '#9ca3af'">{{ a.approver ? initials(a.approver) : '?' }}</span>
-                        <select class="nd-plain" [name]="'appr' + i" [(ngModel)]="a.approver" [attr.aria-label]="'Approver for ' + a.level"><option value="">Select Approver</option><option *ngFor="let p of approverOptions(a)" [value]="p.name">{{ p.name }}</option></select>
+                        <select class="nd-plain" [name]="'appr' + i" [(ngModel)]="a.approver" [attr.aria-label]="'Approver for ' + a.level"><option value="">Select approver</option><option *ngFor="let p of approverOptions(a)" [value]="p.name">{{ p.name }}</option></select>
                       </span>
                     </td>
                     <td class="nowrap">{{ approverOf(a.approver)?.role ?? '—' }}</td>
-                    <td><select class="control nd-type" [name]="'type' + i" [(ngModel)]="a.type" [attr.aria-label]="'Approval type for ' + a.level"><option value="" disabled>Select Type</option><option *ngFor="let t of approvalTypes" [value]="t">{{ t }}</option></select></td>
+                    <td><select class="control nd-type" [name]="'type' + i" [(ngModel)]="a.type" [attr.aria-label]="'Approval type for ' + a.level"><option *ngFor="let t of approvalTypes" [value]="t">{{ t }}</option></select></td>
                     <td><span class="status nd-pending">Pending</span></td>
                     <td><button type="button" class="icon-btn nd-del" (click)="removeApprover(i)" [attr.aria-label]="'Remove ' + a.level"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button></td>
                   </tr>
@@ -283,7 +283,7 @@
           <section>
             <h3>3. Disposal Method<button type="button" class="link-btn" (click)="openStep(3)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button></h3>
             <div class="nd-chosen nd-chosen--box">
-              <span class="nd-method-ic" [ngClass]="'nd-method--' + methodTone(method)"><lucide-icon *ngIf="method" [img]="methodIcons[method]" [size]="22"></lucide-icon></span>
+              <span class="nd-method-ic" [ngClass]="'nd-method--' + methodTone(method)"><lucide-icon [img]="methodIcons[method]" [size]="22"></lucide-icon></span>
               <span><strong>{{ method }}</strong><small>{{ methodText(method) }}</small></span>
             </div>
             <dl class="kv nd-kv">
@@ -411,7 +411,7 @@
         <section class="card panel">
           <div class="panel-head"><h3 class="grow">Selected Disposal Method</h3></div>
           <div class="nd-chosen">
-            <span class="nd-method-ic nd-method-ic--lg" [ngClass]="'nd-method--' + (methodTone(method))"><lucide-icon *ngIf="method" [img]="methodIcons[method]" [size]="22"></lucide-icon></span>
+            <span class="nd-method-ic nd-method-ic--lg" [ngClass]="'nd-method--' + (methodTone(method))"><lucide-icon [img]="methodIcons[method]" [size]="22"></lucide-icon></span>
             <span><strong>{{ method }}</strong><small>{{ vendor || 'No vendor selected' }}</small></span>
           </div>
           <dl class="kv kv--tight">

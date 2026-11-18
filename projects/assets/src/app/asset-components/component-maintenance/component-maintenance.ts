@@ -110,8 +110,8 @@ export function buildMockMaintenance(c: AssetComponent): MaintenanceData {
   return { hoursPerDay: 4, runningHours, schedules: [], history: [] };
 }
 
-type ScheduleForm = Omit<MaintenanceSchedule, 'id' | 'kind' | 'intervalUnit'> & { kind: MaintenanceKind | ''; intervalUnit: IntervalUnit | '' };
-type RecordForm = Omit<MaintenanceRecord, 'id' | 'status'> & { status: RecordStatus | '' };
+type ScheduleForm = Omit<MaintenanceSchedule, 'id'>;
+type RecordForm = Omit<MaintenanceRecord, 'id'>;
 
 @Component({
   selector: 'app-component-maintenance',
@@ -393,7 +393,7 @@ export class ComponentMaintenance {
   // ===== Schedule actions =====
 
   private emptySchedule(): ScheduleForm {
-    return { task: '', kind: '', intervalValue: 500, intervalUnit: '', nextDue: '' };
+    return { task: '', kind: 'Preventive', intervalValue: 500, intervalUnit: 'Hours', nextDue: '' };
   }
 
   openScheduleForm(s?: MaintenanceSchedule): void {
@@ -403,6 +403,7 @@ export class ComponentMaintenance {
       this.scheduleForm = { task: s.task, kind: s.kind, intervalValue: s.intervalValue, intervalUnit: s.intervalUnit, nextDue: s.nextDue };
     } else {
       this.scheduleForm = this.emptySchedule();
+      this.scheduleForm.nextDue = toIso(this.advance(today(), this.scheduleForm));
     }
     this.scheduleSubmitted = false;
     this.scheduleFormOpen = true;
@@ -410,21 +411,19 @@ export class ComponentMaintenance {
 
   /** Re-suggest the due date when the interval changes on a new schedule. */
   onIntervalChange(): void {
-    const f = this.scheduleForm;
-    if (this.editingSchedule || !(f.intervalValue > 0) || !f.intervalUnit) return;
-    f.nextDue = toIso(this.advance(today(), { intervalValue: f.intervalValue, intervalUnit: f.intervalUnit }));
+    if (this.editingSchedule || !(this.scheduleForm.intervalValue > 0)) return;
+    this.scheduleForm.nextDue = toIso(this.advance(today(), this.scheduleForm));
   }
 
   get scheduleFormValid(): boolean {
     const f = this.scheduleForm;
-    return !!f.task.trim() && !!f.kind && f.intervalValue > 0 && Number.isFinite(f.intervalValue) && !!f.intervalUnit && !!f.nextDue;
+    return !!f.task.trim() && f.intervalValue > 0 && Number.isFinite(f.intervalValue) && !!f.nextDue;
   }
 
   saveSchedule(): void {
     this.scheduleSubmitted = true;
     if (!this.scheduleFormValid) return;
-    const f = this.scheduleForm;
-    const values = { ...f, task: f.task.trim(), kind: f.kind as MaintenanceKind, intervalValue: Number(f.intervalValue), intervalUnit: f.intervalUnit as IntervalUnit };
+    const values = { ...this.scheduleForm, task: this.scheduleForm.task.trim(), intervalValue: Number(this.scheduleForm.intervalValue) };
     if (this.editingSchedule) {
       Object.assign(this.editingSchedule, values);
       this.showToast(`${values.task} updated.`);
@@ -461,7 +460,7 @@ export class ComponentMaintenance {
   // ===== History actions =====
 
   private emptyRecord(): RecordForm {
-    return { date: toIso(today()), task: '', runningHours: null, status: '', technician: '', notes: '' };
+    return { date: toIso(today()), task: '', runningHours: null, status: 'Completed', technician: '', notes: '' };
   }
 
   openRecordForm(r?: MaintenanceRecord): void {
@@ -488,9 +487,9 @@ export class ComponentMaintenance {
   saveRecord(): void {
     this.recordSubmitted = true;
     const f = this.recordForm;
-    if (!f.task.trim() || !f.date || !f.status || this.recordDateInFuture || this.recordHoursInvalid) return;
+    if (!f.task.trim() || !f.date || this.recordDateInFuture || this.recordHoursInvalid) return;
     const runningHours = f.runningHours === null || (f.runningHours as unknown) === '' ? null : Number(f.runningHours);
-    const values = { ...f, status: f.status as RecordStatus, task: f.task.trim(), technician: f.technician.trim(), notes: f.notes.trim(), runningHours };
+    const values = { ...f, task: f.task.trim(), technician: f.technician.trim(), notes: f.notes.trim(), runningHours };
     if (this.editingRecord) {
       Object.assign(this.editingRecord, values);
       this.showToast('Maintenance record updated.');

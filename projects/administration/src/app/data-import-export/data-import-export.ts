@@ -167,17 +167,7 @@ export class DataImportExportPage extends AdminPage implements OnInit {
   }
 
   newJob(type: JobType): void {
-    // New jobs open with every dropdown unselected (the shared blank() also backs non-drawer drafts)
-    this.draft = {
-      ...this.service.blank(type),
-      dataObject: '',
-      operation: '' as DataJob['operation'],
-      fileFormat: '' as DataJob['fileFormat'],
-      duplicateHandling: '',
-      dateFormat: '',
-      delimiter: '',
-      encoding: ''
-    };
+    this.draft = this.service.blank(type);
     this.drawerOpen = true;
     setTimeout(() => this.drawer?.focusName());
   }

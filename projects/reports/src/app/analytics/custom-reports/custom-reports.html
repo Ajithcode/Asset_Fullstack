@@ -45,28 +45,27 @@
   <label class="filter">
     <span>Owner</span>
     <select [(ngModel)]="owner" (ngModelChange)="refilter()">
-      <option value="">Select Owner</option>
+      <option value="">All owners</option>
       @for (o of owners; track o) { <option [value]="o">{{ o }}</option> }
     </select>
   </label>
   <label class="filter">
     <span>Module</span>
     <select [(ngModel)]="module" (ngModelChange)="refilter()">
-      <option value="">Select Module</option>
+      <option value="">All modules</option>
       @for (m of modules; track m) { <option [value]="m">{{ m }}</option> }
     </select>
   </label>
   <label class="filter">
     <span>Status</span>
     <select [(ngModel)]="status" (ngModelChange)="refilter()">
-      <option value="">Select Status</option>
+      <option value="">All statuses</option>
       @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
     </select>
   </label>
   <label class="filter">
     <span>Last Updated</span>
     <select [(ngModel)]="updated" (ngModelChange)="refilter()">
-      <option value="">Select Last Updated</option>
       @for (u of updatedRanges; track u.key) { <option [value]="u.key">{{ u.label }}</option> }
     </select>
   </label>

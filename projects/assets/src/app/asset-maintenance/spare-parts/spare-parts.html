@@ -50,8 +50,8 @@
 
     <div *ngIf="sub === 'usage' || sub === 'stock'" class="sp-filters" [class.sp-filters--stock]="sub === 'stock'">
       <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by part name, part number..." aria-label="Search parts" /></label>
-      <select class="control" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()" aria-label="Category"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
-      <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()" aria-label="Stock status"><option value="">Select Stock Status</option><option value="In Stock">In Stock</option><option value="Low Stock">Low Stock</option><option value="Out of Stock">Out of Stock</option></select>
+      <select class="control" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()" aria-label="Category"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
+      <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()" aria-label="Stock status"><option value="">All Status</option><option value="In Stock">In Stock</option><option value="Low Stock">Low Stock</option><option value="Out of Stock">Out of Stock</option></select>
       <ng-container *ngIf="sub === 'usage'">
         <span class="menu-wrap">
           <button type="button" class="control range-btn" (click)="$event.stopPropagation(); rangeOpen = !rangeOpen" [attr.aria-expanded]="rangeOpen"><lucide-icon [img]="icons.CalendarDays" [size]="15"></lucide-icon>{{ rangeLabel }}</button>
@@ -228,11 +228,11 @@
     <div class="modal-head"><h2 id="sp-issue-title">Issue Parts · {{ asset.tag }}</h2><button type="button" class="icon-btn" (click)="issueForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveIssue()">
       <label class="field"><span class="field-label">Part <em>*</em></span>
-        <select class="control" [(ngModel)]="f.partNo" name="part"><option value="" disabled>Select Part</option><option *ngFor="let p of stocked" [value]="p.partNo" [disabled]="!p.onHand">{{ p.partNo }} · {{ p.name }} ({{ p.onHand }} in stock)</option></select></label>
+        <select class="control" [(ngModel)]="f.partNo" name="part"><option *ngFor="let p of stocked" [value]="p.partNo" [disabled]="!p.onHand">{{ p.partNo }} · {{ p.name }} ({{ p.onHand }} in stock)</option></select></label>
       <div class="two">
         <label class="field"><span class="field-label">Quantity <em>*</em></span><input class="control" type="number" min="1" step="1" [(ngModel)]="f.qty" name="qty" /></label>
         <label class="field"><span class="field-label">Work Order <em>*</em></span>
-          <select class="control" [(ngModel)]="f.wo" name="wo"><option value="" disabled>Select Work Order</option><option *ngFor="let o of openOrders" [value]="o.id">{{ o.id }} · {{ o.description }}</option></select></label>
+          <select class="control" [(ngModel)]="f.wo" name="wo"><option value="" disabled>Choose…</option><option *ngFor="let o of openOrders" [value]="o.id">{{ o.id }} · {{ o.description }}</option></select></label>
       </div>
       <p *ngIf="part(f.partNo) as p" class="muted sp-hint">AED {{ p.unitCost | number }} each · AED {{ (p.unitCost * (f.qty || 0)) | number }} will be added to the work order's parts cost.</p>
       <p *ngIf="!openOrders.length" class="muted sp-hint">There are no open work orders on this asset. Create one first.</p>
@@ -248,7 +248,7 @@
     <div class="modal-head"><h2 id="sp-req-title">Request Parts</h2><button type="button" class="icon-btn" (click)="requestForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveRequest()">
       <label class="field"><span class="field-label">Part <em>*</em></span>
-        <select class="control" [(ngModel)]="f.partNo" name="part"><option value="" disabled>Select Part</option><option *ngFor="let p of stocked" [value]="p.partNo">{{ p.partNo }} · {{ p.name }} ({{ status(p) }})</option></select></label>
+        <select class="control" [(ngModel)]="f.partNo" name="part"><option *ngFor="let p of stocked" [value]="p.partNo">{{ p.partNo }} · {{ p.name }} ({{ status(p) }})</option></select></label>
       <div class="two">
         <label class="field"><span class="field-label">Quantity <em>*</em></span><input class="control" type="number" min="1" step="1" [(ngModel)]="f.qty" name="qty" /></label>
         <label class="field"><span class="field-label">Needed By <em>*</em></span><input class="control" type="date" [(ngModel)]="f.neededBy" name="needed" /></label>

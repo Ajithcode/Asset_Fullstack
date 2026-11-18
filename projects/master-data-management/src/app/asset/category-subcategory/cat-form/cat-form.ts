@@ -10,16 +10,6 @@ import { CATEGORY_TYPE_DEFAULTS, blankCategory } from '../category.data';
 import { CategoryRecord } from '../category.model';
 import { CategoryService } from '../category.service';
 
-/** A new category starts with every dropdown empty so the user picks each value. */
-function newCategory(): CategoryRecord {
-  return {
-    ...blankCategory(),
-    depreciationMethod: '' as CategoryRecord['depreciationMethod'],
-    trackingMethod: '' as CategoryRecord['trackingMethod'],
-    defaultCondition: '' as CategoryRecord['defaultCondition']
-  };
-}
-
 export type CatFormTab = 'basic' | 'defaults' | 'fields' | 'settings';
 type FieldKey = 'name' | 'code' | 'assetType' | 'image' | 'color' | 'usefulLifeYears' | 'tagPrefix' | 'customFields';
 
@@ -73,13 +63,13 @@ export class CatForm implements OnChanges {
   ];
 
   tab: CatFormTab = 'basic';
-  form: CategoryRecord = newCategory();
+  form: CategoryRecord = blankCategory();
   errors: Partial<Record<FieldKey, string>> = {};
   private original: CategoryRecord | null = null;
 
   ngOnChanges(): void {
     this.original = this.mode === 'edit' ? this.category : null;
-    this.form = this.category ? structuredClone(this.category) : newCategory();
+    this.form = this.category ? structuredClone(this.category) : blankCategory();
     this.errors = {};
     this.tab = this.startTab;
   }
@@ -131,7 +121,7 @@ export class CatForm implements OnChanges {
   }
 
   addField(): void {
-    this.form.customFields = [...this.form.customFields, { name: '', type: '' as CategoryRecord['customFields'][number]['type'], required: false }];
+    this.form.customFields = [...this.form.customFields, { name: '', type: 'Text', required: false }];
   }
 
   removeField(index: number): void {
@@ -194,7 +184,6 @@ export class CatForm implements OnChanges {
     const names = f.customFields.map((c) => c.name.trim().toLowerCase());
     if (names.some((n) => !n)) errors.customFields = 'Every custom field needs a name.';
     else if (new Set(names).size !== names.length) errors.customFields = 'Custom field names must be unique.';
-    else if (f.customFields.some((c) => !c.type)) errors.customFields = 'Every custom field needs a type.';
     this.errors = errors;
 
     const keys = Object.keys(errors) as FieldKey[];

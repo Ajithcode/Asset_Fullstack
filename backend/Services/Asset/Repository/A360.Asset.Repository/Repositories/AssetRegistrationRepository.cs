@@ -106,17 +106,7 @@ public sealed class AssetRegistrationRepository
         AddEquals(filters, asset => asset.Classification.Criticality, query.Criticality);
         AddEquals(filters, asset => asset.LocationAssignment.Assignment.AssignedToUserId, query.CustodianUserId);
         AddEquals(filters, asset => asset.PurchaseWarranty.Purchase.Manufacturer, query.Manufacturer);
-        // Condition accepts a comma-separated list, e.g. "Poor,Critical".
-        var conditions = (query.Condition ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (conditions.Length == 1)
-        {
-            AddEquals(filters, asset => asset.BasicInformation.Condition, conditions[0]);
-        }
-        else if (conditions.Length > 1)
-        {
-            filters.Add(Builders<AssetRegistration>.Filter.In(asset => asset.BasicInformation.Condition, conditions));
-        }
+        AddEquals(filters, asset => asset.BasicInformation.Condition, query.Condition);
 
         // A location picked anywhere in the hierarchy matches every asset at or below it.
         if (!string.IsNullOrWhiteSpace(query.LocationId))

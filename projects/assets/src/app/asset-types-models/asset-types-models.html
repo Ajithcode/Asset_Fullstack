@@ -50,7 +50,7 @@
             <lucide-icon [img]="icons.X" [size]="14"></lucide-icon>
           </button>
         </div>
-        <app-filter-select [(ngModel)]="typeCategory" (ngModelChange)="onTypeFilterChange()" [options]="categoryOptions" allLabel="Select Category" ariaLabel="Filter by category"></app-filter-select>
+        <app-filter-select [(ngModel)]="typeCategory" (ngModelChange)="onTypeFilterChange()" [options]="categoryOptions" allLabel="All Categories" ariaLabel="Filter by category"></app-filter-select>
       </div>
 
       <div *ngIf="checkedTypes.size" class="bulk">
@@ -162,10 +162,10 @@
         </button>
       </div>
       <select class="control" [(ngModel)]="modelType" (ngModelChange)="onModelFilterChange()" aria-label="Filter by asset type">
-        <option [ngValue]="''">Select Asset Type</option>
+        <option [ngValue]="''">All Asset Types</option>
         <option *ngFor="let t of types" [ngValue]="t.id">{{ t.name }} ({{ t.modelCount }})</option>
       </select>
-      <app-filter-select [(ngModel)]="modelStatus" (ngModelChange)="onModelFilterChange()" [options]="statusChoices" allLabel="Select Status" ariaLabel="Filter by status"></app-filter-select>
+      <app-filter-select [(ngModel)]="modelStatus" (ngModelChange)="onModelFilterChange()" [options]="statusChoices" allLabel="All Status" ariaLabel="Filter by status"></app-filter-select>
     </div>
 
     <div *ngIf="checkedModels.size" class="bulk">
@@ -306,9 +306,8 @@
           <textarea class="control" name="description" rows="3" [(ngModel)]="typeModal.description" maxlength="500"></textarea>
         </label>
         <div class="field">
-          <span class="field-label">Status <em>*</em></span>
-          <app-filter-select name="status" [(ngModel)]="typeModal.status" [options]="statusChoices" [includeAll]="false" placeholder="Select Status" [invalid]="typeModalSubmitted && !typeModal.status" ariaLabel="Status"></app-filter-select>
-          <span *ngIf="typeModalSubmitted && !typeModal.status" class="error">Status is required.</span>
+          <span class="field-label">Status</span>
+          <app-filter-select name="status" [(ngModel)]="typeModal.status" [options]="statusChoices" [includeAll]="false" ariaLabel="Status"></app-filter-select>
         </div>
       </div>
       <div class="modal-foot">
@@ -335,7 +334,7 @@
         <label class="field">
           <span class="field-label">Asset Type <em>*</em></span>
           <select class="control" name="typeId" [(ngModel)]="modelModalTypeId" [class.is-invalid]="modelModalSubmitted && !modalType">
-            <option [ngValue]="null" disabled>Select Asset Type</option>
+            <option [ngValue]="null" disabled>Select asset type</option>
             <option *ngFor="let t of types" [ngValue]="t.id">{{ t.name }} ({{ t.category }})</option>
           </select>
           <span *ngIf="modelModalSubmitted && !modalType" class="error">Asset type is required.</span>
@@ -365,9 +364,8 @@
           <span *ngIf="modelModalSubmitted && !modelModal.manufacturerId" class="error">Manufacturer is required.</span>
         </div>
         <div class="field">
-          <span class="field-label">Status <em>*</em></span>
-          <app-filter-select name="status" [(ngModel)]="modelModal.status" [options]="statusChoices" [includeAll]="false" placeholder="Select Status" [invalid]="modelModalSubmitted && !modelModal.status" ariaLabel="Status"></app-filter-select>
-          <span *ngIf="modelModalSubmitted && !modelModal.status" class="error">Status is required.</span>
+          <span class="field-label">Status</span>
+          <app-filter-select name="status" [(ngModel)]="modelModal.status" [options]="statusChoices" [includeAll]="false" ariaLabel="Status"></app-filter-select>
         </div>
       </div>
       <div class="modal-foot">

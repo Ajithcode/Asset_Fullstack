@@ -104,8 +104,8 @@ export class InspectionTasksPage implements OnInit {
   readonly severities = SEVERITIES;
 
   readonly search = signal('');
-  readonly categoryFilter = signal('');
-  readonly statusFilter = signal('');
+  readonly categoryFilter = signal('All');
+  readonly statusFilter = signal('All');
   readonly selectedId = signal<string | null>(null);
   readonly menuId = signal<string | null>(null);
   readonly confirmId = signal<string | null>(null);
@@ -156,8 +156,8 @@ export class InspectionTasksPage implements OnInit {
       .filter(
         (t) =>
           (!q || `${t.taskCode} ${t.taskTitle}`.toLowerCase().includes(q)) &&
-          (!cat || t.taskCategory === cat) &&
-          (!st || (st === 'Active') === t.isActive)
+          (cat === 'All' || t.taskCategory === cat) &&
+          (st === 'All' || (st === 'Active') === t.isActive)
       )
       .sort((a, b) => a.taskCode.localeCompare(b.taskCode, undefined, { numeric: true }));
   });
@@ -335,7 +335,7 @@ export class InspectionTasksPage implements OnInit {
 
   // ===== Drawer form =====
   openNew(): void {
-    this.form = { ...blankTask(this.categoryFilter()), responseType: '', defaultSeverity: '' };
+    this.form = blankTask(this.categoryFilter() !== 'All' ? this.categoryFilter() : (this.categories()[0] ?? ''));
     this.formError = '';
   }
 
@@ -356,10 +356,6 @@ export class InspectionTasksPage implements OnInit {
     const title = f.taskTitle?.trim();
     if (!title) {
       this.formError = 'Task name is required.';
-      return;
-    }
-    if (!f.responseType) {
-      this.formError = 'Select a response type.';
       return;
     }
     const numeric = f.responseType === 'Numeric';

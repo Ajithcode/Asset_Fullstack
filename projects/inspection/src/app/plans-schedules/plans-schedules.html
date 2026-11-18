@@ -46,9 +46,9 @@
           <input type="search" placeholder="Search plans by name, code or category..." [ngModel]="search()" (ngModelChange)="search.set($event)" />
         </label>
         <select class="control status-sel" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)" aria-label="Status">
-          <option value="">Select Status</option>
           <option value="Active">Active</option>
           <option value="Inactive">Inactive</option>
+          <option value="All">All statuses</option>
         </select>
       </div>
 

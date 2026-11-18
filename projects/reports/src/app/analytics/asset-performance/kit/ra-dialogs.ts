@@ -201,7 +201,7 @@ export class RaDetailDialog {
           <div class="field" [class.invalid]="tried && !form.owner">
             <label for="ra-action-owner">{{ request.kind === 'Work order' ? 'Assign to' : 'Owner' }} <span class="req">*</span></label>
             <select id="ra-action-owner" name="owner" [(ngModel)]="form.owner">
-              <option value="">Select {{ request.kind === 'Work order' ? 'Assign To' : 'Owner' }}</option>
+              <option value="">Select a person</option>
               @for (p of people; track p) { <option [value]="p">{{ p }}</option> }
             </select>
             @if (tried && !form.owner) { <small>Choose who owns this.</small> }
@@ -211,13 +211,11 @@ export class RaDetailDialog {
             <input id="ra-action-due" name="due" type="date" [min]="today" [(ngModel)]="form.due" />
             @if (tried && dueError) { <small>{{ dueError }}</small> }
           </div>
-          <div class="field" [class.invalid]="tried && !form.priority">
+          <div class="field">
             <label for="ra-action-priority">Priority <span class="req">*</span></label>
             <select id="ra-action-priority" name="priority" [(ngModel)]="form.priority">
-              <option value="" disabled>Select Priority</option>
               @for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }
             </select>
-            @if (tried && !form.priority) { <small>Choose a priority.</small> }
           </div>
         </div>
         <div class="field">
@@ -240,7 +238,7 @@ export class RaActionDialog implements OnChanges {
   @Input({ required: true }) request!: RaActionRequest;
   @Output() close = new EventEmitter<void>();
   @Output() submitted = new EventEmitter<RaActionForm>();
-  form: RaActionForm = { title: '', owner: '', due: '', priority: '', notes: '' };
+  form: RaActionForm = { title: '', owner: '', due: '', priority: 'High', notes: '' };
   tried = false;
 
   get heading(): string {
@@ -254,12 +252,12 @@ export class RaActionDialog implements OnChanges {
 
   ngOnChanges(): void {
     this.tried = false;
-    this.form = { title: this.request.title, owner: '', due: '', priority: '', notes: '' };
+    this.form = { title: this.request.title, owner: '', due: '', priority: this.request.priority ?? 'High', notes: '' };
   }
 
   submit(): void {
     this.tried = true;
-    if (!this.form.title.trim() || !this.form.owner || !this.form.priority || this.dueError) return;
+    if (!this.form.title.trim() || !this.form.owner || this.dueError) return;
     this.submitted.emit({ ...this.form, title: this.form.title.trim() });
   }
 

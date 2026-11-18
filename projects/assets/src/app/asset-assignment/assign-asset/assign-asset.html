@@ -75,13 +75,13 @@
           <ng-container *ngIf="w.selectMode === 'multiple'">
             <div class="pool-filters">
               <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="w.assetSearch" (ngModelChange)="page = 0" placeholder="Search by asset name, tag, serial number, category..." aria-label="Search assets" /></label>
-              <label class="field"><span class="field-label">Category</span><select class="control" [(ngModel)]="poolCategory" (ngModelChange)="page = 0"><option value="">Select Category</option><option *ngFor="let c of poolCategories" [value]="c">{{ c }}</option></select></label>
-              <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="poolLocation" (ngModelChange)="page = 0"><option value="">Select Location</option><option *ngFor="let l of poolLocations" [value]="l">{{ l }}</option></select></label>
-              <label class="field"><span class="field-label">Status</span><select class="control" [(ngModel)]="poolStatus" (ngModelChange)="page = 0"><option value="">Select Status</option><option value="Available">Available</option><option value="Assigned">Assigned</option></select></label>
+              <label class="field"><span class="field-label">Category</span><select class="control" [(ngModel)]="poolCategory" (ngModelChange)="page = 0"><option value="">All Categories</option><option *ngFor="let c of poolCategories" [value]="c">{{ c }}</option></select></label>
+              <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="poolLocation" (ngModelChange)="page = 0"><option value="">All Locations</option><option *ngFor="let l of poolLocations" [value]="l">{{ l }}</option></select></label>
+              <label class="field"><span class="field-label">Status</span><select class="control" [(ngModel)]="poolStatus" (ngModelChange)="page = 0"><option value="">All Statuses</option><option value="Available">Available</option><option value="Assigned">Assigned</option></select></label>
               <button type="button" class="btn btn-outline" [class.is-on]="moreFilters" [attr.aria-expanded]="moreFilters" (click)="moreFilters = !moreFilters"><lucide-icon [img]="icons.ListFilter" [size]="16"></lucide-icon>More Filters</button>
             </div>
             <div *ngIf="moreFilters" class="pool-filters pool-filters--more">
-              <label class="field"><span class="field-label">Asset Type</span><select class="control" [(ngModel)]="poolType" (ngModelChange)="page = 0"><option value="">Select Asset Type</option><option *ngFor="let t of poolTypes" [value]="t">{{ t }}</option></select></label>
+              <label class="field"><span class="field-label">Asset Type</span><select class="control" [(ngModel)]="poolType" (ngModelChange)="page = 0"><option value="">All Types</option><option *ngFor="let t of poolTypes" [value]="t">{{ t }}</option></select></label>
               <button type="button" class="link-btn link-btn--accent" [disabled]="!filtersOn" (click)="resetFilters()">Reset Filters</button>
             </div>
 
@@ -224,7 +224,7 @@
 
           <!-- Shared: assignment type and period -->
           <ng-template #period>
-            <label class="field"><span class="field-label">Assignment Type <em>*</em></span><select class="control" [(ngModel)]="w.transfer"><option value="" disabled>Select Assignment Type</option><option *ngFor="let t of transferTypes" [value]="t">{{ t }}</option></select></label>
+            <label class="field"><span class="field-label">Assignment Type <em>*</em></span><select class="control" [(ngModel)]="w.transfer"><option *ngFor="let t of transferTypes" [value]="t">{{ t }}</option></select></label>
             <label class="field"><span class="field-label">From Date <em>*</em></span><input class="control" type="date" [(ngModel)]="w.from" /></label>
             <div class="period-to">
               <label class="field"><span class="field-label">To Date <em *ngIf="!w.openEnded">*</em></span><input class="control" type="date" [(ngModel)]="w.to" [disabled]="w.openEnded" /></label>
@@ -234,12 +234,12 @@
 
           <!-- Shared: site fields -->
           <ng-template #siteFields>
-            <label class="field"><span class="field-label">Cost Center</span><select class="control" [(ngModel)]="w.costCenter"><option value="">Select Cost Center</option><option *ngFor="let c of costCenters" [value]="c">{{ c }}</option></select></label>
-            <label class="field"><span class="field-label">Location / Site</span><select class="control" [(ngModel)]="w.site"><option value="">Select Site</option><option *ngFor="let c of sites" [value]="c">{{ c }}</option></select></label>
-            <label class="field"><span class="field-label">Building</span><select class="control" [(ngModel)]="w.building"><option value="">Select Building</option><option *ngFor="let c of buildings" [value]="c">{{ c }}</option></select></label>
-            <label class="field"><span class="field-label">Floor</span><select class="control" [(ngModel)]="w.floor"><option value="">Select Floor</option><option *ngFor="let c of floors" [value]="c">{{ c }}</option></select></label>
-            <label class="field"><span class="field-label">Room / Space</span><select class="control" [(ngModel)]="w.room"><option value="">Select Room</option><option *ngFor="let c of rooms" [value]="c">{{ c }}</option></select></label>
-            <label class="field"><span class="field-label">Purpose / Reason</span><select class="control" [(ngModel)]="w.reason"><option value="">Select Reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+            <label class="field"><span class="field-label">Cost Center</span><select class="control" [(ngModel)]="w.costCenter"><option value="">Select cost center</option><option *ngFor="let c of costCenters" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Location / Site</span><select class="control" [(ngModel)]="w.site"><option value="">Select site</option><option *ngFor="let c of sites" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Building</span><select class="control" [(ngModel)]="w.building"><option value="">Select building</option><option *ngFor="let c of buildings" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Floor</span><select class="control" [(ngModel)]="w.floor"><option value="">Select floor</option><option *ngFor="let c of floors" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Room / Space</span><select class="control" [(ngModel)]="w.room"><option value="">Select room</option><option *ngFor="let c of rooms" [value]="c">{{ c }}</option></select></label>
+            <label class="field"><span class="field-label">Purpose / Reason</span><select class="control" [(ngModel)]="w.reason"><option value="">Select reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
           </ng-template>
 
           <!-- Shared: a person with initials avatar -->
@@ -258,7 +258,7 @@
                     <button type="button" class="icon-btn" (click)="onAssignee(''); profileOpen = false" aria-label="Clear employee"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
                   </div>
                   <ng-template #pickEmployee>
-                    <select class="control" [ngModel]="w.assignee" (ngModelChange)="onAssignee($event)"><option value="">Select Employee</option><option *ngFor="let c of assigneeChoices('Employee')" [value]="c">{{ c }}</option></select>
+                    <select class="control" [ngModel]="w.assignee" (ngModelChange)="onAssignee($event)"><option value="">Select employee</option><option *ngFor="let c of assigneeChoices('Employee')" [value]="c">{{ c }}</option></select>
                   </ng-template>
                 </div>
                 <button type="button" class="btn btn-outline" [disabled]="!employee" [class.is-on]="profileOpen" (click)="profileOpen = !profileOpen">View Profile</button>
@@ -302,7 +302,7 @@
               <legend><lucide-icon [img]="icons.UserRound" [size]="18"></lucide-icon>Department Details</legend>
               <div class="form-grid form-grid--2">
                 <label class="field"><span class="field-label">Department <em>*</em></span>
-                  <select class="control" [ngModel]="w.assignee" (ngModelChange)="onAssignee($event)"><option value="">Select Department</option><option *ngFor="let c of assigneeChoices('Department')" [value]="c">{{ c }}</option></select></label>
+                  <select class="control" [ngModel]="w.assignee" (ngModelChange)="onAssignee($event)"><option value="">Select department</option><option *ngFor="let c of assigneeChoices('Department')" [value]="c">{{ c }}</option></select></label>
                 <div class="field"><span class="field-label">Department Manager</span>
                   <div class="person-box" [class.is-empty]="!manager">
                     <ng-container *ngIf="manager as m; else noDeptMgr"><ng-container *ngTemplateOutlet="personCard; context: { $implicit: m }"></ng-container></ng-container>
@@ -403,9 +403,9 @@
                     <div class="loc-card-head"><lucide-icon class="head-icon" [img]="icons.CalendarDays" [size]="18"></lucide-icon><h3 class="grow">Assignment Details</h3></div>
                     <div class="form-grid">
                       <ng-container *ngTemplateOutlet="period"></ng-container>
-                      <label class="field"><span class="field-label">Floor</span><select class="control" [(ngModel)]="w.floor"><option value="">Select Floor</option><option *ngFor="let c of floors" [value]="c">{{ c }}</option></select></label>
-                      <label class="field"><span class="field-label">Room / Space</span><select class="control" [(ngModel)]="w.room"><option value="">Select Room</option><option *ngFor="let c of rooms" [value]="c">{{ c }}</option></select></label>
-                      <label class="field"><span class="field-label">Cost Center</span><select class="control" [(ngModel)]="w.costCenter"><option value="">Select Cost Center</option><option *ngFor="let c of costCenters" [value]="c">{{ c }}</option></select></label>
+                      <label class="field"><span class="field-label">Floor</span><select class="control" [(ngModel)]="w.floor"><option value="">Select floor</option><option *ngFor="let c of floors" [value]="c">{{ c }}</option></select></label>
+                      <label class="field"><span class="field-label">Room / Space</span><select class="control" [(ngModel)]="w.room"><option value="">Select room</option><option *ngFor="let c of rooms" [value]="c">{{ c }}</option></select></label>
+                      <label class="field"><span class="field-label">Cost Center</span><select class="control" [(ngModel)]="w.costCenter"><option value="">Select cost center</option><option *ngFor="let c of costCenters" [value]="c">{{ c }}</option></select></label>
                       <label class="field span-3"><span class="field-label">Purpose / Reason</span><textarea class="control remarks" rows="2" [(ngModel)]="w.remarks" [maxlength]="remarksMax" placeholder="e.g. Assets moved to Head Office - IT Store for operational use."></textarea><small class="counter">{{ w.remarks.length }}/{{ remarksMax }}</small></label>
                     </div>
                   </section>
@@ -432,7 +432,7 @@
                   </div>
                 </div>
                 <label class="field"><span class="field-label">Agreement / PO Reference</span><input class="control" [(ngModel)]="w.agreement" placeholder="e.g. PO-2025-0187" /></label>
-                <label class="field"><span class="field-label">Reason for Assignment</span><select class="control" [(ngModel)]="w.reason"><option value="">Select Reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+                <label class="field"><span class="field-label">Reason for Assignment</span><select class="control" [(ngModel)]="w.reason"><option value="">Select reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
                 <ng-container *ngTemplateOutlet="period"></ng-container>
               </div>
             </fieldset>
@@ -440,11 +440,11 @@
             <fieldset class="group">
               <legend><lucide-icon [img]="icons.Wrench" [size]="18"></lucide-icon>Service / Work Details</legend>
               <div class="form-grid">
-                <label class="field"><span class="field-label">Service Type</span><select class="control" [(ngModel)]="w.serviceType"><option value="">Select Service Type</option><option *ngFor="let t of serviceTypes" [value]="t">{{ t }}</option></select></label>
+                <label class="field"><span class="field-label">Service Type</span><select class="control" [(ngModel)]="w.serviceType"><option value="">Select service type</option><option *ngFor="let t of serviceTypes" [value]="t">{{ t }}</option></select></label>
                 <label class="field"><span class="field-label">Service Request / Work Order</span><input class="control" [(ngModel)]="w.workOrder" placeholder="e.g. SR-2025-0043" /></label>
                 <label class="field"><span class="field-label">Service Location</span><span class="icon-input"><lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon><input class="control" [(ngModel)]="w.serviceLocation" /></span></label>
                 <label class="field"><span class="field-label">Expected Return Date</span><input class="control" type="date" [(ngModel)]="w.expectedReturn" /></label>
-                <label class="field"><span class="field-label">Return Condition</span><select class="control" [(ngModel)]="w.returnCondition"><option value="" disabled>Select Return Condition</option><option *ngFor="let c of returnConditions" [value]="c">{{ c }}</option></select></label>
+                <label class="field"><span class="field-label">Return Condition</span><select class="control" [(ngModel)]="w.returnCondition"><option *ngFor="let c of returnConditions" [value]="c">{{ c }}</option></select></label>
                 <label class="field"><span class="field-label">Responsible Person (at {{ w.entityKind.split(' ')[0] }}) <em>*</em></span><input class="control" [(ngModel)]="w.responsible" list="aa-people" /><datalist id="aa-people"><option *ngFor="let p of entityPeople" [value]="p"></option></datalist></label>
                 <label class="field span-3"><span class="field-label">Remarks</span><textarea class="control remarks" rows="2" [(ngModel)]="w.remarks" [maxlength]="remarksMax"></textarea><small class="counter">{{ w.remarks.length }}/{{ remarksMax }}</small></label>
               </div>
@@ -511,9 +511,9 @@
             <legend><lucide-icon [img]="icons.LayoutGrid" [size]="18"></lucide-icon>Custom Fields (Optional)</legend>
             <div class="form-grid form-grid--4">
               <label class="field"><span class="field-label">Assignment Reference</span><input class="control" [(ngModel)]="w.reference" /></label>
-              <label class="field"><span class="field-label">Requestor</span><select class="control" [(ngModel)]="w.requestor"><option value="" disabled>Select Requestor</option><option *ngFor="let r of requestors" [value]="r">{{ r }}</option></select></label>
-              <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="w.priority"><option value="" disabled>Select Priority</option><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
-              <label class="field"><span class="field-label">Assignment Reason</span><select class="control" [(ngModel)]="w.customReason"><option value="">Select Reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
+              <label class="field"><span class="field-label">Requestor</span><select class="control" [(ngModel)]="w.requestor"><option *ngFor="let r of requestors" [value]="r">{{ r }}</option></select></label>
+              <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="w.priority"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
+              <label class="field"><span class="field-label">Assignment Reason</span><select class="control" [(ngModel)]="w.customReason"><option value="">Select reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label>
             </div>
           </fieldset>
         </ng-container>

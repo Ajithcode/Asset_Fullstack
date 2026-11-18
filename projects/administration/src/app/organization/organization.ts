@@ -319,12 +319,11 @@ export class OrganizationPage extends AdminPage {
       type,
       parent: parent && PARENT_TYPE[type] === parent.type ? parent.code : null,
       address: parent ? parent.address : '',
-      // Children inherit the parent's country / city / time zone; otherwise the dropdowns start unselected
-      country: parent?.country ?? '',
-      city: parent?.city ?? '',
-      timeZone: parent?.timeZone ?? '',
+      country: parent?.country ?? 'United Arab Emirates',
+      city: parent?.city ?? 'Dubai',
+      timeZone: parent?.timeZone ?? '(GMT+04:00) Dubai',
       contact: '',
-      status: '' as OrgLocation['status']
+      status: 'Active'
     };
   }
 

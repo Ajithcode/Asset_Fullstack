@@ -80,9 +80,9 @@ export class ComplianceAnalyticsPage extends AnalyticsPage {
   readonly capaTarget = CAPA_TARGET;
   readonly percentFormat = (v: number) => `${Math.round(v)}%`;
 
-  area = '';
-  regulation = '';
-  risk = '';
+  area = AREA_OPTIONS[0];
+  regulation = REGULATION_OPTIONS[0];
+  risk = RISK_LEVELS[0];
   compare = false;
 
   view!: ComplianceView;
@@ -236,7 +236,7 @@ export class ComplianceAnalyticsPage extends AnalyticsPage {
 
   kpiAction(kpi: KpiTile, action: string): void {
     if (action === 'Export CSV') {
-      downloadCsv(`compliance-${kpi.key}.csv`, ['KPI', 'Value', 'Change vs previous period', 'Period', 'Location'], [[kpi.label, kpi.value, kpi.delta || '—', this.periodLabel, this.locationLabel]]);
+      downloadCsv(`compliance-${kpi.key}.csv`, ['KPI', 'Value', 'Change vs previous period', 'Period', 'Location'], [[kpi.label, kpi.value, kpi.delta || '—', this.period, this.location]]);
       return;
     }
     const v = this.view;
@@ -264,7 +264,7 @@ export class ComplianceAnalyticsPage extends AnalyticsPage {
       default:
         fields = LEVELS.map((l) => ({ label: l, value: String(v.risks.filter((r) => r.level === l).length) }));
     }
-    fields.push({ label: 'Change vs previous period', value: kpi.delta || '—' }, { label: 'Period', value: this.periodLabel }, { label: 'Location', value: this.locationLabel });
+    fields.push({ label: 'Change vs previous period', value: kpi.delta || '—' }, { label: 'Period', value: this.period }, { label: 'Location', value: this.location });
     this.detail = { title: kpi.label, subtitle: kpi.value, fields, finding: null };
   }
 
@@ -370,7 +370,7 @@ export class ComplianceAnalyticsPage extends AnalyticsPage {
       case 'capa':
         this.list = {
           title: 'Overdue CAPA actions',
-          subtitle: `${v.capaOverdue.length} overdue · ${this.locationLabel}`,
+          subtitle: `${v.capaOverdue.length} overdue · ${this.location}`,
           header: CAPA_HEADER,
           rows: this.capaRows(v.capaOverdue),
           fileName: 'overdue-capa-actions.csv'
@@ -379,7 +379,7 @@ export class ComplianceAnalyticsPage extends AnalyticsPage {
       case 'register':
         this.list = {
           title: 'Permits & certifications expiring within 90 days',
-          subtitle: `${v.expiringSoon.length} items · ${this.locationLabel}`,
+          subtitle: `${v.expiringSoon.length} items · ${this.location}`,
           header: EXPIRY_HEADER,
           rows: this.expiryRows(v.expiringSoon),
           fileName: 'expiring-certifications.csv'
@@ -406,7 +406,7 @@ export class ComplianceAnalyticsPage extends AnalyticsPage {
   private showFindings(title: string, rows: ComplianceFinding[]): void {
     this.list = {
       title,
-      subtitle: `${rows.length} finding${rows.length === 1 ? '' : 's'} · ${this.locationLabel} · ${this.periodLabel}`,
+      subtitle: `${rows.length} finding${rows.length === 1 ? '' : 's'} · ${this.location} · ${this.period}`,
       header: FINDING_HEADER,
       rows: this.findingRows(rows),
       fileName: title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.csv'

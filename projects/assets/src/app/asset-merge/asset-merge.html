@@ -88,13 +88,13 @@
         <input type="search" [(ngModel)]="search" (ngModelChange)="onFilterChange()" placeholder="Search assets..." aria-label="Search assets" />
       </label>
       <select class="control control--sm" [(ngModel)]="categoryFilter" (ngModelChange)="onFilterChange()" aria-label="Category">
-        <option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+        <option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option>
       </select>
       <select class="control control--sm" [(ngModel)]="siteFilter" (ngModelChange)="onFilterChange()" aria-label="Location">
-        <option value="">Select Location</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option>
+        <option value="">All Locations</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option>
       </select>
       <select class="control control--sm" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" aria-label="Status">
-        <option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+        <option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
       </select>
       <div class="menu-wrap">
         <button type="button" class="square-btn" (click)="toggleTableMenu($event)" aria-haspopup="menu" [attr.aria-expanded]="tableMenuOpen" aria-label="More actions">

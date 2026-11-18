@@ -197,8 +197,7 @@ export class RoleAccessControlPage extends AdminPage {
   // ===== Toolbar actions =====
   createRole(): void {
     this.guard(() => {
-      // New roles open with Data Scope / Session Timeout unselected
-      this.startDraft({ ...blankRole(), dataScope: '' as RoleRecord['dataScope'], sessionTimeout: '' });
+      this.startDraft(blankRole());
       this.tab = 'modules';
     });
   }

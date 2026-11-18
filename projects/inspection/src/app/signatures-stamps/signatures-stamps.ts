@@ -176,9 +176,9 @@ export class SignaturesStampsPage implements OnInit {
       kind,
       user: '',
       signatureName: '',
-      role: '',
+      role: kind === 'Stamp' ? '' : 'Inspector',
       department: '',
-      authorizedRole: '',
+      authorizedRole: kind === 'Stamp' ? '' : 'Inspector',
       signatureImage: '',
       stampImage: '',
       assignedStampCode: '',
@@ -231,7 +231,7 @@ export class SignaturesStampsPage implements OnInit {
   }
 
   formValid(f: SignatureAndStamp): boolean {
-    return f.kind === 'Stamp' ? !!f.signatureName.trim() : !!f.user.trim() && (!!f.id || (!!f.role && !!f.authorizedRole));
+    return f.kind === 'Stamp' ? !!f.signatureName.trim() : !!f.user.trim();
   }
 
   saveForm(): void {

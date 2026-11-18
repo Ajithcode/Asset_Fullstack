@@ -56,20 +56,17 @@
         <input placeholder="Search floor plans..." aria-label="Search floor plans" [(ngModel)]="search" (ngModelChange)="onFilter()" />
       </label>
       <select class="select" aria-label="Status" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()">
-        <option value="" disabled>Select Status</option>
         <option value="">Status: All</option>
         <option value="Published">Published</option>
         <option value="Draft">Draft</option>
         <option value="Archived">Archived</option>
       </select>
       <select class="select" aria-label="Type" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()">
-        <option value="" disabled>Select Type</option>
         <option value="">Type: All</option>
         <option value="Floor Plan">Floor Plan</option>
         <option value="Site Map">Site Map</option>
       </select>
       <select class="select" aria-label="Sort" [(ngModel)]="sort">
-        <option value="" disabled>Select Sort</option>
         <option value="updated">Sort: Updated Date</option>
         <option value="name">Sort: Name</option>
         <option value="version">Sort: Version</option>
@@ -206,7 +203,6 @@
           <div class="field">
             <label for="fp-type">Type</label>
             <select id="fp-type" name="type" [(ngModel)]="editing.type">
-              <option value="" disabled>Select Type</option>
               <option value="Floor Plan">Floor Plan</option>
               <option value="Site Map">Site Map</option>
             </select>

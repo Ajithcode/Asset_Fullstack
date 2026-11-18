@@ -645,9 +645,10 @@ export class DeviceConfiguration implements OnInit, DoCheck, OnDestroy {
 
   editAlert(a?: AlertRule): void {
     this.alertError = '';
+    const first = this.form.params[0]?.key ?? '';
     this.alertForm = a
       ? { ...a, notify: [...a.notify], isNew: false }
-      : { id: '', param: '', cond: '', value: 0, unit: null, severity: '', notify: this.notifyOptions.slice(0, 1), enabled: true, isNew: true };
+      : { id: '', param: first, cond: this.conds[0] ?? '>', value: 0, unit: null, severity: this.severities.includes('Warning') ? 'Warning' : this.severities[0] ?? '', notify: this.notifyOptions.slice(0, 1), enabled: true, isNew: true };
   }
 
   toggleNotify(f: AlertRule, channel: string): void {
@@ -671,8 +672,6 @@ export class DeviceConfiguration implements OnInit, DoCheck, OnDestroy {
     const d = this.device;
     if (!f || !d || this.busy) return;
     if (!f.param) return void (this.alertError = 'Choose a parameter.');
-    if (!f.cond) return void (this.alertError = 'Choose a condition.');
-    if (!f.severity) return void (this.alertError = 'Choose a severity.');
     if ((f.value as number | null) === null || !Number.isFinite(Number(f.value))) return void (this.alertError = 'Enter a numeric threshold value.');
     const { isNew, ...rule } = f;
     rule.value = Number(rule.value);

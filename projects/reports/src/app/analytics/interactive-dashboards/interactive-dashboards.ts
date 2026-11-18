@@ -48,7 +48,7 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
   readonly categories = ['All categories', ...RA_CATEGORIES];
   readonly me = CURRENT_USER.name;
 
-  category = '';
+  category = this.categories[0];
   compare = false;
   filters: DashFilters = this.buildFilters();
   current!: Dashboard;
@@ -60,7 +60,7 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
   overIndex: number | null = null;
 
   menu: MenuKey | null = null;
-  addDialog: { type: WidgetType | ''; index: number } | null = null;
+  addDialog: { type: WidgetType; index: number } | null = null;
   createOpen = false;
   shareOpen = false;
   expanded: WidgetConfig | null = null;
@@ -302,7 +302,7 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
       this.notify(`You have view access to “${this.current.name}”. Copy it with Create Dashboard to customise it.`);
       return;
     }
-    this.addDialog = { type: type ?? '', index };
+    this.addDialog = { type: type ?? 'kpi', index };
   }
 
   onWidgetAdded(n: NewWidget): void {

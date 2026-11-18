@@ -46,7 +46,7 @@ interface LayoutForm {
   description: string;
   status: FieldStatus;
   /** New layouts only: id of a layout to copy the structure from, or '' for a blank layout. */
-  copyFrom: string | null;
+  copyFrom: string;
 }
 
 type DragState =
@@ -500,7 +500,7 @@ export class CfFieldLayouts implements OnInit, OnChanges {
 
   openAdd(): void {
     this.openMenu = null;
-    this.layoutForm = { original: null, name: '', assetType: '', description: '', status: '' as FieldStatus, copyFrom: null };
+    this.layoutForm = { original: null, name: '', assetType: this.assetTypes[0], description: '', status: 'Active', copyFrom: '' };
     this.layoutSubmitted = false;
   }
 
@@ -528,7 +528,7 @@ export class CfFieldLayouts implements OnInit, OnChanges {
   saveLayoutForm(): void {
     this.layoutSubmitted = true;
     const e = this.layoutForm;
-    if (!e || this.layoutNameError || !e.assetType || !e.status || this.saving) return;
+    if (!e || this.layoutNameError || this.saving) return;
     const values = {
       name: e.name.trim(),
       assetType: e.assetType,

@@ -150,7 +150,6 @@
         <lucide-icon class="head-icon" [img]="icons.TrendingUp" [size]="20"></lucide-icon>
         <h3 id="hs-trend" class="grow">Health Score Trend</h3>
         <select class="control control--range" [(ngModel)]="trendRange" aria-label="Trend period">
-          <option [ngValue]="null" disabled>Select Trend Period</option>
           <option [ngValue]="6">Last 6 Months</option>
           <option [ngValue]="12">Last 12 Months</option>
         </select>
@@ -238,7 +237,6 @@
         <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
         <h3 id="hs-history" class="grow">Asset Health History</h3>
         <select class="control control--range" [(ngModel)]="historyRange" aria-label="History period">
-          <option [ngValue]="null" disabled>Select History Period</option>
           <option [ngValue]="6">Last 6 Months</option>
           <option [ngValue]="12">Last 12 Months</option>
         </select>

@@ -134,8 +134,7 @@ export class RoleForm extends MasterForm<RoleRecord, Tab> implements OnChanges {
     const errors: Record<string, string> = {};
     if (!f.type) errors['type'] = 'Select a role type.';
     if (!f.modules.length) errors['access'] = 'Give the role access to at least one module.';
-    if (!f.status) errors['status'] = 'Select a status.';
-    else if (this.original?.type === 'System' && f.status !== 'Active') errors['status'] = 'System roles stay active.';
+    if (this.original?.type === 'System' && f.status !== 'Active') errors['status'] = 'System roles stay active.';
     if (f.type === 'Read Only') {
       const writes = f.permissions.filter((c) => this.permissions.find(c)?.type !== 'Read');
       if (writes.length) errors['access'] = `A read-only role can only hold Read permissions; ${writes.length} others are ticked.`;

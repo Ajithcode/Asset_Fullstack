@@ -219,7 +219,6 @@ export class UserDrawer implements OnChanges {
     }
     if (f.phone.trim() && !PHONE.test(f.phone.trim())) e['phone'] = 'Enter a valid phone number.';
     if (!f.primaryRole) e['primaryRole'] = 'Primary role is required.';
-    if (!f.accessScope) e['accessScope'] = 'Access scope is required.';
     if (!f.modules.length) e['modules'] = 'Give access to at least one module.';
     if (f.status === 'Suspended' && !f.suspendReason.trim()) e['suspendReason'] = 'Say why the account is suspended.';
     if (!this.isAdd && f.status !== 'Active' && this.user.status === 'Active') {

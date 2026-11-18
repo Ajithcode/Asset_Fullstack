@@ -179,7 +179,7 @@ export class AssetBulk implements OnDestroy {
   // ===== Import =====
   step = 1;
   importType: ImportType = 'create';
-  templateName = '';
+  templateName = TEMPLATES[0].name;
   isDragging = false;
   file: File | null = null;
   fileError = '';
@@ -196,8 +196,8 @@ export class AssetBulk implements OnDestroy {
 
   // ===== Export =====
   exportType: ExportType = 'master';
-  fieldSet: FieldSet | '' = '';
-  exportFields = new Set<FieldKey>();
+  fieldSet: FieldSet = 'standard';
+  exportFields = new Set<FieldKey>(STANDARD_EXPORT);
   filterCategory = '';
   filterSite = '';
   filterStatus = '';
@@ -247,7 +247,6 @@ export class AssetBulk implements OnDestroy {
   // ===== Step 1: template =====
 
   downloadTemplate(): void {
-    if (!this.templateName) return this.showToast('Choose the template first.', true);
     const keys = this.template.fields;
     const sheet = XLSX.utils.aoa_to_sheet([keys.map((k) => this.field(k)!.label + (this.field(k)!.mandatory ? ' *' : ''))]);
     sheet['!cols'] = keys.map(() => ({ wch: 20 }));
@@ -614,7 +613,6 @@ export class AssetBulk implements OnDestroy {
   }
 
   runExport(): void {
-    if (!this.fieldSet) return this.showToast('Choose the fields to export.', true);
     const keys = FIELDS.map((f) => f.key).filter((k) => this.exportFields.has(k));
     if (!keys.length) {
       this.showToast('Choose at least one field to export.', true);

@@ -144,7 +144,7 @@
               <button type="button" class="link-btn" (click)="setStatusForSelected('Active')">Activate</button>
               <button type="button" class="link-btn" (click)="setStatusForSelected('Inactive')">Deactivate</button>
             </div>
-            <app-filter-select class="status-select" [(ngModel)]="subStatus" (ngModelChange)="onSubFilterChange()" [options]="statusChoices" allLabel="Select Status" ariaLabel="Filter by status"></app-filter-select>
+            <app-filter-select class="status-select" [(ngModel)]="subStatus" (ngModelChange)="onSubFilterChange()" [options]="statusChoices" allLabel="All Status" ariaLabel="Filter by status"></app-filter-select>
           </div>
 
           <div class="table-wrap">
@@ -258,12 +258,12 @@
                 <tr class="add-row">
                   <td><input class="control" placeholder="New field name" [(ngModel)]="newField.name" (keydown.enter)="addField()" maxlength="100" /></td>
                   <td>
-                    <app-filter-select [(ngModel)]="newField.type" [options]="fieldTypeChoices" [includeAll]="false" placeholder="Select Field Type" ariaLabel="Field type"></app-filter-select>
+                    <app-filter-select [(ngModel)]="newField.type" [options]="fieldTypeChoices" [includeAll]="false" ariaLabel="Field type"></app-filter-select>
                   </td>
                   <td><label class="check"><input type="checkbox" [(ngModel)]="newField.required" /> Required</label></td>
                   <td class="muted">This category</td>
                   <td class="col-actions">
-                    <button type="button" class="btn btn-primary btn-sm" [disabled]="!newField.name.trim() || !newField.type || saving" (click)="addField()">Add</button>
+                    <button type="button" class="btn btn-primary btn-sm" [disabled]="!newField.name.trim() || saving" (click)="addField()">Add</button>
                   </td>
                 </tr>
               </tbody>
@@ -367,8 +367,7 @@
         </label>
         <div class="field">
           <span class="field-label">Status</span>
-          <app-filter-select name="status" [(ngModel)]="modalForm.status" [options]="statusChoices" [includeAll]="false" placeholder="Select Status" [invalid]="modalSubmitted && !modalForm.status" ariaLabel="Status"></app-filter-select>
-          <span *ngIf="modalSubmitted && !modalForm.status" class="error">Status is required.</span>
+          <app-filter-select name="status" [(ngModel)]="modalForm.status" [options]="statusChoices" [includeAll]="false" ariaLabel="Status"></app-filter-select>
         </div>
       </div>
       <div class="modal-foot">

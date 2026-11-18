@@ -40,10 +40,9 @@ export class PriorityForm extends MasterForm<PriorityRecord, Tab> {
 
   protected validate(f: PriorityRecord) {
     const errors: Record<string, string> = {};
-    if (!f.status) errors['status'] = 'Select a status.';
     if (!f.appliesTo.length) errors['appliesTo'] = 'Pick at least one place this level is used.';
     if (f.escalateAfterHours !== null && !(Number.isInteger(f.escalateAfterHours) && f.escalateAfterHours > 0)) errors['escalate'] = 'Enter whole hours, or leave empty.';
-    return { errors, tab: (errors['status'] ? 'basic' : 'rules') as Tab };
+    return { errors, tab: 'rules' as Tab };
   }
 
   protected override tidy(f: PriorityRecord): PriorityRecord {

@@ -43,7 +43,6 @@ export class StoreForm extends MasterForm<StoreRecord, Tab> {
   protected validate(f: StoreRecord) {
     const errors: Record<string, string> = {};
     if (!f.warehouseCode) errors['warehouseCode'] = 'Select a warehouse.';
-    if (!f.status) errors['status'] = 'Select a status.';
     return { errors, tab: 'basic' as Tab };
   }
 

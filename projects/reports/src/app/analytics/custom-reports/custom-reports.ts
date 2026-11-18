@@ -12,7 +12,7 @@ import { applySource } from './custom-reports.engine';
 import { Aggregate, CalcOperator, CustomReport, FilterOperator, ReportStatus, ReportVisibility, VizType } from './custom-reports.model';
 import { CustomReportsService, cloneReport, dubaiNow } from './custom-reports.service';
 
-type UpdatedRange = '' | '1' | '7' | '30' | 'older';
+type UpdatedRange = 'any' | '1' | '7' | '30' | 'older';
 
 const MAX_IMPORT_BYTES = 1_000_000;
 const NOT_SCHEDULED = SCHEDULES[0];
@@ -37,6 +37,7 @@ export class CustomReportsPage extends AnalyticsPage {
   readonly modules = RA_MODULES;
   readonly statuses: ReportStatus[] = ['Draft', 'Published', 'Scheduled'];
   readonly updatedRanges: { key: UpdatedRange; label: string }[] = [
+    { key: 'any', label: 'Any time' },
     { key: '1', label: 'Last 24 hours' },
     { key: '7', label: 'Last 7 days' },
     { key: '30', label: 'Last 30 days' },
@@ -48,7 +49,7 @@ export class CustomReportsPage extends AnalyticsPage {
   owner = '';
   module = '';
   status: '' | ReportStatus = '';
-  updated: UpdatedRange = '';
+  updated: UpdatedRange = 'any';
   librarySort: LibrarySort = 'updated';
   filtered: CustomReport[] = [];
   owners: string[] = [];
@@ -86,7 +87,7 @@ export class CustomReportsPage extends AnalyticsPage {
       if (this.owner && r.owner !== this.owner) return false;
       if (this.module && r.module !== this.module) return false;
       if (this.status && r.status !== this.status) return false;
-      if (this.updated) {
+      if (this.updated !== 'any') {
         const days = (now - new Date(`${r.updatedAt}:00Z`).getTime()) / 86_400_000;
         if (this.updated === 'older' ? days <= 30 : days > Number(this.updated)) return false;
       }
@@ -101,7 +102,7 @@ export class CustomReportsPage extends AnalyticsPage {
   }
 
   get hasFilters(): boolean {
-    return !!(this.search || this.owner || this.module || this.status || this.updated);
+    return !!(this.search || this.owner || this.module || this.status || this.updated !== 'any');
   }
 
   clearFilters(): void {
@@ -109,7 +110,7 @@ export class CustomReportsPage extends AnalyticsPage {
     this.owner = '';
     this.module = '';
     this.status = '';
-    this.updated = '';
+    this.updated = 'any';
     this.refilter();
   }
 
@@ -198,9 +199,8 @@ export class CustomReportsPage extends AnalyticsPage {
   /** A draft only needs a valid name. */
   saveDraft(): void {
     this.showErrors = true;
-    const problem = this.nameError || (this.draft.sourceKey ? '' : 'Select a data source.');
-    if (problem) {
-      this.notify(problem);
+    if (this.nameError) {
+      this.notify(this.nameError);
       return;
     }
     this.store('Draft', `“${this.draft.name.trim()}” saved as a draft.`);
@@ -209,8 +209,7 @@ export class CustomReportsPage extends AnalyticsPage {
   /** Save / publish need a valid name, at least one field and complete filters. */
   private validateAll(): boolean {
     this.showErrors = true;
-    const problem = this.nameError || (this.draft.sourceKey ? '' : 'Select a data source.') || (this.draft.fields.length ? '' : 'Select at least one field.')
-      || this.builder?.firstProblem || (this.draft.visibility ? '' : 'Select a visibility.') || (this.draft.schedule ? '' : 'Select a schedule.');
+    const problem = this.nameError || (this.draft.fields.length ? '' : 'Select at least one field.') || this.builder?.firstProblem || '';
     if (problem) {
       this.notify(problem);
       return false;
@@ -294,9 +293,9 @@ export class CustomReportsPage extends AnalyticsPage {
     r.name = name;
     r.description = str(value['description']).slice(0, 300);
     const visibility = VISIBILITIES.find((v) => v === value['visibility']);
-    r.visibility = visibility ?? 'My team';
+    if (visibility) r.visibility = visibility;
     const schedule = SCHEDULES.find((s) => s === value['schedule']);
-    r.schedule = schedule ?? 'Not scheduled';
+    if (schedule) r.schedule = schedule;
 
     const def = blankDefinition(sourceKey);
     def.calcFields = list(value['calcFields']).flatMap((c) => {

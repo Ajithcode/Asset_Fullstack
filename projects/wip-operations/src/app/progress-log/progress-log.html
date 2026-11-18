@@ -49,10 +49,10 @@
       <section class="box" aria-labelledby="pl-tl">
         <div class="tl-head">
           <h3 id="pl-tl" class="grow">Execution Timeline</h3>
-          <label class="field"><span class="field-label">Date</span><select class="control" [(ngModel)]="date"><option value="">Select Date</option><option *ngFor="let d of dates" [value]="d">{{ fmtDate(d) }}</option></select></label>
-          <label class="field"><span class="field-label">Stage</span><select class="control" [(ngModel)]="stageFilter"><option value="">Select Stage</option><option *ngFor="let s of stages" [value]="s.name">{{ s.name }}</option></select></label>
-          <label class="field"><span class="field-label">Update Type</span><select class="control" [(ngModel)]="typeFilter"><option value="">Select Update Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
-          <label class="field"><span class="field-label">Logged By</span><select class="control" [(ngModel)]="byFilter"><option value="">Select Logged By</option><option *ngFor="let p of people" [value]="p">{{ p }}</option></select></label>
+          <label class="field"><span class="field-label">Date</span><select class="control" [(ngModel)]="date"><option value="">All dates</option><option *ngFor="let d of dates" [value]="d">{{ fmtDate(d) }}</option></select></label>
+          <label class="field"><span class="field-label">Stage</span><select class="control" [(ngModel)]="stageFilter"><option value="">All</option><option *ngFor="let s of stages" [value]="s.name">{{ s.name }}</option></select></label>
+          <label class="field"><span class="field-label">Update Type</span><select class="control" [(ngModel)]="typeFilter"><option value="">All</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+          <label class="field"><span class="field-label">Logged By</span><select class="control" [(ngModel)]="byFilter"><option value="">All</option><option *ngFor="let p of people" [value]="p">{{ p }}</option></select></label>
         </div>
 
         <ol class="timeline">
@@ -105,12 +105,12 @@
         <h3 id="pl-add">Add Progress Update</h3>
         <form class="add-form" (ngSubmit)="submitUpdate()">
           <label class="field span-2 inline-field"><span class="field-label">Job</span><input class="control" [value]="job.code" readonly aria-readonly="true" /></label>
-          <label class="field"><span class="field-label">Stage</span><select class="control" name="stage" [(ngModel)]="form.stage" (ngModelChange)="onStage()"><option value="" disabled>Select Stage</option><option *ngFor="let s of stages" [value]="s.name">{{ s.name }}</option></select></label>
-          <label class="field"><span class="field-label">Task</span><select class="control" name="task" [(ngModel)]="form.task" (ngModelChange)="form.complete = false"><option value="" disabled>Select Task</option><option *ngFor="let t of tasksOf(form.stage)" [value]="t.id">{{ t.name }}{{ t.done ? ' (done)' : '' }}</option></select></label>
-          <label class="field"><span class="field-label">Update Type</span><select class="control" name="type" [(ngModel)]="form.type"><option value="" disabled>Select Update Type</option><option *ngFor="let t of updateTypes" [value]="t">{{ t }}</option></select></label>
+          <label class="field"><span class="field-label">Stage</span><select class="control" name="stage" [(ngModel)]="form.stage" (ngModelChange)="onStage()"><option *ngFor="let s of stages" [value]="s.name">{{ s.name }}</option></select></label>
+          <label class="field"><span class="field-label">Task</span><select class="control" name="task" [(ngModel)]="form.task" (ngModelChange)="form.complete = false"><option *ngFor="let t of tasksOf(form.stage)" [value]="t.id">{{ t.name }}{{ t.done ? ' (done)' : '' }}</option></select></label>
+          <label class="field"><span class="field-label">Update Type</span><select class="control" name="type" [(ngModel)]="form.type"><option *ngFor="let t of updateTypes" [value]="t">{{ t }}</option></select></label>
           <label class="field"><span class="field-label">Event Time</span><input class="control" type="datetime-local" name="at" [(ngModel)]="form.at" /></label>
-          <label class="field"><span class="field-label">Operator</span><select class="control" name="op" [(ngModel)]="form.operator"><option value="" disabled>Select Operator</option><option *ngFor="let o of operators" [value]="o">{{ o }}</option></select></label>
-          <label class="field"><span class="field-label">Time Spent</span><select class="control" name="min" [(ngModel)]="form.minutes"><option [ngValue]="null" disabled>Select Time Spent</option><option *ngFor="let d of durations" [ngValue]="d">{{ d ? d + ' minutes' : 'None' }}</option></select></label>
+          <label class="field"><span class="field-label">Operator</span><select class="control" name="op" [(ngModel)]="form.operator"><option *ngFor="let o of operators" [value]="o">{{ o }}</option></select></label>
+          <label class="field"><span class="field-label">Time Spent</span><select class="control" name="min" [(ngModel)]="form.minutes"><option *ngFor="let d of durations" [ngValue]="d">{{ d ? d + ' minutes' : 'None' }}</option></select></label>
           <label class="field span-2"><span class="field-label">Notes</span><textarea class="control" rows="3" name="notes" [(ngModel)]="form.notes" placeholder="What was done?"></textarea></label>
           <div class="field span-2">
             <span class="field-label">Evidence</span>

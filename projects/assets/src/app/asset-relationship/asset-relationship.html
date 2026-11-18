@@ -71,14 +71,13 @@
     <label class="field field--inline">
       <span class="field-label">Relationship View</span>
       <select class="control" [(ngModel)]="viewFilter">
-        <option value="">Select Relationship View</option>
+        <option value="all">All Relationships</option>
         <option *ngFor="let t of relTypes" [value]="t">{{ t }}</option>
       </select>
     </label>
     <label class="field field--inline">
       <span class="field-label">Layout</span>
       <select class="control" [(ngModel)]="layout">
-        <option value="" disabled>Select Layout</option>
         <option value="hierarchical">Hierarchical</option>
         <option value="horizontal">Horizontal</option>
       </select>
@@ -241,11 +240,11 @@
         <input type="search" [(ngModel)]="search" placeholder="Search related assets..." aria-label="Search related assets" />
       </label>
       <select class="control control--sm" [(ngModel)]="typeFilter" aria-label="Relationship type">
-        <option value="">Select Relationship Type</option>
+        <option value="all">All Relationship Types</option>
         <option *ngFor="let t of relTypes" [value]="t">{{ t }}</option>
       </select>
       <select class="control control--sm" [(ngModel)]="statusFilter" aria-label="Status">
-        <option value="">Select Status</option>
+        <option value="all">All Status</option>
         <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
       </select>
       <div class="view-toggle" role="group" aria-label="View">
@@ -347,7 +346,7 @@
       <label class="field">
         <span class="field-label">Related Asset <em>*</em></span>
         <select class="control" [(ngModel)]="form.tag" name="tag">
-          <option value="" disabled>Select Asset</option>
+          <option value="" disabled>Select an asset</option>
           <option *ngFor="let a of assetOptions" [value]="a.tag">{{ a.tag }} - {{ a.name }}</option>
         </select>
       </label>
@@ -355,14 +354,12 @@
         <label class="field">
           <span class="field-label">Relationship Type <em>*</em></span>
           <select class="control" [(ngModel)]="form.type" name="type">
-            <option value="" disabled>Select Relationship Type</option>
             <option *ngFor="let t of relTypes" [value]="t">{{ t }}</option>
           </select>
         </label>
         <label *ngIf="!apiMode" class="field">
           <span class="field-label">Direction <em>*</em></span>
           <select class="control" [(ngModel)]="form.direction" name="direction">
-            <option value="" disabled>Select Direction</option>
             <option *ngFor="let d of directions" [value]="d">{{ d }}</option>
           </select>
         </label>
@@ -377,7 +374,6 @@
         <label *ngIf="!apiMode" class="field">
           <span class="field-label">Status</span>
           <select class="control" [(ngModel)]="form.status" name="status">
-            <option value="" disabled>Select Status</option>
             <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
           </select>
         </label>

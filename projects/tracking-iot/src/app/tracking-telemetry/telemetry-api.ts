@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from 'shared-ui';
-import { apiError, getAllPages, tenantParams, trackingUrl } from '../shared/tracking-api';
+import { apiError, tenantParams, trackingUrl } from '../shared/tracking-api';
 
 // ===== Master Data (sites and buildings for the site / building pickers and the map) =====
 
@@ -184,7 +184,7 @@ export class TelemetryReadApi {
   private readonly http = inject(HttpClient);
 
   devices(): Observable<IotDeviceDto[]> {
-    return getAllPages<IotDeviceDto>(this.http, trackingUrl('iot-devices')).pipe(catchError((err) => apiError(err, 'Could not load IoT devices.')));
+    return this.get<IotDeviceDto[]>('iot-devices', {}, 'Could not load IoT devices.');
   }
 
   deviceHealth(): Observable<DeviceHealthDto[]> {

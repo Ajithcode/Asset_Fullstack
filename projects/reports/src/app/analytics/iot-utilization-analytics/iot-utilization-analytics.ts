@@ -6,7 +6,7 @@ import {
   ArrowDown, ArrowUp, ArrowUpDown, Bookmark, ChartColumn, Download, Ellipsis, GitCompareArrows, GripVertical, Info,
   LucideAngularModule, Maximize2, RadioTower, RefreshCw, Signal, TriangleAlert, Wifi, X
 } from 'lucide-angular';
-import { AnalyticsPage, RA_CATEGORIES, downloadCsv, percent } from '../shared/analytics-common';
+import { AnalyticsPage, RA_CATEGORIES, RA_PERIODS, downloadCsv, percent } from '../shared/analytics-common';
 import { CartesianChart, ChartSeries, ChartSlice, DonutChart, GaugeChart, RA_COLORS, Sparkline } from '../shared/charts';
 import { IotActionPlanDialog, ActionPlan } from './iot-action-plan/iot-action-plan';
 import { IotSiteMap, MapPoint } from './iot-site-map/iot-site-map';
@@ -119,9 +119,9 @@ export class IotUtilizationAnalyticsPage extends AnalyticsPage implements OnInit
   readonly agoText = agoText;
   readonly percent = percent;
 
-  category = '';
-  deviceType = '';
-  connectivity = '';
+  category = this.categories[0];
+  deviceType = this.deviceTypes[0];
+  connectivity = this.statuses[0];
   compare = false;
 
   // Live data: "Updated n sec ago" ticks every second; auto refresh nudges the live numbers every 30 s
@@ -206,12 +206,12 @@ export class IotUtilizationAnalyticsPage extends AnalyticsPage implements OnInit
   }
 
   resetFilters(): void {
-    this.period = '';
-    this.organization = '';
-    this.location = '';
-    this.category = '';
-    this.deviceType = '';
-    this.connectivity = '';
+    this.period = RA_PERIODS[0];
+    this.organization = this.organizations[0];
+    this.location = this.locations[0];
+    this.category = this.categories[0];
+    this.deviceType = this.deviceTypes[0];
+    this.connectivity = this.statuses[0];
     this.recompute();
   }
 
@@ -222,11 +222,11 @@ export class IotUtilizationAnalyticsPage extends AnalyticsPage implements OnInit
 
   // Asset matches every active filter
   private matches(a: IotAsset): boolean {
-    return (!this.organization || this.organization === this.organizations[0] || a.org === this.organization)
-      && (!this.location || this.location === this.locations[0] || a.site === this.location)
-      && (!this.category || this.category === this.categories[0] || a.category === this.category)
-      && (!this.deviceType || this.deviceType === this.deviceTypes[0] || a.deviceType === this.deviceType)
-      && (!this.connectivity || this.connectivity === this.statuses[0] || a.status === this.connectivity);
+    return (this.organization === this.organizations[0] || a.org === this.organization)
+      && (this.location === this.locations[0] || a.site === this.location)
+      && (this.category === this.categories[0] || a.category === this.category)
+      && (this.deviceType === this.deviceTypes[0] || a.deviceType === this.deviceType)
+      && (this.connectivity === this.statuses[0] || a.status === this.connectivity);
   }
 
   private recompute(): void {

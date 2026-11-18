@@ -46,10 +46,10 @@
       <!-- Filters (sensors, calibration and mapping) -->
       <div *ngIf="tab !== 'params'" class="filters">
         <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by Sensor ID or name..." aria-label="Search sensors" /></label>
-        <label class="lsel"><span>Type</span><select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">Select Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
-        <label class="lsel"><span>Asset</span><select class="control" [(ngModel)]="kindFilter" (ngModelChange)="onFilter()"><option value="">Select Kind</option><option *ngFor="let k of kinds" [value]="k">{{ k }}</option></select></label>
-        <label class="lsel"><span>Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onFilter()"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
-        <label class="lsel"><span>Status</span><select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
+        <label class="lsel"><span>Type</span><select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">All Types</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <label class="lsel"><span>Asset</span><select class="control" [(ngModel)]="kindFilter" (ngModelChange)="onFilter()"><option value="">All Assets</option><option *ngFor="let k of kinds" [value]="k">{{ k }}</option></select></label>
+        <label class="lsel"><span>Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onFilter()"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
+        <label class="lsel"><span>Status</span><select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All Statuses</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
         <button type="button" class="link-btn clear" [disabled]="!hasFilters" (click)="clearFilters()">Clear</button>
       </div>
 
@@ -312,7 +312,7 @@
     <div class="modal-head"><h2 id="sm-form">{{ d.f.editId ? 'Edit ' + d.f.editId : 'Add Sensor' }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveForm()">
       <div class="two">
-        <label class="field"><span class="field-label">Sensor type</span><select class="control" [(ngModel)]="d.f.type" name="type" [disabled]="!!d.f.editId" (ngModelChange)="onFormType(d.f)"><option value="" disabled>Select Sensor Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Sensor type</span><select class="control" [(ngModel)]="d.f.type" name="type" [disabled]="!!d.f.editId" (ngModelChange)="onFormType(d.f)"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Sensor number <em>*</em></span><input class="control" [(ngModel)]="d.f.number" name="num" inputmode="numeric" [disabled]="!!d.f.editId" /><small class="muted">Sensor ID: <strong>{{ formPreview(d.f) }}</strong></small></label>
         <label class="field"><span class="field-label">Serial number <em>*</em></span><input class="control" [(ngModel)]="d.f.serial" name="serial" placeholder="e.g. TS300-80999-0001" /></label>
         <label class="field"><span class="field-label">Sampling interval</span><select class="control" [(ngModel)]="d.f.intervalSec" name="int"><option [ngValue]="null">Not set</option><option *ngFor="let i of intervals" [ngValue]="i.seconds">{{ i.label }}</option></select></label>
@@ -339,7 +339,7 @@
       <p *ngIf="calTarget(d.f) as t" class="muted">{{ t.type }} on {{ t.assetName }} · {{ t.point }}. Last calibrated {{ fmtDate(t.lastCal) }}; the next due date is set one year after this calibration.</p>
       <div class="two">
         <label class="field"><span class="field-label">Calibration date <em>*</em></span><input class="control" type="date" [(ngModel)]="d.f.date" name="date" /></label>
-        <label class="field"><span class="field-label">Result</span><select class="control" [(ngModel)]="d.f.result" name="res"><option value="" disabled>Select Result</option><option value="Pass">Pass (as found)</option><option value="Adjusted">Adjusted</option></select></label>
+        <label class="field"><span class="field-label">Result</span><select class="control" [(ngModel)]="d.f.result" name="res"><option value="Pass">Pass (as found)</option><option value="Adjusted">Adjusted</option></select></label>
       </div>
       <label class="field"><span class="field-label">Certificate <em>*</em></span><input class="control" [(ngModel)]="d.f.certificate" name="cert" /></label>
       <label class="field"><span class="field-label">Note</span><input class="control" [(ngModel)]="d.f.note" name="note" placeholder="e.g. 2-point check against reference probe" /></label>

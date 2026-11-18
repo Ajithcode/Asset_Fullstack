@@ -17,8 +17,8 @@ export const RA_SITES: RaSite[] = [];
 
 /** Sites matching the Organization and Location filters. The group organization covers every site. */
 export function sitesInScope(organization: string, location: string): RaSite[] {
-  const allOrgs = !organization || organization === RA_ORGANIZATIONS[0];
-  return RA_SITES.filter((s) => (!location || location === RA_LOCATIONS[0] || s.name === location) && (allOrgs || s.org === organization));
+  const allOrgs = organization === RA_ORGANIZATIONS[0];
+  return RA_SITES.filter((s) => (location === RA_LOCATIONS[0] || s.name === location) && (allOrgs || s.org === organization));
 }
 
 export function siteWeight(sites: RaSite[]): number {

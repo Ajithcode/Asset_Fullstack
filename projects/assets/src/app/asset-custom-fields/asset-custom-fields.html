@@ -76,28 +76,28 @@
           <input type="search" [placeholder]="'Search ' + listNoun + ' fields...'" [(ngModel)]="search" (ngModelChange)="onFilterChange()" aria-label="Search fields" />
         </div>
         <select *ngIf="activeTab === 'component'" class="control" [(ngModel)]="appliesToFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by component type">
-          <option value="">Select Component Type</option>
+          <option value="">All Component Types</option>
           <option *ngFor="let c of componentTypes" [value]="c">{{ c }}</option>
         </select>
         <select *ngIf="activeTab === 'compound'" class="control" [(ngModel)]="usedInFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by where the field is used">
-          <option value="">Select Field Usage</option>
+          <option value="">Used In: All</option>
           <option *ngFor="let s of scopeOptions" [value]="s.value">{{ s.label }}</option>
         </select>
         <select *ngIf="activeTab === 'asset' || activeTab === 'category'" class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by field type">
-          <option value="">Select Field Type</option>
+          <option value="">All Field Types</option>
           <option *ngFor="let t of fieldTypes" [value]="t">{{ t }}</option>
         </select>
         <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by status">
-          <option value="">Select Status</option>
+          <option value="">All Status</option>
           <option value="Active">Active</option>
           <option value="Inactive">Inactive</option>
         </select>
         <select *ngIf="activeTab === 'asset' || activeTab === 'category'" class="control" [(ngModel)]="groupFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by category">
-          <option value="">Select Category</option>
+          <option value="">All Categories</option>
           <option *ngFor="let g of sortedGroups" [value]="g.name">{{ g.name }}</option>
         </select>
         <select *ngIf="activeTab === 'category'" class="control" [(ngModel)]="appliesToFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by asset category">
-          <option value="">Select Asset Category</option>
+          <option value="">All Asset Categories</option>
           <option *ngFor="let c of assetCategories" [value]="c">{{ c }}</option>
         </select>
       </div>
@@ -219,18 +219,15 @@
         <label *ngIf="activeTab === 'compound'" class="field">
           <span class="field-label">Used In <em>*</em></span>
           <select class="control" name="scope" [(ngModel)]="form.scope" (ngModelChange)="onScopeChange()" [disabled]="!!editing">
-            <option value="" disabled>Select Used In</option>
             <option *ngFor="let s of scopeOptions" [value]="s.value">{{ s.label }}</option>
           </select>
         </label>
 
         <label *ngIf="form.scope === 'category'" class="field">
           <span class="field-label">Applies To (Asset Category) <em>*</em></span>
-          <select class="control" name="appliesTo" [(ngModel)]="form.appliesTo" [class.is-invalid]="formSubmitted && !form.appliesTo">
-            <option value="" disabled>Select Applies To (Asset Category)</option>
+          <select class="control" name="appliesTo" [(ngModel)]="form.appliesTo">
             <option *ngFor="let c of assetCategories" [value]="c">{{ c }}</option>
           </select>
-          <span *ngIf="formSubmitted && !form.appliesTo" class="error">Asset category is required.</span>
         </label>
 
         <label class="field">
@@ -248,22 +245,18 @@
 
         <label *ngIf="form.scope === 'component'" class="field">
           <span class="field-label">Component Type <em>*</em></span>
-          <select class="control" name="componentType" [(ngModel)]="form.appliesTo" [class.is-invalid]="formSubmitted && !form.appliesTo">
-            <option value="" disabled>Select Component Type</option>
+          <select class="control" name="componentType" [(ngModel)]="form.appliesTo">
             <option [value]="allComponents">{{ allComponents }}</option>
             <option *ngFor="let c of componentTypes" [value]="c">{{ c }}</option>
           </select>
-          <span *ngIf="formSubmitted && !form.appliesTo" class="error">Component type is required.</span>
         </label>
 
         <div [class.grid-2]="!isComponentForm">
           <label class="field">
             <span class="field-label">Field Type <em>*</em></span>
-            <select class="control" name="type" [(ngModel)]="form.type" (ngModelChange)="onTypeChange()" [disabled]="typeLocked" [class.is-invalid]="formSubmitted && !form.type">
-              <option value="" disabled>Select Field Type</option>
+            <select class="control" name="type" [(ngModel)]="form.type" (ngModelChange)="onTypeChange()" [disabled]="typeLocked">
               <option *ngFor="let t of fieldTypes" [value]="t">{{ t }}</option>
             </select>
-            <span *ngIf="formSubmitted && !form.type" class="error">Field type is required.</span>
             <span *ngIf="typeLocked && activeTab !== 'compound'" class="hint">Field type can't be changed once a field is created.</span>
           </label>
           <div *ngIf="!isComponentForm" class="field">
@@ -298,11 +291,9 @@
 
         <label *ngIf="form.type === 'Lookup'" class="field">
           <span class="field-label">Lookup Source <em>*</em></span>
-          <select class="control" name="lookupSource" [(ngModel)]="form.lookupSource" (ngModelChange)="form.defaultValue = ''" [class.is-invalid]="formSubmitted && !form.lookupSource">
-            <option value="" disabled>Select Lookup Source</option>
+          <select class="control" name="lookupSource" [(ngModel)]="form.lookupSource" (ngModelChange)="form.defaultValue = ''">
             <option *ngFor="let s of lookupSources" [value]="s">{{ s }}</option>
           </select>
-          <span *ngIf="formSubmitted && !form.lookupSource" class="error">Lookup source is required.</span>
           <span class="hint">Users pick a record from this list.</span>
         </label>
 
@@ -371,15 +362,14 @@
               <input *ngSwitchCase="'Date'" class="control" type="date" name="defaultValue" [(ngModel)]="form.defaultValue" aria-label="Default value" />
               <input *ngSwitchCase="'Number'" class="control" type="number" name="defaultValue" [(ngModel)]="form.defaultValue" [class.is-invalid]="!!defaultError" aria-label="Default value" />
               <select *ngSwitchCase="'Dropdown'" class="control" name="defaultValue" [(ngModel)]="form.defaultValue" [class.is-invalid]="!!defaultError" aria-label="Default value">
-                <option value="">Select Default Value</option>
+                <option value="">None</option>
                 <option *ngFor="let o of formOptions" [value]="o">{{ o }}</option>
               </select>
               <select *ngSwitchCase="'Lookup'" class="control" name="defaultValue" [(ngModel)]="form.defaultValue" aria-label="Default value">
-                <option value="">Select Default Value</option>
+                <option value="">None</option>
                 <option *ngFor="let o of lookupValues(form.lookupSource)" [value]="o">{{ o }}</option>
               </select>
               <select *ngSwitchCase="'Checkbox'" class="control" name="defaultValue" [(ngModel)]="form.defaultValue" aria-label="Default value">
-                <option value="" disabled>Select Default Value</option>
                 <option value="false">Unchecked</option>
                 <option value="true">Checked</option>
               </select>
@@ -416,7 +406,7 @@
           <input type="search" placeholder="Search field groups..." [(ngModel)]="search" (ngModelChange)="onFilterChange()" aria-label="Search field groups" />
         </div>
         <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by status">
-          <option value="">Select Status</option>
+          <option value="">All Status</option>
           <option value="Active">Active</option>
           <option value="Inactive">Inactive</option>
         </select>
@@ -540,13 +530,11 @@
           <span class="field-label">Status</span>
           <span class="status-select">
             <span class="dot" [class.dot--on]="groupForm.status === 'Active'" aria-hidden="true"></span>
-            <select class="control" name="groupStatus" [(ngModel)]="groupForm.status" [class.is-invalid]="groupSubmitted && !groupForm.status">
-              <option value="" disabled>Select Status</option>
+            <select class="control" name="groupStatus" [(ngModel)]="groupForm.status">
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
           </span>
-          <span *ngIf="groupSubmitted && !groupForm.status" class="error">Status is required.</span>
         </label>
 
         <div class="assign">

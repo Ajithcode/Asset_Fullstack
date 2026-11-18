@@ -125,10 +125,6 @@ export class MasterTable implements OnInit {
       this.formError = `${missing.label} is required.`;
       return;
     }
-    if (!this.form.status) {
-      this.formError = 'Status is required.';
-      return;
-    }
     const record: MasterRecord = { ...this.form, code: String(this.form.code ?? '').trim() || this.nextCode() };
     const clash = this.rows.some((r) => r.code === record.code && r.code !== this.editingCode);
     if (clash) {
@@ -164,9 +160,9 @@ export class MasterTable implements OnInit {
   }
 
   private emptyRecord(): MasterRecord {
-    const record: MasterRecord = { code: '', status: '' as MasterRecord['status'] };
+    const record: MasterRecord = { code: '', status: 'Active' };
     for (const field of this.config?.fields ?? []) {
-      record[field.key] = field.type === 'boolean' ? false : '';
+      record[field.key] = field.type === 'boolean' ? false : field.type === 'select' ? (field.options?.[0] ?? '') : '';
     }
     return record;
   }

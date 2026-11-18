@@ -28,7 +28,6 @@
         <div class="field">
           <label for="stk-type"><span class="req">*</span> Type</label>
           <select id="stk-type" name="type" [(ngModel)]="form.type" (ngModelChange)="onTypeChange()">
-            <option value="" disabled>Select Type</option>
             @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
           </select>
         </div>
@@ -50,17 +49,15 @@
           @if (errors['isDefault']) { <small>{{ errors['isDefault'] }}</small> }
           <small class="hint">New stock gets this status. Only one status can be the default.</small>
         </div>
-        <div class="field" [class.invalid]="errors['status']">
-          <label for="stk-status"><span class="req">*</span> Status</label>
+        <div class="field">
+          <label for="stk-status">Status</label>
           <div class="status-select">
             <i [attr.data-status]="form.status"></i>
             <select id="stk-status" name="status" [(ngModel)]="form.status">
-              <option value="" disabled>Select Status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
           </div>
-          @if (errors['status']) { <small>{{ errors['status'] }}</small> }
         </div>
       }
 

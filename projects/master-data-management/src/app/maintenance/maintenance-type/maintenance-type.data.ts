@@ -8,11 +8,11 @@ export function blankMaintenanceType(): MaintenanceTypeRecord {
     name: '',
     description: '',
     color: TYPE_COLORS[0],
-    status: '' as MaintenanceTypeRecord['status'],
+    status: 'Active',
     planned: true,
     approvalRequired: false,
     countsAsDowntime: false,
-    defaultPriority: '',
+    defaultPriority: 'Medium',
     createdOn: '',
     updatedOn: ''
   };

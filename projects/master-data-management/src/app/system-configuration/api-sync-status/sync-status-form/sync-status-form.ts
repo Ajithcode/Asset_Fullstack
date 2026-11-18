@@ -25,10 +25,8 @@ export class SyncStatusForm extends MasterForm<SyncStatusRecord, Tab> {
     return blankSyncStatus();
   }
 
-  protected validate(f: SyncStatusRecord) {
-    const errors: Record<string, string> = {};
-    if (!f.status) errors['status'] = 'Select a status.';
-    return { errors };
+  protected validate() {
+    return { errors: {} };
   }
 
   protected override tidy(f: SyncStatusRecord): SyncStatusRecord {

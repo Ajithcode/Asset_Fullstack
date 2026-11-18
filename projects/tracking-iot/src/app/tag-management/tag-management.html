@@ -13,17 +13,14 @@
     <!-- KPIs -->
     <div class="kpis" *ngIf="counts as c">
       <button type="button" class="kpi kpi--violet" (click)="setStatus('')"><span class="kpi-ic"><lucide-icon [img]="icons.Tag" [size]="24"></lucide-icon></span>
-        <span class="kpi-body"><span class="kpi-label">Total Tag IDs</span><strong>{{ c.Total | number }}</strong><ng-container *ngTemplateOutlet="kpiDelta; context: { $implicit: kpiChange('Total') }"></ng-container></span></button>
+        <span class="kpi-body"><span class="kpi-label">Total Tag IDs</span><strong>{{ c.Total | number }}</strong></span></button>
       <button type="button" class="kpi kpi--green" [class.is-on]="statusFilter === 'Assigned'" (click)="setStatus('Assigned')"><span class="kpi-ic"><lucide-icon [img]="icons.Link2" [size]="24"></lucide-icon></span>
-        <span class="kpi-body"><span class="kpi-label">Assigned</span><strong>{{ c.Assigned | number }}</strong><ng-container *ngTemplateOutlet="kpiDelta; context: { $implicit: kpiChange('Assigned') }"></ng-container></span></button>
+        <span class="kpi-body"><span class="kpi-label">Assigned</span><strong>{{ c.Assigned | number }}</strong></span></button>
       <button type="button" class="kpi kpi--blue" [class.is-on]="statusFilter === 'Available'" (click)="setStatus('Available')"><span class="kpi-ic"><lucide-icon [img]="icons.Box" [size]="24"></lucide-icon></span>
-        <span class="kpi-body"><span class="kpi-label">Available</span><strong>{{ c.Available | number }}</strong><ng-container *ngTemplateOutlet="kpiDelta; context: { $implicit: kpiChange('Available') }"></ng-container></span></button>
+        <span class="kpi-body"><span class="kpi-label">Available</span><strong>{{ c.Available | number }}</strong></span></button>
       <button type="button" class="kpi kpi--red" [class.is-on]="statusFilter === 'Inactive'" (click)="setStatus('Inactive')"><span class="kpi-ic"><lucide-icon [img]="icons.CircleSlash" [size]="24"></lucide-icon></span>
-        <span class="kpi-body"><span class="kpi-label">Inactive</span><strong>{{ c.Inactive | number }}</strong><ng-container *ngTemplateOutlet="kpiDelta; context: { $implicit: kpiChange('Inactive') }"></ng-container></span></button>
+        <span class="kpi-body"><span class="kpi-label">Inactive</span><strong>{{ c.Inactive | number }}</strong></span></button>
     </div>
-    <ng-template #kpiDelta let-d>
-      <small *ngIf="d !== null" class="kpi-delta" [class.is-up]="d > 0" [class.is-down]="d < 0">{{ d > 0 ? '▲ +' : d < 0 ? '▼ ' : '' }}{{ d | number: '1.0-1' }}% vs last month</small>
-    </ng-template>
 
     <!-- Table -->
     <section class="card table-card" aria-label="Tags">
@@ -43,20 +40,20 @@
       <!-- Filters: tag views -->
       <div *ngIf="view !== 'audit'" class="filters">
         <label class="search"><lucide-icon [img]="icons.Search" [size]="17"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" [placeholder]="view === 'ids' ? 'Search tag ID, EPC, MAC or barcode...' : 'Search tag ID, asset or location...'" aria-label="Search tags" /></label>
-        <label class="lsel"><span>Tag Type</span><select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">Select Type</option><option *ngFor="let t of typeOptions" [value]="t">{{ t }}</option></select></label>
-        <label class="lsel"><span>Technology</span><select class="control" [(ngModel)]="techFilter" (ngModelChange)="onFilter()"><option value="">Select Technology</option><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
-        <label class="lsel"><span>Status</span><select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
-        <label *ngIf="view === 'ids'" class="lsel"><span>Validation</span><select class="control" [(ngModel)]="validFilter" (ngModelChange)="onFilter()"><option value="">Select Result</option><option *ngFor="let v of validFilters" [value]="v">{{ v }}</option></select></label>
-        <label *ngIf="view === 'assignments'" class="lsel"><span>Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onFilter()"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
+        <label class="lsel"><span>Tag Type</span><select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()"><option value="">All Types</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <label class="lsel"><span>Technology</span><select class="control" [(ngModel)]="techFilter" (ngModelChange)="onFilter()"><option value="">All Technologies</option><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
+        <label class="lsel"><span>Status</span><select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All Statuses</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
+        <label *ngIf="view === 'ids'" class="lsel"><span>Validation</span><select class="control" [(ngModel)]="validFilter" (ngModelChange)="onFilter()"><option value="">Any Result</option><option value="Valid">Valid</option><option value="Invalid format">Invalid format</option><option value="Duplicate">Duplicate</option><option value="Not recorded">Not recorded</option></select></label>
+        <label *ngIf="view === 'assignments'" class="lsel"><span>Site</span><select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onFilter()"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
       </div>
 
       <!-- Filters: audit -->
       <div *ngIf="view === 'audit'" class="filters">
         <label class="search"><lucide-icon [img]="icons.Search" [size]="17"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search tag ID, asset or note..." aria-label="Search audit trail" /></label>
-        <label class="lsel"><span>Event</span><select class="control" [(ngModel)]="eventFilter" (ngModelChange)="onFilter()"><option value="">Select Event</option><option *ngFor="let k of eventKinds" [value]="k">{{ k }}</option></select></label>
-        <label class="lsel"><span>Technology</span><select class="control" [(ngModel)]="techFilter" (ngModelChange)="onFilter()"><option value="">Select Technology</option><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
-        <label class="lsel"><span>Performed By</span><select class="control" [(ngModel)]="userFilter" (ngModelChange)="onFilter()"><option value="">Select User</option><option *ngFor="let u of users" [value]="u">{{ u }}</option></select></label>
-        <label class="lsel"><span>Period</span><select class="control" [(ngModel)]="periodFilter" (ngModelChange)="onFilter()"><option value="">Select Period</option><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select></label>
+        <label class="lsel"><span>Event</span><select class="control" [(ngModel)]="eventFilter" (ngModelChange)="onFilter()"><option value="">All Events</option><option *ngFor="let k of eventKinds" [value]="k">{{ k }}</option></select></label>
+        <label class="lsel"><span>Technology</span><select class="control" [(ngModel)]="techFilter" (ngModelChange)="onFilter()"><option value="">All Technologies</option><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
+        <label class="lsel"><span>Performed By</span><select class="control" [(ngModel)]="userFilter" (ngModelChange)="onFilter()"><option value="">Anyone</option><option *ngFor="let u of users" [value]="u">{{ u }}</option></select></label>
+        <label class="lsel"><span>Period</span><select class="control" [(ngModel)]="periodFilter" (ngModelChange)="onFilter()"><option value="">All Time</option><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select></label>
       </div>
 
       <div *ngIf="checked.size && view !== 'audit'" class="bulk" role="status">
@@ -83,7 +80,7 @@
               <td><span class="tag-id">{{ t.id }}</span></td>
               <td><span class="tech" [ngClass]="techClass(t.tech)"><lucide-icon [img]="techIcon(t.tech)" [size]="14"></lucide-icon>{{ t.tech }}</span></td>
               <td>{{ typeLabel(t) }}</td>
-              <td class="code-cell" [title]="codeLabel(t) + ': ' + (t.code || 'not recorded')"><span class="mono">{{ t.code || '—' }}</span></td>
+              <td class="code-cell" [title]="codeLabel(t) + ': ' + (t.code || 'not recorded')"><small>{{ codeLabel(t) }}</small><span class="mono">{{ t.code || '—' }}</span></td>
               <td class="col-md nowrap">{{ fmtDate(t.registeredOn) }}</td>
               <td><span class="val" [ngClass]="validation(t) === 'Valid' ? 'val--ok' : validation(t) === 'Not recorded' ? '' : 'val--bad'" [title]="validationDetail(t)"><lucide-icon [img]="validation(t) === 'Valid' ? icons.ShieldCheck : icons.CircleAlert" [size]="14"></lucide-icon>{{ validation(t) }}</span></td>
               <td><span class="st" [ngClass]="'st--' + t.status.toLowerCase()"><lucide-icon [img]="t.status === 'Inactive' ? icons.Ban : icons.CircleCheck" [size]="14"></lucide-icon>{{ t.status }}</span></td>
@@ -177,7 +174,6 @@
 
   <!-- ===== Side panel ===== -->
   <aside *ngIf="selected as t" class="panel" aria-labelledby="tm-sel">
-    <div class="panel-body">
     <button type="button" class="icon-btn panel-close" (click)="selectedId = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="20"></lucide-icon></button>
     <div class="panel-title"><h2 id="tm-sel">{{ t.id }}</h2><span class="st" [ngClass]="'st--' + t.status.toLowerCase()"><lucide-icon [img]="t.status === 'Inactive' ? icons.Ban : icons.CircleCheck" [size]="14"></lucide-icon>{{ t.status }}</span></div>
     <p class="panel-sub">{{ typeLabel(t) }}<span class="sep">|</span>{{ t.tech }}</p>
@@ -197,7 +193,7 @@
         <dt>{{ codeLabel(t) }}</dt><dd class="code">{{ t.code || '—' }}</dd>
         <ng-container *ngIf="isBle(t) && t.firmware"><dt>Firmware Version</dt><dd>{{ t.firmware }}</dd></ng-container>
         <dt>Registered On</dt><dd>{{ fmtDate(t.registeredOn) }}</dd>
-        <dt>Validation</dt><dd><span class="val" [ngClass]="validation(t) === 'Valid' ? 'val--ok' : validation(t) === 'Not recorded' ? '' : 'val--bad'"><lucide-icon [img]="validation(t) === 'Valid' ? icons.ShieldCheck : icons.CircleAlert" [size]="13"></lucide-icon>{{ validation(t) }}</span><small *ngIf="validation(t) !== 'Valid'" class="val-why">{{ validationDetail(t) }}</small></dd>
+        <dt>Validation</dt><dd><span class="val" [ngClass]="validation(t) === 'Valid' ? 'val--ok' : validation(t) === 'Not recorded' ? '' : 'val--bad'"><lucide-icon [img]="validation(t) === 'Valid' ? icons.ShieldCheck : icons.CircleAlert" [size]="13"></lucide-icon>{{ validation(t) }}</span><small *ngIf="validation(t) !== 'Valid' && validation(t) !== 'Not recorded'" class="val-why">{{ validationDetail(t) }}</small></dd>
       </dl>
 
       <h3 class="p-h3">Linked Asset</h3>
@@ -276,7 +272,6 @@
       </div>
       <button type="button" class="link-btn act-validate" (click)="validate([t])"><lucide-icon [img]="icons.ShieldCheck" [size]="14"></lucide-icon>Run validation check</button>
     </div>
-    </div>
   </aside>
 </div>
 
@@ -299,14 +294,13 @@
     <div class="modal-head"><h2 id="tm-reg">Register Tag ID</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveRegister()">
       <div class="two">
-        <label class="field"><span class="field-label">Technology</span><select class="control" [(ngModel)]="d.tech" name="tech" (ngModelChange)="onRegisterTech()"><option value="" disabled>Select Technology</option><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
-        <label class="field"><span class="field-label">Tag type</span><select class="control" [(ngModel)]="d.type" name="type"><option value="" disabled>Select Tag Type</option><option *ngFor="let t of typesFor(d.tech)" [value]="t">{{ typeName(d.tech, t) }}</option></select></label>
+        <label class="field"><span class="field-label">Technology</span><select class="control" [(ngModel)]="d.tech" name="tech" (ngModelChange)="onRegisterTech()"><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Tag type</span><select class="control" [(ngModel)]="d.type" name="type"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Tag number <em>*</em></span><input class="control" [(ngModel)]="d.number" name="num" autocomplete="off" spellcheck="false" placeholder="e.g. 123 or c300009aaf43" /><small class="muted">Tag ID: <strong>{{ registerPreview }}</strong> · a number gives {{ d.tech }}-000123; a device ID is kept as entered</small></label>
-        <label class="field"><span class="field-label">{{ codeLabel(d) }} <em>*</em></span><input class="control mono" [(ngModel)]="d.code" name="code" autocomplete="off" spellcheck="false" [placeholder]="valuePlaceholder(d.tech)" /></label>
-        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = ''"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
-        <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">Select Location</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
+        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = locationsOf(d.site).at(0) ?? ''"><option value="">—</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
+        <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">—</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
       </div>
-      <label class="field"><span class="field-label">Link to asset (optional)</span><select class="control" [(ngModel)]="d.asset" name="asset"><option value="">Select Asset</option><option *ngFor="let a of assetOptions" [value]="a.tag">{{ assetOptionLabel(a) }}</option></select><small class="muted">Leave empty to keep the tag in stock as Available.</small></label>
+      <label class="field"><span class="field-label">Link to asset (optional)</span><select class="control" [(ngModel)]="d.asset" name="asset"><option value="">— None —</option><option *ngFor="let a of assetOptions" [value]="a.tag">{{ assetOptionLabel(a) }}</option></select><small class="muted">Leave empty to keep the tag in stock as Available.</small></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Register</button></div>
     </form>
@@ -318,10 +312,8 @@
   <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="tm-edit" (click)="$event.stopPropagation()">
     <div class="modal-head"><h2 id="tm-edit">Edit {{ d.tagId }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form *ngIf="tagById(d.tagId) as t" class="modal-body" (ngSubmit)="saveEdit()">
-      <p class="muted">Correct the tag type or its {{ codeLabel(t) }}. The Tag ID and technology stay the same.</p>
-      <label class="field"><span class="field-label">Tag type</span><select class="control" [(ngModel)]="d.type" name="type"><option value="" disabled>Select Tag Type</option><option *ngFor="let x of typesFor(t.tech)" [value]="x">{{ typeName(t.tech, x) }}</option></select></label>
-      <label class="field"><span class="field-label">{{ codeLabel(t) }} <em>*</em></span><input class="control mono" [(ngModel)]="d.code" name="code" autocomplete="off" spellcheck="false" [placeholder]="valuePlaceholder(t.tech)" />
-        <small *ngIf="editError" class="form-error">{{ editError }}</small></label>
+      <p class="muted">Correct the tag format. The Tag ID and technology stay the same.</p>
+      <label class="field"><span class="field-label">Tag type</span><select class="control" [(ngModel)]="d.type" name="type"><option *ngFor="let x of types" [value]="x">{{ x }}</option></select></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Save</button></div>
     </form>
@@ -334,10 +326,10 @@
     <div class="modal-head"><h2 id="tm-asg">{{ tagById(d.tagId)?.asset ? 'Reassign' : 'Assign' }} {{ d.tagId }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveAssign()">
       <p *ngIf="tagById(d.tagId)?.asset as cur" class="muted">Currently linked to <strong>{{ assetLabel(cur) }}</strong>. The link stays in the tag's assignment history.</p>
-      <label class="field"><span class="field-label">Asset <em>*</em></span><select class="control" [(ngModel)]="d.asset" name="asset"><option value="">Select Asset</option><option *ngFor="let a of assetOptions" [value]="a.tag">{{ assetOptionLabel(a) }}</option></select></label>
+      <label class="field"><span class="field-label">Asset <em>*</em></span><select class="control" [(ngModel)]="d.asset" name="asset"><option value="">Select an asset</option><option *ngFor="let a of assetOptions" [value]="a.tag">{{ assetOptionLabel(a) }}</option></select></label>
       <div class="two">
-        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = ''"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
-        <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">Select Location</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
+        <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = locationsOf(d.site).at(0) ?? ''"><option value="">—</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
+        <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">—</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
       </div>
       <label class="field"><span class="field-label">Note</span><input class="control" [(ngModel)]="d.note" name="note" placeholder="e.g. tag moved after repair" /></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>

@@ -25,7 +25,6 @@ const MAX_FILE_MB = 50;
             <div class="field" [class.invalid]="tried && !store.selectedFloorId">
               <label for="up-loc">Location <span class="req">*</span></label>
               <select id="up-loc" name="loc" [ngModel]="store.selectedFloorId" (ngModelChange)="store.selectFloor($event)" [disabled]="store.working">
-                <option value="" disabled>Select Location</option>
                 @for (f of store.floors; track f.id) { <option [value]="f.id">{{ f.label }}</option> }
               </select>
               @if (!store.floors.length) { <small>No locations yet — add sites, buildings and floors in Master Data Management.</small> }
@@ -53,24 +52,20 @@ const MAX_FILE_MB = 50;
               <label for="up-desc">Description</label>
               <input id="up-desc" name="desc" [(ngModel)]="description" [disabled]="store.working" />
             </div>
-            <div class="field" [class.invalid]="tried && !type">
-              <label for="up-type">Type <span class="req">*</span></label>
+            <div class="field">
+              <label for="up-type">Type</label>
               <select id="up-type" name="type" [(ngModel)]="type" [disabled]="store.working">
-                <option value="" disabled>Select Type</option>
                 <option value="Floor Plan">Floor Plan</option>
                 <option value="Site Map">Site Map</option>
               </select>
-              @if (tried && !type) { <small>Type is required</small> }
             </div>
           } @else {
-            <div class="field" [class.invalid]="tried && !bump">
-              <label for="up-bump">Version Change <span class="req">*</span></label>
+            <div class="field">
+              <label for="up-bump">Version Change</label>
               <select id="up-bump" name="bump" [(ngModel)]="bump" [disabled]="store.working">
-                <option value="" disabled>Select Version Change</option>
                 <option value="minor">Minor (e.g. v2.0 → v2.1)</option>
                 <option value="major">Major (e.g. v2.1 → v3.0)</option>
               </select>
-              @if (tried && !bump) { <small>Version change is required</small> }
             </div>
             <div class="field">
               <label for="up-desc">Changes / Description</label>
@@ -80,7 +75,6 @@ const MAX_FILE_MB = 50;
           <div class="field">
             <label for="up-format">Format</label>
             <select id="up-format" name="format" [(ngModel)]="format" disabled>
-              <option value="" disabled>Select Format</option>
               @for (f of formats; track f) { <option [value]="f">{{ f }}</option> }
             </select>
           </div>
@@ -112,9 +106,9 @@ export class UploadDialog {
   file: File | null = null;
   name = '';
   description = '';
-  type: FloorPlanType = '' as FloorPlanType;
+  type: FloorPlanType = 'Floor Plan';
   format: FileFormat = 'PNG';
-  bump: 'minor' | 'major' = '' as 'minor' | 'major';
+  bump: 'minor' | 'major' = 'minor';
   tried = false;
 
   get title(): string {
@@ -150,14 +144,13 @@ export class UploadDialog {
     this.tried = true;
     if (this.store.working || this.fileError || !this.file) return;
     if (this.mode === 'plan') {
-      if (!this.name.trim() || !this.store.selectedFloorId || !this.type) return;
+      if (!this.name.trim() || !this.store.selectedFloorId) return;
       this.store.addPlan(
         this.file,
         { name: this.name.trim(), description: this.description.trim(), type: this.type, format: this.format },
         (plan) => this.done.emit(plan.name)
       );
     } else {
-      if (!this.bump) return;
       this.store.addVersion(this.file, { format: this.format, bump: this.bump, description: this.description }, (v) => this.done.emit(v.version));
     }
   }

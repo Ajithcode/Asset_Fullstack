@@ -104,7 +104,6 @@
                 @switch (field.type) {
                   @case ('select') {
                     <select [id]="'mdm-' + field.key" [name]="field.key" [(ngModel)]="form[field.key]">
-                      <option value="" disabled>Select {{ field.label }}</option>
                       @for (option of field.options ?? []; track option) {
                         <option [value]="option">{{ option }}</option>
                       }
@@ -122,9 +121,8 @@
           }
 
           <div class="form-field">
-            <label for="mdm-status">Status <span class="required">*</span></label>
+            <label for="mdm-status">Status</label>
             <select id="mdm-status" name="status" [(ngModel)]="form.status">
-              <option value="" disabled>Select Status</option>
               @for (status of statuses; track status) {
                 <option [value]="status">{{ status }}</option>
               }

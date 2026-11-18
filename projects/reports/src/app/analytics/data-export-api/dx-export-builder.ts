@@ -59,7 +59,6 @@ function blankDraft(datasetId: string): ExportDraft {
             <label class="dx-row-field">
               <span>Dataset</span>
               <select class="select" [ngModel]="draft.datasetId" (ngModelChange)="setDataset($event)" name="ds">
-                <option value="" disabled>Select Dataset</option>
                 @for (d of service.datasets; track d.id) {
                   <option [value]="d.id">{{ d.name }}</option>
                 }
@@ -68,7 +67,6 @@ function blankDraft(datasetId: string): ExportDraft {
             <label class="dx-row-field">
               <span>File format</span>
               <select class="select" [(ngModel)]="draft.format" name="fmt">
-                <option value="" disabled>Select Format</option>
                 @for (f of formats; track f) {
                   <option [value]="f">{{ f }}</option>
                 }
@@ -101,14 +99,12 @@ function blankDraft(datasetId: string): ExportDraft {
             @for (r of draft.filters; track $index; let i = $index) {
               <div class="dx-filter-row">
                 <select class="select" [(ngModel)]="r.field" [name]="'ff' + i" (ngModelChange)="fieldChanged(r)" aria-label="Field">
-                  <option value="" disabled>Select Field</option>
                   <option value="">Field…</option>
                   @for (fl of allFields; track fl.name) {
                     <option [value]="fl.name">{{ fl.name }}</option>
                   }
                 </select>
                 <select class="select" [(ngModel)]="r.operator" [name]="'fo' + i" aria-label="Operator">
-                  <option value="" disabled>Select Operator</option>
                   @for (o of operatorsFor(r); track o) {
                     <option [value]="o">{{ o }}</option>
                   }
@@ -138,7 +134,7 @@ function blankDraft(datasetId: string): ExportDraft {
               <label class="dx-row-field">
                 <span>Connection</span>
                 <select class="select" [(ngModel)]="draft.target" name="tgt">
-                  <option value="">Select Connection</option>
+                  <option value="">Select…</option>
                   @for (c of service.connections; track c.id) {
                     <option [value]="c.name">{{ c.name }} ({{ c.status }})</option>
                   }
@@ -153,7 +149,6 @@ function blankDraft(datasetId: string): ExportDraft {
             <label class="dx-row-field">
               <span>Frequency</span>
               <select class="select" [(ngModel)]="draft.frequency" name="freq">
-                <option value="" disabled>Select Frequency</option>
                 @for (fq of frequencies; track fq) {
                   <option [value]="fq">{{ fq }}</option>
                 }
@@ -165,7 +160,6 @@ function blankDraft(datasetId: string): ExportDraft {
                 <span class="dx-inline">
                   @if (draft.frequency === 'Weekly') {
                     <select class="select" [(ngModel)]="weekday" name="wd" aria-label="Day">
-                      <option value="" disabled>Select Day</option>
                       @for (d of weekdays; track d) {
                         <option [value]="d">{{ d }}</option>
                       }

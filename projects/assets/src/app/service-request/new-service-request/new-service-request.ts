@@ -83,7 +83,7 @@ interface WoOption {
   description: string;
 }
 
-type FieldKey = 'title' | 'category' | 'priority' | 'description' | 'requestedDate' | 'targetDate' | 'location' | 'requestedBy' | 'plannedEnd';
+type FieldKey = 'title' | 'description' | 'requestedDate' | 'targetDate' | 'location' | 'requestedBy' | 'plannedEnd';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** Used when the signed-in user has no name. */
@@ -231,7 +231,7 @@ export class NewServiceRequest implements OnDestroy {
     this.draftId = d.id;
     this.targetTouched = true;
     this.form = {
-      title: d.title, category: d.requestType ?? '', priority: d.priority ?? '', requestedDate: localStamp(d.requestedDate).slice(0, 10) || toIsoDate(TODAY),
+      title: d.title, category: d.requestType ?? this.categories[0], priority: d.priority ?? 'Medium', requestedDate: localStamp(d.requestedDate).slice(0, 10) || toIsoDate(TODAY),
       targetDate: (d.targetDate ?? '').slice(0, 10), description: d.description ?? '', location: d.location?.name ?? this.location, department: d.department?.name ?? this.asset.department,
       requestedBy: d.requestedBy?.name ?? this.currentUser, assignedTo: d.assignedTo?.name ?? '', downtimeHours: d.estimatedDowntimeHours, plannedStart: localStamp(d.plannedStart),
       plannedEnd: localStamp(d.plannedEnd), workOrder: d.workOrder?.workOrderId ?? '', relatedRequest: d.relatedServiceRequest ?? '', tags: [...(d.tags ?? [])], reference: d.referenceNumber ?? '',
@@ -250,7 +250,7 @@ export class NewServiceRequest implements OnDestroy {
     const a = this.asset;
     const today = toIsoDate(TODAY);
     return {
-      title: '', category: '', priority: '', requestedDate: today, targetDate: '', description: '',
+      title: '', category: this.categories?.[0] ?? 'Corrective', priority: 'Medium', requestedDate: today, targetDate: this.targetFor('Medium', today), description: '',
       location: this.location, department: a.department, requestedBy: this.currentUser, assignedTo: '', downtimeHours: null, plannedStart: '', plannedEnd: '',
       workOrder: '', relatedRequest: '', tags: [], reference: '',
     };
@@ -294,7 +294,7 @@ export class NewServiceRequest implements OnDestroy {
   // ===== Field behaviour =====
 
   onSchedule(): void {
-    if (!this.targetTouched && this.form.priority) this.form.targetDate = this.targetFor(this.form.priority, this.form.requestedDate);
+    if (!this.targetTouched) this.form.targetDate = this.targetFor(this.form.priority, this.form.requestedDate);
     this.validate();
   }
 
@@ -377,8 +377,6 @@ export class NewServiceRequest implements OnDestroy {
     const e = this.errors;
     for (const k of Object.keys(e) as FieldKey[]) delete e[k];
     if (!f.title.trim()) e.title = 'Enter the title.';
-    if (!f.category) e.category = 'Choose the request type.';
-    if (!f.priority) e.priority = 'Choose the priority.';
     if (!f.description.trim()) e.description = 'Describe the problem.';
     if (!f.requestedDate) e.requestedDate = 'Enter the requested date.';
     if (f.targetDate && f.requestedDate && f.targetDate < f.requestedDate) e.targetDate = 'Target date is before the requested date.';
@@ -567,7 +565,7 @@ export class NewServiceRequest implements OnDestroy {
   }
 
   prioClass(p: string): string {
-    return p ? 'prio--' + p.toLowerCase() : '';
+    return 'prio--' + p.toLowerCase();
   }
 
   // ===== Health gauge =====

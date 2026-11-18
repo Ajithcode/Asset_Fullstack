@@ -28,21 +28,21 @@
         <label class="filter">
           <span>Category</span>
           <select name="category" [(ngModel)]="draft.category">
-            <option value="">Select Category</option>
+            <option value="">All</option>
             @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
           </select>
         </label>
         <label class="filter">
           <span>Country</span>
           <select name="country" [(ngModel)]="draft.country">
-            <option value="">Select Country</option>
+            <option value="">All</option>
             @for (c of service.countries(); track c) { <option [value]="c">{{ c }}</option> }
           </select>
         </label>
         <label class="filter">
           <span>Status</span>
           <select name="status" [(ngModel)]="draft.status">
-            <option value="">Select Status</option>
+            <option value="">All</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>

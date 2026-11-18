@@ -221,7 +221,7 @@
       <lucide-icon class="swap-arrow" [img]="icons.ArrowRight" [size]="22"></lucide-icon>
       <div class="swap-dev swap-dev--new"><small>Replacement device</small><strong>{{ candidateLabel }}</strong><span>{{ candidateModel }}</span><span class="pill pill--ok">New Assignment</span></div>
       <div class="swap-dev"><small>Asset (unchanged)</small><strong>{{ device.assetName || '—' }}</strong><span>{{ location(device) }}</span>
-        <label class="reason-row"><span class="muted small">Reason</span><select class="control control-xs" [(ngModel)]="reason" aria-label="Replacement reason"><option value="" disabled>Select Replacement Reason</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label></div>
+        <label class="reason-row"><span class="muted small">Reason</span><select class="control control-xs" [(ngModel)]="reason" aria-label="Replacement reason"><option value="" disabled>Select…</option><option *ngFor="let r of reasons" [value]="r">{{ r }}</option></select></label></div>
     </div>
     <div class="two-col">
       <div>

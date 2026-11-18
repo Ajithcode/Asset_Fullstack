@@ -60,7 +60,7 @@ interface UploadForm {
   stage: string;
   version: string;
   expiryDate: string;
-  draft: boolean | null;
+  draft: boolean;
   description: string;
   tags: string;
   note: string;
@@ -615,7 +615,7 @@ export class AssetDocuments implements OnDestroy {
         }
       : {
           mode: 'new', assets: this.allAssets || !this.currentAsset ? [] : [this.currentAsset.tag], docId: null, file: null, name: '', type: '', stage: '', version: '1.0', expiryDate: '',
-          draft: null, description: '', tags: '', note: '',
+          draft: false, description: '', tags: '', note: '',
         };
   }
 
@@ -702,16 +702,12 @@ export class AssetDocuments implements OnDestroy {
       this.uploadError = 'Enter the document name, type and lifecycle stage.';
       return;
     }
-    if (u.mode === 'new' && u.draft === null) {
-      this.uploadError = 'Select the status.';
-      return;
-    }
     if (!u.version.trim()) {
       this.uploadError = 'Enter the version.';
       return;
     }
     const value: DocumentFormValue = {
-      name: u.name, type: u.type, stage: u.stage, version: u.version, expiryDate: u.expiryDate, draft: !!u.draft,
+      name: u.name, type: u.type, stage: u.stage, version: u.version, expiryDate: u.expiryDate, draft: u.draft,
       description: u.description, tags: splitTags(u.tags),
     };
     const note = u.note.trim() || (u.mode === 'new' ? 'Initial upload' : 'New version');

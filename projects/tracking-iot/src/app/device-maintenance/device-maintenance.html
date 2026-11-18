@@ -51,10 +51,10 @@
         <section class="card">
           <div class="filters">
             <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search devices or assets..." aria-label="Search devices or assets" /></label>
-            <select class="control" [(ngModel)]="fSite" (ngModelChange)="onFilter()" aria-label="Site"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
-            <select class="control" [(ngModel)]="fKind" (ngModelChange)="onFilter()" aria-label="Device type"><option value="">Select Device Type</option><option *ngFor="let k of kinds" [value]="k">{{ kindLabels[k] }}</option></select>
-            <select class="control" [(ngModel)]="fType" (ngModelChange)="onFilter()" aria-label="Maintenance type"><option value="">Select Maintenance Type</option><option *ngFor="let m of maintTypes" [value]="m">{{ m }}</option></select>
-            <select class="control" [(ngModel)]="fStatus" (ngModelChange)="onFilter()" aria-label="Status"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+            <select class="control" [(ngModel)]="fSite" (ngModelChange)="onFilter()" aria-label="Site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
+            <select class="control" [(ngModel)]="fKind" (ngModelChange)="onFilter()" aria-label="Device type"><option value="">All Device Types</option><option *ngFor="let k of kinds" [value]="k">{{ kindLabels[k] }}</option></select>
+            <select class="control" [(ngModel)]="fType" (ngModelChange)="onFilter()" aria-label="Maintenance type"><option value="">All Maintenance Types</option><option *ngFor="let m of maintTypes" [value]="m">{{ m }}</option></select>
+            <select class="control" [(ngModel)]="fStatus" (ngModelChange)="onFilter()" aria-label="Status"><option value="">All Statuses</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
           </div>
           <div class="chips-row" *ngIf="hasFilters">
             <span class="chip" *ngIf="dayFilter"><lucide-icon [img]="icons.Calendar" [size]="13"></lucide-icon>Due {{ fmt(dayFilter) }}<button type="button" (click)="dayFilter = ''; onFilter()" aria-label="Clear date filter"><lucide-icon [img]="icons.X" [size]="13"></lucide-icon></button></span>
@@ -141,8 +141,8 @@
       <section class="card" *ngIf="tab === 'requests'">
         <div class="sec-head"><h2 class="grow">Service Requests</h2>
           <label class="search search--sm"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="rSearch" placeholder="Search requests..." aria-label="Search requests" /></label>
-          <select class="control control-sm" [(ngModel)]="rStatus" aria-label="Request status"><option value="">Select Request Status</option><option value="active">Open requests</option><option value="all">All statuses</option><option *ngFor="let s of reqStatuses" [value]="s">{{ s }}</option></select>
-          <select class="control control-sm" [(ngModel)]="rPriority" aria-label="Priority"><option value="">Select Priority</option><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select>
+          <select class="control control-sm" [(ngModel)]="rStatus" aria-label="Request status"><option value="active">Open requests</option><option value="all">All statuses</option><option *ngFor="let s of reqStatuses" [value]="s">{{ s }}</option></select>
+          <select class="control control-sm" [(ngModel)]="rPriority" aria-label="Priority"><option value="">All priorities</option><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select>
           <button type="button" class="btn btn-primary btn-sm" (click)="openRequest()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>New Request</button>
         </div>
         <div class="table-wrap">
@@ -206,9 +206,9 @@
       <section class="card" *ngIf="tab === 'history'">
         <div class="sec-head"><h2 class="grow">Service History</h2>
           <label class="search search--sm"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="hSearch" (ngModelChange)="hPage = 0" placeholder="Search history..." aria-label="Search history" /></label>
-          <select class="control control-sm" [(ngModel)]="hDevice" (ngModelChange)="hPage = 0" aria-label="Device"><option value="">Select Device</option><option *ngFor="let d of devices" [value]="d.id">{{ d.id }}</option></select>
-          <select class="control control-sm" [(ngModel)]="hType" (ngModelChange)="hPage = 0" aria-label="Service type"><option value="">Select Service Type</option><option *ngFor="let s of historyTitles" [value]="s">{{ s }}</option></select>
-          <select class="control control-sm" [(ngModel)]="hRange" (ngModelChange)="hPage = 0" aria-label="Period"><option value="">Select Period</option><option value="month">This month</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option><option value="all">All time</option></select>
+          <select class="control control-sm" [(ngModel)]="hDevice" (ngModelChange)="hPage = 0" aria-label="Device"><option value="">All devices</option><option *ngFor="let d of devices" [value]="d.id">{{ d.id }}</option></select>
+          <select class="control control-sm" [(ngModel)]="hType" (ngModelChange)="hPage = 0" aria-label="Service type"><option value="">All service types</option><option *ngFor="let s of historyTitles" [value]="s">{{ s }}</option></select>
+          <select class="control control-sm" [(ngModel)]="hRange" (ngModelChange)="hPage = 0" aria-label="Period"><option value="month">This month</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option><option value="all">All time</option></select>
           <button type="button" class="btn btn-outline btn-sm" (click)="exportHistory()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Excel</button>
         </div>
         <div class="table-wrap">
@@ -393,8 +393,8 @@
       <div class="modal-body">
         <p class="muted">{{ g.task ? g.task.deviceId + ' · ' + g.task.type + ' due ' + fmt(g.task.due) : g.req ? g.req.id + ' · ' + g.req.deviceId : '' }}</p>
         <label class="field"><span class="field-label">Technician / vendor</span>
-          <select class="control" [(ngModel)]="g.value"><option value="" disabled>Select Technician / Vendor</option><option *ngFor="let n of technicians" [value]="n">{{ n }}</option></select></label>
-        <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="button" class="btn btn-primary" [disabled]="!g.value || busy" (click)="saveAssign()">{{ busy ? 'Saving…' : 'Assign' }}</button></div>
+          <select class="control" [(ngModel)]="g.value"><option *ngFor="let n of technicians" [value]="n">{{ n }}</option></select></label>
+        <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="button" class="btn btn-primary" [disabled]="busy" (click)="saveAssign()">{{ busy ? 'Saving…' : 'Assign' }}</button></div>
       </div>
     </div>
   </div>
@@ -415,12 +415,12 @@
       <div class="modal-head"><h2 id="dm-req">Create Service Request</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
       <div class="modal-body">
         <label class="field"><span class="field-label">Device <em>*</em></span>
-          <select class="control" [(ngModel)]="g.deviceId" (ngModelChange)="onRequestDevice()"><option value="">Select Device</option><option *ngFor="let d of devices" [value]="d.id">{{ d.id }}{{ d.name ? ' – ' + d.name : '' }}{{ d.site ? ' (' + d.site + ')' : '' }}</option></select></label>
+          <select class="control" [(ngModel)]="g.deviceId" (ngModelChange)="onRequestDevice()"><option value="">Select a device…</option><option *ngFor="let d of devices" [value]="d.id">{{ d.id }}{{ d.name ? ' – ' + d.name : '' }}{{ d.site ? ' (' + d.site + ')' : '' }}</option></select></label>
         <div class="two">
-          <label class="field"><span class="field-label">Maintenance type</span><select class="control" [(ngModel)]="g.type"><option [ngValue]="null" disabled>Select Maintenance Type</option><option *ngFor="let m of maintTypes" [ngValue]="m">{{ m }}</option></select></label>
-          <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="g.priority"><option [ngValue]="null" disabled>Select Priority</option><option *ngFor="let p of priorities" [ngValue]="p">{{ p }}</option></select></label>
+          <label class="field"><span class="field-label">Maintenance type</span><select class="control" [(ngModel)]="g.type"><option *ngFor="let m of maintTypes" [ngValue]="m">{{ m }}</option></select></label>
+          <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="g.priority"><option *ngFor="let p of priorities" [ngValue]="p">{{ p }}</option></select></label>
           <label class="field"><span class="field-label">Due date <em>*</em></span><input type="date" class="control" [(ngModel)]="g.due" /></label>
-          <label class="field"><span class="field-label">Technician / vendor</span><select class="control" [(ngModel)]="g.assignee"><option value="" disabled>Select Technician / Vendor</option><option *ngFor="let n of technicians" [value]="n">{{ n }}</option></select></label>
+          <label class="field"><span class="field-label">Technician / vendor</span><select class="control" [(ngModel)]="g.assignee"><option *ngFor="let n of technicians" [value]="n">{{ n }}</option></select></label>
           <label class="field"><span class="field-label">Site <em>*</em></span><input class="control" [(ngModel)]="g.site" list="dm-sites" autocomplete="off" placeholder="Site of the device" /></label>
         </div>
         <datalist id="dm-sites"><option *ngFor="let s of sites" [value]="s"></option></datalist>
@@ -439,9 +439,8 @@
         <div class="two">
           <label class="field"><span class="field-label">Device type</span>
             <select class="control" [(ngModel)]="g.deviceKind" [disabled]="!!g.plan">
-              <option [ngValue]="null" disabled>Select Device Type</option>
               <option *ngFor="let k of kinds" [ngValue]="k">{{ kindLabels[k] }}</option></select></label>
-          <label class="field"><span class="field-label">Maintenance type</span><select class="control" [(ngModel)]="g.type"><option [ngValue]="null" disabled>Select Maintenance Type</option><option *ngFor="let m of maintTypes" [ngValue]="m">{{ m }}</option></select></label>
+          <label class="field"><span class="field-label">Maintenance type</span><select class="control" [(ngModel)]="g.type"><option *ngFor="let m of maintTypes" [ngValue]="m">{{ m }}</option></select></label>
           <label class="field"><span class="field-label">Interval (days) <em>*</em></span><input type="number" min="1" class="control" [(ngModel)]="g.interval" /></label>
         </div>
         <label class="field"><span class="field-label">Checklist template <em>*</em></span><textarea class="control control-area" rows="5" [(ngModel)]="g.checklist" placeholder="One item per line"></textarea><small class="muted">One item per line. Open jobs of this device type pick up the new checklist.</small></label>

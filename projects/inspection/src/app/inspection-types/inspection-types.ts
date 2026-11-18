@@ -38,12 +38,12 @@ function blankType(): Partial<InspectionType> {
   return {
     inspectionTypeCode: '',
     inspectionTypeName: '',
-    category: '',
+    category: 'Safety',
     description: '',
     defaultChecklistCode: '',
     defaultChecklistName: '',
-    defaultPriority: '',
-    defaultFrequency: '',
+    defaultPriority: 'Medium',
+    defaultFrequency: 'Monthly',
     applicableAssets: 'All equipment',
     responsibleRole: '',
     photoEvidenceOnFailure: true,
@@ -78,8 +78,8 @@ export class InspectionTypesPage implements OnInit {
   readonly frequencies = FREQUENCIES;
 
   readonly search = signal('');
-  readonly statusFilter = signal('');
-  readonly categoryFilter = signal('');
+  readonly statusFilter = signal('All');
+  readonly categoryFilter = signal('All');
   readonly sortKey = signal<SortKey>('inspectionTypeCode');
   readonly sortAsc = signal(true);
   readonly selectedId = signal<string | null>(null);
@@ -128,8 +128,8 @@ export class InspectionTypesPage implements OnInit {
       .filter(
         (t) =>
           (!q || `${t.inspectionTypeCode} ${t.inspectionTypeName}`.toLowerCase().includes(q)) &&
-          (!st || (st === 'Active') === t.isActive) &&
-          (!cat || t.category === cat)
+          (st === 'All' || (st === 'Active') === t.isActive) &&
+          (cat === 'All' || t.category === cat)
       )
       .sort((a, b) => this.sortValue(a, key).localeCompare(this.sortValue(b, key), undefined, { numeric: true }) * dir);
   });

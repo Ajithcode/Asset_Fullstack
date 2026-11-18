@@ -30,11 +30,11 @@
         <input type="search" placeholder="Search documents..." [(ngModel)]="search" (ngModelChange)="onFilterChange()" aria-label="Search documents" />
       </div>
       <select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by document type">
-        <option value="">Select Document Type</option>
+        <option value="">All Document Types</option>
         <option *ngFor="let t of types" [value]="t">{{ t }}</option>
       </select>
       <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by status">
-        <option value="">Select Status</option>
+        <option value="">All Status</option>
         <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
       </select>
     </div>
@@ -240,11 +240,9 @@
         </label>
         <label class="field">
           <span class="field-label">Document Type</span>
-          <select class="control" name="type" [(ngModel)]="form.type" [class.is-invalid]="formSubmitted && !form.type">
-            <option value="" disabled>Select Document Type</option>
+          <select class="control" name="type" [(ngModel)]="form.type">
             <option *ngFor="let t of types" [value]="t">{{ t }}</option>
           </select>
-          <span *ngIf="formSubmitted && !form.type" class="error">Document type is required.</span>
         </label>
         <label class="field">
           <span class="field-label">Version <em>*</em></span>
@@ -252,11 +250,9 @@
         </label>
         <label class="field">
           <span class="field-label">Status</span>
-          <select class="control" name="status" [(ngModel)]="form.status" [class.is-invalid]="formSubmitted && !form.status">
-            <option value="" disabled>Select Status</option>
+          <select class="control" name="status" [(ngModel)]="form.status">
             <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
           </select>
-          <span *ngIf="formSubmitted && !form.status" class="error">Status is required.</span>
         </label>
       </div>
       <label class="field">

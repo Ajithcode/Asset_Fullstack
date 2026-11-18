@@ -49,7 +49,6 @@ export class ItemCategoryForm extends MasterForm<ItemCategoryRecord, Tab> {
 
   protected validate(f: ItemCategoryRecord) {
     const errors: Record<string, string> = {};
-    if (!f.status) errors['status'] = 'Select a status.';
     if (f.status === 'Active' && f.parentCode && this.store.find(f.parentCode)?.status === 'Inactive') {
       errors['parentCode'] = 'The parent category is inactive.';
     }

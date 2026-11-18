@@ -245,7 +245,7 @@ const LOG_PAGE = 15;
           </span>
         }
         <select class="select dx-select-sm" [(ngModel)]="result" (ngModelChange)="page = 0" aria-label="Result">
-          <option value="">Select Result</option>
+          <option value="">All results</option>
           <option value="Success">Success</option>
           <option value="Failed">Failed</option>
           <option value="Denied">Denied</option>

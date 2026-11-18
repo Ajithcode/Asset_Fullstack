@@ -14,7 +14,6 @@
   <label class="org-picker">
     Organization
     <select [(ngModel)]="organization">
-      <option value="" disabled>Select Organization</option>
       @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
     </select>
   </label>

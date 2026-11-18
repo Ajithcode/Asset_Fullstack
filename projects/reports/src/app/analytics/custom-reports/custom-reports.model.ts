@@ -68,8 +68,7 @@ export interface ReportDefinition {
   aggregate: Aggregate;
   sortBy: string;
   sortDir: SortDir;
-  /** null = no limit (new reports start without one) */
-  rowLimit: number | null;
+  rowLimit: number;
   viz: VizType;
   /** Column plotted on charts; '' picks the first numeric column */
   chartValue: string;

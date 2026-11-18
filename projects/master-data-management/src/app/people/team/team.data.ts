@@ -7,7 +7,7 @@ export function blankTeam(): TeamRecord {
     department: '',
     leaderId: '',
     description: '',
-    status: '' as TeamRecord['status'],
+    status: 'Active',
     members: [],
     shiftCode: '',
     responsibilities: [],

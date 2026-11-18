@@ -16,11 +16,11 @@
         <input type="search" placeholder="Search service records..." [(ngModel)]="search" (ngModelChange)="onFilterChange()" aria-label="Search service records" />
       </div>
       <select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by service type">
-        <option value="">Select Service Type</option>
+        <option value="">All Service Types</option>
         <option *ngFor="let t of serviceTypes" [value]="t">{{ t }}</option>
       </select>
       <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" aria-label="Filter by status">
-        <option value="">Select Status</option>
+        <option value="">All Status</option>
         <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
       </select>
       <div class="date-range" [class.is-invalid]="dateRangeInvalid" [title]="dateRangeInvalid ? 'From date is after To date' : ''">
@@ -330,20 +330,16 @@
           <span *ngIf="completedInFuture" class="error">A completed service can't be in the future.</span>
         </label>
         <label class="field">
-          <span class="field-label">Service Type <em>*</em></span>
-          <select class="control" name="type" [(ngModel)]="form.type" [class.is-invalid]="formSubmitted && !form.type">
-            <option value="" disabled>Select Service Type</option>
+          <span class="field-label">Service Type</span>
+          <select class="control" name="type" [(ngModel)]="form.type">
             <option *ngFor="let t of serviceTypes" [value]="t">{{ t }}</option>
           </select>
-          <span *ngIf="formSubmitted && !form.type" class="error">Required.</span>
         </label>
         <label class="field">
-          <span class="field-label">Status <em>*</em></span>
-          <select class="control" name="status" [(ngModel)]="form.status" [class.is-invalid]="formSubmitted && !form.status">
-            <option value="" disabled>Select Status</option>
+          <span class="field-label">Status</span>
+          <select class="control" name="status" [(ngModel)]="form.status">
             <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
           </select>
-          <span *ngIf="formSubmitted && !form.status" class="error">Required.</span>
         </label>
       </div>
       <label class="field">
@@ -384,12 +380,10 @@
           <span *ngIf="nextDueInvalid" class="error">Must be after the service date.</span>
         </label>
         <label class="field">
-          <span class="field-label">Health After Service <em>*</em></span>
-          <select class="control" name="health" [(ngModel)]="form.health" [class.is-invalid]="formSubmitted && !form.health">
-            <option value="" disabled>Select Health After Service</option>
+          <span class="field-label">Health After Service</span>
+          <select class="control" name="health" [(ngModel)]="form.health">
             <option *ngFor="let h of healthRatings" [value]="h">{{ h }}</option>
           </select>
-          <span *ngIf="formSubmitted && !form.health" class="error">Required.</span>
         </label>
         <label class="field">
           <span class="field-label">Health Score (%)</span>

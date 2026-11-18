@@ -46,7 +46,6 @@
           </div>
           <span class="row-label">Select Template</span>
           <select class="control control--md" [(ngModel)]="templateName" name="templateName" aria-label="Template">
-            <option value="" disabled>Select Template</option>
             <option *ngFor="let t of templates" [value]="t.name">{{ t.name }}</option>
           </select>
           <span class="row-label">File Format</span>
@@ -98,7 +97,6 @@
           <span class="row-label">Select Fields</span>
           <div>
             <select class="control control--md" [ngModel]="fieldSet" (ngModelChange)="setFieldSet($event)" name="fieldSet" aria-label="Fields to export">
-              <option value="" disabled>Select Fields</option>
               <option value="standard">Standard Fields (Recommended)</option>
               <option value="all">All Fields</option>
               <option value="custom">Choose Fields…</option>
@@ -114,13 +112,13 @@
           <span class="row-label">Filters (Optional)</span>
           <div class="filters">
             <label class="field"><span class="field-label">Category</span>
-              <select class="control" [(ngModel)]="filterCategory" name="filterCategory"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
+              <select class="control" [(ngModel)]="filterCategory" name="filterCategory"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
             </label>
             <label class="field"><span class="field-label">Location</span>
-              <select class="control" [(ngModel)]="filterSite" name="filterSite"><option value="">Select Location</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
+              <select class="control" [(ngModel)]="filterSite" name="filterSite"><option value="">All Locations</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
             </label>
             <label class="field"><span class="field-label">Status</span>
-              <select class="control" [(ngModel)]="filterStatus" name="filterStatus"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+              <select class="control" [(ngModel)]="filterStatus" name="filterStatus"><option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
             </label>
             <div class="field field--wide"><span class="field-label">Date Range <small>(next maintenance)</small></span>
               <span class="date-range">
@@ -131,10 +129,10 @@
             </div>
             <ng-container *ngIf="advancedOpen">
               <label class="field"><span class="field-label">Criticality</span>
-                <select class="control" [(ngModel)]="filterCriticality" name="filterCriticality"><option value="">Select Criticality</option><option *ngFor="let c of criticalities" [value]="c">{{ c }}</option></select>
+                <select class="control" [(ngModel)]="filterCriticality" name="filterCriticality"><option value="">All</option><option *ngFor="let c of criticalities" [value]="c">{{ c }}</option></select>
               </label>
               <label class="field"><span class="field-label">Department</span>
-                <select class="control" [(ngModel)]="filterDepartment" name="filterDepartment"><option value="">Select Department</option><option *ngFor="let d of departments" [value]="d">{{ d }}</option></select>
+                <select class="control" [(ngModel)]="filterDepartment" name="filterDepartment"><option value="">All</option><option *ngFor="let d of departments" [value]="d">{{ d }}</option></select>
               </label>
             </ng-container>
             <div class="filter-links">
@@ -198,7 +196,7 @@
               <td><em>Same value for every row</em></td>
               <td>
                 <select class="control control--sm" [(ngModel)]="f.field" (ngModelChange)="onMappingChange()" aria-label="Field">
-                  <option value="">Select Field</option>
+                  <option value="">Choose field</option>
                   <option *ngFor="let x of fields" [value]="x.key">{{ x.label }}</option>
                 </select>
               </td>
@@ -206,7 +204,7 @@
               <td class="center"><input type="checkbox" disabled [checked]="!!field(f.field)?.mandatory" aria-label="Mandatory" /></td>
               <td>
                 <select *ngIf="f.field === 'status' || f.field === 'criticality' || f.field === 'category'; else freeValue" class="control control--sm" [(ngModel)]="f.value" (ngModelChange)="onMappingChange()" aria-label="Value">
-                  <option value="">Select Value</option>
+                  <option value="">Choose value</option>
                   <option *ngFor="let v of f.field === 'status' ? statuses : f.field === 'criticality' ? criticalities : categories" [value]="v">{{ v }}</option>
                 </select>
                 <ng-template #freeValue><input class="control control--sm" [(ngModel)]="f.value" (ngModelChange)="onMappingChange()" [type]="field(f.field)?.type === 'Date' ? 'date' : 'text'" aria-label="Value" /></ng-template>

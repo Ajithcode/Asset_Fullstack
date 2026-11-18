@@ -303,8 +303,8 @@ export class SpareParts {
   openIssue(p?: SparePart): void {
     this.menuOpen = '';
     this.formError = '';
-    const part = p && p.onHand > 0 ? p : undefined;
-    this.issueForm = { partNo: part?.partNo ?? '', qty: 1, wo: '' };
+    const part = p && p.onHand > 0 ? p : this.stocked.find((x) => x.onHand > 0);
+    this.issueForm = { partNo: part?.partNo ?? '', qty: 1, wo: this.openOrders[0]?.id ?? '' };
   }
 
   saveIssue(): void {
@@ -328,7 +328,7 @@ export class SpareParts {
   openRequest(p?: SparePart): void {
     this.menuOpen = '';
     this.formError = '';
-    const part = p;
+    const part = p ?? this.lowStock[0] ?? this.stocked[0];
     const d = new Date(TODAY);
     d.setDate(d.getDate() + (part?.leadTimeDays ?? 7));
     this.requestForm = { partNo: part?.partNo ?? '', qty: part ? Math.max(1, part.reorderLevel * 2 - part.onHand - part.onOrder) : 1, neededBy: toIsoDate(d), note: '' };
