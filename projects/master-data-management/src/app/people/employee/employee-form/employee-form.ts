@@ -11,7 +11,7 @@ import { EmployeeRecord } from '../employee.model';
 import { EmployeeService } from '../employee.service';
 
 type FormTab = 'basic' | 'employment' | 'contact' | 'skills' | 'access';
-type FieldKey = 'id' | 'name' | 'department' | 'designation' | 'email' | 'photo' | 'reportingManager' | 'certifications';
+type FieldKey = 'id' | 'name' | 'department' | 'designation' | 'email' | 'photo' | 'status' | 'reportingManager' | 'certifications';
 
 const TAB_OF: Record<FieldKey, FormTab> = {
   id: 'basic',
@@ -20,6 +20,7 @@ const TAB_OF: Record<FieldKey, FormTab> = {
   designation: 'basic',
   email: 'basic',
   photo: 'basic',
+  status: 'basic',
   reportingManager: 'employment',
   certifications: 'skills'
 };
@@ -153,6 +154,7 @@ export class EmployeeForm implements OnChanges {
     else if (this.service.isIdTaken(f.id, originalId)) errors.id = `${f.id.trim()} is already used.`;
     if (!f.name.trim()) errors.name = 'Enter the full name.';
     if (!f.department) errors.department = 'Select a department.';
+    if (!f.status) errors.status = 'Select a status.';
     if (!f.designation) errors.designation = 'Select a designation.';
     if (!f.email.trim()) errors.email = 'Enter an email address.';
     else if (!EMAIL.test(f.email.trim())) errors.email = 'Enter a valid email address.';

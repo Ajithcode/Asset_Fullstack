@@ -3,6 +3,7 @@
     <section class="panel">
       <span class="field-label">Location</span>
       <select class="select select--full" aria-label="Location" [ngModel]="store.selectedFloorId" (ngModelChange)="store.selectFloor($event)">
+        <option value="" disabled>Select Location</option>
         @for (f of store.floors; track f.id) { <option [value]="f.id">{{ f.label }}</option> }
       </select>
 
@@ -162,7 +163,7 @@
       <span class="map-foot__spacer"></span>
       Show
       <select class="zoom-select" aria-label="Show" [(ngModel)]="showFilter">
-        <option value="all">All Items</option>
+        <option value="all">Select Show</option>
         <option value="devices">Devices only</option>
         <option value="assets">Assets only</option>
       </select>
@@ -243,6 +244,7 @@
         <div class="field">
           <label for="pl-label">Marker label</label>
           <select id="pl-label" [(ngModel)]="settings.labelMode">
+            <option value="" disabled>Select Marker Label</option>
             <option value="ID">Asset / Device ID</option>
             <option value="None">None</option>
           </select>

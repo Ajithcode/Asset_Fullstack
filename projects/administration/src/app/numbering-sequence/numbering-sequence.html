@@ -13,6 +13,7 @@
   <label class="org-picker">
     Organization
     <select [(ngModel)]="organization">
+      <option value="" disabled>Select Organization</option>
       @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
     </select>
   </label>
@@ -65,11 +66,11 @@
     <input [(ngModel)]="search" placeholder="Search sequences..." aria-label="Search sequences" />
   </label>
   <select class="select" [(ngModel)]="moduleFilter" aria-label="Module filter">
-    <option value="">All Modules</option>
+    <option value="">Select Module</option>
     @for (m of modules; track m) { <option [value]="m">{{ m }}</option> }
   </select>
   <select class="select" [(ngModel)]="statusFilter" aria-label="Status filter">
-    <option value="">All Statuses</option>
+    <option value="">Select Status</option>
     @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
   </select>
 </div>

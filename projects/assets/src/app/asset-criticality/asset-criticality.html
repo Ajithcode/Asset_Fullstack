@@ -261,6 +261,7 @@
             <td>
               <select class="control control--xs" [ngClass]="'status--' + mitigationTone(m.status)" [ngModel]="m.status"
                 (ngModelChange)="setMitigationStatus(m, $event)" [attr.aria-label]="'Status of ' + m.action">
+                <option [ngValue]="null" disabled>Select Status</option>
                 <option *ngFor="let s of mitigationStatuses" [ngValue]="s">{{ s }}</option>
               </select>
             </td>
@@ -343,15 +344,15 @@
           <input type="search" [(ngModel)]="search" (ngModelChange)="onFilterChange()" placeholder="Search assets..." aria-label="Search assets" />
         </label>
         <select class="control control--sm" [(ngModel)]="categoryFilter" (ngModelChange)="onFilterChange()" aria-label="Category">
-          <option value="">All Categories</option>
+          <option value="">Select Category</option>
           <option *ngFor="let x of categories" [value]="x">{{ x }}</option>
         </select>
         <select class="control control--sm" [(ngModel)]="siteFilter" (ngModelChange)="onFilterChange()" aria-label="Location">
-          <option value="">All Locations</option>
+          <option value="">Select Location</option>
           <option *ngFor="let x of sites" [value]="x">{{ x }}</option>
         </select>
         <select class="control control--sm" [(ngModel)]="levelFilter" (ngModelChange)="onFilterChange()" aria-label="Criticality level">
-          <option value="">All Criticality Levels</option>
+          <option value="">Select Criticality Level</option>
           <option *ngFor="let x of levels" [value]="x">{{ x }}</option>
         </select>
         <div class="view-toggle" role="group" aria-label="View">
@@ -449,10 +450,10 @@
         <label class="field"><span class="field-label">Assessed By <em>*</em></span><input class="control" [(ngModel)]="f.assessedBy" name="assessedBy" /></label>
         <label class="field"><span class="field-label">Approved By <em>*</em></span><input class="control" [(ngModel)]="f.approvedBy" name="approvedBy" /></label>
         <label class="field"><span class="field-label">Likelihood</span>
-          <select class="control" [(ngModel)]="f.likelihood" name="likelihood"><option *ngFor="let s of scale; let i = index" [ngValue]="i + 1">{{ s }}</option></select>
+          <select class="control" [(ngModel)]="f.likelihood" name="likelihood"><option [ngValue]="null" disabled>Select Likelihood</option><option *ngFor="let s of scale; let i = index" [ngValue]="i + 1">{{ s }}</option></select>
         </label>
         <label class="field"><span class="field-label">Consequence</span>
-          <select class="control" [(ngModel)]="f.consequence" name="consequence"><option *ngFor="let s of scale; let i = index" [ngValue]="i + 1">{{ s }}</option></select>
+          <select class="control" [(ngModel)]="f.consequence" name="consequence"><option [ngValue]="null" disabled>Select Consequence</option><option *ngFor="let s of scale; let i = index" [ngValue]="i + 1">{{ s }}</option></select>
         </label>
         <div class="field"><span class="field-label">Result</span>
           <span class="result"><strong>{{ formScore | number: '1.1-1' }}</strong> / 100
@@ -468,6 +469,7 @@
               <td class="num">{{ x.weight }}</td>
               <td>
                 <select class="control control--xs" [(ngModel)]="x.score" [name]="'score' + i" [attr.aria-label]="'Score for ' + x.name">
+                  <option [ngValue]="null" disabled>Select Score</option>
                   <option *ngFor="let s of scoreSteps" [ngValue]="s">{{ s }}</option>
                 </select>
               </td>
@@ -497,10 +499,10 @@
     <form class="modal-body" (ngSubmit)="saveInfo()">
       <div class="grid-2">
         <label class="field"><span class="field-label">Assessment Method</span>
-          <select class="control" [(ngModel)]="f.method" name="method"><option *ngFor="let m of assessmentMethods" [value]="m">{{ m }}</option></select>
+          <select class="control" [(ngModel)]="f.method" name="method"><option value="" disabled>Select Assessment Method</option><option *ngFor="let m of assessmentMethods" [value]="m">{{ m }}</option></select>
         </label>
         <label class="field"><span class="field-label">Review Frequency</span>
-          <select class="control" [(ngModel)]="f.reviewFrequency" name="reviewFrequency"><option *ngFor="let m of reviewFrequencies" [value]="m">{{ m }}</option></select>
+          <select class="control" [(ngModel)]="f.reviewFrequency" name="reviewFrequency"><option value="" disabled>Select Review Frequency</option><option *ngFor="let m of reviewFrequencies" [value]="m">{{ m }}</option></select>
         </label>
         <label class="field"><span class="field-label">Valid Until <em>*</em></span><input type="date" class="control" [(ngModel)]="f.validUntil" name="validUntil" /></label>
         <label class="field"><span class="field-label">Next Review Date</span><input type="date" class="control" [(ngModel)]="f.nextReview" name="nextReview" /></label>
@@ -532,10 +534,10 @@
         <label class="field"><span class="field-label">Owner <em>*</em></span><input class="control" [(ngModel)]="f.owner" name="owner" /></label>
         <label class="field"><span class="field-label">Due Date <em>*</em></span><input type="date" class="control" [(ngModel)]="f.dueDate" name="dueDate" /></label>
         <label class="field"><span class="field-label">Status</span>
-          <select class="control" [(ngModel)]="f.status" name="status"><option *ngFor="let s of mitigationStatuses" [ngValue]="s">{{ s }}</option></select>
+          <select class="control" [(ngModel)]="f.status" name="status"><option [ngValue]="null" disabled>Select Status</option><option *ngFor="let s of mitigationStatuses" [ngValue]="s">{{ s }}</option></select>
         </label>
         <label class="field"><span class="field-label">Expected Criticality</span>
-          <select class="control" [(ngModel)]="f.reducesTo" name="reducesTo"><option *ngFor="let l of levels" [ngValue]="l">{{ l }}</option></select>
+          <select class="control" [(ngModel)]="f.reducesTo" name="reducesTo"><option [ngValue]="null" disabled>Select Expected Criticality</option><option *ngFor="let l of levels" [ngValue]="l">{{ l }}</option></select>
         </label>
       </div>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>

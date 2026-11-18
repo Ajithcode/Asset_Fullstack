@@ -229,7 +229,7 @@ const SEQUENCE_API: Record<PlanSequence, string> = { location: 'By Location', ca
 /** Dates from start to end (inclusive) that fall on the chosen working days. */
 function workDates(start: string, end: string, days: WorkingDays): string[] {
   const out: string[] = [];
-  if (!start || !end || end < start) return out;
+  if (!start || !end || end < start || !days) return out;
   const d = new Date(`${start}T00:00:00`);
   const last = new Date(`${end}T00:00:00`);
   while (d <= last) {
@@ -483,7 +483,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
     const start = nextWeekday();
     const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
     return {
-      team: [], start: isoDate(start), end: isoDate(end), workingDays: 'Weekdays (Mon - Fri)', startTime: '09:00', endTime: '17:00', sequence: 'location',
+      team: [], start: isoDate(start), end: isoDate(end), workingDays: '' as WorkingDays, startTime: '09:00', endTime: '17:00', sequence: 'location',
       plan: [], planKey: '', notifications: { onAssignment: true, reminder: true, onCompletion: true, onChange: false },
     } as ScheduleState;
   })();
@@ -1116,8 +1116,8 @@ export class NewassetAudit implements OnInit, OnDestroy {
     this.closeMenus();
     this.criterionError = '';
     this.criterionForm = {
-      id: null, name: '', description: '', category: 'Other', type: this.criteriaTab === 'Checklist' ? 'Custom' : this.criteriaTab, method: 'Visual Inspection',
-      appliesTo: 'All Assets', mandatory: this.criteria.settings.mandatoryDefault,
+      id: null, name: '', description: '', category: '', type: '' as CriterionType, method: '',
+      appliesTo: '' as CriterionAppliesTo, mandatory: this.criteria.settings.mandatoryDefault,
     };
   }
 
@@ -1132,6 +1132,10 @@ export class NewassetAudit implements OnInit, OnDestroy {
     if (!f) return;
     const name = f.name.trim();
     if (!name) return void (this.criterionError = 'Enter the criteria name.');
+    if (!f.type) return void (this.criterionError = 'Choose the type.');
+    if (!f.category) return void (this.criterionError = 'Choose the category.');
+    if (!f.method) return void (this.criterionError = 'Choose the check method.');
+    if (!f.appliesTo) return void (this.criterionError = 'Choose what it applies to.');
     if (this.criteria.items.some((c) => c.id !== f.id && c.name.toLowerCase() === name.toLowerCase())) return void (this.criterionError = `"${name}" already exists.`);
 
     const fields = { ...f, name, description: f.description.trim() };
@@ -1282,7 +1286,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
   openAddMember(): void {
     this.closeMenus();
     this.teamError = '';
-    this.addForm = { search: '', picked: [], role: this.schedule.team.some((m) => m.role === 'Lead Auditor') ? 'Auditor' : 'Lead Auditor' };
+    this.addForm = { search: '', picked: [], role: '' as TeamRole };
   }
 
   get addChoices(): AuditUser[] {
@@ -1305,6 +1309,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
     const f = this.addForm;
     if (!f) return;
     if (!f.picked.length) return void (this.teamError = 'Tick the people to add.');
+    if (!f.role) return void (this.teamError = 'Choose the role.');
     f.picked.forEach((name, i) => {
       const user = this.users.find((u) => u.name === name);
       if (!user) return;
@@ -1347,6 +1352,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
     const sc = this.schedule;
     if (!sc.start || !sc.end) return this.showToast('Choose the start and end dates first.');
     if (sc.end < sc.start) return this.showToast('The end date must be on or after the start date.');
+    if (!sc.workingDays) return this.showToast('Choose the working days first.');
     if (!this.workDayCount) return this.showToast('No working days between the start and end dates.');
     this.checkedPlanRows.clear();
     if (this.auditId && sc.team.length) {
@@ -1550,6 +1556,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
       if (!this.leadAuditor) return fail('assign', 'Set one team member\'s role to Lead Auditor.');
       if (!sc.start || !sc.end) return fail('assign', 'Choose the start and end dates.');
       if (sc.end < sc.start) return fail('assign', 'The end date must be on or after the start date.');
+      if (!sc.workingDays) return fail('assign', 'Choose the working days.');
       if (sc.startTime && sc.endTime && sc.endTime <= sc.startTime) return fail('assign', 'The daily end time must be after the start time.');
       if (!sc.plan.length) return fail('assign', 'Generate the audit plan (Regenerate Plan).');
       if (sc.planKey !== planKey(this.finalAssets, sc)) return fail('assign', 'The audit plan is out of date. Press Regenerate Plan.');

@@ -878,14 +878,10 @@ export class AssetRegistration {
     if (this.criticalitiesRequested) return;
     this.criticalitiesRequested = true;
     const f = this.form;
-    // Nothing chosen yet: preselect Medium until Master Data answers
-    f.criticality ||= DEFAULT_CRITICALITIES.find((c) => c.isDefault)?.value ?? '';
     this.dropdownApi.getCriticalities().subscribe((loaded) => {
       // No criticalities in Master Data yet: keep High / Medium / Low so the required field can be filled
       const list = loaded.length ? loaded : DEFAULT_CRITICALITIES;
       this.swapOptions(this.criticalities, this.withColors(list), (re) => (f.criticality = re(f.criticality)));
-      // Nothing chosen (or the choice is gone): preselect the record marked defaultCriticality
-      f.criticality ||= list.find((c) => c.isDefault)?.value ?? '';
     });
   }
 
@@ -1010,7 +1006,7 @@ export class AssetRegistration {
   private pickSubCategory(categoryId: string, previous: Option[]): void {
     if (this.form.category !== categoryId) return; // user moved on while the request was running
     const list = this.subCategories;
-    this.form.subCategory = this.relabel(previous, list, this.form.subCategory) || (list[0]?.value ?? '');
+    this.form.subCategory = this.relabel(previous, list, this.form.subCategory) || '';
     this.loadAssetTypes();
   }
 
@@ -1038,7 +1034,7 @@ export class AssetRegistration {
   private pickAssetType(subCategoryId: string, previous: Option[]): void {
     if (this.form.subCategory !== subCategoryId) return;
     const list = this.assetTypes;
-    this.form.assetType = this.relabel(previous, list, this.form.assetType) || (list[0]?.value ?? '');
+    this.form.assetType = this.relabel(previous, list, this.form.assetType) || '';
     this.onAssetTypeChange();
   }
 
@@ -1056,7 +1052,7 @@ export class AssetRegistration {
       this.people.splice(0, this.people.length, ...people);
       if (!people.some((p) => p.value === f.assignedTo)) f.assignedTo = '';
       this.teams.splice(0, this.teams.length, ...teams);
-      if (!teams.some((t) => t.value === f.responsibleTeam)) f.responsibleTeam = teams[0]?.value ?? '';
+      if (!teams.some((t) => t.value === f.responsibleTeam)) f.responsibleTeam = '';
     });
   }
 
@@ -1137,19 +1133,20 @@ export class AssetRegistration {
   }
 
   onCategoryChange(): void {
-    this.form.subCategory = this.subCategories[0]?.value ?? '';
+    this.form.subCategory = '';
     this.onSubCategoryChange();
     this.loadSubCategories();
   }
 
   onSubCategoryChange(): void {
-    this.form.assetType = this.assetTypes[0]?.value ?? '';
+    this.form.assetType = '';
     this.onAssetTypeChange();
     this.loadAssetTypes();
   }
 
   onAssetTypeChange(): void {
-    this.form.assetSubType = this.assetSubTypes[0]?.value ?? '';
+    // Keep a sub type that still belongs to the type (e.g. a loaded record); otherwise start empty
+    if (!this.assetSubTypes.some((t) => t.value === this.form.assetSubType)) this.form.assetSubType = '';
   }
 
   selectAssetType(value: string): void {

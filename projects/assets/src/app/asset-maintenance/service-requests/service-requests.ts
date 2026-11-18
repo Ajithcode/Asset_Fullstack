@@ -108,7 +108,7 @@ export class ServiceRequests {
   readonly pad = PAD;
   readonly pageSizes = [10, 25, 50];
 
-  period: Period = '180';
+  period: Period | '' = '';
   search = '';
   statusFilter: SrStatus | '' = '';
   categoryFilter: SrCategory | '' = '';
@@ -144,7 +144,7 @@ export class ServiceRequests {
   // ===== Rows =====
 
   private get since(): string {
-    if (this.period === 'all') return '';
+    if (!this.period || this.period === 'all') return '';
     if (this.period === 'year') return `${TODAY.getFullYear()}-01-01`;
     const d = new Date(TODAY);
     d.setDate(d.getDate() - Number(this.period));
@@ -269,7 +269,7 @@ export class ServiceRequests {
     this.formError = '';
     this.form = r
       ? { id: r.id, title: r.title, description: r.description, category: r.category, priority: r.priority, requestedBy: r.requestedBy, requesterDept: r.requesterDept, assignedTo: r.assignedTo, targetDate: r.targetDate }
-      : { id: null, title: '', description: '', category: 'Mechanical', priority: 'Medium', requestedBy: this.user, requesterDept: `${this.asset.department} Department`, assignedTo: '', targetDate: this.targetFor('Medium') };
+      : { id: null, title: '', description: '', category: '' as SrCategory, priority: '' as SrPriority, requestedBy: this.user, requesterDept: `${this.asset.department} Department`, assignedTo: '', targetDate: '' };
   }
 
   private targetFor(p: SrPriority): string {
@@ -280,13 +280,15 @@ export class ServiceRequests {
 
   /** A new request's target follows its priority's resolution SLA. */
   onFormPriority(): void {
-    if (this.form && !this.form.id) this.form.targetDate = this.targetFor(this.form.priority);
+    if (this.form && !this.form.id && this.form.priority) this.form.targetDate = this.targetFor(this.form.priority);
   }
 
   saveForm(): void {
     const f = this.form;
     if (!f) return;
     if (!f.title.trim()) return void (this.formError = 'Enter the subject.');
+    if (!f.category) return void (this.formError = 'Select the category.');
+    if (!f.priority) return void (this.formError = 'Select the priority.');
     if (!f.targetDate) return void (this.formError = 'Enter the target date.');
     const existing = f.id ? this.requests.find((r) => r.id === f.id) : undefined;
     if (!existing && !this.registrationId) return void (this.formError = `${this.asset.tag} is not registered in the Asset API, so requests cannot be raised for it.`);

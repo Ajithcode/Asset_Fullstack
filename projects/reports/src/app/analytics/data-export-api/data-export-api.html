@@ -40,24 +40,28 @@
   </label>
   @if (tab === 'exports') {
     <select class="select" [(ngModel)]="formatFilter" aria-label="Type">
+      <option value="" disabled>Select Type</option>
       <option value="">Type</option>
       @for (f of formats; track f) {
         <option [value]="f">{{ f }}</option>
       }
     </select>
     <select class="select" [(ngModel)]="statusFilter" aria-label="Status">
+      <option value="" disabled>Select Status</option>
       <option value="">Status</option>
       @for (s of statuses; track s) {
         <option [value]="s">{{ s }}</option>
       }
     </select>
     <select class="select" [(ngModel)]="ownerFilter" aria-label="Owner">
+      <option value="" disabled>Select Owner</option>
       <option value="">Owner</option>
       @for (o of owners; track o) {
         <option [value]="o">{{ o }}</option>
       }
     </select>
     <select class="select" [(ngModel)]="lastRunFilter" aria-label="Last run">
+      <option value="" disabled>Select Last Run</option>
       <option value="">Last Run</option>
       <option value="24h">Last 24 hours</option>
       <option value="7d">Last 7 days</option>

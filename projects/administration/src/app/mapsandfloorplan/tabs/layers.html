@@ -3,6 +3,7 @@
     <section class="panel">
       <span class="field-label">Location</span>
       <select class="select select--full" aria-label="Location" [ngModel]="store.selectedFloorId" (ngModelChange)="store.selectFloor($event)">
+        <option value="" disabled>Select Location</option>
         @for (f of store.floors; track f.id) { <option [value]="f.id">{{ f.label }}</option> }
       </select>
       @if (!store.currentPlan && !store.plansLoading) {
@@ -71,7 +72,7 @@
       <label class="show-row">
         Layer Set:
         <select class="zoom-select" aria-label="Layer set" [ngModel]="store.activeLayerSet ?? ''" (ngModelChange)="applySet($event)" [disabled]="store.working">
-          <option value="" disabled>Choose…</option>
+          <option value="" disabled>Select Layer Set</option>
           @for (s of store.layerSets; track s.id) { <option [value]="s.id">{{ s.name }}</option> }
         </select>
       </label>
@@ -119,6 +120,7 @@
           <div class="field">
             <label for="ly-type">Layer Type</label>
             <select id="ly-type" name="type" [ngModel]="d.type" disabled>
+              <option value="" disabled>Select Layer Type</option>
               @for (t of layerTypes; track t) { <option [value]="t">{{ t }}</option> }
             </select>
           </div>
@@ -135,6 +137,7 @@
           <div class="field">
             <label for="ly-pos">Label Position</label>
             <select id="ly-pos" name="pos" [(ngModel)]="d.labelPosition">
+              <option value="" disabled>Select Label Position</option>
               @for (p of labelPositions; track p) { <option [value]="p">{{ p }}</option> }
             </select>
           </div>
@@ -147,6 +150,7 @@
                 <span class="chip">{{ c }} <button type="button" [attr.aria-label]="'Remove ' + c" (click)="removeCategory(c)"><lucide-icon [img]="icons.X" [size]="12"></lucide-icon></button></span>
               }
               <select aria-label="Add asset category" name="cat" [ngModel]="''" (ngModelChange)="addCategory($event)">
+                <option value="" disabled>Select Asset Category</option>
                 <option value="">Add...</option>
                 @for (c of categories; track c) {
                   @if (!d.categories.includes(c)) { <option [value]="c">{{ c }}</option> }
@@ -157,6 +161,7 @@
           <div class="field">
             <label for="ly-status">Asset Status</label>
             <select id="ly-status" name="status" [(ngModel)]="d.statusFilter">
+              <option value="" disabled>Select Asset Status</option>
               @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
             </select>
           </div>

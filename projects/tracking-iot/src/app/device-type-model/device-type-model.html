@@ -49,9 +49,9 @@
         <section class="card table-card" aria-label="Device models">
           <div class="filters">
             <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search models, manufacturer..." aria-label="Search models" /></label>
-            <label class="lsel"><span>Manufacturer</span><select [(ngModel)]="mfrFilter" (ngModelChange)="onFilter()"><option value="">All</option><option *ngFor="let x of manufacturers" [value]="x">{{ x }}</option></select></label>
-            <label class="lsel"><span>Connectivity</span><select [(ngModel)]="connFilter" (ngModelChange)="onFilter()"><option value="">All</option><option *ngFor="let c of connOptions" [value]="c">{{ c }}</option></select></label>
-            <label class="lsel"><span>Status</span><select [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">All</option><option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</option></select></label>
+            <label class="lsel"><span>Manufacturer</span><select [(ngModel)]="mfrFilter" (ngModelChange)="onFilter()"><option value="">Select Manufacturer</option><option *ngFor="let x of manufacturers" [value]="x">{{ x }}</option></select></label>
+            <label class="lsel"><span>Connectivity</span><select [(ngModel)]="connFilter" (ngModelChange)="onFilter()"><option value="">Select Connection</option><option *ngFor="let c of connOptions" [value]="c">{{ c }}</option></select></label>
+            <label class="lsel"><span>Status</span><select [(ngModel)]="statusFilter" (ngModelChange)="onFilter()"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</option></select></label>
           </div>
           <p *ngIf="loading" class="muted" role="status">Loading device models…</p>
           <p *ngIf="loadError" class="form-error" role="alert">{{ loadError }} <button type="button" class="link-btn" (click)="load()">Retry</button></p>
@@ -202,7 +202,7 @@
       <div class="three">
         <label class="field"><span class="field-label">Model name <em>*</em></span><input class="control" [(ngModel)]="d.f.name" name="name" placeholder="e.g. EM300-TH" [readonly]="!!d.editId" [title]="d.editId ? 'The model number cannot be changed' : ''" /></label>
         <label class="field"><span class="field-label">Manufacturer <em>*</em></span><input class="control" [(ngModel)]="d.f.manufacturer" name="mfr" list="dm-mfrs" placeholder="e.g. Milesight" autocomplete="off" /></label>
-        <label class="field"><span class="field-label">Device type <em>*</em></span><select class="control" [(ngModel)]="d.f.typeId" name="type" (ngModelChange)="onFormType()"><option *ngFor="let t of types" [value]="t.id">{{ t.name }}</option></select></label>
+        <label class="field"><span class="field-label">Device type <em>*</em></span><select class="control" [(ngModel)]="d.f.typeId" name="type" (ngModelChange)="onFormType()"><option value="" disabled>Select Device Type</option><option *ngFor="let t of types" [value]="t.id">{{ t.name }}</option></select></label>
       </div>
       <fieldset class="field">
         <legend class="field-label">Connectivity <em>*</em></legend>
@@ -210,7 +210,7 @@
       </fieldset>
       <div class="three">
         <label class="field"><span class="field-label">Protocol</span><input class="control" [(ngModel)]="d.f.protocol" name="proto" list="dm-protos" placeholder="e.g. LoRaWAN 1.0.3" autocomplete="off" /><datalist id="dm-protos"><option *ngFor="let p of protocolHints(d.f.connectivity[0])" [value]="p"></option></datalist></label>
-        <label class="field"><span class="field-label">Power</span><select class="control" [(ngModel)]="d.f.power" name="power"><option *ngFor="let p of powerOptions" [value]="p">{{ p }}</option></select></label>
+        <label class="field"><span class="field-label">Power</span><select class="control" [(ngModel)]="d.f.power" name="power"><option value="" disabled>Select Power</option><option *ngFor="let p of powerOptions" [value]="p">{{ p }}</option></select></label>
         <label class="field"><span class="field-label">Frequency bands</span><input class="control" [(ngModel)]="d.f.bands" name="bands" placeholder="EU868, US915" /></label>
       </div>
       <fieldset class="field">
@@ -224,6 +224,7 @@
         <label class="field"><span class="field-label">Firmware from</span><input class="control" [(ngModel)]="d.f.fwMin" name="fwmin" placeholder="1.1.0" /></label>
         <label class="field"><span class="field-label">Firmware to</span><input class="control" [(ngModel)]="d.f.fwMax" name="fwmax" placeholder="1.4.0" /></label>
         <label class="field"><span class="field-label">Status</span><select class="control" [(ngModel)]="d.f.status" name="status">
+          <option value="" disabled>Select Status</option>
           <option value="Draft">Draft (Pending Review)</option><option value="Active">Active</option><option *ngIf="d.editId" value="Retired">Retired</option></select></label>
       </div>
       <fieldset class="field">
@@ -247,7 +248,7 @@
         <legend class="field-label">Icon</legend>
         <div class="icon-pick"><button *ngFor="let i of typeIcons" type="button" [class.is-on]="d.icon === i" (click)="d.icon = i" [attr.aria-label]="i" [attr.aria-pressed]="d.icon === i"><lucide-icon [img]="typeIcon(i)" [size]="18"></lucide-icon></button></div>
       </fieldset>
-      <label class="field"><span class="field-label">Thumbnail style</span><select class="control" [(ngModel)]="d.form" name="form"><option *ngFor="let f of forms" [value]="f.id">{{ f.label }}</option></select></label>
+      <label class="field"><span class="field-label">Thumbnail style</span><select class="control" [(ngModel)]="d.form" name="form"><option value="" disabled>Select Thumbnail Style</option><option *ngFor="let f of forms" [value]="f.id">{{ f.label }}</option></select></label>
       <label class="field"><span class="field-label">Description</span><textarea class="control control-area" [(ngModel)]="d.description" name="desc" rows="3" placeholder="What devices belong to this type?"></textarea></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">Add type</button></div>

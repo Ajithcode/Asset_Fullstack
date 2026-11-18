@@ -14,6 +14,7 @@ type Tab = 'basic' | 'inventory' | 'financial' | 'additional' | 'settings';
 const TAB_OF: Record<string, Tab> = {
   category: 'basic',
   uom: 'basic',
+  status: 'basic',
   image: 'basic',
   partNumber: 'basic',
   currentStock: 'inventory',
@@ -114,6 +115,7 @@ export class ItemForm extends MasterForm<ItemRecord, Tab> {
     const whole = (n: number) => Number.isFinite(n) && n >= 0;
     if (!f.category) errors['category'] = 'Select a category.';
     if (!f.uom) errors['uom'] = 'Select a unit of measure.';
+    if (!f.status) errors['status'] = 'Select a status.';
     if (f.partNumber.trim() && this.store.all().some((i) => i.partNumber.toLowerCase() === f.partNumber.trim().toLowerCase() && i.code !== this.original?.code)) {
       errors['partNumber'] = 'Another item has this part number.';
     }

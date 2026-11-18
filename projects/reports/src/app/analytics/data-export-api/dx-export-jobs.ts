@@ -21,7 +21,7 @@ import { JOB_TONES, MODULE_TONES, destinationIcon, formatStamp, moduleIcon } fro
           </button>
         }
         <select class="select dx-select-sm" [(ngModel)]="module" aria-label="Data source">
-          <option value="">All data sources</option>
+          <option value="">Select Data Source</option>
           @for (m of modules; track m) {
             <option [value]="m">{{ m }}</option>
           }

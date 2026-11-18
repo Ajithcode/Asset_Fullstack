@@ -11,15 +11,16 @@
             <button type="button" role="menuitem" (click)="print()">Print</button>
           </span></span>
         <select class="control sr-period" [(ngModel)]="period" (ngModelChange)="onFilter()" aria-label="Period">
+          <option value="">Select Period</option>
           <option value="30">Last 30 Days</option><option value="180">Last 6 Months</option><option value="year">This Year</option><option value="all">All Time</option>
         </select>
       </div>
 
       <div class="sr-filters">
         <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by SR#, subject, category, status..." aria-label="Search service requests" /></label>
-        <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()" aria-label="Status"><option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
-        <select class="control" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()" aria-label="Category"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
-        <select class="control" [(ngModel)]="priorityFilter" (ngModelChange)="onFilter()" aria-label="Priority"><option value="">All Priorities</option><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select>
+        <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()" aria-label="Status"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+        <select class="control" [(ngModel)]="categoryFilter" (ngModelChange)="onFilter()" aria-label="Category"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
+        <select class="control" [(ngModel)]="priorityFilter" (ngModelChange)="onFilter()" aria-label="Priority"><option value="">Select Priority</option><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select>
       </div>
 
       <div class="table-wrap">
@@ -150,7 +151,7 @@
         <dt><lucide-icon [img]="icons.CalendarDays" [size]="14"></lucide-icon>Target Date</dt><dd>{{ fmtDate(r.targetDate) }}</dd>
         <dt><lucide-icon [img]="icons.User" [size]="14"></lucide-icon>Assigned To</dt>
         <dd><select class="control control-xs sr-assign" [ngModel]="r.assignedTo" (ngModelChange)="assign(r, $event)" [disabled]="r.status === 'Closed'" aria-label="Assigned to">
-          <option value="" disabled>-</option><option *ngFor="let t of technicians" [value]="t">{{ t }}</option></select></dd>
+          <option value="" disabled>Select Assigned To</option><option *ngFor="let t of technicians" [value]="t">{{ t }}</option></select></dd>
         <dt><lucide-icon [img]="icons.Package" [size]="14"></lucide-icon>Related Asset</dt><dd>{{ asset.tag }} ({{ asset.name }})</dd>
       </dl>
       <ul *ngIf="detailTab === 'updates'" class="sr-timeline">
@@ -205,14 +206,14 @@
       <label class="field"><span class="field-label">Subject <em>*</em></span><input class="control" [(ngModel)]="f.title" name="title" /></label>
       <label class="field"><span class="field-label">Description</span><textarea class="control sr-textarea" [(ngModel)]="f.description" name="desc" rows="3"></textarea></label>
       <div class="two">
-        <label class="field"><span class="field-label">Category</span><select class="control" [(ngModel)]="f.category" name="cat"><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
-        <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="f.priority" name="prio" (ngModelChange)="onFormPriority()"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
+        <label class="field"><span class="field-label">Category</span><select class="control" [(ngModel)]="f.category" name="cat"><option value="" disabled>Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+        <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="f.priority" name="prio" (ngModelChange)="onFormPriority()"><option value="" disabled>Select Priority</option><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
         <label class="field"><span class="field-label">Requested By</span><input class="control" [(ngModel)]="f.requestedBy" name="by" /></label>
         <label class="field"><span class="field-label">Department</span><input class="control" [(ngModel)]="f.requesterDept" name="dept" /></label>
         <label class="field"><span class="field-label">Assigned To</span><select class="control" [(ngModel)]="f.assignedTo" name="assigned"><option value="">Not assigned</option><option *ngFor="let t of technicians" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Target Date <em>*</em></span><input class="control" type="date" [(ngModel)]="f.targetDate" name="target" /></label>
       </div>
-      <p class="muted sr-hint">{{ f.priority }} priority: respond within {{ sla[f.priority].responseHours }} hours, resolve within {{ sla[f.priority].resolutionDays }} days.</p>
+      <p *ngIf="f.priority" class="muted sr-hint">{{ f.priority }} priority: respond within {{ sla[f.priority].responseHours }} hours, resolve within {{ sla[f.priority].resolutionDays }} days.</p>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="form = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">{{ f.id ? 'Save' : 'Create Request' }}</button></div>
     </form>

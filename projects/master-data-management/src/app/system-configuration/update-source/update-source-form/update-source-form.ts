@@ -28,6 +28,7 @@ export class UpdateSourceForm extends MasterForm<UpdateSourceRecord, Tab> {
   protected validate(f: UpdateSourceRecord) {
     const errors: Record<string, string> = {};
     if (!f.type) errors['type'] = 'Select a type.';
+    if (!f.status) errors['status'] = 'Select a status.';
     return { errors };
   }
 

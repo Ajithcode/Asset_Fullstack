@@ -317,9 +317,11 @@
         </label>
         <label class="field">
           <span class="field-label">Type</span>
-          <select class="control" name="kind" [(ngModel)]="scheduleForm.kind">
+          <select class="control" name="kind" [(ngModel)]="scheduleForm.kind" [class.is-invalid]="scheduleSubmitted && !scheduleForm.kind">
+            <option value="" disabled>Select Type</option>
             <option *ngFor="let k of kinds" [value]="k">{{ k }}</option>
           </select>
+          <span *ngIf="scheduleSubmitted && !scheduleForm.kind" class="error">Type is required.</span>
         </label>
         <label class="field">
           <span class="field-label">Every <em>*</em></span>
@@ -328,9 +330,11 @@
         </label>
         <label class="field">
           <span class="field-label">Interval Unit</span>
-          <select class="control" name="intervalUnit" [(ngModel)]="scheduleForm.intervalUnit" (ngModelChange)="onIntervalChange()">
+          <select class="control" name="intervalUnit" [(ngModel)]="scheduleForm.intervalUnit" (ngModelChange)="onIntervalChange()" [class.is-invalid]="scheduleSubmitted && !scheduleForm.intervalUnit">
+            <option value="" disabled>Select Interval Unit</option>
             <option *ngFor="let u of units" [value]="u">{{ u === 'Hours' ? 'Running hours' : u }}</option>
           </select>
+          <span *ngIf="scheduleSubmitted && !scheduleForm.intervalUnit" class="error">Interval unit is required.</span>
         </label>
         <label class="field">
           <span class="field-label">Next Due <em>*</em></span>
@@ -374,10 +378,12 @@
         </label>
         <label class="field">
           <span class="field-label">Status</span>
-          <select class="control" name="status" [(ngModel)]="recordForm.status">
+          <select class="control" name="status" [(ngModel)]="recordForm.status" [class.is-invalid]="recordSubmitted && !recordForm.status">
+            <option value="" disabled>Select Status</option>
             <option value="Completed">Completed</option>
             <option value="Cancelled">Cancelled</option>
           </select>
+          <span *ngIf="recordSubmitted && !recordForm.status" class="error">Status is required.</span>
         </label>
         <label class="field">
           <span class="field-label">Technician</span>

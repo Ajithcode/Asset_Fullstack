@@ -8,10 +8,11 @@
       </div>
       <div class="head-filters">
         <label class="ic-select"><lucide-icon [img]="icons.Building" [size]="16"></lucide-icon>
-          <select class="control" [(ngModel)]="site" (ngModelChange)="onFilter()" aria-label="Site"><option value="">All Sites</option>
+          <select class="control" [(ngModel)]="site" (ngModelChange)="onFilter()" aria-label="Site"><option value="">Select Site</option>
             @for (s of sites; track s) { <option [value]="s">{{ s }}</option> }</select></label>
         <label class="ic-select"><lucide-icon [img]="icons.Calendar" [size]="16"></lucide-icon>
           <select class="control" [ngModel]="range" (ngModelChange)="setRange($event)" aria-label="Time range">
+            <option value="">Select Time Range</option>
             @for (r of ranges; track r.key) { <option [value]="r.key">{{ r.label }}</option> }</select></label>
         <button type="button" class="btn btn-primary" (click)="openAdd()" [disabled]="loading || busy"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Add Device Health</button>
       </div>
@@ -86,11 +87,11 @@
       <div class="filters">
         <label class="search"><lucide-icon [img]="icons.Search" [size]="16"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by Device ID, model, asset or site..." aria-label="Search devices" /></label>
         <select class="control" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()" aria-label="Health status">
-          <option value="">All Statuses</option><option value="Healthy">Healthy</option><option value="attention">Attention Required</option><option value="Warning">Warning</option><option value="Critical">Critical</option><option value="Offline">Offline</option><option value="Maintenance">Maintenance</option>
+          <option value="">Select Health Status</option><option value="Healthy">Healthy</option><option value="attention">Attention Required</option><option value="Warning">Warning</option><option value="Critical">Critical</option><option value="Offline">Offline</option><option value="Maintenance">Maintenance</option>
         </select>
-        <select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()" aria-label="Device type"><option value="">All Device Types</option>
+        <select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()" aria-label="Device type"><option value="">Select Device Type</option>
           @for (t of types; track t) { <option [value]="t">{{ t }}</option> }</select>
-        <select class="control" [(ngModel)]="site" (ngModelChange)="onFilter()" aria-label="Site filter"><option value="">All Sites</option>
+        <select class="control" [(ngModel)]="site" (ngModelChange)="onFilter()" aria-label="Site filter"><option value="">Select Site</option>
           @for (s of sites; track s) { <option [value]="s">{{ s }}</option> }</select>
         <span class="menu-wrap">
           <button type="button" class="btn btn-outline btn-filter" [class.is-on]="moreCount" (click)="$event.stopPropagation(); moreOpen = !moreOpen; menuId = ''" [attr.aria-expanded]="moreOpen">
@@ -327,15 +328,15 @@
           <label class="field"><span class="field-label">Gateway</span><input class="control" [(ngModel)]="h.gateway" maxlength="50" placeholder="e.g. GW-DXB-04 or Cellular" /></label>
         </div>
         <div class="two">
-          <label class="field"><span class="field-label">Connectivity</span><select class="control" [(ngModel)]="h.connectivity">@for (c of connectivities; track c) { <option [value]="c">{{ c }}</option> }</select></label>
-          <label class="field"><span class="field-label">Health</span><select class="control" [(ngModel)]="h.health">@for (v of healthValues; track v) { <option [value]="v">{{ v }}</option> }</select></label>
+          <label class="field"><span class="field-label">Connectivity</span><select class="control" [(ngModel)]="h.connectivity"><option value="" disabled>Select Connectivity</option>@for (c of connectivities; track c) { <option [value]="c">{{ c }}</option> }</select></label>
+          <label class="field"><span class="field-label">Health</span><select class="control" [(ngModel)]="h.health"><option value="" disabled>Select Health</option>@for (v of healthValues; track v) { <option [value]="v">{{ v }}</option> }</select></label>
         </div>
         <div class="two">
           <label class="field"><span class="field-label">Signal (dBm)</span><input type="number" class="control" [(ngModel)]="h.signalStrengthDbm" min="-150" max="0" /></label>
           <label class="field"><span class="field-label">SNR (dB)</span><input type="number" class="control" [(ngModel)]="h.snrDb" step="0.1" /></label>
         </div>
         <div class="two">
-          <label class="field"><span class="field-label">Power source</span><select class="control" [(ngModel)]="h.powerSource">@for (p of powerSources; track p) { <option [value]="p">{{ p }}</option> }</select></label>
+          <label class="field"><span class="field-label">Power source</span><select class="control" [(ngModel)]="h.powerSource"><option value="" disabled>Select Power Source</option>@for (p of powerSources; track p) { <option [value]="p">{{ p }}</option> }</select></label>
           <label class="field"><span class="field-label">Battery level (%)</span><input type="number" class="control" [(ngModel)]="h.batteryLevel" min="0" max="100" [disabled]="h.powerSource !== 'Battery'" /></label>
         </div>
         <label class="field"><span class="field-label">Last seen</span><input type="datetime-local" class="control" [(ngModel)]="h.lastSeen" /></label>
@@ -354,8 +355,8 @@
         <p class="muted small">Device <b>{{ selectedId }}</b> · {{ callout.title }}</p>
         <label class="field"><span class="field-label">Title <em>*</em></span><input class="control" [(ngModel)]="f.title" /></label>
         <div class="two">
-          <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="f.priority">@for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }</select></label>
-          <label class="field"><span class="field-label">Assignee</span><select class="control" [(ngModel)]="f.assignee">@for (a of assignees; track a) { <option [value]="a">{{ a }}</option> }</select></label>
+          <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="f.priority"><option value="" disabled>Select Priority</option>@for (p of priorities; track p) { <option [value]="p">{{ p }}</option> }</select></label>
+          <label class="field"><span class="field-label">Assignee</span><select class="control" [(ngModel)]="f.assignee"><option value="" disabled>Select Assignee</option>@for (a of assignees; track a) { <option [value]="a">{{ a }}</option> }</select></label>
         </div>
         <label class="field"><span class="field-label">Notes</span><textarea class="control control-area" rows="3" [(ngModel)]="f.notes" placeholder="Optional details for the assignee"></textarea></label>
         @if (formError) { <p class="form-error">{{ formError }}</p> }

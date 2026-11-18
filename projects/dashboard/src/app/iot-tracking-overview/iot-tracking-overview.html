@@ -15,11 +15,11 @@
         </span>
       </span>
       <label class="io-filter"><span>Site</span>
-        <select class="control" [(ngModel)]="site" (ngModelChange)="apply()"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
+        <select class="control" [(ngModel)]="site" (ngModelChange)="apply()"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
       <label class="io-filter"><span>Asset Type</span>
-        <select class="control" [(ngModel)]="type" (ngModelChange)="apply()"><option value="">All Types</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <select class="control" [(ngModel)]="type" (ngModelChange)="apply()"><option value="">Select Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
       <label class="io-filter"><span>Status</span>
-        <select class="control" [(ngModel)]="status" (ngModelChange)="apply()"><option value="">All Statuses</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
+        <select class="control" [(ngModel)]="status" (ngModelChange)="apply()"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
       <button type="button" class="btn btn-primary" (click)="exportReport()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export Report</button>
     </div>
   </header>
@@ -171,7 +171,7 @@
     <!-- ===== Events timeline ===== -->
     <section class="card io-pad io-events io-span-2" aria-labelledby="io-ev">
       <div class="io-sub-head"><h2 id="io-ev" class="io-title"><lucide-icon [img]="icons.Download" [size]="18"></lucide-icon>IoT Events Timeline</h2>
-        <select class="control io-ev-period" [(ngModel)]="timelinePeriod" (ngModelChange)="loadTimeline()" aria-label="Timeline period"><option value="7">Last 7 Days</option><option value="30">Last 30 Days</option><option value="90">Last 90 Days</option></select></div>
+        <select class="control io-ev-period" [(ngModel)]="timelinePeriod" (ngModelChange)="loadTimeline()" aria-label="Timeline period"><option value="" disabled>Select Timeline Period</option><option value="7">Last 7 Days</option><option value="30">Last 30 Days</option><option value="90">Last 90 Days</option></select></div>
       <!-- #chartEl stays rendered so the resize observer can size the chart once data arrives -->
       <div #chartEl class="io-chart" (mouseleave)="hoverDay = null">
         <p *ngIf="!timeline" class="io-empty">{{ timelineLoading ? 'Loading…' : 'No location updates in this period' }}</p>

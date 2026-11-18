@@ -60,14 +60,14 @@ import { Subscription } from 'rxjs';
 type Tab = 'geofences' | 'rules' | 'history';
 type RuleForm = Omit<Rule, 'id' | 'name' | 'zoneId' | 'enabled'>;
 interface RuleDialog extends RuleForm { id: string; name: string; zoneId: string; enabled: boolean }
-interface ZoneForm { id: string; name: string; type: ZoneType; site: string; color: string; groups: string[]; schedule: string; monitorEntry: boolean; monitorExit: boolean; dwellMin: number | null; shape: ZoneShape; points: number; drawn?: LL[] }
+interface ZoneForm { id: string; name: string; type: ZoneType; site: string; color: string; groups: string[]; schedule: string; monitorEntry: boolean; monitorExit: boolean; dwellMin: number | null; shape: ZoneShape | ''; points: number; drawn?: LL[] }
 interface Confirm { title: string; message: string; label: string; run: () => void }
 
 /** Default colour per zone type (matches the API's map colours). */
 const TYPE_COLOR: Record<ZoneType, string> = { Allowed: '#2563EB', Warning: '#F5B40B', Restricted: '#EF4444' };
 
 const DEFAULT_RULE: RuleForm = {
-  trigger: 'enter-exit', dwellMin: 5, severity: 'High', group: 'All assets', condition: CONDITIONS[0],
+  trigger: '' as Trigger, dwellMin: 5, severity: '' as Severity, group: '', condition: '',
   createAlert: true, notify: false, team: '', workflow: false, workflowName: '',
   inApp: true, email: true, push: true,
   notifyEvery: 5, notifyRepeat: 1, notifySound: true,
@@ -176,7 +176,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   listPage = 0;
   ruleZone = '';
   ruleSearch = '';
-  hDate: 'today' | 'yesterday' | '7d' | 'all' = 'all';
+  hDate: '' | 'today' | 'yesterday' | '7d' | 'all' = '';
   hZone = '';
   hType = '';
   hStatus = '';
@@ -373,7 +373,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
         this.masterSites = sites;
         this.alertEventTypes = alertOptions?.eventTypes ?? [];
         if (!this.zoneById(this.selectedId)) this.selectedId = zones[0]?.id ?? '';
-        if (!this.groups.includes(this.builder.group)) this.builder.group = this.groups[0] ?? '';
+        if (this.builder.group && !this.groups.includes(this.builder.group)) this.builder.group = '';
         this.loading = false;
         this.loadAlerts();
       },
@@ -617,6 +617,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   startDraw(): void {
     const f = this.zoneForm;
     if (!f) return;
+    if (!f.site) { this.formError = 'Choose a site before drawing the outline.'; return; }
     this.pendingForm = f;
     this.zoneForm = null;
     this.drawSite = f.site;
@@ -759,7 +760,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     this.formError = '';
     this.zoneForm = z
       ? { id: z.id, name: z.name, type: z.type, site: z.site, color: z.color, groups: [...z.groups], schedule: z.schedule, monitorEntry: z.monitorEntry, monitorExit: z.monitorExit, dwellMin: z.dwellMin, shape: z.shape, points: z.points || this.options.defaultPolygonPoints }
-      : { id: '', name: '', type: 'Allowed', site: this.mapSite, color: TYPE_COLOR.Allowed, groups: this.groups.slice(0, 1), schedule: this.schedules[0] ?? '', monitorEntry: true, monitorExit: true, dwellMin: 10, shape: 'Polygon', points: this.options.defaultPolygonPoints };
+      : { id: '', name: '', type: 'Allowed', site: '', color: TYPE_COLOR.Allowed, groups: this.groups.slice(0, 1), schedule: '', monitorEntry: true, monitorExit: true, dwellMin: 10, shape: '', points: this.options.defaultPolygonPoints };
   }
 
   get editingDrawn(): boolean {
@@ -793,6 +794,8 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     const name = f.name.trim();
     if (!name) { this.formError = 'Enter a zone name.'; return; }
     if (!f.site) { this.formError = 'Choose a site.'; return; }
+    if (!f.schedule) { this.formError = 'Choose a schedule.'; return; }
+    if (!f.shape) { this.formError = 'Choose a shape.'; return; }
     if (this.zones.some((z) => z.id !== f.id && z.site === f.site && z.name.toLowerCase() === name.toLowerCase())) { this.formError = `“${name}” already exists at ${f.site}.`; return; }
     if (!f.groups.length) { this.formError = 'Select at least one asset group.'; return; }
     const { minPolygonPoints: min, maxPolygonPoints: max } = this.options;
@@ -923,8 +926,11 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   private ruleProblem(f: RuleForm): string {
+    if (!f.trigger) return 'Choose a trigger.';
+    if (!f.severity) return 'Choose a severity.';
     if (!f.createAlert && !f.notify && !f.workflow) return 'Choose at least one action for the rule.';
     if (!f.group) return 'Choose an asset group.';
+    if (!f.condition) return 'Choose a condition.';
     if (f.trigger === 'dwell' && !(f.dwellMin >= 1)) return 'Enter the dwell time in minutes.';
     if (f.notify && !f.team.trim()) return 'Enter the team to notify.';
     if (f.workflow && !f.workflowName.trim()) return 'Enter the workflow to start.';
@@ -948,7 +954,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   resetBuilder(): void {
-    this.builder = { ...DEFAULT_RULE, group: this.groups.includes(DEFAULT_RULE.group) ? DEFAULT_RULE.group : this.groups[0] ?? '' };
+    this.builder = { ...DEFAULT_RULE };
   }
 
   get rulesFiltered(): Rule[] {
@@ -971,7 +977,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     const scope = this.floorId ? this.floorScope : undefined;
     const floorZone = scope ? MAP_ZONE_PREFIX + scope : this.floorId && this.planZones.length ? MAP_ZONE_PREFIX + this.planZones[0].id : '';
     const zoneId = r ? r.zoneId : this.ruleZone || floorZone || this.selected?.id || '';
-    this.ruleDialog = r ? { ...r } : { ...DEFAULT_RULE, group: this.builder.group, id: '', name: '', zoneId, enabled: true };
+    this.ruleDialog = r ? { ...r } : { ...DEFAULT_RULE, id: '', name: '', zoneId, enabled: true };
   }
 
   saveRuleDialog(): void {

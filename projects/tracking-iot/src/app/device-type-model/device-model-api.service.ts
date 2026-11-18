@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of } from 'rxjs';
+import { Observable, catchError, map, of, retry, switchMap, timer } from 'rxjs';
 import { AuthService } from 'shared-ui';
-import { apiError, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
+import { apiError, getAllPages, savedRecord, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
 import { CONNECTIVITY, Connectivity, DeviceModel, ModelStatus } from './model-data';
 
 /** A model as GET/POST/PUT /api/device-models returns it (addressed by modelNumber). */
@@ -114,10 +114,9 @@ export class DeviceModelApiService {
     return this.auth.getUser()?.userName || this.auth.getUserEmail() || 'Unknown user';
   }
 
-  /** GET /api/device-models */
+  /** GET /api/device-models: every page. */
   getAll(): Observable<DeviceModelDto[]> {
-    return this.http.get<DeviceModelDto[]>(this.url, { params: tenantParams() }).pipe(
-      map((rows) => rows ?? []),
+    return getAllPages<DeviceModelDto>(this.http, this.url).pipe(
       catchError((e) => apiError(e, 'Could not load device models.')),
     );
   }
@@ -132,16 +131,18 @@ export class DeviceModelApiService {
   /** GET /api/device-models/form-options */
   formOptions(): Observable<DeviceModelFormOptions> {
     return this.http.get<DeviceModelFormOptions>(`${this.url}/form-options`, { params: tenantParams() }).pipe(
+      // a slow / cold service sometimes fails the first call: try again twice before giving up
+      retry({ count: 2, delay: (_e, n) => timer(800 * n) }),
       catchError((e) => apiError(e, 'Could not load the model form options.')),
     );
   }
 
   /** Devices registered per model number (GET /api/iot-devices), for the "deployed" counts. */
   deployedCounts(): Observable<Record<string, number>> {
-    return this.http.get<{ model: string }[]>(trackingUrl('iot-devices'), { params: tenantParams() }).pipe(
+    return getAllPages<{ model: string }>(this.http, trackingUrl('iot-devices')).pipe(
       map((rows) => {
         const counts: Record<string, number> = {};
-        for (const r of rows ?? []) if (r.model) counts[r.model.toLowerCase()] = (counts[r.model.toLowerCase()] ?? 0) + 1;
+        for (const r of rows) if (r.model) counts[r.model.toLowerCase()] = (counts[r.model.toLowerCase()] ?? 0) + 1;
         return counts;
       }),
       catchError(() => of({})),
@@ -150,16 +151,24 @@ export class DeviceModelApiService {
 
   /** POST /api/device-models */
   create(m: DeviceModel, deviceType: string): Observable<DeviceModelDto> {
-    return this.http.post<DeviceModelDto>(this.url, this.request(m, deviceType), { params: tenantParams() }).pipe(
+    return this.http.post(this.url, this.request(m, deviceType), { params: tenantParams(), responseType: 'text' }).pipe(
+      switchMap((body) => this.saved(body, m.name)),
       catchError((e) => apiError(e, `Could not add ${m.name}.`)),
     );
   }
 
   /** PUT /api/device-models/{modelNumber}: full replace (the model number cannot change). */
   update(m: DeviceModel, deviceType: string): Observable<DeviceModelDto> {
-    return this.http.put<DeviceModelDto>(`${this.url}/${encodeURIComponent(m.id)}`, this.request(m, deviceType), { params: tenantParams() }).pipe(
+    return this.http.put(`${this.url}/${encodeURIComponent(m.id)}`, this.request(m, deviceType), { params: tenantParams(), responseType: 'text' }).pipe(
+      switchMap((body) => this.saved(body, m.id)),
       catchError((e) => apiError(e, `Could not save ${m.name}.`)),
     );
+  }
+
+  /** The model a successful POST / PUT returned; reloaded by model number when the body is not the model. */
+  private saved(body: string, modelNumber: string): Observable<DeviceModelDto> {
+    const dto = savedRecord<DeviceModelDto>(body, 'modelNumber');
+    return dto ? of(dto) : this.get(modelNumber);
   }
 
   /** DELETE /api/device-models/{modelNumber} */

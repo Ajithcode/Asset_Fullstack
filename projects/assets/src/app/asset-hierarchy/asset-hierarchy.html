@@ -313,6 +313,7 @@
           <label class="field">
             <span class="field-label">Item Kind</span>
             <select class="control" name="kind" [(ngModel)]="form.kind">
+              <option value="" disabled>Select Item Kind</option>
               <option value="asset">Asset</option>
               <option *ngFor="let k of groupKinds" [value]="k">{{ kindLabels[k] }} (group)</option>
             </select>
@@ -320,6 +321,7 @@
           <label class="field">
             <span class="field-label">Parent</span>
             <select class="control" name="parentId" [(ngModel)]="form.parentId">
+              <option [ngValue]="null" disabled>Select Parent</option>
               <option *ngFor="let o of parentOptions" [ngValue]="o.id">{{ o.label }}</option>
             </select>
           </label>
@@ -342,7 +344,7 @@
             <label class="field">
               <span class="field-label">Asset Type <em>*</em></span>
               <select class="control" name="typeId" [ngModel]="form.typeId" (ngModelChange)="onTypeChange($event)" [class.is-invalid]="formSubmitted && !form.typeId">
-                <option value="">Select asset type</option>
+                <option value="">Select Asset Type</option>
                 <option *ngFor="let t of assetTypes" [value]="t.id">{{ t.name }}</option>
               </select>
               <span *ngIf="formSubmitted && !form.typeId" class="error">Asset type is required.</span>
@@ -350,7 +352,7 @@
             <label class="field">
               <span class="field-label">Model</span>
               <select class="control" name="modelId" [ngModel]="form.modelId" (ngModelChange)="onModelChange($event)">
-                <option value="">None</option>
+                <option value="">Select Model</option>
                 <option *ngFor="let m of modelOptions" [value]="m.id">{{ m.name }}</option>
               </select>
             </label>
@@ -362,9 +364,11 @@
             </label>
             <label class="field">
               <span class="field-label">Status</span>
-              <select class="control" name="status" [(ngModel)]="form.status">
+              <select class="control" name="status" [(ngModel)]="form.status" [class.is-invalid]="formSubmitted && !form.status">
+                <option value="" disabled>Select Status</option>
                 <option *ngFor="let s of statusOptions" [value]="s">{{ s }}</option>
               </select>
+              <span *ngIf="formSubmitted && !form.status" class="error">Status is required.</span>
             </label>
           </div>
         </ng-container>
@@ -415,13 +419,16 @@
         </label>
         <label class="field">
           <span class="field-label">Node Type <em>*</em></span>
-          <select class="control" name="nodeKind" [(ngModel)]="nodeForm.kind">
+          <select class="control" name="nodeKind" [(ngModel)]="nodeForm.kind" [class.is-invalid]="nodeFormSubmitted && !nodeForm.kind">
+            <option value="" disabled>Select Node Type</option>
             <option *ngFor="let k of nodeKinds" [value]="k">{{ kindLabels[k] }}</option>
           </select>
+          <span *ngIf="nodeFormSubmitted && !nodeForm.kind" class="error">Node type is required.</span>
         </label>
         <label class="field">
           <span class="field-label">Parent Hierarchy Node <em>*</em></span>
           <select class="control" name="nodeParent" [(ngModel)]="nodeForm.parentId">
+            <option [ngValue]="null" disabled>Select Parent Hierarchy Node</option>
             <option *ngFor="let o of nodeParentOptions" [ngValue]="o.id">{{ o.label }}</option>
           </select>
         </label>
@@ -465,6 +472,7 @@
         <label class="field">
           <span class="field-label">New Parent</span>
           <select class="control" [(ngModel)]="moveParentId">
+            <option [ngValue]="null" disabled>Select New Parent</option>
             <option *ngFor="let o of moveOptions" [ngValue]="o.id">{{ o.label }}</option>
           </select>
         </label>

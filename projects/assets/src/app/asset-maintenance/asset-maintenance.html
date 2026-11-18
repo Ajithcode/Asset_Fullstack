@@ -119,6 +119,7 @@
     <div class="sec-head">
       <h2 class="grow">Maintenance Costs &amp; Downtime ({{ asset.tag }})</h2>
       <select class="control w-period" [ngModel]="period" (ngModelChange)="setPeriod($event)" aria-label="Period">
+        <option value="" disabled>Select Period</option>
         <option value="year">This Year</option><option value="quarter">Last Quarter (Q3)</option><option value="h1">First Half</option><option value="custom">Custom Range</option>
       </select>
       <span class="menu-wrap">
@@ -153,7 +154,7 @@
       <!-- Cost trend -->
       <section class="card chart-card" aria-labelledby="mt-ct">
         <div class="chart-head"><h3 id="mt-ct" class="grow">Maintenance Cost Trend</h3>
-          <select class="control control-xs" [(ngModel)]="costChartRange" aria-label="Cost trend range"><option value="year">This Year</option><option value="h2">Jul – Dec</option></select></div>
+          <select class="control control-xs" [(ngModel)]="costChartRange" aria-label="Cost trend range"><option value="" disabled>Select Cost Trend Range</option><option value="year">This Year</option><option value="h2">Jul – Dec</option></select></div>
         <div class="chart-wrap" (mouseleave)="hoverBar = null">
           <svg *ngIf="costBars as cb" [attr.viewBox]="'0 0 ' + cw + ' ' + ch" class="chart" role="img" aria-label="Stacked monthly maintenance cost by labor, parts and external service">
             <g class="grid"><line *ngFor="let t of cb.ticks" [attr.x1]="pad.l" [attr.x2]="cw - pad.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
@@ -178,7 +179,7 @@
       <!-- Downtime trend -->
       <section class="card chart-card" aria-labelledby="mt-dt">
         <div class="chart-head"><h3 id="mt-dt" class="grow">Downtime Trend</h3>
-          <select class="control control-xs" [(ngModel)]="downChartRange" aria-label="Downtime trend range"><option value="year">This Year</option><option value="h2">Jul – Dec</option></select></div>
+          <select class="control control-xs" [(ngModel)]="downChartRange" aria-label="Downtime trend range"><option value="" disabled>Select Downtime Trend Range</option><option value="year">This Year</option><option value="h2">Jul – Dec</option></select></div>
         <div class="chart-wrap" (mouseleave)="hoverMonth = null">
           <svg *ngIf="downLine as dl" [attr.viewBox]="'0 0 ' + cw + ' ' + ch" class="chart" role="img" aria-label="Monthly downtime in hours">
             <g class="grid"><line *ngFor="let t of dl.ticks" [attr.x1]="pad.l" [attr.x2]="cw - pad.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
@@ -222,9 +223,9 @@
     <section class="card panel" aria-labelledby="mt-det">
       <div class="det-head">
         <h3 id="mt-det" class="grow">Cost &amp; Downtime Details</h3>
-        <select class="control w-sel" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()" aria-label="Type"><option value="">All Types</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select>
-        <select class="control w-sel" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()" aria-label="Status"><option value="">All Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
-        <select class="control w-sel" [(ngModel)]="timeFilter" (ngModelChange)="onFilter()" aria-label="Time period"><option value="">All Time Period</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
+        <select class="control w-sel" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()" aria-label="Type"><option value="">Select Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select>
+        <select class="control w-sel" [(ngModel)]="statusFilter" (ngModelChange)="onFilter()" aria-label="Status"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+        <select class="control w-sel" [(ngModel)]="timeFilter" (ngModelChange)="onFilter()" aria-label="Time period"><option value="">Select Time Period</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
         <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search by work order, description..." aria-label="Search work orders" /></label>
       </div>
       <div class="table-wrap">
@@ -417,7 +418,7 @@
       <!-- Cost bars -->
       <section class="card panel" aria-labelledby="ov-cost">
         <div class="ov-head"><h3 id="ov-cost" class="grow">Maintenance Cost (AED)</h3>
-          <select class="control control-xs" [(ngModel)]="costYearRange" aria-label="Cost period"><option value="year">This Year</option><option value="h2">Last 6 Months</option></select></div>
+          <select class="control control-xs" [(ngModel)]="costYearRange" aria-label="Cost period"><option value="" disabled>Select Cost Period</option><option value="year">This Year</option><option value="h2">Last 6 Months</option></select></div>
         <div class="chart-wrap" *ngIf="costMonths as cm" (mouseleave)="hoverCost = null">
           <svg [attr.viewBox]="'0 0 ' + cw2 + ' ' + ch" class="chart" role="img" aria-label="Monthly maintenance cost in AED">
             <g class="grid"><line *ngFor="let t of cm.ticks" [attr.x1]="pad.l" [attr.x2]="cw2 - pad.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
@@ -478,8 +479,8 @@
 
         <div class="mh-filters">
           <label class="search mh-search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="histSearch" (ngModelChange)="onHistFilter()" placeholder="Search by description, work order, technician..." aria-label="Search history" /></label>
-          <select class="control" [(ngModel)]="histType" (ngModelChange)="onHistFilter()" aria-label="Type"><option value="">All Types</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select>
-          <select class="control" [(ngModel)]="histStatus" (ngModelChange)="onHistFilter()" aria-label="Status"><option value="">All Status</option><option *ngFor="let s of histStatuses" [value]="s">{{ s }}</option></select>
+          <select class="control" [(ngModel)]="histType" (ngModelChange)="onHistFilter()" aria-label="Type"><option value="">Select Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select>
+          <select class="control" [(ngModel)]="histStatus" (ngModelChange)="onHistFilter()" aria-label="Status"><option value="">Select Status</option><option *ngFor="let s of histStatuses" [value]="s">{{ s }}</option></select>
           <span class="menu-wrap mh-range">
             <button type="button" class="control range-btn" (click)="$event.stopPropagation(); histRangeOpen = !histRangeOpen" [attr.aria-expanded]="histRangeOpen"><lucide-icon [img]="icons.CalendarDays" [size]="15"></lucide-icon>{{ histRangeLabel }}</button>
             <span *ngIf="histRangeOpen" class="menu range-pop" (click)="$event.stopPropagation()">
@@ -492,7 +493,7 @@
         </div>
         <div *ngIf="histAdvOpen" class="mh-adv-panel">
           <label class="field"><span class="field-label">Performed By</span>
-            <select class="control" [(ngModel)]="histTech" (ngModelChange)="onHistFilter()"><option value="">Anyone</option><option *ngFor="let t of histTechs" [value]="t">{{ t }}</option></select></label>
+            <select class="control" [(ngModel)]="histTech" (ngModelChange)="onHistFilter()"><option value="">Select Performed By</option><option *ngFor="let t of histTechs" [value]="t">{{ t }}</option></select></label>
           <label class="mh-check"><input type="checkbox" [(ngModel)]="histDowntimeOnly" (ngModelChange)="onHistFilter()" />Only jobs that caused downtime</label>
           <button type="button" class="btn btn-outline btn-xs" (click)="clearHistAdvanced()" [disabled]="!histAdvCount">Clear</button>
         </div>
@@ -557,7 +558,7 @@
         <!-- Cost history -->
         <section class="card panel" aria-labelledby="mh-ch">
           <div class="ov-head"><h3 id="mh-ch" class="grow">Maintenance Cost History</h3>
-            <select class="control control-xs" [(ngModel)]="histCostYear" aria-label="Cost history year"><option *ngFor="let y of histYears; let i = index" [ngValue]="y">{{ i ? 'Last Year' : 'This Year' }}</option></select></div>
+            <select class="control control-xs" [(ngModel)]="histCostYear" aria-label="Cost history year"><option [ngValue]="null" disabled>Select Cost History Year</option><option *ngFor="let y of histYears; let i = index" [ngValue]="y">{{ i ? 'Last Year' : 'This Year' }}</option></select></div>
           <div class="chart-wrap" *ngIf="histCostBars as cb" (mouseleave)="hoverHistCost = null">
             <svg [attr.viewBox]="'0 0 ' + cw + ' ' + ch" class="chart" role="img" [attr.aria-label]="'Monthly maintenance cost in ' + histCostYear">
               <g class="grid"><line *ngFor="let t of cb.ticks" [attr.x1]="pad.l" [attr.x2]="cw - pad.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
@@ -633,7 +634,7 @@
       <!-- Downtime history -->
       <section class="card panel" aria-labelledby="mh-dh">
         <div class="ov-head"><h3 id="mh-dh" class="grow">Downtime History</h3>
-          <select class="control control-xs" [(ngModel)]="histDownYear" aria-label="Downtime history year"><option *ngFor="let y of histYears; let i = index" [ngValue]="y">{{ i ? 'Last Year' : 'This Year' }}</option></select></div>
+          <select class="control control-xs" [(ngModel)]="histDownYear" aria-label="Downtime history year"><option [ngValue]="null" disabled>Select Downtime History Year</option><option *ngFor="let y of histYears; let i = index" [ngValue]="y">{{ i ? 'Last Year' : 'This Year' }}</option></select></div>
         <div class="chart-wrap" *ngIf="histDownLine as dl" (mouseleave)="hoverHistDown = null">
           <svg [attr.viewBox]="'0 0 ' + cw2 + ' ' + ch" class="chart" role="img" [attr.aria-label]="'Monthly downtime hours in ' + histDownYear">
             <g class="grid"><line *ngFor="let t of dl.ticks" [attr.x1]="pad.l" [attr.x2]="cw2 - pad.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
@@ -670,7 +671,7 @@
     <div class="modal-head"><h2 id="mt-wo-title">Create Work Order · {{ asset.tag }}</h2><button type="button" class="icon-btn" (click)="woForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveWorkOrder()">
       <div class="two">
-        <label class="field"><span class="field-label">Type</span><select class="control" [(ngModel)]="f.type" name="type"><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
+        <label class="field"><span class="field-label">Type <em>*</em></span><select class="control" [(ngModel)]="f.type" name="type" [class.is-invalid]="!!woError && !f.type"><option value="" disabled>Select Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Date <em>*</em></span><input class="control" type="date" [(ngModel)]="f.date" name="date" /></label>
       </div>
       <label class="field"><span class="field-label">Description <em>*</em></span><input class="control" [(ngModel)]="f.description" name="desc" /></label>

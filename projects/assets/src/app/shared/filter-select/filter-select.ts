@@ -23,7 +23,7 @@ const CLOSE_MS = 140;
  * an "all" entry, a checkmark on the current value, a search box for long lists and full keyboard
  * support (arrows, Home/End, Enter, Escape, Tab).
  *
- *   <app-filter-select name="category" [(ngModel)]="draft.category" [options]="categoryOptions" allLabel="All Categories" />
+ *   <app-filter-select name="category" [(ngModel)]="draft.category" [options]="categoryOptions" allLabel="Select Category" />
  */
 @Component({
   selector: 'app-filter-select',
@@ -323,7 +323,7 @@ export class FilterSelect implements ControlValueAccessor, OnChanges {
   /** Options after the "all" entry. */
   @Input() options: readonly FilterSelectOption[] | null = [];
   /** Label of the empty-value entry and of the trigger when nothing is chosen. */
-  @Input() allLabel = 'All';
+  @Input() allLabel = 'Select';
   @Input() ariaLabel = '';
   /** false for required choices (popups): no "all" entry, `placeholder` shows until something is picked. */
   @Input() includeAll = true;

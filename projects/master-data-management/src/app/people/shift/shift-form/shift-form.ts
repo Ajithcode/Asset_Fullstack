@@ -8,11 +8,13 @@ import { ShiftRecord } from '../shift.model';
 import { ShiftService } from '../shift.service';
 
 type FormTab = 'basic' | 'schedule' | 'breaks' | 'assignments' | 'settings';
-type FieldKey = 'name' | 'code' | 'startTime' | 'endTime' | 'workingDays' | 'grace' | 'breaks';
+type FieldKey = 'name' | 'code' | 'shiftType' | 'status' | 'startTime' | 'endTime' | 'workingDays' | 'grace' | 'breaks';
 
 const TAB_OF: Record<FieldKey, FormTab> = {
   name: 'basic',
   code: 'basic',
+  shiftType: 'basic',
+  status: 'basic',
   startTime: 'basic',
   endTime: 'basic',
   workingDays: 'basic',
@@ -137,6 +139,8 @@ export class ShiftForm implements OnChanges {
     else if (this.service.isNameTaken(f.name, this.original?.code ?? null)) errors.name = `${f.name.trim()} already exists.`;
     if (!f.code.trim()) errors.code = 'Enter a code.';
     else if (this.service.isCodeTaken(f.code, this.original?.code ?? null)) errors.code = `${f.code.trim()} is already used.`;
+    if (!f.shiftType) errors.shiftType = 'Select a shift type.';
+    if (!f.status) errors.status = 'Select a status.';
     if (this.fixedHours) {
       if (!f.startTime) errors.startTime = 'Enter a start time.';
       if (!f.endTime) errors.endTime = 'Enter an end time.';

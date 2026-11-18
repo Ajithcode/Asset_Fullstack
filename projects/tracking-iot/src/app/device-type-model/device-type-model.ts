@@ -78,7 +78,7 @@ interface ModelForm {
   opTemp: string;
   fwMin: string;
   fwMax: string;
-  status: ModelStatus;
+  status: ModelStatus | '';
   attributes: string[];
 }
 
@@ -93,7 +93,7 @@ interface ImportRow {
 
 type Dialog =
   | { kind: 'model'; editId: string | null; title: string; f: ModelForm }
-  | { kind: 'type'; name: string; icon: TypeIcon; form: FormFactor; description: string }
+  | { kind: 'type'; name: string; icon: TypeIcon; form: FormFactor | ''; description: string }
   | { kind: 'import'; rows: ImportRow[]; fileName: string; error: string }
   | { kind: 'delete'; id: string }
   | { kind: 'retire'; id: string };
@@ -167,8 +167,56 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
   private cacheRows: DeviceModel[] = [];
 
   ngOnInit(): void {
-    this.api.formOptions().subscribe({ next: (o) => this.applyOptions(o), error: () => {} });
+    this.loadOptions();
     this.load();
+  }
+
+  /** True once GET /api/device-models/form-options has filled the dropdowns. */
+  private optionsLoaded = false;
+  private optionsLoading = false;
+
+  /** GET /api/device-models/form-options (retried); called again when a form opens and the first try failed. */
+  private loadOptions(): void {
+    if (this.optionsLoaded || this.optionsLoading) return;
+    this.optionsLoading = true;
+    this.api.formOptions().subscribe({
+      next: (o) => {
+        this.optionsLoading = false;
+        this.optionsLoaded = true;
+        this.applyOptions(o);
+        // models loaded first were matched against the default connectivity list: match them again
+        if (MODELS.length) this.remapModels();
+      },
+      error: () => (this.optionsLoading = false),
+    });
+  }
+
+  /** Re-reads every loaded model from its API record, so it uses the latest option lists. */
+  private remapModels(): void {
+    for (let i = 0; i < MODELS.length; i++) {
+      const api = MODELS[i].api;
+      if (!api) continue;
+      const form = MODELS[i].form;
+      MODELS[i] = this.toModel(api);
+      if (form) MODELS[i].form = form;
+    }
+    this.version++;
+  }
+
+  /** Adds values the loaded models use (connectivity, power, measurements, attributes) that the option lists lack. */
+  private addModelOptions(rows: DeviceModelDto[]): void {
+    const add = (list: string[], v: string | null | undefined) => {
+      const t = (v ?? '').trim();
+      if (t && !list.some((x) => x.toLowerCase() === t.toLowerCase())) list.push(t);
+    };
+    for (const r of rows) {
+      add(CONNECTIVITY as string[], r.connectivity);
+      add(POWER_OPTIONS, r.powerSource);
+      for (const a of r.configurableAttributes ?? []) add(ATTRIBUTES, a);
+      for (const n of r.supportedMeasurements ?? []) {
+        if (n && !MEASUREMENTS.some((x) => x.name.toLowerCase() === n.toLowerCase())) MEASUREMENTS.push({ name: n, unit: '', short: n });
+      }
+    }
   }
 
   /** GET /api/device-models (and the device counts per model from /api/iot-devices). */
@@ -177,6 +225,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     this.loadError = '';
     this.api.getAll().subscribe({
       next: (rows) => {
+        this.addModelOptions(rows);
         MODELS.splice(0, MODELS.length, ...rows.map((r) => this.toModel(r)));
         this.loading = false;
         this.version++;
@@ -603,17 +652,19 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     };
   }
 
-  openAdd(typeId = this.typeFilter || 'env'): void {
+  openAdd(): void {
+    this.loadOptions();
     this.menuId = '';
     this.formError = '';
-    const b = blankModel(TYPES.some((t) => t.id === typeId) ? typeId : 'env');
+    const b = blankModel('env');
     this.dialog = {
       kind: 'model', editId: null, title: 'Add Device Model',
-      f: { ...this.formFrom({ ...b, id: '', name: '', manufacturer: '', typeId, deployed: 0 }), fwMin: '', fwMax: '' },
+      f: { ...this.formFrom({ ...b, id: '', name: '', manufacturer: '', typeId: '', deployed: 0 }), fwMin: '', fwMax: '', power: '', status: '' },
     };
   }
 
   openEdit(m: DeviceModel): void {
+    this.loadOptions();
     this.menuId = '';
     this.formError = '';
     this.dialog = { kind: 'model', editId: m.id, title: `Edit ${m.name}`, f: this.formFrom(m) };
@@ -657,6 +708,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     if (d.editId && f.name.trim() !== d.editId) return void (this.formError = 'The model name cannot be changed. Duplicate the model to use a new name.');
     if (!f.connectivity.length) return void (this.formError = 'Choose a connectivity option.');
     if (!f.power) return void (this.formError = 'Choose the power source.');
+    if (!f.status) return void (this.formError = 'Choose the status.');
     const data = {
       name: f.name.trim(), manufacturer: f.manufacturer.trim(), typeId: f.typeId, connectivity: CONNECTIVITY.filter((c) => f.connectivity.includes(c)),
       protocol: f.protocol.trim(), power: f.power, measurements: MEASUREMENTS.map((x) => x.name).filter((n) => f.measurements.includes(n)),
@@ -688,7 +740,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
 
   openAddType(): void {
     this.formError = '';
-    this.dialog = { kind: 'type', name: '', icon: 'chip', form: 'box', description: '' };
+    this.dialog = { kind: 'type', name: '', icon: 'chip', form: '', description: '' };
   }
 
   saveType(): void {
@@ -696,6 +748,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     if (!d) return;
     const name = d.name.trim();
     if (!name) return void (this.formError = 'Enter the type name.');
+    if (!d.form) return void (this.formError = 'Choose a thumbnail style.');
     if (TYPES.some((t) => t.name.toLowerCase() === name.toLowerCase())) return void (this.formError = `"${name}" already exists.`);
     let id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     while (TYPES.some((t) => t.id === id)) id += '-2';

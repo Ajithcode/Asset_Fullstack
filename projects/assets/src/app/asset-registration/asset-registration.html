@@ -80,7 +80,7 @@
             <span class="field-label">Model</span>
             <span class="select-wrap">
               <select class="control control--clearable" [(ngModel)]="form.model" (ngModelChange)="onModelChange()">
-                <option value="" disabled>Select model</option>
+                <option value="" disabled>Select Model</option>
                 <option *ngFor="let m of modelOptions" [value]="m">{{ m }}</option>
               </select>
               <button type="button" class="clear-btn" *ngIf="form.model" title="Clear"
@@ -95,7 +95,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control control--clearable" [(ngModel)]="form.manufacturer">
-                  <option value="" disabled>Select manufacturer</option>
+                  <option value="" disabled>Select Manufacturer</option>
                   <option *ngFor="let o of manufacturers" [value]="o.value">{{ o.label }}</option>
                 </select>
                 <button type="button" class="clear-btn" *ngIf="form.manufacturer" title="Clear"
@@ -119,6 +119,7 @@
                 <span class="select-wrap select-wrap--dot">
                   <span class="status-dot" [style.background]="colorOf(statuses, form.status)"></span>
                   <select class="control" [class.is-invalid]="isInvalid('status')" [(ngModel)]="form.status">
+                    <option value="" disabled>Select Status</option>
                     <option *ngFor="let o of statuses" [value]="o.value">{{ o.label }}</option>
                   </select>
                 </span>
@@ -132,6 +133,7 @@
                 <span class="select-wrap select-wrap--dot">
                   <span class="status-dot" [style.background]="colorOf(conditions, form.condition)"></span>
                   <select class="control" [(ngModel)]="form.condition">
+                    <option value="" disabled>Select Condition</option>
                     <option *ngFor="let o of conditions" [value]="o.value">{{ o.label }}</option>
                   </select>
                 </span>
@@ -145,6 +147,7 @@
                 <span class="select-wrap select-wrap--dot">
                   <span class="status-dot" [style.background]="colorOf(criticalities, form.criticality)"></span>
                   <select class="control" [(ngModel)]="form.criticality">
+                    <option value="" disabled>Select Criticality</option>
                     <option *ngFor="let o of criticalities" [value]="o.value">{{ o.label }}</option>
                   </select>
                 </span>
@@ -181,7 +184,7 @@
               <span class="select-wrap">
                 <select id="cls-category" class="control" [class.is-invalid]="isInvalid('category')"
                   [(ngModel)]="form.category" (ngModelChange)="onCategoryChange()">
-                  <option value="" disabled>Select category</option>
+                  <option value="" disabled>Select Category</option>
                   <option *ngFor="let o of categories" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -195,7 +198,7 @@
               <span class="select-wrap">
                 <select id="cls-subcategory" class="control" [class.is-invalid]="isInvalid('subCategory')"
                   [(ngModel)]="form.subCategory" (ngModelChange)="onSubCategoryChange()">
-                  <option value="" disabled>Select sub category</option>
+                  <option value="" disabled>Select Sub Category</option>
                   <option *ngFor="let o of subCategories" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -209,7 +212,7 @@
               <span class="select-wrap">
                 <select class="control" [class.is-invalid]="isInvalid('assetType')" [(ngModel)]="form.assetType"
                   (ngModelChange)="onAssetTypeChange()">
-                  <option value="" disabled>Select asset type</option>
+                  <option value="" disabled>Select Asset Type</option>
                   <option *ngFor="let o of assetTypes" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -222,7 +225,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.assetSubType" [disabled]="!assetSubTypes.length">
-                  <option value="" disabled>{{ assetSubTypes.length ? 'Select asset sub type' : 'No sub types' }}</option>
+                  <option value="" disabled>{{ assetSubTypes.length ? 'Select Asset Sub Type' : 'No sub types' }}</option>
                   <option *ngFor="let o of assetSubTypes" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -235,7 +238,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.functionPurpose">
-                  <option value="" disabled>Select function</option>
+                  <option value="" disabled>Select Function</option>
                   <option *ngFor="let o of functionPurposes" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -249,6 +252,7 @@
               <span class="select-wrap select-wrap--dot">
                 <span class="status-dot" [style.background]="colorOf(criticalities, form.criticality)"></span>
                 <select class="control" [class.is-invalid]="isInvalid('criticality')" [(ngModel)]="form.criticality">
+                  <option value="" disabled>Select Criticality</option>
                   <option *ngFor="let o of criticalities" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -261,7 +265,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [class.is-invalid]="isInvalid('department')" [(ngModel)]="form.department" (ngModelChange)="onDepartmentChange()">
-                  <option value="" disabled>Select department</option>
+                  <option value="" disabled>Select Department</option>
                   <option *ngFor="let o of departments" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -274,7 +278,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.costCenter">
-                  <option value="" disabled>Select cost center</option>
+                  <option value="" disabled>Select Cost Center</option>
                   <option *ngFor="let o of costCenters" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -287,7 +291,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.businessUnit">
-                  <option value="" disabled>Select business unit</option>
+                  <option value="" disabled>Select Business Unit</option>
                   <option *ngFor="let o of businessUnits" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -311,7 +315,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.complianceCategory">
-                  <option value="" disabled>Select compliance category</option>
+                  <option value="" disabled>Select Compliance Category</option>
                   <option *ngFor="let o of complianceCategories" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -324,7 +328,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [class.is-invalid]="isInvalid('lifecycleStage')" [(ngModel)]="form.lifecycleStage">
-                  <option value="" disabled>Select lifecycle stage</option>
+                  <option value="" disabled>Select Lifecycle Stage</option>
                   <option *ngFor="let o of lifecycleStages" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -401,7 +405,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [class.is-invalid]="isInvalid('department')" [(ngModel)]="form.department" (ngModelChange)="onDepartmentChange()">
-                  <option value="" disabled>Select department</option>
+                  <option value="" disabled>Select Department</option>
                   <option *ngFor="let o of departments" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -416,7 +420,7 @@
                 <lucide-icon class="person-icon" [img]="icons.User" [size]="17"></lucide-icon>
                 <span class="avatar avatar--sm person-avatar" *ngIf="assignedPerson">{{ assignedPerson.initials }}</span>
                 <select id="loc-assigned" class="control control--clearable" [(ngModel)]="form.assignedTo">
-                  <option value="" disabled>Select person</option>
+                  <option value="" disabled>Select Person</option>
                   <option *ngFor="let p of people" [value]="p.value">{{ p.label }}</option>
                 </select>
                 <button type="button" class="clear-btn" *ngIf="form.assignedTo" title="Clear"
@@ -433,7 +437,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.ownershipType">
-                  <option value="" disabled>Select ownership type</option>
+                  <option value="" disabled>Select Ownership Type</option>
                   <option *ngFor="let o of ownershipTypes" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -446,7 +450,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.costCenter">
-                  <option value="" disabled>Select cost center</option>
+                  <option value="" disabled>Select Cost Center</option>
                   <option *ngFor="let o of costCenters" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -466,7 +470,7 @@
               <span class="opt-row">
                 <span class="select-wrap">
                   <select id="loc-team" class="control" [(ngModel)]="form.responsibleTeam">
-                    <option value="" disabled>Select team</option>
+                    <option value="" disabled>Select Responsible Team</option>
                     <option *ngFor="let o of teams" [value]="o.value">{{ o.label }}</option>
                   </select>
                 </span>
@@ -539,7 +543,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control control--clearable" [class.is-invalid]="isInvalid('vendor')" [(ngModel)]="form.vendor">
-                  <option value="" disabled>Select supplier</option>
+                  <option value="" disabled>Select Supplier</option>
                   <option *ngFor="let o of vendors" [value]="o.value">{{ o.label }}</option>
                 </select>
                 <button type="button" class="clear-btn" *ngIf="form.vendor" title="Clear"
@@ -556,7 +560,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control control--clearable" [class.is-invalid]="isInvalid('manufacturer')" [(ngModel)]="form.manufacturer">
-                  <option value="" disabled>Select manufacturer</option>
+                  <option value="" disabled>Select Manufacturer</option>
                   <option *ngFor="let o of manufacturers" [value]="o.value">{{ o.label }}</option>
                 </select>
                 <button type="button" class="clear-btn" *ngIf="form.manufacturer" title="Clear"
@@ -609,6 +613,7 @@
                 [(ngModel)]="form.quantity" />
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.unit" aria-label="Unit">
+                  <option value="" disabled>Select Unit</option>
                   <option *ngFor="let o of units" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -620,6 +625,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.currency">
+                  <option value="" disabled>Select Currency</option>
                   <option *ngFor="let o of currencies" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -652,7 +658,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.paymentTerms">
-                  <option value="" disabled>Select payment terms</option>
+                  <option value="" disabled>Select Payment Terms</option>
                   <option *ngFor="let o of paymentTermsOptions" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -665,7 +671,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.procurementMethod">
-                  <option value="" disabled>Select procurement method</option>
+                  <option value="" disabled>Select Procurement Method</option>
                   <option *ngFor="let o of procurementMethods" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -726,6 +732,7 @@
                   <input [id]="'spec-' + f.key" class="control" [type]="f.inputType ?? 'number'" [(ngModel)]="form.specs[f.key]" />
                   <span class="select-wrap">
                     <select class="control" [attr.aria-label]="f.label + ' unit'" [(ngModel)]="form.specs[f.unitKey!]">
+                      <option value="" disabled>Select Unit</option>
                       <option *ngFor="let u of f.units" [value]="u.value">{{ u.label }}</option>
                     </select>
                   </span>
@@ -734,6 +741,7 @@
                 <span class="opt-row" *ngSwitchCase="'select'">
                   <span class="select-wrap">
                     <select [id]="'spec-' + f.key" class="control" [(ngModel)]="form.specs[f.key]">
+                      <option value="" disabled>Select Key</option>
                       <option *ngFor="let o of f.options" [value]="o.value">{{ o.label }}</option>
                     </select>
                   </span>
@@ -748,6 +756,7 @@
                   <input class="control" type="number" min="0" aria-label="Height" [(ngModel)]="form.specs.height" />
                   <span class="select-wrap">
                     <select class="control" aria-label="Dimension unit" [(ngModel)]="form.specs.dimensionUnit">
+                      <option value="" disabled>Select Dimension Unit</option>
                       <option *ngFor="let u of f.units" [value]="u.value">{{ u.label }}</option>
                     </select>
                   </span>
@@ -998,6 +1007,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.warrantyType">
+                  <option value="" disabled>Select Warranty Type</option>
                   <option *ngFor="let o of warrantyTypes" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -1030,6 +1040,7 @@
               <input id="war-period" class="control" type="number" min="1" step="1" [(ngModel)]="form.warrantyPeriod" />
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.warrantyPeriodUnit" aria-label="Warranty period unit">
+                  <option value="" disabled>Select Warranty Period Unit</option>
                   <option *ngFor="let o of warrantyPeriodUnits" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -1049,6 +1060,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.supportCoverage">
+                  <option value="" disabled>Select Support Coverage</option>
                   <option *ngFor="let o of supportCoverages" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -1063,7 +1075,7 @@
             <span class="opt-row">
               <span class="select-wrap">
                 <select class="control" [(ngModel)]="form.serviceProvider">
-                  <option value="" disabled>Select service provider</option>
+                  <option value="" disabled>Select Service Provider</option>
                   <option *ngFor="let o of serviceProviders" [value]="o.value">{{ o.label }}</option>
                 </select>
               </span>
@@ -1284,6 +1296,7 @@
           <input id="op-hours" class="control" type="number" min="0" max="24" [(ngModel)]="form.operations.operatingHours" />
           <span class="select-wrap">
             <select class="control" aria-label="Operating hours unit" [(ngModel)]="form.operations.operatingHoursUnit">
+              <option value="" disabled>Select Operating Hours Unit</option>
               <option *ngFor="let u of hourUnits" [value]="u.value">{{ u.label }}</option>
             </select>
           </span>
@@ -1295,6 +1308,7 @@
         <span class="opt-row">
           <span class="select-wrap">
             <select class="control" [(ngModel)]="form.operations.operatingShift">
+              <option value="" disabled>Select Operating Shift</option>
               <option *ngFor="let o of operatingShifts" [value]="o.value">{{ o.label }}</option>
             </select>
           </span>
@@ -1307,6 +1321,7 @@
         <span class="opt-row">
           <span class="select-wrap">
             <select class="control" [(ngModel)]="form.operations.utilization">
+              <option value="" disabled>Select Utilization</option>
               <option *ngFor="let o of utilizations" [value]="o.value">{{ o.label }}</option>
             </select>
           </span>
@@ -1320,6 +1335,7 @@
           <input id="op-maint-freq" class="control" type="number" min="0" [(ngModel)]="form.operations.maintenanceFrequency" />
           <span class="select-wrap">
             <select class="control" aria-label="Maintenance frequency unit" [(ngModel)]="form.operations.maintenanceFrequencyUnit">
+              <option value="" disabled>Select Maintenance Frequency Unit</option>
               <option *ngFor="let u of maintenanceUnits" [value]="u.value">{{ u.label }}</option>
             </select>
           </span>
@@ -1362,7 +1378,7 @@
           </span>
           <span class="select-wrap chip-select" *ngIf="availableCompliance.length">
             <select class="chip-select-control" aria-label="Add compliance standard" (change)="addCompliance($event)">
-              <option value="">{{ form.operations.complianceStandards.length ? '' : 'Select standards' }}</option>
+              <option value="">{{ form.operations.complianceStandards.length ? '' : 'Select Standards' }}</option>
               <option *ngFor="let o of availableCompliance" [value]="o.value">{{ o.label }}</option>
             </select>
           </span>
@@ -1389,6 +1405,7 @@
           <span class="opt-row" *ngSwitchCase="'select'">
             <span class="select-wrap">
               <select class="control control--sm" [attr.aria-label]="f.label" [(ngModel)]="f.value">
+                <option value="" disabled>Select Value</option>
                 <option *ngFor="let o of f.options" [value]="o.value">{{ o.label }}</option>
               </select>
             </span>

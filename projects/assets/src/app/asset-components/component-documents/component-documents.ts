@@ -64,9 +64,9 @@ export interface ComponentDocument {
 
 interface UploadForm {
   name: string;
-  type: DocumentType;
+  type: DocumentType | '';
   version: string;
-  status: DocumentStatus;
+  status: DocumentStatus | '';
   description: string;
 }
 
@@ -395,7 +395,7 @@ export class ComponentDocuments {
   // ===== Upload / edit =====
 
   private emptyForm(): UploadForm {
-    return { name: '', type: 'Manual', version: 'v1.0', status: 'Active', description: '' };
+    return { name: '', type: '', version: 'v1.0', status: '', description: '' };
   }
 
   openUpload(): void {
@@ -414,7 +414,7 @@ export class ComponentDocuments {
     this.openMenu = null;
     this.formMode = 'version';
     this.target = d;
-    this.form = { name: d.name, type: d.type, version: bumpVersion(d.version), status: 'Active', description: d.description };
+    this.form = { name: d.name, type: d.type, version: bumpVersion(d.version), status: '', description: d.description };
     this.pendingFile = null;
     this.fileError = '';
     this.formSubmitted = false;
@@ -464,8 +464,8 @@ export class ComponentDocuments {
     this.formSubmitted = true;
     this.formError = '';
     const f = this.form;
-    if (this.saving || !f.name.trim() || !f.version.trim() || (this.needsFile && !this.pendingFile)) return;
-    const details = { name: f.name.trim(), type: f.type, version: f.version.trim(), status: f.status, description: f.description.trim() };
+    if (this.saving || !f.name.trim() || !f.type || !f.version.trim() || !f.status || (this.needsFile && !this.pendingFile)) return;
+    const details = { name: f.name.trim(), type: f.type as DocumentType, version: f.version.trim(), status: f.status as DocumentStatus, description: f.description.trim() };
     const c = this.comp;
     const target = this.target;
     const mode = this.formMode;

@@ -77,9 +77,9 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
   readonly findingTypes = FINDING_TYPES.map((t) => t);
   readonly percentFormat = (v: number) => `${Math.round(v)}%`;
 
-  category = this.categories[0];
-  type = INSPECTION_TYPES[0];
-  inspector = INSPECTOR_OPTIONS[0];
+  category = '';
+  type = '';
+  inspector = '';
   compare = false;
 
   view!: InspectionView;
@@ -141,12 +141,12 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
   }
 
   resetFilters(): void {
-    this.period = this.periods[0];
-    this.organization = this.organizations[0];
-    this.location = this.locations[0];
-    this.category = this.categories[0];
-    this.type = INSPECTION_TYPES[0];
-    this.inspector = INSPECTOR_OPTIONS[0];
+    this.period = '';
+    this.organization = '';
+    this.location = '';
+    this.category = '';
+    this.type = '';
+    this.inspector = '';
     this.apply();
   }
 
@@ -232,7 +232,7 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
 
   kpiAction(kpi: KpiTile, action: string): void {
     if (action === 'Export CSV') {
-      downloadCsv(`inspection-${kpi.key}.csv`, ['KPI', 'Value', 'Change vs previous period', 'Period', 'Location'], [[kpi.label, kpi.value, kpi.delta || '—', this.period, this.location]]);
+      downloadCsv(`inspection-${kpi.key}.csv`, ['KPI', 'Value', 'Change vs previous period', 'Period', 'Location'], [[kpi.label, kpi.value, kpi.delta || '—', this.periodLabel, this.locationLabel]]);
       return;
     }
     const v = this.view;
@@ -265,7 +265,7 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
           { label: 'Already overdue', value: String(v.findings.filter((r) => r.dueInDays < 0).length) }
         ];
     }
-    fields.push({ label: 'Change vs previous period', value: kpi.delta || '—' }, { label: 'Period', value: this.period }, { label: 'Location', value: this.location });
+    fields.push({ label: 'Change vs previous period', value: kpi.delta || '—' }, { label: 'Period', value: this.periodLabel }, { label: 'Location', value: this.locationLabel });
     this.detail = { title: kpi.label, subtitle: kpi.value, fields, finding: null };
   }
 
@@ -440,7 +440,7 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
   private showFindings(title: string, rows: InspectionFinding[]): void {
     this.list = {
       title,
-      subtitle: `${rows.length} finding${rows.length === 1 ? '' : 's'} · ${this.location} · ${this.period}`,
+      subtitle: `${rows.length} finding${rows.length === 1 ? '' : 's'} · ${this.locationLabel} · ${this.periodLabel}`,
       header: FINDING_HEADER,
       rows: this.findingRows(rows),
       fileName: title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.csv'

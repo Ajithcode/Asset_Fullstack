@@ -93,6 +93,7 @@ import { MapsStore } from '../maps.store';
           <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
         </button>
         <select class="zoom-select" aria-label="Zoom" [(ngModel)]="zoom">
+          <option [ngValue]="null" disabled>Select Zoom</option>
           @for (z of zoomLevels; track z) { <option [ngValue]="z">{{ z }}%</option> }
         </select>
       </div>

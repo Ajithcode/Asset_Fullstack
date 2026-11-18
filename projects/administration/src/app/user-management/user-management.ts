@@ -277,7 +277,8 @@ export class UserManagementPage extends AdminPage {
 
   addUser(): void {
     this.drawerMode = 'add';
-    this.drawerUser = { ...blankUser(), employeeId: this.service.nextEmployeeId() };
+    // New users open with Location / Time Zone / Access Scope unselected
+    this.drawerUser = { ...blankUser(), employeeId: this.service.nextEmployeeId(), location: '', timeZone: '', accessScope: '' };
   }
 
   closeDrawer(): void {

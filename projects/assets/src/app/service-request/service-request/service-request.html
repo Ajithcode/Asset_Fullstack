@@ -108,7 +108,7 @@
       <div *ngIf="tab === 'updates'" class="srd-body">
         <div class="srd-sec-head"><h3 class="srd-h grow">Service Request Updates</h3>
           <select class="control srd-filter" [(ngModel)]="updateFilter" aria-label="Show updates">
-            <option value="">All Updates</option><option value="comment">Comments</option><option value="status">Status Changes</option>
+            <option value="">Select Show Updates</option><option value="comment">Comments</option><option value="status">Status Changes</option>
           </select></div>
         <ol class="srd-tl">
           <li *ngFor="let u of updates; let last = last" [class.is-last]="last">
@@ -142,9 +142,9 @@
 
         <div class="srd-filters">
           <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="fileSearch" (ngModelChange)="onFileFilter()" placeholder="Search attachments by name, type, or description..." aria-label="Search attachments" /></label>
-          <select class="control" [(ngModel)]="kindFilter" (ngModelChange)="onFileFilter()" aria-label="File type"><option value="">All File Types</option><option *ngFor="let k of kinds" [value]="k">{{ k }}</option></select>
-          <select class="control" [(ngModel)]="byFilter" (ngModelChange)="onFileFilter()" aria-label="Uploaded by"><option value="">All Uploaded By</option><option *ngFor="let b of uploaders" [value]="b">{{ b }}</option></select>
-          <select class="control" [(ngModel)]="dateOrder" aria-label="Uploaded date order"><option value="desc">Uploaded Date: Newest</option><option value="asc">Uploaded Date: Oldest</option></select>
+          <select class="control" [(ngModel)]="kindFilter" (ngModelChange)="onFileFilter()" aria-label="File type"><option value="">Select File Type</option><option *ngFor="let k of kinds" [value]="k">{{ k }}</option></select>
+          <select class="control" [(ngModel)]="byFilter" (ngModelChange)="onFileFilter()" aria-label="Uploaded by"><option value="">Select Uploaded by</option><option *ngFor="let b of uploaders" [value]="b">{{ b }}</option></select>
+          <select class="control" [(ngModel)]="dateOrder" aria-label="Uploaded date order"><option value="" disabled>Select Uploaded Date Order</option><option value="desc">Uploaded Date: Newest</option><option value="asc">Uploaded Date: Oldest</option></select>
           <span class="srd-view">
             <button type="button" class="icon-btn" [class.is-on]="fileView === 'list'" (click)="fileView = 'list'" aria-label="List view"><lucide-icon [img]="icons.List" [size]="17"></lucide-icon></button>
             <button type="button" class="icon-btn" [class.is-on]="fileView === 'grid'" (click)="fileView = 'grid'" aria-label="Grid view"><lucide-icon [img]="icons.LayoutGrid" [size]="17"></lucide-icon></button>
@@ -337,8 +337,8 @@
       <label class="field"><span class="field-label">Subject <em>*</em></span><input class="control" [(ngModel)]="f.title" name="title" /></label>
       <label class="field"><span class="field-label">Description</span><textarea class="control sr-textarea" [(ngModel)]="f.description" name="desc" rows="3"></textarea></label>
       <div class="two">
-        <label class="field"><span class="field-label">Request Type</span><select class="control" [(ngModel)]="f.category" name="cat"><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
-        <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="f.priority" name="prio"><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
+        <label class="field"><span class="field-label">Request Type</span><select class="control" [(ngModel)]="f.category" name="cat"><option value="" disabled>Select Request Type</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select></label>
+        <label class="field"><span class="field-label">Priority</span><select class="control" [(ngModel)]="f.priority" name="prio"><option value="" disabled>Select Priority</option><option *ngFor="let p of priorities" [value]="p">{{ p }}</option></select></label>
         <label class="field"><span class="field-label">Assigned To</span><select class="control" [(ngModel)]="f.assignedTo" name="assigned"><option value="">Not assigned</option><option *ngFor="let t of assignees" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Target Date <em>*</em></span><input class="control" type="date" [(ngModel)]="f.targetDate" name="target" /></label>
       </div>

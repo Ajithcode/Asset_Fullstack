@@ -45,6 +45,7 @@ export class CertificationTypeForm extends MasterForm<CertificationTypeRecord, T
   protected validate(f: CertificationTypeRecord) {
     const errors: Record<string, string> = {};
     if (!f.category) errors['category'] = 'Select a category.';
+    if (!f.status) errors['status'] = 'Select a status.';
     if (!f.applicableTo.length) errors['applicableTo'] = 'Pick at least one.';
     if (!Number.isInteger(f.validityMonths) || f.validityMonths < 1 || f.validityMonths > 120) errors['validityMonths'] = 'Enter 1 to 120 months.';
     if (!Number.isInteger(f.renewalReminderDays) || f.renewalReminderDays < 0) errors['renewalReminderDays'] = 'Enter 0 or more days.';
