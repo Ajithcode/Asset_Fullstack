@@ -8,6 +8,7 @@ import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart';
 import 'package:asset360_mobile/features/more/tracking/live/live_hub_lists.dart';
 import 'package:asset360_mobile/features/more/tracking/live/live_map_tab.dart';
+import 'package:asset360_mobile/features/more/tracking/live/live_tracking_assets_tab.dart';
 import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dart';
 import 'package:asset360_mobile/features/more/tracking/tracking_hub_screen.dart' show HubTab;
 import 'package:asset360_mobile/features/more/tracking/tracking_widgets.dart';
@@ -112,18 +113,20 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
                 onChanged: (v) => setState(() => _tab = v),
               ),
               const SizedBox(height: 14),
-              if (_tab == HubTab.map || _tab == HubTab.list) ...[
-                SearchFilterBar(
-                  hint: 'Search by asset name, ID or location...',
-                  onChanged: (v) => setState(() => _query = v),
-                  filterGroups: [
-                    const FilterGroup(title: 'Status', options: ['Online', 'Offline', 'Low Battery', 'In a zone']),
-                    if (siteNames.isNotEmpty) FilterGroup(title: 'Site', options: siteNames),
-                  ],
-                  selection: _filters,
-                  onFiltersChanged: (f) => setState(() => _filters = f),
-                ),
-                const SizedBox(height: 12),
+              if (_tab != HubTab.sensors) ...[
+                if (_tab != HubTab.list) ...[
+                  SearchFilterBar(
+                    hint: 'Search by asset name, ID or location...',
+                    onChanged: (v) => setState(() => _query = v),
+                    filterGroups: [
+                      const FilterGroup(title: 'Status', options: ['Online', 'Offline', 'Low Battery', 'In a zone']),
+                      if (siteNames.isNotEmpty) FilterGroup(title: 'Site', options: siteNames),
+                    ],
+                    selection: _filters,
+                    onFiltersChanged: (f) => setState(() => _filters = f),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 CounterTiles<LiveCounter>(
                   items: [
                     (LiveCounter.online, Icons.battery_full_rounded, s?.online(now) ?? 0, 'Online', TileTone.mint),
@@ -148,11 +151,12 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
                 ),
                 const SizedBox(height: 12),
               ],
-              if (s == null && live.error != null && (_tab == HubTab.map || _tab == HubTab.list))
+              if (s == null && live.error != null && (_tab == HubTab.map || _tab == HubTab.zones))
                 LoadErrorState(error: live.error!, onRetry: () => ref.read(trkLiveProvider.notifier).refresh())
               else
                 ...switch (_tab) {
-                  HubTab.map => [
+                  // Geofencing shows the live map for now (zone drawing is not offered in API mode).
+                  HubTab.map || HubTab.zones => [
                     LiveMapTab(
                       key: ValueKey('map-${widget.location}-${widget.geofence}-${widget.zone}'),
                       initialView: widget.view,
@@ -162,14 +166,8 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
                       visibleAssets: s == null ? null : _filtered(s),
                     ),
                   ],
-                  HubTab.list => [
-                    if (s == null)
-                      const ListSkeleton(rows: 4, card: false)
-                    else
-                      TrackedAssetList(assets: _filtered(s), total: s.assets.length),
-                  ],
+                  HubTab.list => [TrackingAssetsTab(counter: _counter)],
                   HubTab.sensors => [const LiveSensorsTab()],
-                  HubTab.zones => [const LiveGeofencingTab()],
                 },
             ],
           ),

@@ -16,6 +16,7 @@ import 'package:asset360_mobile/features/more/documents/add_document_screen.dart
 import 'package:asset360_mobile/features/more/documents/document_detail_screen.dart';
 import 'package:asset360_mobile/features/more/documents/document_viewer_screen.dart';
 import 'package:asset360_mobile/features/more/documents/documents_screen.dart';
+import 'package:asset360_mobile/features/more/account/api_samples_screen.dart';
 import 'package:asset360_mobile/features/more/account/help_screen.dart';
 import 'package:asset360_mobile/features/home/devices_screen.dart';
 import 'package:asset360_mobile/features/home/drilldowns/activities_screen.dart';
@@ -613,6 +614,7 @@ GoRoute _moreRoute() => GoRoute(
       routes: [
         GoRoute(path: 'data-check', builder: (_, _) => const DataCheckScreen()),
         GoRoute(path: 'demo-tags', builder: (_, _) => const DemoTagsScreen()),
+        GoRoute(path: 'api-samples', builder: (_, _) => const ApiSamplesScreen()),
         GoRoute(path: 'auth-diagnostics', builder: (_, _) => const AuthDiagnosticsScreen(inShell: true)),
       ],
     ),

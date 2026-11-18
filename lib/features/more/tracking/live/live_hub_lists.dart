@@ -12,46 +12,7 @@ import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dar
 
 // ---------------------------------------------------------------- Asset List
 
-/// Every tracked asset (device / tag linked, or location events), with status, last seen,
-/// zone / location, battery and signal. Tap → Asset Tracking.
-class TrackedAssetList extends StatelessWidget {
-  const TrackedAssetList({super.key, required this.assets, required this.total});
-
-  final List<TrackedAsset> assets;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    if (total == 0) {
-      return const EmptyState(
-        icon: Icons.sensors_off_rounded,
-        title: 'No tracked assets yet',
-        message: 'Assets appear here once a tag or IoT device is linked to them, or they report a location event.',
-      );
-    }
-    if (assets.isEmpty) return const EmptyState(icon: Icons.search_off_rounded, title: 'No tracked assets match');
-    final now = trackingNow();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              for (var i = 0; i < assets.length; i++) ...[
-                if (i > 0) const Divider(height: 1, indent: 90),
-                TrackedAssetRow(asset: assets[i], now: now),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text('Showing ${assets.length} of $total tracked', textAlign: TextAlign.center, style: AppText.caption),
-      ],
-    );
-  }
-}
-
+/// One Tracking service record (map zone lists). Tap → Asset Tracking.
 class TrackedAssetRow extends StatelessWidget {
   const TrackedAssetRow({super.key, required this.asset, required this.now});
 
@@ -314,6 +275,8 @@ class _IotEventsCardState extends ConsumerState<IotEventsCard> {
 
 // ---------------------------------------------------------------- Geofencing
 
+/// Not shown at the moment: the Geofencing tab shows the live map for now. Kept for when the
+/// geofence list returns.
 /// View-only: Tracking GPS geofences and Administration floor-plan zones flagged as geofence,
 /// each with its entry / exit / dwell alert flags. Tap → the right map, focused on it.
 class LiveGeofencingTab extends ConsumerWidget {

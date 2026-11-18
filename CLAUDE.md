@@ -130,6 +130,11 @@
   disk cache + image cache, then `AppRestartScope.restart` (app/app_restart.dart, fresh ProviderScope → Splash → Login)).
   Entry points: Settings → Developer "Backend server", Login grey "Server: …" label, Auth diagnostics button.
   Tests: test/server_switcher_test.dart.
+  API samples (same flag): Settings → Developer "API samples" = `/more/settings/api-samples`
+  (`features/more/account/api_samples_screen.dart`; logic `data/api/api_samples.dart`: `apiSamples` presets, Custom
+  row, `fetchSample` via the app's ApiClients (token + current server), `shortenSample` = lists → 3 items + secret keys
+  token|key|password|secret|qrcode|otp → 6 chars + "…", `prettySample` ≤ 4,000 chars, `copyText`). Tests:
+  test/api_samples_test.dart.
 - Assets live phase (apiMode = true: NO mock assets anywhere; apiMode = false unchanged): API `lib/data/api/assets/`
   (`assets_api.dart` `AssetsApi` / `assetsApiProvider`: list, filters, get, lookup, drafts + steps + submit, options,
   categories / types / models, images, documents, components tree, condition, criticality; `asset_api_models.dart`; full
@@ -206,6 +211,11 @@
   `FloorPlanMap`, `OutdoorMap`, `AssetZoneMap`, `LiveAssetTrackingScreen`, `/more/tracking/sensor/:sensorId`,
   `/more/tracking/alerts`); asset IoT tab `features/assets/live/live_detail_iot.dart`. The mock hub / asset tracking
   screens return the live ones when `apiMode`. Shared: `TrackingHubTabs`, `CounterTiles`, `MapRoundButton`.
+  Asset List tab = ALL Asset service assets (`live_tracking_assets_tab.dart`: `liveAssetListProvider`, server search +
+  `showLiveFilterSheet`, Load more; tracking facts via `TrackingSnapshot.forRegistered(id, tag)` /
+  `TrackingRegistry.recordFor`, else "Not tracked"); records matching no registered asset = `trackingRegistryProvider`
+  (data/repositories/tracking_registry.dart, GET /lookup per record) → "Unregistered tracking records: N" read-only sheet.
+  Geofencing tab = the live map for now (`LiveGeofencingTab` kept, unused).
   Report: `docs/tracking_iot_report.md`; tests `test/live/tracking_live_test.dart` (+ `tracking_samples.dart`).
 - Scan (prompt 07): `features/assets/scan/` — `scan_screen.dart` (QR camera + simulated NFC/RFID/BLE, Manual Entry, Multi Scan,
   debug "Simulate scan" chip), `scan_result_screen.dart` (Asset Identified), `scan_history_screen.dart`. Every scan goes

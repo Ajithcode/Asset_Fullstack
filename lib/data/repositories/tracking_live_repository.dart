@@ -13,6 +13,8 @@ import 'package:asset360_mobile/data/api/api_exception.dart';
 import 'package:asset360_mobile/data/api/dashboard/network_status_live.dart' show LiveScheduler;
 import 'package:asset360_mobile/data/api/media_api.dart';
 import 'package:asset360_mobile/data/api/tracking/tracking_api.dart';
+import 'package:asset360_mobile/data/repositories/live_assets_repository.dart' show liveAssetListProvider;
+import 'package:asset360_mobile/data/repositories/tracking_registry.dart';
 import 'package:asset360_mobile/data/tracking/tracked_assets.dart';
 
 export 'package:asset360_mobile/data/api/admin/admin_maps_api.dart';
@@ -414,5 +416,7 @@ void refreshTracking(WidgetRef ref) {
     ..invalidate(trkGeofencesProvider)
     ..invalidate(geofenceZonesProvider)
     ..invalidate(trkAlertsProvider)
-    ..invalidate(trackingSnapshotOnceProvider);
+    ..invalidate(trackingSnapshotOnceProvider)
+    ..invalidate(trkRegistrationOfProvider)
+    ..invalidate(liveAssetListProvider);
 }

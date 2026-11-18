@@ -221,6 +221,14 @@ class SettingsScreen extends ConsumerWidget {
                       '${serverDisplayOf(currentServerOrigin)} · switching signs you out',
                       () => showServerSwitcherSheet(context, ref),
                     ),
+                  if (showServerSwitcher)
+                    nav(
+                      Icons.data_object_rounded,
+                      TileTone.lavender,
+                      'API samples',
+                      'GET real endpoints with your token; short, redacted JSON',
+                      () => context.push(Routes.apiSamples),
+                    ),
                   if (kDebugMode) ...[
                     nav(
                       Icons.fact_check_outlined,

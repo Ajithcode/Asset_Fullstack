@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:asset360_mobile/app/app.dart';
 import 'package:asset360_mobile/app/router/app_router.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
@@ -11,6 +13,7 @@ import 'package:asset360_mobile/data/repositories/assets_repository.dart';
 import 'package:asset360_mobile/data/repositories/live_assets_repository.dart';
 import 'package:asset360_mobile/data/repositories/scans_repository.dart';
 import 'package:asset360_mobile/data/repositories/session_repository.dart';
+import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart';
 import 'package:asset360_mobile/features/auth/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_asset_backend.dart';
+import 'tracking_samples.dart';
 
 class _SignedIn extends SessionNotifier {
   @override
@@ -92,6 +96,33 @@ void main() {
     c.dispose();
   });
 
+  testWidgets('Tracking → Asset List: Asset service assets only, no mock asset', (tester) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    backend.seedTracking(DateTime.now);
+    TrkLiveNotifier.debugSchedule = (d, cb) => _IdleTimer();
+    addTearDown(() => TrkLiveNotifier.debugSchedule = null);
+    final c = ProviderContainer(
+      retry: (_, _) => null,
+      overrides: [
+        ...backend.overrides,
+        sessionProvider.overrideWith(_SignedIn.new),
+        tokenStoreProvider.overrideWithValue(MemoryTokenStore()),
+      ],
+    );
+    await tester.pumpWidget(UncontrolledProviderScope(container: c, child: const Asset360App()));
+    await tester.pump(SplashScreen.duration);
+    await tester.pumpAndSettle();
+    c.read(routerProvider).go('/more/tracking?tab=list');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Diesel Generator 500 kVA'), findsOneWidget);
+    expect(visibleMockIds(), isEmpty);
+    await tester.pumpWidget(const SizedBox());
+    c.dispose();
+  });
+
   testWidgets('the asset picker lists live assets (search on the server) and returns the assetRegistrationId', (
     tester,
   ) async {
@@ -127,4 +158,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(picked, 'AR000002');
   });
+}
+
+class _IdleTimer implements Timer {
+  @override
+  void cancel() {}
+
+  @override
+  bool get isActive => false;
+
+  @override
+  int get tick => 0;
 }

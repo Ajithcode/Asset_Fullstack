@@ -165,13 +165,7 @@ abstract final class Routes {
   /// geofence id to focus.
   static String trackingMap({String? view, String? location, String? zone, String? geofence}) => Uri(
     path: tracking,
-    queryParameters: {
-      'tab': 'map',
-      'view': ?view,
-      'location': ?location,
-      'zone': ?zone,
-      'geofence': ?geofence,
-    },
+    queryParameters: {'tab': 'map', 'view': ?view, 'location': ?location, 'zone': ?zone, 'geofence': ?geofence},
   ).toString();
 
   /// API mode sensor detail (Tracking service sensor id, e.g. SEN-T-80900).
@@ -228,6 +222,7 @@ abstract final class Routes {
   static const scannerSettings = '/more/scanner';
   static const dataCheck = '/more/settings/data-check';
   static const demoTags = '/more/settings/demo-tags';
+  static const apiSamples = '/more/settings/api-samples';
   static const settingsAuthDiagnostics = '/more/settings/auth-diagnostics';
   static const help = '/more/help';
   static const reportBug = '/more/help/report-bug';

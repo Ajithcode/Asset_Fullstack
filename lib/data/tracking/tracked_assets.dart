@@ -175,6 +175,11 @@ class TrackingSnapshot {
     return assets.where((a) => _norm(a.key) == k || a.matchKeys.contains(k)).firstOrNull;
   }
 
+  /// The tracking record of a registered asset: matched by its registration id, else its asset
+  /// tag (a tag / device asset code or a location-event asset text equal to the tag).
+  TrackedAsset? forRegistered(String assetRegistrationId, String? assetTag) =>
+      byKey(assetRegistrationId) ?? (_norm(assetTag).isEmpty ? null : byKey(assetTag!));
+
   TrkDevice? device(String deviceId) => devices.where((d) => _norm(d.deviceId) == _norm(deviceId)).firstOrNull;
 
   /// Events of one asset within [window] of [now], newest first.

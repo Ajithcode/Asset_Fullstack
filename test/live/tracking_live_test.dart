@@ -592,11 +592,48 @@ void main() {
       expect(find.text('Factory perimeter'), findsOneWidget);
     });
 
-    testWidgets('asset list tab', (tester) async {
+    testWidgets('asset list tab: every Asset service asset + its tracking facts; unregistered records counted', (
+      tester,
+    ) async {
       await open(tester, '/more/tracking?tab=list');
-      expect(find.text('Chiller Unit 2'), findsWidgets);
-      expect(find.text('Forklift 8'), findsWidgets);
-      await see(tester, find.text('Showing 3 of 3 tracked'));
+      // The Asset service list (GET /api/asset-registrations), not the Tracking service's references.
+      expect(backend.calls('GET', '/api/asset-registrations'), isNotEmpty);
+      expect(find.text('TAG-0001'), findsOneWidget);
+      expect(find.text('Diesel Generator 500 kVA'), findsOneWidget);
+      expect(find.text('TAG-0002'), findsOneWidget);
+      // Both registered assets have a tracking record (by registration id): zone + online state.
+      expect(find.text('Zone: Zone B'), findsOneWidget, reason: 'AR000001 entered Zone B');
+      expect(find.text('Not tracked'), findsOneWidget, reason: 'the filter chip only, no row');
+      // FL-008 (location events only) matches no registered asset: counted, not listed.
+      expect(find.text('Forklift 8'), findsNothing);
+      await see(tester, find.text('Showing 2 of 2 assets'));
+      await see(tester, find.text('Unregistered tracking records: 1'));
+      await tester.tap(find.text('Unregistered tracking records: 1'));
+      await tester.pumpAndSettle();
+      expect(find.text('Forklift 8'), findsOneWidget);
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+
+      // Not tracked filter: none; Tracked: both.
+      await tester.ensureVisible(find.text('Not tracked'));
+      await tester.tap(find.text('Not tracked'));
+      await tester.pumpAndSettle();
+      expect(find.text('No loaded assets match'), findsOneWidget);
+      await tester.ensureVisible(find.text('Tracked'));
+      await tester.tap(find.text('Tracked'));
+      await tester.pumpAndSettle();
+      expect(find.text('TAG-0001'), findsOneWidget);
+    });
+
+    testWidgets('asset list tab: an asset without a tracking record says "Not tracked"', (tester) async {
+      backend
+        ..on('GET', '/api/iot-devices', (_) => const FakeReply(200, []))
+        ..on('GET', '/api/device-health', (_) => const FakeReply(200, []))
+        ..on('GET', '/api/tag-ids', (_) => const FakeReply(200, []))
+        ..on('GET', '/api/location-events', (_) => const FakeReply(200, []));
+      await open(tester, '/more/tracking?tab=list');
+      expect(find.text('Not tracked'), findsNWidgets(3), reason: 'filter chip + 2 rows');
+      expect(find.textContaining('Unregistered tracking records'), findsNothing);
     });
 
     testWidgets('sensors tab → sensor detail', (tester) async {
@@ -609,11 +646,11 @@ void main() {
       expect(find.text('Out of range'), findsOneWidget);
     });
 
-    testWidgets('geofencing tab: GPS geofences and floor-plan geofence zones', (tester) async {
+    testWidgets('geofencing tab: the live map for now (no zone drawing)', (tester) async {
       await open(tester, '/more/tracking?tab=zones');
+      expect(find.byType(OutdoorMap), findsOneWidget);
       expect(find.text('Factory perimeter'), findsOneWidget);
-      expect(find.text('Restricted Store'), findsOneWidget);
-      expect(find.text('Dwell 15 min'), findsOneWidget);
+      expect(find.text('Add Zone'), findsNothing);
     });
 
     testWidgets('alerts: open list matches the badge', (tester) async {

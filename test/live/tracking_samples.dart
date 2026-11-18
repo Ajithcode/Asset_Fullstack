@@ -504,5 +504,23 @@ extension TrackingFake on FakeAssetBackend {
     on('GET', '/api/master-data/sites', (_) => const FakeReply(200, mdSitesJson));
     on('GET', '/api/master-data/buildings', (_) => const FakeReply(200, mdBuildingsJson));
     on('GET', '/api/master-data/floors', (_) => const FakeReply(200, mdFloorsJson));
+    // The Asset service knows AR000001 / TAG-0001 and AR000002 / TAG-0002 (sampleAssets); the
+    // tracking record "FL-008" (location events only) matches no registered asset.
+    on('GET', '/api/asset-registrations/lookup', (o) {
+      final code = (o.uri.queryParameters['code'] ?? '').toUpperCase();
+      final id = switch (code) {
+        'AR000001' || 'TAG-0001' => 'AR000001',
+        'AR000002' || 'TAG-0002' => 'AR000002',
+        _ => null,
+      };
+      if (id == null) {
+        return FakeReply(404, {'message': "No asset matches the scanned code '${o.uri.queryParameters['code']}'."});
+      }
+      return FakeReply(200, {
+        'code': o.uri.queryParameters['code'],
+        'matchedBy': code.startsWith('AR') ? 'assetRegistrationId' : 'assetTag',
+        'asset': {...sampleRegistration(), 'assetRegistrationId': id},
+      });
+    });
   }
 }
