@@ -67,7 +67,16 @@ export interface SensorRequest {
 }
 
 /** GET /api/sensors/types. */
-export interface SensorTypeOptionDto { sensorType: string; idPrefix: string; measuredParameter: string; unit: string }
+export interface SensorTypeOptionDto {
+  sensorType: string; idPrefix: string; measuredParameter: string; unit: string;
+  makeModel?: string | null; measuringRange?: string | null; accuracy?: string | null; description?: string | null; custom?: boolean; id?: string | null;
+}
+
+/** POST /api/sensor-parameters (Measurement Parameters › Add Parameter). */
+export interface SensorParameterRequest {
+  measuredParameter: string; unit: string | null; sensorType: string; idPrefix: string | null;
+  makeModel: string | null; measuringRange: string | null; accuracy: string | null; description: string | null;
+}
 
 /** GET /api/sensors/form-options: every dropdown of the Add Sensor form. */
 export interface SensorFormOptionsDto {
@@ -128,6 +137,16 @@ export class SensorApiService {
     return this.http.delete<void>(trackingUrl(`sensors/${encodeURIComponent(sensorId)}`), { params: tenantParams() }).pipe(catchError((e) => apiError(e, `Could not delete ${sensorId}.`)));
   }
 
+  addParameter(body: SensorParameterRequest): Observable<SensorTypeOptionDto> {
+    return this.http.post<SensorTypeOptionDto>(trackingUrl('sensor-parameters'), { ...body, ...tenantBody() }, { params: tenantParams() })
+      .pipe(catchError((e) => apiError(e, 'Could not add the measurement parameter.')));
+  }
+
+  deleteParameter(id: string): Observable<void> {
+    return this.http.delete<void>(trackingUrl(`sensor-parameters/${encodeURIComponent(id)}`), { params: tenantParams() })
+      .pipe(catchError((e) => apiError(e, 'Could not delete the measurement parameter.')));
+  }
+
   formOptions(): Observable<SensorFormOptionsDto> {
     return this.http.get<SensorFormOptionsDto>(trackingUrl('sensors/form-options'), { params: tenantParams() }).pipe(catchError((e) => apiError(e, 'Could not load the sensor form options.')));
   }
@@ -171,7 +190,10 @@ function ms(iso: string | null | undefined): number | null {
 
 /** Page parameter for an API sensor type option. */
 export function toParameter(o: SensorTypeOptionDto): Parameter {
-  return { name: o.measuredParameter, label: o.measuredParameter, unit: o.unit, type: o.sensorType, prefix: o.idPrefix, decimals: o.unit === 'A' ? 0 : 1 };
+  return {
+    name: o.measuredParameter, label: o.measuredParameter, unit: o.unit, type: o.sensorType, prefix: o.idPrefix, decimals: o.unit === 'A' ? 0 : 1,
+    id: o.id ?? null, custom: !!o.custom, makeModel: o.makeModel ?? null, measuringRange: o.measuringRange ?? null, accuracy: o.accuracy ?? null, description: o.description ?? null,
+  };
 }
 
 /** Page sensor for an API record. The calibration due date is a UTC date, read as local midnight + 9 h so it never shifts a day. */

@@ -4,41 +4,40 @@
   <header class="ga-head">
     <div class="grow">
       <h1>Geofence &amp; Alerts</h1>
-      <p>Define monitored zones and configure actions when assets enter, exit or remain in an area.</p>
+      <p>Define monitored zones (floor-plan zones and outdoor geofences), detect entries, exits and dwell, and turn only rule violations into alerts.</p>
     </div>
-    <button type="button" class="btn btn-outline" (click)="tab = 'rules'; ruleZone = ''"><lucide-icon [img]="icons.Settings" [size]="17"></lucide-icon>Alert Rules</button>
+    <button type="button" class="btn btn-outline" (click)="ruleZone = ''; setTab('rules')"><lucide-icon [img]="icons.Settings" [size]="17"></lucide-icon>Alert Rules</button>
     <button type="button" class="btn btn-primary" (click)="openZone()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Create Geofence</button>
   </header>
 
   <!-- KPIs -->
   <div class="kpis" *ngIf="kpi as k">
-    <button type="button" class="card kpi" (click)="tab = 'geofences'; listSite = ''; listSearch = ''">
+    <button type="button" class="card kpi" (click)="setTab('geofences'); listKind = ''; listSite = ''; listSearch = ''" title="Enabled outdoor geofences + floor-plan zones with at least one active rule">
       <span class="kpi-ic kpi-ic--blue"><lucide-icon [img]="icons.MapPin" [size]="22"></lucide-icon></span>
-      <span class="kpi-body"><span class="kpi-label">Active Geofences</span><strong>{{ k.active }}</strong></span>
-      <span class="trend" [class.good]="k.activeDelta >= 0" [class.bad]="k.activeDelta < 0"><b><lucide-icon [img]="k.activeDelta >= 0 ? icons.ArrowUp : icons.ArrowDown" [size]="13"></lucide-icon>{{ signed(k.activeDelta) }}</b><small>vs. last month</small></span>
+      <span class="kpi-body"><span class="kpi-label">Active Geofences</span><strong>{{ k.active }}</strong><small class="kpi-sub">{{ k.indoor }} indoor · {{ k.outdoor }} outdoor</small></span>
     </button>
-    <button type="button" class="card kpi" (click)="tab = 'geofences'">
+    <button type="button" class="card kpi" (click)="setTab('geofences')" title="Unique tagged assets in scope of an active zone or rule (an asset in several zones counts once)">
       <span class="kpi-ic kpi-ic--blue"><lucide-icon [img]="icons.Box" [size]="22"></lucide-icon></span>
-      <span class="kpi-body"><span class="kpi-label">Monitored Assets</span><strong>{{ k.monitored }}</strong></span>
+      <span class="kpi-body"><span class="kpi-label">Monitored Assets</span><strong>{{ k.monitored }}</strong><small class="kpi-sub">unique · of {{ k.tagged }} tagged</small></span>
     </button>
     <button type="button" class="card kpi" (click)="openHistory('today')">
       <span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.Bell" [size]="22"></lucide-icon></span>
-      <span class="kpi-body"><span class="kpi-label">Alerts Today</span><strong>{{ k.today }}</strong></span>
-      <span class="trend" [class.good]="k.todayPct <= 0" [class.bad]="k.todayPct > 0"><b><lucide-icon [img]="k.todayPct <= 0 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon>{{ signed(k.todayPct, '%') }}</b><small>vs. yesterday</small></span>
+      <span class="kpi-body"><span class="kpi-label">Alerts Today</span><strong>{{ k.today }}</strong><small class="kpi-sub">{{ k.yesterday }} yesterday</small></span>
+      <span *ngIf="k.todayPct !== null" class="trend" [class.good]="k.todayPct <= 0" [class.bad]="k.todayPct > 0"><b><lucide-icon [img]="k.todayPct <= 0 ? icons.ArrowDown : icons.ArrowUp" [size]="13"></lucide-icon>{{ signed(k.todayPct, '%') }}</b><small>vs. yesterday</small></span>
     </button>
-    <button type="button" class="card kpi" (click)="openHistory('all', 'Unacknowledged')">
+    <button type="button" class="card kpi" (click)="openHistory('30d', 'Unresolved')" title="Alerts not yet resolved or closed (New, Acknowledged, Assigned, Investigating)">
       <span class="kpi-ic kpi-ic--red"><lucide-icon [img]="icons.TriangleAlert" [size]="22"></lucide-icon></span>
-      <span class="kpi-body"><span class="kpi-label">Open / Unacknowledged</span><strong [class.val-bad]="k.open > 0">{{ k.open }}</strong></span>
+      <span class="kpi-body"><span class="kpi-label">Open Alerts</span><strong [class.val-bad]="k.open > 0">{{ k.open }}</strong>
+        <small class="kpi-sub"><span (click)="$event.stopPropagation(); openHistory('30d', 'Open')" class="kpi-link">{{ k.unack }} unacknowledged</span><ng-container *ngIf="k.escalated"> · {{ k.escalated }} escalated</ng-container></small></span>
     </button>
   </div>
 
   <p *ngIf="loadError" class="form-error" role="alert">{{ loadError }} <button type="button" class="link-btn" (click)="load()">Retry</button></p>
 
   <nav class="tabs" role="tablist" aria-label="Geofence sections">
-    <button type="button" role="tab" [class.is-active]="tab === 'geofences'" [attr.aria-selected]="tab === 'geofences'" (click)="tab = 'geofences'"><lucide-icon [img]="icons.Pentagon" [size]="16"></lucide-icon>Geofences</button>
-    <button type="button" role="tab" [class.is-active]="tab === 'rules'" [attr.aria-selected]="tab === 'rules'" (click)="tab = 'rules'"><lucide-icon [img]="icons.Bell" [size]="16"></lucide-icon>Alert Rules</button>
-    <button type="button" role="tab" [class.is-active]="tab === 'history'" [attr.aria-selected]="tab === 'history'" (click)="tab = 'history'"><lucide-icon [img]="icons.History" [size]="16"></lucide-icon>Event History</button>
-    <!-- map location: Building > Floor (or the outdoor geofence map), then the floor's zone (outdoor: the site) -->
+    <button type="button" role="tab" [class.is-active]="tab === 'geofences'" [attr.aria-selected]="tab === 'geofences'" (click)="setTab('geofences')"><lucide-icon [img]="icons.Pentagon" [size]="16"></lucide-icon>Geofences</button>
+    <button type="button" role="tab" [class.is-active]="tab === 'rules'" [attr.aria-selected]="tab === 'rules'" (click)="setTab('rules')"><lucide-icon [img]="icons.Bell" [size]="16"></lucide-icon>Alert Rules</button>
+    <button type="button" role="tab" [class.is-active]="tab === 'history'" [attr.aria-selected]="tab === 'history'" (click)="setTab('history')"><lucide-icon [img]="icons.History" [size]="16"></lucide-icon>Event History</button>
     <div *ngIf="tab === 'geofences'" class="tab-filters">
       <label class="tab-filter">
         <lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>
@@ -50,7 +49,7 @@
       </label>
       <label class="tab-filter">
         <lucide-icon [img]="icons.Pentagon" [size]="15"></lucide-icon>
-        <select *ngIf="floorId" class="control control-sm" [(ngModel)]="floorZoneId" aria-label="Zone">
+        <select *ngIf="floorId" class="control control-sm" [ngModel]="floorZoneId" (ngModelChange)="onFloorZone($event)" aria-label="Zone">
           <option value="">{{ floorZones.length ? 'All zones' : 'No zones on this floor' }}</option>
           <option *ngFor="let z of floorZones" [value]="z.id">{{ z.name }} ({{ z.code }})</option>
         </select>
@@ -69,7 +68,6 @@
             [showAssets]="showAssets" [showGateways]="showGateways" [showLabels]="showLabels" [mode]="mapMode" [editId]="editId"
             (zoneClick)="selectZoneById($event)" (alertClick)="onAlertClick()" (drawPoints)="drawCount = $event" (drawDone)="onDrawDone($event)"
             (editChange)="onEditChange($event)" (zoomChange)="zoomInfo = $event" (ready)="drawMap = $event"></app-geofence-map>
-          <!-- floor picked: that floor's plan with its zones and plotted devices / assets (zone picked: only that zone) -->
           <app-floor-plan-map *ngIf="floorId" [imageUrl]="floorImage" [fallbackUrl]="floorMdmImage" [zones]="planZones" [plots]="planPlots" [zoneId]="floorScope"
             [feed]="gatewayFeed" [showLabels]="showLabels" [showAssets]="showAssets" [showDevices]="showGateways" [note]="floorNote"></app-floor-plan-map>
           <app-map-draw-tools *ngIf="!floorId" [map]="drawMap" storageKey="geofence-alerts" side="right" [top]="96"></app-map-draw-tools>
@@ -110,7 +108,7 @@
           </div>
         </div>
         <div *ngIf="floorId" class="legend-strip">
-          <label><input type="checkbox" [(ngModel)]="showGateways" /><i class="fp-dot fp-dot--device"></i>Devices ({{ floorCount('device') }})</label>
+          <label><input type="checkbox" [(ngModel)]="showGateways" /><i class="fp-dot fp-dot--device"></i>Gateways ({{ floorCount('device') }})</label>
           <label><input type="checkbox" [(ngModel)]="showAssets" /><i class="fp-dot fp-dot--asset"></i>Assets ({{ floorCount('asset') }})</label>
           <label><input type="checkbox" [(ngModel)]="showLabels" />Labels</label>
           <span><i class="fp-total-key">N</i>Total Assets (live)</span>
@@ -120,16 +118,16 @@
           <span><i class="sq sq--amber"></i>Warning zone</span>
           <span><i class="sq sq--red"></i>Restricted zone</span>
           <span><i class="lg-dot"></i>Active asset</span>
-          <span><i class="lg-alert">!</i>Alert marker</span>
+          <span><i class="lg-alert">!</i>New alert</span>
           <span><lucide-icon [img]="icons.Wifi" [size]="14"></lucide-icon>Gateway</span>
         </div>
       </section>
 
-      <!-- Zone detail -->
-      <section class="card panel zone-card" *ngIf="selected as z; else noZone">
+      <!-- Selected geofence: outdoor -->
+      <section class="card panel zone-card" *ngIf="selected as z">
         <div class="zd-head">
           <span class="zone-ic" [style.color]="z.color" [style.background]="z.color + '1f'"><lucide-icon [img]="z.shape === 'Circle' ? icons.Circle : icons.Pentagon" [size]="18"></lucide-icon></span>
-          <h2 class="grow" [title]="z.name">{{ z.name }}</h2>
+          <h2 class="grow" [title]="z.name">{{ z.name }}<small class="zd-id">{{ shortId(z.id) }} · Outdoor geofence</small></h2>
           <span class="pill" [class.pill--ok]="z.status === 'Active'" [class.pill--off]="z.status !== 'Active'">{{ z.status }}</span>
           <span class="menu-wrap">
             <button type="button" class="icon-btn" (click)="toggleMenu('zd', $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + z.name"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
@@ -139,23 +137,55 @@
           </span>
         </div>
         <dl class="kv">
-          <div><dt><lucide-icon [img]="icons.ShieldAlert" [size]="15"></lucide-icon>Zone type</dt><dd><span class="pill" [ngClass]="typeClass(z.type)">{{ z.type }}</span></dd></div>
+          <div><dt><lucide-icon [img]="icons.ShieldAlert" [size]="15"></lucide-icon>Zone type</dt><dd><span class="pill" [ngClass]="typeClass(z.type)">{{ z.type }}</span><small *ngIf="z.category" class="muted"> · {{ z.category }}</small></dd></div>
           <div><dt><lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>Site</dt><dd>{{ z.site }}</dd></div>
           <div><dt><lucide-icon [img]="icons.Shapes" [size]="15"></lucide-icon>Shape</dt><dd>{{ shapeLabel(z) }}<small *ngIf="zoneArea(z)" class="muted"> · {{ zoneArea(z) }}</small></dd></div>
-          <div><dt><lucide-icon [img]="icons.Boxes" [size]="15"></lucide-icon>Assigned asset groups</dt><dd>{{ z.groups.join(' & ') }}</dd></div>
-          <div><dt><lucide-icon [img]="icons.Box" [size]="15"></lucide-icon>Monitored assets</dt><dd>{{ z.monitoredCount }} · <button type="button" class="link-btn" (click)="showRules(z)">{{ ruleCount(z) }} rules</button></dd></div>
+          <div><dt><lucide-icon [img]="icons.Boxes" [size]="15"></lucide-icon>Asset scope</dt><dd>{{ z.groups.join(', ') }}</dd></div>
+          <div><dt><lucide-icon [img]="icons.Box" [size]="15"></lucide-icon>Monitored assets</dt><dd>{{ selectedTarget?.monitoredAssets ?? '—' }} <small class="muted">unique</small> · <button type="button" class="link-btn" (click)="showRules(z.id)">{{ ruleCount(z.id) }} rules</button> · <button type="button" class="link-btn" (click)="showAlerts(z.id)">{{ selectedTarget?.activeAlerts ?? 0 }} open alerts</button></dd></div>
           <div><dt><lucide-icon [img]="icons.CalendarClock" [size]="15"></lucide-icon>Schedule</dt><dd>{{ z.schedule }}</dd></div>
-          <div><dt><lucide-icon [img]="icons.LogIn" [size]="15"></lucide-icon>Monitor asset entry</dt><dd><button type="button" class="switch" role="switch" [class.is-on]="z.monitorEntry" [attr.aria-checked]="z.monitorEntry" aria-label="Monitor asset entry" (click)="toggleMonitor(z, 'entry')"><i></i></button></dd></div>
-          <div><dt><lucide-icon [img]="icons.LogOut" [size]="15"></lucide-icon>Monitor asset exit</dt><dd><button type="button" class="switch" role="switch" [class.is-on]="z.monitorExit" [attr.aria-checked]="z.monitorExit" aria-label="Monitor asset exit" (click)="toggleMonitor(z, 'exit')"><i></i></button></dd></div>
-          <div><dt><lucide-icon [img]="icons.Timer" [size]="15"></lucide-icon>Dwell alert after</dt><dd>{{ z.dwellMin === null ? '—' : z.dwellMin + ' minute' + (z.dwellMin === 1 ? '' : 's') }}</dd></div>
+          <div><dt><lucide-icon [img]="icons.LogIn" [size]="15"></lucide-icon>Detect entry</dt><dd><button type="button" class="switch" role="switch" [class.is-on]="z.monitorEntry" [attr.aria-checked]="z.monitorEntry" aria-label="Detect asset entry" (click)="toggleMonitor(z, 'entry')"><i></i></button></dd></div>
+          <div><dt><lucide-icon [img]="icons.LogOut" [size]="15"></lucide-icon>Detect exit</dt><dd><button type="button" class="switch" role="switch" [class.is-on]="z.monitorExit" [attr.aria-checked]="z.monitorExit" aria-label="Detect asset exit" (click)="toggleMonitor(z, 'exit')"><i></i></button></dd></div>
+          <div><dt><lucide-icon [img]="icons.Timer" [size]="15"></lucide-icon>Dwell limits</dt><dd>
+            <ng-container *ngIf="dwellRules(z.id).length; else noDwell"><span *ngFor="let r of dwellRules(z.id); let last = last">{{ r.group }} {{ r.dwellMin }} min{{ last ? '' : ', ' }}</span></ng-container>
+            <ng-template #noDwell><span class="muted">Set per rule</span></ng-template></dd></div>
+          <div><dt><lucide-icon [img]="icons.User" [size]="15"></lucide-icon>Created / modified</dt><dd>{{ z.createdBy || '—' }}<small class="muted"> · {{ fmtWhen(z.modifiedAt) }}</small></dd></div>
         </dl>
+        <p *ngIf="z.statusReason" class="zd-note">{{ z.status === 'Active' ? 'Enabled' : 'Disabled' }}<ng-container *ngIf="z.statusChangedBy"> by {{ z.statusChangedBy }}</ng-container><ng-container *ngIf="z.statusChangedAt"> · {{ fmtWhen(z.statusChangedAt) }}</ng-container>: {{ z.statusReason }}</p>
+        <p class="muted small zd-hint">Detection records every entry and exit as a location event; only rules turn them into alerts.</p>
         <div class="zd-foot">
           <button type="button" class="btn btn-outline btn-sm" (click)="openZone(z)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit Zone</button>
           <button type="button" class="btn btn-grey btn-sm" (click)="duplicateZone(z)"><lucide-icon [img]="icons.Copy" [size]="14"></lucide-icon>Duplicate</button>
           <button type="button" class="btn btn-sm" [class.btn-danger]="z.status === 'Active'" [class.btn-grey]="z.status !== 'Active'" (click)="toggleZone(z)"><lucide-icon [img]="icons.Power" [size]="14"></lucide-icon>{{ z.status === 'Active' ? 'Disable' : 'Enable' }}</button>
         </div>
       </section>
-      <ng-template #noZone><section class="card panel zone-card"><p class="muted empty">{{ loading ? 'Loading geofences…' : 'No geofences yet. Create one to get started.' }}</p></section></ng-template>
+
+      <!-- Selected geofence: indoor (floor-plan zone) -->
+      <section class="card panel zone-card" *ngIf="!selected && selectedTarget as t">
+        <div class="zd-head">
+          <span class="zone-ic zone-ic--indoor"><lucide-icon [img]="icons.Pentagon" [size]="18"></lucide-icon></span>
+          <h2 class="grow" [title]="t.name">{{ t.name }}<small class="zd-id">{{ shortId(t.id) }} · Indoor zone{{ t.code ? ' · ' + t.code : '' }}</small></h2>
+          <span class="pill" [class.pill--ok]="t.status === 'Monitored'" [class.pill--off]="t.status !== 'Monitored'">{{ t.status }}</span>
+        </div>
+        <dl class="kv">
+          <div><dt><lucide-icon [img]="icons.ShieldAlert" [size]="15"></lucide-icon>Category / access</dt><dd>{{ t.category || '—' }}<small *ngIf="t.type" class="muted"> · {{ t.type }}</small></dd></div>
+          <div><dt><lucide-icon [img]="icons.Building2" [size]="15"></lucide-icon>Site · building · floor</dt><dd>{{ t.siteName || '—' }}<small class="muted"> · {{ targetPlace(t) }}</small></dd></div>
+          <div><dt><lucide-icon [img]="icons.Shapes" [size]="15"></lucide-icon>Shape</dt><dd>{{ targetShape(t) }}<small *ngIf="targetArea(t)" class="muted"> · {{ targetArea(t) }}</small></dd></div>
+          <div><dt><lucide-icon [img]="icons.Wifi" [size]="15"></lucide-icon>Gateways in zone</dt><dd [class.val-bad]="t.gateways === 0">{{ t.gateways ?? 0 }}<small *ngIf="t.gateways === 0" class="muted"> · cannot detect assets</small></dd></div>
+          <div><dt><lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon>Assets inside now</dt><dd>{{ t.insideNow ?? 0 }} <small class="muted">(BLE, zone level)</small></dd></div>
+          <div><dt><lucide-icon [img]="icons.Box" [size]="15"></lucide-icon>Monitored assets</dt><dd>{{ t.monitoredAssets }} <small class="muted">unique</small> · <button type="button" class="link-btn" (click)="showRules(t.id)">{{ t.rules }} rules ({{ t.activeRules }} active)</button></dd></div>
+          <div><dt><lucide-icon [img]="icons.TriangleAlert" [size]="15"></lucide-icon>Open alerts</dt><dd><button type="button" class="link-btn" (click)="showAlerts(t.id)">{{ t.activeAlerts }}</button><small class="muted"> · last event {{ fmtWhen(t.lastEventAt) }}</small></dd></div>
+          <div><dt><lucide-icon [img]="icons.Timer" [size]="15"></lucide-icon>Dwell limits</dt><dd>
+            <ng-container *ngIf="dwellRules(t.id).length; else noDwell2"><span *ngFor="let r of dwellRules(t.id); let last = last">{{ r.group }} {{ r.dwellMin }} min{{ last ? '' : ', ' }}</span></ng-container>
+            <ng-template #noDwell2><span class="muted">Set per rule</span></ng-template></dd></div>
+        </dl>
+        <p class="muted small zd-hint">Drawn in Maps &amp; Floor Plans. Every entry / exit is a location event; only this zone's rules raise alerts.</p>
+        <div class="zd-foot">
+          <a class="btn btn-outline btn-sm" routerLink="/administration/maps-floor-plans"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit in Maps</a>
+          <button type="button" class="btn btn-grey btn-sm" (click)="selectTarget(t, true)"><lucide-icon [img]="icons.Locate" [size]="14"></lucide-icon>Show on map</button>
+          <button type="button" class="btn btn-sm" [class.btn-danger]="t.activeRules > 0" [class.btn-grey]="!t.activeRules" (click)="toggleIndoorMonitoring(t)"><lucide-icon [img]="icons.Power" [size]="14"></lucide-icon>{{ t.activeRules ? 'Pause' : t.rules ? 'Resume' : 'Add rule' }}</button>
+        </div>
+      </section>
+      <section *ngIf="!selected && !selectedTarget" class="card panel zone-card"><p class="muted empty">{{ loading ? 'Loading geofences…' : 'Select a geofence or zone in the list, or create one.' }}</p></section>
 
       <!-- Rule builder -->
       <section class="card panel rb-card">
@@ -164,10 +194,11 @@
           <h2 class="grow">Alert Rule Builder</h2>
         </div>
         <p class="rb-for">For <strong>{{ selectedName || '—' }}</strong></p>
+        <label class="rb-name"><span class="rb-label">Rule name</span><input class="control control-sm" [(ngModel)]="builder.name" placeholder="Generated from the trigger if empty" /></label>
         <ng-container *ngTemplateOutlet="ruleFields; context: { $implicit: builder, idp: 'rb' }"></ng-container>
         <div class="rb-foot">
           <button type="button" class="link-btn" (click)="resetBuilder()">Reset</button>
-          <button type="button" class="btn btn-primary btn-sm" [disabled]="!selected || saving" (click)="saveBuilder()"><lucide-icon [img]="icons.Check" [size]="15"></lucide-icon>Save Rule</button>
+          <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedId || saving" (click)="saveBuilder()"><lucide-icon [img]="icons.Check" [size]="15"></lucide-icon>Save Rule</button>
         </div>
       </section>
     </div>
@@ -176,30 +207,39 @@
       <!-- Geofence list -->
       <section class="card panel">
         <div class="sec-head">
-          <h2 class="grow">Geofence List ({{ zones.length }})</h2>
-          <label class="search search--sm"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="listSearch" (ngModelChange)="listPage = 0" placeholder="Search geofences..." aria-label="Search geofences" /></label>
-          <select class="control control-sm" [(ngModel)]="listSite" (ngModelChange)="listPage = 0" aria-label="Site"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
+          <h2 class="grow">Geofence List ({{ targets.length }})</h2>
+          <label class="search search--sm"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="listSearch" (ngModelChange)="listPage = 0" placeholder="Search ID, name, floor..." aria-label="Search geofences" /></label>
+          <select class="control control-sm" [(ngModel)]="listKind" (ngModelChange)="listPage = 0" aria-label="Kind"><option value="">Indoor &amp; outdoor</option><option value="Indoor">Indoor zones</option><option value="Outdoor">Outdoor geofences</option></select>
+          <select class="control control-sm" [(ngModel)]="listSite" (ngModelChange)="listPage = 0" aria-label="Site"><option value="">All sites</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
         </div>
         <div class="table-wrap">
           <table class="dt">
-            <thead><tr><th>Name</th><th>Type</th><th>Site</th><th class="num">Monitored Assets</th><th>Rules</th><th>Status</th><th>Last Event</th><th class="col-act"><span class="sr">Actions</span></th></tr></thead>
+            <thead><tr><th>Geofence</th><th>Type</th><th>Site / Floor</th><th>Shape · Area</th><th class="num">Assets</th><th>Rules</th><th class="num">Open alerts</th><th>Status</th><th>Last Event</th><th class="col-act"><span class="sr">Actions</span></th></tr></thead>
             <tbody>
-              <tr *ngFor="let z of listRows" class="clickable" [class.is-selected]="z.id === selectedId" (click)="selectZone(z)">
-                <td><span class="zname"><lucide-icon [img]="z.shape === 'Circle' ? icons.Circle : icons.Pentagon" [size]="15" [style.color]="z.color"></lucide-icon><span class="zlink">{{ z.name }}</span></span></td>
-                <td><span class="pill" [ngClass]="typeClass(z.type)">{{ z.type }}</span></td>
-                <td class="nowrap">{{ z.site }}</td>
-                <td class="num">{{ z.monitoredCount }}</td>
-                <td (click)="$event.stopPropagation()"><button type="button" class="link-btn" (click)="showRules(z)">{{ ruleCount(z) }} rule{{ ruleCount(z) === 1 ? '' : 's' }}</button></td>
-                <td><span class="pill" [class.pill--ok]="z.status === 'Active'" [class.pill--off]="z.status !== 'Active'">{{ z.status }}</span></td>
-                <td class="nowrap" [class.when-sel]="z.id === selectedId">{{ fmtWhen(lastEvent(z)) }}</td>
+              <tr *ngFor="let t of listRows" class="clickable" [class.is-selected]="t.id === selectedId" (click)="selectTarget(t)">
+                <td><span class="zname"><lucide-icon [img]="icons.Pentagon" [size]="15" [style.color]="zoneColor(t.id)"></lucide-icon><span><span class="zlink">{{ t.name }}</span><small class="muted block mono">{{ shortId(t.id) }}{{ t.code ? ' · ' + t.code : '' }}</small></span></span></td>
+                <td><span class="kind" [class.kind--in]="t.kind === 'Indoor'">{{ t.kind }}</span><span *ngIf="t.type || t.category" class="pill" [ngClass]="typeClass(t.type)">{{ t.kind === 'Outdoor' ? t.type : (t.category || t.type) }}</span></td>
+                <td class="nowrap">{{ t.siteName || '—' }}<small class="muted block">{{ targetPlace(t) }}</small></td>
+                <td class="nowrap">{{ targetShape(t) }}<small class="muted block">{{ targetArea(t) || '—' }}</small></td>
+                <td class="num">{{ t.monitoredAssets }}<small *ngIf="t.kind === 'Indoor'" class="muted block">{{ t.insideNow ?? 0 }} inside</small></td>
+                <td (click)="$event.stopPropagation()"><button type="button" class="link-btn" (click)="showRules(t.id)">{{ t.activeRules }}/{{ t.rules }}</button></td>
+                <td class="num" (click)="$event.stopPropagation()"><button type="button" class="link-btn" [class.val-bad]="t.activeAlerts > 0" (click)="showAlerts(t.id)">{{ t.activeAlerts }}</button></td>
+                <td><span class="pill" [class.pill--ok]="t.status === 'Active' || t.status === 'Monitored'" [class.pill--off]="t.status !== 'Active' && t.status !== 'Monitored'">{{ t.status }}</span></td>
+                <td class="nowrap" [class.when-sel]="t.id === selectedId">{{ fmtWhen(t.lastEventAt) }}</td>
                 <td class="col-act" (click)="$event.stopPropagation()"><span class="menu-wrap">
-                  <button type="button" class="icon-btn" (click)="toggleMenu('z-' + z.id, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + z.name"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
-                  <span *ngIf="menuOpen === 'z-' + z.id" class="menu" role="menu" (click)="$event.stopPropagation()">
-                    <button type="button" role="menuitem" (click)="selectZone(z, true); menuOpen = ''">Show on map</button>
-                    <ng-container *ngTemplateOutlet="zoneMenu; context: { $implicit: z }"></ng-container>
+                  <button type="button" class="icon-btn" (click)="toggleMenu('z-' + t.id, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + t.name"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
+                  <span *ngIf="menuOpen === 'z-' + t.id" class="menu" role="menu" (click)="$event.stopPropagation()">
+                    <button type="button" role="menuitem" (click)="selectTarget(t, true); menuOpen = ''">Show on map</button>
+                    <button type="button" role="menuitem" (click)="openRule(undefined, t.id)">New rule</button>
+                    <ng-container *ngIf="zoneById(t.id) as z"><ng-container *ngTemplateOutlet="zoneMenu; context: { $implicit: z }"></ng-container></ng-container>
+                    <ng-container *ngIf="t.kind === 'Indoor'">
+                      <button type="button" role="menuitem" (click)="showRules(t.id); menuOpen = ''">View rules</button>
+                      <button *ngIf="t.rules" type="button" role="menuitem" (click)="toggleIndoorMonitoring(t)">{{ t.activeRules ? 'Pause monitoring' : 'Resume monitoring' }}</button>
+                      <a role="menuitem" routerLink="/administration/maps-floor-plans">Edit in Maps &amp; Floor Plans</a>
+                    </ng-container>
                   </span></span></td>
               </tr>
-              <tr *ngIf="!listRows.length"><td colspan="8" class="empty">{{ loading ? 'Loading geofences…' : 'No geofences match.' }}</td></tr>
+              <tr *ngIf="!listRows.length"><td colspan="10" class="empty">{{ loading ? 'Loading geofences…' : 'No geofences match.' }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -211,27 +251,26 @@
         </div>
       </section>
 
-      <!-- Recent events -->
+      <!-- Recent alert events (summary; the Event History tab has the full investigation view) -->
       <section class="card panel">
         <div class="sec-head">
           <h2 class="grow">Recent Alert Events</h2>
-          <button type="button" class="link-btn" (click)="openHistory('all')">View All<lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon></button>
+          <button type="button" class="link-btn" (click)="openHistory('7d')">View All<lucide-icon [img]="icons.ChevronRight" [size]="14"></lucide-icon></button>
         </div>
         <div class="table-wrap">
           <table class="dt">
-            <thead><tr><th>Timestamp</th><th>Asset</th><th>Geofence</th><th>Event</th><th>Duration</th><th>Owner</th><th>Status</th><th class="col-act"><span class="sr">Actions</span></th></tr></thead>
+            <thead><tr><th>Alert</th><th>Asset</th><th>Geofence</th><th>Event</th><th>Severity</th><th>Status</th><th class="col-act"><span class="sr">Actions</span></th></tr></thead>
             <tbody>
-              <tr *ngFor="let e of recentEvents">
-                <td class="nowrap">{{ fmtWhen(e.ts) }}</td>
+              <tr *ngFor="let e of recentEvents" class="clickable" (click)="openDetail(e)">
+                <td class="nowrap"><span class="mono">{{ e.id }}</span><small class="muted block">{{ fmtWhen(e.ts) }}</small></td>
                 <td><span class="asset"><b>{{ e.assetCode }}</b><small>{{ e.assetSub }}</small></span></td>
                 <td><span class="zname"><lucide-icon [img]="icons.Pentagon" [size]="14" [style.color]="zoneColor(e.zoneId)"></lucide-icon>{{ e.zoneName }}</span></td>
                 <td><span class="pill" [ngClass]="evClass(e.type)">{{ e.type }}</span></td>
-                <td>—</td>
-                <td class="nowrap">{{ e.owner }}</td>
-                <td><span class="pill" [ngClass]="stClass(e.status)">{{ e.status }}</span></td>
-                <td class="col-act"><ng-container *ngTemplateOutlet="evMenu; context: { $implicit: e }"></ng-container></td>
+                <td><span class="pill" [ngClass]="sevClass(e.severity)"><i></i>{{ e.severity }}</span></td>
+                <td><span class="pill" [ngClass]="stClass(e.status)">{{ e.status }}</span><small *ngIf="e.escalatedTo && isOpen(e)" class="esc block">Escalated</small></td>
+                <td class="col-act" (click)="$event.stopPropagation()"><ng-container *ngTemplateOutlet="evMenu; context: { $implicit: e }"></ng-container></td>
               </tr>
-              <tr *ngIf="!recentEvents.length"><td colspan="8" class="empty">No alert events.</td></tr>
+              <tr *ngIf="!recentEvents.length"><td colspan="7" class="empty">No alert events.</td></tr>
             </tbody>
           </table>
         </div>
@@ -243,30 +282,37 @@
   <section *ngIf="tab === 'rules'" class="card panel">
     <div class="sec-head">
       <span class="sec-ic"><lucide-icon [img]="icons.Bell" [size]="16"></lucide-icon></span>
-      <h2 class="grow">Alert Rules <span class="muted count">{{ rulesFiltered.length }} of {{ rules.length }} · {{ enabledRules }} enabled</span></h2>
-      <label class="search search--sm"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="ruleSearch" placeholder="Search rules..." aria-label="Search rules" /></label>
-      <select class="control control-sm" [(ngModel)]="ruleZone" aria-label="Geofence"><option value="">Select Geofence</option><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></select>
+      <h2 class="grow">Alert Rules <span class="muted count">{{ rulesFiltered.length }} of {{ rules.length }} · {{ enabledRules }} active</span></h2>
+      <label class="search search--sm"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="ruleSearch" placeholder="Search rules, assets..." aria-label="Search rules" /></label>
+      <select class="control control-sm" [(ngModel)]="ruleZone" aria-label="Geofence">
+        <option value="">All geofences &amp; zones</option>
+        <optgroup *ngIf="indoorTargets.length" label="Indoor zones"><option *ngFor="let t of indoorTargets" [value]="t.id">{{ t.name }} · {{ t.floorName || t.siteName }}</option></optgroup>
+        <optgroup label="Outdoor geofences"><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></optgroup>
+      </select>
+      <select class="control control-sm" [(ngModel)]="ruleStatus" aria-label="Rule status"><option value="">Any status</option><option *ngFor="let s of ruleStatuses" [value]="s">{{ s }}</option></select>
       <button type="button" class="btn btn-primary btn-sm" (click)="openRule()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>New Rule</button>
     </div>
     <div class="table-wrap">
       <table class="dt">
-        <thead><tr><th>Rule</th><th>Geofence</th><th>Trigger</th><th>Severity</th><th>Asset Group</th><th>Actions</th><th>Channels</th><th>Enabled</th><th class="col-act"><span class="sr">Edit</span></th></tr></thead>
+        <thead><tr><th>Rule</th><th>Geofence</th><th>Trigger</th><th>Severity</th><th>Asset scope</th><th>Schedule</th><th>Actions &amp; escalation</th><th>Noise control</th><th>Status</th><th class="col-act"><span class="sr">Edit</span></th></tr></thead>
         <tbody>
-          <tr *ngFor="let r of rulesFiltered" [class.is-off]="!r.enabled">
-            <td><strong>{{ r.name }}</strong><small class="muted block">{{ r.id }} · {{ r.condition }}</small></td>
+          <tr *ngFor="let r of rulesFiltered" [class.is-off]="r.status !== 'Active'">
+            <td><strong>{{ r.name }}</strong><small class="muted block mono">{{ r.id }}</small><small *ngIf="r.description" class="muted block">{{ r.description }}</small></td>
             <td><span class="zname"><lucide-icon [img]="icons.Pentagon" [size]="14" [style.color]="zoneColor(r.zoneId)"></lucide-icon>{{ zoneName(r.zoneId) }}</span></td>
             <td>{{ triggerLabel(r.trigger, r.dwellMin) }}</td>
             <td><span class="pill" [ngClass]="sevClass(r.severity)"><i></i>{{ r.severity }}</span></td>
-            <td class="nowrap">{{ r.group }}</td>
-            <td class="wrap">{{ actionsSummary(r) }}</td>
-            <td class="nowrap">{{ channels(r) }}</td>
-            <td><button type="button" class="switch" role="switch" [class.is-on]="r.enabled" [attr.aria-checked]="r.enabled" [attr.aria-label]="'Enable ' + r.name" (click)="toggleRule(r)"><i></i></button></td>
+            <td class="wrap">{{ scopeLabel(r) }}</td>
+            <td class="wrap">{{ scheduleLabel(r) }}<small *ngIf="r.effectiveFrom || r.effectiveTo" class="muted block">{{ r.effectiveFrom || '…' }} → {{ r.effectiveTo || '…' }}</small></td>
+            <td class="wrap">{{ actionsSummary(r) }}<small class="muted block">{{ channels(r) }}</small></td>
+            <td class="nowrap"><small class="block">Debounce {{ r.debounceSec }}s</small><small class="block">Cooldown {{ r.cooldownMin }} min</small></td>
+            <td class="nowrap"><span class="pill" [ngClass]="ruleStClass(r.status)">{{ r.status }}</span>
+              <button type="button" class="switch" role="switch" [class.is-on]="r.status === 'Active'" [attr.aria-checked]="r.status === 'Active'" [attr.aria-label]="'Activate ' + r.name" (click)="toggleRule(r)"><i></i></button></td>
             <td class="col-act nowrap">
               <button type="button" class="icon-btn" (click)="openRule(r)" [attr.aria-label]="'Edit ' + r.name"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon></button>
               <button type="button" class="icon-btn danger" (click)="deleteRule(r)" [attr.aria-label]="'Delete ' + r.name"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon></button>
             </td>
           </tr>
-          <tr *ngIf="!rulesFiltered.length"><td colspan="9" class="empty">No rules match. <button type="button" class="link-btn" (click)="openRule()">Create a rule</button></td></tr>
+          <tr *ngIf="!rulesFiltered.length"><td colspan="10" class="empty">No rules match. <button type="button" class="link-btn" (click)="openRule()">Create a rule</button></td></tr>
         </tbody>
       </table>
     </div>
@@ -277,42 +323,89 @@
     <div class="sec-head">
       <span class="sec-ic"><lucide-icon [img]="icons.History" [size]="16"></lucide-icon></span>
       <h2 class="grow">Event History</h2>
-      <button *ngIf="openInView" type="button" class="btn btn-outline btn-sm" (click)="acknowledgeAll()"><lucide-icon [img]="icons.Check" [size]="15"></lucide-icon>Acknowledge all ({{ openInView }})</button>
-      <button type="button" class="btn btn-primary btn-sm" (click)="exportHistory()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export to Excel</button>
+      <div class="seg" role="group" aria-label="Event kind">
+        <button type="button" [class.is-on]="histMode === 'alerts'" (click)="setHistMode('alerts')">Alerts</button>
+        <button type="button" [class.is-on]="histMode === 'movements'" (click)="setHistMode('movements')">Zone movements</button>
+      </div>
+      <ng-container *ngIf="histMode === 'alerts'">
+        <button *ngIf="newInView.length" type="button" class="btn btn-outline btn-sm" (click)="acknowledgeAll()"><lucide-icon [img]="icons.Check" [size]="15"></lucide-icon>Acknowledge page ({{ newInView.length }})</button>
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="!hTotal" (click)="exportHistory()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export to Excel</button>
+      </ng-container>
     </div>
-    <div class="filters">
-      <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="hSearch" (ngModelChange)="hPage = 0" placeholder="Search asset, zone, owner..." aria-label="Search events" /></label>
-      <select class="control control-sm" [(ngModel)]="hDate" (ngModelChange)="hPage = 0" aria-label="Date range"><option value="">Select Date Range</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="all">All time</option></select>
-      <select class="control control-sm" [(ngModel)]="hZone" (ngModelChange)="hPage = 0" aria-label="Geofence"><option value="">Select Geofence</option><option *ngFor="let z of zones" [value]="z.id">{{ z.name }}</option></select>
-      <select class="control control-sm" [(ngModel)]="hType" (ngModelChange)="hPage = 0" aria-label="Event type"><option value="">Select Event Type</option><option *ngFor="let t of eventTypes" [value]="t">{{ t }}</option></select>
-      <select class="control control-sm" [(ngModel)]="hStatus" (ngModelChange)="hPage = 0" aria-label="Status"><option value="">Select Status</option><option *ngFor="let s of eventStatuses" [value]="s">{{ s }}</option></select>
-      <button type="button" class="link-btn" (click)="clearHistoryFilters()">Clear</button>
-    </div>
-    <div class="table-wrap">
-      <table class="dt">
-        <thead><tr><th>Event</th><th>Timestamp</th><th>Asset</th><th>Geofence</th><th>Type</th><th>Duration</th><th>Owner</th><th>Status</th><th class="col-act"><span class="sr">Actions</span></th></tr></thead>
-        <tbody>
-          <tr *ngFor="let e of historyPage">
-            <td class="mono">{{ e.id }}</td>
-            <td class="nowrap">{{ fmtStamp(e.ts) }}</td>
-            <td><span class="asset"><b>{{ e.assetCode }}</b><small>{{ e.assetSub }}</small></span></td>
-            <td><span class="zname"><lucide-icon [img]="icons.Pentagon" [size]="14" [style.color]="zoneColor(e.zoneId)"></lucide-icon>{{ e.zoneName }}</span></td>
-            <td><span class="pill" [ngClass]="evClass(e.type)">{{ e.type }}</span></td>
-            <td>—</td>
-            <td class="nowrap">{{ e.owner }}</td>
-            <td><span class="pill" [ngClass]="stClass(e.status)">{{ e.status }}</span></td>
-            <td class="col-act"><ng-container *ngTemplateOutlet="evMenu; context: { $implicit: e }"></ng-container></td>
-          </tr>
-          <tr *ngIf="!historyPage.length"><td colspan="9" class="empty">No events match these filters.</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="pager">
-      <span class="muted">Showing {{ hRange }}</span>
-      <button type="button" class="icon-btn" [disabled]="hPageNo === 0" (click)="pageHist(-1)" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
-      <span>{{ hPageNo + 1 }} / {{ hPages }}</span>
-      <button type="button" class="icon-btn" [disabled]="hPageNo >= hPages - 1" (click)="pageHist(1)" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
-    </div>
+
+    <ng-container *ngIf="histMode === 'alerts'">
+      <div class="filters">
+        <label class="search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="hSearch" (ngModelChange)="hFilter(true)" placeholder="Search alert ID, asset, zone, owner..." aria-label="Search events" /></label>
+        <select class="control control-sm" [(ngModel)]="hDate" (ngModelChange)="hFilter()" aria-label="Date range"><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="">All time</option></select>
+        <select class="control control-sm" [(ngModel)]="hZone" (ngModelChange)="hFilter()" aria-label="Geofence"><option value="">All geofences</option><option *ngFor="let t of targets" [value]="t.id">{{ t.name }}{{ t.kind === 'Indoor' ? ' · ' + (t.floorName || 'indoor') : '' }}</option></select>
+        <select class="control control-sm" [(ngModel)]="hType" (ngModelChange)="hFilter()" aria-label="Event type"><option value="">All event types</option><option *ngFor="let t of hTypes" [value]="t">{{ t }}</option></select>
+        <select class="control control-sm" [(ngModel)]="hSeverity" (ngModelChange)="hFilter()" aria-label="Severity"><option value="">All severities</option><option *ngFor="let s of severities" [value]="s">{{ s }}</option></select>
+        <select class="control control-sm" [(ngModel)]="hStatus" (ngModelChange)="hFilter()" aria-label="Status">
+          <option value="">All statuses</option><option value="Unresolved">Open (not resolved)</option><option value="Open">New</option><option value="Acknowledged">Acknowledged</option>
+          <option value="Assigned">Assigned</option><option value="In Progress">Investigating</option><option value="Resolved">Resolved</option><option value="Closed">Closed</option>
+        </select>
+        <button type="button" class="link-btn" (click)="clearHistoryFilters()">Clear</button>
+      </div>
+      <div class="table-wrap" [class.is-loading]="hLoading">
+        <table class="dt">
+          <thead><tr><th>Alert ID</th><th>Timestamp</th><th>Asset</th><th>Geofence</th><th>Event</th><th>Severity</th><th>Duration</th><th>Owner</th><th>Status</th><th class="col-act"><span class="sr">Actions</span></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let e of hRows" class="clickable" (click)="openDetail(e)">
+              <td class="mono">{{ e.id }}</td>
+              <td class="nowrap">{{ fmtStamp(e.ts) }}</td>
+              <td><span class="asset"><b>{{ e.assetCode }}</b><small>{{ e.assetSub }}</small></span></td>
+              <td><span class="zname"><lucide-icon [img]="icons.Pentagon" [size]="14" [style.color]="zoneColor(e.zoneId)"></lucide-icon>{{ e.zoneName }}</span><small *ngIf="e.ruleName" class="muted block">{{ e.ruleName }}</small></td>
+              <td><span class="pill" [ngClass]="evClass(e.type)">{{ e.type }}</span></td>
+              <td><span class="pill" [ngClass]="sevClass(e.severity)"><i></i>{{ e.severity }}</span></td>
+              <td class="nowrap">{{ fmtDuration(e.durationSec) }}</td>
+              <td class="nowrap">{{ e.owner }}</td>
+              <td class="nowrap"><span class="pill" [ngClass]="stClass(e.status)">{{ e.status }}</span><small *ngIf="e.escalatedTo && isOpen(e)" class="esc block">Escalated to {{ e.escalatedTo }}</small></td>
+              <td class="col-act" (click)="$event.stopPropagation()"><ng-container *ngTemplateOutlet="evMenu; context: { $implicit: e }"></ng-container></td>
+            </tr>
+            <tr *ngIf="!hRows.length"><td colspan="10" class="empty">{{ hLoading ? 'Loading…' : 'No alerts match these filters.' }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span class="muted">Showing {{ hRange }}</span>
+        <button type="button" class="icon-btn" [disabled]="hPage <= 1" (click)="pageHist(-1)" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+        <span>{{ hPage }} / {{ hPages }}</span>
+        <button type="button" class="icon-btn" [disabled]="hPage >= hPages" (click)="pageHist(1)" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="histMode === 'movements'">
+      <p class="muted small mv-note">Every zone entry / exit detected by the location engine. These are location events, not alerts: they become alerts only when a rule matches.</p>
+      <div class="filters">
+        <select class="control control-sm" [(ngModel)]="mRange" (ngModelChange)="mPage = 1; loadMovements()" aria-label="Period"><option value="24h">Last 24 hours</option><option value="7d">Last 7 days</option></select>
+        <select class="control control-sm" [(ngModel)]="mType" (ngModelChange)="mPage = 1; loadMovements()" aria-label="Event type"><option value="">All event types</option><option *ngFor="let t of mTypes" [value]="t">{{ t }}</option></select>
+      </div>
+      <div class="table-wrap" [class.is-loading]="hLoading">
+        <table class="dt">
+          <thead><tr><th>Event ID</th><th>Timestamp</th><th>Asset</th><th>Event</th><th>Zone</th><th>Floor</th><th>Details</th><th>Source</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let m of mRows">
+              <td class="mono">{{ m.eventId }}</td>
+              <td class="nowrap">{{ fmtStamp(m.at) }}</td>
+              <td><span class="asset"><b>{{ m.assetName || m.assetId || '—' }}</b><small>{{ m.assetName ? m.assetId : '' }}</small></span></td>
+              <td><span class="pill" [ngClass]="evClass(m.eventType)">{{ m.eventType }}</span></td>
+              <td>{{ m.zone || '—' }}</td>
+              <td>{{ m.floor || '—' }}</td>
+              <td class="wrap">{{ m.details || '—' }}</td>
+              <td class="nowrap">{{ m.source || '—' }}</td>
+              <td>{{ m.status }}</td>
+            </tr>
+            <tr *ngIf="!mRows.length"><td colspan="9" class="empty">{{ hLoading ? 'Loading…' : 'No zone movements in this period.' }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span class="muted">{{ mTotal }} events</span>
+        <button type="button" class="icon-btn" [disabled]="mPage <= 1" (click)="pageMoves(-1)" aria-label="Previous page"><lucide-icon [img]="icons.ChevronLeft" [size]="16"></lucide-icon></button>
+        <span>{{ mPage }} / {{ mPages }}</span>
+        <button type="button" class="icon-btn" [disabled]="mPage >= mPages" (click)="pageMoves(1)" aria-label="Next page"><lucide-icon [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
+      </div>
+    </ng-container>
   </section>
 </section>
 
@@ -321,7 +414,7 @@
   <button type="button" role="menuitem" (click)="openZone(z)">Edit</button>
   <button *ngIf="canEditShape(z)" type="button" role="menuitem" (click)="startEditShape(z)">Reshape on map</button>
   <button type="button" role="menuitem" (click)="duplicateZone(z)">Duplicate</button>
-  <button type="button" role="menuitem" (click)="showRules(z); menuOpen = ''">View rules</button>
+  <button type="button" role="menuitem" (click)="showRules(z.id); menuOpen = ''">View rules</button>
   <button type="button" role="menuitem" (click)="toggleZone(z)">{{ z.status === 'Active' ? 'Disable' : 'Enable' }}</button>
   <button type="button" role="menuitem" class="danger" (click)="deleteZone(z)">Delete</button>
 </ng-template>
@@ -330,10 +423,13 @@
   <span class="menu-wrap">
     <button type="button" class="icon-btn" (click)="toggleMenu('e-' + e.id, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + e.id"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
     <span *ngIf="menuOpen === 'e-' + e.id" class="menu" role="menu" (click)="$event.stopPropagation()">
-      <button *ngIf="e.status === 'Unacknowledged'" type="button" role="menuitem" (click)="acknowledge(e)">Acknowledge</button>
-      <button *ngIf="e.status === 'Unacknowledged' || e.status === 'Acknowledged'" type="button" role="menuitem" (click)="startProgress(e)">Mark in progress</button>
-      <button *ngIf="e.status !== 'Resolved'" type="button" role="menuitem" (click)="resolve(e)">Resolve</button>
-      <button *ngIf="e.status === 'Resolved'" type="button" role="menuitem" (click)="reopen(e)">Reopen</button>
+      <button type="button" role="menuitem" (click)="openDetail(e)">View details &amp; history</button>
+      <button *ngIf="e.status === 'New'" type="button" role="menuitem" (click)="acknowledge(e)">Acknowledge</button>
+      <button *ngIf="isOpen(e)" type="button" role="menuitem" (click)="openStatus(e, 'Assigned')">{{ e.assignedTo ? 'Reassign…' : 'Assign…' }}</button>
+      <button *ngIf="isOpen(e) && e.status !== 'Investigating'" type="button" role="menuitem" (click)="investigate(e)">Start investigating</button>
+      <button *ngIf="isOpen(e)" type="button" role="menuitem" (click)="openStatus(e, 'Resolved')">Resolve…</button>
+      <button *ngIf="e.status === 'Resolved'" type="button" role="menuitem" (click)="openStatus(e, 'Closed')">Close…</button>
+      <button *ngIf="!isOpen(e)" type="button" role="menuitem" (click)="reopen(e)">Reopen</button>
       <button type="button" role="menuitem" (click)="viewZone(e)">Show geofence on map</button>
     </span>
   </span>
@@ -344,22 +440,31 @@
     <label class="rb-label" [attr.for]="idp + '-trig'">Trigger</label>
     <select class="control control-sm" [id]="idp + '-trig'" [(ngModel)]="f.trigger"><option value="" disabled>Select Trigger</option><option *ngFor="let t of triggers" [value]="t.value">{{ t.label }}</option></select>
     <ng-container *ngIf="f.trigger === 'dwell'">
-      <label class="rb-label" [attr.for]="idp + '-dw'">Dwell time</label>
+      <label class="rb-label" [attr.for]="idp + '-dw'">Dwell threshold</label>
       <span class="inline"><input class="control control-sm num-in" type="number" min="1" [id]="idp + '-dw'" [(ngModel)]="f.dwellMin" /> minutes</span>
     </ng-container>
     <label class="rb-label" [attr.for]="idp + '-sev'">Severity</label>
     <span class="sev-sel"><i class="sev-dot" [ngClass]="sevClass(f.severity)"></i><select class="control control-sm" [id]="idp + '-sev'" [(ngModel)]="f.severity"><option value="" disabled>Select Severity</option><option *ngFor="let s of severities" [value]="s">{{ s }}</option></select></span>
     <label class="rb-label" [attr.for]="idp + '-grp'">Applies to asset group</label>
-    <select class="control control-sm" [id]="idp + '-grp'" [(ngModel)]="f.group"><option value="" disabled>Select Applies to Asset Group</option><option *ngFor="let g of groups" [value]="g">{{ g }}</option></select>
+    <select class="control control-sm" [id]="idp + '-grp'" [(ngModel)]="f.group"><option value="" disabled>Select Asset Group</option><option *ngFor="let g of groups" [value]="g">{{ g }}</option></select>
     <label class="rb-label" [attr.for]="idp + '-cond'">Condition</label>
     <select class="control control-sm" [id]="idp + '-cond'" [(ngModel)]="f.condition"><option value="" disabled>Select Condition</option><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
+  </div>
+  <div *ngIf="f.trigger === 'unauthorized'" class="rb-block">
+    <span class="rb-label">Authorized groups (may enter without an alert)</span>
+    <div class="chips"><button *ngFor="let g of groups" type="button" class="chip" [class.is-on]="f.authorizedGroups.includes(g)" (click)="toggleList(f.authorizedGroups, g)">{{ g }}</button></div>
+  </div>
+  <div *ngIf="f.condition === customSchedule" class="rb-block">
+    <span class="rb-label">Active on (site time zone)</span>
+    <div class="chips"><button *ngFor="let d of weekdays" type="button" class="chip" [class.is-on]="f.scheduleDays.includes(d)" (click)="toggleList(f.scheduleDays, d)">{{ d }}</button></div>
+    <span class="inline"><input class="control control-sm" type="time" [(ngModel)]="f.scheduleFrom" aria-label="From" /> to <input class="control control-sm" type="time" [(ngModel)]="f.scheduleTo" aria-label="To" /></span>
   </div>
   <div class="rb-sec">Actions</div>
   <label class="cb"><input type="checkbox" [(ngModel)]="f.createAlert" />Create alert in the system</label>
   <label class="cb"><input type="checkbox" [(ngModel)]="f.notify" />Notify team</label>
-  <input class="control control-sm rb-sub" [(ngModel)]="f.team" [disabled]="!f.notify" [attr.list]="idp + '-teams'" placeholder="Team name" aria-label="Team to notify" /><datalist [id]="idp + '-teams'"><option *ngFor="let t of teams" [value]="t"></option></datalist>
+  <input class="control control-sm rb-sub" [(ngModel)]="f.team" [disabled]="!f.notify" [attr.list]="idp + '-teams'" placeholder="e.g. Security Team" aria-label="Team to notify" /><datalist [id]="idp + '-teams'"><option *ngFor="let t of teams" [value]="t"></option></datalist>
   <label class="cb"><input type="checkbox" [(ngModel)]="f.workflow" />Start workflow</label>
-  <input class="control control-sm rb-sub" [(ngModel)]="f.workflowName" [disabled]="!f.workflow" [attr.list]="idp + '-wfs'" placeholder="Workflow name" aria-label="Workflow" /><datalist [id]="idp + '-wfs'"><option *ngFor="let w of workflows" [value]="w"></option></datalist>
+  <input class="control control-sm rb-sub" [(ngModel)]="f.workflowName" [disabled]="!f.workflow" [attr.list]="idp + '-wfs'" placeholder="e.g. Restricted Zone Incident" aria-label="Workflow" /><datalist [id]="idp + '-wfs'"><option *ngFor="let w of workflows" [value]="w"></option></datalist>
   <div class="rb-sec">Notification channels</div>
   <div class="cb-row">
     <label class="cb"><input type="checkbox" [(ngModel)]="f.inApp" />In-app</label>
@@ -367,7 +472,6 @@
     <label class="cb"><input type="checkbox" [(ngModel)]="f.push" />Desktop (push)</label>
   </div>
   <ng-container *ngIf="f.push">
-    <div class="rb-sec">Desktop notification</div>
     <div class="rb-grid">
       <label class="rb-label" [attr.for]="idp + '-every'">Notify every</label>
       <select class="control control-sm" [id]="idp + '-every'" [(ngModel)]="f.notifyEvery"><option *ngFor="let o of notifyEvery" [ngValue]="o.value">{{ o.label }}</option></select>
@@ -375,7 +479,6 @@
       <select class="control control-sm" [id]="idp + '-rep'" [(ngModel)]="f.notifyRepeat"><option *ngFor="let o of notifyRepeat" [ngValue]="o.value">{{ o.label }}</option></select>
     </div>
     <label class="cb"><input type="checkbox" [(ngModel)]="f.notifySound" />Play notification sound</label>
-    <p class="muted small rb-note">Each notification has <b>Acknowledge</b> and <b>Remind me</b> buttons and arrives even when Asset360 is closed or in another tab.</p>
     <div class="desk-row" [ngSwitch]="desktop.state">
       <span *ngSwitchCase="'enabled'" class="desk-ok">Desktop notifications are on for this browser.</span>
       <span *ngSwitchCase="'denied'" class="desk-warn">Notifications are blocked for this site. Allow them in the browser's site settings.</span>
@@ -386,6 +489,29 @@
       </ng-container>
     </div>
   </ng-container>
+  <details class="rb-adv">
+    <summary>Scope, noise control, escalation &amp; dates</summary>
+    <div class="rb-grid">
+      <label class="rb-label" [attr.for]="idp + '-st'">Rule status</label>
+      <select class="control control-sm" [id]="idp + '-st'" [(ngModel)]="f.status"><option *ngFor="let s of ruleStatuses" [value]="s">{{ s }}{{ s === 'Draft' ? ' (saved, not evaluated)' : '' }}</option></select>
+      <label class="rb-label" [attr.for]="idp + '-assets'">Specific assets</label>
+      <input class="control control-sm" [id]="idp + '-assets'" [ngModel]="assetsText(f)" (ngModelChange)="setAssetsText(f, $event)" placeholder="Asset IDs / tags, comma separated (empty = whole group)" />
+      <label class="rb-label" [attr.for]="idp + '-deb'" title="An entry counts only after the asset stayed this long; an exit only after it was gone this long. Stops repeated alerts at zone boundaries.">Debounce / hysteresis</label>
+      <select class="control control-sm" [id]="idp + '-deb'" [(ngModel)]="f.debounceSec"><option *ngFor="let o of debounceOptions" [ngValue]="o.value">{{ o.label }}</option></select>
+      <label class="rb-label" [attr.for]="idp + '-cool'" title="No new alert of the same event for the same asset within this period">Cooldown</label>
+      <select class="control control-sm" [id]="idp + '-cool'" [(ngModel)]="f.cooldownMin"><option *ngFor="let o of cooldownOptions" [ngValue]="o.value">{{ o.label }}</option></select>
+      <label class="rb-label" [attr.for]="idp + '-esc'">Escalate if unacknowledged</label>
+      <select class="control control-sm" [id]="idp + '-esc'" [(ngModel)]="f.escalateAfterMin"><option *ngFor="let o of escalateOptions" [ngValue]="o.value">{{ o.label }}</option></select>
+      <ng-container *ngIf="f.escalateAfterMin > 0">
+        <label class="rb-label" [attr.for]="idp + '-escto'">Escalate to</label>
+        <input class="control control-sm" [id]="idp + '-escto'" [(ngModel)]="f.escalateTo" [attr.list]="idp + '-teams'" placeholder="e.g. Operations Team" />
+      </ng-container>
+      <label class="rb-label" [attr.for]="idp + '-from'">Effective from</label>
+      <span class="inline"><input class="control control-sm" type="date" [id]="idp + '-from'" [(ngModel)]="f.effectiveFrom" /> to <input class="control control-sm" type="date" [(ngModel)]="f.effectiveTo" aria-label="Effective to" /></span>
+    </div>
+    <label class="cb"><input type="checkbox" [(ngModel)]="f.autoResolve" />Auto-resolve the alert when the asset leaves the zone</label>
+    <label class="rb-block"><span class="rb-label">Description</span><textarea class="control control-sm" rows="2" [(ngModel)]="f.description" placeholder="What the rule is for"></textarea></label>
+  </details>
 </ng-template>
 
 <!-- ===== Create / edit geofence ===== -->
@@ -393,31 +519,36 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ga-zone" (click)="$event.stopPropagation()">
     <div class="modal-head"><h2 id="ga-zone">{{ f.id ? 'Edit Geofence' : 'Create Geofence' }}</h2><button type="button" class="icon-btn" (click)="zoneForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <div class="modal-body">
+      <p class="muted small">Outdoor geofence on the site map. Indoor zones are drawn on floor plans in <a routerLink="/administration/maps-floor-plans" (click)="zoneForm = null">Maps &amp; Floor Plans</a> and appear here automatically.</p>
       <div class="two">
         <label class="field"><span class="field-label">Name <em>*</em></span><input class="control" [(ngModel)]="f.name" placeholder="e.g. Battery Room" /></label>
         <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="f.site"><option value="" disabled>Select Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select></label>
       </div>
-      <div class="field"><span class="field-label">Zone type</span>
-        <div class="seg seg--form" role="group" aria-label="Zone type"><button *ngFor="let t of zoneTypes" type="button" [class.is-on]="f.type === t" (click)="setFormType(t)">{{ t }}</button></div></div>
+      <div class="two">
+        <div class="field"><span class="field-label">Policy classification</span>
+          <div class="seg seg--form" role="group" aria-label="Zone type"><button *ngFor="let t of zoneTypes" type="button" [class.is-on]="f.type === t" (click)="setFormType(t)">{{ t }}</button></div>
+          <small class="muted">Who may enter is decided by the rules (asset group, authorization, schedule), not the colour.</small></div>
+        <label class="field"><span class="field-label">Category</span><input class="control" [(ngModel)]="f.category" list="ga-cats" placeholder="e.g. Storage" /><datalist id="ga-cats"><option *ngFor="let c of categories" [value]="c"></option></datalist></label>
+      </div>
       <div class="field"><span class="field-label">Map colour</span>
         <div class="swatches"><button *ngFor="let c of colors" type="button" class="swatch" [class.is-on]="f.color === c" [style.background]="c" (click)="f.color = c" [attr.aria-label]="'Colour ' + c"></button></div></div>
-      <div class="field"><span class="field-label">Asset groups <em>*</em></span>
+      <div class="field"><span class="field-label">Assigned asset groups <em>*</em></span>
         <div class="chips"><button *ngFor="let g of groups" type="button" class="chip" [class.is-on]="f.groups.includes(g)" (click)="toggleFormGroup(g)">{{ g }}</button></div>
-        <small *ngIf="formAssetCount !== null" class="muted">{{ formAssetCount }} assets monitored.</small></div>
+        <small *ngIf="formAssetCount !== null" class="muted">{{ formAssetCount }} unique assets monitored.</small></div>
       <div class="two">
-        <label class="field"><span class="field-label">Schedule</span><select class="control" [(ngModel)]="f.schedule"><option value="" disabled>Select Schedule</option><option *ngFor="let s of schedules" [value]="s">{{ s }}</option></select></label>
-        <label class="field"><span class="field-label">Dwell alert after (minutes)</span><input class="control" type="number" min="1" [(ngModel)]="f.dwellMin" /></label>
+        <label class="field"><span class="field-label">Monitoring schedule</span><select class="control" [(ngModel)]="f.schedule"><option value="" disabled>Select Schedule</option><option *ngFor="let s of schedules" [value]="s">{{ s }}</option></select></label>
+        <div class="field"><span class="field-label">Dwell threshold</span><small class="muted">Set per alert rule (trigger “Asset dwells too long”), so each asset group can have its own limit.</small></div>
       </div>
       <div class="two">
-        <div class="toggle-row"><span>Monitor asset entry</span><button type="button" class="switch" role="switch" [class.is-on]="f.monitorEntry" [attr.aria-checked]="f.monitorEntry" aria-label="Monitor asset entry" (click)="f.monitorEntry = !f.monitorEntry"><i></i></button></div>
-        <div class="toggle-row"><span>Monitor asset exit</span><button type="button" class="switch" role="switch" [class.is-on]="f.monitorExit" [attr.aria-checked]="f.monitorExit" aria-label="Monitor asset exit" (click)="f.monitorExit = !f.monitorExit"><i></i></button></div>
+        <div class="toggle-row"><span>Detect asset entry</span><button type="button" class="switch" role="switch" [class.is-on]="f.monitorEntry" [attr.aria-checked]="f.monitorEntry" aria-label="Detect asset entry" (click)="f.monitorEntry = !f.monitorEntry"><i></i></button></div>
+        <div class="toggle-row"><span>Detect asset exit</span><button type="button" class="switch" role="switch" [class.is-on]="f.monitorExit" [attr.aria-checked]="f.monitorExit" aria-label="Detect asset exit" (click)="f.monitorExit = !f.monitorExit"><i></i></button></div>
       </div>
       <div class="two">
         <label class="field"><span class="field-label">Shape</span><select class="control" [(ngModel)]="f.shape"><option value="" disabled>Select Shape</option><option *ngFor="let s of shapes" [value]="s">{{ s }}</option></select></label>
         <label class="field"><span class="field-label">Polygon points</span><input class="control" type="number" [min]="options.minPolygonPoints" [max]="options.maxPolygonPoints" [(ngModel)]="f.points" [disabled]="f.shape !== 'Polygon' || editingDrawn || !!f.drawn" /></label>
       </div>
       <div class="draw-row" *ngIf="f.shape !== 'Circle'">
-        <span class="muted small grow">{{ f.drawn ? 'Outline drawn on the map: ' + f.drawn.length + ' corners, about ' + fmtArea(drawnArea(f)) + '.' : editingDrawn ? 'The current outline is kept. Draw a new one to replace it.' : (f.shape === 'Rectangle' ? 'Draw the 4 corners on the map.' : 'Draw the outline on the map.') + ' Until it is drawn the zone is saved without geometry and is not shown on the map.' }}</span>
+        <span class="muted small grow">{{ f.drawn ? 'Outline drawn on the map: ' + f.drawn.length + ' corners, about ' + fmtArea(drawnArea(f)) + '.' : editingDrawn ? 'The current outline is kept. Draw a new one to replace it.' : (f.shape === 'Rectangle' ? 'Draw the 4 corners on the map.' : 'Draw the outline on the map.') + ' The area is calculated from the outline.' }}</span>
         <button type="button" class="btn btn-outline btn-xs" (click)="startDraw()"><lucide-icon [img]="icons.Pentagon" [size]="14"></lucide-icon>{{ f.drawn || editingDrawn ? 'Redraw on map' : 'Draw on map' }}</button>
       </div>
       <p *ngIf="f.shape === 'Circle'" class="muted small">Circles can't be drawn here yet: an existing centre and radius are kept, a new circle is saved without geometry.</p>
@@ -430,13 +561,13 @@
 <!-- ===== Rule dialog ===== -->
 <div *ngIf="ruleDialog as d" class="overlay" (click)="ruleDialog = null">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ga-rule" (click)="$event.stopPropagation()">
-    <div class="modal-head"><h2 id="ga-rule">{{ d.id ? 'Edit Alert Rule' : 'New Alert Rule' }}</h2><button type="button" class="icon-btn" (click)="ruleDialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-head"><h2 id="ga-rule">{{ d.id ? 'Edit Alert Rule' : 'New Alert Rule' }}<small *ngIf="d.id" class="muted mono"> {{ d.id }}</small></h2><button type="button" class="icon-btn" (click)="ruleDialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <div class="modal-body">
       <div class="two">
         <label class="field"><span class="field-label">Rule name</span><input class="control" [(ngModel)]="d.name" placeholder="Generated from the trigger if empty" /></label>
         <label class="field"><span class="field-label">Geofence / zone <em>*</em></span><select class="control" [(ngModel)]="d.zoneId">
           <option value="" disabled>Select Geofence / zone</option>
-          <optgroup *ngIf="mapZoneRuleTargets.length" label="Floor plan zones (live tracking)"><option *ngFor="let t of mapZoneRuleTargets" [value]="t.id">{{ t.label }}</option></optgroup>
+          <optgroup *ngIf="mapZoneRuleTargets.length" label="Indoor zones (live BLE tracking)"><option *ngFor="let t of mapZoneRuleTargets" [value]="t.id">{{ t.label }}</option></optgroup>
           <optgroup label="Outdoor geofences"><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></optgroup>
         </select></label>
       </div>
@@ -448,12 +579,64 @@
   </div>
 </div>
 
+<!-- ===== Alert detail ===== -->
+<div *ngIf="detail as e" class="overlay" (click)="detail = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ga-alert" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="ga-alert">Alert {{ e.id }} <span class="pill" [ngClass]="stClass(e.status)">{{ e.status }}</span></h2><button type="button" class="icon-btn" (click)="detail = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <dl class="al-facts">
+        <div><dt>Asset</dt><dd>{{ e.assetCode }}<small *ngIf="e.assetSub" class="muted block">{{ e.assetSub }}</small></dd></div>
+        <div><dt>Geofence</dt><dd>{{ e.zoneName }}<small class="muted block mono">{{ e.zoneId ? shortId(e.zoneId) : '—' }}</small></dd></div>
+        <div><dt>Rule</dt><dd>{{ e.ruleName || '—' }}<small *ngIf="e.ruleId" class="muted block mono">{{ e.ruleId }}</small></dd></div>
+        <div><dt>Event type</dt><dd><span class="pill" [ngClass]="evClass(e.type)">{{ e.type }}</span></dd></div>
+        <div><dt>Severity</dt><dd><span class="pill" [ngClass]="sevClass(e.severity)"><i></i>{{ e.severity }}</span></dd></div>
+        <div><dt>Event time</dt><dd>{{ fmtStamp(e.ts) }}</dd></div>
+        <div><dt>Duration</dt><dd>{{ fmtDuration(e.durationSec) }}</dd></div>
+        <div><dt>Owner</dt><dd>{{ e.owner }}</dd></div>
+        <div><dt>Gateway / site</dt><dd>{{ e.deviceId || '—' }}<small class="muted block">{{ e.site || '—' }}</small></dd></div>
+        <div *ngIf="e.escalatedTo"><dt>Escalated</dt><dd class="esc">{{ e.escalatedTo }}</dd></div>
+      </dl>
+      <p class="al-desc">{{ e.message || 'No description.' }}</p>
+      <div class="rb-sec">Audit history</div>
+      <ol class="al-hist">
+        <li *ngFor="let h of e.history"><b>{{ h.action }}</b> <span class="muted">· {{ h.by }} · {{ fmtStamp(h.at) }}</span><small *ngIf="h.note" class="block">{{ h.note }}</small></li>
+        <li *ngIf="!e.history?.length" class="muted">No history recorded (alert raised before audit history was added).</li>
+      </ol>
+      <p class="muted small">A geofence exit is a location event; it does not transfer custody. Use Movement &amp; Custody for approved transfers.</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="viewZone(e)">Show on map</button>
+        <button *ngIf="e.status === 'New'" type="button" class="btn btn-outline" (click)="acknowledge(e)">Acknowledge</button>
+        <button *ngIf="isOpen(e)" type="button" class="btn btn-outline" (click)="openStatus(e, 'Assigned')">Assign</button>
+        <button *ngIf="isOpen(e)" type="button" class="btn btn-primary" (click)="openStatus(e, 'Resolved')">Resolve</button>
+        <button *ngIf="e.status === 'Resolved'" type="button" class="btn btn-primary" (click)="openStatus(e, 'Closed')">Close</button>
+        <button *ngIf="!isOpen(e)" type="button" class="btn btn-outline" (click)="reopen(e)">Reopen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Assign / resolve / close ===== -->
+<div *ngIf="statusDialog as s" class="overlay" (click)="statusDialog = null">
+  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="ga-status" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="ga-status">{{ s.title }}</h2><button type="button" class="icon-btn" (click)="statusDialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-body">
+      <p class="muted small">{{ s.event.type }} · {{ s.event.assetCode }} · {{ s.event.zoneName }}</p>
+      <label *ngIf="s.needsAssignee" class="field"><span class="field-label">Assign to <em>*</em></span><input class="control" [(ngModel)]="s.assignee" list="ga-assign" placeholder="User or team" /><datalist id="ga-assign"><option *ngFor="let t of teams" [value]="t"></option></datalist></label>
+      <label class="field"><span class="field-label">{{ s.status === 'Resolved' ? 'Resolution' : 'Note' }}<em *ngIf="s.status === 'Resolved'"> *</em></span><textarea class="control" rows="3" [(ngModel)]="s.note" [placeholder]="s.status === 'Resolved' ? 'What was done' : 'Optional'"></textarea></label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="statusDialog = null">Cancel</button><button type="button" class="btn btn-primary" (click)="saveStatus()">{{ s.status === 'Assigned' ? 'Assign' : s.status === 'Resolved' ? 'Resolve' : 'Close alert' }}</button></div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Confirm ===== -->
 <div *ngIf="confirmBox as c" class="overlay" (click)="confirmBox = null">
   <div class="modal modal--sm" role="alertdialog" aria-modal="true" aria-labelledby="ga-confirm" (click)="$event.stopPropagation()">
     <div class="modal-head"><h2 id="ga-confirm">{{ c.title }}</h2><button type="button" class="icon-btn" (click)="confirmBox = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <div class="modal-body">
       <p>{{ c.message }}</p>
+      <label *ngIf="c.reason" class="field"><span class="field-label">{{ c.reason.label }}<em *ngIf="c.reason.required"> *</em></span><input class="control" [(ngModel)]="c.reason.value" placeholder="Recorded with your name and the time" /></label>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="confirmBox = null">Cancel</button><button type="button" class="btn btn-danger-solid" (click)="runConfirm()">{{ c.label }}</button></div>
     </div>
   </div>

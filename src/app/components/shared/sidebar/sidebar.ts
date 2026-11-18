@@ -95,7 +95,8 @@ export class Sidebar {
       children: [
         { label: 'IoT & Tracking Overview', path: '/dashboard/iot-tracking-overview' },
         { label: 'Asset Overview', path: '/dashboard/asset-overview' },
-        { label: 'Reports', path: '/dashboard/reports' },
+        // Hidden for now: the Reports dashboard's APIs are not ready
+        // { label: 'Reports', path: '/dashboard/reports' },
       ],
     },
     {

@@ -126,8 +126,33 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
   readonly models = MODELS;
   readonly connOptions = CONNECTIVITY;
   readonly statuses = STATUSES;
-  readonly measOptions = MEASUREMENTS;
-  readonly attrOptions = ATTRIBUTES;
+  /** Text typed in the model dialog's measurement / attribute boxes (comma or new line separates several). */
+  customMeas = '';
+  customAttr = '';
+
+  private get measNames(): string[] {
+    return MEASUREMENTS.map((x) => x.name);
+  }
+
+  /** Adds the typed values; a value matching an option chip selects that chip instead. */
+  addCustom(list: string[], kind: 'meas' | 'attr', e?: Event): void {
+    e?.preventDefault();
+    const text = kind === 'meas' ? this.customMeas : this.customAttr;
+    const options = kind === 'meas' ? this.measNames : ATTRIBUTES;
+    for (const raw of text.split(/[,\n]/)) {
+      const v = raw.trim().replace(/\s+/g, ' ').slice(0, 60);
+      if (!v) continue;
+      const value = options.find((o) => o.toLowerCase() === v.toLowerCase()) ?? v;
+      if (!list.some((x) => x.toLowerCase() === value.toLowerCase())) list.push(value);
+    }
+    if (kind === 'meas') this.customMeas = '';
+    else this.customAttr = '';
+  }
+
+  removeIn(list: string[], v: string): void {
+    const i = list.indexOf(v);
+    if (i >= 0) list.splice(i, 1);
+  }
   readonly powerOptions = POWER_OPTIONS;
   readonly typeIcons = TYPE_ICONS;
   readonly forms = FORMS;
@@ -657,6 +682,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     this.menuId = '';
     this.formError = '';
     const b = blankModel('env');
+    this.customMeas = this.customAttr = '';
     this.dialog = {
       kind: 'model', editId: null, title: 'Add Device Model',
       f: { ...this.formFrom({ ...b, id: '', name: '', manufacturer: '', typeId: '', deployed: 0 }), fwMin: '', fwMax: '', power: '', status: '' },
@@ -667,6 +693,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     this.loadOptions();
     this.menuId = '';
     this.formError = '';
+    this.customMeas = this.customAttr = '';
     this.dialog = { kind: 'model', editId: m.id, title: `Edit ${m.name}`, f: this.formFrom(m) };
   }
 
@@ -675,6 +702,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     this.formError = '';
     let name = `${m.name} Copy`;
     for (let n = 2; this.nameTaken(name, null); n++) name = `${m.name} Copy ${n}`;
+    this.customMeas = this.customAttr = '';
     this.dialog = { kind: 'model', editId: null, title: `Duplicate ${m.name}`, f: { ...this.formFrom(m), name, status: 'Draft' } };
   }
 
@@ -701,6 +729,9 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     const d = this.dlg('model');
     if (!d || this.saving) return;
     const f = d.f;
+    // Text typed but not added yet is kept too
+    if (this.customMeas.trim()) this.addCustom(f.measurements, 'meas');
+    if (this.customAttr.trim()) this.addCustom(f.attributes, 'attr');
     if (!f.name.trim()) return void (this.formError = 'Enter the model name.');
     if (!f.manufacturer.trim()) return void (this.formError = 'Enter the manufacturer.');
     if (!f.typeId) return void (this.formError = 'Choose a device type.');
@@ -711,10 +742,10 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     if (!f.status) return void (this.formError = 'Choose the status.');
     const data = {
       name: f.name.trim(), manufacturer: f.manufacturer.trim(), typeId: f.typeId, connectivity: CONNECTIVITY.filter((c) => f.connectivity.includes(c)),
-      protocol: f.protocol.trim(), power: f.power, measurements: MEASUREMENTS.map((x) => x.name).filter((n) => f.measurements.includes(n)),
+      protocol: f.protocol.trim(), power: f.power, measurements: [...f.measurements],
       bands: f.bands.split(/[,;|]/).map((s) => s.trim()).filter(Boolean), ipRating: f.ipRating.trim(), batteryLife: f.batteryLife.trim(),
       opTemp: f.opTemp.trim(), fwMin: f.fwMin.trim().replace(/^v/i, ''), fwMax: f.fwMax.trim().replace(/^v/i, ''), status: f.status,
-      attributes: ATTRIBUTES.filter((a) => f.attributes.includes(a)),
+      attributes: [...f.attributes],
     };
     const existing = d.editId ? this.byId(d.editId) : undefined;
     const draft: DeviceModel = existing ? { ...existing, ...data } : { ...data, id: data.name, deployed: 0 };

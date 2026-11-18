@@ -40,6 +40,12 @@ export interface GeofenceDto {
   createdAt: string | null;
   clientId: string | null;
   tenantId: string | null;
+  category?: string | null;
+  statusReason?: string | null;
+  statusChangedBy?: string | null;
+  statusChangedAt?: string | null;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
 }
 
 /** POST / PUT /api/geofences body (same shape for both). */
@@ -65,6 +71,9 @@ export interface GeofenceRequest {
   createdBy: string;
   clientId: string;
   tenantId: string;
+  category: string | null;
+  /** Why the zone is being enabled / disabled (recorded with who and when). */
+  statusReason: string | null;
 }
 
 /** GET /api/geofences/options */
@@ -78,6 +87,7 @@ export interface GeofenceOptionsDto {
   defaultPolygonPoints: number;
   minPolygonPoints: number;
   maxPolygonPoints: number;
+  categories?: string[];
 }
 
 export const DEFAULT_GEOFENCE_OPTIONS: GeofenceOptionsDto = {
@@ -90,6 +100,7 @@ export const DEFAULT_GEOFENCE_OPTIONS: GeofenceOptionsDto = {
   defaultPolygonPoints: 4,
   minPolygonPoints: 3,
   maxPolygonPoints: 50,
+  categories: ['Storage', 'Production', 'Maintenance', 'Charging', 'Loading / Unloading', 'Parking', 'Hazardous', 'Restricted', 'Custom'],
 };
 
 /** A site from master data (GET /api/master-data/sites). */
@@ -123,6 +134,12 @@ export function toZone(d: GeofenceDto): Zone {
     lastEventAt: d.lastEventAt ? new Date(d.lastEventAt) : null,
     createdDaysAgo: created ? Math.floor((Date.now() - created.getTime()) / DAY_MS) : null,
     geoRev: 0,
+    category: d.category ?? '',
+    createdBy: d.createdBy ?? '',
+    modifiedAt: d.updatedAt ? new Date(d.updatedAt) : created,
+    statusReason: d.statusReason ?? '',
+    statusChangedBy: d.statusChangedBy ?? '',
+    statusChangedAt: d.statusChangedAt ? new Date(d.statusChangedAt) : null,
   };
   if (shape === 'Circle') {
     if (pts[0] && d.radiusMeters) {
@@ -161,6 +178,8 @@ export function toGeofenceRequest(z: Zone, createdBy: string): GeofenceRequest {
     coordinates,
     radiusMeters: circle && z.center ? z.radiusM ?? null : null,
     createdBy,
+    category: z.category || null,
+    statusReason: z.statusReason || null,
     ...tenantBody(),
   };
 }
