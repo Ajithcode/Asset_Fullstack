@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, expand, map, reduce, EMPTY } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
+import { MEDIA_API } from '../asset-api';
 
 /** Swagger: {assetRegistrationApiUrl}swagger/index.html, tag "Asset Registration". */
 
@@ -259,6 +260,15 @@ export interface AssetRegistrationFilters {
   conditions: string[];
 }
 
+/** Request body for PUT /api/asset-registrations/{assetRegistrationId} */
+export interface UpdateAssetRegistrationRequest {
+  basicInformation?: AssetBasicInformation;
+  classification?: AssetClassification;
+  locationAssignment?: AssetLocationAssignment;
+  purchaseWarranty?: AssetPurchaseWarranty;
+  additionalInformation?: AssetAdditionalInformation;
+}
+
 /** Request body for POST /api/asset-registrations/drafts */
 interface CreateAssetRegistrationDraftRequest {
   basicInformation: AssetBasicInformation;
@@ -343,6 +353,31 @@ export class AssetRegistrationService {
   /** POST /api/asset-registrations/drafts/{assetRegistrationId}/submit — registers the asset. */
   submit(assetRegistrationId: string): Observable<AssetRegistrationResult> {
     return this.http.post<AssetRegistrationResult>(`${this.apiUrl}/drafts/${encodeURIComponent(assetRegistrationId)}/submit`, {});
+  }
+
+  /** PUT /api/asset-registrations/{assetRegistrationId} — edits a registered asset; sections left out keep their values. */
+  update(assetRegistrationId: string, body: UpdateAssetRegistrationRequest): Observable<AssetRegistrationResult> {
+    return this.http.put<AssetRegistrationResult>(`${this.apiUrl}/${encodeURIComponent(assetRegistrationId)}`, body);
+  }
+
+  /** DELETE /api/asset-registrations/{assetRegistrationId} — soft delete of a registered asset. */
+  delete(assetRegistrationId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${encodeURIComponent(assetRegistrationId)}`);
+  }
+
+  /** GET /api/asset-registrations/lookup?code=&type=assetTag — the registered asset with this tag. */
+  lookupByTag(assetTag: string): Observable<AssetRegistrationResult> {
+    return this.http
+      .get<{ asset: AssetRegistrationResult }>(`${this.apiUrl}/lookup`, { params: { code: assetTag, type: 'assetTag' } })
+      .pipe(map((r) => r.asset));
+  }
+
+  /** POST /api/media/upload (multipart file + category); emits the stored file's URL. */
+  uploadFile(file: File, category: 'asset-images' | 'asset-documents'): Observable<string> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    form.append('category', category);
+    return this.http.post<{ url: string }>(`${MEDIA_API}upload`, form).pipe(map((r) => r.url));
   }
 
   /** DELETE /api/asset-registrations/drafts/{assetRegistrationId} */

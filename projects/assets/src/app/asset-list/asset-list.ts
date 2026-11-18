@@ -42,6 +42,7 @@ import {
 import { Observable, Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
 import { TODAY, toIsoDate } from 'shared-ui';
 import { FilterSelect, FilterSelectOption } from '../shared/filter-select/filter-select';
+import { apiErrorMessage } from '../services/asset-api';
 import {
   AssetRegistrationFilters, AssetRegistrationListItem, AssetRegistrationListQuery, AssetRegistrationListResult, AssetRegistrationService,
 } from '../services/asset-registration/asset-registration';
@@ -554,6 +555,35 @@ export class AssetList {
   openAssetModule(path: string, asset: AssetRow): void {
     this.openMenuId = null;
     this.router.navigate([path], { queryParams: { tag: asset.tag } });
+  }
+
+  /** Opens Asset Registration in edit mode for this asset (GET / PUT /api/asset-registrations/{id}). */
+  editAsset(asset: AssetRow): void {
+    this.openMenuId = null;
+    this.router.navigate(['/assets/registration'], { queryParams: { id: asset.registrationId, tag: asset.tag } });
+  }
+
+  /** Registration id of the asset being deleted. */
+  deletingId: string | null = null;
+
+  /** DELETE /api/asset-registrations/{id} (soft delete), after confirmation; then reloads the list and filters. */
+  deleteAsset(asset: AssetRow): void {
+    this.openMenuId = null;
+    if (!window.confirm(`Delete ${asset.name} (${asset.tag})? It will be removed from the asset list.`)) return;
+    this.deletingId = asset.registrationId;
+    this.api.delete(asset.registrationId).subscribe({
+      next: () => {
+        this.deletingId = null;
+        this.selected.delete(asset.id);
+        this.showToast(`${asset.name} deleted.`);
+        this.loadFilterOptions();
+        this.refresh();
+      },
+      error: (err) => {
+        this.deletingId = null;
+        this.showToast(apiErrorMessage(err, 'Could not delete the asset. Please try again.'));
+      },
+    });
   }
 
   /** Opens the asset's detail page (Overview tab) for this row. */

@@ -62,6 +62,19 @@ export interface AssetRegistrationOptions {
   };
 }
 
+/** Row of GET /api/asset-custom-fields (only the fields the registration form uses). */
+export interface AssetCustomFieldDefinition {
+  id: string;
+  fieldName: string;
+  displayLabel: string;
+  /** Text, Number, Date, Dropdown, Yes/No, ... */
+  fieldType: string;
+  displayOrder?: number;
+  required?: boolean;
+  defaultValue?: string | null;
+  options?: string[];
+}
+
 /** A site, building, floor, zone or room. Ids link the levels, except rooms, which name their parents. */
 export interface LocationOption extends DropdownOption {
   /** Site: country name. */
@@ -70,6 +83,8 @@ export interface LocationOption extends DropdownOption {
   siteId?: string;
   /** Zone: building id. */
   buildingId?: string;
+  /** Floor: uploaded floor plan image (floors.imageUrl), if any. */
+  imageUrl?: string;
   /** Room: names of its zone, floor and building. */
   zoneName?: string;
   floorName?: string;
@@ -127,6 +142,27 @@ export class AssetDropdownService {
   /** GET /api/master-data/criticalities — isDefault marks the record with defaultCriticality: true. */
   getCriticalities(): Observable<DropdownOption[]> {
     return this.list('criticalities', 'criticalityName', (r) => ({ isDefault: r['defaultCriticality'] === true }));
+  }
+
+  /** GET /api/master-data/conditions — isDefault marks the record with defaultCondition: true. */
+  getConditions(): Observable<DropdownOption[]> {
+    return this.list('conditions', 'conditionName', (r) => ({ isDefault: r['defaultCondition'] === true }));
+  }
+
+  /**
+   * GET {asset service}/api/asset-custom-fields?scope=Asset&status=Active — the organisation's asset custom fields
+   * (defined on Assets > Custom Fields), in display order.
+   */
+  getAssetCustomFields(): Observable<AssetCustomFieldDefinition[]> {
+    return this.http
+      .get<{ items?: AssetCustomFieldDefinition[] } | AssetCustomFieldDefinition[]>(`${this.assetUrl}/asset-custom-fields`, {
+        params: { scope: 'Asset', status: 'Active', pageSize: 200 },
+      })
+      .pipe(
+        map((res) => (Array.isArray(res) ? res : res?.items ?? [])),
+        map((fields) => [...fields].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))),
+        catchError(() => of([])),
+      );
   }
 
   /** GET {asset service}/api/asset-categories — top-level categories have no parentId; sub-categories carry their parent's id. */
@@ -219,7 +255,7 @@ export class AssetDropdownService {
     return this.list<LocationOption>(
       'floors',
       'name',
-      (r) => ({ parentId: this.text(r['buildingId']), siteId: this.refId(r['site']) }),
+      (r) => ({ parentId: this.text(r['buildingId']), siteId: this.refId(r['site']), imageUrl: this.text(r['imageUrl']) }),
       { buildingId },
     );
   }
@@ -268,8 +304,8 @@ export class AssetDropdownService {
   ): Observable<T[]> {
     const params: Record<string, string> = {};
     for (const [key, value] of Object.entries(filters)) if (value) params[key] = value;
-    // A full URL (Asset service lists) is used as is; anything else is a master data resource
-    const url = /^https?:\/\//i.test(resource) ? resource : `${this.masterUrl}/${resource}`;
+    // A full or absolute URL (Asset service lists) is used as is; a bare name is a master data resource
+    const url = /^(https?:\/\/|\/)/i.test(resource) ? resource : `${this.masterUrl}/${resource}`;
     return this.http.get<MasterRecord[] | { items?: MasterRecord[] }>(url, { params }).pipe(
       map((res) => (Array.isArray(res) ? res : res?.items ?? [])),
       map((records) =>

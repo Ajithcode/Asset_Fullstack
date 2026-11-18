@@ -6,7 +6,7 @@
     <nav class="breadcrumb" aria-label="Breadcrumb">
       <a routerLink="/assets/list">Assets</a>
       <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
-      <span class="breadcrumb-current">Asset Registration</span>
+      <span class="breadcrumb-current">{{ editId ? 'Edit Asset' : 'Asset Registration' }}</span>
     </nav>
   </div>
 
@@ -17,8 +17,8 @@
         <lucide-icon [img]="icons.Box" [size]="24"></lucide-icon>
       </span>
       <div>
-        <h1>Register Asset</h1>
-        <p>Add a new asset to your organization with complete details</p>
+        <h1>{{ editId ? 'Edit Asset' : 'Register Asset' }}</h1>
+        <p>{{ loadingAsset ? 'Loading the asset...' : editId ? 'Update the details of ' + form.assetName + ' (' + editId + ')' : 'Add a new asset to your organization with complete details' }}</p>
       </div>
     </div>
 
@@ -924,7 +924,7 @@
               </button>
             </div>
 
-            <div class="plan-viewport" *ngIf="mapLevel; else noFloor">
+            <div class="plan-viewport" *ngIf="mapLevel && mapImageSrc; else noFloor">
               <div class="plan-canvas" [style.--zoom]="planZoom">
                 <img [src]="mapImageSrc" [alt]="'Map of ' + planTitle" />
                 <!-- Object wrapper so the selected pin is worked out once, even when there is none -->
@@ -945,7 +945,7 @@
               </div>
             </div>
             <ng-template #noFloor>
-              <div class="plan-empty">Select a floor or zone to see its map.</div>
+              <div class="plan-empty">{{ mapLevel ? 'No floor plan uploaded for ' + mapLevel.label + ' in Master Data.' : 'Select a floor or zone to see its map.' }}</div>
             </ng-template>
           </div>
         </div>
@@ -1260,7 +1260,7 @@
         </span>
         <span class="doc-text">
           <span class="doc-name" [title]="d.name">{{ d.name }}</span>
-          <span class="doc-meta">{{ formatFileSize(d.size) }} &middot; {{ d.uploadedAt | date: 'dd MMM yyyy' }}</span>
+          <span class="doc-meta">{{ d.size ? formatFileSize(d.size) : '' }}{{ d.size ? ' · ' : '' }}{{ d.file && !d.url ? 'Uploading...' : (d.uploadedAt | date: 'dd MMM yyyy') }}</span>
         </span>
         <button type="button" class="doc-btn" title="Download" [attr.aria-label]="'Download ' + d.name"
           (click)="downloadDocument(d)">
@@ -1393,6 +1393,10 @@
       <div class="cf-row cf-row--head" role="row">
         <span role="columnheader">Field Name</span>
         <span role="columnheader">Value</span>
+      </div>
+      <div class="cf-row" role="row" *ngIf="!customFields.length">
+        <span class="cf-name docs-empty" role="cell">{{ customFieldsLoaded ? 'No custom fields defined for assets (Assets > Custom Fields).' : 'Loading custom fields...' }}</span>
+        <span role="cell"></span>
       </div>
       <div class="cf-row" role="row" *ngFor="let f of customFields; let i = index">
         <span class="cf-name" role="cell">

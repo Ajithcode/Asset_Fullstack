@@ -296,11 +296,12 @@
       </button>
       <div *ngIf="openMenuId === a.id" class="menu" role="menu" (click)="$event.stopPropagation()">
         <button type="button" role="menuitem" (click)="viewAsset(a)"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>View Details</button>
-        <button type="button" role="menuitem" (click)="openAssetModule('/assets/registration', a)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Asset</button>
+        <button type="button" role="menuitem" (click)="editAsset(a)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Asset</button>
         <button type="button" role="menuitem" (click)="openAssetModule('/assets/assignment', a)"><lucide-icon [img]="icons.UserRound" [size]="15"></lucide-icon>Assign / Transfer</button>
         <button type="button" role="menuitem" (click)="openAssetModule('/assets/location-history', a)"><lucide-icon [img]="icons.History" [size]="15"></lucide-icon>Location History</button>
         <button type="button" role="menuitem" (click)="openAssetModule('/assets/maintenance', a)"><lucide-icon [img]="icons.Wrench" [size]="15"></lucide-icon>Schedule Maintenance</button>
         <hr />
+        <button type="button" role="menuitem" class="danger" [disabled]="deletingId === a.registrationId" (click)="deleteAsset(a)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete Asset</button>
         <button type="button" role="menuitem" class="danger" (click)="openAssetModule('/assets/disposal', a)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Dispose Asset</button>
       </div>
     </div>
