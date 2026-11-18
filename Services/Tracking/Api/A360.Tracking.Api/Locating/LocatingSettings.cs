@@ -39,17 +39,20 @@ public class LocatingSettings
     /// <summary>Collection every LED / buzzer command and its outcome is stored in.</summary>
     public string CommandCollection { get; set; } = "TagLocateCommands";
 
-    /// <summary>jengine "action" number of the LED / buzzer set_req.</summary>
-    public int CommandAction { get; set; } = 42;
+    /// <summary>jengine "action" number of the LED entry in "cmds".</summary>
+    public int LedAction { get; set; } = 42;
+
+    /// <summary>jengine "action" number of the buzzer entry in "cmds".</summary>
+    public int BuzzerAction { get; set; } = 56;
 
     /// <summary>jengine payload "key" sent with every command.</summary>
     public string CommandKey { get; set; } = "3141592653589793";
 
     /// <summary>Opcode of the LED blink command.</summary>
-    public int LedOpcode { get; set; } = 90001;
+    public int LedOpcode { get; set; } = 90003;
 
-    /// <summary>Opcode of the buzzer command; the buzzer is refused until this is set.</summary>
-    public int? BuzzerOpcode { get; set; }
+    /// <summary>Opcode of the buzzer command.</summary>
+    public int BuzzerOpcode { get; set; } = 90003;
 
     /// <summary>How long to wait for the gateway's final answer (code 2) before reporting a timeout.</summary>
     public int CommandTimeoutSeconds { get; set; } = 60;

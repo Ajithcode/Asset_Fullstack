@@ -3,11 +3,23 @@ using System.Text.Json.Nodes;
 
 namespace A360.Tracking.Api.Locating;
 
-/// <summary>The two "find my tag" commands a tag accepts through its gateway.</summary>
+/// <summary>The "find my tag" commands a tag accepts through its gateway.</summary>
 public static class LocateCommandKind
 {
     public const string Led = "led";
     public const string Buzzer = "buzzer";
+
+    /// <summary>LED and buzzer together, sent as one message with both entries in "cmds".</summary>
+    public const string Both = "both";
+
+    /// <summary>The kind a front-end message type stands for, or null when it is not a command.</summary>
+    public static string? FromType(string? type) => type switch
+    {
+        Led => Led,
+        Buzzer => Buzzer,
+        Both or "locate" or "ledbuzzer" or "led+buzzer" or "led_buzzer" => Both,
+        _ => null,
+    };
 }
 
 /// <summary>
@@ -81,69 +93,80 @@ public sealed record BuzzerOptions(int BeepMs, int PauseMs, int Cycles, int Leve
 /// <summary>A built command, ready to publish to /gw/{gateway}/action.</summary>
 public sealed record LocateCommand(string Kind, int ReqId, string TagId, JsonObject Options, JsonObject Message);
 
-/// <summary>Builds the jengine set_req message for an LED or buzzer command.</summary>
+/// <summary>
+/// Builds the jengine message for an LED, buzzer or LED + buzzer command:
+/// {"version":2,"req_id":503,"cmds":[{"action":42,"method":"set_req","payload":{LED}},{"action":56,"method":"set_req","payload":{buzzer}}]}
+/// </summary>
 public static class LocateCommandBuilder
 {
     private static int _nextReqId = Random.Shared.Next(1, 1_000_000);
 
     /// <summary>
-    /// Reads the options of <paramref name="kind"/> from the front-end message: either nested
-    /// ({"led":{...}} / {"buzzer":{...}}) or flat on the message itself.
+    /// Reads the options from the front-end message: nested ({"led":{...}} / {"buzzer":{...}}) or flat on the message itself.
+    /// For both, a flat message gives the same values (e.g. "cycles") to the LED and the buzzer.
     /// </summary>
     public static LocateCommand Build(string kind, string tagId, JsonObject message, LocatingSettings settings)
     {
-        var source = message[kind] as JsonObject ?? message;
-        var payload = new JsonObject
+        var cmds = new JsonArray();
+        var options = new JsonObject();
+
+        if (kind is not (LocateCommandKind.Led or LocateCommandKind.Buzzer or LocateCommandKind.Both))
+            throw new ArgumentException($"Unknown command '{kind}'.");
+
+        if (kind is LocateCommandKind.Led or LocateCommandKind.Both)
         {
-            ["key"] = settings.CommandKey,
-            ["single"] = true,
-        };
-
-        JsonObject options;
-        switch (kind)
-        {
-            case LocateCommandKind.Led:
-                var led = LedOptions.From(source);
-                led.Validate();
-                payload["opcode"] = settings.LedOpcode;
-                led.WriteTo(payload);
-                options = new JsonObject
-                {
-                    ["color"] = led.Color, ["onMs"] = led.OnMs, ["offMs"] = led.OffMs,
-                    ["cycles"] = led.Cycles, ["brightness"] = led.Brightness,
-                };
-                break;
-
-            case LocateCommandKind.Buzzer:
-                if (settings.BuzzerOpcode is not { } buzzerOpcode)
-                    throw new ArgumentException("Buzzer is not configured yet (Locating:BuzzerOpcode is empty).");
-                var buzzer = BuzzerOptions.From(source);
-                buzzer.Validate();
-                payload["opcode"] = buzzerOpcode;
-                buzzer.WriteTo(payload);
-                options = new JsonObject
-                {
-                    ["beepMs"] = buzzer.BeepMs, ["pauseMs"] = buzzer.PauseMs,
-                    ["cycles"] = buzzer.Cycles, ["level"] = buzzer.Level,
-                };
-                break;
-
-            default:
-                throw new ArgumentException($"Unknown command '{kind}'.");
+            var led = LedOptions.From(message[LocateCommandKind.Led] as JsonObject ?? message);
+            led.Validate();
+            var payload = NewPayload(settings.LedOpcode, settings);
+            led.WriteTo(payload);
+            cmds.Add(Cmd(settings.LedAction, payload, tagId));
+            var ledOptions = new JsonObject
+            {
+                ["color"] = led.Color, ["onMs"] = led.OnMs, ["offMs"] = led.OffMs,
+                ["cycles"] = led.Cycles, ["brightness"] = led.Brightness,
+            };
+            if (kind == LocateCommandKind.Both) options[LocateCommandKind.Led] = ledOptions;
+            else options = ledOptions;
         }
 
-        payload["details"] = new JsonObject { [tagId] = new JsonObject() };
+        if (kind is LocateCommandKind.Buzzer or LocateCommandKind.Both)
+        {
+            var buzzer = BuzzerOptions.From(message[LocateCommandKind.Buzzer] as JsonObject ?? message);
+            buzzer.Validate();
+            var payload = NewPayload(settings.BuzzerOpcode, settings);
+            buzzer.WriteTo(payload);
+            cmds.Add(Cmd(settings.BuzzerAction, payload, tagId));
+            var buzzerOptions = new JsonObject
+            {
+                ["beepMs"] = buzzer.BeepMs, ["pauseMs"] = buzzer.PauseMs,
+                ["cycles"] = buzzer.Cycles, ["level"] = buzzer.Level,
+            };
+            if (kind == LocateCommandKind.Both) options[LocateCommandKind.Buzzer] = buzzerOptions;
+            else options = buzzerOptions;
+        }
 
         var reqId = NextReqId();
         var command = new JsonObject
         {
-            ["action"] = settings.CommandAction,
-            ["version"] = 1,
-            ["method"] = "set_req",
+            ["version"] = 2,
             ["req_id"] = reqId,
-            ["payload"] = payload,
+            ["cmds"] = cmds,
         };
         return new LocateCommand(kind, reqId, tagId, options, command);
+    }
+
+    private static JsonObject NewPayload(int opcode, LocatingSettings settings) => new()
+    {
+        ["key"] = settings.CommandKey,
+        ["opcode"] = opcode,
+        ["single"] = true,
+    };
+
+    // "details" goes last, after the LED / buzzer fields.
+    private static JsonObject Cmd(int action, JsonObject payload, string tagId)
+    {
+        payload["details"] = new JsonObject { [tagId] = new JsonObject() };
+        return new JsonObject { ["action"] = action, ["method"] = "set_req", ["payload"] = payload };
     }
 
     // Stays positive and below 1,000,000 so it fits whatever the gateway uses for req_id.
