@@ -228,7 +228,7 @@ public static class AssetCustomFieldValues
     /// The asset's category and sub-category (matched by name, sub-category under its category when possible),
     /// plus every parent category above them.
     /// </summary>
-    private static List<AssetCategory> CategoriesOf(AssetRegistration asset, IReadOnlyCollection<AssetCategory> categories)
+    internal static List<AssetCategory> CategoriesOf(AssetRegistration asset, IReadOnlyCollection<AssetCategory> categories)
     {
         var active = categories.Where(category => !category.IsDeleted).ToList();
         var byId = active.ToDictionary(category => category.Id, StringComparer.Ordinal);
