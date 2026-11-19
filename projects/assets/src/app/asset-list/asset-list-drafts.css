@@ -1,0 +1,57 @@
+/* Saved registration drafts (Asset List > Drafts); kept apart from asset-list.css for the component style budget. */
+.title-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drafts-panel {
+  margin: -6px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--al-control-border);
+  border-radius: 8px;
+  background: #fafafa;
+  overflow-x: auto;
+}
+
+.drafts-empty {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--al-text-muted);
+}
+
+.drafts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.drafts-table th,
+.drafts-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+
+.drafts-table th {
+  font-weight: 600;
+  color: var(--al-text-muted);
+}
+
+.drafts-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn.btn-sm {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+.drafts-delete:hover {
+  border-color: #dc2626;
+  color: #dc2626;
+}
