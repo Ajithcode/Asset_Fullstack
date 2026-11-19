@@ -698,7 +698,7 @@ void main() {
     });
 
     testWidgets('geofencing tab: the live map for now (no zone drawing)', (tester) async {
-      await open(tester, '/more/tracking?tab=zones');
+      await open(tester, '/more/tracking?tab=zones&view=locations');
       expect(find.byType(OutdoorMap), findsOneWidget);
       expect(find.text('Factory perimeter'), findsOneWidget);
       expect(find.text('Add Zone'), findsNothing);

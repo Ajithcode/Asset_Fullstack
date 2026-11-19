@@ -176,7 +176,7 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> _signedIn(TokenPair tokens, {required String userName, required bool rememberMe}) async {
-    final user = await _loadUser(tokens.accessToken, userName);
+    final user = (await _loadUser(tokens.accessToken, userName)).withTenant(tokens.clientId, tokens.tenantId);
     if (rememberMe && tokens.refreshToken != null) {
       await _store.writeRefreshToken(tokens.refreshToken!);
     } else {

@@ -511,7 +511,7 @@ void main() {
       tester,
     ) async {
       noCoordinates();
-      final c = await open(tester, '/more/tracking?tab=map');
+      final c = await open(tester, '/more/tracking?tab=map&view=locations');
       expect(find.byType(OutdoorMap), findsNothing);
       expect(find.text('Map'), findsNothing, reason: 'no outdoor map without coordinates');
       expect(find.text('Floor plans'), findsOneWidget, reason: 'the floor navigation instead');
@@ -569,7 +569,7 @@ void main() {
 
     testWidgets('site counts: 3 assets, 2 online (2 / 3 min), 1 offline (30 min)', (tester) async {
       noCoordinates();
-      final c = await open(tester, '/more/tracking?tab=zones');
+      final c = await open(tester, '/more/tracking?tab=zones&view=locations');
       final site = c.read(locationTreeProvider('')).tree!.sites.single;
       final n = site.counts(DateTime.now().toUtc());
       expect((n.assets, n.online, n.offline), (3, 2, 1));
@@ -578,7 +578,7 @@ void main() {
 
     testWidgets('floor picker: floors with a plan carry a map icon', (tester) async {
       noCoordinates();
-      await open(tester, '/more/tracking?tab=map');
+      await open(tester, '/more/tracking?tab=map&view=locations');
       await tester.tap(find.text('Floor plans'));
       await tester.pumpAndSettle();
       expect(find.byType(OutdoorMap), findsNothing);
@@ -599,7 +599,7 @@ void main() {
     });
 
     testWidgets('coordinates → the map by default with live pin counts; Tree / Map toggle', (tester) async {
-      await open(tester, '/more/tracking?tab=map');
+      await open(tester, '/more/tracking?tab=map&view=locations');
       expect(find.byType(OutdoorMap), findsOneWidget);
       expect(find.bySemanticsLabel('Site Dubai Factory, 3 tracked'), findsOneWidget, reason: 'live count');
       await tester.tap(find.text('Tree'));
@@ -613,7 +613,7 @@ void main() {
 
     testWidgets('outdoor map with ONLY Dashboard coordinates; toggle order Map, Floor plans, Tree', (tester) async {
       noCoordinates(dashboard: true); // Master Data has none; Dashboard asset-locations has AR000001
-      await open(tester, '/more/tracking?tab=map');
+      await open(tester, '/more/tracking?tab=map&view=locations');
       expect(find.byType(OutdoorMap), findsOneWidget, reason: 'no waiting for Master Data coordinates');
       final map = tester.getTopLeft(find.text('Map')).dx;
       final plans = tester.getTopLeft(find.text('Floor plans')).dx;

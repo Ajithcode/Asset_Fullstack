@@ -68,9 +68,20 @@ class LoginResult {
 
 /// Access + refresh token from verify-totp / verify-otp / refresh (or a one-step login).
 class TokenPair {
-  const TokenPair({required this.accessToken, this.refreshToken, required this.expiresAt, this.expirySource = ''});
+  const TokenPair({
+    required this.accessToken,
+    this.refreshToken,
+    required this.expiresAt,
+    this.expirySource = '',
+    this.clientId,
+    this.tenantId,
+  });
 
   final String accessToken;
+
+  /// `user.clientId` / `user.tenantId` of the verify-totp / refresh reply (else the JWT claims), sent as
+  /// `?clientId=&tenantId=` on Tracking / Administration calls when /me has none.
+  final String? clientId, tenantId;
   final String? refreshToken;
   final DateTime expiresAt;
 
@@ -94,7 +105,17 @@ class TokenPair {
       if (access == null) continue;
       final refresh = _str(m, _refreshKeys) ?? _candidates(json).map((x) => _str(x, _refreshKeys)).nonNulls.firstOrNull;
       final (expires, source) = _expiry(m, access, at);
-      return TokenPair(accessToken: access, refreshToken: refresh, expiresAt: expires, expirySource: source);
+      final claims = jwtClaims(access) ?? const <String, dynamic>{};
+      String? tenantKey(String key) =>
+          _candidates(json).map((x) => _str(x, [key])).nonNulls.firstOrNull ?? _str(claims, [key]);
+      return TokenPair(
+        accessToken: access,
+        refreshToken: refresh,
+        expiresAt: expires,
+        expirySource: source,
+        clientId: tenantKey('clientId'),
+        tenantId: tenantKey('tenantId'),
+      );
     }
     return null;
   }
@@ -113,7 +134,14 @@ class TokenPair {
   /// Same refresh token kept when a refresh reply does not send a new one.
   TokenPair withFallbackRefresh(String? fallback) => refreshToken != null || fallback == null
       ? this
-      : TokenPair(accessToken: accessToken, refreshToken: fallback, expiresAt: expiresAt, expirySource: expirySource);
+      : TokenPair(
+          accessToken: accessToken,
+          refreshToken: fallback,
+          expiresAt: expiresAt,
+          expirySource: expirySource,
+          clientId: clientId,
+          tenantId: tenantId,
+        );
 }
 
 /// GET /api/auth/me.
@@ -126,9 +154,14 @@ class CurrentUser {
     this.roleId,
     this.roleName,
     this.phone,
+    this.clientId,
+    this.tenantId,
   });
 
   final String? id;
+
+  /// The user's tenant (`user.clientId` / `user.tenantId`): Tracking / Administration calls send them.
+  final String? clientId, tenantId;
   final String fullName;
   final String? userName;
   final String? email;
@@ -157,20 +190,30 @@ class CurrentUser {
           _str(j, ['roleName', 'userRoleName']) ??
           (role is String ? role : (role is Map ? _str(Map<String, dynamic>.from(role), ['roleName', 'name']) : null)),
       phone: _str(j, ['contactNo', 'phone', 'phoneNumber']),
+      clientId: _str(j, ['clientId']),
+      tenantId: _str(j, ['tenantId']),
     );
   }
 
-  CurrentUser withRoleName(String? name) => name == null || roleName != null
+  CurrentUser withRoleName(String? name) => name == null || roleName != null ? this : _copy(roleName: name);
+
+  /// Fills a missing clientId / tenantId (from the token reply).
+  CurrentUser withTenant(String? client, String? tenant) =>
+      (clientId != null || client == null) && (tenantId != null || tenant == null)
       ? this
-      : CurrentUser(
-          id: id,
-          fullName: fullName,
-          userName: userName,
-          email: email,
-          roleId: roleId,
-          roleName: name,
-          phone: phone,
-        );
+      : _copy(clientId: clientId ?? client, tenantId: tenantId ?? tenant);
+
+  CurrentUser _copy({String? roleName, String? clientId, String? tenantId}) => CurrentUser(
+    id: id,
+    fullName: fullName,
+    userName: userName,
+    email: email,
+    roleId: roleId,
+    roleName: roleName ?? this.roleName,
+    phone: phone,
+    clientId: clientId ?? this.clientId,
+    tenantId: tenantId ?? this.tenantId,
+  );
 }
 
 /// GET /api/auth/roles item: {roleId, roleName, description}.

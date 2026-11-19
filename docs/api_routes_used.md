@@ -128,7 +128,13 @@ Defined in code but **not called** by any screen: `/api/master-data-items/type/{
 
 ## 6. Administration service (administration cluster)
 
-`adminDioProvider` / `adminClientProvider` (`lib/data/api/admin/admin_maps_api.dart`). Read only.
+`adminDioProvider` / `adminClientProvider` (`lib/data/api/admin/admin_maps_api.dart`). Read only. Every call adds
+`clientId` + `tenantId` of the signed-in user (verify-totp / `auth/me` `user`; left out when unknown; `tenantQuery`
+in `api_client.dart`).
+
+Real-Time Location (Tracking → Live Map / Geofencing, `rtl_repository.dart`) uses `GET /floor-plans` (all statuses;
+Published, else newest non-archived with a file, Draft only in dev builds), `GET /floor-plans/{id}/zones` and
+`GET /floor-plans/{id}/plots?kind=device` (gateway positions).
 
 | R/W | Method | Path | Query params | Used in |
 |---|---|---|---|---|
@@ -141,7 +147,9 @@ Defined in code but **not called**: `/api/administration/maps/settings` (`mapSet
 
 ## 7. Tracking service (tracking cluster)
 
-`trackingDioProvider` / `trackingClientProvider` (`lib/data/api/tracking/tracking_api.dart`, `live_locations_repository.dart`). Read only.
+`trackingDioProvider` / `trackingClientProvider` (`lib/data/api/tracking/tracking_api.dart`, `rtl_api.dart`,
+`live_locations_repository.dart`). Read only, except the Locate WebSocket below. Every call adds `clientId` +
+`tenantId` of the signed-in user (left out when unknown).
 
 | R/W | Method | Path | Query params | Used in |
 |---|---|---|---|---|
@@ -159,6 +167,11 @@ Defined in code but **not called**: `/api/administration/maps/settings` (`mapSet
 | R | GET | `/api/geofences` | – | Tracking → Live Map / Geofencing tab |
 | R | GET | `/api/iot-alerts` | `days` (Tracking alerts screen, Live Map tree uses 7) or `assetRegistrationId` + `limit=50` (Asset Tracking) | Tracking → Alerts screen, Live Map location tree, Asset Tracking alerts |
 | R | GET | `/api/iot-alerts/count` | – | Tracking hub alert counter (poll every 5 s) |
+| R | GET | `/api/real-time-location/overview` | `siteId`, `floorPlanId` (the plan shown) when set | Real-Time Location (Live Map / Geofencing tabs; every 10 s while visible); without `floorPlanId`: Locate Asset list, View on Map, More Actions "Locate" |
+| R | GET | `/api/real-time-location/events` | `range` (1h / 24h / 7d), `page`, `pageSize` (10 on the screen, 25 in "View all"), `siteId`, `eventType` when set | Real-Time Location → Recent Location Events, `/more/tracking/location-events` |
+| R | GET | `/api/real-time-location/assets/{assetId}/trail` | `range` (30m / 1h / 24h / 7d) | Real-Time Location asset card (404 = "This asset has no tracked tag") |
+| R | GET | `/api/locating/tags/{tagid}/commands` | `limit=20` | Locate panel → History (the raw `request` field is never shown or logged) |
+| W | WS upgrade | `wss://<tracking base host>/ws/locate` (`ws://` for http bases) | none: `Authorization: Bearer` header; after a 401: fresh token, then `?access_token=` once | Locate panel (open while the panel is shown): `subscribe`, `led`, `buzzer`, `both` frames (`locate_session.dart`) |
 
 ## 8. WebSocket (Dashboard service)
 

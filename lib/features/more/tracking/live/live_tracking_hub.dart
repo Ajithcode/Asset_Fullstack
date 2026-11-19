@@ -10,6 +10,8 @@ import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart'
 import 'package:asset360_mobile/features/more/tracking/live/live_hub_lists.dart';
 import 'package:asset360_mobile/features/more/tracking/live/live_location_tree.dart';
 import 'package:asset360_mobile/features/more/tracking/live/live_tracking_assets_tab.dart';
+import 'package:asset360_mobile/data/repositories/rtl_repository.dart' show refreshRtl;
+import 'package:asset360_mobile/features/more/tracking/live/rtl/rtl_view.dart';
 import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dart';
 import 'package:asset360_mobile/features/more/tracking/tracking_hub_screen.dart' show HubTab;
 import 'package:asset360_mobile/features/more/tracking/tracking_widgets.dart';
@@ -46,11 +48,19 @@ class LiveTrackingHubScreen extends ConsumerStatefulWidget {
 
 class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
   late HubTab _tab = _tabOf(widget.initialTab) ?? HubTab.map;
+
+  /// Live Map / Geofencing show Real-Time Location; "Locations" = the location tree / floor plans /
+  /// outdoor map (kept for deep links into a site, floor, zone or geofence).
+  late bool _realTime = _wantsRealTime(widget);
   String _query = '';
   FilterSelection _filters = const {};
   LiveCounter? _counter;
 
   static HubTab? _tabOf(String? n) => HubTab.values.where((t) => t.name == n).firstOrNull;
+
+  static bool _wantsRealTime(LiveTrackingHubScreen w) =>
+      w.view == 'rtl' ||
+      (w.view == null && w.location == null && w.zone == null && w.geofence == null && w.asset == null);
 
   @override
   void didUpdateWidget(LiveTrackingHubScreen old) {
@@ -58,8 +68,10 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
     if (widget.initialTab != old.initialTab ||
         widget.location != old.location ||
         widget.geofence != old.geofence ||
-        widget.asset != old.asset) {
+        widget.asset != old.asset ||
+        widget.view != old.view) {
       _tab = _tabOf(widget.initialTab) ?? _tab;
+      _realTime = _wantsRealTime(widget);
     }
   }
 
@@ -111,7 +123,9 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
         body: RefreshIndicator(
           onRefresh: () async {
             refreshTracking(ref);
-            if (_tab == HubTab.map || _tab == HubTab.zones) refreshLocations(ref);
+            if (_tab == HubTab.map || _tab == HubTab.zones) {
+              _realTime ? refreshRtl(ref) : refreshLocations(ref);
+            }
           },
           child: ListView(
             padding: context.pagePadding,
@@ -133,7 +147,25 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
                 onChanged: (v) => setState(() => _tab = v),
               ),
               const SizedBox(height: 14),
-              if (_tab != HubTab.sensors) ...[
+              if (_tab == HubTab.map || _tab == HubTab.zones) ...[
+                SegmentedButton<bool>(
+                  key: const ValueKey('map-mode'),
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: true, label: Text('Real-time'), icon: Icon(Icons.my_location_rounded)),
+                    ButtonSegment(value: false, label: Text('Locations'), icon: Icon(Icons.account_tree_outlined)),
+                  ],
+                  selected: {_realTime},
+                  onSelectionChanged: (v) => setState(() => _realTime = v.first),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if ((_tab == HubTab.map || _tab == HubTab.zones) && _realTime)
+                RealTimeLocationView(
+                  key: ValueKey('rtl-${widget.asset}'),
+                  focusAsset: widget.view == 'rtl' ? widget.asset : null,
+                )
+              else if (_tab != HubTab.sensors) ...[
                 if (_tab != HubTab.list) ...[
                   SearchFilterBar(
                     hint: 'Search by asset name, ID or location...',
@@ -171,7 +203,9 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
                 ),
                 const SizedBox(height: 12),
               ],
-              if (s == null && live.error != null && (_tab == HubTab.map || _tab == HubTab.zones))
+              if ((_tab == HubTab.map || _tab == HubTab.zones) && _realTime)
+                const SizedBox.shrink()
+              else if (s == null && live.error != null && (_tab == HubTab.map || _tab == HubTab.zones))
                 LoadErrorState(error: live.error!, onRetry: () => ref.read(trkLiveProvider.notifier).refresh())
               else
                 ...switch (_tab) {

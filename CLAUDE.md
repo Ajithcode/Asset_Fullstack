@@ -252,6 +252,22 @@
   (`OutdoorMap(focusAssetId:)`). Used by the asset grids, More Actions, live scan result, IoT tab, Asset Tracking.
   Tests `test/live/live_location_tree_test.dart`.
   Report: `docs/tracking_iot_report.md`; tests `test/live/tracking_live_test.dart` (+ `tracking_samples.dart`).
+- Real-Time Location + Locate (API mode; docs/api/MOBILE-API-HANDOFF.md 0–2): Tracking hub Live Map / Geofencing tabs =
+  `RealTimeLocationView` (`features/more/tracking/live/rtl/rtl_view.dart`) with a "Real-time | Locations" toggle
+  (Locations = the old `LiveLocationView` tree / floor plans / outdoor map; deep links with `view=locations|floor|outdoor`
+  or a location / zone / geofence open it; `view=rtl&asset=` = View on Map focus). Data: `rtl_api.dart` / `rtl_models.dart`
+  (`RtlOverview`, `RtlAsset`, `RtlEventPage`, `RtlTrail`, `LocateCommandRecord`), `rtl_repository.dart` (`rtlProvider` =
+  overview poller every 10 s via `LivePollingScope(poller:)`, `setScope(siteId, floorPlanId)`; `rtlAssetProvider(id)`,
+  `rtlAllAssetsProvider(site)`, events / trail / floors / plans / zones / device plots, `locateSessionFactoryProvider`,
+  `locateConnectorProvider`). Pure rules `data/tracking/rtl_logic.dart` (`chooseFloorPlan`, `placeAssets` = asset at its
+  `location.gatewayId`'s DEVICE plot (itemId / code / deviceId, case-insensitive), `fanOffsets` / `rtlFanLimit` 6 then a
+  count bubble, `rtlStatusOf`, `isRestrictedZone`, `rtlFloorOptions`). Never invent positions: unplotted → "Not on this
+  floor plan". Map = `RtlFloorMap` (rtl_map.dart), card = `showRtlAssetSheet`, events = rtl_events.dart (+ `/more/tracking/
+  location-events`), Locate = locate_panel.dart (`showLocateAssetSheet`, `showLocatePanel`). LED / buzzer rules + exact
+  frames `data/tracking/locate_commands.dart`; socket `data/tracking/locate_session.dart` (`/ws/locate`, Bearer header,
+  401 → fresh token → `?access_token=`; never log the token; NO MQTT). Tracking / Administration clients add `clientId` /
+  `tenantId` (`tenantQuery` in api_client.dart; from `CurrentUser` / `TokenPair`). More Actions (API) shows "Locate (blink /
+  beep)" when the overview knows the asset's tag. Tests: `test/live/rtl_test.dart` (+ `rtl_samples.dart`).
 - Scan (prompt 07): `features/assets/scan/` — `scan_screen.dart` (QR camera + simulated NFC/RFID/BLE, Manual Entry, Multi Scan,
   debug "Simulate scan" chip), `scan_result_screen.dart` (Asset Identified), `scan_history_screen.dart`. Every scan goes
   through `openScannedCode` (`scan_flow.dart`), which records history and routes. Code matching = `ScanHistoryNotifier.resolve`

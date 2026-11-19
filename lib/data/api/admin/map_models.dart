@@ -42,9 +42,14 @@ class MapFloorPlan {
     this.currentVersion = '',
     this.status,
     this.publishedAt,
+    this.updatedAt,
+    this.createdAt,
     this.zoneCount = 0,
     this.plotCount = 0,
   });
+
+  /// Newest-plan order when no plan is published (Real-Time Location floor rule).
+  final DateTime? updatedAt, createdAt;
 
   final String floorPlanId, locationId, locationType, name, type, format, fileName, currentVersion;
   final String? locationPath, description, fileUrl, scale, status;
@@ -78,6 +83,8 @@ class MapFloorPlan {
     currentVersion: _s(j, 'currentVersion'),
     status: _o(j, 'status'),
     publishedAt: jUtc(j['publishedAt']),
+    updatedAt: jUtc(j['updatedAt']),
+    createdAt: jUtc(j['createdAt']),
     zoneCount: jInt(j['zoneCount']) ?? 0,
     plotCount: jInt(j['plotCount']) ?? 0,
   );

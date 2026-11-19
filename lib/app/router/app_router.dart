@@ -76,6 +76,7 @@ import 'package:asset360_mobile/features/more/sync/syncing_screen.dart';
 import 'package:asset360_mobile/features/more/account/data_check_screen.dart';
 import 'package:asset360_mobile/features/more/tracking/asset_tracking_screen.dart';
 import 'package:asset360_mobile/features/more/tracking/live/live_sensor_alert_screens.dart';
+import 'package:asset360_mobile/features/more/tracking/live/rtl/rtl_events.dart';
 import 'package:asset360_mobile/features/more/tracking/telemetry_view.dart';
 import 'package:asset360_mobile/features/more/tracking/tracking_hub_screen.dart';
 import 'package:asset360_mobile/features/more/tracking/tracking_pages.dart';
@@ -518,6 +519,14 @@ GoRoute _moreRoute() => GoRoute(
           builder: (_, state) => LiveSensorScreen(sensorId: state.pathParameters['sensorId']!),
         ),
         GoRoute(path: 'alerts', builder: (_, _) => const LiveTrackingAlertsScreen()),
+        GoRoute(
+          path: 'location-events',
+          builder: (_, state) => RtlEventsScreen(
+            range: state.uri.queryParameters['range'],
+            eventType: state.uri.queryParameters['type'],
+            siteId: state.uri.queryParameters['site'],
+          ),
+        ),
         GoRoute(
           path: 'asset/:assetId',
           builder: (_, state) => AssetTrackingScreen(

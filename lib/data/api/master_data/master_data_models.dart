@@ -38,10 +38,11 @@ abstract class MdEntry {
   bool get isActive => status == null || status!.trim().toLowerCase() == 'active';
 }
 
-/// Parses a list reply: entries with neither id nor name are skipped; inactive ones too.
+/// Parses a list reply: entries with neither id nor name are skipped; inactive ones too, and rows
+/// flagged `isDeleted: true` (soft-deleted; their status may still read Active).
 List<T> mdParseList<T extends MdEntry>(Object? body, T Function(Map<String, dynamic>) parse) => [
   for (final e in jItems(body))
-    if (e is Map) parse(jMap(e)),
+    if (e is Map && e['isDeleted'] != true) parse(jMap(e)),
 ].where((e) => (e.id.isNotEmpty || e.name.isNotEmpty) && e.isActive).toList();
 
 String _s(Map<String, dynamic> j, String key) => jStr(j[key])?.trim() ?? '';
@@ -607,7 +608,7 @@ class MdSite extends _Simple {
 
   factory MdSite.fromJson(Map<String, dynamic> j) => MdSite(
     id: _s(j, 'id'),
-    name: _s(j, 'siteName'),
+    name: jStr(j['siteName'])?.trim() ?? _s(j, 'name'),
     code: _s(j, 'code'),
     siteType: jStr(j['siteType']),
     city: jStr(j['city']),
@@ -619,6 +620,8 @@ class MdSite extends _Simple {
     status: jStr(j['status']),
   );
 }
+
+MdRef? _idRef(String? id) => id == null ? null : MdRef(id: id.trim());
 
 /// GET /api/master-data/buildings | floors | zones (`BuildingResponse`, `FloorResponse`,
 /// `ZoneResponse`): the "space" records, with capacity and area. Buildings and floors carry
@@ -660,7 +663,8 @@ class MdSpace extends _Simple {
     id: _s(j, 'id'),
     name: _s(j, 'name'),
     code: _s(j, 'code'),
-    site: MdRef.fromJson(j['site']),
+    // `site` is {id, name} or just the site id; some rows send `siteId`.
+    site: MdRef.fromJson(j['site']) ?? _idRef(jStr(j['site']) ?? jStr(j['siteId'])),
     buildingId: jStr(j['buildingId']),
     buildingName: jStr(j['buildingName']),
     floorId: jStr(j['floorId']),

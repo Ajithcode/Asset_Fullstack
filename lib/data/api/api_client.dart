@@ -87,20 +87,39 @@ final dashboardClientProvider = Provider<ApiClient>(
   (ref) => ApiClient(ref.watch(dashboardDioProvider), service: BackendService.dashboard),
 );
 
-/// The same wrapper for the Administration service.
+/// The same wrapper for the Administration service (every call adds [tenantQuery]).
 final adminClientProvider = Provider<ApiClient>(
-  (ref) => ApiClient(ref.watch(adminDioProvider), service: BackendService.admin),
+  (ref) => ApiClient(ref.watch(adminDioProvider), service: BackendService.admin, tenantQuery: () => tenantQuery(ref)),
 );
 
-/// The same wrapper for the Tracking service.
+/// The same wrapper for the Tracking service (every call adds [tenantQuery]).
 final trackingClientProvider = Provider<ApiClient>(
-  (ref) => ApiClient(ref.watch(trackingDioProvider), service: BackendService.tracking),
+  (ref) =>
+      ApiClient(ref.watch(trackingDioProvider), service: BackendService.tracking, tenantQuery: () => tenantQuery(ref)),
 );
+
+/// `clientId` / `tenantId` of the signed-in user (verify-totp / auth/me `user`), as the web's
+/// `tenantParams()` sends them on every Tracking / Administration call. Unknown values are left out.
+Map<String, String> tenantQuery(Ref ref) {
+  final s = ref.read(authProvider);
+  if (s is! AuthSignedIn) return const {};
+  return {'clientId': ?s.user.clientId, 'tenantId': ?s.user.tenantId};
+}
 
 class ApiClient {
-  const ApiClient(this.dio, {this.checkConfig = true, this.service = BackendService.asset});
+  const ApiClient(this.dio, {this.checkConfig = true, this.service = BackendService.asset, this.tenantQuery});
 
   final Dio dio;
+
+  /// Query parameters added to every call (Tracking / Administration: `clientId` + `tenantId`).
+  /// A parameter the caller passes itself wins.
+  final Map<String, String> Function()? tenantQuery;
+
+  Map<String, dynamic>? _query(Map<String, dynamic>? query) {
+    final extra = tenantQuery?.call() ?? const {};
+    if (extra.isEmpty) return query;
+    return {...extra, ...?query};
+  }
 
   /// Which base URL must be configured before a call ([BackendService.configProblem]).
   final BackendService service;
@@ -109,16 +128,16 @@ class ApiClient {
   final bool checkConfig;
 
   Future<Response<T>> get<T>(String path, {Map<String, dynamic>? query}) =>
-      _guard(() => dio.get<T>(path, queryParameters: query));
+      _guard(() => dio.get<T>(path, queryParameters: _query(query)));
 
   Future<Response<T>> post<T>(String path, {Object? data, Map<String, dynamic>? query}) =>
-      _guard(() => dio.post<T>(path, data: data, queryParameters: query));
+      _guard(() => dio.post<T>(path, data: data, queryParameters: _query(query)));
 
   Future<Response<T>> put<T>(String path, {Object? data, Map<String, dynamic>? query}) =>
-      _guard(() => dio.put<T>(path, data: data, queryParameters: query));
+      _guard(() => dio.put<T>(path, data: data, queryParameters: _query(query)));
 
   Future<Response<T>> delete<T>(String path, {Object? data, Map<String, dynamic>? query}) =>
-      _guard(() => dio.delete<T>(path, data: data, queryParameters: query));
+      _guard(() => dio.delete<T>(path, data: data, queryParameters: _query(query)));
 
   Future<Response<T>> _guard<T>(Future<Response<T>> Function() call) async {
     final problem = checkConfig ? service.configProblem : null;

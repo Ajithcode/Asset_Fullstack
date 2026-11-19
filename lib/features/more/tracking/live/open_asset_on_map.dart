@@ -6,9 +6,12 @@ import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/api/api_config.dart' show apiMode;
 import 'package:asset360_mobile/data/repositories/asset_map_repository.dart';
+import 'package:asset360_mobile/data/repositories/rtl_repository.dart' show RtlAsset, rtlAssetProvider;
 
 /// THE "View on Map" / "Show on map" action (asset detail, More Actions, scan result, Asset
-/// Tracking). API mode opens the Live Map focused on the asset ([resolveAssetMapTarget]):
+/// Tracking). API mode: an asset in the Real-Time Location overview opens the Real-Time Location
+/// map on its floor, zoomed to its marker. Otherwise the Live Map "Locations" view
+/// ([resolveAssetMapTarget]):
 /// - on a floor plan (its plot, or its live zone via its tag) → that plan, zoomed + highlighted;
 /// - else coordinates → the outdoor map centred on its marker, card open;
 /// - else a SnackBar "This asset has no map location yet".
@@ -19,6 +22,17 @@ Future<void> openAssetOnMap(BuildContext context, String assetId) async {
     return;
   }
   final c = ProviderScope.containerOf(context, listen: false);
+  RtlAsset? rtl;
+  try {
+    rtl = await c.read(rtlAssetProvider(assetId).future);
+  } catch (_) {
+    rtl = null;
+  }
+  if (!context.mounted) return;
+  if (rtl != null) {
+    context.push(Routes.trackingMap(view: 'rtl', asset: rtl.assetId));
+    return;
+  }
   final target = await resolveAssetMapTarget(c, assetId);
   if (!context.mounted) return;
   switch (target) {

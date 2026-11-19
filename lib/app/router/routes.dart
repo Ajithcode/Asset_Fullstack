@@ -160,7 +160,7 @@ abstract final class Routes {
       '/more/tracking/asset/$assetId/chart?metric=$metric${range == null ? '' : '&range=$range'}';
   static const trackingActivity = '/more/tracking/activity';
 
-  /// API mode Live Map: [view] = outdoor | floor; [location] = Master Data site / building / floor
+  /// API mode Live Map: [view] = rtl (Real-Time Location, [asset] focused) | locations (the location tree / floor plans) | outdoor | floor; [location] = Master Data site / building / floor
   /// id whose published plan to show; [zone] = floor-plan zone id to highlight; [geofence] = GPS
   /// geofence id to focus.
   /// [asset] = registration id to focus (View on Map); [plot] = its plot key on the plan.
@@ -189,6 +189,12 @@ abstract final class Routes {
 
   /// API mode IoT alerts (Tracking service).
   static const trackingAlerts = '/more/tracking/alerts';
+
+  /// API mode Real-Time Location events, paged ("View all").
+  static String trackingEvents({String? range, String? type, String? site}) => Uri(
+    path: '/more/tracking/location-events',
+    queryParameters: {'range': ?range, 'type': ?type, 'site': ?site},
+  ).toString().replaceFirst(RegExp(r'\?$'), '');
   static const addGeofence = '/more/tracking/zones/new';
   static const inventory = '/more/inventory';
   static String partDetail(String partId) => '/more/inventory/part/$partId';

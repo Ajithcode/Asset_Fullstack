@@ -12,6 +12,8 @@ import 'package:asset360_mobile/data/repositories/live_assets_repository.dart';
 import 'package:asset360_mobile/features/assets/live/live_detail_common.dart';
 import 'package:asset360_mobile/features/assets/more_actions/more_action_widgets.dart';
 import 'package:asset360_mobile/features/assets/more_actions/more_actions_screen.dart';
+import 'package:asset360_mobile/data/repositories/rtl_repository.dart' show rtlAssetProvider;
+import 'package:asset360_mobile/features/more/tracking/live/rtl/locate_panel.dart';
 
 /// More Actions in API mode: the asset from the Asset service (`?asset=` = registration ID or any
 /// tag code, a search, or a scan resolved through GET …/lookup) and the ten actions; those without a
@@ -94,6 +96,10 @@ class _LiveMoreActionsScreenState extends ConsumerState<LiveMoreActionsScreen> {
     final assetAsync = id == null ? null : ref.watch(liveAssetProvider(id));
     final asset = assetAsync?.value;
     final favorites = ref.watch(liveFavoritesProvider);
+    // Locate (blink / beep): only for an asset whose tag the Real-Time Location overview knows, and
+    // never a Tracking call while Tracking is not licensed.
+    final trackingLicensed = ref.watch(licenceProvider.select((l) => l.isLicensed(AppModule.tracking)));
+    final tracked = id == null || !trackingLicensed ? null : ref.watch(rtlAssetProvider(id)).value;
     final loading = (idAsync?.isLoading ?? false) || (assetAsync?.isLoading ?? false);
     final error = idAsync?.error ?? assetAsync?.error;
     return ScanTargetScope(
@@ -138,6 +144,20 @@ class _LiveMoreActionsScreenState extends ConsumerState<LiveMoreActionsScreen> {
                 ],
               ),
             ),
+            if (tracked != null && tracked.hasTags) ...[
+              const SizedBox(height: 12),
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  key: const ValueKey('more-locate'),
+                  leading: Icon(Icons.wb_twilight_rounded, color: AppColors.primary),
+                  title: const Text('Locate (blink / beep)'),
+                  subtitle: Text('Make tag ${tracked.tags.first} blink or beep', style: AppText.caption),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => showLocatePanel(context, tracked),
+                ),
+              ),
+            ],
           ],
         ),
       ),
