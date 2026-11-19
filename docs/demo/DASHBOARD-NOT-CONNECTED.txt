@@ -1,0 +1,169 @@
+DASHBOARD - DATA SOURCES AND WHAT IS NOT CONNECTED
+===================================================
+Date: 2026-11-18
+Sources: docs/DEMO-AUDIT.md + read-only code check of
+  frontend demo/customer     @ e8a04651 (= origin/demo/customer)
+  backend  demo/customer-api @ cbaae651
+Visible Dashboard pages (sidebar.ts:95-100): IoT & Tracking Overview, Asset Overview.
+Not in menu (not audited): /dashboard/reports (DEMO-HIDDEN, sidebar.ts:98-99), /dashboard/widgets (old page, not linked).
+
+Paths: FE = frontend/projects/dashboard/src/app/   BE = backend/Services/Asset/Api/A360.Asset.Api/
+Service = FE services/dashboard/dashboard.ts.  /ad = /api/asset-dashboard (Asset service, BE Endpoints/AssetDashboardEndpoints.cs)
+
+Source legend:
+  REAL API      = values come from a backend route (REAL-EMPTY in DEMO-AUDIT = wired, but dev DB has no data -> "No data available")
+  HARDCODED LIST= options/labels from a constant in the frontend
+  MOCK          = invented numbers in the frontend (none left on the 2 visible pages)
+  DISABLED      = control shown but not usable
+  NO API        = no backend exists; placeholder shown
+  UI-ONLY       = filter/toggle changes the view client-side only, no request parameter
+
+Filter effect column: API = selecting changes the request (param named); CLIENT = filters data already loaded in the browser;
+                      NONE = selection has no effect on this item.
+
+
+1) IoT & TRACKING OVERVIEW  (/dashboard/iot-tracking-overview; FE iot-tracking-overview/*)
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+Item                                | Type     | Source         | Route / location                                        | Period / Site / Type / Status effect + missing
+------------------------------------|----------|----------------|---------------------------------------------------------|---------------------------------------------------------------
+Period "Last 7/30/90 Days"          | dropdown | HARDCODED LIST | html:14 ['7','30','90']                                 | API: sends days= to kpis, utilization, alerts, events-timeline,
+                                    |          |                |                                                         | location-updates, device-connectivity (ts:430-438). BE /filters
+                                    |          |                |                                                         | also returns [7,30,90] but is not called.
+Site                                | dropdown | REAL API       | GET /api/master-data/sites?clientId= + /ad/locations    | API: siteId= (master-data id) on /ad/sites, firmware,
+                                    |          |                | (ts:197-200, 267-281)                                   | sensors-attention, health-scores, utilization, alerts,
+                                    |          |                |                                                         | events-timeline, location-updates (ts:203-237).
+                                    |          |                |                                                         | NOT sent to kpis, device-connectivity, locations (see NOT CONNECTED)
+Asset Type                          | dropdown | REAL API       | GET /api/master-data/asset-types (ts:284-298)           | API: assetType= on the same calls as Site.
+Status (Online/Idle/Offline/Unknown)| dropdown | HARDCODED LIST | iot-overview-data.ts:39 STATUSES                        | API: status= on the same calls as Site. List matches BE
+                                    |          |                |                                                         | AssetDashboardFilter.Statuses (Contracts:47); /ad/filters unused.
+Export Report                       | button   | client-side    | ts:1087 (xlsx of already loaded data)                   | No API; exports current filters + loaded values.
+KPI Connected Assets (+% change)    | KPI      | REAL API       | GET /ad/kpis?days=                                       | Period: API. Site/Type/Status: NONE (BE accepts them, FE does not
+                                    |          |                |                                                         | send). REAL-EMPTY on dev (0).
+KPI Online Now (%)                  | KPI      | REAL API       | GET /ad/kpis?days=                                       | Same as above.
+KPI Alerts (count)                  | KPI      | REAL API       | GET /ad/kpis?days=                                       | Same as above.
+KPI Alerts "n Critical"             | KPI      | REAL API       | GET /ad/alerts?days=&limit=500 (+filters)               | Period + Site/Type/Status: API. Count can differ from Alerts KPI
+                                    |          |                |                                                         | when filters set (kpis unfiltered, alerts filtered).
+KPI Coverage % / Data Freshness %   | KPI      | REAL API       | GET /ad/kpis?days= (connectedAssetDetails for drill)    | Period: API. Site/Type/Status: NONE.
+Real-time Asset Location (map)      | map      | REAL API       | GET /ad/sites?siteId=&assetType=&status=                 | Filters: API. No period. Dev assets have no coordinates (note shown).
+                                    |          |                |                                                         | Base tiles: ArcGIS World Imagery (ts:716), external.
+Map legend Online/Idle/Offline/Alert| chart    | REAL API       | counts from /ad/sites + /ad/alerts                       | Click opens drill; "Filter dashboard to X" sets Status (API).
+Map zoom / reset buttons            | toggle   | UI-ONLY        | html:70-72                                              | View control only.
+Top Active Sites (+ View All)       | widget   | REAL API       | GET /ad/locations (no top=, no filters)                 | Filters: NONE (BE accepts them). Period: NONE. View All = UI-only.
+Site popup                          | drill    | REAL API       | GET /ad/sites/{siteId}                                   | Click also toggles Site filter (API).
+Device Connectivity donut           | chart    | REAL API       | GET /ad/device-connectivity?days=                        | Period: FE sends days, BE ignores it (no days param, Endpoints:626)
+                                    |          |                |                                                         | -> UI-only. Site/Type/Status: NONE (BE supports, FE doesn't send).
+                                    |          |                |                                                         | REAL-EMPTY on dev.
+Firmware Updates                    | widget   | REAL API       | GET /ad/firmware (+filters)                             | Filters: API. No period. REAL-EMPTY on dev.
+Asset Health Score donut            | chart    | REAL API       | GET /ad/health-scores (+filters)                        | Filters: API. No period. Dev: all Unknown -> "No data available".
+Utilization Rate (by Asset Type)    | chart    | REAL API       | GET /ad/utilization?days= (+filters)                    | Period + filters: API. REAL-EMPTY on dev.
+IoT Events Timeline                 | chart    | REAL API       | GET /ad/location-updates?days=k (k=1..n, +filters)      | Filters: API. REAL-EMPTY on dev.
+                                    |          |                | + GET /ad/events-timeline?days= (+filters)              |
+Timeline period (7/30/90)           | dropdown | HARDCODED LIST | html:179                                                | API: days= on location-updates (n calls) + events-timeline.
+                                    |          |                |                                                         | Main Period also resets it (ts:432).
+Timeline series toggles             | toggle   | UI-ONLY        | html:202, series labels iot-overview-data.ts:42-47      | Shows/hides lines only.
+Sensors Requiring Attention         | widget   | REAL API       | GET /ad/sensors-attention (+filters)                    | Filters: API. No period. REAL-EMPTY on dev.
+Quick Actions (3 buttons)           | widget   | NO API (nav)   | html:218-220                                            | Navigation links only.
+Recent Alerts & Exceptions (table)  | table    | REAL API       | GET /ad/alerts?days=&limit=500 (+filters)               | Period + filters: API. REAL-EMPTY on dev. Sort, View All, pager =
+                                    |          |                |                                                         | UI-only over max 500 loaded rows.
+Alert actions Ack/Start/Resolve     | action   | REAL API       | PATCH /api/iot-alerts/{id}/status (Tracking service)    | Status values hardcoded html:250-252; persisted.
+Asset Quick View (4 tabs)           | widget   | REAL API       | GET /api/asset-registrations(?page=1&pageSize=200),     | Not affected by filters. Tabs = UI-only. Connectivity from /ad/kpis.
+                                    |          |                | GET /api/asset-registrations/{id}                       |
+
+
+2) ASSET OVERVIEW  (/dashboard/asset-overview; FE asset-overview/*)
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+Note: on this page Site/Category/Type/Status are applied mostly CLIENT-side to the asset list from GET /ad/statuses
+(apply()/inScope(), ts:289-324). Only Health Distribution (siteId, assetType) and the site map (assetType) send filter params.
+KPI window is fixed at 30 days (ts:62 KPI_DAYS); no period selector.
+
+Item                                | Type     | Source         | Route / location                                        | Site / Category / Type / Status effect + missing
+------------------------------------|----------|----------------|---------------------------------------------------------|---------------------------------------------------------------
+"As of Today"                       | dropdown | HARDCODED LIST | html:14 (only working option)                           | No effect on any request.
+"30 Days Ago" / "90 Days Ago"       | dropdown | DISABLED       | html:16-17 ("No history API yet")                       | NO API: no portfolio history/snapshot endpoint.
+Site                                | dropdown | REAL API       | GET /api/master-data/sites + site names from /ad/statuses| CLIENT for list/status/insights/aging/table; API siteId= only on
+                                    |          |                | (ts:257-260, 342-353)                                   | health-scores. Map: highlight only.
+Asset Category                      | dropdown | REAL API       | GET /ad/categories + /api/master-data/asset-types       | CLIENT only (no API takes a category param). Narrows Type list.
+                                    |          |                | (ts:263-269)                                            |
+Asset Type                          | dropdown | REAL API       | GET /api/master-data/asset-types (ts:272-276)           | CLIENT + API assetType= on health-scores and location-updates (map).
+Asset Status                        | dropdown | HARDCODED LIST | asset-overview-data.ts:20 STATUSES (6) + extra statuses | CLIENT only.
+                                    |          | + REAL API     | returned by /ad/statuses (ts:279-282)                   |
+Export Report                       | button   | client-side    | ts:1058 (xlsx of loaded data)                           | No API.
+KPI Total Assets (+change)          | KPI      | REAL API       | GET /ad/statuses?includeAssets=true; change from        | Filters: NONE (KPIs use unfiltered totals, ts:460-483).
+                                    |          |                | GET /api/asset-performance/summary?datePreset=Last 30 days (Report Analytics) |
+KPI Active Assets                   | KPI      | REAL API       | GET /ad/statuses                                        | Filters: NONE.
+KPI Assets Under Maintenance        | KPI      | REAL API       | GET /ad/statuses                                        | Filters: NONE.
+KPI Critical Assets                 | KPI      | REAL API       | GET /ad/critical-assets                                 | Filters: NONE.
+KPI Avg Asset Health Score          | KPI      | REAL API       | GET /api/asset-performance/summary?datePreset=          | Filters: NONE. REAL-EMPTY on dev (no condition assessments).
+KPI Lifecycle Value                 | KPI      | NO API         | html:63-66 shows "–" / "No data available"              | Missing: lifecycle / book value per asset endpoint.
+Asset Portfolio by Category         | chart    | REAL API       | GET /ad/categories                                      | Filters: NONE (always whole portfolio). Icons/colours hardcoded
+                                    |          |                |                                                         | asset-overview-data.ts:12-19 (display only). Click sets Category.
+Asset Health Distribution           | chart    | REAL API       | GET /ad/health-scores?siteId=&assetType=                | Site/Type: API. Category/Status: NONE. Dev: all Unknown.
+Asset Status Overview               | chart    | REAL API       | GET /ad/statuses?includeAssets=true                     | CLIENT filter. Status names: hardcoded list + API extras.
+Quick Insights: Critical            | widget   | REAL API       | GET /ad/critical-assets                                 | CLIENT filter.
+Quick Insights: No custodian        | widget   | REAL API       | GET /ad/assets-without-custodian                        | CLIENT filter.
+Quick Insights: Missing documents   | widget   | REAL API       | GET /ad/assets-without-documents                        | CLIENT filter.
+Quick Insights: Due for maintenance | widget   | REAL API       | GET /ad/assets-due-maintenance?days=30 (fixed, ts:118)  | CLIENT filter. REAL-EMPTY on dev.
+Quick Actions (3 buttons)           | widget   | NO API (nav)   | html:155-157                                            | Navigation links only.
+Asset Distribution by Site (map)    | map      | REAL API       | GET /ad/locations + /api/master-data/sites +            | Type: API (assetType=). Site/Category/Status: highlight only (UI).
+                                    |          |                | GET /ad/location-updates?days=30&siteId=&assetType= (1 per site) | Dev sites have no coordinates. Tiles: OpenStreetMap (ts:796).
+"View All Sites" / "Show Map"       | toggle   | UI-ONLY        | html:165                                                | Switches map/table view.
+Asset Lifecycle Aging               | chart    | REAL API       | GET /ad/aging                                           | CLIENT filter (bands narrowed by asset ids, ts:700).
+Assets table (+insight, View All,   | table    | REAL API       | insight endpoints above (default critical-assets)       | CLIENT filter; insight selection, View All, pager = UI-only.
+ Clear, pager)                      |          |                |                                                         |
+Asset Quick View (5 tabs)           | widget   | REAL API       | GET /api/asset-registrations(/{id}); connectivity from  | Not affected by filters. Tabs = UI-only.
+                                    |          |                | GET /ad/kpis?days=30                                    |
+
+
+3) MOCK DATA
+------------
+None on the two visible pages: both *-data.ts files hold only types, colours and the status lists noted above
+(confirmed in code; DEMO-AUDIT.md lists all former mocks as replaced).
+
+
+NOT CONNECTED
+=============
+Everything that is not "REAL API with the filters sent to the API":
+
+NO API / DISABLED
+ 1. Asset Overview - KPI Lifecycle Value: NO API (placeholder "–"). Needs a lifecycle/book-value endpoint.
+ 2. Asset Overview - "As of" 30 Days Ago / 90 Days Ago: DISABLED. Needs a portfolio history/snapshot API.
+ 3. Asset Overview - "As of Today": only option; no request parameter (cosmetic).
+ 4. Quick Actions on both pages: navigation buttons only (no data, by design).
+
+HARDCODED OPTION LISTS (options not from an API)
+ 5. IoT - Period 7/30/90: html:14 (BE GET /ad/filters returns the same days but is never called).
+ 6. IoT - Timeline period 7/30/90: html:179.
+ 7. IoT - Status Online/Idle/Offline/Unknown: iot-overview-data.ts:39 (selection IS sent as status=).
+ 8. Asset Overview - Asset Status: asset-overview-data.ts:20 (6 fixed values + extras from /ad/statuses).
+ 9. Asset Overview - "As of" options: html:14-17.
+10. Asset Overview - category icons/colours: asset-overview-data.ts:12-19 (display only; categories come from API).
+11. IoT - alert status actions (Acknowledged / In Progress / Resolved): html:250-252 (persisted via PATCH).
+
+FILTERS THAT DO NOT REACH THE API (UI-only / no effect)
+IoT & Tracking Overview:
+12. Site/Asset Type/Status not sent to GET /ad/kpis -> 5 KPI cards ignore them (BE supports siteId/assetType/status).
+13. Site/Asset Type/Status not sent to GET /ad/device-connectivity -> donut ignores them (BE supports them).
+14. Period on Device Connectivity: FE sends days=, BE endpoint has no days param -> period has no effect.
+15. Site/Asset Type/Status not sent to GET /ad/locations -> Top Active Sites ignores them (BE supports them).
+16. Asset Quick View ignores all filters.
+17. UI-only toggles: timeline series, map zoom/reset, Top Sites View All, alerts sort/View All/pager (client-side over
+    max 500 rows from /ad/alerts?limit=500).
+Asset Overview:
+18. All 6 KPI cards ignore Site/Category/Type/Status (computed from unfiltered API totals).
+19. Asset Portfolio by Category ignores all filters (GET /ad/categories has no filter params).
+20. Asset Category filter: client-side only on every widget (no API accepts category).
+21. Asset Status filter: client-side only (no API call takes it).
+22. Site filter: client-side only except Health Distribution (siteId=); on the site map it only highlights.
+23. Asset Type: client-side except Health Distribution and site map (assetType=).
+24. Asset Status Overview, Quick Insights (4), Assets table, Lifecycle Aging: filtered client-side from full API lists
+    (no filter params on /ad/statuses, critical-assets, assets-without-custodian, assets-without-documents,
+    assets-due-maintenance, aging - although BE aging/assets-due-maintenance accept AssetDashboardFilter).
+25. Health Distribution ignores Category and Status.
+26. Site map ignores Site/Category/Status (highlight only).
+27. Assets due for maintenance window fixed at 30 days (ts:118); KPI window fixed at 30 days (ts:62), no selector.
+28. Asset Quick View ignores all filters; tabs, View All Sites/Show Map, table pager = UI-only.
+
+WIRED BUT EMPTY ON DEV (REAL API, no data in Asset360Dev - not a code gap, listed for the demo)
+29. IoT: all 5 KPIs (0), Device Connectivity, Firmware, Utilization, Events Timeline, Sensors Requiring Attention,
+    Recent Alerts; Health Score (all Unknown); map has no coordinates.
+30. Asset Overview: Avg Asset Health Score, Due for maintenance; Health Distribution (all Unknown); site map has no coordinates.

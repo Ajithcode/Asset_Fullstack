@@ -1,0 +1,85 @@
+ASSETS > ASSET REGISTRATION + ASSET LIST - data sources (demo)
+Branch: frontend demo/customer e9613024 (backend demo/customer-api unchanged)
+Tested 2026-11-18 on the dev stack (a360demo, DB Asset360Dev) as crit_admin, headless Chromium, 0 console errors.
+Routes are relative to the gateway (/api/...). MD = /api/master-data.
+
+CONNECTED (item -> route)
+  Asset List
+    Table rows, search, sort, pagination, status cards -> GET /api/asset-registrations (page, pageSize, search, sort; summary)
+    Filters: category, type, status, location, department, custodian, criticality -> GET /api/asset-registrations/filters
+    Export / Export selected (CSV, built in the browser) -> GET /api/asset-registrations (all matching)
+    View Details -> /assets/overview?id= (asset detail page)
+    Edit Asset -> /assets/registration?id= ; GET /api/asset-registrations/{id} + PUT /api/asset-registrations/{id}
+    Delete Asset (NEW in UI; endpoint existed) -> DELETE /api/asset-registrations/{id} (soft delete)
+    Assign/Transfer, Location History, Schedule Maintenance, Dispose -> open those modules (unchanged)
+  Asset Registration
+    Step 1 Basic: Status, and the fixed lists below -> GET /api/asset-registrations/options
+                  Condition -> GET MD/conditions; Criticality -> GET MD/criticalities
+                  Manufacturer, Model -> GET MD/manufacturers, MD/asset-models
+                  Asset image upload -> POST /api/media/upload (category asset-images)
+    Step 2 Classification: Category, Sub Category -> GET /api/asset-categories (?parentCategoryId=)
+                  Asset Type -> GET /api/asset-category-types?categoryId=
+                  Department -> MD/departments; Business Unit -> MD/business-units
+                  Function/Purpose, Tagging Method, Compliance Category, Lifecycle Stage -> /options
+    Step 3 Location: Country/Site/Building/Floor/Zone/Room -> MD/sites, buildings, floors, zones, locations (rooms)
+                  Custodian Department -> MD/departments; Assigned To -> MD/employees (by department)
+                  Responsible Team -> MD/teams; Ownership Type -> /options
+                  Floor plan image -> MD/floors imageUrl
+    Step 4 Purchase: Supplier/Vendor -> MD/suppliers; Manufacturer -> MD/manufacturers
+                  Quantity unit, Currency, Payment Terms, Procurement Method, Warranty type/coverage -> /options
+                  Purchase documents upload -> POST /api/media/upload (category asset-documents)
+    Step 5 Additional: spec units, IP rating, fuel, phase, shifts, utilization, standards -> /options
+                  Custom fields -> GET /api/asset-custom-fields?scope=Asset&status=Active
+                  Attachments upload -> POST /api/media/upload
+    Save as Draft / Next / Submit -> POST /api/asset-registrations/drafts, PUT .../drafts/{id}/{section}, POST .../drafts/{id}/submit
+    Edit mode save -> PUT /api/asset-registrations/{id}
+
+WAS MOCK NOW CONNECTED
+  Status list (4 built-in) -> /options statuses
+  Condition list (4 built-in) -> MD/conditions
+  Criticality fallback High/Medium/Low -> MD/criticalities only
+  Manufacturer fallback (Caterpillar, Siemens, Schneider) -> MD/manufacturers only
+  Supplier fallback (3 sample suppliers) -> MD/suppliers only
+  Custom fields (6 built-in samples) -> /api/asset-custom-fields
+  Image upload (base64 in browser only) -> /api/media/upload, URL saved with the asset
+  Documents/attachments (never sent) -> /api/media/upload, saved in documents/attachments
+  Floor plan placeholder map1.png -> floor imageUrl, else empty state
+  List "Edit Asset" (opened an empty form) -> edit mode with the asset loaded, saved with PUT
+  Bug fixed: Category / Sub Category / Asset Type called /api/master-data//api/asset-categories (404) -> now /api/asset-categories
+
+NEW APIs CREATED
+  None (all needed endpoints already existed). Delete action is new in the UI only.
+
+FOUND ON OTHER BRANCH (waiting)
+  None. Searched all remote branches (git fetch --all; git grep origin/*): no cost center or asset sub type API.
+
+MISSING-API (empty state)
+  Asset Sub Type (step 2): no sub type list in any service -> empty, disabled "No sub types" (built-in Generator/Transformer/UPS sub types removed)
+  Cost Center (steps 2 and 3): no cost center list in any service -> empty dropdown; an edited asset's saved value stays selectable
+
+BROKEN
+  None after the fix above. Registration, edit, image/document upload and delete all returned 2xx.
+
+EMPTY BECAUSE NO DATA (Asset360Dev)
+  Custom fields: 0 defined for scope Asset -> "No custom fields defined for assets (Assets > Custom Fields)."
+  Floor plans: 0 of 20 floors have an image -> "No floor plan uploaded for <floor> in Master Data."
+  List filter Custodian: 0 values (no registered asset has a custodian person)
+  Asset types: 1 (HVAC > Air Handling Units > AHU); categories: 2 top-level
+
+HARDCODED LISTS
+  Backend: A360.Asset.Api/Contracts/AssetRegistrationOptions.cs served by GET /api/asset-registrations/options
+    (statuses, function/purpose, tagging methods, compliance categories, lifecycle stages, ownership types,
+     quantity units, currencies, payment terms, procurement methods, warranty types, support coverage,
+     power/voltage/frequency/capacity/dimension/weight/temperature/noise/lifespan/hours units, phases, fuel types,
+     IP ratings, operating shifts, utilizations, maintenance frequency units, compliance standards, impact levels,
+     custom field types). Real API, fixed values in code; no master data screen for them.
+  Frontend: Asset List page sizes 5/10/20; list status cards (Active, Under Maintenance, In Repair, Disposed, Other).
+  Quick Actions scan/print dialog: browser-side (keyboard-wedge scanner, browser print), no API.
+
+SHARED FILES CHANGED
+  projects/assets/src/app/services/asset-dropdowns/asset-dropdown.ts (getConditions, getAssetCustomFields, floor imageUrl, URL fix)
+  projects/assets/src/app/services/asset-registration/asset-registration.ts (update, delete, lookupByTag, uploadFile)
+  Both only used inside the assets project. No backend change. Rebuilt: fe-assets only.
+
+TEST DATA
+  AR000018 (DEMO-AHU-111351) registered, edited and deleted during the test (soft deleted).
