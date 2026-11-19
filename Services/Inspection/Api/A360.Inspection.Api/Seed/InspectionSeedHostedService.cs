@@ -13,22 +13,30 @@ namespace A360.Inspection.Api.Seed;
 /// Inserts the sample Inspection data (matching the module mockups) on startup. Each collection is seeded
 /// only when it has no non-deleted documents, so existing data is never touched. After seeding, the code
 /// counters are raised past the seeded codes so the next generated reference does not collide.
+/// Turn it off with "Inspection:SeedSampleData": false.
 /// </summary>
 public sealed class InspectionSeedHostedService : BackgroundService
 {
     private const int MaxAttempts = 5;
 
     private readonly IMongoDatabase _database;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<InspectionSeedHostedService> _logger;
 
-    public InspectionSeedHostedService(IMongoDatabase database, ILogger<InspectionSeedHostedService> logger)
+    public InspectionSeedHostedService(IMongoDatabase database, IConfiguration configuration, ILogger<InspectionSeedHostedService> logger)
     {
         _database = database;
+        _configuration = configuration;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!_configuration.GetValue("Inspection:SeedSampleData", true))
+        {
+            return;
+        }
+
         for (var attempt = 1; attempt <= MaxAttempts && !stoppingToken.IsCancellationRequested; attempt++)
         {
             try
