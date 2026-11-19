@@ -148,6 +148,7 @@ public static class MasterDataSeedData
         var organization = Audit(new Organization
         {
             OrganizationName = "Asset360 Industries",
+            Code = "ORG-001",
             Type = "Corporate"
         }, now);
         set.Organizations.Add(organization);
