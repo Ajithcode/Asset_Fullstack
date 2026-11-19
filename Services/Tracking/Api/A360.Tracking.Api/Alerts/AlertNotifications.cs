@@ -67,6 +67,7 @@ public sealed class AlertNotifications(IMongoDatabase database)
                     .Set(a => a.Status, IoTAlertStatus.Acknowledged)
                     .Set(a => a.AcknowledgedAt, now)
                     .Set(a => a.AcknowledgedBy, string.IsNullOrWhiteSpace(userName) ? "Desktop notification" : userName)
+                    .Push(a => a.History, new IoTAlertHistoryEntry { At = now, By = string.IsNullOrWhiteSpace(userName) ? "Desktop notification" : userName, Action = IoTAlertStatus.Acknowledged, Note = "From the desktop notification" })
                     .Set(a => a.UpdatedAt, now)
                     .Set(a => a.UpdatedBy, userName), cancellationToken: cancellationToken);
             }

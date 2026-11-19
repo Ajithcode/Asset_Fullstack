@@ -79,6 +79,61 @@ public sealed class AlertRule : BaseEntity
     /// <summary>Play a sound with the notification.</summary>
     [BsonElement("notify_sound")]
     public bool NotifySound { get; set; } = true;
+
+    /// <summary>What the rule is for (free text).</summary>
+    [BsonElement("description")]
+    public string? Description { get; set; }
+
+    /// <summary>Specific assets (registration id or asset tag); empty = every asset of <see cref="AssetGroup"/>.</summary>
+    [BsonElement("asset_ids")]
+    public List<string> AssetIds { get; set; } = [];
+
+    /// <summary>"Unauthorized entry" trigger: assets of these groups may enter without an alert.</summary>
+    [BsonElement("authorized_groups")]
+    public List<string> AuthorizedGroups { get; set; } = [];
+
+    /// <summary>Custom schedule (<see cref="AlertRuleCondition.Custom"/>): weekdays Mon..Sun.</summary>
+    [BsonElement("schedule_days")]
+    public List<string> ScheduleDays { get; set; } = [];
+
+    /// <summary>Custom schedule start, "HH:mm" in the site time zone.</summary>
+    [BsonElement("schedule_from")]
+    public string? ScheduleFrom { get; set; }
+
+    /// <summary>Custom schedule end, "HH:mm" (may be before the start for overnight windows).</summary>
+    [BsonElement("schedule_to")]
+    public string? ScheduleTo { get; set; }
+
+    /// <summary>
+    /// Debounce / hysteresis: an entry counts only after the asset stayed this long, an exit only after it was gone this
+    /// long. Stops repeated alerts when an asset sits on the boundary between two gateways.
+    /// </summary>
+    [BsonElement("debounce_seconds")]
+    public int DebounceSeconds { get; set; }
+
+    /// <summary>No new alert of the same event for the same asset and rule within this many minutes.</summary>
+    [BsonElement("cooldown_minutes")]
+    public int CooldownMinutes { get; set; }
+
+    /// <summary>Escalate when the alert is still unacknowledged after this many minutes; null = no escalation.</summary>
+    [BsonElement("escalate_after_minutes")]
+    public int? EscalateAfterMinutes { get; set; }
+
+    /// <summary>Team / user the alert is escalated to.</summary>
+    [BsonElement("escalate_to")]
+    public string? EscalateTo { get; set; }
+
+    /// <summary>Resolve the rule's open alerts for an asset automatically when the asset leaves the zone.</summary>
+    [BsonElement("auto_resolve_on_exit")]
+    public bool AutoResolveOnExit { get; set; }
+
+    /// <summary>The rule applies from this date (UTC); null = immediately.</summary>
+    [BsonElement("effective_from")]
+    public DateTime? EffectiveFrom { get; set; }
+
+    /// <summary>The rule stops applying after this date (UTC); null = no end.</summary>
+    [BsonElement("effective_to")]
+    public DateTime? EffectiveTo { get; set; }
 }
 
 public static class AlertNotifyDefaults
@@ -96,18 +151,23 @@ public static class AlertRuleTrigger
     public const string Exits = "When asset exits zone";
     public const string EntersOrExits = "When asset enters or exits zone";
     public const string RemainsIn = "When asset remains in zone";
+    /// <summary>Enters while not in the rule's authorized groups.</summary>
+    public const string UnauthorizedEntry = "When unauthorized asset enters zone";
+    /// <summary>Was inside, and now no gateway at all hears it (not the same as leaving for another zone).</summary>
+    public const string LocationLost = "When asset location is lost in zone";
 
-    public static readonly IReadOnlyList<string> All = [Enters, Exits, EntersOrExits, RemainsIn];
+    public static readonly IReadOnlyList<string> All = [Enters, Exits, EntersOrExits, RemainsIn, UnauthorizedEntry, LocationLost];
 }
 
 public static class AlertRuleSeverity
 {
+    public const string Informational = "Informational";
     public const string Low = "Low";
     public const string Medium = "Medium";
     public const string High = "High";
     public const string Critical = "Critical";
 
-    public static readonly IReadOnlyList<string> All = [Low, Medium, High, Critical];
+    public static readonly IReadOnlyList<string> All = [Informational, Low, Medium, High, Critical];
 }
 
 public static class AlertRuleCondition
@@ -115,8 +175,11 @@ public static class AlertRuleCondition
     public const string AllHours = "During all hours";
     public const string WorkingHours = "During working hours";
     public const string OutsideWorkingHours = "Outside working hours";
+    /// <summary>Selected weekdays between <see cref="AlertRule.ScheduleFrom"/> and <see cref="AlertRule.ScheduleTo"/>.</summary>
+    public const string Custom = "Custom schedule";
 
-    public static readonly IReadOnlyList<string> All = [AllHours, WorkingHours, OutsideWorkingHours];
+    public static readonly IReadOnlyList<string> All = [AllHours, WorkingHours, OutsideWorkingHours, Custom];
+    public static readonly IReadOnlyList<string> Weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 }
 
 public static class AlertNotificationChannel
@@ -130,8 +193,10 @@ public static class AlertNotificationChannel
 
 public static class AlertRuleStatus
 {
+    /// <summary>Saved but not evaluated yet.</summary>
+    public const string Draft = "Draft";
     public const string Active = "Active";
     public const string Disabled = "Disabled";
 
-    public static readonly IReadOnlyList<string> All = [Active, Disabled];
+    public static readonly IReadOnlyList<string> All = [Draft, Active, Disabled];
 }

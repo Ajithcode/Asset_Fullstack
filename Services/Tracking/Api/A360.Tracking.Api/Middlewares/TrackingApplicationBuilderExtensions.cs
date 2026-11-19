@@ -41,6 +41,10 @@ public static class TrackingApplicationBuilderExtensions
         app.MapTelemetryReadingEndpoints();
         app.MapIoTEventEndpoints();
         app.MapPushEndpoints();
+        app.MapTrackingTelemetryEndpoints();
+        app.MapRealTimeLocationEndpoints();
+        app.MapGeofenceAlertsEndpoints();
+        app.MapSensorParameterEndpoints();
         app.MapLocating();
 
         return app;

@@ -63,6 +63,50 @@ public static class AlertRuleValidationExtensions
             errors["NotificationChannels"] = [$"NotificationChannels must each be one of: {string.Join(", ", AlertNotificationChannel.All)}"];
         }
 
+        if (request.Description?.Trim().Length > 500)
+        {
+            errors["Description"] = ["Description cannot be longer than 500 characters"];
+        }
+
+        var condition = ContractText.Canonical(request.Condition, AlertRuleCondition.All);
+        if (condition == AlertRuleCondition.Custom)
+        {
+            if ((request.ScheduleDays ?? []).Count(d => ContractText.Canonical(d, AlertRuleCondition.Weekdays) is not null) == 0)
+            {
+                errors["ScheduleDays"] = ["Choose at least one weekday for a custom schedule"];
+            }
+
+            if (!TimeSpan.TryParse(request.ScheduleFrom, out _) || !TimeSpan.TryParse(request.ScheduleTo, out _))
+            {
+                errors["ScheduleFrom"] = ["A custom schedule needs a start and end time (HH:mm)"];
+            }
+        }
+
+        if (ContractText.Canonical(request.Trigger, AlertRuleTrigger.All) == AlertRuleTrigger.UnauthorizedEntry && (request.AuthorizedGroups ?? []).All(string.IsNullOrWhiteSpace))
+        {
+            errors["AuthorizedGroups"] = ["Choose the asset groups that are allowed to enter"];
+        }
+
+        if (request.DebounceSeconds is < 0 or > 3600)
+        {
+            errors["DebounceSeconds"] = ["DebounceSeconds must be between 0 and 3600"];
+        }
+
+        if (request.CooldownMinutes is < 0 or > MaxDwellMinutes)
+        {
+            errors["CooldownMinutes"] = [$"CooldownMinutes must be between 0 and {MaxDwellMinutes}"];
+        }
+
+        if (request.EscalateAfterMinutes is > 0 && string.IsNullOrWhiteSpace(request.EscalateTo))
+        {
+            errors["EscalateTo"] = ["Choose who the alert is escalated to"];
+        }
+
+        if (request.EffectiveFrom is not null && request.EffectiveTo is not null && request.EffectiveTo < request.EffectiveFrom)
+        {
+            errors["EffectiveTo"] = ["The end date must be after the start date"];
+        }
+
         if (request.CreateAlert == false && request.NotifyTeam != true && request.StartWorkflow != true)
         {
             errors["Actions"] = ["At least one action must be selected: CreateAlert, NotifyTeam or StartWorkflow"];

@@ -71,6 +71,28 @@ public sealed class Geofence : BaseEntity
     /// <summary>Only used by circles.</summary>
     [BsonElement("radius_meters")]
     public double? RadiusMeters { get; set; }
+
+    /// <summary>Business category, e.g. Storage, Loading / Unloading; see <see cref="GeofenceCategory.Suggested"/> (other values allowed).</summary>
+    [BsonElement("category")]
+    public string? Category { get; set; }
+
+    /// <summary>Why the zone was last enabled / disabled.</summary>
+    [BsonElement("status_reason")]
+    public string? StatusReason { get; set; }
+
+    [BsonElement("status_changed_by")]
+    public string? StatusChangedBy { get; set; }
+
+    [BsonElement("status_changed_at")]
+    public DateTime? StatusChangedAt { get; set; }
+}
+
+public static class GeofenceCategory
+{
+    public static readonly IReadOnlyList<string> Suggested =
+    [
+        "Storage", "Production", "Maintenance", "Charging", "Loading / Unloading", "Parking", "Hazardous", "Restricted", "Custom"
+    ];
 }
 
 public sealed class GeofencePoint

@@ -164,6 +164,15 @@ public static class IoTAlertEndpoints
         alert.AcknowledgedBy = existing.AcknowledgedBy;
         alert.ResolvedAt = existing.ResolvedAt;
         alert.ResolvedBy = existing.ResolvedBy;
+        alert.GeofenceId = existing.GeofenceId;
+        alert.GeofenceName = existing.GeofenceName;
+        alert.RuleSeverity = existing.RuleSeverity;
+        alert.DurationSeconds = existing.DurationSeconds;
+        alert.AssignedTo = existing.AssignedTo;
+        alert.EscalatedAt = existing.EscalatedAt;
+        alert.EscalatedTo = existing.EscalatedTo;
+        alert.History = existing.History ?? [];
+        alert.Status = existing.Status;
         alert.ApplyStatus(ContractText.Canonical(request.Status, IoTAlertStatus.All) ?? existing.Status ?? IoTAlertStatus.Open, currentUser);
 
         if (!await repository.UpdateAsync(existing.Id, alert, cancellationToken))
@@ -196,8 +205,14 @@ public static class IoTAlertEndpoints
             return NotFound(alertId);
         }
 
+        var status = ContractText.Canonical(request.Status, IoTAlertStatus.All)!;
+        if (status == IoTAlertStatus.Assigned && string.IsNullOrWhiteSpace(request.AssignedTo) && string.IsNullOrWhiteSpace(alert.AssignedTo))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["AssignedTo"] = ["Choose who the alert is assigned to"] });
+        }
+
         var currentUser = currentUserAccessor.GetCurrentUser();
-        alert.ApplyStatus(ContractText.Canonical(request.Status, IoTAlertStatus.All)!, currentUser);
+        alert.ApplyStatus(status, currentUser, request.AssignedTo, request.Note);
         alert.UpdatedBy = currentUser?.UserName;
         alert.UpdatedAt = DateTime.UtcNow;
 

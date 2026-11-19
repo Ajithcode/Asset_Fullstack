@@ -50,25 +50,31 @@ public sealed record CreateIoTAlertRequest(
     }
 }
 
-/// <summary>Moves an alert through Open → Acknowledged → In Progress → Resolved (any order is allowed, e.g. reopening).</summary>
+/// <summary>
+/// Moves an alert through New (Open) → Acknowledged → Assigned → Investigating (In Progress) → Resolved → Closed
+/// (any order is allowed, e.g. reopening). Every change is added to the alert's history.
+/// </summary>
 /// <param name="Status">One of <see cref="IoTAlertStatus.All"/>.</param>
-public sealed record UpdateIoTAlertStatusRequest(string? Status);
+/// <param name="AssignedTo">User or team; required for Assigned, optional otherwise (keeps the current owner when empty).</param>
+/// <param name="Note">Optional comment for the history, e.g. the resolution.</param>
+public sealed record UpdateIoTAlertStatusRequest(string? Status, string? AssignedTo = null, string? Note = null);
 
 public static class IoTAlertStatusTransitions
 {
     /// <summary>Sets the status and stamps who acknowledged / resolved it; reopening clears the resolution.</summary>
-    public static void ApplyStatus(this IoTAlert alert, string status, CurrentUser? currentUser)
+    public static void ApplyStatus(this IoTAlert alert, string status, CurrentUser? currentUser, string? assignedTo = null, string? note = null)
     {
+        var previous = alert.Status;
         alert.Status = status;
         var now = DateTime.UtcNow;
 
-        if (status is IoTAlertStatus.Acknowledged or IoTAlertStatus.InProgress or IoTAlertStatus.Resolved && alert.AcknowledgedAt is null)
+        if (status != IoTAlertStatus.Open && alert.AcknowledgedAt is null)
         {
             alert.AcknowledgedAt = now;
             alert.AcknowledgedBy = currentUser?.UserName;
         }
 
-        if (status == IoTAlertStatus.Resolved)
+        if (status is IoTAlertStatus.Resolved or IoTAlertStatus.Closed)
         {
             alert.ResolvedAt ??= now;
             alert.ResolvedBy ??= currentUser?.UserName;
@@ -84,8 +90,33 @@ public static class IoTAlertStatusTransitions
             alert.AcknowledgedAt = null;
             alert.AcknowledgedBy = null;
         }
+
+        if (!string.IsNullOrWhiteSpace(assignedTo))
+        {
+            alert.AssignedTo = assignedTo.Trim();
+        }
+
+        if (previous != status || !string.IsNullOrWhiteSpace(note) || !string.IsNullOrWhiteSpace(assignedTo))
+        {
+            var action = status switch
+            {
+                IoTAlertStatus.Open => previous is null ? "Raised" : "Reopened",
+                IoTAlertStatus.InProgress => "Investigating",
+                IoTAlertStatus.Assigned => $"Assigned to {alert.AssignedTo}",
+                _ => status
+            };
+            alert.AddHistory(action, currentUser?.UserName, note);
+        }
+    }
+
+    public static void AddHistory(this IoTAlert alert, string action, string? by, string? note = null)
+    {
+        alert.History ??= [];
+        alert.History.Add(new IoTAlertHistoryEntry { At = DateTime.UtcNow, By = by, Action = action, Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim() });
     }
 }
+
+public sealed record IoTAlertHistoryResponse(DateTime At, string? By, string Action, string? Note);
 
 public sealed record IoTAlertResponse(
     string Id,
@@ -110,7 +141,15 @@ public sealed record IoTAlertResponse(
     string? UpdatedBy,
     DateTime? UpdatedAt,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    string? GeofenceId = null,
+    string? GeofenceName = null,
+    string? RuleSeverity = null,
+    int? DurationSeconds = null,
+    string? AssignedTo = null,
+    DateTime? EscalatedAt = null,
+    string? EscalatedTo = null,
+    IReadOnlyList<IoTAlertHistoryResponse>? History = null)
 {
     public static IoTAlertResponse FromEntity(IoTAlert alert)
     {
@@ -137,7 +176,15 @@ public sealed record IoTAlertResponse(
             alert.UpdatedBy,
             alert.UpdatedAt,
             alert.ClientId,
-            alert.TenantId);
+            alert.TenantId,
+            alert.GeofenceId,
+            alert.GeofenceName,
+            alert.RuleSeverity,
+            alert.DurationSeconds,
+            alert.AssignedTo,
+            alert.EscalatedAt,
+            alert.EscalatedTo,
+            (alert.History ?? []).Select(h => new IoTAlertHistoryResponse(h.At, h.By, h.Action, h.Note)).ToList());
     }
 }
 
