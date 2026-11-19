@@ -12,7 +12,8 @@ public static class OrganizationValidationExtensions
             request.OrganizationName,
             request.ParentOrganization,
             request.BusinessUnits,
-            request.Sites);
+            request.Sites,
+            request.Contact);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -22,7 +23,8 @@ public static class OrganizationValidationExtensions
             request.OrganizationName,
             request.ParentOrganization,
             request.BusinessUnits,
-            request.Sites);
+            request.Sites,
+            request.Contact);
     }
 
     public static Dictionary<string, string[]> Validate(
@@ -43,7 +45,8 @@ public static class OrganizationValidationExtensions
         string? organizationName,
         MasterDataReferenceDto? parentOrganization,
         List<MasterDataReferenceDto>? businessUnits,
-        List<MasterDataReferenceDto>? sites)
+        List<MasterDataReferenceDto>? sites,
+        OrganizationContactDto? contact)
     {
         var errors = new Dictionary<string, string[]>();
 
@@ -62,6 +65,9 @@ public static class OrganizationValidationExtensions
 
         MasterDataReferenceValidation.ValidateList(errors, "BusinessUnits", businessUnits, idResolvesName: true);
         MasterDataReferenceValidation.ValidateList(errors, "Sites", sites, idResolvesName: true);
+
+        // The form sends the number without its dial code, which ContactValidation accepts
+        ContactValidation.ValidateEmailAndPhone(errors, contact?.Email, contact?.Phone, "Phone");
 
         return errors;
     }
