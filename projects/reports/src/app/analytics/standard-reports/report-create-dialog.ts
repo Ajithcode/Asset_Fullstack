@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  ReportFrequency, ReportModule, ReportPeriod, ReportStatus, SR_MODULES, SR_STATUSES, SR_TIME_ZONES
+  ReportFrequency, ReportModule, ReportPeriod, ReportStatus, SR_STATUSES, SR_TIME_ZONES
 } from './standard-reports.data';
 import { NewStandardReport } from './standard-reports.service';
 
@@ -31,13 +31,15 @@ const FREQUENCIES: ReportFrequency[] = ['On demand', 'Daily', 'Weekly', 'Monthly
           <div class="field" [class.invalid]="submitted && !module">
             <label for="sr-c-cat">Category <span class="req">*</span></label>
             <select id="sr-c-cat" name="module" [(ngModel)]="module">
-              <option value="" disabled>Select Category</option>
-              @for (m of modules; track m) {
+              <option value="" disabled>{{ categoriesLoading ? 'Loading categories…' : 'Select Category' }}</option>
+              @for (m of categories; track m) {
                 <option [value]="m">{{ m }}</option>
               }
             </select>
             @if (submitted && !module) {
               <small>Choose a category.</small>
+            } @else if (!categoriesLoading && !categories.length) {
+              <small>No categories found in the Category master.</small>
             }
           </div>
           <div class="field">
@@ -134,12 +136,14 @@ export class ReportCreateDialog implements OnInit {
   /** Prefills the period with the applied reporting period. */
   @Input({ required: true }) period!: ReportPeriod;
   @Input() saving = false;
+  /** Category master names (GET {assetApiUrl}api/asset-categories). */
+  @Input() categories: string[] = [];
+  @Input() categoriesLoading = false;
   /** Server error from the last attempt. */
   @Input() error = '';
   @Output() close = new EventEmitter<void>();
   @Output() save = new EventEmitter<NewStandardReport>();
 
-  readonly modules = SR_MODULES;
   readonly statuses = SR_STATUSES;
   readonly frequencies = FREQUENCIES;
   readonly timeZones = SR_TIME_ZONES;

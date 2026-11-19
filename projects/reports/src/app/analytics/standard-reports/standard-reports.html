@@ -4,7 +4,7 @@
   <strong>Standard Reports</strong>
 </nav>
 
-<header class="ra-head">
+<header class="ra-head sr-head">
   <div class="ra-head__text">
     <h1>Standard Reports</h1>
     <p>Track reporting periods, generated dates and upcoming schedules across all standard reports.</p>
@@ -15,67 +15,71 @@
       </button>
     </span>
   </div>
-  <div class="sr-tiles">
-    <div class="kpi sr-tile" data-tone="purple">
-      <span class="kpi__icon" data-tone="purple"><lucide-icon [img]="icons.FileText" [size]="22" /></span>
-      <div class="kpi__body"><span class="kpi__value">{{ total }}</span><span class="kpi__label">Total Reports</span></div>
-    </div>
-    <div class="kpi sr-tile" data-tone="green">
-      <span class="kpi__icon" data-tone="green"><lucide-icon [img]="icons.Funnel" [size]="22" /></span>
-      <div class="kpi__body"><span class="kpi__value">{{ withDateFilters }}</span><span class="kpi__label">With Date Filters</span></div>
-    </div>
-    <div class="kpi sr-tile" data-tone="blue">
-      <span class="kpi__icon" data-tone="blue"><lucide-icon [img]="icons.CalendarDays" [size]="22" /></span>
-      <div class="kpi__body"><span class="kpi__value">{{ scheduledCount }}</span><span class="kpi__label">Scheduled</span></div>
-    </div>
-    <div class="kpi sr-tile" data-tone="orange">
-      <span class="kpi__icon" data-tone="orange"><lucide-icon [img]="icons.RefreshCw" [size]="22" /></span>
-      <div class="kpi__body"><span class="kpi__value">{{ updatedThisMonth }}</span><span class="kpi__label">Updated This Month</span></div>
-    </div>
-  </div>
 </header>
 
 <div class="sr-top">
-  <app-sr-period-panel [period]="reportingPeriod" [today]="service.today" (apply)="applyPeriod($event)" />
+  <div class="sr-top__main">
+    <app-sr-period-panel [period]="reportingPeriod" [today]="service.today" (apply)="applyPeriod($event)" />
+    <div class="sr-tiles">
+      <div class="kpi sr-tile" data-tone="purple">
+        <span class="kpi__icon" data-tone="purple"><lucide-icon [img]="icons.FileText" [size]="22" /></span>
+        <div class="kpi__body"><span class="kpi__value">{{ total }}</span><span class="kpi__label">Total Reports</span></div>
+      </div>
+      <div class="kpi sr-tile" data-tone="green">
+        <span class="kpi__icon" data-tone="green"><lucide-icon [img]="icons.Funnel" [size]="22" /></span>
+        <div class="kpi__body"><span class="kpi__value">{{ withDateFilters }}</span><span class="kpi__label">With Date Filters</span></div>
+      </div>
+      <div class="kpi sr-tile" data-tone="blue">
+        <span class="kpi__icon" data-tone="blue"><lucide-icon [img]="icons.CalendarDays" [size]="22" /></span>
+        <div class="kpi__body"><span class="kpi__value">{{ scheduledCount }}</span><span class="kpi__label">Scheduled</span></div>
+      </div>
+      <div class="kpi sr-tile" data-tone="orange">
+        <span class="kpi__icon" data-tone="orange"><lucide-icon [img]="icons.RefreshCw" [size]="22" /></span>
+        <div class="kpi__body"><span class="kpi__value">{{ updatedThisMonth }}</span><span class="kpi__label">Updated This Month</span></div>
+      </div>
+    </div>
+  </div>
   <app-sr-report-calendar [reports]="service.reports" [today]="service.today" [selected]="dayFilter" (selectDay)="selectDay($event)" />
 </div>
 
 <section class="widget sr-list">
   <div class="sr-list__head">
     <h2>All Standard Reports</h2>
-    <button type="button" class="btn btn--primary btn--sm" (click)="openCreate()"><lucide-icon [img]="icons.Plus" [size]="14" /> New report</button>
+    <div class="sr-list__tools">
+      <label class="search sr-list__search">
+        <lucide-icon [img]="icons.Search" [size]="16" />
+        <input type="search" placeholder="Search reports..." aria-label="Search reports" [(ngModel)]="search" (ngModelChange)="searchChanged()" />
+      </label>
+      <button type="button" class="btn btn--primary sr-list__new" (click)="openCreate()"><lucide-icon [img]="icons.Plus" [size]="16" /> New report</button>
+    </div>
+  </div>
+  <div class="sr-filters">
+    <select class="select" aria-label="Category" [(ngModel)]="categoryFilter" (ngModelChange)="filterChanged()">
+      <option value="">{{ categoriesLoading ? 'Loading categories…' : 'All Categories' }}</option>
+      @for (c of categoryOptions; track c) {
+        <option [value]="c">{{ c }}</option>
+      }
+    </select>
+    <select class="select" aria-label="Frequency" [(ngModel)]="frequencyFilter" (ngModelChange)="filterChanged()">
+      <option value="">All Frequencies</option>
+      @for (f of frequencyOptions; track f) {
+        <option [value]="f">{{ f }}</option>
+      }
+    </select>
+    <select class="select" aria-label="Status" [(ngModel)]="statusFilter" (ngModelChange)="filterChanged()">
+      <option value="">All Statuses</option>
+      @for (s of statusOptions; track s) {
+        <option [value]="s">{{ s }}</option>
+      }
+    </select>
     @if (dayFilter) {
-      <span class="pill" data-tone="purple">
+      <span class="pill sr-day-pill" data-tone="purple">
         Generated or scheduled {{ dayFilterText }}
         <button type="button" class="sr-pill-x" aria-label="Clear day filter" (click)="selectDay(null)">
           <lucide-icon [img]="icons.X" [size]="12" />
         </button>
       </span>
     }
-    <label class="search sr-list__search">
-      <lucide-icon [img]="icons.Search" [size]="16" />
-      <input type="search" placeholder="Search reports..." aria-label="Search reports" [(ngModel)]="search" (ngModelChange)="searchChanged()" />
-    </label>
-  </div>
-  <div class="sr-filters">
-    <select class="select" aria-label="Category" [(ngModel)]="categoryFilter" (ngModelChange)="filterChanged()">
-      <option value="">Select Category</option>
-      @for (c of categoryOptions; track c) {
-        <option [value]="c">{{ c }}</option>
-      }
-    </select>
-    <select class="select" aria-label="Frequency" [(ngModel)]="frequencyFilter" (ngModelChange)="filterChanged()">
-      <option value="">Select Frequency</option>
-      @for (f of frequencyOptions; track f) {
-        <option [value]="f">{{ f }}</option>
-      }
-    </select>
-    <select class="select" aria-label="Status" [(ngModel)]="statusFilter" (ngModelChange)="filterChanged()">
-      <option value="">Select Status</option>
-      @for (s of statusOptions; track s) {
-        <option [value]="s">{{ s }}</option>
-      }
-    </select>
   </div>
 
   <div class="table-wrap">
@@ -116,25 +120,6 @@
                 <button type="button" class="btn btn--sm" (click)="view(r)"><lucide-icon [img]="icons.Eye" [size]="14" /> View</button>
                 <button type="button" class="btn btn--sm" (click)="openSchedule(r)"><lucide-icon [img]="icons.CalendarClock" [size]="14" /> Schedule</button>
                 <button type="button" class="btn btn--sm" (click)="exportCsv(r)"><lucide-icon [img]="icons.Upload" [size]="14" /> Export</button>
-                <div class="row-menu">
-                  <button
-                    type="button"
-                    class="btn btn--sm"
-                    [attr.aria-label]="'More actions for ' + r.name"
-                    aria-haspopup="menu"
-                    [attr.aria-expanded]="menuId === r.id"
-                    (click)="toggleMenu(r.id, $event)"
-                  >
-                    <lucide-icon [img]="icons.Ellipsis" [size]="14" />
-                  </button>
-                  @if (menuId === r.id) {
-                    <div class="menu" role="menu">
-                      <button type="button" role="menuitem" (click)="runNow(r)">Run now</button>
-                      <button type="button" role="menuitem" (click)="duplicate(r)">Duplicate to custom report</button>
-                      <button type="button" role="menuitem" [disabled]="r.status !== 'Needs review'" (click)="markReviewed(r)">Mark reviewed</button>
-                    </div>
-                  }
-                </div>
               </div>
             </td>
           </tr>
@@ -174,13 +159,33 @@
 }
 
 @if (scheduling) {
-  <app-sr-schedule-dialog [report]="scheduling" (close)="scheduling = null" (save)="saveSchedule($event)" />
+  <app-sr-schedule-dialog [report]="scheduling" [saving]="scheduleSaving" [error]="scheduleError" (close)="scheduleSaving || (scheduling = null)" (save)="saveSchedule($event)" />
 }
 
 @if (creating) {
-  <app-sr-create-dialog [period]="reportingPeriod" [saving]="saving" [error]="createError" (close)="creating = false" (save)="createReport($event)" />
+  <app-sr-create-dialog [period]="reportingPeriod" [categories]="categoryOptions" [categoriesLoading]="categoriesLoading" [saving]="saving" [error]="createError" (close)="creating = false" (save)="createReport($event)" />
 }
 
-@if (toast) {
-  <div class="toast" role="status">{{ toast }}</div>
-}
+<!-- Alert notifications, top right -->
+<div class="alert-stack" aria-live="polite">
+  @for (a of alerts; track a.id) {
+    <div
+      class="alert alert--{{ a.kind }}"
+      [class.alert--paused]="a.paused"
+      [attr.role]="a.kind === 'error' ? 'alert' : 'status'"
+      [style.--alert-ms]="a.ms + 'ms'"
+      (mouseenter)="holdAlert(a, true)"
+      (mouseleave)="holdAlert(a, false)"
+    >
+      <lucide-icon class="alert-icon" [img]="alertIcon(a.kind)" [size]="20"></lucide-icon>
+      <div class="alert-body">
+        <strong class="alert-title">{{ a.title }}</strong>
+        <p class="alert-msg">{{ a.message }}</p>
+      </div>
+      <button type="button" class="alert-close" aria-label="Close notification" (click)="dismissAlert(a.id)">
+        <lucide-icon [img]="icons.X" [size]="16"></lucide-icon>
+      </button>
+      <span class="alert-bar"></span>
+    </div>
+  }
+</div>

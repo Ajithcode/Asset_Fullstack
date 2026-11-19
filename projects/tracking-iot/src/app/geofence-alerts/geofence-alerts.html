@@ -93,12 +93,8 @@
               </div>
             </span>
           </div>
-<<<<<<< HEAD
           <div *ngIf="!floorId" class="map-site">
-=======
-          <div class="map-site">
             <select class="control control-xs" [(ngModel)]="mapSite" [disabled]="mapMode !== 'view'" aria-label="Map site" [title]="mapArea"><option value="" disabled>Select Map Site</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
->>>>>>> origin/feature/tracking
             <span class="north" aria-label="North"><i></i>N</span>
           </div>
 
@@ -439,14 +435,10 @@
     <div class="modal-body">
       <div class="two">
         <label class="field"><span class="field-label">Rule name</span><input class="control" [(ngModel)]="d.name" placeholder="Generated from the trigger if empty" /></label>
-<<<<<<< HEAD
-        <label class="field"><span class="field-label">Geofence / zone <em>*</em></span><select class="control" [(ngModel)]="d.zoneId">
+        <label class="field"><span class="field-label">Geofence / zone <em>*</em></span><select class="control" [(ngModel)]="d.zoneId"><option value="" disabled>Select Geofence / zone</option>
           <optgroup *ngIf="mapZoneRuleTargets.length" label="Floor plan zones (live tracking)"><option *ngFor="let t of mapZoneRuleTargets" [value]="t.id">{{ t.label }}</option></optgroup>
           <optgroup label="Outdoor geofences"><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></optgroup>
         </select></label>
-=======
-        <label class="field"><span class="field-label">Geofence <em>*</em></span><select class="control" [(ngModel)]="d.zoneId"><option value="" disabled>Select Geofence</option><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></select></label>
->>>>>>> origin/feature/tracking
       </div>
       <p *ngIf="ruleZoneWithoutGateway" class="desk-row desk-warn" role="note">No gateway is plotted in this zone, so it cannot detect assets. Plot a device in this zone in Maps &amp; Floor Plans first.</p>
       <ng-container *ngTemplateOutlet="ruleFields; context: { $implicit: d, idp: 'rd' }"></ng-container>
