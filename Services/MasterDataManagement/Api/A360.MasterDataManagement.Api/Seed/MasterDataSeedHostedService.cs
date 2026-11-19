@@ -28,6 +28,16 @@ public sealed class MasterDataSeedHostedService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Runs even when sample data is off: it repairs existing records rather than adding new ones
+        try
+        {
+            await BackfillOrganizationCodesAsync(stoppingToken);
+        }
+        catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(exception, "Could not give organizations without a code a code.");
+        }
+
         if (!_configuration.GetValue("MasterDataManagement:SeedSampleData", true))
         {
             return;
@@ -51,6 +61,46 @@ public sealed class MasterDataSeedHostedService : BackgroundService
                 _logger.LogError(exception, "Master data seed failed after {MaxAttempts} attempts. The service will continue running.", MaxAttempts);
                 return;
             }
+        }
+    }
+
+    /// <summary>
+    /// Organizations saved before the Organization API had a code have none, but the web Organization page keys its
+    /// records by code: without one, Save on edit sends POST instead of PUT and fails with 409. Gives each of them
+    /// the next free ORG-### code. Records that already have a code are never changed.
+    /// </summary>
+    private async Task BackfillOrganizationCodesAsync(CancellationToken cancellationToken)
+    {
+        var collection = _database.GetCollection<Domain.Entities.Organization>(OrganizationRepository.CollectionName);
+        var missing = Builders<Domain.Entities.Organization>.Filter.Where(o => o.Code == null || o.Code == "");
+        var withoutCode = await collection.Find(missing).SortBy(o => o.CreatedAt).ToListAsync(cancellationToken);
+        if (withoutCode.Count == 0)
+        {
+            return;
+        }
+
+        var taken = (await collection.Find(Builders<Domain.Entities.Organization>.Filter.Not(missing)).Project(o => o.Code).ToListAsync(cancellationToken))
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Select(code => code!.Trim().ToUpperInvariant())
+            .ToHashSet();
+
+        var next = 1;
+        foreach (var organization in withoutCode)
+        {
+            string code;
+            do
+            {
+                code = $"ORG-{next++:D3}";
+            }
+            while (taken.Contains(code));
+
+            taken.Add(code);
+            // Only fills an empty code, so a code set in the meantime is kept
+            await collection.UpdateOneAsync(
+                Builders<Domain.Entities.Organization>.Filter.Eq(o => o.Id, organization.Id) & missing,
+                Builders<Domain.Entities.Organization>.Update.Set(o => o.Code, code),
+                cancellationToken: cancellationToken);
+            _logger.LogInformation("Organization {OrganizationId} had no code; set it to {Code}.", organization.Id, code);
         }
     }
 
