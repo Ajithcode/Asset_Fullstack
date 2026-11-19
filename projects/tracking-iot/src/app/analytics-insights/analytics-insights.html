@@ -36,7 +36,7 @@
         <div *ngIf="menuOpen === 'views'" class="pop views-pop" (click)="$event.stopPropagation()">
           <form class="view-form" (ngSubmit)="saveView()">
             <input class="control" [(ngModel)]="viewName" name="viewName" placeholder="Name this view" aria-label="View name" maxlength="40" />
-            <button type="submit" class="btn btn-primary btn-sm" [disabled]="!viewName.trim()">Save</button>
+            <button type="submit" class="btn btn-primary btn-sm" [disabled]="!relaxValidation && !viewName.trim()">Save</button>
           </form>
           <p class="pop-title">Saved views</p>
           <ul class="view-list">

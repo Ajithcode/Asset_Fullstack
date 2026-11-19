@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { METRICS, MetricDef, MetricKey, WIDGET_SIZES, WIDGET_TYPES, WidgetSpan, WidgetType } from '../interactive-dashboards.data';
+import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 export interface NewWidget {
   type: WidgetType;
@@ -100,7 +101,7 @@ export class AddWidgetDialog implements OnInit {
 
   submit(): void {
     this.tried = true;
-    if (!this.type || !this.metric || !this.title.trim() || this.span === null) return;
+    if (!this.type || !this.metric || (!RELAX_VALIDATION && !this.title.trim()) || this.span === null) return;
     this.added.emit({ type: this.type, metric: this.metric, title: this.title.trim(), span: this.span });
   }
 }

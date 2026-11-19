@@ -8,6 +8,7 @@ import { VENDOR_COUNTRIES } from '../../vendor.data';
 import { COVERAGE_AREAS, SERVICE_TYPES, blankServiceProvider } from '../service-provider.data';
 import { ServiceProviderRecord } from '../service-provider.model';
 import { ServiceProviderService } from '../service-provider.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'services' | 'address' | 'compliance' | 'documents' | 'settings';
 type ListKey = 'services' | 'skills' | 'coverage';
@@ -122,9 +123,9 @@ export class ServiceProviderForm implements OnChanges {
     if (!Number.isInteger(f.responseHours) || f.responseHours < 1 || f.responseHours > 720) errors['responseHours'] = 'Enter 1 to 720 hours.';
     if (f.status === 'Active' && this.expired(f.licenceExpiry)) errors['licenceExpiry'] = 'The trade licence has expired; renew it or mark the provider Inactive.';
     if (!(f.rating >= 0 && f.rating <= 5)) errors['rating'] = 'Enter 0 to 5.';
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
-    const keys = Object.keys(errors);
+    const keys = Object.keys(relaxErrors(errors));
     if (keys.length) {
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))?.id ?? 'basic';
       return;

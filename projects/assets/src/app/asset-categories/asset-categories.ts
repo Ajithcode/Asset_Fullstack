@@ -69,6 +69,7 @@ import {
   CategoryStatus,
 } from '../services/asset-category/asset-category';
 import { FilterSelect, FilterSelectOption } from '../shared/filter-select/filter-select';
+import { RELAX_VALIDATION, relaxError } from '../../../../../src/environments/relax-validation';
 
 type DetailTab = 'subcategories' | 'fields' | 'attributes' | 'assets';
 
@@ -525,7 +526,7 @@ export class AssetCategories {
   /** POST /api/asset-categories (add) or PUT /api/asset-categories/{id} (edit). */
   saveModal(): void {
     this.modalSubmitted = true;
-    if (this.validate(this.modalForm, this.modalEditId) || this.saving) return;
+    if (relaxError(this.validate(this.modalForm, this.modalEditId)) || this.saving) return;
     const f = this.modalForm;
     const parent = this.find(f.parentId);
     const values = {
@@ -700,7 +701,7 @@ export class AssetCategories {
     const name = this.newField.name.trim();
     const type = this.newField.type;
     if (!n || !name || !type || this.saving) return;
-    if (this.fieldRows.some((r) => r.fieldName.toLowerCase() === name.toLowerCase())) {
+    if (!RELAX_VALIDATION && (this.fieldRows.some((r) => r.fieldName.toLowerCase() === name.toLowerCase()))) {
       this.showToast(`A field named "${name}" already exists.`);
       return;
     }
@@ -723,7 +724,7 @@ export class AssetCategories {
     const n = this.selected;
     const name = this.newAttribute.name.trim();
     if (!n || !name || this.saving) return;
-    if (this.attributeRows.some((r) => r.attribute.toLowerCase() === name.toLowerCase())) {
+    if (!RELAX_VALIDATION && (this.attributeRows.some((r) => r.attribute.toLowerCase() === name.toLowerCase()))) {
       this.showToast(`An attribute named "${name}" already exists.`);
       return;
     }

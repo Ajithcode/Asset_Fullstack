@@ -49,6 +49,7 @@ import { SpareParts } from './spare-parts/spare-parts';
 import { MaintenanceApiService, buildMaintenanceData, emptyMaintenanceData } from './maintenance-api.service';
 import { AssetLookupService, toAssetRecord } from './asset-lookup.service';
 import { apiErrorMessage } from '../services/asset-api';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'overview' | 'workOrders' | 'pm' | 'predictive' | 'requests' | 'history' | 'costs' | 'parts' | 'documents';
 type WoType = 'Preventive' | 'Corrective' | 'Inspection' | 'Service';
@@ -1056,8 +1057,8 @@ export class AssetMaintenance implements OnDestroy {
   saveWorkOrder(): void {
     const f = this.woForm;
     if (!f) return;
-    if (!f.type) return void (this.woError = 'Select the work order type.');
-    if (!f.description.trim() || !f.date) return void (this.woError = 'Enter the description and the date.');
+    if (!RELAX_VALIDATION && !f.type) return void (this.woError = 'Select the work order type.');
+    if (!RELAX_VALIDATION && (!f.description.trim() || !f.date)) return void (this.woError = 'Enter the description and the date.');
     const head = `WO-${this.data.year}-`;
     const n = Math.max(0, ...this.data.workOrders.filter((w) => w.id.startsWith(head)).map((w) => Number(w.id.split('-')[2]) || 0)) + 1;
     const id = `${head}${String(n).padStart(3, '0')}`;

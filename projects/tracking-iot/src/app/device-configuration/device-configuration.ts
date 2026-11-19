@@ -18,6 +18,7 @@ import {
   activityFromDto, configFromDto, configToRequest, ruleFromDto, ruleToRequest, versionFromDto,
 } from './device-configuration-api.service';
 import { IoTDeviceLookupService } from './iot-device-lookup.service';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'overview' | 'connectivity' | 'telemetry' | 'alerts' | 'firmware' | 'history';
 type CheckState = 'ok' | 'warn' | 'fail';
@@ -438,11 +439,11 @@ export class DeviceConfiguration implements OnInit, DoCheck, OnDestroy {
   apply(): void {
     this.applyError = '';
     if (!this.device || this.busy) return;
-    if (this.deploy === 'scheduled' && (!this.scheduleAt || this.scheduleAt <= nowLocal())) {
+    if (!RELAX_VALIDATION && (this.deploy === 'scheduled' && (!this.scheduleAt || this.scheduleAt <= nowLocal()))) {
       this.applyError = 'Choose a future date and time for the scheduled deployment.';
       return;
     }
-    if (this.rollout === 'group' && !this.group.trim()) {
+    if (!RELAX_VALIDATION && (this.rollout === 'group' && !this.group.trim())) {
       this.applyError = 'Enter the device group to apply this configuration to.';
       return;
     }
@@ -670,15 +671,15 @@ export class DeviceConfiguration implements OnInit, DoCheck, OnDestroy {
     const f = this.alertForm;
     const d = this.device;
     if (!f || !d || this.busy) return;
-    if (!f.param) return void (this.alertError = 'Choose a parameter.');
-    if (!f.cond) return void (this.alertError = 'Choose a condition.');
-    if (!f.severity) return void (this.alertError = 'Choose a severity.');
+    if (!RELAX_VALIDATION && (!f.param)) return void (this.alertError = 'Choose a parameter.');
+    if (!RELAX_VALIDATION && (!f.cond)) return void (this.alertError = 'Choose a condition.');
+    if (!RELAX_VALIDATION && (!f.severity)) return void (this.alertError = 'Choose a severity.');
     if ((f.value as number | null) === null || !Number.isFinite(Number(f.value))) return void (this.alertError = 'Enter a numeric threshold value.');
     const { isNew, ...rule } = f;
     rule.value = Number(rule.value);
     rule.unit = this.paramUnit(rule.param) || null;
     const dup = this.form.alerts.find((a) => a.id !== rule.id && a.param === rule.param && a.cond === rule.cond && a.value === rule.value);
-    if (dup) return void (this.alertError = 'An identical rule already exists.');
+    if (!RELAX_VALIDATION && (dup)) return void (this.alertError = 'An identical rule already exists.');
     this.busy = true;
     const call = isNew ? this.api.addRule(d.id, ruleToRequest(rule)) : this.api.updateRule(d.id, rule.id, ruleToRequest(rule));
     call.subscribe({
@@ -754,7 +755,7 @@ export class DeviceConfiguration implements OnInit, DoCheck, OnDestroy {
     const f = this.fwDialog;
     const d = this.device;
     if (!f || !d || this.busy) return;
-    if (!f.at || f.at <= nowLocal()) return void (this.fwError = 'Choose a future date and time.');
+    if (!f.at || (!RELAX_VALIDATION && f.at <= nowLocal())) return void (this.fwError = 'Choose a future date and time.');
     this.busy = true;
     this.api.scheduleFirmware(d.id, new Date(f.at).toISOString(), d.latestFirmware).subscribe({
       next: (fw) => {

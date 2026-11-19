@@ -33,6 +33,7 @@ import {
   stateTone,
   statusTone,
 } from './status-condition.service';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type View = 'assets' | 'history';
 
@@ -256,7 +257,7 @@ export class AssetStatusConditionOverview implements OnInit, OnDestroy {
   confirmDecision(): void {
     const c = this.selected;
     if (!c || !this.decision) return;
-    if (this.decision === 'reject' && !this.comments.trim()) {
+    if (!RELAX_VALIDATION && (this.decision === 'reject' && !this.comments.trim())) {
       this.dialogError = 'Enter a reason for rejecting the change.';
       return;
     }

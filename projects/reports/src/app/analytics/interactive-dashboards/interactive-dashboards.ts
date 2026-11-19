@@ -16,6 +16,7 @@ import {
   AttentionAsset, DashFilters, Dashboard, WidgetConfig, WidgetSpan, WidgetType, buildWidgetData, widgetCsv
 } from './interactive-dashboards.data';
 import { LIBRARY_DRAG_TYPE, WidgetLibrary } from './widget-library/widget-library';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 type MenuKey = 'picker' | 'mine' | 'shared' | 'favorites' | 'more' | 'info';
 
@@ -342,7 +343,7 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
 
   confirmSaveView(): void {
     this.viewTried = true;
-    if (!this.viewName.trim()) return;
+    if (!RELAX_VALIDATION && !this.viewName.trim()) return;
     this.saveViewOpen = false;
     this.saveView(this.viewName.trim());
   }

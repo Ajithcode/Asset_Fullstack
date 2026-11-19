@@ -1,4 +1,5 @@
 import { ChangeStatus, ConfigSetting, ConfigValue } from './system-configuration.data';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 const TYPE_LABELS: Record<ConfigSetting['type'], string> = {
   text: 'Text',
@@ -51,11 +52,14 @@ export function validateSetting(s: ConfigSetting, v: ConfigValue): string {
   if (s.type === 'number') {
     if (v === '' || v === null || typeof v !== 'number' || Number.isNaN(v)) return 'Enter a number.';
     if (!Number.isInteger(v)) return 'Use a whole number.';
+    // TEMP relaxed mode: the number-type guards above stay; range and text checks below are skipped
+    if (RELAX_VALIDATION) return '';
     if (s.min !== undefined && v < s.min) return `Minimum is ${s.min}.`;
     if (s.max !== undefined && v > s.max) return `Maximum is ${s.max}.`;
     return '';
   }
   const text = String(v).trim();
+  if (RELAX_VALIDATION) return '';
   if (!text) return s.required ? `${s.label} is required.` : '';
   if (text.length > 120) return 'Keep it under 120 characters.';
   if (s.type === 'select' && s.options && !s.options.includes(text)) return 'Pick a value from the list.';

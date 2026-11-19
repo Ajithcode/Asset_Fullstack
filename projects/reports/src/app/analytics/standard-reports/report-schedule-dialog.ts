@@ -4,6 +4,7 @@ import { LucideAngularModule, X } from 'lucide-angular';
 import { CURRENT_USER } from '../shared/analytics-common';
 import { ReportFormat, ReportFrequency, ReportSchedule, SR_FORMATS, SR_SCHEDULE_FREQUENCIES, StandardReport } from './standard-reports.data';
 import { WEEKDAYS, isEmail } from './standard-reports.util';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /** Schedule editor: frequency, day, time, recipients (email chips) and output format. */
 @Component({
@@ -174,7 +175,7 @@ export class ReportScheduleDialog implements OnChanges {
       this.emailError = '';
       return;
     }
-    if (!isEmail(email)) {
+    if (!RELAX_VALIDATION && !isEmail(email)) {
       this.emailError = `“${email}” is not a valid email address.`;
       return;
     }
@@ -190,7 +191,7 @@ export class ReportScheduleDialog implements OnChanges {
   submit(): void {
     this.addRecipient();
     this.submitted = true;
-    if (this.emailError || !this.frequency || this.dayMissing || !this.time || !this.format || this.recipients.length === 0) return;
+    if (!RELAX_VALIDATION && (this.emailError || !this.frequency || this.dayMissing || !this.time || !this.format || this.recipients.length === 0)) return;
     this.save.emit({ frequency: this.frequency, day: this.day ?? 1, time: this.time, recipients: [...this.recipients], format: this.format });
   }
 

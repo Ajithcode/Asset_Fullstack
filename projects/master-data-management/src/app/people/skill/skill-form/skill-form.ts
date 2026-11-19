@@ -6,6 +6,7 @@ import { DESIGNATIONS, nowStamp } from '../../people.data';
 import { DEFAULT_LEVELS, SKILL_CATEGORIES, blankSkill } from '../skill.data';
 import { SkillRecord } from '../skill.model';
 import { SkillService } from '../skill.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'levels' | 'roles' | 'settings';
 type FieldKey = 'name' | 'code' | 'category' | 'status' | 'levels' | 'validity';
@@ -116,9 +117,9 @@ export class SkillForm implements OnChanges {
     if (f.certificationRequired && !(Number.isInteger(f.certificationValidityMonths) && f.certificationValidityMonths > 0)) {
       errors.validity = 'Enter the validity in months.';
     }
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
-    if (Object.keys(errors).length) {
+    if (Object.keys(relaxErrors(errors)).length) {
       this.tab = errors.name || errors.code || errors.category || errors.status ? 'basic' : errors.levels ? 'levels' : 'settings';
       return;
     }

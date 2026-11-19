@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { LOCATION_TYPES, LocationRecord } from '../location.model';
 import { LocationService } from '../location.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'type' | 'map' | 'settings';
 type FieldKey = 'name' | 'code' | 'siteId' | 'buildingCode' | 'floorCode' | 'type' | 'image' | 'area' | 'lat' | 'lng';
@@ -169,10 +170,10 @@ export class LocationForm implements OnChanges {
     if (f.area !== null && f.area < 0) errors.area = 'Area cannot be negative.';
     if (!Number.isFinite(f.lat) || f.lat < -90 || f.lat > 90) errors.lat = 'Latitude must be between -90 and 90.';
     if (!Number.isFinite(f.lng) || f.lng < -180 || f.lng > 180) errors.lng = 'Longitude must be between -180 and 180.';
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
     // Show the first tab that has a problem
-    const keys = Object.keys(errors);
+    const keys = Object.keys(relaxErrors(errors));
     if (keys.length) {
       const basic = keys.some((k) => !['area', 'lat', 'lng'].includes(k));
       this.tab = basic ? 'basic' : keys.includes('area') ? 'type' : 'map';

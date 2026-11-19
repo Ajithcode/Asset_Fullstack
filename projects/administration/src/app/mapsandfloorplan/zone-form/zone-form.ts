@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Info, LucideAngularModule, Trash2 } from 'lucide-angular';
 import { MapZone, zoneIcon } from '../maps.data';
 import { MapsStore } from '../maps.store';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /** Right panel form for the selected zone: identity, access rule and geofence alerts. */
 @Component({
@@ -135,7 +136,7 @@ export class ZoneForm implements OnChanges {
   save(): void {
     if (!this.draft || this.store.working) return;
     this.tried = true;
-    if (!this.draft.name.trim() || !this.codeOk) return;
+    if (!RELAX_VALIDATION && (!this.draft.name.trim() || !this.codeOk)) return;
     const zone: MapZone = { ...this.draft, name: this.draft.name.trim(), code: this.draft.code.trim().toUpperCase() };
     // Area follows the box and the plan's dimensions when those are known
     zone.areaM2 = this.store.areaOf(zone) || zone.areaM2;

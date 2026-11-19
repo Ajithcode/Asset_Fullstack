@@ -24,6 +24,7 @@ import { loadAssetDetail } from '../../asset-details/asset-details';
 import { AssetDetailsService, AssetRegistrationDto } from '../../asset-details/asset-details.service';
 import { SR_SLA, SrPriority } from '../../asset-maintenance/maintenance-sr';
 import { apiErrorMessage } from '../../services/asset-api';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 import {
   MaintenanceWorkOrderDto,
   SR_API_PRIORITIES,
@@ -385,6 +386,7 @@ export class NewServiceRequest implements OnDestroy {
     if (!f.location) e.location = 'Choose the location.';
     if (!f.requestedBy) e.requestedBy = 'Choose who requested it.';
     if (f.plannedStart && f.plannedEnd && f.plannedEnd <= f.plannedStart) e.plannedEnd = 'End must be after the start.';
+    if (RELAX_VALIDATION) for (const k of Object.keys(e) as FieldKey[]) delete e[k];
     return !Object.keys(e).length;
   }
 
@@ -489,7 +491,7 @@ export class NewServiceRequest implements OnDestroy {
   }
 
   saveDraft(): void {
-    if (!this.form.title.trim()) {
+    if (!RELAX_VALIDATION && !this.form.title.trim()) {
       this.submitted = true;
       this.validate();
       return void this.showToast('Enter a title to save a draft.');

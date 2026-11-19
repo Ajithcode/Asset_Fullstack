@@ -47,6 +47,7 @@ import {
   daysUntil, historyOf, isCalDue, isOverdue, nextNumber, paramOf, sensorIdOf, series,
 } from './sensor-data';
 import { SensorApiService, SensorDeviceOptionDto, SensorRequest, toParameter, toSensor } from './sensor-api.service';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'sensors' | 'params' | 'calibration' | 'mapping';
 type PanelTab = 'overview' | 'readings' | 'configuration' | 'history';
@@ -828,22 +829,22 @@ export class SensorManagement implements OnInit, OnDestroy {
     const f = d.f;
     const existing = f.editId ? SENSORS.find((x) => x.id === f.editId) : undefined;
     if (f.editId && !existing) return void (this.formError = `${f.editId} no longer exists. Reload the page.`);
-    if (!f.type) return void (this.formError = 'Choose the sensor type.');
-    if (!f.editId && !f.number.trim()) return void (this.formError = 'Enter a sensor number.');
+    if (!RELAX_VALIDATION && (!f.type)) return void (this.formError = 'Choose the sensor type.');
+    if (!RELAX_VALIDATION && (!f.editId && !f.number.trim())) return void (this.formError = 'Enter a sensor number.');
     const id = f.editId || sensorIdOf(f.type, f.number.trim());
-    if (!f.editId && SENSORS.some((s) => s.id.toLowerCase() === id.toLowerCase())) return void (this.formError = `${id} already exists.`);
-    if (!f.serial.trim()) return void (this.formError = 'Enter the serial number.');
-    if (SENSORS.some((s) => s.serial.toLowerCase() === f.serial.trim().toLowerCase() && s.id !== f.editId)) return void (this.formError = 'Another sensor already uses this serial number.');
-    if (!f.deviceId.trim()) return void (this.formError = 'Enter the linked device ID.');
+    if (!RELAX_VALIDATION && (!f.editId && SENSORS.some((s) => s.id.toLowerCase() === id.toLowerCase()))) return void (this.formError = `${id} already exists.`);
+    if (!RELAX_VALIDATION && (!f.serial.trim())) return void (this.formError = 'Enter the serial number.');
+    if (!RELAX_VALIDATION && (SENSORS.some((s) => s.serial.toLowerCase() === f.serial.trim().toLowerCase() && s.id !== f.editId))) return void (this.formError = 'Another sensor already uses this serial number.');
+    if (!RELAX_VALIDATION && (!f.deviceId.trim())) return void (this.formError = 'Enter the linked device ID.');
     const channel = numOrNull(f.channel);
-    if (channel !== null && !(Number.isInteger(channel) && channel >= 1)) return void (this.formError = 'Channel must be 1 or more.');
+    if (!RELAX_VALIDATION && (channel !== null && !(Number.isInteger(channel) && channel >= 1))) return void (this.formError = 'Channel must be 1 or more.');
     const clash = channel === null ? undefined : SENSORS.find((s) => s.deviceId.toUpperCase() === f.deviceId.trim().toUpperCase() && s.channel === channel && s.id !== f.editId);
-    if (clash) return void (this.formError = `${f.deviceId.toUpperCase()} channel ${channel} is already mapped to ${clash.id}.`);
-    if (!f.asset.trim() || !f.point.trim()) return void (this.formError = 'Choose the asset and the measurement point.');
+    if (!RELAX_VALIDATION && (clash)) return void (this.formError = `${f.deviceId.toUpperCase()} channel ${channel} is already mapped to ${clash.id}.`);
+    if (!RELAX_VALIDATION && (!f.asset.trim() || !f.point.trim())) return void (this.formError = 'Choose the asset and the measurement point.');
     const low = numOrNull(f.low);
     const high = numOrNull(f.high);
-    if (low !== null && high !== null && !(low < high)) return void (this.formError = 'The low threshold must be below the high threshold.');
-    if (!f.calDue) return void (this.formError = 'Set the calibration due date.');
+    if (!RELAX_VALIDATION && (low !== null && high !== null && !(low < high))) return void (this.formError = 'The low threshold must be below the high threshold.');
+    if (!RELAX_VALIDATION && (!f.calDue)) return void (this.formError = 'Set the calibration due date.');
 
     const body = this.bodyOf(f, existing);
     const moved = !!existing && (existing.deviceId.toUpperCase() !== body.deviceId.toUpperCase() || existing.channel !== body.channel || existing.assetName !== body.assetName || existing.point !== body.measurementPoint);
@@ -890,11 +891,11 @@ export class SensorManagement implements OnInit, OnDestroy {
     const f = d.f;
     const parameter = f.parameter.trim();
     const type = f.sensorType.trim();
-    if (!parameter) return void (this.formError = 'Enter the parameter name.');
-    if (!type) return void (this.formError = 'Enter the sensor type.');
-    if (PARAMETERS.some((p) => p.name.toLowerCase() === parameter.toLowerCase())) return void (this.formError = `"${parameter}" already exists.`);
-    if (PARAMETERS.some((p) => p.type.toLowerCase() === type.toLowerCase())) return void (this.formError = `The sensor type "${type}" is already used.`);
-    if (f.prefix.trim() && !/^[A-Za-z0-9-]+$/.test(f.prefix.trim())) return void (this.formError = 'The ID prefix may contain only letters, digits and dashes.');
+    if (!RELAX_VALIDATION && (!parameter)) return void (this.formError = 'Enter the parameter name.');
+    if (!RELAX_VALIDATION && (!type)) return void (this.formError = 'Enter the sensor type.');
+    if (!RELAX_VALIDATION && (PARAMETERS.some((p) => p.name.toLowerCase() === parameter.toLowerCase()))) return void (this.formError = `"${parameter}" already exists.`);
+    if (!RELAX_VALIDATION && (PARAMETERS.some((p) => p.type.toLowerCase() === type.toLowerCase()))) return void (this.formError = `The sensor type "${type}" is already used.`);
+    if (!RELAX_VALIDATION && (f.prefix.trim() && !/^[A-Za-z0-9-]+$/.test(f.prefix.trim()))) return void (this.formError = 'The ID prefix may contain only letters, digits and dashes.');
     const t = (v: string) => v.trim() || null;
     this.saving = true;
     this.formError = '';
@@ -969,10 +970,10 @@ export class SensorManagement implements OnInit, OnDestroy {
     const s = this.calTarget(f);
     if (!s) return;
     if (!f.date) return void (this.formError = 'Enter the calibration date.');
-    if (!f.result) return void (this.formError = 'Choose the calibration result.');
+    if (!RELAX_VALIDATION && (!f.result)) return void (this.formError = 'Choose the calibration result.');
     const at = new Date(f.date + 'T09:00').getTime();
-    if (at > Date.now() + DAY) return void (this.formError = 'The calibration date cannot be in the future.');
-    if (!f.certificate.trim()) return void (this.formError = 'Enter the certificate reference.');
+    if (!RELAX_VALIDATION && (at > Date.now() + DAY)) return void (this.formError = 'The calibration date cannot be in the future.');
+    if (!RELAX_VALIDATION && (!f.certificate.trim())) return void (this.formError = 'Enter the certificate reference.');
     const next = new Date(at);
     next.setFullYear(next.getFullYear() + 1);
     const form: SensorForm = {

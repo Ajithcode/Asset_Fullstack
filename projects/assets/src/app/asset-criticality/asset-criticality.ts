@@ -40,6 +40,7 @@ import {
   RISK_SCALE,
   RelatedAssetLink,
 } from './asset-criticality.service';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type SubTab = 'details' | 'impact' | 'mitigation' | 'history' | 'related';
 type ViewMode = 'list' | 'grid';
@@ -443,7 +444,7 @@ export class AssetCriticality implements OnDestroy {
     const f = this.mitigationForm;
     const crit = this.crit;
     if (!f || !crit || this.saving) return;
-    if (!f.action.trim() || !f.owner.trim() || !f.dueDate) {
+    if (!RELAX_VALIDATION && (!f.action.trim() || !f.owner.trim() || !f.dueDate)) {
       this.formError = 'Enter the action, owner and due date.';
       return;
     }
@@ -518,15 +519,15 @@ export class AssetCriticality implements OnDestroy {
   saveAssessment(): void {
     const f = this.assessForm;
     if (!f || this.saving) return;
-    if (!f.date || !f.assessedBy.trim() || !f.approvedBy.trim()) {
+    if (!RELAX_VALIDATION && (!f.date || !f.assessedBy.trim() || !f.approvedBy.trim())) {
       this.formError = 'Enter the assessment date, assessed by and approved by.';
       return;
     }
-    if (f.criteria.some((c) => c.score == null)) {
+    if (!RELAX_VALIDATION && (f.criteria.some((c) => c.score == null))) {
       this.formError = 'Select a score for every criterion.';
       return;
     }
-    if (f.criteria.some((c) => !c.justification.trim())) {
+    if (!RELAX_VALIDATION && (f.criteria.some((c) => !c.justification.trim()))) {
       this.formError = 'Give a justification for every criterion.';
       return;
     }
@@ -590,7 +591,7 @@ export class AssetCriticality implements OnDestroy {
     const f = this.infoForm;
     const crit = this.crit;
     if (!f || !crit || this.saving) return;
-    if (!f.validUntil || !f.assessedBy.trim() || !f.approvedBy.trim()) {
+    if (!RELAX_VALIDATION && (!f.validUntil || !f.assessedBy.trim() || !f.approvedBy.trim())) {
       this.formError = 'Enter valid until, assessed by and approved by.';
       return;
     }

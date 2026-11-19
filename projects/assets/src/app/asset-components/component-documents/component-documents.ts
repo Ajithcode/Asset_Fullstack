@@ -26,6 +26,7 @@ import type { AssetComponent } from '../asset-components';
 import { FORMAT_ICONS, FilePreview, type FileFormat, formatOf, formatSize, saveBlob } from '../file-preview/file-preview';
 import { AssetComponentsService, isoLocalDateTime, type AssetDocumentDto, type ComponentFileDetails, type UploadedFile } from '../asset-components.service';
 import { apiErrorMessage } from '../../services/asset-api';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export type DocumentType =
   | 'Manual'
@@ -464,7 +465,7 @@ export class ComponentDocuments {
     this.formSubmitted = true;
     this.formError = '';
     const f = this.form;
-    if (this.saving || !f.name.trim() || !f.type || !f.version.trim() || !f.status || (this.needsFile && !this.pendingFile)) return;
+    if (this.saving || (!RELAX_VALIDATION && (!f.name.trim() || !f.type || !f.version.trim() || !f.status)) || (this.needsFile && !this.pendingFile)) return;
     const details = { name: f.name.trim(), type: f.type as DocumentType, version: f.version.trim(), status: f.status as DocumentStatus, description: f.description.trim() };
     const c = this.comp;
     const target = this.target;

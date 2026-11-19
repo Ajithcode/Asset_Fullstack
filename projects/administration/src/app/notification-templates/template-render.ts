@@ -1,5 +1,6 @@
 import { VARIABLE_GROUPS } from './notification-templates.data';
 import { NotificationTemplate } from './notification-templates.model';
+import { relaxErrors } from '../../../../../src/environments/relax-validation';
 
 /**
  * Message text is stored as plain text with {{variables}}, **bold**, *italic*, __underline__,
@@ -127,7 +128,7 @@ export function validateTemplate(t: NotificationTemplate, codeTaken: boolean, fu
   if (!t.code.trim()) out['code'] = 'Template code is required.';
   else if (!/^[A-Z0-9-]{3,20}$/.test(t.code.trim())) out['code'] = 'Use 3-20 capital letters, digits or hyphens.';
   else if (codeTaken) out['code'] = 'This code is already used by another template.';
-  if (!full) return out;
+  if (!full) return relaxErrors(out);
 
   if (!t.category) out['category'] = 'Category is required.';
   if (!t.triggerEvent) out['triggerEvent'] = 'Trigger event is required.';
@@ -157,5 +158,5 @@ export function validateTemplate(t: NotificationTemplate, codeTaken: boolean, fu
   const all = [t.email.subject, t.email.body, t.sms.text, t.inApp.title, t.inApp.body, t.inApp.link, t.push.title, t.push.body].join(' ');
   const unknown = variablesIn(all).find((v) => !KNOWN_VARIABLES.has(v));
   if (unknown) out['variables'] = `Unknown variable ${token(unknown)}. Pick one from Available Variables.`;
-  return out;
+  return relaxErrors(out);
 }

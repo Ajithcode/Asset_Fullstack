@@ -34,6 +34,7 @@ import {
 } from '../file-preview/file-preview';
 import { AssetComponentsService, isoLocalDateTime, type AssetDocumentDto, type ComponentFileDetails, type UploadedFile } from '../asset-components.service';
 import { apiErrorMessage } from '../../services/asset-api';
+import { relaxInvalid } from '../../../../../../src/environments/relax-validation';
 
 export type AttachmentCategory = 'Manual' | 'Drawing' | 'Parts List' | 'Image' | 'Report' | 'Certificate' | 'Other';
 
@@ -512,7 +513,7 @@ export class ComponentAttachments {
   }
 
   get editNameInvalid(): boolean {
-    return !this.editForm.baseName.trim() || /[\\/:*?"<>|]/.test(this.editForm.baseName);
+    return relaxInvalid(!this.editForm.baseName.trim() || /[\\/:*?"<>|]/.test(this.editForm.baseName));
   }
 
   saveEdit(): void {

@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Sharing } from '../interactive-dashboards.data';
+import { relaxError } from '../../../../../../../src/environments/relax-validation';
 
 export interface NewDashboard {
   name: string;
@@ -90,7 +91,7 @@ export class CreateDashboardDialog {
 
   submit(): void {
     this.tried = true;
-    if (this.nameError) return;
+    if (relaxError(this.nameError)) return;
     this.created.emit({ name: this.name.trim(), description: this.description.trim(), sharing: this.sharing, copyCurrent: this.copyCurrent });
   }
 }

@@ -2,6 +2,7 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, OnInit, Outpu
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, ArrowLeft, Keyboard, Printer, ScanBarcode, Wifi, X } from 'lucide-angular';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 export type ScanMode = 'barcode' | 'rfid' | 'normal';
 type Step = 'choose' | 'input' | 'print';
@@ -248,12 +249,12 @@ export class ScanPrintDialog implements OnInit {
     this.barcode = this.barcode.trim();
     this.rfidTag = this.rfidTag.trim().toUpperCase().replace(/\s+/g, '');
     this.tag = this.tag.trim();
-    if (this.mode === 'barcode' && !this.barcode) return void (this.error = 'Scan or enter the barcode.');
+    if (!RELAX_VALIDATION && (this.mode === 'barcode' && !this.barcode)) return void (this.error = 'Scan or enter the barcode.');
     if (this.mode === 'rfid') {
-      if (!this.rfidTag) return void (this.error = 'Read or enter the RFID tag.');
-      if (!/^[0-9A-F]+$/.test(this.rfidTag) || this.rfidTag.length % 4 !== 0) return void (this.error = 'An EPC is hexadecimal (0–9, A–F) in groups of 4, e.g. 24 characters.');
+      if (!RELAX_VALIDATION && !this.rfidTag) return void (this.error = 'Read or enter the RFID tag.');
+      if (!RELAX_VALIDATION && (!/^[0-9A-F]+$/.test(this.rfidTag) || this.rfidTag.length % 4 !== 0)) return void (this.error = 'An EPC is hexadecimal (0–9, A–F) in groups of 4, e.g. 24 characters.');
     }
-    if (this.mode === 'normal' && !this.tag) return void (this.error = 'Enter the asset tag.');
+    if (!RELAX_VALIDATION && (this.mode === 'normal' && !this.tag)) return void (this.error = 'Enter the asset tag.');
     this.error = '';
     this.step = 'print';
   }
@@ -263,7 +264,7 @@ export class ScanPrintDialog implements OnInit {
     if (!(copies >= 1 && copies <= 50)) return void (this.error = 'Copies must be between 1 and 50.');
     const printer = this.printers.find((p) => p.id === this.printer);
     if (!printer) return void (this.error = 'Select a printer.');
-    if (!this.size) return void (this.error = 'Select a label size.');
+    if (!RELAX_VALIDATION && !this.size) return void (this.error = 'Select a label size.');
     if (printer.browser && !this.browserPrint(copies)) return void (this.error = 'The print window was blocked. Allow pop-ups for this site and try again.');
     this.completed.emit({ mode: this.mode, assetTag: this.tag, barcode: this.barcode, rfidTag: this.rfidTag, printer: printer.label, copies });
   }

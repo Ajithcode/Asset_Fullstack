@@ -62,6 +62,7 @@ import {
   AssetAssignmentDto, AssetAssignmentRequest, AssetAssignmentService, AssignmentAttachmentDto, AssignmentLookups, EMPTY_LOOKUPS, LookupEmployee, PoolItem,
   assignToOf, choicesFor, dayOf, departmentRequest, employeeRequest, locationFrom, siteTreeOf, toRows, typeOf, uniqueSorted,
 } from '../asset-assignment.service';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 type SelectMode = 'single' | 'multiple' | 'scan';
 type ScanSource = 'camera' | 'external';
@@ -980,6 +981,7 @@ export class AssignAsset implements OnInit, OnDestroy {
 
   /** Checks a step; returns the first problem, or '' when it's complete. */
   private stepError(step: number): string {
+    if (RELAX_VALIDATION) return '';
     const w = this.wizard;
     if (step === 1) return w.tags.length ? '' : 'Select at least one asset.';
     if (step === 2) {
@@ -1088,7 +1090,7 @@ export class AssignAsset implements OnInit, OnDestroy {
   saveDraft(): void {
     const w = this.wizard;
     if (this.saving) return;
-    if (!w.tags.length) {
+    if (!RELAX_VALIDATION && !w.tags.length) {
       w.step = 1;
       this.wizardError = 'Select at least one asset.';
       return;

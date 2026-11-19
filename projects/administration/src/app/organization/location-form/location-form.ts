@@ -5,6 +5,7 @@ import { ADMIN_PEOPLE } from '../../shared/admin-common';
 import { COUNTRY_CITIES, LOCATION_TYPES, PARENT_TYPE, TIME_ZONES } from '../organization.data';
 import { OrgLocation } from '../organization.model';
 import { OrganizationService } from '../organization.service';
+import { relaxErrors } from '../../../../../../src/environments/relax-validation';
 
 const CODE = /^[A-Z][A-Z0-9]*-\d{3,}$/;
 
@@ -101,8 +102,8 @@ export class LocationForm implements OnChanges {
     // The Administration API requires a location manager
     if (!f.contact.trim()) e['contact'] = 'Contact person is required.';
     else if (!this.people.includes(f.contact.trim())) e['contact'] = 'Pick a person from the list.';
-    this.errors = e;
-    return Object.keys(e).length === 0;
+    this.errors = relaxErrors(e);
+    return Object.keys(this.errors).length === 0;
   }
 
   save(): void {

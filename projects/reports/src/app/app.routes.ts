@@ -2,6 +2,10 @@ import { Routes } from '@angular/router';
 import { Reports } from './reports/reports';
 import { CreateReport } from './create-report/create-report';
 import { ReportView } from './report-view/report-view';
+import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
+
+// TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
+installRelaxedValidation();
 // import { ReportsAnalytics } from './analytics/reports-analytics/reports-analytics';
 
 // Mounted by the shell at /reports-analytics (the old /report links redirect there)

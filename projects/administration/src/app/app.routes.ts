@@ -1,5 +1,9 @@
 import { Routes } from '@angular/router';
 import { ADMINISTRATION_MENU } from 'shared-ui';
+import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
+
+// TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
+installRelaxedValidation();
 
 const MAPS_FLOOR_PLANS = ADMINISTRATION_MENU.find((m) => m.slug === 'maps-floor-plans')!;
 

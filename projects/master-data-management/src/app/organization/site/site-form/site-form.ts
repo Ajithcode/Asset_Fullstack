@@ -8,6 +8,7 @@ import { BusinessUnitService } from '../../business-unit/business-unit.service';
 import { DepartmentService } from '../../department/department.service';
 import { SITE_TYPES, SiteRecord, WEEK_DAYS } from '../site.model';
 import { SiteService } from '../site.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 export type SiteFormTab = 'basic' | 'address' | 'hierarchy' | 'contacts' | 'settings';
 type FieldKey = 'name' | 'code' | 'siteType' | 'image' | 'lat' | 'lng' | 'managerEmail' | 'emergencyEmail' | 'hours';
@@ -152,10 +153,10 @@ export class SiteForm implements OnChanges {
     if (f.manager.email.trim() && !EMAIL.test(f.manager.email.trim())) errors.managerEmail = 'Enter a valid email address.';
     if (f.emergency.email.trim() && !EMAIL.test(f.emergency.email.trim())) errors.emergencyEmail = 'Enter a valid email address.';
     if (!f.open24x7 && f.openTime && f.closeTime && f.closeTime <= f.openTime) errors.hours = 'Closing time must be after opening time.';
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
     // Show the first tab that has a problem
-    const keys = Object.keys(errors);
+    const keys = Object.keys(relaxErrors(errors));
     if (keys.length) {
       this.tab = keys.some((k) => ['name', 'code', 'siteType', 'image'].includes(k))
         ? 'basic'

@@ -3,6 +3,10 @@ import { Dashboard } from './dashboard/dashboard';
 import { IotTrackingOverview } from './iot-tracking-overview/iot-tracking-overview';
 import { AssetOverview } from './asset-overview/asset-overview';
 import { Report } from './report/report';
+import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
+
+// TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
+installRelaxedValidation();
 
 // Mounted by the shell at /dashboard; paths match the Dashboard menu in the shell's sidebar
 export const routes: Routes = [

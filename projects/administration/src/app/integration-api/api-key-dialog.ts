@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { API_SCOPES, Integration } from './integration-api.data';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 export interface ApiKeyRequest {
   integrationId: string;
@@ -101,7 +102,7 @@ export class ApiKeyDialog implements OnInit {
 
   submit(): void {
     this.submitted = true;
-    if (this.nameError() || !this.scopes.length || !this.integrationId || !this.days) return;
+    if ((!RELAX_VALIDATION && (this.nameError() || !this.scopes.length)) || !this.integrationId || !this.days) return;
     this.created.emit({ integrationId: this.integrationId, name: this.name.trim(), scopes: this.scopes, days: Number(this.days) });
   }
 }

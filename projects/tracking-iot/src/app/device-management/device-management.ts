@@ -45,6 +45,7 @@ import {
   bucketOf, ensureSite, isCellular, knownAssets,
 } from './device-data';
 import { IoTDeviceApiService, connOf } from './iot-device-api.service';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Kpi = '' | 'online' | 'offline' | 'attention';
 type Tab = 'overview' | 'telemetry' | 'events' | 'settings';
@@ -631,7 +632,7 @@ export class DeviceManagement implements OnInit, OnDestroy {
     if (dl?.kind !== 'link' || this.saving) return;
     const d = this.byId(dl.deviceId);
     if (!d) return;
-    if (!dl.asset.trim()) return void (this.formError = 'Choose the asset to link.');
+    if (!RELAX_VALIDATION && (!dl.asset.trim())) return void (this.formError = 'Choose the asset to link.');
     const asset = this.resolveAsset(dl.asset);
     this.saving = true;
     this.api.update({ ...d, asset }).subscribe({
@@ -713,9 +714,9 @@ export class DeviceManagement implements OnInit, OnDestroy {
     const d = this.selected;
     if (!d) return;
     const s = this.settingsDraft;
-    if (!(s.intervalMin >= 1 && s.intervalMin <= 1440)) return void (this.formError = 'Reporting interval must be 1–1440 minutes.');
-    if (!(s.lowBattery >= 5 && s.lowBattery <= 50)) return void (this.formError = 'Low-battery threshold must be 5–50%.');
-    if (!(s.offlineAfterMin >= s.intervalMin * 2)) return void (this.formError = 'Mark offline after at least two missed intervals.');
+    if (!RELAX_VALIDATION && (!(s.intervalMin >= 1 && s.intervalMin <= 1440))) return void (this.formError = 'Reporting interval must be 1–1440 minutes.');
+    if (!RELAX_VALIDATION && (!(s.lowBattery >= 5 && s.lowBattery <= 50))) return void (this.formError = 'Low-battery threshold must be 5–50%.');
+    if (!RELAX_VALIDATION && (!(s.offlineAfterMin >= s.intervalMin * 2))) return void (this.formError = 'Mark offline after at least two missed intervals.');
     this.formError = '';
     d.settings = { ...s };
     d.conn = connOf(d.lastSeenSec, s.offlineAfterMin);
@@ -787,10 +788,10 @@ export class DeviceManagement implements OnInit, OnDestroy {
     const f = dl.f;
     const id = f.id.trim().toUpperCase();
     const serial = f.serial.trim().toUpperCase();
-    if (!f.name.trim()) return void (this.formError = 'Enter a device name.');
+    if (!RELAX_VALIDATION && (!f.name.trim())) return void (this.formError = 'Enter a device name.');
     const err = this.validateDevice(id, serial, f.type, f.model, f.site, f.gateway, new Set(DEVICES.map((d) => d.id)), new Set(DEVICES.map((d) => d.serial)));
-    if (err) return void (this.formError = err + '.');
-    if (!f.protocol) return void (this.formError = 'Choose the connectivity.');
+    if (!RELAX_VALIDATION && (err)) return void (this.formError = err + '.');
+    if (!RELAX_VALIDATION && (!f.protocol)) return void (this.formError = 'Choose the connectivity.');
     const draft = this.newDevice(id, f.name.trim(), f.type, f.model, serial, f.protocol, f.site, f.gateway, f.asset);
     this.saving = true;
     this.api.create(draft, this.siteIdOf(f.site)).subscribe({

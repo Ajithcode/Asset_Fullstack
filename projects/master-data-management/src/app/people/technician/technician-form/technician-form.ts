@@ -9,6 +9,7 @@ import { TeamService } from '../../team/team.service';
 import { SKILL_LEVELS, blankTechnician } from '../technician.data';
 import { TechnicianRecord } from '../technician.model';
 import { TechnicianService } from '../technician.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'skills' | 'employment' | 'contact' | 'settings';
 type FieldKey = 'id' | 'name' | 'email' | 'photo' | 'status' | 'team' | 'skillLevel' | 'certifications' | 'hourlyRate' | 'maxOpenWorkOrders';
@@ -180,9 +181,9 @@ export class TechnicianForm implements OnChanges {
     if (f.certifications.some((c) => !c.name.trim())) errors.certifications = 'Name every certification or remove the empty ones.';
     if (f.hourlyRate !== null && !(f.hourlyRate >= 0)) errors.hourlyRate = 'Rate can’t be negative.';
     if (!Number.isInteger(f.maxOpenWorkOrders) || f.maxOpenWorkOrders < 1 || f.maxOpenWorkOrders > 50) errors.maxOpenWorkOrders = 'Enter 1 to 50.';
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
-    const keys = Object.keys(errors) as FieldKey[];
+    const keys = Object.keys(relaxErrors(errors)) as FieldKey[];
     if (keys.length) {
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))!.id;
       return;

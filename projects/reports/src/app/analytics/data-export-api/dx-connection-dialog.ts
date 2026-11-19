@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Lock, LucideAngularModule } from 'lucide-angular';
 import { ConnectionType } from './data-export-api.model';
 import { ConnectionForm, DataExportService } from './data-export-api.service';
+import { RELAX_VALIDATION, relaxError } from '../../../../../../src/environments/relax-validation';
 
 export const AUTH_METHODS = ['OAuth 2.0 (client credentials)', 'API key', 'Basic', 'Key pair', 'Service principal', 'Personal access token'];
 
@@ -126,7 +127,7 @@ export class ConnectionDialog {
 
   save(): void {
     this.submitted = true;
-    if (this.nameError || !this.form.type || this.urlError || !this.form.auth || this.secretError) return;
+    if (relaxError(this.nameError) || !this.form.type || relaxError(this.urlError) || (!RELAX_VALIDATION && !this.form.auth) || relaxError(this.secretError)) return;
     const con = this.service.addConnection({ ...this.form, type: this.form.type });
     this.form.secret = '';
     this.saved.emit(con.name);

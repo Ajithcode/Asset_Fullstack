@@ -58,6 +58,7 @@ import {
   HierarchyTypeOption,
   toInput,
 } from './asset-hierarchy.service';
+import { relaxValid } from '../../../../../src/environments/relax-validation';
 
 /** Grouping levels plus the assets themselves. Assets can also parent other assets (sub-components). */
 type NodeKind = 'root' | 'site' | 'building' | 'area' | 'floor' | 'system' | 'asset';
@@ -626,7 +627,7 @@ export class AssetHierarchy implements OnInit {
 
   get formValid(): boolean {
     const f = this.form;
-    return !!f.name.trim() && !!f.tag.trim() && !this.isTagTaken(f.tag) && (f.kind !== 'asset' || (!!f.typeId && !!f.status));
+    return relaxValid(!!f.name.trim() && !!f.tag.trim() && !this.isTagTaken(f.tag) && (f.kind !== 'asset' || (!!f.typeId && !!f.status)));
   }
 
   saveForm(): void {

@@ -405,7 +405,7 @@
       <div class="modal-body">
         <p class="muted">{{ g.task.type }} · currently due {{ fmt(g.task.due) }}</p>
         <label class="field"><span class="field-label">New due date</span><input type="date" class="control" [(ngModel)]="g.value" /></label>
-        <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="button" class="btn btn-primary" [disabled]="!g.value || busy" (click)="saveReschedule()">{{ busy ? 'Saving…' : 'Reschedule' }}</button></div>
+        <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="button" class="btn btn-primary" [disabled]="(!relaxValidation && !g.value) || busy" (click)="saveReschedule()">{{ busy ? 'Saving…' : 'Reschedule' }}</button></div>
       </div>
     </div>
   </div>

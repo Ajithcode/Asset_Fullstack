@@ -33,6 +33,7 @@ import { LocationEventDto, MovementType } from './location-history.service';
 import { SITE_POINTS, ZONE_POINTS, buildLocationSample } from './location-overview.data';
 import { LocationOverviewMap, MapZone } from './location-overview-map';
 import { AssetListItemDto, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 export type LocSource = 'BLE' | 'Manual' | 'QR Scan' | 'GPS' | 'RFID';
 const SOURCES: LocSource[] = ['BLE', 'Manual', 'QR Scan', 'GPS', 'RFID'];
@@ -580,7 +581,8 @@ export class LocationOverview implements OnInit, OnDestroy {
   saveMovement(): void {
     const f = this.form;
     if (!f) return;
-    if (!f.tag || !f.location.trim() || !f.at) return void (this.formError = 'Choose the asset, the location and the date and time.');
+    // TEMP relax: the date and time stays required (new Date(f.at).toISOString() throws on an empty value)
+    if ((!RELAX_VALIDATION && (!f.tag || !f.location.trim())) || !f.at) return void (this.formError = 'Choose the asset, the location and the date and time.');
     const opt = this.assetOptions.find((a) => a.tag === f.tag);
     // Movement type and source are optional; fall back to the usual values when left unselected.
     const movement: MovementType = f.movement || 'In';

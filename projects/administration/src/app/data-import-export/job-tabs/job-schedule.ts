@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { DataJob, JobSchedule, ScheduleFrequency } from '../data-import.model';
 import { WEEKDAYS } from '../data-import.data';
 import { formatStamp } from '../data-import.util';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /** Schedule tab: run manually, once, or on a daily / weekly / monthly cadence. */
 @Component({
@@ -107,7 +108,7 @@ export class JobScheduleTab implements OnChanges {
 
   save(): void {
     this.error = '';
-    if (this.s.mode === 'once' && (!this.s.date || this.s.date < this.today)) {
+    if (!RELAX_VALIDATION && this.s.mode === 'once' && (!this.s.date || this.s.date < this.today)) {
       this.error = 'Choose today or a future date.';
       return;
     }

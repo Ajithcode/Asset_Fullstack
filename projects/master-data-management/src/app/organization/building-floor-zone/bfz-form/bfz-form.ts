@@ -4,6 +4,7 @@ import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { COUNTRIES, FLOOR_NAMES, ZONE_COLORS, blankBfz } from '../bfz.data';
 import { BUILDING_CATEGORIES, BfzRecord, BfzType, ZONE_CATEGORIES } from '../bfz.model';
 import { BfzService } from '../bfz.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'address' | 'settings';
 type FieldKey = 'name' | 'code' | 'siteId' | 'buildingCode' | 'floorCode' | 'capacity' | 'area' | 'image' | 'lat' | 'lng';
@@ -183,9 +184,9 @@ export class BfzForm implements OnChanges {
     else if (f.lat === null && f.lng !== null) errors.lat = 'Enter the latitude too.';
     if (f.lng !== null && (f.lng < -180 || f.lng > 180)) errors.lng = 'Longitude must be between -180 and 180.';
     else if (f.lng === null && f.lat !== null) errors.lng = 'Enter the longitude too.';
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
-    if (Object.keys(errors).length) {
+    if (Object.keys(relaxErrors(errors)).length) {
       this.tab = 'basic';
       return;
     }

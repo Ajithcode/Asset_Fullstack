@@ -180,7 +180,7 @@
         <div class="rfoot">
           <button type="button" class="btn" [disabled]="store.working" (click)="reset()">Reset</button>
           @if (rightTab === 'style') {
-            <button type="submit" class="btn btn--primary" [disabled]="store.working || !d.name.trim()">{{ store.working ? 'Saving…' : 'Save Layer' }}</button>
+            <button type="submit" class="btn btn--primary" [disabled]="store.working || (!relax && !d.name.trim())">{{ store.working ? 'Saving…' : 'Save Layer' }}</button>
           } @else {
             <button type="button" class="btn btn--primary" (click)="rightTab = 'style'">Next</button>
           }

@@ -59,6 +59,7 @@ import {
 import { AssetCategory, AssetCategoryService } from '../services/asset-category/asset-category';
 import { AssetDropdownService, DropdownOption } from '../services/asset-dropdowns/asset-dropdown';
 import { FilterSelect } from '../shared/filter-select/filter-select';
+import { RELAX_VALIDATION, relaxError } from '../../../../../src/environments/relax-validation';
 
 type Status = TypeModelStatus;
 
@@ -531,7 +532,7 @@ export class AssetTypesModels {
   /** POST (add) or PUT (edit) /api/asset-category-types. */
   saveTypeModal(): void {
     this.typeModalSubmitted = true;
-    if (this.validateType(this.typeModal, this.editingTypeId) || this.saving) return;
+    if (relaxError(this.validateType(this.typeModal, this.editingTypeId)) || this.saving) return;
     const f = this.typeModal;
     const values = {
       categoryId: f.categoryId,
@@ -691,7 +692,7 @@ export class AssetTypesModels {
     // the type chosen in the popup; changing it on an existing model moves the model to that type
     const t = this.modalType;
     const manufacturer = this.manufacturers.find((o) => o.value === f.manufacturerId);
-    if (!t || !f.name.trim() || !f.code.trim() || !manufacturer || !f.status || this.isModelCodeTaken(f.code) || this.saving) return;
+    if (!t || !manufacturer || (!RELAX_VALIDATION && (!f.name.trim() || !f.code.trim() || !f.status || this.isModelCodeTaken(f.code))) || this.saving) return;
 
     const request = {
       assetTypeId: t.id,

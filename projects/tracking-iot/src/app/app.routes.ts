@@ -13,6 +13,10 @@ import { DeviceHealth } from './device-health/device-health';
 import { DeviceMaintenance } from './device-maintenance/device-maintenance';
 import { DeviceTypeModel } from './device-type-model/device-type-model';
 import { DeviceReplacement } from './device-replacement/device-replacement';
+import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
+
+// TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
+installRelaxedValidation();
 
 // Mounted by the shell at /tracking-iot; paths match the Tracking & IoT menu in the shell's sidebar.
 // /tracking-iot/locating-classic (the previous floor-plan Locating remote) is routed by the shell.

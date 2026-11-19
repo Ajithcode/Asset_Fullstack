@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { availableFields, isNumeric } from '../custom-reports.engine';
 import { CalcField, CalcOperator, CustomReport, FieldDef } from '../custom-reports.model';
+import { relaxError } from '../../../../../../../src/environments/relax-validation';
 
 /** Add calculated field: name + <numeric field> <operator> <numeric field>. */
 @Component({
@@ -99,7 +100,7 @@ export class CalcFieldDialog implements OnInit {
 
   submit(): void {
     this.submitted = true;
-    if (this.nameError || this.exprError || !this.numericFields.length) return;
+    if (relaxError(this.nameError) || this.exprError || !this.numericFields.length) return;
     const slug = this.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'field';
     let key = `calc:${slug}`;
     let i = 1;

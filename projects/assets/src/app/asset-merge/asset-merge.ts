@@ -30,6 +30,7 @@ import { ASSET_TYPE_ICONS, AssetIconKey, AuthService } from 'shared-ui';
 import { iconForAsset } from '../asset-details/asset-details.service';
 import { Comparable, DEFAULT_RULES, DedupRules, MATCH_FIELDS, MatchField, confidence } from './dedup-match';
 import { AssetDedupService, AssetMergeDto, DedupGroupDto, DedupRecordDto, MergeField, dedupErrorMessage } from './asset-dedup.service';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Confidence = 'High' | 'Medium' | 'Low';
 
@@ -538,7 +539,7 @@ export class AssetMerge implements OnDestroy {
       this.showToast('Keep at least one duplicate in the merge.');
       return;
     }
-    if (this.notes.length > 500) return;
+    if (!RELAX_VALIDATION && (this.notes.length > 500)) return;
     this.confirmOpen = true;
   }
 
@@ -599,7 +600,7 @@ export class AssetMerge implements OnDestroy {
     const f = this.rulesForm;
     if (!f) return;
     const [high, medium, low] = [Number(f.high), Number(f.medium), Number(f.low)];
-    if (!f.fields.length) {
+    if (!RELAX_VALIDATION && !f.fields.length) {
       this.rulesError = 'Choose at least one matching field.';
       return;
     }

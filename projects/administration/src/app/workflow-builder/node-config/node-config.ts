@@ -7,6 +7,7 @@ import {
   NOTIFICATION_TEMPLATES, OPERATORS, OUTCOMES, RECIPIENTS, TRIGGER_EVENTS
 } from '../workflow-builder.data';
 import { NODE_LABELS, WfNode } from '../workflow-builder.model';
+import { relaxErrors } from '../../../../../../src/environments/relax-validation';
 
 const SUBTITLES: Record<WfNode['type'], string> = {
   trigger: 'Choose the event that starts this workflow.',
@@ -101,7 +102,7 @@ export class NodeConfigPanel implements OnChanges {
     if (d.type === 'action' && c.actionType === 'Call Webhook' && !/^https:\/\/\S+$/.test(c.actionValue.trim())) {
       out['actionValue'] = 'Enter an https:// URL.';
     }
-    return out;
+    return relaxErrors(out);
   }
 
   err(field: string): string {

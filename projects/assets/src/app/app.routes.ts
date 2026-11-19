@@ -33,6 +33,10 @@ import { NewDisposal } from './asset-disposal/new-disposal/new-disposal';
 import { AssetLifecycle } from './asset-lifecycle/asset-lifecycle';
 import { AssetMaintenanceTab } from './asset-maintenance-tab/asset-maintenance-tab';
 import { AssetDetailTab } from './asset-detail-tab/asset-detail-tab';
+import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
+
+// TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
+installRelaxedValidation();
 
 // Mounted by the shell at /assets; paths match the Assets menu in the shell's sidebar
 export const routes: Routes = [

@@ -51,6 +51,7 @@ import {
   cloneDetail,
   loadAssetDetail,
 } from '../asset-details/asset-details';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type SubTab = 'operational' | 'assessment' | 'performance' | 'environment' | 'alarms';
 type TrendRange = 'all' | '3y' | '1y';
@@ -526,11 +527,11 @@ export class AssetStatusCondition implements OnDestroy {
     const f = this.assessmentForm;
     if (!f || this.saving) return;
     const score = Number(f.healthScore);
-    if (!f.date || !f.assessedBy.trim()) {
+    if (!RELAX_VALIDATION && (!f.date || !f.assessedBy.trim())) {
       this.formError = 'Enter the assessment date and who assessed it.';
       return;
     }
-    if (!f.overall) {
+    if (!RELAX_VALIDATION && !f.overall) {
       this.formError = 'Select the overall condition.';
       return;
     }
@@ -538,7 +539,7 @@ export class AssetStatusCondition implements OnDestroy {
       this.formError = 'Health score must be between 0 and 100.';
       return;
     }
-    if (f.date > this.today) {
+    if (!RELAX_VALIDATION && (f.date > this.today)) {
       this.formError = 'The assessment date cannot be in the future.';
       return;
     }
@@ -591,11 +592,11 @@ export class AssetStatusCondition implements OnDestroy {
   saveOperational(): void {
     const f = this.operationalForm;
     if (!f) return;
-    if (!f.status || !f.statusSince) {
+    if (!RELAX_VALIDATION && (!f.status || !f.statusSince)) {
       this.formError = 'Enter the operational status and since when it applies.';
       return;
     }
-    if (f.currentLoad < 0 || f.ratedCapacity <= 0 || f.runningHours < 0) {
+    if (!RELAX_VALIDATION && (f.currentLoad < 0 || f.ratedCapacity <= 0 || f.runningHours < 0)) {
       this.formError = 'Load, rated capacity and running hours must be positive numbers.';
       return;
     }
@@ -615,7 +616,8 @@ export class AssetStatusCondition implements OnDestroy {
   saveLifecycle(): void {
     const f = this.lifecycleForm;
     if (!f) return;
-    if (!f.stage || !(f.expectedLifeYears > 0)) {
+    // TEMP relax: expected life stays checked (numeric, used in the lifecycle arithmetic)
+    if ((!RELAX_VALIDATION && !f.stage) || !(f.expectedLifeYears > 0)) {
       this.formError = 'Enter the lifecycle stage and an expected useful life above zero.';
       return;
     }

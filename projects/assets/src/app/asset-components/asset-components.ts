@@ -50,6 +50,7 @@ import { ComponentAttachments, type ComponentAttachment } from './component-atta
 import { ComponentOverview } from './component-overview/component-overview';
 import { AssetComponentsService, isoDate, type AssetComponentDto, type AssetListItemDto, type SaveAssetComponentRequest } from './asset-components.service';
 import { apiErrorMessage } from '../services/asset-api';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type ComponentStatus = 'Active' | 'Under Maintenance' | 'Needs Replacement' | 'Inactive';
 type LifeUnit = 'hrs' | 'months';
@@ -894,7 +895,7 @@ export class AssetComponents {
     this.formSubmitted = true;
     this.formError = '';
     const f = this.form;
-    if (this.saving || !f.name.trim() || !f.tag.trim() || this.isTagTaken(f.tag) || !f.status || this.lifeUnitMissing || this.lifeInvalid || this.datesInvalid) return;
+    if (this.saving || (!RELAX_VALIDATION && (!f.name.trim() || !f.tag.trim() || this.isTagTaken(f.tag) || !f.status || this.lifeUnitMissing || this.lifeInvalid || this.datesInvalid))) return;
 
     const parent = this.find(f.parentId);
     const body: SaveAssetComponentRequest = {

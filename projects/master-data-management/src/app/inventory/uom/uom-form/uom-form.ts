@@ -5,6 +5,7 @@ import { MasterForm } from '../../../maintenance/form-base';
 import { UOM_TYPES, blankUom } from '../../inventory.data';
 import { UomRecord } from '../../inventory.model';
 import { UomService } from '../../inventory.service';
+import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 type Tab = 'basic' | 'conversion' | 'settings';
 
@@ -46,17 +47,20 @@ export class UomForm extends MasterForm<UomRecord, Tab> {
     }
   }
 
+  // TEMP relax-validation: only the field checks below are relaxed; business rules keep running
+  protected override relaxWholeValidate = false;
+
   protected validate(f: UomRecord) {
     const errors: Record<string, string> = {};
-    if (!f.type) errors['type'] = 'Select a type.';
-    if (!f.symbol.trim()) errors['symbol'] = 'Enter a symbol.';
-    if (!f.status) errors['status'] = 'Select a status.';
-    if (!(f.conversionFactor > 0)) errors['conversionFactor'] = 'Enter a factor greater than 0.';
+    if (!RELAX_VALIDATION && !f.type) errors['type'] = 'Select a type.';
+    if (!RELAX_VALIDATION && !f.symbol.trim()) errors['symbol'] = 'Enter a symbol.';
+    if (!RELAX_VALIDATION && !f.status) errors['status'] = 'Select a status.';
+    if (!RELAX_VALIDATION && !(f.conversionFactor > 0)) errors['conversionFactor'] = 'Enter a factor greater than 0.';
     if (!f.baseUom && f.conversionFactor !== 1) errors['conversionFactor'] = 'A unit without a base unit has a factor of 1.';
     if (this.original && f.baseUom && this.store.derived(this.original.code).length) {
       errors['baseUom'] = 'Other units are based on this one, so it must stay a base unit.';
     }
-    if (f.allowDecimals && !(Number.isInteger(f.decimalPlaces) && f.decimalPlaces >= 1 && f.decimalPlaces <= 6)) errors['decimalPlaces'] = 'Enter 1 to 6.';
+    if (!RELAX_VALIDATION && f.allowDecimals && !(Number.isInteger(f.decimalPlaces) && f.decimalPlaces >= 1 && f.decimalPlaces <= 6)) errors['decimalPlaces'] = 'Enter 1 to 6.';
     const tab: Tab = errors['type'] || errors['symbol'] || errors['status'] ? 'basic' : errors['decimalPlaces'] && Object.keys(errors).length === 1 ? 'settings' : 'conversion';
     return { errors, tab };
   }

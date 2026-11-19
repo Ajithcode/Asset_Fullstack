@@ -36,6 +36,7 @@ import {
   X,
   HeartPulse,
 } from 'lucide-angular';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type StageKey =
   | 'planning'
@@ -748,13 +749,14 @@ export class AssetLifecycle implements OnDestroy {
   saveInfo(): void {
     this.submitted = true;
     const d = this.infoDraft;
-    if (![d.category, d.typeModel, d.serial, d.location, d.custodian].every((v) => v.trim())) return;
+    if (!RELAX_VALIDATION && (![d.category, d.typeModel, d.serial, d.location, d.custodian].every((v) => v.trim()))) return;
     this.asset = { ...d };
     this.closeModal();
     this.showToast('Asset information updated on this page. Edit the asset registration to save it.');
   }
 
   get datesError(): string | null {
+    if (RELAX_VALIDATION) return null;
     const d = this.datesDraft;
     if (![d.purchase, d.installation, d.operationalSince, d.expectedDisposal].every(Boolean)) return 'Purchase, installation, operational and disposal dates are required.';
     if (d.installation < d.purchase) return 'Installation can\'t be before purchase.';
@@ -778,6 +780,7 @@ export class AssetLifecycle implements OnDestroy {
     const s = this.statusDraft;
     const pct = [s.health, s.utilization, s.availability];
     if (pct.some((v) => v === null || v === undefined || !Number.isFinite(Number(v)) || v < 0 || v > 100)) return 'Health, utilization and availability must be between 0 and 100.';
+    if (RELAX_VALIDATION) return null; // TEMP relax: the 0-100 check above stays (values are converted with Number())
     if (s.lastMaintenance && s.nextMaintenance && s.nextMaintenance < s.lastMaintenance) return 'Next maintenance can\'t be before the last one.';
     if (s.lastAssessment && s.nextAssessment && s.nextAssessment < s.lastAssessment) return 'Next assessment can\'t be before the last one.';
     return null;
@@ -794,7 +797,7 @@ export class AssetLifecycle implements OnDestroy {
   saveCondition(): void {
     this.submitted = true;
     const d = this.conditionDraft;
-    if (!d.date || d.date > this.todayIso || !d.condition) return;
+    if (!RELAX_VALIDATION && (!d.date || d.date > this.todayIso || !d.condition)) return;
     if (this.registrationId) {
       // condition assessments are kept in the Asset API
       this.saving = true;
@@ -827,7 +830,7 @@ export class AssetLifecycle implements OnDestroy {
   saveEvent(): void {
     this.submitted = true;
     const d = this.eventDraft;
-    if (!d.date || !d.title.trim()) return;
+    if (!RELAX_VALIDATION && (!d.date || !d.title.trim())) return;
     const e = { ...d, kind: d.kind || ('Other' as EventKind), title: d.title.trim(), by: d.by.trim() || this.api.user || '' };
     const apply = () => {
       this.addEvent(e);
@@ -855,7 +858,7 @@ export class AssetLifecycle implements OnDestroy {
   get stageError(): string | null {
     const d = this.stageDraft;
     if (!d) return null;
-    if ((d.status === 'Completed' || d.status === 'Current') && !d.date) return 'Completed and current stages need a date.';
+    if (!RELAX_VALIDATION && ((d.status === 'Completed' || d.status === 'Current') && !d.date)) return 'Completed and current stages need a date.';
     return null;
   }
 

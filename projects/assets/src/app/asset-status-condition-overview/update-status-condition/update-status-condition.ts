@@ -54,6 +54,7 @@ import {
   stateTone,
   statusTone,
 } from '../status-condition.service';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 type Step = 1 | 2 | 3;
 type CheckState = 'ok' | 'warn' | 'error';
@@ -592,10 +593,10 @@ export class UpdateStatusCondition implements OnDestroy {
     }
 
     const assessed = joinLocal(this.form.assessmentDate, this.form.assessmentTime);
-    if (assessed && new Date(assessed).getTime() > Date.now() + 60_000) {
+    if (!RELAX_VALIDATION && (assessed && new Date(assessed).getTime() > Date.now() + 60_000)) {
       list.push({ state: 'error', text: 'Condition assessment date is in the future.' });
     }
-    if (this.form.nextAssessmentDue && this.form.assessmentDate && this.form.nextAssessmentDue <= this.form.assessmentDate) {
+    if (!RELAX_VALIDATION && (this.form.nextAssessmentDue && this.form.assessmentDate && this.form.nextAssessmentDue <= this.form.assessmentDate)) {
       list.push({ state: 'error', text: 'Next assessment must be after the assessment date.' });
     }
     return list;
@@ -651,6 +652,8 @@ export class UpdateStatusCondition implements OnDestroy {
     if (this.form.downtimeEstimate != null && (this.form.downtimeEstimate < 0 || this.form.downtimeEstimate > 100000)) {
       errors.downtimeEstimate = 'Enter 0 to 100000.';
     }
+    // TEMP relax: only the asset (needed to build the request) stays required
+    if (RELAX_VALIDATION) for (const k of Object.keys(errors) as (keyof typeof errors)[]) if (k !== 'asset') delete errors[k];
     this.errors = errors;
     if (Object.keys(errors).length) {
       this.formError = 'Complete the highlighted fields.';

@@ -44,6 +44,7 @@ import { Observable, Subscription, finalize, of, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetLookupService, AssetOption } from './asset-lookup.service';
 import { ApiDocVersion, ApiDocument, AssetDocumentsService, DocumentFormValue, StoredFile } from './asset-documents.service';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type DocStatus = 'Active' | 'Expired' | 'Draft';
 type ViewMode = 'list' | 'grid';
@@ -698,15 +699,15 @@ export class AssetDocuments implements OnDestroy {
       this.uploadError = 'Select at least one asset.';
       return;
     }
-    if (u.mode === 'new' && (!u.name.trim() || !u.type || !u.stage)) {
+    if (!RELAX_VALIDATION && (u.mode === 'new' && (!u.name.trim() || !u.type || !u.stage))) {
       this.uploadError = 'Enter the document name, type and lifecycle stage.';
       return;
     }
-    if (u.mode === 'new' && u.draft === null) {
+    if (!RELAX_VALIDATION && (u.mode === 'new' && u.draft === null)) {
       this.uploadError = 'Select the status.';
       return;
     }
-    if (!u.version.trim()) {
+    if (!RELAX_VALIDATION && !u.version.trim()) {
       this.uploadError = 'Enter the version.';
       return;
     }
@@ -791,7 +792,7 @@ export class AssetDocuments implements OnDestroy {
   saveEdit(): void {
     const e = this.edit;
     if (!e) return;
-    if (!e.name.trim() || !e.type || !e.stage) {
+    if (!RELAX_VALIDATION && (!e.name.trim() || !e.type || !e.stage)) {
       this.editError = 'Enter the document name, type and lifecycle stage.';
       return;
     }

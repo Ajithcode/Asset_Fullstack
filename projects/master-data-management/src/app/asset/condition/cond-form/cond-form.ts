@@ -5,6 +5,7 @@ import { HEX_COLOR, LEVEL_ICONS, LEVEL_ICON_KEYS } from '../../level-icons';
 import { CONDITION_TYPES, blankCondition } from '../condition.data';
 import { ConditionRecord } from '../condition.model';
 import { ConditionService } from '../condition.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 /** A new condition starts with its Type dropdown empty so the user picks it. */
 function newCondition(): ConditionRecord {
@@ -150,9 +151,9 @@ export class CondForm implements OnChanges {
     else if (f.isDefault && f.status !== 'Active') errors.isDefault = 'The default condition must be active.';
     if (!Number.isInteger(f.healthScore) || f.healthScore < 0 || f.healthScore > 100) errors.healthScore = 'Enter 0 to 100.';
     if (!Number.isInteger(f.displayOrder) || f.displayOrder < 1) errors.displayOrder = 'Enter 1 or more.';
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
-    const keys = Object.keys(errors) as FieldKey[];
+    const keys = Object.keys(relaxErrors(errors)) as FieldKey[];
     if (keys.length) {
       // Show the first tab that has a problem
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))!.id;

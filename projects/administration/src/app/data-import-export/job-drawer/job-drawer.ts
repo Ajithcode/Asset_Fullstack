@@ -7,6 +7,7 @@ import { DataJob } from '../data-import.model';
 import { DATA_OBJECT_NAMES, DATE_FORMATS, DELIMITERS, DUPLICATE_OPTIONS, ENCODINGS } from '../data-import.data';
 import { DataJobService, nowStamp } from '../data-import.service';
 import { formatStamp } from '../data-import.util';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -127,11 +128,11 @@ export class JobDrawer implements OnChanges {
   addRecipient(): void {
     const email = this.recipientInput.trim().replace(/,$/, '');
     if (!email) return;
-    if (!EMAIL.test(email)) {
+    if (!RELAX_VALIDATION && !EMAIL.test(email)) {
       this.recipientError = `"${email}" is not a valid email address.`;
       return;
     }
-    if (this.job.recipients.some((r) => r.toLowerCase() === email.toLowerCase())) {
+    if (!RELAX_VALIDATION && this.job.recipients.some((r) => r.toLowerCase() === email.toLowerCase())) {
       this.recipientError = `${email} is already added.`;
       return;
     }
@@ -148,21 +149,23 @@ export class JobDrawer implements OnChanges {
   private validate(): boolean {
     const e: Record<string, string> = {};
     const name = this.job.name.trim();
-    if (!name) e['name'] = 'Job name is required.';
-    else if (name.length > 80) e['name'] = 'Keep the name under 80 characters.';
-    else if (this.service.isNameTaken(name, this.job.id)) e['name'] = 'Another job already uses this name.';
-    if (!this.job.dataObject) e['object'] = 'Choose a data object.';
-    if (this.isImport && !this.job.operation) e['operation'] = 'Choose an operation.';
+    // TEMP relaxed mode (R): field-content checks skipped; the attached-file check and the whole-number batch guard stay
+    const R = RELAX_VALIDATION;
+    if (!R && !name) e['name'] = 'Job name is required.';
+    else if (!R && name.length > 80) e['name'] = 'Keep the name under 80 characters.';
+    else if (!R && this.service.isNameTaken(name, this.job.id)) e['name'] = 'Another job already uses this name.';
+    if (!R && !this.job.dataObject) e['object'] = 'Choose a data object.';
+    if (!R && this.isImport && !this.job.operation) e['operation'] = 'Choose an operation.';
     if (this.isImport && !this.job.fileName) e['file'] = 'Attach an .xlsx or .csv file.';
-    if (!this.job.fileFormat) e['format'] = this.isImport ? 'Choose a file format.' : 'Choose an export format.';
-    if (this.isImport && !this.job.duplicateHandling) e['duplicate'] = 'Choose how duplicates are handled.';
-    if (!this.job.dateFormat) e['dateFormat'] = 'Choose a date format.';
-    if (!this.job.delimiter) e['delimiter'] = 'Choose a delimiter.';
-    if (!this.job.encoding) e['encoding'] = 'Choose an encoding.';
+    if (!R && !this.job.fileFormat) e['format'] = this.isImport ? 'Choose a file format.' : 'Choose an export format.';
+    if (!R && this.isImport && !this.job.duplicateHandling) e['duplicate'] = 'Choose how duplicates are handled.';
+    if (!R && !this.job.dateFormat) e['dateFormat'] = 'Choose a date format.';
+    if (!R && !this.job.delimiter) e['delimiter'] = 'Choose a delimiter.';
+    if (!R && !this.job.encoding) e['encoding'] = 'Choose an encoding.';
     const batch = Number(this.job.batchSize);
-    if (!Number.isInteger(batch) || batch < 1 || batch > 50000) e['batch'] = 'Batch size must be 1 – 50,000.';
-    if (this.job.schedule.mode === 'once' && !this.job.schedule.date) e['schedule'] = 'Pick a run date on the Schedule tab.';
-    if (this.recipientInput.trim()) e['recipients'] = 'Press Enter to add the email, or clear it.';
+    if (!Number.isInteger(batch) || (!R && (batch < 1 || batch > 50000))) e['batch'] = 'Batch size must be 1 – 50,000.';
+    if (!R && this.job.schedule.mode === 'once' && !this.job.schedule.date) e['schedule'] = 'Pick a run date on the Schedule tab.';
+    if (!R && this.recipientInput.trim()) e['recipients'] = 'Press Enter to add the email, or clear it.';
     this.errors = e;
     return Object.keys(e).length === 0;
   }

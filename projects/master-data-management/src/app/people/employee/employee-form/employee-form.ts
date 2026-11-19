@@ -9,6 +9,7 @@ import { TeamService } from '../../team/team.service';
 import { NATIONALITIES, blankEmployee } from '../employee.data';
 import { EmployeeRecord } from '../employee.model';
 import { EmployeeService } from '../employee.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'employment' | 'contact' | 'skills' | 'access';
 type FieldKey = 'id' | 'name' | 'department' | 'designation' | 'email' | 'photo' | 'status' | 'reportingManager' | 'certifications';
@@ -161,9 +162,9 @@ export class EmployeeForm implements OnChanges {
     else if (this.service.isEmailTaken(f.email, originalId)) errors.email = 'Another employee uses this email.';
     if (f.reportingManager && f.reportingManager === originalId) errors.reportingManager = 'An employee can’t report to themselves.';
     if (f.certifications.some((c) => !c.name.trim())) errors.certifications = 'Name every certification or remove the empty ones.';
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
-    const keys = Object.keys(errors) as FieldKey[];
+    const keys = Object.keys(relaxErrors(errors)) as FieldKey[];
     if (keys.length) {
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))!.id;
       return;

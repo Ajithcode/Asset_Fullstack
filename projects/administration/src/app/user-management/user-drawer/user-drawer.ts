@@ -23,6 +23,7 @@ import { ALL_LOCATIONS, LOCATION_TIME_ZONES, TIME_ZONES, USER_MODULES, USER_ROLE
 import { AdminUser, UserStatus } from '../user-management.model';
 import { UserAdminService } from '../user-management.service';
 import { loginLabel, roleOf } from '../user-format';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const EMPLOYEE_ID = /^EMP-\d{4,}$/;
@@ -202,14 +203,16 @@ export class UserDrawer implements OnChanges {
     const f = this.form;
     const e: Record<string, string> = {};
     const exceptId = this.isAdd ? null : this.user.id;
-    if (!f.name.trim()) e['name'] = 'Full name is required.';
-    if (!f.email.trim()) e['email'] = 'Email address is required.';
-    else if (!EMAIL.test(f.email.trim())) e['email'] = 'Enter a valid email address.';
-    else if (this.service.emailTaken(f.email, exceptId)) e['email'] = 'Another user already has this email.';
-    if (!f.employeeId.trim()) e['employeeId'] = 'Employee ID is required.';
-    else if (!EMPLOYEE_ID.test(f.employeeId.trim().toUpperCase())) e['employeeId'] = 'Use the format EMP-0001.';
-    else if (this.service.employeeIdTaken(f.employeeId, exceptId)) e['employeeId'] = 'This employee ID is already used.';
-    if (!f.department) e['department'] = 'Department is required.';
+    // TEMP relaxed mode (R): field-content checks skipped; password rules and the lockout guard stay
+    const R = RELAX_VALIDATION;
+    if (!R && !f.name.trim()) e['name'] = 'Full name is required.';
+    if (!R && !f.email.trim()) e['email'] = 'Email address is required.';
+    else if (!R && !EMAIL.test(f.email.trim())) e['email'] = 'Enter a valid email address.';
+    else if (!R && this.service.emailTaken(f.email, exceptId)) e['email'] = 'Another user already has this email.';
+    if (!R && !f.employeeId.trim()) e['employeeId'] = 'Employee ID is required.';
+    else if (!R && !EMPLOYEE_ID.test(f.employeeId.trim().toUpperCase())) e['employeeId'] = 'Use the format EMP-0001.';
+    else if (!R && this.service.employeeIdTaken(f.employeeId, exceptId)) e['employeeId'] = 'This employee ID is already used.';
+    if (!R && !f.department) e['department'] = 'Department is required.';
     // Required for a new user; optional when editing (blank keeps the current password)
     if (this.isAdd && !this.password) e['password'] = 'Password is required.';
     else if (this.password) {
@@ -217,11 +220,11 @@ export class UserDrawer implements OnChanges {
       if (problem) e['password'] = problem;
       else if (this.password !== this.confirmPassword) e['confirmPassword'] = 'Passwords do not match.';
     }
-    if (f.phone.trim() && !PHONE.test(f.phone.trim())) e['phone'] = 'Enter a valid phone number.';
-    if (!f.primaryRole) e['primaryRole'] = 'Primary role is required.';
-    if (!f.accessScope) e['accessScope'] = 'Access scope is required.';
-    if (!f.modules.length) e['modules'] = 'Give access to at least one module.';
-    if (f.status === 'Suspended' && !f.suspendReason.trim()) e['suspendReason'] = 'Say why the account is suspended.';
+    if (!R && f.phone.trim() && !PHONE.test(f.phone.trim())) e['phone'] = 'Enter a valid phone number.';
+    if (!R && !f.primaryRole) e['primaryRole'] = 'Primary role is required.';
+    if (!R && !f.accessScope) e['accessScope'] = 'Access scope is required.';
+    if (!R && !f.modules.length) e['modules'] = 'Give access to at least one module.';
+    if (!R && f.status === 'Suspended' && !f.suspendReason.trim()) e['suspendReason'] = 'Say why the account is suspended.';
     if (!this.isAdd && f.status !== 'Active' && this.user.status === 'Active') {
       const reason = this.service.lockoutReason(this.user);
       if (reason) e['status'] = reason;

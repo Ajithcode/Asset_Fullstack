@@ -5,6 +5,7 @@ import { HEX_COLOR, LEVEL_ICONS, LEVEL_ICON_KEYS } from '../../level-icons';
 import { INSPECTION_FREQUENCIES, MONITORING, PRIORITIES, SCALE, STRATEGIES, blankCriticality } from '../criticality.data';
 import { CriticalityRecord } from '../criticality.model';
 import { CriticalityService } from '../criticality.service';
+import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 /** A new level starts with every dropdown empty so the user picks each value. */
 function newCriticality(): CriticalityRecord {
@@ -138,16 +139,16 @@ export class CritForm implements OnChanges {
     }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
-    if (!f.name.trim()) errors.name = 'Enter a criticality name.';
-    else if (this.service.isNameTaken(f.name, this.original?.code ?? null)) errors.name = `${f.name.trim()} already exists.`;
-    if (!f.code.trim()) errors.code = 'Enter a code.';
-    else if (this.service.isCodeTaken(f.code, this.original?.code ?? null)) errors.code = `${f.code.trim()} is already used.`;
-    if (!f.riskLevel) errors.riskLevel = 'Select a risk level.';
-    if (!f.maintenancePriority) errors.maintenancePriority = 'Select a maintenance priority.';
-    if (!HEX_COLOR.test(f.color.trim())) errors.color = 'Enter a colour like #EF4444.';
+    if (!RELAX_VALIDATION && !f.name.trim()) errors.name = 'Enter a criticality name.';
+    else if (!RELAX_VALIDATION && this.service.isNameTaken(f.name, this.original?.code ?? null)) errors.name = `${f.name.trim()} already exists.`;
+    if (!RELAX_VALIDATION && !f.code.trim()) errors.code = 'Enter a code.';
+    else if (!RELAX_VALIDATION && this.service.isCodeTaken(f.code, this.original?.code ?? null)) errors.code = `${f.code.trim()} is already used.`;
+    if (!RELAX_VALIDATION && !f.riskLevel) errors.riskLevel = 'Select a risk level.';
+    if (!RELAX_VALIDATION && !f.maintenancePriority) errors.maintenancePriority = 'Select a maintenance priority.';
+    if (!RELAX_VALIDATION && !HEX_COLOR.test(f.color.trim())) errors.color = 'Enter a colour like #EF4444.';
     if (this.original?.isDefault && !f.isDefault) errors.isDefault = 'Make another level the default instead.';
     else if (f.isDefault && f.status !== 'Active') errors.isDefault = 'The default level must be active.';
-    if (!Number.isInteger(f.responseTimeHours) || f.responseTimeHours < 1 || f.responseTimeHours > 720) errors.responseTimeHours = 'Enter 1 to 720 hours.';
+    if (!RELAX_VALIDATION && (!Number.isInteger(f.responseTimeHours) || f.responseTimeHours < 1 || f.responseTimeHours > 720)) errors.responseTimeHours = 'Enter 1 to 720 hours.';
     this.errors = errors;
 
     if (Object.keys(errors).length) {

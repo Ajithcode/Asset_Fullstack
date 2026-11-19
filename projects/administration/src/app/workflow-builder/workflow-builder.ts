@@ -12,6 +12,7 @@ import { WorkflowCanvas } from './workflow-canvas/workflow-canvas';
 import { blankConfig, defaultConfig, NODE_TYPES, WORKFLOW_CATEGORIES, WORKFLOW_TEMPLATES } from './workflow-builder.data';
 import { NODE_LABELS, NODE_SIZE, NodeType, WfGraph, WfNode, Workflow, WorkflowStatus } from './workflow-builder.model';
 import { WorkflowService } from './workflow-builder.service';
+import { RELAX_VALIDATION, relaxErrors } from '../../../../../src/environments/relax-validation';
 
 interface DetailsForm {
   id: string | null;
@@ -298,7 +299,7 @@ export class WorkflowBuilderPage extends AdminPage {
     const problems: string[] = [];
     const triggers = g.nodes.filter((n) => n.type === 'trigger');
     if (triggers.length !== 1) problems.push('The workflow needs exactly one trigger.');
-    if (g.nodes.some((n) => !n.name.trim())) problems.push('Every node needs a name.');
+    if (!RELAX_VALIDATION && g.nodes.some((n) => !n.name.trim())) problems.push('Every node needs a name.');
     if (triggers.length === 1) {
       const reached = new Set([triggers[0].id]);
       const queue = [triggers[0].id];
@@ -488,7 +489,7 @@ export class WorkflowBuilderPage extends AdminPage {
     if (!d.category) out['category'] = 'Pick a category.';
     if (!d.owner) out['owner'] = 'Pick an owner.';
     if (!d.id && d.template === null) out['template'] = 'Pick what to start from.';
-    return out;
+    return relaxErrors(out);
   }
 
   detailErr(field: string): string {

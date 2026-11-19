@@ -14,6 +14,7 @@ import {
 } from './numbering-sequence.model';
 import { NumberingSequenceService, apiErrorMessage } from './numbering-sequence.service';
 import { SequenceDrawer } from './sequence-drawer/sequence-drawer';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'config' | 'preview' | 'usage' | 'changes';
 
@@ -287,7 +288,7 @@ export class NumberingSequencePage extends AdminPage {
       return;
     }
     const fmt = formatErrors(this.draft);
-    if (fmt.length) {
+    if (!RELAX_VALIDATION && fmt.length) {
       this.tab = 'config';
       this.notify(fmt[0]);
       return;

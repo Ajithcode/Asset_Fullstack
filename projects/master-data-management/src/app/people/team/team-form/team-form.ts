@@ -9,6 +9,7 @@ import { TechnicianService } from '../../technician/technician.service';
 import { blankTeam } from '../team.data';
 import { TeamRecord } from '../team.model';
 import { TeamService } from '../team.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'members' | 'roles' | 'settings';
 type FieldKey = 'name' | 'code' | 'department' | 'status' | 'members';
@@ -141,9 +142,9 @@ export class TeamForm implements OnChanges {
     if (!f.department) errors.department = 'Select a department.';
     if (!f.status) errors.status = 'Select a status.';
     if (f.status === 'Active' && !f.members.length) errors.members = 'An active team needs at least one member.';
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
-    if (Object.keys(errors).length) {
+    if (Object.keys(relaxErrors(errors)).length) {
       this.tab = errors.name || errors.code || errors.department || errors.status ? 'basic' : 'members';
       return;
     }

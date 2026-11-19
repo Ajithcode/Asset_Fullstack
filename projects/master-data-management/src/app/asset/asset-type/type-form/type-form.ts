@@ -7,6 +7,7 @@ import { MODEL_ICONS, MODEL_ICON_KEYS } from '../../asset-model/asset-model.icon
 import { ASSET_CLASSES, CUSTOM_FIELD_TYPES, MAINTENANCE_TYPES, blankAssetType } from '../asset-type.data';
 import { AssetTypeRecord } from '../asset-type.model';
 import { AssetTypeService } from '../asset-type.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 /** A new asset type starts with every dropdown empty so the user picks each value. */
 function newAssetType(): AssetTypeRecord {
@@ -225,9 +226,9 @@ export class TypeForm implements OnChanges {
     if (names.some((n) => !n)) errors.customFields = 'Every custom field needs a name.';
     else if (new Set(names).size !== names.length) errors.customFields = 'Custom field names must be unique.';
     else if (f.customFields.some((c) => !c.type)) errors.customFields = 'Every custom field needs a type.';
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
-    const keys = Object.keys(errors) as FieldKey[];
+    const keys = Object.keys(relaxErrors(errors)) as FieldKey[];
     if (keys.length) {
       // Show the first tab that has a problem
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))!.id;

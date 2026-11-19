@@ -11,6 +11,7 @@ import { DATA_SOURCES, RA_MODULES, SCHEDULES, VISIBILITIES, blankDefinition } fr
 import { applySource } from './custom-reports.engine';
 import { Aggregate, CalcOperator, CustomReport, FilterOperator, ReportStatus, ReportVisibility, VizType } from './custom-reports.model';
 import { CustomReportsService, cloneReport, dubaiNow } from './custom-reports.service';
+import { RELAX_VALIDATION, relaxError } from '../../../../../../src/environments/relax-validation';
 
 type UpdatedRange = '' | '1' | '7' | '30' | 'older';
 
@@ -198,7 +199,7 @@ export class CustomReportsPage extends AnalyticsPage {
   /** A draft only needs a valid name. */
   saveDraft(): void {
     this.showErrors = true;
-    const problem = this.nameError || (this.draft.sourceKey ? '' : 'Select a data source.');
+    const problem = relaxError(this.nameError) || (this.draft.sourceKey ? '' : 'Select a data source.');
     if (problem) {
       this.notify(problem);
       return;
@@ -209,8 +210,8 @@ export class CustomReportsPage extends AnalyticsPage {
   /** Save / publish need a valid name, at least one field and complete filters. */
   private validateAll(): boolean {
     this.showErrors = true;
-    const problem = this.nameError || (this.draft.sourceKey ? '' : 'Select a data source.') || (this.draft.fields.length ? '' : 'Select at least one field.')
-      || this.builder?.firstProblem || (this.draft.visibility ? '' : 'Select a visibility.') || (this.draft.schedule ? '' : 'Select a schedule.');
+    const problem = relaxError(this.nameError) || (this.draft.sourceKey ? '' : 'Select a data source.') || (this.draft.fields.length ? '' : 'Select at least one field.')
+      || this.builder?.firstProblem || (RELAX_VALIDATION || this.draft.visibility ? '' : 'Select a visibility.') || (RELAX_VALIDATION || this.draft.schedule ? '' : 'Select a schedule.');
     if (problem) {
       this.notify(problem);
       return false;

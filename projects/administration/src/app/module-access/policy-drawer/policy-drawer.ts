@@ -6,24 +6,27 @@ import { ChipSelect } from '../../role-access-control/chip-select/chip-select';
 import { RoleAccessService } from '../../role-access-control/role-access.service';
 import { AccessSummary, POLICY_SCOPES, POLICY_TYPES, PolicyRecord, accessSummary } from '../module-access.data';
 import { ModuleAccessService } from '../module-access.service';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export type PolicyErrors = Partial<Record<'name' | 'code' | 'description' | 'roles' | 'dataScope' | 'landingModule' | 'sessionTimeout', string>>;
 
 /** Validation shared by the drawer (inline messages) and the page (blocks Save). */
 export function policyErrors(p: PolicyRecord, codeTaken: boolean, nameTaken: boolean): PolicyErrors {
   const e: PolicyErrors = {};
-  if (!p.name.trim()) e.name = 'Policy name is required.';
-  else if (nameTaken) e.name = 'Another policy already has this name.';
-  if (!p.code.trim()) e.code = 'Policy code is required.';
-  else if (!/^[A-Z0-9]+(-[A-Z0-9]+)*$/.test(p.code.trim()) || p.code.trim().length > 20) e.code = 'Use A–Z, 0–9 and hyphens (max 20).';
-  else if (codeTaken) e.code = 'Another policy already uses this code.';
-  if (p.description.length > 500) e.description = 'Keep it under 500 characters.';
-  if (p.type === 'Role' && !p.roles.length) e.roles = 'Role policies need at least one role.';
-  if (!p.dataScope) e.dataScope = 'Data scope is required.';
+  // TEMP relaxed mode: content checks are skipped; the whole-number guard on sessionTimeout stays (int payload)
+  const R = RELAX_VALIDATION;
+  if (!R && !p.name.trim()) e.name = 'Policy name is required.';
+  else if (!R && nameTaken) e.name = 'Another policy already has this name.';
+  if (!R && !p.code.trim()) e.code = 'Policy code is required.';
+  else if (!R && (!/^[A-Z0-9]+(-[A-Z0-9]+)*$/.test(p.code.trim()) || p.code.trim().length > 20)) e.code = 'Use A–Z, 0–9 and hyphens (max 20).';
+  else if (!R && codeTaken) e.code = 'Another policy already uses this code.';
+  if (!R && p.description.length > 500) e.description = 'Keep it under 500 characters.';
+  if (!R && p.type === 'Role' && !p.roles.length) e.roles = 'Role policies need at least one role.';
+  if (!R && !p.dataScope) e.dataScope = 'Data scope is required.';
   const landing = p.grants.find((g) => g.module === p.landingModule);
-  if (!p.landingModule) e.landingModule = 'Default landing module is required.';
-  else if (!landing || !landing.enabled) e.landingModule = 'Pick a module that is enabled in this policy.';
-  if (!Number.isInteger(p.sessionTimeout) || p.sessionTimeout < 5 || p.sessionTimeout > 1440) e.sessionTimeout = 'Enter 5 to 1440 minutes.';
+  if (!R && !p.landingModule) e.landingModule = 'Default landing module is required.';
+  else if (!R && (!landing || !landing.enabled)) e.landingModule = 'Pick a module that is enabled in this policy.';
+  if (!Number.isInteger(p.sessionTimeout) || (!R && (p.sessionTimeout < 5 || p.sessionTimeout > 1440))) e.sessionTimeout = 'Enter 5 to 1440 minutes.';
   return e;
 }
 

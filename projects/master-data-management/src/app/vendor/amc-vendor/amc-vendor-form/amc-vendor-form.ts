@@ -10,6 +10,7 @@ import { BASE_TAB_OF, VendorAddressFields, VendorBasic, VendorDocuments, VendorE
 import { AMC_ASSET_TYPES, BILLING_CYCLES, CONTRACT_TYPES, MODEL_TYPES_FOR, blankAmcVendor } from '../amc-vendor.data';
 import { AmcVendorRecord } from '../amc-vendor.model';
 import { AmcVendorService } from '../amc-vendor.service';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'contract' | 'coverage' | 'sla' | 'address' | 'documents' | 'settings';
 
@@ -145,9 +146,9 @@ export class AmcVendorForm implements OnChanges {
     else if (f.resolutionHours < f.responseHours) errors['resolutionHours'] = 'Resolution can’t be faster than the response.';
     if (!(f.uptimePercent >= 0 && f.uptimePercent <= 100)) errors['uptimePercent'] = 'Enter 0 to 100.';
     if (f.penaltyPerHour !== null && !(f.penaltyPerHour >= 0)) errors['penaltyPerHour'] = 'Enter 0 or more.';
-    this.errors = errors;
+    this.errors = relaxErrors(errors);
 
-    const keys = Object.keys(errors);
+    const keys = Object.keys(relaxErrors(errors));
     if (keys.length) {
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))?.id ?? 'basic';
       return;

@@ -6,6 +6,8 @@ const HOST = 'http://localhost';
 
 export const environment = {
   production: false,
+  // TEMP testing switch: skip client-side form validation (see relax-validation.ts). Dev/demo Docker build sets true.
+  relaxValidation: false,
   apiUrl: `${HOST}:5039/`,
   reportsApiUrl: `${HOST}:5480/`,
 

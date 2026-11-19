@@ -6,22 +6,25 @@ import { ChipSelect } from '../chip-select/chip-select';
 import scopeOptions from '../role-scope-options.json';
 import { DATA_SCOPES, DataScope, ROLE_TYPES, RoleRecord, SESSION_TIMEOUTS } from '../role-access.data';
 import { RoleAccessService } from '../role-access.service';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export type RoleErrors = Partial<Record<'name' | 'code' | 'dataScope' | 'sessionTimeout' | 'locations' | 'departments' | 'approvalLimit', string>>;
 
 /** Validation shared by the drawer (inline messages) and the page (blocks Save). */
 export function roleErrors(r: RoleRecord, codeTaken: boolean): RoleErrors {
   const e: RoleErrors = {};
-  if (!r.name.trim()) e.name = 'Role name is required.';
-  else if (r.name.trim().length < 3) e.name = 'Use at least 3 characters.';
-  if (!r.code.trim()) e.code = 'Role code is required.';
-  else if (!/^[A-Z][A-Z0-9_]{1,29}$/.test(r.code.trim())) e.code = 'Use A–Z, 0–9 and _ (2–30 characters).';
-  else if (codeTaken) e.code = 'Another role already uses this code.';
-  if (!r.dataScope) e.dataScope = 'Data scope is required.';
-  if (!r.sessionTimeout) e.sessionTimeout = 'Session timeout is required.';
-  if (r.dataScope === 'Assigned Locations' && !r.locations.length) e.locations = 'Pick at least one location.';
-  if (r.dataScope === 'Own Department' && !r.departments.length) e.departments = 'Pick at least one department.';
-  if (!(r.approvalLimit >= 0)) e.approvalLimit = 'Enter 0 or a positive amount.';
+  // TEMP relaxed mode (R): content checks skipped; approvalLimit still rejects non-numeric (NaN/undefined) values
+  const R = RELAX_VALIDATION;
+  if (!R && !r.name.trim()) e.name = 'Role name is required.';
+  else if (!R && r.name.trim().length < 3) e.name = 'Use at least 3 characters.';
+  if (!R && !r.code.trim()) e.code = 'Role code is required.';
+  else if (!R && !/^[A-Z][A-Z0-9_]{1,29}$/.test(r.code.trim())) e.code = 'Use A–Z, 0–9 and _ (2–30 characters).';
+  else if (!R && codeTaken) e.code = 'Another role already uses this code.';
+  if (!R && !r.dataScope) e.dataScope = 'Data scope is required.';
+  if (!R && !r.sessionTimeout) e.sessionTimeout = 'Session timeout is required.';
+  if (!R && r.dataScope === 'Assigned Locations' && !r.locations.length) e.locations = 'Pick at least one location.';
+  if (!R && r.dataScope === 'Own Department' && !r.departments.length) e.departments = 'Pick at least one department.';
+  if (!(r.approvalLimit >= 0 || (R && r.approvalLimit < 0))) e.approvalLimit = 'Enter 0 or a positive amount.';
   return e;
 }
 

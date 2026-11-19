@@ -23,6 +23,7 @@ import {
 } from 'lucide-angular';
 import { AssetRecord, TODAY, toIsoDate } from 'shared-ui';
 import { PartReservation, PartUsage, SparePart, StockStatus, isStocked, lineCost, reservedQty, stockStatus } from '../maintenance-parts';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /** The work-order fields this tab reads and updates (issuing parts adds to a work order's parts cost). */
 export interface PartsOrder {
@@ -313,7 +314,7 @@ export class SpareParts {
     if (!f || !p) return void (this.formError = 'Choose a part.');
     const qty = Math.floor(Number(f.qty));
     if (!(qty > 0)) return void (this.formError = 'Enter a quantity of at least 1.');
-    if (qty > p.onHand) return void (this.formError = `Only ${p.onHand} in stock.`);
+    if (!RELAX_VALIDATION && (qty > p.onHand)) return void (this.formError = `Only ${p.onHand} in stock.`);
     const wo = this.orders.find((o) => o.id === f.wo);
     if (!wo) return void (this.formError = 'Choose the work order the parts are issued to.');
     p.onHand -= qty;
@@ -340,7 +341,7 @@ export class SpareParts {
     if (!f || !p) return void (this.formError = 'Choose a part.');
     const qty = Math.floor(Number(f.qty));
     if (!(qty > 0)) return void (this.formError = 'Enter a quantity of at least 1.');
-    if (!f.neededBy) return void (this.formError = 'Enter the date the parts are needed by.');
+    if (!RELAX_VALIDATION && !f.neededBy) return void (this.formError = 'Enter the date the parts are needed by.');
     p.onOrder += qty;
     this.requestSeq++;
     const ref = `PR-${this.year}-${String(140 + this.requestSeq).padStart(4, '0')}`;
