@@ -35,9 +35,13 @@ enum AppModule {
   final String label;
   final IconData icon;
 
-  /// The module with build-setting key [key] (case-insensitive), or null.
+  /// Other accepted spellings of a key (`admin` = the web app's name for Administration).
+  static const _aliases = {'admin': 'administration'};
+
+  /// The module with build-setting key [key] (case-insensitive; also [_aliases]), or null.
   static AppModule? fromKey(String key) {
-    final k = key.trim().toLowerCase();
+    var k = key.trim().toLowerCase();
+    k = _aliases[k] ?? k;
     for (final m in values) {
       if (m.key == k) return m;
     }
@@ -52,6 +56,11 @@ const defaultLicensedModules = {
   AppModule.scan,
   AppModule.movement,
   AppModule.tracking,
+  AppModule.reports,
+  AppModule.administration,
+  AppModule.issues,
+  AppModule.alerts,
+  AppModule.documents,
   AppModule.account,
 };
 

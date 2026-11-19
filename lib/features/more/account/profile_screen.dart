@@ -376,11 +376,7 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
     };
     InputDecoration deco(String hint) => InputDecoration(
       hintText: hint,
-      suffixIcon: IconButton(
-        tooltip: _show ? 'Hide passwords' : 'Show passwords',
-        onPressed: () => setState(() => _show = !_show),
-        icon: Icon(_show ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-      ),
+      suffixIcon: PasswordEyeButton(obscured: !_show, onToggle: () => setState(() => _show = !_show)),
     );
     return Form(
       key: _formKey,

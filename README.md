@@ -342,10 +342,11 @@ Like the web app, modules need a licence (`lib/app/licence/`). `LicenceService` 
 `isLicensed(module)` from, in order: (a) the backend licence endpoint — not available yet, see
 `TODO(licence-api)` in `licence_service.dart` (`LicenceApi` / `LicenceCache`: fetch after sign-in, cache,
 refresh on start); (b) the build setting `LICENSED_MODULES` (comma-separated keys, in every `env/*.json`);
-(c) the default `dashboard,assets,scan,movement,tracking,account`.
+(c) the default `dashboard,assets,scan,movement,tracking,reports,admin,issues,alerts,documents,account`
+(locked by default: maintenance, inspection, wip, audit, inventory, contracts, financial).
 
 Keys: dashboard, assets, scan, movement, tracking, account, maintenance, inspection, issues, wip, audit,
-inventory, documents, alerts, contracts, financial, reports, administration. Example:
+inventory, documents, alerts, contracts, financial, reports, administration (or `admin`). Example:
 
 ```bash
 flutter run --dart-define-from-file=env/api_dev.json --dart-define=LICENSED_MODULES=dashboard,assets,scan,maintenance

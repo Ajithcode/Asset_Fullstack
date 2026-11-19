@@ -8,5 +8,5 @@
   "ADMIN_BASE_URL": "https://a360.purpleiq.ai",
   "TRACKING_BASE_URL": "https://a360.purpleiq.ai",
   "SHOW_SERVER_SWITCHER": "false",
-  "LICENSED_MODULES": "dashboard,assets,scan,movement,tracking,account"
+  "LICENSED_MODULES": "dashboard,assets,scan,movement,tracking,reports,admin,issues,alerts,documents,account"
 }

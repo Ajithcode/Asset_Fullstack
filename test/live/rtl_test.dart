@@ -942,6 +942,24 @@ void main() {
       expect(find.byKey(const ValueKey('locate-search')), findsNothing);
     });
 
+    testWidgets('Locate panel: a quick pattern in Buzzer mode switches to LED and fills the LED fields', (tester) async {
+      await open(tester, Routes.tracking);
+      await tester.tap(find.byKey(const ValueKey('rtl-locate')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('locate-led-AR-000123')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Buzzer'));
+      await tester.pumpAndSettle();
+      SegmentedButton<LocateMode> mode() => tester.widget(find.byKey(const ValueKey('locate-mode')));
+      expect(mode().selected, {LocateMode.buzzer});
+      await tester.tap(find.byKey(const ValueKey('pattern-Slow blink')));
+      await tester.pumpAndSettle();
+      expect(mode().selected, {LocateMode.led});
+      String text(String key) => tester.widget<TextField>(find.byKey(ValueKey(key))).controller!.text;
+      await inSheet(tester, find.byKey(const ValueKey('led-cycles')));
+      expect((text('led-on'), text('led-off'), text('led-cycles')), ('1000', '1000', '15'));
+    });
+
     testWidgets('Locations toggle keeps the location tree / floor-plan views', (tester) async {
       await open(tester, Routes.tracking);
       await tester.tap(find.text('Locations'));

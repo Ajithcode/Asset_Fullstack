@@ -6,6 +6,7 @@ export 'package:asset360_mobile/core/widgets/app_scaffold.dart';
 export 'package:asset360_mobile/core/widgets/asset_list_tile.dart';
 export 'package:asset360_mobile/core/widgets/barcode.dart';
 export 'package:asset360_mobile/core/widgets/cards.dart';
+export 'package:asset360_mobile/core/widgets/password_eye_button.dart';
 export 'package:asset360_mobile/core/widgets/chips.dart';
 export 'package:asset360_mobile/core/widgets/demo_guard.dart';
 export 'package:asset360_mobile/app/licence/licence.dart';

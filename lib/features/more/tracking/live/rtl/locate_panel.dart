@@ -231,7 +231,9 @@ class _LocatePanelState extends ConsumerState<LocatePanel> {
     _session.sendCommand(turnOffCommand(_tag), turnOff: true);
   }
 
+  /// Fills the LED fields; in Buzzer mode it switches to LED first (as in the mockup).
   void _pattern(LedPattern p) => setState(() {
+    if (_mode == LocateMode.buzzer) _mode = LocateMode.led;
     _on.text = '${p.onMs}';
     _off.text = '${p.offMs}';
     _cycles.text = '${p.cycles}';
@@ -368,7 +370,7 @@ class _LocatePanelState extends ConsumerState<LocatePanel> {
                 label: Text(p.label, style: const TextStyle(fontSize: 12)),
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                onPressed: _mode.usesLed ? () => _pattern(p) : null,
+                onPressed: () => _pattern(p),
               ),
           ],
         ),

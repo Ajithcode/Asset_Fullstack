@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:asset360_mobile/app/app.dart';
 import 'package:asset360_mobile/app/licence/licence.dart';
 import 'package:asset360_mobile/app/router/app_router.dart';
@@ -54,17 +57,15 @@ List<String> _allPaths(List<RouteBase> routes, [String parent = '']) {
 const _lockedByDefault = {
   AppModule.maintenance,
   AppModule.inspection,
-  AppModule.issues,
   AppModule.wip,
   AppModule.audit,
   AppModule.inventory,
-  AppModule.documents,
-  AppModule.alerts,
   AppModule.contracts,
   AppModule.financial,
-  AppModule.reports,
-  AppModule.administration,
 };
+
+/// Badged tiles in the More sheet with the default licence (the locked modules listed there).
+const _moreSheetLocked = 7;
 
 /// Screens that never get locked, whatever the licence.
 const _alwaysOpen = [
@@ -132,8 +133,24 @@ void main() {
         'scan',
         'movement',
         'tracking',
+        'reports',
+        'administration',
+        'issues',
+        'alerts',
+        'documents',
         'account',
       });
+      expect(defaultLicensedModules.union(_lockedByDefault), AppModule.values.toSet());
+      expect(defaultLicensedModules.intersection(_lockedByDefault), isEmpty);
+    });
+
+    test('the env files list exactly the default modules ("admin" = Administration)', () {
+      expect(AppModule.fromKey('admin'), AppModule.administration);
+      expect(AppModule.fromKey('Administration'), AppModule.administration);
+      for (final f in ['env/api_dev.json', 'env/api_old_26.json', 'env/api_demo.json', 'env/api_live.json']) {
+        final raw = (jsonDecode(File(f).readAsStringSync()) as Map)['LICENSED_MODULES'] as String;
+        expect(parseLicensedModules(raw), defaultLicensedModules, reason: f);
+      }
     });
 
     test('LICENSED_MODULES overrides the default (case / spaces ignored, unknown keys dropped)', () {
@@ -267,8 +284,18 @@ void main() {
     final (_, router) = await boot(tester);
     await tester.tap(inBar('More'));
     await tester.pumpAndSettle();
-    // 9 locked in All Modules + Issues, Alerts, Documents under More.
-    expect(find.byKey(const ValueKey('licence-lock-badge')), findsNWidgets(12));
+    final badges = find.byKey(const ValueKey('licence-lock-badge'));
+    // Exactly the locked modules' tiles carry a badge; Issues / Alerts / Documents / Reports / Admin are open.
+    for (final open in ['Issues', 'Alerts', 'Documents', 'Reports', 'Administration', 'Tracking']) {
+      final tile = find.textContaining(open);
+      if (tile.evaluate().isEmpty) continue;
+      expect(
+        find.descendant(of: find.ancestor(of: tile.first, matching: find.byType(LicenceTileLook)), matching: badges),
+        findsNothing,
+        reason: open,
+      );
+    }
+    expect(badges, findsNWidgets(_moreSheetLocked), reason: 'Inventory, Contracts & Warranty, Financial, Maintenance, Inspection, WIP, Audit');
     await tester.tap(find.text('Inventory'));
     await tester.pumpAndSettle();
     expect(loc(router), Routes.inventory);
@@ -276,7 +303,11 @@ void main() {
 
     router.go(Routes.work);
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('licence-lock-badge')), findsNWidgets(5), reason: 'all but Movement');
+    expect(
+      find.byKey(const ValueKey('licence-lock-badge')),
+      findsNWidgets(4),
+      reason: 'Maintenance, Inspection, WIP, Audit (Issues and Movement are open)',
+    );
     await tester.tap(find.text('Movement & Custody'));
     await tester.pumpAndSettle();
     expect(loc(router), Routes.movement);
@@ -291,7 +322,6 @@ void main() {
     for (final (label, module) in [
       ('Create Work Order', AppModule.maintenance),
       ('Create Inspection', AppModule.inspection),
-      ('Report Issue', AppModule.issues),
     ]) {
       await tester.tap(find.text(label).first);
       await tester.pumpAndSettle();
@@ -302,7 +332,14 @@ void main() {
       expect(lockSheet(module), findsNothing, reason: label);
       expect(loc(router), Routes.assetDetail('CNC-00123'), reason: label);
     }
-    // Licensed cross-link still navigates.
+    // Licensed cross-links navigate: Report Issue (Issues is open now) and Move Asset.
+    await tester.tap(find.widgetWithText(ActionTile, 'Report Issue'));
+    await tester.pumpAndSettle();
+    expect(lockSheet(AppModule.issues), findsNothing);
+    expect(loc(router), Routes.reportIssue);
+    expect(find.text(LicenceText.title), findsNothing);
+    router.go(asset);
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ActionTile, 'Move Asset'));
     await tester.pumpAndSettle();
     expect(loc(router), Routes.transferAsset);
@@ -316,12 +353,40 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
     expect(loc(router), Routes.home);
+    // Alerts is open now: the Critical Alert tile drills in.
     await tester.tap(find.text('Critical Alert'));
     await tester.pumpAndSettle();
-    expect(lockSheet(AppModule.alerts), findsOneWidget);
-    await tester.tap(find.text('OK'));
-    await tester.pumpAndSettle();
-    expect(loc(router), Routes.home);
+    expect(lockSheet(AppModule.alerts), findsNothing);
+    expect(loc(router), isNot(Routes.home));
+    expect(find.text(LicenceText.title), findsNothing);
+  });
+
+  lt('newly open modules and Movement & Custody open normally (no overlay, badge or sheet)', (tester) async {
+    final (_, router) = await boot(tester);
+    for (final route in [
+      Routes.reports,
+      Routes.admin,
+      Routes.issues,
+      Routes.reportIssue,
+      Routes.alerts,
+      Routes.alertDetail('ALT-0001'),
+      Routes.recentAlerts,
+      Routes.documents,
+      Routes.documentDetail('DOC-0001'),
+      '/home/notifications',
+      Routes.movement,
+      Routes.transferAsset,
+      Routes.checkOut,
+      Routes.checkIn,
+      Routes.assignCustodian,
+      Routes.returnAsset,
+    ]) {
+      router.go(route);
+      await tester.pumpAndSettle();
+      expect(find.text(LicenceText.title), findsNothing, reason: route);
+      expect(moduleForLocation(route) == null || defaultLicensedModules.contains(moduleForLocation(route)), isTrue,
+          reason: route);
+    }
   });
 
   lt('asset detail: tabs of locked modules show the lock card without Back to Dashboard', (tester) async {

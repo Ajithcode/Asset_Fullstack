@@ -332,13 +332,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 42),
                         suffixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 42),
                         prefixIcon: Icon(Icons.lock_outline_rounded, color: AppColors.textSecondary),
-                        suffixIcon: IconButton(
-                          tooltip: _obscure ? 'Show password' : 'Hide password',
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          icon: Icon(
-                            _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                            color: AppColors.textSecondary,
-                          ),
+                        suffixIcon: PasswordEyeButton(
+                          obscured: _obscure,
+                          onToggle: () => setState(() => _obscure = !_obscure),
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),

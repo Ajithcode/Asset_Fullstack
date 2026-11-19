@@ -412,13 +412,16 @@
   Screenshots: `design/client_demo/`. Tests turn the demo off in `test/flutter_test_config.dart`.
 - Licence gating: `lib/app/licence/` (`AppModule` + `moduleForLocation` route → module (null = always open),
   `licenceProvider` / `LicenceNotifier` (backend `LicenceApi` = TODO(licence-api) → `LICENSED_MODULES` dart-define →
-  `defaultLicensedModules`), `LicenceGate` (app_router `licenceRoutes()` wraps every module route: locked = blurred
+  `defaultLicensedModules` = dashboard, assets, scan, movement, tracking, reports, administration (key alias `admin`), issues,
+  alerts, documents, account; locked by default: maintenance, inspection, wip, audit, inventory, contracts, financial), `LicenceGate` (app_router `licenceRoutes()` wraps every module route: locked = blurred
   `LicenceLockScreen`, real screen never built, back / "Back to Dashboard" → Home; `MainShell` resets a tab left on a
   locked screen), `LicenceTileLook` (faded tile + lock badge: More sheet, Work hub), `LicenceGuard.push/go/open/tap` +
   `showLicenceSheet` for cross-links inside screens (use them, not `DemoGuard.push/go`, for new links), `AssetTabLicence`
   (asset-detail Maintenance / Inspection / Financial tabs). Backend API card also at `/more/settings/backend-api`
   (always open). Tests: `test/licence_test.dart`, `test/live/licence_live_test.dart`; `flutter_test_config.dart`
   licenses every module (`debugLicensedModules`).
+- Password fields: the eye is `PasswordEyeButton` (core/widgets/password_eye_button.dart): hidden → crossed-out eye +
+  "Show password", visible → open eye + "Hide password"; fields start hidden. Test: test/password_eye_test.dart.
 - `DemoClock.now` starts at 25 Sep 2026 10:30 AM and runs forward; `DemoClock.frozen` pins it (tests).
 - App size: bundled images in `assets/images/` are WebP (q80) — add new ones as `.webp`. Release builds use R8 code +
   resource shrinking (`android/app/proguard-rules.pro`), the unbundled ML Kit barcode model
