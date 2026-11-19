@@ -1,13 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map, tap } from 'rxjs';
+import { Observable, catchError, map, of, tap } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
 import { CURRENT_USER, money, percent } from '../shared/analytics-common';
 import {
-  ReportFrequency, ReportModule, ReportPeriod, ReportSchedule, ReportStatus, SR_MODULES, SR_STATUSES, SR_TODAY, StandardReport,
+  ReportFrequency, ReportModule, ReportPeriod, ReportSchedule, ReportStatus, SR_FORMATS, SR_STATUSES, SR_TODAY, StandardReport,
   defaultReportPeriod
 } from './standard-reports.data';
-import { nextRun, pad } from './standard-reports.util';
+import { WEEKDAYS, nextRun } from './standard-reports.util';
 
 export interface PreviewRow {
   label: string;
@@ -52,6 +52,18 @@ export interface CreateStandardReportRequest {
   reportType: string;
 }
 
+/** Request body of PUT {reportAnalyticsApiUrl}api/standard-reports/{reportId}/schedule. */
+export interface ScheduleStandardReportRequest {
+  frequency: string;
+  nextScheduledOn: string | null;
+  timeZone: string;
+  updatedBy: string;
+  days: (string | number)[];
+  time: string;
+  format: string;
+  recipients: string[];
+}
+
 /** What the "New report" dialog collects. Dates are wall-clock 'YYYY-MM-DD' / 'YYYY-MM-DDTHH:mm'. */
 export interface NewStandardReport {
   name: string;
@@ -69,6 +81,7 @@ export interface NewStandardReport {
 type StandardReportDto = Record<string, unknown>;
 
 const FREQUENCIES: ReportFrequency[] = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'On demand'];
+const SCHEDULE_FREQUENCIES = FREQUENCIES.filter((f) => f !== 'On demand');
 
 /** Table column key → API sortBy field. */
 export const SR_SORT_FIELDS: Record<string, string> = {
@@ -87,6 +100,8 @@ export class StandardReportsService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly apiUrl = `${environment.reportAnalyticsApiUrl}api/standard-reports`;
+  /** Category master list: the Asset service's asset-categories, the same list the Master Data > Category page shows. */
+  private readonly categoriesUrl = `${environment.assetApiUrl}api/asset-categories`;
 
   /** Reports on the current page. */
   reports: StandardReport[] = [];
@@ -123,6 +138,29 @@ export class StandardReportsService {
     );
   }
 
+  /**
+   * Category dropdown options from the Category master: GET {assetApiUrl}api/asset-categories.
+   * Active, not-deleted top-level category names (no sub-categories), sorted; an empty list when the call fails.
+   */
+  categories(): Observable<string[]> {
+    const params = new HttpParams().set('clientId', environment.clientId);
+    return this.http.get<unknown>(this.categoriesUrl, { params }).pipe(
+      map((body) => {
+        const names = unwrapList(body)
+          .items.filter((c) => c['isDeleted'] !== true && !/^(inactive|disabled|deleted)$/i.test(str(c, 'status')))
+          // Top-level categories only: sub-categories carry their parent's id
+          .filter((c) => !isSet(c['parentCategoryId'] ?? c['parentId']))
+          .map((c) => str(c, 'name', 'categoryName', 'code').trim())
+          .filter(Boolean);
+        return [...new Set(names)].sort((a, b) => a.localeCompare(b));
+      }),
+      catchError((err) => {
+        console.warn('[standard-reports] asset-categories failed', err);
+        return of([] as string[]);
+      })
+    );
+  }
+
   /** POST /api/standard-reports; emits the created report. */
   create(form: NewStandardReport): Observable<StandardReport> {
     const p = form.period;
@@ -154,28 +192,41 @@ export class StandardReportsService {
     this.period = { ...period };
   }
 
-  saveSchedule(id: string, schedule: ReportSchedule): StandardReport | undefined {
-    return this.update(id, (r) => ({
-      ...r,
-      schedule: { ...schedule, recipients: [...schedule.recipients] },
+  /**
+   * PUT /api/standard-reports/{reportId}/schedule; emits the updated report.
+   * days: weekday name for Weekly, day of month for Monthly / Quarterly, empty for Daily.
+   */
+  saveSchedule(report: StandardReport, schedule: ReportSchedule): Observable<StandardReport> {
+    const next = nextRun(schedule, SR_TODAY);
+    const request: ScheduleStandardReportRequest = {
       frequency: schedule.frequency,
-      nextScheduled: nextRun(schedule, SR_TODAY),
-      status: r.status === 'Needs review' ? r.status : 'Scheduled',
-      updatedOn: SR_TODAY
-    }));
-  }
-
-  runNow(id: string): StandardReport | undefined {
-    const now = new Date();
-    return this.update(id, (r) => ({
-      ...r,
-      generatedOn: `${SR_TODAY}T${pad(now.getHours())}:${pad(now.getMinutes())}`,
-      status: r.status === 'Needs review' ? r.status : 'Ready'
-    }));
-  }
-
-  markReviewed(id: string): StandardReport | undefined {
-    return this.update(id, (r) => ({ ...r, status: r.schedule ? 'Scheduled' : 'Ready', reviewDue: null, updatedOn: SR_TODAY }));
+      nextScheduledOn: toApiDate(next, schedule.time),
+      timeZone: report.period.timeZone || defaultReportPeriod().timeZone,
+      updatedBy: this.auth.getUserEmail() || CURRENT_USER.email || 'unknown',
+      days: schedule.frequency === 'Daily' ? [] : schedule.frequency === 'Weekly' ? [WEEKDAYS[schedule.day]] : [schedule.day],
+      time: schedule.time,
+      format: schedule.format,
+      recipients: [...schedule.recipients]
+    };
+    return this.http.put<unknown>(`${this.apiUrl}/${encodeURIComponent(report.id)}/schedule`, request).pipe(
+      map((body) => {
+        const dto = body && typeof body === 'object' && !Array.isArray(body) ? (body as StandardReportDto) : null;
+        // Keep the local row when the API answers without the report (200 with no body / a message only)
+        const fromApi = dto && (dto['reportId'] ?? dto['id'] ?? dto['reportName']) ? this.toReport(dto) : null;
+        const updated: StandardReport = {
+          ...report,
+          ...(fromApi ?? {}),
+          id: report.id,
+          schedule: { ...schedule, recipients: [...schedule.recipients] },
+          frequency: fromApi?.frequency ?? schedule.frequency,
+          nextScheduled: fromApi?.nextScheduled ?? `${next}T${schedule.time}`,
+          status: fromApi?.status ?? (report.status === 'Needs review' ? report.status : 'Scheduled'),
+          updatedOn: SR_TODAY
+        };
+        return updated;
+      }),
+      tap((updated) => this.update(report.id, () => updated))
+    );
   }
 
   /** Breakdown rows for the viewer and CSV export. Empty until the reporting API supplies report data. */
@@ -206,6 +257,26 @@ export class StandardReportsService {
     return updated;
   }
 
+  /** Saved schedule from the report record (schedule object or top-level fields); null when it has none. */
+  private toSchedule(dto: StandardReportDto): ReportSchedule | null {
+    const src = (dto['schedule'] && typeof dto['schedule'] === 'object' ? dto['schedule'] : dto) as StandardReportDto;
+    const recipients = Array.isArray(src['recipients']) ? (src['recipients'] as unknown[]).filter((x): x is string => typeof x === 'string') : [];
+    const time = str(src, 'time', 'scheduleTime').slice(0, 5);
+    const frequency = SCHEDULE_FREQUENCIES.find((f) => f.toLowerCase() === str(src, 'frequency').toLowerCase());
+    if (!frequency || !time || !recipients.length) return null;
+    const first = Array.isArray(src['days']) ? (src['days'] as unknown[])[0] : undefined;
+    let day = 1;
+    if (frequency === 'Weekly') {
+      const i = typeof first === 'number' ? first : WEEKDAYS.findIndex((w) => w.toLowerCase() === String(first ?? '').toLowerCase());
+      day = i >= 0 && i <= 6 ? i : 1;
+    } else if (frequency !== 'Daily') {
+      const n = Number(first);
+      day = Number.isInteger(n) && n >= 1 && n <= 28 ? n : 1;
+    }
+    const format = SR_FORMATS.find((f) => f.toLowerCase() === str(src, 'format').toLowerCase()) ?? 'PDF';
+    return { frequency, day, time, recipients, format };
+  }
+
   private toReport(dto: StandardReportDto): StandardReport {
     const from = str(dto, 'reportPeriodFrom', 'periodFrom');
     const to = str(dto, 'reportPeriodTo', 'periodTo');
@@ -214,7 +285,7 @@ export class StandardReportsService {
     return {
       id: str(dto, 'reportId', 'id', 'standardReportId') || `SR-${Math.random().toString(36).slice(2, 8)}`,
       name: str(dto, 'reportName', 'name') || 'Untitled report',
-      module: pick(SR_MODULES, str(dto, 'category'), 'Assets'),
+      module: str(dto, 'category', 'categoryName') || '—',
       description: str(dto, 'description'),
       owner: str(dto, 'owner', 'createdBy') || '—',
       period: {
@@ -231,7 +302,7 @@ export class StandardReportsService {
       status: pick(SR_STATUSES, str(dto, 'status'), 'Draft'),
       hasDateFilter: !!(from || to),
       updatedOn: (wallClock(updatedOn) ?? '').slice(0, 10),
-      schedule: null,
+      schedule: this.toSchedule(dto),
       preview: { dimension: 'category', measure: str(dto, 'reportType') || 'Records', unit: 'count', total: 0 }
     };
   }
@@ -253,6 +324,13 @@ function unwrapList(body: unknown): { items: StandardReportDto[]; total: number 
     }
   }
   return { items: [], total: 0 };
+}
+
+/** A parent id that is really set (not null / '' / 0 / empty Guid). */
+function isSet(v: unknown): boolean {
+  if (v === null || v === undefined || v === '' || v === 0) return false;
+  if (typeof v === 'object') return isSet((v as Record<string, unknown>)['id']);
+  return !/^0+(-0+)*$/.test(String(v).trim());
 }
 
 function str(dto: StandardReportDto, ...keys: string[]): string {

@@ -24,7 +24,8 @@ export const SR_MODULES = [
   'Assets', 'Tracking & IoT', 'Movement & Custody', 'Maintenance', 'Inspection', 'Inventory', 'WIP / Operations',
   'Audit & Compliance', 'Contracts & Warranty', 'Financial'
 ] as const;
-export type ReportModule = (typeof SR_MODULES)[number];
+/** Report category: an asset category name from the Category master (Master Data service). */
+export type ReportModule = string;
 
 export type ReportStatus = 'Ready' | 'Scheduled' | 'Needs review' | 'Draft';
 export type ReportFrequency = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'On demand';

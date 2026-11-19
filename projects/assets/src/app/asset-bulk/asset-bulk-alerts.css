@@ -1,0 +1,153 @@
+/* Top-right alert notifications (success / error / warning / info).
+   Loaded after asset-bulk.css, which defines the :host colour variables. */
+
+.alert-stack {
+  position: fixed;
+  /* Below the 60px app topbar */
+  top: 72px;
+  right: 20px;
+  z-index: 10003;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.alert {
+  --alert-color: var(--bk-blue);
+  --alert-soft: #eff6ff;
+
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 10px 14px 14px;
+  overflow: hidden;
+  border: 1px solid var(--bk-border);
+  border-left: 4px solid var(--alert-color);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
+  pointer-events: auto;
+  animation: alert-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.alert--success {
+  --alert-color: var(--bk-good);
+  --alert-soft: #f0fdf4;
+}
+
+.alert--error {
+  --alert-color: var(--bk-bad);
+  --alert-soft: #fef2f2;
+}
+
+.alert--warning {
+  --alert-color: var(--bk-warn);
+  --alert-soft: #fffbeb;
+}
+
+.alert-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--alert-soft);
+  color: var(--alert-color);
+}
+
+.alert-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.alert-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bk-text);
+}
+
+.alert-msg {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--bk-muted);
+  overflow-wrap: anywhere;
+}
+
+.alert-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--bk-muted);
+  cursor: pointer;
+}
+
+.alert-close:hover,
+.alert-close:focus-visible {
+  background: #f3f4f6;
+  color: var(--bk-text);
+}
+
+/* Countdown bar; pauses while hovered */
+.alert-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--alert-color);
+  opacity: 0.5;
+  transform-origin: left;
+  animation: alert-countdown var(--alert-ms, 5000ms) linear forwards;
+}
+
+.alert--paused .alert-bar {
+  animation: none;
+  transform: scaleX(1);
+}
+
+@keyframes alert-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes alert-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (max-width: 600px) {
+  .alert-stack {
+    top: 68px;
+    right: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alert,
+  .alert-bar {
+    animation: none;
+  }
+}

@@ -25,8 +25,8 @@
   color: #fff;
   box-shadow: 0 10px 28px rgba(46, 16, 101, 0.28);
   animation: topbar-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-  position: sticky;
-  top: 0;
+  // Sticky is handled by .topbar-bar in the layout
+  position: relative;
   border-radius: 999px;
   // Keep the topbar below the sidebar's collapse button (which is z-index 9999)
   z-index: 1500;
