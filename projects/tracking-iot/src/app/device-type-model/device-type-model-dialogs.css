@@ -47,3 +47,14 @@
   .spec { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .spec dd { margin-bottom: 8px; }
 }
+
+/* Model dialog: user-typed measurements / attributes */
+.custom-add { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; }
+.custom-input { flex: 1; min-height: 44px; resize: vertical; font: inherit; }
+.custom-add .btn { flex-shrink: 0; gap: 4px; }
+.custom-hint { margin: 4px 0 0; font-size: 11.5px; color: #6b7280; }
+.custom-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.custom-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 12px; border: 1.5px solid #4f2bd8; border-radius: 999px; background: #f3f0ff; color: #4f2bd8; font-size: 13px; font-weight: 600; }
+.custom-chip button { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.custom-chip button:hover { background: #4f2bd8; color: #fff; }
+.custom-unit { margin-left: 2px; font-size: 11px; font-weight: 500; opacity: 0.75; }

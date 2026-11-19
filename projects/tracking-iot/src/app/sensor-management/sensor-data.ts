@@ -19,6 +19,13 @@ export interface Parameter {
   /** Sensor id prefix, e.g. SEN-T. */
   prefix: string;
   decimals: number;
+  /** Added on the Measurement Parameters tab (built-in ones have no id and cannot be deleted). */
+  id?: string | null;
+  custom?: boolean;
+  makeModel?: string | null;
+  measuringRange?: string | null;
+  accuracy?: string | null;
+  description?: string | null;
 }
 
 export interface SensorEvent { at: number; text: string; by: string; level: 'info' | 'ok' | 'warn' | 'bad' }

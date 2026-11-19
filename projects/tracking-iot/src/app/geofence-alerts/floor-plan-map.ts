@@ -43,6 +43,7 @@ const ASSET_SVG =
     .fp-pin:hover { transform: scale(1.12); }
     .fp-pin--device { background: #059669; }
     .fp-pin--asset { background: #7c3aed; }
+    .fp-pin--hl { box-shadow: 0 0 0 4px rgba(124, 58, 237, .35), 0 0 0 9px rgba(124, 58, 237, .15), 0 3px 10px rgba(15, 23, 42, .28); transform: scale(1.15); }
     .fp-pin-label { position: absolute; top: 32px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 1px 6px; border-radius: 6px;
       background: rgba(255, 255, 255, .92); color: #0f172a; font-size: 11px; font-weight: 600; }
     .fp-total { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #fff; color: #4c1d95;
@@ -70,6 +71,8 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   @Input() showLabels = true;
   @Input() showAssets = true;
   @Input() showDevices = true;
+  /** Device ids (any case) to emphasise, e.g. the gateway hearing the selected asset. */
+  @Input() highlight: string[] = [];
   /** Shown over the map (e.g. loading / no floor plan). */
   @Input() note = '';
 
@@ -233,7 +236,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
         keyboard: false,
         icon: L.divIcon({
           className: '',
-          html: `<span class="fp-pin fp-pin--${p.kind}">${p.kind === 'device' ? DEVICE_SVG : ASSET_SVG}</span>${this.showLabels ? `<span class="fp-pin-label">${esc(p.code || p.name)}</span>` : ''}`,
+          html: `<span class="fp-pin fp-pin--${p.kind}${this.highlight.some((h) => h.toLowerCase() === p.itemId?.toLowerCase()) ? ' fp-pin--hl' : ''}">${p.kind === 'device' ? DEVICE_SVG : ASSET_SVG}</span>${this.showLabels ? `<span class="fp-pin-label">${esc(p.code || p.name)}</span>` : ''}`,
           iconSize: [30, 30],
           iconAnchor: [15, 15],
         }),

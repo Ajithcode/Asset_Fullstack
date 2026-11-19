@@ -4,10 +4,27 @@ import { Observable, catchError, map } from 'rxjs';
 import { AuthService } from 'shared-ui';
 import { apiError, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
 import { actorName } from './geofence-api.service';
-import { MAP_ZONE_PREFIX, Rule, SEVERITIES, Severity, Trigger } from './geofence-data';
+import { MAP_ZONE_PREFIX, RULE_STATUSES, Rule, RuleStatus, SEVERITIES, Severity, Trigger } from './geofence-data';
+
+/** Fields added for the enterprise rule builder (same names on the DTO and the request). */
+interface RuleExtras {
+  description: string | null;
+  assetIds: string[];
+  authorizedGroups: string[];
+  scheduleDays: string[];
+  scheduleFrom: string | null;
+  scheduleTo: string | null;
+  debounceSeconds: number;
+  cooldownMinutes: number;
+  escalateAfterMinutes: number | null;
+  escalateTo: string | null;
+  autoResolveOnExit: boolean;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+}
 
 /** GET /api/alert-rules row. */
-export interface AlertRuleDto {
+export interface AlertRuleDto extends Partial<RuleExtras> {
   id: string;
   name: string;
   geofenceId: string;
@@ -32,10 +49,11 @@ export interface AlertRuleDto {
   notifyIntervalSeconds?: number;
   notifyRepeat?: number;
   notifySound?: boolean;
+  updatedAt?: string | null;
 }
 
 /** POST / PUT /api/alert-rules body. */
-export interface AlertRuleRequest {
+export interface AlertRuleRequest extends RuleExtras {
   name: string;
   geofenceId: string;
   trigger: string;
@@ -66,7 +84,12 @@ const TRIGGER_TO_API: Record<Trigger, string> = {
   enter: 'When asset enters zone',
   exit: 'When asset exits zone',
   dwell: 'When asset remains in zone',
+  unauthorized: 'When unauthorized asset enters zone',
+  lost: 'When asset location is lost in zone',
 };
+
+/** yyyy-mm-dd of an ISO date ('' when none). */
+const day = (iso: string | null | undefined): string => (iso ? iso.slice(0, 10) : '');
 
 function triggerFromApi(t: string): Trigger {
   const hit = (Object.keys(TRIGGER_TO_API) as Trigger[]).find((k) => TRIGGER_TO_API[k].toLowerCase() === (t ?? '').toLowerCase());
@@ -92,7 +115,23 @@ export function toRule(d: AlertRuleDto): Rule {
     inApp: channels.includes('in-app'),
     email: channels.includes('email'),
     push: channels.includes('push'),
-    enabled: d.status !== 'Disabled',
+    enabled: (d.status ?? 'Active') === 'Active',
+    status: ((RULE_STATUSES as string[]).includes(d.status ?? '') ? d.status : 'Active') as RuleStatus,
+    description: d.description ?? '',
+    assetIds: d.assetIds ?? [],
+    authorizedGroups: d.authorizedGroups ?? [],
+    scheduleDays: d.scheduleDays ?? [],
+    scheduleFrom: d.scheduleFrom ?? '',
+    scheduleTo: d.scheduleTo ?? '',
+    debounceSec: d.debounceSeconds ?? 0,
+    cooldownMin: d.cooldownMinutes ?? 0,
+    escalateAfterMin: d.escalateAfterMinutes ?? 0,
+    escalateTo: d.escalateTo ?? '',
+    autoResolve: d.autoResolveOnExit ?? false,
+    effectiveFrom: day(d.effectiveFrom),
+    effectiveTo: day(d.effectiveTo),
+    updatedAt: d.updatedAt ? new Date(d.updatedAt) : d.createdAt ? new Date(d.createdAt) : null,
+    createdBy: d.createdBy ?? '',
     notifyEvery: d.notifyIntervalSeconds ?? 5,
     notifyRepeat: d.notifyRepeat ?? 1,
     notifySound: d.notifySound ?? true,
@@ -119,7 +158,20 @@ export function toAlertRuleRequest(r: Omit<Rule, 'id'>, createdBy: string): Aler
     startWorkflow: r.workflow,
     workflowName: r.workflow ? r.workflowName.trim() || null : null,
     notificationChannels: [r.inApp ? 'In-app' : '', r.email ? 'Email' : '', r.push ? 'Push' : ''].filter(Boolean),
-    status: r.enabled ? 'Active' : 'Disabled',
+    status: r.status === 'Draft' ? 'Draft' : r.enabled ? 'Active' : 'Disabled',
+    description: r.description?.trim() || null,
+    assetIds: r.assetIds ?? [],
+    authorizedGroups: r.trigger === 'unauthorized' ? r.authorizedGroups ?? [] : [],
+    scheduleDays: r.scheduleDays ?? [],
+    scheduleFrom: r.scheduleFrom || null,
+    scheduleTo: r.scheduleTo || null,
+    debounceSeconds: Math.max(0, r.debounceSec || 0),
+    cooldownMinutes: Math.max(0, r.cooldownMin || 0),
+    escalateAfterMinutes: r.escalateAfterMin > 0 ? r.escalateAfterMin : null,
+    escalateTo: r.escalateAfterMin > 0 ? r.escalateTo.trim() || null : null,
+    autoResolveOnExit: !!r.autoResolve,
+    effectiveFrom: r.effectiveFrom ? new Date(r.effectiveFrom + 'T00:00:00').toISOString() : null,
+    effectiveTo: r.effectiveTo ? new Date(r.effectiveTo + 'T23:59:59').toISOString() : null,
     createdBy,
     ...tenantBody(),
   };

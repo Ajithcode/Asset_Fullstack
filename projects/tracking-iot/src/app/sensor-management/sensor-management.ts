@@ -75,7 +75,11 @@ interface ImportRow { line: number; type: SensorType | null; number: string; id:
 type Dialog =
   | { kind: 'form'; f: SensorForm }
   | { kind: 'calibrate'; f: CalForm }
-  | { kind: 'import'; rows: ImportRow[]; fileName: string; error: string };
+  | { kind: 'import'; rows: ImportRow[]; fileName: string; error: string }
+  | { kind: 'param'; f: ParamForm };
+
+/** Measurement Parameters › Add Parameter: the columns of the parameter table. */
+interface ParamForm { parameter: string; unit: string; sensorType: string; prefix: string; makeModel: string; range: string; accuracy: string; description: string }
 
 const DAY = 86_400_000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -791,14 +795,17 @@ export class SensorManagement implements OnInit, OnDestroy {
     const sameDevice = !!existing && existing.deviceId.toUpperCase() === deviceId;
     const sameType = !!existing && existing.type === f.type;
     const known = this.deviceOption(deviceId);
+    // Parameters added on the Measurement Parameters tab are unknown to the API's built-in list: send their id prefix and name
+    const param = PARAMETERS.find((p) => p.type === f.type);
+    const number = f.number.trim();
     return {
-      sensorId: existing ? existing.id : null,
-      sensorNumber: existing ? existing.number || null : f.number.trim(),
+      sensorId: existing ? existing.id : param && number ? `${param.prefix}-${number}` : null,
+      sensorNumber: existing ? existing.number || null : number,
       serialNumber: f.serial.trim(),
       name: existing ? existing.name || null : null,
       sensorType: f.type,
-      measuredParameter: sameType ? existing!.param.name || null : null,
-      unit: sameType ? existing!.param.unit || null : null,
+      measuredParameter: sameType ? existing!.param.name || null : param?.name ?? null,
+      unit: sameType ? existing!.param.unit || null : param?.unit || null,
       deviceId: known?.deviceId ?? deviceId,
       deviceModel: sameDevice ? existing!.deviceModel || null : known?.model ?? null,
       channel: numOrNull(f.channel),
@@ -861,6 +868,65 @@ export class SensorManagement implements OnInit, OnDestroy {
         this.saving = false;
         this.formError = apiErrorMessage(e, existing ? `Could not update ${existing.id}.` : 'Could not add the sensor.');
       },
+    }));
+  }
+
+  // ===== Measurement parameters =====
+
+  openParam(): void {
+    this.formError = '';
+    this.dialog = { kind: 'param', f: { parameter: '', unit: '', sensorType: '', prefix: '', makeModel: '', range: '', accuracy: '', description: '' } };
+  }
+
+  /** "Dissolved Oxygen Probe" → SEN-DOP (the API uses the same rule when the prefix is left empty). */
+  prefixHint(type: string): string {
+    const letters = type.split(/[\s_-]+/).filter((w) => /^[A-Za-z0-9]/.test(w)).map((w) => w[0].toUpperCase()).join('').slice(0, 4);
+    return `SEN-${letters || 'X'}`;
+  }
+
+  saveParam(): void {
+    const d = this.dlg('param');
+    if (!d || this.saving) return;
+    const f = d.f;
+    const parameter = f.parameter.trim();
+    const type = f.sensorType.trim();
+    if (!parameter) return void (this.formError = 'Enter the parameter name.');
+    if (!type) return void (this.formError = 'Enter the sensor type.');
+    if (PARAMETERS.some((p) => p.name.toLowerCase() === parameter.toLowerCase())) return void (this.formError = `"${parameter}" already exists.`);
+    if (PARAMETERS.some((p) => p.type.toLowerCase() === type.toLowerCase())) return void (this.formError = `The sensor type "${type}" is already used.`);
+    if (f.prefix.trim() && !/^[A-Za-z0-9-]+$/.test(f.prefix.trim())) return void (this.formError = 'The ID prefix may contain only letters, digits and dashes.');
+    const t = (v: string) => v.trim() || null;
+    this.saving = true;
+    this.formError = '';
+    this.subs.add(this.api.addParameter({
+      measuredParameter: parameter, unit: t(f.unit), sensorType: type, idPrefix: t(f.prefix)?.toUpperCase() ?? null,
+      makeModel: t(f.makeModel), measuringRange: t(f.range), accuracy: t(f.accuracy), description: t(f.description),
+    }).subscribe({
+      next: (o) => {
+        this.saving = false;
+        PARAMETERS.push(toParameter(o));
+        this.dialog = null;
+        this.version++;
+        this.showToast(`Parameter "${o.measuredParameter}" added. It is now available as sensor type "${o.sensorType}" when adding sensors.`);
+      },
+      error: (e: unknown) => {
+        this.saving = false;
+        this.formError = apiErrorMessage(e, 'Could not add the measurement parameter.');
+      },
+    }));
+  }
+
+  deleteParam(p: Parameter): void {
+    if (!p.id) return;
+    if (!confirm(`Delete the parameter "${p.label}" (${p.type})?`)) return;
+    this.subs.add(this.api.deleteParameter(p.id).subscribe({
+      next: () => {
+        const i = PARAMETERS.findIndex((x) => x.id === p.id);
+        if (i >= 0) PARAMETERS.splice(i, 1);
+        this.version++;
+        this.showToast(`Parameter "${p.label}" deleted.`);
+      },
+      error: (e: unknown) => this.showToast(apiErrorMessage(e, `Could not delete "${p.label}".`)),
     }));
   }
 

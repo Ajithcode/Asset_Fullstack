@@ -95,15 +95,20 @@
       </div>
 
       <!-- ===== Measurement parameters ===== -->
+      <div *ngIf="tab === 'params'" class="par-bar">
+        <span class="muted">{{ paramRows.length }} parameters</span>
+        <button type="button" class="btn btn-primary btn-sm" (click)="openParam()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Add Parameter</button>
+      </div>
       <div *ngIf="tab === 'params'" class="table-wrap">
         <table class="dt dt--par">
           <thead><tr><th>Parameter</th><th>Unit</th><th>Sensor Type</th><th>Make / Model</th><th>Measuring Range</th><th>Accuracy</th><th class="num">Sensors</th><th class="num">Active</th><th class="num">Attention</th><th class="num">No Data</th><th></th></tr></thead>
           <tbody>
             <tr *ngFor="let r of paramRows" (click)="viewParamSensors(r.p)" tabindex="0" (keydown.enter)="viewParamSensors(r.p)">
-              <td><strong>{{ r.p.label }}</strong></td><td>{{ r.p.unit || '—' }}</td><td>{{ r.p.type }}</td><td>—</td>
-              <td class="nowrap">—</td><td class="nowrap">—</td>
+              <td><strong>{{ r.p.label }}</strong><small *ngIf="r.p.custom" class="par-tag">Custom</small><small *ngIf="r.p.description" class="par-desc">{{ r.p.description }}</small></td><td>{{ r.p.unit || '—' }}</td><td>{{ r.p.type }}</td><td>{{ r.p.makeModel || '—' }}</td>
+              <td class="nowrap">{{ r.p.measuringRange || '—' }}</td><td class="nowrap">{{ r.p.accuracy || '—' }}</td>
               <td class="num">{{ r.total | number }}</td><td class="num c-green">{{ r.active | number }}</td><td class="num c-amber">{{ r.alerts | number }}</td><td class="num c-red">{{ r.offline | number }}</td>
-              <td class="col-go"><button type="button" class="link-btn" (click)="$event.stopPropagation(); viewParamSensors(r.p)">View sensors<lucide-icon [img]="icons.ArrowRight" [size]="13"></lucide-icon></button></td>
+              <td class="col-go"><button type="button" class="link-btn" (click)="$event.stopPropagation(); viewParamSensors(r.p)">View sensors<lucide-icon [img]="icons.ArrowRight" [size]="13"></lucide-icon></button>
+                <button *ngIf="r.p.custom && !r.total" type="button" class="icon-btn danger par-del" (click)="$event.stopPropagation(); deleteParam(r.p)" [attr.aria-label]="'Delete ' + r.p.label" title="Delete parameter"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon></button></td>
             </tr>
             <tr *ngIf="!paramRows.length"><td colspan="11" class="empty">{{ loading ? 'Loading…' : 'No sensor types available.' }}</td></tr>
           </tbody>
@@ -345,6 +350,32 @@
       <label class="field"><span class="field-label">Note</span><input class="control" [(ngModel)]="d.f.note" name="note" placeholder="e.g. 2-point check against reference probe" /></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save calibration' }}</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Add measurement parameter ===== -->
+<div *ngIf="dlg('param') as d" class="overlay" (click)="dialog = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sm-par" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="sm-par">Add Measurement Parameter</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <form class="modal-body" (ngSubmit)="saveParam()">
+      <div class="two">
+        <label class="field"><span class="field-label">Parameter <em>*</em></span><input class="control" [(ngModel)]="d.f.parameter" name="par" placeholder="e.g. Dissolved Oxygen" maxlength="60" /></label>
+        <label class="field"><span class="field-label">Unit</span><input class="control" [(ngModel)]="d.f.unit" name="unit" placeholder="e.g. mg/L" maxlength="20" /></label>
+      </div>
+      <div class="two">
+        <label class="field"><span class="field-label">Sensor type <em>*</em></span><input class="control" [(ngModel)]="d.f.sensorType" name="stype" placeholder="e.g. DO Probe" maxlength="60" /></label>
+        <label class="field"><span class="field-label">Sensor ID prefix</span><input class="control" [(ngModel)]="d.f.prefix" name="prefix" [placeholder]="d.f.sensorType.trim() ? prefixHint(d.f.sensorType) : 'e.g. SEN-DO'" maxlength="12" /></label>
+      </div>
+      <label class="field"><span class="field-label">Make / Model</span><input class="control" [(ngModel)]="d.f.makeModel" name="make" placeholder="e.g. Hach LDO2" maxlength="100" /></label>
+      <div class="two">
+        <label class="field"><span class="field-label">Measuring range</span><input class="control" [(ngModel)]="d.f.range" name="range" placeholder="e.g. 0 – 20 mg/L" maxlength="100" /></label>
+        <label class="field"><span class="field-label">Accuracy</span><input class="control" [(ngModel)]="d.f.accuracy" name="acc" placeholder="e.g. ±0.1 mg/L" maxlength="100" /></label>
+      </div>
+      <label class="field"><span class="field-label">Description</span><textarea class="control" rows="2" [(ngModel)]="d.f.description" name="desc" placeholder="Optional" maxlength="500"></textarea></label>
+      <p class="par-note">The sensor type is offered in Add Sensor. Sensors, Active, Attention and No Data are counted from the sensors of this type.</p>
+      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Add parameter' }}</button></div>
     </form>
   </div>
 </div>

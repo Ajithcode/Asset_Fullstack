@@ -215,7 +215,15 @@
       </div>
       <fieldset class="field">
         <legend class="field-label">Supported measurements</legend>
-        <div class="chips"><button *ngFor="let x of measOptions" type="button" class="cchip" [class.is-on]="d.f.measurements.includes(x.name)" (click)="toggleIn(d.f.measurements, x.name)">{{ x.name }} <small>{{ x.unit }}</small></button></div>
+        <div class="custom-add">
+          <textarea class="control custom-input" rows="2" [(ngModel)]="customMeas" name="customMeas" placeholder="Type the measurements this model reports, e.g. Temperature, Humidity, Noise level (dB)" aria-label="Supported measurements"
+            (keydown.enter)="!$any($event).shiftKey && addCustom(d.f.measurements, 'meas', $event)"></textarea>
+          <button type="button" class="btn btn-outline btn-sm" [disabled]="!customMeas.trim()" (click)="addCustom(d.f.measurements, 'meas')"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>Add</button>
+        </div>
+        <p class="custom-hint">Press Enter or Add. Separate several with commas; Shift+Enter for a new line.</p>
+        <div *ngIf="d.f.measurements.length" class="custom-list" aria-label="Added measurements">
+          <span *ngFor="let v of d.f.measurements" class="custom-chip">{{ v }}<small *ngIf="unitOf(v)" class="custom-unit">{{ unitOf(v) }}</small><button type="button" (click)="removeIn(d.f.measurements, v)" [attr.aria-label]="'Remove ' + v" title="Remove"><lucide-icon [img]="icons.X" [size]="13"></lucide-icon></button></span>
+        </div>
       </fieldset>
       <div class="three">
         <label class="field"><span class="field-label">IP rating</span><input class="control" [(ngModel)]="d.f.ipRating" name="ip" list="dm-ips" placeholder="IP67" autocomplete="off" /><datalist id="dm-ips"><option *ngFor="let x of ipRatings" [value]="x"></option></datalist></label>
@@ -229,7 +237,15 @@
       </div>
       <fieldset class="field">
         <legend class="field-label">Configurable attributes</legend>
-        <div class="chips"><button *ngFor="let a of attrOptions" type="button" class="cchip" [class.is-on]="d.f.attributes.includes(a)" (click)="toggleIn(d.f.attributes, a)">{{ a }}</button></div>
+        <div class="custom-add">
+          <textarea class="control custom-input" rows="2" [(ngModel)]="customAttr" name="customAttr" placeholder="Type the attributes users can configure, e.g. Reporting Interval, Threshold Alerts, LED Indication" aria-label="Configurable attributes"
+            (keydown.enter)="!$any($event).shiftKey && addCustom(d.f.attributes, 'attr', $event)"></textarea>
+          <button type="button" class="btn btn-outline btn-sm" [disabled]="!customAttr.trim()" (click)="addCustom(d.f.attributes, 'attr')"><lucide-icon [img]="icons.Plus" [size]="14"></lucide-icon>Add</button>
+        </div>
+        <p class="custom-hint">Press Enter or Add. Separate several with commas; Shift+Enter for a new line.</p>
+        <div *ngIf="d.f.attributes.length" class="custom-list" aria-label="Added attributes">
+          <span *ngFor="let v of d.f.attributes" class="custom-chip">{{ v }}<button type="button" (click)="removeIn(d.f.attributes, v)" [attr.aria-label]="'Remove ' + v" title="Remove"><lucide-icon [img]="icons.X" [size]="13"></lucide-icon></button></span>
+        </div>
       </fieldset>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">{{ d.editId ? 'Save changes' : 'Add model' }}</button></div>

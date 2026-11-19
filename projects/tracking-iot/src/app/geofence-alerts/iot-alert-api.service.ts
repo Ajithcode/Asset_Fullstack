@@ -80,13 +80,17 @@ export interface IoTAlertQuery {
   limit?: number;
 }
 
-export type IoTAlertStatus = 'Open' | 'Acknowledged' | 'In Progress' | 'Resolved';
+export type IoTAlertStatus = 'Open' | 'Acknowledged' | 'Assigned' | 'In Progress' | 'Resolved' | 'Closed';
 
-const STATUS_FROM_API: Record<string, EventStatus> = { open: 'Unacknowledged', acknowledged: 'Acknowledged', 'in progress': 'Assigned', resolved: 'Resolved' };
-const STATUS_TO_API: Record<EventStatus, IoTAlertStatus> = { Unacknowledged: 'Open', Acknowledged: 'Acknowledged', Assigned: 'In Progress', Resolved: 'Resolved' };
+const STATUS_FROM_API: Record<string, EventStatus> = {
+  open: 'New', acknowledged: 'Acknowledged', assigned: 'Assigned', 'in progress': 'Investigating', resolved: 'Resolved', closed: 'Closed',
+};
+const STATUS_TO_API: Record<EventStatus, IoTAlertStatus> = {
+  New: 'Open', Acknowledged: 'Acknowledged', Assigned: 'Assigned', Investigating: 'In Progress', Resolved: 'Resolved', Closed: 'Closed',
+};
 
 export function statusFromApi(s: string | null): EventStatus {
-  return STATUS_FROM_API[(s ?? 'open').toLowerCase()] ?? 'Unacknowledged';
+  return STATUS_FROM_API[(s ?? 'open').toLowerCase()] ?? 'New';
 }
 
 export function statusToApi(s: EventStatus): IoTAlertStatus {
@@ -150,9 +154,9 @@ export class IoTAlertApiService {
     );
   }
 
-  /** Acknowledge, start (In Progress), resolve or reopen an alert. */
-  setStatus(alertId: string, status: IoTAlertStatus): Observable<IoTAlertDto> {
-    return this.http.patch<IoTAlertDto>(`${this.url}/${encodeURIComponent(alertId)}/status`, { status }, { params: tenantParams() }).pipe(
+  /** Moves an alert through its lifecycle; assignedTo / note go to the alert's audit history. */
+  setStatus(alertId: string, status: IoTAlertStatus, assignedTo?: string, note?: string): Observable<IoTAlertDto> {
+    return this.http.patch<IoTAlertDto>(`${this.url}/${encodeURIComponent(alertId)}/status`, { status, assignedTo: assignedTo || null, note: note || null }, { params: tenantParams() }).pipe(
       catchError((err) => apiError(err, 'Could not update the alert status.')),
     );
   }

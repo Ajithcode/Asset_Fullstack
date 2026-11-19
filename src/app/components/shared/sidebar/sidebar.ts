@@ -96,6 +96,7 @@ export class Sidebar {
         { label: 'IoT & Tracking Overview', path: '/dashboard/iot-tracking-overview' },
         { label: 'Asset Overview', path: '/dashboard/asset-overview' },
         // DEMO-HIDDEN: Dashboard > Reports hidden for the demo (route/component kept)
+        // Hidden for now: the Reports dashboard's APIs are not ready
         // { label: 'Reports', path: '/dashboard/reports' },
       ],
     },

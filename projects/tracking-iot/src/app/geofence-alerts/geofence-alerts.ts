@@ -1,8 +1,9 @@
 import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
-import { Observable, catchError, forkJoin, of, switchMap } from 'rxjs';
+import { Observable, Subscription, catchError, forkJoin, of, switchMap } from 'rxjs';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -37,12 +38,14 @@ import {
   Timer,
   Trash2,
   TriangleAlert,
+  User,
   Wifi,
   X,
 } from 'lucide-angular';
 import {
-  AlertEvent, CONDITIONS, EVENT_STATUSES, MAP_ZONE_PREFIX, NOTIFY_EVERY, NOTIFY_REPEAT, EventStatus, Rule, SEVERITIES, Severity, TRIGGERS, Trigger,
-  Zone, ZoneShape, ZoneType, startOfToday,
+  AlertEvent, CONDITIONS, COOLDOWN_OPTIONS, CUSTOM_SCHEDULE, DEBOUNCE_OPTIONS, ESCALATE_OPTIONS, EVENT_STATUSES, MAP_ZONE_PREFIX, NOTIFY_EVERY,
+  NOTIFY_REPEAT, EventStatus, OPEN_STATUSES, RULE_STATUSES, Rule, RuleStatus, SEVERITIES, Severity, TRIGGERS, Trigger, WEEKDAYS, Zone, ZoneShape,
+  ZoneType, startOfToday,
 } from './geofence-data';
 import type * as Leaflet from 'leaflet';
 import { apiErrorMessage } from '../shared/tracking-api';
@@ -51,17 +54,20 @@ import { GeofenceMap, MapAlert, MapMode } from './geofence-map';
 import { LL, areaM2 } from './geofence-geo';
 import { DEFAULT_GEOFENCE_OPTIONS, GeofenceApiService, GeofenceOptionsDto, SiteOption } from './geofence-api.service';
 import { AlertRuleApiService } from './alert-rule-api.service';
-import { IoTAlertApiService, IoTAlertDto, IoTAlertStatus, toAlertEvent } from './iot-alert-api.service';
+import { IoTAlertApiService, statusToApi } from './iot-alert-api.service';
+import { GeofenceEventQuery, GeofenceKpis, GeofenceSummaryApi, GeofenceTarget } from './geofence-summary-api';
 import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone, ZoneOption } from './floor-map-api.service';
 import { FloorPlanMap } from './floor-plan-map';
+import { RtlApi, RtlEvent } from '../real-time-location/rtl-api';
 import { DesktopAlertsService } from 'shared-ui';
-import { Subscription } from 'rxjs';
 
 type Tab = 'geofences' | 'rules' | 'history';
 type RuleForm = Omit<Rule, 'id' | 'name' | 'zoneId' | 'enabled'>;
 interface RuleDialog extends RuleForm { id: string; name: string; zoneId: string; enabled: boolean }
-interface ZoneForm { id: string; name: string; type: ZoneType; site: string; color: string; groups: string[]; schedule: string; monitorEntry: boolean; monitorExit: boolean; dwellMin: number | null; shape: ZoneShape | ''; points: number; drawn?: LL[] }
-interface Confirm { title: string; message: string; label: string; run: () => void }
+interface ZoneForm { id: string; name: string; type: ZoneType; category: string; site: string; color: string; groups: string[]; schedule: string; monitorEntry: boolean; monitorExit: boolean; shape: ZoneShape | ''; points: number; drawn?: LL[] }
+interface Confirm { title: string; message: string; label: string; reason?: { label: string; value: string; required: boolean }; run: (reason: string) => void }
+/** Assign / resolve / close with a note (kept in the alert's audit history). */
+interface StatusDialog { event: AlertEvent; status: EventStatus; title: string; assignee: string; note: string; needsAssignee: boolean }
 
 /** Default colour per zone type (matches the API's map colours). */
 const TYPE_COLOR: Record<ZoneType, string> = { Allowed: '#2563EB', Warning: '#F5B40B', Restricted: '#EF4444' };
@@ -71,51 +77,60 @@ const DEFAULT_RULE: RuleForm = {
   createAlert: true, notify: false, team: '', workflow: false, workflowName: '',
   inApp: true, email: true, push: true,
   notifyEvery: 5, notifyRepeat: 1, notifySound: true,
+  status: 'Active', description: '', assetIds: [], authorizedGroups: [], scheduleDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], scheduleFrom: '08:00', scheduleTo: '18:00',
+  debounceSec: 30, cooldownMin: 5, escalateAfterMin: 0, escalateTo: '', autoResolve: false, effectiveFrom: '', effectiveTo: '',
 };
 
-const LIST_PAGE = 5;
+const LIST_PAGE = 6;
 const HIST_PAGE = 10;
-/** Alerts are re-polled this often (ms). */
-const ALERT_POLL_MS = 30_000;
-/** Alert event types that belong to geofences even when no rule id is set. */
-const GEOFENCE_EVENT = /geofence|zone|dwell|enter|exit/i;
+/** Summary and the visible alert lists are re-polled this often (ms). */
+const POLL_MS = 30_000;
+/** Recipients suggested before any rule names one (Administration teams). */
+const DEFAULT_TEAMS = ['Security Team', 'Operations Team', 'Maintenance Team', 'Facility Management', 'Asset Custodian', 'Asset Owner'];
 
 @Component({
   selector: 'app-geofence-alerts',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, GeofenceMap, MapDrawTools, FloorPlanMap],
+  imports: [CommonModule, FormsModule, RouterLink, LucideAngularModule, GeofenceMap, MapDrawTools, FloorPlanMap],
   templateUrl: './geofence-alerts.html',
-  styleUrls: ['./geofence-alerts.css', './geofence-alerts-sections.css', '../shared/iot-purple-theme.css'],
+  styleUrls: ['./geofence-alerts.css', './geofence-alerts-sections.css', '../shared/iot-purple-theme.css', './geofence-alerts-v2.css'],
 })
 export class GeofenceAlerts implements OnInit, OnDestroy {
-  readonly icons = { ArrowDown, ArrowUp, Bell, Box, Boxes, Building2, CalendarClock, Check, ChevronLeft, ChevronRight, Circle, Copy, Download, Ellipsis, History, Layers, Locate, LogIn, LogOut, MapPin, Minus, Pencil, Pentagon, Plus, Power, Search, Settings, Shapes, ShieldAlert, Timer, Trash2, TriangleAlert, Wifi, X };
+  readonly icons = { ArrowDown, ArrowUp, Bell, Box, Boxes, Building2, CalendarClock, Check, ChevronLeft, ChevronRight, Circle, Copy, Download, Ellipsis, History, Layers, Locate, LogIn, LogOut, MapPin, Minus, Pencil, Pentagon, Plus, Power, Search, Settings, Shapes, ShieldAlert, Timer, Trash2, TriangleAlert, User, Wifi, X };
   readonly conditions = CONDITIONS;
+  readonly customSchedule = CUSTOM_SCHEDULE;
+  readonly weekdays = WEEKDAYS;
   readonly severities = SEVERITIES;
+  readonly ruleStatuses = RULE_STATUSES;
   readonly triggers = TRIGGERS;
   readonly eventStatuses = EVENT_STATUSES;
   readonly notifyEvery = NOTIFY_EVERY;
   readonly notifyRepeat = NOTIFY_REPEAT;
+  readonly debounceOptions = DEBOUNCE_OPTIONS;
+  readonly cooldownOptions = COOLDOWN_OPTIONS;
+  readonly escalateOptions = ESCALATE_OPTIONS;
   /** Desktop notifications on this browser (Web Push). */
   readonly desktop = inject(DesktopAlertsService);
 
   enableDesktop(): void {
     this.desktop.enable().then((ok) => this.showToast(ok ? 'Desktop notifications are on for this browser.' : this.desktop.state === 'denied' ? 'Notifications are blocked for this site in the browser settings.' : 'Could not turn on desktop notifications.'));
   }
-  /** Teams / workflows have no API list yet; the inputs accept free text (suggestions from existing rules). */
+  /** Teams / workflows have no API list yet; the inputs accept free text (suggestions: Administration teams + existing rules). */
   get teams(): string[] {
-    return [...new Set(this.rules.map((r) => r.team).filter(Boolean))].sort();
+    return [...new Set([...DEFAULT_TEAMS, ...this.rules.flatMap((r) => [r.team, r.escalateTo]).filter(Boolean)])].sort();
   }
   get workflows(): string[] {
-    return [...new Set(this.rules.map((r) => r.workflowName).filter(Boolean))].sort();
+    return [...new Set(['Restricted Zone Incident', ...this.rules.map((r) => r.workflowName).filter(Boolean)])].sort();
   }
 
   private readonly geofenceApi = inject(GeofenceApiService);
   private readonly ruleApi = inject(AlertRuleApiService);
   private readonly alertApi = inject(IoTAlertApiService);
+  private readonly summaryApi = inject(GeofenceSummaryApi);
+  private readonly rtlApi = inject(RtlApi);
 
-  // option lists (GET /api/geofences/options, /api/iot-alerts/options)
+  // option lists (GET /api/geofences/options)
   options: GeofenceOptionsDto = DEFAULT_GEOFENCE_OPTIONS;
-  private alertEventTypes: string[] = [];
   private masterSites: SiteOption[] = [];
 
   get groups(): string[] {
@@ -133,11 +148,17 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   get shapes(): ZoneShape[] {
     return this.options.shapes as ZoneShape[];
   }
+  get categories(): string[] {
+    return this.options.categories ?? DEFAULT_GEOFENCE_OPTIONS.categories ?? [];
+  }
 
   zones: Zone[] = [];
   rules: Rule[] = [];
-  events: AlertEvent[] = [];
-  private alertRows: IoTAlertDto[] = [];
+  /** Indoor (floor plan) + outdoor monitored areas with live figures (GET /api/geofence-alerts/summary). */
+  targets: GeofenceTarget[] = [];
+  summaryKpis: GeofenceKpis | null = null;
+  /** Newest alerts for the Recent Alert Events card. */
+  recentEvents: AlertEvent[] = [];
 
   loading = false;
   loadError = '';
@@ -173,42 +194,83 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   // list / filters
   listSearch = '';
   listSite = '';
+  listKind: '' | 'Indoor' | 'Outdoor' = '';
   listPage = 0;
   ruleZone = '';
   ruleSearch = '';
-  hDate: '' | 'today' | 'yesterday' | '7d' | 'all' = '';
+  ruleStatus: '' | RuleStatus = '';
+
+  // event history (server paged)
+  histMode: 'alerts' | 'movements' = 'alerts';
+  hDate: '' | 'today' | 'yesterday' | '7d' | '30d' = '7d';
   hZone = '';
   hType = '';
   hStatus = '';
+  hSeverity = '';
   hSearch = '';
-  hPage = 0;
+  hPage = 1;
+  hRows: AlertEvent[] = [];
+  hTotal = 0;
+  hPages = 1;
+  hTypes: string[] = [];
+  hLoading = false;
+  private hSub?: Subscription;
+  private searchTimer?: ReturnType<typeof setTimeout>;
+  // zone movement events (location events, not alerts)
+  mRange: '24h' | '7d' = '24h';
+  mType = '';
+  mPage = 1;
+  mRows: RtlEvent[] = [];
+  mTotal = 0;
+  mPages = 1;
+  mTypes: string[] = [];
 
   // forms & dialogs
-  builder: RuleForm = { ...DEFAULT_RULE };
+  builder: RuleForm & { name: string } = { ...DEFAULT_RULE, name: '' };
   zoneForm: ZoneForm | null = null;
   ruleDialog: RuleDialog | null = null;
   confirmBox: Confirm | null = null;
+  statusDialog: StatusDialog | null = null;
+  detail: AlertEvent | null = null;
   formError = '';
+
+  /** ?newRule=1&zone=zone:{id}&asset={name} (Real-Time Location › Create Alert): open a new rule for that zone. */
+  private readonly route = inject(ActivatedRoute);
+  private ruleRequestHandled = false;
+
+  private openRequestedRule(): void {
+    const q = this.route.snapshot.queryParamMap;
+    if (this.ruleRequestHandled || !q.get('newRule')) return;
+    this.ruleRequestHandled = true;
+    this.tab = 'rules';
+    this.openRule();
+    const zone = q.get('zone');
+    const asset = q.get('asset');
+    if (this.ruleDialog) {
+      if (zone) this.ruleDialog.zoneId = zone;
+      if (asset) {
+        this.ruleDialog.name = `${asset} location alert`;
+        this.ruleDialog.assetIds = [asset];
+      }
+    }
+  }
 
   ngOnInit(): void {
     this.load();
     this.loadFloors();
-    this.pollTimer = setInterval(() => this.loadAlerts(true), ALERT_POLL_MS);
+    this.pollTimer = setInterval(() => this.refreshLive(), POLL_MS);
   }
 
   ngOnDestroy(): void {
     clearTimeout(this.toastTimer);
+    clearTimeout(this.searchTimer);
     clearInterval(this.pollTimer);
     this.planSub?.unsubscribe();
     this.feedSub?.unsubscribe();
+    this.hSub?.unsubscribe();
   }
 
   // ===== floor plan view (Building > Floor, then Zone) =====
-  /*
-   * The map dropdowns: "Outdoor geofences" keeps the street / satellite map of the site's geofences; a floor shows that
-   * floor's plan from Maps & Floor Plans with every device and asset plotted on it, and a zone of that floor shows
-   * only that zone and what is plotted in it.
-   */
   private readonly floorApi = inject(FloorMapApiService);
   floorOptions: FloorOption[] = [];
   /** Floors request finished (the dropdown says when there are none). */
@@ -227,6 +289,8 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   gatewayFeed: Record<string, GatewayFeed> = {};
   private planSub?: Subscription;
   private feedSub?: Subscription;
+  /** Zone to pick once the floor's zones are loaded (selecting an indoor geofence from the list). */
+  private pendingZoneCode = '';
 
   private loadFloors(): void {
     forkJoin({
@@ -336,12 +400,28 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
         this.planZones = zones;
         this.planPlots = plots;
         this.planLoading = false;
+        this.applyPendingZone();
       },
       error: (err) => {
         this.planLoading = false;
         this.planError = apiErrorMessage(err, 'Could not load the floor plan.');
       },
     });
+  }
+
+  /** Floor zone picked in the tab row: select the matching indoor geofence too. */
+  onFloorZone(id: string): void {
+    this.floorZoneId = id;
+    const code = this.zoneOptions.find((o) => o.id === id)?.code.trim().toUpperCase();
+    const drawn = code ? this.planZones.find((p) => p.code.trim().toUpperCase() === code) : undefined;
+    if (drawn) this.selectedId = MAP_ZONE_PREFIX + drawn.id;
+  }
+
+  private applyPendingZone(): void {
+    if (!this.pendingZoneCode) return;
+    const code = this.pendingZoneCode;
+    this.pendingZoneCode = '';
+    this.floorZoneId = this.floorZones.find((z) => z.code.trim().toUpperCase() === code)?.id ?? '';
   }
 
   /** Live gateway feed, started with the first floor shown. */
@@ -364,18 +444,16 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
       rules: this.ruleApi.list(),
       options: this.geofenceApi.options().pipe(catchError(() => of(DEFAULT_GEOFENCE_OPTIONS))),
       sites: this.geofenceApi.sites(),
-      alertOptions: this.alertApi.options().pipe(catchError(() => of(null))),
     }).subscribe({
-      next: ({ zones, rules, options, sites, alertOptions }) => {
+      next: ({ zones, rules, options, sites }) => {
         this.zones = zones;
         this.rules = rules;
-        this.options = options;
+        this.options = { ...DEFAULT_GEOFENCE_OPTIONS, ...options };
         this.masterSites = sites;
-        this.alertEventTypes = alertOptions?.eventTypes ?? [];
-        if (!this.zoneById(this.selectedId)) this.selectedId = zones[0]?.id ?? '';
         if (this.builder.group && !this.groups.includes(this.builder.group)) this.builder.group = '';
         this.loading = false;
-        this.loadAlerts();
+        this.refreshLive();
+        this.openRequestedRule();
       },
       error: (err) => {
         this.loading = false;
@@ -385,38 +463,26 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     });
   }
 
-  /** Alerts raised by geofence rules (or with a geofence event type), newest first. */
-  loadAlerts(silent = false): void {
-    this.alertApi.list().subscribe({
-      next: (rows) => {
-        this.alertRows = rows;
-        this.rebuildEvents();
+  /** KPIs, the zone list figures, the recent alerts and the visible history page. */
+  refreshLive(): void {
+    this.loadSummary();
+    this.loadRecent();
+    if (this.tab === 'history') this.loadHistory(true);
+  }
+
+  private loadSummary(): void {
+    this.summaryApi.summary(startOfToday()).subscribe({
+      next: (s) => {
+        this.targets = s.targets;
+        this.summaryKpis = s.kpis;
+        if (!this.selectedId || !this.targetById(this.selectedId)) this.selectedId = this.zones[0]?.id ?? s.targets[0]?.id ?? '';
       },
-      error: (err) => {
-        if (!silent) this.showToast(apiErrorMessage(err, 'Could not load alerts.'));
-      },
+      error: (err) => this.showToast(apiErrorMessage(err, 'Could not load the geofence summary.')),
     });
   }
 
-  private rebuildEvents(): void {
-    const ruleIds = new Set(this.rules.map((r) => r.id));
-    this.events = this.alertRows
-      .filter((a) => (a.alertRuleId && ruleIds.has(a.alertRuleId)) || GEOFENCE_EVENT.test(a.eventType ?? ''))
-      .map((a) => toAlertEvent(a, (ruleId) => this.zoneOfRule(ruleId)))
-      .sort((a, b) => b.ts.getTime() - a.ts.getTime());
-  }
-
-  private zoneOfRule(ruleId: string): { id: string; name: string } | null {
-    const r = this.rules.find((x) => x.id === ruleId);
-    const z = r ? this.zoneById(r.zoneId) : undefined;
-    return z ? { id: z.id, name: z.name } : null;
-  }
-
-  private replaceZone(z: Zone): void {
-    const i = this.zones.findIndex((x) => x.id === z.id);
-    if (i >= 0) this.zones[i] = { ...z, geoRev: (this.zones[i].geoRev ?? 0) + 1 };
-    else this.zones.push(z);
-    this.zones = [...this.zones];
+  private loadRecent(): void {
+    this.summaryApi.events({ page: 1, pageSize: 5 }).subscribe({ next: (p) => (this.recentEvents = p.items), error: () => undefined });
   }
 
   private fail(err: unknown, fallback: string): void {
@@ -424,13 +490,17 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     this.showToast(apiErrorMessage(err, fallback));
   }
 
-  // ===== options =====
-  get sites(): string[] {
-    return [...new Set([...this.masterSites.map((s) => s.name), ...this.zones.map((z) => z.site)].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  private replaceZone(z: Zone): void {
+    const i = this.zones.findIndex((x) => x.id === z.id);
+    if (i >= 0) this.zones[i] = { ...z, geoRev: (this.zones[i].geoRev ?? 0) + 1 };
+    else this.zones.push(z);
+    this.zones = [...this.zones];
+    this.loadSummary();
   }
 
-  get eventTypes(): string[] {
-    return [...new Set([...this.alertEventTypes, ...this.events.map((e) => e.type)])];
+  // ===== options =====
+  get sites(): string[] {
+    return [...new Set([...this.masterSites.map((s) => s.name), ...this.zones.map((z) => z.site), ...this.targets.map((t) => t.siteName ?? '')].filter(Boolean))].sort((a, b) => a.localeCompare(b));
   }
 
   private siteIdOf(name: string): string | null {
@@ -439,21 +509,21 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
 
   // ===== KPIs =====
   get kpi() {
-    const active = this.zones.filter((z) => z.status === 'Active');
-    const activePrev = active.filter((z) => z.createdDaysAgo === null || z.createdDaysAgo >= 30).length;
-    const monitored = active.reduce((t, z) => t + z.monitoredCount, 0);
-    const t0 = startOfToday().getTime();
-    const y0 = t0 - 86400000;
-    const today = this.events.filter((e) => e.ts.getTime() >= t0).length;
-    const yesterday = this.events.filter((e) => e.ts.getTime() >= y0 && e.ts.getTime() < t0).length;
-    const open = this.events.filter((e) => e.status === 'Unacknowledged').length;
+    const k = this.summaryKpis;
+    const today = k?.alertsToday ?? 0;
+    const yesterday = k?.alertsYesterday ?? 0;
     return {
-      active: active.length,
-      activeDelta: active.length - activePrev,
-      monitored,
+      active: k?.activeGeofences ?? this.zones.filter((z) => z.status === 'Active').length,
+      outdoor: k?.outdoorActive ?? 0,
+      indoor: k?.indoorMonitored ?? 0,
+      monitored: k?.monitoredAssets ?? 0,
+      tagged: k?.taggedAssets ?? 0,
       today,
-      todayPct: yesterday ? Math.round(((today - yesterday) / yesterday) * 100) : 0,
-      open,
+      yesterday,
+      todayPct: yesterday ? Math.round(((today - yesterday) / yesterday) * 100) : null,
+      open: k?.openAlerts ?? 0,
+      unack: k?.unacknowledged ?? 0,
+      escalated: k?.escalated ?? 0,
     };
   }
 
@@ -462,24 +532,60 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   // ===== selection =====
+  targetById(id: string): GeofenceTarget | undefined {
+    return this.targets.find((t) => t.id === id);
+  }
+
+  /** The selected list row (indoor zone or outdoor geofence). */
+  get selectedTarget(): GeofenceTarget | undefined {
+    return this.targetById(this.selectedId);
+  }
+
+  /** The selected outdoor geofence (null when an indoor zone is selected). */
   get selected(): Zone | null {
-    return this.zones.find((z) => z.id === this.selectedId) ?? this.zones[0] ?? null;
+    if (this.selectedId.startsWith(MAP_ZONE_PREFIX)) return null;
+    return this.zones.find((z) => z.id === this.selectedId) ?? (this.selectedId ? null : this.zones[0] ?? null);
   }
 
   get selectedName(): string {
-    return this.selected ? this.selected.name : '';
+    return this.selected?.name ?? this.selectedTarget?.name ?? '';
   }
 
   selectZone(z: Zone, recenter = false): void {
     if (this.mapMode !== 'view') return;
     this.selectedId = z.id;
     this.pickedSite = '';
-    if (recenter) setTimeout(() => this.locate(), 50);
+    if (recenter) {
+      if (this.floorId) this.selectFloor('');
+      setTimeout(() => this.locate(), 80);
+    }
   }
 
   selectZoneById(id: string): void {
     const z = this.zoneById(id);
     if (z) this.selectZone(z);
+  }
+
+  /** List row → the zone on its map: an outdoor geofence on the site map, an indoor zone on its floor plan. */
+  selectTarget(t: GeofenceTarget, show = false): void {
+    if (this.mapMode !== 'view') return;
+    if (t.kind === 'Outdoor') {
+      const z = this.zoneById(t.id);
+      if (z) this.selectZone(z, show);
+      return;
+    }
+    this.selectedId = t.id;
+    if (!show && !this.floorId) return;
+    const floor = [...this.floorPlans.entries()].find(([, p]) => p.id === t.floorPlanId)?.[0];
+    if (!floor) { if (show) this.showToast('This zone\'s floor plan is not available.'); return; }
+    const code = (t.code ?? '').trim().toUpperCase();
+    if (floor !== this.floorId) {
+      this.pendingZoneCode = code;
+      this.selectFloor(floor);
+    } else {
+      this.pendingZoneCode = code;
+      this.applyPendingZone();
+    }
   }
 
   zoneById(id: string): Zone | undefined {
@@ -490,8 +596,13 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     return this.zoneById(id)?.color ?? (id.startsWith(MAP_ZONE_PREFIX) ? '#7c3aed' : '#9ca3af');
   }
 
-  ruleCount(z: Zone): number {
-    return this.rules.filter((r) => r.zoneId === z.id).length;
+  ruleCount(id: string): number {
+    return this.rules.filter((r) => r.zoneId === id).length;
+  }
+
+  /** Dwell thresholds come from the zone's rules (different groups can have different limits). */
+  dwellRules(id: string): Rule[] {
+    return this.rules.filter((r) => r.zoneId === id && r.trigger === 'dwell');
   }
 
   shapeLabel(z: Zone): string {
@@ -500,45 +611,82 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     return z.shape === 'Rectangle' ? 'Rectangle' : `Polygon (${z.points} points)`;
   }
 
-  /** Newest alert at the zone, else the zone's own last-event stamp. */
-  lastEvent(z: Zone): Date | null {
-    const e = this.events.find((x) => x.zoneId === z.id);
-    if (e && (!z.lastEventAt || e.ts > z.lastEventAt)) return e.ts;
-    return z.lastEventAt;
+  targetShape(t: GeofenceTarget): string {
+    const z = t.kind === 'Outdoor' ? this.zoneById(t.id) : undefined;
+    if (z) return this.shapeLabel(z);
+    return t.kind === 'Indoor' ? `Floor-plan ${(t.shape || 'polygon').toLowerCase()}` : t.shape ?? '—';
   }
 
-  fmtWhen(d: Date | null): string {
+  targetArea(t: GeofenceTarget): string {
+    const z = t.kind === 'Outdoor' ? this.zoneById(t.id) : undefined;
+    if (z) return this.zoneArea(z);
+    return t.areaM2 ? this.fmtArea(t.areaM2) : '';
+  }
+
+  /** Building · floor for indoor zones, the site for outdoor geofences. */
+  targetPlace(t: GeofenceTarget): string {
+    return t.kind === 'Indoor' ? [t.buildingName, t.floorName].filter(Boolean).join(' · ') || t.locationPath || '—' : '—';
+  }
+
+  shortId(id: string): string {
+    return id.startsWith(MAP_ZONE_PREFIX) ? 'Z-' + id.slice(MAP_ZONE_PREFIX.length, MAP_ZONE_PREFIX.length + 6).toUpperCase() : 'G-' + id.slice(-6).toUpperCase();
+  }
+
+  fmtWhen(d: Date | string | null | undefined): string {
     if (!d) return '—';
+    const t = typeof d === 'string' ? new Date(d) : d;
     const t0 = startOfToday().getTime();
-    const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    if (d.getTime() >= t0) return hm;
-    if (d.getTime() >= t0 - 86400000) return `Yesterday ${hm}`;
-    return `${d.getDate()} ${d.toLocaleString('en-US', { month: 'short' })} ${hm}`;
+    const hm = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+    if (t.getTime() >= t0) return hm;
+    if (t.getTime() >= t0 - 86400000) return `Yesterday ${hm}`;
+    return `${t.getDate()} ${t.toLocaleString('en-US', { month: 'short' })} ${hm}`;
   }
 
-  fmtStamp(d: Date): string {
-    return `${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} ${this.fmtWhen(d).slice(-5)}`;
+  fmtStamp(d: Date | string): string {
+    const t = typeof d === 'string' ? new Date(d) : d;
+    return `${t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`;
   }
 
-  typeClass(t: ZoneType): string {
-    return 'zt--' + t.toLowerCase();
+  fmtDuration(sec: number | null | undefined): string {
+    if (sec === null || sec === undefined) return '—';
+    if (sec < 60) return `${sec}s`;
+    const m = Math.round(sec / 60);
+    return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+  }
+
+  typeClass(t: string | null): string {
+    return 'zt--' + (t ?? 'none').toLowerCase().replace(/[^a-z]+/g, '-');
   }
 
   evClass(t: string): string {
-    return /dwell|remain/i.test(t) ? 'ev--dwell' : /exit|left|depart/i.test(t) ? 'ev--out' : 'ev--in';
+    return /unauthori|lost/i.test(t) ? 'ev--alert' : /dwell|remain/i.test(t) ? 'ev--dwell' : /exit|left|depart/i.test(t) ? 'ev--out' : 'ev--in';
   }
 
   stClass(s: EventStatus): string {
-    return 'st--' + s.toLowerCase();
+    return 'est--' + s.toLowerCase();
   }
 
-  sevClass(s: Severity): string {
-    return 'sev--' + s.toLowerCase();
+  sevClass(s: string): string {
+    return 'sev--' + (s || 'none').toLowerCase();
+  }
+
+  ruleStClass(s: RuleStatus): string {
+    return 'rst--' + s.toLowerCase();
   }
 
   triggerLabel(t: Trigger, dwell = 0): string {
-    if (t === 'dwell') return `Remains longer than ${dwell} min`;
-    return (TRIGGERS.find((x) => x.value === t)?.label ?? '').replace('When asset ', '').replace(/^./, (c) => c.toUpperCase());
+    if (t === 'dwell') return `Dwells longer than ${dwell} min`;
+    return TRIGGERS.find((x) => x.value === t)?.label ?? '';
+  }
+
+  scheduleLabel(r: RuleForm): string {
+    if (r.condition !== CUSTOM_SCHEDULE) return r.condition || '—';
+    return `${r.scheduleDays.join(', ') || 'No days'} ${r.scheduleFrom}–${r.scheduleTo}`;
+  }
+
+  scopeLabel(r: RuleForm): string {
+    const base = r.assetIds.length ? `${r.assetIds.length} specific asset${r.assetIds.length === 1 ? '' : 's'}` : r.group || '—';
+    return r.trigger === 'unauthorized' && r.authorizedGroups.length ? `${base} · allowed: ${r.authorizedGroups.join(', ')}` : base;
   }
 
   actionsSummary(r: RuleForm): string {
@@ -546,6 +694,8 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     if (r.createAlert) out.push('Create alert');
     if (r.notify) out.push(`Notify ${r.team || 'team'}`);
     if (r.workflow) out.push(`Workflow: ${r.workflowName || '—'}`);
+    if (r.escalateAfterMin > 0) out.push(`Escalate to ${r.escalateTo || '—'} after ${r.escalateAfterMin} min`);
+    if (r.autoResolve) out.push('Auto-resolve on exit');
     return out.join(' · ') || 'No actions';
   }
 
@@ -576,19 +726,18 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
 
   private alertCache: { sig: string; list: MapAlert[] } = { sig: '', list: [] };
 
-  /** Open (unacknowledged) alerts, newest per zone. */
+  /** Newest new (unacknowledged) alert per outdoor geofence. */
   get mapAlerts(): MapAlert[] {
-    const open = this.events.filter((e) => e.status === 'Unacknowledged' && e.zoneId);
-    const sig = open.map((e) => e.id).join(',');
+    const open = this.targets.filter((t) => t.kind === 'Outdoor' && t.latestOpenAlert);
+    const sig = open.map((t) => t.latestOpenAlert!.alertId).join(',');
     if (sig !== this.alertCache.sig) {
-      const seen = new Set<string>();
-      const list: MapAlert[] = [];
-      for (const e of open) {
-        if (seen.has(e.zoneId)) continue;
-        seen.add(e.zoneId);
-        list.push({ key: e.id, zoneId: e.zoneId, assetCode: e.assetCode, title: `${e.type}: ${e.assetCode}`, sub: `${e.zoneName} · ${this.fmtWhen(e.ts)} · Unacknowledged` });
-      }
-      this.alertCache = { sig, list };
+      this.alertCache = {
+        sig,
+        list: open.map((t) => {
+          const a = t.latestOpenAlert!;
+          return { key: a.alertId, zoneId: t.id, assetCode: a.assetName, title: `${a.eventType}: ${a.assetName}`, sub: `${t.name} · ${this.fmtWhen(a.raisedAt)} · New` };
+        }),
+      };
     }
     return this.alertCache.list;
   }
@@ -610,7 +759,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   onAlertClick(): void {
-    this.openHistory('all', 'Unacknowledged');
+    this.openHistory('7d', 'Open');
   }
 
   // ----- draw a new / replacement outline -----
@@ -622,6 +771,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     this.zoneForm = null;
     this.drawSite = f.site;
     this.drawCount = 0;
+    if (this.floorId) this.selectFloor('');
     this.mapMode = 'draw';
     this.tab = 'geofences';
   }
@@ -662,18 +812,19 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   // ----- drag the corners of an existing zone -----
-  canEditShape(z: Zone | null): boolean {
+  canEditShape(z: Zone | null | undefined): boolean {
     return !!z && z.shape === 'Polygon' && !!z.latlngs?.length;
   }
 
   startEditShape(z: Zone): void {
     this.menuOpen = '';
     if (!this.canEditShape(z)) return;
+    if (this.floorId) this.selectFloor('');
     this.selectedId = z.id;
     this.editId = z.id;
     this.editDraft = null;
     this.mapMode = 'edit';
-    setTimeout(() => this.locate(), 50);
+    setTimeout(() => this.locate(), 80);
   }
 
   onEditChange(pts: LL[]): void {
@@ -705,6 +856,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     this.editDraft = null;
   }
 
+  /** m² below one hectare, hectares above (computed from the saved geometry, never typed in). */
   fmtArea(m2: number): string {
     return m2 >= 10000 ? `${(m2 / 10000).toFixed(2)} ha` : `${Math.round(m2).toLocaleString()} m²`;
   }
@@ -718,40 +870,47 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     return z.latlngs?.length ? this.fmtArea(areaM2(z.latlngs)) : '';
   }
 
-  // ===== geofence list =====
-  get listFiltered(): Zone[] {
+  // ===== geofence list (indoor + outdoor) =====
+  get listFiltered(): GeofenceTarget[] {
     const q = this.listSearch.trim().toLowerCase();
-    return this.zones.filter((z) => (!this.listSite || z.site === this.listSite) && (!q || `${z.name} ${z.type} ${z.site}`.toLowerCase().includes(q)));
+    return this.targets.filter((t) =>
+      (!this.listSite || t.siteName === this.listSite) && (!this.listKind || t.kind === this.listKind)
+      && (!q || `${this.shortId(t.id)} ${t.name} ${t.code ?? ''} ${t.type ?? ''} ${t.category ?? ''} ${t.siteName ?? ''} ${t.buildingName ?? ''} ${t.floorName ?? ''}`.toLowerCase().includes(q)));
   }
 
   get listPages(): number {
     return Math.max(1, Math.ceil(this.listFiltered.length / LIST_PAGE));
   }
 
-  get listRows(): Zone[] {
-    const p = Math.min(this.listPage, this.listPages - 1);
+  get listPageNo(): number {
+    return Math.min(this.listPage, this.listPages - 1);
+  }
+
+  get listRows(): GeofenceTarget[] {
+    const p = this.listPageNo;
     return this.listFiltered.slice(p * LIST_PAGE, p * LIST_PAGE + LIST_PAGE);
   }
 
   get listRange(): string {
     const n = this.listFiltered.length;
     if (!n) return '0 of 0';
-    const p = Math.min(this.listPage, this.listPages - 1);
+    const p = this.listPageNo;
     return `${p * LIST_PAGE + 1}–${Math.min(n, p * LIST_PAGE + LIST_PAGE)} of ${n}`;
-  }
-
-  get listPageNo(): number {
-    return Math.min(this.listPage, this.listPages - 1);
   }
 
   pageList(d: number): void {
     this.listPage = Math.min(Math.max(this.listPageNo + d, 0), this.listPages - 1);
   }
 
-  showRules(z: Zone): void {
-    this.ruleZone = z.id;
+  showRules(id: string): void {
+    this.ruleZone = id;
     this.ruleSearch = '';
     this.tab = 'rules';
+  }
+
+  showAlerts(id: string): void {
+    this.hZone = id;
+    this.openHistory('30d', 'Unresolved', true);
   }
 
   // ===== zone actions =====
@@ -759,8 +918,8 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     this.menuOpen = '';
     this.formError = '';
     this.zoneForm = z
-      ? { id: z.id, name: z.name, type: z.type, site: z.site, color: z.color, groups: [...z.groups], schedule: z.schedule, monitorEntry: z.monitorEntry, monitorExit: z.monitorExit, dwellMin: z.dwellMin, shape: z.shape, points: z.points || this.options.defaultPolygonPoints }
-      : { id: '', name: '', type: 'Allowed', site: '', color: TYPE_COLOR.Allowed, groups: this.groups.slice(0, 1), schedule: '', monitorEntry: true, monitorExit: true, dwellMin: 10, shape: '', points: this.options.defaultPolygonPoints };
+      ? { id: z.id, name: z.name, type: z.type, category: z.category ?? '', site: z.site, color: z.color, groups: [...z.groups], schedule: z.schedule, monitorEntry: z.monitorEntry, monitorExit: z.monitorExit, shape: z.shape, points: z.points || this.options.defaultPolygonPoints }
+      : { id: '', name: '', type: 'Allowed', category: '', site: '', color: TYPE_COLOR.Allowed, groups: this.groups.slice(0, 1), schedule: '', monitorEntry: true, monitorExit: true, shape: '', points: this.options.defaultPolygonPoints };
   }
 
   get editingDrawn(): boolean {
@@ -770,10 +929,10 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     return !!z && !!z.latlngs?.length && f.shape !== 'Circle';
   }
 
-  /** Monitored asset count of the zone being edited (the API keeps this figure; new zones start at 0). */
+  /** Unique monitored assets of the zone being edited (computed by the API). */
   get formAssetCount(): number | null {
     const f = this.zoneForm;
-    return f?.id ? this.zoneById(f.id)?.monitoredCount ?? null : null;
+    return f?.id ? this.targetById(f.id)?.monitoredAssets ?? null : null;
   }
 
   toggleFormGroup(g: string): void {
@@ -800,14 +959,13 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     if (!f.groups.length) { this.formError = 'Select at least one asset group.'; return; }
     const { minPolygonPoints: min, maxPolygonPoints: max } = this.options;
     const points = Math.min(max, Math.max(min, Math.round(f.points || this.options.defaultPolygonPoints)));
-    const dwell = f.dwellMin === null || (f.dwellMin as unknown) === '' ? null : Math.max(1, Math.round(f.dwellMin));
     const existing = f.id ? this.zoneById(f.id) : undefined;
     const base: Zone = existing
       ? { ...existing }
       : { id: '', name, type: f.type, site: f.site, siteId: null, status: 'Active', shape: f.shape, points, color: f.color, groups: [], schedule: f.schedule, monitorEntry: true, monitorExit: true, dwellMin: null, monitoredCount: 0, lastEventAt: null, createdDaysAgo: 0 };
     const zone: Zone = {
-      ...base, name, type: f.type, site: f.site, siteId: this.siteIdOf(f.site), color: f.color, groups: f.groups, schedule: f.schedule,
-      monitorEntry: f.monitorEntry, monitorExit: f.monitorExit, dwellMin: dwell, shape: f.shape, points,
+      ...base, name, type: f.type, category: f.category.trim(), site: f.site, siteId: this.siteIdOf(f.site), color: f.color, groups: f.groups, schedule: f.schedule,
+      monitorEntry: f.monitorEntry, monitorExit: f.monitorExit, shape: f.shape, points,
     };
     if (f.shape === 'Circle') {
       zone.latlngs = undefined;
@@ -834,7 +992,6 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
           this.selectedId = saved.id;
           this.listSite = '';
           this.listSearch = '';
-          this.listPage = this.listPages - 1;
           this.showToast(`Geofence “${name}” created at ${saved.site}.`);
         }
       },
@@ -845,25 +1002,27 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     });
   }
 
+  /** Copies the zone (disabled) and its rules (as drafts), then opens the copy to rename and review before enabling. */
   duplicateZone(z: Zone): void {
     this.menuOpen = '';
     let name = `${z.name} (copy)`;
     for (let i = 2; this.zones.some((x) => x.site === z.site && x.name.toLowerCase() === name.toLowerCase()); i++) name = `${z.name} (copy ${i})`;
     const zoneRules = this.rules.filter((r) => r.zoneId === z.id);
     this.geofenceApi
-      .create({ ...z, id: '', name, status: 'Active', lastEventAt: null })
+      .create({ ...z, id: '', name, status: 'Disabled', statusReason: `Duplicated from “${z.name}” - review before enabling`, lastEventAt: null })
       .pipe(
         switchMap((copy) => {
           this.replaceZone(copy);
           this.selectedId = copy.id;
-          const reqs = zoneRules.map(({ id: _id, ...r }) => this.ruleApi.create({ ...r, zoneId: copy.id }));
-          return reqs.length ? forkJoin(reqs) : of([] as Rule[]);
+          const reqs = zoneRules.map(({ id: _id, ...r }) => this.ruleApi.create({ ...r, zoneId: copy.id, status: 'Draft', enabled: false }));
+          return forkJoin({ copy: of(copy), rules: reqs.length ? forkJoin(reqs) : of([] as Rule[]) });
         }),
       )
       .subscribe({
-        next: (copied) => {
-          this.rules = [...this.rules, ...copied];
-          this.showToast(`Duplicated “${z.name}” with ${copied.length} rule${copied.length === 1 ? '' : 's'}.`);
+        next: ({ copy, rules }) => {
+          this.rules = [...this.rules, ...rules];
+          this.showToast(`Copied “${z.name}” (disabled) with ${rules.length} draft rule${rules.length === 1 ? '' : 's'}. Review it, then enable it.`);
+          this.openZone(copy);
         },
         error: (err) => this.fail(err, 'Could not duplicate the geofence.'),
       });
@@ -879,9 +1038,19 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     });
   }
 
+  /** Disabling asks why (recorded with who and when); history is kept, the zone's rules stop being evaluated. */
   toggleZone(z: Zone): void {
     this.menuOpen = '';
-    this.patchZone(z, { status: z.status === 'Active' ? 'Disabled' : 'Active' }, (s) => `“${s.name}” ${s.status === 'Active' ? 'enabled — monitoring resumed' : 'disabled — no alerts will be raised'}.`);
+    const disabling = z.status === 'Active';
+    this.confirmBox = {
+      title: disabling ? 'Disable geofence' : 'Enable geofence',
+      message: disabling
+        ? `Stop monitoring “${z.name}”? Its ${this.ruleCount(z.id)} rule(s) stop raising alerts and pending dwell timers are dropped. Past events and alerts are kept.`
+        : `Resume monitoring “${z.name}” and evaluating its rules?`,
+      label: disabling ? 'Disable' : 'Enable',
+      reason: { label: 'Reason', value: '', required: disabling },
+      run: (reason) => this.patchZone(z, { status: disabling ? 'Disabled' : 'Active', statusReason: reason }, (s) => `“${s.name}” ${s.status === 'Active' ? 'enabled - monitoring resumed' : 'disabled - no alerts will be raised'}.`),
+    };
   }
 
   deleteZone(z: Zone): void {
@@ -900,11 +1069,10 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
             this.rules = this.rules.filter((r) => r.zoneId !== z.id);
             if (this.selectedId === z.id) this.selectedId = this.zones[0] ? this.zones[0].id : '';
             if (this.ruleZone === z.id) this.ruleZone = '';
-            this.rebuildEvents();
+            this.loadSummary();
             this.showToast(`Geofence “${z.name}” deleted.`);
           },
           error: (err) => {
-            // some rules may already be gone: reload rules so the list matches the server
             this.ruleApi.list().subscribe({ next: (rules) => (this.rules = rules), error: () => undefined });
             this.fail(err, 'Could not delete the geofence.');
           },
@@ -915,69 +1083,107 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
 
   toggleMonitor(z: Zone, which: 'entry' | 'exit'): void {
     const patch = which === 'entry' ? { monitorEntry: !z.monitorEntry } : { monitorExit: !z.monitorExit };
-    this.patchZone(z, patch, (s) => `Asset ${which} monitoring ${(which === 'entry' ? s.monitorEntry : s.monitorExit) ? 'enabled' : 'disabled'} for “${s.name}”.`);
+    this.patchZone(z, patch, (s) => `Asset ${which} detection ${(which === 'entry' ? s.monitorEntry : s.monitorExit) ? 'enabled' : 'disabled'} for “${s.name}”.`);
+  }
+
+  /** Indoor zones are drawn in Maps & Floor Plans; "disabling" one here pauses (or resumes) all of its rules. */
+  toggleIndoorMonitoring(t: GeofenceTarget): void {
+    this.menuOpen = '';
+    const zoneRules = this.rules.filter((r) => r.zoneId === t.id);
+    if (!zoneRules.length) { this.openRule(undefined, t.id); return; }
+    const pausing = zoneRules.some((r) => r.status === 'Active');
+    this.confirmBox = {
+      title: pausing ? 'Pause zone monitoring' : 'Resume zone monitoring',
+      message: pausing ? `Pause all ${zoneRules.length} rule(s) of “${t.name}”? Location events are still recorded; no alerts are raised.` : `Activate all ${zoneRules.length} rule(s) of “${t.name}”?`,
+      label: pausing ? 'Pause' : 'Resume',
+      run: () =>
+        forkJoin(zoneRules.map((r) => this.ruleApi.update({ ...r, status: pausing ? 'Disabled' : 'Active', enabled: !pausing }))).subscribe({
+          next: (saved) => {
+            const byId = new Map(saved.map((r) => [r.id, r]));
+            this.rules = this.rules.map((r) => byId.get(r.id) ?? r);
+            this.loadSummary();
+            this.showToast(`${saved.length} rule(s) of “${t.name}” ${pausing ? 'paused' : 'activated'}.`);
+          },
+          error: (err) => this.fail(err, 'Could not update the zone rules.'),
+        }),
+    };
   }
 
   // ===== rules =====
   private autoName(f: RuleForm): string {
-    if (f.trigger === 'dwell') return `${f.group} dwell over ${f.dwellMin} min`;
-    const verb = f.trigger === 'enter' ? 'entry' : f.trigger === 'exit' ? 'exit' : 'entry / exit';
-    return `${f.group} ${verb}${f.condition === CONDITIONS[0] ? '' : ' — ' + f.condition.toLowerCase()}`;
+    const who = f.assetIds.length === 1 ? f.assetIds[0] : f.group;
+    if (f.trigger === 'dwell') return `${who} dwell over ${f.dwellMin} min`;
+    const verb = TRIGGERS.find((t) => t.value === f.trigger)?.label.replace(/^Asset /, '').toLowerCase() ?? '';
+    return `${who} ${verb}${f.condition === CONDITIONS[0] ? '' : ' — ' + f.condition.toLowerCase()}`;
   }
 
+  /** A rule needs a trigger, scope, condition and at least one meaningful action. */
   private ruleProblem(f: RuleForm): string {
     if (!f.trigger) return 'Choose a trigger.';
     if (!f.severity) return 'Choose a severity.';
-    if (!f.createAlert && !f.notify && !f.workflow) return 'Choose at least one action for the rule.';
     if (!f.group) return 'Choose an asset group.';
     if (!f.condition) return 'Choose a condition.';
+    if (f.condition === CUSTOM_SCHEDULE && (!f.scheduleDays.length || !f.scheduleFrom || !f.scheduleTo)) return 'Choose the days and hours of the custom schedule.';
     if (f.trigger === 'dwell' && !(f.dwellMin >= 1)) return 'Enter the dwell time in minutes.';
+    if (f.trigger === 'unauthorized' && !f.authorizedGroups.length) return 'Choose the asset groups that are allowed to enter.';
+    if (!f.createAlert && !f.notify && !f.workflow) return 'Choose at least one action for the rule.';
     if (f.notify && !f.team.trim()) return 'Enter the team to notify.';
     if (f.workflow && !f.workflowName.trim()) return 'Enter the workflow to start.';
+    if (f.escalateAfterMin > 0 && !f.escalateTo.trim()) return 'Enter who the alert is escalated to.';
+    if (f.effectiveFrom && f.effectiveTo && f.effectiveTo < f.effectiveFrom) return 'The rule\'s end date is before its start date.';
     return '';
   }
 
   saveBuilder(): void {
-    const z = this.selected;
-    if (!z || this.saving) return;
+    const target = this.selectedId;
+    if (!target || this.saving) return;
     const problem = this.ruleProblem(this.builder);
     if (problem) { this.showToast(problem); return; }
+    const { name, ...form } = this.builder;
     this.saving = true;
-    this.ruleApi.create({ ...this.builder, name: this.autoName(this.builder), zoneId: z.id, enabled: true }).subscribe({
+    this.ruleApi.create({ ...form, name: name.trim() || this.autoName(form), zoneId: target, enabled: form.status === 'Active' }).subscribe({
       next: (rule) => {
         this.saving = false;
         this.rules = [...this.rules, rule];
-        this.showToast(`Rule “${rule.name}” saved to ${z.name} (${this.ruleCount(z)} rules).`);
+        this.loadSummary();
+        this.showToast(`Rule “${rule.name}” saved to ${this.zoneName(target)} (${this.ruleCount(target)} rules).`);
       },
       error: (err) => this.fail(err, 'Could not save the alert rule.'),
     });
   }
 
   resetBuilder(): void {
-    this.builder = { ...DEFAULT_RULE };
+    this.builder = { ...DEFAULT_RULE, name: '', scheduleDays: [...DEFAULT_RULE.scheduleDays] };
   }
 
   get rulesFiltered(): Rule[] {
     const q = this.ruleSearch.trim().toLowerCase();
-    return this.rules.filter((r) => (!this.ruleZone || r.zoneId === this.ruleZone) && (!q || `${r.id} ${r.name} ${this.zoneName(r.zoneId)} ${r.group}`.toLowerCase().includes(q)));
+    return this.rules.filter((r) => (!this.ruleZone || r.zoneId === this.ruleZone) && (!this.ruleStatus || r.status === this.ruleStatus)
+      && (!q || `${r.id} ${r.name} ${r.description} ${this.zoneName(r.zoneId)} ${r.group} ${r.assetIds.join(' ')}`.toLowerCase().includes(q)));
   }
 
   get enabledRules(): number {
-    return this.rules.filter((r) => r.enabled).length;
+    return this.rules.filter((r) => r.status === 'Active').length;
   }
 
   zoneName(id: string): string {
-    return this.zoneById(id)?.name ?? this.mapZoneRuleTargets.find((t) => t.id === id)?.label ?? this.rules.find((r) => r.zoneId === id)?.zoneLabel ?? '—';
+    return this.zoneById(id)?.name ?? this.targetById(id)?.name ?? this.mapZoneRuleTargets.find((t) => t.id === id)?.label ?? this.rules.find((r) => r.zoneId === id)?.zoneLabel ?? '—';
   }
 
-  openRule(r?: Rule): void {
+  /** Rule targets for the dropdowns: indoor zones and outdoor geofences. */
+  get indoorTargets(): GeofenceTarget[] {
+    return this.targets.filter((t) => t.kind === 'Indoor');
+  }
+
+  openRule(r?: Rule, zoneId?: string): void {
     this.menuOpen = '';
     this.formError = '';
-    // New rule: the floor zone being viewed (picked zone, else the floor's first drawn zone), else the outdoor geofence
+    // New rule: the zone asked for, else the selected / viewed zone
     const scope = this.floorId ? this.floorScope : undefined;
-    const floorZone = scope ? MAP_ZONE_PREFIX + scope : this.floorId && this.planZones.length ? MAP_ZONE_PREFIX + this.planZones[0].id : '';
-    const zoneId = r ? r.zoneId : this.ruleZone || floorZone || this.selected?.id || '';
-    this.ruleDialog = r ? { ...r } : { ...DEFAULT_RULE, id: '', name: '', zoneId, enabled: true };
+    const floorZone = scope ? MAP_ZONE_PREFIX + scope : '';
+    const target = zoneId || this.ruleZone || this.selectedId || floorZone || this.zones[0]?.id || '';
+    this.ruleDialog = r ? { ...r, assetIds: [...r.assetIds], authorizedGroups: [...r.authorizedGroups], scheduleDays: [...r.scheduleDays] } : { ...DEFAULT_RULE, scheduleDays: [...DEFAULT_RULE.scheduleDays], id: '', name: '', zoneId: target, enabled: true };
+    if (zoneId) this.tab = 'rules';
   }
 
   saveRuleDialog(): void {
@@ -987,14 +1193,16 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     const problem = this.ruleProblem(d);
     if (problem) { this.formError = problem; return; }
     const name = d.name.trim() || this.autoName(d);
+    const body = { ...d, name, enabled: d.status === 'Active' };
     this.saving = true;
     this.formError = '';
-    const req = d.id ? this.ruleApi.update({ ...d, name }) : this.ruleApi.create({ ...d, name });
+    const req = d.id ? this.ruleApi.update(body) : this.ruleApi.create(body);
     req.subscribe({
       next: (saved) => {
         this.saving = false;
         this.rules = d.id ? this.rules.map((r) => (r.id === saved.id ? saved : r)) : [...this.rules, saved];
         this.ruleDialog = null;
+        this.loadSummary();
         this.showToast(d.id ? `Rule “${saved.name}” updated.` : `Rule “${saved.name}” added to ${this.zoneName(saved.zoneId)}.`);
       },
       error: (err) => {
@@ -1005,10 +1213,12 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   toggleRule(r: Rule): void {
-    this.ruleApi.update({ ...r, enabled: !r.enabled }).subscribe({
+    const status: RuleStatus = r.status === 'Active' ? 'Disabled' : 'Active';
+    this.ruleApi.update({ ...r, status, enabled: status === 'Active' }).subscribe({
       next: (saved) => {
         this.rules = this.rules.map((x) => (x.id === saved.id ? saved : x));
-        this.showToast(`Rule “${saved.name}” ${saved.enabled ? 'enabled' : 'paused'}.`);
+        this.loadSummary();
+        this.showToast(`Rule “${saved.name}” ${saved.status === 'Active' ? 'activated' : 'disabled'}.`);
       },
       error: (err) => this.fail(err, 'Could not update the alert rule.'),
     });
@@ -1017,12 +1227,13 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   deleteRule(r: Rule): void {
     this.confirmBox = {
       title: 'Delete alert rule',
-      message: `Delete rule “${r.name}” on ${this.zoneName(r.zoneId)}?`,
+      message: `Delete rule “${r.name}” on ${this.zoneName(r.zoneId)}? Alerts it raised are kept.`,
       label: 'Delete',
       run: () =>
         this.ruleApi.delete(r.id).subscribe({
           next: () => {
             this.rules = this.rules.filter((x) => x.id !== r.id);
+            this.loadSummary();
             this.showToast(`Rule “${r.name}” deleted.`);
           },
           error: (err) => this.fail(err, 'Could not delete the alert rule.'),
@@ -1030,125 +1241,242 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     };
   }
 
-  // ===== events =====
-  get recentEvents(): AlertEvent[] {
-    return this.events.slice(0, 5);
+  toggleList(list: string[], v: string): void {
+    const i = list.indexOf(v);
+    if (i >= 0) list.splice(i, 1);
+    else list.push(v);
   }
 
-  get historyRows(): AlertEvent[] {
+  /** "AST-1, AST-2" ↔ assetIds. */
+  assetsText(f: RuleForm): string {
+    return f.assetIds.join(', ');
+  }
+
+  setAssetsText(f: RuleForm, text: string): void {
+    f.assetIds = text.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+  }
+
+  // ===== event history (alerts, server paged) =====
+  private historyQuery(page: number, pageSize: number): GeofenceEventQuery {
     const t0 = startOfToday().getTime();
-    const from = this.hDate === 'today' ? t0 : this.hDate === 'yesterday' ? t0 - 86400000 : this.hDate === '7d' ? t0 - 6 * 86400000 : 0;
-    const to = this.hDate === 'yesterday' ? t0 : Infinity;
-    const q = this.hSearch.trim().toLowerCase();
-    return this.events.filter((e) => {
-      const t = e.ts.getTime();
-      return t >= from && t < to && (!this.hZone || e.zoneId === this.hZone) && (!this.hType || e.type === this.hType) && (!this.hStatus || e.status === this.hStatus) && (!q || `${e.id} ${e.assetCode} ${e.assetSub} ${e.zoneName} ${e.owner} ${e.message}`.toLowerCase().includes(q));
+    const from = this.hDate === 'today' ? t0 : this.hDate === 'yesterday' ? t0 - 86400000 : this.hDate === '7d' ? t0 - 6 * 86400000 : this.hDate === '30d' ? t0 - 29 * 86400000 : null;
+    const to = this.hDate === 'yesterday' ? t0 : null;
+    return {
+      page, pageSize,
+      from: from === null ? undefined : new Date(from).toISOString(),
+      to: to === null ? undefined : new Date(to).toISOString(),
+      targetId: this.hZone || undefined,
+      eventType: this.hType || undefined,
+      status: this.hStatus || undefined,
+      severity: this.hSeverity || undefined,
+      search: this.hSearch.trim() || undefined,
+    };
+  }
+
+  loadHistory(silent = false): void {
+    if (this.histMode === 'movements') { this.loadMovements(); return; }
+    this.hSub?.unsubscribe();
+    if (!silent) this.hLoading = true;
+    this.hSub = this.summaryApi.events(this.historyQuery(this.hPage, HIST_PAGE)).subscribe({
+      next: (p) => {
+        this.hRows = p.items;
+        this.hTotal = p.total;
+        this.hPages = p.totalPages;
+        this.hPage = p.page;
+        this.hTypes = p.eventTypes;
+        this.hLoading = false;
+      },
+      error: (err) => {
+        this.hLoading = false;
+        if (!silent) this.showToast(apiErrorMessage(err, 'Could not load alert events.'));
+      },
     });
   }
 
-  get hPages(): number {
-    return Math.max(1, Math.ceil(this.historyRows.length / HIST_PAGE));
-  }
-
-  get hPageNo(): number {
-    return Math.min(this.hPage, this.hPages - 1);
-  }
-
-  get historyPage(): AlertEvent[] {
-    return this.historyRows.slice(this.hPageNo * HIST_PAGE, this.hPageNo * HIST_PAGE + HIST_PAGE);
-  }
-
-  get hRange(): string {
-    const n = this.historyRows.length;
-    if (!n) return '0 of 0';
-    return `${this.hPageNo * HIST_PAGE + 1}–${Math.min(n, this.hPageNo * HIST_PAGE + HIST_PAGE)} of ${n}`;
+  /** Filter changed: back to page 1 (search waits for typing to pause). */
+  hFilter(debounce = false): void {
+    this.hPage = 1;
+    clearTimeout(this.searchTimer);
+    if (debounce) this.searchTimer = setTimeout(() => this.loadHistory(), 350);
+    else this.loadHistory();
   }
 
   pageHist(d: number): void {
-    this.hPage = Math.min(Math.max(this.hPageNo + d, 0), this.hPages - 1);
+    const next = Math.min(Math.max(this.hPage + d, 1), this.hPages);
+    if (next === this.hPage) return;
+    this.hPage = next;
+    this.loadHistory();
   }
 
-  get openInView(): number {
-    return this.historyRows.filter((e) => e.status === 'Unacknowledged').length;
+  get hRange(): string {
+    if (!this.hTotal) return '0 of 0';
+    return `${(this.hPage - 1) * HIST_PAGE + 1}–${Math.min(this.hTotal, this.hPage * HIST_PAGE)} of ${this.hTotal}`;
   }
 
-  openHistory(date: 'today' | 'all', status = ''): void {
+  get newInView(): AlertEvent[] {
+    return this.hRows.filter((e) => e.status === 'New');
+  }
+
+  openHistory(date: 'today' | '7d' | '30d', status = '', keepZone = false): void {
     this.hDate = date;
     this.hStatus = status;
-    this.hZone = '';
+    if (!keepZone) this.hZone = '';
     this.hType = '';
+    this.hSeverity = '';
     this.hSearch = '';
-    this.hPage = 0;
+    this.histMode = 'alerts';
     this.tab = 'history';
+    this.hFilter();
   }
 
   clearHistoryFilters(): void {
-    this.openHistory('all');
+    this.openHistory('7d');
   }
 
-  /** PATCH /api/iot-alerts/{alertId}/status for each event, then refresh the rows from the responses. */
-  private setStatus(list: AlertEvent[], status: IoTAlertStatus, done: (n: number) => string): void {
+  setTab(t: Tab): void {
+    this.tab = t;
+    if (t === 'history') this.loadHistory();
+  }
+
+  setHistMode(m: 'alerts' | 'movements'): void {
+    this.histMode = m;
+    this.loadHistory();
+  }
+
+  // ----- zone movements: location events (every entry / exit), which are not alerts -----
+  loadMovements(): void {
+    this.hLoading = true;
+    this.rtlApi.events(this.mRange, '', this.mPage, HIST_PAGE, '', this.mType).subscribe({
+      next: (p) => {
+        this.mRows = p.items;
+        this.mTotal = p.total;
+        this.mPages = p.totalPages;
+        this.mPage = p.page;
+        this.mTypes = p.eventTypes;
+        this.hLoading = false;
+      },
+      error: (err) => {
+        this.hLoading = false;
+        this.showToast(apiErrorMessage(err, 'Could not load zone movements.'));
+      },
+    });
+  }
+
+  pageMoves(d: number): void {
+    const next = Math.min(Math.max(this.mPage + d, 1), this.mPages);
+    if (next === this.mPage) return;
+    this.mPage = next;
+    this.loadMovements();
+  }
+
+  // ----- alert lifecycle: New → Acknowledged → Assigned → Investigating → Resolved → Closed -----
+  private afterStatus(): void {
+    this.loadSummary();
+    this.loadRecent();
+    if (this.tab === 'history') this.loadHistory(true);
+  }
+
+  private setStatus(list: AlertEvent[], status: EventStatus, done: (n: number) => string, assignee?: string, note?: string): void {
     this.menuOpen = '';
     if (!list.length) return;
-    forkJoin(list.map((e) => this.alertApi.setStatus(e.id, status))).subscribe({
+    forkJoin(list.map((e) => this.alertApi.setStatus(e.id, statusToApi(status), assignee, note))).subscribe({
       next: (rows) => {
-        const byId = new Map(rows.map((r) => [r.alertId, r]));
-        this.alertRows = this.alertRows.map((r) => byId.get(r.alertId) ?? r);
-        this.rebuildEvents();
+        if (this.detail && list.some((e) => e.id === this.detail!.id)) this.detail = null;
+        this.afterStatus();
         this.showToast(done(rows.length));
       },
       error: (err) => {
-        this.loadAlerts(true);
+        this.afterStatus();
         this.fail(err, 'Could not update the alert status.');
       },
     });
   }
 
   acknowledge(e: AlertEvent): void {
-    this.setStatus([e], 'Acknowledged', () => `${e.assetCode} alert${e.zoneId ? ' at ' + e.zoneName : ''} acknowledged.`);
+    this.setStatus([e], 'Acknowledged', () => `${e.id} acknowledged.`);
   }
 
   acknowledgeAll(): void {
-    this.setStatus(this.historyRows.filter((e) => e.status === 'Unacknowledged'), 'Acknowledged', (n) => `${n} alert${n === 1 ? '' : 's'} acknowledged.`);
+    this.setStatus(this.newInView, 'Acknowledged', (n) => `${n} alert${n === 1 ? '' : 's'} acknowledged.`);
   }
 
-  startProgress(e: AlertEvent): void {
-    this.setStatus([e], 'In Progress', () => `${e.assetCode} alert marked in progress.`);
-  }
-
-  resolve(e: AlertEvent): void {
-    this.setStatus([e], 'Resolved', () => `${e.assetCode} alert${e.zoneId ? ' at ' + e.zoneName : ''} resolved.`);
+  investigate(e: AlertEvent): void {
+    this.setStatus([e], 'Investigating', () => `${e.id} marked as investigating.`);
   }
 
   reopen(e: AlertEvent): void {
-    this.setStatus([e], 'Open', () => `${e.assetCode} alert reopened.`);
+    this.setStatus([e], 'New', () => `${e.id} reopened.`);
+  }
+
+  /** Assign / Resolve / Close ask for an assignee or a note. */
+  openStatus(e: AlertEvent, status: 'Assigned' | 'Resolved' | 'Closed'): void {
+    this.menuOpen = '';
+    this.formError = '';
+    const title = status === 'Assigned' ? `Assign ${e.id}` : status === 'Resolved' ? `Resolve ${e.id}` : `Close ${e.id}`;
+    this.statusDialog = { event: e, status, title, assignee: e.assignedTo ?? '', note: '', needsAssignee: status === 'Assigned' };
+  }
+
+  saveStatus(): void {
+    const d = this.statusDialog;
+    if (!d) return;
+    if (d.needsAssignee && !d.assignee.trim()) { this.formError = 'Choose who the alert is assigned to.'; return; }
+    if (d.status === 'Resolved' && !d.note.trim()) { this.formError = 'Describe how the alert was resolved.'; return; }
+    this.statusDialog = null;
+    const verb = d.status === 'Assigned' ? `assigned to ${d.assignee.trim()}` : d.status.toLowerCase();
+    this.setStatus([d.event], d.status, () => `${d.event.id} ${verb}.`, d.assignee.trim() || undefined, d.note.trim() || undefined);
   }
 
   viewZone(e: AlertEvent): void {
     this.menuOpen = '';
-    const z = this.zoneById(e.zoneId);
-    if (!z) { this.showToast('This alert is not linked to a geofence.'); return; }
+    this.detail = null;
+    const t = this.targetById(e.zoneId);
+    if (!t) { this.showToast('This alert is not linked to a geofence.'); return; }
     this.tab = 'geofences';
-    this.selectZone(z, true);
+    this.selectTarget(t, true);
   }
 
+  openDetail(e: AlertEvent): void {
+    this.menuOpen = '';
+    this.detail = e;
+  }
+
+  isOpen(e: AlertEvent): boolean {
+    return OPEN_STATUSES.includes(e.status);
+  }
+
+  /** Every page of the current filter (up to 2,000 rows). */
   exportHistory(): void {
-    const rows = this.historyRows.map((e) => ({
-      'Alert ID': e.id, Timestamp: e.ts.toLocaleString('en-GB'), Asset: e.assetCode, 'Asset Name': e.assetSub, Geofence: e.zoneName,
-      Site: this.zoneById(e.zoneId)?.site ?? '', Event: e.type, Severity: e.severity, Message: e.message, Owner: e.owner, Status: e.status,
-    }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Events');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.zones.map((z) => ({ Geofence: z.name, Type: z.type, Site: z.site, Status: z.status, 'Monitored Assets': z.monitoredCount, Rules: this.ruleCount(z) }))), 'Geofences');
-    XLSX.writeFile(book, `Geofence_Events_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    this.showToast(`Exported ${rows.length} events to Excel.`);
+    const size = 200;
+    const pages = Math.min(10, Math.max(1, Math.ceil(this.hTotal / size)));
+    forkJoin(Array.from({ length: pages }, (_, i) => this.summaryApi.events(this.historyQuery(i + 1, size)))).subscribe({
+      next: (res) => {
+        const rows = res.flatMap((p) => p.items).map((e) => ({
+          'Alert ID': e.id, Timestamp: e.ts.toLocaleString('en-GB'), Asset: e.assetCode, 'Asset Name': e.assetSub, Geofence: e.zoneName, Rule: e.ruleName ?? '',
+          Event: e.type, Severity: e.severity, Duration: this.fmtDuration(e.durationSec), Description: e.message, Owner: e.owner, Status: e.status,
+          Escalated: e.escalatedTo ?? '', History: (e.history ?? []).map((h) => `${this.fmtStamp(h.at)} ${h.action} (${h.by})${h.note ? ': ' + h.note : ''}`).join(' | '),
+        }));
+        const book = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Alert Events');
+        XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.targets.map((t) => ({
+          ID: this.shortId(t.id), Geofence: t.name, Kind: t.kind, Type: t.type ?? '', Category: t.category ?? '', Site: t.siteName ?? '', 'Building / Floor': this.targetPlace(t),
+          Shape: this.targetShape(t), Area: this.targetArea(t), 'Monitored Assets': t.monitoredAssets, Rules: t.rules, 'Active Alerts': t.activeAlerts, Status: t.status,
+          'Last Event': t.lastEventAt ? new Date(t.lastEventAt).toLocaleString('en-GB') : '',
+        }))), 'Geofences');
+        XLSX.writeFile(book, `Geofence_Alerts_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        this.showToast(`Exported ${rows.length} alert events to Excel.`);
+      },
+      error: (err) => this.fail(err, 'Could not export the alert events.'),
+    });
   }
 
   // ===== shared =====
   runConfirm(): void {
     const c = this.confirmBox;
+    if (!c) return;
+    if (c.reason?.required && !c.reason.value.trim()) { this.formError = `Enter the ${c.reason.label.toLowerCase()}.`; return; }
     this.confirmBox = null;
-    if (c) c.run();
+    this.formError = '';
+    c.run(c.reason?.value.trim() ?? '');
   }
 
   toggleMenu(name: string, e: Event): void {
@@ -1172,6 +1500,8 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     this.zoneForm = null;
     this.ruleDialog = null;
     this.confirmBox = null;
+    this.statusDialog = null;
+    this.detail = null;
   }
 
   private showToast(message: string): void {
