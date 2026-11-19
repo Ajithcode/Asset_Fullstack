@@ -55,7 +55,8 @@ export interface DeviceModelRequest {
 
 /** GET /api/device-models/form-options: every dropdown of the model form in one call. */
 export interface DeviceModelFormOptions {
-  deviceTypes: { deviceType: string; modelCount: number }[];
+  /** Same shape as GET /api/device-models/device-types (DeviceTypeResponse): the type's label is `name`. */
+  deviceTypes: { id?: string; name: string; modelCount: number }[];
   manufacturers: string[];
   connectivities: string[];
   protocolsByConnectivity: Record<string, string[]>;
