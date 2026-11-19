@@ -8,7 +8,8 @@ using Microsoft.Extensions.Options;
 namespace A360.Tracking.Api.Locating;
 
 /// <summary>
-/// One front-end WebSocket connection (ws://host:5490/ws/locate[?tagid=...], on the Tracking & IoT service).
+/// One front-end WebSocket connection (ws://host:5490/ws/locate?access_token=<JWT>[&tagid=...], on the Tracking & IoT service).
+/// The sign-in token is required: without a valid one the connection is refused with 401.
 ///
 /// Front end -> service (JSON text frames):
 ///   {"type":"subscribe","tagid":"c3000099138f"}   look up the tag's latest gateway and start receiving its responses
@@ -19,6 +20,10 @@ namespace A360.Tracking.Api.Locating;
 ///                                                blink the tag's LED (options may also be nested: "led":{...})
 ///   {"type":"buzzer","tagid":"c30000000002","beepMs":300,"pauseMs":300,"cycles":5,"level":0}
 ///                                                beep the tag's buzzer (or nested: "buzzer":{...})
+///   {"type":"both","tagid":"c30000000002","led":{"color":3,"onMs":200,"offMs":200,"cycles":25,"brightness":100},
+///    "buzzer":{"beepMs":200,"pauseMs":200,"cycles":25,"level":0}}
+///                                                LED and buzzer in one gateway message (type "locate" works too)
+///   Every command goes to the gateway as {"version":2,"req_id":n,"cmds":[{"action":42,...LED},{"action":56,...buzzer}]}.
 ///     tagid is optional once subscribed. Missing options use the defaults (LED 3/300/300/10/100, buzzer 300/300/5/0).
 ///
 /// Service -> front end:
@@ -26,7 +31,7 @@ namespace A360.Tracking.Api.Locating;
 ///   {"type":"response","tagid","gatewayid","topic","receivedAt","payload"}
 ///   {"type":"actionSent","gatewayid","topic"}
 ///   {"type":"unsubscribed"}
-///   {"type":"commandSent","reqId","command","tagid","gatewayid","topic","options","sentAt"}
+///   {"type":"commandSent","reqId","command" (led | buzzer | both),"tagid","gatewayid","topic","options","sentAt"}
 ///   {"type":"commandStatus","reqId","command","tagid","gatewayid","status","code","error","message"}
 ///     status: accepted (gateway code 1) -> completed (code 2, error 0: tag is blinking / beeping)
 ///             | failed (code 2, error != 0) | timeout (no code 2 within Locating:CommandTimeoutSeconds)
@@ -128,8 +133,8 @@ public class LocatingSession(
                         case "action":
                             await SendActionAsync(obj["payload"], ct);
                             break;
-                        case LocateCommandKind.Led or LocateCommandKind.Buzzer:
-                            await SendCommandAsync(type, obj, ct);
+                        case var command when LocateCommandKind.FromType(command) is { } kind:
+                            await SendCommandAsync(kind, obj, ct);
                             break;
                         case "unsubscribe":
                             await UnsubscribeAsync();
@@ -301,7 +306,12 @@ public class LocatingSession(
 
     private void SendStatus(PendingCommand pending, string status, int? code, int? error)
     {
-        var what = pending.Command.Kind == LocateCommandKind.Led ? "blinking" : "beeping";
+        var what = pending.Command.Kind switch
+        {
+            LocateCommandKind.Led => "blinking",
+            LocateCommandKind.Buzzer => "beeping",
+            _ => "blinking and beeping",
+        };
         Send(new JsonObject
         {
             ["type"] = "commandStatus",

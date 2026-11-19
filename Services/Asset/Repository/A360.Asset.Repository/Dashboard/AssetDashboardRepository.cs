@@ -661,7 +661,7 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
         var documentRecords = CountAsync(AssetDocumentRepository.CollectionName, notDeleted & filter.Eq("asset_registration_id", id), cancellationToken);
         var images = CountAsync(AssetImageRepository.CollectionName, notDeleted & filter.Eq("asset_registration_id", id), cancellationToken);
         var serviceRequests = CountAsync(AssetServiceRequestRepository.CollectionName, notDeleted & filter.Eq("asset.asset_registration_id", id), cancellationToken);
-        var openAlerts = CountAsync(IoTAlertCollection, notDeleted & filter.Eq("asset_registration_id", id) & filter.Ne("status", "Resolved"), cancellationToken);
+        var openAlerts = CountAsync(IoTAlertCollection, notDeleted & filter.Eq("asset_registration_id", id) & filter.Nin("status", new[] { "Resolved", "Closed" }), cancellationToken);
         var workOrders = CountAsync(
             WorkOrderCollection,
             notDeleted & filter.In("asset_id", tag is null ? new[] { id } : new[] { id, tag }),

@@ -65,7 +65,8 @@ public static class GeofenceEndpoints
             GeofenceStatus.All,
             GeofenceShape.DefaultPolygonPoints,
             GeofenceShape.MinPolygonPoints,
-            GeofenceShape.MaxPolygonPoints));
+            GeofenceShape.MaxPolygonPoints,
+            GeofenceCategory.Suggested));
     }
 
     private static async Task<IResult> GetAssetGroupsAsync(IGeofenceRepository repository, CancellationToken cancellationToken)
@@ -140,6 +141,19 @@ public static class GeofenceEndpoints
         var currentUser = currentUserAccessor.GetCurrentUser();
         var geofence = request.ToEntity(currentUser).Replacing(existing, currentUser);
         geofence.RuleCount = existing.RuleCount;
+
+        // Enable / disable keeps who, when and why; otherwise the last status change is kept
+        if (geofence.Status != existing.Status)
+        {
+            geofence.StatusChangedBy = currentUser?.UserName;
+            geofence.StatusChangedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            geofence.StatusReason = existing.StatusReason;
+            geofence.StatusChangedBy = existing.StatusChangedBy;
+            geofence.StatusChangedAt = existing.StatusChangedAt;
+        }
 
         if (await repository.NameExistsAsync(geofence.SiteName, geofence.Name, existing.Id, cancellationToken))
         {

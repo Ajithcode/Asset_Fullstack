@@ -143,6 +143,7 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<IAssetImportExportJobRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetImportExportJobRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetImportExportJobRepository>());
         services.AddScoped<IAssignmentMasterDataRepository, AssignmentMasterDataRepository>();
+        services.AddScoped<IAssetImportMasterDataRepository, AssetImportMasterDataRepository>();
 
         services.AddScoped<AssetAuditRepository>();
         services.AddScoped<IAssetAuditRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetAuditRepository>());

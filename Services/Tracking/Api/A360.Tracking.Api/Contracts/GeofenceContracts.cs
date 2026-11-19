@@ -33,7 +33,9 @@ public sealed record CreateGeofenceRequest(
     double? RadiusMeters,
     string? CreatedBy,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    string? Category = null,
+    string? StatusReason = null)
 {
     public Geofence ToEntity(CurrentUser? currentUser)
     {
@@ -64,6 +66,8 @@ public sealed record CreateGeofenceRequest(
                 : null,
             Coordinates = coordinates,
             RadiusMeters = shape == GeofenceShape.Circle ? RadiusMeters : null,
+            Category = ContractText.Canonical(Category, GeofenceCategory.Suggested) ?? ContractText.TrimOrNull(Category),
+            StatusReason = ContractText.TrimOrNull(StatusReason),
             CreatedBy = ContractText.FirstNonEmpty(CreatedBy, currentUser?.UserName),
             CreatedAt = DateTime.UtcNow,
             ClientId = ContractText.FirstNonEmpty(ClientId, currentUser?.ClientId),
@@ -112,7 +116,13 @@ public sealed record GeofenceResponse(
     string? CreatedBy,
     DateTime? CreatedAt,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    string? Category,
+    string? StatusReason,
+    string? StatusChangedBy,
+    DateTime? StatusChangedAt,
+    string? UpdatedBy,
+    DateTime? UpdatedAt)
 {
     public static GeofenceResponse FromEntity(Geofence geofence)
     {
@@ -139,7 +149,13 @@ public sealed record GeofenceResponse(
             geofence.CreatedBy,
             geofence.CreatedAt,
             geofence.ClientId,
-            geofence.TenantId);
+            geofence.TenantId,
+            geofence.Category,
+            geofence.StatusReason,
+            geofence.StatusChangedBy,
+            geofence.StatusChangedAt,
+            geofence.UpdatedBy,
+            geofence.UpdatedAt);
     }
 }
 
@@ -153,4 +169,5 @@ public sealed record GeofenceOptionsResponse(
     IReadOnlyList<string> Statuses,
     int DefaultPolygonPoints,
     int MinPolygonPoints,
-    int MaxPolygonPoints);
+    int MaxPolygonPoints,
+    IReadOnlyList<string> Categories);
