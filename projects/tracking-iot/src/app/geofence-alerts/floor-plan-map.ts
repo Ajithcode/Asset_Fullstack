@@ -1,12 +1,34 @@
-import { AfterViewInit, Component, ElementRef, Input, NgZone, OnChanges, OnDestroy, ViewChild, ViewEncapsulation, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, Input, NgZone, OnChanges, OnDestroy, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import type * as Leaflet from 'leaflet';
 import { GatewayFeed, PlanPlot, PlanZone } from './floor-map-api.service';
 
 type L = typeof Leaflet;
 
+/** The asset followed live (Real-Time Location › Locate asset): an estimated point on the plan, in % of the plan. */
+export interface LivePoint {
+  x: number;
+  y: number;
+  label: string;
+  /** Live, Stale or Offline: Stale / Offline are drawn greyed out. */
+  state: string;
+}
+
+/** Zoom request: the map flies to the point whenever `key` changes. */
+export interface MapFocus {
+  key: string;
+  x: number;
+  y: number;
+}
+
+/** Inputs that only move the live marker: they never redraw the plan. */
+const LIVE_INPUTS = new Set(['live', 'liveTrail', 'focus']);
+
 /** Plan width in map units; the height follows the image's aspect ratio. */
 const W = 1000;
 
+/** Same items in the same order (case-insensitive). */
+const sameList = (a: string[] | null | undefined, b: string[] | null | undefined) =>
+  (a ?? []).length === (b ?? []).length && (a ?? []).every((x, i) => x.toLowerCase() === (b ?? [])[i]?.toLowerCase());
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 const DEVICE_SVG =
@@ -52,6 +74,16 @@ const ASSET_SVG =
     .fp-total b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #6d28d9; color: #fff; font-size: 11px; }
     .fp-zone-label { transform: translate(-50%, -100%); white-space: nowrap; padding: 2px 8px; border-radius: 6px; background: var(--c); color: #fff;
       font-size: 11px; font-weight: 600; box-shadow: 0 2px 6px rgba(15, 23, 42, .2); }
+    .fp-live-marker { transition: transform 1.6s ease-out; }
+    .leaflet-zoom-anim .fp-live-marker { transition: none; }
+    .fp-live { position: relative; display: grid; place-items: center; width: 22px; height: 22px; }
+    .fp-live i { position: absolute; inset: 0; border-radius: 50%; background: rgba(220, 38, 38, .35); animation: fp-live-pulse 1.6s ease-out infinite; }
+    .fp-live b { position: relative; width: 14px; height: 14px; border-radius: 50%; background: #dc2626; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(15, 23, 42, .4); }
+    .fp-live span { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 2px 8px; border-radius: 6px;
+      background: #dc2626; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 2px 6px rgba(15, 23, 42, .25); }
+    .fp-live--stale i { animation: none; background: rgba(100, 116, 139, .25); }
+    .fp-live--stale b, .fp-live--stale span { background: #64748b; }
+    @keyframes fp-live-pulse { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(2.6); opacity: 0; } }
     .fp-tip strong { display: block; font-size: 12.5px; }
     .fp-tip span { display: block; color: #64748b; font-size: 11.5px; }
   `,
@@ -75,6 +107,12 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   @Input() highlight: string[] = [];
   /** Shown over the map (e.g. loading / no floor plan). */
   @Input() note = '';
+  /** The asset followed live; null = none. Moves without redrawing the plan. */
+  @Input() live: LivePoint | null = null;
+  /** Where the live asset has been since following started (oldest first). */
+  @Input() liveTrail: { x: number; y: number }[] = [];
+  /** Fly to a point (zoom in) whenever its key changes. */
+  @Input() focus: MapFocus | null = null;
 
   @ViewChild('host', { static: true }) private host!: ElementRef<HTMLDivElement>;
   private readonly ngZone = inject(NgZone);
@@ -83,6 +121,10 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   private image?: Leaflet.ImageOverlay;
   private shapes?: Leaflet.LayerGroup;
   private markers?: Leaflet.LayerGroup;
+  private liveLayer?: Leaflet.LayerGroup;
+  private liveMarker?: Leaflet.Marker;
+  private liveLine?: Leaflet.Polyline;
+  private shownFocus = '';
   /** Plan height in map units (from the image's aspect ratio). */
   private h = W * 0.6;
   private shownImage: string | null = null;
@@ -101,6 +143,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.map = map;
       this.shapes = Lf.layerGroup().addTo(map);
       this.markers = Lf.layerGroup().addTo(map);
+      this.liveLayer = Lf.layerGroup().addTo(map);
       map.setView([this.h / 2, W / 2], -1);
       this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
       this.resize.observe(this.host.nativeElement);
@@ -108,8 +151,17 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     });
   }
 
-  ngOnChanges(): void {
-    if (this.map) this.ngZone.runOutsideAngular(() => this.sync());
+  ngOnChanges(changes: SimpleChanges): void {
+    // A parent getter can hand over a new but identical highlight array on every change detection: that alone
+    // must not clear and redraw the whole plan (it made the map flicker every second)
+    const h = changes['highlight'];
+    if (h && Object.keys(changes).length === 1 && sameList(h.previousValue, h.currentValue)) return;
+    if (!this.map) return;
+    if (Object.keys(changes).every((k) => LIVE_INPUTS.has(k))) {
+      this.ngZone.runOutsideAngular(() => this.updateLive());
+      return;
+    }
+    this.ngZone.runOutsideAngular(() => this.sync());
   }
 
   ngOnDestroy(): void {
@@ -130,6 +182,10 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.planReady = false;
       this.shapes!.clearLayers();
       this.markers!.clearLayers();
+      this.liveLayer?.clearLayers();
+      this.liveMarker = undefined;
+      this.liveLine = undefined;
+      this.shownFocus = '';
       const url = this.imageUrl;
       if (!url) return;
       this.setImageMissing(false);
@@ -251,6 +307,54 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.shownScope = this.zoneId;
       const target = this.zoneId !== undefined && focus ? focus : L.latLngBounds([0, 0], [this.h, W]);
       map.fitBounds(target, { padding: [24, 24], animate: true, maxZoom: 2 });
+    }
+    this.updateLive();
+  }
+
+  /** The live asset marker, its trail and any zoom request; the plan itself is left alone. */
+  private updateLive(): void {
+    const L = this.L;
+    const map = this.map;
+    if (!L || !map || !this.liveLayer) return;
+    if (!this.planReady) return;
+    const live = this.live;
+    if (!live) {
+      this.liveLayer.clearLayers();
+      this.liveMarker = undefined;
+      this.liveLine = undefined;
+      this.shownFocus = '';
+      return;
+    }
+
+    const pos = this.at(live.x, live.y);
+    const stale = live.state !== 'Live';
+    const html = `<span class="fp-live${stale ? ' fp-live--stale' : ''}"><i></i><b></b><span>${esc(live.label)}${stale ? ' · ' + esc(live.state.toLowerCase()) : ''}</span></span>`;
+    if (!this.liveMarker) {
+      this.liveMarker = L.marker(pos, {
+        keyboard: false,
+        interactive: false,
+        zIndexOffset: 1000,
+        icon: L.divIcon({ className: 'fp-live-marker', html, iconSize: [22, 22], iconAnchor: [11, 11] }),
+      }).addTo(this.liveLayer);
+    } else {
+      // setLatLng moves the same element, so the CSS transition glides it to the new point
+      this.liveMarker.setLatLng(pos);
+      this.liveMarker.setIcon(L.divIcon({ className: 'fp-live-marker', html, iconSize: [22, 22], iconAnchor: [11, 11] }));
+    }
+
+    const path = this.liveTrail.map((p) => this.at(p.x, p.y));
+    if (path.length > 1) {
+      if (!this.liveLine) this.liveLine = L.polyline(path, { color: '#dc2626', weight: 3, opacity: 0.55, dashArray: '6 6', interactive: false }).addTo(this.liveLayer);
+      else this.liveLine.setLatLngs(path);
+    } else if (this.liveLine) {
+      this.liveLine.remove();
+      this.liveLine = undefined;
+    }
+
+    const focus = this.focus;
+    if (focus && focus.key !== this.shownFocus) {
+      this.shownFocus = focus.key;
+      map.flyTo(this.at(focus.x, focus.y), Math.max(map.getZoom(), 1.25), { duration: 0.8 });
     }
   }
 

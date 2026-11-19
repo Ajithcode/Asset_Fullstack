@@ -9,6 +9,9 @@
       ],
       "shared-ui": [
         "./projects/shared-ui/src/public-api.ts"
+      ],
+      "@a360/app-environment": [
+        "./src/environments/environment.ts"
       ]
     },
     "strict": true,

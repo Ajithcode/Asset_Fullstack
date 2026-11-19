@@ -40,30 +40,30 @@
         <div class="form-rows">
           <span class="row-label">Import Type</span>
           <div class="radios" role="radiogroup" aria-label="Import type">
-            <label class="radio"><input type="radio" name="importType" value="create" [(ngModel)]="importType" (ngModelChange)="onMappingChange()" />Create New Assets</label>
-            <label class="radio"><input type="radio" name="importType" value="update" [(ngModel)]="importType" (ngModelChange)="onMappingChange()" />Update Existing Assets</label>
-            <label class="radio"><input type="radio" name="importType" value="upsert" [(ngModel)]="importType" (ngModelChange)="onMappingChange()" />Create or Update (Upsert)</label>
+            <label class="radio"><input type="radio" name="importType" value="Create" [(ngModel)]="importType" (ngModelChange)="onImportTypeChange()" [disabled]="busy" />Create New Assets</label>
+            <label class="radio"><input type="radio" name="importType" value="Update" [(ngModel)]="importType" (ngModelChange)="onImportTypeChange()" [disabled]="busy" />Update Existing Assets</label>
+            <label class="radio"><input type="radio" name="importType" value="Upsert" [(ngModel)]="importType" (ngModelChange)="onImportTypeChange()" [disabled]="busy" />Create or Update (Upsert)</label>
           </div>
           <span class="row-label">Select Template</span>
-          <select class="control control--md" [(ngModel)]="templateName" name="templateName" aria-label="Template">
+          <select class="control control--md" [(ngModel)]="templateName" (ngModelChange)="onTemplateChange()" name="templateName" aria-label="Template">
             <option value="" disabled>Select Template</option>
-            <option *ngFor="let t of templates" [value]="t.name">{{ t.name }}</option>
+            <option *ngFor="let t of templates" [value]="t.key" [title]="t.description">{{ t.name }}</option>
           </select>
           <span class="row-label">File Format</span>
-          <span>Microsoft Excel (.xlsx) or CSV (.csv)</span>
+          <span>Microsoft Excel (.xlsx) or CSV (.csv)<ng-container *ngIf="maxImportRows"> · up to {{ maxImportRows | number }} rows, {{ formatSize(maxFileBytes) }}</ng-container></span>
         </div>
 
         <div class="upload-row">
-          <input #fileInput type="file" hidden accept=".xlsx,.xls,.csv" (change)="onFileInput($event)" />
+          <input #fileInput type="file" hidden accept=".xlsx,.csv" (change)="onFileInput($event)" />
           <div class="dropzone" role="button" tabindex="0" [class.is-dragging]="isDragging" aria-label="Choose a file: drag and drop or press Enter to browse"
             (click)="fileInput.click()" (keydown.enter)="fileInput.click()" (keydown.space)="$event.preventDefault(); fileInput.click()"
             (dragover)="$event.preventDefault(); isDragging = true" (dragleave)="isDragging = false" (drop)="onDrop($event)">
             <lucide-icon [img]="icons.CloudUpload" [size]="30"></lucide-icon>
-            <span><strong>Drag and drop your file here</strong><small>or click to browse</small></span>
+            <span><strong>{{ busy && !job ? 'Uploading…' : 'Drag and drop your file here' }}</strong><small>or click to browse</small></span>
           </div>
-          <div *ngIf="file; else noFile" class="file-chip">
+          <div *ngIf="job; else noFile" class="file-chip">
             <span class="xls-badge">X</span>
-            <span class="grow"><strong [title]="file.name">{{ file.name }}</strong><small>{{ formatSize(file.size) }} · {{ columns.length }} columns</small></span>
+            <span class="grow"><strong [title]="job.fileName">{{ job.fileName }}</strong><small>{{ formatSize(job.fileSize) }} · {{ job.totalRecords | number }} rows · {{ columns.length }} columns</small></span>
             <button type="button" class="icon-btn" (click)="removeFile()" aria-label="Remove file"><lucide-icon [img]="icons.X" [size]="17"></lucide-icon></button>
           </div>
           <ng-template #noFile>
@@ -90,51 +90,51 @@
         <div class="form-rows form-rows--export">
           <span class="row-label">Export Type</span>
           <div class="radios" role="radiogroup" aria-label="Export type">
-            <label class="radio"><input type="radio" name="exportType" [checked]="exportType === 'master'" (change)="setExportType('master')" />Asset Master Data</label>
-            <label class="radio"><input type="radio" name="exportType" [checked]="exportType === 'related'" (change)="setExportType('related')" />Asset with Related Data</label>
-            <label class="radio"><input type="radio" name="exportType" [checked]="exportType === 'custom'" (change)="setExportType('custom')" />Custom Export</label>
+            <label class="radio"><input type="radio" name="exportType" [checked]="exportType === 'AssetMasterData'" (change)="setExportType('AssetMasterData')" />Asset Master Data</label>
+            <label class="radio"><input type="radio" name="exportType" [checked]="exportType === 'AssetWithRelatedData'" (change)="setExportType('AssetWithRelatedData')" />Asset with Related Data</label>
+            <label class="radio"><input type="radio" name="exportType" [checked]="exportType === 'CustomExport'" (change)="setExportType('CustomExport')" />Custom Export</label>
           </div>
 
           <span class="row-label">Select Fields</span>
           <div>
             <select class="control control--md" [ngModel]="fieldSet" (ngModelChange)="setFieldSet($event)" name="fieldSet" aria-label="Fields to export">
               <option value="" disabled>Select Fields</option>
-              <option value="standard">Standard Fields (Recommended)</option>
-              <option value="all">All Fields</option>
-              <option value="custom">Choose Fields…</option>
+              <option value="Standard">Standard Fields (Recommended)</option>
+              <option value="All">All Fields</option>
+              <option value="Custom">Choose Fields…</option>
             </select>
-            <div *ngIf="fieldSet === 'custom'" class="field-checks">
-              <label *ngFor="let f of fields" class="chip-check">
+            <div *ngIf="fieldSet === 'Custom'" class="field-checks">
+              <label *ngFor="let f of exportableFields" class="chip-check">
                 <input type="checkbox" [checked]="exportFields.has(f.key)" (change)="toggleExportField(f.key, $any($event.target).checked)" />{{ f.label }}
               </label>
             </div>
-            <small *ngIf="exportType === 'related'" class="hint">Adds Location, Parent Asset and Sub Assets (from Asset Relationship).</small>
+            <small *ngIf="exportType === 'AssetWithRelatedData'" class="hint">Adds Components, Assignments, Specifications and Custom Fields sheets (Excel only).</small>
           </div>
 
           <span class="row-label">Filters (Optional)</span>
           <div class="filters">
             <label class="field"><span class="field-label">Category</span>
-              <select class="control" [(ngModel)]="filterCategory" name="filterCategory"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
+              <select class="control" [(ngModel)]="filterCategory" (ngModelChange)="refreshCount()" name="filterCategory"><option value="">Select Category</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
             </label>
             <label class="field"><span class="field-label">Location</span>
-              <select class="control" [(ngModel)]="filterSite" name="filterSite"><option value="">Select Location</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
+              <select class="control" [(ngModel)]="filterSite" (ngModelChange)="refreshCount()" name="filterSite"><option value="">Select Location</option><option *ngFor="let s of sites" [value]="s.value">{{ s.label }}</option></select>
             </label>
             <label class="field"><span class="field-label">Status</span>
-              <select class="control" [(ngModel)]="filterStatus" name="filterStatus"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+              <select class="control" [(ngModel)]="filterStatus" (ngModelChange)="refreshCount()" name="filterStatus"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
             </label>
             <div class="field field--wide"><span class="field-label">Date Range <small>(next maintenance)</small></span>
               <span class="date-range">
-                <input type="date" class="control" [(ngModel)]="dateFrom" name="dateFrom" aria-label="From date" />
+                <input type="date" class="control" [(ngModel)]="dateFrom" (ngModelChange)="refreshCount()" name="dateFrom" aria-label="From date" />
                 <span aria-hidden="true">–</span>
-                <input type="date" class="control" [(ngModel)]="dateTo" name="dateTo" aria-label="To date" />
+                <input type="date" class="control" [(ngModel)]="dateTo" (ngModelChange)="refreshCount()" name="dateTo" aria-label="To date" />
               </span>
             </div>
             <ng-container *ngIf="advancedOpen">
               <label class="field"><span class="field-label">Criticality</span>
-                <select class="control" [(ngModel)]="filterCriticality" name="filterCriticality"><option value="">Select Criticality</option><option *ngFor="let c of criticalities" [value]="c">{{ c }}</option></select>
+                <select class="control" [(ngModel)]="filterCriticality" (ngModelChange)="refreshCount()" name="filterCriticality"><option value="">Select Criticality</option><option *ngFor="let c of criticalities" [value]="c">{{ c }}</option></select>
               </label>
               <label class="field"><span class="field-label">Department</span>
-                <select class="control" [(ngModel)]="filterDepartment" name="filterDepartment"><option value="">Select Department</option><option *ngFor="let d of departments" [value]="d">{{ d }}</option></select>
+                <select class="control" [(ngModel)]="filterDepartment" (ngModelChange)="refreshCount()" name="filterDepartment"><option value="">Select Department</option><option *ngFor="let d of departments" [value]="d">{{ d }}</option></select>
               </label>
             </ng-container>
             <div class="filter-links">
@@ -147,9 +147,9 @@
           <div class="export-foot">
             <div class="radios" role="radiogroup" aria-label="File format">
               <label class="radio"><input type="radio" name="exportFormat" value="xlsx" [(ngModel)]="exportFormat" />Microsoft Excel (.xlsx)</label>
-              <label class="radio"><input type="radio" name="exportFormat" value="csv" [(ngModel)]="exportFormat" />CSV (.csv)</label>
+              <label class="radio"><input type="radio" name="exportFormat" value="csv" [(ngModel)]="exportFormat" [disabled]="exportType === 'AssetWithRelatedData'" />CSV (.csv)</label>
             </div>
-            <button type="button" class="btn btn-primary" (click)="runExport()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export {{ exportRows.length }}</button>
+            <button type="button" class="btn btn-primary" [disabled]="exporting" (click)="runExport()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>{{ exporting ? 'Exporting…' : 'Export' }}{{ !exporting && exportCount !== null ? ' ' + (exportCount | number) : '' }}</button>
           </div>
         </div>
       </div>
@@ -164,9 +164,9 @@
         <h3 id="bulk-map-title">Field Mapping (Import)</h3>
         <p>Map the columns from your file to Asset360 fields.</p>
       </div>
-      <button type="button" class="btn btn-outline btn-sm" [disabled]="!file" (click)="autoMap()"><lucide-icon [img]="icons.Wand2" [size]="15"></lucide-icon>Auto Map</button>
+      <button type="button" class="btn btn-outline btn-sm" [disabled]="!job || busy" (click)="autoMap()"><lucide-icon [img]="icons.Wand2" [size]="15"></lucide-icon>Auto Map</button>
       <div class="menu-wrap">
-        <button type="button" class="square-btn" [disabled]="!file" (click)="toggleMapMenu($event)" aria-haspopup="menu" [attr.aria-expanded]="mapMenuOpen" aria-label="More mapping actions">
+        <button type="button" class="square-btn" [disabled]="!job" (click)="toggleMapMenu($event)" aria-haspopup="menu" [attr.aria-expanded]="mapMenuOpen" aria-label="More mapping actions">
           <lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon>
         </button>
         <div *ngIf="mapMenuOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
@@ -175,56 +175,33 @@
       </div>
     </header>
 
-    <p *ngIf="!file" class="empty-line">Upload a file to map its columns.</p>
-    <ng-container *ngIf="file">
+    <p *ngIf="!job" class="empty-line">Upload a file to map its columns.</p>
+    <ng-container *ngIf="job">
       <div class="table-wrap map-wrap">
         <table class="grid-table">
           <thead><tr><th>File Column (Excel)</th><th>Mapped To (Asset360 Field)</th><th>Data Type</th><th class="center">Mandatory</th><th>Sample Data</th><th>Status</th></tr></thead>
           <tbody>
             <tr *ngFor="let c of columns; let i = index">
-              <td>{{ c.header.replace(' *', '') }}<span *ngIf="field(c.field)?.mandatory" class="req">*</span></td>
+              <td>{{ c.header.replace(' *', '') }}<span *ngIf="field(c.field)?.mandatory" class="req">*</span><small *ngIf="field(c.field)?.format as fmt" class="hint"> {{ fmt }}</small></td>
               <td>
                 <select class="control control--sm" [(ngModel)]="c.field" (ngModelChange)="onMappingChange()" [attr.aria-label]="'Field for column ' + c.header">
                   <option value="">Do not import</option>
-                  <option *ngFor="let f of fields" [value]="f.key">{{ f.label }}</option>
+                  <option *ngFor="let f of importableFields" [value]="f.key">{{ f.label }}{{ f.mandatory ? ' *' : '' }}</option>
                 </select>
               </td>
-              <td>{{ field(c.field)?.type ?? '-' }}</td>
+              <td>{{ field(c.field)?.dataType ?? '-' }}</td>
               <td class="center"><input type="checkbox" disabled [checked]="!!field(c.field)?.mandatory" [attr.aria-label]="'Mandatory: ' + (field(c.field)?.mandatory ? 'yes' : 'no')" /></td>
               <td class="sample">{{ c.sample || '-' }}</td>
               <td><span class="map-status" [ngClass]="'map--' + mapStatus(c.field).toLowerCase().replace(' ', '-')"><span class="dot"></span>{{ mapStatus(c.field) }}</span></td>
-            </tr>
-            <tr *ngFor="let f of fixed; let i = index" class="fixed-row">
-              <td><em>Same value for every row</em></td>
-              <td>
-                <select class="control control--sm" [(ngModel)]="f.field" (ngModelChange)="onMappingChange()" aria-label="Field">
-                  <option value="">Select Field</option>
-                  <option *ngFor="let x of fields" [value]="x.key">{{ x.label }}</option>
-                </select>
-              </td>
-              <td>{{ field(f.field)?.type ?? '-' }}</td>
-              <td class="center"><input type="checkbox" disabled [checked]="!!field(f.field)?.mandatory" aria-label="Mandatory" /></td>
-              <td>
-                <select *ngIf="f.field === 'status' || f.field === 'criticality' || f.field === 'category'; else freeValue" class="control control--sm" [(ngModel)]="f.value" (ngModelChange)="onMappingChange()" aria-label="Value">
-                  <option value="">Select Value</option>
-                  <option *ngFor="let v of f.field === 'status' ? statuses : f.field === 'criticality' ? criticalities : categories" [value]="v">{{ v }}</option>
-                </select>
-                <ng-template #freeValue><input class="control control--sm" [(ngModel)]="f.value" (ngModelChange)="onMappingChange()" [type]="field(f.field)?.type === 'Date' ? 'date' : 'text'" aria-label="Value" /></ng-template>
-              </td>
-              <td class="nowrap">
-                <span class="map-status" [ngClass]="'map--' + (f.field && f.value ? mapStatus(f.field).toLowerCase().replace(' ', '-') : 'not-mapped')"><span class="dot"></span>{{ f.field && f.value ? mapStatus(f.field) : 'Not Mapped' }}</span>
-                <button type="button" class="icon-btn" (click)="removeFixed(i)" aria-label="Remove field"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon></button>
-              </td>
             </tr>
           </tbody>
         </table>
       </div>
       <div class="map-foot">
-        <button type="button" class="link-btn" (click)="addFixed()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add More Fields</button>
-        <span class="muted grow">{{ mappedCount }} of {{ columns.length }} columns mapped
-          <ng-container *ngIf="missingMandatory.length"> · still needed: {{ missingMandatory.map(fieldLabel).join(', ') }}</ng-container></span>
+                <span class="muted grow">{{ mappedCount }} of {{ columns.length }} columns mapped
+          <ng-container *ngIf="missingMandatory.length"> · still needed: {{ missingMandatory.join(', ') }}</ng-container></span>
         <button type="button" class="btn btn-outline" (click)="mappingBack()"><lucide-icon [img]="icons.ArrowLeft" [size]="16"></lucide-icon>Back</button>
-        <button type="button" class="btn btn-primary" (click)="validate()">Next: Validate<lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon></button>
+        <button type="button" class="btn btn-primary" [disabled]="busy" (click)="validate()">{{ busy ? 'Working…' : 'Next: Validate' }}<lucide-icon [img]="icons.ArrowRight" [size]="16"></lucide-icon></button>
       </div>
       <p *ngIf="mappingError" class="form-error" role="alert">{{ mappingError }}</p>
     </ng-container>
@@ -236,13 +213,13 @@
       <header class="panel-head">
         <lucide-icon class="head-icon" [img]="icons.ListChecks" [size]="20"></lucide-icon>
         <h3 id="bulk-val-title" class="grow">Validation Results</h3>
-        <button type="button" class="pill-btn" [disabled]="!issues.length" (click)="issuesOpen = true"><lucide-icon [img]="icons.Plus" [size]="12"></lucide-icon>View Details</button>
+        <button type="button" class="pill-btn" [disabled]="!problemCount" (click)="issuesOpen = true"><lucide-icon [img]="icons.Plus" [size]="12"></lucide-icon>View Details</button>
       </header>
       <ul class="results">
-        <li><lucide-icon class="c-good" [img]="icons.CircleCheck" [size]="20"></lucide-icon><span class="grow">Valid Records</span><strong class="c-good">{{ validated ? clean.length : '-' }}</strong></li>
-        <li><lucide-icon class="c-bad" [img]="icons.CircleX" [size]="20"></lucide-icon><span class="grow">Invalid Records</span><strong class="c-bad">{{ validated ? invalidCount : '-' }}</strong></li>
-        <li><lucide-icon class="c-warn" [img]="icons.CircleAlert" [size]="20"></lucide-icon><span class="grow">Duplicate Records</span><strong class="c-warn">{{ validated ? duplicateCount : '-' }}</strong></li>
-        <li><lucide-icon class="c-blue" [img]="icons.Info" [size]="20"></lucide-icon><span class="grow">Total Records</span><strong>{{ validated ? clean.length + issues.length : '-' }}</strong></li>
+        <li><lucide-icon class="c-good" [img]="icons.CircleCheck" [size]="20"></lucide-icon><span class="grow">Valid Records</span><strong class="c-good">{{ summary ? summary.valid : '-' }}</strong></li>
+        <li><lucide-icon class="c-bad" [img]="icons.CircleX" [size]="20"></lucide-icon><span class="grow">Invalid Records</span><strong class="c-bad">{{ summary ? summary.invalid : '-' }}</strong></li>
+        <li><lucide-icon class="c-warn" [img]="icons.CircleAlert" [size]="20"></lucide-icon><span class="grow">Duplicate Records</span><strong class="c-warn">{{ summary ? summary.duplicate : '-' }}</strong></li>
+        <li><lucide-icon class="c-blue" [img]="icons.Info" [size]="20"></lucide-icon><span class="grow">Total Records</span><strong>{{ summary ? summary.total : '-' }}</strong></li>
       </ul>
       <p *ngIf="!validated" class="hint">Map the fields and choose Next: Validate.</p>
     </section>
@@ -251,22 +228,22 @@
       <header class="panel-head">
         <lucide-icon class="head-icon" [img]="icons.Table2" [size]="20"></lucide-icon>
         <h3 id="bulk-prev-title" class="grow">Import Preview (Valid Records)</h3>
-        <button *ngIf="validated && clean.length" type="button" class="btn btn-primary btn-sm" (click)="runImport()">Import {{ clean.length }}</button>
+        <button *ngIf="validated && summary?.valid" type="button" class="btn btn-primary btn-sm" [disabled]="busy" (click)="runImport()">{{ busy ? 'Importing…' : 'Import ' + summary?.valid }}</button>
       </header>
-      <div *ngIf="validated && clean.length; else noPreview" class="table-wrap">
+      <div *ngIf="validated && preview.length; else noPreview" class="table-wrap">
         <table class="grid-table grid-table--sm">
-          <thead><tr><th>#</th><th>Asset ID</th><th>Asset Name</th><th>Category</th><th>Location</th><th>Action</th></tr></thead>
+          <thead><tr><th>Row</th><th>Asset Tag</th><th>Asset Name</th><th>Category</th><th>Location</th><th>Action</th></tr></thead>
           <tbody>
-            <tr *ngFor="let r of previewRows; let i = index">
-              <td>{{ i + 1 }}</td><td class="nowrap">{{ r.values.tag }}</td><td>{{ r.values.name || '-' }}</td><td>{{ r.values.category || '-' }}</td>
-              <td>{{ r.values.site || '-' }}{{ r.values.area ? ' - ' + r.values.area : '' }}</td>
-              <td><span class="map-status" [ngClass]="r.exists ? 'map--duplicate' : 'map--mapped'"><span class="dot"></span>{{ r.exists ? 'Update' : 'Create' }}</span></td>
+            <tr *ngFor="let r of preview">
+              <td>{{ r.rowNumber }}</td><td class="nowrap">{{ r.assetTag || r.assetRegistrationId || '-' }}</td><td>{{ r.assetName || '-' }}</td><td>{{ r.values['category'] || '-' }}</td>
+              <td>{{ r.values['site'] || '-' }}{{ r.values['building'] ? ' - ' + r.values['building'] : '' }}</td>
+              <td><span class="map-status" [ngClass]="r.action === 'Update' ? 'map--duplicate' : 'map--mapped'"><span class="dot"></span>{{ r.action || 'Create' }}</span></td>
             </tr>
           </tbody>
         </table>
-        <p *ngIf="clean.length > 5" class="hint">and {{ clean.length - 5 }} more.</p>
+        <p *ngIf="summary && summary.valid > preview.length" class="hint">and {{ summary.valid - preview.length }} more ({{ summary.toCreate }} to create, {{ summary.toUpdate }} to update).</p>
       </div>
-      <ng-template #noPreview><p class="empty-line">{{ validated ? 'No valid records to import.' : 'Valid records appear here after validation.' }}</p></ng-template>
+      <ng-template #noPreview><p class="empty-line">{{ validated ? 'No valid records to import.' : step === 5 && lastImport ? 'Imported ' + lastImport + '. Upload another file to import more.' : 'Valid records appear here after validation.' }}</p></ng-template>
     </section>
 
     <section class="card panel" aria-labelledby="bulk-hist-title">
@@ -280,11 +257,11 @@
           <thead><tr><th>File Name</th><th>Type</th><th class="num">Records</th><th>Status</th><th>Date &amp; Time</th><th>By</th></tr></thead>
           <tbody>
             <tr *ngFor="let h of history.slice(0, 5)">
-              <td class="nowrap">{{ h.fileName }}</td><td>{{ h.type }}</td><td class="num">{{ h.records | number }}</td>
-              <td><span class="map-status" [ngClass]="h.status === 'Completed' ? 'map--mapped' : 'map--failed'"><span class="dot"></span>{{ h.status }}</span></td>
-              <td class="nowrap">{{ h.at | date: 'dd MMM yyyy HH:mm' }}</td><td class="nowrap">{{ h.by }}</td>
+              <td class="nowrap"><span [title]="h.jobNumber">{{ h.fileName }}</span></td><td>{{ h.type }}</td><td class="num">{{ h.records | number }}</td>
+              <td><span class="map-status" [ngClass]="historyFailed(h) ? 'map--failed' : 'map--mapped'"><span class="dot"></span>{{ h.status || '-' }}</span></td>
+              <td class="nowrap">{{ (h.completedAt || h.createdAt) | date: 'dd MMM yyyy HH:mm' }}</td><td class="nowrap">{{ h.createdBy || '-' }}</td>
             </tr>
-            <tr *ngIf="!history.length"><td colspan="6" class="empty-line">No records found.</td></tr>
+            <tr *ngIf="!history.length"><td colspan="6" class="empty-line">{{ historyLoading ? 'Loading…' : 'No records found.' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -301,11 +278,11 @@
         <thead><tr><th>File Name</th><th>Type</th><th class="num">Records</th><th>Status</th><th>Date &amp; Time</th><th>By</th></tr></thead>
         <tbody>
           <tr *ngFor="let h of history">
-            <td>{{ h.fileName }}</td><td>{{ h.type }}</td><td class="num">{{ h.records | number }}</td>
-            <td><span class="map-status" [ngClass]="h.status === 'Completed' ? 'map--mapped' : 'map--failed'"><span class="dot"></span>{{ h.status }}</span></td>
-            <td class="nowrap">{{ h.at | date: 'dd MMM yyyy HH:mm' }}</td><td>{{ h.by }}</td>
+            <td><span [title]="h.jobNumber">{{ h.fileName }}</span></td><td>{{ h.type }}</td><td class="num">{{ h.records | number }}</td>
+            <td><span class="map-status" [ngClass]="historyFailed(h) ? 'map--failed' : 'map--mapped'"><span class="dot"></span>{{ h.status || '-' }}</span></td>
+            <td class="nowrap">{{ (h.completedAt || h.createdAt) | date: 'dd MMM yyyy HH:mm' }}</td><td>{{ h.createdBy || '-' }}</td>
           </tr>
-          <tr *ngIf="!history.length"><td colspan="6" class="empty-line">No records found.</td></tr>
+          <tr *ngIf="!history.length"><td colspan="6" class="empty-line">{{ historyLoading ? 'Loading…' : 'No records found.' }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -315,19 +292,21 @@
 <!-- ===== Validation details ===== -->
 <div *ngIf="issuesOpen" class="overlay" (click)="issuesOpen = false">
   <div class="modal modal--lg" role="dialog" aria-modal="true" aria-labelledby="bulk-iss-dlg" (click)="$event.stopPropagation()">
-    <div class="modal-head"><h2 id="bulk-iss-dlg">Rows Not Imported ({{ issues.length }})</h2><button type="button" class="icon-btn" (click)="issuesOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-head"><h2 id="bulk-iss-dlg">Rows Not Imported ({{ problemCount }})</h2><button type="button" class="icon-btn" (click)="issuesOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <div class="modal-body table-wrap">
       <table class="grid-table">
         <thead><tr><th class="num">Row</th><th>Asset ID</th><th>Problem</th><th>Reason</th></tr></thead>
         <tbody>
-          <tr *ngFor="let x of issues">
-            <td class="num">{{ x.row }}</td><td class="nowrap">{{ x.tag }}</td>
-            <td><span class="map-status" [ngClass]="x.kind === 'Invalid' ? 'map--failed' : 'map--duplicate'"><span class="dot"></span>{{ x.kind }}</span></td>
-            <td>{{ x.message }}</td>
+          <tr *ngFor="let x of problems">
+            <td class="num">{{ x.rowNumber }}</td><td class="nowrap">{{ x.assetTag || '-' }}</td>
+            <td><span class="map-status" [ngClass]="x.status === 'Duplicate' ? 'map--duplicate' : 'map--failed'"><span class="dot"></span>{{ x.status }}</span></td>
+            <td>{{ issueText(x) }}</td>
           </tr>
         </tbody>
       </table>
+      <p *ngIf="problemCount > problems.length" class="hint">Showing the first {{ problems.length }} of {{ problemCount }} rows. Download the file for all of them.</p>
       <p class="hint">Fix these rows in your file and upload it again, or import the valid rows now.</p>
+      <button type="button" class="btn btn-outline btn-sm" (click)="downloadProblems()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Download problem rows (.xlsx)</button>
     </div>
   </div>
 </div>

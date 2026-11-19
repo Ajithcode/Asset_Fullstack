@@ -7,7 +7,12 @@
     "declaration": true,
     "declarationMap": true,
     "inlineSources": true,
-    "types": []
+    "types": [],
+    "paths": {
+      "@a360/app-environment": [
+        "./src/lib/environment/library-environment.ts"
+      ]
+    }
   },
   "include": [
     "src/**/*.ts"

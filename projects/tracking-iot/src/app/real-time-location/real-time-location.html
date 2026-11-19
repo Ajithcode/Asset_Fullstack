@@ -18,7 +18,7 @@
 
   <!-- KPIs: Moving + Stationary + Unknown/Stale = Assets in View -->
   <div class="kpis kpis--5">
-    <button *ngFor="let k of kpis" type="button" class="card kpi kpi-btn" [class.is-on]="k.key !== 'all' && moveFilter === k.key" (click)="k.key === 'all' ? clearFilters() : setMoveFilter($any(k.key))">
+    <button *ngFor="let k of kpis; trackBy: byKey" type="button" class="card kpi kpi-btn" [class.is-on]="k.key !== 'all' && moveFilter === k.key" (click)="k.key === 'all' ? clearFilters() : setMoveFilter($any(k.key))">
       <span class="kpi-ic" [ngClass]="'kpi-ic--' + k.cls"><lucide-icon [img]="k.icon" [size]="21"></lucide-icon></span>
       <span class="kpi-body"><span class="kpi-label">{{ k.label }}</span><span class="kpi-row"><strong>{{ k.value }}</strong></span><small class="kpi-sub">{{ k.note }}</small></span>
     </button>
@@ -28,11 +28,35 @@
     <!-- Facility map -->
     <section class="card map-card rtl-map" aria-label="Facility map">
       <app-floor-plan-map *ngIf="mapFloorId" [imageUrl]="mapImage" [fallbackUrl]="mapFallback" [zones]="planZones" [plots]="planPlots" [feed]="feed" [zoneId]="mapZone"
-        [showLabels]="layers.labels" [showDevices]="layers.gateways" [showAssets]="layers.assets" [highlight]="highlight" [note]="mapNote"></app-floor-plan-map>
+        [showLabels]="layers.labels" [showDevices]="layers.gateways" [showAssets]="layers.assets" [highlight]="highlight" [note]="followId ? '' : mapNote"
+        [live]="livePoint" [liveTrail]="liveTrail" [focus]="mapFocus"></app-floor-plan-map>
       <p *ngIf="!mapFloorId" class="map-empty muted">{{ mapNote || 'Loading floor plans…' }}</p>
       <div class="mo mo-top">
-        <select class="control control-sm" [ngModel]="mapFloorId" (ngModelChange)="setFloor($event)" aria-label="Floor"><option value="">All floors</option><option *ngFor="let f of floors" [value]="f.id">{{ f.label }}</option></select>
+        <select class="control control-sm" [ngModel]="mapFloorId" (ngModelChange)="setFloor($event)" aria-label="Floor"><option value="">All floors</option><option *ngFor="let f of floors; trackBy: byFloor" [value]="f.id">{{ f.label }}</option></select>
       </div>
+      <!-- Live follow (Locate asset › location button) -->
+      <div *ngIf="followId" class="mo live-panel" [ngClass]="'live-panel--' + (live?.state === 'Live' && followState === 'live' ? 'on' : followState === 'error' ? 'bad' : 'wait')" role="status" aria-live="polite">
+        <div class="live-panel-head">
+          <span class="live-dot"></span>
+          <b>{{ followState === 'live' ? (live?.state === 'Live' ? 'LIVE' : (live?.state || 'LIVE') | uppercase) : followState === 'error' ? 'ERROR' : followState === 'reconnecting' ? 'RECONNECTING' : 'CONNECTING' }}</b>
+          <span class="grow min0 ellipsis">{{ followName }}</span>
+          <button type="button" class="btn btn-sm live-stop" (click)="stopLive()"><lucide-icon [img]="icons.Square" [size]="12"></lucide-icon>Stop</button>
+        </div>
+        <ng-container *ngIf="live as l">
+          <div class="live-facts">
+            <span><small>Zone</small>{{ l.zoneName || '—' }}</span>
+            <span><small>Floor</small>{{ l.floorName || '—' }}</span>
+            <span><small>Gateway</small><i class="mono">{{ l.gatewayId || '—' }}</i></span>
+            <span><small>Signal</small>{{ l.rssi !== null ? l.rssi + ' dBm' : '—' }}</span>
+            <span><small>Last heard</small>{{ liveAgo }}</span>
+            <span><small>Tag</small><i class="mono">{{ l.tagId }}</i></span>
+          </div>
+          <p class="live-note">{{ l.note }}</p>
+        </ng-container>
+        <p *ngIf="followError" class="live-note c-red">{{ followError }}</p>
+        <p *ngIf="!live && !followError" class="live-note">Opening the live connection…</p>
+      </div>
+
       <div class="mo mo-layers" role="group" aria-label="Map layers">
         <label><input type="checkbox" [(ngModel)]="layers.gateways" />Gateways</label>
         <label><input type="checkbox" [(ngModel)]="layers.assets" />Plotted assets</label>
@@ -59,7 +83,7 @@
         <table class="rtl-table">
           <thead><tr><th>Asset</th><th>Zone</th><th>Status</th><th>Last seen</th><th>Accuracy</th></tr></thead>
           <tbody>
-            <tr *ngFor="let a of filtered" [class.is-sel]="a.assetId === selectedId" (click)="select(a.assetId)">
+            <tr *ngFor="let a of filtered; trackBy: byAsset" [class.is-sel]="a.assetId === selectedId" (click)="select(a.assetId)">
               <td><b>{{ a.name }}</b><small>{{ a.assetTag || a.assetId }}<ng-container *ngIf="a.locationSource !== 'Unknown'"> · {{ a.locationSource }}</ng-container></small></td>
               <td>{{ a.location?.zoneName || (a.location ? 'Gateway ' + a.location.gatewayId : '—') }}</td>
               <td><span class="mv" [ngClass]="moveClass(a.movement)">{{ a.movement }}</span><small class="fr" [ngClass]="freshClass(a.freshness)">{{ a.freshness }}</small>
@@ -117,6 +141,8 @@
 
       <div class="rtl-actions">
         <button type="button" class="btn btn-outline btn-sm" (click)="viewAsset(a)"><lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>View Asset</button>
+        <button *ngIf="followId !== a.assetId" type="button" class="btn btn-outline btn-sm" (click)="startLive(a)"><lucide-icon [img]="icons.LocateFixed" [size]="15"></lucide-icon>Live Location</button>
+        <button *ngIf="followId === a.assetId" type="button" class="btn btn-outline btn-sm" (click)="stopLive()"><lucide-icon [img]="icons.Square" [size]="13"></lucide-icon>Stop Live</button>
         <button type="button" class="btn btn-outline btn-sm" (click)="trackHistory()"><lucide-icon [img]="icons.History" [size]="15"></lucide-icon>Track History</button>
         <button type="button" class="btn btn-primary btn-sm" (click)="createAlert(a)"><lucide-icon [img]="icons.Bell" [size]="15"></lucide-icon>Create Alert</button>
       </div>
@@ -136,7 +162,7 @@
           <span *ngFor="let z of t.timeInZones"><b>{{ duration(z.minutes) }}</b> in {{ z.zone }}</span>
         </div>
         <ol class="trail">
-          <li *ngFor="let s of trailSegments; let first = first" [class.is-pick]="s === pickedSegment" [class.is-now]="first" (click)="pickSegment(s)" title="Show on the map">
+          <li *ngFor="let s of trailSegments; let first = first; trackBy: bySegment" [class.is-pick]="s === pickedSegment" [class.is-now]="first" (click)="pickSegment(s)" title="Show on the map">
             <span class="trail-dot"></span>
             <span class="grow min0"><strong>{{ s.zoneName || 'Gateway ' + s.gatewayId }}</strong><small>{{ s.floorName || '' }} · {{ hm(s.from) }} – {{ first ? 'now' : hm(s.to) }} · {{ duration(s.minutes) }}</small></span>
           </li>
@@ -161,7 +187,7 @@
       <table class="dt">
         <thead><tr><th>Time</th><th>Event ID</th><th>Asset ID</th><th>Asset</th><th>Event</th><th>Zone</th><th>Details</th><th>Severity</th><th>Source</th><th>Status</th></tr></thead>
         <tbody>
-          <tr *ngFor="let e of ev?.items ?? []" [class.is-sel]="e.assetId === selectedId" (click)="e.assetId && select(e.assetId)">
+          <tr *ngFor="let e of ev?.items ?? []; trackBy: byEvent" [class.is-sel]="e.assetId === selectedId" (click)="e.assetId && select(e.assetId)">
             <td class="nowrap">{{ stamp(e.at) }}</td>
             <td class="mono nowrap">{{ e.eventId }}</td>
             <td class="nowrap">{{ e.assetId || '—' }}</td>
@@ -202,10 +228,12 @@
     <div class="modal-body">
       <label class="tt-search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input id="rtl-locate-q" type="search" [(ngModel)]="locateQuery" placeholder="Asset ID, name, tag, device, type…" /></label>
       <ul class="locate-list">
-        <li *ngFor="let a of locateRows" (click)="locate(a)">
+        <li *ngFor="let a of locateRows; trackBy: byAsset" (click)="locate(a)">
           <span class="dot" [ngClass]="freshClass(a.freshness)"></span>
           <span class="grow min0"><b>{{ a.name }}</b><small>{{ a.assetId }}<ng-container *ngIf="a.assetTag"> · {{ a.assetTag }}</ng-container> · {{ a.tags.join(', ') }}</small></span>
           <small class="muted">{{ a.location?.zoneName || 'No location' }}</small>
+          <button type="button" class="icon-btn loc-live" (click)="$event.stopPropagation(); startLive(a)" [title]="'Show ' + a.name + ' live on the map'" [attr.aria-label]="'Show ' + a.name + ' live on the map'">
+            <lucide-icon [img]="icons.LocateFixed" [size]="17"></lucide-icon></button>
         </li>
         <li *ngIf="!locateRows.length" class="muted small">No asset matches “{{ locateQuery }}”.</li>
       </ul>
