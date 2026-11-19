@@ -50,7 +50,8 @@ export const routes: Routes = [
   { path: 'relationships', component: AssetRelationship },
   // Menu page: relationships users create between a main asset and a sub asset
   { path: 'asset-relationships', component: AssetRelationshipList },
-  { path: 'registration', component: AssetRegistration },
+  // Warns before leaving with entered data that was neither saved as draft nor registered
+  { path: 'registration', component: AssetRegistration, canDeactivate: [(page: AssetRegistration) => page.canLeave()] },
   { path: 'list', component: AssetList },
   { path: 'categories', component: AssetCategories },
   { path: 'types-models', component: AssetTypesModels },

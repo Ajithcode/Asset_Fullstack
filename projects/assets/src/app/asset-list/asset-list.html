@@ -18,10 +18,36 @@
           <p>View, search and manage all assets in your organization</p>
         </div>
       </div>
-      <button type="button" class="btn btn-primary no-print" (click)="registerAsset()">
-        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
-        Register Asset
-      </button>
+      <div class="title-actions no-print">
+        <button type="button" class="btn btn-outline" (click)="toggleDrafts()" [attr.aria-expanded]="draftsOpen" aria-controls="asset-drafts">
+          Drafts ({{ drafts.length }})
+        </button>
+        <button type="button" class="btn btn-primary" (click)="registerAsset()">
+          <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
+          Register Asset
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="draftsOpen" id="asset-drafts" class="drafts-panel no-print">
+      <p *ngIf="!drafts.length" class="drafts-empty">No saved drafts. Use "Save as Draft" in Register Asset to keep one.</p>
+      <table *ngIf="drafts.length" class="drafts-table">
+        <thead>
+          <tr><th>Draft</th><th>Asset Name</th><th>Asset Tag</th><th>Last saved</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let d of drafts">
+            <td>{{ d.assetRegistrationId }}</td>
+            <td>{{ d.basicInformation?.assetName || '—' }}</td>
+            <td>{{ d.basicInformation?.assetTag || '—' }}</td>
+            <td>{{ (d.updatedAt || d.createdAt) ? ((d.updatedAt || d.createdAt) | date: 'medium') : '—' }}</td>
+            <td class="drafts-actions">
+              <button type="button" class="btn btn-outline btn-sm" (click)="continueDraft(d)">Continue</button>
+              <button type="button" class="btn btn-outline btn-sm drafts-delete" [disabled]="deletingDraftId === d.assetRegistrationId" (click)="deleteDraft(d)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <form class="filters no-print" (ngSubmit)="applyFilters()">

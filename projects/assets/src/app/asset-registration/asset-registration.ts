@@ -763,12 +763,65 @@ export class AssetRegistration {
     const params = route.snapshot.queryParamMap;
     const id = params.get('id') ?? '';
     const tag = params.get('tag') ?? '';
+    // Asset List > Drafts > Continue opens /assets/registration?draft=AR000012
+    const draft = params.get('draft') ?? '';
     if (id || tag) {
       this.loadAssetForEdit(id, tag);
+    } else if (draft) {
+      this.loadDraft(draft);
     } else {
       this.ensureLocationSelection();
       this.loadStepDropdowns(0);
     }
+  }
+
+  /** GET /api/asset-registrations/drafts/{id}, fills the form and continues the draft (Save Draft / Register update it). */
+  private loadDraft(draftId: string): void {
+    this.loadingAsset = true;
+    this.registrationApi.getDraft(draftId).subscribe({
+      next: (draft) => {
+        this.loadingAsset = false;
+        this.draftId = draft.assetRegistrationId;
+        this.draftIsSaved = true;
+        this.savedSteps = {};
+        this.applyAsset(draft);
+        this.steps.forEach((_, step) => this.loadStepDropdowns(step));
+        this.touched = false;
+      },
+      error: (err) => {
+        this.loadingAsset = false;
+        this.showToast(`The draft could not be loaded. ${apiErrorMessage(err, '')}`.trim());
+        this.ensureLocationSelection();
+        this.loadStepDropdowns(0);
+      },
+    });
+  }
+
+  // ===== Unsaved changes =====
+
+  /** Set by any edit in the wizard; cleared by Save Draft, Register and loading a draft. */
+  private touched = false;
+
+  @HostListener('input')
+  @HostListener('change')
+  markTouched(): void {
+    this.touched = true;
+  }
+
+  get hasUnsavedChanges(): boolean {
+    return this.touched;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.hasUnsavedChanges) return;
+    event.preventDefault();
+    event.returnValue = '';
+  }
+
+  /** Route guard (canDeactivate): asks before leaving with entered data that was neither saved as draft nor registered. */
+  canLeave(): boolean {
+    return !this.hasUnsavedChanges || confirm('You have unsaved changes. Leave without saving? Nothing will be stored.');
   }
 
   // ===== Edit a registered asset =====
@@ -1811,31 +1864,17 @@ export class AssetRegistration {
     this.loadStepDropdowns(index);
   }
 
-  /** Next saves the step to the draft before moving on; the last step's Submit registers the asset. */
+  /**
+   * Next only moves on (the data stays in the form until Save as Draft or Register); the last step's Submit
+   * registers the asset.
+   */
   next(): void {
     if (this.isLastStep) {
       this.register();
       return;
     }
     if (this.registering) return;
-    const step = this.currentStep;
-    // Editing a registered asset: the steps are saved together by Submit (PUT), so Next only moves on
-    if (!this.stepValid(step) || this.editId) {
-      this.goToStep(step + 1);
-      return;
-    }
-    if (this.waitForUploads()) return;
-    this.registering = true;
-    this.saveStep(step).subscribe({
-      next: () => {
-        this.registering = false;
-        this.goToStep(step + 1);
-      },
-      error: (err) => {
-        this.registering = false;
-        this.showApiError('This step could not be saved', err);
-      },
-    });
+    this.goToStep(this.currentStep + 1);
   }
 
   previous(): void {
@@ -1853,7 +1892,8 @@ export class AssetRegistration {
       return;
     }
     this.registering = true;
-    // Steps already saved by Next are skipped unless they changed since; a retry after a failure resumes where it stopped
+    // The API registers through a draft: create it (or reuse the saved one), PUT every step, then submit.
+    // Steps of a saved draft that did not change since are skipped.
     concat(...this.steps.map((_, step) => this.saveStep(step)))
       .pipe(
         last(),
@@ -1863,18 +1903,35 @@ export class AssetRegistration {
         next: (r) => {
           this.registering = false;
           this.draftId = '';
+          this.draftIsSaved = false;
           this.savedSteps = {};
+          this.touched = false;
           this.showToast(`${this.form.assetName} (${this.form.assetTag}) registered as ${r.assetRegistrationId}.`);
         },
         error: (err) => {
           this.registering = false;
+          this.discardUnsavedDraft();
           this.showApiError('The asset could not be registered', err);
         },
       });
   }
 
-  /** Draft holding the steps saved so far; created by the first step's Next (its asset tag is then reserved). */
+  /**
+   * After a failed Register: a draft that Register itself created (the user never saved one) is deleted, so nothing
+   * half-saved is left behind; the entered data stays in the form. A draft the user saved is kept.
+   */
+  private discardUnsavedDraft(): void {
+    if (!this.draftId || this.draftIsSaved) return;
+    const id = this.draftId;
+    this.draftId = '';
+    this.savedSteps = {};
+    this.registrationApi.deleteDraft(id).subscribe({ error: () => undefined });
+  }
+
+  /** Draft on the server; created by the first Save as Draft (or temporarily by Register). */
   private draftId = '';
+  /** True when draftId is a draft the user saved or opened (kept if Register fails). */
+  private draftIsSaved = false;
   /** Body last saved for each step, so unchanged steps are not sent again. */
   private savedSteps: Partial<Record<number, string>> = {};
 
@@ -2063,6 +2120,7 @@ export class AssetRegistration {
       .subscribe({
         next: (r) => {
           this.registering = false;
+          this.touched = false;
           this.showToast(`${this.form.assetName} (${r.assetRegistrationId}) saved.`);
         },
         error: (err) => {
@@ -2072,7 +2130,7 @@ export class AssetRegistration {
       });
   }
 
-  /** Saves the current step as a draft; required fields are not enforced. In edit mode, saves the asset's changes. */
+  /** Saves all steps as a draft; required fields are not enforced. In edit mode, saves the asset's changes. */
   saveDraft(): void {
     if (this.registering || this.waitForUploads()) return;
     if (this.editId) {
@@ -2080,13 +2138,18 @@ export class AssetRegistration {
       return;
     }
     this.registering = true;
-    this.saveStep(this.currentStep, true).subscribe({
+    // Every step goes to the draft (the first click creates it, later clicks update it); unchanged steps are skipped
+    concat(...this.steps.map((_, step) => this.saveStep(step, true))).pipe(last()).subscribe({
       next: () => {
         this.registering = false;
+        this.draftIsSaved = true;
+        this.touched = false;
         this.showToast(`Draft saved${this.draftId ? ` (${this.draftId})` : ''}.`);
       },
       error: (err) => {
         this.registering = false;
+        // A draft created before the failure is the user's draft now (visible in Asset List > Drafts)
+        if (this.draftId) this.draftIsSaved = true;
         this.showApiError('The draft could not be saved', err);
       },
     });

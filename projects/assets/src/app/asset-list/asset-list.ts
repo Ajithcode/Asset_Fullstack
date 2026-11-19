@@ -44,7 +44,7 @@ import { TODAY, toIsoDate } from 'shared-ui';
 import { FilterSelect, FilterSelectOption } from '../shared/filter-select/filter-select';
 import { apiErrorMessage } from '../services/asset-api';
 import {
-  AssetRegistrationFilters, AssetRegistrationListItem, AssetRegistrationListQuery, AssetRegistrationListResult, AssetRegistrationService,
+  AssetRegistrationFilters, AssetRegistrationListItem, AssetRegistrationResult, AssetRegistrationListQuery, AssetRegistrationListResult, AssetRegistrationService,
 } from '../services/asset-registration/asset-registration';
 
 type SortKey = 'name' | 'tag' | 'category' | 'location' | 'custodian' | 'status' | 'criticality' | 'nextMaintenance';
@@ -171,7 +171,7 @@ const AVATAR_COLORS = ['#6d4aff', '#2563eb', '#0891b2', '#db2777', '#7c3aed', '#
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FilterSelect],
   templateUrl: './asset-list.html',
-  styleUrl: './asset-list.css',
+  styleUrls: ['./asset-list.css', './asset-list-drafts.css'],
 })
 export class AssetList {
   readonly icons = {
@@ -265,7 +265,48 @@ export class AssetList {
       .subscribe((result) => this.showPage(result));
     this.searchInput$.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.refresh());
     this.loadFilterOptions();
+    this.loadDrafts();
     this.refresh();
+  }
+
+  // ===== Drafts (GET /api/asset-registrations/drafts: the signed-in user's saved registration drafts) =====
+
+  drafts: AssetRegistrationResult[] = [];
+  draftsOpen = false;
+  deletingDraftId: string | null = null;
+
+  private loadDrafts(): void {
+    this.api.getDrafts().subscribe({
+      next: (drafts) => (this.drafts = drafts ?? []),
+      error: () => (this.drafts = []),
+    });
+  }
+
+  toggleDrafts(): void {
+    this.draftsOpen = !this.draftsOpen;
+    if (this.draftsOpen) this.loadDrafts();
+  }
+
+  /** Opens the registration wizard on this draft (/assets/registration?draft=AR000012). */
+  continueDraft(draft: AssetRegistrationResult): void {
+    this.router.navigate(['/assets/registration'], { queryParams: { draft: draft.assetRegistrationId } });
+  }
+
+  /** DELETE /api/asset-registrations/drafts/{id}, after confirmation. */
+  deleteDraft(draft: AssetRegistrationResult): void {
+    const name = draft.basicInformation?.assetName || draft.assetRegistrationId;
+    if (!confirm(`Delete draft ${draft.assetRegistrationId} (${name})? This cannot be undone.`)) return;
+    this.deletingDraftId = draft.assetRegistrationId;
+    this.api.deleteDraft(draft.assetRegistrationId).subscribe({
+      next: () => {
+        this.deletingDraftId = null;
+        this.drafts = this.drafts.filter((d) => d.assetRegistrationId !== draft.assetRegistrationId);
+      },
+      error: () => {
+        this.deletingDraftId = null;
+        this.loadDrafts();
+      },
+    });
   }
 
   private loadFilterOptions(): void {

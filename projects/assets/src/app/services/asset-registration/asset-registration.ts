@@ -191,6 +191,8 @@ export interface AssetRegistrationResult {
   additionalInformation?: AssetAdditionalInformation;
   status?: string;
   createdAt?: string;
+  updatedAt?: string;
+  currentStep?: number;
 }
 
 /** Row of GET /api/asset-registrations. */
@@ -329,7 +331,8 @@ export class AssetRegistrationService {
   createDraft(basicInformation: AssetBasicInformation, saveAsDraft = false): Observable<AssetRegistrationResult> {
     const request: CreateAssetRegistrationDraftRequest = {
       basicInformation,
-      createdBy: this.auth.getUserEmail() || 'unknown',
+      // The drafts list (GET /drafts) filters on the signed-in user name, so store that, not the email.
+      createdBy: this.auth.getUser()?.userName || this.auth.getUserEmail() || 'unknown',
       clientId: environment.clientId,
       tenantId: environment.tenantId,
     };
