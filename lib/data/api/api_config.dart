@@ -1,5 +1,7 @@
-/// Backend settings, passed at run time only (never hard-coded). The app calls each service
-/// DIRECTLY (the API Gateway on 5296 is not used for now):
+/// Backend settings, passed at run time only (never hard-coded). Two layouts:
+/// - CLOUD (env/api_demo.json, env/api_live.json): one HTTPS gateway, e.g. https://a360demo.purpleiq.ai, is the
+///   base URL of EVERY service (all routes are `/api/<unique>`), no ports;
+/// - OFFICE IPs (env/api_dev.json): each service DIRECTLY on its own port:
 ///
 /// ```sh
 /// flutter run --dart-define=USE_API=true \
@@ -83,7 +85,8 @@ bool? debugShowServerSwitcher;
 /// True when this build may switch servers ([kShowServerSwitcher], or a test override).
 bool get showServerSwitcher => debugShowServerSwitcher ?? kShowServerSwitcher;
 
-/// A server the switcher offers: [origin] = scheme + host, no port (each service keeps its own port).
+/// A server the switcher offers: [origin] = scheme + host, no port. An http origin keeps each service's
+/// own port; an https origin is one gateway used as-is for all services ([isGatewayOrigin]).
 class ServerPreset {
   const ServerPreset(this.label, this.origin);
 
@@ -92,6 +95,7 @@ class ServerPreset {
 }
 
 const serverPresets = [
+  ServerPreset('Demo cloud (a360demo.purpleiq.ai)', 'https://a360demo.purpleiq.ai'),
   ServerPreset('Server .29', 'http://172.16.100.29'),
   ServerPreset('Server .26', 'http://172.16.100.26'),
 ];
@@ -108,6 +112,7 @@ void applyServerOverride(String? origin) => _serverOverride = normalizeServerOri
 
 /// "172.16.100.40", "172.16.100.40:5018", "https://dev.example.com/x" → scheme + host only
 /// ("http://172.16.100.40", "https://dev.example.com"); null when there is no usable host.
+/// No scheme = http (an office IP / host: ports are added per service).
 String? normalizeServerOrigin(String? input) {
   final raw = input?.trim() ?? '';
   if (raw.isEmpty) return null;
@@ -126,6 +131,22 @@ String? get buildServerOrigin {
   return null;
 }
 
+/// True for a full https URL (one gateway: used as-is for every service, no ports added).
+bool isGatewayOrigin(String? origin) => origin != null && Uri.tryParse(origin)?.scheme == 'https';
+
+/// True when every service's effective base URL is the same origin without an explicit port (the cloud
+/// gateway). Health checks and the connection test then go through the gateway.
+bool get usesSingleGateway {
+  String? first;
+  for (final s in BackendService.values) {
+    final u = Uri.tryParse(s.baseUrl);
+    if (u == null || !u.hasAuthority || u.hasPort) return false;
+    final o = Uri(scheme: u.scheme, host: u.host).toString();
+    if ((first ??= o) != o) return false;
+  }
+  return first != null;
+}
+
 /// The server the app talks to now: the saved choice, else the build's.
 String? get currentServerOrigin => _serverOverride ?? buildServerOrigin;
 
@@ -135,7 +156,7 @@ String serverLabelOf(String? origin) {
   for (final p in serverPresets) {
     if (p.origin == origin) return p.label;
   }
-  return Uri.parse(origin).host;
+  return isGatewayOrigin(origin) ? origin : Uri.parse(origin).host;
 }
 
 /// "Server .29 (172.16.100.29)" for a preset, else the host.
@@ -143,17 +164,21 @@ String serverDisplayOf(String? origin) {
   final label = serverLabelOf(origin);
   if (origin == null) return label;
   final host = Uri.parse(origin).host;
-  return label == host ? host : '$label ($host)';
+  return label.contains(host) ? label : '$label ($host)';
 }
 
 /// [build] with its host replaced by [serverOverride]; the port (the build's, else [port]) and path stay.
+/// A gateway override (https, [isGatewayOrigin]) is used as-is: same URL for every service, no port.
 String _withServer(String build, String port) {
   final o = _serverOverride;
   if (o == null) return build;
+  if (isGatewayOrigin(o)) return o;
   final origin = Uri.parse(o);
   final b = Uri.tryParse(build);
+  // A cloud build (https gateway, no port) switched to an office IP: each service's own port.
+  final cloudBuild = b != null && b.hasAuthority && !b.hasPort;
   final keepPort = b != null && b.hasAuthority && b.hasPort ? b.port : int.parse(port);
-  return origin.replace(port: keepPort, path: b != null && b.hasAuthority ? b.path : '').toString();
+  return origin.replace(port: keepPort, path: b != null && b.hasAuthority && !cloudBuild ? b.path : '').toString();
 }
 
 /// Effective service roots: the build's URL, or the same port on the chosen server ([serverOverride]).
@@ -243,3 +268,15 @@ enum BackendService {
     tracking => trackingConfigProblem,
   };
 }
+
+/// Office IPs where development builds may use plain http (Android: res/xml/network_security_config_dev.xml).
+const cleartextDevHosts = {'172.16.100.26', '172.16.100.29'};
+
+/// Cloud / release build (env/api_live.json): every service URL of the build is https and the server switcher
+/// is off. Plain http and ws are then refused ([HttpsOnlyInterceptor]; Android uses the strict
+/// network_security_config, see android/app/build.gradle.kts).
+bool get httpsOnlyBuild =>
+    !showServerSwitcher && BackendService.values.every((s) => s.buildUrl.toLowerCase().startsWith('https://'));
+
+/// False for a plain-text URL (http / ws) in an [httpsOnlyBuild].
+bool transportAllowed(Uri uri) => !httpsOnlyBuild || const {'https', 'wss'}.contains(uri.scheme.toLowerCase());

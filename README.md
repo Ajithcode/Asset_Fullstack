@@ -95,10 +95,26 @@ flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build
   --dart-define=TRACKING_BASE_URL=http://<backend-ip>:5490
 ```
 
+**Cloud backend (one HTTPS gateway).** The backend is deployed behind `https://a360demo.purpleiq.ai` (demo) and,
+later, `https://a360.purpleiq.ai` (live): every service under `/api/...`, no IPs, no ports. Use:
+
+```sh
+flutter run --dart-define-from-file=env/api_demo.json          # demo cloud, server switcher on
+flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols \
+  --dart-define-from-file=env/api_live.json                    # live, switcher off, HTTPS only
+```
+
+Cleartext (plain http): `android/app/build.gradle.kts` reads the build's dart-defines and picks
+`res/xml/network_security_config_dev.xml` (http only to 172.16.100.26 / .29) when a service URL is `http://`, the
+switcher is on, or USE_API leaves a URL to its http dev default; otherwise `network_security_config.xml` (no
+cleartext at all: env/api_live.json, mock builds). An env/api_live.json build also refuses http in Dart
+(`HttpsOnlyInterceptor`). All routes the app calls: `docs/api_routes_used.md`.
+
 **Switching servers without rebuilding (dev builds only).** Builds made with `env/api_dev.json` (it sets
 `SHOW_SERVER_SWITCHER=true`) show **Settings → Developer → Backend server** and, on Login, a small grey
-"Server: …" line (tap it) plus a **Backend server** button in Diagnostics. Pick *Server .29*, *Server .26* or
-*Custom* (IP / host): every service keeps its port, the choice is saved on the phone, and switching signs you out,
+"Server: …" line (tap it) plus a **Backend server** button in Diagnostics. Pick *Demo cloud (a360demo.purpleiq.ai)*
+(one https URL used as-is for every service), *Server .29*, *Server .26* or *Custom* (an IP / host: every service
+keeps its port; a full https URL: used as-is), the choice is saved on the phone, and switching signs you out,
 clears cached server data and returns to Login. Builds without the flag (client releases) hide it and always use
 their own `--dart-define` URLs.
 
@@ -121,7 +137,8 @@ Example for the current test server: `API_BASE_URL=http://172.16.100.29:5401`,
 
 The Asset and Media services receive the signed-in user's Bearer token (they read it for CreatedBy); a missing token
 never blocks a call. A 401 refreshes the token once and retries. Media URLs the server returns with host `localhost` /
-`127.0.0.1` (or as a bare `/uploads/...` path) are rewritten to `MEDIA_BASE_URL` + the same path
+`127.0.0.1`, an old plain-http office-IP `/uploads/...` URL, or a bare `/uploads/...` path are rewritten to
+`MEDIA_BASE_URL` + the same path; https URLs (e.g. `https://a360demo.purpleiq.ai/uploads/...`) are kept as returned
 (`resolveMediaUrl` in `lib/data/api/media_api.dart`); files are loaded with the Authorization header.
 
 The phone must be on the same network as the backend. `localhost` on a phone is the phone itself (on the Android
@@ -318,6 +335,28 @@ Floor; a room label fills all four.
 - Rules and the project map: `CLAUDE.md`. Build prompts: `prompts/`. Design images: `design/`.
 - Final QA (Prompt 19): `docs/QA_REPORT.md` — button audit tables per module in `docs/qa/`, design check notes,
   cross-module flow results (`test/flows_test.dart`) and consistency checks (`test/data_check_test.dart`).
+
+## Licence
+
+Like the web app, modules need a licence (`lib/app/licence/`). `LicenceService` (`licenceProvider`) decides
+`isLicensed(module)` from, in order: (a) the backend licence endpoint — not available yet, see
+`TODO(licence-api)` in `licence_service.dart` (`LicenceApi` / `LicenceCache`: fetch after sign-in, cache,
+refresh on start); (b) the build setting `LICENSED_MODULES` (comma-separated keys, in every `env/*.json`);
+(c) the default `dashboard,assets,scan,movement,tracking,account`.
+
+Keys: dashboard, assets, scan, movement, tracking, account, maintenance, inspection, issues, wip, audit,
+inventory, documents, alerts, contracts, financial, reports, administration. Example:
+
+```bash
+flutter run --dart-define-from-file=env/api_dev.json --dart-define=LICENSED_MODULES=dashboard,assets,scan,maintenance
+```
+
+Always open: sign-in screens, Home, Work hub, All Modules, Settings, Profile, Help, Logout, Notifications,
+diagnostics, Backend API (Settings → Developer), the server switcher and API samples.
+A locked module's route still opens, blurred under an "Activate licence" card with one "Back to Dashboard"
+button (Android back does the same); its screen is never built, so none of its APIs are called. Cross-links
+from licensed screens show a small "Activate licence to get access" sheet instead. The client demo
+allow-list below is separate and still applies first.
 
 ## Client demo
 

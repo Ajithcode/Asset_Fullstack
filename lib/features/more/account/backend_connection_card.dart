@@ -9,7 +9,8 @@ import 'package:asset360_mobile/data/repositories/auth_repository.dart';
 import 'package:asset360_mobile/data/repositories/connection_repository.dart';
 
 /// Administration → Backend API: the run-time settings (USE_API, AUTH / API / MEDIA base URLs),
-/// which token the Asset and Media services get, and Test connection (GET /health on all four).
+/// which token the Asset and Media services get, and Test connection (see [ConnectionTestNotifier]: /health per
+/// service, or through the cloud gateway its own health path, else "via gateway" with a cheap GET).
 class BackendConnectionCard extends ConsumerWidget {
   const BackendConnectionCard({super.key});
 
@@ -50,10 +51,24 @@ class BackendConnectionCard extends ConsumerWidget {
             AsyncData(value: final results?) => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (ref.read(connectionTestProvider.notifier).gateway case final g?) ...[
+                  _Result(
+                    ok: g.ok,
+                    title: 'GATEWAY – ${g.ok ? 'Reachable' : 'Failed'}',
+                    message:
+                        'GET ${g.url}${g.detail.isEmpty
+                            ? ''
+                            : g.ok
+                            ? ' → ${g.detail}'
+                            : '\n${g.detail}'}',
+                  ),
+                  const SizedBox(height: 6),
+                ],
                 for (final r in results) ...[
                   _Result(
                     ok: r.ok,
-                    title: '${r.service.code} – ${r.ok ? 'Connected' : 'Failed'}',
+                    title:
+                        '${r.service.code} – ${r.ok ? 'Connected' : 'Failed'}${r.viaGateway ? ' (via gateway)' : ''}',
                     message: r.ok
                         ? 'GET ${r.url} → ${r.statusCode} in ${r.elapsed!.inMilliseconds} ms'
                               '${r.status == null ? '' : ' · ${r.status}'}'
@@ -63,12 +78,11 @@ class BackendConnectionCard extends ConsumerWidget {
                 ],
               ],
             ),
-            AsyncLoading() => Text(
-              'Calling ${ConnectionTestNotifier.healthPath} on AUTH, ASSET, MEDIA, MASTER DATA, DASHBOARD and ADMIN …',
-              style: AppText.caption,
-            ),
+            AsyncLoading() => Text('Checking every service …', style: AppText.caption),
             _ => Text(
-              'Calls GET ${ConnectionTestNotifier.healthPath} on the login, Asset, Media and Master Data services.',
+              usesSingleGateway
+                  ? 'Checks the gateway (/health, /gateway/health), then each service through it.'
+                  : 'Calls GET ${ConnectionTestNotifier.healthPath} on every service.',
               style: AppText.caption,
             ),
           },

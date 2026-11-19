@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show WebSocketException;
 
 import 'package:asset360_mobile/app/app.dart';
 import 'package:asset360_mobile/app/router/app_router.dart';
@@ -25,6 +26,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:web_socket_channel/web_socket_channel.dart' show WebSocketChannelException;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -46,14 +48,15 @@ class _SignedIn extends SessionNotifier {
 // ------------------------------------------------------------------ fake WebSocket
 
 class _FakeSocket implements LiveSocket {
-  _FakeSocket({this.fail = false});
+  _FakeSocket({this.fail = false, this.error});
 
   final bool fail;
+  final Object? error;
   final controller = StreamController<Object?>();
   bool closed = false;
 
   @override
-  Future<void> get ready => fail ? Future.error(const SocketExceptionLike()) : Future.value();
+  Future<void> get ready => fail ? Future.error(error ?? const SocketExceptionLike()) : Future.value();
 
   @override
   Stream<Object?> get messages => controller.stream;
@@ -370,15 +373,29 @@ void main() {
       expect(dashStatusColor('out-of-service'), ChipTone.red.foreground);
     });
 
-    test('live URL: ws:// for http, wss:// for https, path kept', () {
+    test('live URL: ws:// for http, wss:// for https, path kept; gateways/live first, /live fallback', () {
       expect(
         DashboardApi.liveUri('http://172.16.100.26:5470').toString(),
-        'ws://172.16.100.26:5470/api/dashboards/network-status/live',
+        'ws://172.16.100.26:5470/api/dashboards/network-status/gateways/live',
       );
       expect(
         DashboardApi.liveUri('https://dash.example.com/gw/').toString(),
-        'wss://dash.example.com/gw/api/dashboards/network-status/live',
+        'wss://dash.example.com/gw/api/dashboards/network-status/gateways/live',
       );
+      expect(
+        DashboardApi.liveUri('https://a360demo.purpleiq.ai').toString(),
+        'wss://a360demo.purpleiq.ai/api/dashboards/network-status/gateways/live',
+      );
+      expect(
+        DashboardApi.liveUriLegacy('https://a360demo.purpleiq.ai').toString(),
+        'wss://a360demo.purpleiq.ai/api/dashboards/network-status/live',
+      );
+      expect(withAccessToken(Uri.parse('wss://h/api/x'), 'abc.def').toString(), 'wss://h/api/x?access_token=abc.def');
+      expect(withAccessToken(Uri.parse('wss://h/api/x'), null).toString(), 'wss://h/api/x');
+      expect(isNotFoundUpgrade(const WebSocketException('not upgraded', 404)), isTrue);
+      expect(isNotFoundUpgrade(WebSocketChannelException.from(const WebSocketException('x', 404))), isTrue);
+      expect(isNotFoundUpgrade(const WebSocketException('not upgraded', 401)), isFalse);
+      expect(isNotFoundUpgrade(const SocketExceptionLike()), isFalse);
     });
   });
 
@@ -391,13 +408,17 @@ void main() {
     late List<LiveConnection> states;
     late List<bool> failNext;
     late List<String?> tokens;
+    late List<Uri> uris;
+    Object? failWith;
 
     NetworkStatusSocket create() => NetworkStatusSocket(
-      uri: Uri.parse('ws://dash.test:5470/api/dashboards/network-status/live'),
+      uri: Uri.parse('ws://dash.test:5470/api/dashboards/network-status/gateways/live'),
+      fallbackUri: Uri.parse('ws://dash.test:5470/api/dashboards/network-status/live'),
       token: () async => 'access-1',
       connect: (uri, token) {
         tokens.add(token);
-        final s = _FakeSocket(fail: failNext.isNotEmpty && failNext.removeAt(0));
+        uris.add(uri);
+        final s = _FakeSocket(fail: failNext.isNotEmpty && failNext.removeAt(0), error: failWith);
         sockets.add(s);
         return s;
       },
@@ -417,14 +438,39 @@ void main() {
       states = [];
       failNext = [];
       tokens = [];
+      uris = [];
+      failWith = null;
     });
 
     Future<void> settle() => Future<void>.delayed(Duration.zero);
 
-    test('connects with the Bearer token, pushes counts, ignores non-JSON', () async {
+    test('a 404 on gateways/live switches to /network-status/live; other errors keep the new path', () async {
+      failWith = const WebSocketException('not upgraded', 401);
+      failNext = [true];
+      final ws = create()..start();
+      await settle();
+      expect(ws.currentUri.path, endsWith('/gateways/live'), reason: '401 is not a missing path');
+      failWith = WebSocketChannelException.from(const WebSocketException('not upgraded', 404));
+      failNext = [true];
+      timers.last.fire();
+      await settle();
+      expect(ws.currentUri.path, '/api/dashboards/network-status/live');
+      timers.last.fire();
+      await settle();
+      expect(uris.map((u) => u.path), [
+        '/api/dashboards/network-status/gateways/live',
+        '/api/dashboards/network-status/gateways/live',
+        '/api/dashboards/network-status/live',
+      ]);
+      expect(ws.state, LiveConnection.connected);
+      await ws.stop();
+    });
+
+    test('connects with the token as Bearer header AND ?access_token=, pushes counts, ignores non-JSON', () async {
       final ws = create()..start();
       await settle();
       expect(tokens, ['access-1']);
+      expect(uris.single.queryParameters['access_token'], 'access-1');
       expect(ws.state, LiveConnection.connected);
       sockets.single.send({'totalOnline': 12, 'totalOffline': 3});
       sockets.single.controller.add('not json');
@@ -505,7 +551,7 @@ void main() {
       final previous = LiveDevicesNotifier.debugConnector;
       addTearDown(() => LiveDevicesNotifier.debugConnector = previous);
       LiveDevicesNotifier.debugConnector = (uri, token) {
-        expect(uri.toString(), endsWith('/api/dashboards/network-status/live'));
+        expect(uri.path, endsWith('/api/dashboards/network-status/gateways/live'));
         final s = _FakeSocket();
         sockets.add(s);
         return s;

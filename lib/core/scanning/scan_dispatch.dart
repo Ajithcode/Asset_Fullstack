@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:asset360_mobile/app/licence/licence_lock.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
@@ -74,7 +75,9 @@ Future<void> openScanResult(BuildContext context, ScanResult r) async {
       if (demoCanOpen(route)) await context.push(route);
     case MatchType.part:
       final route = Routes.partDetail(r.matchId!);
-      if (demoCanOpen(route)) await context.push(route);
+      if (!demoCanOpen(route)) return;
+      final locked = licenceOf(context).lockedModuleOf(route);
+      locked == null ? await context.push(route) : await showLicenceSheet(context, locked);
     case MatchType.location:
       if (r.location case final loc?) {
         await showLocationSheet(context, loc);

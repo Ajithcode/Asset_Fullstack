@@ -28,7 +28,7 @@ class RecentAlertsCard extends ConsumerWidget {
     return SectionCard(
       title: 'Recent Alerts',
       actionLabel: 'View All',
-      onAction: DemoGuard.push(context, Routes.recentAlerts),
+      onAction: LicenceGuard.push(context, Routes.recentAlerts),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
       child: Column(
         children: [
@@ -55,7 +55,7 @@ class _AlertRow extends ConsumerWidget {
     final asset = ref.watch(assetByIdProvider(alert.assetId));
     final (icon, tone) = severityIcon(alert.severity);
     return InkWell(
-      onTap: DemoGuard.go(context, Routes.alertDetail(alert.id)),
+      onTap: LicenceGuard.go(context, Routes.alertDetail(alert.id)),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
         child: Row(

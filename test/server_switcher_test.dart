@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:asset360_mobile/app/app.dart';
@@ -84,6 +85,48 @@ void main() {
     expect(masterDataBaseUrl, kMasterDataBaseUrl);
   });
 
+  test('Demo cloud preset / a custom https URL: one gateway used as-is for all 7 services, no ports', () {
+    expect(serverPresets.first.label, 'Demo cloud (a360demo.purpleiq.ai)');
+    expect(serverPresets.map((p) => p.origin), contains('http://172.16.100.29'));
+    applyServerOverride(serverPresets.first.origin);
+    for (final s in BackendService.values) {
+      expect(s.baseUrl, 'https://a360demo.purpleiq.ai', reason: s.define);
+      expect(s.configProblem, isNull, reason: s.define);
+    }
+    expect(usesSingleGateway, isTrue);
+    expect(serverDisplayOf(currentServerOrigin), 'Demo cloud (a360demo.purpleiq.ai)');
+
+    // Custom: a full https URL is used as-is; an IP / host gets each service's port.
+    applyServerOverride('https://a360.purpleiq.ai/');
+    expect(apiBaseUrl, 'https://a360.purpleiq.ai');
+    expect(trackingBaseUrl, 'https://a360.purpleiq.ai');
+    expect(serverDisplayOf(currentServerOrigin), 'https://a360.purpleiq.ai');
+    applyServerOverride('172.16.100.40');
+    expect(apiBaseUrl, 'http://172.16.100.40:5401');
+    expect(authBaseUrl, 'http://172.16.100.40:5018');
+    expect(usesSingleGateway, isFalse);
+    expect(isGatewayOrigin('https://a360demo.purpleiq.ai'), isTrue);
+    expect(isGatewayOrigin('http://172.16.100.29'), isFalse);
+
+    // Tests are not an https-only build: plain http stays allowed.
+    expect(httpsOnlyBuild, isFalse);
+    expect(transportAllowed(Uri.parse('http://172.16.100.29:5401/api/x')), isTrue);
+  });
+
+  test('env files: demo + live = one https base for every service; switcher only in demo', () {
+    for (final (file, host, switcher) in [
+      ('env/api_demo.json', 'https://a360demo.purpleiq.ai', 'true'),
+      ('env/api_live.json', 'https://a360.purpleiq.ai', 'false'),
+    ]) {
+      final env = jsonDecode(File(file).readAsStringSync()) as Map<String, dynamic>;
+      expect(env['USE_API'], 'true', reason: file);
+      expect(env['SHOW_SERVER_SWITCHER'], switcher, reason: file);
+      for (final s in BackendService.values) {
+        expect(env[s.define], host, reason: '$file ${s.define}');
+      }
+    }
+  });
+
   test('the choice is saved on the device; the build server or a client build means no override', () async {
     final c = ProviderContainer();
     addTearDown(c.dispose);
@@ -165,6 +208,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Backend server'), findsOneWidget);
     expect(find.text('http://172.16.100.29 · build default'), findsOneWidget);
+    expect(find.text('Demo cloud (a360demo.purpleiq.ai)'), findsOneWidget);
+    expect(find.text('https://a360demo.purpleiq.ai'), findsOneWidget);
 
     // Custom: a bad host is refused.
     await tester.tap(find.text('Custom'));
@@ -172,7 +217,7 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'bad host!');
     await tester.tap(find.text('Use this server'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Enter an IP address or host name'), findsOneWidget);
+    expect(find.textContaining('Enter an IP address, a host name or an https URL'), findsOneWidget);
 
     await tester.tap(find.text('Server .26'));
     await tester.pumpAndSettle();

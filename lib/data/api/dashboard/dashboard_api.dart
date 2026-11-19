@@ -33,7 +33,10 @@ class DashboardApi {
   static const networkStatusTags = '$networkStatus/tags';
 
   /// WebSocket path: the counts on connect, then again whenever they change.
-  static const networkStatusLive = '$networkStatus/live';
+  static const networkStatusLive = '$networkStatus/gateways/live';
+
+  /// The older WebSocket path, used when [networkStatusLive] answers 404.
+  static const networkStatusLiveLegacy = '$networkStatus/live';
 
   /// Server limits (validation in the endpoints).
   static const maxPageSize = 100;
@@ -132,10 +135,13 @@ class DashboardApi {
 
   Future<List<TagRecordCount>> getNetworkStatusTags() async => TagRecordCount.list(await _get(networkStatusTags));
 
-  /// ws:// (or wss:// for an https base) URL of [networkStatusLive] on [baseUrl].
-  static Uri liveUri(String baseUrl) {
+  /// ws:// (or wss:// for an https base) URL of [networkStatusLive] (or [path]) on [baseUrl].
+  static Uri liveUri(String baseUrl, {String path = networkStatusLive}) {
     final base = Uri.parse(baseUrl);
-    final path = base.path.endsWith('/') ? base.path.substring(0, base.path.length - 1) : base.path;
-    return base.replace(scheme: base.scheme == 'https' ? 'wss' : 'ws', path: '$path$networkStatusLive');
+    final root = base.path.endsWith('/') ? base.path.substring(0, base.path.length - 1) : base.path;
+    return base.replace(scheme: base.scheme == 'https' ? 'wss' : 'ws', path: '$root$path');
   }
+
+  /// [liveUri] of the older path ([networkStatusLiveLegacy]): the fallback after a 404.
+  static Uri liveUriLegacy(String baseUrl) => liveUri(baseUrl, path: networkStatusLiveLegacy);
 }

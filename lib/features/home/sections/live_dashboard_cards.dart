@@ -31,7 +31,7 @@ class LiveAssetOverviewCard extends ConsumerWidget {
     return SectionCard(
       title: 'Asset Overview',
       actionLabel: 'View All',
-      onAction: DemoGuard.push(context, Routes.assetOverview),
+      onAction: LicenceGuard.push(context, Routes.assetOverview),
       child: DashSection<DashAssetOverview>(
         provider: dashAssetOverviewProvider(q),
         onRetry: (ref) => ref.invalidate(dashAssetOverviewProvider(q)),
@@ -58,7 +58,7 @@ class LiveAssetOverviewCard extends ConsumerWidget {
                       pct: '(${dashPct(s.percent)})',
                       onTap: DemoGuard.tap(
                         DemoAction.homeLegendFilters,
-                        DemoGuard.push(context, Routes.recentAssetsFiltered(status: s.key)),
+                        LicenceGuard.push(context, Routes.recentAssetsFiltered(status: s.key)),
                       ),
                     ),
                 ],
@@ -83,7 +83,7 @@ class LiveMaintenanceCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final site = ref.watch(dashSiteProvider);
     final q = (months: months, assetType: null, site: site);
-    final open = DemoGuard.push(context, Routes.maintenancePerformance);
+    final open = LicenceGuard.push(context, Routes.maintenancePerformance);
     return SectionCard(
       title: 'Maintenance Performance',
       actionLabel: 'View All',
@@ -139,7 +139,7 @@ class LiveUpcomingActivitiesCard extends ConsumerWidget {
     return SectionCard(
       title: 'Upcoming Activities',
       actionLabel: 'View Calendar',
-      onAction: DemoGuard.push(context, Routes.activitiesView('calendar')),
+      onAction: LicenceGuard.push(context, Routes.activitiesView('calendar')),
       child: DashSection<DashActivities>(
         provider: dashActivitiesProvider(query),
         onRetry: (ref) => ref.invalidate(dashActivitiesProvider(query)),
@@ -180,7 +180,7 @@ class LiveRecentAlertsCard extends ConsumerWidget {
     return SectionCard(
       title: 'Recent Alerts',
       actionLabel: 'View All',
-      onAction: DemoGuard.push(context, Routes.recentAlerts),
+      onAction: LicenceGuard.push(context, Routes.recentAlerts),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
       child: DashSection<DashPage<DashAlertItem, DashAlertCounts>>(
         provider: dashAlertsProvider(query),
@@ -293,7 +293,7 @@ class LiveAssetLocationCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final DashLocationsQuery query = (status: null, search: null, site: ref.watch(dashSiteProvider));
-    final open = DemoGuard.push(context, Routes.assetLocation);
+    final open = LicenceGuard.push(context, Routes.assetLocation);
     return SectionCard(
       title: 'Asset Location (Live)',
       actionLabel: 'View Map',
@@ -392,7 +392,7 @@ class LiveAssetHealthCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final DashHealthQuery q = (top: top, site: ref.watch(dashSiteProvider));
-    final open = DemoGuard.push(context, Routes.assetHealth);
+    final open = LicenceGuard.push(context, Routes.assetHealth);
     return SectionCard(
       title: 'Asset Health',
       actionLabel: 'View Details',
@@ -451,7 +451,7 @@ class LiveCostSummaryCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final DashCostQuery query = (period: DashCostPeriod.ytd, year: null, site: ref.watch(dashSiteProvider));
     final currency = ref.watch(dashCostSummaryProvider(query)).value?.currency ?? 'AED';
-    final open = DemoGuard.push(context, Routes.costSummary);
+    final open = LicenceGuard.push(context, Routes.costSummary);
     return SectionCard(
       title: 'Cost Summary ($currency)',
       actionLabel: 'View Details',
@@ -506,7 +506,7 @@ class LiveRecentAssetsCard extends ConsumerWidget {
     return SectionCard(
       title: 'Recent Assets',
       actionLabel: 'View All',
-      onAction: DemoGuard.push(context, Routes.recentAssetsFiltered(site: site)),
+      onAction: LicenceGuard.push(context, Routes.recentAssetsFiltered(site: site)),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
       child: DashSection<DashPage<DashRecentAsset, List<DashBreakdownItem>>>(
         provider: dashRecentAssetsProvider(q),

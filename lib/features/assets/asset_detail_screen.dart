@@ -127,9 +127,15 @@ class _AssetDetailScreenState extends ConsumerState<AssetDetailScreen> {
             ),
             AssetTab.location => AssetLocationTab(asset: a),
             AssetTab.iot => AssetIotTab(asset: a),
-            AssetTab.maintenance => AssetMaintenanceTab(asset: a),
-            AssetTab.inspection => AssetInspectionTab(asset: a),
-            AssetTab.financial => AssetFinancialTab(asset: a),
+            AssetTab.maintenance => AssetTabLicence(
+              module: AppModule.maintenance,
+              child: AssetMaintenanceTab(asset: a),
+            ),
+            AssetTab.inspection => AssetTabLicence(
+              module: AppModule.inspection,
+              child: AssetInspectionTab(asset: a),
+            ),
+            AssetTab.financial => AssetTabLicence(module: AppModule.financial, child: AssetFinancialTab(asset: a)),
             AssetTab.documents => AssetDocumentsTab(asset: a),
             AssetTab.history => AssetHistoryTab(asset: a),
           },

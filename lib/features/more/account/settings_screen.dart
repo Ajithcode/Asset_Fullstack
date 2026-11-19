@@ -241,8 +241,8 @@ class SettingsScreen extends ConsumerWidget {
                       Icons.wifi_tethering_rounded,
                       TileTone.sky,
                       'Backend API',
-                      'Base URL, dev token and Test connection (Administration)',
-                      () => context.push(Routes.admin),
+                      'Base URL, dev token and Test connection',
+                      () => context.push(Routes.backendApi),
                     ),
                     nav(
                       Icons.qr_code_2_rounded,

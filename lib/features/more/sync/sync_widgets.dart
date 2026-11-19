@@ -49,7 +49,7 @@ void openSyncItem(BuildContext context, WidgetRef ref, SyncItem item) {
     context.showSnack('${item.title} is no longer on this device');
     return;
   }
-  context.push(route);
+  LicenceGuard.open(context, route);
 }
 
 /// Sync Now / Sync All / Sync This Item. Offline → "No internet connection" with "Try anyway (demo)".

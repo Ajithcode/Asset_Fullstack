@@ -91,6 +91,8 @@ import 'package:asset360_mobile/features/work/wip/wip_hub_screen.dart';
 import 'package:asset360_mobile/features/work/wip/wip_unit_screen.dart';
 import 'package:asset360_mobile/features/work/work_hub_screen.dart';
 import 'package:asset360_mobile/app/client_demo.dart';
+import 'package:asset360_mobile/app/licence/licence.dart';
+import 'package:asset360_mobile/features/more/account/backend_api_screen.dart';
 import 'package:asset360_mobile/app/router/main_shell.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 
@@ -151,7 +153,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         branches: [
           // Client demo: only the allowed screens are registered (demoRoutes).
           for (final (i, root) in [_homeRoute(), _assetsRoute(), _workRoute(), _moreRoute()].indexed)
-            StatefulShellBranch(navigatorKey: branchKeys[i], routes: demoRoutes([root])),
+            StatefulShellBranch(navigatorKey: branchKeys[i], routes: licenceRoutes(demoRoutes([root]))),
         ],
       ),
     ],
@@ -180,6 +182,31 @@ List<RouteBase> demoRoutes(List<RouteBase> routes, [String parent = '']) {
             ),
   ];
 }
+
+/// [routes] with every screen of a licensable module wrapped in [LicenceGate]
+/// (lib/app/licence/): a locked module's route still opens, but shows the blurred
+/// "Activate licence" overlay and never builds the real screen. Always-open screens
+/// (Home, Work hub, Settings, Profile, Help, Notifications …) are left as they are.
+@visibleForTesting
+List<RouteBase> licenceRoutes(List<RouteBase> routes, [String parent = '']) => [
+  for (final r in routes)
+    if (r is GoRoute)
+      for (final full in [r.path.startsWith('/') ? r.path : '${parent == '/' ? '' : parent}/${r.path}'])
+        for (final module in [moduleForLocation(full)])
+          GoRoute(
+            path: r.path,
+            name: r.name,
+            builder: module == null || r.builder == null
+                ? r.builder
+                : (context, state) => LicenceGate(module: module, builder: (context) => r.builder!(context, state)),
+            pageBuilder: r.pageBuilder,
+            redirect: r.redirect,
+            parentNavigatorKey: r.parentNavigatorKey,
+            routes: licenceRoutes(r.routes, full),
+          )
+    else
+      r,
+];
 
 /// Smooth cross-fade (splash → login, authenticator → home).
 CustomTransitionPage<void> _fade(GoRouterState state, Widget child) => CustomTransitionPage<void>(
@@ -617,6 +644,7 @@ GoRoute _moreRoute() => GoRoute(
         GoRoute(path: 'data-check', builder: (_, _) => const DataCheckScreen()),
         GoRoute(path: 'demo-tags', builder: (_, _) => const DemoTagsScreen()),
         GoRoute(path: 'api-samples', builder: (_, _) => const ApiSamplesScreen()),
+        GoRoute(path: 'backend-api', builder: (_, _) => const BackendApiScreen()),
         GoRoute(path: 'auth-diagnostics', builder: (_, _) => const AuthDiagnosticsScreen(inShell: true)),
       ],
     ),

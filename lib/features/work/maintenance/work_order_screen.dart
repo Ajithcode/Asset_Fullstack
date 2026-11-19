@@ -424,7 +424,7 @@ class _AssetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final a = asset;
     return AppCard(
-      onTap: DemoGuard.push(context, Routes.assetDetail(a.id)),
+      onTap: LicenceGuard.push(context, Routes.assetDetail(a.id)),
       child: Row(
         children: [
           AssetThumb(imagePath: a.imagePath, fallbackIcon: assetIcon(a), size: 92),
@@ -557,7 +557,7 @@ class _PartsTab extends ConsumerWidget {
                                 context.showSnack('${part.id} reservation released');
                               }
                             }
-                          : DemoGuard.push(context, Routes.partDetail(part.id)),
+                          : LicenceGuard.push(context, Routes.partDetail(part.id)),
                     ),
                 ],
               ],
@@ -667,7 +667,7 @@ class _DocumentsTab extends ConsumerWidget {
         style: AppText.caption,
       ),
       trailing: const Icon(Icons.chevron_right_rounded),
-      onTap: DemoGuard.push(context, Routes.documentDetail(d.id)),
+      onTap: LicenceGuard.push(context, Routes.documentDetail(d.id)),
     );
     if (linked.isEmpty && assetDocs.isEmpty) {
       return AppCard(

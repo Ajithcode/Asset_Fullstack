@@ -8,7 +8,7 @@ import 'package:asset360_mobile/data/repositories/home_repository.dart';
 import 'package:asset360_mobile/features/home/task_row.dart';
 
 /// Work tab root. Not in the designs; built in the style of the module hubs.
-class WorkHubScreen extends StatelessWidget {
+class WorkHubScreen extends ConsumerWidget {
   const WorkHubScreen({super.key});
 
   static List<(IconData, String, TileTone, String)> get _modules => [
@@ -21,7 +21,8 @@ class WorkHubScreen extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final licence = ref.watch(licenceProvider);
     return AppScaffold(
       body: ListView(
         padding: context.pagePadding,
@@ -49,7 +50,11 @@ class WorkHubScreen extends StatelessWidget {
             childAspectRatio: 1.6,
             children: [
               for (final (icon, label, tone, route) in _modules)
-                ActionTile(icon: icon, label: label, tone: tone, onTap: DemoGuard.go(context, route)),
+                // A locked module still opens (blurred "Activate licence" screen); faded + lock badge.
+                LicenceTileLook(
+                  locked: !licence.allowsLocation(route),
+                  child: ActionTile(icon: icon, label: label, tone: tone, onTap: DemoGuard.go(context, route)),
+                ),
             ],
           ),
           const SizedBox(height: 20),
@@ -125,7 +130,7 @@ class _WorkTasksCardState extends ConsumerState<_WorkTasksCard> {
                     title: 'Nothing here',
                     message: 'You are all caught up.',
                     actionLabel: 'Open Maintenance',
-                    onAction: DemoGuard.go(context, Routes.maintenance),
+                    onAction: LicenceGuard.go(context, Routes.maintenance),
                   )
                 : Column(
                     children: [

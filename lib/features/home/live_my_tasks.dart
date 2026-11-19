@@ -51,7 +51,7 @@ class _LiveMyTasksCardState extends ConsumerState<LiveMyTasksCard> {
   Widget build(BuildContext context) {
     final site = ref.watch(dashSiteProvider);
     final provider = dashMyTasksProvider(site);
-    final viewAll = DemoGuard.push(context, '${Routes.myTasks}?tab=$_tab');
+    final viewAll = LicenceGuard.push(context, '${Routes.myTasks}?tab=$_tab');
     return SectionCard(
       title: 'My Tasks',
       actionLabel: 'View All',
@@ -207,7 +207,10 @@ class DashTaskRow extends StatelessWidget {
     final (icon, tone, _) = dashActivityLook(task.type);
     final tag = task.assetId;
     return InkWell(
-      onTap: () => showNotAvailableYet(context, dashModuleOf(task.type)),
+      onTap: () => switch (dashLicenceModuleOf(task.type)) {
+        final m? when !licenceOf(context).isLicensed(m) => showLicenceSheet(context, m),
+        _ => showNotAvailableYet(context, dashModuleOf(task.type)),
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
         child: Row(

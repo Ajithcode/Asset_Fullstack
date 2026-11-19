@@ -89,23 +89,23 @@ class _MaintenanceHubScreenState extends ConsumerState<MaintenanceHubScreen> {
         'Preventive Maintenance',
         TileTone.sky,
         null,
-        DemoGuard.push(context, Routes.pmSchedules),
+        LicenceGuard.push(context, Routes.pmSchedules),
       ),
-      (Icons.warning_rounded, 'Breakdown Requests', TileTone.pink, null, DemoGuard.push(context, Routes.breakdowns)),
+      (Icons.warning_rounded, 'Breakdown Requests', TileTone.pink, null, LicenceGuard.push(context, Routes.breakdowns)),
       (
         Icons.history_edu_rounded,
         'Service History',
         TileTone.sky,
         null,
-        DemoGuard.push(context, Routes.serviceHistory),
+        LicenceGuard.push(context, Routes.serviceHistory),
       ),
-      (Icons.inventory_2_rounded, 'Spare Parts', TileTone.sky, null, DemoGuard.go(context, Routes.inventory)),
+      (Icons.inventory_2_rounded, 'Spare Parts', TileTone.sky, null, LicenceGuard.go(context, Routes.inventory)),
       (
         Icons.calendar_month_rounded,
         'Maintenance Calendar',
         TileTone.lavender,
         null,
-        DemoGuard.push(context, Routes.maintenanceCalendar),
+        LicenceGuard.push(context, Routes.maintenanceCalendar),
       ),
     ];
     return AppScaffold(

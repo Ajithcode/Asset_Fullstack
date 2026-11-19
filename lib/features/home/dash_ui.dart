@@ -153,6 +153,15 @@ String dashModuleOf(String type) => switch (type) {
   _ => 'Alert details',
 };
 
+/// The licence module a dashboard task / activity [type] belongs to (null = Dashboard itself).
+AppModule? dashLicenceModuleOf(String type) => switch (type) {
+  'WorkOrder' || 'Maintenance' => AppModule.maintenance,
+  'Inspection' => AppModule.inspection,
+  'SparePart' => AppModule.inventory,
+  'Approval' => null,
+  _ => AppModule.alerts,
+};
+
 /// A Recent Assets row as the shared live asset tile's item.
 AssetListItem dashAssetItem(DashRecentAsset a) => AssetListItem(
   id: a.assetRegistrationId,

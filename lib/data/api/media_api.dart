@@ -70,17 +70,19 @@ class MediaUpload {
 
 /// A media URL from the server, made loadable on the phone:
 /// - host localhost / 127.0.0.1 (the server's own view) → MEDIA_BASE_URL + the same path and query;
-/// - an absolute /uploads/... URL on MEDIA_BASE_URL's port (the Media service's configured BaseUrl, which
-///   the phone may reach under another host, e.g. the emulator's 10.0.2.2) → MEDIA_BASE_URL + the same path;
+/// - an OLD plain-http /uploads/... URL — on MEDIA_BASE_URL's port (the Media service's configured BaseUrl, which
+///   the phone may reach under another host, e.g. the emulator's 10.0.2.2) or on an IP address (the office
+///   servers, e.g. http://172.16.100.29:5300) → MEDIA_BASE_URL + the same path;
 /// - a relative path ("/uploads/a.jpg") → MEDIA_BASE_URL + path;
-/// - anything else is returned unchanged.
+/// - anything else, e.g. the cloud gateway's https://a360demo.purpleiq.ai/uploads/..., is kept as returned.
 /// [mediaBase] defaults to [mediaBaseUrl] (tests pass their own).
 String resolveMediaUrl(String url, {String? mediaBase}) {
   final base = Uri.tryParse(mediaBase ?? mediaBaseUrl);
   final u = Uri.tryParse(url.trim());
   if (u == null || base == null || !base.hasScheme) return url;
   final local = u.hasScheme && const {'localhost', '127.0.0.1'}.contains(u.host.toLowerCase());
-  final mediaFile = u.hasScheme && u.path.startsWith('/uploads/') && u.port == base.port;
+  final ipHost = RegExp(r'^\d{1,3}(\.\d{1,3}){3}$').hasMatch(u.host);
+  final mediaFile = u.scheme == 'http' && u.path.startsWith('/uploads/') && (u.port == base.port || ipHost);
   if (u.hasScheme && !local && !mediaFile) return url;
   final path = u.path.startsWith('/') ? u.path : '/${u.path}';
   return base

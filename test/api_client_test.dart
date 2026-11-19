@@ -245,6 +245,26 @@ void main() {
       resolveMediaUrl('http://other.host:8080/uploads/h.jpg', mediaBase: media),
       'http://other.host:8080/uploads/h.jpg',
     );
+    // Cloud gateway: https media URLs are kept as returned; old office-IP / localhost ones move to the gateway.
+    const cloud = 'https://a360demo.purpleiq.ai';
+    expect(
+      resolveMediaUrl('https://a360demo.purpleiq.ai/uploads/asset-images/k.jpg', mediaBase: cloud),
+      'https://a360demo.purpleiq.ai/uploads/asset-images/k.jpg',
+    );
+    expect(
+      resolveMediaUrl('https://a360demo.purpleiq.ai/uploads/k.jpg', mediaBase: media),
+      'https://a360demo.purpleiq.ai/uploads/k.jpg',
+      reason: 'an https URL is never rewritten',
+    );
+    expect(
+      resolveMediaUrl('http://172.16.100.29:5300/uploads/old.jpg', mediaBase: cloud),
+      'https://a360demo.purpleiq.ai/uploads/old.jpg',
+    );
+    expect(
+      resolveMediaUrl('http://localhost:5300/uploads/l.jpg', mediaBase: cloud),
+      'https://a360demo.purpleiq.ai/uploads/l.jpg',
+    );
+    expect(resolveMediaUrl('/uploads/r.jpg', mediaBase: cloud), 'https://a360demo.purpleiq.ai/uploads/r.jpg');
     expect(
       MediaUpload.fromJson({
         'data': {'filePath': '/uploads/f.jpg'},
@@ -301,6 +321,73 @@ void main() {
       'http://h.test:5490/health',
     ]);
   });
+
+  test('Test connection through the cloud gateway: own health path, else "via gateway" + a cheap GET', () async {
+    final adapter = _GatewayAdapter();
+    final dio = Dio()..httpClientAdapter = adapter;
+    const base = 'https://a360demo.purpleiq.ai';
+    final c = ProviderContainer(
+      overrides: [
+        healthDioProvider.overrideWithValue(dio),
+        serviceDioProvider.overrideWith((ref, s) => dio),
+        serviceTargetsProvider.overrideWithValue({
+          for (final s in BackendService.values) s: (baseUrl: base, problem: null),
+        }),
+      ],
+    );
+    addTearDown(c.dispose);
+    await c.read(connectionTestProvider.notifier).run();
+    final gw = c.read(connectionTestProvider.notifier).gateway!;
+    expect(gw.ok, isTrue, reason: 'the host answered, only with the web app');
+    expect(gw.detail, contains('not exposed'));
+    expect(adapter.calls.take(2), ['/health', '/gateway/health']);
+    final r = {for (final h in c.read(connectionTestProvider).value!) h.service: h};
+    expect(r[BackendService.dashboard]!.ok, isTrue);
+    expect(r[BackendService.dashboard]!.viaGateway, isFalse);
+    expect(r[BackendService.dashboard]!.url, '$base/dashboard/health');
+    expect(r[BackendService.asset]!.viaGateway, isTrue);
+    expect(r[BackendService.asset]!.ok, isTrue);
+    expect(r[BackendService.asset]!.url, '$base/api/asset-registrations?pageSize=1');
+    expect(r[BackendService.auth]!.url, '$base/api/auth/roles');
+    expect(r[BackendService.media]!.ok, isTrue, reason: '405 on the POST-only route = Media answered');
+    expect(r[BackendService.media]!.status, 'Reachable');
+    expect(r[BackendService.tracking]!.ok, isFalse);
+    expect(r[BackendService.tracking]!.viaGateway, isTrue);
+    expect(r[BackendService.tracking]!.error, contains('502'));
+    expect(adapter.calls, contains('/tracking/health'));
+  });
+}
+
+/// The cloud gateway as seen on a360demo: every */health path answers the web app's HTML (200); the API routes
+/// answer JSON; Media's upload route answers 405 to a GET; Tracking is down (502).
+class _GatewayAdapter implements HttpClientAdapter {
+  final calls = <String>[];
+
+  @override
+  Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
+    calls.add(o.uri.path);
+    final (int code, String body, String type) = switch (o.uri.path) {
+      final p when p.endsWith('/health') && p.startsWith('/dashboard') => (
+        200,
+        '{"status":"Healthy"}',
+        'application/json',
+      ),
+      final p when p.endsWith('/health') => (200, '<!doctype html><html></html>', 'text/html'),
+      '/api/media/upload' => (405, '', 'text/plain'),
+      final p when p.startsWith('/api/iot-devices') => (502, '', 'text/plain'),
+      _ => (200, '{"items":[]}', 'application/json'),
+    };
+    return ResponseBody.fromString(
+      body,
+      code,
+      headers: {
+        Headers.contentTypeHeader: [type],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
 
 /// /health on port 5018 → Healthy; anything else → 503.
@@ -310,7 +397,8 @@ class _HealthAdapter implements HttpClientAdapter {
   @override
   Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
     calls.add(o.uri.toString());
-    final ok = o.uri.port == 5018 || o.uri.port == 5500 || o.uri.port == 5470 || o.uri.port == 5460 || o.uri.port == 5490;
+    final ok =
+        o.uri.port == 5018 || o.uri.port == 5500 || o.uri.port == 5470 || o.uri.port == 5460 || o.uri.port == 5490;
     return ResponseBody.fromString(
       ok ? jsonEncode({'status': 'Healthy', 'service': 'UserAccount'}) : '',
       ok ? 200 : 503,

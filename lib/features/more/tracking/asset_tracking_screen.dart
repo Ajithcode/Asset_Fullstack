@@ -261,7 +261,7 @@ class _AssetTrackingScreenState extends ConsumerState<AssetTrackingScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton.icon(
-                onPressed: () => context.push(Routes.createWorkOrder(assetId: asset.id)),
+                onPressed: () => LicenceGuard.open(context, Routes.createWorkOrder(assetId: asset.id)),
                 icon: const Icon(Icons.description_outlined),
                 label: const Text('Create Work Order'),
               ),

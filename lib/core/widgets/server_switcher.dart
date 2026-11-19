@@ -15,8 +15,9 @@ import 'package:asset360_mobile/data/repositories/server_repository.dart';
 import 'package:asset360_mobile/data/repositories/session_repository.dart';
 import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart';
 
-/// Developer "Backend server" switcher (only when [showServerSwitcher]): presets .29 / .26, the
-/// build's own server when it is neither, or Custom (IP / host). Ports never change.
+/// Developer "Backend server" switcher (only when [showServerSwitcher]): presets Demo cloud / .29 / .26, the
+/// build's own server when it is none of them, or Custom (IP / host → each service's port; https URL → used
+/// as-is for every service).
 Future<void> showServerSwitcherSheet(BuildContext context, WidgetRef ref) async {
   final picked = await showModalBottomSheet<String>(
     context: context,
@@ -30,8 +31,8 @@ Future<void> showServerSwitcherSheet(BuildContext context, WidgetRef ref) async 
     context,
     title: 'Switch to ${serverLabelOf(picked)}?',
     message:
-        'All services will use ${Uri.parse(picked).host} (same ports). You will be signed out and cached '
-        'server data is cleared.',
+        '${isGatewayOrigin(picked) ? 'All services will use $picked (one gateway, no ports).' : 'All services will use ${Uri.parse(picked).host} (same ports).'} '
+        'You will be signed out and cached server data is cleared.',
     confirmLabel: 'Switch',
   );
   if (!ok || !context.mounted) return;
@@ -80,7 +81,9 @@ class _ServerSheetState extends State<_ServerSheet> {
     super.initState();
     final known = _options.any((o) => o.$2 == _current);
     _choice = known || _current == null ? (_current ?? _options.first.$2) : _custom;
-    _host = TextEditingController(text: known || _current == null ? '' : Uri.parse(_current).host);
+    _host = TextEditingController(
+      text: known || _current == null ? '' : (isGatewayOrigin(_current) ? _current : Uri.parse(_current).host),
+    );
   }
 
   @override
@@ -92,7 +95,9 @@ class _ServerSheetState extends State<_ServerSheet> {
   void _submit() {
     if (_choice != _custom) return Navigator.pop(context, _choice);
     final o = normalizeServerOrigin(_host.text);
-    if (o == null) return setState(() => _error = 'Enter an IP address or host name, e.g. 172.16.100.40');
+    if (o == null) {
+      return setState(() => _error = 'Enter an IP address, a host name or an https URL, e.g. 172.16.100.40');
+    }
     Navigator.pop(context, o);
   }
 
@@ -121,7 +126,7 @@ class _ServerSheetState extends State<_ServerSheet> {
             value: _custom,
             contentPadding: EdgeInsets.zero,
             title: Text('Custom', style: AppText.bodyStrong),
-            subtitle: Text('Enter an IP address or host', style: AppText.caption),
+            subtitle: Text('An IP address / host, or a full https URL', style: AppText.caption),
           ),
         ],
       ),
@@ -134,11 +139,12 @@ class _ServerSheetState extends State<_ServerSheet> {
         textInputAction: TextInputAction.done,
         onChanged: (_) => setState(() => _error = null),
         onSubmitted: (_) => _submit(),
-        decoration: InputDecoration(hintText: 'e.g. 172.16.100.40', errorText: _error),
+        decoration: InputDecoration(hintText: 'e.g. 172.16.100.40 or https://a360demo.purpleiq.ai', errorText: _error),
       ),
     const SizedBox(height: 8),
     Text(
-      'Ports stay the same: 5018, 5401, 5300, 5500, 5460, 5470, 5490.',
+      "An IP or host keeps each service's port (5018, 5401, 5300, 5500, 5460, 5470, 5490). "
+      'An https URL is one gateway, used as-is for every service.',
       style: AppText.caption.copyWith(color: AppColors.textSecondary),
     ),
     const SizedBox(height: 12),

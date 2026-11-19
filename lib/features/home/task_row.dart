@@ -21,7 +21,7 @@ class TaskRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: DemoGuard.push(context, taskRoute(task)),
+      onTap: LicenceGuard.push(context, taskRoute(task)),
       borderRadius: BorderRadius.circular(12),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),

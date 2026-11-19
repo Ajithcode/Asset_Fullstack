@@ -256,11 +256,16 @@ Future<bool> showMultiScanSummary(BuildContext context, WidgetRef ref, List<Stri
     case 'notAvailable':
       showNotAvailableYet(context, 'Bulk Move / Audit');
       return false;
-    case 'move':
+    case 'move' || 'audit':
+      // Cross-link into a module the licence may not include: lock sheet, nothing recorded.
+      final module = action == 'move' ? AppModule.movement : AppModule.audit;
+      if (!licenceOf(context).isLicensed(module)) {
+        await showLicenceSheet(context, module);
+        return false;
+      }
+      if (action == 'audit') return _bulkAudit(context, ref, assetIds);
       context.push(Routes.withAssets(Routes.transferAsset, assetIds));
       return true;
-    case 'audit':
-      return _bulkAudit(context, ref, assetIds);
   }
   return false;
 }

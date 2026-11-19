@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Development builds (env/api_dev.json, env/api_old_26.json, or the server switcher on): HTTPS everywhere,
+     plain http ONLY to the office backend IPs. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">172.16.100.26</domain>
+        <domain includeSubdomains="false">172.16.100.29</domain>
+    </domain-config>
+</network-security-config>

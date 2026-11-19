@@ -19,7 +19,7 @@ class MaintenancePerformanceCard extends ConsumerWidget {
     return SectionCard(
       title: 'Maintenance Performance',
       actionLabel: 'View All',
-      onAction: DemoGuard.push(context, Routes.maintenancePerformance),
+      onAction: LicenceGuard.push(context, Routes.maintenancePerformance),
       child: Row(
         children: [
           for (var i = 0; i < kpis.length; i++) ...[
@@ -29,7 +29,7 @@ class MaintenancePerformanceCard extends ConsumerWidget {
                 value: kpis[i].valueText,
                 unit: kpis[i].unit == '%' ? null : kpis[i].unit,
                 label: kpis[i].label,
-                onTap: DemoGuard.push(context, Routes.maintenancePerformance),
+                onTap: LicenceGuard.push(context, Routes.maintenancePerformance),
               ),
             ),
           ],

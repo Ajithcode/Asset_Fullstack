@@ -145,6 +145,7 @@ class AllModulesGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final current = currentModule(location);
     final unread = ref.watch(unreadNotificationCountProvider);
+    final licence = ref.watch(licenceProvider);
     Widget grid(List<ModuleDef> mods) => GridView.count(
       crossAxisCount: 3,
       shrinkWrap: true,
@@ -155,11 +156,15 @@ class AllModulesGrid extends ConsumerWidget {
       childAspectRatio: 1.08,
       children: [
         for (final m in mods)
-          _ModuleTile(
-            module: m,
-            selected: identical(m, current),
-            badge: m.route == Routes.alerts ? unread : 0,
-            onTap: m.enabled ? () => onSelect(m) : null,
+          // Locked modules stay visible and open their (blurred) screen; faded + lock badge.
+          LicenceTileLook(
+            locked: m.action == ModuleAction.go && !licence.allowsLocation(m.route),
+            child: _ModuleTile(
+              module: m,
+              selected: identical(m, current),
+              badge: m.route == Routes.alerts ? unread : 0,
+              onTap: m.enabled ? () => onSelect(m) : null,
+            ),
           ),
       ],
     );

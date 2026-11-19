@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ffi';
 
 import 'package:asset360_mobile/app/client_demo.dart';
+import 'package:asset360_mobile/app/licence/licence.dart';
 import 'package:asset360_mobile/data/api/dashboard/network_status_live.dart';
 import 'package:asset360_mobile/data/db/app_database.dart';
 import 'package:asset360_mobile/data/repositories/dashboard_repository.dart';
@@ -14,6 +15,8 @@ import 'package:sqlite3/open.dart';
 /// The on-device database is replaced by a fresh in-memory SQLite database per container.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   debugClientDemo = false;
+  // Every module licensed, so the module tests see the full app (test/licence_test.dart sets its own list).
+  debugLicensedModules = AppModule.values.toSet();
   // Linux hosts often have only the runtime library (libsqlite3.so.0), not the dev symlink.
   open.overrideFor(OperatingSystem.linux, () {
     try {

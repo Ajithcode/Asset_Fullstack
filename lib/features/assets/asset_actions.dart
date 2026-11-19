@@ -35,37 +35,45 @@ List<AssetAction> assetActions(BuildContext context, WidgetRef ref, Asset asset,
       Icons.build_rounded,
       'Create Work Order',
       TileTone.sky,
-      DemoGuard.push(context, Routes.createWorkOrder(assetId: id)),
+      LicenceGuard.push(context, Routes.createWorkOrder(assetId: id)),
     ),
     (
       Icons.assignment_outlined,
       'Create Inspection',
       TileTone.lavender,
-      DemoGuard.push(context, Routes.withAsset(Routes.createInspection, id)),
+      LicenceGuard.push(context, Routes.withAsset(Routes.createInspection, id)),
     ),
     (
       Icons.swap_horiz_rounded,
       'Move Asset',
       TileTone.mint,
-      DemoGuard.tap(DemoAction.assetMove, DemoGuard.push(context, Routes.withAsset(Routes.transferAsset, id))),
+      DemoGuard.tap(DemoAction.assetMove, LicenceGuard.push(context, Routes.withAsset(Routes.transferAsset, id))),
     ),
     (
       Icons.warning_rounded,
       'Report Issue',
       TileTone.peach,
-      DemoGuard.push(context, Routes.withAsset(Routes.reportIssue, id)),
+      LicenceGuard.push(context, Routes.withAsset(Routes.reportIssue, id)),
     ),
     (
       Icons.person_rounded,
       'Check Out',
       plain,
-      DemoGuard.tap(DemoAction.assetCheckOut, () => showCheckOutSheet(context, ref, asset)),
+      LicenceGuard.tap(
+        context,
+        AppModule.movement,
+        DemoGuard.tap(DemoAction.assetCheckOut, () => showCheckOutSheet(context, ref, asset)),
+      ),
     ),
     (
       Icons.location_on_rounded,
       'View on Map',
       plain,
-      DemoGuard.open(Routes.trackAsset(id), () => openAssetOnMap(context, id)),
+      LicenceGuard.tap(
+        context,
+        AppModule.tracking,
+        DemoGuard.open(Routes.trackAsset(id), () => openAssetOnMap(context, id)),
+      ),
     ),
     (
       Icons.photo_camera_rounded,
@@ -96,17 +104,47 @@ List<AssetAction> liveAssetActions(BuildContext context, WidgetRef ref, String r
   VoidCallback notYet(String feature) =>
       () => showNotAvailableYet(context, feature);
   return [
-    (Icons.build_rounded, 'Create Work Order', TileTone.sky, notYet('Create Work Order')),
-    (Icons.assignment_outlined, 'Create Inspection', TileTone.lavender, notYet('Create Inspection')),
+    // Locked modules show the licence sheet first; licensed ones without a backend say "not available yet".
+    (
+      Icons.build_rounded,
+      'Create Work Order',
+      TileTone.sky,
+      LicenceGuard.tap(context, AppModule.maintenance, notYet('Create Work Order')),
+    ),
+    (
+      Icons.assignment_outlined,
+      'Create Inspection',
+      TileTone.lavender,
+      LicenceGuard.tap(context, AppModule.inspection, notYet('Create Inspection')),
+    ),
     (
       Icons.swap_horiz_rounded,
       'Move Asset',
       TileTone.mint,
-      () => context.push(Routes.withAsset(Routes.transferAsset, registrationId)),
+      LicenceGuard.push(context, Routes.withAsset(Routes.transferAsset, registrationId)),
     ),
-    (Icons.warning_rounded, 'Report Issue', TileTone.peach, notYet('Report Issue')),
-    (Icons.person_rounded, 'Check Out', plain, () => openMoreAction(context, MoreAction.checkInOut, registrationId)),
-    (Icons.location_on_rounded, 'View on Map', plain, () => openAssetOnMap(context, registrationId)),
+    (
+      Icons.warning_rounded,
+      'Report Issue',
+      TileTone.peach,
+      LicenceGuard.tap(context, AppModule.issues, notYet('Report Issue')),
+    ),
+    (
+      Icons.person_rounded,
+      'Check Out',
+      plain,
+      LicenceGuard.tap(
+        context,
+        AppModule.movement,
+        () => openMoreAction(context, MoreAction.checkInOut, registrationId),
+      ),
+    ),
+    (
+      Icons.location_on_rounded,
+      'View on Map',
+      plain,
+      LicenceGuard.tap(context, AppModule.tracking, () => openAssetOnMap(context, registrationId)),
+    ),
     (Icons.photo_camera_rounded, 'Add Photo', plain, () => addLivePhoto(context, ref, registrationId)),
     (Icons.more_horiz_rounded, 'More Actions', plain, () => openMoreActions(context, assetId: registrationId)),
   ];

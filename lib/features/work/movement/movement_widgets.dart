@@ -32,7 +32,7 @@ class MovementRow extends ConsumerWidget {
       details: [_line('From:', m.from.name), _line('To:', m.to.name, icon: true)],
       trailingTop: StatusChip(m.status),
       trailingBottom: DemoClock.formatDate(m.createdAt),
-      onTap: DemoGuard.push(context, Routes.movementRequest(m.id)),
+      onTap: LicenceGuard.push(context, Routes.movementRequest(m.id)),
     );
   }
 
@@ -137,7 +137,7 @@ class MovementSummary extends StatelessWidget {
           child: Column(
             children: [
               InkWell(
-                onTap: DemoGuard.tap(DemoAction.movementAssetLink, DemoGuard.push(context, Routes.assetDetail(a.id))),
+                onTap: DemoGuard.tap(DemoAction.movementAssetLink, LicenceGuard.push(context, Routes.assetDetail(a.id))),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -481,7 +481,7 @@ class SelectedAssetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final a = asset;
     return AppCard(
-      onTap: DemoGuard.tap(DemoAction.movementAssetLink, DemoGuard.push(context, Routes.assetDetail(a.id))),
+      onTap: DemoGuard.tap(DemoAction.movementAssetLink, LicenceGuard.push(context, Routes.assetDetail(a.id))),
       child: Row(
         children: [
           AssetThumb(imagePath: a.imagePath, fallbackIcon: assetIcon(a), size: 72),

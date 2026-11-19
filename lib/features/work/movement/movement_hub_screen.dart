@@ -101,7 +101,7 @@ class _MovementHubScreenState extends ConsumerState<MovementHubScreen> {
             childAspectRatio: 1.35,
             children: [
               for (final (icon, label, tone, route) in tiles)
-                ActionTile(icon: icon, label: label, tone: tone, onTap: DemoGuard.push(context, route)),
+                ActionTile(icon: icon, label: label, tone: tone, onTap: LicenceGuard.push(context, route)),
             ],
           ),
           const SizedBox(height: 14),

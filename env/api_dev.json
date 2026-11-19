@@ -7,5 +7,6 @@
   "DASHBOARD_BASE_URL": "http://172.16.100.29:5470",
   "ADMIN_BASE_URL": "http://172.16.100.29:5460",
   "TRACKING_BASE_URL": "http://172.16.100.29:5490",
-  "SHOW_SERVER_SWITCHER": "true"
+  "SHOW_SERVER_SWITCHER": "true",
+  "LICENSED_MODULES": "dashboard,assets,scan,movement,tracking,account"
 }

@@ -34,7 +34,7 @@ class _MyTasksCardState extends ConsumerState<MyTasksCard> {
     return SectionCard(
       title: 'My Tasks',
       actionLabel: 'View All',
-      onAction: DemoGuard.push(context, '${Routes.myTasks}?tab=$_tab'),
+      onAction: LicenceGuard.push(context, '${Routes.myTasks}?tab=$_tab'),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -61,7 +61,7 @@ class _MyTasksCardState extends ConsumerState<MyTasksCard> {
             for (var i = 0; i < math.min(3, list.length); i++) ...[if (i > 0) const Divider(), TaskRow(task: list[i])],
           if (list.length > 3)
             TextButton(
-              onPressed: DemoGuard.push(context, '${Routes.myTasks}?tab=$_tab'),
+              onPressed: LicenceGuard.push(context, '${Routes.myTasks}?tab=$_tab'),
               child: Text('Show ${list.length - 3} more'),
             ),
         ],

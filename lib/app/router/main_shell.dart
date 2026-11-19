@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:asset360_mobile/app/licence/licence.dart';
 import 'package:asset360_mobile/core/scanning/hardware_scan_listener.dart';
 import 'package:asset360_mobile/core/widgets/demo_guard.dart';
 import 'package:asset360_mobile/features/more/all_modules.dart';
@@ -30,6 +31,9 @@ const _branchOfSlot = {0: 0, 1: 1, 3: 2, 4: 3};
 
 class _MainShellState extends ConsumerState<MainShell> {
   bool _modulesOpen = false;
+
+  /// Last location shown in each branch (to reset a branch left on a locked screen).
+  final _lastLocation = <int, String>{};
 
   StatefulNavigationShell get _shell => widget.navigationShell;
   BuildContext? get _branchContext => widget.branchKeys[_shell.currentIndex].currentContext;
@@ -62,12 +66,16 @@ class _MainShellState extends ConsumerState<MainShell> {
       return;
     }
     final index = _branchOfSlot[slot]!;
-    // Re-tapping the active tab returns to that tab's first screen.
-    _shell.goBranch(index, initialLocation: index == _shell.currentIndex);
+    // Re-tapping the active tab returns to that tab's first screen. So does a tab that was
+    // left on a locked module (e.g. "Back to Dashboard" from Maintenance → Work opens the hub).
+    final last = _lastLocation[index];
+    final locked = last != null && ref.read(licenceProvider).lockedModuleOf(last) != null;
+    _shell.goBranch(index, initialLocation: index == _shell.currentIndex || locked);
   }
 
   @override
   Widget build(BuildContext context) {
+    _lastLocation[_shell.currentIndex] = widget.location;
     final onHome = _shell.currentIndex == 0;
     final int active;
     if (_modulesOpen) {

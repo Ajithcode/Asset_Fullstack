@@ -9,9 +9,10 @@
         android:label="Asset360"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
-        <!-- DEVELOPMENT ONLY: usesCleartextTraffic allows plain http://<backend-ip>:5296.
-             Remove it once the API Gateway is served over https. -->
+        android:networkSecurityConfig="${networkSecurityConfig}">
+        <!-- Cleartext: chosen in android/app/build.gradle.kts from the build's dart-defines. HTTPS-only
+             builds (env/api_live.json) get @xml/network_security_config (no cleartext); development builds get
+             @xml/network_security_config_dev (plain http only to 172.16.100.26 / .29). -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

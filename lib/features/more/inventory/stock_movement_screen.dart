@@ -231,7 +231,7 @@ class _StockMovementScreenState extends ConsumerState<StockMovementScreen> {
                     leading: const Icon(Icons.build_circle_rounded, color: AppColors.orange),
                     title: Text('${w.id} · $qty ${p.unit}', style: AppText.bodyStrong),
                     subtitle: Text('${w.title} · ${w.assetId}', style: AppText.caption),
-                    onTap: DemoGuard.push(context, Routes.workOrder(w.id)),
+                    onTap: LicenceGuard.push(context, Routes.workOrder(w.id)),
                     trailing: TextButton(
                       onPressed: () async {
                         final ok = await showConfirmDialog(

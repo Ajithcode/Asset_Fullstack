@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show WebSocketException;
 
 import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/web_socket_channel.dart' show WebSocketChannelException;
 
 import 'package:asset360_mobile/data/api/dashboard/dashboard_models.dart';
 
@@ -16,8 +18,22 @@ abstract class LiveSocket {
   Future<void> close();
 }
 
-/// Opens [uri] (Bearer [token] in the upgrade request when there is one).
+/// Opens [uri] (Bearer [token] in the upgrade request when there is one; [uri] already carries it as
+/// `?access_token=`, see [withAccessToken]).
 typedef LiveSocketConnector = LiveSocket Function(Uri uri, String? token);
+
+/// [uri] with `access_token=<token>` added (browsers can't set headers on a WebSocket, so the gateway may
+/// read the query). The token is also sent as the Authorization header. Never log the result.
+Uri withAccessToken(Uri uri, String? token) => token == null || token.isEmpty
+    ? uri
+    : uri.replace(queryParameters: {...uri.queryParameters, 'access_token': token});
+
+/// True when a failed WebSocket upgrade was an HTTP 404 (the path does not exist on this server).
+bool isNotFoundUpgrade(Object? error) => switch (error) {
+  WebSocketException(:final httpStatusCode) => httpStatusCode == 404,
+  WebSocketChannelException(:final inner?) => isNotFoundUpgrade(inner),
+  _ => '$error'.contains('HTTP status code: 404'),
+};
 
 /// Runs [callback] after [delay]; returns something to cancel it (tests pass a fake).
 typedef LiveScheduler = Timer Function(Duration delay, void Function() callback);
@@ -58,13 +74,15 @@ enum LiveConnection {
   waiting,
 }
 
-/// GET-free part of Live Devices: `ws://<DASHBOARD host>/api/dashboards/network-status/live` pushes
+/// GET-free part of Live Devices: `wss://<DASHBOARD base>/api/dashboards/network-status/gateways/live` (falls
+/// back to [fallbackUri] = `/api/dashboards/network-status/live` when the new path answers 404) pushes
 /// `{totalOnline, totalOffline}` on connect and whenever the counts change. When the socket cannot
 /// open or drops, it reconnects after 2 s, 5 s, 10 s, then every 30 s ([backoff]); a message
 /// resets the backoff. [start] / [stop] follow Home's visibility and the app lifecycle.
 class NetworkStatusSocket {
   NetworkStatusSocket({
     required this.uri,
+    this.fallbackUri,
     required this.onCounts,
     required this.onConnection,
     this.token,
@@ -76,6 +94,9 @@ class NetworkStatusSocket {
   static const backoff = [Duration(seconds: 2), Duration(seconds: 5), Duration(seconds: 10), Duration(seconds: 30)];
 
   final Uri uri;
+
+  /// Used instead of [uri] after [uri]'s upgrade answered 404 (before any connection on it opened).
+  final Uri? fallbackUri;
   final void Function(NetworkStatusCounts counts) onCounts;
   final void Function(LiveConnection state) onConnection;
 
@@ -83,6 +104,12 @@ class NetworkStatusSocket {
   final Future<String?> Function()? token;
   final LiveSocketConnector _connect;
   final LiveScheduler _schedule;
+
+  bool _useFallback = false;
+  bool _openedOnce = false;
+
+  /// The path in use: [uri], or [fallbackUri] after a 404.
+  Uri get currentUri => _useFallback ? fallbackUri! : uri;
 
   LiveSocket? _socket;
   StreamSubscription<Object?>? _sub;
@@ -131,23 +158,26 @@ class NetworkStatusSocket {
     if (!_running) return;
     final LiveSocket socket;
     try {
-      socket = _connect(uri, t);
-    } catch (_) {
-      _dropped();
+      socket = _connect(withAccessToken(currentUri, t), t);
+    } catch (e) {
+      _dropped(null, e);
       return;
     }
     _socket = socket;
     _sub = socket.messages.listen(
       _onMessage,
-      onError: (_) => _dropped(socket),
+      onError: (Object e) => _dropped(socket, e),
       onDone: () => _dropped(socket),
       cancelOnError: true,
     );
     try {
       await socket.ready;
-      if (_running && identical(_socket, socket)) _set(LiveConnection.connected);
-    } catch (_) {
-      _dropped(socket);
+      if (_running && identical(_socket, socket)) {
+        _openedOnce = true;
+        _set(LiveConnection.connected);
+      }
+    } catch (e) {
+      _dropped(socket, e);
     }
   }
 
@@ -164,10 +194,14 @@ class NetworkStatusSocket {
   }
 
   /// The socket closed or failed: schedule the next attempt (only once per socket).
-  void _dropped([LiveSocket? socket]) {
+  void _dropped([LiveSocket? socket, Object? error]) {
     if (socket != null && !identical(_socket, socket)) return;
     _closeSocket();
     if (!_running) return;
+    // The new path does not exist on this server: use the older one from now on.
+    if (!_useFallback && !_openedOnce && fallbackUri != null && error != null && isNotFoundUpgrade(error)) {
+      _useFallback = true;
+    }
     failures++;
     _set(LiveConnection.waiting);
     _retry?.cancel();

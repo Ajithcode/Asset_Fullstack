@@ -511,10 +511,7 @@ void main() {
         ..lastMaintenanceDate = DateTime(2026, 9, 10)
         ..nextMaintenanceDate = DateTime(2026, 9, 9);
       info
-        ..customFields = [
-          AssetCustomField(fieldName: 'Colour'),
-          AssetCustomField(fieldName: ' colour '),
-        ]
+        ..customFields = [AssetCustomField(fieldName: 'Colour'), AssetCustomField(fieldName: ' colour ')]
         ..attachments = [AssetDocument(fileName: 'Manual.pdf', url: ' ')];
       for (final mandatory in [true, false]) {
         expect(check(r, 1, mandatory: mandatory), {

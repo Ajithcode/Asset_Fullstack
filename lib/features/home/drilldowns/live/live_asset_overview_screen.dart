@@ -142,7 +142,7 @@ class _LiveAssetOverviewScreenState extends ConsumerState<LiveAssetOverviewScree
                       label: r.label,
                       value: r.count.toDouble(),
                       color: r.color,
-                      onTap: r.onTap ?? DemoGuard.push(context, r.route),
+                      onTap: r.onTap ?? LicenceGuard.push(context, r.route),
                     ),
                 ],
               ),

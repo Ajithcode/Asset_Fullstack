@@ -53,7 +53,7 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
         Icons.view_list_rounded,
         'View Details',
         TileTone.lavender,
-        DemoGuard.push(context, Routes.assetDetail(asset.id)),
+        LicenceGuard.push(context, Routes.assetDetail(asset.id)),
       ),
       ...assetActions(context, ref, asset),
     ];
@@ -116,7 +116,7 @@ class _AssetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      onTap: DemoGuard.push(context, Routes.assetDetail(asset.id)),
+      onTap: LicenceGuard.push(context, Routes.assetDetail(asset.id)),
       child: Row(
         children: [
           AssetThumb(imagePath: asset.imagePath, fallbackIcon: assetIcon(asset), size: 112),

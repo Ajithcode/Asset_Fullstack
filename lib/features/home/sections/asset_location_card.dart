@@ -28,13 +28,13 @@ class AssetLocationCard extends ConsumerWidget {
     return SectionCard(
       title: 'Asset Location (Live)',
       actionLabel: 'View Map',
-      onAction: DemoGuard.push(context, Routes.assetLocation),
+      onAction: LicenceGuard.push(context, Routes.assetLocation),
       child: Row(
         children: [
           Expanded(
             flex: 11,
             child: GestureDetector(
-              onTap: DemoGuard.push(context, Routes.assetLocation),
+              onTap: LicenceGuard.push(context, Routes.assetLocation),
               child: SizedBox(
                 height: 128,
                 child: Stack(
@@ -46,7 +46,7 @@ class AssetLocationCard extends ConsumerWidget {
                       child: Tooltip(
                         message: 'Open map',
                         child: InkWell(
-                          onTap: DemoGuard.push(context, Routes.assetLocation),
+                          onTap: LicenceGuard.push(context, Routes.assetLocation),
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
                             width: 32,
@@ -73,7 +73,7 @@ class AssetLocationCard extends ConsumerWidget {
               children: [
                 for (final (kind, label, count) in legend)
                   InkWell(
-                    onTap: DemoGuard.push(context, Routes.assetLocation),
+                    onTap: LicenceGuard.push(context, Routes.assetLocation),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(

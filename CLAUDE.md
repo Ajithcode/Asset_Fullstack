@@ -93,7 +93,7 @@
   `registration_options.dart`; spec templates: `technical_templates.dart`. Asset status chips: `AssetStatusChip`.
   Web screenshots: `design/web_registration/`. Report: `docs/registration_backend_report.md`. Tests: test/registration_test.dart
   (swagger field names, round trip, validator, drafts restart, end-to-end generator).
-- Backend API (services called DIRECTLY, gateway 5296 unused): `lib/data/api/` — `api_config.dart` (`kUseApi` /
+- Backend API (office IPs: services called DIRECTLY on their ports; cloud: one https gateway, see CLOUD below): `lib/data/api/` — `api_config.dart` (`kUseApi` /
   `apiMode` (tests: `debugApiMode`), `kApiBaseUrl` = Asset service 5401, `kMediaBaseUrl` = Media 5300, `kAuthBaseUrl` =
   login 5018, optional `kDevToken`; dart-defines only; `BackendService` enum = base URL + config problem per service),
   `api_client.dart` (`dioProvider` / `apiClientProvider` = Asset, `mediaDioProvider` / `mediaClientProvider` = Media;
@@ -120,10 +120,20 @@
   onRetry:)` = SnackBar with Retry). ADMIN_BASE_URL (`kAdminBaseUrl`, 5460, `BackendService.admin`) and TRACKING_BASE_URL
   (`kTrackingBaseUrl`, 5490, `BackendService.tracking`) = 6th / 7th services in Diagnostics / Test connection. WebSocket: Bearer header on the
   upgrade. `/uploads/...` files are public. Login 2FA method "email" (older "otp") = `isEmailMethod`.
+- CLOUD: env/api_demo.json (https://a360demo.purpleiq.ai, switcher on) / env/api_live.json (https://a360.purpleiq.ai,
+  switcher off) = ONE https gateway as the base URL of all 7 services (`usesSingleGateway`; `isGatewayOrigin` = an https
+  override is used as-is, no ports). Test connection through the gateway: `/health`, `/gateway/health`, then per
+  service `gatewayHealthPaths`, else "via gateway" + `gatewayProbePaths` (HTML reply = the web app answered = not
+  reachable; a360demo serves index.html for every */health). WebSocket = `/api/dashboards/network-status/gateways/live`,
+  fallback `/live` on a 404 upgrade (`isNotFoundUpgrade`), token as Bearer header AND `?access_token=` (`withAccessToken`;
+  never log it). Media: https URLs kept as returned; localhost / old http office-IP `/uploads/` → MEDIA_BASE_URL.
+  Cleartext: `android/app/build.gradle.kts` picks `@xml/network_security_config_dev` (http only to .26 / .29) or
+  `@xml/network_security_config` (none) from the dart-defines; `httpsOnlyBuild` → `HttpsOnlyInterceptor`. Route list for
+  the backend team: `docs/api_routes_used.md` (keep it updated when adding calls).
 - Server switcher (dev builds, `SHOW_SERVER_SWITCHER=true` in env/api_dev.json; `showServerSwitcher` /
   `debugShowServerSwitcher`): code reads the EFFECTIVE URLs (`apiBaseUrl`, `authBaseUrl` … / `BackendService.baseUrl`;
   `buildUrl` = the dart-define) — never the `k*BaseUrl` consts. `serverOverride` (scheme + host) replaces the host, ports
-  stay; presets `serverPresets` (.29 / .26) + Custom; `serverDisplayOf`. Saved by `ServerNotifier` (`serverProvider`,
+  stay (an https override = gateway, used as-is); presets `serverPresets` (Demo cloud / .29 / .26) + Custom (IP, host or https URL); `serverDisplayOf`. Saved by `ServerNotifier` (`serverProvider`,
   data/repositories/server_repository.dart, shared_preferences; `loadSavedServer()` in main before runApp; ignored when
   the flag is off). Every service Dio watches `serverProvider`. UI = `showServerSwitcherSheet` / `switchServer`
   (core/widgets/server_switcher.dart: sign-out via `signOutForServerSwitch`, clears drift CachedResponses + floor-plan
@@ -382,6 +392,15 @@
   registers only allowed screens; blocked controls go through `DemoGuard` (core/widgets/demo_guard.dart). New links to a
   screen should use `DemoGuard.push/go`, new sheets / dialogs / pickers on an allowed screen need a `DemoAction`.
   Screenshots: `design/client_demo/`. Tests turn the demo off in `test/flutter_test_config.dart`.
+- Licence gating: `lib/app/licence/` (`AppModule` + `moduleForLocation` route → module (null = always open),
+  `licenceProvider` / `LicenceNotifier` (backend `LicenceApi` = TODO(licence-api) → `LICENSED_MODULES` dart-define →
+  `defaultLicensedModules`), `LicenceGate` (app_router `licenceRoutes()` wraps every module route: locked = blurred
+  `LicenceLockScreen`, real screen never built, back / "Back to Dashboard" → Home; `MainShell` resets a tab left on a
+  locked screen), `LicenceTileLook` (faded tile + lock badge: More sheet, Work hub), `LicenceGuard.push/go/open/tap` +
+  `showLicenceSheet` for cross-links inside screens (use them, not `DemoGuard.push/go`, for new links), `AssetTabLicence`
+  (asset-detail Maintenance / Inspection / Financial tabs). Backend API card also at `/more/settings/backend-api`
+  (always open). Tests: `test/licence_test.dart`, `test/live/licence_live_test.dart`; `flutter_test_config.dart`
+  licenses every module (`debugLicensedModules`).
 - `DemoClock.now` starts at 25 Sep 2026 10:30 AM and runs forward; `DemoClock.frozen` pins it (tests).
 - App size: bundled images in `assets/images/` are WebP (q80) — add new ones as `.webp`. Release builds use R8 code +
   resource shrinking (`android/app/proguard-rules.pro`), the unbundled ML Kit barcode model

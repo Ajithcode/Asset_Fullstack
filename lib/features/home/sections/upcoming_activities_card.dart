@@ -34,7 +34,7 @@ class UpcomingActivitiesCard extends ConsumerWidget {
     return SectionCard(
       title: 'Upcoming Activities',
       actionLabel: 'View Calendar',
-      onAction: DemoGuard.push(context, Routes.activitiesView('calendar')),
+      onAction: LicenceGuard.push(context, Routes.activitiesView('calendar')),
       child: Column(
         children: [
           if (list.isEmpty)
@@ -43,7 +43,7 @@ class UpcomingActivitiesCard extends ConsumerWidget {
               title: 'Nothing scheduled',
               message: 'No work orders, inspections or audits are coming up.',
               actionLabel: 'Open Calendar',
-              onAction: DemoGuard.push(context, Routes.activitiesView('calendar')),
+              onAction: LicenceGuard.push(context, Routes.activitiesView('calendar')),
             ),
           for (final a in list)
             UpcomingActivityRow(
@@ -54,7 +54,7 @@ class UpcomingActivitiesCard extends ConsumerWidget {
               subtitle: a.subtitle,
               time: DemoClock.formatTime(a.at),
               location: a.location,
-              onTap: DemoGuard.tap(DemoAction.homeActivityRows, DemoGuard.push(context, activityRoute(a))),
+              onTap: DemoGuard.tap(DemoAction.homeActivityRows, LicenceGuard.push(context, activityRoute(a))),
             ),
         ],
       ),

@@ -168,17 +168,20 @@ class _LiveAssetDetailScreenState extends ConsumerState<LiveAssetDetailScreen> {
                     AssetTab.overview => LiveOverviewTab(asset: r),
                     AssetTab.location => LiveLocationTab(asset: r),
                     AssetTab.iot => LiveIotTab(asset: r),
-                    AssetTab.maintenance => const NotAvailableYet(
-                      feature: 'Maintenance history',
-                      icon: Icons.build_outlined,
+                    AssetTab.maintenance => const AssetTabLicence(
+                      module: AppModule.maintenance,
+                      child: NotAvailableYet(feature: 'Maintenance history', icon: Icons.build_outlined),
                     ),
-                    AssetTab.inspection => const NotAvailableYet(
-                      feature: 'Inspections',
-                      icon: Icons.assignment_outlined,
+                    AssetTab.inspection => const AssetTabLicence(
+                      module: AppModule.inspection,
+                      child: NotAvailableYet(feature: 'Inspections', icon: Icons.assignment_outlined),
                     ),
-                    AssetTab.financial => const NotAvailableYet(
-                      feature: 'Depreciation and costs',
-                      icon: Icons.account_balance_wallet_outlined,
+                    AssetTab.financial => const AssetTabLicence(
+                      module: AppModule.financial,
+                      child: NotAvailableYet(
+                        feature: 'Depreciation and costs',
+                        icon: Icons.account_balance_wallet_outlined,
+                      ),
                     ),
                     AssetTab.documents => LiveDocumentsTab(asset: r),
                     AssetTab.history => const NotAvailableYet(feature: 'Asset history', icon: Icons.history_rounded),

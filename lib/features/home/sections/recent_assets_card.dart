@@ -18,7 +18,7 @@ class RecentAssetsCard extends ConsumerWidget {
     return SectionCard(
       title: 'Recent Assets',
       actionLabel: 'View All',
-      onAction: DemoGuard.push(context, Routes.recentAssets),
+      onAction: LicenceGuard.push(context, Routes.recentAssets),
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
       child: Column(
         children: [

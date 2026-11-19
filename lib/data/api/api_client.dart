@@ -46,9 +46,27 @@ Dio _serviceDio(Ref ref, String Function() baseUrl) {
   dio.interceptors.add(
     AuthInterceptor(token: auth.validAccessToken, onUnauthorized: auth.refreshAccessToken, retry: dio.fetch),
   );
+  if (httpsOnlyBuild) dio.interceptors.add(const HttpsOnlyInterceptor());
   if (kDebugMode) dio.interceptors.add(DebugLogInterceptor());
   ref.onDispose(dio.close);
   return dio;
+}
+
+/// Refuses plain http in a cloud / release build ([transportAllowed]); added only when [httpsOnlyBuild].
+class HttpsOnlyInterceptor extends Interceptor {
+  const HttpsOnlyInterceptor();
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    if (transportAllowed(options.uri)) return handler.next(options);
+    handler.reject(
+      DioException(
+        requestOptions: options,
+        type: DioExceptionType.badCertificate,
+        message: 'Plain http is not allowed in this build (https only)',
+      ),
+    );
+  }
 }
 
 /// Thin wrapper the API classes use: every error comes out as an [ApiException].

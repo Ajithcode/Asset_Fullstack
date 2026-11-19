@@ -111,7 +111,7 @@ class _LocalDataScreenState extends ConsumerState<LocalDataScreen> {
                 icon: const Icon(Icons.more_vert_rounded),
                 onSelected: (v) => switch (v) {
                   'clear' => _clearAll(),
-                  _ => DemoGuard.push(context, Routes.scannerSettings)?.call(),
+                  _ => LicenceGuard.push(context, Routes.scannerSettings)?.call(),
                 },
                 itemBuilder: (_) => [
                   const PopupMenuItem(
@@ -232,7 +232,7 @@ class _ScanList extends ConsumerWidget {
                 ? 'Try another search or clear the filters.'
                 : 'Every QR code, barcode, NFC tag and scanner read is saved here.',
             actionLabel: filtered ? null : 'Scan now',
-            onAction: filtered ? null : DemoGuard.push(context, Routes.scanFrom(Routes.more)),
+            onAction: filtered ? null : LicenceGuard.push(context, Routes.scanFrom(Routes.more)),
           ),
         ],
       );

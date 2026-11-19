@@ -20,9 +20,9 @@ class AssetHealthCard extends ConsumerWidget {
     return SectionCard(
       title: 'Asset Health',
       actionLabel: 'View Details',
-      onAction: DemoGuard.push(context, Routes.assetHealth),
+      onAction: LicenceGuard.push(context, Routes.assetHealth),
       child: InkWell(
-        onTap: DemoGuard.push(context, Routes.assetHealth),
+        onTap: LicenceGuard.push(context, Routes.assetHealth),
         child: Row(
           children: [
             ProgressRing(

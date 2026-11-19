@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:asset360_mobile/data/api/api_config.dart';
@@ -318,7 +317,7 @@ class ActivityRow extends StatelessWidget {
     final a = activity;
     final (icon, tone, _) = activityLook(a.kind);
     return InkWell(
-      onTap: onTap ?? () => context.push(a.route),
+      onTap: onTap ?? () => LicenceGuard.open(context, a.route),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(

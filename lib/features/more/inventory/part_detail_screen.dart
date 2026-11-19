@@ -103,7 +103,7 @@ class PartDetailScreen extends ConsumerWidget {
                       label: label,
                       tone: tone,
                       onTap: n == 0
-                          ? DemoGuard.push(context, Routes.partStock(p.id))
+                          ? LicenceGuard.push(context, Routes.partStock(p.id))
                           : DemoGuard.tap(DemoAction.partEditStock, () => showEditLevelsSheet(context, ref, p)),
                     ),
                   ),
@@ -124,7 +124,7 @@ class PartDetailScreen extends ConsumerWidget {
                 InkWell(
                   onTap: DemoGuard.tap(
                     DemoAction.stockOtherTabs,
-                    DemoGuard.push(context, Routes.partStock(p.id, tab: 'reserved')),
+                    LicenceGuard.push(context, Routes.partStock(p.id, tab: 'reserved')),
                   ),
                   child: InfoRow(
                     label: 'Reserved Qty',

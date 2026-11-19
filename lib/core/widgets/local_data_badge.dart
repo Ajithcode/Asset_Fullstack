@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:asset360_mobile/app/licence/licence_lock.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
-import 'package:asset360_mobile/core/widgets/demo_guard.dart';
 import 'package:asset360_mobile/data/db/db_providers.dart';
 
 /// "Saved on this device: N scans ›" → Local Data (or [onTap]). Counts live from ScanLog.
@@ -21,7 +21,7 @@ class LocalDataBadge extends ConsumerWidget {
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        onTap: onTap ?? DemoGuard.push(context, Routes.localData),
+        onTap: onTap ?? LicenceGuard.push(context, Routes.localData),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
           child: Row(

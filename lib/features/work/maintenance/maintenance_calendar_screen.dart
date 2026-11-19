@@ -210,7 +210,7 @@ class _MaintenanceCalendarScreenState extends ConsumerState<MaintenanceCalendarS
                             style: AppText.caption,
                           ),
                           trailing: Text(DemoClock.formatTime(dayEvents[i].at), style: AppText.caption),
-                          onTap: DemoGuard.push(context, calendarEventRoute(dayEvents[i])),
+                          onTap: LicenceGuard.push(context, calendarEventRoute(dayEvents[i])),
                         ),
                       ],
                     ],

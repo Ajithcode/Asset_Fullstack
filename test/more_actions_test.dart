@@ -58,10 +58,8 @@ Future<void> _tap(WidgetTester tester, Finder f) async {
 Future<void> _tapText(WidgetTester tester, String text) => _tap(tester, find.text(text).last);
 
 /// A FilledButton (also FilledButton.icon) by its label.
-Future<void> _button(WidgetTester tester, String label) => _tap(
-  tester,
-  find.ancestor(of: find.text(label), matching: find.byWidgetPredicate((w) => w is FilledButton)).last,
-);
+Future<void> _button(WidgetTester tester, String label) =>
+    _tap(tester, find.ancestor(of: find.text(label), matching: find.byWidgetPredicate((w) => w is FilledButton)).last);
 
 /// Opens a More Actions row and checks the action screen shows the asset card.
 Future<void> _action(WidgetTester tester, String row) async {

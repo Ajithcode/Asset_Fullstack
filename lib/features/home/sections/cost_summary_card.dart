@@ -23,7 +23,7 @@ class CostSummaryCard extends ConsumerWidget {
     return SectionCard(
       title: 'Cost Summary (AED)',
       actionLabel: 'View Details',
-      onAction: DemoGuard.push(context, Routes.costSummary),
+      onAction: LicenceGuard.push(context, Routes.costSummary),
       child: Row(
         children: [
           DonutChart(
@@ -47,7 +47,7 @@ class CostSummaryCard extends ConsumerWidget {
                     label: entries[i].key,
                     value: _n.format(entries[i].value),
                     pct: '(${org.costPct(entries[i].key).round()}%)',
-                    onTap: DemoGuard.push(context, Routes.costSummary),
+                    onTap: LicenceGuard.push(context, Routes.costSummary),
                   ),
               ],
             ),

@@ -69,21 +69,21 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         'Request Part',
         'Create Request',
         TileTone.sky,
-        DemoGuard.push(context, Routes.partRequests),
+        LicenceGuard.push(context, Routes.partRequests),
       ),
       (
         Icons.receipt_long_rounded,
         'Purchase Orders',
         'Track Orders',
         TileTone.peach,
-        DemoGuard.push(context, Routes.purchaseOrders),
+        LicenceGuard.push(context, Routes.purchaseOrders),
       ),
       (
         Icons.bar_chart_rounded,
         'Stock Reports',
         'Usage & Forecast',
         TileTone.sky,
-        DemoGuard.push(context, Routes.stockReports),
+        LicenceGuard.push(context, Routes.stockReports),
       ),
     ];
     return AppScaffold(

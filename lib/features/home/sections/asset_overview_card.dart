@@ -22,7 +22,7 @@ class AssetOverviewCard extends ConsumerWidget {
     return SectionCard(
       title: 'Asset Overview',
       actionLabel: 'View All',
-      onAction: DemoGuard.push(context, Routes.assetOverview),
+      onAction: LicenceGuard.push(context, Routes.assetOverview),
       child: _content(context, ref.watch(orgSummaryProvider).statusCounts),
     );
   }
@@ -52,7 +52,7 @@ class AssetOverviewCard extends ConsumerWidget {
                   label: s,
                   value: _n.format(counts[s] ?? 0),
                   pct: '(${total == 0 ? 0 : ((counts[s] ?? 0) * 100 / total).round()}%)',
-                  onTap: DemoGuard.tap(DemoAction.homeLegendFilters, DemoGuard.go(context, Routes.assetsWithStatus(s))),
+                  onTap: DemoGuard.tap(DemoAction.homeLegendFilters, LicenceGuard.go(context, Routes.assetsWithStatus(s))),
                 ),
             ],
           ),

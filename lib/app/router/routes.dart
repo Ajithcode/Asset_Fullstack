@@ -239,6 +239,9 @@ abstract final class Routes {
   static const dataCheck = '/more/settings/data-check';
   static const demoTags = '/more/settings/demo-tags';
   static const apiSamples = '/more/settings/api-samples';
+
+  /// Backend API / Test connection (always open; Administration shows the same card).
+  static const backendApi = '/more/settings/backend-api';
   static const settingsAuthDiagnostics = '/more/settings/auth-diagnostics';
   static const help = '/more/help';
   static const reportBug = '/more/help/report-bug';

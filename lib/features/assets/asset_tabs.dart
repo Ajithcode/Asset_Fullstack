@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
@@ -161,7 +160,7 @@ class AssetLocationTab extends ConsumerWidget {
           title: 'Floor Plan',
           actionLabel: tracked == null ? null : 'Live',
           actionIcon: Icons.sensors_rounded,
-          onAction: DemoGuard.push(context, Routes.trackAsset(asset.id)),
+          onAction: LicenceGuard.push(context, Routes.trackAsset(asset.id)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -294,7 +293,7 @@ class AssetMaintenanceTab extends ConsumerWidget {
                         onPressed: () {
                           final id = ref.read(pmSchedulesProvider.notifier).generateWorkOrder(pm.id);
                           context.showSnack('$id generated from ${pm.id}');
-                          context.push(Routes.workOrder(id));
+                          LicenceGuard.open(context, Routes.workOrder(id));
                         },
                         icon: const Icon(Icons.playlist_add_rounded, size: 20),
                         label: const Text('Generate PM Work Order'),
@@ -307,7 +306,7 @@ class AssetMaintenanceTab extends ConsumerWidget {
         SectionCard(
           title: 'Work Orders (${wos.length})',
           actionLabel: 'View All',
-          onAction: DemoGuard.go(context, Routes.maintenance),
+          onAction: LicenceGuard.go(context, Routes.maintenance),
           child: _RowList(
             empty: 'No work orders for ${asset.id} yet.',
             children: [
@@ -319,7 +318,7 @@ class AssetMaintenanceTab extends ConsumerWidget {
                       ? '${w.workType} · ${DemoClock.dueLabel(w.dueAt)}'
                       : '${w.workType} · Completed ${w.completedAt == null ? '' : DemoClock.formatDate(w.completedAt!)}',
                   trailing: StatusChip(w.status),
-                  onTap: DemoGuard.push(context, Routes.workOrder(w.id)),
+                  onTap: LicenceGuard.push(context, Routes.workOrder(w.id)),
                 ),
             ],
           ),
@@ -329,7 +328,7 @@ class AssetMaintenanceTab extends ConsumerWidget {
           child: _TabButton(
             icon: Icons.build_rounded,
             label: 'Create Work Order',
-            onPressed: () => context.push(Routes.createWorkOrder(assetId: asset.id)),
+            onPressed: () => LicenceGuard.open(context, Routes.createWorkOrder(assetId: asset.id)),
           ),
         ),
       ],
@@ -396,7 +395,7 @@ class AssetInspectionTab extends ConsumerWidget {
         SectionCard(
           title: 'Inspections (${list.length})',
           actionLabel: 'View All',
-          onAction: DemoGuard.go(context, Routes.inspection),
+          onAction: LicenceGuard.go(context, Routes.inspection),
           child: _RowList(
             empty: 'No inspections for ${asset.id} yet.',
             children: [
@@ -415,7 +414,7 @@ class AssetInspectionTab extends ConsumerWidget {
                           : DemoClock.dueLabel(i.dueAt),
                     ].where((s) => s.isNotEmpty).join(' · '),
                     trailing: StatusChip(!i.isCompleted && DemoClock.isOverdue(i.dueAt) ? 'Overdue' : i.status),
-                    onTap: () => context.push(Routes.inspectionDetail(i.id)),
+                    onTap: LicenceGuard.push(context, Routes.inspectionDetail(i.id)),
                   ),
                 ),
             ],
@@ -426,7 +425,7 @@ class AssetInspectionTab extends ConsumerWidget {
           child: _TabButton(
             icon: Icons.assignment_outlined,
             label: 'Create Inspection',
-            onPressed: () => context.push(Routes.withAsset(Routes.createInspection, asset.id)),
+            onPressed: () => LicenceGuard.open(context, Routes.withAsset(Routes.createInspection, asset.id)),
           ),
         ),
       ],
@@ -612,7 +611,7 @@ class AssetDocumentsTab extends ConsumerWidget {
           title: 'Documents (${docs.length})',
           actionLabel: '+ Add',
           actionIcon: null,
-          onAction: DemoGuard.push(context, Routes.withAsset(Routes.addDocument, asset.id)),
+          onAction: LicenceGuard.push(context, Routes.withAsset(Routes.addDocument, asset.id)),
           child: _RowList(
             empty: 'No documents linked to ${asset.id}. Tap “+ Add” to upload one.',
             children: [for (final d in docs) _DocRow(doc: d)],
@@ -680,7 +679,7 @@ class _DocRow extends StatelessWidget {
             : days <= 90
             ? const StatusChip('Expiring', tone: ChipTone.amber)
             : null,
-        onTap: () => context.push(Routes.documentDetail(doc.id)),
+        onTap: LicenceGuard.push(context, Routes.documentDetail(doc.id)),
       ),
     );
   }
@@ -774,7 +773,7 @@ class AssetHistoryTab extends ConsumerWidget {
                           events[i].detail,
                         ].where((s) => s.isNotEmpty).join(' · '),
                         last: i == events.length - 1,
-                        onTap: events[i].route == null ? null : () => context.push(events[i].route!),
+                        onTap: events[i].route == null ? null : LicenceGuard.push(context, events[i].route!),
                       ),
                     ),
                 ],

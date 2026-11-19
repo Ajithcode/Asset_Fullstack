@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:asset360_mobile/data/api/api_client.dart' show HttpsOnlyInterceptor;
 import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/api_exception.dart';
 import 'package:asset360_mobile/data/api/auth_diagnostics.dart';
@@ -24,6 +25,7 @@ final authDioProvider = Provider<Dio>((ref) {
       responseType: ResponseType.plain,
     ),
   );
+  if (httpsOnlyBuild) dio.interceptors.add(const HttpsOnlyInterceptor());
   ref.onDispose(dio.close);
   return dio;
 });

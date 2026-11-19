@@ -1,0 +1,12 @@
+{
+  "USE_API": "true",
+  "API_BASE_URL": "https://a360.purpleiq.ai",
+  "AUTH_BASE_URL": "https://a360.purpleiq.ai",
+  "MEDIA_BASE_URL": "https://a360.purpleiq.ai",
+  "MASTER_DATA_BASE_URL": "https://a360.purpleiq.ai",
+  "DASHBOARD_BASE_URL": "https://a360.purpleiq.ai",
+  "ADMIN_BASE_URL": "https://a360.purpleiq.ai",
+  "TRACKING_BASE_URL": "https://a360.purpleiq.ai",
+  "SHOW_SERVER_SWITCHER": "false",
+  "LICENSED_MODULES": "dashboard,assets,scan,movement,tracking,account"
+}

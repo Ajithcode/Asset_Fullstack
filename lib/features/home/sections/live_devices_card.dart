@@ -12,7 +12,7 @@ import 'package:asset360_mobile/data/repositories/dashboard_repository.dart';
 import 'package:asset360_mobile/features/home/dash_ui.dart';
 
 /// API mode Home card: devices online / offline. Starts from GET /network-status, then the
-/// WebSocket (/network-status/live) pushes new counts. The socket runs only while Home is on screen
+/// WebSocket (/network-status/gateways/live, else /network-status/live) pushes new counts. The socket runs only while Home is on screen
 /// (not covered by another route, its tab selected: [TickerMode]) and the app is in the foreground.
 class LiveDevicesCard extends ConsumerStatefulWidget {
   const LiveDevicesCard({super.key});
@@ -73,7 +73,7 @@ class _LiveDevicesCardState extends ConsumerState<LiveDevicesCard> {
   @override
   Widget build(BuildContext context) {
     final live = ref.watch(liveDevicesProvider);
-    final open = DemoGuard.push(context, Routes.devices);
+    final open = LicenceGuard.push(context, Routes.devices);
     return SectionCard(
       title: 'Live Devices',
       actionLabel: 'View Devices',
