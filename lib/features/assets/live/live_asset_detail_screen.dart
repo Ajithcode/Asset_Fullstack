@@ -16,6 +16,8 @@ import 'package:asset360_mobile/features/assets/live/live_detail_iot.dart';
 import 'package:asset360_mobile/features/assets/live/live_detail_tabs.dart';
 import 'package:asset360_mobile/features/assets/live/live_detail_upload.dart';
 import 'package:asset360_mobile/features/assets/more_actions/more_action_widgets.dart';
+import 'package:asset360_mobile/data/repositories/rtl_repository.dart' show rtlAssetProvider;
+import 'package:asset360_mobile/features/more/tracking/live/rtl/locate_panel.dart';
 
 enum _Menu {
   edit,
@@ -500,17 +502,68 @@ class _ActionGrid extends ConsumerWidget {
   final String assetId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => GridView.count(
-    crossAxisCount: 4,
-    shrinkWrap: true,
-    padding: EdgeInsets.zero,
-    physics: const NeverScrollableScrollPhysics(),
-    mainAxisSpacing: 8,
-    crossAxisSpacing: 8,
-    childAspectRatio: .98,
-    children: [
-      for (final (icon, label, tone, onTap) in liveAssetActions(context, ref, assetId))
-        ActionTile(icon: icon, label: label, tone: tone, onTap: onTap, labelSize: 11.5),
-    ],
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final actions = liveAssetActions(context, ref, assetId);
+    // "Locate" goes right after "View on Map".
+    final at = actions.indexWhere((a) => a.$2 == 'View on Map') + 1;
+    return GridView.count(
+      crossAxisCount: 4,
+      shrinkWrap: true,
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      childAspectRatio: .98,
+      children: [
+        for (final (i, (icon, label, tone, onTap)) in actions.indexed) ...[
+          if (i == at) _LocateTile(assetId: assetId),
+          ActionTile(icon: icon, label: label, tone: tone, onTap: onTap, labelSize: 11.5),
+        ],
+        if (at <= 0 || at >= actions.length) _LocateTile(assetId: assetId),
+      ],
+    );
+  }
+}
+
+/// "Locate" (blink / beep the tag): opens the Locate panel when the Real-Time Location overview
+/// knows the asset's tag (same rule as More Actions); otherwise inert with "No tag linked". A locked
+/// Tracking module shows the licence sheet and never calls the Tracking service.
+class _LocateTile extends ConsumerWidget {
+  const _LocateTile({required this.assetId});
+
+  final String assetId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final licensed = ref.watch(licenceProvider.select((l) => l.isLicensed(AppModule.tracking)));
+    final tone = TileTone(AppColors.tileGrey, AppColors.text);
+    if (!licensed) {
+      return ActionTile(
+        key: const ValueKey('action-locate'),
+        icon: Icons.wb_twilight_rounded,
+        label: 'Locate',
+        tone: tone,
+        labelSize: 11.5,
+        onTap: LicenceGuard.tap(context, AppModule.tracking, () {}),
+      );
+    }
+    final async = ref.watch(rtlAssetProvider(assetId));
+    final tracked = async.value;
+    final hasTag = tracked != null && tracked.hasTags;
+    final noTag = !hasTag && !async.isLoading;
+    return Tooltip(
+      message: hasTag ? 'Blink / beep the tag' : (noTag ? 'No tag linked' : 'Checking the tag…'),
+      child: Opacity(
+        opacity: hasTag ? 1 : .5,
+        child: ActionTile(
+          key: const ValueKey('action-locate'),
+          icon: Icons.wb_twilight_rounded,
+          label: noTag ? 'No tag linked' : 'Locate',
+          tone: tone,
+          labelSize: 11.5,
+          onTap: hasTag ? () => showLocatePanel(context, tracked) : null,
+        ),
+      ),
+    );
+  }
 }

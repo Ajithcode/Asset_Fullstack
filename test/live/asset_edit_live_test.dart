@@ -282,6 +282,7 @@ void main() {
     tester,
   ) async {
     await open(tester);
+    await _scrollTo(tester, find.text('Key Information'));
     expect(find.text('Key Information'), findsOneWidget);
     await tap(tester, find.text('Edit').first);
     await tap(tester, field('Status').first);
@@ -343,4 +344,14 @@ void main() {
     );
     expect(find.text('Diesel Generator 500 kVA moved to UAE > Main Site > Block A > First'), findsOneWidget);
   });
+}
+
+/// Scrolls the visible page until [f] is built and on screen (the asset detail is a lazy list).
+Future<void> _scrollTo(WidgetTester tester, Finder f) async {
+  await tester.scrollUntilVisible(
+    f,
+    200,
+    scrollable: find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).hitTestable().first,
+  );
+  await tester.pumpAndSettle();
 }

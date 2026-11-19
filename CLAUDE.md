@@ -267,7 +267,9 @@
   frames `data/tracking/locate_commands.dart`; socket `data/tracking/locate_session.dart` (`/ws/locate`, Bearer header,
   401 → fresh token → `?access_token=`; never log the token; NO MQTT). Tracking / Administration clients add `clientId` /
   `tenantId` (`tenantQuery` in api_client.dart; from `CurrentUser` / `TokenPair`). More Actions (API) shows "Locate (blink /
-  beep)" when the overview knows the asset's tag. Tests: `test/live/rtl_test.dart` (+ `rtl_samples.dart`).
+  beep)" and the API-mode asset detail grid a "Locate" tile (`_LocateTile`, after View on Map; inert "No tag linked"
+  without a tag) when the overview knows the asset's tag (`rtlAssetProvider`, no auto-retry). Panel layout =
+  docs/design/locate_asset_led_buzzer_panel_mockup.html (← back to the Locate Asset list, × closes both). Tests: `test/live/rtl_test.dart` (+ `rtl_samples.dart`).
 - Scan (prompt 07): `features/assets/scan/` — `scan_screen.dart` (QR camera + simulated NFC/RFID/BLE, Manual Entry, Multi Scan,
   debug "Simulate scan" chip), `scan_result_screen.dart` (Asset Identified), `scan_history_screen.dart`. Every scan goes
   through `openScannedCode` (`scan_flow.dart`), which records history and routes. Code matching = `ScanHistoryNotifier.resolve`

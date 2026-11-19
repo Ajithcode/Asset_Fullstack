@@ -107,7 +107,12 @@ class _LocateAssetListState extends State<_LocateAssetList> {
                     child: IconButton(
                       key: ValueKey('locate-led-${a.assetId}'),
                       icon: const Icon(Icons.wb_twilight_rounded),
-                      onPressed: a.hasTags ? () => showLocatePanel(context, a) : null,
+                      onPressed: a.hasTags
+                          ? () async {
+                              final closeAll = await showLocatePanel(context, a, fromList: true);
+                              if (closeAll == true && context.mounted) Navigator.pop(context);
+                            }
+                          : null,
                     ),
                   ),
                 ],
@@ -121,30 +126,33 @@ class _LocateAssetListState extends State<_LocateAssetList> {
 // ------------------------------------------------------------------ Locate panel (LED / buzzer)
 
 /// The LED / buzzer panel for [asset] (must have a tag). Opens /ws/locate while it is shown.
-Future<void> showLocatePanel(BuildContext context, RtlAsset asset) {
+/// Layout: docs/design/locate_asset_led_buzzer_panel_mockup.html. [fromList] = opened from the
+/// Locate Asset list: the header's back arrow returns to it. Completes with true when × closed it
+/// (the list closes too).
+Future<bool?> showLocatePanel(BuildContext context, RtlAsset asset, {bool fromList = false}) {
   if (!asset.hasTags) {
     context.showSnack('No tag linked');
     return Future.value();
   }
-  return showModalBottomSheet<void>(
+  return showModalBottomSheet<bool>(
     context: context,
     useRootNavigator: false,
     isScrollControlled: true,
-    showDragHandle: true,
     builder: (sheet) => DraggableScrollableSheet(
       expand: false,
       initialChildSize: .9,
       maxChildSize: .95,
-      builder: (_, scroll) => LocatePanel(asset: asset, scroll: scroll),
+      builder: (_, scroll) => LocatePanel(asset: asset, scroll: scroll, fromList: fromList),
     ),
   );
 }
 
 class LocatePanel extends ConsumerStatefulWidget {
-  const LocatePanel({super.key, required this.asset, this.scroll});
+  const LocatePanel({super.key, required this.asset, this.scroll, this.fromList = false});
 
   final RtlAsset asset;
   final ScrollController? scroll;
+  final bool fromList;
 
   @override
   ConsumerState<LocatePanel> createState() => _LocatePanelState();
@@ -229,6 +237,9 @@ class _LocatePanelState extends ConsumerState<LocatePanel> {
     _cycles.text = '${p.cycles}';
   });
 
+  Widget _field(String key, String label, TextEditingController c, LocateRange range, {String? note}) =>
+      _NumField(keyName: key, label: label, c: c, range: range, note: note, onChanged: _changed);
+
   @override
   Widget build(BuildContext context) {
     final a = widget.asset;
@@ -243,146 +254,237 @@ class _LocatePanelState extends ConsumerState<LocatePanel> {
     ].join(' · ');
     return ListView(
       controller: widget.scroll,
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.paddingOf(context).bottom),
+      padding: EdgeInsets.fromLTRB(20, 12, 20, 24 + MediaQuery.paddingOf(context).bottom),
       children: [
-        Text('Locate asset', style: AppText.sectionTitle),
-        const SizedBox(height: 2),
-        Text('${a.tagLabel} · ${a.name}', style: AppText.bodyStrong),
-        const SizedBox(height: 4),
-        Text(tagLine, key: const ValueKey('locate-tag-line'), style: AppText.caption),
+        // Header: ← (back to the asset list) · Locate asset · ×
+        Row(
+          children: [
+            if (widget.fromList) ...[
+              IconButton(
+                key: const ValueKey('locate-back'),
+                tooltip: 'Back to asset list',
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  side: BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text('Locate asset', style: AppText.cardTitle.copyWith(fontSize: 16, fontWeight: FontWeight.w600)),
+            ),
+            IconButton(
+              key: const ValueKey('locate-close'),
+              tooltip: 'Close',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => Navigator.pop(context, true),
+              icon: Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // Asset + tag box.
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(color: AppColors.tileGrey, borderRadius: BorderRadius.circular(8)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: a.tagLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    if (a.name.isNotEmpty) TextSpan(text: ' ${a.name}'),
+                  ],
+                ),
+                style: AppText.body,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                tagLine,
+                key: const ValueKey('locate-tag-line'),
+                style: AppText.caption.copyWith(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
         if (a.tags.length > 1) ...[
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            key: const ValueKey('locate-tag-picker'),
-            initialValue: _tag,
-            decoration: const InputDecoration(labelText: 'Tag'),
-            items: [for (final t in a.tags) DropdownMenuItem(value: t, child: Text(t))],
-            onChanged: (t) {
-              if (t == null || t == _tag) return;
-              setState(() => _tag = t);
-              _session.open(t);
-            },
+          const SizedBox(height: 10),
+          _Labeled(
+            label: 'Tag',
+            child: DropdownButtonFormField<String>(
+              key: const ValueKey('locate-tag-picker'),
+              initialValue: _tag,
+              isDense: true,
+              decoration: _boxDecoration(),
+              items: [for (final t in a.tags) DropdownMenuItem(value: t, child: Text(t))],
+              onChanged: (t) {
+                if (t == null || t == _tag) return;
+                setState(() => _tag = t);
+                _session.open(t);
+              },
+            ),
           ),
         ],
         if (s.notice != null) ...[
           const SizedBox(height: 10),
           _Banner(text: s.notice!, warning: s.offline),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         SegmentedButton<LocateMode>(
           key: const ValueKey('locate-mode'),
-          segments: [for (final m in LocateMode.values) ButtonSegment(value: m, label: Text(m.label))],
+          showSelectedIcon: false,
+          style: SegmentedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            textStyle: const TextStyle(fontSize: 13),
+          ),
+          segments: [
+            for (final m in LocateMode.values)
+              ButtonSegment(
+                value: m,
+                label: Text(m.label),
+                icon: switch (m) {
+                  LocateMode.led => const Icon(Icons.lightbulb_outline_rounded, size: 16),
+                  LocateMode.buzzer => const Icon(Icons.volume_up_outlined, size: 16),
+                  LocateMode.both => null,
+                },
+              ),
+          ],
           selected: {_mode},
           onSelectionChanged: (v) => setState(() => _mode = v.first),
         ),
-        const SizedBox(height: 14),
-        _Section(
-          title: 'LED',
+        const _SecTitle('Quick patterns'),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final p in ledPatterns)
+              ActionChip(
+                key: ValueKey('pattern-${p.label}'),
+                label: Text(p.label, style: const TextStyle(fontSize: 12)),
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                onPressed: _mode.usesLed ? () => _pattern(p) : null,
+              ),
+          ],
+        ),
+        _Faded(
           enabled: _mode.usesLed,
-          children: [
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final p in ledPatterns)
-                  ActionChip(
-                    key: ValueKey('pattern-${p.label}'),
-                    label: Text(p.label),
-                    onPressed: _mode.usesLed ? () => _pattern(p) : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SecTitle('LED settings', icon: Icons.lightbulb_outline_rounded),
+              _Grid(
+                children: [
+                  _field('led-on', 'On time (ms)', _on, LocateLimits.ledOn),
+                  _field('led-off', 'Off time (ms)', _off, LocateLimits.ledOff),
+                  _field('led-cycles', 'Blink count', _cycles, LocateLimits.ledCycles),
+                  _Labeled(
+                    label: 'Colour',
+                    note: 'This tag has a red LED only',
+                    child: DropdownButtonFormField<String>(
+                      key: const ValueKey('led-colour'),
+                      initialValue: 'Red',
+                      isDense: true,
+                      decoration: _boxDecoration(),
+                      items: const [DropdownMenuItem(value: 'Red', child: Text('Red'))],
+                      onChanged: (_) {},
+                    ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _NumField(keyName: 'led-on', label: 'On time (ms)', c: _on, range: LocateLimits.ledOn, onChanged: _changed),
-            _NumField(keyName: 'led-off', label: 'Off time (ms)', c: _off, range: LocateLimits.ledOff, onChanged: _changed),
-            _NumField(
-              keyName: 'led-cycles',
-              label: 'Blink count',
-              c: _cycles,
-              range: LocateLimits.ledCycles,
-              onChanged: _changed,
-            ),
-            const InfoRow(label: 'Colour', value: 'Red'),
-            Text('This tag has a red LED only', style: AppText.caption),
-            const SizedBox(height: 8),
-            Text('Brightness ${_brightness.round()} %', style: AppText.bodyStrong),
-            Slider(
-              key: const ValueKey('led-brightness'),
-              value: _brightness,
-              min: 1,
-              max: 100,
-              divisions: 99,
-              label: '${_brightness.round()} %',
-              onChanged: _mode.usesLed ? (v) => setState(() => _brightness = v) : null,
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Brightness ${_brightness.round()}%',
+                style: AppText.caption.copyWith(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              Slider(
+                key: const ValueKey('led-brightness'),
+                value: _brightness,
+                min: 1,
+                max: 100,
+                divisions: 99,
+                label: '${_brightness.round()}%',
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                onChanged: _mode.usesLed ? (v) => setState(() => _brightness = v) : null,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
-        _Section(
-          title: 'Buzzer',
+        _Faded(
           enabled: _mode.usesBuzzer,
-          children: [
-            _NumField(keyName: 'bz-beep', label: 'Beep time (ms)', c: _beep, range: LocateLimits.beep, onChanged: _changed),
-            _NumField(keyName: 'bz-pause', label: 'Pause (ms)', c: _pause, range: LocateLimits.pause, onChanged: _changed),
-            _NumField(
-              keyName: 'bz-count',
-              label: 'Beep count (0 = off)',
-              c: _beeps,
-              range: LocateLimits.beepCycles,
-              onChanged: _changed,
-            ),
-            _NumField(
-              keyName: 'bz-tone',
-              label: 'Tone level (0 = tag default)',
-              c: _tone,
-              range: LocateLimits.tone,
-              onChanged: _changed,
-            ),
-          ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SecTitle('Buzzer settings', icon: Icons.volume_up_outlined),
+              _Grid(
+                children: [
+                  _field('bz-beep', 'Beep time (ms)', _beep, LocateLimits.beep),
+                  _field('bz-pause', 'Pause (ms)', _pause, LocateLimits.pause),
+                  _field('bz-count', 'Beep count', _beeps, LocateLimits.beepCycles, note: '0 = off'),
+                  _field('bz-tone', 'Tone level', _tone, LocateLimits.tone, note: '0 = tag default'),
+                ],
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         if (_valid)
-          Text(runTimeLine(_mode, _led, _buzzer), key: const ValueKey('locate-runtime'), style: AppText.secondary),
+          Text(
+            runTimeLine(_mode, _led, _buzzer),
+            key: const ValueKey('locate-runtime'),
+            style: AppText.body.copyWith(fontSize: 13, color: AppColors.textSecondary),
+          ),
         const SizedBox(height: 12),
         Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Expanded(
+            Flexible(
+              child: OutlinedButton.icon(
+                key: const ValueKey('locate-off'),
+                style: OutlinedButton.styleFrom(padding: _buttonPadding, minimumSize: const Size(0, 44)),
+                onPressed: s.canSend ? _turnOff : null,
+                icon: const Icon(Icons.power_settings_new_rounded, size: 18),
+                label: const Text('Turn off'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
               child: FilledButton.icon(
                 key: const ValueKey('locate-send'),
+                style: FilledButton.styleFrom(padding: _buttonPadding, minimumSize: const Size(0, 44)),
                 onPressed: _valid && s.canSend ? _send : null,
                 icon: const Icon(Icons.send_rounded, size: 18),
                 label: const Text('Send to tag'),
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                key: const ValueKey('locate-off'),
-                onPressed: s.canSend ? _turnOff : null,
-                icon: const Icon(Icons.volume_off_rounded, size: 18),
-                label: const Text('Turn off'),
-              ),
-            ),
           ],
         ),
-        if (_showLedNote) ...[
-          const SizedBox(height: 8),
-          Text(
-            'The LED stops by itself after ${runTimeText(_lastLedRun ?? _led.runTime)}',
-            key: const ValueKey('locate-led-note'),
-            style: AppText.caption,
-          ),
-        ],
         if (s.progress.stage != LocateStage.idle) ...[
           const SizedBox(height: 10),
           _ProgressLine(progress: s.progress),
         ],
+        if (_showLedNote) ...[
+          const SizedBox(height: 6),
+          Text(
+            'The LED stops by itself after ${runTimeText(_lastLedRun ?? _led.runTime)}',
+            key: const ValueKey('locate-led-note'),
+            style: AppText.caption.copyWith(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
         if (!subscribed && s.connection == LocateConnection.failed) ...[
           const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: () => _session.open(_tag),
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Reconnect'),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => _session.open(_tag),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Reconnect'),
+            ),
           ),
         ],
         const SizedBox(height: 6),
@@ -391,7 +493,7 @@ class _LocatePanelState extends ConsumerState<LocatePanel> {
           child: TextButton.icon(
             key: const ValueKey('locate-history'),
             onPressed: () => _showHistory(context, _tag),
-            icon: const Icon(Icons.history_rounded),
+            icon: const Icon(Icons.history_rounded, size: 18),
             label: const Text('History'),
           ),
         ),
@@ -400,26 +502,99 @@ class _LocatePanelState extends ConsumerState<LocatePanel> {
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.enabled, required this.children});
+const _buttonPadding = EdgeInsets.symmetric(horizontal: 14);
 
-  final String title;
+/// Compact outlined input box of the panel's fields.
+InputDecoration _boxDecoration({String? hint, bool error = false}) => InputDecoration(
+  isDense: true,
+  hintText: hint,
+  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(8),
+    borderSide: BorderSide(color: error ? AppColors.red : AppColors.border),
+  ),
+);
+
+/// Section title ("LED settings" with its icon), 13 px medium.
+class _SecTitle extends StatelessWidget {
+  const _SecTitle(this.text, {this.icon});
+
+  final String text;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 16, bottom: 8),
+    child: Row(
+      children: [
+        if (icon != null) ...[Icon(icon, size: 16, color: AppColors.text), const SizedBox(width: 6)],
+        Text(text, style: AppText.bodyStrong.copyWith(fontSize: 13)),
+      ],
+    ),
+  );
+}
+
+/// The settings of the mode not in use: faded and not editable (and not validated).
+class _Faded extends StatelessWidget {
+  const _Faded({required this.enabled, required this.child});
+
   final bool enabled;
-  final List<Widget> children;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) => AnimatedOpacity(
     duration: const Duration(milliseconds: 150),
-    opacity: enabled ? 1 : .4,
-    child: IgnorePointer(
-      ignoring: !enabled,
-      child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [Text(title, style: AppText.cardTitle), const SizedBox(height: 8), ...children],
+    opacity: enabled ? 1 : .45,
+    child: IgnorePointer(ignoring: !enabled, child: child),
+  );
+}
+
+/// Two columns, 12 px apart, rows 10 px apart.
+class _Grid extends StatelessWidget {
+  const _Grid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var i = 0; i < children.length; i += 2) ...[
+        if (i > 0) const SizedBox(height: 10),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: children[i]),
+            const SizedBox(width: 12),
+            Expanded(child: i + 1 < children.length ? children[i + 1] : const SizedBox.shrink()),
+          ],
         ),
-      ),
-    ),
+      ],
+    ],
+  );
+}
+
+/// Label above, the control, a small note / error under it.
+class _Labeled extends StatelessWidget {
+  const _Labeled({required this.label, required this.child, this.note, this.error = false});
+
+  final String label;
+  final Widget child;
+  final String? note;
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(label, style: AppText.caption.copyWith(fontSize: 12, color: AppColors.textSecondary)),
+      const SizedBox(height: 4),
+      child,
+      if (note != null) ...[
+        const SizedBox(height: 3),
+        Text(note!, style: AppText.caption.copyWith(fontSize: 11, color: error ? AppColors.red : AppColors.textMuted)),
+      ],
+    ],
   );
 }
 
@@ -430,6 +605,7 @@ class _NumField extends StatelessWidget {
     required this.c,
     required this.range,
     required this.onChanged,
+    this.note,
   });
 
   final String keyName, label;
@@ -437,17 +613,23 @@ class _NumField extends StatelessWidget {
   final LocateRange range;
   final VoidCallback onChanged;
 
+  /// Extra hint after "Min X, max Y" (e.g. "0 = off").
+  final String? note;
+
   @override
   Widget build(BuildContext context) {
     final error = range.check(c.text);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+    return _Labeled(
+      label: label,
+      error: error != null,
+      note: error ?? [range.hint, ?note].join(' · '),
       child: TextField(
         key: ValueKey(keyName),
         controller: c,
         keyboardType: TextInputType.number,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        decoration: InputDecoration(labelText: label, helperText: range.hint, errorText: error),
+        style: AppText.body,
+        decoration: _boxDecoration(hint: '${range.min} – ${range.max}', error: error != null),
         onChanged: (_) => onChanged(),
       ),
     );
@@ -498,7 +680,7 @@ class _ProgressLine extends StatelessWidget {
         Expanded(
           child: Text(
             p.message,
-            style: AppText.bodyStrong.copyWith(color: color),
+            style: AppText.body.copyWith(fontSize: 13, color: color, fontWeight: FontWeight.w500),
           ),
         ),
       ],

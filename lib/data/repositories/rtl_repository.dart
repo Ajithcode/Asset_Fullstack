@@ -156,11 +156,13 @@ final rtlProvider = NotifierProvider<RtlNotifier, RtlState>(RtlNotifier.new);
 
 /// One asset of the overview by registration id: the polled overview when it has it, else one
 /// fetch of the whole overview (asset detail / More Actions "Locate", View on Map).
+/// No automatic retry: a failed lookup means "no tag known" (the Locate tile / View on Map must not
+/// wait on Riverpod's retry backoff).
 final rtlAssetProvider = FutureProvider.autoDispose.family<RtlAsset?, String>((ref, assetId) async {
   final polled = ref.read(rtlProvider).overview?.asset(assetId);
   if (polled != null) return polled;
   return (await ref.watch(rtlApiProvider).getOverview()).asset(assetId);
-});
+}, retry: (_, _) => null);
 
 /// Every asset in view on every floor of [siteId] (null = all sites): the Locate Asset list and
 /// "switch to the asset's floor" need assets beyond the floor shown.

@@ -4,8 +4,10 @@ import 'dart:io' show WebSocketException;
 import 'dart:typed_data';
 
 import 'package:asset360_mobile/app/app.dart';
+import 'package:asset360_mobile/app/licence/licence.dart';
 import 'package:asset360_mobile/app/router/app_router.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
+import 'package:asset360_mobile/core/widgets/widgets.dart' show ActionTile;
 import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/api_exception.dart';
 import 'package:asset360_mobile/data/api/auth_models.dart';
@@ -778,8 +780,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Enter a value from 1 to 65535'), findsOneWidget);
       expect(tester.widget<FilledButton>(find.byKey(const ValueKey('locate-send'))).onPressed, isNull);
-      await tester.ensureVisible(find.byKey(const ValueKey('pattern-Fast blink')));
-      await tester.pumpAndSettle();
+      await inSheet(tester, find.byKey(const ValueKey('pattern-Fast blink')), delta: -200);
       await tester.tap(find.byKey(const ValueKey('pattern-Fast blink')));
       await tester.pumpAndSettle();
       await inSheet(tester, find.text('LED runs 10.0 s'));
@@ -864,6 +865,81 @@ void main() {
       await open(tester, Routes.trackingMap(view: 'rtl', asset: 'AR-000123'));
       expect(find.byKey(const ValueKey('rtl-live')), findsOneWidget);
       expect(find.byKey(const ValueKey('rtl-callout')), findsOneWidget);
+    });
+
+    /// The overview with AR000001 (the fake Asset service's asset) as PUMP-01, with or without tags.
+    Map<String, Object?> overviewWithDetailAsset({required bool tags}) {
+      final o = Map<String, Object?>.from(rtlOverviewJson);
+      final first = Map<String, Object?>.from((o['assets']! as List).first as Map)
+        ..['assetId'] = 'AR000001'
+        ..['tags'] = tags ? ['C30000AABB01'] : <String>[]
+        ..['tracker'] = tags ? 'C30000AABB01' : null;
+      o['assets'] = [first];
+      return o;
+    }
+
+    Future<void> seeTile(WidgetTester tester) async {
+      await see(tester, find.byKey(const ValueKey('action-locate')));
+    }
+
+    testWidgets('asset detail: Locate tile opens the panel when the asset has a tag; back / × close it', (tester) async {
+      backend.seedRtl(overview: overviewWithDetailAsset(tags: true));
+      await open(tester, Routes.assetDetail('AR000001'));
+      await seeTile(tester);
+      final tile = tester.widget<ActionTile>(find.byKey(const ValueKey('action-locate')));
+      expect(tile.label, 'Locate');
+      expect(tile.onTap, isNotNull);
+      await tester.tap(find.byKey(const ValueKey('action-locate')));
+      await tester.pumpAndSettle();
+      expect(find.byType(LocatePanel), findsOneWidget);
+      expect(find.byKey(const ValueKey('locate-back')), findsNothing, reason: 'not opened from the asset list');
+      expect(find.text('LED settings'), findsOneWidget);
+      expect(channels.single.out.single, {'type': 'subscribe', 'tagid': 'c30000aabb01'});
+      await tester.tap(find.byKey(const ValueKey('locate-close')));
+      await tester.pumpAndSettle();
+      expect(find.byType(LocatePanel), findsNothing);
+      expect(channels.single.closed, isTrue);
+    });
+
+    testWidgets('asset detail: no tag → Locate tile disabled with "No tag linked"', (tester) async {
+      backend.seedRtl(overview: overviewWithDetailAsset(tags: false));
+      await open(tester, Routes.assetDetail('AR000001'));
+      await seeTile(tester);
+      final tile = tester.widget<ActionTile>(find.byKey(const ValueKey('action-locate')));
+      expect(tile.label, 'No tag linked');
+      expect(tile.onTap, isNull);
+      await tester.tap(find.byKey(const ValueKey('action-locate')), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.byType(LocatePanel), findsNothing);
+    });
+
+    testWidgets('asset detail: Tracking locked → Locate shows the licence sheet, no Tracking call', (tester) async {
+      debugLicensedModules = {...defaultLicensedModules}..remove(AppModule.tracking);
+      addTearDown(() => debugLicensedModules = AppModule.values.toSet());
+      await open(tester, Routes.assetDetail('AR000001'));
+      await seeTile(tester);
+      await tester.tap(find.byKey(const ValueKey('action-locate')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('licence-sheet-tracking')), findsOneWidget);
+      expect(backend.requests.any((o) => o.uri.path == RtlApi.overviewPath), isFalse);
+    });
+
+    testWidgets('Locate Asset list → panel: ← returns to the list, × closes both', (tester) async {
+      await open(tester, Routes.tracking);
+      await tester.tap(find.byKey(const ValueKey('rtl-locate')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('locate-led-AR-000123')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('locate-back')));
+      await tester.pumpAndSettle();
+      expect(find.byType(LocatePanel), findsNothing);
+      expect(find.byKey(const ValueKey('locate-search')), findsOneWidget, reason: 'back on the asset list');
+      await tester.tap(find.byKey(const ValueKey('locate-led-AR-000123')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('locate-close')));
+      await tester.pumpAndSettle();
+      expect(find.byType(LocatePanel), findsNothing);
+      expect(find.byKey(const ValueKey('locate-search')), findsNothing);
     });
 
     testWidgets('Locations toggle keeps the location tree / floor-plan views', (tester) async {

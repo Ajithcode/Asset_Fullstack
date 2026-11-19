@@ -239,8 +239,7 @@ void main() {
     expect(find.text('Current Assignment'), findsNothing, reason: 'back on the asset');
     expect(backend.calls('GET', '/api/asset-registrations/AR000001').length, greaterThan(assetLoads));
 
-    await tester.ensureVisible(find.text('Assignment History'));
-    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.text('Assignment History'));
     expect(chip('Returned'), findsOneWidget);
     expect(chip('Active'), findsNothing);
   });
@@ -279,8 +278,7 @@ void main() {
       ..addAssignment(id: 'asg-draft', number: 'ASG-000002', status: 'Draft', createdAt: '2026-10-15T08:00:00Z')
       ..addAssignment(number: 'ASG-000003', assignedToName: 'Omar Khan', createdAt: '2026-11-01T08:00:00Z');
     await open(tester, Routes.assetDetail('AR000001'));
-    await tester.ensureVisible(find.text('Assignment History'));
-    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.text('Assignment History'));
     expect(chip('Active'), findsOneWidget);
     expect(chip('Draft'), findsOneWidget);
     expect(chip('Returned'), findsOneWidget);
@@ -293,4 +291,14 @@ void main() {
     expect(find.text('Current Assignment'), findsOneWidget);
     expect(find.text('Omar Khan'), findsWidgets);
   });
+}
+
+/// Scrolls the visible page until [f] is built and on screen (the asset detail is a lazy list).
+Future<void> _scrollTo(WidgetTester tester, Finder f) async {
+  await tester.scrollUntilVisible(
+    f,
+    200,
+    scrollable: find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).hitTestable().first,
+  );
+  await tester.pumpAndSettle();
 }
