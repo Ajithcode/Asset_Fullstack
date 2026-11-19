@@ -379,18 +379,18 @@ Repo: **https://github.com/Ajithcode/Asset_Fullstack**. Read these on the branch
 
 | Item | Status |
 |---|---|
-| Master Data | 3 sites, 10 buildings, 20 floors (all with a floor picture), 15 zones ✅ |
+| Master Data | 4 sites with assets/GPS (City General Hospital, Main Plant, Warehouse + Head Office), 11 buildings, 23 floors, 15 zones ✅ |
 | Floor plans (Maps & Floor Plans) | **0** (`maps_floor_plans` empty) ❌ |
 | Zones drawn on plans | **0** ❌ |
 | Gateways / assets plotted on plans | **0** ❌ |
 | Gateways (`IoTDevice`) | 1 placeholder gateway (`XZXZ`, never seen, no real MAC) ⚠️ |
 | Tracking tags (`TrackingTag`) | 1 (`BLE-000001`), **not linked to any asset**, never seen ⚠️ |
-| Registered assets | 9 (none linked to a tag) |
+| Registered assets | **58** (AR000026–AR000083; hospital 24, factory 19, warehouse 15; all with GPS, custodian, department; 87 condition assessments so Asset Health is filled; every asset ID used by work orders, alerts, inspections, PM and criticality data resolves via `/api/asset-registrations/lookup?code=`). None linked to a tag yet ⚠️ |
 | BLE readings (`NetworkTimeSeries`) | **0**: no gateway is currently reporting to the demo stack ❌ |
 | Location events / geofence alerts | 0 |
 | Locate commands sent (`TagLocateCommands`) | 0, so no tag has been blinked from demo yet ❌ |
 
-**Result today:** `overview` returns empty `assets` and all KPIs are 0, `events` is empty, `trail` gives 404, and `/ws/locate` answers `error: No NetworkTimeSeries data…` for any tag. The API contracts can be built against, but there is nothing live to show yet.
+**Result today (Real-Time Location):** `overview` returns empty `assets` and all KPIs are 0, `events` is empty, `trail` gives 404, and `/ws/locate` answers `error: No NetworkTimeSeries data…` for any tag. The API contracts can be built against, but there is nothing live to show yet.
 
 **Missing for an end-to-end mobile test:**
 1. A real BLE gateway (e.g. MAC `ac233f…`) that publishes to the **demo** broker, registered as an IoT Device with its real MAC as `deviceId`.
