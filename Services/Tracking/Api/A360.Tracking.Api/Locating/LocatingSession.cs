@@ -23,6 +23,8 @@ namespace A360.Tracking.Api.Locating;
 ///   {"type":"both","tagid":"c30000000002","led":{"color":3,"onMs":200,"offMs":200,"cycles":25,"brightness":100},
 ///    "buzzer":{"beepMs":200,"pauseMs":200,"cycles":25,"level":0}}
 ///                                                LED and buzzer in one gateway message (type "locate" works too)
+///   {"type":"off","tagid":"c30000000002"}         turn LED and buzzer off: same message as "both" with LED color 0 and
+///                                                buzzer cycles 0 ("stop" / "turnoff" work too)
 ///   Every command goes to the gateway as {"version":2,"req_id":n,"cmds":[{"action":42,...LED},{"action":56,...buzzer}]}.
 ///     tagid is optional once subscribed. Missing options use the defaults (LED 3/300/300/10/100, buzzer 300/300/5/0).
 ///
@@ -31,7 +33,7 @@ namespace A360.Tracking.Api.Locating;
 ///   {"type":"response","tagid","gatewayid","topic","receivedAt","payload"}
 ///   {"type":"actionSent","gatewayid","topic"}
 ///   {"type":"unsubscribed"}
-///   {"type":"commandSent","reqId","command" (led | buzzer | both),"tagid","gatewayid","topic","options","sentAt"}
+///   {"type":"commandSent","reqId","command" (led | buzzer | both | off),"tagid","gatewayid","topic","options","sentAt"}
 ///   {"type":"commandStatus","reqId","command","tagid","gatewayid","status","code","error","message"}
 ///     status: accepted (gateway code 1) -> completed (code 2, error 0: tag is blinking / beeping)
 ///             | failed (code 2, error != 0) | timeout (no code 2 within Locating:CommandTimeoutSeconds)
@@ -310,6 +312,7 @@ public class LocatingSession(
         {
             LocateCommandKind.Led => "blinking",
             LocateCommandKind.Buzzer => "beeping",
+            LocateCommandKind.Off => "off (LED and buzzer)",
             _ => "blinking and beeping",
         };
         Send(new JsonObject

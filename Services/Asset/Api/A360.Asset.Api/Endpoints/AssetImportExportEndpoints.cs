@@ -110,8 +110,11 @@ public static class AssetImportExportEndpoints
             .Select(field => AssetImportFieldResponse.FromField(field, type)));
     }
 
-    /// <summary>Step 1: the template picked in Select Template, as .xlsx (with an Instructions sheet) or .csv.</summary>
-    private static IResult DownloadTemplate(string? template = null, bool includeSampleData = true, string? fileFormat = null)
+    /// <summary>
+    /// Step 1: the template picked in Select Template, as .xlsx (with an Instructions sheet) or .csv.
+    /// Only the header row (the field names, mandatory ones marked with *); no sample values.
+    /// </summary>
+    private static IResult DownloadTemplate(string? template = null, string? fileFormat = null)
     {
         var picked = AssetImportTemplates.Find(template ?? AssetImportTemplates.Basic);
         if (picked is null)
@@ -127,20 +130,16 @@ public static class AssetImportExportEndpoints
 
         var fields = AssetImportTemplates.Fields(picked.Key);
         var headers = fields.Select(field => field.IsMandatory(picked.ImportType) ? $"{field.Label} *" : field.Label).ToList();
-
-        // The update template has no sample rows: they would point at assets that do not exist.
-        var sampleRows = includeSampleData && picked.ImportType != AssetImportTypes.Update
-            ? SampleRows(fields)
-            : [];
+        List<IReadOnlyList<object?>> noRows = [];
 
         var fileName = $"asset-import-template-{picked.Key}";
         if (format == AssetExportOptions.Csv)
         {
-            return Results.File(SpreadsheetTableIO.WriteCsv(headers, sampleRows), SpreadsheetTableIO.CsvContentType, $"{fileName}.csv");
+            return Results.File(SpreadsheetTableIO.WriteCsv(headers, noRows), SpreadsheetTableIO.CsvContentType, $"{fileName}.csv");
         }
 
         using var workbook = new XLWorkbook();
-        var sheet = SpreadsheetTableIO.AddSheet(workbook, AssetImportExportFields.SheetName, headers, sampleRows);
+        var sheet = SpreadsheetTableIO.AddSheet(workbook, AssetImportExportFields.SheetName, headers, noRows);
         for (var index = 0; index < fields.Count; index++)
         {
             var cell = sheet.Cell(1, index + 1);
@@ -157,7 +156,8 @@ public static class AssetImportExportEndpoints
         instructions.Cell(1, 2).Value = "Section";
         instructions.Cell(1, 3).Value = "Data Type";
         instructions.Cell(1, 4).Value = "Mandatory";
-        instructions.Cell(1, 5).Value = "Notes";
+        instructions.Cell(1, 5).Value = "Format";
+        instructions.Cell(1, 6).Value = "Notes";
         instructions.Row(1).Style.Font.Bold = true;
         for (var index = 0; index < fields.Count; index++)
         {
@@ -166,12 +166,13 @@ public static class AssetImportExportEndpoints
             instructions.Cell(index + 2, 2).Value = field.Group;
             instructions.Cell(index + 2, 3).Value = field.DataType;
             instructions.Cell(index + 2, 4).Value = field.IsMandatory(picked.ImportType) ? "Yes" : "No";
-            instructions.Cell(index + 2, 5).Value = field.Hint ?? string.Empty;
+            instructions.Cell(index + 2, 5).Value = AssetImportFieldFormats.Format(field);
+            instructions.Cell(index + 2, 6).Value = field.Hint ?? string.Empty;
         }
 
         var notesRow = fields.Count + 3;
         instructions.Cell(notesRow, 1).Value = $"Fill one asset per row on the '{AssetImportExportFields.SheetName}' sheet, starting from row 2. Keep the header row.";
-        instructions.Cell(notesRow + 1, 1).Value = $"At most {AssetImportExportFields.MaxRows} rows per file. Replace or delete the sample rows before importing your own assets.";
+        instructions.Cell(notesRow + 1, 1).Value = $"At most {AssetImportExportFields.MaxRows} rows per file. Dates as DD/MM/YYYY, e.g. 15/01/2025.";
         instructions.Cell(notesRow + 2, 1).Value = "When updating, assets are found by Asset ID (or by Asset Tag when Asset ID is blank). Blank cells keep the current value.";
         instructions.Columns().AdjustToContents();
 
@@ -1300,7 +1301,7 @@ public static class AssetImportExportEndpoints
                     return (DateTime.FromOADate(serial).Date, null);
                 }
 
-                return (null, $"'{text}' is not a valid date for {field.Label}; use e.g. 2025-01-15");
+                return (null, $"'{text}' is not a valid date for {field.Label}; use {AssetImportFieldFormats.DateFormat}, e.g. 15/01/2025");
 
             case AssetImportDataTypes.Number:
                 return decimal.TryParse(text.Replace(",", string.Empty), NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
@@ -1451,6 +1452,8 @@ public static class AssetImportExportEndpoints
                     field?.DataType,
                     field?.IsMandatory(import.ImportType) ?? false,
                     import.Rows.Select(row => CellAt(row, index)).FirstOrDefault(value => value is not null),
+                    field is null ? null : AssetImportFieldFormats.Format(field),
+                    field is null ? null : AssetImportFieldFormats.Example(field),
                     field is null ? "Not Mapped" : "Mapped");
             })
             .ToList();
@@ -1485,21 +1488,6 @@ public static class AssetImportExportEndpoints
 
     private static string IssueText(AssetImportJobIssue issue) =>
         issue.Column is null ? issue.Message : $"{issue.Column}: {issue.Message}";
-
-    /// <summary>The sample assets of the older import template, by column label, in the order of <paramref name="fields"/>.</summary>
-    private static List<IReadOnlyList<object?>> SampleRows(IReadOnlyList<AssetImportField> fields)
-    {
-        var headers = AssetImportColumns.All.Select(column => column.Header).ToList();
-        return AssetImportSampleData.Rows
-            .Select(sample => (IReadOnlyList<object?>)fields
-                .Select(field =>
-                {
-                    var index = headers.FindIndex(header => string.Equals(header, field.Label, StringComparison.OrdinalIgnoreCase));
-                    return index >= 0 && index < sample.Length ? sample[index] : null;
-                })
-                .ToList())
-            .ToList();
-    }
 
     private static async Task AddRelatedSheetsAsync(
         XLWorkbook workbook,

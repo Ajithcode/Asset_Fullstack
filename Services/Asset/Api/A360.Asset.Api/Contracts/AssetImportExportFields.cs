@@ -79,7 +79,7 @@ public static class AssetImportExportFields
     private const string Maintenance = "Maintenance & Technical";
     private const string SystemGroup = "System";
 
-    private const string DateHint = "Date, e.g. 2025-01-15";
+    private const string DateHint = "Date as DD/MM/YYYY, e.g. 15/01/2025";
 
     public static readonly IReadOnlyList<AssetImportField> All =
     [
@@ -357,7 +357,7 @@ public sealed class AssetImportFieldCatalog
         };
 
         var hint = definition.HelpText
-            ?? (options is not null ? $"One of: {string.Join(", ", options.All)}" : dataType == AssetImportDataTypes.Date ? "Date, e.g. 2025-01-15" : null);
+            ?? (options is not null ? $"One of: {string.Join(", ", options.All)}" : dataType == AssetImportDataTypes.Date ? "Date as DD/MM/YYYY, e.g. 15/01/2025" : null);
         var scopeText = definition.Scope == CustomFieldScopes.Category ? " (category-specific)" : string.Empty;
 
         return new AssetImportField(
