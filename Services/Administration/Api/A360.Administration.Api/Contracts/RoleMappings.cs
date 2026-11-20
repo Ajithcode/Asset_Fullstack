@@ -41,6 +41,7 @@ internal static class RoleMappings
         role.UpdatedAt = DateTime.UtcNow;
     }
 
+    // The AssetCriticality module's own actions (assess, approvecritical, configure) join this list when Asset Criticality is merged into backend
     private static readonly string[] Actions = ["view", "create", "edit", "delete", "approve", "export"];
     private static readonly string[] States = ["full", "partial", "none", "na"];
 

@@ -121,6 +121,33 @@ public sealed class LoginAccountClient(HttpClient http, ILogger<LoginAccountClie
         }
     }
 
+    /// <summary>
+    /// Every sign-in account (deleted ones included) with its role name, or null when the UserAccount service can't be read.
+    /// </summary>
+    public async Task<IReadOnlyList<LoginAccount>?> ListAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var accounts = await http.GetFromJsonAsync<List<LoginAccount>>("api/users", Json, cancellationToken) ?? [];
+            var roles = await http.GetFromJsonAsync<List<RoleDto>>("api/roles", Json, cancellationToken) ?? [];
+            var names = roles
+                .Where(role => !string.IsNullOrWhiteSpace(role.RoleId) && !string.IsNullOrWhiteSpace(role.RoleName))
+                .GroupBy(role => role.RoleId!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First().RoleName!.Trim(), StringComparer.OrdinalIgnoreCase);
+            return accounts
+                .Select(account => account with
+                {
+                    RoleName = account.UserRoleId is not null && names.TryGetValue(account.UserRoleId, out var name) ? name : null
+                })
+                .ToList();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException or NotSupportedException)
+        {
+            logger.LogWarning(exception, "Could not read the UserAccount sign-in accounts.");
+            return null;
+        }
+    }
+
     /// <summary>The UserAccount role with the same name as the primary role, else the default user role.</summary>
     private async Task<string> ResolveRoleIdAsync(string primaryRole, CancellationToken cancellationToken)
     {
@@ -170,6 +197,22 @@ public sealed class LoginAccountClient(HttpClient http, ILogger<LoginAccountClie
             return fallback;
         }
     }
+
+    /// <summary>A sign-in account as GET api/users of the UserAccount service returns it; RoleName is filled from its roles.</summary>
+    public sealed record LoginAccount(
+        string? Id,
+        string? UserName,
+        string? ShortName,
+        string? ContactNo,
+        string? Email,
+        string? UserRoleId,
+        string? Status,
+        bool IsDeleted,
+        DateTime? LastLogin,
+        DateTime? CreatedAt,
+        string? ClientId,
+        string? TenantId,
+        string? RoleName = null);
 
     private sealed record AccountDto(string? Id);
 
