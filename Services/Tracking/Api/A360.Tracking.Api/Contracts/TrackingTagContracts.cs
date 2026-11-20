@@ -7,7 +7,7 @@ namespace A360.Tracking.Api.Contracts;
 // ---------------------------------------------------------------- Requests
 
 /// <summary>
-/// The Register Tag ID form. The tag id is the technology prefix plus <see cref="TagNumber"/> (BLE + 002952 → BLE-002952).
+/// The Register Tag ID form. <see cref="TagNumber"/> is the tag id typed by the user (e.g. the BLE MAC c300006eb011), stored as entered.
 /// <see cref="Value"/> is the MAC address (BLE), EPC (RFID), encoded value (barcode / QR) or UID (NFC).
 /// Leave <see cref="AssetCode"/> empty to keep the tag in stock as Available.
 /// </summary>
@@ -251,7 +251,6 @@ public sealed record TagAuditOptionsResponse(
     IReadOnlyList<string> Periods);
 
 /// <summary>The next free tag number for a technology, to prefill the Register form.</summary>
-public sealed record NextTagNumberResponse(string Technology, string Prefix, string TagNumber, string TagId);
 
 // ---------------------------------------------------------------- Mapping
 

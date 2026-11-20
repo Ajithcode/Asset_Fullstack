@@ -10,6 +10,9 @@ public interface ITagAssetLookup
 {
     /// <summary>The asset whose registration id (AR-000123) or asset code (FL-008) is given, ignoring case; null when none.</summary>
     Task<TagAsset?> FindAsync(string registrationIdOrCode, CancellationToken cancellationToken = default);
+
+    /// <summary>Which of these registration ids belong to assets that exist and are not deleted.</summary>
+    Task<IReadOnlySet<string>> GetExistingRegistrationIdsAsync(IReadOnlyCollection<string> registrationIds, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Reads assets registered by the Asset service from the shared database.</summary>
@@ -38,6 +41,28 @@ public sealed class TagAssetLookup(IMongoDatabase database) : ITagAssetLookup
 
         var basic = asset.TryGetValue("basic_information", out var info) && info.IsBsonDocument ? info.AsBsonDocument : null;
         return new TagAsset(id.AsString, Text(basic, "asset_tag"), Text(basic, "asset_name"));
+    }
+
+    public async Task<IReadOnlySet<string>> GetExistingRegistrationIdsAsync(
+        IReadOnlyCollection<string> registrationIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (registrationIds.Count == 0)
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var filter = Builders<BsonDocument>.Filter;
+        var ids = await database.GetCollection<BsonDocument>(AssetRegistrationCollectionName)
+            .Find(filter.Ne("is_deleted", true) & filter.In("asset_registration_id", registrationIds),
+                new FindOptions { Collation = CaseInsensitive })
+            .Project(Builders<BsonDocument>.Projection.Include("asset_registration_id"))
+            .ToListAsync(cancellationToken);
+
+        return ids
+            .Where(document => document.TryGetValue("asset_registration_id", out var id) && id.IsString)
+            .Select(document => document["asset_registration_id"].AsString)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     private static string? Text(BsonDocument? document, string field)
