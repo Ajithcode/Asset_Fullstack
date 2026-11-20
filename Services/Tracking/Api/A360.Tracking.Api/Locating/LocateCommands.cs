@@ -12,12 +12,16 @@ public static class LocateCommandKind
     /// <summary>LED and buzzer together, sent as one message with both entries in "cmds".</summary>
     public const string Both = "both";
 
+    /// <summary>Turns the tag's LED and buzzer off: the same message as Both, with LED color 0 and buzzer cycles 0.</summary>
+    public const string Off = "off";
+
     /// <summary>The kind a front-end message type stands for, or null when it is not a command.</summary>
     public static string? FromType(string? type) => type switch
     {
         Led => Led,
         Buzzer => Buzzer,
         Both or "locate" or "ledbuzzer" or "led+buzzer" or "led_buzzer" => Both,
+        Off or "turnoff" or "turn_off" or "stop" => Off,
         _ => null,
     };
 }
@@ -96,6 +100,7 @@ public sealed record LocateCommand(string Kind, int ReqId, string TagId, JsonObj
 /// <summary>
 /// Builds the jengine message for an LED, buzzer or LED + buzzer command:
 /// {"version":2,"req_id":503,"cmds":[{"action":42,"method":"set_req","payload":{LED}},{"action":56,"method":"set_req","payload":{buzzer}}]}
+/// Off sends the same two entries with LED color 0 and buzzer cycles 0.
 /// </summary>
 public static class LocateCommandBuilder
 {
@@ -110,12 +115,17 @@ public static class LocateCommandBuilder
         var cmds = new JsonArray();
         var options = new JsonObject();
 
-        if (kind is not (LocateCommandKind.Led or LocateCommandKind.Buzzer or LocateCommandKind.Both))
+        if (kind is not (LocateCommandKind.Led or LocateCommandKind.Buzzer or LocateCommandKind.Both or LocateCommandKind.Off))
             throw new ArgumentException($"Unknown command '{kind}'.");
 
-        if (kind is LocateCommandKind.Led or LocateCommandKind.Both)
+        var off = kind == LocateCommandKind.Off;
+        var pair = kind is LocateCommandKind.Both or LocateCommandKind.Off;
+
+        if (kind is LocateCommandKind.Led || pair)
         {
             var led = LedOptions.From(message[LocateCommandKind.Led] as JsonObject ?? message);
+            if (off)
+                led = led with { Color = 0 };
             led.Validate();
             var payload = NewPayload(settings.LedOpcode, settings);
             led.WriteTo(payload);
@@ -125,13 +135,15 @@ public static class LocateCommandBuilder
                 ["color"] = led.Color, ["onMs"] = led.OnMs, ["offMs"] = led.OffMs,
                 ["cycles"] = led.Cycles, ["brightness"] = led.Brightness,
             };
-            if (kind == LocateCommandKind.Both) options[LocateCommandKind.Led] = ledOptions;
+            if (pair) options[LocateCommandKind.Led] = ledOptions;
             else options = ledOptions;
         }
 
-        if (kind is LocateCommandKind.Buzzer or LocateCommandKind.Both)
+        if (kind is LocateCommandKind.Buzzer || pair)
         {
             var buzzer = BuzzerOptions.From(message[LocateCommandKind.Buzzer] as JsonObject ?? message);
+            if (off)
+                buzzer = buzzer with { Cycles = 0 };
             buzzer.Validate();
             var payload = NewPayload(settings.BuzzerOpcode, settings);
             buzzer.WriteTo(payload);
@@ -141,7 +153,7 @@ public static class LocateCommandBuilder
                 ["beepMs"] = buzzer.BeepMs, ["pauseMs"] = buzzer.PauseMs,
                 ["cycles"] = buzzer.Cycles, ["level"] = buzzer.Level,
             };
-            if (kind == LocateCommandKind.Both) options[LocateCommandKind.Buzzer] = buzzerOptions;
+            if (pair) options[LocateCommandKind.Buzzer] = buzzerOptions;
             else options = buzzerOptions;
         }
 

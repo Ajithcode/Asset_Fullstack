@@ -93,6 +93,8 @@ public sealed record AssetImportExportOptionsResponse(
 }
 
 /// <param name="Mandatory">Must be mapped for the import type asked for (Create when none is given).</param>
+/// <param name="Format">How the value must be written in the file, e.g. "DD/MM/YYYY", "Whole number", "One of: Active, Inactive".</param>
+/// <param name="Example">A sample value in that format, e.g. "10/01/2023".</param>
 public sealed record AssetImportFieldResponse(
     string Key,
     string Label,
@@ -102,7 +104,9 @@ public sealed record AssetImportFieldResponse(
     bool Importable,
     bool Standard,
     string? Hint,
-    IReadOnlyCollection<string>? Options)
+    IReadOnlyCollection<string>? Options,
+    string Format,
+    string? Example)
 {
     public static AssetImportFieldResponse FromField(AssetImportField field, string importType) => new(
         field.Key,
@@ -113,7 +117,9 @@ public sealed record AssetImportFieldResponse(
         field.Importable,
         field.Standard,
         field.Hint,
-        field.Options?.All);
+        field.Options?.All,
+        AssetImportFieldFormats.Format(field),
+        AssetImportFieldFormats.Example(field));
 }
 
 public sealed record AssetImportJobSummaryResponse(
@@ -180,6 +186,9 @@ public sealed record AssetImportFileCheck(string Name, bool Passed, string? Mess
 
 /// <param name="Column">The file column (the left side of the Field Mapping table).</param>
 /// <param name="MappedTo">The Asset360 field key, or null when the column is not imported.</param>
+/// <param name="SampleData">The first value of the column in the uploaded file.</param>
+/// <param name="Format">How the mapped field's value must be written, e.g. "DD/MM/YYYY"; null when not mapped.</param>
+/// <param name="Example">A sample value for the mapped field in that format, e.g. "10/01/2023"; null when not mapped.</param>
 /// <param name="Status">"Mapped" or "Not Mapped".</param>
 public sealed record AssetImportColumnMappingResponse(
     string Column,
@@ -188,6 +197,8 @@ public sealed record AssetImportColumnMappingResponse(
     string? DataType,
     bool Mandatory,
     string? SampleData,
+    string? Format,
+    string? Example,
     string Status);
 
 /// <param name="MissingMandatory">Labels of the mandatory fields no column is mapped to yet ("still needed").</param>

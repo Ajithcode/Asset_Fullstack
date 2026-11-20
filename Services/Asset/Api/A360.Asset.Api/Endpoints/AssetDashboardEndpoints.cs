@@ -15,7 +15,8 @@ public static class AssetDashboardEndpoints
     private const string Offline = "Offline";
     private const string Alert = "Alert";
     private const string Unknown = "Unknown";
-    private const string Resolved = "Resolved";
+    /// <summary>IoT alert statuses that are finished (no longer open). Closed comes after Resolved in the alert lifecycle.</summary>
+    private static readonly HashSet<string> FinishedAlertStatuses = new(StringComparer.OrdinalIgnoreCase) { "Resolved", "Closed" };
     private const string UnassignedSiteId = "unassigned";
     private const string NoStatus = "No Status";
     private const string SensorAttention = "Attention";
@@ -184,7 +185,7 @@ public static class AssetDashboardEndpoints
             .ToDictionary(group => group.Key, group => group.Max(device => device.LastSeenAt), StringComparer.OrdinalIgnoreCase);
 
         var openAlertAssets = (await repository.GetAlertsAsync(assetIds, null, null, cancellationToken))
-            .Where(alert => alert.Status != Resolved && alert.AssetRegistrationId is not null)
+            .Where(alert => !FinishedAlertStatuses.Contains(alert.Status ?? string.Empty) && alert.AssetRegistrationId is not null)
             .Select(alert => alert.AssetRegistrationId!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
