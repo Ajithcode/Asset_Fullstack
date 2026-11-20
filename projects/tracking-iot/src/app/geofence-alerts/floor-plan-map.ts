@@ -21,7 +21,7 @@ export interface MapFocus {
 }
 
 /** Inputs that only move the live marker: they never redraw the plan. */
-const LIVE_INPUTS = new Set(['live', 'liveTrail', 'focus']);
+const LIVE_INPUTS = new Set(['live', 'liveTrail', 'focus', 'signal']);
 
 /** Plan width in map units; the height follows the image's aspect ratio. */
 const W = 1000;
@@ -81,6 +81,15 @@ const ASSET_SVG =
     .fp-live b { position: relative; width: 14px; height: 14px; border-radius: 50%; background: #dc2626; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(15, 23, 42, .4); }
     .fp-live span { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 2px 8px; border-radius: 6px;
       background: #dc2626; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 2px 6px rgba(15, 23, 42, .25); }
+    .fp-signal { position: relative; display: grid; place-items: center; width: 34px; height: 34px; }
+    .fp-signal i { position: absolute; inset: 0; border-radius: 50%; background: rgba(245, 158, 11, .45); animation: fp-signal 0.9s ease-in-out infinite; }
+    .fp-signal b { position: relative; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #f59e0b;
+      border: 3px solid #fff; box-shadow: 0 2px 8px rgba(15, 23, 42, .4); color: #fff; font-size: 13px; line-height: 1; }
+    .fp-signal span { position: absolute; top: 36px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 2px 8px; border-radius: 6px;
+      background: #b45309; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 2px 6px rgba(15, 23, 42, .25); }
+    .fp-signal--wait i { animation: none; background: rgba(148, 163, 184, .35); }
+    .fp-signal--wait b { background: #94a3b8; }
+    @keyframes fp-signal { 0%, 100% { transform: scale(.7); opacity: .25; } 50% { transform: scale(1.6); opacity: 1; } }
     .fp-live--stale i { animation: none; background: rgba(100, 116, 139, .25); }
     .fp-live--stale b, .fp-live--stale span { background: #64748b; }
     @keyframes fp-live-pulse { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(2.6); opacity: 0; } }
@@ -111,6 +120,8 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   @Input() live: LivePoint | null = null;
   /** Where the live asset has been since following started (oldest first). */
   @Input() liveTrail: { x: number; y: number }[] = [];
+  /** An asset whose tag is blinking / beeping (Locate asset › LED / buzzer); state "Live" pulses, anything else waits. */
+  @Input() signal: LivePoint | null = null;
   /** Fly to a point (zoom in) whenever its key changes. */
   @Input() focus: MapFocus | null = null;
 
@@ -124,6 +135,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   private liveLayer?: Leaflet.LayerGroup;
   private liveMarker?: Leaflet.Marker;
   private liveLine?: Leaflet.Polyline;
+  private signalMarker?: Leaflet.Marker;
   private shownFocus = '';
   /** Plan height in map units (from the image's aspect ratio). */
   private h = W * 0.6;
@@ -185,6 +197,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.liveLayer?.clearLayers();
       this.liveMarker = undefined;
       this.liveLine = undefined;
+      this.signalMarker = undefined;
       this.shownFocus = '';
       const url = this.imageUrl;
       if (!url) return;
@@ -311,18 +324,45 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     this.updateLive();
   }
 
+  /** The amber marker of a tag that is blinking / beeping. */
+  private updateSignal(): void {
+    const L = this.L;
+    if (!L || !this.liveLayer) return;
+    const s = this.signal;
+    if (!s) {
+      this.signalMarker?.remove();
+      this.signalMarker = undefined;
+      return;
+    }
+    const pos = this.at(s.x, s.y);
+    const wait = s.state !== 'Live';
+    const icon = L.divIcon({
+      className: '',
+      html: `<span class="fp-signal${wait ? ' fp-signal--wait' : ''}"><i></i><b>&#9679;</b><span>${esc(s.label)}</span></span>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17],
+    });
+    if (!this.signalMarker) this.signalMarker = L.marker(pos, { keyboard: false, interactive: false, zIndexOffset: 900, icon }).addTo(this.liveLayer);
+    else {
+      this.signalMarker.setLatLng(pos);
+      this.signalMarker.setIcon(icon);
+    }
+  }
+
   /** The live asset marker, its trail and any zoom request; the plan itself is left alone. */
   private updateLive(): void {
     const L = this.L;
     const map = this.map;
     if (!L || !map || !this.liveLayer) return;
     if (!this.planReady) return;
+    this.updateSignal();
     const live = this.live;
     if (!live) {
-      this.liveLayer.clearLayers();
+      this.liveMarker?.remove();
+      this.liveLine?.remove();
       this.liveMarker = undefined;
       this.liveLine = undefined;
-      this.shownFocus = '';
+      this.applyFocus();
       return;
     }
 
@@ -351,8 +391,18 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.liveLine = undefined;
     }
 
+    this.applyFocus();
+  }
+
+  private applyFocus(): void {
+    const map = this.map;
     const focus = this.focus;
-    if (focus && focus.key !== this.shownFocus) {
+    if (!map) return;
+    if (!focus) {
+      this.shownFocus = '';
+      return;
+    }
+    if (focus.key !== this.shownFocus) {
       this.shownFocus = focus.key;
       map.flyTo(this.at(focus.x, focus.y), Math.max(map.getZoom(), 1.25), { duration: 0.8 });
     }

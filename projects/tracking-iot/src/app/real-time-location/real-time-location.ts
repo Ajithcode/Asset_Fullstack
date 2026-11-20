@@ -6,13 +6,13 @@ import { Router, RouterModule } from '@angular/router';
 import { Observable, Subscription, catchError, forkJoin, map, of } from 'rxjs';
 import * as XLSX from 'xlsx';
 import {
-  LucideAngularModule, Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, LocateFixed, MapPin, Pause, Play, Radio, Route, Search, Settings,
-  ShieldAlert, Square, TriangleAlert, Wifi, X, HelpCircle,
+  LucideAngularModule, ArrowLeft, Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, Lightbulb, LocateFixed, MapPin, Pause, Play, Power,
+  Radio, Route, Search, Send, Settings, ShieldAlert, Square, TriangleAlert, Volume2, Wifi, X, HelpCircle,
 } from 'lucide-angular';
 import { apiErrorMessage } from '../shared/tracking-api';
 import { FloorPlanMap, LivePoint, MapFocus } from '../geofence-alerts/floor-plan-map';
 import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone } from '../geofence-alerts/floor-map-api.service';
-import { LiveMessage, LiveSnapshot, LocateReply, RtlApi, RtlAsset, RtlEventPage, RtlOverview, RtlTrail, TrailRange, TrailSegment } from './rtl-api';
+import { LiveMessage, LiveSnapshot, LocateMessage, LocateReply, LocateSocket, RtlApi, RtlAsset, RtlEventPage, RtlOverview, RtlTrail, TrailRange, TrailSegment } from './rtl-api';
 
 type MoveFilter = '' | 'Moving' | 'Stationary' | 'Unknown' | 'alerts';
 type LiveState = 'connecting' | 'live' | 'error';
@@ -37,7 +37,14 @@ const POLL_MS = 10000;
   ],
 })
 export class RealTimeLocation implements OnInit, OnDestroy {
-  readonly icons = { Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, LocateFixed, MapPin, Pause, Play, Radio, Route, Search, Settings, ShieldAlert, Square, TriangleAlert, Wifi, X, HelpCircle };
+  readonly icons = { ArrowLeft, Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, Lightbulb, LocateFixed, MapPin, Pause, Play, Power, Radio, Route, Search, Send, Settings, ShieldAlert, Square, TriangleAlert, Volume2, Wifi, X, HelpCircle };
+  /** LED colours the tags support (MBT02 has a red LED only: colour 3). */
+  readonly ledColours = [{ value: 3, label: 'Red' }];
+  readonly patterns = [
+    { label: 'Fast blink', onMs: 200, offMs: 200, cycles: 25 },
+    { label: 'Slow blink', onMs: 1000, offMs: 1000, cycles: 15 },
+    { label: 'Steady on 5 min', onMs: 60000, offMs: 1, cycles: 5 },
+  ];
   readonly trailRanges: { key: TrailRange; label: string }[] = [{ key: '30m', label: 'Last 30 minutes' }, { key: '1h', label: 'Last 1 hour' }, { key: '24h', label: 'Last 24 hours' }, { key: '7d', label: 'Last 7 days' }];
 
   private readonly api = inject(RtlApi);
@@ -94,6 +101,17 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   ev: RtlEventPage | null = null;
   evLoading = false;
 
+  // ---- LED / buzzer (Locate asset › bulb button): commands over /ws/locate
+  ctl: SignalForm | null = null;
+  /** The asset whose tag was told to blink / beep: an amber marker on the map and a Turn off panel. */
+  signalling: { assetId: string; name: string; tagId: string; command: string; state: 'sent' | 'on'; until: number; gatewayId: string } | null = null;
+  signalPoint: LivePoint | null = null;
+  signalMsg = '';
+  private ctlSock?: LocateSocket;
+  private ctlSub?: Subscription;
+  private signalTimer?: ReturnType<typeof setTimeout>;
+  private ctlWaitTimer?: ReturnType<typeof setTimeout>;
+
   // ---- live follow (Locate asset › location button): WebSocket stream of one asset's position
   followId = '';
   followName = '';
@@ -131,6 +149,9 @@ export class RealTimeLocation implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopLive();
+    this.closeCtlSocket();
+    clearTimeout(this.signalTimer);
+    clearTimeout(this.ctlWaitTimer);
     this.timers.forEach((t) => clearInterval(t));
     clearTimeout(this.toastTimer);
     [this.loadSub, this.trailSub, this.planSub, this.evSub].forEach((s) => s?.unsubscribe());
@@ -359,6 +380,252 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     if (floor && floor !== this.mapFloorId) this.setFloor(floor);
     this.select(a.assetId);
     if (!a.location) this.showToast(`${a.name} has no location yet: none of its tags has been heard.`);
+  }
+
+  // ---- LED / buzzer
+
+  /** Bulb button: the LED / buzzer form for this asset's tag, over a Locating socket. */
+  openSignal(a: RtlAsset): void {
+    const tag = (a.tags[0] ?? a.tracker ?? '').trim();
+    if (!tag) {
+      this.showToast(`${a.name} has no tag linked (Tag Management).`);
+      return;
+    }
+    this.ctl = {
+      asset: a, tagId: tag, mode: 'led', gatewayId: '', rssi: null,
+      led: { onMs: 300, offMs: 300, cycles: 10, color: 3, brightness: 100 },
+      buzzer: { beepMs: 300, pauseMs: 300, cycles: 10 },
+      errors: {}, status: 'Finding the gateway that hears this tag…', statusKind: 'wait', busy: false,
+    };
+    this.ensureCtlSocket();
+    this.ctlSock!.send({ type: 'subscribe', tagid: tag });
+  }
+
+  /** Back to the asset list (the socket stays open while a tag is signalling, so Turn off still works). */
+  backToLocateList(): void {
+    this.ctl = null;
+    if (!this.signalling) this.closeCtlSocket();
+  }
+
+  closeLocate(): void {
+    this.locateOpen = false;
+    this.backToLocateList();
+  }
+
+  setSignalMode(m: 'led' | 'buzzer' | 'both'): void {
+    if (this.ctl) this.ctl.mode = m;
+  }
+
+  applyPattern(p: { onMs: number; offMs: number; cycles: number }): void {
+    const c = this.ctl;
+    if (!c) return;
+    c.led.onMs = p.onMs;
+    c.led.offMs = p.offMs;
+    c.led.cycles = p.cycles;
+    if (c.mode === 'buzzer') c.mode = 'led';
+    c.errors = {};
+  }
+
+  /** How long the LED / buzzer will run with these settings. */
+  get signalRunText(): string {
+    const c = this.ctl;
+    if (!c) return '';
+    const parts: string[] = [];
+    if (c.mode !== 'buzzer') parts.push(`LED runs ${this.runText(this.ledMs(c))}`);
+    if (c.mode !== 'led') parts.push(`buzzer runs ${this.runText(this.buzzerMs(c))}`);
+    return parts.join(' · ');
+  }
+
+  private ledMs(c: SignalForm): number {
+    return (Number(c.led.cycles) || 0) * ((Number(c.led.onMs) || 0) + (Number(c.led.offMs) || 0));
+  }
+
+  private buzzerMs(c: SignalForm): number {
+    return (Number(c.buzzer.cycles) || 0) * ((Number(c.buzzer.beepMs) || 0) + (Number(c.buzzer.pauseMs) || 0));
+  }
+
+  private runText(ms: number): string {
+    const s = ms / 1000;
+    return s >= 3600 ? `${(s / 3600).toFixed(1)} h` : s >= 60 ? `${(s / 60).toFixed(1)} min` : `${s.toFixed(1)} s`;
+  }
+
+  /** Same limits as the backend (LocateCommands.cs). */
+  private validateSignal(c: SignalForm): boolean {
+    const e: Record<string, string> = {};
+    const check = (key: string, v: number, min: number, max: number) => {
+      if (v === null || v === undefined || (v as unknown) === '' || !Number.isInteger(Number(v)) || v < min || v > max) e[key] = `Enter a whole number from ${min} to ${max}`;
+    };
+    if (c.mode !== 'buzzer') {
+      check('onMs', c.led.onMs, 1, 65535);
+      check('offMs', c.led.offMs, 1, 65535);
+      check('ledCycles', c.led.cycles, 1, 65535);
+      check('brightness', c.led.brightness, 1, 100);
+    }
+    if (c.mode !== 'led') {
+      check('beepMs', c.buzzer.beepMs, 20, 65535);
+      check('pauseMs', c.buzzer.pauseMs, 20, 65535);
+      check('buzzerCycles', c.buzzer.cycles, 1, 65535);
+    }
+    c.errors = e;
+    return !Object.keys(e).length;
+  }
+
+  /** Send to tag: {"type":"led"|"buzzer"|"both","tagid",led:{...},buzzer:{...}} on /ws/locate. */
+  sendSignal(): void {
+    const c = this.ctl;
+    if (!c || c.busy) return;
+    if (!this.validateSignal(c)) {
+      c.status = 'Fix the highlighted fields first.';
+      c.statusKind = 'bad';
+      return;
+    }
+    const led = { color: Number(c.led.color), onMs: Number(c.led.onMs), offMs: Number(c.led.offMs), cycles: Number(c.led.cycles), brightness: Number(c.led.brightness) };
+    const buzzer = { beepMs: Number(c.buzzer.beepMs), pauseMs: Number(c.buzzer.pauseMs), cycles: Number(c.buzzer.cycles), level: 0 };
+    this.ensureCtlSocket();
+    this.ctlSock!.send({ type: c.mode, tagid: c.tagId, ...(c.mode !== 'buzzer' ? { led } : {}), ...(c.mode !== 'led' ? { buzzer } : {}) });
+    c.busy = true;
+    c.status = 'Sending to the gateway…';
+    c.statusKind = 'wait';
+    const runMs = c.mode === 'led' ? this.ledMs(c) : c.mode === 'buzzer' ? this.buzzerMs(c) : Math.max(this.ledMs(c), this.buzzerMs(c));
+    this.startSignal(c.asset, c.tagId, c.mode, runMs);
+  }
+
+  /** Turn off: {"type":"off","tagid"} (LED colour 0 and buzzer cycles 0 in one gateway message). */
+  turnOffSignal(): void {
+    const tag = this.ctl?.tagId ?? this.signalling?.tagId;
+    if (!tag) return;
+    this.ensureCtlSocket();
+    this.ctlSock!.send({ type: 'off', tagid: tag });
+    if (this.ctl) {
+      this.ctl.busy = true;
+      this.ctl.status = 'Turning the LED and buzzer off…';
+      this.ctl.statusKind = 'wait';
+    }
+    this.signalMsg = 'Turning off…';
+  }
+
+  /** Puts the amber marker on the map at the gateway hearing the tag and zooms to it. */
+  private startSignal(a: RtlAsset, tagId: string, command: string, runMs: number): void {
+    clearTimeout(this.signalTimer);
+    this.signalling = { assetId: a.assetId, name: a.name, tagId, command, state: 'sent', until: Date.now() + runMs, gatewayId: this.ctl?.gatewayId || a.location?.gatewayId || '' };
+    this.signalMsg = 'Sent. Waiting for the tag…';
+    this.placeSignal();
+  }
+
+  private placeSignal(): void {
+    const s = this.signalling;
+    if (!s) {
+      this.signalPoint = null;
+      return;
+    }
+    this.loadGatewaySpots().subscribe(() => {
+      const spot = this.gatewaySpots.get(s.gatewayId.toLowerCase());
+      if (!spot || this.signalling !== s) return;
+      const floor = this.floorOfPlan(spot.floorPlanId);
+      if (floor && floor !== this.mapFloorId) this.setFloor(floor);
+      const what = s.command === 'buzzer' ? 'beeping' : s.command === 'both' ? 'blinking + beeping' : 'blinking';
+      this.signalPoint = { x: spot.x, y: spot.y, label: s.state === 'on' ? `${s.name} · ${what}` : `${s.name} · sending…`, state: s.state === 'on' ? 'Live' : 'Waiting' };
+      if (!this.followId) this.mapFocus = { key: `signal:${s.tagId}:${spot.floorPlanId}`, x: spot.x, y: spot.y };
+    });
+  }
+
+  private endSignal(message = ''): void {
+    clearTimeout(this.signalTimer);
+    this.signalling = null;
+    this.signalPoint = null;
+    this.signalMsg = '';
+    if (message) this.showToast(message);
+    if (!this.followId && this.mapFocus?.key.startsWith('signal:')) this.mapFocus = null;
+    if (!this.ctl) this.closeCtlSocket();
+  }
+
+  private ensureCtlSocket(): void {
+    if (this.ctlSock) return;
+    const sock = this.api.locateSocket();
+    this.ctlSock = sock;
+    this.ctlSub = sock.messages.subscribe((m) => this.onCtlMessage(m));
+  }
+
+  private closeCtlSocket(): void {
+    this.ctlSub?.unsubscribe();
+    this.ctlSub = undefined;
+    this.ctlSock?.close();
+    this.ctlSock = undefined;
+  }
+
+  private onCtlMessage(m: LocateMessage): void {
+    const c = this.ctl;
+    switch (m.type) {
+      case 'subscribed':
+        if (c && m.tagid?.toLowerCase() === c.tagId.toLowerCase()) {
+          c.gatewayId = m.gatewayid ?? '';
+          c.rssi = m.rssi ?? null;
+          if (!c.busy) {
+            c.status = '';
+            c.statusKind = '';
+          }
+        }
+        if (this.signalling && m.gatewayid) this.signalling.gatewayId = m.gatewayid;
+        break;
+      case 'commandSent':
+        // The backend answers within Locating:CommandTimeoutSeconds (60 s) with completed / failed / timeout;
+        // if even that never arrives (connection dropped), stop waiting here so Send works again
+        clearTimeout(this.ctlWaitTimer);
+        this.ctlWaitTimer = setTimeout(() => this.onCtlMessage({ type: 'commandStatus', command: m.command, status: 'timeout', message: 'No answer from the gateway in time. Check that the tag is near the gateway and try again.' }), 70_000);
+        if (m.command === 'off') break;
+        if (c) {
+          c.status = `Sent to gateway ${m.gatewayid}. Waiting for the tag (up to 60 s)…`;
+          c.statusKind = 'wait';
+        }
+        if (this.signalling) {
+          this.signalling.gatewayId = m.gatewayid ?? this.signalling.gatewayId;
+          this.placeSignal();
+        }
+        break;
+      case 'commandStatus': {
+        const done = m.status !== 'accepted';
+        if (done) clearTimeout(this.ctlWaitTimer);
+        if (c) {
+          if (done) c.busy = false;
+          c.status = m.message ?? m.status ?? '';
+          c.statusKind = m.status === 'completed' ? 'ok' : m.status === 'accepted' ? 'wait' : 'bad';
+        }
+        if (m.command === 'off') {
+          if (m.status === 'completed') this.endSignal(`${this.signalling?.name ?? 'Tag'}: LED and buzzer turned off.`);
+          else if (done) this.signalMsg = m.message ?? 'Turn off failed.';
+          break;
+        }
+        const s = this.signalling;
+        if (!s) break;
+        if (m.status === 'accepted') this.signalMsg = 'Gateway accepted. Waiting for the tag…';
+        else if (m.status === 'completed') {
+          s.state = 'on';
+          this.signalMsg = m.message ?? 'Tag is signalling.';
+          this.placeSignal();
+          // Clear the marker when the pattern has run out
+          this.signalTimer = setTimeout(() => this.endSignal(), Math.max(1000, s.until - Date.now()));
+        } else this.endSignal(`${s.name}: ${m.message ?? 'the tag did not respond.'}`);
+        break;
+      }
+      case 'error':
+        if (c) {
+          c.busy = false;
+          c.status = m.message ?? 'Something went wrong.';
+          c.statusKind = 'bad';
+        }
+        if (this.signalling?.state === 'sent') this.endSignal(m.message ?? 'The command could not be sent.');
+        break;
+      case 'closed':
+        this.ctlSub?.unsubscribe();
+        this.ctlSub = undefined;
+        this.ctlSock = undefined;
+        if (c?.busy) {
+          c.busy = false;
+          c.status = 'The connection closed. Try again.';
+          c.statusKind = 'bad';
+        }
+        break;
+    }
   }
 
   // ---- live follow
@@ -639,4 +906,19 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     clearTimeout(this.toastTimer);
     this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
   }
+}
+
+/** Locate asset › LED / buzzer form (limits as in the backend's LocateCommands.cs). */
+interface SignalForm {
+  asset: RtlAsset;
+  tagId: string;
+  mode: 'led' | 'buzzer' | 'both';
+  gatewayId: string;
+  rssi: number | null;
+  led: { onMs: number; offMs: number; cycles: number; color: number; brightness: number };
+  buzzer: { beepMs: number; pauseMs: number; cycles: number };
+  errors: Record<string, string>;
+  status: string;
+  statusKind: 'ok' | 'bad' | 'wait' | '';
+  busy: boolean;
 }

@@ -221,22 +221,82 @@
   </section>
 </section>
 
-<!-- Locate asset -->
-<div *ngIf="locateOpen" class="overlay" (click)="locateOpen = false">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rtl-loc" (click)="$event.stopPropagation()">
-    <div class="modal-head"><h2 id="rtl-loc">Locate asset</h2><button type="button" class="icon-btn" (click)="locateOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
-    <div class="modal-body">
+<!-- Locate asset: asset list, and the LED / buzzer form of one asset -->
+<div *ngIf="locateOpen" class="overlay" (click)="closeLocate()">
+  <div class="modal loc-modal" role="dialog" aria-modal="true" aria-labelledby="rtl-loc" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <button *ngIf="ctl" type="button" class="icon-btn loc-back" (click)="backToLocateList()" aria-label="Back to the asset list"><lucide-icon [img]="icons.ArrowLeft" [size]="17"></lucide-icon></button>
+      <h2 id="rtl-loc" class="grow">Locate asset</h2>
+      <button type="button" class="icon-btn" (click)="closeLocate()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    </div>
+
+    <div *ngIf="!ctl" class="modal-body">
       <label class="tt-search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input id="rtl-locate-q" type="search" [(ngModel)]="locateQuery" placeholder="Asset ID, name, tag, device, type…" /></label>
       <ul class="locate-list">
         <li *ngFor="let a of locateRows; trackBy: byAsset" (click)="locate(a)">
           <span class="dot" [ngClass]="freshClass(a.freshness)"></span>
           <span class="grow min0"><b>{{ a.name }}</b><small>{{ a.assetId }}<ng-container *ngIf="a.assetTag"> · {{ a.assetTag }}</ng-container> · {{ a.tags.join(', ') }}</small></span>
           <small class="muted">{{ a.location?.zoneName || 'No location' }}</small>
+          <button type="button" class="icon-btn loc-live loc-signal" [class.is-on]="signalling?.assetId === a.assetId" (click)="$event.stopPropagation(); openSignal(a)"
+            [title]="'Blink LED / buzzer on ' + a.name" [attr.aria-label]="'Blink LED or buzzer on ' + a.name">
+            <lucide-icon [img]="icons.Lightbulb" [size]="17"></lucide-icon></button>
           <button type="button" class="icon-btn loc-live" (click)="$event.stopPropagation(); startLive(a)" [title]="'Show ' + a.name + ' live on the map'" [attr.aria-label]="'Show ' + a.name + ' live on the map'">
             <lucide-icon [img]="icons.LocateFixed" [size]="17"></lucide-icon></button>
         </li>
         <li *ngIf="!locateRows.length" class="muted small">No asset matches “{{ locateQuery }}”.</li>
       </ul>
+    </div>
+
+    <div *ngIf="ctl as c" class="modal-body sig">
+      <div class="sig-asset">
+        <b>{{ c.asset.assetTag || c.asset.assetId }}</b> {{ c.asset.name }}
+        <small>Tag {{ c.tagId }}<ng-container *ngIf="c.gatewayId"> · Nearest gateway <span class="mono">{{ c.gatewayId }}</span></ng-container><ng-container *ngIf="c.rssi !== null"> · {{ c.rssi }} dBm</ng-container></small>
+      </div>
+
+      <div class="sig-seg" role="radiogroup" aria-label="Signal">
+        <button type="button" role="radio" [attr.aria-checked]="c.mode === 'led'" [class.on]="c.mode === 'led'" (click)="setSignalMode('led')"><lucide-icon [img]="icons.Lightbulb" [size]="15"></lucide-icon>LED</button>
+        <button type="button" role="radio" [attr.aria-checked]="c.mode === 'buzzer'" [class.on]="c.mode === 'buzzer'" (click)="setSignalMode('buzzer')"><lucide-icon [img]="icons.Volume2" [size]="15"></lucide-icon>Buzzer</button>
+        <button type="button" role="radio" [attr.aria-checked]="c.mode === 'both'" [class.on]="c.mode === 'both'" (click)="setSignalMode('both')">Both</button>
+      </div>
+
+      <div *ngIf="c.mode !== 'buzzer'">
+        <h3 class="sig-h">Quick patterns</h3>
+        <div class="sig-chips"><button *ngFor="let p of patterns" type="button" class="btn btn-outline btn-sm" (click)="applyPattern(p)">{{ p.label }}</button></div>
+      </div>
+
+      <fieldset class="sig-box" [disabled]="c.mode === 'buzzer'" [class.is-off]="c.mode === 'buzzer'">
+        <legend class="sig-h"><lucide-icon [img]="icons.Lightbulb" [size]="15"></lucide-icon>LED settings</legend>
+        <div class="sig-grid">
+          <label class="sig-f"><span>On time (ms)</span><input class="control" type="number" min="1" max="65535" [(ngModel)]="c.led.onMs" [class.is-bad]="c.errors['onMs']" />
+            <small [class.c-red]="c.errors['onMs']">{{ c.errors['onMs'] || 'Min 1, max 65535' }}</small></label>
+          <label class="sig-f"><span>Off time (ms)</span><input class="control" type="number" min="1" max="65535" [(ngModel)]="c.led.offMs" [class.is-bad]="c.errors['offMs']" />
+            <small [class.c-red]="c.errors['offMs']">{{ c.errors['offMs'] || 'Min 1, max 65535' }}</small></label>
+          <label class="sig-f"><span>Blink count</span><input class="control" type="number" min="1" max="65535" [(ngModel)]="c.led.cycles" [class.is-bad]="c.errors['ledCycles']" />
+            <small [class.c-red]="c.errors['ledCycles']">{{ c.errors['ledCycles'] || 'Min 1, max 65535' }}</small></label>
+          <label class="sig-f"><span>Colour</span><select class="control" [(ngModel)]="c.led.color"><option *ngFor="let col of ledColours" [ngValue]="col.value">{{ col.label }}</option></select>
+            <small>This tag has a red LED only</small></label>
+        </div>
+        <label class="sig-f"><span>Brightness {{ c.led.brightness }}%</span><input type="range" min="1" max="100" step="1" [(ngModel)]="c.led.brightness" /></label>
+      </fieldset>
+
+      <fieldset class="sig-box" [disabled]="c.mode === 'led'" [class.is-off]="c.mode === 'led'">
+        <legend class="sig-h"><lucide-icon [img]="icons.Volume2" [size]="15"></lucide-icon>Buzzer settings</legend>
+        <div class="sig-grid">
+          <label class="sig-f"><span>Beep time (ms)</span><input class="control" type="number" min="20" max="65535" [(ngModel)]="c.buzzer.beepMs" [class.is-bad]="c.errors['beepMs']" />
+            <small [class.c-red]="c.errors['beepMs']">{{ c.errors['beepMs'] || 'Min 20, max 65535' }}</small></label>
+          <label class="sig-f"><span>Pause (ms)</span><input class="control" type="number" min="20" max="65535" [(ngModel)]="c.buzzer.pauseMs" [class.is-bad]="c.errors['pauseMs']" />
+            <small [class.c-red]="c.errors['pauseMs']">{{ c.errors['pauseMs'] || 'Min 20, max 65535' }}</small></label>
+          <label class="sig-f"><span>Beep count</span><input class="control" type="number" min="1" max="65535" [(ngModel)]="c.buzzer.cycles" [class.is-bad]="c.errors['buzzerCycles']" />
+            <small [class.c-red]="c.errors['buzzerCycles']">{{ c.errors['buzzerCycles'] || 'Min 1, max 65535' }}</small></label>
+        </div>
+      </fieldset>
+
+      <p class="sig-run">{{ signalRunText }}</p>
+      <div class="sig-foot">
+        <button type="button" class="btn btn-outline" (click)="turnOffSignal()"><lucide-icon [img]="icons.Power" [size]="15"></lucide-icon>Turn off</button>
+        <button type="button" class="btn btn-primary" [disabled]="c.busy" (click)="sendSignal()"><lucide-icon [img]="icons.Send" [size]="15"></lucide-icon>{{ c.busy ? 'Sending…' : 'Send to tag' }}</button>
+      </div>
+      <p *ngIf="c.status" class="sig-status" [ngClass]="'sig-status--' + c.statusKind" role="status">{{ c.status }}</p>
     </div>
   </div>
 </div>

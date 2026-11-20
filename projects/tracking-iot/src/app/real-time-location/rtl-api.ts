@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError } from 'rxjs';
+import { Observable, Subject, catchError } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
 import { apiError, tenantParams, trackingUrl } from '../shared/tracking-api';
 import { AssetLocation, Gateway } from '../tracking-telemetry/telemetry-overview-api';
@@ -71,6 +71,27 @@ export interface LiveMessage {
   state: 'connecting' | 'reconnecting' | 'live' | 'error';
   data?: LocateReply;
   message?: string;
+}
+
+/** A message from /ws/locate (subscribed, commandSent, commandStatus, error…); fields as the backend sends them. */
+export interface LocateMessage {
+  type: string;
+  tagid?: string;
+  gatewayid?: string;
+  rssi?: number | null;
+  lastSeen?: string | null;
+  reqId?: number;
+  command?: string;
+  /** commandStatus: accepted | completed | failed | timeout. */
+  status?: string;
+  message?: string;
+}
+
+/** An open /ws/locate connection: messages in, JSON objects out (queued until the socket is open). */
+export interface LocateSocket {
+  messages: Observable<LocateMessage>;
+  send(message: object): void;
+  close(): void;
 }
 
 /** What the live panel shows: the socket's reply placed on a floor plan (built by the page). */
@@ -154,6 +175,46 @@ export class RtlApi {
         if (socket && socket.readyState <= WebSocket.OPEN) socket.close(1000, 'stopped');
       };
     });
+  }
+
+  /**
+   * One Locating socket (/ws/locate) for LED / buzzer commands: send {"type":"subscribe"|"led"|"buzzer"|"both"|"off",
+   * "tagid",...} and read subscribed / commandSent / commandStatus / error. close() ends it.
+   */
+  locateSocket(): LocateSocket {
+    const out = new Subject<LocateMessage>();
+    const queue: string[] = [];
+    let closed = false;
+    const socket = typeof WebSocket === 'undefined' ? null : new WebSocket(this.locateUrl());
+    if (!socket) queueMicrotask(() => out.next({ type: 'error', message: 'This browser does not support WebSockets.' }));
+    if (socket) {
+      socket.onopen = () => queue.splice(0).forEach((m) => socket.send(m));
+      socket.onmessage = (e) => {
+        try {
+          out.next(JSON.parse(e.data as string) as LocateMessage);
+        } catch {
+          // not JSON: ignore
+        }
+      };
+      socket.onerror = () => out.next({ type: 'error', message: 'Could not connect to the locating service.' });
+      socket.onclose = () => {
+        if (!closed) out.next({ type: 'closed' });
+        out.complete();
+      };
+    }
+    return {
+      messages: out.asObservable(),
+      send: (message: object) => {
+        const text = JSON.stringify(message);
+        if (socket?.readyState === WebSocket.OPEN) socket.send(text);
+        else if (socket?.readyState === WebSocket.CONNECTING) queue.push(text);
+        else out.next({ type: 'error', message: 'The locating connection is closed. Open the asset again.' });
+      },
+      close: () => {
+        closed = true;
+        if (socket && socket.readyState <= WebSocket.OPEN) socket.close(1000, 'done');
+      },
+    };
   }
 
   private locateUrl(): string {
