@@ -12,8 +12,18 @@ import { MODULE_PERMS, ModuleGrant, ModulePerm, PolicyRecord, blankPolicy, stand
  */
 export const LICENSED_MODULES: readonly string[] = ['Dashboard', 'Assets', 'Tracking & IoT', 'Reports & Analytics', 'Administration', 'Master Data Management'];
 
-/** Asset Criticality has its own permission module (gateway route /api/asset-criticality), licensed with Assets. */
+/**
+ * Asset Criticality is a sub-menu of Assets. It keeps its own permission module (gateway route /api/asset-criticality,
+ * stored as permissions.AssetCriticality) and is shown nested under the Assets row, never as a module of its own.
+ */
 export const CRITICALITY_MODULE = 'AssetCriticality';
+export const CRITICALITY_PARENT = 'Assets';
+export const CRITICALITY_LABEL = 'Asset Criticality';
+
+/** Display name of a module or sub-module key. */
+export function moduleLabel(module: string): string {
+  return module === CRITICALITY_MODULE ? CRITICALITY_LABEL : module;
+}
 
 /** Module Access column -> Asset Criticality permission (view, assess, configure, approve, approvecritical). */
 export const CRITICALITY_ACTIONS: Record<ModulePerm, { action: string; label: string }> = {
@@ -58,7 +68,9 @@ function toGrant(role: RoleRecord, module: string): ModuleGrant {
  */
 function toPolicy(role: RoleRecord, extras?: PolicyRecord): PolicyRecord {
   const base = extras ? structuredClone(extras) : blankPolicy();
-  const grants = [...ASSET360_MODULES, CRITICALITY_MODULE].map((m) => toGrant(role, m));
+  const grants = ASSET360_MODULES.map((m) => toGrant(role, m));
+  const assets = grants.find((g) => g.module === CRITICALITY_PARENT);
+  if (assets) assets.children = [toGrant(role, CRITICALITY_MODULE)];
   return {
     ...base,
     id: role.id,
@@ -70,6 +82,8 @@ function toPolicy(role: RoleRecord, extras?: PolicyRecord): PolicyRecord {
     icon: role.type === 'System' ? 'shield' : 'users',
     roles: [role.name],
     grants,
+    // Asset Criticality is part of Assets, not a landing module of its own
+    landingModule: base.landingModule === CRITICALITY_MODULE ? CRITICALITY_PARENT : base.landingModule,
     features: extras ? base.features : grants.filter((g) => g.enabled).flatMap((g) => standardFeatureIds(g.module)),
     updatedAt: role.updatedOn,
     updatedBy: role.createdBy
@@ -79,7 +93,9 @@ function toPolicy(role: RoleRecord, extras?: PolicyRecord): PolicyRecord {
 /** Writes the policy's module grants back onto (a copy of) the role's permission matrix. Unlicensed modules stay as they are. */
 function applyGrants(role: RoleRecord, policy: PolicyRecord): RoleRecord {
   const next = structuredClone(role);
-  for (const g of policy.grants) {
+  // Sub-modules are saved under their own permission module; a parent that is switched off switches them off too
+  const all = policy.grants.flatMap((g) => [g, ...(g.children ?? []).map((c) => (g.enabled ? c : { ...c, enabled: false }))]);
+  for (const g of all) {
     if (g.unlicensed) continue;
     const name = matrixName(g.module);
     const row = { ...(next.permissions[name] ?? {}) } as Record<string, CellState>;

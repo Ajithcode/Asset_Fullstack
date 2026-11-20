@@ -21,10 +21,19 @@
       @for (m of modules; track m) {
         <tr>
           <td>
-            <button type="button" class="pm-mod" [title]="'Toggle every action for ' + m" (click)="toggleRow(m)">
-              <lucide-icon [img]="moduleIcon(m)" [size]="16"></lucide-icon>
-              {{ m }}
-            </button>
+            <span class="pm-head">
+              @if (subModules(m).length) {
+                <button type="button" class="pm-expand" [attr.aria-expanded]="isExpanded(m)" [attr.aria-label]="(isExpanded(m) ? 'Collapse ' : 'Expand ') + m" [title]="(isExpanded(m) ? 'Hide ' : 'Show ') + m + ' sub-menus'" (click)="toggleExpanded(m)">
+                  <lucide-icon [img]="isExpanded(m) ? icons.ChevronDown : icons.ChevronRight" [size]="14"></lucide-icon>
+                </button>
+              } @else {
+                <span class="pm-expand-gap"></span>
+              }
+              <button type="button" class="pm-mod" [title]="'Toggle every action for ' + m" (click)="toggleRow(m)">
+                <lucide-icon [img]="moduleIcon(m)" [size]="16"></lucide-icon>
+                {{ m }}
+              </button>
+            </span>
           </td>
           @for (a of actions; track a.id) {
             <td class="center">
@@ -54,6 +63,39 @@
             </td>
           }
         </tr>
+        @if (isExpanded(m)) {
+          @for (s of subModules(m); track s.key) {
+            <tr class="pm-sub" [class.pm-blocked]="subBlocked(s)" [attr.data-parent]="m">
+              <td><span class="pm-sub-name">{{ s.label }}</span></td>
+              @for (a of actions; track a.id) {
+                <td class="center">
+                  @if (subState(s, a.id) === 'na') {
+                    <span class="pm-na" title="Not applicable">–</span>
+                  } @else {
+                    <button
+                      type="button"
+                      class="cb"
+                      role="checkbox"
+                      [attr.data-state]="subState(s, a.id)"
+                      [disabled]="subBlocked(s)"
+                      [attr.aria-checked]="subAria(s, a.id)"
+                      [attr.aria-label]="subTitle(s, a.id)"
+                      [title]="subTitle(s, a.id)"
+                      (click)="toggleSub(s, a.id)"
+                    >
+                      @if (subState(s, a.id) === 'full') {
+                        <lucide-icon [img]="icons.Check" [size]="13" [strokeWidth]="3"></lucide-icon>
+                      } @else if (subState(s, a.id) === 'partial') {
+                        <lucide-icon [img]="icons.Minus" [size]="13" [strokeWidth]="3"></lucide-icon>
+                      }
+                    </button>
+                    <small class="pm-cap">{{ subLabel(s, a.id) }}</small>
+                  }
+                </td>
+              }
+            </tr>
+          }
+        }
       } @empty {
         <tr><td colspan="7" class="empty">No modules match the search.</td></tr>
       }
