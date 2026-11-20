@@ -1,10 +1,13 @@
 @use '../../../../styles/theme' as *;
 
 :host {
+  /* Height of the topbar strip; the fixed sidebar starts below it */
+  --piq-topbar-h: 64px;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   font-family: var(--piq-font);
+  background: #f5f8fc;
 
   &.sidebar-collapsed .main-area {
     margin-left: var(--piq-sidebar-collapsed-width, 72px);
@@ -14,7 +17,8 @@
 .layout-shell {
   display: flex;
   position: relative;
-  min-height: 100vh;
+  flex: 1;
+  min-height: calc(100vh - var(--piq-topbar-h));
 }
 
 .main-area {
@@ -23,24 +27,22 @@
   flex: 1;
   margin-left: var(--piq-sidebar-width, 230px);
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 100vh;
   min-width: 0;
-  padding-left:14px;
-  padding-right:12px;
+  padding-left: 14px;
+  padding-right: 12px;
   padding-top: 12px;
   background: #f5f8fc;
 }
 
+/* Full width, above the sidebar and the page; flush with the sidebar below it (no gap, square corners) */
 .topbar-bar {
   position: sticky;
   top: 0;
-  /* Above page content; below the sidebar's collapse button (z-index 9999) */
   z-index: 1500;
-  /* Cover the main area's top and side padding too, so the white strip runs edge to edge */
-  margin: -12px -12px 6px -14px;
-  padding: 12px 12px 10px 14px;
-  background: #fff;
-  box-shadow: 0 1px 0 #e5e7eb;
+  height: var(--piq-topbar-h);
+  box-sizing: border-box;
+  padding: 0;
+  background: transparent;
 }
 
 .layout-content {

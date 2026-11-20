@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, Output, EventEmitter, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, Output, EventEmitter, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -77,6 +77,8 @@ interface BreadcrumbItem {
 })
 export class Topbar {
   @Output() toggleSidebar = new EventEmitter<void>();
+  /** Sidebar state, for the menu button's label. */
+  @Input() sidebarCollapsed = false;
   breadcrumbs: BreadcrumbItem[] = [];
   isDropdownOpen = false;
   flyoutPosition: { top: number; left: number } | null = null;

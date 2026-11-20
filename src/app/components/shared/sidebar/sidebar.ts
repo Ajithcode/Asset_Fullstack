@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, Output, EventEmitter, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, Output, EventEmitter, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -55,7 +55,8 @@ export interface NavItem {
 })
 export class Sidebar {
   @Output() collapsedChange = new EventEmitter<boolean>();
-  collapsed = false;
+  /** Set by the layout (topbar menu button); toggleCollapse() still reports changes made here. */
+  @Input() collapsed = false;
   isCollapsing = false;
 
   // label of the top-level item whose flyout is open (e.g. 'Administration')
