@@ -1,11 +1,9 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
 import {
-  ArrowLeftRight, Box, ChartColumn, ChevronDown, ChevronRight, ClipboardCheck, DollarSign, FileText, FolderTree, House, LayoutDashboard, Lock, LucideAngularModule, LucideIconData,
+  ArrowLeftRight, Box, ChartColumn, ClipboardCheck, DollarSign, FileText, FolderTree, House, LayoutDashboard, Lock, LucideAngularModule, LucideIconData,
   Package, Radio, Settings, Shield, Wrench
 } from 'lucide-angular';
 import { MODULE_PERMS, MODULE_SCOPES, ModuleGrant, ModulePerm, PolicyRecord, featuresOf, scopeTone, standardFeatureIds } from '../module-access.data';
-import { CRITICALITY_ACTIONS, CRITICALITY_MODULE, moduleLabel } from '../module-access.service';
 
 const MODULE_ICONS: Record<string, LucideIconData> = {
   Dashboard: House,
@@ -20,23 +18,15 @@ const MODULE_ICONS: Record<string, LucideIconData> = {
   Financial: DollarSign,
   'Reports & Analytics': ChartColumn,
   Administration: Settings,
-  'Master Data Management': FolderTree,
-  [CRITICALITY_MODULE]: Shield
+  'Master Data Management': FolderTree
 };
 
 export function moduleIcon(module: string): LucideIconData {
   return MODULE_ICONS[module] ?? LayoutDashboard;
 }
 
-/**
- * Switches a module on (view + standard features) or off (clears actions and features, scope Restricted).
- * Sub-modules follow their parent: off switches them off; on gives them View only (no Assess / Configure / Approve).
- */
+/** Switches a module on (view + standard features) or off (clears actions and features, scope Restricted). */
 export function setModuleEnabled(policy: PolicyRecord, g: ModuleGrant, on: boolean): void {
-  for (const c of g.children ?? []) {
-    if (!on) setModuleEnabled(policy, c, false);
-    else if (!c.enabled) setModuleEnabled(policy, c, true);
-  }
   if (g.enabled === on || g.unlicensed) return;
   g.enabled = on;
   if (on) {
@@ -60,7 +50,7 @@ export function setModuleEnabled(policy: PolicyRecord, g: ModuleGrant, on: boole
  */
 @Component({
   selector: 'app-module-table',
-  imports: [LucideAngularModule, NgTemplateOutlet],
+  imports: [LucideAngularModule],
   templateUrl: './module-table.html',
   styleUrls: ['../../shared/admin-workspace.css', './module-table.css']
 })
@@ -71,39 +61,13 @@ export class ModuleTable {
 
   readonly perms = MODULE_PERMS;
   readonly scopes = MODULE_SCOPES;
-  readonly icons = { Lock, ChevronDown, ChevronRight };
-  /** Parent rows whose sub-modules are collapsed */
-  private readonly collapsed = new Set<string>();
+  readonly icons = { Lock };
 
   get rows(): ModuleGrant[] {
     const t = this.filter.trim().toLowerCase();
-    const hit = (g: ModuleGrant) => g.module.toLowerCase().includes(t) || moduleLabel(g.module).toLowerCase().includes(t);
-    const matching = this.policy.grants.filter((g) => hit(g) || (g.children ?? []).some(hit));
+    const matching = this.policy.grants.filter((g) => g.module.toLowerCase().includes(t));
     // A search that matches no module (e.g. a policy name) leaves the table alone
     return t && matching.length ? matching : this.policy.grants;
-  }
-
-  label(m: string): string {
-    return moduleLabel(m);
-  }
-
-  isExpanded(g: ModuleGrant): boolean {
-    return !this.collapsed.has(g.module);
-  }
-
-  toggleExpanded(g: ModuleGrant): void {
-    if (!this.collapsed.delete(g.module)) this.collapsed.add(g.module);
-  }
-
-  /** The row a sub-module is nested under, if any */
-  parentOf(g: ModuleGrant): ModuleGrant | undefined {
-    return this.policy.grants.find((p) => p.children?.includes(g));
-  }
-
-  /** A sub-module is usable only while its parent module is enabled */
-  blocked(g: ModuleGrant): boolean {
-    const parent = this.parentOf(g);
-    return !!parent && !parent.enabled;
   }
 
   icon(m: string): LucideIconData {
@@ -126,14 +90,9 @@ export class ModuleTable {
     return this.policy.grants.some((g) => g.enabled) && !this.allEnabled();
   }
 
-  /** Column label for a cell: Asset Criticality has its own permissions behind the standard columns. */
-  permLabel(g: ModuleGrant, p: ModulePerm): string | null {
-    return g.module === CRITICALITY_MODULE ? CRITICALITY_ACTIONS[p].label : null;
-  }
-
   lockTitle(g: ModuleGrant, p: ModulePerm): string {
     const state = g.perms[p] ? 'granted' : 'not granted';
-    return g.unlicensed ? `${this.label(g.module)} is not licensed (${state})` : `Inherited from parent policy: ${state}`;
+    return g.unlicensed ? `${g.module} is not licensed (${state})` : `Inherited from parent policy: ${state}`;
   }
 
   toggleAllModules(): void {
@@ -144,11 +103,7 @@ export class ModuleTable {
 
   toggleEnabled(g: ModuleGrant): void {
     if (g.unlicensed) {
-      this.notice.emit(`${this.label(g.module)} is not licensed for this installation.`);
-      return;
-    }
-    if (this.blocked(g)) {
-      this.notice.emit(`Enable ${this.parentOf(g)!.module} first.`);
+      this.notice.emit(`${g.module} is not licensed for this installation.`);
       return;
     }
     setModuleEnabled(this.policy, g, !g.enabled);
@@ -156,15 +111,11 @@ export class ModuleTable {
 
   togglePerm(g: ModuleGrant, p: ModulePerm): void {
     if (this.isLocked(g, p)) {
-      this.notice.emit(g.unlicensed ? `${this.label(g.module)} is not licensed for this installation.` : `${this.label(g.module)} ${p} is inherited from the parent policy and can't be changed here.`);
-      return;
-    }
-    if (this.blocked(g)) {
-      this.notice.emit(`Enable ${this.parentOf(g)!.module} first.`);
+      this.notice.emit(g.unlicensed ? `${g.module} is not licensed for this installation.` : `${g.module} ${p} is inherited from the parent policy and can't be changed here.`);
       return;
     }
     if (!g.enabled) {
-      this.notice.emit(`Enable ${this.label(g.module)} first.`);
+      this.notice.emit(`Enable ${g.module} first.`);
       return;
     }
     const on = !g.perms[p];

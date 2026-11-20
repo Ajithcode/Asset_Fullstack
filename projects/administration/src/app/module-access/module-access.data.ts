@@ -21,8 +21,6 @@ export interface ModuleGrant {
   scope: string;
   /** Module not covered by this installation's licence: shown locked, not editable */
   unlicensed?: boolean;
-  /** Sub-modules shown nested under this row (e.g. Assets › Asset Criticality); saved under their own permission module */
-  children?: ModuleGrant[];
 }
 
 export interface AccessException {

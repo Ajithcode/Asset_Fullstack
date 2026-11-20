@@ -5,7 +5,7 @@ import { avatarTone, initials } from '../../shared/admin-common';
 import { ChipSelect } from '../../role-access-control/chip-select/chip-select';
 import { RoleAccessService } from '../../role-access-control/role-access.service';
 import { AccessSummary, POLICY_SCOPES, POLICY_TYPES, PolicyRecord, accessSummary } from '../module-access.data';
-import { ModuleAccessService, moduleLabel } from '../module-access.service';
+import { ModuleAccessService } from '../module-access.service';
 
 export type PolicyErrors = Partial<Record<'name' | 'code' | 'description' | 'roles' | 'dataScope' | 'landingModule' | 'sessionTimeout', string>>;
 
@@ -60,14 +60,8 @@ export class PolicyDrawer implements OnChanges {
     return this.roles.all().map((r) => r.name);
   }
 
-  /** Landing modules: enabled top-level modules only (sub-modules such as Asset Criticality belong to their parent) */
   get enabledModules(): string[] {
     return this.policy.grants.filter((g) => g.enabled).map((g) => g.module);
-  }
-
-  /** Friendly name for a module key */
-  label(m: string): string {
-    return moduleLabel(m);
   }
 
   get summary(): AccessSummary {

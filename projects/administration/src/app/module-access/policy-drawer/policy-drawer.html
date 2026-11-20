@@ -84,10 +84,10 @@
       <select id="pd-landing" name="landing" [(ngModel)]="policy.landingModule">
         <option value="" disabled>Select Default Landing Module</option>
         @for (m of enabledModules; track m) {
-          <option [value]="m">{{ label(m) }}</option>
+          <option [value]="m">{{ m }}</option>
         }
         @if (policy.landingModule && enabledModules.indexOf(policy.landingModule) < 0) {
-          <option [value]="policy.landingModule">{{ label(policy.landingModule) }} (disabled)</option>
+          <option [value]="policy.landingModule">{{ policy.landingModule }} (disabled)</option>
         }
       </select>
       @if (show('landingModule'); as msg) { <small>{{ msg }}</small> }
