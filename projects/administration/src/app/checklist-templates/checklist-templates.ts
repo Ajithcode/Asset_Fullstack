@@ -17,7 +17,7 @@ import {
 } from './checklist-templates.model';
 import { ChecklistTemplatesService } from './checklist-templates.service';
 import { ItemDrawer, ItemSave } from './item-drawer/item-drawer';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type Tab = 'items' | 'settings' | 'history';
 

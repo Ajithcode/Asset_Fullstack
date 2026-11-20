@@ -49,7 +49,7 @@ import { SpareParts } from './spare-parts/spare-parts';
 import { MaintenanceApiService, buildMaintenanceData, emptyMaintenanceData } from './maintenance-api.service';
 import { AssetLookupService, toAssetRecord } from './asset-lookup.service';
 import { apiErrorMessage } from '../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type Tab = 'overview' | 'workOrders' | 'pm' | 'predictive' | 'requests' | 'history' | 'costs' | 'parts' | 'documents';
 type WoType = 'Preventive' | 'Corrective' | 'Inspection' | 'Service';

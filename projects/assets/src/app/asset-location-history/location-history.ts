@@ -33,7 +33,7 @@ import { Subscription } from 'rxjs';
 import { LocationHistoryService } from './location-history.service';
 import { AssetLookupService, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
 import { apiErrorMessage } from '../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type MovementType = 'In' | 'Out' | 'Move';
 

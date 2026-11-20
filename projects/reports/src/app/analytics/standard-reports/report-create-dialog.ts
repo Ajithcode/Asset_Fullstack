@@ -4,7 +4,7 @@ import {
   ReportFrequency, ReportModule, ReportPeriod, ReportStatus, SR_STATUSES, SR_TIME_ZONES
 } from './standard-reports.data';
 import { NewStandardReport } from './standard-reports.service';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 const FREQUENCIES: ReportFrequency[] = ['On demand', 'Daily', 'Weekly', 'Monthly', 'Quarterly'];
 

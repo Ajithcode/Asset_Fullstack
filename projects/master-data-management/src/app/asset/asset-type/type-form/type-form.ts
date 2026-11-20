@@ -7,7 +7,7 @@ import { MODEL_ICONS, MODEL_ICON_KEYS } from '../../asset-model/asset-model.icon
 import { ASSET_CLASSES, CUSTOM_FIELD_TYPES, MAINTENANCE_TYPES, blankAssetType } from '../asset-type.data';
 import { AssetTypeRecord } from '../asset-type.model';
 import { AssetTypeService } from '../asset-type.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 /** A new asset type starts with every dropdown empty so the user picks each value. */
 function newAssetType(): AssetTypeRecord {

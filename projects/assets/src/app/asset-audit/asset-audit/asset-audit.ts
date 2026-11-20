@@ -23,7 +23,7 @@ import {
 } from 'lucide-angular';
 import { AssetAuditService, AuditCounts, AuditListItemDto, AuditLocation, apiDate } from '../asset-audit.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 export type AuditType = 'Periodic' | 'Ad-hoc' | 'Compliance' | 'Annual' | 'Spot Check' | 'Preventive';
 export type AuditStatus = 'Draft' | 'Scheduled' | 'In Progress' | 'Completed' | 'Overdue';

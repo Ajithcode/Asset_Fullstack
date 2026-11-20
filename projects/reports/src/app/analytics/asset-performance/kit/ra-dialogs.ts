@@ -2,7 +2,7 @@ import { Component, EventEmitter, HostListener, Input, OnChanges, Output } from 
 import { FormsModule } from '@angular/forms';
 import { ArrowDown, ArrowUp, ArrowUpDown, Download, LucideAngularModule, X } from 'lucide-angular';
 import { RA_PEOPLE, downloadCsv } from '../../shared/analytics-common';
-import { RELAX_VALIDATION, relaxError } from '../../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION, relaxError } from '../../../../../../../src/relax-validation/relax-validation';
 
 export interface RaColumn {
   key: string;

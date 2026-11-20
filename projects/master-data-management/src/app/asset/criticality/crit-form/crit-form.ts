@@ -5,7 +5,7 @@ import { HEX_COLOR, LEVEL_ICONS, LEVEL_ICON_KEYS } from '../../level-icons';
 import { INSPECTION_FREQUENCIES, MONITORING, PRIORITIES, SCALE, STRATEGIES, blankCriticality } from '../criticality.data';
 import { CriticalityRecord } from '../criticality.model';
 import { CriticalityService } from '../criticality.service';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../../src/relax-validation/relax-validation';
 
 /** A new level starts with every dropdown empty so the user picks each value. */
 function newCriticality(): CriticalityRecord {

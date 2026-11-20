@@ -41,7 +41,7 @@ import { ImageEvent } from '../asset-details/asset-details';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetLookupService, AssetOption } from '../asset-documents/asset-lookup.service';
 import { ApiImage, AssetImagesService } from './asset-images.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type AssetImage = ApiImage;
 

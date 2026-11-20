@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { DataJob, JobSchedule, ScheduleFrequency } from '../data-import.model';
 import { WEEKDAYS } from '../data-import.data';
 import { formatStamp } from '../data-import.util';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 /** Schedule tab: run manually, once, or on a daily / weekly / monthly cadence. */
 @Component({

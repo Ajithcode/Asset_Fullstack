@@ -16,7 +16,7 @@ import {
   AttentionAsset, DashFilters, Dashboard, WidgetConfig, WidgetSpan, WidgetType, buildWidgetData, widgetCsv
 } from './interactive-dashboards.data';
 import { LIBRARY_DRAG_TYPE, WidgetLibrary } from './widget-library/widget-library';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 type MenuKey = 'picker' | 'mine' | 'shared' | 'favorites' | 'more' | 'info';
 

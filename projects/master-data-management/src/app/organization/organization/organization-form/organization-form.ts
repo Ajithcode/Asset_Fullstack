@@ -4,7 +4,7 @@ import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { COUNTRIES, CURRENCIES, DATE_FORMATS, LANGUAGES, TIME_ZONES, blankOrganization } from '../organization.data';
 import { ORGANIZATION_TYPES, OrganizationRecord } from '../organization.model';
 import { OrganizationService } from '../organization.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'contact' | 'settings';
 type FieldKey = 'name' | 'code' | 'type' | 'website' | 'logo' | 'parentCode' | 'email' | 'effectiveTo';

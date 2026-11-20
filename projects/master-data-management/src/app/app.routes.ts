@@ -43,7 +43,7 @@ import { PermissionMasterPage } from './security/permission-master/permission-ma
 import { ModuleAccessMasterPage } from './security/module-access-master/module-access-master';
 import { RoleMasterPage } from './security/role-master/role-master';
 import { UserManagementPage } from './security/user-management/user-management';
-import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
+import { installRelaxedValidation } from '../../../../src/relax-validation/relax-validation';
 
 // TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
 installRelaxedValidation();

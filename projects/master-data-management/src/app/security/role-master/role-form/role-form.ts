@@ -5,7 +5,7 @@ import { MasterForm } from '../../../maintenance/form-base';
 import { ROLE_TYPES, blankRole } from '../../security.data';
 import { ModuleRecord, PermissionRecord, RoleRecord } from '../../security.model';
 import { ModuleService, PermissionService, RoleService } from '../../security.service';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../../src/relax-validation/relax-validation';
 
 type Tab = 'permissions' | 'modules';
 

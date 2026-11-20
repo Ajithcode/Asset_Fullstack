@@ -5,7 +5,7 @@ import { ADMIN_PEOPLE } from '../../shared/admin-common';
 import { COUNTRY_CITIES, LOCATION_TYPES, PARENT_TYPE, TIME_ZONES } from '../organization.data';
 import { OrgLocation } from '../organization.model';
 import { OrganizationService } from '../organization.service';
-import { relaxErrors } from '../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../src/relax-validation/relax-validation';
 
 const CODE = /^[A-Z][A-Z0-9]*-\d{3,}$/;
 

@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Info, LucideAngularModule, Trash2 } from 'lucide-angular';
 import { MapZone, zoneIcon } from '../maps.data';
 import { MapsStore } from '../maps.store';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 /** Right panel form for the selected zone: identity, access rule and geofence alerts. */
 @Component({

@@ -9,7 +9,7 @@ import { TechnicianService } from '../../technician/technician.service';
 import { blankTeam } from '../team.data';
 import { TeamRecord } from '../team.model';
 import { TeamService } from '../team.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 type FormTab = 'basic' | 'members' | 'roles' | 'settings';
 type FieldKey = 'name' | 'code' | 'department' | 'status' | 'members';

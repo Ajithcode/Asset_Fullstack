@@ -40,7 +40,7 @@ import {
   RISK_SCALE,
   RelatedAssetLink,
 } from './asset-criticality.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type SubTab = 'details' | 'impact' | 'mitigation' | 'history' | 'related';
 type ViewMode = 'list' | 'grid';

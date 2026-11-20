@@ -44,7 +44,7 @@ import { Observable, Subscription, finalize, of, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetLookupService, AssetOption } from './asset-lookup.service';
 import { ApiDocVersion, ApiDocument, AssetDocumentsService, DocumentFormValue, StoredFile } from './asset-documents.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type DocStatus = 'Active' | 'Expired' | 'Draft';
 type ViewMode = 'list' | 'grid';

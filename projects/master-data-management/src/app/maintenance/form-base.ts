@@ -1,7 +1,7 @@
 import { Directive, EventEmitter, Input, OnChanges, Output } from '@angular/core';
 import { CodeStore } from '../shared/code-store';
 import { nowStamp } from '../people/people.data';
-import { relaxErrors } from '../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../src/relax-validation/relax-validation';
 
 /**
  * Add/edit drawer behaviour shared by the Maintenance masters: copy the record in, check the

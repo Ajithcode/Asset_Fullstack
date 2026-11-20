@@ -5,7 +5,7 @@ import { MasterForm } from '../../../maintenance/form-base';
 import { UOM_TYPES, blankUom } from '../../inventory.data';
 import { UomRecord } from '../../inventory.model';
 import { UomService } from '../../inventory.service';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../../src/relax-validation/relax-validation';
 
 type Tab = 'basic' | 'conversion' | 'settings';
 

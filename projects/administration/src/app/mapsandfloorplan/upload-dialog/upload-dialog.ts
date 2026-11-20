@@ -4,7 +4,7 @@ import { CloudUpload, LucideAngularModule } from 'lucide-angular';
 import { formatFromFileName } from '../maps-api.service';
 import { FILE_FORMATS, FileFormat, FloorPlanType } from '../maps.data';
 import { MapsStore } from '../maps.store';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 /** Largest file accepted (the Settings tab default). */
 const MAX_FILE_MB = 50;

@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Download, LucideAngularModule, X } from 'lucide-angular';
 import { downloadCsv } from '../../shared/analytics-common';
 import { DetailsDialogData, FormDialogData, FormField, ListDialogData } from './ra-parts';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../../src/relax-validation/relax-validation';
 
 /** Wide dialog listing the rows behind an insight or KPI, with CSV download. */
 @Component({

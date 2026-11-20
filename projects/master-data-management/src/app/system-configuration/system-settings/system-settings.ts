@@ -45,7 +45,7 @@ import {
 } from '../system-config.data';
 import { SystemSettings } from '../system-config.model';
 import { ChartTypeService, SyncStatusService, SystemSettingsService, UpdateSourceService } from '../system-config.service';
-import { relaxErrors } from '../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../src/relax-validation/relax-validation';
 
 type TabId = 'general' | 'security' | 'email' | 'localization' | 'numbering' | 'integration' | 'backup' | 'other';
 type SectionId =

@@ -1,4 +1,4 @@
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 export type ResponseType = 'Yes/No' | 'Pass/Fail' | 'Photo' | 'Numeric' | 'Text';
 export type TemplateStatus = 'Active' | 'Draft' | 'Inactive';
 export type TemplateIcon = 'file' | 'flame' | 'settings' | 'hardhat' | 'shield' | 'clipboard' | 'truck' | 'server' | 'building' | 'zap' | 'droplets';

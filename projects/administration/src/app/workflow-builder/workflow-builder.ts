@@ -12,7 +12,7 @@ import { WorkflowCanvas } from './workflow-canvas/workflow-canvas';
 import { blankConfig, defaultConfig, NODE_TYPES, WORKFLOW_CATEGORIES, WORKFLOW_TEMPLATES } from './workflow-builder.data';
 import { NODE_LABELS, NODE_SIZE, NodeType, WfGraph, WfNode, Workflow, WorkflowStatus } from './workflow-builder.model';
 import { WorkflowService } from './workflow-builder.service';
-import { RELAX_VALIDATION, relaxErrors } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION, relaxErrors } from '../../../../../src/relax-validation/relax-validation';
 
 interface DetailsForm {
   id: string | null;

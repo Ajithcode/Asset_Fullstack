@@ -45,7 +45,7 @@ import {
   bucketOf, ensureSite, isCellular, knownAssets,
 } from './device-data';
 import { IoTDeviceApiService, connOf } from './iot-device-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type Kpi = '' | 'online' | 'offline' | 'attention';
 type Tab = 'overview' | 'telemetry' | 'events' | 'settings';

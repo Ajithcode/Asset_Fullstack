@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Lock, LucideAngularModule } from 'lucide-angular';
 import { ConnectionType } from './data-export-api.model';
 import { ConnectionForm, DataExportService } from './data-export-api.service';
-import { RELAX_VALIDATION, relaxError } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION, relaxError } from '../../../../../../src/relax-validation/relax-validation';
 
 export const AUTH_METHODS = ['OAuth 2.0 (client credentials)', 'API key', 'Basic', 'Key pair', 'Service principal', 'Personal access token'];
 

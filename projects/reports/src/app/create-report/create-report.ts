@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { GeneratedReportService, TEMPLATE_HEADERS } from '../generated-report.service';
-import { relaxValid } from '../../../../../src/environments/relax-validation';
+import { relaxValid } from '../../../../../src/relax-validation/relax-validation';
 
 interface TreeNode {
   label: string;

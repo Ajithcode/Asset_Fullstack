@@ -1,6 +1,6 @@
 import { VARIABLE_GROUPS } from './notification-templates.data';
 import { NotificationTemplate } from './notification-templates.model';
-import { relaxErrors } from '../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../src/relax-validation/relax-validation';
 
 /**
  * Message text is stored as plain text with {{variables}}, **bold**, *italic*, __underline__,

@@ -10,7 +10,7 @@ import { BASE_TAB_OF, VendorAddressFields, VendorBasic, VendorDocuments, VendorE
 import { AMC_ASSET_TYPES, BILLING_CYCLES, CONTRACT_TYPES, MODEL_TYPES_FOR, blankAmcVendor } from '../amc-vendor.data';
 import { AmcVendorRecord } from '../amc-vendor.model';
 import { AmcVendorService } from '../amc-vendor.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 type FormTab = 'basic' | 'contract' | 'coverage' | 'sla' | 'address' | 'documents' | 'settings';
 

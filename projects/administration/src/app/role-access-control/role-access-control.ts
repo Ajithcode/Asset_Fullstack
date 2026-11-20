@@ -10,7 +10,7 @@ import {
 import { AdminPage } from '../shared/admin-common';
 import { PermissionMatrix } from './permission-matrix/permission-matrix';
 import { RoleApprovals, approvalsError } from './role-approvals/role-approvals';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 import { DATA_SCOPES, RoleIcon, RoleRecord, RoleStatus, RoleType, USERS_LAST_MONTH, blankRole } from './role-access.data';
 import { RoleAccessService, adminApiError } from './role-access.service';
 import { RoleDrawer, roleErrors } from './role-drawer/role-drawer';

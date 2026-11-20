@@ -2,7 +2,8 @@
  * TEMP (testing only): switch that relaxes client-side form validation.
  *
  * Driven by `environment.relaxValidation` (default false). The dev/demo stack (a360demo) builds with it set to true,
- * see /opt/asset360-dev/stack/frontend.Dockerfile. No validation code is removed: every check still runs, its result
+ * see /opt/asset360-dev/stack/frontend.Dockerfile. Kept outside src/environments: native federation redirects every
+ * import under src/environments to the shared `@a360/app-environment` mapping (tsconfig.json paths). No validation code is removed: every check still runs, its result
  * is simply ignored while the switch is on. Values keep their types (numbers stay numbers, dates stay dates) because
  * only the checks are bypassed, never the conversions that build the API payload. Backend validation is unchanged.
  */
@@ -18,7 +19,7 @@ import {
   Validators,
   type ValidatorFn,
 } from '@angular/forms';
-import { environment } from './environment';
+import { environment } from '../environments/environment';
 
 export const RELAX_VALIDATION: boolean = !!(environment as { relaxValidation?: boolean }).relaxValidation;
 

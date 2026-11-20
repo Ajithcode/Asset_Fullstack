@@ -70,7 +70,7 @@ import {
   apiDate,
 } from '../asset-audit.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 type AssetSelection = 'all' | 'selected' | 'range' | 'filter';
 type AssetKind = 'generator' | 'electrical' | 'tank' | 'cooling' | 'exhaust' | 'hvac' | 'it' | 'vehicle' | 'furniture' | 'safety' | 'tool';

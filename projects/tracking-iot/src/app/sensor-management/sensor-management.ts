@@ -47,7 +47,7 @@ import {
   daysUntil, historyOf, isCalDue, isOverdue, nextNumber, paramOf, sensorIdOf, series,
 } from './sensor-data';
 import { SensorApiService, SensorDeviceOptionDto, SensorRequest, toParameter, toSensor } from './sensor-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type Tab = 'sensors' | 'params' | 'calibration' | 'mapping';
 type PanelTab = 'overview' | 'readings' | 'configuration' | 'history';

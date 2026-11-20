@@ -6,7 +6,7 @@ import { ChipSelect } from '../chip-select/chip-select';
 import scopeOptions from '../role-scope-options.json';
 import { DATA_SCOPES, DataScope, ROLE_TYPES, RoleRecord, SESSION_TIMEOUTS } from '../role-access.data';
 import { RoleAccessService } from '../role-access.service';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 export type RoleErrors = Partial<Record<'name' | 'code' | 'dataScope' | 'sessionTimeout' | 'locations' | 'departments' | 'approvalLimit', string>>;
 

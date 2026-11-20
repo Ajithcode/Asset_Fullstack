@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Sharing } from '../interactive-dashboards.data';
-import { relaxError } from '../../../../../../../src/environments/relax-validation';
+import { relaxError } from '../../../../../../../src/relax-validation/relax-validation';
 
 export interface NewDashboard {
   name: string;

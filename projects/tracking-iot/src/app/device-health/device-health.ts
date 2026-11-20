@@ -51,7 +51,7 @@ import { IoTDeviceDto, IoTDeviceLookupService, sameModel } from '../device-confi
 import { FirmwareVersionApiService, FirmwareVersionDto } from '../firmware-connectivity/firmware-version-api.service';
 import { API_CONNECTIVITY, API_HEALTH, API_POWER, ApiConnectivity, ApiHealth, ApiPowerSource, DeviceHealthApiService, DeviceHealthDto, DeviceHealthFields } from './device-health-api.service';
 import { ASSIGNEES, DevEvent, Device, Level, PRIORITIES, Status, baseEvents, healthScore, isStale, signalQuality, telemetry } from './health-data';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type Range = '1h' | '24h' | '7d';
 type Tab = 'overview' | 'diagnostics' | 'events' | 'configuration';

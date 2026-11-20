@@ -4,7 +4,7 @@ import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { COUNTRIES, FLOOR_NAMES, ZONE_COLORS, blankBfz } from '../bfz.data';
 import { BUILDING_CATEGORIES, BfzRecord, BfzType, ZONE_CATEGORIES } from '../bfz.model';
 import { BfzService } from '../bfz.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'address' | 'settings';
 type FieldKey = 'name' | 'code' | 'siteId' | 'buildingCode' | 'floorCode' | 'capacity' | 'area' | 'image' | 'lat' | 'lng';

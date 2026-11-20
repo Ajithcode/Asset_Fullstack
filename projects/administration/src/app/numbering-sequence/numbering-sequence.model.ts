@@ -1,4 +1,4 @@
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 /** A building block of a numbering format, e.g. AST | 2026 | DXB | 000247 */
 export type TokenKind = 'prefix' | 'date' | 'location' | 'number' | 'suffix';
 

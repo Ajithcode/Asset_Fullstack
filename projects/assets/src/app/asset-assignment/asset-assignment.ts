@@ -37,7 +37,7 @@ import {
 } from 'lucide-angular';
 import { Observable, finalize, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 import { Assignment, AssignmentStatus, AssignmentType, AssetKind, ENTITIES, TARGET_LABELS, isoDate } from './asset-assignment-data';
 import {
   AssetAssignmentDto, AssetAssignmentService, AssignmentLookups, DEFAULT_ASSIGNMENT_TYPE, EMPTY_LOOKUPS, choicesFor, requestFrom, targetFor, toRows, uniqueSorted,

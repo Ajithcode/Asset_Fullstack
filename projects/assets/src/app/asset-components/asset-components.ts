@@ -50,7 +50,7 @@ import { ComponentAttachments, type ComponentAttachment } from './component-atta
 import { ComponentOverview } from './component-overview/component-overview';
 import { AssetComponentsService, isoDate, type AssetComponentDto, type AssetListItemDto, type SaveAssetComponentRequest } from './asset-components.service';
 import { apiErrorMessage } from '../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type ComponentStatus = 'Active' | 'Under Maintenance' | 'Needs Replacement' | 'Inactive';
 type LifeUnit = 'hrs' | 'months';

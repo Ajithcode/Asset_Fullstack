@@ -53,7 +53,7 @@ import {
   dateOnly,
 } from '../asset-disposal.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 /** A registered asset offered in the Select Assets step (GET /api/asset-registrations). */
 interface CandidateAsset extends DisposalItem {

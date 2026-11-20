@@ -11,7 +11,7 @@ import { DATA_SOURCES, RA_MODULES, SCHEDULES, VISIBILITIES, blankDefinition } fr
 import { applySource } from './custom-reports.engine';
 import { Aggregate, CalcOperator, CustomReport, FilterOperator, ReportStatus, ReportVisibility, VizType } from './custom-reports.model';
 import { CustomReportsService, cloneReport, dubaiNow } from './custom-reports.service';
-import { RELAX_VALIDATION, relaxError } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION, relaxError } from '../../../../../../src/relax-validation/relax-validation';
 
 type UpdatedRange = '' | '1' | '7' | '30' | 'older';
 

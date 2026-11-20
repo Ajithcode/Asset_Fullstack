@@ -13,7 +13,7 @@ import { DeviceHealth } from './device-health/device-health';
 import { DeviceMaintenance } from './device-maintenance/device-maintenance';
 import { DeviceTypeModel } from './device-type-model/device-type-model';
 import { DeviceReplacement } from './device-replacement/device-replacement';
-import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
+import { installRelaxedValidation } from '../../../../src/relax-validation/relax-validation';
 
 // TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
 installRelaxedValidation();

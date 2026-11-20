@@ -22,7 +22,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import type { AssetComponent } from '../asset-components';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 export type IntervalUnit = 'Hours' | 'Days' | 'Months';
 export type MaintenanceKind = 'Preventive' | 'Inspection' | 'Replacement' | 'Calibration';

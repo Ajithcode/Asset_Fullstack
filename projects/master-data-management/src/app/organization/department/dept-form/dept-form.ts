@@ -7,7 +7,7 @@ import { COUNTRIES, CURRENCIES } from '../../organization/organization.data';
 import { blankDepartment } from '../department.data';
 import { DEPARTMENT_TYPES, DepartmentRecord } from '../department.model';
 import { DepartmentService } from '../department.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'people' | 'finance' | 'settings';
 type FieldKey = 'name' | 'code' | 'businessUnitCode' | 'type' | 'logo' | 'email' | 'budget' | 'approvalLimit' | 'effectiveTo';

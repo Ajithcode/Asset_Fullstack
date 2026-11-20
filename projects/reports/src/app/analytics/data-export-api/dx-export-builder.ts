@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Check, Info, LucideAngularModule, Play, Plus, Trash2 } from 'lucide-angular';
 import { DatasetField, DeliveryType, ExportDraft, ExportFilter, ExportFormat, ExportJob, Frequency } from './data-export-api.model';
 import { DataExportService } from './data-export-api.service';
-import { relaxError } from '../../../../../../src/environments/relax-validation';
+import { relaxError } from '../../../../../../src/relax-validation/relax-validation';
 
 const OPERATORS: Record<string, string[]> = {
   text: ['equals', 'not equals', 'contains'],

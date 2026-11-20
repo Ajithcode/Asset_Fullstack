@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { METRICS, MetricDef, MetricKey, WIDGET_SIZES, WIDGET_TYPES, WidgetSpan, WidgetType } from '../interactive-dashboards.data';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../../src/relax-validation/relax-validation';
 
 export interface NewWidget {
   type: WidgetType;

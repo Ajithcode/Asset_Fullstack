@@ -36,7 +36,7 @@ import {
   X,
   HeartPulse,
 } from 'lucide-angular';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type StageKey =
   | 'planning'

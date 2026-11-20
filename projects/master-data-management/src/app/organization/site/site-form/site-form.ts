@@ -8,7 +8,7 @@ import { BusinessUnitService } from '../../business-unit/business-unit.service';
 import { DepartmentService } from '../../department/department.service';
 import { SITE_TYPES, SiteRecord, WEEK_DAYS } from '../site.model';
 import { SiteService } from '../site.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 export type SiteFormTab = 'basic' | 'address' | 'hierarchy' | 'contacts' | 'settings';
 type FieldKey = 'name' | 'code' | 'siteType' | 'image' | 'lat' | 'lng' | 'managerEmail' | 'emergencyEmail' | 'hours';

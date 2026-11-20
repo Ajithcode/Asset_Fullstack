@@ -7,7 +7,7 @@ import {
   NOTIFICATION_TEMPLATES, OPERATORS, OUTCOMES, RECIPIENTS, TRIGGER_EVENTS
 } from '../workflow-builder.data';
 import { NODE_LABELS, WfNode } from '../workflow-builder.model';
-import { relaxErrors } from '../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../src/relax-validation/relax-validation';
 
 const SUBTITLES: Record<WfNode['type'], string> = {
   trigger: 'Choose the event that starts this workflow.',

@@ -33,7 +33,7 @@ import { NewDisposal } from './asset-disposal/new-disposal/new-disposal';
 import { AssetLifecycle } from './asset-lifecycle/asset-lifecycle';
 import { AssetMaintenanceTab } from './asset-maintenance-tab/asset-maintenance-tab';
 import { AssetDetailTab } from './asset-detail-tab/asset-detail-tab';
-import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
+import { installRelaxedValidation } from '../../../../src/relax-validation/relax-validation';
 
 // TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
 installRelaxedValidation();

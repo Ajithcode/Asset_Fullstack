@@ -5,7 +5,7 @@ import { nowStamp } from '../../../people/people.data';
 import { BIN_TYPES, blankBin } from '../../inventory.data';
 import { BinRecord } from '../../inventory.model';
 import { BinService, StoreService } from '../../inventory.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 type Tab = 'basic' | 'settings';
 

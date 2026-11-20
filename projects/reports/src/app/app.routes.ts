@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { Reports } from './reports/reports';
 import { CreateReport } from './create-report/create-report';
 import { ReportView } from './report-view/report-view';
-import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
+import { installRelaxedValidation } from '../../../../src/relax-validation/relax-validation';
 
 // TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
 installRelaxedValidation();

@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ArrowRight, LucideAngularModule, Plus, Trash2 } from 'lucide-angular';
 import { FieldMapping, Integration, TRANSFORMS } from './integration-api.data';
 import { IntegrationApiService } from './integration-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 /** Data Mapping tab: editable source → target field table. */
 @Component({

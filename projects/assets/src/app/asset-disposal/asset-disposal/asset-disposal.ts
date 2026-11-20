@@ -34,7 +34,7 @@ import {
 } from 'lucide-angular';
 import { Observable } from 'rxjs';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 import { AssetDisposalService, DisposalApproverDto, DisposalListItemDto, DisposalRequestDto, toUiStatus } from '../asset-disposal.service';
 
 export type DisposalStatus = 'Draft' | 'Pending' | 'Approved' | 'Completed' | 'Rejected' | 'Cancelled';

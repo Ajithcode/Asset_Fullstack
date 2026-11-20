@@ -23,7 +23,7 @@ function newAssetModel(): AssetModelRecord {
   };
 }
 import { AssetModelService } from '../asset-model.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 export type ModelFormTab = 'basic' | 'specs' | 'lifecycle' | 'financial' | 'defaults';
 type FieldKey =

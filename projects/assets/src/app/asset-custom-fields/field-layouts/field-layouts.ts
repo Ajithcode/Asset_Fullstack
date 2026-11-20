@@ -37,7 +37,7 @@ import {
 } from '../custom-fields.model';
 import { AssetTypeOption, CategoryOption, CustomFieldsService, FieldLayoutDto, runAll, toFieldLayout, toLayoutRequest } from '../custom-fields.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 interface LayoutForm {
   original: FieldLayout | null;

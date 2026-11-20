@@ -2,7 +2,7 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, Output, injec
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, EllipsisVertical, Pencil, Plus, Trash2, X } from 'lucide-angular';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 /** A dropdown option; lists may carry extra fields (colour, initials...) that new options get from `defaults`. */
 export interface MenuOption {

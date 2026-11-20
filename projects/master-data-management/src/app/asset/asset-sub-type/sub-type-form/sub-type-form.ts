@@ -7,7 +7,7 @@ import { CUSTOM_FIELD_TYPES, MAINTENANCE_TYPES } from '../../asset-type/asset-ty
 import { blankAssetSubType } from '../asset-sub-type.data';
 import { AssetSubTypeRecord } from '../asset-sub-type.model';
 import { AssetSubTypeService } from '../asset-sub-type.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 /** A new sub type starts with every dropdown empty so the user picks each value. */
 function newAssetSubType(): AssetSubTypeRecord {

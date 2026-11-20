@@ -13,7 +13,7 @@ import { IotSiteMap, MapPoint } from './iot-site-map/iot-site-map';
 import {
   CONNECTIVITY, Connectivity, DEVICE_TYPES, IOT_ALERTS, IOT_ASSETS, IOT_SITES, IotAlert, IotAsset, agoText, telemetryTime
 } from './iot-utilization.data';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 
 type KpiKey = 'connected' | 'utilization' | 'availability' | 'alerts';
 export type WidgetKey = 'trend' | 'telemetry' | 'connectivity' | 'category' | 'health' | 'events' | 'map' | 'variance' | 'devices';

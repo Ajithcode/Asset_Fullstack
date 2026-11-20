@@ -5,7 +5,7 @@ import { CURRENCIES } from '../../../organization/organization/organization.data
 import { BRAND_PALETTE, MANUFACTURER_COUNTRIES, PAYMENT_TERMS, badgeInk, badgeText, blankManufacturer } from '../manufacturer.data';
 import { ManufacturerRecord } from '../manufacturer.model';
 import { ManufacturerService } from '../manufacturer.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 /** A new manufacturer starts with every dropdown empty so the user picks each value. */
 function newManufacturer(): ManufacturerRecord {

@@ -23,7 +23,7 @@ import {
 import { MapCanvas } from '../map-canvas/map-canvas';
 import { FloorPlan, MapStatus, STATUS_TONE, fmtDate, fmtTime } from '../maps.data';
 import { MapsStore } from '../maps.store';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 import { SiteTree } from '../site-tree/site-tree';
 import { UploadDialog } from '../upload-dialog/upload-dialog';
 

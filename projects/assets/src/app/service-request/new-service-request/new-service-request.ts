@@ -24,7 +24,7 @@ import { loadAssetDetail } from '../../asset-details/asset-details';
 import { AssetDetailsService, AssetRegistrationDto } from '../../asset-details/asset-details.service';
 import { SR_SLA, SrPriority } from '../../asset-maintenance/maintenance-sr';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
 import {
   MaintenanceWorkOrderDto,
   SR_API_PRIORITIES,

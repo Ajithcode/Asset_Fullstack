@@ -5,7 +5,7 @@ import { HEX_COLOR, LEVEL_ICONS, LEVEL_ICON_KEYS } from '../../level-icons';
 import { CONDITION_TYPES, blankCondition } from '../condition.data';
 import { ConditionRecord } from '../condition.model';
 import { ConditionService } from '../condition.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
+import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
 
 /** A new condition starts with its Type dropdown empty so the user picks it. */
 function newCondition(): ConditionRecord {

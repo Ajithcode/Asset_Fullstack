@@ -49,7 +49,7 @@ import {
   SITES, SITE_AREAS, ServiceRequest, TASKS, TECHNICIANS, Task, TaskStatus, VENDORS, Vendor, daysFromToday, kindOf, rel, telemetry, titleOf, toIso, todayIso,
 } from './maintenance-data';
 import { Assignee, MaintenanceApiService, MaintenanceDeviceDto, MaintenanceJobDto, MaintenanceJobRequest, requestOf, toTechnician, toVendor } from './maintenance-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 type Tab = 'overview' | 'requests' | 'plans' | 'history' | 'vendors';
 type PanelTab = 'details' | 'maintenance' | 'telemetry';

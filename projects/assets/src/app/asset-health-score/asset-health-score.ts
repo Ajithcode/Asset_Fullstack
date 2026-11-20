@@ -36,7 +36,7 @@ import { AssetLookupService, EMPTY_HEADER } from '../asset-status-condition/asse
 import { ConditionAssessment } from '../asset-status-condition/asset-condition.service';
 import { CriticalityAssessment } from '../asset-criticality/asset-criticality.service';
 import { AssetHealthScoreService, HealthOverrides, buildHealth, healthStatus } from './asset-health-score.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
 
 export { healthStatus } from './asset-health-score.service';
 

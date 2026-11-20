@@ -69,7 +69,7 @@ import {
   CategoryStatus,
 } from '../services/asset-category/asset-category';
 import { FilterSelect, FilterSelectOption } from '../shared/filter-select/filter-select';
-import { RELAX_VALIDATION, relaxError } from '../../../../../src/environments/relax-validation';
+import { RELAX_VALIDATION, relaxError } from '../../../../../src/relax-validation/relax-validation';
 
 type DetailTab = 'subcategories' | 'fields' | 'attributes' | 'assets';
 
