@@ -208,10 +208,22 @@ public static class UserEndpoints
             }
         }
 
+        var criticality = AssetCriticalityPermissions.Module;
         var access = modules
-            .Where(entry => entry.Value.Contains("view"))
+            .Where(entry => entry.Value.Contains("view") && !string.Equals(entry.Key, criticality, StringComparison.OrdinalIgnoreCase))
             .Select(entry => new ModuleAccessResponse(entry.Key, entry.Value.ToList()))
             .ToList();
+
+        // Asset Criticality is a sub-menu of Assets: without Assets View it grants nothing. A role that configures it
+        // (even with every action off) is listed, possibly with no actions, so the gateway and the Asset service don't
+        // fall back to the role-name defaults (AssetCriticalityPermissions.RoleDefaults).
+        var assetsView = modules.TryGetValue("Assets", out var assetActions) && assetActions.Contains("view");
+        var criticalityConfigured = roles.Any(role => role.Permissions.Keys.Any(key => string.Equals(key, criticality, StringComparison.OrdinalIgnoreCase)));
+        if (!assetsView || criticalityConfigured)
+        {
+            var granted = assetsView && modules.TryGetValue(criticality, out var actions) && actions.Contains("view") ? actions.ToList() : [];
+            access.Add(new ModuleAccessResponse(criticality, granted));
+        }
 
         return Results.Ok(new MyAccessResponse(
             displayName, shownEmail, user?.PrimaryRole ?? names[0], names, FullAccess: false, Modules: access,
