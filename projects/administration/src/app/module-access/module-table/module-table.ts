@@ -4,6 +4,7 @@ import {
   Package, Radio, Settings, Shield, Wrench
 } from 'lucide-angular';
 import { MODULE_PERMS, MODULE_SCOPES, ModuleGrant, ModulePerm, PolicyRecord, featuresOf, scopeTone, standardFeatureIds } from '../module-access.data';
+import { CRITICALITY_ACTIONS, CRITICALITY_MODULE } from '../module-access.service';
 
 const MODULE_ICONS: Record<string, LucideIconData> = {
   Dashboard: House,
@@ -18,7 +19,8 @@ const MODULE_ICONS: Record<string, LucideIconData> = {
   Financial: DollarSign,
   'Reports & Analytics': ChartColumn,
   Administration: Settings,
-  'Master Data Management': FolderTree
+  'Master Data Management': FolderTree,
+  [CRITICALITY_MODULE]: Shield
 };
 
 export function moduleIcon(module: string): LucideIconData {
@@ -27,7 +29,7 @@ export function moduleIcon(module: string): LucideIconData {
 
 /** Switches a module on (view + standard features) or off (clears actions and features, scope Restricted). */
 export function setModuleEnabled(policy: PolicyRecord, g: ModuleGrant, on: boolean): void {
-  if (g.enabled === on) return;
+  if (g.enabled === on || g.unlicensed) return;
   g.enabled = on;
   if (on) {
     if (!g.perms.view) g.perms.view = true;
@@ -90,6 +92,16 @@ export class ModuleTable {
     return this.policy.grants.some((g) => g.enabled) && !this.allEnabled();
   }
 
+  /** Column label for a cell: Asset Criticality has its own permissions behind the standard columns. */
+  permLabel(g: ModuleGrant, p: ModulePerm): string | null {
+    return g.module === CRITICALITY_MODULE && p !== 'view' ? CRITICALITY_ACTIONS[p].label : null;
+  }
+
+  lockTitle(g: ModuleGrant, p: ModulePerm): string {
+    const state = g.perms[p] ? 'granted' : 'not granted';
+    return g.unlicensed ? `${g.module} is not licensed (${state})` : `Inherited from parent policy: ${state}`;
+  }
+
   toggleAllModules(): void {
     const on = !this.allEnabled();
     for (const g of this.policy.grants) setModuleEnabled(this.policy, g, on);
@@ -97,12 +109,16 @@ export class ModuleTable {
   }
 
   toggleEnabled(g: ModuleGrant): void {
+    if (g.unlicensed) {
+      this.notice.emit(`${g.module} is not licensed for this installation.`);
+      return;
+    }
     setModuleEnabled(this.policy, g, !g.enabled);
   }
 
   togglePerm(g: ModuleGrant, p: ModulePerm): void {
     if (this.isLocked(g, p)) {
-      this.notice.emit(`${g.module} ${p} is inherited from the parent policy and can't be changed here.`);
+      this.notice.emit(g.unlicensed ? `${g.module} is not licensed for this installation.` : `${g.module} ${p} is inherited from the parent policy and can't be changed here.`);
       return;
     }
     if (!g.enabled) {

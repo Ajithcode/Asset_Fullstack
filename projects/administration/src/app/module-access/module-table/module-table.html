@@ -30,12 +30,13 @@
           <td>
             <span class="mt-mod">
               <lucide-icon [img]="icon(g.module)" [size]="16"></lucide-icon>
-              {{ g.module }}
+              {{ g.module === 'AssetCriticality' ? 'Asset Criticality' : g.module }}
+              @if (g.unlicensed) { <span class="pill mt-unlicensed" data-tone="grey" title="Not covered by the licence"><lucide-icon [img]="icons.Lock" [size]="11"></lucide-icon> Not licensed</span> }
             </span>
           </td>
           <td class="center">
             <label class="switch mt-switch" [attr.aria-label]="'Enable ' + g.module">
-              <input type="checkbox" [checked]="g.enabled" (change)="toggleEnabled(g)" /><i></i>
+              <input type="checkbox" [checked]="g.enabled" [disabled]="g.unlicensed" (change)="toggleEnabled(g)" /><i></i>
             </label>
           </td>
           @for (p of perms; track p.id) {
@@ -43,7 +44,7 @@
               @if (g.perms[p.id] === null) {
                 <span class="mt-na" title="Not applicable">–</span>
               } @else if (isLocked(g, p.id)) {
-                <button type="button" class="mt-lock" [title]="'Inherited from parent policy: ' + (g.perms[p.id] ? 'granted' : 'not granted')" (click)="togglePerm(g, p.id)">
+                <button type="button" class="mt-lock" [title]="lockTitle(g, p.id)" (click)="togglePerm(g, p.id)">
                   <lucide-icon [img]="icons.Lock" [size]="14"></lucide-icon>
                 </button>
               } @else {
@@ -55,11 +56,12 @@
                   [attr.aria-label]="g.module + ' ' + p.label"
                   (change)="togglePerm(g, p.id)"
                 />
+                @if (permLabel(g, p.id); as label) { <small class="mt-cap">{{ label }}</small> }
               }
             </td>
           }
           <td>
-            <select class="mt-scope" [attr.data-tone]="tone(g.scope)" [disabled]="!g.enabled" [attr.aria-label]="g.module + ' data scope'" (change)="setScope(g, $event)">
+            <select class="mt-scope" [attr.data-tone]="tone(g.scope)" [disabled]="!g.enabled || g.unlicensed" [attr.aria-label]="g.module + ' data scope'" (change)="setScope(g, $event)">
               @for (s of scopes; track s) {
                 <option [value]="s" [selected]="s === g.scope">{{ s }}</option>
               }

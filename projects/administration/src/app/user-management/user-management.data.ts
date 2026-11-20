@@ -11,7 +11,7 @@ export const USER_MODULES = ['Dashboard', 'Assets', 'Maintenance', 'Inventory', 
 export const USER_ROLES: UserRole[] = [];
 
 /** User modules whose name differs in the Role & Access Control permission matrix. */
-const ROLE_MATRIX_MODULE: Record<string, string> = { Compliance: 'Audit & Compliance', Reports: 'Reports & Analytics' };
+const ROLE_MATRIX_MODULE: Record<string, string> = { Reports: 'Reports & Analytics' };
 
 /**
  * Replaces USER_ROLES with the active roles from the Role & Access Control API. A role grants a user module when
@@ -48,6 +48,7 @@ export function blankUser(): AdminUser {
   return {
     id: '',
     name: '',
+    username: '',
     email: '',
     employeeId: '',
     department: '',

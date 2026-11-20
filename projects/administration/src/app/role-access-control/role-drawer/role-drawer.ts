@@ -97,7 +97,7 @@ export class RoleDrawer implements OnChanges {
 
   /** The built-in administrator role always stays active */
   statusLocked(): boolean {
-    return this.role.code === 'SYS_ADMIN' && !this.isNew;
+    return (this.role.code === 'SYS_ADMIN' || this.role.code === 'ADMINISTRATOR') && !this.isNew;
   }
 
   get active(): boolean {

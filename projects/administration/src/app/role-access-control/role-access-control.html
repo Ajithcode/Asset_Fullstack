@@ -138,7 +138,7 @@
               <span class="list-item__body">
                 <span class="list-item__title">{{ r.name }}</span>
                 <span class="rac-meta">
-                  <span class="muted"><lucide-icon [img]="icons.Users" [size]="12"></lucide-icon> {{ r.users }} users</span>
+                  <span class="muted"><lucide-icon [img]="icons.Users" [size]="12"></lucide-icon> {{ userCount(r) }} users</span>
                   <span class="pill" [attr.data-tone]="r.type === 'System' ? 'blue' : 'purple'">{{ r.type }}</span>
                   <span class="pill" [attr.data-tone]="r.status === 'Active' ? 'green' : 'grey'"><i></i>{{ r.status }}</span>
                 </span>

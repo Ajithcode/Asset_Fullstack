@@ -294,7 +294,7 @@ export class UserManagementPage extends AdminPage {
       this.service.create({ ...event.user, status: 'Active', lastLogin: null }, event.password ?? '').subscribe({
         next: (user) => {
           this.saving = false;
-          this.notify(`${user.name} added successfully. They can sign in with ${user.email} and the password you set.`, 'success');
+          this.notify(`${user.name} added successfully. They can sign in as ${user.username} with the password you set and set up the authenticator on first sign-in.`, 'success');
           this.drawerMode = 'edit';
           this.drawerUser = user;
         },

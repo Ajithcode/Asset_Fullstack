@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { catchError, concatMap, defer, from, of, toArray } from 'rxjs';
@@ -16,6 +16,7 @@ import { RoleAccessService, adminApiError } from './role-access.service';
 import { RoleDrawer, roleErrors } from './role-drawer/role-drawer';
 import { RoleScope } from './role-scope/role-scope';
 import { UsersDialog } from './users-dialog/users-dialog';
+import { UserAdminService } from '../user-management/user-management.service';
 
 type Tab = 'modules' | 'scope' | 'approvals';
 
@@ -48,6 +49,8 @@ const ROLE_ICONS: Record<RoleIcon, LucideIconData> = {
 })
 export class RoleAccessControlPage extends AdminPage {
   private readonly service = inject(RoleAccessService);
+  /** Users come from User Management (the sign-in accounts), so role counts match that page */
+  private readonly userAdmin = inject(UserAdminService);
 
   readonly icons = { ShieldCheck, Users, CircleCheck, FileText, UserCheck, Plus, Copy, Upload, Download, Search, Funnel, ChevronRight, ArrowUp, Info, Ellipsis, Trash2, Pencil, X };
   readonly scopes = DATA_SCOPES;
@@ -83,6 +86,16 @@ export class RoleAccessControlPage extends AdminPage {
       },
       error: (err) => this.notify(`Couldn't load roles: ${adminApiError(err, 'roles')}`, 'error')
     });
+    this.userAdmin.load();
+    // Keep the drawer's "Assigned Users" in step with the user list without marking the role as edited
+    effect(() => {
+      const n = this.usersOf(this.service.all().find((r) => r.id === this.selectedId)?.name ?? '').length;
+      if (this.isNew || this.draft.users === n) return;
+      this.draft.users = n;
+      const snap = JSON.parse(this.snapshot);
+      snap.users = n;
+      this.snapshot = JSON.stringify(snap);
+    });
   }
 
   get loading(): boolean {
@@ -103,7 +116,7 @@ export class RoleAccessControlPage extends AdminPage {
   }
 
   get usersAssigned(): number {
-    return this.roles.reduce((sum, r) => sum + r.users, 0);
+    return this.roles.reduce((sum, r) => sum + this.userCount(r), 0);
   }
 
   get newThisMonth(): number {
@@ -155,6 +168,7 @@ export class RoleAccessControlPage extends AdminPage {
 
   private load(r: RoleRecord | undefined): void {
     this.draft = r ? structuredClone(r) : blankRole();
+    if (r) this.draft.users = this.userCount(r);
     this.snapshot = JSON.stringify(this.draft);
     this.selectedId = r?.id ?? '';
     this.isNew = false;
@@ -344,8 +358,8 @@ export class RoleAccessControlPage extends AdminPage {
     }
     this.confirm = {
       title: `Delete ${r.name}?`,
-      message: r.users
-        ? `${r.users} user${r.users === 1 ? '' : 's'} will lose this role's access. This can't be undone.`
+      message: this.userCount(r)
+        ? `${this.userCount(r)} user${this.userCount(r) === 1 ? '' : 's'} will lose this role's access. This can't be undone.`
         : "This role isn't assigned to anyone. This can't be undone.",
       action: 'Delete Role',
       run: () => {
@@ -376,8 +390,16 @@ export class RoleAccessControlPage extends AdminPage {
     this.menuOpen = false;
   }
 
+  /** Users (User Management) holding the role as primary or secondary role, by name. */
   allUsers(): string[] {
-    // Role members come from the users API once wired
-    return [];
+    return this.usersOf(this.draft.name).map((u) => u.name);
+  }
+
+  private usersOf(roleName: string) {
+    return this.userAdmin.all().filter((u) => u.primaryRole === roleName || u.secondaryRoles.includes(roleName));
+  }
+
+  userCount(r: RoleRecord): number {
+    return this.usersOf(r.name).length;
   }
 }

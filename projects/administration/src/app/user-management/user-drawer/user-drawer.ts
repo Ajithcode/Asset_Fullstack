@@ -209,6 +209,11 @@ export class UserDrawer implements OnChanges {
     if (!R && !f.email.trim()) e['email'] = 'Email address is required.';
     else if (!R && !EMAIL.test(f.email.trim())) e['email'] = 'Enter a valid email address.';
     else if (!R && this.service.emailTaken(f.email, exceptId)) e['email'] = 'Another user already has this email.';
+    if (this.isAdd) {
+      const username = (f.username ?? '').trim() || f.email.trim();
+      if (/\s/.test(username)) e['username'] = 'The username can’t contain spaces.';
+      else if (this.service.usernameTaken(username, exceptId)) e['username'] = 'Another user already has this username.';
+    }
     if (!R && !f.employeeId.trim()) e['employeeId'] = 'Employee ID is required.';
     else if (!R && !EMPLOYEE_ID.test(f.employeeId.trim().toUpperCase())) e['employeeId'] = 'Use the format EMP-0001.';
     else if (!R && this.service.employeeIdTaken(f.employeeId, exceptId)) e['employeeId'] = 'This employee ID is already used.';
