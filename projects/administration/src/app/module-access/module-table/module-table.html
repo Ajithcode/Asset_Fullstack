@@ -27,48 +27,70 @@
     <tbody>
       @for (g of rows; track g.module) {
         <tr [class.mt-off]="!g.enabled">
-          <td>
-            <span class="mt-mod">
-              <lucide-icon [img]="icon(g.module)" [size]="16"></lucide-icon>
-              {{ g.module === 'AssetCriticality' ? 'Asset Criticality' : g.module }}
-              @if (g.unlicensed) { <span class="pill mt-unlicensed" data-tone="grey" title="Not covered by the licence"><lucide-icon [img]="icons.Lock" [size]="11"></lucide-icon> Not licensed</span> }
-            </span>
-          </td>
-          <td class="center">
-            <label class="switch mt-switch" [attr.aria-label]="'Enable ' + g.module">
-              <input type="checkbox" [checked]="g.enabled" [disabled]="g.unlicensed" (change)="toggleEnabled(g)" /><i></i>
-            </label>
-          </td>
-          @for (p of perms; track p.id) {
-            <td class="center">
-              @if (g.perms[p.id] === null) {
-                <span class="mt-na" title="Not applicable">–</span>
-              } @else if (isLocked(g, p.id)) {
-                <button type="button" class="mt-lock" [title]="lockTitle(g, p.id)" (click)="togglePerm(g, p.id)">
-                  <lucide-icon [img]="icons.Lock" [size]="14"></lucide-icon>
-                </button>
-              } @else {
-                <input
-                  type="checkbox"
-                  class="mt-cb"
-                  [checked]="!!g.perms[p.id]"
-                  [disabled]="!g.enabled"
-                  [attr.aria-label]="g.module + ' ' + p.label"
-                  (change)="togglePerm(g, p.id)"
-                />
-                @if (permLabel(g, p.id); as label) { <small class="mt-cap">{{ label }}</small> }
-              }
-            </td>
-          }
-          <td>
-            <select class="mt-scope" [attr.data-tone]="tone(g.scope)" [disabled]="!g.enabled || g.unlicensed" [attr.aria-label]="g.module + ' data scope'" (change)="setScope(g, $event)">
-              @for (s of scopes; track s) {
-                <option [value]="s" [selected]="s === g.scope">{{ s }}</option>
-              }
-            </select>
-          </td>
+          <ng-container *ngTemplateOutlet="cells; context: { $implicit: g, sub: false }"></ng-container>
         </tr>
+        @if (g.children?.length && isExpanded(g)) {
+          @for (c of g.children; track c.module) {
+            <tr class="mt-sub" [class.mt-off]="!c.enabled || blocked(c)" [class.mt-blocked]="blocked(c)" [attr.data-parent]="g.module">
+              <ng-container *ngTemplateOutlet="cells; context: { $implicit: c, sub: true }"></ng-container>
+            </tr>
+          }
+        }
       }
     </tbody>
   </table>
 </div>
+
+<ng-template #cells let-g let-sub="sub">
+  <td>
+    <span class="mt-mod" [class.mt-mod-sub]="sub">
+      @if (g.children?.length) {
+        <button type="button" class="mt-expand" [attr.aria-expanded]="isExpanded(g)" [attr.aria-label]="(isExpanded(g) ? 'Collapse ' : 'Expand ') + g.module" [title]="(isExpanded(g) ? 'Hide ' : 'Show ') + g.module + ' sub-menus'" (click)="toggleExpanded(g)">
+          <lucide-icon [img]="isExpanded(g) ? icons.ChevronDown : icons.ChevronRight" [size]="14"></lucide-icon>
+        </button>
+      } @else if (!sub) {
+        <span class="mt-expand-gap"></span>
+      }
+      @if (!sub) { <lucide-icon [img]="icon(g.module)" [size]="16"></lucide-icon> }
+      <span class="mt-name">{{ label(g.module) }}</span>
+      @if (g.unlicensed) { <span class="pill mt-unlicensed" data-tone="grey" title="Not covered by the licence"><lucide-icon [img]="icons.Lock" [size]="11"></lucide-icon> Not licensed</span> }
+    </span>
+  </td>
+  <td class="center">
+    <label class="switch mt-switch" [attr.aria-label]="'Enable ' + label(g.module)" [title]="sub && blocked(g) ? 'Enable ' + parentOf(g)?.module + ' first' : ''">
+      <input type="checkbox" [checked]="g.enabled && !blocked(g)" [disabled]="g.unlicensed || blocked(g)" (change)="toggleEnabled(g)" /><i></i>
+    </label>
+  </td>
+  @for (p of perms; track p.id) {
+    <td class="center">
+      @if (g.perms[p.id] === null) {
+        <span class="mt-na" title="Not applicable">–</span>
+      } @else if (isLocked(g, p.id)) {
+        <button type="button" class="mt-lock" [title]="lockTitle(g, p.id)" (click)="togglePerm(g, p.id)">
+          <lucide-icon [img]="icons.Lock" [size]="14"></lucide-icon>
+        </button>
+      } @else {
+        <input
+          type="checkbox"
+          class="mt-cb"
+          [checked]="!!g.perms[p.id] && !blocked(g)"
+          [disabled]="!g.enabled || blocked(g)"
+          [attr.aria-label]="label(g.module) + ' ' + (permLabel(g, p.id) ?? p.label)"
+          (change)="togglePerm(g, p.id)"
+        />
+        @if (permLabel(g, p.id); as l) { <small class="mt-cap">{{ l }}</small> }
+      }
+    </td>
+  }
+  <td>
+    @if (sub) {
+      <span class="mt-inherit">As {{ parentOf(g)?.module }}</span>
+    } @else {
+      <select class="mt-scope" [attr.data-tone]="tone(g.scope)" [disabled]="!g.enabled || g.unlicensed" [attr.aria-label]="g.module + ' data scope'" (change)="setScope(g, $event)">
+        @for (s of scopes; track s) {
+          <option [value]="s" [selected]="s === g.scope">{{ s }}</option>
+        }
+      </select>
+    }
+  </td>
+</ng-template>
