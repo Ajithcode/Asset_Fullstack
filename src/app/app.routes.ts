@@ -12,6 +12,7 @@ import { moduleGuard } from './components/guard/module-guard';
 import { NoAccess } from './section-unavailable/no-access';
 import { ProcessAutomation } from './components/pages/process-automation/process-automation/process-automation';
 import { ProcessAutomationAdd } from './components/pages/process-automation/process-automation-add/process-automation-add';
+import { licensed, lockedModuleRoutes } from './licence/licence.guard';
 
 function remoteRoutes(remoteName: string) {
   return () =>
@@ -24,6 +25,11 @@ function remoteRoutes(remoteName: string) {
       });
 }
 
+/** Shell routes plus the "Module not activated" fallbacks for unlicensed modules (after the real routes). */
+function withLicenceLock(children: Routes): Routes {
+  return [...children, ...lockedModuleRoutes(children)];
+}
+
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: 'login', component: Login },
@@ -33,25 +39,26 @@ export const routes: Routes = [
     component: Layout,
     // Every page needs a signed-in user (see authGuard)
     canActivate: [authGuard],
-    children: [
+    // Licence (licence/licence.config.ts): unlicensed modules' routes don't match, the locked fallbacks below show the lock page
+    children: withLicenceLock([
       // Each main sidebar menu is its own micro-frontend (projects/<name>); its pages are routed inside it
-      { path: 'dashboard', loadChildren: remoteRoutes('dashboard'), canActivate: [moduleGuard('Dashboard')], canActivateChild: [moduleGuard('Dashboard')] },
-      { path: 'assets', loadChildren: remoteRoutes('assets'), canActivate: [moduleGuard('Assets')], canActivateChild: [moduleGuard('Assets')] },
+      licensed('Dashboard', { path: 'dashboard', loadChildren: remoteRoutes('dashboard'), canActivate: [moduleGuard('Dashboard')], canActivateChild: [moduleGuard('Dashboard')] }),
+      licensed('Assets', { path: 'assets', loadChildren: remoteRoutes('assets'), canActivate: [moduleGuard('Assets')], canActivateChild: [moduleGuard('Assets')] }),
       // previous floor-plan Locating module (federated remote), kept reachable
-      { path: 'tracking-iot/locating-classic', loadChildren: remoteRoutes('locating'), canActivate: [moduleGuard('Tracking & IoT')], canActivateChild: [moduleGuard('Tracking & IoT')] },
-      { path: 'tracking-iot', loadChildren: remoteRoutes('trackingIot'), canActivate: [moduleGuard('Tracking & IoT')], canActivateChild: [moduleGuard('Tracking & IoT')] },
-      { path: 'wip-operations', loadChildren: remoteRoutes('wipOperations'), canActivate: [moduleGuard('WIP / Operations')], canActivateChild: [moduleGuard('WIP / Operations')] },
-      { path: 'inspection', loadChildren: remoteRoutes('inspection'), canActivate: [moduleGuard('Inspection')], canActivateChild: [moduleGuard('Inspection')] },
-      { path: 'maintenance', loadChildren: remoteRoutes('maintenance'), canActivate: [moduleGuard('Maintenance')], canActivateChild: [moduleGuard('Maintenance')] },
-      { path: 'reports-analytics', loadChildren: remoteRoutes('reports'), canActivate: [moduleGuard('Reports & Analytics')], canActivateChild: [moduleGuard('Reports & Analytics')] },
-      { path: 'administration', loadChildren: remoteRoutes('administration'), canActivate: [moduleGuard('Administration')], canActivateChild: [moduleGuard('Administration')] },
-      { path: 'master-data-management', loadChildren: remoteRoutes('masterDataManagement'), canActivate: [moduleGuard('Master Data Management')], canActivateChild: [moduleGuard('Master Data Management')] },
+      licensed('Tracking & IoT', { path: 'tracking-iot/locating-classic', loadChildren: remoteRoutes('locating'), canActivate: [moduleGuard('Tracking & IoT')], canActivateChild: [moduleGuard('Tracking & IoT')] }),
+      licensed('Tracking & IoT', { path: 'tracking-iot', loadChildren: remoteRoutes('trackingIot'), canActivate: [moduleGuard('Tracking & IoT')], canActivateChild: [moduleGuard('Tracking & IoT')] }),
+      licensed('WIP / Operations', { path: 'wip-operations', loadChildren: remoteRoutes('wipOperations'), canActivate: [moduleGuard('WIP / Operations')], canActivateChild: [moduleGuard('WIP / Operations')] }),
+      licensed('Inspection', { path: 'inspection', loadChildren: remoteRoutes('inspection'), canActivate: [moduleGuard('Inspection')], canActivateChild: [moduleGuard('Inspection')] }),
+      licensed('Maintenance', { path: 'maintenance', loadChildren: remoteRoutes('maintenance'), canActivate: [moduleGuard('Maintenance')], canActivateChild: [moduleGuard('Maintenance')] }),
+      licensed('Reports & Analytics', { path: 'reports-analytics', loadChildren: remoteRoutes('reports'), canActivate: [moduleGuard('Reports & Analytics')], canActivateChild: [moduleGuard('Reports & Analytics')] }),
+      licensed('Administration', { path: 'administration', loadChildren: remoteRoutes('administration'), canActivate: [moduleGuard('Administration')], canActivateChild: [moduleGuard('Administration')] }),
+      licensed('Master Data Management', { path: 'master-data-management', loadChildren: remoteRoutes('masterDataManagement'), canActivate: [moduleGuard('Master Data Management')], canActivateChild: [moduleGuard('Master Data Management')] }),
       // New UI modules: placeholder pages until their screens are built
-      { path: 'movement-custody', component: ModulePlaceholder, data: { title: 'Movement & Custody' }, canActivate: [moduleGuard('Movement & Custody')], canActivateChild: [moduleGuard('Movement & Custody')] },
-      { path: 'inventory', component: ModulePlaceholder, data: { title: 'Inventory' }, canActivate: [moduleGuard('Inventory')], canActivateChild: [moduleGuard('Inventory')] },
-      { path: 'audit-compliance', component: ModulePlaceholder, data: { title: 'Audit & Compliance' }, canActivate: [moduleGuard('Audit & Compliance')], canActivateChild: [moduleGuard('Audit & Compliance')] },
-      { path: 'contracts-warranty', component: ModulePlaceholder, data: { title: 'Contracts & Warranty' }, canActivate: [moduleGuard('Contracts & Warranty')], canActivateChild: [moduleGuard('Contracts & Warranty')] },
-      { path: 'financial', component: ModulePlaceholder, data: { title: 'Financial' }, canActivate: [moduleGuard('Financial')], canActivateChild: [moduleGuard('Financial')] },
+      licensed('Movement & Custody', { path: 'movement-custody', component: ModulePlaceholder, data: { title: 'Movement & Custody' }, canActivate: [moduleGuard('Movement & Custody')], canActivateChild: [moduleGuard('Movement & Custody')] }),
+      licensed('Inventory', { path: 'inventory', component: ModulePlaceholder, data: { title: 'Inventory' }, canActivate: [moduleGuard('Inventory')], canActivateChild: [moduleGuard('Inventory')] }),
+      licensed('Audit & Compliance', { path: 'audit-compliance', component: ModulePlaceholder, data: { title: 'Audit & Compliance' }, canActivate: [moduleGuard('Audit & Compliance')], canActivateChild: [moduleGuard('Audit & Compliance')] }),
+      licensed('Contracts & Warranty', { path: 'contracts-warranty', component: ModulePlaceholder, data: { title: 'Contracts & Warranty' }, canActivate: [moduleGuard('Contracts & Warranty')], canActivateChild: [moduleGuard('Contracts & Warranty')] }),
+      licensed('Financial', { path: 'financial', component: ModulePlaceholder, data: { title: 'Financial' }, canActivate: [moduleGuard('Financial')], canActivateChild: [moduleGuard('Financial')] }),
       { path: 'locating', redirectTo: 'tracking-iot/real-time-location', pathMatch: 'full' },
       // Reports moved into the Reports & Analytics remote; old links keep working
       { path: 'report', redirectTo: 'reports-analytics/standard-reports', pathMatch: 'full' },
@@ -59,9 +66,9 @@ export const routes: Routes = [
       { path: 'report/view/:id', redirectTo: 'reports-analytics/view/:id', pathMatch: 'full' },
       // Role-based access: sections the user's roles don't allow redirect here when nothing else is open to them
       { path: 'no-access', component: NoAccess },
-      { path: 'events', component: Events },
-      { path: 'process-automation', component: ProcessAutomation },
-      { path: 'process-automation/add', component: ProcessAutomationAdd }
-    ]
+      licensed('Events', { path: 'events', component: Events }),
+      licensed('Process Automation', { path: 'process-automation', component: ProcessAutomation }),
+      licensed('Process Automation', { path: 'process-automation/add', component: ProcessAutomationAdd })
+    ])
   }
 ];

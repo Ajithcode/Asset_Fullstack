@@ -33,6 +33,7 @@
         >
           <span class="nav-icon">
             <lucide-icon *ngIf="item.icon" [img]="item.icon" [size]="18" [strokeWidth]="2"></lucide-icon>
+            <span class="nav-lock" *ngIf="item.locked" title="Module not activated"><lucide-icon [img]="lockIcon" [size]="9" [strokeWidth]="2.5"></lucide-icon></span>
           </span>
           <span class="nav-label" *ngIf="!collapsed">{{ item.label }}</span>
         </a>
@@ -48,6 +49,7 @@
           >
             <span class="nav-icon">
               <lucide-icon *ngIf="item.icon" [img]="item.icon" [size]="18" [strokeWidth]="2"></lucide-icon>
+              <span class="nav-lock" *ngIf="item.locked" title="Module not activated"><lucide-icon [img]="lockIcon" [size]="9" [strokeWidth]="2.5"></lucide-icon></span>
             </span>
             <span class="nav-label" *ngIf="!collapsed">{{ item.label }}</span>
             <span class="nav-badge" *ngIf="item.badge && !collapsed">{{ item.badge }}</span>
@@ -118,6 +120,7 @@
         >
           <span class="nav-icon">
             <lucide-icon *ngIf="item.icon" [img]="item.icon" [size]="18" [strokeWidth]="2"></lucide-icon>
+            <span class="nav-lock" *ngIf="item.locked" title="Module not activated"><lucide-icon [img]="lockIcon" [size]="9" [strokeWidth]="2.5"></lucide-icon></span>
           </span>
           <span class="nav-label" *ngIf="!collapsed">{{ item.label }}</span>
           <span class="nav-caret" *ngIf="!collapsed">
