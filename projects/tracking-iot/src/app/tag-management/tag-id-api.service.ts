@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, Subject, catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
 import { apiError, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
-import { LinkedAsset, PREFIX, TagId, TagStatus, TagType, Tech } from './tag-data';
+import { LinkedAsset, TagId, TagStatus, TagType, Tech } from './tag-data';
 
 /**
  * A tag as /api/tag-ids returns it (addressed by tagId). List rows carry registeredOn, value and validation;
@@ -35,6 +35,29 @@ export interface TagIdDto {
   createdAt?: string | null;
   clientId?: string | null;
   tenantId?: string | null;
+  /** Single-tag responses (GET/assign/unassign/...) nest the asset and location instead of the flat list fields. */
+  linkedAsset?: { assetRegistrationId: string; assetCode?: string | null; assetName?: string | null; assignedAt?: string | null; assignedBy?: string | null } | null;
+  location?: { siteId?: string | null; siteName?: string | null; locationName?: string | null; lastSeenAt?: string | null } | null;
+  registeredBy?: string | null;
+}
+
+/** Brings a single-tag response (nested linkedAsset / location) to the flat list shape. */
+function flatten(dto: TagIdDto): TagIdDto {
+  const a = dto.linkedAsset;
+  const l = dto.location;
+  if (a === undefined && l === undefined) return dto;
+  return {
+    ...dto,
+    assetRegistrationId: a?.assetRegistrationId ?? null,
+    assetCode: a?.assetCode ?? null,
+    assetName: a?.assetName ?? null,
+    assignedAt: a?.assignedAt ?? null,
+    siteId: l?.siteId ?? null,
+    siteName: l?.siteName ?? null,
+    locationName: l?.locationName ?? null,
+    lastSeenAt: l?.lastSeenAt ?? null,
+    createdBy: dto.createdBy ?? dto.registeredBy ?? null,
+  };
 }
 
 /** GET /api/tag-ids (paged). */
@@ -117,7 +140,8 @@ function epoch(iso: string | null | undefined): number | null {
  * telemetry or change history: the value is empty (shown as "—"), and the history holds what the record itself
  * says (registration and last read).
  */
-export function tagFromDto(dto: TagIdDto): TagId {
+export function tagFromDto(raw: TagIdDto): TagId {
+  const dto = flatten(raw);
   const registeredOn = epoch(dto.registeredOn) ?? epoch(dto.createdAt) ?? Date.now();
   const lastSeen = epoch(dto.lastSeenAt);
   const assignedOn = epoch(dto.assignedAt);
@@ -196,10 +220,9 @@ export function summaryFromDto(dto: TagSummaryDto | null): TagSummary | null {
   return { counts, change, failingValidation: n(dto.failingValidation) ?? 0, byTechnology: dto.byTechnology ?? {} };
 }
 
-/** The number part of a tag id: the id without its technology prefix (BLE-000123 → "000123"). */
-export function tagNumberOf(t: { id: string; tech: Tech }): string {
-  const prefix = `${PREFIX[t.tech]}-`.toLowerCase();
-  return t.id.toLowerCase().startsWith(prefix) ? t.id.slice(prefix.length) : t.id;
+/** The tag id as the user typed it; the API stores it as entered (no prefix is added). */
+export function tagNumberOf(t: { id: string }): string {
+  return t.id;
 }
 
 /** Tag Management → /api/tag-ids (Tracking service). */
@@ -314,16 +337,46 @@ export class TagIdApiService {
     );
   }
 
-  /** DELETE /api/tag-ids/{tagId} */
-  delete(tagId: string): Observable<void> {
-    return this.http.delete<void>(`${this.url}/${encodeURIComponent(tagId)}`, { params: tenantParams() }).pipe(
+  /** DELETE /api/tag-ids/{tagId}; with unassign, an assigned tag is unassigned and deleted in one call. */
+  delete(tagId: string, unassign = false): Observable<void> {
+    return this.http.delete<void>(`${this.url}/${encodeURIComponent(tagId)}`, { params: tenantParams({ unassign: unassign || null }) }).pipe(
       tap(() => this.changed$.next()),
       catchError((e) => apiError(e, `Could not delete ${tagId}.`)),
     );
   }
 
-  private request(t: TagId): TagIdRequest {
-    return { ...this.requestBody(t), tagNumber: tagNumberOf(t), value: t.code.trim() || null };
+  /** POST /api/tag-ids/{tagId}/assign: links (or relinks) the tag to an asset; the server sets it Assigned. */
+  assign(tagId: string, assetCode: string, site: { siteId: string | null; siteName: string | null; locationName: string | null }, note?: string): Observable<TagId> {
+    return this.action(tagId, 'assign', { assetCode, ...site, note: note?.trim() || null }, `Could not assign ${tagId}.`);
+  }
+
+  /** POST /api/tag-ids/{tagId}/unassign: unlinks the tag; the server sets it Available. */
+  unassign(tagId: string, reason?: string): Observable<TagId> {
+    return this.action(tagId, 'unassign', { reason: reason?.trim() || null }, `Could not unassign ${tagId}.`);
+  }
+
+  /** POST /api/tag-ids/{tagId}/deactivate (manual status Inactive; an assigned tag is unassigned first). */
+  deactivate(tagId: string, reason: string): Observable<TagId> {
+    return this.action(tagId, 'deactivate', { reason: reason.trim() || 'Deactivated' }, `Could not deactivate ${tagId}.`);
+  }
+
+  /** POST /api/tag-ids/{tagId}/reactivate (back to Available). */
+  reactivate(tagId: string): Observable<TagId> {
+    return this.action(tagId, 'reactivate', {}, `Could not reactivate ${tagId}.`);
+  }
+
+  private action(tagId: string, path: string, body: object, failure: string): Observable<TagId> {
+    return this.http.post<TagIdDto>(`${this.url}/${encodeURIComponent(tagId)}/${path}`, body, { params: tenantParams() }).pipe(
+      map(tagFromDto),
+      tap(() => this.changed$.next()),
+      catchError((e) => apiError(e, failure)),
+    );
+  }
+
+  private request(t: TagId): TagIdRequest & { assetCode: string | null } {
+    // The API links the asset given as assetCode (asset tag or registration id) and sets the status itself.
+    const assetCode = t.status === 'Assigned' && t.asset ? t.asset.tag : null;
+    return { ...this.requestBody(t), tagNumber: tagNumberOf(t), value: t.code.trim() || null, assetCode };
   }
 
   private requestBody(t: TagId): Omit<TagIdRequest, 'tagNumber' | 'value'> {

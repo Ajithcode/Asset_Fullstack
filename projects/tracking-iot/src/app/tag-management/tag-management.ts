@@ -53,7 +53,7 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, nextNumber, tagIdFromNumber } from './tag-data';
+import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, tagIdFromNumber } from './tag-data';
 import { TagIdApiService, TagSummary, apiType, pageType } from './tag-id-api.service';
 
 /** Tag IDs = the identifier registry; Assignments = lifecycle of each tag on assets; Audit = every change. */
@@ -787,7 +787,7 @@ export class TagManagement implements OnInit, OnDestroy {
     const draft = this.draftOf(t);
     Object.assign(draft, { asset, status: 'Assigned', assignedOn: Date.now(), site: d.site, location: d.location, siteId: this.siteIdOf(d.site, t) });
     this.saving = true;
-    this.api.update(draft).subscribe({
+    this.api.assign(t.id, asset.tag, { siteId: draft.siteId ?? null, siteName: d.site || null, locationName: d.location || null }, d.note).subscribe({
       next: (saved) => {
         const n = this.commit(saved, draft);
         if (previous && previous.tag !== asset.tag) this.log(n, `Unassigned from ${this.assetLabel(previous)}${d.note.trim() ? ': ' + d.note.trim() : ''}`);
@@ -832,11 +832,14 @@ export class TagManagement implements OnInit, OnDestroy {
     Object.assign(nextDraft, { asset, status: 'Assigned', assignedOn: Date.now(), site: old.site, location: old.location, siteId: old.siteId ?? null });
     this.saving = true;
     let oldSaved: TagId | null = null;
-    this.api.update(oldDraft).pipe(
+    const freeOld = d.oldTo === 'Inactive'
+      ? this.api.deactivate(old.id, d.reason.trim() || `Replaced by ${next.id}`)
+      : this.api.unassign(old.id, `Replaced by ${next.id}${why}`);
+    freeOld.pipe(
       switchMap((saved) => {
         oldSaved = this.commit(saved, oldDraft);
         this.log(oldSaved, `Replaced by ${next.id} on ${this.assetLabel(asset)}${d.oldTo === 'Inactive' ? ' and deactivated' : ''}${why}`);
-        return this.api.update(nextDraft);
+        return this.api.assign(next.id, asset.tag, { siteId: old.siteId ?? null, siteName: old.site || null, locationName: old.location || null }, `replaces ${old.id}`);
       }),
     ).subscribe({
       next: (saved) => {
@@ -866,7 +869,7 @@ export class TagManagement implements OnInit, OnDestroy {
     const draft = this.draftOf(t);
     Object.assign(draft, { asset: null, status: 'Available', assignedOn: null });
     this.saving = true;
-    this.api.update(draft).subscribe({
+    this.api.unassign(t.id, d.reason).subscribe({
       next: (saved) => {
         const n = this.commit(saved, draft);
         this.log(n, `Unassigned from ${this.assetLabel(from)}${d.reason.trim() ? ': ' + d.reason.trim() : ''}`);
@@ -893,7 +896,7 @@ export class TagManagement implements OnInit, OnDestroy {
     // a deactivated or reactivated tag is not linked to an asset
     Object.assign(draft, { asset: null, assignedOn: null, status: d.to });
     this.saving = true;
-    this.api.update(draft).subscribe({
+    (d.to === 'Inactive' ? this.api.deactivate(t.id, d.reason) : this.api.reactivate(t.id)).subscribe({
       next: (saved) => {
         const n = this.commit(saved, draft);
         this.log(n, d.to === 'Inactive' ? `Deactivated${from ? ' and unlinked from ' + this.assetLabel(from) : ''}: ${d.reason.trim()}` : `Reactivated${d.reason.trim() ? ': ' + d.reason.trim() : ''}`);
@@ -953,8 +956,10 @@ export class TagManagement implements OnInit, OnDestroy {
   saveDelete(): void {
     const d = this.dialog;
     if (d?.kind !== 'delete' || this.saving) return;
+    // An assigned tag is only deleted after the user confirmed "Unassign & delete" in the dialog
+    const assigned = this.tagById(d.tagId)?.status === 'Assigned';
     this.saving = true;
-    this.api.delete(d.tagId).subscribe({
+    this.api.delete(d.tagId, assigned).subscribe({
       next: () => {
         const i = TAGS.findIndex((x) => x.id === d.tagId);
         if (i >= 0) TAGS.splice(i, 1);
@@ -965,6 +970,7 @@ export class TagManagement implements OnInit, OnDestroy {
         this.version++;
         this.page = Math.min(this.page, this.pageCount - 1);
         this.showToast('Tag deleted', d.tagId);
+        this.load();
       },
       error: (e: Error) => this.failed(e),
     });
@@ -980,12 +986,6 @@ export class TagManagement implements OnInit, OnDestroy {
     const d = this.dialog;
     if (d?.kind !== 'register') return;
     d.type = '' as TagType;
-    if (d.tech) d.number = String(nextNumber(d.tech)).padStart(6, '0');
-  }
-
-  get registerPreview(): string {
-    const d = this.dialog;
-    return d?.kind === 'register' ? (tagIdFromNumber(d.tech, d.number) ?? '–') : '';
   }
 
   saveRegister(): void {
@@ -993,10 +993,10 @@ export class TagManagement implements OnInit, OnDestroy {
     if (d?.kind !== 'register' || this.saving) return;
     if (!d.tech) return void (this.formError = 'Choose the technology.');
     if (!d.type) return void (this.formError = 'Choose the tag type.');
-    if (!String(d.number ?? '').trim()) return void (this.formError = 'Enter a tag number.');
+    if (!String(d.number ?? '').trim()) return void (this.formError = 'Enter the tag ID.');
     const id = tagIdFromNumber(d.tech, d.number);
-    if (!id) return void (this.formError = "Tag number can only contain letters, digits, '-' and '_' (up to 50 characters).");
-    if (TAGS.some((t) => t.id.toLowerCase() === id.toLowerCase())) return void (this.formError = `${id} already exists.`);
+    if (!id) return void (this.formError = "Tag ID can only contain letters, digits, ':', '-' and '_' (up to 50 characters).");
+    if (TAGS.some((t) => t.id.toLowerCase() === id.toLowerCase())) return void (this.formError = `Tag ID ${id} already exists.`);
     const code = d.code.trim();
     if (!code) return void (this.formError = `Enter the ${this.codeLabel(d).toLowerCase()}.`);
     const bad = formatError(d.tech, code);

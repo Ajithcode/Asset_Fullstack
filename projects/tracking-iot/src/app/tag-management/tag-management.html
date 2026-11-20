@@ -301,7 +301,7 @@
       <div class="two">
         <label class="field"><span class="field-label">Technology</span><select class="control" [(ngModel)]="d.tech" name="tech" (ngModelChange)="onRegisterTech()"><option value="" disabled>Select Technology</option><option *ngFor="let t of techs" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Tag type</span><select class="control" [(ngModel)]="d.type" name="type"><option value="" disabled>Select Tag Type</option><option *ngFor="let t of typesFor(d.tech)" [value]="t">{{ typeName(d.tech, t) }}</option></select></label>
-        <label class="field"><span class="field-label">Tag number <em>*</em></span><input class="control" [(ngModel)]="d.number" name="num" autocomplete="off" spellcheck="false" placeholder="e.g. 123 or c300009aaf43" /><small class="muted">Tag ID: <strong>{{ registerPreview }}</strong> · a number gives {{ d.tech }}-000123; a device ID is kept as entered</small></label>
+        <label class="field"><span class="field-label">Tag ID <em>*</em></span><input class="control" [(ngModel)]="d.number" name="num" required autocomplete="off" spellcheck="false" placeholder="e.g. c300006eb011" /><small class="muted">Type the tag's real ID (e.g. the BLE MAC); it is saved as entered.</small></label>
         <label class="field"><span class="field-label">{{ codeLabel(d) }} <em>*</em></span><input class="control mono" [(ngModel)]="d.code" name="code" autocomplete="off" spellcheck="false" [placeholder]="valuePlaceholder(d.tech)" /></label>
         <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="d.site" name="site" (ngModelChange)="d.location = ''"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
         <label class="field"><span class="field-label">Location</span><select class="control" [(ngModel)]="d.location" name="loc" [disabled]="!locationsOf(d.site).length"><option value="">Select Location</option><option *ngFor="let l of locationsOf(d.site)" [value]="l">{{ l }}</option></select></label>
@@ -419,11 +419,13 @@
 <!-- ===== Delete ===== -->
 <div *ngIf="dlg('delete') as d" class="overlay" (click)="dialog = null">
   <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="tm-del" (click)="$event.stopPropagation()">
-    <div class="modal-head"><h2 id="tm-del">Delete {{ d.tagId }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-head"><h2 id="tm-del">Delete tag {{ d.tagId }}?</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveDelete()">
-      <p>The tag is removed from the registry{{ tagById(d.tagId)?.asset ? ' and unlinked from ' + tagById(d.tagId)?.asset?.tag : '' }}. This cannot be undone.</p>
+      <p>Tag ID: <strong class="mono">{{ d.tagId }}</strong><br />Linked asset: <strong>{{ tagById(d.tagId)?.asset ? assetLabel(tagById(d.tagId)!.asset!) : 'None' }}</strong></p>
+      <p *ngIf="tagById(d.tagId)?.status === 'Assigned'; else plainDelete">This tag is assigned. It will be unassigned from {{ tagById(d.tagId)?.asset?.tag }} and then deleted. This cannot be undone.</p>
+      <ng-template #plainDelete><p>The tag is removed from the registry and its tag ID can be registered again. This cannot be undone.</p></ng-template>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-danger-solid" [disabled]="saving">Delete</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-danger-solid" [disabled]="saving">{{ tagById(d.tagId)?.status === 'Assigned' ? 'Unassign & delete' : 'Delete' }}</button></div>
     </form>
   </div>
 </div>
