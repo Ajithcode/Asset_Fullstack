@@ -1,0 +1,59 @@
+ASSET360DEV - MASTER DATA NEEDED TO REGISTER AN ASSET (read-only check)
+Checked 2026-11-19 on the dev stack (a360demo, DB Asset360Dev) via GET APIs as crit_admin. Nothing was changed.
+MD = /api/master-data. "Req" = the backend refuses to submit without it (Organization name; step 1 AssetName/AssetTag/Status;
+step 2 Category, SubCategory, AssetType, Criticality, Department, TaggingMethod, LifecycleStage; a building + floor for location).
+
+ITEM                   COUNT  STATUS  NAMES / NOTES                                              SOURCE (what the form reads)
+---------------------  -----  ------  ---------------------------------------------------------  ------------------------------
+Organization             2    OK      Connex  OrgZ (CZ-28), Viox OZ (VZ-01)                      MD/organizations
+Business units           2    OK      chemical (-> Connex OrgZ), dff (no parent org)             MD/business-units
+Sites                    1    OK      Seahouse (SITE-VN, BU chemical, Madurai, India)            MD/sites
+Buildings                1    OK      industry development (site Seahouse)                       MD/buildings
+Floors                   0    EMPTY   Req - asset submit needs a building + floor                MD/floors
+Zones                    0    EMPTY   optional                                                   MD/zones
+Locations / rooms        0    EMPTY   optional                                                   MD/locations
+Departments              1    OK      industry development (BU chemical)  Req                    MD/departments
+Categories               2    OK      elec (2222), subelector (55323)  Req                       /api/asset-categories
+Sub categories           1    OK*     subelec (under elec). subelector has none, but its          /api/asset-categories?parent=
+                                      "subcategory required" flag is on -> use elec.  Req
+Asset types              1    OK*     electornics (ELE, under elec). None under subelector.  Req /api/asset-category-types
+                                      (MDM "Asset Type" list has 2 more: dsd, elector - that list
+                                      is only used inside category settings, not by the form)
+Models                   0    EMPTY   form list MD/asset-models is empty. The Assets catalog     MD/asset-models
+                                      (/api/asset-models) has 1: "ggg" (type electornics), but it
+                                      points to manufacturer "Carrier", which was deleted.
+Manufacturers            0    EMPTY                                                              MD/manufacturers
+Suppliers                0    EMPTY                                                              MD/suppliers
+Statuses                 7    OK      built-in: Active, Inactive, In Storage, Under Maintenance,  /api/asset-registrations/options
+                                      In Repair, Out of Service, Disposed  Req
+Conditions               0    EMPTY                                                              MD/conditions
+Criticality levels       0    EMPTY   Req - backend refuses step 2 without it                    MD/criticalities
+Tagging methods          4    OK      built-in: Barcode, RFID, BLE, QR Code  Req                  /options
+Lifecycle stages        10    OK      built-in: Planned, Procured, Received, Installed,           /options
+                                      Commissioned, In Use, Under Maintenance, Idle, Retired,
+                                      Disposed  Req
+Custodians (employees)   1    EMPTY*  Ajithkumar R (EMP001), but linked to department             MD/employees?departmentId=
+                                      "Administration", which was deleted -> the "Assigned To"
+                                      list is empty for department "industry development"
+Teams                    0    EMPTY   optional (Responsible Team)                                MD/teams
+Users (MD/users)         0    -       not used by the form; login users (admin, crit_*) are separate
+* = exists but only partly usable, see notes.
+
+BLOCKERS FOR SUBMIT: Floor, Criticality. Everything else EMPTY just leaves a dropdown empty.
+
+ORDER TO CREATE THE EMPTY ONES (UI, Master Data Management menu; route /master-data-management/<slug>)
+ 1. Organization > Building / Floor / Zone   (building-floor-zone)  add Floor(s) under "industry development"   [required]
+ 2. Organization > Building / Floor / Zone   add Zone(s) under the floor                                      [optional]
+ 3. Organization > Location                  (location)  rooms under building/floor/zone                      [optional]
+ 4. Asset > Criticality                      (criticality)  e.g. Critical, High, Medium, Low, Non-Critical    [required]
+ 5. Asset > Condition                        (condition)  e.g. New, Good, Fair, Poor
+ 6. Asset > Manufacturer                     (manufacturer)  must exist before models
+ 7. Asset > Asset Model                      (asset-model)  pick a manufacturer for each model
+ 8. Vendor > Supplier                        (supplier)
+ 9. People > Employee                        (employee)  add custodians in department "industry development",
+                                             and edit Ajithkumar R -> department "industry development"
+10. People > Team                            (team)  department "industry development"                         [optional]
+Optional (already usable): Asset > Category / Subcategory - add a subcategory under "subelector";
+Assets > Asset Types & Models (/assets/types-models) - add asset types under subelector/subelec.
+The registration form's Asset Type list comes from Assets > Asset Types & Models, not from MDM > Asset > Asset Type.
+Statuses, tagging methods and lifecycle stages are fixed lists in code, so nothing to create.
