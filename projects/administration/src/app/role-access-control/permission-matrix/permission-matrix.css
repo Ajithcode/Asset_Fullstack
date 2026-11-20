@@ -131,36 +131,3 @@
 .pm-lock {
   color: #475569;
 }
-
-/* Sub-modules nested under their parent row (Assets › Asset Criticality) */
-.pm-head { display: inline-flex; align-items: center; gap: 4px; }
-.pm-expand {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: #475569;
-  cursor: pointer;
-}
-.pm-expand:hover { background: #f1f5f9; }
-.pm-expand-gap { display: inline-block; width: 20px; }
-.pm-sub td { background: #fafafc; }
-.pm-sub-name { display: inline-block; position: relative; padding-left: 50px; font-size: 13px; }
-.pm-sub-name::before {
-  content: '';
-  position: absolute;
-  left: 32px;
-  top: -6px;
-  width: 10px;
-  height: 14px;
-  border-left: 1px solid #cbd5e1;
-  border-bottom: 1px solid #cbd5e1;
-}
-.pm-cap { display: block; font-size: 10px; color: var(--muted, #6b7280); line-height: 1.2; margin-top: 2px; }
-.pm-blocked { opacity: 0.55; }
-.pm-blocked .cb { cursor: not-allowed; }

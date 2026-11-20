@@ -58,7 +58,7 @@ function toAppRole(dto: RoleDto, extras?: RoleRecord): RoleRecord {
         if (state && actions[action] !== 'na') actions[action] = state;
       }
     }
-    // Modules outside the matrix (e.g. AssetCriticality, edited in Module Access) are kept as stored so a save doesn't drop them
+    // Modules outside the matrix (e.g. the old AssetCriticality key, now ignored) are kept as stored so a save doesn't drop them
     for (const [module, actions] of Object.entries(dto.permissions)) {
       if (!ROLE_MODULES.some((m) => m.name === module)) base.permissions[module] = { ...actions } as Record<PermAction, CellState>;
     }
