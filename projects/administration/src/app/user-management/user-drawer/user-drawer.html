@@ -24,7 +24,7 @@
             <strong>{{ user.name }}</strong>
             <span class="pill" [attr.data-tone]="statusTone()">{{ form.status }}</span>
           </div>
-          <span class="muted">{{ user.email }}</span>
+          <span class="muted">{{ user.username }} · {{ user.email }}</span>
           <span class="muted">{{ user.employeeId }}</span>
           <div class="profile__links">
             @if (!editingProfile) {
@@ -33,7 +33,7 @@
             @if (form.photo) { <button type="button" class="btn btn--link" (click)="removePhoto()">Remove photo</button> }
           </div>
         } @else {
-          <span class="muted">New users sign in with their email address and the password you set here.</span>
+          <span class="muted">New users sign in with their username and the password you set here, then scan the authenticator QR code on first sign-in.</span>
         }
       </div>
     </div>
@@ -51,6 +51,15 @@
           <label for="u-email">Email Address <span class="req">*</span></label>
           <input id="u-email" name="email" type="email" [(ngModel)]="form.email" maxlength="120" autocomplete="off" />
           @if (errors['email']) { <small>{{ errors['email'] }}</small> }
+        </div>
+        <div class="field field--wide" [class.invalid]="errors['username']">
+          <label for="u-username">Username</label>
+          @if (isAdd) {
+            <input id="u-username" name="username" [(ngModel)]="form.username" maxlength="60" autocomplete="off" [placeholder]="form.email || 'Defaults to the email address'" />
+          } @else {
+            <input id="u-username" name="username" [ngModel]="form.username" disabled title="The sign-in name can't be changed here" />
+          }
+          @if (errors['username']) { <small>{{ errors['username'] }}</small> }
         </div>
         <div class="field" [class.invalid]="errors['password']">
           <label for="u-password">{{ isAdd ? 'Password' : 'New Password' }} @if (isAdd) { <span class="req">*</span> }</label>
@@ -183,7 +192,7 @@
     <div class="row-field" [class.invalid]="errors['status']">
       <label for="u-status">Account Status</label>
       @if (isAdd) {
-        <span class="muted">Active: the user can sign in with their email and password</span>
+        <span class="muted">Active: the user can sign in with their username and password</span>
       } @else {
         <select id="u-status" name="status" [(ngModel)]="form.status" [disabled]="isSelf">
           <option value="" disabled>Select Account Status</option>

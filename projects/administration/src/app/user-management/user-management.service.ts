@@ -65,12 +65,16 @@ type UpdateUserRequest = Omit<CreateUserRequest, 'createdBy' | 'tenantId' | 'cli
 
 const STATUSES: UserStatus[] = ['Active', 'Pending', 'Suspended'];
 
+/** The sign-in administrator role (full access); the last active one can't be suspended or deleted. */
+const ADMIN_ROLE = 'Administrator';
+
 function toAppUser(dto: UserDto): AdminUser {
   const status = STATUSES.find((s) => s.toLowerCase() === dto.accountStatus?.toLowerCase()) ?? 'Pending';
   const created = dto.createdAt ?? '';
   return {
     id: dto.userId,
     name: dto.name,
+    username: dto.username ?? '',
     email: dto.email,
     employeeId: dto.employeeId ?? '',
     department: dto.department ?? '',
@@ -93,11 +97,11 @@ function toAppUser(dto: UserDto): AdminUser {
   };
 }
 
-/** The editable fields shared by create and update. The API needs a username the UI doesn't collect, so the email is used. */
+/** The editable fields shared by create and update. The username is the sign-in name; new users without one use their email. */
 function toFields(user: AdminUser): UpdateUserRequest {
   return {
     name: user.name,
-    username: user.email,
+    username: user.username?.trim() || user.email,
     image: user.photo,
     email: user.email,
     employeeId: user.employeeId,
@@ -181,6 +185,11 @@ export class UserAdminService {
     return this.users().some((u) => u.email.toLowerCase() === e && u.id !== exceptId);
   }
 
+  usernameTaken(username: string, exceptId: string | null): boolean {
+    const n = username.trim().toLowerCase();
+    return !!n && this.users().some((u) => u.username.toLowerCase() === n && u.id !== exceptId);
+  }
+
   employeeIdTaken(employeeId: string, exceptId: string | null): boolean {
     const e = employeeId.trim().toUpperCase();
     return this.users().some((u) => u.employeeId.toUpperCase() === e && u.id !== exceptId);
@@ -232,13 +241,13 @@ export class UserAdminService {
     return this.http.delete<void>(`${this.apiUrl}/${id}`).pipe(tap(() => this.users.update((list) => list.filter((u) => u.id !== id))));
   }
 
-  /** Why an account can't be suspended or deleted: yourself, or the last active System Administrator. */
+  /** Why an account can't be suspended or deleted: yourself, or the last active Administrator. */
   lockoutReason(user: AdminUser, removing: string[] = [user.id]): string | null {
     if (user.id === this.currentUserId) return 'You can’t suspend or delete your own account.';
-    const isAdmin = (u: AdminUser) => u.primaryRole === 'System Administrator' || u.secondaryRoles.includes('System Administrator');
+    const isAdmin = (u: AdminUser) => u.primaryRole === ADMIN_ROLE || u.secondaryRoles.includes(ADMIN_ROLE);
     if (isAdmin(user) && user.status === 'Active') {
       const others = this.users().filter((u) => isAdmin(u) && u.status === 'Active' && !removing.includes(u.id));
-      if (!others.length) return `${user.name} is the last active System Administrator.`;
+      if (!others.length) return `${user.name} is the last active ${ADMIN_ROLE}.`;
     }
     return null;
   }

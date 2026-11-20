@@ -19,6 +19,8 @@ export interface ModuleGrant {
   /** Permissions inherited from the parent policy (shown with a lock, not editable) */
   locked: ModulePerm[];
   scope: string;
+  /** Module not covered by this installation's licence: shown locked, not editable */
+  unlicensed?: boolean;
 }
 
 export interface AccessException {

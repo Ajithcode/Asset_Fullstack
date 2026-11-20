@@ -58,16 +58,10 @@
   </section>
 
   <div class="toolbar">
-    <button type="button" class="btn btn--primary" (click)="createPolicy()">
-      <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Create Access Policy
-    </button>
-    <button type="button" class="btn" (click)="clonePolicy()">
-      <lucide-icon [img]="icons.Copy" [size]="16"></lucide-icon> Clone Policy
-    </button>
-    <button type="button" class="btn" (click)="importFile.click()">
-      <lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import
-    </button>
-    <input #importFile type="file" accept=".json,application/json" hidden (change)="importPolicies(importFile)" />
+    <a class="btn btn--primary" routerLink="../role-access-control" title="Module access is set per role">
+      <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Manage Roles
+    </a>
+    <span class="muted ma-hint">One policy per role: changes here update that role's permissions.</span>
     <button type="button" class="btn" (click)="exportPolicies()">
       <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export
     </button>
@@ -147,9 +141,6 @@
               <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Edit ' + p.name" title="Edit policy" (click)="editPolicy(p, $event)">
                 <lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>
               </button>
-              <button type="button" class="icon-btn icon-btn--bare ma-row__delete" [attr.aria-label]="'Delete ' + p.name" title="Delete policy" (click)="askDelete(p, $event)">
-                <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>
-              </button>
             </span>
           </div>
         } @empty {
@@ -181,9 +172,7 @@
               </button>
               @if (menuOpen) {
                 <div class="menu" (click)="$event.stopPropagation()">
-                  <button type="button" (click)="clonePolicy()">Clone policy</button>
                   <button type="button" (click)="toggleStatus()">{{ draft.status === 'Active' ? 'Deactivate' : 'Activate' }}</button>
-                  <button type="button" class="danger" (click)="askDelete()">Delete policy</button>
                 </div>
               }
             </div>

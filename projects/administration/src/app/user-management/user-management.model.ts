@@ -6,6 +6,8 @@ export interface AdminUser {
   /** Internal key; stays the same when the email or employee ID changes. */
   id: string;
   name: string;
+  /** Sign-in name (login); new users default to their email address. */
+  username: string;
   email: string;
   employeeId: string;
   department: string;

@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, finalize, map, shareReplay, tap } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
-import { CellState, PermAction, RoleRecord, RoleStatus, RoleType, blankRole } from './role-access.data';
+import { CellState, PermAction, ROLE_MODULES, RoleRecord, RoleStatus, RoleType, blankRole } from './role-access.data';
 
 /** Permission matrix as the API stores it: module -> action -> full | partial | none | na. */
 type PermissionsDto = Record<string, Partial<Record<PermAction, CellState>>>;
@@ -57,6 +57,10 @@ function toAppRole(dto: RoleDto, extras?: RoleRecord): RoleRecord {
         const state = stored[action];
         if (state && actions[action] !== 'na') actions[action] = state;
       }
+    }
+    // Modules outside the matrix (e.g. AssetCriticality, edited in Module Access) are kept as stored so a save doesn't drop them
+    for (const [module, actions] of Object.entries(dto.permissions)) {
+      if (!ROLE_MODULES.some((m) => m.name === module)) base.permissions[module] = { ...actions } as Record<PermAction, CellState>;
     }
   }
   return {

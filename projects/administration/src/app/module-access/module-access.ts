@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { catchError, concatMap, defer, from, of, toArray } from 'rxjs';
@@ -80,11 +80,20 @@ export class ModuleAccessPage extends AdminPage {
       next: (all) => {
         this.load(all.find((p) => p.code === 'OPS-MGR-001') ?? all[0]);
         this.notify(
-          all.length ? `Loaded ${all.length} access polic${all.length === 1 ? 'y' : 'ies'} from the server.` : 'No access policies yet. Create the first policy.',
+          all.length ? `Loaded module access for ${all.length} role${all.length === 1 ? '' : 's'} from the server.` : 'No roles yet. Create a role in Role & Access Control.',
           'success'
         );
       },
       error: (err) => this.notify(`Couldn't load access policies: ${adminApiError(err, 'access policy')}`, 'error')
+    });
+    // Keep the drawer's "Assigned Users" in step with the user list without marking the policy as edited
+    effect(() => {
+      const n = this.service.byId(this.selectedId)?.users ?? 0;
+      if (this.isNew || this.draft.users === n) return;
+      this.draft.users = n;
+      const snap = JSON.parse(this.snapshot);
+      snap.users = n;
+      this.snapshot = JSON.stringify(snap);
     });
     // Role options for the policy drawer
     this.roles.ensureLoaded().subscribe({ error: (err) => this.notify(`Couldn't load roles: ${adminApiError(err, 'roles')}`, 'error') });
@@ -295,7 +304,7 @@ export class ModuleAccessPage extends AdminPage {
       next: (stored) => {
         this.saving = false;
         this.load(stored);
-        this.notify(`${stored.name} ${wasNew ? 'created' : 'saved'} successfully.`, 'success');
+        this.notify(`${stored.name} ${wasNew ? 'created' : 'saved'}. Users with this role get the new access at their next sign-in.`, 'success');
       },
       error: (err) => {
         this.saving = false;
@@ -383,7 +392,6 @@ export class ModuleAccessPage extends AdminPage {
   }
 
   allUsers(): string[] {
-    // Policy members come from the users API once wired
-    return [];
+    return this.service.userNames(this.draft);
   }
 }
