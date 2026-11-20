@@ -86,23 +86,16 @@ export function ensureSite(name: string, code: string | null | undefined, locati
   if (location && !site.locations.includes(location)) site.locations.push(location);
 }
 
-export function tagIdOf(tech: Tech, n: number): string {
-  return `${PREFIX[tech] ?? 'TAG'}-${String(n).padStart(6, '0')}`;
-}
-
-/** Same rule as the Tracking API (TagId): letters, digits, '-' and '_', at most 50 characters. */
-const TAG_ID_PATTERN = /^[A-Za-z0-9_-]{1,50}$/;
+/** Same rule as the Tracking API (TagNumber): letters, digits, ':', '-' and '_', at most 50 characters. */
+const TAG_ID_PATTERN = /^[A-Za-z0-9:_-]{1,50}$/;
 
 /**
- * Tag ID from the "Tag number" field (Register and Import):
- * - a plain number becomes the numbered id, e.g. 123 -> BLE-000123;
- * - a device id such as a BLE MAC "c300009aaf43" is kept exactly as entered, because readings are matched to
- *   registered tags by this id (NetworkTimeSeries meta.tagid = TrackingTag tag_id).
- * Null when empty, zero or not allowed by the API.
+ * Tag ID from the "Tag ID" field (Register and Import). The user types the real tag id (e.g. a BLE MAC
+ * "c300006eb011"); it is kept exactly as entered (trimmed), because readings are matched to registered tags by
+ * this id (NetworkTimeSeries meta.tagid = TrackingTag tag_id). Nothing is generated. Null when empty or not allowed.
  */
-export function tagIdFromNumber(tech: Tech, input: string | number | null | undefined): string | null {
+export function tagIdFromNumber(_tech: Tech, input: string | number | null | undefined): string | null {
   const value = String(input ?? '').trim();
-  if (/^\d+$/.test(value)) return Number(value) > 0 ? tagIdOf(tech, Number(value)) : null;
   return TAG_ID_PATTERN.test(value) ? value : null;
 }
 
@@ -143,11 +136,4 @@ export function formatError(tech: Tech, code: string): string {
     default:
       return '';
   }
-}
-
-/** Next free number for a technology prefix. */
-export function nextNumber(tech: Tech): number {
-  const prefix = PREFIX[tech] + '-';
-  const nums = TAGS.filter((t) => t.id.startsWith(prefix)).map((t) => Number(t.id.slice(prefix.length)) || 0);
-  return Math.max(0, ...nums) + 1;
 }
