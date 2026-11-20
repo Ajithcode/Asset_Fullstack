@@ -15,7 +15,4 @@ public interface ITrackingTagRepository : IMongoRepository<TrackingTag>
 
     /// <summary>The tag id of another tag of the same technology carrying this value (MAC, EPC, encoded value, UID), or null.</summary>
     Task<string?> FindTagIdByValueAsync(string technology, string value, string? exceptTagId, CancellationToken cancellationToken = default);
-
-    /// <summary>The highest numeric tag number used with this prefix (e.g. 2951 for BLE-002951), or 0.</summary>
-    Task<long> GetHighestTagNumberAsync(string prefix, CancellationToken cancellationToken = default);
 }

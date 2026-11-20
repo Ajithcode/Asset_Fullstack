@@ -16,7 +16,6 @@ public static class TrackingTagEndpoints
 {
     private const string EntityType = "TrackingTag";
     private const int DefaultPageSize = 10;
-    private const int TagNumberDigits = 6;
 
     public static RouteGroupBuilder MapTrackingTagEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -25,7 +24,6 @@ public static class TrackingTagEndpoints
         // Literal segments take precedence over /{tagId}, so these are not read as tag ids.
         group.MapGet("/summary", GetSummaryAsync).WithName("GetTagSummary");
         group.MapGet("/options", GetOptions).WithName("GetTagOptions");
-        group.MapGet("/next-number", GetNextNumberAsync).WithName("GetNextTagNumber");
         group.MapGet("/assignments", GetAssignmentsAsync).WithName("GetTagAssignments");
         group.MapGet("/available", GetAvailableAsync).WithName("GetAvailableTags");
         group.MapGet("/audit-trail", GetAuditTrailAsync).WithName("GetTagAuditTrail");
@@ -53,9 +51,11 @@ public static class TrackingTagEndpoints
     private static async Task<IResult> GetSummaryAsync(
         ITrackingTagRepository tags,
         ITagEventRepository events,
+        ITagAssetLookup assets,
         CancellationToken cancellationToken)
     {
         var all = await tags.GetActiveAsync(cancellationToken);
+        await ReleaseTagsOfDeletedAssetsAsync(all, tags, events, assets, cancellationToken);
         var validations = Validate(all);
 
         var monthAgo = DateTime.UtcNow.AddMonths(-1);
@@ -94,57 +94,45 @@ public static class TrackingTagEndpoints
             TagValidation.All));
     }
 
-    /// <summary>The next unused tag number of a technology, padded to 6 digits (BLE → 002952 / BLE-002952).</summary>
-    private static async Task<IResult> GetNextNumberAsync(
-        string? technology,
-        ITrackingTagRepository tags,
-        CancellationToken cancellationToken)
-    {
-        var canonical = ContractText.Canonical(technology, TagTechnology.All);
-        if (canonical is null)
-        {
-            return Results.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["technology"] = [$"technology must be one of: {string.Join(", ", TagTechnology.All)}"]
-            });
-        }
-
-        var prefix = TagTechnology.IdPrefixes[canonical];
-        var number = (await tags.GetHighestTagNumberAsync(prefix, cancellationToken) + 1).ToString().PadLeft(TagNumberDigits, '0');
-        return Results.Ok(new NextTagNumberResponse(canonical, prefix, number, $"{prefix}-{number}"));
-    }
-
     /// <summary>The Tag IDs tab.</summary>
     private static Task<IResult> GetTagsAsync(
         [AsParameters] TagListQuery query,
         ITrackingTagRepository tags,
+        ITagEventRepository events,
+        ITagAssetLookup assets,
         CancellationToken cancellationToken)
     {
-        return ListAsync(query, null, tags, cancellationToken);
+        return ListAsync(query, null, tags, events, assets, cancellationToken);
     }
 
     /// <summary>The Assignments tab: tags linked to an asset.</summary>
     private static Task<IResult> GetAssignmentsAsync(
         [AsParameters] TagListQuery query,
         ITrackingTagRepository tags,
+        ITagEventRepository events,
+        ITagAssetLookup assets,
         CancellationToken cancellationToken)
     {
-        return ListAsync(query, TagStatus.Assigned, tags, cancellationToken);
+        return ListAsync(query, TagStatus.Assigned, tags, events, assets, cancellationToken);
     }
 
     /// <summary>Tags in stock, not linked to any asset.</summary>
     private static Task<IResult> GetAvailableAsync(
         [AsParameters] TagListQuery query,
         ITrackingTagRepository tags,
+        ITagEventRepository events,
+        ITagAssetLookup assets,
         CancellationToken cancellationToken)
     {
-        return ListAsync(query, TagStatus.Available, tags, cancellationToken);
+        return ListAsync(query, TagStatus.Available, tags, events, assets, cancellationToken);
     }
 
     private static async Task<IResult> ListAsync(
         TagListQuery query,
         string? fixedStatus,
         ITrackingTagRepository tags,
+        ITagEventRepository events,
+        ITagAssetLookup assets,
         CancellationToken cancellationToken)
     {
         var errors = query.Validate();
@@ -154,6 +142,7 @@ public static class TrackingTagEndpoints
         }
 
         var all = await tags.GetActiveAsync(cancellationToken);
+        await ReleaseTagsOfDeletedAssetsAsync(all, tags, events, assets, cancellationToken);
         var validations = Validate(all);
 
         var technology = ContractText.Canonical(query.Technology, TagTechnology.All);
@@ -188,6 +177,7 @@ public static class TrackingTagEndpoints
         string tagId,
         ITrackingTagRepository tags,
         ITagEventRepository events,
+        ITagAssetLookup assets,
         CancellationToken cancellationToken)
     {
         var tag = await tags.GetByTagIdAsync(tagId.Trim(), cancellationToken);
@@ -196,6 +186,7 @@ public static class TrackingTagEndpoints
             return NotFound(tagId);
         }
 
+        await ReleaseTagsOfDeletedAssetsAsync([tag], tags, events, assets, cancellationToken);
         var validation = await ValidateAsync(tag, tags, cancellationToken);
         var history = (await events.GetByTagIdAsync(tag.TagId, cancellationToken))
             .Where(tagEvent => TagEventType.Assignment.Contains(tagEvent.EventType))
@@ -275,13 +266,14 @@ public static class TrackingTagEndpoints
         }
 
         var technology = ContractText.Canonical(request.Technology, TagTechnology.All)!;
-        var tagNumber = request.TagNumber!.Trim().ToUpperInvariant();
-        var tagId = $"{TagTechnology.IdPrefixes[technology]}-{tagNumber}";
+        // The tag id is typed by the user (e.g. a BLE MAC c300006eb011) and stored as entered; unique ignoring case.
+        var tagId = request.TagNumber!.Trim();
+        var tagNumber = tagId;
         var value = TagValueFormat.Normalize(technology, request.Value);
 
         if (await tags.TagIdExistsAsync(tagId, cancellationToken))
         {
-            return Results.Conflict(new { message = $"Tag ID '{tagId}' is already registered." });
+            return Results.Conflict(new { message = $"Tag ID '{tagId}' already exists." });
         }
 
         if (await ValueConflictAsync(tags, technology, value, null, cancellationToken) is { } valueConflict)
@@ -638,9 +630,13 @@ public static class TrackingTagEndpoints
         return await DetailsAsync(tag, tags, events, cancellationToken);
     }
 
-    /// <summary>Deletes an unassigned tag; its audit trail is kept.</summary>
+    /// <summary>
+    /// Deletes a tag; its audit trail is kept and its tag id can be registered again. An assigned tag is refused
+    /// unless <paramref name="unassign"/> is true (the UI confirmed it), in which case it is unassigned first.
+    /// </summary>
     private static async Task<IResult> DeleteTagAsync(
         string tagId,
+        bool? unassign,
         ITrackingTagRepository tags,
         ITagEventRepository events,
         ICurrentUserAccessor currentUserAccessor,
@@ -653,9 +649,21 @@ public static class TrackingTagEndpoints
             return NotFound(tagId);
         }
 
+        var actor = Actor(currentUserAccessor.GetCurrentUser());
+        var now = DateTime.UtcNow;
+
         if (tag.Status == TagStatus.Assigned)
         {
-            return Results.Conflict(new { message = $"Tag ID '{tag.TagId}' is assigned to {TagMappings.AssetDisplay(tag)}; unassign it first." });
+            if (unassign != true)
+            {
+                return Results.Conflict(new { message = $"Unassign the tag from {TagMappings.AssetDisplay(tag)} first." });
+            }
+
+            var details = $"Unassigned from {TagMappings.AssetDisplay(tag)}";
+            var unlinked = AssetOf(tag);
+            UnlinkAsset(tag, TagStatus.Available);
+            await RecordAsync(events, tag, TagEventType.Unassigned, WithNote(details, "tag deleted"),
+                actor, now, cancellationToken, unlinked);
         }
 
         if (!await tags.DeleteAsync(tag.Id, cancellationToken))
@@ -664,14 +672,48 @@ public static class TrackingTagEndpoints
         }
 
         tag.Status = null;
-        await RecordAsync(events, tag, TagEventType.Deleted, "Deleted from Tag Management",
-            Actor(currentUserAccessor.GetCurrentUser()), DateTime.UtcNow, cancellationToken);
+        await RecordAsync(events, tag, TagEventType.Deleted, "Deleted from Tag Management", actor, now, cancellationToken);
         await eventLogger.LogAsync(EntityType, tag.TagId, tag.TagId, EventAction.Deleted, cancellationToken);
 
         return Results.NoContent();
     }
 
     // ------------------------------------------------------------ Helpers
+
+    /// <summary>
+    /// A tag's status follows its asset link: tags still linked to an asset that was deleted (or no longer exists)
+    /// are unlinked and put back in stock as Available. Inactive tags keep their manual status.
+    /// </summary>
+    private static async Task ReleaseTagsOfDeletedAssetsAsync(
+        IReadOnlyList<TrackingTag> candidates,
+        ITrackingTagRepository tags,
+        ITagEventRepository events,
+        ITagAssetLookup assets,
+        CancellationToken cancellationToken)
+    {
+        var linked = candidates
+            .Where(tag => tag.Status == TagStatus.Assigned && !string.IsNullOrWhiteSpace(tag.AssetRegistrationId))
+            .ToList();
+        if (linked.Count == 0)
+        {
+            return;
+        }
+
+        var existing = await assets.GetExistingRegistrationIdsAsync(
+            linked.Select(tag => tag.AssetRegistrationId!).Distinct().ToList(), cancellationToken);
+        var now = DateTime.UtcNow;
+
+        foreach (var tag in linked.Where(tag => !existing.Contains(tag.AssetRegistrationId!)))
+        {
+            var details = $"Unassigned from {TagMappings.AssetDisplay(tag)} (asset deleted)";
+            var unlinked = AssetOf(tag);
+            UnlinkAsset(tag, TagStatus.Available);
+            tag.UpdatedBy = TagEventType.SystemActor;
+            tag.UpdatedAt = now;
+            await tags.UpdateAsync(tag.Id, tag, cancellationToken);
+            await RecordAsync(events, tag, TagEventType.Unassigned, details, TagEventType.SystemActor, now, cancellationToken, unlinked);
+        }
+    }
 
     private static void LinkAsset(TrackingTag tag, TagAsset asset, string assignedBy, DateTime assignedAt)
     {
