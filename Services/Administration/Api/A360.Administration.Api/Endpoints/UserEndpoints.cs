@@ -214,20 +214,39 @@ public static class UserEndpoints
             .Select(entry => new ModuleAccessResponse(entry.Key, entry.Value.ToList()))
             .ToList();
 
-        // Asset Criticality is a sub-menu of Assets: without Assets View it grants nothing. A role that configures it
-        // (even with every action off) is listed, possibly with no actions, so the gateway and the Asset service don't
-        // fall back to the role-name defaults (AssetCriticalityPermissions.RoleDefaults).
-        var assetsView = modules.TryGetValue("Assets", out var assetActions) && assetActions.Contains("view");
-        var criticalityConfigured = roles.Any(role => role.Permissions.Keys.Any(key => string.Equals(key, criticality, StringComparison.OrdinalIgnoreCase)));
-        if (!assetsView || criticalityConfigured)
-        {
-            var granted = assetsView && modules.TryGetValue(criticality, out var actions) && actions.Contains("view") ? actions.ToList() : [];
-            access.Add(new ModuleAccessResponse(criticality, granted));
-        }
+        // Asset Criticality is a sub-menu of Assets and follows the role's Assets permissions; actions stored for the
+        // AssetCriticality module itself are ignored. Always listed (possibly with no actions) so the gateway and the
+        // Asset service never fall back to the role-name defaults (AssetCriticalityPermissions.RoleDefaults).
+        access.Add(new ModuleAccessResponse(criticality, CriticalityFromAssets(modules.GetValueOrDefault("Assets"))));
 
         return Results.Ok(new MyAccessResponse(
             displayName, shownEmail, user?.PrimaryRole ?? names[0], names, FullAccess: false, Modules: access,
             User: user is null ? null : UserResponse.FromEntity(user)));
+    }
+
+    /// <summary>
+    /// Assets View -> View; Assets Create or Edit -> Assess; Assets Approve -> Approve, Approve Critical, Configure.
+    /// Nothing without Assets View.
+    /// </summary>
+    private static List<string> CriticalityFromAssets(IReadOnlySet<string>? assets)
+    {
+        if (assets is null || !assets.Contains("view"))
+        {
+            return [];
+        }
+
+        var granted = new List<string> { AssetCriticalityPermissions.View };
+        if (assets.Contains("create") || assets.Contains("edit"))
+        {
+            granted.Add(AssetCriticalityPermissions.Assess);
+        }
+
+        if (assets.Contains("approve"))
+        {
+            granted.AddRange([AssetCriticalityPermissions.Approve, AssetCriticalityPermissions.ApproveCritical, AssetCriticalityPermissions.Configure]);
+        }
+
+        return granted;
     }
 
     private static List<string> RoleNames(A360.Administration.Domain.Entities.User user)
