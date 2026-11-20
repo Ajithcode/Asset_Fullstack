@@ -27,7 +27,8 @@ export abstract class CodeStore<T extends { code: string; name?: string }> {
 
   isCodeTaken(code: string, exceptCode: string | null): boolean {
     const wanted = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === wanted && r.code !== exceptCode);
+    // Records from the API can lack a code; skip them instead of throwing
+    return this.records.some((r) => (r.code ?? '').toLowerCase() === wanted && r.code !== exceptCode);
   }
 
   isNameTaken(name: string, exceptCode: string | null): boolean {
@@ -122,7 +123,9 @@ export abstract class ApiCodeStore<T extends { code: string; name?: string }, TD
   }
 
   private adopt(dto: TDto): T {
-    const record = this.toRecord(dto);
+    let record = this.toRecord(dto);
+    // Some server records have no code; key them by id so pickers, lookups and parent refs still work
+    if (!record.code) record = { ...record, code: dto.id };
     this.ids.set(record.code, dto.id);
     return record;
   }

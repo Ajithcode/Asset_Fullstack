@@ -3,16 +3,16 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { Subscription, catchError, forkJoin, of } from 'rxjs';
+import { Observable, Subscription, catchError, forkJoin, map, of } from 'rxjs';
 import * as XLSX from 'xlsx';
 import {
-  LucideAngularModule, Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, MapPin, Pause, Play, Route, Search, Settings, ShieldAlert,
-  TriangleAlert, Wifi, X, HelpCircle,
+  LucideAngularModule, Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, LocateFixed, MapPin, Pause, Play, Radio, Route, Search, Settings,
+  ShieldAlert, Square, TriangleAlert, Wifi, X, HelpCircle,
 } from 'lucide-angular';
 import { apiErrorMessage } from '../shared/tracking-api';
-import { FloorPlanMap } from '../geofence-alerts/floor-plan-map';
+import { FloorPlanMap, LivePoint, MapFocus } from '../geofence-alerts/floor-plan-map';
 import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone } from '../geofence-alerts/floor-map-api.service';
-import { RtlApi, RtlAsset, RtlEventPage, RtlOverview, RtlTrail, TrailRange, TrailSegment } from './rtl-api';
+import { LiveMessage, LiveSnapshot, LocateReply, RtlApi, RtlAsset, RtlEventPage, RtlOverview, RtlTrail, TrailRange, TrailSegment } from './rtl-api';
 
 type MoveFilter = '' | 'Moving' | 'Stationary' | 'Unknown' | 'alerts';
 type LiveState = 'connecting' | 'live' | 'error';
@@ -37,7 +37,7 @@ const POLL_MS = 10000;
   ],
 })
 export class RealTimeLocation implements OnInit, OnDestroy {
-  readonly icons = { Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, MapPin, Pause, Play, Route, Search, Settings, ShieldAlert, TriangleAlert, Wifi, X, HelpCircle };
+  readonly icons = { Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, LocateFixed, MapPin, Pause, Play, Radio, Route, Search, Settings, ShieldAlert, Square, TriangleAlert, Wifi, X, HelpCircle };
   readonly trailRanges: { key: TrailRange; label: string }[] = [{ key: '30m', label: 'Last 30 minutes' }, { key: '1h', label: 'Last 1 hour' }, { key: '24h', label: 'Last 24 hours' }, { key: '7d', label: 'Last 7 days' }];
 
   private readonly api = inject(RtlApi);
@@ -71,6 +71,8 @@ export class RealTimeLocation implements OnInit, OnDestroy {
 
   // ---- floor plan map
   floors: FloorOption[] = [];
+  /** Floor plans are loaded (the first overview waits for them). */
+  private floorsReady = false;
   private plans = new Map<string, FloorPlanRef>();
   mapFloorId = '';
   planZones: PlanZone[] = [];
@@ -92,6 +94,19 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   ev: RtlEventPage | null = null;
   evLoading = false;
 
+  // ---- live follow (Locate asset › location button): WebSocket stream of one asset's position
+  followId = '';
+  followName = '';
+  followState: LiveMessage['state'] | '' = '';
+  followError = '';
+  live: LiveSnapshot | null = null;
+  livePoint: LivePoint | null = null;
+  liveTrail: { x: number; y: number }[] = [];
+  mapFocus: MapFocus | null = null;
+  private liveSub?: Subscription;
+  /** Where each gateway is plotted, across all floor plans (lower-case gateway id): places the live tag on the map. */
+  private gatewaySpots = new Map<string, { floorPlanId: string; x: number; y: number; zoneName: string | null; floorName: string | null }>();
+
   toast = '';
   private timers: ReturnType<typeof setInterval>[] = [];
   private loadSub?: Subscription;
@@ -101,9 +116,10 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   ngOnInit(): void {
+    // The first overview waits for the floor plans, so the page loads straight into the floor on the map
+    // instead of showing all floors and then jumping to the first floor's numbers
     this.loadFloors();
-    this.refresh();
-    this.timers.push(setInterval(() => this.refresh(), POLL_MS));
+    this.timers.push(setInterval(() => this.floorsReady && this.refresh(), POLL_MS));
     this.timers.push(setInterval(() => (this.now = new Date()), 1000));
     this.floorApi.gatewaysLive().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((m) => {
       if (!m.data) return;
@@ -114,6 +130,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.stopLive();
     this.timers.forEach((t) => clearInterval(t));
     clearTimeout(this.toastTimer);
     [this.loadSub, this.trailSub, this.planSub, this.evSub].forEach((s) => s?.unsubscribe());
@@ -156,7 +173,8 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   get liveLabel(): { cls: string; text: string; detail: string } {
     if (this.liveState === 'connecting') return { cls: 'is-wait', text: 'CONNECTING', detail: '' };
     if (this.liveState === 'error') return { cls: 'is-off', text: 'OFFLINE', detail: this.lastUpdated ? `last update ${this.lastUpdated.toLocaleTimeString()}` : 'no data yet' };
-    const ago = this.lastUpdated ? Math.round((this.now.getTime() - this.lastUpdated.getTime()) / 1000) : 0;
+    // `now` ticks once a second, so it can be just behind the moment the data arrived: never show "-1s ago"
+    const ago = this.lastUpdated ? Math.max(0, Math.round((this.now.getTime() - this.lastUpdated.getTime()) / 1000)) : 0;
     return ago > 60 ? { cls: 'is-warn', text: 'STALE', detail: `updated ${ago}s ago` } : { cls: '', text: 'LIVE', detail: `updated ${ago}s ago` };
   }
 
@@ -171,7 +189,9 @@ export class RealTimeLocation implements OnInit, OnDestroy {
       .subscribe(({ locations, plans }) => {
         this.plans = plans;
         this.floors = locations.floors.filter((f) => plans.has(f.id));
+        this.floorsReady = true;
         if (!this.mapFloorId && this.floors.length) this.setFloor(this.floors[0].id);
+        else this.refresh();
       });
   }
 
@@ -210,9 +230,24 @@ export class RealTimeLocation implements OnInit, OnDestroy {
 
   /** The gateway hearing the selected asset (or the picked trail segment's gateway). */
   get highlight(): string[] {
-    const g = this.pickedSegment?.gatewayId ?? this.selected?.location?.gatewayId;
-    return g ? [g] : [];
+    const g = (this.followId ? this.live?.gatewayId : null) ?? this.pickedSegment?.gatewayId ?? this.selected?.location?.gatewayId ?? '';
+    // Same array while the gateway is the same, so the map is not told to redraw on every change detection
+    if (g !== this.highlightKey) {
+      this.highlightKey = g;
+      this.highlightList = g ? [g] : [];
+    }
+    return this.highlightList;
   }
+
+  private highlightKey = '';
+  private highlightList: string[] = [];
+
+  // Keyed lists: a refresh updates the rows in place instead of rebuilding them
+  readonly byKey = (_: number, k: { key: string }) => k.key;
+  readonly byAsset = (_: number, a: RtlAsset) => a.assetId;
+  readonly byEvent = (_: number, e: { eventId: string }) => e.eventId;
+  readonly byFloor = (_: number, f: FloorOption) => f.id;
+  readonly bySegment = (_: number, s: TrailSegment) => `${s.gatewayId}|${s.from}`;
 
   /** Zone of the selected asset (or the picked trail segment) shown alone on the map. */
   get mapZone(): string | undefined {
@@ -324,6 +359,132 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     if (floor && floor !== this.mapFloorId) this.setFloor(floor);
     this.select(a.assetId);
     if (!a.location) this.showToast(`${a.name} has no location yet: none of its tags has been heard.`);
+  }
+
+  // ---- live follow
+
+  /**
+   * Location button in Locate asset: go to the asset's floor, select it and zoom in on it, then follow it live over the
+   * Locating socket (/ws/locate): every reply gives the gateway now hearing its tag, and the red marker moves to that
+   * gateway on the floor plan (and to its floor). Stop unsubscribes and closes the socket.
+   */
+  startLive(a: RtlAsset): void {
+    this.locateOpen = false;
+    this.stopLive();
+    this.clearFilters();
+    const floor = this.floorOfPlan(a.location?.floorPlanId);
+    if (floor && floor !== this.mapFloorId) this.setFloor(floor);
+    this.select(a.assetId);
+    this.followId = a.assetId;
+    this.followName = a.name;
+    this.followState = 'connecting';
+    this.followError = '';
+    // Zoom in straight away on the gateway hearing it (when it is plotted on this floor); live replies then move it
+    const plot = this.planPlots.find((p) => p.kind === 'device' && p.itemId?.toLowerCase() === a.location?.gatewayId?.toLowerCase());
+    if (plot) this.mapFocus = { key: `${a.assetId}:start`, x: plot.x, y: plot.y };
+    const tag = (a.tags[0] ?? a.tracker ?? '').trim();
+    if (!tag) {
+      this.followState = 'error';
+      this.followError = `${a.name} has no tag linked (Tag Management), so it cannot be followed live.`;
+      return;
+    }
+    const assetId = a.assetId;
+    this.liveSub = this.loadGatewaySpots().subscribe(() => {
+      if (this.followId !== assetId) return;
+      this.liveSub = this.api.locate(tag).subscribe((m) => this.onLive(m, a, tag));
+    });
+  }
+
+  /** Gateways plotted on every floor plan (loaded once). */
+  private loadGatewaySpots(): Observable<void> {
+    if (this.gatewaySpots.size) return of(undefined);
+    const plans = [...this.plans.entries()];
+    if (!plans.length) return of(undefined);
+    return forkJoin(
+      plans.map(([floorId, plan]) =>
+        forkJoin({
+          plots: this.floorApi.plots(plan.id).pipe(catchError(() => of([] as PlanPlot[]))),
+          zones: this.floorApi.zones(plan.id).pipe(catchError(() => of([] as PlanZone[]))),
+        }).pipe(map(({ plots, zones }) => ({ floorId, planId: plan.id, plots, zones })))
+      )
+    ).pipe(
+      map((all) => {
+        for (const { floorId, planId, plots, zones } of all) {
+          const floorName = this.floors.find((f) => f.id === floorId)?.label.split(' > ').pop() ?? null;
+          for (const p of plots) {
+            if (p.kind !== 'device' || !p.itemId) continue;
+            const zoneName = zones.find((z) => z.id === p.zoneId)?.name ?? null;
+            this.gatewaySpots.set(p.itemId.toLowerCase(), { floorPlanId: planId, x: p.x, y: p.y, zoneName, floorName });
+            if (p.code) this.gatewaySpots.set(p.code.toLowerCase(), { floorPlanId: planId, x: p.x, y: p.y, zoneName, floorName });
+          }
+        }
+      })
+    );
+  }
+
+  private onLive(m: LiveMessage, a: RtlAsset, tag: string): void {
+    if (this.followId !== a.assetId) return;
+    this.followState = m.state;
+    if (m.state === 'error') {
+      this.followError = m.message ?? 'Live location failed.';
+      return;
+    }
+    const r: LocateReply | undefined = m.data;
+    if (!r) return;
+    this.followError = '';
+    const spot = this.gatewaySpots.get(r.gatewayid?.toLowerCase() ?? '');
+    const fresh = !!r.lastSeen && Date.now() - new Date(r.lastSeen).getTime() <= 60_000;
+    const d: LiveSnapshot = {
+      assetId: a.assetId,
+      name: a.name,
+      tagId: r.tagid || tag,
+      state: fresh ? 'Live' : 'Stale',
+      gatewayId: r.gatewayid,
+      rssi: r.rssi,
+      lastSeenAt: r.lastSeen,
+      floorPlanId: spot?.floorPlanId ?? null,
+      zoneName: spot?.zoneName ?? null,
+      floorName: spot?.floorName ?? null,
+      x: spot?.x ?? null,
+      y: spot?.y ?? null,
+      note: spot
+        ? `Tag ${r.tagid} was last heard by gateway ${r.gatewayid} (BLE proximity: shown at that gateway).`
+        : `Tag ${r.tagid} was last heard by gateway ${r.gatewayid}, which is not plotted on a floor plan (Maps & Floor Plans).`,
+    };
+    this.live = d;
+    // The asset went to another floor: show that floor
+    const floor = this.floorOfPlan(d.floorPlanId);
+    if (floor && floor !== this.mapFloorId) {
+      this.setFloor(floor);
+      this.liveTrail = [];
+    }
+    if (d.x === null || d.y === null) {
+      // Heard by a gateway that is not on a floor plan: keep the last known point, greyed out, instead of dropping it
+      if (this.livePoint) this.livePoint = { ...this.livePoint, state: 'Last known' };
+      return;
+    }
+    this.livePoint = { x: d.x, y: d.y, label: d.name, state: d.state };
+    const last = this.liveTrail[this.liveTrail.length - 1];
+    if (!last || Math.hypot(last.x - d.x, last.y - d.y) > 0.3) this.liveTrail = [...this.liveTrail, { x: d.x, y: d.y }].slice(-60);
+    // Zoom in once per asset and floor
+    const key = `${d.assetId}:${d.floorPlanId ?? ''}`;
+    if (this.mapFocus?.key !== key) this.mapFocus = { key, x: d.x, y: d.y };
+  }
+
+  /** Stop: closes the socket (the server stops streaming) and removes the live marker. */
+  stopLive(): void {
+    this.liveSub?.unsubscribe();
+    this.liveSub = undefined;
+    this.followId = this.followName = this.followError = '';
+    this.followState = '';
+    this.live = null;
+    this.livePoint = null;
+    this.liveTrail = [];
+    this.mapFocus = null;
+  }
+
+  get liveAgo(): string {
+    return this.live?.lastSeenAt ? this.agoText(this.live.lastSeenAt) : '—';
   }
 
   // ---- trail

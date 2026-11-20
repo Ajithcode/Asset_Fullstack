@@ -3,13 +3,15 @@
 /* ===== Stat tiles ===== */
 .sr-tiles {
   display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  /* Fill the left column down to the calendar's height */
+  flex: 1;
 }
 
 .sr-tile {
-  padding: 10px 12px;
-  gap: 10px;
+  padding: 14px 16px;
+  gap: 12px;
   background: var(--tone-soft);
   border-color: color-mix(in srgb, var(--tone) 20%, transparent);
 }
@@ -21,11 +23,14 @@
 }
 
 .sr-tile .kpi__value {
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .sr-tile .kpi__label {
-  font-size: 12px;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ===== Top row ===== */
@@ -35,6 +40,25 @@
   gap: 14px;
   margin-bottom: 14px;
   align-items: stretch;
+}
+
+/* Period panel with the stat tiles under it; the calendar sits on the right */
+.sr-top__main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+app-sr-period-panel,
+app-sr-report-calendar {
+  display: block;
+  min-width: 0;
+}
+
+/* Calendar card fills its grid cell (applies inside the calendar component) */
+.sr-cal {
+  height: 100%;
 }
 
 /* ===== Reporting period ===== */
@@ -241,20 +265,43 @@
 .sr-list__head {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 10px 16px;
+  margin-bottom: 14px;
 }
 
 .sr-list__head h2 {
-  flex: 1;
   margin: 0;
   font-size: 17px;
   font-weight: 800;
 }
 
+.sr-list__tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
 .sr-list__search {
-  width: min(320px, 100%);
+  width: 300px;
+}
+
+.sr-list__new {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.sr-day-pill {
+  align-self: center;
+  margin-left: auto;
+}
+
+.sr-table .empty {
+  padding: 36px 8px;
+  text-align: center;
+  color: var(--ra-muted);
 }
 
 .sr-pill-x {
@@ -427,9 +474,17 @@
   .sr-top {
     grid-template-columns: minmax(0, 1fr);
   }
+}
 
+@media (max-width: 900px) {
   .sr-tiles {
-    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sr-list__tools,
+  .sr-list__search {
+    flex: 1 1 auto;
+    width: auto;
   }
 }
 
@@ -461,4 +516,13 @@
   .sr-filters .select {
     flex: 1 1 100%;
   }
+}
+
+/* ===== Page header card ===== */
+.sr-head {
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid var(--ra-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }

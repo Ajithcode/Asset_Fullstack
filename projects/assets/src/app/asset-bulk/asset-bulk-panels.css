@@ -1,4 +1,4 @@
-/* Mapping table, results, preview, history, menu, modals, toast and responsive rules.
+/* Mapping table, results, preview, history, menu, modals and responsive rules.
    Loaded after asset-bulk.css, which defines the :host colour variables. */
 
 .panel {
@@ -34,6 +34,93 @@
   font-size: 13px;
   color: var(--bk-muted);
   text-align: center;
+}
+
+/* ============ Equal-height import / export cards ============ */
+.top-row {
+  align-items: stretch;
+}
+
+.top-row > .card {
+  display: flex;
+  flex-direction: column;
+  height: clamp(520px, calc(100vh - 230px), 760px);
+}
+
+.top-row .card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Import card: tabs stay put, the open tab scrolls */
+#bulk-import .card-body {
+  overflow: hidden;
+}
+
+#bulk-import .step-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+#bulk-import .map-wrap {
+  max-height: none;
+}
+
+/* ============ Import tabs ============ */
+.step-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.step-btn:hover .step-label {
+  color: var(--bk-accent);
+}
+
+.step-btn:focus-visible {
+  outline: 2px solid var(--bk-accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.step-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--bk-border);
+}
+
+.step-foot {
+  margin-top: auto;
+}
+
+.step-foot,
+.pane-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.done-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 /* ============ Tables ============ */
@@ -141,14 +228,6 @@
   margin-top: 12px;
 }
 
-/* ============ Bottom row ============ */
-.bottom-row {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) minmax(0, 1.4fr);
-  gap: 14px;
-  align-items: start;
-}
-
 .results {
   display: flex;
   flex-direction: column;
@@ -208,7 +287,7 @@
   color: var(--bk-accent);
 }
 
-/* ============ Modals & toast ============ */
+/* ============ Modals ============ */
 .overlay {
   position: fixed;
   inset: 0;
@@ -253,49 +332,30 @@
   padding: 14px 20px 18px;
 }
 
-.toast {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 10002;
-  max-width: 460px;
-  padding: 12px 18px;
-  border-radius: 8px;
-  background: #1f2937;
-  color: #fff;
-  font-size: 13.5px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
-}
-
-.toast--error {
-  background: #b91c1c;
-}
 
 /* ============ Responsive ============ */
-@media (max-width: 1400px) {
-  .bottom-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .bottom-row > :last-child {
-    grid-column: 1 / -1;
-  }
-}
-
 @media (max-width: 1200px) {
   .top-row {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .top-row > .card {
+    height: auto;
+  }
+
+  .top-row .card-body,
+  #bulk-import .card-body,
+  #bulk-import .step-pane {
+    overflow: visible;
+  }
 }
 
 @media (max-width: 760px) {
-  .bottom-row,
   .upload-row,
   .filters {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .bottom-row > :last-child,
   .field--wide {
     grid-column: auto;
   }
@@ -308,3 +368,12 @@
     font-size: 10.5px;
   }
 }
+
+.history-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+}
+.history-pager .muted { margin-right: auto; }

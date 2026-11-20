@@ -272,7 +272,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
 
   /** Replaces the option lists with the API's (device types, connectivity, power, measurements, attributes...). */
   private applyOptions(o: DeviceModelFormOptions): void {
-    for (const t of o.deviceTypes ?? []) this.typeIdOf(t.deviceType);
+    for (const t of o.deviceTypes ?? []) if (t?.name?.trim()) this.typeIdOf(t.name);
     if (o.connectivities?.length) CONNECTIVITY.splice(0, CONNECTIVITY.length, ...(o.connectivities as Connectivity[]));
     if (o.powerSources?.length) POWER_OPTIONS.splice(0, POWER_OPTIONS.length, ...o.powerSources);
     if (o.measurements?.length) {
@@ -293,7 +293,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     if (found) return found.id;
     let id = (name || 'type').toLowerCase().replace(/[^a-z0-9]+/g, '-');
     while (TYPES.some((t) => t.id === id)) id += '-2';
-    TYPES.push({ id, name: name.trim(), icon: 'chip', form: 'box', description: '' });
+    TYPES.push({ id, name: (name ?? '').trim() || 'Unknown type', icon: 'chip', form: 'box', description: '' });
     return id;
   }
 

@@ -76,7 +76,7 @@ export class BusinessUnitService extends StructureStore<BusinessUnitRecord, Busi
       (r) =>
         (!f.status || r.status === f.status) &&
         (!f.organizationCode || r.organizationCode === f.organizationCode) &&
-        (!term || [r.name, r.code, r.description].some((v) => v.toLowerCase().includes(term)))
+        (!term || [r.name, r.code, r.description].some((v) => (v ?? '').toLowerCase().includes(term)))
     );
   }
 
@@ -84,8 +84,8 @@ export class BusinessUnitService extends StructureStore<BusinessUnitRecord, Busi
     const blank = blankBusinessUnit();
     const org = dto.parentOrganization;
     return {
-      code: dto.code,
-      name: dto.businessUnitName,
+      code: dto.code ?? '',
+      name: dto.businessUnitName ?? '',
       organizationCode: this.organizations.codeOf(org?.id) ?? '',
       // Parent id for now; StructureStore swaps it for the code
       parentCode: dto.parentBusinessUnit?.id ?? null,

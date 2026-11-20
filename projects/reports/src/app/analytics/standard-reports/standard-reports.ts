@@ -4,18 +4,17 @@ import { Subject, Subscription, debounceTime } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
-  ArrowDown, ArrowUp, ArrowUpDown, Box, CalendarClock, CalendarDays, CircleDollarSign, ClipboardCheck, Ellipsis, Eye, Factory,
-  FileCheck, FileText, Funnel, LucideAngularModule, MapPin, Package, Plus, Radio, RefreshCw, Search, ShieldCheck, Upload, Wrench, X
+  ArrowDown, ArrowUp, ArrowUpDown, Box, CalendarClock, CalendarDays, CircleAlert, CircleCheck, CircleDollarSign, CircleX, ClipboardCheck,
+  Eye, Factory, FileCheck, FileText, Funnel, Info, LucideAngularModule, MapPin, Package, Plus, Radio, RefreshCw, Search, ShieldCheck, Upload, Wrench, X
 } from 'lucide-angular';
 import { AnalyticsPage, downloadCsv } from '../shared/analytics-common';
-import { CustomReportsService } from '../custom-reports/custom-reports.service';
 import { ReportCalendar } from './report-calendar';
 import { ReportCreateDialog } from './report-create-dialog';
 import { ReportScheduleDialog } from './report-schedule-dialog';
 import { ReportViewerDialog } from './report-viewer-dialog';
 import { ReportingPeriodPanel } from './reporting-period-panel';
 import {
-  ReportFrequency, ReportModule, ReportPeriod, ReportSchedule, ReportStatus, SR_MODULES, SR_STATUSES, StandardReport
+  ReportFrequency, ReportPeriod, ReportSchedule, ReportStatus, SR_STATUSES, StandardReport
 } from './standard-reports.data';
 import { NewStandardReport, SR_SORT_FIELDS, StandardReportsService, toApiDate } from './standard-reports.service';
 import { formatDay, formatPeriod, formatStamp } from './standard-reports.util';
@@ -24,7 +23,8 @@ type SortKey = 'name' | 'module' | 'period' | 'generatedOn' | 'nextScheduled' | 
 
 const PAGE_SIZE = 10;
 
-const MODULE_STYLE: Record<ReportModule, { icon: typeof Box; tone: string }> = {
+/** Icon / tone for well-known category names; other categories get a tone picked from their name. */
+const MODULE_STYLE: Record<string, { icon: typeof Box; tone: string }> = {
   Assets: { icon: Box, tone: 'green' },
   'Tracking & IoT': { icon: Radio, tone: 'blue' },
   'Movement & Custody': { icon: MapPin, tone: 'purple' },
@@ -37,9 +37,35 @@ const MODULE_STYLE: Record<ReportModule, { icon: typeof Box; tone: string }> = {
   Financial: { icon: CircleDollarSign, tone: 'orange' }
 };
 
+const CATEGORY_TONES = ['green', 'blue', 'purple', 'orange', 'pink'];
+
+function categoryStyle(name: string): { icon: typeof Box; tone: string } {
+  const known = MODULE_STYLE[name];
+  if (known) return known;
+  let hash = 0;
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return { icon: Box, tone: CATEGORY_TONES[hash % CATEGORY_TONES.length] };
+}
+
 const STATUS_TONES: Record<ReportStatus, string> = { Ready: 'green', Scheduled: 'blue', 'Needs review': 'pink', Draft: 'orange' };
 const FREQUENCY_TONES: Record<ReportFrequency, string> = { Daily: 'green', Weekly: 'blue', Monthly: 'blue', Quarterly: 'purple', 'On demand': 'purple' };
 const FREQUENCY_ORDER: ReportFrequency[] = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'On demand'];
+
+type AlertKind = 'success' | 'error' | 'warning' | 'info';
+
+interface PageAlert {
+  id: number;
+  kind: AlertKind;
+  title: string;
+  message: string;
+  /** Time on screen before it closes itself. */
+  ms: number;
+  paused?: boolean;
+  timer?: ReturnType<typeof setTimeout>;
+}
+
+const ALERT_TITLES: Record<AlertKind, string> = { success: 'Success', error: 'Error', warning: 'Warning', info: 'Info' };
+const MAX_ALERTS = 4;
 
 /** Reports & Analytics > Standard Reports: reporting period, report calendar and the standard report catalogue. */
 @Component({
@@ -47,14 +73,16 @@ const FREQUENCY_ORDER: ReportFrequency[] = ['Daily', 'Weekly', 'Monthly', 'Quart
   standalone: true,
   imports: [FormsModule, RouterLink, LucideAngularModule, ReportingPeriodPanel, ReportCalendar, ReportViewerDialog, ReportScheduleDialog, ReportCreateDialog],
   templateUrl: './standard-reports.html',
-  styleUrls: ['../shared/analytics-page.css', './standard-reports.css']
+  // Alerts split out to keep each stylesheet under the anyComponentStyle budget
+  styleUrls: ['../shared/analytics-page.css', './standard-reports.css', './standard-reports-alerts.css']
 })
 export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDestroy {
   readonly service = inject(StandardReportsService);
-  private readonly customReports = inject(CustomReportsService);
 
-  readonly icons = { FileText, Funnel, CalendarDays, RefreshCw, Search, Eye, CalendarClock, Upload, Ellipsis, X, Plus };
-  readonly categoryOptions = SR_MODULES;
+  readonly icons = { FileText, Funnel, CalendarDays, RefreshCw, Search, Eye, CalendarClock, Upload, X, Plus };
+  /** Category filter / New report options, from the Category master API. */
+  categoryOptions: string[] = [];
+  categoriesLoading = false;
   readonly frequencyOptions = FREQUENCY_ORDER;
   readonly statusOptions = SR_STATUSES;
   readonly columns: { key: SortKey; label: string }[] = [
@@ -72,7 +100,6 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
   sortKey: SortKey = 'name';
   sortDir: 1 | -1 = 1;
   page = 1;
-  menuId: string | null = null;
   viewing: StandardReport | null = null;
   scheduling: StandardReport | null = null;
 
@@ -88,18 +115,45 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
   saving = false;
   createError = '';
 
+  // Schedule dialog (PUT /api/standard-reports/{reportId}/schedule)
+  scheduleSaving = false;
+  scheduleError = '';
+
+  /** Top-right alert stack, newest first. */
+  alerts: PageAlert[] = [];
+  private alertSeq = 0;
+
   private loadSub: Subscription | null = null;
+  private categorySub: Subscription | null = null;
   private readonly searchInput = new Subject<void>();
   private readonly searchSub = this.searchInput.pipe(debounceTime(300)).subscribe(() => this.load());
 
   ngOnInit(): void {
     this.load();
+    this.loadCategories();
+  }
+
+  /** Category dropdowns: GET {assetApiUrl}api/asset-categories (Category master). */
+  loadCategories(): void {
+    this.categoriesLoading = true;
+    this.categorySub?.unsubscribe();
+    this.categorySub = this.service.categories().subscribe((names) => {
+      this.categoriesLoading = false;
+      this.categoryOptions = names;
+      // Drop a filter value the master no longer has
+      if (this.categoryFilter && !names.includes(this.categoryFilter)) {
+        this.categoryFilter = '';
+        this.filterChanged();
+      }
+    });
   }
 
   override ngOnDestroy(): void {
     super.ngOnDestroy();
     this.searchSub.unsubscribe();
     this.loadSub?.unsubscribe();
+    this.categorySub?.unsubscribe();
+    this.alerts.forEach((a) => clearTimeout(a.timer));
   }
 
   /** GET /api/standard-reports with the search, filters, period, sort and page. */
@@ -139,6 +193,7 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
           this.service.reports = [];
           this.service.totalCount = 0;
           this.loadError = apiMessage(err, 'Could not load standard reports.');
+          this.showAlert('error', this.loadError);
         }
       });
   }
@@ -171,6 +226,7 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
       error: (err: HttpErrorResponse) => {
         this.saving = false;
         this.createError = apiMessage(err, 'Could not create the report.');
+        this.showAlert('error', this.createError);
       }
     });
   }
@@ -273,11 +329,11 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
 
   // ===== Display helpers =====
   moduleIcon(r: StandardReport): typeof Box {
-    return (MODULE_STYLE[r.module] ?? MODULE_STYLE.Assets).icon;
+    return categoryStyle(r.module).icon;
   }
 
   moduleTone(r: StandardReport): string {
-    return (MODULE_STYLE[r.module] ?? MODULE_STYLE.Assets).tone;
+    return categoryStyle(r.module).tone;
   }
 
   statusTone(r: StandardReport): string {
@@ -305,20 +361,32 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
   }
 
   view(r: StandardReport): void {
-    this.menuId = null;
     this.viewing = r;
   }
 
   openSchedule(r: StandardReport): void {
-    this.menuId = null;
+    this.scheduleError = '';
     this.scheduling = r;
   }
 
   saveSchedule(schedule: ReportSchedule): void {
-    if (!this.scheduling) return;
-    const updated = this.service.saveSchedule(this.scheduling.id, schedule);
-    this.scheduling = null;
-    if (updated) this.notify(`“${updated.name}” scheduled ${schedule.frequency.toLowerCase()}, next run ${formatStamp(updated.nextScheduled)}.`);
+    const report = this.scheduling;
+    if (!report || this.scheduleSaving) return;
+    this.scheduleSaving = true;
+    this.scheduleError = '';
+    this.service.saveSchedule(report, schedule).subscribe({
+      next: (updated) => {
+        this.scheduleSaving = false;
+        this.scheduling = null;
+        this.notify(`“${updated.name}” scheduled ${schedule.frequency.toLowerCase()}, next run ${formatStamp(updated.nextScheduled)}.`);
+        this.load();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.scheduleSaving = false;
+        this.scheduleError = apiMessage(err, 'Could not save the schedule.');
+        this.showAlert('error', this.scheduleError);
+      }
+    });
   }
 
   exportCsv(r: StandardReport): void {
@@ -329,40 +397,49 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
     this.notify(`Exported “${r.name}” as CSV.`);
   }
 
-  toggleMenu(id: string, event: Event): void {
-    event.stopPropagation();
-    this.menuId = this.menuId === id ? null : id;
+  // ===== Alerts (top-right) =====
+  /** Success messages from the base page (create, export, schedule, ...) go to the alert stack. */
+  override notify(message: string): void {
+    this.showAlert('success', message);
   }
 
-  runNow(r: StandardReport): void {
-    this.menuId = null;
-    const updated = this.service.runNow(r.id);
-    if (updated) this.notify(`“${updated.name}” generated ${formatStamp(updated.generatedOn)}.`);
+  /** Shows an alert in the top-right stack. Errors stay longer; the same text is not stacked twice. */
+  showAlert(kind: AlertKind, message: string, title = ALERT_TITLES[kind]): void {
+    if (!message) return;
+    const same = this.alerts.find((a) => a.kind === kind && a.message === message);
+    if (same) this.dismissAlert(same.id);
+    const alert: PageAlert = { id: ++this.alertSeq, kind, title, message, ms: kind === 'error' || kind === 'warning' ? 8000 : 5000 };
+    this.alerts = [alert, ...this.alerts];
+    this.alerts.slice(MAX_ALERTS).forEach((a) => this.dismissAlert(a.id));
+    this.startAlertTimer(alert);
   }
 
-  duplicate(r: StandardReport): void {
-    this.menuId = null;
-    const name = this.customReports.addFromStandard({ name: r.name, module: r.module, description: r.description });
-    this.notify(`Copied to Custom Reports as draft “${name}”.`);
+  dismissAlert(id: number): void {
+    const alert = this.alerts.find((a) => a.id === id);
+    if (!alert) return;
+    clearTimeout(alert.timer);
+    this.alerts = this.alerts.filter((a) => a.id !== id);
   }
 
-  markReviewed(r: StandardReport): void {
-    this.menuId = null;
-    if (r.status !== 'Needs review') return;
-    const updated = this.service.markReviewed(r.id);
-    if (updated) this.notify(`“${updated.name}” marked as reviewed.`);
+  /** Hovering an alert keeps it open; leaving restarts its timer. */
+  holdAlert(alert: PageAlert, hold: boolean): void {
+    clearTimeout(alert.timer);
+    alert.paused = hold;
+    if (!hold) this.startAlertTimer(alert);
   }
 
-  @HostListener('document:click')
-  closeMenu(): void {
-    this.menuId = null;
+  alertIcon(kind: AlertKind): typeof Info {
+    return kind === 'success' ? CircleCheck : kind === 'error' ? CircleX : kind === 'warning' ? CircleAlert : Info;
+  }
+
+  private startAlertTimer(alert: PageAlert): void {
+    alert.timer = setTimeout(() => this.dismissAlert(alert.id), alert.ms);
   }
 
   @HostListener('document:keydown.escape')
   closeDialogs(): void {
-    this.menuId = null;
     this.viewing = null;
-    this.scheduling = null;
+    if (!this.scheduleSaving) this.scheduling = null;
     if (!this.saving) this.creating = false;
   }
 

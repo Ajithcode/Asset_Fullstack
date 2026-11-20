@@ -67,7 +67,7 @@ export class OrganizationService extends StructureStore<OrganizationRecord, Orga
         (!f.status || r.status === f.status) &&
         (!f.type || r.type === f.type) &&
         (!term ||
-          [r.name, r.code, r.type, this.find(r.parentCode)?.name ?? ''].some((v) => v.toLowerCase().includes(term)))
+          [r.name, r.code, r.type, this.find(r.parentCode)?.name].some((v) => (v ?? '').toLowerCase().includes(term)))
     );
   }
 
@@ -88,8 +88,8 @@ export class OrganizationService extends StructureStore<OrganizationRecord, Orga
     const s = dto.settings;
     const known = this.find(dto.code);
     return {
-      code: dto.code,
-      name: dto.organizationName,
+      code: dto.code ?? '',
+      name: dto.organizationName ?? '',
       type: (dto.type ?? '') as OrganizationType,
       // Parent id for now; StructureStore swaps it for the code
       parentCode: dto.parentOrganization?.id ?? null,

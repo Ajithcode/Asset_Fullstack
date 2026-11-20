@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X } from 'lucide-angular';
 import { CURRENT_USER } from '../shared/analytics-common';
@@ -104,9 +104,12 @@ import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-valid
             <small>Press Enter or comma to add an address.</small>
           }
         </div>
+        @if (error) {
+          <p class="sr-period__error" role="alert">{{ error }}</p>
+        }
         <div class="dialog__actions">
-          <button type="button" class="btn" (click)="close.emit()">Cancel</button>
-          <button type="submit" class="btn btn--primary">Save schedule</button>
+          <button type="button" class="btn" [disabled]="saving" (click)="close.emit()">Cancel</button>
+          <button type="submit" class="btn btn--primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save schedule' }}</button>
         </div>
       </form>
     </div>
@@ -115,6 +118,10 @@ import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-valid
 })
 export class ReportScheduleDialog implements OnChanges {
   @Input({ required: true }) report!: StandardReport;
+  /** PUT …/schedule in progress. */
+  @Input() saving = false;
+  /** Server error from the last attempt. */
+  @Input() error = '';
   @Output() close = new EventEmitter<void>();
   @Output() save = new EventEmitter<ReportSchedule>();
 
@@ -141,7 +148,9 @@ export class ReportScheduleDialog implements OnChanges {
     return this.frequency !== 'Daily' && this.day === null;
   }
 
-  ngOnChanges(): void {
+  ngOnChanges(changes: SimpleChanges): void {
+    // Only reset the form when another report is opened, not when saving / error change
+    if (!changes['report']) return;
     const s = this.report.schedule;
     this.frequency = s?.frequency ?? ('' as ReportFrequency);
     this.day = s ? s.day : null;
@@ -189,6 +198,7 @@ export class ReportScheduleDialog implements OnChanges {
   }
 
   submit(): void {
+    if (this.saving) return;
     this.addRecipient();
     this.submitted = true;
     if (!RELAX_VALIDATION && (this.emailError || !this.frequency || this.dayMissing || !this.time || !this.format || this.recipients.length === 0)) return;

@@ -31,9 +31,21 @@
   background: #f5f8fc;
 }
 
+.topbar-bar {
+  position: sticky;
+  top: 0;
+  /* Above page content; below the sidebar's collapse button (z-index 9999) */
+  z-index: 1500;
+  /* Cover the main area's top and side padding too, so the white strip runs edge to edge */
+  margin: -12px -12px 6px -14px;
+  padding: 12px 12px 10px 14px;
+  background: #fff;
+  box-shadow: 0 1px 0 #e5e7eb;
+}
+
 .layout-content {
   flex: 1;
-  padding-top: 9px ;
+  padding-top: 3px;
   background: #f5f8fc;
   overflow-x: hidden;
   min-width: 0;
