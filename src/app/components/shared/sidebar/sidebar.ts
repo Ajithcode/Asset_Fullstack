@@ -19,8 +19,10 @@ import {
   CircleDollarSign,
   ChartColumn,
   Settings,
-  Database
+  Database,
+  Lock
 } from 'lucide-angular';
+import { isModuleLicensed } from '../../../licence/licence.config';
 import { ADMINISTRATION_BASE_PATH, ADMINISTRATION_MENU, AccessService, MASTER_DATA_BASE_PATH, isCreatePath, MASTER_DATA_MENU, REPORTS_ANALYTICS_BASE_PATH, REPORTS_ANALYTICS_MENU } from 'shared-ui';
 
 export interface NavItem {
@@ -37,6 +39,8 @@ export interface NavItem {
   inline?: boolean;
   // Small pill shown after the label (e.g. 'New')
   badge?: string;
+  // Not part of the licence: shown with a lock icon, its pages show "Module not activated" (see licence.config.ts)
+  locked?: boolean;
 }
 
 @Component({
@@ -64,6 +68,7 @@ export class Sidebar {
   flyoutPosition: { top: number; left: number } | null = null;
 
   private readonly access = inject(AccessService);
+  readonly lockIcon = Lock;
 
   /** Sections the signed-in user may open (role-based access); none until their access has loaded. */
   get navItems(): NavItem[] {
@@ -78,7 +83,9 @@ export class Sidebar {
           item.children && !this.access.can(item.label, 'create')
             ? { ...item, children: item.children.filter((child) => !isCreatePath(child.path)) }
             : item
-        );
+        )
+        // Locked modules: clicking opens the lock page (the module path) as well as expanding the submenu
+        .map((item) => (isModuleLicensed(item.label) ? item : { ...item, locked: true, hasPage: true, landing: undefined }));
     }
     return this.menu;
   }

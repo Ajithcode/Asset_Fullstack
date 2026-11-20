@@ -758,3 +758,22 @@
 .nav-dropdown-group__label .nav-badge {
   margin-left: 6px;
 }
+
+// Module not in the licence (licence.config.ts): small lock badge on the module icon
+.nav-icon {
+  position: relative;
+}
+.nav-lock {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--piq-primary-light, #ede9fe);
+  color: var(--piq-primary, #4f2bd8);
+  pointer-events: none;
+}
