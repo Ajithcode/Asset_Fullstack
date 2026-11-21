@@ -13,7 +13,8 @@ public sealed record CreateAssetModelRequest(
     string? Status,
     string? CreatedBy,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    MasterDataReferenceDto? SubCategory = null)
 {
     public AssetModelEntity ToEntity()
     {
@@ -24,6 +25,7 @@ public sealed record CreateAssetModelRequest(
             Manufacturer = Manufacturer?.ToReference(),
             AssetType = AssetType?.ToReference(),
             Category = Category?.ToReference(),
+            SubCategory = SubCategory?.ToReference(),
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
             Lifecycle = string.IsNullOrWhiteSpace(Lifecycle) ? null : Lifecycle.Trim(),
 
@@ -47,7 +49,8 @@ public sealed record UpdateAssetModelRequest(
     string? Description,
     string? Lifecycle,
     string? Status,
-    string? UpdatedBy)
+    string? UpdatedBy,
+    MasterDataReferenceDto? SubCategory = null)
 {
     public void ApplyTo(AssetModelEntity model)
     {
@@ -56,6 +59,7 @@ public sealed record UpdateAssetModelRequest(
         model.Manufacturer = Manufacturer?.ToReference();
         model.AssetType = AssetType?.ToReference();
         model.Category = Category?.ToReference();
+        model.SubCategory = SubCategory?.ToReference();
         model.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
         model.Lifecycle = string.IsNullOrWhiteSpace(Lifecycle) ? null : Lifecycle.Trim();
 
@@ -89,7 +93,8 @@ public sealed record AssetModelResponse(
     string? ClientId,
     string? TenantId,
     string? Status,
-    bool IsDeleted)
+    bool IsDeleted,
+    MasterDataReferenceDto? SubCategory)
 {
     public static AssetModelResponse FromEntity(AssetModelEntity model)
     {
@@ -115,7 +120,10 @@ public sealed record AssetModelResponse(
             model.ClientId,
             model.TenantId,
             model.Status,
-            model.IsDeleted
+            model.IsDeleted,
+            model.SubCategory is null
+                ? null
+                : MasterDataReferenceDto.FromReference(model.SubCategory)
         );
     }
 }

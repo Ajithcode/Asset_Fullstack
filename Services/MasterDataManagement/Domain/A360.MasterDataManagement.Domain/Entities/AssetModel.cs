@@ -22,6 +22,10 @@ public class AssetModel : BaseEntity
     [BsonElement("category")]
     public MasterDataReference? Category { get; set; }
 
+    // Sub-category (a child of Category in the Asset service's categories), as on Asset Registration
+    [BsonElement("sub_category")]
+    public MasterDataReference? SubCategory { get; set; }
+
     [BsonElement("description")]
     public string? Description { get; set; }
 
