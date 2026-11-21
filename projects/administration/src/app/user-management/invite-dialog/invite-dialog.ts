@@ -4,7 +4,7 @@ import { LucideAngularModule, Mail, X } from 'lucide-angular';
 import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS } from '../../shared/admin-common';
 import { USER_ROLES } from '../user-management.data';
 import { UserAdminService } from '../user-management.service';
-import { relaxErrors } from '../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../src/environments/relax-validation';
 
 export interface InviteRequest {
   emails: string[];

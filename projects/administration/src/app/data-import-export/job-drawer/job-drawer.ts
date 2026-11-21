@@ -7,7 +7,7 @@ import { DataJob } from '../data-import.model';
 import { DATA_OBJECT_NAMES, DATE_FORMATS, DELIMITERS, DUPLICATE_OPTIONS, ENCODINGS } from '../data-import.data';
 import { DataJobService, nowStamp } from '../data-import.service';
 import { formatStamp } from '../data-import.util';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;

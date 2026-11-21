@@ -4,7 +4,7 @@ import { LucideAngularModule, X } from 'lucide-angular';
 import { CURRENT_USER } from '../shared/analytics-common';
 import { ReportFormat, ReportFrequency, ReportSchedule, SR_FORMATS, SR_SCHEDULE_FREQUENCIES, StandardReport } from './standard-reports.data';
 import { WEEKDAYS, isEmail } from './standard-reports.util';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /** Schedule editor: frequency, day, time, recipients (email chips) and output format. */
 @Component({

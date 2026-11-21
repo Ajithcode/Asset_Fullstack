@@ -8,7 +8,7 @@ import { VENDOR_COUNTRIES } from '../../vendor.data';
 import { COVERAGE_AREAS, SERVICE_TYPES, blankServiceProvider } from '../service-provider.data';
 import { ServiceProviderRecord } from '../service-provider.model';
 import { ServiceProviderService } from '../service-provider.service';
-import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'services' | 'address' | 'compliance' | 'documents' | 'settings';
 type ListKey = 'services' | 'skills' | 'coverage';

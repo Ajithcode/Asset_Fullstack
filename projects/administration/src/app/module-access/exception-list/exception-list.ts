@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Plus, Trash2 } from 'lucide-angular';
 import { ADMIN_PEOPLE, ASSET360_MODULES, CURRENT_USER, avatarTone, formatDate, initials, todayIso } from '../../shared/admin-common';
 import { AccessException, EXCEPTION_ACCESS, ExceptionAccess, PolicyRecord } from '../module-access.data';
-import { relaxErrors } from '../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../src/environments/relax-validation';
 
 interface Draft {
   user: string;

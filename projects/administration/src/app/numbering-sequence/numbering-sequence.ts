@@ -14,7 +14,7 @@ import {
 } from './numbering-sequence.model';
 import { NumberingSequenceService, apiErrorMessage } from './numbering-sequence.service';
 import { SequenceDrawer } from './sequence-drawer/sequence-drawer';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'config' | 'preview' | 'usage' | 'changes';
 

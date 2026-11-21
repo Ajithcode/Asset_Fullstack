@@ -2,7 +2,7 @@ import { Component, EventEmitter, HostListener, Input, OnInit, Output } from '@a
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X } from 'lucide-angular';
 import { RA_PEOPLE, downloadCsv } from '../../shared/analytics-common';
-import { RELAX_VALIDATION } from '../../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 // Dialogs shared by the Inspection, Compliance and KPI dashboards. Each closes on Escape or a backdrop click.
 

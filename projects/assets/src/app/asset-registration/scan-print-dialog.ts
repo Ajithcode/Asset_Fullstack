@@ -2,7 +2,7 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, OnInit, Outpu
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, ArrowLeft, Keyboard, Printer, ScanBarcode, Wifi, X } from 'lucide-angular';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 export type ScanMode = 'barcode' | 'rfid' | 'normal';
 type Step = 'choose' | 'input' | 'print';

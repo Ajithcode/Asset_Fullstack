@@ -5,7 +5,7 @@ import { MapCanvas } from '../map-canvas/map-canvas';
 import { MapViewer } from '../map-viewer/map-viewer';
 import { MapLayer } from '../maps.data';
 import { MapsStore } from '../maps.store';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 const CATEGORIES = ['HVAC', 'Electrical', 'Mechanical', 'Plumbing', 'Fire Safety', 'IT'];
 const LAYER_TYPES = ['Zone (Area)', 'Geofence (Alerting)', 'Asset (Plotted / Tracked)', 'Device (IoT)', 'Annotation (Text)', 'Room (Space)', 'Heatmap', 'Base Map'];

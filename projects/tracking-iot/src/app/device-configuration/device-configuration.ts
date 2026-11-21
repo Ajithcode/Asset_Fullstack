@@ -18,7 +18,7 @@ import {
   activityFromDto, configFromDto, configToRequest, ruleFromDto, ruleToRequest, versionFromDto,
 } from './device-configuration-api.service';
 import { IoTDeviceLookupService } from './iot-device-lookup.service';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'overview' | 'connectivity' | 'telemetry' | 'alerts' | 'firmware' | 'history';
 type CheckState = 'ok' | 'warn' | 'fail';

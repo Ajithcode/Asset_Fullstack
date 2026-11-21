@@ -9,7 +9,7 @@ import { HEX_COLOR } from '../../level-icons';
 import { CATEGORY_TYPE_DEFAULTS, blankCategory } from '../category.data';
 import { CategoryRecord } from '../category.model';
 import { CategoryService } from '../category.service';
-import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 /** A new category starts with every dropdown empty so the user picks each value. */
 function newCategory(): CategoryRecord {

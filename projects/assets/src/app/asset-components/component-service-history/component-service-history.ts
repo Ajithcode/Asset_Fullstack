@@ -28,7 +28,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import type { AssetComponent } from '../asset-components';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export type ServiceType = 'Preventive' | 'Corrective' | 'Inspection';
 export type ServiceStatus = 'Completed' | 'In Progress' | 'Scheduled' | 'Cancelled';

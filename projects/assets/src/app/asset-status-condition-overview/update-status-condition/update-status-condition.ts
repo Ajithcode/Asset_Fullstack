@@ -54,7 +54,7 @@ import {
   stateTone,
   statusTone,
 } from '../status-condition.service';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 type Step = 1 | 2 | 3;
 type CheckState = 'ok' | 'warn' | 'error';

@@ -62,7 +62,7 @@ import {
   AssetAssignmentDto, AssetAssignmentRequest, AssetAssignmentService, AssignmentAttachmentDto, AssignmentLookups, EMPTY_LOOKUPS, LookupEmployee, PoolItem,
   assignToOf, choicesFor, dayOf, departmentRequest, employeeRequest, locationFrom, siteTreeOf, toRows, typeOf, uniqueSorted,
 } from '../asset-assignment.service';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 type SelectMode = 'single' | 'multiple' | 'scan';
 type ScanSource = 'camera' | 'external';

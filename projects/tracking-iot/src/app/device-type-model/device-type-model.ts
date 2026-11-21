@@ -61,7 +61,7 @@ import {
   STATUSES, TYPES, TYPE_ICONS, TypeIcon, blankModel, normalizePower,
 } from './model-data';
 import { DeviceModelApiService, DeviceModelDto, DeviceModelFormOptions, modelFromDto } from './device-model-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Icon = typeof Box;
 

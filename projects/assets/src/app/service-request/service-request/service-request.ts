@@ -42,7 +42,7 @@ import { blankAssetRecord } from '../../shared/blank-asset';
 import { loadAssetDetail } from '../../asset-details/asset-details';
 import { AssetDetailsService, fileUrl, iconForAsset, isoDay } from '../../asset-details/asset-details.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 import {
   MaintenanceWorkOrderDto,
   SR_API_PRIORITIES,

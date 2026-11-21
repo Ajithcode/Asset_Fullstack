@@ -51,7 +51,7 @@ import {
   cloneDetail,
   loadAssetDetail,
 } from '../asset-details/asset-details';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type SubTab = 'operational' | 'assessment' | 'performance' | 'environment' | 'alarms';
 type TrendRange = 'all' | '3y' | '1y';

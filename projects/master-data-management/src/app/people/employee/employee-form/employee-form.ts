@@ -9,7 +9,7 @@ import { TeamService } from '../../team/team.service';
 import { NATIONALITIES, blankEmployee } from '../employee.data';
 import { EmployeeRecord } from '../employee.model';
 import { EmployeeService } from '../employee.service';
-import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'employment' | 'contact' | 'skills' | 'access';
 type FieldKey = 'id' | 'name' | 'department' | 'designation' | 'email' | 'photo' | 'status' | 'reportingManager' | 'certifications';

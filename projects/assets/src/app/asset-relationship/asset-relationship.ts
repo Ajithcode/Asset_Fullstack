@@ -68,7 +68,7 @@ import {
   toSubAssetRef,
 } from '../asset-relationship-list/asset-relationship.service';
 import { apiErrorMessage } from '../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type RelType = 'Parent Asset' | 'Connected Asset' | 'Supporting Asset' | 'Component' | 'Sub Asset';
 type Direction = 'Parent' | 'Child' | 'Sibling';

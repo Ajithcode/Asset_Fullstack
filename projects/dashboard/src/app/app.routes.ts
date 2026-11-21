@@ -3,7 +3,7 @@ import { Dashboard } from './dashboard/dashboard';
 import { IotTrackingOverview } from './iot-tracking-overview/iot-tracking-overview';
 import { AssetOverview } from './asset-overview/asset-overview';
 import { Report } from './report/report';
-import { installRelaxedValidation } from '../../../../src/relax-validation/relax-validation';
+import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
 
 // TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
 installRelaxedValidation();

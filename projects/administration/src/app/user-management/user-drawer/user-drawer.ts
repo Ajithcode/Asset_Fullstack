@@ -23,7 +23,7 @@ import { ALL_LOCATIONS, LOCATION_TIME_ZONES, TIME_ZONES, USER_MODULES, USER_ROLE
 import { AdminUser, UserStatus } from '../user-management.model';
 import { UserAdminService } from '../user-management.service';
 import { loginLabel, roleOf } from '../user-format';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const EMPLOYEE_ID = /^EMP-\d{4,}$/;

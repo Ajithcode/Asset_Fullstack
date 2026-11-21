@@ -55,7 +55,7 @@ import {
 } from 'lucide-angular';
 import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, tagIdFromNumber } from './tag-data';
 import { TagIdApiService, TagSummary, apiType, pageType } from './tag-id-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 /** Tag IDs = the identifier registry; Assignments = lifecycle of each tag on assets; Audit = every change. */
 type View = 'ids' | 'assignments' | 'audit';

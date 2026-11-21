@@ -59,7 +59,7 @@ import {
 import { AssetCategory, AssetCategoryService } from '../services/asset-category/asset-category';
 import { AssetDropdownService, DropdownOption } from '../services/asset-dropdowns/asset-dropdown';
 import { FilterSelect } from '../shared/filter-select/filter-select';
-import { RELAX_VALIDATION, relaxError } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION, relaxError } from '../../../../../src/environments/relax-validation';
 
 type Status = TypeModelStatus;
 

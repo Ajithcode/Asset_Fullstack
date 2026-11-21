@@ -5,7 +5,7 @@ import { MasterForm } from '../../../maintenance/form-base';
 import { STATUS_COLORS, STOCK_STATUS_TYPES, blankStockStatus } from '../../inventory.data';
 import { StockStatusRecord } from '../../inventory.model';
 import { StockStatusService } from '../../inventory.service';
-import { RELAX_VALIDATION } from '../../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 type Tab = 'basic' | 'rules' | 'settings';
 

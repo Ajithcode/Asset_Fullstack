@@ -5,7 +5,7 @@ import { MasterForm } from '../../../maintenance/form-base';
 import { VALUATION_METHODS, blankItemCategory } from '../../inventory.data';
 import { ItemCategoryRecord } from '../../inventory.model';
 import { ItemCategoryService, UomService } from '../../inventory.service';
-import { RELAX_VALIDATION } from '../../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 type Tab = 'basic' | 'hierarchy' | 'settings';
 

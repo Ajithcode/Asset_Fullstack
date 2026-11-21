@@ -30,7 +30,7 @@ import { ASSET_TYPE_ICONS, AssetIconKey, AuthService } from 'shared-ui';
 import { iconForAsset } from '../asset-details/asset-details.service';
 import { Comparable, DEFAULT_RULES, DedupRules, MATCH_FIELDS, MatchField, confidence } from './dedup-match';
 import { AssetDedupService, AssetMergeDto, DedupGroupDto, DedupRecordDto, MergeField, dedupErrorMessage } from './asset-dedup.service';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Confidence = 'High' | 'Medium' | 'Low';
 

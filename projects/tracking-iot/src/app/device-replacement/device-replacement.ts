@@ -43,7 +43,7 @@ import {
 import { apiErrorMessage } from '../shared/tracking-api';
 import { Candidate, CheckResult, Compat, DeviceKind, ExistingDevice, HistoryEvent, QUEUE, REASONS, SESSION, STOCK, blankDevice, checksFor, compatOf } from './replacement-data';
 import { IoTDeviceDto, ReplacementDeviceApiService, requestOf, toCandidate, toExisting } from './replacement-device-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type OptKey = 'telemetry' | 'alerts' | 'group' | 'gateway' | 'history' | 'endPrior';
 interface OptDef { key: OptKey; label: string; desc: string }

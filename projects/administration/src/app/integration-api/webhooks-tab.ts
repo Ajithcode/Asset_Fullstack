@@ -4,7 +4,7 @@ import { LucideAngularModule, Plus, Send, Trash2, Webhook as WebhookIcon } from 
 import { Integration, WEBHOOK_EVENTS, Webhook } from './integration-api.data';
 import { IntegrationApiService } from './integration-api.service';
 import { HTTPS_URL, masked, stampLabel } from './integration-format';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 /** Webhooks tab: outgoing endpoints, their events and masked signing secrets. */
 @Component({

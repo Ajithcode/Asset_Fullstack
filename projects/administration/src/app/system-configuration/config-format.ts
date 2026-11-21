@@ -1,5 +1,5 @@
 import { ChangeStatus, ConfigSetting, ConfigValue } from './system-configuration.data';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 const TYPE_LABELS: Record<ConfigSetting['type'], string> = {
   text: 'Text',

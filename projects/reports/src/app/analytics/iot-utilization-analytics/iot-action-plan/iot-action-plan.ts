@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RA_PEOPLE } from '../../shared/analytics-common';
-import { RELAX_VALIDATION } from '../../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 export interface ActionPlan {
   title: string;

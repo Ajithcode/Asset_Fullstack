@@ -4,7 +4,7 @@ import { CircleCheck, CircleX, Eye, EyeOff, LucideAngularModule, Trash2, X } fro
 import { AUTH_METHODS, ENVIRONMENTS, Environment, Integration, PROVIDERS, RETRY_POLICIES, SYNC_FREQUENCIES } from './integration-api.data';
 import { IntegrationApiService, IntegrationForm, SECRET_MASK, apiErrorMessage } from './integration-api.service';
 import { HTTPS_URL, relative } from './integration-format';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 const CODE_PATTERN = /^[A-Z0-9][A-Z0-9-]{2,29}$/i;
 const ROTATION_DAYS = 90;

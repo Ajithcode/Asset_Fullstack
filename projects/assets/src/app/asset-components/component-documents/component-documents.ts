@@ -26,7 +26,7 @@ import type { AssetComponent } from '../asset-components';
 import { FORMAT_ICONS, FilePreview, type FileFormat, formatOf, formatSize, saveBlob } from '../file-preview/file-preview';
 import { AssetComponentsService, isoLocalDateTime, type AssetDocumentDto, type ComponentFileDetails, type UploadedFile } from '../asset-components.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export type DocumentType =
   | 'Manual'

@@ -11,7 +11,7 @@ import {
   AssetCustomFieldDefinition, AssetDropdownService, AssetRegistrationOptions, DropdownOption, LocationHierarchy, textOptions,
 } from '../services/asset-dropdowns/asset-dropdown';
 import { apiErrorMessage } from '../services/asset-api';
-import { relaxInvalid, relaxValid } from '../../../../../src/relax-validation/relax-validation';
+import { relaxInvalid, relaxValid } from '../../../../../src/environments/relax-validation';
 import { Observable, concat, defer, forkJoin, last, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import {
   LucideAngularModule,

@@ -33,7 +33,7 @@ import { LocationEventDto, MovementType } from './location-history.service';
 import { SITE_POINTS, ZONE_POINTS, buildLocationSample } from './location-overview.data';
 import { LocationOverviewMap, MapZone } from './location-overview-map';
 import { AssetListItemDto, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 export type LocSource = 'BLE' | 'Manual' | 'QR Scan' | 'GPS' | 'RFID';
 const SOURCES: LocSource[] = ['BLE', 'Manual', 'QR Scan', 'GPS', 'RFID'];

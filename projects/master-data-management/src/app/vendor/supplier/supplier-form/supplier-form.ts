@@ -10,7 +10,7 @@ import { VENDOR_COUNTRIES } from '../../vendor.data';
 import { PAYMENT_TERMS, SUPPLIER_CATEGORIES, blankSupplier } from '../supplier.data';
 import { SupplierRecord } from '../supplier.model';
 import { SupplierService } from '../supplier.service';
-import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'address' | 'products' | 'financial' | 'documents' | 'settings';
 

@@ -8,7 +8,7 @@ import { blankBusinessUnit } from '../business-unit.data';
 import { MASTER_ICONS, MASTER_ICON_KEYS } from '../../../shared/master-icons';
 import { BusinessUnitRecord } from '../business-unit.model';
 import { BusinessUnitService } from '../business-unit.service';
-import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'contact' | 'settings';
 type FieldKey = 'name' | 'code' | 'organizationCode' | 'logo' | 'parentCode' | 'email' | 'effectiveTo';

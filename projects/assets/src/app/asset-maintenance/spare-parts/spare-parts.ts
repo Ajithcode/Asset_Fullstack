@@ -23,7 +23,7 @@ import {
 } from 'lucide-angular';
 import { AssetRecord, TODAY, toIsoDate } from 'shared-ui';
 import { PartReservation, PartUsage, SparePart, StockStatus, isStocked, lineCost, reservedQty, stockStatus } from '../maintenance-parts';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /** The work-order fields this tab reads and updates (issuing parts adds to a work order's parts cost). */
 export interface PartsOrder {

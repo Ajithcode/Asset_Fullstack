@@ -6,7 +6,7 @@ import { TeamService } from '../../team/team.service';
 import { SHIFT_COLORS, SHIFT_TYPES, WEEK_DAYS, blankShift, shiftHours } from '../shift.data';
 import { ShiftRecord } from '../shift.model';
 import { ShiftService } from '../shift.service';
-import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'schedule' | 'breaks' | 'assignments' | 'settings';
 type FieldKey = 'name' | 'code' | 'shiftType' | 'status' | 'startTime' | 'endTime' | 'workingDays' | 'grace' | 'breaks';

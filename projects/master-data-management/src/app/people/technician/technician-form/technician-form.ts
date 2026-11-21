@@ -9,7 +9,7 @@ import { TeamService } from '../../team/team.service';
 import { SKILL_LEVELS, blankTechnician } from '../technician.data';
 import { TechnicianRecord } from '../technician.model';
 import { TechnicianService } from '../technician.service';
-import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'skills' | 'employment' | 'contact' | 'settings';
 type FieldKey = 'id' | 'name' | 'email' | 'photo' | 'status' | 'team' | 'skillLevel' | 'certifications' | 'hourlyRate' | 'maxOpenWorkOrders';

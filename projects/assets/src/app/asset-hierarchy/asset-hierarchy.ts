@@ -58,7 +58,7 @@ import {
   HierarchyTypeOption,
   toInput,
 } from './asset-hierarchy.service';
-import { relaxValid } from '../../../../../src/relax-validation/relax-validation';
+import { relaxValid } from '../../../../../src/environments/relax-validation';
 
 /** Grouping levels plus the assets themselves. Assets can also parent other assets (sub-components). */
 type NodeKind = 'root' | 'site' | 'building' | 'area' | 'floor' | 'system' | 'asset';

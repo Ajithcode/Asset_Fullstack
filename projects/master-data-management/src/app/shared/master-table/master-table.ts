@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RowActions } from 'shared-ui';
 import { MasterDataStore } from './master-data.store';
 import { MasterField, MasterRecord, MasterTableConfig, MasterValue } from './master-table.model';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /**
  * List page shared by every master data screen: search, paging, add/edit dialog and

@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { LOCATION_TYPES, LocationRecord } from '../location.model';
 import { LocationService } from '../location.service';
-import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'type' | 'map' | 'settings';
 type FieldKey = 'name' | 'code' | 'siteId' | 'buildingCode' | 'floorCode' | 'type' | 'image' | 'area' | 'lat' | 'lng';

@@ -8,7 +8,7 @@ import { EMAIL, readPhoto } from '../../../people/people.data';
 import { DATE_FORMATS, LANGUAGES, TIME_ZONES, blankUser } from '../../security.data';
 import { UserRecord } from '../../security.model';
 import { RoleService, UserService } from '../../security.service';
-import { RELAX_VALIDATION } from '../../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 type Tab = 'basic' | 'access' | 'preferences';
 

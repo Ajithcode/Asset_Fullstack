@@ -60,7 +60,7 @@ import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, P
 import { FloorPlanMap } from './floor-plan-map';
 import { RtlApi, RtlEvent } from '../real-time-location/rtl-api';
 import { DesktopAlertsService } from 'shared-ui';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'geofences' | 'rules' | 'history';
 type RuleForm = Omit<Rule, 'id' | 'name' | 'zoneId' | 'enabled'>;

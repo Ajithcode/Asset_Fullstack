@@ -44,7 +44,7 @@ import { GATEWAY_TYPE, IoTDeviceDto, IoTDeviceLookupService, sameModel } from '.
 import { DeviceHealthApiService, DeviceHealthDto } from '../device-health/device-health-api.service';
 import { Campaign, CampaignStatus, Conn, DeviceModel, Gateway, ModelKind, NetworkProfile, PROFILES, Protocol, Site } from './firmware-data';
 import { FirmwareVersionApiService, FirmwareVersionDto, modelFromDto } from './firmware-version-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'overview' | 'inventory' | 'campaigns' | 'diagnostics' | 'profiles';
 

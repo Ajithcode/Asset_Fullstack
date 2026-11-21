@@ -41,7 +41,7 @@ import {
   AssetAssignmentService, AssignmentLookups, EMPTY_LOOKUPS, assignToOf, choicesFor, dayOf, departmentRequest, employeeRequest, locationFrom, uniqueSorted,
 } from '../../asset-assignment/asset-assignment.service';
 import { BulkConfirmDto, BulkDetailsRequest, BulkFieldKey, BulkFileCheckDto, BulkRecordDto, BulkAssignmentService, BulkValuesDto, saveBlob } from './bulk-assignment.service';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 type BulkField = 'tag' | 'assetName' | 'assetType' | 'type' | 'assignee' | 'department' | 'location' | 'from' | 'to' | 'reason' | 'costCenter' | 'remarks';
 type RecordState = 'valid' | 'warning' | 'error';

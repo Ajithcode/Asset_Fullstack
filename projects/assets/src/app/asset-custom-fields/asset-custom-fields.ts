@@ -56,7 +56,7 @@ import {
   toFieldRequest,
 } from './custom-fields.service';
 import { apiErrorMessage } from '../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 
 type ListTab = FieldScope | 'compound';

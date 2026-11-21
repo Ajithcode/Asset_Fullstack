@@ -6,7 +6,7 @@ import { DESIGNATIONS, nowStamp } from '../../people.data';
 import { DEFAULT_LEVELS, SKILL_CATEGORIES, blankSkill } from '../skill.data';
 import { SkillRecord } from '../skill.model';
 import { SkillService } from '../skill.service';
-import { relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
+import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'levels' | 'roles' | 'settings';
 type FieldKey = 'name' | 'code' | 'category' | 'status' | 'levels' | 'validity';

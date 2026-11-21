@@ -40,7 +40,7 @@ import {
   frequencyMonths,
   pmStatus,
 } from '../maintenance-pm';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /** The work-order fields this tab reads. */
 export interface PmOrder {

@@ -34,7 +34,7 @@ import {
 } from '../file-preview/file-preview';
 import { AssetComponentsService, isoLocalDateTime, type AssetDocumentDto, type ComponentFileDetails, type UploadedFile } from '../asset-components.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { relaxInvalid } from '../../../../../../src/relax-validation/relax-validation';
+import { relaxInvalid } from '../../../../../../src/environments/relax-validation';
 
 export type AttachmentCategory = 'Manual' | 'Drawing' | 'Parts List' | 'Image' | 'Report' | 'Certificate' | 'Other';
 

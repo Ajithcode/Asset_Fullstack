@@ -2,7 +2,7 @@ import { Component, EventEmitter, HostListener, Input, OnInit, Output } from '@a
 import { FormsModule } from '@angular/forms';
 import { RA_PEOPLE } from '../shared/analytics-common';
 import { KPI_MODULES, KPI_UNITS, KpiDef, KpiDirection, KpiModule, KpiUnit } from './kpi-dashboard.data';
-import { RELAX_VALIDATION, relaxError } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION, relaxError } from '../../../../../../src/environments/relax-validation';
 
 export interface KpiFormValue {
   name: string;

@@ -27,7 +27,7 @@ import { apiErrorMessage } from '../shared/tracking-api';
 import { MAX_DAYS } from '../tracking-telemetry/telemetry-api';
 import { AnalyticsApi, AnalyticsSource } from './analytics-api';
 import { Analytics, Conn, Filters, HEALTHS, Health, IotDevice, LOW_BATTERY, Param, TODAY, VIBRATION_BASELINE, analyze, buildDevices, isoOf } from './analytics-data';
-import { RELAX_VALIDATION } from '../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type RangePreset = '7' | '30' | '90' | 'month' | 'custom';
 

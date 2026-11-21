@@ -6,7 +6,7 @@ import { ChipSelect } from '../../role-access-control/chip-select/chip-select';
 import { RoleAccessService } from '../../role-access-control/role-access.service';
 import { AccessSummary, POLICY_SCOPES, POLICY_TYPES, PolicyRecord, accessSummary } from '../module-access.data';
 import { ModuleAccessService } from '../module-access.service';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export type PolicyErrors = Partial<Record<'name' | 'code' | 'description' | 'roles' | 'dataScope' | 'landingModule' | 'sessionTimeout', string>>;
 

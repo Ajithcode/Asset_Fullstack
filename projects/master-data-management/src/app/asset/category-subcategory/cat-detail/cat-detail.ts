@@ -9,7 +9,7 @@ import { subcategoryCode } from '../category.data';
 import { CategoryRecord, SubcategoryRecord } from '../category.model';
 import { CategoryService } from '../category.service';
 import { CatFormTab } from '../cat-form/cat-form';
-import { RELAX_VALIDATION, relaxErrors } from '../../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION, relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type DetailTab = 'overview' | 'subcategories' | 'assets' | 'fields' | 'defaults' | 'documents' | 'activity';
 

@@ -48,7 +48,7 @@ import {
 } from '../maintenance-sr';
 import { MaintenanceApiService } from '../maintenance-api.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/relax-validation/relax-validation';
+import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export interface SrWorkOrderRequest {
   requestId: string;
