@@ -16,18 +16,20 @@
 }
 
 .topbar-shell {
-  height: var(--piq-topbar-h, 64px);
+  // Floating rounded bar: the layout's .topbar-bar adds the gap from the screen edges
+  height: calc(var(--piq-topbar-h, 64px) - var(--piq-shell-gap, 0px));
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 24px 0 18px;
+  padding: 0 14px 0 18px;
   background: var(--piq-brand-gradient, linear-gradient(90deg, #2e1065, #4c1d95 55%, #6d28d9));
   color: #fff;
-  box-shadow: 0 10px 28px rgba(46, 16, 101, 0.28);
+  box-shadow: 0 8px 24px rgba(46, 16, 101, 0.22), 0 2px 6px rgba(46, 16, 101, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: box-shadow 0.25s ease, border-radius 0.25s ease;
   animation: topbar-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   // Sticky is handled by .topbar-bar in the layout
   position: relative;
-  border-radius: 0;
+  border-radius: var(--piq-shell-radius, 18px);
   // Keep the topbar below the sidebar's collapse button (which is z-index 9999)
   z-index: 1500;
 }
@@ -46,7 +48,8 @@
   cursor: pointer;
   display: grid;
   place-items: center;
-  border-radius: 6px;
+  border-radius: 10px;
+  transition: background 0.18s ease, transform 0.18s ease;
 }
 
 .menu-toggle {
@@ -56,17 +59,19 @@
   border-radius: 10px;
 }
 
-/* Logo on the left of the topbar (white on the purple bar), the same in expanded and collapsed sidebar */
+/* Logo on the left of the topbar (white on the purple bar), the same in expanded and collapsed sidebar.
+   Never shrinks (the spacer and the user chip give way first); a compact round mark on very narrow screens. */
 .topbar-logo {
   display: flex;
   align-items: center;
   flex: none;
-  height: 46px;
+  height: 42px;
   margin-right: 4px;
 
   img {
     height: 100%;
     width: auto;
+    max-width: none;
     object-fit: contain;
     filter: grayscale(1) invert(1) contrast(1.6) brightness(1.5);
     mix-blend-mode: screen;
@@ -201,8 +206,7 @@
 
 @media (max-width: 640px) {
   .topbar-shell {
-    height: var(--piq-topbar-h, 64px);
-    padding: 0 14px;
+    padding: 0 10px 0 14px;
     gap: 8px;
   }
 
@@ -213,6 +217,24 @@
   .chip-text,
   .chip-chevron {
     display: none;
+  }
+}
+
+/* Very narrow phones: crop the logo to its round mark (as in the collapsed sidebar), aspect ratio kept */
+@media (max-width: 359px) {
+  .topbar-logo {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    overflow: hidden;
+
+    img {
+      position: absolute;
+      left: -1px;
+      top: -2px;
+      height: 38px;
+    }
   }
 }
 

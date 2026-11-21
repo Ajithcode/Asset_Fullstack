@@ -1,8 +1,12 @@
 @use '../../../../styles/theme' as *;
 
 :host {
-  /* Height of the topbar strip; the fixed sidebar starts below it */
+  /* Height of the topbar strip (incl. the gap above the floating bar); the fixed sidebar starts below it.
+     Kept at 64px so pages that place fixed drawers at top: 72px still line up. */
   --piq-topbar-h: 64px;
+  /* Floating shell: gap between the topbar / sidebar and the screen edges, shared corner radius */
+  --piq-shell-gap: 8px;
+  --piq-shell-radius: 18px;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -10,7 +14,7 @@
   background: #f5f8fc;
 
   &.sidebar-collapsed .main-area {
-    margin-left: var(--piq-sidebar-collapsed-width, 72px);
+    margin-left: calc(var(--piq-sidebar-collapsed-width, 72px) + var(--piq-shell-gap));
   }
 }
 
@@ -25,7 +29,7 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  margin-left: var(--piq-sidebar-width, 230px);
+  margin-left: calc(var(--piq-sidebar-width, 230px) + var(--piq-shell-gap));
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   min-width: 0;
   padding-left: 14px;
@@ -34,15 +38,16 @@
   background: #f5f8fc;
 }
 
-/* Full width, above the sidebar and the page; flush with the sidebar below it (no gap, square corners) */
+/* Full width, above the sidebar and the page. The bar floats with a small gap from the screen edges;
+   the strip behind it has the page colour so scrolled content never shows above or beside the bar. */
 .topbar-bar {
   position: sticky;
   top: 0;
   z-index: 1500;
   height: var(--piq-topbar-h);
   box-sizing: border-box;
-  padding: 0;
-  background: transparent;
+  padding: var(--piq-shell-gap) var(--piq-shell-gap) 0;
+  background: #f5f8fc;
 }
 
 .layout-content {
@@ -56,7 +61,7 @@
 @media (max-width: 720px) {
   :host .main-area,
   :host.sidebar-collapsed .main-area {
-    margin-left: var(--piq-sidebar-collapsed-width, 72px);
+    margin-left: calc(var(--piq-sidebar-collapsed-width, 72px) + var(--piq-shell-gap));
   }
 
   .layout-content {

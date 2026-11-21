@@ -8,8 +8,8 @@
 .sidebar {
   position: fixed;
   overflow-x: auto;
-  /* Starts below the full-width topbar (--piq-topbar-h is set by the layout) */
-  inset: var(--piq-topbar-h, 0px) auto 0 0;
+  /* Floats below the topbar with the same gap and corner radius (tokens set by the layout) */
+  inset: calc(var(--piq-topbar-h, 0px) + var(--piq-shell-gap, 0px)) auto var(--piq-shell-gap, 0px) var(--piq-shell-gap, 0px);
   z-index: 100;
   width: var(--piq-sidebar-width);
   background: var(--piq-brand-gradient-v, linear-gradient(180deg, #2e1065, #4c1d95 55%, #6d28d9));
@@ -22,7 +22,7 @@
   overflow: visible;
   transition: width 0.25s ease;
   box-sizing: border-box;
-  border-radius: 0;
+  border-radius: var(--piq-shell-radius, 0);
   isolation: isolate;
 
   // soft light waves along the bottom, as in the design
@@ -32,7 +32,7 @@
     inset: auto 0 0 0;
     height: 220px;
     z-index: -1;
-    border-radius: 0;
+    border-radius: 0 0 var(--piq-shell-radius, 0) var(--piq-shell-radius, 0);
     pointer-events: none;
     background:
       radial-gradient(120% 70% at 0% 100%, rgba(167, 139, 250, 0.35) 0 45%, transparent 46%),
