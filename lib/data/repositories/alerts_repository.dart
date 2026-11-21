@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:asset360_mobile/core/demo_clock.dart';
+import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/mock/alerts_mock.dart';
 import 'package:asset360_mobile/data/models/alert.dart';
 import 'package:asset360_mobile/data/models/common.dart';
@@ -183,9 +184,11 @@ final notificationSettingsProvider = NotifierProvider<NotificationSettingsNotifi
 
 final notificationsProvider = NotifierProvider<NotificationsNotifier, List<AppNotification>>(NotificationsNotifier.new);
 
-/// The bell badge.
+/// The bell badge (and the Alerts tile in the More sheet). API mode: 0 = no badge, because no
+/// notifications endpoint is connected yet and the list is mock data. TODO(notifications-api): the
+/// server's unread count.
 final unreadNotificationCountProvider = Provider<int>(
-  (ref) => ref.watch(notificationsProvider).where((n) => !n.read).length,
+  (ref) => apiMode ? 0 : ref.watch(notificationsProvider).where((n) => !n.read).length,
 );
 
 extension NotificationQueries on List<AppNotification> {

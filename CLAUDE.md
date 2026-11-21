@@ -320,6 +320,8 @@
   `WoPrefill(alertId:)`), `notifications_screen.dart` (bell target under every tab; `notificationRoute` deep links,
   swipe delete + Undo, ⋮ Mark all as read / settings → `NotificationSettingsScreen`, `notificationSettingsProvider`).
   `AlertsNotifier.raise` always posts a notification, so other modules (critical issues) feed the bell.
+  Bell badge = `unreadNotificationCountProvider`: 0 (no badge) in API mode until a notifications endpoint exists —
+  never a mock count (tested in the Home API-mode no-mock test).
 - Inventory (prompt 14): `features/more/inventory/` — hub (`?tab=all|low|reorder|reserved`, "Showing 20 of 124"),
   `part_detail_screen.dart` (+ `inventory_actions.dart`: edit levels, manage bin / transfer, ⋮ Issue to Work Order,
   Stock Count Adjustment, spec sheet), `stock_movement_screen.dart` (per part or all parts; History / Usage / Reserved

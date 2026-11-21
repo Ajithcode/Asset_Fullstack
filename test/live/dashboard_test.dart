@@ -11,12 +11,15 @@ import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/dashboard/network_status_live.dart';
 import 'package:asset360_mobile/data/api/token_store.dart';
 import 'package:asset360_mobile/data/mock/assets_mock.dart';
+import 'package:asset360_mobile/data/repositories/alerts_repository.dart';
 import 'package:asset360_mobile/data/repositories/assets_repository.dart';
 import 'package:asset360_mobile/data/repositories/dashboard_repository.dart';
 import 'package:asset360_mobile/data/repositories/home_repository.dart';
 import 'package:asset360_mobile/data/repositories/maintenance_repository.dart';
 import 'package:asset360_mobile/data/repositories/session_repository.dart';
+import 'package:asset360_mobile/core/widgets/app_header.dart';
 import 'package:asset360_mobile/core/widgets/chips.dart';
+import 'package:asset360_mobile/core/widgets/tiles.dart';
 import 'package:asset360_mobile/features/auth/splash_screen.dart';
 import 'package:asset360_mobile/features/home/dash_ui.dart';
 import 'package:asset360_mobile/features/home/drilldowns/drilldown_page.dart';
@@ -632,6 +635,11 @@ void main() {
             // Quick Actions are the same tiles in both modes (navigation, not data).
             ..removeAll([for (final d in quickActionDefs.values) d.label])
             ..removeWhere((t) => t.length < 3);
+      // The mock bell badge and the mock Home's four counters.
+      final mockUnread = mock.read(notificationsProvider).unread.length;
+      final mockCounters = [home.myWorkOrders, home.inspectionsDueToday, home.pendingApprovals, home.criticalAlerts];
+      expect(mock.read(unreadNotificationCountProvider), mockUnread);
+      expect(mockUnread, greaterThan(0));
       mock.dispose();
       debugApiMode = true;
       expect(mockTexts, contains('12,458'));
@@ -649,9 +657,24 @@ void main() {
 
       // /mobile/home: greeting + the four counters.
       expect(shows('Good Afternoon, max.milan!'), isTrue, reason: 'greeting.userName from the server');
-      for (final n in ['37', '29', '17', '13']) {
-        expect(find.text(n), findsWidgets, reason: 'counter $n');
-      }
+      final counters = [for (final t in tester.widgetList<KpiTile>(find.byType(KpiTile))) t.value];
+      expect(counters, ['37', '29', '17', '13'], reason: 'the four counters = /mobile/home quickActions');
+      expect(
+        counters,
+        isNot(equals([for (final n in mockCounters) '$n'])),
+        reason: 'not the mock counters ($mockCounters)',
+      );
+
+      // Bell: no notifications endpoint is connected → no badge (never the mock unread count).
+      expect(c.read(unreadNotificationCountProvider), 0);
+      final bellBadge = tester.widget<Badge>(
+        find.descendant(of: find.byType(NotificationBell), matching: find.byType(Badge)),
+      );
+      expect(bellBadge.isLabelVisible, isFalse, reason: 'mock unread count $mockUnread hidden in API mode');
+      expect(
+        find.descendant(of: find.byType(NotificationBell), matching: find.text('$mockUnread')),
+        findsNothing,
+      );
       // One section per endpoint.
       expect(shows('Generator load bank test'), isTrue, reason: '/upcoming-activities');
       expect(shows('High Temperature'), isTrue, reason: '/recent-alerts');
