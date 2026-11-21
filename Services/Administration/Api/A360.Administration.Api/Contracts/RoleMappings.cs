@@ -41,8 +41,8 @@ internal static class RoleMappings
         role.UpdatedAt = DateTime.UtcNow;
     }
 
-    // The AssetCriticality module's own actions (assess, approvecritical, configure) join this list when Asset Criticality is merged into backend
-    private static readonly string[] Actions = ["view", "create", "edit", "delete", "approve", "export"];
+    // Standard matrix actions plus the AssetCriticality module's own (assess, approvecritical, configure)
+    private static readonly string[] Actions = ["view", "create", "edit", "delete", "approve", "export", .. AssetCriticalityPermissions.All];
     private static readonly string[] States = ["full", "partial", "none", "na"];
 
     /// <summary>Keeps known actions and states only; module names are trimmed. Mongo field names can't contain '.' or start with '$'.</summary>
