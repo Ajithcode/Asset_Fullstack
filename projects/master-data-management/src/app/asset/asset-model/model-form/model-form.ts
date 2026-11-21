@@ -91,7 +91,8 @@ export class ModelForm implements OnInit, OnChanges {
 
   tab: ModelFormTab = 'basic';
   form: AssetModelRecord = newAssetModel();
-  subcategoriesText = '';
+  /** Sub category (a child of the category in the Asset service), kept as the model's first subcategory. */
+  subCategory = '';
   errors: Partial<Record<FieldKey, string>> = {};
   private original: AssetModelRecord | null = null;
 
@@ -105,6 +106,7 @@ export class ModelForm implements OnInit, OnChanges {
     this.types.reload().subscribe(ignoreError);
     this.makers.reload().subscribe(ignoreError);
     this.categoryStore.reload().subscribe(ignoreError);
+    this.service.loadCategoryTypes().subscribe(ignoreError);
   }
 
   get listsLoading(): boolean {
@@ -114,7 +116,7 @@ export class ModelForm implements OnInit, OnChanges {
   ngOnChanges(): void {
     this.original = this.mode === 'edit' ? this.model : null;
     this.form = this.model ? structuredClone(this.model) : newAssetModel();
-    this.subcategoriesText = this.form.subcategories.join(', ');
+    this.subCategory = this.form.subcategories[0] ?? '';
     this.errors = {};
     this.tab = this.startTab;
   }
@@ -132,13 +134,39 @@ export class ModelForm implements OnInit, OnChanges {
     return this.makers.activeNames(this.original?.manufacturer ?? this.model?.manufacturer ?? '');
   }
 
+  // Category, sub category and asset type come from the Asset service, the same masters Asset Registration uses
+
+  /** Active top-level categories; the current one stays listed. */
   get categories(): string[] {
-    return [...new Set([...this.types.categories(), ...this.service.all().map((r) => r.category)])];
+    return this.categoryStore
+      .all()
+      .filter((c) => !c.parentCode && (c.status === 'Active' || c.name === this.form.category))
+      .map((c) => c.name);
   }
 
-  // Active types from the Asset Type master; the current one stays listed even if it was deactivated
-  get typesInCategory() {
-    return this.types.all().filter((t) => (t.status === 'Active' || t.name === this.form.assetType) && (!this.form.category || !t.category || t.category === this.form.category));
+  private get categoryRecord() {
+    return this.categoryStore.all().find((c) => !c.parentCode && c.name === this.form.category);
+  }
+
+  get subCategories(): string[] {
+    const category = this.categoryRecord;
+    return category ? this.categoryStore.children(category.code).filter((c) => c.status === 'Active' || c.name === this.subCategory).map((c) => c.name) : [];
+  }
+
+  /** Types of the sub category (or, when it has none, of the category), as Asset Registration lists them. */
+  get typesInCategory(): string[] {
+    const category = this.categoryRecord;
+    if (!category) return [];
+    const idOf = (code: string) => this.categoryStore.idOf(code);
+    const sub = this.subCategory ? this.categoryStore.children(category.code).find((c) => c.name === this.subCategory) : undefined;
+    const ofId = (id: string | undefined) =>
+      this.service.categoryTypes().filter((t) => t.categoryId === id && (t.status !== 'Inactive' || t.name === this.form.assetType));
+    let types = sub ? ofId(idOf(sub.code)) : [];
+    if (!types.length) types = ofId(idOf(category.code));
+    const names = types.map((t) => t.name);
+    // Keep the current type listed on edit
+    if (this.form.assetType && !names.includes(this.form.assetType)) names.unshift(this.form.assetType);
+    return [...new Set(names)];
   }
 
   get sample(): string {
@@ -151,9 +179,9 @@ export class ModelForm implements OnInit, OnChanges {
 
   /** Picking a type fills its category and the defaults set on the Asset Type master. */
   onTypeChange(): void {
+    // Defaults come from the MDM Asset Type master when it has a type of the same name
     const type = this.types.findByName(this.form.assetType);
     if (!type) return;
-    this.form.category = type.category;
     // Only replace a format that is still some type's default
     const format = this.form.taggingFormat;
     if (!format || this.types.all().some((t) => t.taggingFormat === format)) this.form.taggingFormat = type.taggingFormat;
@@ -178,10 +206,14 @@ export class ModelForm implements OnInit, OnChanges {
     return [...new Set([this.form.costCenter, ...this.service.all().map((r) => r.costCenter)].filter(Boolean))];
   }
 
-  // A category that no longer fits the chosen type clears the type
+  // A new category clears the sub category and type picked under the old one
   onCategoryChange(): void {
-    const type = this.types.findByName(this.form.assetType);
-    if (type && type.category !== this.form.category) this.form.assetType = '';
+    this.subCategory = '';
+    this.form.assetType = '';
+  }
+
+  onSubCategoryChange(): void {
+    if (!this.typesInCategory.includes(this.form.assetType)) this.form.assetType = '';
   }
 
   loadTemplate(): void {
@@ -281,7 +313,7 @@ export class ModelForm implements OnInit, OnChanges {
         code: f.code.trim(),
         description: f.description.trim(),
         specs: f.specs.filter((s) => s.label.trim()).map((s) => ({ label: s.label.trim(), value: s.value.trim() })),
-        subcategories: this.subcategoriesText.split(',').map((s) => s.trim()).filter(Boolean),
+        subcategories: this.subCategory ? [this.subCategory] : [],
         taggingFormat: f.taggingFormat.trim(),
         createdOn: this.original?.createdOn ?? stamp,
         updatedOn: stamp

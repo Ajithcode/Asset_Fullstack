@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { MdmAudit } from '../../shared/mdm-api';
+import { Injectable, inject, signal } from '@angular/core';
+import { Observable, map, tap } from 'rxjs';
+import { AssetServiceApi, MdmAudit } from '../../shared/mdm-api';
 import { AssetStore, activeStatus, localStamp } from '../asset-store';
-import { AssetTypeService } from '../asset-type/asset-type.service';
 import { CategoryService } from '../category-subcategory/category.service';
 import { ManufacturerService } from '../manufacturer/manufacturer.service';
 import { blankAssetModel } from './asset-model.data';
@@ -19,6 +19,15 @@ import {
 
 type Reference = { id: string | null; name: string } | null;
 
+/** An asset type from the Asset service's `/api/asset-category-types` (the list Asset Registration uses). */
+export interface CategoryTypeOption {
+  id: string;
+  name: string;
+  /** The category or sub-category the type belongs to. */
+  categoryId: string;
+  status: string;
+}
+
 /** Asset model as `/api/master-data/asset-models` returns it. */
 interface AssetModelDto extends MdmAudit {
   modelName: string;
@@ -26,6 +35,7 @@ interface AssetModelDto extends MdmAudit {
   manufacturer: Reference;
   assetType: Reference;
   category: Reference;
+  subCategory: Reference;
   description: string | null;
   image: string | null;
   specs: { label: string; value: string | null }[] | null;
@@ -57,12 +67,45 @@ interface AssetModelDto extends MdmAudit {
 @Injectable({ providedIn: 'root' })
 export class AssetModelService extends AssetStore<AssetModelRecord, AssetModelDto> {
   protected readonly resource = 'asset-models';
-  private readonly typeStore = inject(AssetTypeService);
   private readonly makerStore = inject(ManufacturerService);
   private readonly categoryStore = inject(CategoryService);
+  private readonly assetApi = inject(AssetServiceApi);
+  /** Asset types from the Asset service, shared with Asset Registration. */
+  readonly categoryTypes = signal<CategoryTypeOption[]>([]);
 
   constructor() {
     super();
+  }
+
+  loadCategoryTypes(): Observable<CategoryTypeOption[]> {
+    return this.assetApi.list<unknown>('asset-category-types').pipe(
+      map((res) => (Array.isArray(res) ? res : ((res as { items?: unknown[] })?.items ?? [])) as Record<string, string>[]),
+      map((rows) => rows.map((r) => ({ id: r['id'], name: r['typeName'], categoryId: r['categoryId'], status: r['status'] ?? 'Active' }))),
+      tap((types) => this.categoryTypes.set(types))
+    );
+  }
+
+  /** Top-level category id for a name (sub-categories have a parent and are not model categories). */
+  private categoryId(name: string): string | undefined {
+    const category = this.categoryStore.all().find((c) => c.name === name && !c.parentCode);
+    return category ? this.categoryStore.idOf(category.code) : undefined;
+  }
+
+  /** Id of the named sub category under the category. */
+  private subCategoryId(name: string, categoryName: string): string | undefined {
+    const category = this.categoryStore.all().find((c) => c.name === categoryName && !c.parentCode);
+    const sub = category ? this.categoryStore.children(category.code).find((c) => c.name === name) : undefined;
+    return sub ? this.categoryStore.idOf(sub.code) : undefined;
+  }
+
+  /** Id of the named type inside the category or one of its sub-categories. */
+  private typeId(typeName: string, categoryName: string): string | undefined {
+    const category = this.categoryStore.all().find((c) => c.name === categoryName && !c.parentCode);
+    const ids = new Set<string | undefined>(
+      category ? [this.categoryStore.idOf(category.code), ...this.categoryStore.children(category.code).map((c) => this.categoryStore.idOf(c.code))] : []
+    );
+    const types = this.categoryTypes().filter((t) => t.name === typeName);
+    return (types.find((t) => ids.has(t.categoryId)) ?? types[0])?.id;
   }
 
   ofType(typeName: string): AssetModelRecord[] {
@@ -141,7 +184,7 @@ export class AssetModelService extends AssetStore<AssetModelRecord, AssetModelDt
       depreciationMethod: (dto.depreciationMethod as DepreciationMethod) ?? blank.depreciationMethod,
       salvagePercent: dto.salvagePercent ?? blank.salvagePercent,
       procurementType: (dto.procurementType as ProcurementType) ?? blank.procurementType,
-      subcategories: dto.subcategories ?? [],
+      subcategories: dto.subCategory?.name ? [dto.subCategory.name] : (dto.subcategories ?? []),
       taggingFormat: dto.taggingFormat ?? '',
       trackingMethod: (dto.trackingMethod as TrackingMethod) ?? blank.trackingMethod,
       defaultCondition: (dto.defaultCondition as AssetCondition) ?? blank.defaultCondition,
@@ -161,9 +204,11 @@ export class AssetModelService extends AssetStore<AssetModelRecord, AssetModelDt
       modelName: r.name,
       modelCode: r.code,
       manufacturer: ref(r.manufacturer, this.makerStore.findByName(r.manufacturer)?.code, (c) => this.makerStore.idOf(c)),
-      assetType: ref(r.assetType, this.typeStore.findByName(r.assetType)?.code, (c) => this.typeStore.idOf(c)),
+      // Category and type come from the Asset service's masters, the same lists Asset Registration uses
+      assetType: ref(r.assetType, r.assetType, () => this.typeId(r.assetType, r.category)),
       // Left out when unknown; the server then uses the asset type's category
-      category: ref(r.category, this.categoryStore.findByName(r.category)?.code, (c) => this.categoryStore.idOf(c)),
+      category: ref(r.category, r.category, () => this.categoryId(r.category)),
+      subCategory: ref(r.subcategories[0] ?? '', r.subcategories[0], () => this.subCategoryId(r.subcategories[0], r.category)),
       description: r.description,
       image: r.image,
       specs: r.specs,
