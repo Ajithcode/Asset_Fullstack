@@ -1,4 +1,5 @@
 import { Component, ElementRef, HostListener, Output, EventEmitter, inject, Input } from '@angular/core';
+import { NavPage, NavSearchService } from '../sidebar/nav-search.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -79,6 +80,69 @@ export class Topbar {
   @Output() toggleSidebar = new EventEmitter<void>();
   /** Sidebar state, for the menu button's label. */
   @Input() sidebarCollapsed = false;
+
+  // ---- page search (Ctrl+K): the pages of the sidebar menu
+  private readonly navSearch = inject(NavSearchService);
+  searchQuery = '';
+  searchOpen = false;
+  searchIndex = 0;
+
+  get searchResults(): NavPage[] {
+    const q = this.searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    const words = q.split(/\s+/);
+    return this.navSearch
+      .pages()
+      .map((p) => ({ p, text: `${p.label} ${p.section}`.toLowerCase() }))
+      .filter(({ text }) => words.every((w) => text.includes(w)))
+      // Label matches first, then shorter labels
+      .sort((a, b) => Number(!a.p.label.toLowerCase().includes(q)) - Number(!b.p.label.toLowerCase().includes(q)) || a.p.label.length - b.p.label.length)
+      .slice(0, 8)
+      .map(({ p }) => p);
+  }
+
+  onSearchInput(): void {
+    this.searchOpen = true;
+    this.searchIndex = 0;
+  }
+
+  onSearchKey(e: KeyboardEvent): void {
+    const n = this.searchResults.length;
+    if (e.key === 'ArrowDown' && n) {
+      e.preventDefault();
+      this.searchIndex = (this.searchIndex + 1) % n;
+    } else if (e.key === 'ArrowUp' && n) {
+      e.preventDefault();
+      this.searchIndex = (this.searchIndex - 1 + n) % n;
+    } else if (e.key === 'Enter' && n) {
+      e.preventDefault();
+      this.openPage(this.searchResults[this.searchIndex]);
+    } else if (e.key === 'Escape') {
+      this.closeSearch();
+      (e.target as HTMLInputElement).blur();
+    }
+  }
+
+  openPage(p: NavPage): void {
+    this.closeSearch();
+    void this.router.navigateByUrl(p.path);
+  }
+
+  closeSearch(): void {
+    this.searchOpen = false;
+    this.searchQuery = '';
+    this.searchIndex = 0;
+  }
+
+  /** Ctrl+K / ⌘K focuses the search from anywhere. */
+  @HostListener('document:keydown', ['$event'])
+  onGlobalKey(e: KeyboardEvent): void {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      (this.elementRef.nativeElement.querySelector('.topbar-search input') as HTMLInputElement | null)?.focus();
+      this.searchOpen = true;
+    }
+  }
   breadcrumbs: BreadcrumbItem[] = [];
   isDropdownOpen = false;
   flyoutPosition: { top: number; left: number } | null = null;
