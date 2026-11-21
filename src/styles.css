@@ -57,12 +57,61 @@ body {
   .piq-reveal-pending, .piq-reveal-play { opacity: 1 !important; animation: none !important; }
 }
 
-/* Hide scrollbar visuals app-wide; scrolling (wheel, touch, keyboard) still works */
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/*
+ * Themed scrollbars app-wide (one shared stylesheet; remotes render inside the shell, so this covers
+ * main content, tables, drawers and dialogs). Thin, rounded, theme-purple thumb on a light track.
+ * Chrome/Edge/Safari use ::-webkit-scrollbar; Firefox uses scrollbar-width/scrollbar-color. The
+ * standard properties are only set where ::-webkit-scrollbar is unsupported, because Chrome 121+
+ * ignores the ::-webkit-scrollbar rules on any element that has scrollbar-width/-color set.
+ * Use the .piq-scroll-on-dark class (or the --piq-scroll-* tokens) on dark/purple surfaces.
+ */
+:root {
+  --piq-scroll-size: 6px;
+  --piq-scroll-track: #f3f0fb;
+  --piq-scroll-thumb: rgba(109, 40, 217, 0.45); /* #6d28d9 brand purple */
+  --piq-scroll-thumb-hover: rgba(76, 29, 149, 0.8); /* #4c1d95 */
+  --piq-scroll-dark-track: transparent;
+  --piq-scroll-dark-thumb: rgba(237, 233, 254, 0.32); /* lavender #ede9fe on purple */
+  --piq-scroll-dark-thumb-hover: rgba(237, 233, 254, 0.62);
 }
 
-*::-webkit-scrollbar {
-  display: none;
+.piq-scroll-on-dark {
+  --piq-scroll-track: var(--piq-scroll-dark-track);
+  --piq-scroll-thumb: var(--piq-scroll-dark-thumb);
+  --piq-scroll-thumb-hover: var(--piq-scroll-dark-thumb-hover);
+}
+
+::-webkit-scrollbar {
+  width: var(--piq-scroll-size);
+  height: var(--piq-scroll-size);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--piq-scroll-track);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--piq-scroll-thumb);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background: var(--piq-scroll-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--piq-scroll-thumb) var(--piq-scroll-track);
+  }
+
+  *:hover {
+    scrollbar-color: var(--piq-scroll-thumb-hover) var(--piq-scroll-track);
+  }
 }

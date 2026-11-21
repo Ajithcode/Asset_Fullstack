@@ -291,13 +291,15 @@
   // Extra room on the left so the active indicator bar (left: -13px) isn't clipped
   margin-left: -16px;
   padding: 2px 0 2px 16px;
-  // still scrolls with wheel, touch and keyboard, but no visible scrollbar
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  // Thin light scrollbar on the purple background (tokens + rules in src/styles.css).
+  // The gutter is always reserved, so items don't shift when the menu becomes scrollable
+  // (expanded or collapsed); the negative right margin puts that gutter in the sidebar's
+  // right padding, so the items keep their original width and position.
+  margin-right: calc(-1 * var(--piq-scroll-size, 6px));
+  --piq-scroll-track: var(--piq-scroll-dark-track);
+  --piq-scroll-thumb: var(--piq-scroll-dark-thumb);
+  --piq-scroll-thumb-hover: var(--piq-scroll-dark-thumb-hover);
+  scrollbar-gutter: stable;
 }
 
 .nav-item {
