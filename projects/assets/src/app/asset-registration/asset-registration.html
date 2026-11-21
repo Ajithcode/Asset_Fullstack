@@ -1214,6 +1214,9 @@
 
   <div class="toast" *ngIf="toastMessage" role="status">{{ toastMessage }}</div>
 
+  <app-success-dialog *ngIf="registered" title="Asset Registered" [message]="registeredMessage" [actions]="registeredActions"
+    (action)="onRegisteredAction($event)" (closed)="registered = null"></app-success-dialog>
+
   <!-- One level of the location tree; renders itself for expanded children -->
   <ng-template #locationBranch let-nodes>
     <ul class="loc-branch" role="group">

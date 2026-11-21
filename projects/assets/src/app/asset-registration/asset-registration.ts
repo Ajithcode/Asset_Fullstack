@@ -2,7 +2,7 @@ import { Component, ElementRef, HostListener, ViewChild, inject, signal } from '
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Coords } from 'shared-ui';
+import { Coords, SuccessDialog, SuccessDialogAction } from 'shared-ui';
 import {
   AssetAdditionalInformation, AssetBasicInformation, AssetClassification, AssetDocumentRef, AssetLocationAssignment, AssetPurchaseWarranty,
   AssetRegistrationResult, AssetRegistrationSection, AssetRegistrationSectionBody, AssetRegistrationService,
@@ -439,7 +439,7 @@ function buildLocationModel(tree: LocationNode[]): LocationModel {
 @Component({
   standalone: true,
   selector: 'app-asset-registration',
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, OptionMenu, ScanPrintDialog],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, OptionMenu, ScanPrintDialog, SuccessDialog],
   templateUrl: './asset-registration.html',
   // Split by step, in cascade order, to keep each stylesheet under the anyComponentStyle budget (20 kB)
   styleUrls: [
@@ -1905,7 +1905,12 @@ export class AssetRegistration {
           this.draftIsSaved = false;
           this.savedSteps = {};
           this.touched = false;
-          this.showToast(`${this.form.assetName} (${this.form.assetTag}) registered as ${r.assetRegistrationId}.`);
+          this.toastMessage = '';
+          this.registered = {
+            id: r.assetRegistrationId,
+            name: r.basicInformation?.assetName || this.form.assetName,
+            tag: r.basicInformation?.assetTag || this.form.assetTag,
+          };
         },
         error: (err) => {
           this.registering = false;
@@ -1913,6 +1918,37 @@ export class AssetRegistration {
           this.showApiError('The asset could not be registered', err);
         },
       });
+  }
+
+  // ===== Success popup after Register =====
+
+  /** The asset the last Register created; shows the success popup until the user picks an action or closes it. */
+  registered: { id: string; name: string; tag: string } | null = null;
+
+  readonly registeredActions: SuccessDialogAction[] = [
+    { key: 'view', label: 'View Asset', primary: true },
+    { key: 'another', label: 'Register Another' },
+    { key: 'list', label: 'Go to Asset List' },
+  ];
+
+  get registeredMessage(): string {
+    return this.registered ? `${this.registered.name} (${this.registered.id}) created successfully` : '';
+  }
+
+  onRegisteredAction(key: string): void {
+    const asset = this.registered;
+    this.registered = null;
+    if (!asset) return;
+    if (key === 'view') {
+      this.router.navigate(['/assets/overview'], { queryParams: { id: asset.id, tag: asset.tag } });
+    } else if (key === 'list') {
+      this.router.navigateByUrl('/assets/list');
+    } else if (key === 'another') {
+      // Re-create the page so every step, list and upload starts empty
+      this.router
+        .navigateByUrl('/assets/list', { skipLocationChange: true })
+        .then(() => this.router.navigateByUrl('/assets/registration'));
+    }
   }
 
   /**
