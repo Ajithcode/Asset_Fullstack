@@ -50,14 +50,6 @@
               </select>
               @if (errors.manufacturer) { <small>{{ errors.manufacturer }}</small> }
             </div>
-            <div class="field" [class.invalid]="errors.assetType">
-              <label for="model-type"><span class="req">*</span> Asset Type</label>
-              <select id="model-type" name="assetType" [(ngModel)]="form.assetType" (ngModelChange)="onTypeChange()">
-                <option value="" disabled>{{ listsLoading ? 'Loading...' : 'Select Asset Type' }}</option>
-                @for (t of typesInCategory; track t.name) { <option [value]="t.name">{{ t.name }}</option> }
-              </select>
-              @if (errors.assetType) { <small>{{ errors.assetType }}</small> }
-            </div>
             <div class="field" [class.invalid]="errors.category">
               <label for="model-cat"><span class="req">*</span> Category</label>
               <select id="model-cat" name="category" [(ngModel)]="form.category" (ngModelChange)="onCategoryChange()">
@@ -65,6 +57,21 @@
                 @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
               </select>
               @if (errors.category) { <small>{{ errors.category }}</small> }
+            </div>
+            <div class="field">
+              <label for="model-subcat">Sub Category</label>
+              <select id="model-subcat" name="subCategory" [(ngModel)]="subCategory" (ngModelChange)="onSubCategoryChange()" [disabled]="!form.category">
+                <option value="">{{ subCategories.length ? 'Select Sub Category' : 'No sub categories' }}</option>
+                @for (c of subCategories; track c) { <option [value]="c">{{ c }}</option> }
+              </select>
+            </div>
+            <div class="field" [class.invalid]="errors.assetType">
+              <label for="model-type"><span class="req">*</span> Asset Type</label>
+              <select id="model-type" name="assetType" [(ngModel)]="form.assetType" (ngModelChange)="onTypeChange()" [disabled]="!form.category">
+                <option value="" disabled>{{ listsLoading ? 'Loading...' : form.category ? 'Select Asset Type' : 'Select a category first' }}</option>
+                @for (t of typesInCategory; track t) { <option [value]="t">{{ t }}</option> }
+              </select>
+              @if (errors.assetType) { <small>{{ errors.assetType }}</small> }
             </div>
           </div>
         </div>
@@ -208,10 +215,6 @@
           <div class="field">
             <label for="model-sample">Sample Tag</label>
             <input id="model-sample" name="sampleTag" [value]="sample" readonly />
-          </div>
-          <div class="field field--wide">
-            <label for="model-subcats">Subcategories</label>
-            <input id="model-subcats" name="subcategories" placeholder="Separate with commas, e.g. Laptops, Business Series" [(ngModel)]="subcategoriesText" />
           </div>
           <div class="field">
             <label for="model-tracking">Tracking Method</label>
