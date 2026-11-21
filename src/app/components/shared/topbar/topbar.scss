@@ -817,3 +817,211 @@
 @media (prefers-reduced-motion: reduce) {
   .topbar-shell { animation: none; }
 }
+
+/* =====================================================================
+   Brand refresh (2026-11): deep Asset360 purple with a soft glow,
+   glass controls, page search. Layout rules above are kept.
+   ===================================================================== */
+.topbar-shell {
+  gap: 12px;
+  background:
+    radial-gradient(60% 140% at 85% 0%, rgba(167, 139, 250, 0.35) 0%, transparent 60%),
+    linear-gradient(90deg, #24094f 0%, #331173 35%, #4c1d95 70%, #6d28d9 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(36, 9, 79, 0.28);
+}
+
+.menu-toggle,
+.notification-btn,
+.email-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.16);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #c4b5fd;
+    outline-offset: 2px;
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.notification-btn {
+  position: relative;
+}
+
+.admin-chip {
+  height: 44px;
+  padding: 0 12px 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+
+  &:hover,
+  &.is-open {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.26);
+  }
+
+  .avatar {
+    background: linear-gradient(135deg, #f0abfc, #a78bfa);
+    color: #2e1065;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Page search */
+.topbar-search {
+  position: relative;
+  flex: 0 1 380px;
+  min-width: 160px;
+  height: 40px;
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+
+  &:focus-within {
+    background: rgba(255, 255, 255, 0.16);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3), 0 0 0 4px rgba(167, 139, 250, 0.25);
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    font-size: 13.5px;
+
+    &::placeholder {
+      color: rgba(237, 233, 254, 0.7);
+    }
+
+    &::-webkit-search-cancel-button {
+      filter: invert(1);
+    }
+  }
+}
+
+.topbar-search__icon {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  color: rgba(237, 233, 254, 0.8);
+}
+
+.topbar-search__kbd {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(237, 233, 254, 0.85);
+  font: 600 10.5px/1.4 inherit;
+  letter-spacing: 0.03em;
+}
+
+.topbar-search__results {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #ede9fe;
+  box-shadow: 0 18px 50px rgba(46, 16, 101, 0.25);
+  max-height: 360px;
+  overflow-y: auto;
+
+  button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #1f2937;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &.is-active {
+      background: #f3edfb;
+    }
+
+    b {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #1f1147;
+    }
+
+    small {
+      display: block;
+      font-size: 11.5px;
+      color: #6b7280;
+    }
+
+    .grow {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+}
+
+.topbar-search__lock {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.topbar-search__empty {
+  padding: 10px 12px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .topbar-search__kbd {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar-search {
+    display: none;
+  }
+}

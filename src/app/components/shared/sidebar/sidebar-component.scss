@@ -778,3 +778,214 @@
   color: var(--piq-primary, #4f2bd8);
   pointer-events: none;
 }
+
+/* =====================================================================
+   Brand refresh (2026-11): deep Asset360 purple, glass pill active state,
+   numbered main modules, softer hovers. Layout / behaviour rules above are kept.
+   ===================================================================== */
+.sidebar {
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgba(139, 92, 246, 0.28) 0%, transparent 55%),
+    radial-gradient(90% 50% at 100% 100%, rgba(167, 139, 250, 0.22) 0%, transparent 60%),
+    linear-gradient(180deg, #24094f 0%, #331173 42%, #4c1d95 100%);
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.06), 8px 0 30px rgba(20, 6, 48, 0.25);
+  padding: 14px 12px 18px;
+  gap: 4px;
+
+  // The old light waves are replaced by the soft glows above
+  &::after {
+    display: none;
+  }
+}
+
+.nav {
+  gap: 2px;
+}
+
+
+/* Module number (01, 02 …) on the left of the icon */
+.nav-num {
+  flex: none;
+  min-width: 16px;
+  margin-right: -4px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: rgba(196, 181, 253, 0.6);
+  transition: color 0.18s ease;
+
+  .nav-item:hover &,
+  .nav-item.active &,
+  .nav-item-dropdown--inline.section-active & {
+    color: #e9d5ff;
+  }
+}
+
+.nav-item {
+  min-height: 40px;
+  gap: 12px;
+  padding: 0 10px;
+  border-radius: 12px;
+  color: rgba(237, 233, 254, 0.82);
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+
+  &:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    transform: none;
+
+    .nav-icon {
+      background: rgba(255, 255, 255, 0.12);
+    }
+  }
+
+  // Active page: frosted glass pill, white icon tile, slim accent bar
+  &.active {
+    color: #fff;
+    font-weight: 600;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08));
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 6px 18px rgba(12, 3, 32, 0.28);
+    backdrop-filter: blur(6px);
+
+    &::before {
+      left: -10px;
+      width: 4px;
+      height: 22px;
+      border-radius: 0 4px 4px 0;
+      background: linear-gradient(180deg, #e9d5ff, #a78bfa);
+      box-shadow: 0 0 10px rgba(196, 181, 253, 0.9);
+    }
+
+    .nav-icon {
+      background: #fff;
+      color: #5b21b6;
+      box-shadow: 0 4px 10px rgba(12, 3, 32, 0.25);
+    }
+  }
+}
+
+.nav-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ede9fe;
+}
+
+/* Locked module: small amber badge on the icon */
+.nav-lock {
+  background: #f59e0b !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 2px #2e0f68 !important;
+}
+
+.nav-item-dropdown {
+  &:hover:not(.open) {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &.open {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.nav-item-dropdown--inline {
+  &.open {
+    background: transparent;
+  }
+
+  &.section-active {
+    color: #fff;
+    font-weight: 600;
+
+    &::before {
+      left: -10px;
+      width: 4px;
+      height: 22px;
+      border-radius: 0 4px 4px 0;
+      background: linear-gradient(180deg, #e9d5ff, #a78bfa);
+      box-shadow: 0 0 10px rgba(196, 181, 253, 0.9);
+    }
+
+    .nav-icon {
+      background: rgba(255, 255, 255, 0.16);
+    }
+  }
+}
+
+.nav-caret {
+  opacity: 0.7;
+}
+
+/* Submenu: a tree line on the left, pages as light rows, the current one as a pill */
+.nav-dropdown {
+  position: relative;
+  gap: 1px;
+  margin: 4px 0 8px 24px;
+  padding-left: 14px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.nav-dropdown-item {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  color: rgba(221, 214, 254, 0.75);
+
+  &:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+  }
+
+  &.active {
+    position: relative;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+
+    // dot on the tree line next to the current page
+    &::before {
+      content: "";
+      position: absolute;
+      left: -18px;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      transform: translateY(-50%);
+      background: #c4b5fd;
+      box-shadow: 0 0 0 3px rgba(196, 181, 253, 0.25);
+    }
+  }
+}
+
+.nav-badge {
+  background: linear-gradient(90deg, #f472b6, #a855f7) !important;
+  color: #fff !important;
+}
+
+/* Collapsed: centred icon tiles */
+.sidebar.collapsed {
+  .nav-item {
+    padding: 0;
+    justify-content: center;
+  }
+}
+
+/* Flyout (Administration, …): white card with brand accents */
+.nav-flyout {
+  border-radius: 16px;
+  border: 1px solid #ede9fe;
+  box-shadow: 0 18px 50px rgba(46, 16, 101, 0.22), 0 2px 6px rgba(46, 16, 101, 0.08);
+}
+
+.nav-flyout__header {
+  letter-spacing: 0.08em;
+}

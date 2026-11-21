@@ -1,4 +1,5 @@
 import { Component, ElementRef, HostListener, Output, EventEmitter, inject, Input } from '@angular/core';
+import { NavSearchService } from './nav-search.service';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -69,6 +70,13 @@ export class Sidebar {
   flyoutPosition: { top: number; left: number } | null = null;
 
   private readonly access = inject(AccessService);
+  private readonly navSearch = inject(NavSearchService);
+
+  /** 01, 02, 03 … in front of each main module. */
+  moduleNumber(index: number): string {
+    return String(index + 1).padStart(2, '0');
+  }
+
   readonly lockIcon = Lock;
 
   /** Sections the signed-in user may open (role-based access); none until their access has loaded. */
@@ -87,8 +95,25 @@ export class Sidebar {
         )
         // Locked modules: clicking opens the lock page (the module path) as well as expanding the submenu
         .map((item) => (isModuleLicensed(item.label) ? item : { ...item, locked: true, hasPage: true, landing: undefined }));
+      this.publishPages(this.menu);
     }
     return this.menu;
+  }
+
+  /** Every page of the menu, flattened for the topbar search. */
+  private publishPages(menu: NavItem[]): void {
+    const pages: { label: string; path: string; section: string; locked: boolean }[] = [];
+    const walk = (items: NavItem[], section: string, locked: boolean) => {
+      for (const i of items) {
+        if (i.children?.length) {
+          if (i.hasPage && i.path) pages.push({ label: i.label, path: i.path, section, locked });
+          walk(i.children, section ? `${section} › ${i.label}` : i.label, locked);
+        } else if (i.path) pages.push({ label: i.label, path: i.path, section, locked });
+      }
+    };
+    for (const top of menu) walk([top], '', !!top.locked);
+    // Queue it: the menu is rebuilt inside a getter during change detection
+    queueMicrotask(() => this.navSearch.pages.set(pages));
   }
 
   private menuFor: object | null = null;
