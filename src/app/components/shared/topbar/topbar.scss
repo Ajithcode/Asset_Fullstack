@@ -16,18 +16,18 @@
 }
 
 .topbar-shell {
-  height: 60px;
+  height: var(--piq-topbar-h, 64px);
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 24px;
+  padding: 0 24px 0 18px;
   background: var(--piq-brand-gradient, linear-gradient(90deg, #2e1065, #4c1d95 55%, #6d28d9));
   color: #fff;
   box-shadow: 0 10px 28px rgba(46, 16, 101, 0.28);
   animation: topbar-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   // Sticky is handled by .topbar-bar in the layout
   position: relative;
-  border-radius: 999px;
+  border-radius: 0;
   // Keep the topbar below the sidebar's collapse button (which is z-index 9999)
   z-index: 1500;
 }
@@ -50,8 +50,27 @@
 }
 
 .menu-toggle {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 10px;
+}
+
+/* Logo on the left of the topbar (white on the purple bar), the same in expanded and collapsed sidebar */
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 46px;
+  margin-right: 4px;
+
+  img {
+    height: 100%;
+    width: auto;
+    object-fit: contain;
+    filter: grayscale(1) invert(1) contrast(1.6) brightness(1.5);
+    mix-blend-mode: screen;
+  }
 }
 
 .menu-toggle:hover,
@@ -179,16 +198,16 @@
   }
 }
 
-@media (min-width: 1025px) {
-  .menu-toggle {
-    display: none;
-  }
-}
 
 @media (max-width: 640px) {
   .topbar-shell {
-    height: 60px;
+    height: var(--piq-topbar-h, 64px);
     padding: 0 14px;
+    gap: 8px;
+  }
+
+  .topbar-logo {
+    height: 36px;
   }
 
   .chip-text,

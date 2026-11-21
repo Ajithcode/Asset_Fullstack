@@ -1,7 +1,12 @@
 <!-- live IoT alert pop-ups (Acknowledge / Remind me) -->
 <app-alert-popups></app-alert-popups>
 <div class="topbar-shell">
-  <button class="menu-toggle" type="button" (click)="toggleMenu()" aria-label="Toggle menu">
+  <!-- Asset360 logo: always shown in full, whatever the sidebar state -->
+  <a class="topbar-logo" routerLink="/" aria-label="Asset360 home">
+    <img src="/purple360-logo.jpeg" alt="Asset360 by Purple IQ" />
+  </a>
+  <button class="menu-toggle" type="button" (click)="toggleMenu()" [attr.aria-label]="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+    [attr.aria-expanded]="!sidebarCollapsed" [title]="sidebarCollapsed ? 'Expand menu' : 'Collapse menu'">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <line x1="3" y1="6" x2="21" y2="6" />
       <line x1="3" y1="12" x2="21" y2="12" />

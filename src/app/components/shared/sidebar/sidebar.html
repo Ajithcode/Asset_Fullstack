@@ -1,25 +1,5 @@
 <aside class="sidebar" [class.collapsed]="collapsed">
-  <div class="brand-card">
-    <div class="brand">
-      <div class="brand-mark" [class.brand-mark--full]="!collapsed" (click)="collapsed && toggleCollapse()">
-        <img src="/purple360-logo.jpeg" alt="Asset360 by Purple IQ" />
-      </div>
-    </div>
-    <button
-      class="collapse-btn"
-      [class.collapsed]="collapsed"
-      type="button"
-      (click)="toggleCollapse()"
-      [attr.aria-label]="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-    >
-      <span class="collapse-btn__glass">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
-      </span>
-    </button>
-  </div>
-
+  <!-- The logo and the expand / collapse button are in the topbar -->
   <div class="nav-card">
     <nav class="nav" aria-label="Primary navigation">
       <ng-container *ngFor="let item of navItems">

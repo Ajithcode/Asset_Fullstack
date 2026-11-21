@@ -1,14 +1,12 @@
-
+<!-- Full-width topbar (logo, menu button, actions); the sidebar and the page sit below it -->
+<div class="topbar-bar">
+  <app-topbar [sidebarCollapsed]="collapsed" (toggleSidebar)="onToggleSidebar()"></app-topbar>
+</div>
 <div class="layout-shell">
-  <app-sidebar (collapsedChange)="onCollapseChange($event)"></app-sidebar>
+  <app-sidebar [collapsed]="collapsed" (collapsedChange)="onCollapseChange($event)"></app-sidebar>
   <div class="main-area">
-    <!-- Sticky bar with the page background, so content does not show around the rounded topbar when scrolling -->
-    <div class="topbar-bar">
-      <app-topbar (toggleSidebar)="onToggleSidebar()"></app-topbar>
-    </div>
     <main class="layout-content" #content>
       <router-outlet></router-outlet>
     </main>
   </div>
 </div>
-
