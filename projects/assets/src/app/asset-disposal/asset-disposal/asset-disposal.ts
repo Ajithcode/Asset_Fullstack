@@ -34,7 +34,6 @@ import {
 } from 'lucide-angular';
 import { Observable } from 'rxjs';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 import { AssetDisposalService, DisposalApproverDto, DisposalListItemDto, DisposalRequestDto, toUiStatus } from '../asset-disposal.service';
 
 export type DisposalStatus = 'Draft' | 'Pending' | 'Approved' | 'Completed' | 'Rejected' | 'Cancelled';
@@ -560,7 +559,7 @@ export class AssetDisposal implements OnInit, OnDestroy {
     const r = this.rejectTarget;
     if (!r) return;
     const reason = this.rejectReason.trim();
-    if (!RELAX_VALIDATION && !reason) return void (this.formError = 'Give a reason for rejecting.');
+    if (!reason) return void (this.formError = 'Give a reason for rejecting.');
     this.formError = '';
     this.act(r, this.api.reject(r.id, reason), `${r.reference} rejected.`, () => (this.rejectTarget = null));
   }

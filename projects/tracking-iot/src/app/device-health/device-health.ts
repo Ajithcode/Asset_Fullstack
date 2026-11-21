@@ -51,7 +51,6 @@ import { IoTDeviceDto, IoTDeviceLookupService, sameModel } from '../device-confi
 import { FirmwareVersionApiService, FirmwareVersionDto } from '../firmware-connectivity/firmware-version-api.service';
 import { API_CONNECTIVITY, API_HEALTH, API_POWER, ApiConnectivity, ApiHealth, ApiPowerSource, DeviceHealthApiService, DeviceHealthDto, DeviceHealthFields } from './device-health-api.service';
 import { ASSIGNEES, DevEvent, Device, Level, PRIORITIES, Status, baseEvents, healthScore, isStale, signalQuality, telemetry } from './health-data';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Range = '1h' | '24h' | '7d';
 type Tab = 'overview' | 'diagnostics' | 'events' | 'configuration';
@@ -517,17 +516,17 @@ export class DeviceHealth implements OnInit, OnDestroy {
   saveHealth(): void {
     const f = this.healthForm;
     if (!f || this.busy) return;
-    if (!RELAX_VALIDATION && (!f.deviceId.trim())) return void (this.formError = 'Choose or enter the device ID.');
-    if (!RELAX_VALIDATION && (!f.deviceModel.trim())) return void (this.formError = 'Enter the device model.');
+    if (!f.deviceId.trim()) return void (this.formError = 'Choose or enter the device ID.');
+    if (!f.deviceModel.trim()) return void (this.formError = 'Enter the device model.');
     if (!f.connectivity) return void (this.formError = 'Select the connectivity.');
     if (!f.powerSource) return void (this.formError = 'Select the power source.');
     if (!f.health) return void (this.formError = 'Select the health.');
     const dbm = num(f.signalStrengthDbm);
-    if (!RELAX_VALIDATION && (dbm !== null && (dbm < -150 || dbm > 0))) return void (this.formError = 'Signal strength must be between -150 and 0 dBm.');
+    if (dbm !== null && (dbm < -150 || dbm > 0)) return void (this.formError = 'Signal strength must be between -150 and 0 dBm.');
     const battery = num(f.batteryLevel);
-    if (!RELAX_VALIDATION && (f.powerSource === 'Battery' && battery === null)) return void (this.formError = 'Enter the battery level for a battery-powered device.');
-    if (!RELAX_VALIDATION && (battery !== null && (battery < 0 || battery > 100))) return void (this.formError = 'Battery level must be between 0 and 100.');
-    if (!RELAX_VALIDATION && (f.lastSeen && new Date(f.lastSeen).getTime() > Date.now() + 5 * 60000)) return void (this.formError = 'Last seen cannot be in the future.');
+    if (f.powerSource === 'Battery' && battery === null) return void (this.formError = 'Enter the battery level for a battery-powered device.');
+    if (battery !== null && (battery < 0 || battery > 100)) return void (this.formError = 'Battery level must be between 0 and 100.');
+    if (f.lastSeen && new Date(f.lastSeen).getTime() > Date.now() + 5 * 60000) return void (this.formError = 'Last seen cannot be in the future.');
     const fields: DeviceHealthFields = {
       deviceId: f.deviceId, deviceModel: f.deviceModel, assetRegistrationId: f.assetRegistrationId, assetName: f.assetName, siteId: f.siteId, siteName: f.siteName,
       gateway: f.gateway, connectivity: f.connectivity, signalStrengthDbm: dbm === null ? null : Math.round(dbm), snrDb: num(f.snrDb), powerSource: f.powerSource,
@@ -759,8 +758,8 @@ export class DeviceHealth implements OnInit, OnDestroy {
     const f = this.issueForm;
     const d = this.selected;
     if (!f || !d) return;
-    if (!RELAX_VALIDATION && (!f.title.trim())) return void (this.formError = 'Enter an issue title.');
-    if (!RELAX_VALIDATION && (!f.priority)) return void (this.formError = 'Select a priority.');
+    if (!f.title.trim()) return void (this.formError = 'Enter an issue title.');
+    if (!f.priority) return void (this.formError = 'Select a priority.');
     const id = `ISS-${new Date().getFullYear()}-${String(++this.issueSeq).padStart(4, '0')}`;
     this.addEvent(d, { min: 0, title: `Issue ${id} noted`, detail: `${f.priority} priority${f.assignee ? ' · assigned to ' + f.assignee : ''}`, level: 'purple' });
     this.issueForm = null;

@@ -5,7 +5,6 @@ import { MapCanvas } from '../map-canvas/map-canvas';
 import { MapViewer } from '../map-viewer/map-viewer';
 import { MapLayer } from '../maps.data';
 import { MapsStore } from '../maps.store';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 const CATEGORIES = ['HVAC', 'Electrical', 'Mechanical', 'Plumbing', 'Fire Safety', 'IT'];
 const LAYER_TYPES = ['Zone (Area)', 'Geofence (Alerting)', 'Asset (Plotted / Tracked)', 'Device (IoT)', 'Annotation (Text)', 'Room (Space)', 'Heatmap', 'Base Map'];
@@ -46,8 +45,6 @@ const LAYER_TYPES = ['Zone (Area)', 'Geofence (Alerting)', 'Asset (Plotted / Tra
 })
 export class LayersTab {
   readonly store = inject(MapsStore);
-  /** TEMP: relaxed form validation switch (testing build) */
-  readonly relax = RELAX_VALIDATION;
   readonly icons = { CircleHelp, Eye, EyeOff, GripVertical, Lock, Pencil, Plus, Trash2, X };
   readonly categories = CATEGORIES;
   readonly layerTypes = LAYER_TYPES;
@@ -139,7 +136,7 @@ export class LayersTab {
     this.renaming = null;
     const set = this.store.layerSets.find((s) => s.id === id);
     if (!id || !set || !to || to === set.name) return;
-    if (!RELAX_VALIDATION && this.store.layerSets.some((s) => s.name === to)) {
+    if (this.store.layerSets.some((s) => s.name === to)) {
       this.store.notify(`A layer set named ${to} already exists`, 'error');
       return;
     }
@@ -179,7 +176,7 @@ export class LayersTab {
       return;
     }
     const d = this.d;
-    if (!d || this.store.working || (!RELAX_VALIDATION && !d.name.trim())) return;
+    if (!d || this.store.working || !d.name.trim()) return;
     this.store.saveLayer({ ...d, name: d.name.trim(), categories: [...d.categories] }, { success: `Layer ${d.name.trim()} saved` });
   }
 

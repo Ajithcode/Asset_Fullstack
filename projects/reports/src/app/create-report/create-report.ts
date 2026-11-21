@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { GeneratedReportService, TEMPLATE_HEADERS } from '../generated-report.service';
-import { relaxValid } from '../../../../../src/environments/relax-validation';
 
 interface TreeNode {
   label: string;
@@ -163,7 +162,7 @@ export class CreateReport {
   }
 
   get isFormValid(): boolean {
-    return relaxValid(!!this.reportName.trim() && !!this.selectedModule);
+    return !!this.reportName.trim() && !!this.selectedModule;
   }
 
   private readonly recurrenceLabels: Record<Recurrence, string> = {

@@ -28,7 +28,6 @@ import {
   Zap,
 } from 'lucide-angular';
 import type { AssetComponent } from '../asset-components';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export type ServiceType = 'Preventive' | 'Corrective' | 'Inspection';
 export type ServiceStatus = 'Completed' | 'In Progress' | 'Scheduled' | 'Cancelled';
@@ -354,8 +353,7 @@ export class ComponentServiceHistory {
 
   get newPartValid(): boolean {
     const p = this.newPart;
-    // TEMP relax: quantity / unit cost stay checked (they are converted with Number())
-    return (RELAX_VALIDATION || !!p.name.trim()) && p.quantity > 0 && p.unitCost >= 0;
+    return !!p.name.trim() && p.quantity > 0 && p.unitCost >= 0;
   }
 
   addPart(r: ServiceRecord): void {
@@ -514,20 +512,18 @@ export class ComponentServiceHistory {
   saveForm(): void {
     this.formSubmitted = true;
     const f = this.form;
-    // TEMP relax: scoreInvalid stays checked (health score is converted with Number(), NaN otherwise)
     if (
-      (!RELAX_VALIDATION &&
-        (!f.description.trim() ||
-          !f.date ||
-          !f.performedBy.trim() ||
-          !f.type ||
-          !f.status ||
-          !f.health ||
-          this.timesInvalid ||
-          this.nextDueInvalid ||
-          this.costsInvalid ||
-          this.completedInFuture)) ||
-      this.scoreInvalid
+      !f.description.trim() ||
+      !f.date ||
+      !f.performedBy.trim() ||
+      !f.type ||
+      !f.status ||
+      !f.health ||
+      this.timesInvalid ||
+      this.nextDueInvalid ||
+      this.scoreInvalid ||
+      this.costsInvalid ||
+      this.completedInFuture
     ) {
       return;
     }

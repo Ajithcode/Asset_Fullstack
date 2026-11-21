@@ -11,7 +11,6 @@ import {
   AssetCustomFieldDefinition, AssetDropdownService, AssetRegistrationOptions, DropdownOption, LocationHierarchy, textOptions,
 } from '../services/asset-dropdowns/asset-dropdown';
 import { apiErrorMessage } from '../services/asset-api';
-import { relaxInvalid, relaxValid } from '../../../../../src/environments/relax-validation';
 import { Observable, concat, defer, forkJoin, last, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import {
   LucideAngularModule,
@@ -1824,7 +1823,7 @@ export class AssetRegistration {
   ];
 
   isInvalid(field: keyof AssetForm): boolean {
-    return relaxInvalid(
+    return (
       this.submitted &&
       this.requiredByStep.some((fields) => fields.includes(field)) &&
       this.isMissing(field)
@@ -1837,7 +1836,7 @@ export class AssetRegistration {
   }
 
   private stepValid(step: number): boolean {
-    return relaxValid((this.requiredByStep[step] ?? []).every((field) => !this.isMissing(field)));
+    return (this.requiredByStep[step] ?? []).every((field) => !this.isMissing(field));
   }
 
   /** First step before `index` with a missing required field, or -1. */

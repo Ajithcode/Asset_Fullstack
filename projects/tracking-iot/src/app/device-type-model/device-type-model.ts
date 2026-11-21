@@ -61,7 +61,6 @@ import {
   STATUSES, TYPES, TYPE_ICONS, TypeIcon, blankModel, normalizePower,
 } from './model-data';
 import { DeviceModelApiService, DeviceModelDto, DeviceModelFormOptions, modelFromDto } from './device-model-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Icon = typeof Box;
 
@@ -733,13 +732,13 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     // Text typed but not added yet is kept too
     if (this.customMeas.trim()) this.addCustom(f.measurements, 'meas');
     if (this.customAttr.trim()) this.addCustom(f.attributes, 'attr');
-    if (!RELAX_VALIDATION && (!f.name.trim())) return void (this.formError = 'Enter the model name.');
-    if (!RELAX_VALIDATION && (!f.manufacturer.trim())) return void (this.formError = 'Enter the manufacturer.');
-    if (!RELAX_VALIDATION && (!f.typeId)) return void (this.formError = 'Choose a device type.');
-    if (!RELAX_VALIDATION && (this.nameTaken(f.name, d.editId))) return void (this.formError = `A model named "${f.name.trim()}" already exists.`);
+    if (!f.name.trim()) return void (this.formError = 'Enter the model name.');
+    if (!f.manufacturer.trim()) return void (this.formError = 'Enter the manufacturer.');
+    if (!f.typeId) return void (this.formError = 'Choose a device type.');
+    if (this.nameTaken(f.name, d.editId)) return void (this.formError = `A model named "${f.name.trim()}" already exists.`);
     if (d.editId && f.name.trim() !== d.editId) return void (this.formError = 'The model name cannot be changed. Duplicate the model to use a new name.');
-    if (!RELAX_VALIDATION && (!f.connectivity.length)) return void (this.formError = 'Choose a connectivity option.');
-    if (!RELAX_VALIDATION && (!f.power)) return void (this.formError = 'Choose the power source.');
+    if (!f.connectivity.length) return void (this.formError = 'Choose a connectivity option.');
+    if (!f.power) return void (this.formError = 'Choose the power source.');
     if (!f.status) return void (this.formError = 'Choose the status.');
     const data = {
       name: f.name.trim(), manufacturer: f.manufacturer.trim(), typeId: f.typeId, connectivity: CONNECTIVITY.filter((c) => f.connectivity.includes(c)),
@@ -779,9 +778,9 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     const d = this.dlg('type');
     if (!d) return;
     const name = d.name.trim();
-    if (!RELAX_VALIDATION && (!name)) return void (this.formError = 'Enter the type name.');
+    if (!name) return void (this.formError = 'Enter the type name.');
     if (!d.form) return void (this.formError = 'Choose a thumbnail style.');
-    if (!RELAX_VALIDATION && (TYPES.some((t) => t.name.toLowerCase() === name.toLowerCase()))) return void (this.formError = `"${name}" already exists.`);
+    if (TYPES.some((t) => t.name.toLowerCase() === name.toLowerCase())) return void (this.formError = `"${name}" already exists.`);
     let id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     while (TYPES.some((t) => t.id === id)) id += '-2';
     TYPES.push({ id, name, icon: d.icon, form: d.form, description: d.description.trim() });

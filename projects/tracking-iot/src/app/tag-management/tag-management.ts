@@ -55,7 +55,6 @@ import {
 } from 'lucide-angular';
 import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, tagIdFromNumber } from './tag-data';
 import { TagIdApiService, TagSummary, apiType, pageType } from './tag-id-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 /** Tag IDs = the identifier registry; Assignments = lifecycle of each tag on assets; Audit = every change. */
 type View = 'ids' | 'assignments' | 'audit';
@@ -824,7 +823,7 @@ export class TagManagement implements OnInit, OnDestroy {
     if (!old?.asset) return;
     if (!next) return void (this.formError = 'Choose an available tag to fit.');
     if (next.status !== 'Available') return void (this.formError = `${next.id} is ${next.status.toLowerCase()}. Pick an available tag.`);
-    if (!RELAX_VALIDATION && (d.oldTo === 'Inactive' && !d.reason.trim())) return void (this.formError = 'Enter why the old tag is being retired.');
+    if (d.oldTo === 'Inactive' && !d.reason.trim()) return void (this.formError = 'Enter why the old tag is being retired.');
     const asset = old.asset;
     const why = d.reason.trim() ? `: ${d.reason.trim()}` : '';
     const oldDraft = this.draftOf(old);
@@ -891,7 +890,7 @@ export class TagManagement implements OnInit, OnDestroy {
     if (d?.kind !== 'status' || this.saving) return;
     const t = TAGS.find((x) => x.id === d.tagId);
     if (!t) return;
-    if (!RELAX_VALIDATION && (d.to === 'Inactive' && !d.reason.trim())) return void (this.formError = 'Enter why the tag is being deactivated.');
+    if (d.to === 'Inactive' && !d.reason.trim()) return void (this.formError = 'Enter why the tag is being deactivated.');
     const from = t.asset;
     const draft = this.draftOf(t);
     // a deactivated or reactivated tag is not linked to an asset
@@ -928,9 +927,9 @@ export class TagManagement implements OnInit, OnDestroy {
     if (!t) return;
     const code = d.code.trim();
     if (d.type === t.type && code === t.code) return void (this.dialog = null);
-    if (!RELAX_VALIDATION && (!code)) return void (this.formError = `Enter the ${this.codeLabel(t).toLowerCase()}.`);
+    if (!code) return void (this.formError = `Enter the ${this.codeLabel(t).toLowerCase()}.`);
     const bad = formatError(t.tech, code);
-    if (!RELAX_VALIDATION && (bad)) return void (this.formError = bad);
+    if (bad) return void (this.formError = bad);
     const draft = this.draftOf(t);
     draft.type = d.type;
     draft.code = code;
@@ -992,16 +991,16 @@ export class TagManagement implements OnInit, OnDestroy {
   saveRegister(): void {
     const d = this.dialog;
     if (d?.kind !== 'register' || this.saving) return;
-    if (!RELAX_VALIDATION && (!d.tech)) return void (this.formError = 'Choose the technology.');
-    if (!RELAX_VALIDATION && (!d.type)) return void (this.formError = 'Choose the tag type.');
+    if (!d.tech) return void (this.formError = 'Choose the technology.');
+    if (!d.type) return void (this.formError = 'Choose the tag type.');
     if (!String(d.number ?? '').trim()) return void (this.formError = 'Enter the tag ID.');
     const id = tagIdFromNumber(d.tech, d.number);
     if (!id) return void (this.formError = "Tag ID can only contain letters, digits, ':', '-' and '_' (up to 50 characters).");
     if (TAGS.some((t) => t.id.toLowerCase() === id.toLowerCase())) return void (this.formError = `Tag ID ${id} already exists.`);
     const code = d.code.trim();
-    if (!RELAX_VALIDATION && (!code)) return void (this.formError = `Enter the ${this.codeLabel(d).toLowerCase()}.`);
+    if (!code) return void (this.formError = `Enter the ${this.codeLabel(d).toLowerCase()}.`);
     const bad = formatError(d.tech, code);
-    if (!RELAX_VALIDATION && (bad)) return void (this.formError = bad);
+    if (bad) return void (this.formError = bad);
     const draft = this.newTag(d.tech, id, d.type, d.site, d.location, d.asset, code);
     this.saving = true;
     this.api.create(draft).subscribe({

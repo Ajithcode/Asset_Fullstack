@@ -1,4 +1,3 @@
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 export type ResponseType = 'Yes/No' | 'Pass/Fail' | 'Photo' | 'Numeric' | 'Text';
 export type TemplateStatus = 'Active' | 'Draft' | 'Inactive';
 export type TemplateIcon = 'file' | 'flame' | 'settings' | 'hardhat' | 'shield' | 'clipboard' | 'truck' | 'server' | 'building' | 'zap' | 'droplets';
@@ -129,13 +128,11 @@ export function blankItem(id: string): ChecklistItem {
 /** Field errors for one checklist item */
 export function itemErrors(item: ChecklistItem): Record<string, string> {
   const e: Record<string, string> = {};
-  // TEMP relaxed mode (R): content checks skipped; the whole-number score guard stays
-  const R = RELAX_VALIDATION;
-  if (!R && !item.text.trim()) e['text'] = 'Item text is required.';
-  else if (!R && item.text.trim().length > 200) e['text'] = 'Keep item text under 200 characters.';
-  if (!R && !item.responseType) e['responseType'] = 'Response type is required.';
-  if (!Number.isInteger(item.score) || (!R && (item.score < 0 || item.score > 100))) e['score'] = 'Score must be a whole number from 0 to 100.';
-  if (!R && item.responseType === 'Numeric' && item.expected.trim() && !/^\s*-?\d+(\.\d+)?\s*(-\s*-?\d+(\.\d+)?)?\s*[a-zA-Z%°]*\s*$/.test(item.expected)) {
+  if (!item.text.trim()) e['text'] = 'Item text is required.';
+  else if (item.text.trim().length > 200) e['text'] = 'Keep item text under 200 characters.';
+  if (!item.responseType) e['responseType'] = 'Response type is required.';
+  if (!Number.isInteger(item.score) || item.score < 0 || item.score > 100) e['score'] = 'Score must be a whole number from 0 to 100.';
+  if (item.responseType === 'Numeric' && item.expected.trim() && !/^\s*-?\d+(\.\d+)?\s*(-\s*-?\d+(\.\d+)?)?\s*[a-zA-Z%°]*\s*$/.test(item.expected)) {
     e['expected'] = 'Use a number or a range, e.g. 40-60 or 75%.';
   }
   return e;
@@ -144,14 +141,12 @@ export function itemErrors(item: ChecklistItem): Record<string, string> {
 /** Field errors for the template-level settings */
 export function templateErrors(t: ChecklistTemplate, codeTaken: boolean): Record<string, string> {
   const e: Record<string, string> = {};
-  // TEMP relaxed mode (R): content checks skipped; the finite-number guard on passThreshold stays
-  const R = RELAX_VALIDATION;
-  if (!R && !t.name.trim()) e['name'] = 'Template name is required.';
-  if (!R && !t.code.trim()) e['code'] = 'Template code is required.';
-  else if (!R && !/^[A-Z0-9-]{3,20}$/.test(t.code.trim())) e['code'] = 'Use 3-20 capitals, digits or dashes.';
-  else if (!R && codeTaken) e['code'] = 'This code is already used by another template.';
-  if (!R && !t.category) e['category'] = 'Category is required.';
-  if (!R && !t.owner) e['owner'] = 'Owner is required.';
-  if (!Number.isFinite(t.passThreshold) || (!R && (t.passThreshold < 0 || t.passThreshold > 100))) e['passThreshold'] = 'Pass threshold must be 0-100%.';
+  if (!t.name.trim()) e['name'] = 'Template name is required.';
+  if (!t.code.trim()) e['code'] = 'Template code is required.';
+  else if (!/^[A-Z0-9-]{3,20}$/.test(t.code.trim())) e['code'] = 'Use 3-20 capitals, digits or dashes.';
+  else if (codeTaken) e['code'] = 'This code is already used by another template.';
+  if (!t.category) e['category'] = 'Category is required.';
+  if (!t.owner) e['owner'] = 'Owner is required.';
+  if (!Number.isFinite(t.passThreshold) || t.passThreshold < 0 || t.passThreshold > 100) e['passThreshold'] = 'Pass threshold must be 0-100%.';
   return e;
 }

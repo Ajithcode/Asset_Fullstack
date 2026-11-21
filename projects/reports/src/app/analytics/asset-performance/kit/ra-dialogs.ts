@@ -2,7 +2,6 @@ import { Component, EventEmitter, HostListener, Input, OnChanges, Output } from 
 import { FormsModule } from '@angular/forms';
 import { ArrowDown, ArrowUp, ArrowUpDown, Download, LucideAngularModule, X } from 'lucide-angular';
 import { RA_PEOPLE, downloadCsv } from '../../shared/analytics-common';
-import { RELAX_VALIDATION, relaxError } from '../../../../../../../src/environments/relax-validation';
 
 export interface RaColumn {
   key: string;
@@ -260,7 +259,7 @@ export class RaActionDialog implements OnChanges {
 
   submit(): void {
     this.tried = true;
-    if (!RELAX_VALIDATION && (!this.form.title.trim() || !this.form.owner || !this.form.priority || this.dueError)) return;
+    if (!this.form.title.trim() || !this.form.owner || !this.form.priority || this.dueError) return;
     this.submitted.emit({ ...this.form, title: this.form.title.trim() });
   }
 
@@ -305,7 +304,7 @@ export class RaSaveViewDialog {
   submit(): void {
     const name = this.name.trim();
     const lower = name.toLowerCase();
-    this.error = relaxError(!name ? 'Enter a name for the view.' : this.taken.some((t) => t.toLowerCase() === lower) ? 'A view with this name already exists.' : '') ?? '';
+    this.error = !name ? 'Enter a name for the view.' : this.taken.some((t) => t.toLowerCase() === lower) ? 'A view with this name already exists.' : '';
     if (!this.error) this.save.emit(name);
   }
 

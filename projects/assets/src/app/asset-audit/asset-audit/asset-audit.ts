@@ -23,7 +23,6 @@ import {
 } from 'lucide-angular';
 import { AssetAuditService, AuditCounts, AuditListItemDto, AuditLocation, apiDate } from '../asset-audit.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export type AuditType = 'Periodic' | 'Ad-hoc' | 'Compliance' | 'Annual' | 'Spot Check' | 'Preventive';
 export type AuditStatus = 'Draft' | 'Scheduled' | 'In Progress' | 'Completed' | 'Overdue';
@@ -333,7 +332,7 @@ export class AssetAudit implements OnInit, OnDestroy {
     const f = this.completeForm;
     const a = this.audits.find((x) => x.id === f?.id);
     if (!f || !a || this.busy) return;
-    if (!RELAX_VALIDATION && !f.completed) return void (this.formError = 'Choose the completed date.');
+    if (!f.completed) return void (this.formError = 'Choose the completed date.');
     if (f.findings == null || f.findings < 0) return void (this.formError = 'Enter the number of discrepancies (0 if none).');
     this.busy = true;
     this.api.complete(a.id, Math.floor(f.findings), f.notes.trim()).subscribe({

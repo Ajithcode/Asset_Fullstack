@@ -43,10 +43,6 @@ import { PermissionMasterPage } from './security/permission-master/permission-ma
 import { ModuleAccessMasterPage } from './security/module-access-master/module-access-master';
 import { RoleMasterPage } from './security/role-master/role-master';
 import { UserManagementPage } from './security/user-management/user-management';
-import { installRelaxedValidation } from '../../../../src/environments/relax-validation';
-
-// TEMP: relaxed form validation on the testing build only (no-op unless environment.relaxValidation)
-installRelaxedValidation();
 
 // Paths match MASTER_DATA_MENU in shared-ui, which the shell's sidebar is built from.
 // There are no module or group landing pages: bare paths redirect to the group's first master.

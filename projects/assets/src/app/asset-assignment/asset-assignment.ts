@@ -37,7 +37,6 @@ import {
 } from 'lucide-angular';
 import { Observable, finalize, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 import { Assignment, AssignmentStatus, AssignmentType, AssetKind, ENTITIES, TARGET_LABELS, isoDate } from './asset-assignment-data';
 import {
   AssetAssignmentDto, AssetAssignmentService, AssignmentLookups, DEFAULT_ASSIGNMENT_TYPE, EMPTY_LOOKUPS, choicesFor, requestFrom, targetFor, toRows, uniqueSorted,
@@ -392,10 +391,10 @@ export class AssetAssignment implements OnInit, OnDestroy {
   saveAssign(): void {
     const f = this.assignForm;
     if (!f) return;
-    if (!f.type) return void (this.formError = 'Choose the assignment type.'); // kept: narrows f.type for the request below
-    if (!RELAX_VALIDATION && (!f.assignee)) return void (this.formError = `Choose the ${f.type.toLowerCase()} to assign to.`);
-    if (!RELAX_VALIDATION && (!f.from)) return void (this.formError = 'Choose the from date.');
-    if (!RELAX_VALIDATION && (f.to && f.to < f.from)) return void (this.formError = 'The to date must be on or after the from date.');
+    if (!f.type) return void (this.formError = 'Choose the assignment type.');
+    if (!f.assignee) return void (this.formError = `Choose the ${f.type.toLowerCase()} to assign to.`);
+    if (!f.from) return void (this.formError = 'Choose the from date.');
+    if (f.to && f.to < f.from) return void (this.formError = 'The to date must be on or after the from date.');
 
     const rows = this.assignments.filter((x) => f.ids.includes(x.id) && x.status !== 'Returned');
     if (!rows.length) return void (this.formError = 'Nothing to reassign.');
@@ -447,8 +446,8 @@ export class AssetAssignment implements OnInit, OnDestroy {
     const a = this.assignments.find((x) => x.id === t?.id);
     const dto = a && this.records.get(a.assignmentId);
     if (!t || !a || !dto) return;
-    if (!RELAX_VALIDATION && (!t.to)) return void (this.formError = 'Choose the new to date.');
-    if (!RELAX_VALIDATION && (t.to < a.from)) return void (this.formError = 'The to date must be on or after the from date.');
+    if (!t.to) return void (this.formError = 'Choose the new to date.');
+    if (t.to < a.from) return void (this.formError = 'The to date must be on or after the from date.');
     const request = { ...requestFrom(dto), toDate: t.to, isOpenEnded: false };
     this.run(this.api.update(dto.id, request), (saved) => {
       this.replace(saved);
@@ -477,8 +476,8 @@ export class AssetAssignment implements OnInit, OnDestroy {
   onDatesChange(a: Assignment): void {
     const dto = this.records.get(a.assignmentId);
     if (!dto) return;
-    if (!RELAX_VALIDATION && !a.from) return this.revert(dto, 'Choose the from date.');
-    if (!RELAX_VALIDATION && (a.to && a.to < a.from)) return this.revert(dto, 'The to date must be on or after the from date.');
+    if (!a.from) return this.revert(dto, 'Choose the from date.');
+    if (a.to && a.to < a.from) return this.revert(dto, 'The to date must be on or after the from date.');
     const request = { ...requestFrom(dto), fromDate: a.from, toDate: a.to || null, isOpenEnded: !a.to };
     this.saveRow(dto, request, 'Dates updated.');
   }

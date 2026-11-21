@@ -2,7 +2,6 @@ import { Component, EventEmitter, HostListener, Input, OnInit, Output } from '@a
 import { FormsModule } from '@angular/forms';
 import { RA_PEOPLE } from '../shared/analytics-common';
 import { KPI_MODULES, KPI_UNITS, KpiDef, KpiDirection, KpiModule, KpiUnit } from './kpi-dashboard.data';
-import { RELAX_VALIDATION, relaxError } from '../../../../../../src/environments/relax-validation';
 
 export interface KpiFormValue {
   name: string;
@@ -135,7 +134,7 @@ export class KpiFormDialog implements OnInit {
 
   submit(): void {
     this.tried = true;
-    if (relaxError(this.nameError) || (!RELAX_VALIDATION && (!this.form.module || !this.form.unit || !this.form.direction || !this.form.owner)) || !this.valueOk || !this.targetOk) return;
+    if (this.nameError || !this.form.module || !this.form.unit || !this.valueOk || !this.targetOk || !this.form.direction || !this.form.owner) return;
     this.saved.emit({ ...this.form, name: this.form.name.trim(), value: Number(this.form.value), target: Number(this.form.target) });
   }
 

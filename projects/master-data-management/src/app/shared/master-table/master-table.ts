@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { RowActions } from 'shared-ui';
 import { MasterDataStore } from './master-data.store';
 import { MasterField, MasterRecord, MasterTableConfig, MasterValue } from './master-table.model';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /**
  * List page shared by every master data screen: search, paging, add/edit dialog and
@@ -122,11 +121,11 @@ export class MasterTable implements OnInit {
 
   submitForm(): void {
     const missing = this.config.fields.find((f) => f.required && this.isBlank(this.form[f.key]));
-    if (!RELAX_VALIDATION && missing) {
+    if (missing) {
       this.formError = `${missing.label} is required.`;
       return;
     }
-    if (!RELAX_VALIDATION && !this.form.status) {
+    if (!this.form.status) {
       this.formError = 'Status is required.';
       return;
     }

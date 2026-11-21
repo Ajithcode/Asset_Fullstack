@@ -1,4 +1,3 @@
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 /** A building block of a numbering format, e.g. AST | 2026 | DXB | 000247 */
 export type TokenKind = 'prefix' | 'date' | 'location' | 'number' | 'suffix';
 
@@ -207,22 +206,20 @@ export function formatErrors(seq: NumberSequence): string[] {
 /** Field-level problems for the settings form (keyed by field) */
 export function settingErrors(seq: NumberSequence, codeTaken: boolean): Record<string, string> {
   const e: Record<string, string> = {};
-  // TEMP relaxed mode: content checks are skipped; the whole-number type guards stay so the payload keeps valid ints
-  const R = RELAX_VALIDATION;
-  if (!R && !seq.name.trim()) e['name'] = 'Sequence name is required.';
-  if (!R && !seq.code.trim()) e['code'] = 'Sequence code is required.';
-  else if (!R && !/^[A-Z0-9-]{3,20}$/.test(seq.code.trim())) e['code'] = 'Use 3-20 capitals, digits or dashes.';
-  else if (!R && codeTaken) e['code'] = 'This code is already used by another sequence.';
-  if (!R && !seq.module) e['module'] = 'Module is required.';
-  if (!R && !seq.recordType) e['recordType'] = 'Record type is required.';
-  if (!Number.isInteger(seq.startNumber) || (!R && seq.startNumber < 0)) e['startNumber'] = 'Enter a whole number of 0 or more.';
-  if (!Number.isInteger(seq.currentNumber) || (!R && seq.currentNumber < seq.startNumber)) e['currentNumber'] = 'Must be at least the start number.';
-  if (!Number.isInteger(seq.incrementBy) || (!R && (seq.incrementBy < 1 || seq.incrementBy > 100))) e['incrementBy'] = 'Enter 1-100.';
+  if (!seq.name.trim()) e['name'] = 'Sequence name is required.';
+  if (!seq.code.trim()) e['code'] = 'Sequence code is required.';
+  else if (!/^[A-Z0-9-]{3,20}$/.test(seq.code.trim())) e['code'] = 'Use 3-20 capitals, digits or dashes.';
+  else if (codeTaken) e['code'] = 'This code is already used by another sequence.';
+  if (!seq.module) e['module'] = 'Module is required.';
+  if (!seq.recordType) e['recordType'] = 'Record type is required.';
+  if (!Number.isInteger(seq.startNumber) || seq.startNumber < 0) e['startNumber'] = 'Enter a whole number of 0 or more.';
+  if (!Number.isInteger(seq.currentNumber) || seq.currentNumber < seq.startNumber) e['currentNumber'] = 'Must be at least the start number.';
+  if (!Number.isInteger(seq.incrementBy) || seq.incrementBy < 1 || seq.incrementBy > 100) e['incrementBy'] = 'Enter 1-100.';
   if (seq.numberLength == null) e['numberLength'] = 'Number length is required.';
-  else if (!Number.isInteger(seq.numberLength) || (!R && (seq.numberLength < 2 || seq.numberLength > 8))) e['numberLength'] = 'Enter 2-8 digits.';
-  if (!R && !seq.scope) e['scope'] = 'Scope is required.';
-  if (!R && !seq.resetRule) e['resetRule'] = 'Reset frequency is required.';
-  else if (!R && seq.resetRule !== 'Never' && !seq.resetDate) e['resetDate'] = 'Pick the next reset date.';
+  else if (!Number.isInteger(seq.numberLength) || seq.numberLength < 2 || seq.numberLength > 8) e['numberLength'] = 'Enter 2-8 digits.';
+  if (!seq.scope) e['scope'] = 'Scope is required.';
+  if (!seq.resetRule) e['resetRule'] = 'Reset frequency is required.';
+  else if (seq.resetRule !== 'Never' && !seq.resetDate) e['resetDate'] = 'Pick the next reset date.';
   return e;
 }
 

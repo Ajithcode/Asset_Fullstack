@@ -40,7 +40,6 @@ import {
   frequencyMonths,
   pmStatus,
 } from '../maintenance-pm';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /** The work-order fields this tab reads. */
 export interface PmOrder {
@@ -351,10 +350,10 @@ export class PmSchedules {
   saveForm(): void {
     const f = this.form;
     if (!f) return;
-    if (!RELAX_VALIDATION && !f.name.trim()) return void (this.formError = 'Enter the PM name.');
-    if (!RELAX_VALIDATION && (!f.category || !f.frequency)) return void (this.formError = 'Select the category and the frequency.');
-    if (!RELAX_VALIDATION && !f.nextDue) return void (this.formError = 'Enter the next due date (or the last performed date).');
-    if (!RELAX_VALIDATION && (f.lastPerformed && f.nextDue <= f.lastPerformed)) return void (this.formError = 'Next due date must be after the last performed date.');
+    if (!f.name.trim()) return void (this.formError = 'Enter the PM name.');
+    if (!f.category || !f.frequency) return void (this.formError = 'Select the category and the frequency.');
+    if (!f.nextDue) return void (this.formError = 'Enter the next due date (or the last performed date).');
+    if (f.lastPerformed && f.nextDue <= f.lastPerformed) return void (this.formError = 'Next due date must be after the last performed date.');
     const fields = {
       name: f.name.trim(), description: f.description.trim(), component: f.component.trim() || 'Main unit', category: f.category, frequency: f.frequency,
       lastPerformed: f.lastPerformed, nextDue: f.nextDue, assignedTo: f.assignedTo.trim() || 'Maintenance Team', durationHours: Number(f.durationHours) || 0,

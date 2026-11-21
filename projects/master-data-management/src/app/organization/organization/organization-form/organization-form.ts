@@ -4,7 +4,6 @@ import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { COUNTRIES, CURRENCIES, DATE_FORMATS, LANGUAGES, TIME_ZONES, blankOrganization } from '../organization.data';
 import { ORGANIZATION_TYPES, OrganizationRecord } from '../organization.model';
 import { OrganizationService } from '../organization.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'contact' | 'settings';
 type FieldKey = 'name' | 'code' | 'type' | 'website' | 'logo' | 'parentCode' | 'email' | 'effectiveTo';
@@ -170,10 +169,10 @@ export class OrganizationForm implements OnChanges {
     if (f.settings.effectiveTo && f.settings.effectiveFrom && f.settings.effectiveTo < f.settings.effectiveFrom) {
       errors.effectiveTo = 'Must be on or after Effective From.';
     }
-    this.errors = relaxErrors(errors);
+    this.errors = errors;
 
     // Show the first tab that has a problem
-    const keys = Object.keys(relaxErrors(errors));
+    const keys = Object.keys(errors);
     if (keys.length) {
       this.tab = keys.some((k) => ['name', 'code', 'type', 'website', 'logo'].includes(k))
         ? 'basic'

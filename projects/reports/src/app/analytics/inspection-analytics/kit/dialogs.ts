@@ -2,7 +2,6 @@ import { Component, EventEmitter, HostListener, Input, OnInit, Output } from '@a
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X } from 'lucide-angular';
 import { RA_PEOPLE, downloadCsv } from '../../shared/analytics-common';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 // Dialogs shared by the Inspection, Compliance and KPI dashboards. Each closes on Escape or a backdrop click.
 
@@ -93,7 +92,7 @@ export class RaActionPlanDialog implements OnInit {
 
   submit(): void {
     this.tried = true;
-    if (!RELAX_VALIDATION && (!this.plan.title.trim() || !this.plan.owner || !this.plan.priority || this.dueError)) return;
+    if (!this.plan.title.trim() || !this.plan.owner || !this.plan.priority || this.dueError) return;
     this.saved.emit({ ...this.plan, title: this.plan.title.trim() });
   }
 
@@ -260,7 +259,7 @@ export class RaSaveViewDialog implements OnInit {
 
   submit(): void {
     this.tried = true;
-    if (RELAX_VALIDATION || this.name.trim()) this.saved.emit(this.name.trim());
+    if (this.name.trim()) this.saved.emit(this.name.trim());
   }
 
   backdrop(event: MouseEvent): void {

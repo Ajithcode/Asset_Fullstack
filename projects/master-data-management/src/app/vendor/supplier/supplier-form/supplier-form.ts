@@ -10,7 +10,6 @@ import { VENDOR_COUNTRIES } from '../../vendor.data';
 import { PAYMENT_TERMS, SUPPLIER_CATEGORIES, blankSupplier } from '../supplier.data';
 import { SupplierRecord } from '../supplier.model';
 import { SupplierService } from '../supplier.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'address' | 'products' | 'financial' | 'documents' | 'settings';
 
@@ -119,9 +118,9 @@ export class SupplierForm implements OnChanges {
     if (f.creditLimit !== null && !(f.creditLimit >= 0)) errors['creditLimit'] = 'Enter 0 or more.';
     if (f.iban.trim() && !/^[A-Z]{2}\d{2}[A-Z0-9 ]{10,32}$/i.test(f.iban.trim())) errors['iban'] = 'Enter a valid IBAN, e.g. AE07 0331 2345 6789 0123 456.';
     if (!(f.rating >= 0 && f.rating <= 5)) errors['rating'] = 'Enter 0 to 5.';
-    this.errors = relaxErrors(errors);
+    this.errors = errors;
 
-    const keys = Object.keys(relaxErrors(errors));
+    const keys = Object.keys(errors);
     if (keys.length) {
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))?.id ?? 'basic';
       return;

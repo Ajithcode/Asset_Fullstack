@@ -22,7 +22,6 @@ import {
   Zap,
 } from 'lucide-angular';
 import type { AssetComponent } from '../asset-components';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export type IntervalUnit = 'Hours' | 'Days' | 'Months';
 export type MaintenanceKind = 'Preventive' | 'Inspection' | 'Replacement' | 'Calibration';
@@ -418,8 +417,7 @@ export class ComponentMaintenance {
 
   get scheduleFormValid(): boolean {
     const f = this.scheduleForm;
-    // TEMP relax: interval and next due stay checked (they feed the due-date arithmetic)
-    return (RELAX_VALIDATION || (!!f.task.trim() && !!f.kind)) && f.intervalValue > 0 && Number.isFinite(f.intervalValue) && !!f.intervalUnit && !!f.nextDue;
+    return !!f.task.trim() && !!f.kind && f.intervalValue > 0 && Number.isFinite(f.intervalValue) && !!f.intervalUnit && !!f.nextDue;
   }
 
   saveSchedule(): void {
@@ -490,7 +488,7 @@ export class ComponentMaintenance {
   saveRecord(): void {
     this.recordSubmitted = true;
     const f = this.recordForm;
-    if (!RELAX_VALIDATION && (!f.task.trim() || !f.date || !f.status || this.recordDateInFuture || this.recordHoursInvalid)) return;
+    if (!f.task.trim() || !f.date || !f.status || this.recordDateInFuture || this.recordHoursInvalid) return;
     const runningHours = f.runningHours === null || (f.runningHours as unknown) === '' ? null : Number(f.runningHours);
     const values = { ...f, status: f.status as RecordStatus, task: f.task.trim(), technician: f.technician.trim(), notes: f.notes.trim(), runningHours };
     if (this.editingRecord) {

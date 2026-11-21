@@ -4,7 +4,6 @@ import {
   ReportFrequency, ReportModule, ReportPeriod, ReportStatus, SR_STATUSES, SR_TIME_ZONES
 } from './standard-reports.data';
 import { NewStandardReport } from './standard-reports.service';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 const FREQUENCIES: ReportFrequency[] = ['On demand', 'Daily', 'Weekly', 'Monthly', 'Quarterly'];
 
@@ -183,7 +182,7 @@ export class ReportCreateDialog implements OnInit {
 
   submit(): void {
     this.submitted = true;
-    if ((!RELAX_VALIDATION && (!this.name.trim() || !this.module || !this.timeZone || !this.frequency || !this.status || this.periodError)) || this.saving) return;
+    if (!this.name.trim() || !this.module || !this.timeZone || !this.frequency || !this.status || this.periodError || this.saving) return;
     this.save.emit({
       name: this.name,
       description: this.description,

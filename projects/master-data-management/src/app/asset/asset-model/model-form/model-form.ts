@@ -23,7 +23,6 @@ function newAssetModel(): AssetModelRecord {
   };
 }
 import { AssetModelService } from '../asset-model.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 export type ModelFormTab = 'basic' | 'specs' | 'lifecycle' | 'financial' | 'defaults';
 type FieldKey =
@@ -264,9 +263,9 @@ export class ModelForm implements OnInit, OnChanges {
     if (!(f.salvagePercent >= 0 && f.salvagePercent <= 100)) errors.salvagePercent = 'Enter 0 to 100.';
     if (!f.taggingFormat.trim()) errors.taggingFormat = 'Enter a tagging format.';
     else if (!hasRunningNumber(f.taggingFormat)) errors.taggingFormat = 'Include a running number, e.g. (0000).';
-    this.errors = relaxErrors(errors);
+    this.errors = errors;
 
-    const keys = Object.keys(relaxErrors(errors)) as FieldKey[];
+    const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {
       // Show the first tab that has a problem
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))!.id;

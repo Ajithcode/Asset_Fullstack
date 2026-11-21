@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Plus, Trash2 } from 'lucide-angular';
 import { ADMIN_PEOPLE, ASSET360_MODULES, CURRENT_USER, avatarTone, formatDate, initials, todayIso } from '../../shared/admin-common';
 import { AccessException, EXCEPTION_ACCESS, ExceptionAccess, PolicyRecord } from '../module-access.data';
-import { relaxErrors } from '../../../../../../src/environments/relax-validation';
 
 interface Draft {
   user: string;
@@ -59,7 +58,7 @@ export class ExceptionList {
     if (!e.user && !e.module && this.policy.exceptions.some((x) => x.user === this.draft.user && x.module === this.draft.module)) {
       e.module = `${this.draft.user} already has an exception for this module.`;
     }
-    return relaxErrors(e);
+    return e;
   }
 
   add(): void {

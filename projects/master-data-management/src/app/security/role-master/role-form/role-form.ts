@@ -5,7 +5,6 @@ import { MasterForm } from '../../../maintenance/form-base';
 import { ROLE_TYPES, blankRole } from '../../security.data';
 import { ModuleRecord, PermissionRecord, RoleRecord } from '../../security.model';
 import { ModuleService, PermissionService, RoleService } from '../../security.service';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 type Tab = 'permissions' | 'modules';
 
@@ -131,16 +130,12 @@ export class RoleForm extends MasterForm<RoleRecord, Tab> implements OnChanges {
     this.form.modules = [...source.modules];
   }
 
-  // TEMP relax-validation: only the field checks below are relaxed; business rules keep running
-  protected override relaxWholeValidate = false;
-
   protected validate(f: RoleRecord) {
     const errors: Record<string, string> = {};
-    if (!RELAX_VALIDATION && !f.type) errors['type'] = 'Select a role type.';
-    if (!RELAX_VALIDATION && !f.modules.length) errors['access'] = 'Give the role access to at least one module.';
-    if (!f.status) {
-      if (!RELAX_VALIDATION) errors['status'] = 'Select a status.';
-    } else if (this.original?.type === 'System' && f.status !== 'Active') errors['status'] = 'System roles stay active.';
+    if (!f.type) errors['type'] = 'Select a role type.';
+    if (!f.modules.length) errors['access'] = 'Give the role access to at least one module.';
+    if (!f.status) errors['status'] = 'Select a status.';
+    else if (this.original?.type === 'System' && f.status !== 'Active') errors['status'] = 'System roles stay active.';
     if (f.type === 'Read Only') {
       const writes = f.permissions.filter((c) => this.permissions.find(c)?.type !== 'Read');
       if (writes.length) errors['access'] = `A read-only role can only hold Read permissions; ${writes.length} others are ticked.`;

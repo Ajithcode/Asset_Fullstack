@@ -17,7 +17,6 @@ import {
 } from './checklist-templates.model';
 import { ChecklistTemplatesService } from './checklist-templates.service';
 import { ItemDrawer, ItemSave } from './item-drawer/item-drawer';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'items' | 'settings' | 'history';
 
@@ -238,7 +237,7 @@ export class ChecklistTemplatesPage extends AdminPage {
       return;
     }
     if (mode === 'publish') {
-      if (!RELAX_VALIDATION && !this.draftItems) {
+      if (!this.draftItems) {
         this.notify('Add at least one checklist item before publishing.');
         return;
       }

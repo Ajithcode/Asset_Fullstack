@@ -37,7 +37,6 @@ import {
 } from '../custom-fields.model';
 import { AssetTypeOption, CategoryOption, CustomFieldsService, FieldLayoutDto, runAll, toFieldLayout, toLayoutRequest } from '../custom-fields.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 interface LayoutForm {
   original: FieldLayout | null;
@@ -529,7 +528,7 @@ export class CfFieldLayouts implements OnInit, OnChanges {
   saveLayoutForm(): void {
     this.layoutSubmitted = true;
     const e = this.layoutForm;
-    if (!e || (!RELAX_VALIDATION && (this.layoutNameError || !e.assetType || !e.status)) || this.saving) return;
+    if (!e || this.layoutNameError || !e.assetType || !e.status || this.saving) return;
     const values = {
       name: e.name.trim(),
       assetType: e.assetType,

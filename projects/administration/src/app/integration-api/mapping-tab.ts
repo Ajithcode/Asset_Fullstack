@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { ArrowRight, LucideAngularModule, Plus, Trash2 } from 'lucide-angular';
 import { FieldMapping, Integration, TRANSFORMS } from './integration-api.data';
 import { IntegrationApiService } from './integration-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 /** Data Mapping tab: editable source → target field table. */
 @Component({
@@ -148,7 +147,7 @@ export class IntegrationMappingTab implements OnChanges {
   save(): void {
     this.submitted = true;
     const invalid = this.rows.filter((m) => !m.source.trim() || this.targetError(m));
-    if (!RELAX_VALIDATION && invalid.length) {
+    if (invalid.length) {
       this.notice.emit(`Fix ${invalid.length} mapping row${invalid.length > 1 ? 's' : ''} before saving.`);
       return;
     }

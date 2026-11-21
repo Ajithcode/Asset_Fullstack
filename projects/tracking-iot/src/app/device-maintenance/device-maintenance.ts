@@ -49,7 +49,6 @@ import {
   SITES, SITE_AREAS, ServiceRequest, TASKS, TECHNICIANS, Task, TaskStatus, VENDORS, Vendor, daysFromToday, kindOf, rel, telemetry, titleOf, toIso, todayIso,
 } from './maintenance-data';
 import { Assignee, MaintenanceApiService, MaintenanceDeviceDto, MaintenanceJobDto, MaintenanceJobRequest, requestOf, toTechnician, toVendor } from './maintenance-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'overview' | 'requests' | 'plans' | 'history' | 'vendors';
 type PanelTab = 'details' | 'maintenance' | 'telemetry';
@@ -80,8 +79,6 @@ const UNASSIGNED = 'Unassigned';
   styleUrls: ['./device-maintenance.css', './device-maintenance-panel.css', './device-maintenance-tabs.css', '../shared/iot-purple-theme.css'],
 })
 export class DeviceMaintenance implements OnInit, OnDestroy {
-  /** TEMP: relaxed form validation (testing build), read by the template. */
-  readonly relaxValidation = RELAX_VALIDATION;
   readonly icons = { ArrowDown, ArrowRight, ArrowUp, Building2, Calendar, CalendarClock, Check, ChevronLeft, ChevronRight, ClipboardList, Clock, Cpu, Download, Ellipsis, Info, Link, ListChecks, Mail, MapPin, Pencil, Phone, Plus, RotateCcw, Search, ShieldCheck, Signal, TriangleAlert, Users, Wrench, X };
   readonly devices = DEVICES;
   readonly tasks = TASKS;
@@ -877,7 +874,7 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
 
   saveReschedule(): void {
     const g = this.rescheduleDialog;
-    if (!g || (!RELAX_VALIDATION && !g.value)) return;
+    if (!g || !g.value) return;
     this.saveJob(g.task.job, { dueDate: g.value }, () => {
       this.dialog = null;
       this.showToast(`${g.task.deviceId} rescheduled to ${this.fmt(g.value)}.`);
@@ -887,10 +884,10 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
   saveRequest(): void {
     const g = this.requestDialog;
     if (!g || this.busy) return;
-    if (!RELAX_VALIDATION && (!g.deviceId)) return void (g.error = 'Choose a device.');
+    if (!g.deviceId) return void (g.error = 'Choose a device.');
     if (!g.type) return void (g.error = 'Choose a maintenance type.');
-    if (!RELAX_VALIDATION && (!g.due)) return void (g.error = 'Choose a due date.');
-    if (!RELAX_VALIDATION && (!g.site.trim())) return void (g.error = 'Enter the site.');
+    if (!g.due) return void (g.error = 'Choose a due date.');
+    if (!g.site.trim()) return void (g.error = 'Enter the site.');
     const d = this.device(g.deviceId);
     const site = g.site.trim();
     const body: MaintenanceJobRequest = {
@@ -922,11 +919,11 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
     const g = this.planDialog;
     if (!g) return;
     const items = g.checklist.split('\n').map((s) => s.trim()).filter((s) => s);
-    if (!RELAX_VALIDATION && (!g.name.trim())) return void (g.error = 'Enter a plan name.');
+    if (!g.name.trim()) return void (g.error = 'Enter a plan name.');
     if (!g.deviceKind) return void (g.error = 'Choose a device type.');
     if (!g.type) return void (g.error = 'Choose a maintenance type.');
-    if (!RELAX_VALIDATION && (!g.interval || g.interval < 1)) return void (g.error = 'Interval must be at least 1 day.');
-    if (!RELAX_VALIDATION && (!items.length)) return void (g.error = 'Add at least one checklist item.');
+    if (!g.interval || g.interval < 1) return void (g.error = 'Interval must be at least 1 day.');
+    if (!items.length) return void (g.error = 'Add at least one checklist item.');
     const data = { name: g.name.trim(), kind: g.deviceKind, interval: Math.round(g.interval), type: g.type, checklist: items };
     let saved = g.plan;
     if (saved) Object.assign(saved, data);

@@ -4,7 +4,6 @@ import { LucideAngularModule, Mail, X } from 'lucide-angular';
 import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS } from '../../shared/admin-common';
 import { USER_ROLES } from '../user-management.data';
 import { UserAdminService } from '../user-management.service';
-import { relaxErrors } from '../../../../../../src/environments/relax-validation';
 
 export interface InviteRequest {
   emails: string[];
@@ -62,8 +61,8 @@ export class InviteDialog {
     else if (taken.length) e['emails'] = `Already a user: ${taken.slice(0, 3).join(', ')}${taken.length > 3 ? '…' : ''}`;
     if (!this.department) e['department'] = 'Department is required.';
     if (!this.primaryRole) e['primaryRole'] = 'Primary role is required.';
-    this.errors = relaxErrors(e);
-    if (Object.keys(this.errors).length) return;
+    this.errors = e;
+    if (Object.keys(e).length) return;
     this.invited.emit({ emails: list, department: this.department, primaryRole: this.primaryRole, location: this.location });
   }
 

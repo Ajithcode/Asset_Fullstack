@@ -1,7 +1,6 @@
 import { Directive, EventEmitter, Input, OnChanges, Output } from '@angular/core';
 import { CodeStore } from '../shared/code-store';
 import { nowStamp } from '../people/people.data';
-import { relaxErrors } from '../../../../../src/environments/relax-validation';
 
 /**
  * Add/edit drawer behaviour shared by the Maintenance masters: copy the record in, check the
@@ -19,8 +18,6 @@ export abstract class MasterForm<T extends { code: string; name: string; created
   tab!: Tab;
   form!: T;
   errors: Record<string, string> = {};
-  /** TEMP relax-validation: false in subclasses whose validate() mixes business rules with field checks (they guard field checks inline). */
-  protected relaxWholeValidate = true;
   protected original: T | null = null;
 
   protected abstract store: CodeStore<T>;
@@ -72,9 +69,8 @@ export abstract class MasterForm<T extends { code: string; name: string; created
     if (!f.code.trim()) errors['code'] = 'Enter a code.';
     else if (this.store.isCodeTaken(f.code, this.original?.code ?? null)) errors['code'] = `${f.code.trim()} is already used.`;
     const extra = this.validate(f);
-    if (this.relaxWholeValidate) extra.errors = relaxErrors(extra.errors);
-    this.errors = { ...relaxErrors(errors), ...extra.errors };
-    if (Object.keys(relaxErrors(errors)).length) {
+    this.errors = { ...errors, ...extra.errors };
+    if (Object.keys(errors).length) {
       this.tab = this.tabs[0].id;
       return;
     }

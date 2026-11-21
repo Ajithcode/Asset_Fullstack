@@ -42,7 +42,6 @@ import { blankAssetRecord } from '../../shared/blank-asset';
 import { loadAssetDetail } from '../../asset-details/asset-details';
 import { AssetDetailsService, fileUrl, iconForAsset, isoDay } from '../../asset-details/asset-details.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 import {
   MaintenanceWorkOrderDto,
   SR_API_PRIORITIES,
@@ -868,8 +867,8 @@ export class ServiceRequest implements OnDestroy {
     const d = this.dto;
     const f = this.edit;
     if (!r || !d || !f || this.busy) return;
-    if (!RELAX_VALIDATION && !f.title.trim()) return void (this.editError = 'Enter the subject.');
-    if (!RELAX_VALIDATION && !f.targetDate) return void (this.editError = 'Enter the target date.');
+    if (!f.title.trim()) return void (this.editError = 'Enter the subject.');
+    if (!f.targetDate) return void (this.editError = 'Enter the target date.');
     const assigned = !!f.assignedTo && f.assignedTo !== r.assignedTo;
     const body = toSaveBody(d);
     body.title = f.title.trim();

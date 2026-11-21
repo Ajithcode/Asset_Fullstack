@@ -44,7 +44,6 @@ import { GATEWAY_TYPE, IoTDeviceDto, IoTDeviceLookupService, sameModel } from '.
 import { DeviceHealthApiService, DeviceHealthDto } from '../device-health/device-health-api.service';
 import { Campaign, CampaignStatus, Conn, DeviceModel, Gateway, ModelKind, NetworkProfile, PROFILES, Protocol, Site } from './firmware-data';
 import { FirmwareVersionApiService, FirmwareVersionDto, modelFromDto } from './firmware-version-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'overview' | 'inventory' | 'campaigns' | 'diagnostics' | 'profiles';
 
@@ -350,9 +349,9 @@ export class FirmwareConnectivity implements OnInit, OnDestroy {
   saveFirmware(): void {
     const f = this.fwForm;
     if (!f || this.busy) return;
-    if (!RELAX_VALIDATION && (!f.deviceModel.trim())) return void (this.formError = 'Enter the device model.');
-    if (!RELAX_VALIDATION && (!f.currentVersion.trim() || !f.latestVersion.trim())) return void (this.formError = 'Enter the current and latest versions.');
-    if (!RELAX_VALIDATION && (f.deviceCount !== null && (f.deviceCount as unknown) !== '' && Number(f.deviceCount) < 0)) return void (this.formError = 'Devices cannot be negative.');
+    if (!f.deviceModel.trim()) return void (this.formError = 'Enter the device model.');
+    if (!f.currentVersion.trim() || !f.latestVersion.trim()) return void (this.formError = 'Enter the current and latest versions.');
+    if (f.deviceCount !== null && (f.deviceCount as unknown) !== '' && Number(f.deviceCount) < 0) return void (this.formError = 'Devices cannot be negative.');
     const fields = {
       deviceModel: f.deviceModel,
       currentVersion: f.currentVersion,
@@ -488,8 +487,8 @@ export class FirmwareConnectivity implements OnInit, OnDestroy {
   saveCampaign(): void {
     const f = this.form;
     if (!f || this.busy) return;
-    if (!RELAX_VALIDATION && (!f.models.length)) return void (this.formError = 'Choose at least one device model.');
-    if (!f.at || (!RELAX_VALIDATION && f.at <= nowLocal())) return void (this.formError = 'Choose a future install date and time.');
+    if (!f.models.length) return void (this.formError = 'Choose at least one device model.');
+    if (!f.at || f.at <= nowLocal()) return void (this.formError = 'Choose a future install date and time.');
     const chosen = this.models.filter((m) => f.models.includes(m.id));
     const jobs = chosen.flatMap((m) => this.eligible(m).map((d) => ({ d, m })));
     if (!jobs.length) return void (this.formError = 'No registered device of these models needs the update (or an update is already scheduled).');
@@ -593,9 +592,9 @@ export class FirmwareConnectivity implements OnInit, OnDestroy {
   saveProfile(): void {
     const f = this.profileForm;
     if (!f) return;
-    if (!RELAX_VALIDATION && (!f.name.trim())) return void (this.formError = 'Enter a profile name.');
-    if (!RELAX_VALIDATION && (!f.type)) return void (this.formError = 'Choose a profile type.');
-    if (!RELAX_VALIDATION && (!f.sites.length)) return void (this.formError = 'Choose at least one site.');
+    if (!f.name.trim()) return void (this.formError = 'Enter a profile name.');
+    if (!f.type) return void (this.formError = 'Choose a profile type.');
+    if (!f.sites.length) return void (this.formError = 'Choose at least one site.');
     const existing = PROFILES.find((p) => p.id === f.id);
     if (existing) Object.assign(existing, { ...f, name: f.name.trim() });
     else PROFILES.push({ ...f, id: `NP-${String(PROFILES.length + 1).padStart(2, '0')}`, name: f.name.trim() });

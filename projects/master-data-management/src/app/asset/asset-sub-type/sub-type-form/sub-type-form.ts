@@ -7,7 +7,6 @@ import { CUSTOM_FIELD_TYPES, MAINTENANCE_TYPES } from '../../asset-type/asset-ty
 import { blankAssetSubType } from '../asset-sub-type.data';
 import { AssetSubTypeRecord } from '../asset-sub-type.model';
 import { AssetSubTypeService } from '../asset-sub-type.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 /** A new sub type starts with every dropdown empty so the user picks each value. */
 function newAssetSubType(): AssetSubTypeRecord {
@@ -187,9 +186,9 @@ export class SubTypeForm implements OnChanges {
     if (names.some((n) => !n)) errors.customFields = 'Every custom field needs a name.';
     else if (new Set(names).size !== names.length) errors.customFields = 'Custom field names must be unique.';
     else if (f.customFields.some((c) => !c.type)) errors.customFields = 'Every custom field needs a type.';
-    this.errors = relaxErrors(errors);
+    this.errors = errors;
 
-    const keys = Object.keys(relaxErrors(errors)) as FieldKey[];
+    const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))!.id;
       return;

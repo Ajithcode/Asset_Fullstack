@@ -8,7 +8,6 @@ import { EMAIL, readPhoto } from '../../../people/people.data';
 import { DATE_FORMATS, LANGUAGES, TIME_ZONES, blankUser } from '../../security.data';
 import { UserRecord } from '../../security.model';
 import { RoleService, UserService } from '../../security.service';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 type Tab = 'basic' | 'access' | 'preferences';
 
@@ -137,26 +136,22 @@ export class UserForm extends MasterForm<UserRecord, Tab> implements OnChanges {
     return false;
   }
 
-  // TEMP relax-validation: only the field checks below are relaxed; business rules keep running
-  protected override relaxWholeValidate = false;
-
   protected validate(f: UserRecord) {
     const errors: Record<string, string> = {};
     const code = this.original?.code ?? null;
     const username = f.username.trim().toLowerCase();
-    if (!RELAX_VALIDATION && !username) errors['username'] = 'Enter a username.';
-    else if (!RELAX_VALIDATION && !USERNAME.test(username)) errors['username'] = 'Use lower-case letters, numbers and . _ - only.';
-    else if (!RELAX_VALIDATION && this.store.isUsernameTaken(username, code)) errors['username'] = `${username} is already taken.`;
-    if (!RELAX_VALIDATION && !f.email.trim()) errors['email'] = 'Enter an email address.';
-    else if (!RELAX_VALIDATION && !EMAIL.test(f.email.trim())) errors['email'] = 'Enter a valid email address.';
-    else if (!RELAX_VALIDATION && this.store.isEmailTaken(f.email, code)) errors['email'] = 'Another user has this email.';
-    if (!RELAX_VALIDATION && !f.department) errors['department'] = 'Select a department.';
-    if (!RELAX_VALIDATION && !f.primaryRole) errors['primaryRole'] = 'Select a primary role.';
-    if (!f.status) {
-      if (!RELAX_VALIDATION) errors['status'] = 'Select a status.';
-    } else if (this.isSelf && f.status !== 'Active') errors['status'] = 'You can’t deactivate your own account.';
-    if (!RELAX_VALIDATION && f.accountExpiry && f.accountExpiry <= new Date().toISOString().slice(0, 10) && f.status === 'Active') errors['accountExpiry'] = 'The expiry date must be in the future.';
-    if (!RELAX_VALIDATION && !f.sites.length) errors['sites'] = 'Give access to at least one site.';
+    if (!username) errors['username'] = 'Enter a username.';
+    else if (!USERNAME.test(username)) errors['username'] = 'Use lower-case letters, numbers and . _ - only.';
+    else if (this.store.isUsernameTaken(username, code)) errors['username'] = `${username} is already taken.`;
+    if (!f.email.trim()) errors['email'] = 'Enter an email address.';
+    else if (!EMAIL.test(f.email.trim())) errors['email'] = 'Enter a valid email address.';
+    else if (this.store.isEmailTaken(f.email, code)) errors['email'] = 'Another user has this email.';
+    if (!f.department) errors['department'] = 'Select a department.';
+    if (!f.primaryRole) errors['primaryRole'] = 'Select a primary role.';
+    if (!f.status) errors['status'] = 'Select a status.';
+    else if (this.isSelf && f.status !== 'Active') errors['status'] = 'You can’t deactivate your own account.';
+    if (f.accountExpiry && f.accountExpiry <= new Date().toISOString().slice(0, 10) && f.status === 'Active') errors['accountExpiry'] = 'The expiry date must be in the future.';
+    if (!f.sites.length) errors['sites'] = 'Give access to at least one site.';
     const tab: Tab = Object.keys(errors).some((k) => ['username', 'email', 'department', 'primaryRole', 'status', 'photo'].includes(k)) ? 'basic' : 'access';
     return { errors, tab };
   }

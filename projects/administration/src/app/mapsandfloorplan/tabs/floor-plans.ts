@@ -23,7 +23,6 @@ import {
 import { MapCanvas } from '../map-canvas/map-canvas';
 import { FloorPlan, MapStatus, STATUS_TONE, fmtDate, fmtTime } from '../maps.data';
 import { MapsStore } from '../maps.store';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 import { SiteTree } from '../site-tree/site-tree';
 import { UploadDialog } from '../upload-dialog/upload-dialog';
 
@@ -39,8 +38,6 @@ type SortKey = 'updated' | 'name' | 'version';
 })
 export class FloorPlansTab {
   readonly store = inject(MapsStore);
-  /** TEMP: relaxed form validation switch (testing build) */
-  readonly relax = RELAX_VALIDATION;
   readonly icons = {
     Building2, ChevronDown, ChevronLeft, ChevronRight, Download, Ellipsis, Eye, Info, LayoutGrid, Layers, List, Maximize2, Package,
     Pencil, Plus, Search, Wifi
@@ -186,7 +183,7 @@ export class FloorPlansTab {
 
   saveEdit(): void {
     const draft = this.editing;
-    if (!draft || (!RELAX_VALIDATION && !draft.name.trim()) || this.store.working) return;
+    if (!draft || !draft.name.trim() || this.store.working) return;
     const num = (v: unknown) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
     this.store.updatePlan(
       { ...draft, name: draft.name.trim(), subtitle: draft.subtitle.trim(), widthMeters: num(draft.widthMeters), heightMeters: num(draft.heightMeters), scale: draft.scale.trim() },

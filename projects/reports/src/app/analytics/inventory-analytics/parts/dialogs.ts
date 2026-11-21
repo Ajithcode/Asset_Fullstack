@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { Download, LucideAngularModule, X } from 'lucide-angular';
 import { downloadCsv } from '../../shared/analytics-common';
 import { DetailsDialogData, FormDialogData, FormField, ListDialogData } from './ra-parts';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 /** Wide dialog listing the rows behind an insight or KPI, with CSV download. */
 @Component({
@@ -212,7 +211,7 @@ export class RaFormDialog implements OnChanges {
 
   submit(): void {
     this.tried = true;
-    if (this.fields.some((f) => this.error(f) && (!RELAX_VALIDATION || f.type === 'number'))) return;
+    if (this.fields.some((f) => this.error(f))) return;
     const values: Record<string, string | number> = {};
     for (const f of this.fields) values[f.key] = typeof f.value === 'string' ? f.value.trim() : f.value;
     this.submitted.emit(values);

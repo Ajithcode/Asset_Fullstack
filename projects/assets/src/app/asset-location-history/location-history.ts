@@ -33,7 +33,6 @@ import { Subscription } from 'rxjs';
 import { LocationHistoryService } from './location-history.service';
 import { AssetLookupService, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
 import { apiErrorMessage } from '../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type MovementType = 'In' | 'Out' | 'Move';
 
@@ -563,10 +562,9 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
   saveRecord(): void {
     const f = this.recordForm;
     if (!f) return;
-    // TEMP relax: the date and time stays required (the service calls new Date(at).toISOString())
-    if ((!RELAX_VALIDATION && !f.location) || !f.at) return void (this.recordError = 'Choose the location and the date and time.');
+    if (!f.location || !f.at) return void (this.recordError = 'Choose the location and the date and time.');
     const cur = this.current;
-    if (!RELAX_VALIDATION && (cur && f.at <= cur.at)) return void (this.recordError = `The movement must be after the current location's arrival (${cur.at.replace('T', ' ')}).`);
+    if (cur && f.at <= cur.at) return void (this.recordError = `The movement must be after the current location's arrival (${cur.at.replace('T', ' ')}).`);
     if (cur && f.location === cur.location) return void (this.recordError = `${this.asset.tag} is already at ${f.location}.`);
     const remarks = f.remarks.trim() || 'Location updated';
     // Movement type and source are optional; fall back to the usual values when left unselected.

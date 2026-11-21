@@ -48,7 +48,6 @@ import {
 } from '../maintenance-sr';
 import { MaintenanceApiService } from '../maintenance-api.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 export interface SrWorkOrderRequest {
   requestId: string;
@@ -287,10 +286,10 @@ export class ServiceRequests {
   saveForm(): void {
     const f = this.form;
     if (!f) return;
-    if (!RELAX_VALIDATION && !f.title.trim()) return void (this.formError = 'Enter the subject.');
-    if (!RELAX_VALIDATION && !f.category) return void (this.formError = 'Select the category.');
-    if (!RELAX_VALIDATION && !f.priority) return void (this.formError = 'Select the priority.');
-    if (!RELAX_VALIDATION && !f.targetDate) return void (this.formError = 'Enter the target date.');
+    if (!f.title.trim()) return void (this.formError = 'Enter the subject.');
+    if (!f.category) return void (this.formError = 'Select the category.');
+    if (!f.priority) return void (this.formError = 'Select the priority.');
+    if (!f.targetDate) return void (this.formError = 'Enter the target date.');
     const existing = f.id ? this.requests.find((r) => r.id === f.id) : undefined;
     if (!existing && !this.registrationId) return void (this.formError = `${this.asset.tag} is not registered in the Asset API, so requests cannot be raised for it.`);
     const fields = {

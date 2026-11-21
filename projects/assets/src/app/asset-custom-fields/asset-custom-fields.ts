@@ -56,7 +56,6 @@ import {
   toFieldRequest,
 } from './custom-fields.service';
 import { apiErrorMessage } from '../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 
 type ListTab = FieldScope | 'compound';
@@ -671,10 +670,10 @@ export class AssetCustomFields implements OnInit {
     this.formSubmitted = true;
     const f = this.form;
     if (this.saving) return;
-    if (!RELAX_VALIDATION && (this.nameError || !f.label.trim() || this.defaultError || this.optionsError || this.partsError)) return;
-    if (!RELAX_VALIDATION && (f.description.length > DESCRIPTION_MAX || f.tooltip.length > TOOLTIP_MAX)) return;
-    if (!RELAX_VALIDATION && (f.scope !== 'asset' && !f.appliesTo)) return;
-    if (!RELAX_VALIDATION && (!f.type || (f.type === 'Lookup' && !f.lookupSource))) return;
+    if (this.nameError || !f.label.trim() || this.defaultError || this.optionsError || this.partsError) return;
+    if (f.description.length > DESCRIPTION_MAX || f.tooltip.length > TOOLTIP_MAX) return;
+    if (f.scope !== 'asset' && !f.appliesTo) return;
+    if (!f.type || (f.type === 'Lookup' && !f.lookupSource)) return;
 
     const appliesToId = f.scope === 'category' ? this.categoryIdOf(f.appliesTo) : '';
     if (f.scope === 'category' && !appliesToId) {
@@ -964,7 +963,7 @@ export class AssetCustomFields implements OnInit {
   saveGroup(): void {
     this.groupSubmitted = true;
     const e = this.groupForm;
-    if (!e || this.saving || (!RELAX_VALIDATION && (this.groupNameError || !e.status || e.description.length > GROUP_DESCRIPTION_MAX))) return;
+    if (!e || this.saving || this.groupNameError || !e.status || e.description.length > GROUP_DESCRIPTION_MAX) return;
     const body: SaveFieldGroupRequest = {
       groupName: e.name.trim(),
       description: e.description.trim() || null,

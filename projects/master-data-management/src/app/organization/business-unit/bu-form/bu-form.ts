@@ -8,7 +8,6 @@ import { blankBusinessUnit } from '../business-unit.data';
 import { MASTER_ICONS, MASTER_ICON_KEYS } from '../../../shared/master-icons';
 import { BusinessUnitRecord } from '../business-unit.model';
 import { BusinessUnitService } from '../business-unit.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'contact' | 'settings';
 type FieldKey = 'name' | 'code' | 'organizationCode' | 'logo' | 'parentCode' | 'email' | 'effectiveTo';
@@ -145,9 +144,9 @@ export class BuForm implements OnChanges {
     if (!f.organizationCode) errors.organizationCode = 'Select an organization.';
     if (f.contactEmail.trim() && !EMAIL.test(f.contactEmail.trim())) errors.email = 'Enter a valid email address.';
     if (f.effectiveTo && f.effectiveFrom && f.effectiveTo < f.effectiveFrom) errors.effectiveTo = 'Must be on or after Effective From.';
-    this.errors = relaxErrors(errors);
+    this.errors = errors;
 
-    const keys = Object.keys(relaxErrors(errors));
+    const keys = Object.keys(errors);
     if (keys.length) {
       this.tab = keys.some((k) => ['name', 'code', 'organizationCode', 'logo'].includes(k)) ? 'basic' : errors.email ? 'contact' : 'settings';
       return;

@@ -5,7 +5,6 @@ import { nowStamp } from '../../../people/people.data';
 import { BIN_TYPES, blankBin } from '../../inventory.data';
 import { BinRecord } from '../../inventory.model';
 import { BinService, StoreService } from '../../inventory.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type Tab = 'basic' | 'settings';
 
@@ -92,8 +91,8 @@ export class BinForm implements OnChanges {
     if (!f.code.trim()) errors['code'] = 'Enter a bin code.';
     else if (this.service.isCodeTaken(f.code, this.original?.code ?? null)) errors['code'] = `${f.code.trim()} is already used.`;
     if (f.capacity !== null && !(f.capacity > 0)) errors['capacity'] = 'Enter a capacity greater than 0.';
-    this.errors = relaxErrors(errors);
-    if (Object.keys(relaxErrors(errors)).length) {
+    this.errors = errors;
+    if (Object.keys(errors).length) {
       this.tab = 'basic';
       return;
     }

@@ -5,7 +5,6 @@ import { CURRENCIES } from '../../../organization/organization/organization.data
 import { BRAND_PALETTE, MANUFACTURER_COUNTRIES, PAYMENT_TERMS, badgeInk, badgeText, blankManufacturer } from '../manufacturer.data';
 import { ManufacturerRecord } from '../manufacturer.model';
 import { ManufacturerService } from '../manufacturer.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 /** A new manufacturer starts with every dropdown empty so the user picks each value. */
 function newManufacturer(): ManufacturerRecord {
@@ -152,9 +151,9 @@ export class MfrForm implements OnChanges {
       errors.standardWarrantyMonths = 'Enter 0 to 240 months.';
     }
     if (!Number.isInteger(f.slaResponseHours) || f.slaResponseHours < 1 || f.slaResponseHours > 720) errors.slaResponseHours = 'Enter 1 to 720 hours.';
-    this.errors = relaxErrors(errors);
+    this.errors = errors;
 
-    const keys = Object.keys(relaxErrors(errors)) as FieldKey[];
+    const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {
       // Show the first tab that has a problem
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))!.id;

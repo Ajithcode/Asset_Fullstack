@@ -241,7 +241,7 @@
     <div class="actions">
       <button type="button" class="btn btn-ghost" (click)="back()"><lucide-icon [img]="icons.ArrowLeft" [size]="15"></lucide-icon>Back</button>
       <button type="button" class="btn btn-outline" (click)="saveDraft()"><lucide-icon [img]="icons.FileText" [size]="15"></lucide-icon>Save Draft</button>
-      <button type="button" class="btn btn-primary" [disabled]="!confirmChecked || (!relaxValidation && !reason) || saving" (click)="confirm()"><lucide-icon [img]="icons.ShieldCheck" [size]="15"></lucide-icon>{{ saving ? 'Saving…' : 'Confirm Replacement' }}</button>
+      <button type="button" class="btn btn-primary" [disabled]="!confirmChecked || !reason || saving" (click)="confirm()"><lucide-icon [img]="icons.ShieldCheck" [size]="15"></lucide-icon>{{ saving ? 'Saving…' : 'Confirm Replacement' }}</button>
     </div>
   </section>
 

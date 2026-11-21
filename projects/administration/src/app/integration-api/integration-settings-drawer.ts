@@ -4,7 +4,6 @@ import { CircleCheck, CircleX, Eye, EyeOff, LucideAngularModule, Trash2, X } fro
 import { AUTH_METHODS, ENVIRONMENTS, Environment, Integration, PROVIDERS, RETRY_POLICIES, SYNC_FREQUENCIES } from './integration-api.data';
 import { IntegrationApiService, IntegrationForm, SECRET_MASK, apiErrorMessage } from './integration-api.service';
 import { HTTPS_URL, relative } from './integration-format';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 const CODE_PATTERN = /^[A-Z0-9][A-Z0-9-]{2,29}$/i;
 const ROTATION_DAYS = 90;
@@ -302,26 +301,24 @@ export class IntegrationSettingsDrawer implements OnChanges {
   errors(): Record<string, string> {
     const f = this.form;
     const e: Record<string, string> = {};
-    // TEMP relaxed mode (R): field-content checks skipped; secret-key rules and the whole-number timeout guard stay
-    const R = RELAX_VALIDATION;
-    if (!R && !f.name.trim()) e['name'] = 'Integration name is required.';
+    if (!f.name.trim()) e['name'] = 'Integration name is required.';
     const code = f.code.trim();
-    if (!R && !code) e['code'] = 'Integration code is required.';
-    else if (!R && !CODE_PATTERN.test(code)) e['code'] = 'Use 3–30 letters, digits or hyphens.';
-    else if (!R && this.service.codeTaken(code, this.creating ? null : (this.integration?.id ?? null))) e['code'] = 'This code is already used.';
+    if (!code) e['code'] = 'Integration code is required.';
+    else if (!CODE_PATTERN.test(code)) e['code'] = 'Use 3–30 letters, digits or hyphens.';
+    else if (this.service.codeTaken(code, this.creating ? null : (this.integration?.id ?? null))) e['code'] = 'This code is already used.';
     const url = f.baseUrl.trim();
-    if (!R && (!url || url === 'https://')) e['baseUrl'] = 'Base URL is required.';
-    else if (!R && !HTTPS_URL.test(url)) e['baseUrl'] = 'Enter a valid https:// URL.';
-    if (!R && !f.provider) e['provider'] = 'Provider is required.';
-    if (!R && !f.environment) e['environment'] = 'Environment is required.';
-    if (!R && !f.authMethod) e['authMethod'] = 'Authentication method is required.';
-    if (!R && !f.syncFrequency) e['syncFrequency'] = 'Sync frequency is required.';
-    if (!R && !f.retryPolicy) e['retryPolicy'] = 'Retry policy is required.';
-    if (!R && !f.clientId.trim()) e['clientId'] = 'Client ID is required.';
+    if (!url || url === 'https://') e['baseUrl'] = 'Base URL is required.';
+    else if (!HTTPS_URL.test(url)) e['baseUrl'] = 'Enter a valid https:// URL.';
+    if (!f.provider) e['provider'] = 'Provider is required.';
+    if (!f.environment) e['environment'] = 'Environment is required.';
+    if (!f.authMethod) e['authMethod'] = 'Authentication method is required.';
+    if (!f.syncFrequency) e['syncFrequency'] = 'Sync frequency is required.';
+    if (!f.retryPolicy) e['retryPolicy'] = 'Retry policy is required.';
+    if (!f.clientId.trim()) e['clientId'] = 'Client ID is required.';
     if (this.secretKey && this.secretKey.length < 16) e['secretKey'] = 'Secret key must be at least 16 characters.';
     else if (!this.secretKey && this.needsSecret()) e['secretKey'] = 'Secret key is required.';
     const t = Number(f.timeout);
-    if (!Number.isInteger(t) || (!R && (t < 5 || t > 600))) e['timeout'] = 'Enter 5–600 seconds.';
+    if (!Number.isInteger(t) || t < 5 || t > 600) e['timeout'] = 'Enter 5–600 seconds.';
     return e;
   }
 

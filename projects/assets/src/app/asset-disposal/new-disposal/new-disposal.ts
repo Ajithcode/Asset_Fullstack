@@ -53,7 +53,6 @@ import {
   dateOnly,
 } from '../asset-disposal.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /** A registered asset offered in the Select Assets step (GET /api/asset-registrations). */
 interface CandidateAsset extends DisposalItem {
@@ -409,7 +408,6 @@ export class NewDisposal implements OnInit, OnDestroy {
 
   /** Reason the step can't be left yet, or '' when it is complete. */
   stepError(step: number): string {
-    if (RELAX_VALIDATION) return '';
     switch (step) {
       case 1:
         if (!this.title.trim()) return 'Enter the request title.';
@@ -665,7 +663,7 @@ export class NewDisposal implements OnInit, OnDestroy {
    * updated) with the current selection first, then the API adds the matching assets and reports the rest.
    */
   private addThroughApi(call: (id: string) => Observable<DisposalAddAssetsResult>): void {
-    if (!RELAX_VALIDATION && !this.title.trim()) {
+    if (!this.title.trim()) {
       this.showToast('Enter the request title on step 1 first; the request is saved as a draft before assets are added.');
       return;
     }
@@ -922,7 +920,7 @@ export class NewDisposal implements OnInit, OnDestroy {
 
   saveDraft(): void {
     if (this.saving) return;
-    if (!RELAX_VALIDATION && !this.title.trim()) {
+    if (!this.title.trim()) {
       this.step = 1;
       this.error = 'Enter the request title before saving a draft.';
       return;

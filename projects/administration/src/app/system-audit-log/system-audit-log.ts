@@ -10,7 +10,6 @@ import { AuditCategory, AuditEvent, AuditFilters } from './audit-log.model';
 import { AUDIT_DAY, RETENTION_DAYS } from './audit-log.data';
 import { AuditLogService, emptyFilters } from './audit-log.service';
 import { copyText, downloadFile, formatAuditTime, toCsv } from './audit-log.util';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 import { AuditEventDrawer } from './audit-event-drawer/audit-event-drawer';
 import { AuditFiltersPanel } from './audit-filters/audit-filters';
 
@@ -264,11 +263,11 @@ export class SystemAuditLogPage extends AdminPage {
 
   confirmSave(): void {
     const name = this.saveName.trim();
-    if (!RELAX_VALIDATION && !name) {
+    if (!name) {
       this.saveError = 'Give the filter a name.';
       return;
     }
-    if (!RELAX_VALIDATION && name.length > 40) {
+    if (name.length > 40) {
       this.saveError = 'Keep the name under 40 characters.';
       return;
     }

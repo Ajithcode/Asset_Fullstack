@@ -2,7 +2,6 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, Output, injec
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, EllipsisVertical, Pencil, Plus, Trash2, X } from 'lucide-angular';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 /** A dropdown option; lists may carry extra fields (colour, initials...) that new options get from `defaults`. */
 export interface MenuOption {
@@ -174,14 +173,14 @@ export class OptionMenu {
     if (this.mode === 'edit') {
       const target = this.selected;
       if (!target) return this.close();
-      if (!RELAX_VALIDATION && (this.isDuplicate(label, target))) {
+      if (this.isDuplicate(label, target)) {
         this.error = `"${label}" is already in the list.`;
         return;
       }
       target.label = label;
       return this.close();
     }
-    if (!RELAX_VALIDATION && (this.isDuplicate(label))) {
+    if (this.isDuplicate(label)) {
       this.error = `"${label}" is already in the list.`;
       return;
     }

@@ -68,7 +68,6 @@ import {
   toSubAssetRef,
 } from '../asset-relationship-list/asset-relationship.service';
 import { apiErrorMessage } from '../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type RelType = 'Parent Asset' | 'Connected Asset' | 'Supporting Asset' | 'Component' | 'Sub Asset';
 type Direction = 'Parent' | 'Child' | 'Sibling';
@@ -741,15 +740,15 @@ export class AssetRelationship {
       this.saveToApi(this.graph, this.graph.api);
       return;
     }
-    if (!RELAX_VALIDATION && (!f.tag || !f.since)) {
+    if (!f.tag || !f.since) {
       this.formError = 'Select the related asset and the start date.';
       return;
     }
-    if (!RELAX_VALIDATION && (!f.type || !f.direction || !f.status)) {
+    if (!f.type || !f.direction || !f.status) {
       this.formError = 'Select the relationship type, direction and status.';
       return;
     }
-    if (!RELAX_VALIDATION && (f.to && f.to < f.since)) {
+    if (f.to && f.to < f.since) {
       this.formError = 'The end date cannot be before the start date.';
       return;
     }
@@ -773,7 +772,7 @@ export class AssetRelationship {
       this.formError = 'Select the related asset.';
       return;
     }
-    if (!RELAX_VALIDATION && !f.type) {
+    if (!f.type) {
       this.formError = 'Select the relationship type.';
       return;
     }

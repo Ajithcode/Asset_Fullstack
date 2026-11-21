@@ -5,7 +5,6 @@ import { MasterForm } from '../../../maintenance/form-base';
 import { VALUATION_METHODS, blankItemCategory } from '../../inventory.data';
 import { ItemCategoryRecord } from '../../inventory.model';
 import { ItemCategoryService, UomService } from '../../inventory.service';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 type Tab = 'basic' | 'hierarchy' | 'settings';
 
@@ -48,12 +47,9 @@ export class ItemCategoryForm extends MasterForm<ItemCategoryRecord, Tab> {
     return this.original ? this.store.children(this.original.code) : [];
   }
 
-  // TEMP relax-validation: only the field checks below are relaxed; business rules keep running
-  protected override relaxWholeValidate = false;
-
   protected validate(f: ItemCategoryRecord) {
     const errors: Record<string, string> = {};
-    if (!RELAX_VALIDATION && !f.status) errors['status'] = 'Select a status.';
+    if (!f.status) errors['status'] = 'Select a status.';
     if (f.status === 'Active' && f.parentCode && this.store.find(f.parentCode)?.status === 'Inactive') {
       errors['parentCode'] = 'The parent category is inactive.';
     }

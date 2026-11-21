@@ -5,7 +5,6 @@ import { MasterForm } from '../../../maintenance/form-base';
 import { STATUS_COLORS, STOCK_STATUS_TYPES, blankStockStatus } from '../../inventory.data';
 import { StockStatusRecord } from '../../inventory.model';
 import { StockStatusService } from '../../inventory.service';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 type Tab = 'basic' | 'rules' | 'settings';
 
@@ -47,13 +46,10 @@ export class StockStatusForm extends MasterForm<StockStatusRecord, Tab> {
     this.form.triggersReorder = t === 'Warning' || t === 'Unavailable';
   }
 
-  // TEMP relax-validation: only the field checks below are relaxed; business rules keep running
-  protected override relaxWholeValidate = false;
-
   protected validate(f: StockStatusRecord) {
     const errors: Record<string, string> = {};
-    if (!RELAX_VALIDATION && !f.type) errors['type'] = 'Select a type.';
-    if (!RELAX_VALIDATION && !f.status) errors['status'] = 'Select a status.';
+    if (!f.type) errors['type'] = 'Select a type.';
+    if (!f.status) errors['status'] = 'Select a status.';
     if (this.original?.isDefault && !f.isDefault) errors['isDefault'] = 'Make another status the system default instead.';
     else if (f.isDefault && f.status !== 'Active') errors['isDefault'] = 'The system default must be active.';
     if (f.canIssue && !f.countsAsAvailable) errors['canIssue'] = 'Stock that can be issued must count as available.';

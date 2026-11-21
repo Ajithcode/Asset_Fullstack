@@ -60,7 +60,6 @@ import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, P
 import { FloorPlanMap } from './floor-plan-map';
 import { RtlApi, RtlEvent } from '../real-time-location/rtl-api';
 import { DesktopAlertsService } from 'shared-ui';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type Tab = 'geofences' | 'rules' | 'history';
 type RuleForm = Omit<Rule, 'id' | 'name' | 'zoneId' | 'enabled'>;
@@ -952,12 +951,12 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     const f = this.zoneForm;
     if (!f || this.saving) return;
     const name = f.name.trim();
-    if (!RELAX_VALIDATION && (!name)) { this.formError = 'Enter a zone name.'; return; }
-    if (!RELAX_VALIDATION && (!f.site)) { this.formError = 'Choose a site.'; return; }
-    if (!RELAX_VALIDATION && (!f.schedule)) { this.formError = 'Choose a schedule.'; return; }
+    if (!name) { this.formError = 'Enter a zone name.'; return; }
+    if (!f.site) { this.formError = 'Choose a site.'; return; }
+    if (!f.schedule) { this.formError = 'Choose a schedule.'; return; }
     if (!f.shape) { this.formError = 'Choose a shape.'; return; }
-    if (!RELAX_VALIDATION && (this.zones.some((z) => z.id !== f.id && z.site === f.site && z.name.toLowerCase() === name.toLowerCase()))) { this.formError = `“${name}” already exists at ${f.site}.`; return; }
-    if (!RELAX_VALIDATION && (!f.groups.length)) { this.formError = 'Select at least one asset group.'; return; }
+    if (this.zones.some((z) => z.id !== f.id && z.site === f.site && z.name.toLowerCase() === name.toLowerCase())) { this.formError = `“${name}” already exists at ${f.site}.`; return; }
+    if (!f.groups.length) { this.formError = 'Select at least one asset group.'; return; }
     const { minPolygonPoints: min, maxPolygonPoints: max } = this.options;
     const points = Math.min(max, Math.max(min, Math.round(f.points || this.options.defaultPolygonPoints)));
     const existing = f.id ? this.zoneById(f.id) : undefined;
@@ -1120,7 +1119,6 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
 
   /** A rule needs a trigger, scope, condition and at least one meaningful action. */
   private ruleProblem(f: RuleForm): string {
-    if (RELAX_VALIDATION) return ''; // TEMP: relaxed validation (testing build)
     if (!f.trigger) return 'Choose a trigger.';
     if (!f.severity) return 'Choose a severity.';
     if (!f.group) return 'Choose an asset group.';
@@ -1191,7 +1189,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   saveRuleDialog(): void {
     const d = this.ruleDialog;
     if (!d || this.saving) return;
-    if (!RELAX_VALIDATION && (!d.zoneId)) { this.formError = 'Choose a geofence.'; return; }
+    if (!d.zoneId) { this.formError = 'Choose a geofence.'; return; }
     const problem = this.ruleProblem(d);
     if (problem) { this.formError = problem; return; }
     const name = d.name.trim() || this.autoName(d);
@@ -1421,8 +1419,8 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   saveStatus(): void {
     const d = this.statusDialog;
     if (!d) return;
-    if (!RELAX_VALIDATION && (d.needsAssignee && !d.assignee.trim())) { this.formError = 'Choose who the alert is assigned to.'; return; }
-    if (!RELAX_VALIDATION && (d.status === 'Resolved' && !d.note.trim())) { this.formError = 'Describe how the alert was resolved.'; return; }
+    if (d.needsAssignee && !d.assignee.trim()) { this.formError = 'Choose who the alert is assigned to.'; return; }
+    if (d.status === 'Resolved' && !d.note.trim()) { this.formError = 'Describe how the alert was resolved.'; return; }
     this.statusDialog = null;
     const verb = d.status === 'Assigned' ? `assigned to ${d.assignee.trim()}` : d.status.toLowerCase();
     this.setStatus([d.event], d.status, () => `${d.event.id} ${verb}.`, d.assignee.trim() || undefined, d.note.trim() || undefined);

@@ -7,7 +7,6 @@ import { COUNTRIES, CURRENCIES } from '../../organization/organization.data';
 import { blankDepartment } from '../department.data';
 import { DEPARTMENT_TYPES, DepartmentRecord } from '../department.model';
 import { DepartmentService } from '../department.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'people' | 'finance' | 'settings';
 type FieldKey = 'name' | 'code' | 'businessUnitCode' | 'type' | 'logo' | 'email' | 'budget' | 'approvalLimit' | 'effectiveTo';
@@ -155,9 +154,9 @@ export class DeptForm implements OnChanges {
     if (f.annualBudget !== null && f.annualBudget < 0) errors.budget = 'Budget cannot be negative.';
     if (f.approvalLimit !== null && f.approvalLimit < 0) errors.approvalLimit = 'Approval limit cannot be negative.';
     if (f.effectiveTo && f.effectiveFrom && f.effectiveTo < f.effectiveFrom) errors.effectiveTo = 'Must be on or after Effective From.';
-    this.errors = relaxErrors(errors);
+    this.errors = errors;
 
-    const keys = Object.keys(relaxErrors(errors));
+    const keys = Object.keys(errors);
     if (keys.length) {
       this.tab = keys.some((k) => ['name', 'code', 'businessUnitCode', 'type', 'logo'].includes(k))
         ? 'basic'

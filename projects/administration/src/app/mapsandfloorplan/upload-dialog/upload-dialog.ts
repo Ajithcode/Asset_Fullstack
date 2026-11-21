@@ -4,7 +4,6 @@ import { CloudUpload, LucideAngularModule } from 'lucide-angular';
 import { formatFromFileName } from '../maps-api.service';
 import { FILE_FORMATS, FileFormat, FloorPlanType } from '../maps.data';
 import { MapsStore } from '../maps.store';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 /** Largest file accepted (the Settings tab default). */
 const MAX_FILE_MB = 50;
@@ -151,14 +150,14 @@ export class UploadDialog {
     this.tried = true;
     if (this.store.working || this.fileError || !this.file) return;
     if (this.mode === 'plan') {
-      if (!this.store.selectedFloorId || (!RELAX_VALIDATION && (!this.name.trim() || !this.type))) return;
+      if (!this.name.trim() || !this.store.selectedFloorId || !this.type) return;
       this.store.addPlan(
         this.file,
         { name: this.name.trim(), description: this.description.trim(), type: this.type, format: this.format },
         (plan) => this.done.emit(plan.name)
       );
     } else {
-      if (!RELAX_VALIDATION && !this.bump) return;
+      if (!this.bump) return;
       this.store.addVersion(this.file, { format: this.format, bump: this.bump, description: this.description }, (v) => this.done.emit(v.version));
     }
   }

@@ -9,7 +9,6 @@ import { subcategoryCode } from '../category.data';
 import { CategoryRecord, SubcategoryRecord } from '../category.model';
 import { CategoryService } from '../category.service';
 import { CatFormTab } from '../cat-form/cat-form';
-import { RELAX_VALIDATION, relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 type DetailTab = 'overview' | 'subcategories' | 'assets' | 'fields' | 'defaults' | 'documents' | 'activity';
 
@@ -170,8 +169,8 @@ export class CatDetail implements OnChanges {
     }
     if (!f.code.trim()) errors.code = 'Enter a code.';
     else if (this.service.isSubCodeTaken(f.code, this.subOriginal)) errors.code = `${f.code.trim()} is already used.`;
-    this.subErrors = relaxErrors(errors);
-    if ((!RELAX_VALIDATION && (errors.name || errors.code)) || this.subSaving) return;
+    this.subErrors = errors;
+    if (errors.name || errors.code || this.subSaving) return;
     this.subSaving = true;
     this.service.saveSubcategory(this.category.code, { ...f, name, code: f.code.trim().toUpperCase() }, this.subOriginal).subscribe({
       next: () => {

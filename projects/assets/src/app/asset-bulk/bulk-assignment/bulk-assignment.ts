@@ -41,7 +41,6 @@ import {
   AssetAssignmentService, AssignmentLookups, EMPTY_LOOKUPS, assignToOf, choicesFor, dayOf, departmentRequest, employeeRequest, locationFrom, uniqueSorted,
 } from '../../asset-assignment/asset-assignment.service';
 import { BulkConfirmDto, BulkDetailsRequest, BulkFieldKey, BulkFileCheckDto, BulkRecordDto, BulkAssignmentService, BulkValuesDto, saveBlob } from './bulk-assignment.service';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 type BulkField = 'tag' | 'assetName' | 'assetType' | 'type' | 'assignee' | 'department' | 'location' | 'from' | 'to' | 'reason' | 'costCenter' | 'remarks';
 type RecordState = 'valid' | 'warning' | 'error';
@@ -388,11 +387,11 @@ export class BulkAssignment implements OnInit, OnDestroy {
     }
     if (this.step === 4) {
       const c = this.common;
-      if (!RELAX_VALIDATION && !c.from) return void (this.stepError = 'Choose the start date.');
-      if (!RELAX_VALIDATION && (c.setEnd && !c.to)) return void (this.stepError = 'Choose the end date, or untick Set end date.');
-      if (!RELAX_VALIDATION && (c.setEnd && c.to < c.from)) return void (this.stepError = 'The end date must be on or after the start date.');
-      if (!RELAX_VALIDATION && !c.reason) return void (this.stepError = 'Choose the assignment reason.');
-      if (!RELAX_VALIDATION && (c.type !== 'Employee' && !c.assignee)) return void (this.stepError = `Choose the ${TARGET_LABELS[c.type].toLowerCase()}.`);
+      if (!c.from) return void (this.stepError = 'Choose the start date.');
+      if (c.setEnd && !c.to) return void (this.stepError = 'Choose the end date, or untick Set end date.');
+      if (c.setEnd && c.to < c.from) return void (this.stepError = 'The end date must be on or after the start date.');
+      if (!c.reason) return void (this.stepError = 'Choose the assignment reason.');
+      if (c.type !== 'Employee' && !c.assignee) return void (this.stepError = `Choose the ${TARGET_LABELS[c.type].toLowerCase()}.`);
       const request = this.detailsRequest();
       if (c.type === 'Department' && !request.department?.departmentId) return void (this.stepError = `Department '${c.assignee}' was not found in master data.`);
       if (c.type === 'Location' && !request.location?.siteId) return void (this.stepError = `Site '${c.assignee}' was not found in master data.`);

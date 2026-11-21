@@ -9,7 +9,6 @@ import { HEX_COLOR } from '../../level-icons';
 import { CATEGORY_TYPE_DEFAULTS, blankCategory } from '../category.data';
 import { CategoryRecord } from '../category.model';
 import { CategoryService } from '../category.service';
-import { relaxErrors } from '../../../../../../../src/environments/relax-validation';
 
 /** A new category starts with every dropdown empty so the user picks each value. */
 function newCategory(): CategoryRecord {
@@ -196,9 +195,9 @@ export class CatForm implements OnChanges {
     if (names.some((n) => !n)) errors.customFields = 'Every custom field needs a name.';
     else if (new Set(names).size !== names.length) errors.customFields = 'Custom field names must be unique.';
     else if (f.customFields.some((c) => !c.type)) errors.customFields = 'Every custom field needs a type.';
-    this.errors = relaxErrors(errors);
+    this.errors = errors;
 
-    const keys = Object.keys(relaxErrors(errors)) as FieldKey[];
+    const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {
       // Show the first tab that has a problem
       this.tab = this.tabs.find((t) => keys.some((k) => TAB_OF[k] === t.id))!.id;

@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { Check, Info, LucideAngularModule, Play, Plus, Trash2 } from 'lucide-angular';
 import { DatasetField, DeliveryType, ExportDraft, ExportFilter, ExportFormat, ExportJob, Frequency } from './data-export-api.model';
 import { DataExportService } from './data-export-api.service';
-import { relaxError } from '../../../../../../src/environments/relax-validation';
 
 const OPERATORS: Record<string, string[]> = {
   text: ['equals', 'not equals', 'contains'],
@@ -428,8 +427,8 @@ export class ExportBuilder {
     if (i === 0) return this.service.dataset(this.draft.datasetId) ? '' : 'Choose a dataset.';
     if (i === 1) return this.draft.fields.length ? '' : 'Select at least one field.';
     if (i === 2) return this.filterError();
-    if (i === 3) return relaxError(this.deliveryError || (this.needsTime && !/^\d{2}:\d{2}$/.test(this.clock) ? 'Choose a run time.' : '')) ?? '';
-    return relaxError(this.nameError()) ?? '';
+    if (i === 3) return this.deliveryError || (this.needsTime && !/^\d{2}:\d{2}$/.test(this.clock) ? 'Choose a run time.' : '');
+    return this.nameError();
   }
 
   private nameError(): string {
@@ -474,7 +473,7 @@ export class ExportBuilder {
 
   saveDraft(): void {
     this.submitted = true;
-    this.error = relaxError(this.nameError()) ?? '';
+    this.error = this.nameError();
     if (this.error) {
       this.step = 4;
       return;

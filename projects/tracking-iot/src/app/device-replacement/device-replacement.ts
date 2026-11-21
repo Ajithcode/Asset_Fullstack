@@ -43,7 +43,6 @@ import {
 import { apiErrorMessage } from '../shared/tracking-api';
 import { Candidate, CheckResult, Compat, DeviceKind, ExistingDevice, HistoryEvent, QUEUE, REASONS, SESSION, STOCK, blankDevice, checksFor, compatOf } from './replacement-data';
 import { IoTDeviceDto, ReplacementDeviceApiService, requestOf, toCandidate, toExisting } from './replacement-device-api.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type OptKey = 'telemetry' | 'alerts' | 'group' | 'gateway' | 'history' | 'endPrior';
 interface OptDef { key: OptKey; label: string; desc: string }
@@ -60,8 +59,6 @@ const DEFAULT_OPTS: Record<OptKey, boolean> = { telemetry: true, alerts: true, g
   styleUrls: ['./device-replacement.css', './device-replacement-steps.css', './device-replacement-panels.css', '../shared/iot-purple-theme.css'],
 })
 export class DeviceReplacement implements OnInit, OnDestroy {
-  /** TEMP: relaxed form validation (testing build), read by the template. */
-  readonly relaxValidation = RELAX_VALIDATION;
   readonly icons = { ChevronDown, Link2, Radio, ScanLine, Activity, ArrowLeft, ArrowRight, Box, Check, CircleAlert, CircleCheck, CircleX, Clock, Database, FileText, History, Info, LoaderCircle, RotateCcw, Search, Settings, ShieldCheck, Tag, TriangleAlert, Wrench, X };
   readonly reasons = REASONS;
   readonly steps = ['Select Existing Device', 'Choose Replacement', 'Validate Compatibility', 'Transfer Configuration', 'Confirm & Close'];
@@ -443,7 +440,7 @@ export class DeviceReplacement implements OnInit, OnDestroy {
   confirm(): void {
     const c = this.candidate;
     if (!c || !this.confirmChecked || this.done || this.saving) return;
-    if (!RELAX_VALIDATION && !this.reason) return this.showToast('Choose the replacement reason.');
+    if (!this.reason) return this.showToast('Choose the replacement reason.');
     this.saving = true;
     this.sub.add(this.api.update(c.id, { ...requestOf(c), availability: 'Unavailable' }).subscribe({
       next: (saved) => {

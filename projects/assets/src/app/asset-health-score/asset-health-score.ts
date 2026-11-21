@@ -36,7 +36,6 @@ import { AssetLookupService, EMPTY_HEADER } from '../asset-status-condition/asse
 import { ConditionAssessment } from '../asset-status-condition/asset-condition.service';
 import { CriticalityAssessment } from '../asset-criticality/asset-criticality.service';
 import { AssetHealthScoreService, HealthOverrides, buildHealth, healthStatus } from './asset-health-score.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 export { healthStatus } from './asset-health-score.service';
 
@@ -392,7 +391,7 @@ export class AssetHealthScore implements OnDestroy {
     const f = this.detailsForm;
     const latest = this.latest;
     if (!f || !this.health || !latest || this.saving) return;
-    if (!RELAX_VALIDATION && (!f.method.trim() || !f.assessedBy.trim())) {
+    if (!f.method.trim() || !f.assessedBy.trim()) {
       this.formError = 'Enter the assessment method and who assessed the asset.';
       return;
     }

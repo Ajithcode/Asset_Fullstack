@@ -1,7 +1,6 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RA_PEOPLE } from '../../shared/analytics-common';
-import { RELAX_VALIDATION } from '../../../../../../../src/environments/relax-validation';
 
 export interface ActionPlan {
   title: string;
@@ -92,7 +91,7 @@ export class IotActionPlanDialog implements OnInit {
 
   submit(): void {
     this.tried = true;
-    if (!RELAX_VALIDATION && (!this.plan.title.trim() || !this.plan.owner || !this.plan.priority || this.dueError)) return;
+    if (!this.plan.title.trim() || !this.plan.owner || !this.plan.priority || this.dueError) return;
     this.saved.emit({ ...this.plan, title: this.plan.title.trim() });
   }
 }

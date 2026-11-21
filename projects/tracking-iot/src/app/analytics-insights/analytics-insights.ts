@@ -27,7 +27,6 @@ import { apiErrorMessage } from '../shared/tracking-api';
 import { MAX_DAYS } from '../tracking-telemetry/telemetry-api';
 import { AnalyticsApi, AnalyticsSource } from './analytics-api';
 import { Analytics, Conn, Filters, HEALTHS, Health, IotDevice, LOW_BATTERY, Param, TODAY, VIBRATION_BASELINE, analyze, buildDevices, isoOf } from './analytics-data';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type RangePreset = '7' | '30' | '90' | 'month' | 'custom';
 
@@ -78,8 +77,6 @@ const TW = 400;
   styleUrls: ['./analytics-insights.css', './analytics-insights-charts.css', '../shared/iot-purple-theme.css'],
 })
 export class AnalyticsInsights implements OnDestroy {
-  /** TEMP: relaxed form validation (testing build), read by the template. */
-  readonly relaxValidation = RELAX_VALIDATION;
   readonly icons = { Activity, ArrowRight, Bookmark, CalendarDays, ChevronDown, Database, Download, Info, Lightbulb, MapPin, ShieldCheck, Trash2, TrendingUp, TriangleAlert, X };
   readonly healths = HEALTHS;
   readonly params = PARAMS;
@@ -464,7 +461,7 @@ export class AnalyticsInsights implements OnDestroy {
 
   saveView(): void {
     const name = this.viewName.trim();
-    if (!RELAX_VALIDATION && !name) return;
+    if (!name) return;
     const v: SavedView = { name, site: this.site, preset: this.preset, from: this.from, to: this.to, assetType: this.assetType, tech: this.tech };
     this.savedViews = [v, ...this.savedViews.filter((x) => x.name.toLowerCase() !== name.toLowerCase())].slice(0, 10);
     this.writeViews();

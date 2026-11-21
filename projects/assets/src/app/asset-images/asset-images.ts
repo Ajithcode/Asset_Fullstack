@@ -41,7 +41,6 @@ import { ImageEvent } from '../asset-details/asset-details';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetLookupService, AssetOption } from '../asset-documents/asset-lookup.service';
 import { ApiImage, AssetImagesService } from './asset-images.service';
-import { RELAX_VALIDATION } from '../../../../../src/environments/relax-validation';
 
 type AssetImage = ApiImage;
 
@@ -735,11 +734,11 @@ export class AssetImages implements OnDestroy {
       this.uploadError = 'Select at least one asset.';
       return;
     }
-    if (!RELAX_VALIDATION && !u.type) {
+    if (!u.type) {
       this.uploadError = 'Select the image type.';
       return;
     }
-    if (!RELAX_VALIDATION && (u.items.some((p) => !p.title.trim()))) {
+    if (u.items.some((p) => !p.title.trim())) {
       this.uploadError = 'Give every image a name.';
       return;
     }
@@ -846,7 +845,7 @@ export class AssetImages implements OnDestroy {
   saveEdit(): void {
     const e = this.edit;
     if (!e) return;
-    if (!RELAX_VALIDATION && (!e.title.trim() || !e.type)) {
+    if (!e.title.trim() || !e.type) {
       this.editError = 'Enter the image name and type.';
       return;
     }

@@ -13,7 +13,6 @@ import { IotSiteMap, MapPoint } from './iot-site-map/iot-site-map';
 import {
   CONNECTIVITY, Connectivity, DEVICE_TYPES, IOT_ALERTS, IOT_ASSETS, IOT_SITES, IotAlert, IotAsset, agoText, telemetryTime
 } from './iot-utilization.data';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 type KpiKey = 'connected' | 'utilization' | 'availability' | 'alerts';
 export type WidgetKey = 'trend' | 'telemetry' | 'connectivity' | 'category' | 'health' | 'events' | 'map' | 'variance' | 'devices';
@@ -550,7 +549,7 @@ export class IotUtilizationAnalyticsPage extends AnalyticsPage implements OnInit
 
   confirmSaveView(): void {
     this.viewTried = true;
-    if (!RELAX_VALIDATION && !this.viewName.trim()) return;
+    if (!this.viewName.trim()) return;
     this.saveViewOpen = false;
     this.saveView(this.viewName.trim());
   }

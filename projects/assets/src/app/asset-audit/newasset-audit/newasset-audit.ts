@@ -70,7 +70,6 @@ import {
   apiDate,
 } from '../asset-audit.service';
 import { apiErrorMessage } from '../../services/asset-api';
-import { RELAX_VALIDATION } from '../../../../../../src/environments/relax-validation';
 
 type AssetSelection = 'all' | 'selected' | 'range' | 'filter';
 type AssetKind = 'generator' | 'electrical' | 'tank' | 'cooling' | 'exhaust' | 'hvac' | 'it' | 'vehicle' | 'furniture' | 'safety' | 'tool';
@@ -1132,12 +1131,12 @@ export class NewassetAudit implements OnInit, OnDestroy {
     const f = this.criterionForm;
     if (!f) return;
     const name = f.name.trim();
-    if (!RELAX_VALIDATION && !name) return void (this.criterionError = 'Enter the criteria name.');
-    if (!RELAX_VALIDATION && !f.type) return void (this.criterionError = 'Choose the type.');
-    if (!RELAX_VALIDATION && !f.category) return void (this.criterionError = 'Choose the category.');
-    if (!RELAX_VALIDATION && !f.method) return void (this.criterionError = 'Choose the check method.');
-    if (!RELAX_VALIDATION && !f.appliesTo) return void (this.criterionError = 'Choose what it applies to.');
-    if (!RELAX_VALIDATION && (this.criteria.items.some((c) => c.id !== f.id && c.name.toLowerCase() === name.toLowerCase()))) return void (this.criterionError = `"${name}" already exists.`);
+    if (!name) return void (this.criterionError = 'Enter the criteria name.');
+    if (!f.type) return void (this.criterionError = 'Choose the type.');
+    if (!f.category) return void (this.criterionError = 'Choose the category.');
+    if (!f.method) return void (this.criterionError = 'Choose the check method.');
+    if (!f.appliesTo) return void (this.criterionError = 'Choose what it applies to.');
+    if (this.criteria.items.some((c) => c.id !== f.id && c.name.toLowerCase() === name.toLowerCase())) return void (this.criterionError = `"${name}" already exists.`);
 
     const fields = { ...f, name, description: f.description.trim() };
     const existing = this.criteria.items.find((c) => c.id === f.id);
@@ -1310,7 +1309,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
     const f = this.addForm;
     if (!f) return;
     if (!f.picked.length) return void (this.teamError = 'Tick the people to add.');
-    if (!RELAX_VALIDATION && !f.role) return void (this.teamError = 'Choose the role.');
+    if (!f.role) return void (this.teamError = 'Choose the role.');
     f.picked.forEach((name, i) => {
       const user = this.users.find((u) => u.name === name);
       if (!user) return;
@@ -1433,9 +1432,9 @@ export class NewassetAudit implements OnInit, OnDestroy {
   saveRowEdit(): void {
     const f = this.rowForm;
     if (!f) return;
-    if (!RELAX_VALIDATION && !f.date) return void (this.teamError = 'Choose the date.');
-    if (!RELAX_VALIDATION && (f.date < this.schedule.start || f.date > this.schedule.end)) return void (this.teamError = 'The date must be within the audit start and end dates.');
-    if (!RELAX_VALIDATION && !f.assignee) return void (this.teamError = 'Choose who will audit this day.');
+    if (!f.date) return void (this.teamError = 'Choose the date.');
+    if (f.date < this.schedule.start || f.date > this.schedule.end) return void (this.teamError = 'The date must be within the audit start and end dates.');
+    if (!f.assignee) return void (this.teamError = 'Choose who will audit this day.');
     f.row.date = f.date;
     f.row.assignee = f.assignee;
     this.schedule.plan.sort((x, y) => x.date.localeCompare(y.date) || x.id - y.id);
@@ -1540,28 +1539,28 @@ export class NewassetAudit implements OnInit, OnDestroy {
     const d = this.d;
     const fail = (at: Section, message: string) => ({ at, message });
     if (step === 0) {
-      if (!RELAX_VALIDATION && !d.name.trim()) return fail('basic', 'Enter the audit name.');
-      if (!RELAX_VALIDATION && !d.type) return fail('basic', 'Choose the audit type.');
+      if (!d.name.trim()) return fail('basic', 'Enter the audit name.');
+      if (!d.type) return fail('basic', 'Choose the audit type.');
       const ref = d.reference.trim().toUpperCase();
-      if (!RELAX_VALIDATION && !d.location) return fail('scope', 'Choose the location / site.');
-      if (!RELAX_VALIDATION && (d.selection === 'range' && (!d.rangeFrom.trim() || !d.rangeTo.trim()))) return fail('scope', 'Enter both the from and to asset tags.');
-      if (!RELAX_VALIDATION && (d.selection === 'selected' && !d.tags.length)) return fail('scope', 'Pick the assets to audit.');
+      if (!d.location) return fail('scope', 'Choose the location / site.');
+      if (d.selection === 'range' && (!d.rangeFrom.trim() || !d.rangeTo.trim())) return fail('scope', 'Enter both the from and to asset tags.');
+      if (d.selection === 'selected' && !d.tags.length) return fail('scope', 'Pick the assets to audit.');
       if (!this.auditAssets.length) return fail('scope', 'No assets match this scope. Change the location, filters or selection.');
-      if (!RELAX_VALIDATION && (d.otherChecked && !d.otherText.trim())) return fail('criteria', 'Enter the details for "Other" criteria.');
+      if (d.otherChecked && !d.otherText.trim()) return fail('criteria', 'Enter the details for "Other" criteria.');
     }
-    if (!RELAX_VALIDATION && (step === 1 && !this.finalAssets.length)) return fail('assets', 'Select at least one asset for the audit.');
-    if (!RELAX_VALIDATION && (step === 2 && !this.includedCriteria.length)) return fail('library', 'Include at least one criteria in the audit.');
+    if (step === 1 && !this.finalAssets.length) return fail('assets', 'Select at least one asset for the audit.');
+    if (step === 2 && !this.includedCriteria.length) return fail('library', 'Include at least one criteria in the audit.');
     if (step === 3) {
       const sc = this.schedule;
-      if (!RELAX_VALIDATION && !planAuditors(sc).length) return fail('assign', 'Add at least one auditor to the team.');
-      if (!RELAX_VALIDATION && !this.leadAuditor) return fail('assign', 'Set one team member\'s role to Lead Auditor.');
-      if (!RELAX_VALIDATION && (!sc.start || !sc.end)) return fail('assign', 'Choose the start and end dates.');
-      if (!RELAX_VALIDATION && (sc.end < sc.start)) return fail('assign', 'The end date must be on or after the start date.');
-      if (!RELAX_VALIDATION && !sc.workingDays) return fail('assign', 'Choose the working days.');
-      if (!RELAX_VALIDATION && (sc.startTime && sc.endTime && sc.endTime <= sc.startTime)) return fail('assign', 'The daily end time must be after the start time.');
+      if (!planAuditors(sc).length) return fail('assign', 'Add at least one auditor to the team.');
+      if (!this.leadAuditor) return fail('assign', 'Set one team member\'s role to Lead Auditor.');
+      if (!sc.start || !sc.end) return fail('assign', 'Choose the start and end dates.');
+      if (sc.end < sc.start) return fail('assign', 'The end date must be on or after the start date.');
+      if (!sc.workingDays) return fail('assign', 'Choose the working days.');
+      if (sc.startTime && sc.endTime && sc.endTime <= sc.startTime) return fail('assign', 'The daily end time must be after the start time.');
       if (!sc.plan.length) return fail('assign', 'Generate the audit plan (Regenerate Plan).');
       if (sc.planKey !== planKey(this.finalAssets, sc)) return fail('assign', 'The audit plan is out of date. Press Regenerate Plan.');
-      if (!RELAX_VALIDATION && (sc.plan.some((r) => !r.assignee))) return fail('assign', 'Assign every plan day to an auditor.');
+      if (sc.plan.some((r) => !r.assignee)) return fail('assign', 'Assign every plan day to an auditor.');
     }
     return null;
   }
@@ -1791,7 +1790,7 @@ export class NewassetAudit implements OnInit, OnDestroy {
 
   saveDraft(): void {
     if (this.saving) return;
-    if (!RELAX_VALIDATION && !this.d.name.trim()) {
+    if (!this.d.name.trim()) {
       this.step = 0;
       return this.fail('basic', 'Enter the audit name to save a draft.');
     }
