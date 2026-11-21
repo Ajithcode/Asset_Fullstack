@@ -6,6 +6,7 @@ using A360.MasterDataManagement.Repository.Repositories;
 using A360.Domain.Entities;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
+using MongoDB.Driver;
 
 namespace A360.MasterDataManagement.Api.Endpoints;
 
@@ -92,8 +93,7 @@ public static class AssetModelEndpoints
         CreateAssetModelRequest request,
         IAssetModelRepository repository,
         IManufacturerRepository manufacturers,
-        IAssetTypeRepository assetTypes,
-        IAssetCategoryRepository categories,
+        IMongoDatabase database,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -120,8 +120,7 @@ public static class AssetModelEndpoints
         var referenceError = await ResolveReferencesAsync(
             model,
             manufacturers,
-            assetTypes,
-            categories,
+            database,
             cancellationToken);
 
         if (referenceError is not null)
@@ -150,8 +149,7 @@ public static class AssetModelEndpoints
         UpdateAssetModelRequest request,
         IAssetModelRepository repository,
         IManufacturerRepository manufacturers,
-        IAssetTypeRepository assetTypes,
-        IAssetCategoryRepository categories,
+        IMongoDatabase database,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -193,8 +191,7 @@ public static class AssetModelEndpoints
         var referenceError = await ResolveReferencesAsync(
             model,
             manufacturers,
-            assetTypes,
-            categories,
+            database,
             cancellationToken);
 
         if (referenceError is not null)
@@ -316,15 +313,15 @@ public static class AssetModelEndpoints
     }
 
     /// <summary>
-    /// Checks the manufacturer, asset type and category exist and copies their current names onto the model. When no category
-    /// is given the asset type's category is used; when one is given it must match the asset type's category.
-    /// Returns an error result, or null when valid.
+    /// Checks the manufacturer exists, and that the category and asset type exist in the Asset service's masters (the
+    /// same category / sub-category / type lists Asset Registration uses), copying their current names onto the model.
+    /// The category is a top-level category; the type must belong to it or to one of its sub-categories. When no category
+    /// is given the type's (top-level) category is used. Returns an error result, or null when valid.
     /// </summary>
     private static async Task<IResult?> ResolveReferencesAsync(
         AssetModelEntity model,
         IManufacturerRepository manufacturers,
-        IAssetTypeRepository assetTypes,
-        IAssetCategoryRepository categories,
+        IMongoDatabase database,
         CancellationToken cancellationToken)
     {
         if (model.Manufacturer is not null)
@@ -342,13 +339,12 @@ public static class AssetModelEndpoints
             model.Manufacturer.Name = manufacturer.ManufacturerName;
         }
 
-        MasterDataReference? assetTypeCategory = null;
+        AssetCatalogLookup.CatalogCategory? typeCategory = null;
+        AssetCatalogLookup.CatalogCategory? typeSubCategory = null;
 
         if (model.AssetType is not null)
         {
-            var assetType = MongoObjectId.IsValid(model.AssetType.Id!)
-                ? await assetTypes.GetByIdAsync(model.AssetType.Id!, cancellationToken)
-                : null;
+            var assetType = await AssetCatalogLookup.FindTypeAsync(database, model.AssetType.Id, cancellationToken);
 
             if (assetType is null)
             {
@@ -356,34 +352,67 @@ public static class AssetModelEndpoints
                     new { message = $"Asset type '{model.AssetType.Id}' was not found." });
             }
 
-            model.AssetType.Name = assetType.AssetTypeName;
-            assetTypeCategory = assetType.Category;
+            model.AssetType.Name = assetType.Name;
+            typeCategory = await AssetCatalogLookup.FindCategoryAsync(database, assetType.CategoryId, cancellationToken);
+
+            // A type under a sub-category belongs to that sub-category's parent category
+            if (typeCategory?.ParentId is not null)
+            {
+                typeSubCategory = typeCategory;
+                typeCategory = await AssetCatalogLookup.FindCategoryAsync(database, typeCategory.ParentId, cancellationToken) ?? typeCategory;
+            }
+        }
+
+        if (model.Category is null && typeCategory is not null)
+        {
+            model.Category = new MasterDataReference { Id = typeCategory.Id, Name = typeCategory.Name };
+        }
+
+        if (model.SubCategory is null && typeSubCategory is not null)
+        {
+            model.SubCategory = new MasterDataReference { Id = typeSubCategory.Id, Name = typeSubCategory.Name };
         }
 
         if (model.Category is null)
         {
-            if (assetTypeCategory is not null)
-            {
-                model.Category = new MasterDataReference { Id = assetTypeCategory.Id, Name = assetTypeCategory.Name };
-            }
-
-            return null;
+            return model.SubCategory is null
+                ? null
+                : Results.BadRequest(new { message = "Select a category for the sub category." });
         }
 
-        var categoryError = await MasterDataReferenceResolver.ResolveAssetCategoryAsync(
-            model.Category,
-            categories,
-            cancellationToken);
+        var category = await AssetCatalogLookup.FindCategoryAsync(database, model.Category.Id, cancellationToken);
 
-        if (categoryError is not null)
-        {
-            return categoryError;
-        }
-
-        if (assetTypeCategory?.Id is not null && assetTypeCategory.Id != model.Category.Id)
+        if (category is null)
         {
             return Results.BadRequest(
-                new { message = $"Asset type '{model.AssetType!.Name}' belongs to category '{assetTypeCategory.Name}', not '{model.Category.Name}'." });
+                new { message = $"Asset category '{model.Category.Id}' was not found." });
+        }
+
+        model.Category.Name = category.Name;
+
+        if (typeCategory is not null && typeCategory.Id != category.Id)
+        {
+            return Results.BadRequest(
+                new { message = $"Asset type '{model.AssetType!.Name}' belongs to category '{typeCategory.Name}', not '{category.Name}'." });
+        }
+
+        if (model.SubCategory is not null)
+        {
+            var subCategory = await AssetCatalogLookup.FindCategoryAsync(database, model.SubCategory.Id, cancellationToken);
+
+            if (subCategory is null || subCategory.ParentId != category.Id)
+            {
+                return Results.BadRequest(
+                    new { message = $"Sub category '{model.SubCategory.Id}' was not found under category '{category.Name}'." });
+            }
+
+            model.SubCategory.Name = subCategory.Name;
+
+            if (typeSubCategory is not null && typeSubCategory.Id != subCategory.Id)
+            {
+                return Results.BadRequest(
+                    new { message = $"Asset type '{model.AssetType!.Name}' belongs to sub category '{typeSubCategory.Name}', not '{subCategory.Name}'." });
+            }
         }
 
         return null;
