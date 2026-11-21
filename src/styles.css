@@ -63,10 +63,15 @@ body {
  * Chrome/Edge/Safari use ::-webkit-scrollbar; Firefox uses scrollbar-width/scrollbar-color. The
  * standard properties are only set where ::-webkit-scrollbar is unsupported, because Chrome 121+
  * ignores the ::-webkit-scrollbar rules on any element that has scrollbar-width/-color set.
+ * The track is inset (--piq-scroll-inset) so the bar floats inside the panel; Firefox cannot inset
+ * the track and keeps its thin native bar.
  * Use the .piq-scroll-on-dark class (or the --piq-scroll-* tokens) on dark/purple surfaces.
  */
 :root {
   --piq-scroll-size: 6px;
+  /* Track inset from the ends of the scroll area: the bar floats inside the panel and the thumb is shorter */
+  --piq-scroll-inset: 12px;
+  --piq-scroll-thumb-min: 36px;
   --piq-scroll-track: #f3f0fb;
   --piq-scroll-thumb: rgba(109, 40, 217, 0.45); /* #6d28d9 brand purple */
   --piq-scroll-thumb-hover: rgba(76, 29, 149, 0.8); /* #4c1d95 */
@@ -91,9 +96,27 @@ body {
   border-radius: 999px;
 }
 
+/* Shorter visible track: top/bottom (vertical) and left/right (horizontal) insets */
+::-webkit-scrollbar-track:vertical {
+  margin-block: var(--piq-scroll-inset);
+}
+
+::-webkit-scrollbar-track:horizontal {
+  margin-inline: var(--piq-scroll-inset);
+}
+
 ::-webkit-scrollbar-thumb {
   background: var(--piq-scroll-thumb);
   border-radius: 999px;
+}
+
+/* Still easy to grab when the content is very long */
+::-webkit-scrollbar-thumb:vertical {
+  min-height: var(--piq-scroll-thumb-min);
+}
+
+::-webkit-scrollbar-thumb:horizontal {
+  min-width: var(--piq-scroll-thumb-min);
 }
 
 ::-webkit-scrollbar-thumb:hover,

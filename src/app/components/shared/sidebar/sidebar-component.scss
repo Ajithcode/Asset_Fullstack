@@ -299,6 +299,8 @@
   --piq-scroll-track: var(--piq-scroll-dark-track);
   --piq-scroll-thumb: var(--piq-scroll-dark-thumb);
   --piq-scroll-thumb-hover: var(--piq-scroll-dark-thumb-hover);
+  // Bigger inset here: the bar stays clear of the topbar/logo area and the bottom of the menu
+  --piq-scroll-inset: 16px;
   scrollbar-gutter: stable;
 }
 
