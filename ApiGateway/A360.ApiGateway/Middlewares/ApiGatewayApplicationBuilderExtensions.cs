@@ -9,6 +9,8 @@ public static class ApiGatewayApplicationBuilderExtensions
 
     public static WebApplication UseApiGatewayMiddlewares(this WebApplication app)
     {
+        // 50 MB uploads on the media / asset image / asset document upload routes only
+        app.UseMiddleware<UploadSizeLimitMiddleware>();
         app.UseAuthentication();
         app.UseMiddleware<GatewayAuthenticationMiddleware>();
 

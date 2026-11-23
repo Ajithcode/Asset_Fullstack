@@ -8,6 +8,9 @@ namespace A360.Media.Api.Endpoints;
 
 public static class MediaEndpoints
 {
+    // 50 MB files (plus multipart overhead); Kestrel's default would stop at ~28.6 MB.
+    private const long MaxUploadRequestBytes = 51L * 1024 * 1024;
+
     public static RouteGroupBuilder MapMediaEndpoints(
         this IEndpointRouteBuilder routes)
     {
@@ -16,7 +19,8 @@ public static class MediaEndpoints
 
         group.MapPost("/upload", UploadAsync)
             .WithName("UploadMedia")
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .WithMetadata(new RequestSizeLimitAttribute(MaxUploadRequestBytes), new RequestFormLimitsAttribute { MultipartBodyLengthLimit = MaxUploadRequestBytes });
 
         return group;
     }

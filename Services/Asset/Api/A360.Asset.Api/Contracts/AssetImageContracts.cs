@@ -105,7 +105,7 @@ public sealed record DeleteAssetImagesRequest(IReadOnlyCollection<string>? Ids);
 /// <summary>File types and size accepted by the Upload Images form.</summary>
 public static class AssetImageFiles
 {
-    public const long MaxFileSizeBytes = 20 * 1024 * 1024;
+    public const long MaxFileSizeBytes = 50 * 1024 * 1024;
     public const int MaxImagesPerUpload = 50;
 
     public static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"];

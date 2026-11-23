@@ -108,7 +108,7 @@ public static class AssetDocumentValidationExtensions
 
         if (fileSize is < 0 or > AssetDocumentFiles.MaxFileSizeBytes)
         {
-            errors["FileSize"] = ["File cannot be larger than 25 MB"];
+            errors["FileSize"] = ["File cannot be larger than 50 MB"];
         }
     }
 
