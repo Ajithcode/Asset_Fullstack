@@ -12,7 +12,7 @@
   </div>
   <label class="org-picker">
     <span>Organization</span>
-    <select [(ngModel)]="organization" aria-label="Organization">
+    <select [(ngModel)]="organization" (ngModelChange)="onOrganizationChange()" aria-label="Organization">
       <option value="" disabled>Select Organization</option>
       @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
     </select>
@@ -217,12 +217,34 @@
   </div>
 
   @if (drawerUser) {
-    <app-user-drawer [user]="drawerUser" [mode]="drawerMode" (saved)="onSaved($event)" (closed)="closeDrawer()"></app-user-drawer>
+    <app-user-drawer [user]="drawerUser" [mode]="drawerMode" [organization]="organization" (saved)="onSaved($event)" (closed)="closeDrawer()"></app-user-drawer>
   }
 </div>
 
 @if (inviteOpen) {
-  <app-invite-dialog (invited)="onInvited($event)" (closed)="closeInvite()"></app-invite-dialog>
+  <app-invite-dialog [organization]="organization" (invited)="onInvited($event)" (closed)="closeInvite()"></app-invite-dialog>
+}
+
+@if (inviteLinks) {
+  <div class="overlay" (click)="closeInviteLinks()">
+    <div class="confirm invite" role="dialog" aria-modal="true" aria-labelledby="um-links-title" (click)="$event.stopPropagation()">
+      <h2 id="um-links-title">Invite link{{ inviteLinks.length === 1 ? '' : 's' }}</h2>
+      <p>E-mail isn't set up on this server, so nothing was sent. Copy each link and send it to the person. A link works once and expires in 7 days; they choose a password, then set up the authenticator at first sign-in.</p>
+      @for (item of inviteLinks; track item.email) {
+        <div class="field">
+          <label>{{ item.email }}</label>
+          <input type="text" readonly [value]="item.link" (focus)="$any($event.target).select()" />
+          <button type="button" class="btn btn--primary" (click)="copyInviteLink(item)">{{ item.copied ? 'Copied' : 'Copy link' }}</button>
+        </div>
+      }
+      @if (missingSmtp.length) {
+        <p><small>To e-mail invitations automatically, set these on the Administration service: <code>{{ missingSmtp.join(', ') }}</code> (also <code>Smtp__FromName</code> optional; <code>Smtp__Password</code> comes from SMTP_PASSWORD in stack/.env).</small></p>
+      }
+      <div class="confirm__actions">
+        <button type="button" class="btn" (click)="closeInviteLinks()">Close</button>
+      </div>
+    </div>
+  </div>
 }
 
 @if (pending) {

@@ -63,6 +63,16 @@ interface CreateUserRequest {
 /** Request body for PUT {administrationApiUrl}api/users/{userId}; a missing password keeps the current one */
 type UpdateUserRequest = Omit<CreateUserRequest, 'createdBy' | 'tenantId' | 'clientId'>;
 
+/** Result of POST /api/users/{id}/invite: the one-time link, and whether it was e-mailed. */
+export interface InviteResult {
+  inviteLink: string;
+  emailSent: boolean;
+  message: string;
+  expiresAt: string;
+  /** Names of the Smtp settings still empty on the server (when the e-mail could not be sent). */
+  missingSmtpSettings: string[];
+}
+
 const STATUSES: UserStatus[] = ['Active', 'Pending', 'Suspended'];
 
 /** The sign-in administrator role (full access); the last active one can't be suspended or deleted. */
@@ -228,6 +238,13 @@ export class UserAdminService {
         return { ...saved, suspendReason: user.suspendReason, invitedAt: user.invitedAt ?? saved.invitedAt };
       }),
       tap((saved) => this.users.update((list) => list.map((u) => (u.id === saved.id ? saved : u))))
+    );
+  }
+
+  /** POST /api/users/{id}/invite: a new one-time link (older ones stop working), e-mailed when SMTP is set up. */
+  invite(user: AdminUser): Observable<InviteResult> {
+    return this.http.post<InviteResult>(`${this.apiUrl}/${user.id}/invite`, {}).pipe(
+      tap(() => this.patchLocal({ ...user, invitedAt: new Date().toISOString(), status: user.status }))
     );
   }
 

@@ -1,7 +1,7 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Mail, X } from 'lucide-angular';
-import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS } from '../../shared/admin-common';
+import { ADMIN_LOCATIONS, departmentsOf } from '../../shared/admin-common';
 import { USER_ROLES } from '../user-management.data';
 import { UserAdminService } from '../user-management.service';
 
@@ -24,12 +24,16 @@ const MAX_INVITES = 50;
   styleUrls: ['../../shared/admin-workspace.css', '../user-management.css']
 })
 export class InviteDialog {
+  /** Selected organization: the department list shows its departments. */
+  @Input() organization = '';
   @Output() invited = new EventEmitter<InviteRequest>();
   @Output() closed = new EventEmitter<void>();
 
   private readonly service = inject(UserAdminService);
   readonly icons = { Mail, X };
-  readonly departments = ADMIN_DEPARTMENTS;
+  get departments(): string[] {
+    return departmentsOf(this.organization);
+  }
   readonly locations = ADMIN_LOCATIONS;
   get roles() {
     return USER_ROLES.filter((r) => !r.secondaryOnly);

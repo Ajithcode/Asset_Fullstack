@@ -17,6 +17,17 @@ export const ADMIN_LOCATIONS: string[] = [];
 
 export const ADMIN_DEPARTMENTS: string[] = [];
 
+/** Master Data department names per organization name (Organization > Business Unit > Department); filled with the lookups. */
+const ORG_DEPARTMENTS = new Map<string, string[]>();
+
+/**
+ * Departments of an organization, from the Master Data hierarchy (Organization > Business Unit > Department).
+ * An organization name that isn't a Master Data organization (e.g. the System Configuration name) lists all departments.
+ */
+export function departmentsOf(organization: string): string[] {
+  return ORG_DEPARTMENTS.get((organization ?? '').trim().toLowerCase()) ?? ADMIN_DEPARTMENTS;
+}
+
 /** Asset categories (Asset service), used by the role data scope. */
 export const ASSET_CATEGORIES: string[] = [];
 
@@ -72,21 +83,32 @@ export class AdminLookupService {
       config: this.http
         .get<{ platformIdentity?: { organizationName?: string } }>(`${admin}api/administration/system-configuration`, { params: scope })
         .pipe(catchError(() => of(null))),
-      organizations: list(this.http.get<{ organizationName: string }[]>(`${environment.masterDataApiUrl}api/master-data/organizations`)),
+      organizations: list(this.http.get<{ id: string; organizationName: string }[]>(`${environment.masterDataApiUrl}api/master-data/organizations`)),
+      businessUnits: list(
+        this.http.get<{ id: string; parentOrganization?: { id?: string | null } | null }[]>(`${environment.masterDataApiUrl}api/master-data/business-units`)
+      ),
       locations: list(
         this.http.get<{ locationName: string; locationType: string }[]>(`${admin}api/organization/locations`, { params: scope })
       ),
-      departments: list(this.http.get<{ departmentName: string }[]>(`${environment.masterDataApiUrl}api/master-data/departments`)),
+      departments: list(
+        this.http.get<{ departmentName: string; businessUnit?: { id?: string | null } | null }[]>(`${environment.masterDataApiUrl}api/master-data/departments`)
+      ),
       users: list(this.http.get<{ name: string }[]>(`${admin}api/users`, { params: scope })),
       categories: list(this.http.get<{ name: string }[]>(`${environment.assetApiUrl}api/asset-categories`)),
       me: this.access.ensureLoaded().pipe(catchError(() => of(null)))
     }).pipe(
-      map(({ config, organizations, locations, departments, users, categories, me }) => {
+      map(({ config, organizations, businessUnits, locations, departments, users, categories, me }) => {
         const configured = config?.platformIdentity?.organizationName?.trim();
         const orgs = names(organizations.map((o) => o.organizationName)).filter((n) => n !== configured);
         fill(ORGANIZATIONS, configured ? [configured, ...orgs] : orgs);
         fill(ADMIN_LOCATIONS, names(locations.filter((l) => l.locationType !== 'Organization').map((l) => l.locationName)));
         fill(ADMIN_DEPARTMENTS, names(departments.map((d) => d.departmentName)));
+        ORG_DEPARTMENTS.clear();
+        for (const org of organizations) {
+          const buIds = new Set(businessUnits.filter((b) => b.parentOrganization?.id === org.id).map((b) => b.id));
+          const key = (org.organizationName ?? '').trim().toLowerCase();
+          ORG_DEPARTMENTS.set(key, names(departments.filter((d) => d.businessUnit?.id && buIds.has(d.businessUnit.id)).map((d) => d.departmentName)));
+        }
         fill(ADMIN_PEOPLE, names(users.map((u) => u.name)));
         fill(ASSET_CATEGORIES, names(categories.map((c) => c.name)));
         if (me) {

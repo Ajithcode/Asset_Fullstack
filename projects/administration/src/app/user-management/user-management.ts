@@ -22,14 +22,14 @@ import {
   UserCog,
   Users
 } from 'lucide-angular';
-import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS, AdminPage, CURRENT_USER, avatarTone, formatDate, initials } from '../shared/admin-common';
+import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS, AdminPage, CURRENT_USER, avatarTone, departmentsOf, formatDate, initials } from '../shared/admin-common';
 import { InviteDialog, InviteRequest } from './invite-dialog/invite-dialog';
 import { UserDrawer } from './user-drawer/user-drawer';
 import { downloadCsv, parseCsv } from './user-csv';
 import { RoleAccessService, adminApiError } from '../role-access-control/role-access.service';
 import { LAST_MONTH, LOCATION_TIME_ZONES, USER_ROLES, blankUser, roleModules, setUserRoles } from './user-management.data';
 import { AdminUser, UserStatus } from './user-management.model';
-import { UserAdminService, apiErrorMessage } from './user-management.service';
+import { InviteResult, UserAdminService, apiErrorMessage } from './user-management.service';
 import { loginLabel, roleOf } from './user-format';
 
 /** A status action waiting for confirmation in the dialog. */
@@ -58,7 +58,10 @@ export class UserManagementPage extends AdminPage {
   readonly service = inject(UserAdminService);
   private readonly roleService = inject(RoleAccessService);
   readonly icons = { ArrowDown, ArrowUp, Ban, ChevronLeft, ChevronRight, Clock, Download, Ellipsis, Mail, Pencil, Plus, Search, Trash2, Upload, User, UserCog, Users };
-  readonly departments = ADMIN_DEPARTMENTS;
+  /** Departments of the selected organization (Master Data: Organization > Business Unit > Department). */
+  get departments(): string[] {
+    return departmentsOf(this.organization);
+  }
   readonly statuses: UserStatus[] = ['Active', 'Pending', 'Suspended'];
   readonly pageSizes = [10, 20, 50, 100];
   readonly initials = initials;
@@ -74,6 +77,9 @@ export class UserManagementPage extends AdminPage {
   drawerUser: AdminUser | null = null;
   drawerMode: 'add' | 'edit' = 'edit';
   inviteOpen = false;
+  /** Invitations whose e-mail could not be sent: the admin copies each link (shown with the Smtp settings still needed). */
+  inviteLinks: { email: string; link: string; copied: boolean }[] | null = null;
+  missingSmtp: string[] = [];
   pending: PendingAction | null = null;
   /** A create/update request from the drawer is in flight */
   saving = false;
@@ -371,18 +377,26 @@ export class UserManagementPage extends AdminPage {
     });
   }
 
-  // DEMO MODE: the invitation email is sent by the identity service once connected
+  /** A department of another organization no longer applies to the list. */
+  onOrganizationChange(): void {
+    if (this.department && !this.departments.includes(this.department)) this.department = '';
+    this.onFilterChange();
+  }
+
   resendInvite(u: AdminUser): void {
     this.ask({
       title: 'Resend invitation?',
       message: `A new invitation link will be sent to ${u.email}. The previous link stops working.`,
       confirmLabel: 'Resend Invite',
       danger: false,
-      run: () => {
-        this.service.patchLocal({ ...u, invitedAt: new Date().toISOString() });
-        this.refreshDrawer(u.id);
-        this.notify(`Invitation sent again to ${u.email}.`);
-      }
+      run: () =>
+        this.service.invite(u).subscribe({
+          next: (result) => {
+            this.refreshDrawer(u.id);
+            this.afterInvites([{ user: u, result }]);
+          },
+          error: (err) => this.notify(apiErrorMessage(err, `The invitation for ${u.email} could not be sent.`), 'error')
+        })
     });
   }
 
@@ -552,9 +566,36 @@ export class UserManagementPage extends AdminPage {
     const invites = req.emails.map((email) => this.inviteUser(email, '', req.department, req.primaryRole, req.location));
     this.createAll(invites, (added, failed) =>
       failed.length
-        ? `${added} invitation${added === 1 ? '' : 's'} sent; ${failed.length} failed: ${failed[0]}`
-        : `${added} invitation${added === 1 ? '' : 's'} sent.`
+        ? `${added} invitation${added === 1 ? '' : 's'} created; ${failed.length} failed: ${failed[0]}`
+        : `${added} invitation${added === 1 ? '' : 's'} created.`
     );
+  }
+
+  /** Toast for sent invitations; links that could not be e-mailed open in a dialog with Copy link. */
+  private afterInvites(done: { user: AdminUser; result: InviteResult }[]): void {
+    const unsent = done.filter((d) => !d.result.emailSent);
+    const sent = done.length - unsent.length;
+    if (unsent.length) {
+      this.inviteLinks = unsent.map((d) => ({ email: d.user.email, link: d.result.inviteLink, copied: false }));
+      this.missingSmtp = unsent[0].result.missingSmtpSettings;
+    }
+    this.notify(
+      unsent.length
+        ? `${sent ? `${sent} invitation${sent === 1 ? '' : 's'} e-mailed. ` : ''}${unsent.length} not e-mailed: copy the invite link${unsent.length === 1 ? '' : 's'}.`
+        : `${sent} invitation${sent === 1 ? '' : 's'} e-mailed.`,
+      unsent.length ? 'error' : 'success'
+    );
+  }
+
+  copyInviteLink(item: { link: string; copied: boolean }): void {
+    navigator.clipboard?.writeText(item.link).then(
+      () => (item.copied = true),
+      () => this.notify('Could not copy. Select the link and copy it by hand.', 'error')
+    );
+  }
+
+  closeInviteLinks(): void {
+    this.inviteLinks = null;
   }
 
   /** New pending account; the name defaults to the part of the email before the @. */
@@ -580,25 +621,38 @@ export class UserManagementPage extends AdminPage {
   }
 
   /**
-   * POST each new account in turn (DEMO MODE: invitation emails are sent by the identity service once connected).
+   * POST each new account in turn, then invite it (POST /api/users/{id}/invite e-mails the secure link, or returns it when SMTP isn't set up).
    * Rows without an employee ID get the next free number as they are created.
    */
   private createAll(users: AdminUser[], message: (added: number, failed: string[]) => string): void {
     let added = 0;
     const failed: string[] = [];
+    const invited: { user: AdminUser; result: InviteResult }[] = [];
     this.notify(`Adding ${users.length} user${users.length === 1 ? '' : 's'}...`);
     from(users)
       .pipe(
         concatMap((u) =>
           this.service.create({ ...u, employeeId: u.employeeId || this.service.nextEmployeeId() }).pipe(
             tap(() => added++),
+            concatMap((saved) =>
+              this.service.invite(saved).pipe(
+                tap((result) => invited.push({ user: saved, result })),
+                catchError((err) => {
+                  failed.push(apiErrorMessage(err, `The invitation for ${u.email} could not be sent.`));
+                  return EMPTY;
+                })
+              )
+            ),
             catchError((err) => {
               failed.push(apiErrorMessage(err, `${u.email} could not be added.`));
               return EMPTY;
             })
           )
         ),
-        finalize(() => this.notify(message(added, failed), failed.length ? 'error' : 'success'))
+        finalize(() => {
+          if (invited.length) this.afterInvites(invited);
+          if (failed.length || !invited.length) this.notify(message(added, failed), failed.length ? 'error' : 'success');
+        })
       )
       .subscribe();
   }
