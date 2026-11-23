@@ -114,9 +114,10 @@ public sealed class MasterDataSeedHostedService : BackgroundService
     }
 
     /// <summary>
-    /// Asset Criticality: gives the Critical / High / Medium / Low levels their default score range (85-100, 65-84, 40-64,
-    /// 20-39) and display order, and adds a missing Medium or Low level, for each client that has Critical or High.
-    /// Existing levels keep their id; a level that already has a range is never changed.
+    /// Asset Criticality: one-time bootstrap of the default score ranges (85-100, 65-84, 40-64, 20-39) and display order, and
+    /// of a missing Medium or Low level, for a client that has Critical or High levels but NO level with a score range yet
+    /// (i.e. data from before Phase 2). Idempotent: as soon as any non-deleted level has a range the client is skipped, so a
+    /// level the user edited, renamed or deleted is never re-created or reset on a later start.
     /// </summary>
     private async Task BackfillCriticalityRangesAsync(CancellationToken cancellationToken)
     {
@@ -128,6 +129,12 @@ public sealed class MasterDataSeedHostedService : BackgroundService
         {
             var levels = client.ToList();
             if (!levels.Any(level => IsLevel(level, "Critical") || IsLevel(level, "High")))
+            {
+                continue;
+            }
+
+            // Idempotency guard: defaults are only added while the client has no level with a range at all.
+            if (levels.Any(level => level.MinScore is not null || level.MaxScore is not null))
             {
                 continue;
             }
