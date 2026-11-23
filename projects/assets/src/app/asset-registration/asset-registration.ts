@@ -133,6 +133,8 @@ interface LocationNode {
   id: string;
   label: string;
   kind: LocationKind;
+  /** Master-data code; rooms name their building / floor / zone by this or by the name. */
+  code?: string;
   children: LocationNode[];
   coords: Coords;
   /** Uploaded map image of a floor, zone or sub zone. */
@@ -377,7 +379,7 @@ const sameName = (a?: string, b?: string) => !!a && !!b && a.trim().toLowerCase(
  * outdoor zone. Rooms (master "locations") name their zone / floor / building instead of linking by id.
  */
 function buildMasterLocationTree(h: LocationHierarchy): LocationNode[] {
-  const node = (id: string, label: string, kind: LocationKind): LocationNode => ({ id, label, kind, children: [], coords: NO_COORDS });
+  const node = (id: string, label: string, kind: LocationKind, code?: string): LocationNode => ({ id, label, kind, code, children: [], coords: NO_COORDS });
   const byId: Record<string, LocationNode> = {};
   const add = (parent: LocationNode | undefined, child: LocationNode) => {
     byId[child.id] = child;
@@ -389,12 +391,12 @@ function buildMasterLocationTree(h: LocationHierarchy): LocationNode[] {
     const countryName = site.country?.trim() || 'Unspecified';
     let country = countries.find((c) => sameName(c.label, countryName));
     if (!country) countries.push((country = node(countryName, countryName, 'country')));
-    add(country, node(site.value, site.label, 'site'));
+    add(country, node(site.value, site.label, 'site', site.code));
   }
-  for (const b of h.buildings) if (b.parentId && byId[b.parentId]) add(byId[b.parentId], node(b.value, b.label, 'building'));
+  for (const b of h.buildings) if (b.parentId && byId[b.parentId]) add(byId[b.parentId], node(b.value, b.label, 'building', b.code));
   for (const f of h.floors) {
     if (!f.parentId || !byId[f.parentId]) continue;
-    const floor = node(f.value, f.label, 'floor');
+    const floor = node(f.value, f.label, 'floor', f.code);
     // Floor plan uploaded in Master Data (floors.imageUrl); floors without one show an empty map panel
     if (f.imageUrl) floor.mapImage = f.imageUrl;
     add(byId[f.parentId], floor);
@@ -403,14 +405,14 @@ function buildMasterLocationTree(h: LocationHierarchy): LocationNode[] {
     const floor = z.parentId ? byId[z.parentId] : undefined;
     const building = z.buildingId ? byId[z.buildingId] : undefined;
     const site = z.siteId ? byId[z.siteId] : undefined;
-    if (floor) add(floor, node(z.value, z.label, 'zone'));
-    else if (building) add(building, node(z.value, z.label, 'zone'));
-    else if (site) add(site, node(z.value, z.label, 'outdoorZone'));
+    if (floor) add(floor, node(z.value, z.label, 'zone', z.code));
+    else if (building) add(building, node(z.value, z.label, 'zone', z.code));
+    else if (site) add(site, node(z.value, z.label, 'outdoorZone', z.code));
   }
 
   // Rooms: find the parent by name, narrowing by building and floor when given
   const all = Object.values(byId);
-  const named = (kind: LocationKind[], name?: string) => all.filter((n) => kind.includes(n.kind) && sameName(n.label, name));
+  const named = (kind: LocationKind[], name?: string) => all.filter((n) => kind.includes(n.kind) && (sameName(n.label, name) || sameName(n.code, name)));
   const under = (n: LocationNode, ancestor?: LocationNode[]) => !ancestor?.length || ancestor.some((a) => contains(a, n));
   const contains = (a: LocationNode, n: LocationNode): boolean => a === n || a.children.some((c) => contains(c, n));
   for (const room of h.rooms) {
