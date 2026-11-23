@@ -6,18 +6,18 @@ import {
   EllipsisVertical, FileClock, FileText, Info, Lock, LucideAngularModule, Settings, ShieldAlert
 } from 'lucide-angular';
 import { AdminPage } from '../shared/admin-common';
+import { Subscription } from 'rxjs';
 import { AuditCategory, AuditEvent, AuditFilters } from './audit-log.model';
 import { AUDIT_DAY, RETENTION_DAYS } from './audit-log.data';
-import { AuditLogService, emptyFilters } from './audit-log.service';
-import { copyText, downloadFile, formatAuditTime, toCsv } from './audit-log.util';
+import { AuditLogService, AuditSortKey, AuditStats, auditErrorMessage, emptyFilters } from './audit-log.service';
+import { copyText, downloadFile, formatAuditTime } from './audit-log.util';
 import { AuditEventDrawer } from './audit-event-drawer/audit-event-drawer';
 import { AuditFiltersPanel } from './audit-filters/audit-filters';
 
-type SortKey = 'timestamp' | 'event' | 'user' | 'ip' | 'severity';
+type SortKey = AuditSortKey;
 type ColumnKey = 'event' | 'module' | 'user' | 'entity' | 'ip' | 'severity' | 'outcome';
 type PageItem = number | '…';
 
-const SEVERITY_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 const SEVERITY_TONES: Record<string, string> = { Critical: 'red', High: 'pink', Medium: 'orange', Low: 'blue' };
 const OUTCOME_TONES: Record<string, string> = { Success: 'green', Failed: 'red', Blocked: 'grey' };
 
@@ -57,11 +57,18 @@ export class SystemAuditLogPage extends AdminPage {
   page = 1;
   pageSize = 5;
 
-  /** Rows after the filter panel (chip counts come from these). */
-  base: AuditEvent[] = [];
-  /** Rows after the category chip and sort. */
+  /** The current page of events from the API (category chip, filters, sort and paging applied on the server). */
   rows: AuditEvent[] = [];
+  /** Events in the current tab under the filters. */
+  total = 0;
+  /** All Events count under the filters (every tab together). */
+  allCount = 0;
   categoryCounts = new Map<AuditCategory, number>();
+  loading = false;
+  stats: AuditStats | null = null;
+  /** The event shown in the drawer, with the details from GET /api/audit-logs/{id}. */
+  private detailed: AuditEvent | null = null;
+  private querySub?: Subscription;
 
   selectedId = '';
   drawerOpen = true;
@@ -74,29 +81,37 @@ export class SystemAuditLogPage extends AdminPage {
 
   constructor() {
     super();
-    this.refresh();
-    this.selectedId = this.rows[0]?.id ?? '';
+    this.service.loadFilterOptions().subscribe();
+    this.service.stats().subscribe((s) => (this.stats = s));
+    this.refresh(true);
   }
 
   // ----- Derived -----
   get selected(): AuditEvent | undefined {
-    return this.service.all().find((e) => e.id === this.selectedId);
+    if (this.detailed?.id === this.selectedId) return this.detailed;
+    return this.rows.find((e) => e.id === this.selectedId);
   }
 
   get pageCount(): number {
-    return Math.max(1, Math.ceil(this.rows.length / this.pageSize));
+    return Math.max(1, Math.ceil(this.total / this.pageSize));
   }
 
   get pageRows(): AuditEvent[] {
-    const start = (this.page - 1) * this.pageSize;
-    return this.rows.slice(start, start + this.pageSize);
+    return this.rows;
   }
 
   get rangeLabel(): string {
-    if (!this.rows.length) return 'Showing 0 of 0 events';
+    if (!this.total) return this.loading ? 'Loading events…' : 'Showing 0 of 0 events';
     const start = (this.page - 1) * this.pageSize + 1;
-    const end = Math.min(this.rows.length, start + this.pageSize - 1);
-    return `Showing ${start}–${end} of ${this.rows.length.toLocaleString('en-US')} events`;
+    const end = Math.min(this.total, start + this.rows.length - 1);
+    return `Showing ${start}–${end} of ${this.total.toLocaleString('en-US')} events`;
+  }
+
+  /** Today against yesterday, e.g. "↑ 12%"; null when there is nothing to compare. */
+  trend(today: number, yesterday: number): { text: string; up: boolean } | null {
+    if (!yesterday) return null;
+    const pct = Math.round(((today - yesterday) / yesterday) * 100);
+    return { text: `${pct >= 0 ? '↑' : '↓'} ${Math.abs(pct)}%`, up: pct >= 0 };
   }
 
   /** 1 2 3 4 5 … 250 style page list. */
@@ -145,45 +160,48 @@ export class SystemAuditLogPage extends AdminPage {
     return this.sortDir === 1 ? 'ascending' : 'descending';
   }
 
-  // ----- Filtering / sorting / paging -----
-  private refresh(): void {
-    this.base = this.service.filter(this.filters);
-    this.categoryCounts = new Map();
-    for (const e of this.base) this.categoryCounts.set(e.category, (this.categoryCounts.get(e.category) ?? 0) + 1);
-    this.applyCategoryAndSort();
-  }
-
-  private applyCategoryAndSort(): void {
-    const key = this.sortKey;
-    const dir = this.sortDir;
-    const value = (e: AuditEvent): string | number => (key === 'severity' ? SEVERITY_RANK[e.severity] : key === 'ip' ? this.ipKey(e.ip) : e[key]);
-    this.rows = this.base
-      .filter((e) => !this.category || e.category === this.category)
-      .sort((a, b) => {
-        const va = value(a);
-        const vb = value(b);
-        const c = va < vb ? -1 : va > vb ? 1 : 0;
-        return c !== 0 ? c * dir : b.timestamp.localeCompare(a.timestamp);
+  // ----- Filtering / sorting / paging (server-side: GET /api/audit-logs) -----
+  private refresh(selectFirst = false, done?: () => void): void {
+    this.querySub?.unsubscribe();
+    this.loading = true;
+    this.querySub = this.service
+      .query({ filters: this.filters, category: this.category, sortKey: this.sortKey, sortDir: this.sortDir, page: this.page, pageSize: this.pageSize })
+      .subscribe({
+        next: (res) => {
+          this.loading = false;
+          this.rows = res.items;
+          this.total = res.total;
+          this.allCount = res.allCount;
+          this.categoryCounts = res.categoryCounts;
+          if (this.page > this.pageCount) {
+            this.page = this.pageCount;
+            this.refresh(selectFirst, done);
+            return;
+          }
+          if (selectFirst && this.rows[0]) this.select(this.rows[0]);
+          done?.();
+        },
+        error: (err) => {
+          this.loading = false;
+          this.rows = [];
+          this.total = 0;
+          this.allCount = 0;
+          this.categoryCounts = new Map();
+          this.notify(auditErrorMessage(err), 'error');
+        }
       });
-    this.page = Math.min(this.page, this.pageCount);
-  }
-
-  /** Zero-padded IP so 10.20.4.18 sorts before 10.20.10.1. */
-  private ipKey(ip: string): string {
-    return ip.split('.').map((p) => p.padStart(3, '0')).join('.');
   }
 
   onApply(filters: AuditFilters): void {
     this.filters = filters;
     this.page = 1;
-    this.refresh();
-    this.notify(`${this.rows.length.toLocaleString('en-US')} events match the filters.`);
+    this.refresh(false, () => this.notify(`${this.total.toLocaleString('en-US')} events match the filters.`));
   }
 
   setCategory(cat: '' | AuditCategory): void {
     this.category = cat;
     this.page = 1;
-    this.applyCategoryAndSort();
+    this.refresh();
   }
 
   sortBy(key: SortKey): void {
@@ -192,23 +210,34 @@ export class SystemAuditLogPage extends AdminPage {
       this.sortKey = key;
       this.sortDir = key === 'timestamp' || key === 'severity' ? -1 : 1;
     }
-    this.applyCategoryAndSort();
+    this.refresh();
   }
 
   goTo(p: PageItem): void {
     if (p === '…') return;
-    this.page = Math.min(Math.max(1, p), this.pageCount);
+    const next = Math.min(Math.max(1, p), this.pageCount);
+    if (next === this.page) return;
+    this.page = next;
+    this.refresh();
   }
 
   onPageSize(): void {
     this.pageSize = Number(this.pageSize);
     this.page = 1;
+    this.refresh();
   }
 
   // ----- Selection + row menu -----
   select(e: AuditEvent): void {
     this.selectedId = e.id;
     this.drawerOpen = true;
+    if (this.detailed?.id === e.id) return;
+    this.service.detail(e).subscribe({
+      next: (d) => {
+        if (this.selectedId === d.id) this.detailed = d;
+      },
+      error: () => undefined
+    });
   }
 
   toggleMenu(e: AuditEvent, ev: MouseEvent): void {
@@ -239,19 +268,25 @@ export class SystemAuditLogPage extends AdminPage {
     this.notify(`${e.id} exported as JSON.`);
   }
 
+  /** GET /api/audit-logs/export: the server builds the CSV for the filters and tab (up to 50,000 rows). */
   exportLog(): void {
-    if (!this.rows.length) {
+    if (!this.total) {
       this.notify('No events to export for these filters.');
       return;
     }
-    const header = ['Event ID', 'Timestamp (GMT+4)', 'Event', 'Category', 'Module', 'Action', 'User', 'User ID', 'Role', 'Entity Type',
-      'Entity / Record', 'Record ID', 'IP Address', 'Device / Browser', 'Location', 'Request ID', 'Severity', 'Outcome', 'MFA', 'Auth Method', 'Risk Score'];
-    const rows = this.rows.map((e) => [
-      e.id, formatAuditTime(e.timestamp), e.event, e.category, e.module, e.action, e.user, e.userId, e.role, e.entityType,
-      e.entity, e.recordId, e.ip, e.device, e.location, e.requestId, e.severity, e.outcome, e.mfa, e.authMethod, e.riskScore
-    ]);
-    downloadFile(`audit-log_${AUDIT_DAY}.csv`, toCsv(header, rows), 'text/csv;charset=utf-8');
-    this.notify(`Exported ${this.rows.length.toLocaleString('en-US')} events to CSV.`);
+    const count = this.total;
+    this.service.exportCsv(this.filters, this.category).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit-log_${AUDIT_DAY}.csv`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        this.notify(`Exported ${Math.min(count, 50000).toLocaleString('en-US')} events to CSV.`, 'success');
+      },
+      error: (err) => this.notify(auditErrorMessage(err), 'error')
+    });
   }
 
   // ----- Saved filters -----
@@ -283,6 +318,11 @@ export class SystemAuditLogPage extends AdminPage {
     this.page = 1;
     this.refresh();
     this.notify(`Applied saved filter “${s.name}”.`);
+  }
+
+  override ngOnDestroy(): void {
+    this.querySub?.unsubscribe();
+    super.ngOnDestroy();
   }
 
   toggleColumn(key: ColumnKey): void {

@@ -43,6 +43,7 @@
       <dt>Device / Browser</dt><dd>{{ event.device }}</dd>
       <dt>Location</dt><dd><span class="flag" aria-hidden="true">{{ flag(event.countryCode) }}</span> {{ event.location }}</dd>
       <dt>Request ID</dt><dd>{{ event.requestId }}</dd>
+      @if (event.details) { <dt>Details</dt><dd>{{ event.details }}</dd> }
     </dl>
   </section>
 
@@ -63,6 +64,8 @@
     </section>
   }
 
+  <!-- Session, MFA and risk are not recorded by the audit API yet -->
+  @if (event.sessionId) {
   <section class="dsec">
     <h3><lucide-icon class="dsec__icon" [img]="icons.Shield" [size]="16"></lucide-icon> Security Context</h3>
     <dl class="kv kv--drawer">
@@ -76,6 +79,7 @@
         <lucide-icon [img]="icons.CircleCheck" [size]="14"></lucide-icon> {{ riskLabel }} ({{ event.riskScore }}/100)</span></dd>
     </dl>
   </section>
+  }
 
   <div class="drawer__foot drawer__foot--3">
     <button type="button" class="btn btn--outline" (click)="copyId.emit(event)"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon> Copy Event ID</button>

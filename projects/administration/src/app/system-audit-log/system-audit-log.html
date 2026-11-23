@@ -26,7 +26,8 @@
     <span class="stat__icon"><lucide-icon [img]="icons.FileText" [size]="24"></lucide-icon></span>
     <div class="stat__body">
       <span class="stat__label">Events Today</span>
-      <span class="stat__value">{{ service.eventsToday.toLocaleString('en-US') }} <span class="stat__trend">↑ 12%</span></span>
+      <span class="stat__value">{{ (stats?.eventsToday ?? 0).toLocaleString('en-US') }}
+        @if (stats && trend(stats.eventsToday, stats.eventsYesterday); as t) { <span class="stat__trend">{{ t.text }}</span> }</span>
       <span class="stat__hint">vs. previous day</span>
     </div>
   </div>
@@ -34,7 +35,8 @@
     <span class="stat__icon" data-tone="pink"><lucide-icon [img]="icons.ShieldAlert" [size]="24"></lucide-icon></span>
     <div class="stat__body">
       <span class="stat__label">Critical Events</span>
-      <span class="stat__value">{{ service.criticalEvents }} <span class="stat__trend stat__trend--down">↑ 200%</span></span>
+      <span class="stat__value">{{ stats?.criticalToday ?? 0 }}
+        @if (stats && trend(stats.criticalToday, stats.criticalYesterday); as t) { <span class="stat__trend" [class.stat__trend--down]="t.up">{{ t.text }}</span> }</span>
       <span class="stat__hint">vs. previous day</span>
     </div>
   </div>
@@ -42,7 +44,8 @@
     <span class="stat__icon" data-tone="blue"><lucide-icon [img]="icons.Settings" [size]="24"></lucide-icon></span>
     <div class="stat__body">
       <span class="stat__label">Configuration Changes</span>
-      <span class="stat__value">{{ service.configurationChanges }} <span class="stat__trend">↑ 18%</span></span>
+      <span class="stat__value">{{ stats?.configurationToday ?? 0 }}
+        @if (stats && trend(stats.configurationToday, stats.configurationYesterday); as t) { <span class="stat__trend">{{ t.text }}</span> }</span>
       <span class="stat__hint">vs. previous day</span>
     </div>
   </div>
@@ -50,7 +53,8 @@
     <span class="stat__icon" data-tone="red"><lucide-icon [img]="icons.CircleX" [size]="24"></lucide-icon></span>
     <div class="stat__body">
       <span class="stat__label">Failed Actions</span>
-      <span class="stat__value">{{ service.failedActions }} <span class="stat__trend">↓ 27%</span></span>
+      <span class="stat__value">{{ stats?.failedToday ?? 0 }}
+        @if (stats && trend(stats.failedToday, stats.failedYesterday); as t) { <span class="stat__trend" [class.stat__trend--down]="t.up">{{ t.text }}</span> }</span>
       <span class="stat__hint">vs. previous day</span>
     </div>
   </div>
@@ -66,12 +70,12 @@
     </div>
 
     <app-adm-audit-filters [filters]="filters" [eventTypes]="service.eventTypes" [modules]="service.modules" [users]="service.users"
-      [saved]="service.savedFilters()" (applied)="onApply($event)" (savedChosen)="useSaved($event)"></app-adm-audit-filters>
+      [outcomes]="service.outcomes" [saved]="service.savedFilters()" (applied)="onApply($event)" (savedChosen)="useSaved($event)"></app-adm-audit-filters>
 
     <!-- Category chips -->
     <div class="cats" role="tablist" aria-label="Event category">
       <button type="button" role="tab" [class.active]="!category" [attr.aria-selected]="!category" (click)="setCategory('')">
-        All Events ({{ base.length.toLocaleString('en-US') }})
+        All Events ({{ allCount.toLocaleString('en-US') }})
       </button>
       @for (c of service.categories; track c) {
         <button type="button" role="tab" [class.active]="category === c" [attr.aria-selected]="category === c" (click)="setCategory(c)">
@@ -82,7 +86,7 @@
 
     <section class="panel">
       <div class="panel__head">
-        <h2>Audit Events ({{ rows.length.toLocaleString('en-US') }})</h2>
+        <h2>Audit Events ({{ total.toLocaleString('en-US') }})</h2>
         <div class="row-menu" (click)="$event.stopPropagation()">
           <button type="button" class="btn btn--sm" (click)="columnMenuOpen = !columnMenuOpen" [attr.aria-expanded]="columnMenuOpen">
             <lucide-icon [img]="icons.Columns3" [size]="15"></lucide-icon> Column Settings
@@ -155,7 +159,7 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td [attr.colspan]="visibleColumnCount + 2" class="empty">No audit events match these filters.</td></tr>
+              <tr><td [attr.colspan]="visibleColumnCount + 2" class="empty">{{ loading ? 'Loading audit events…' : 'No audit events match these filters.' }}</td></tr>
             }
           </tbody>
         </table>
