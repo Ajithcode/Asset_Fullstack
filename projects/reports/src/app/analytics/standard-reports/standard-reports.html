@@ -39,7 +39,7 @@
       </div>
     </div>
   </div>
-  <app-sr-report-calendar [reports]="service.reports" [today]="service.today" [selected]="dayFilter" (selectDay)="selectDay($event)" />
+  <app-sr-report-calendar [marks]="calendarMarks" [today]="service.today" [selected]="dayFilter" (selectDay)="selectDay($event)" (monthChange)="monthChanged($event)" />
 </div>
 
 <section class="widget sr-list">
@@ -50,6 +50,7 @@
         <lucide-icon [img]="icons.Search" [size]="16" />
         <input type="search" placeholder="Search reports..." aria-label="Search reports" [(ngModel)]="search" (ngModelChange)="searchChanged()" />
       </label>
+      <button type="button" class="btn" [disabled]="exporting" (click)="exportList()"><lucide-icon [img]="icons.Upload" [size]="16" /> {{ exporting ? 'Exporting…' : 'Export' }}</button>
       <button type="button" class="btn btn--primary sr-list__new" (click)="openCreate()"><lucide-icon [img]="icons.Plus" [size]="16" /> New report</button>
     </div>
   </div>
@@ -155,7 +156,7 @@
 </section>
 
 @if (viewing) {
-  <app-sr-report-viewer [report]="viewing" (close)="viewing = null" (exportCsv)="exportCsv($event)" />
+  <app-sr-report-viewer [report]="viewing" [busy]="rowBusy" (close)="viewing = null" (exportCsv)="exportCsv($event)" (generate)="generate($event)" (edit)="openEdit($event)" (remove)="deleteReport($event)" />
 }
 
 @if (scheduling) {
@@ -163,7 +164,7 @@
 }
 
 @if (creating) {
-  <app-sr-create-dialog [period]="reportingPeriod" [categories]="categoryOptions" [categoriesLoading]="categoriesLoading" [saving]="saving" [error]="createError" (close)="creating = false" (save)="createReport($event)" />
+  <app-sr-create-dialog [period]="reportingPeriod" [report]="editing" [reportTypes]="reportTypeOptions" [categories]="categoryOptions" [categoriesLoading]="categoriesLoading" [saving]="saving" [error]="createError" (close)="creating = false; editing = null" (save)="createReport($event)" />
 }
 
 <!-- Alert notifications, top right -->

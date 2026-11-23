@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  ReportFrequency, ReportModule, ReportPeriod, ReportStatus, SR_STATUSES, SR_TIME_ZONES
+  ReportFrequency, ReportModule, ReportPeriod, ReportStatus, SR_STATUSES, SR_TIME_ZONES, StandardReport
 } from './standard-reports.data';
 import { NewStandardReport } from './standard-reports.service';
 
@@ -15,7 +15,7 @@ const FREQUENCIES: ReportFrequency[] = ['On demand', 'Daily', 'Weekly', 'Monthly
   template: `
     <div class="overlay" (click)="close.emit()">
       <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="sr-create-title" (click)="stop($event)" (ngSubmit)="submit()">
-        <h2 id="sr-create-title">New standard report</h2>
+        <h2 id="sr-create-title">{{ report ? 'Edit standard report' : 'New standard report' }}</h2>
         <div class="field" [class.invalid]="submitted && !name.trim()">
           <label for="sr-c-name">Report name <span class="req">*</span></label>
           <input id="sr-c-name" name="name" maxlength="150" [(ngModel)]="name" />
@@ -39,12 +39,17 @@ const FREQUENCIES: ReportFrequency[] = ['On demand', 'Daily', 'Weekly', 'Monthly
             @if (submitted && !module) {
               <small>Choose a category.</small>
             } @else if (!categoriesLoading && !categories.length) {
-              <small>No categories found in the Category master.</small>
+              <small>No categories available.</small>
             }
           </div>
           <div class="field">
             <label for="sr-c-type">Report type</label>
-            <input id="sr-c-type" name="reportType" placeholder="e.g. Summary" maxlength="100" [(ngModel)]="reportType" />
+            <select id="sr-c-type" name="reportType" [(ngModel)]="reportType">
+              <option value="">None</option>
+              @for (t of reportTypes; track t) {
+                <option [value]="t">{{ t }}</option>
+              }
+            </select>
           </div>
           <div class="field" [class.invalid]="!!periodError">
             <label for="sr-c-from">Period from <span class="req">*</span></label>
@@ -125,7 +130,7 @@ const FREQUENCIES: ReportFrequency[] = ['On demand', 'Daily', 'Weekly', 'Monthly
         }
         <div class="dialog__actions">
           <button type="button" class="btn" (click)="close.emit()">Cancel</button>
-          <button type="submit" class="btn btn--primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Create report' }}</button>
+          <button type="submit" class="btn btn--primary" [disabled]="saving">{{ saving ? 'Saving…' : report ? 'Save changes' : 'Create report' }}</button>
         </div>
       </form>
     </div>
@@ -136,8 +141,12 @@ export class ReportCreateDialog implements OnInit {
   /** Prefills the period with the applied reporting period. */
   @Input({ required: true }) period!: ReportPeriod;
   @Input() saving = false;
-  /** Category master names (GET {assetApiUrl}api/asset-categories). */
+  /** Report being edited (PUT); null for a new report (POST). */
+  @Input() report: StandardReport | null = null;
+  /** Categories from GET /api/standard-reports/options. */
   @Input() categories: string[] = [];
+  /** Report types from GET /api/standard-reports/options ('' = none). */
+  @Input() reportTypes: string[] = [];
   @Input() categoriesLoading = false;
   /** Server error from the last attempt. */
   @Input() error = '';
@@ -178,6 +187,22 @@ export class ReportCreateDialog implements OnInit {
     this.includeTime = !!this.period.startTime;
     this.startTime = this.period.startTime ?? '00:00';
     this.endTime = this.period.endTime ?? '23:59';
+    const r = this.report;
+    if (!r) return;
+    this.name = r.name;
+    this.description = r.description;
+    this.module = r.module;
+    this.reportType = r.reportType;
+    this.start = r.period.start;
+    this.end = r.period.end;
+    this.includeTime = !!r.period.startTime;
+    this.startTime = r.period.startTime ?? '00:00';
+    this.endTime = r.period.endTime ?? '23:59';
+    this.timeZone = r.period.timeZone;
+    this.frequency = r.frequency;
+    this.status = r.status;
+    this.nextScheduled = r.nextScheduled && r.nextScheduled.length > 10 ? r.nextScheduled.slice(0, 16) : '';
+    this.reviewDue = r.reviewDue ?? '';
   }
 
   submit(): void {
