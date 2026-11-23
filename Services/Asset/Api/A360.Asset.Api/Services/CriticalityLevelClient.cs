@@ -6,7 +6,7 @@ namespace A360.Asset.Api.Services;
 
 /// <summary>A criticality level from the MDM Criticality master, e.g. Critical / CRIT-A / #C62828.</summary>
 /// <param name="Rank">Severity for sorting: 4 = Critical, 3 = High, 2 = Medium, 1 = Low, 0 = any other level.</param>
-public sealed record CriticalityLevelInfo(string Name, string? Code, string? Color, int Rank);
+public sealed record CriticalityLevelInfo(string Name, string? Code, string? Color, int Rank, int? MinScore = null, int? MaxScore = null);
 
 /// <summary>Criticality levels owned by the Master Data Management service (GET /api/master-data/criticalities).</summary>
 public interface ICriticalityLevelClient
@@ -32,10 +32,10 @@ public sealed class CriticalityLevelClient(
 
     public static readonly IReadOnlyList<CriticalityLevelInfo> Defaults =
     [
-        new("Critical", null, "#C62828", 4),
-        new("High", null, "#EF6C00", 3),
-        new("Medium", null, "#F9A825", 2),
-        new("Low", null, "#2E7D32", 1)
+        new("Critical", null, "#C62828", 4, 85, 100),
+        new("High", null, "#EF6C00", 3, 65, 84),
+        new("Medium", null, "#F9A825", 2, 40, 64),
+        new("Low", null, "#2E7D32", 1, 20, 39)
     ];
 
     public async Task<IReadOnlyList<CriticalityLevelInfo>> GetLevelsAsync(CancellationToken cancellationToken = default)
@@ -75,8 +75,9 @@ public sealed class CriticalityLevelClient(
             var levels = rows
                 .Where(row => !row.IsDeleted && !string.IsNullOrWhiteSpace(row.CriticalityName)
                     && !string.Equals(row.Status, "Inactive", StringComparison.OrdinalIgnoreCase))
-                .Select(row => new CriticalityLevelInfo(row.CriticalityName!.Trim(), row.Code, row.Color, Security.CriticalityAccess.LevelRank(row.CriticalityName)))
-                .OrderByDescending(level => level.Rank)
+                .Select(row => new CriticalityLevelInfo(row.CriticalityName!.Trim(), row.Code, row.Color, Security.CriticalityAccess.LevelRank(row.CriticalityName), row.MinScore, row.MaxScore))
+                .OrderByDescending(level => level.MaxScore ?? -1)
+                .ThenByDescending(level => level.Rank)
                 .ThenBy(level => level.Code, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             return levels.Count == 0 ? null : levels;
@@ -93,5 +94,5 @@ public sealed class CriticalityLevelClient(
         }
     }
 
-    private sealed record MasterCriticality(string? CriticalityName, string? Code, string? Color, string? Status, bool IsDeleted);
+    private sealed record MasterCriticality(string? CriticalityName, string? Code, string? Color, string? Status, bool IsDeleted, int? MinScore = null, int? MaxScore = null);
 }

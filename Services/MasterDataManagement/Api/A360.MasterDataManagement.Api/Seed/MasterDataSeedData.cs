@@ -345,6 +345,9 @@ public static class MasterDataSeedData
         Audit(new Criticality
         {
             CriticalityName = "Critical",
+            MinScore = 85,
+            MaxScore = 100,
+            DisplayOrder = 1,
             Code = "CRIT-A",
             Color = "#C62828",
             RiskLevel = "Very High",
@@ -354,6 +357,9 @@ public static class MasterDataSeedData
         Audit(new Criticality
         {
             CriticalityName = "High",
+            MinScore = 65,
+            MaxScore = 84,
+            DisplayOrder = 2,
             Code = "CRIT-B",
             Color = "#EF6C00",
             RiskLevel = "High",
@@ -363,6 +369,9 @@ public static class MasterDataSeedData
         Audit(new Criticality
         {
             CriticalityName = "Medium",
+            MinScore = 40,
+            MaxScore = 64,
+            DisplayOrder = 3,
             Code = "CRIT-C",
             Color = "#F9A825",
             RiskLevel = "Medium",
@@ -373,6 +382,9 @@ public static class MasterDataSeedData
         Audit(new Criticality
         {
             CriticalityName = "Low",
+            MinScore = 20,
+            MaxScore = 39,
+            DisplayOrder = 4,
             Code = "CRIT-D",
             Color = "#2E7D32",
             RiskLevel = "Low",

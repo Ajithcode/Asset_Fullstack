@@ -38,6 +38,15 @@ public sealed class MasterDataSeedHostedService : BackgroundService
             _logger.LogWarning(exception, "Could not give organizations without a code a code.");
         }
 
+        try
+        {
+            await BackfillCriticalityRangesAsync(stoppingToken);
+        }
+        catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(exception, "Could not fill the criticality score ranges.");
+        }
+
         if (!_configuration.GetValue("MasterDataManagement:SeedSampleData", true))
         {
             return;
@@ -102,6 +111,88 @@ public sealed class MasterDataSeedHostedService : BackgroundService
                 cancellationToken: cancellationToken);
             _logger.LogInformation("Organization {OrganizationId} had no code; set it to {Code}.", organization.Id, code);
         }
+    }
+
+    /// <summary>
+    /// Asset Criticality: gives the Critical / High / Medium / Low levels their default score range (85-100, 65-84, 40-64,
+    /// 20-39) and display order, and adds a missing Medium or Low level, for each client that has Critical or High.
+    /// Existing levels keep their id; a level that already has a range is never changed.
+    /// </summary>
+    private async Task BackfillCriticalityRangesAsync(CancellationToken cancellationToken)
+    {
+        var collection = _database.GetCollection<Domain.Entities.Criticality>(CriticalityRepository.CollectionName);
+        var all = await collection.Find(Builders<Domain.Entities.Criticality>.Filter.Ne(level => level.IsDeleted, true)).ToListAsync(cancellationToken);
+        var templates = MasterDataSeedData.Criticalities(DateTime.UtcNow).ToDictionary(level => level.CriticalityName, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var client in all.GroupBy(level => level.ClientId))
+        {
+            var levels = client.ToList();
+            if (!levels.Any(level => IsLevel(level, "Critical") || IsLevel(level, "High")))
+            {
+                continue;
+            }
+
+            var usedCodes = levels.Select(level => level.Code?.Trim().ToUpperInvariant()).ToHashSet();
+
+            foreach (var (name, range) in Validation.CriticalityRanges.Defaults)
+            {
+                var existing = levels.FirstOrDefault(level => IsLevel(level, name));
+                if (existing is not null)
+                {
+                    if (existing.MinScore is null && existing.MaxScore is null)
+                    {
+                        await collection.UpdateOneAsync(
+                            Builders<Domain.Entities.Criticality>.Filter.Eq(level => level.Id, existing.Id),
+                            Builders<Domain.Entities.Criticality>.Update
+                                .Set(level => level.MinScore, range.Min)
+                                .Set(level => level.MaxScore, range.Max)
+                                .Set(level => level.DisplayOrder, existing.DisplayOrder ?? range.Order),
+                            cancellationToken: cancellationToken);
+                        _logger.LogInformation("Criticality {Name} ({Code}) got the default score range {Min}-{Max}.", existing.CriticalityName, existing.Code, range.Min, range.Max);
+                    }
+
+                    continue;
+                }
+
+                if (!templates.TryGetValue(name, out var template))
+                {
+                    continue;
+                }
+
+                var code = template.Code;
+                var attempt = 0;
+                while (usedCodes.Contains(code.ToUpperInvariant()))
+                {
+                    code = $"{template.Code}-{++attempt}";
+                }
+
+                usedCodes.Add(code.ToUpperInvariant());
+                var level = new Domain.Entities.Criticality
+                {
+                    CriticalityName = template.CriticalityName,
+                    Code = code,
+                    Color = template.Color,
+                    RiskLevel = template.RiskLevel,
+                    MaintenancePriority = template.MaintenancePriority,
+                    Description = template.Description,
+                    MinScore = range.Min,
+                    MaxScore = range.Max,
+                    DisplayOrder = range.Order,
+                    ClientId = client.Key,
+                    TenantId = levels.Select(l => l.TenantId).FirstOrDefault(t => !string.IsNullOrEmpty(t)),
+                    CreatedBy = "system",
+                    CreatedAt = DateTime.UtcNow,
+                    Status = "Active",
+                    IsDeleted = false
+                };
+                level.Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString();
+                await collection.InsertOneAsync(level, cancellationToken: cancellationToken);
+                _logger.LogInformation("Added the missing criticality level {Name} ({Code}) with score range {Min}-{Max}.", level.CriticalityName, code, range.Min, range.Max);
+            }
+        }
+
+        static bool IsLevel(Domain.Entities.Criticality level, string name) =>
+            string.Equals(level.CriticalityName?.Trim(), name, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task SeedAsync(CancellationToken cancellationToken)

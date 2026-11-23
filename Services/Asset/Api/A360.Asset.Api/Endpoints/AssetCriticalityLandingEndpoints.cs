@@ -79,12 +79,12 @@ public static class AssetCriticalityLandingEndpoints
         var levels = await levelClient.GetLevelsAsync(cancellationToken);
 
         var levelCounts = levels
-            .Select(level => new CriticalityLevelCountResponse(level.Name, level.Code, level.Color, level.Rank, counts.LevelCounts.GetValueOrDefault(level.Name)))
+            .Select(level => new CriticalityLevelCountResponse(level.Name, level.Code, level.Color, level.Rank, counts.LevelCounts.GetValueOrDefault(level.Name), level.MinScore, level.MaxScore))
             .ToList();
         // Levels on assessments that are no longer in the master still count.
         levelCounts.AddRange(counts.LevelCounts
             .Where(pair => !levels.Any(level => level.Name.Equals(pair.Key, StringComparison.OrdinalIgnoreCase)))
-            .Select(pair => new CriticalityLevelCountResponse(pair.Key, null, null, Security.CriticalityAccess.LevelRank(pair.Key), pair.Value)));
+            .Select(pair => new CriticalityLevelCountResponse(pair.Key, null, null, Security.CriticalityAccess.LevelRank(pair.Key), pair.Value, null, null)));
 
         long Count(string name) => counts.LevelCounts.GetValueOrDefault(name);
 
@@ -363,7 +363,7 @@ public sealed record CriticalityAssessmentPageResponse(IReadOnlyList<Criticality
 
 public sealed record CriticalityLevelResponse(string Name, string? Code, string? Color, int Rank);
 
-public sealed record CriticalityLevelCountResponse(string Name, string? Code, string? Color, int Rank, long Count);
+public sealed record CriticalityLevelCountResponse(string Name, string? Code, string? Color, int Rank, long Count, int? MinScore = null, int? MaxScore = null);
 
 /// <param name="Levels">Count per level from the MDM Criticality master, most severe first.</param>
 public sealed record CriticalityKpiResponse(
