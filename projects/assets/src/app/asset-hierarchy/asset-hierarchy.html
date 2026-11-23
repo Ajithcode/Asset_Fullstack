@@ -204,9 +204,6 @@
             <ng-container *ngFor="let c of diagramChildren(n); trackBy: trackById">
               <ng-container *ngTemplateOutlet="orgNode; context: { $implicit: c }"></ng-container>
             </ng-container>
-            <li *ngIf="hiddenDiagramChildren(n) as more">
-              <button type="button" class="org-box org-box--more" (click)="select(n)">+{{ more }} more</button>
-            </li>
           </ul>
         </li>
       </ng-template>

@@ -122,7 +122,6 @@ const KIND_LABELS: Record<NodeKind, string> = {
 };
 
 /** Children shown per row in the diagram before collapsing into "+N more". */
-const DIAGRAM_ROW_LIMIT = 6;
 
 @Component({
   selector: 'app-asset-hierarchy',
@@ -169,7 +168,6 @@ export class AssetHierarchy implements OnInit {
   readonly kindLabels = KIND_LABELS;
   readonly groupKinds: NodeForm['kind'][] = ['site', 'building', 'area', 'floor', 'system'];
   readonly statusOptions: AssetStatus[] = ['Active', 'Inactive'];
-  readonly diagramRowLimit = DIAGRAM_ROW_LIMIT;
 
   root: HierarchyNode = rootNode();
   expanded = new Set<string>([ROOT_ID]);
@@ -449,34 +447,16 @@ export class AssetHierarchy implements OnInit {
 
   // ===== Diagram =====
 
-  /** Top node of the diagram: the selection's site (the "All Assets" root is skipped unless selected). */
+  /** Top node of the diagram: the tree root, so the full chain down to the selection is drawn. */
   get diagramRoot(): HierarchyNode {
-    const path = this.selectedPath;
-    return path.length > 1 ? path[1] : path[0];
+    return this.selectedPath[0];
   }
 
-  /**
-   * Which children to draw under a node in the diagram. Levels well above the selection show only the
-   * branch leading to it; from the grandparent down, all children are shown so siblings are visible.
-   */
+  /** The diagram draws only the selected node's lineage: each ancestor's child on the way to the selection. */
   diagramChildren(n: HierarchyNode): HierarchyNode[] {
     const path = this.selectedPath;
     const index = path.findIndex((p) => p.id === n.id);
-    if (index === -1) return [];
-    if (index < path.length - 3) return [path[index + 1]];
-
-    const children = n.children;
-    if (children.length <= DIAGRAM_ROW_LIMIT) return children;
-    // Keep the on-path child visible when trimming.
-    const onPath = children.find((c) => path.some((p) => p.id === c.id));
-    const head = children.slice(0, DIAGRAM_ROW_LIMIT - 1);
-    return onPath && !head.includes(onPath) ? [...head.slice(0, -1), onPath] : head;
-  }
-
-  hiddenDiagramChildren(n: HierarchyNode): number {
-    const shown = this.diagramChildren(n).length;
-    const index = this.selectedPath.findIndex((p) => p.id === n.id);
-    return index >= this.selectedPath.length - 3 ? Math.max(0, n.children.length - shown) : 0;
+    return index === -1 || index === path.length - 1 ? [] : [path[index + 1]];
   }
 
   isOnPath(n: HierarchyNode): boolean {
