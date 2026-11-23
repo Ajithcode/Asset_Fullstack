@@ -10,8 +10,8 @@
  *
  * Also covered: menus that are not added on open but stay in the page and are shown/moved by the component
  * (a class/style/hidden change on the menu or an ancestor, or one shared `position: fixed` row menu that
- * the component moves from row to row via [style.top.px]). Such menus are re-checked on every attribute
- * change, released (original inline style restored) when they hide, and kept inside the screen when the
+ * the component moves from row to row via [style.top.px]). Such menus are re-checked once after each click /
+ * key press (no attribute observer: it reacted to the guard's own style writes and froze the UI), released (original inline style restored) when they hide, and kept inside the screen when the
  * component's own fixed position would put them off-screen. Pages using that pattern (2026-11-23):
  * assets: Asset Assignment, Assign Asset, Asset Audit, New Asset Audit (row/criterion/team menus),
  * Asset Disposal; tracking-iot: Device Management, Device Type & Model; shell: topbar account menu.
@@ -71,7 +71,7 @@ export function installMenuViewportGuard(doc: Document | undefined = typeof docu
     const position = win!.getComputedStyle(menu).position;
     if (position !== 'absolute' && position !== 'fixed') return;
     const rect = menu.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
+    if (!rect.width || !rect.height || !isShown(menu)) return;
     if (fitsOnScreen(rect) && (position === 'fixed' || !clippedByScrollParent(menu, rect))) return;
     const created: Managed = { menu, anchor: findAnchor(menu, position), original: menu.getAttribute('style') ?? '', top: '', left: '' };
     managed.set(menu, created);
@@ -81,7 +81,9 @@ export function installMenuViewportGuard(doc: Document | undefined = typeof docu
 
   function isShown(menu: HTMLElement): boolean {
     const r = menu.getBoundingClientRect();
-    return menu.isConnected && r.width > 0 && r.height > 0 && win!.getComputedStyle(menu).visibility !== 'hidden';
+    if (!menu.isConnected || !r.width || !r.height) return false;
+    const cs = win!.getComputedStyle(menu);
+    return cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0';
   }
 
   /** Un-pins a menu. `restore` puts back its own inline style (when it hides); else the component's current one is kept. */
@@ -181,11 +183,17 @@ export function installMenuViewportGuard(doc: Document | undefined = typeof docu
     entry.left = s.left;
   }
 
+  // Scroll/resize: at most one reposition per frame, and only while a menu is pinned.
+  let repositionFrame = 0;
   const reposition = () => {
-    managed.forEach((entry, menu) => {
-      if (!menu.isConnected) managed.delete(menu);
-      else if (!isShown(menu)) release(entry);
-      else place(entry);
+    if (!managed.size || repositionFrame) return;
+    repositionFrame = win.requestAnimationFrame(() => {
+      repositionFrame = 0;
+      managed.forEach((entry, menu) => {
+        if (!menu.isConnected) managed.delete(menu);
+        else if (!isShown(menu)) release(entry);
+        else place(entry);
+      });
     });
   };
 
@@ -195,33 +203,28 @@ export function installMenuViewportGuard(doc: Document | undefined = typeof docu
     node.querySelectorAll<HTMLElement>(MENU_SELECTOR).forEach(schedule);
   };
 
+  // Menus added to the page (the common case). Only childList is observed: the guard's own style writes and
+  // the app's class/style churn never wake it up, so it cannot feed back into itself.
   new MutationObserver((records) => {
-    const seen = new Set<Node>();
     for (const record of records) {
-      if (record.type === 'attributes') {
-        // A menu (or a wrapper around one) was shown, hidden or moved without being added/removed.
-        const target = (record.attributeName === 'aria-expanded' ? record.target.parentElement : record.target) as HTMLElement | null;
-        if (target && !seen.has(target)) {
-          seen.add(target);
-          collect(target);
-        }
-        continue;
-      }
       record.addedNodes.forEach(collect);
-      record.removedNodes.forEach((node) => {
-        if (node instanceof HTMLElement && managed.size) {
-          managed.forEach((_, menu) => {
-            if (!menu.isConnected) managed.delete(menu);
-          });
-        }
-      });
+      if (record.removedNodes.length && managed.size) {
+        managed.forEach((_, menu) => {
+          if (!menu.isConnected) managed.delete(menu);
+        });
+      }
     }
-  }).observe(doc.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['class', 'style', 'hidden', 'aria-expanded', 'open'],
-  });
+  }).observe(doc.body, { childList: true, subtree: true });
+
+  // Menus that stay in the page and are shown/moved/hidden by a class/style change: these only change on user
+  // input, so re-check the page's menus once after a click or key press (the app has updated the DOM by the next frame).
+  const scan = () => {
+    doc.querySelectorAll<HTMLElement>(MENU_SELECTOR).forEach(schedule);
+    managed.forEach((_, menu) => schedule(menu));
+  };
+  const afterInput = () => win.requestAnimationFrame(scan);
+  doc.addEventListener('click', afterInput, { capture: true, passive: true });
+  doc.addEventListener('keyup', afterInput, { capture: true, passive: true });
 
   win.addEventListener('resize', reposition, { passive: true });
   win.addEventListener('scroll', reposition, { passive: true, capture: true });
