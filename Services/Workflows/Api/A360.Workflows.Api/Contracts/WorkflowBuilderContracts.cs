@@ -12,7 +12,8 @@ public sealed record CreateWorkflowBuilderRequest(
     string? CreatedBy,
     string? ClientId,
     string? TenantId,
-    string? Status)
+    string? Status,
+    string? Design = null)
 {
     public WorkflowBuilderEntity ToEntity()
     {
@@ -23,6 +24,7 @@ public sealed record CreateWorkflowBuilderRequest(
             TriggerEvent = TriggerEvent,
             Version = Version,
             StartFromTemplate = StartFromTemplate,
+            Design = Design,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -42,7 +44,8 @@ public sealed record UpdateWorkflowBuilderRequest(
     string? Version,
     bool StartFromTemplate,
     string? UpdatedBy,
-    string? Status)
+    string? Status,
+    string? Design = null)
 {
     public void ApplyTo(WorkflowBuilderEntity workflowBuilder)
     {
@@ -51,6 +54,12 @@ public sealed record UpdateWorkflowBuilderRequest(
         workflowBuilder.TriggerEvent = TriggerEvent;
         workflowBuilder.Version = Version;
         workflowBuilder.StartFromTemplate = StartFromTemplate;
+
+        // Older clients send no design: keep the stored one
+        if (Design is not null)
+        {
+            workflowBuilder.Design = Design;
+        }
 
         workflowBuilder.UpdatedBy = UpdatedBy;
         workflowBuilder.UpdatedAt = DateTime.UtcNow;
@@ -76,7 +85,8 @@ public sealed record WorkflowBuilderResponse(
     DateTime? UpdatedAt,
     string? ClientId,
     string? TenantId,
-    bool IsDeleted)
+    bool IsDeleted,
+    string? Design)
 {
     public static WorkflowBuilderResponse FromEntity(WorkflowBuilderEntity workflowBuilder)
     {
@@ -96,7 +106,8 @@ public sealed record WorkflowBuilderResponse(
 
             workflowBuilder.ClientId,
             workflowBuilder.TenantId,
-            workflowBuilder.IsDeleted
+            workflowBuilder.IsDeleted,
+            workflowBuilder.Design
         );
     }
 }
