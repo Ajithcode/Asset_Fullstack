@@ -13,7 +13,10 @@ public sealed record CreateCriticalityRequest(
     string? Status,
     string? CreatedBy,
     string? ClientId,
-    string? TenantId)
+    string? TenantId,
+    int? MinScore = null,
+    int? MaxScore = null,
+    int? DisplayOrder = null)
 {
     public CriticalityEntity ToEntity()
     {
@@ -26,6 +29,9 @@ public sealed record CreateCriticalityRequest(
             Color = string.IsNullOrWhiteSpace(Color) ? null : Color.Trim().ToUpperInvariant(),
             DefaultCriticality = DefaultCriticality ?? false,
             Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
+            MinScore = MinScore,
+            MaxScore = MaxScore,
+            DisplayOrder = DisplayOrder,
 
             CreatedBy = CreatedBy,
             ClientId = ClientId,
@@ -47,7 +53,10 @@ public sealed record UpdateCriticalityRequest(
     bool? DefaultCriticality,
     string? Description,
     string? Status,
-    string? UpdatedBy)
+    string? UpdatedBy,
+    int? MinScore = null,
+    int? MaxScore = null,
+    int? DisplayOrder = null)
 {
     public void ApplyTo(CriticalityEntity criticality)
     {
@@ -58,6 +67,11 @@ public sealed record UpdateCriticalityRequest(
         criticality.Color = string.IsNullOrWhiteSpace(Color) ? null : Color.Trim().ToUpperInvariant();
         criticality.DefaultCriticality = DefaultCriticality ?? false;
         criticality.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+
+        // Omitted score range / order keep the stored values (older clients do not send them)
+        criticality.MinScore = MinScore ?? criticality.MinScore;
+        criticality.MaxScore = MaxScore ?? criticality.MaxScore;
+        criticality.DisplayOrder = DisplayOrder ?? criticality.DisplayOrder;
 
         criticality.UpdatedBy = UpdatedBy;
         criticality.UpdatedAt = DateTime.UtcNow;
@@ -89,7 +103,10 @@ public sealed record CriticalityResponse(
     string? ClientId,
     string? TenantId,
     string? Status,
-    bool IsDeleted)
+    bool IsDeleted,
+    int? MinScore = null,
+    int? MaxScore = null,
+    int? DisplayOrder = null)
 {
     public static CriticalityResponse FromEntity(CriticalityEntity criticality)
     {
@@ -109,7 +126,23 @@ public sealed record CriticalityResponse(
             criticality.ClientId,
             criticality.TenantId,
             criticality.Status,
-            criticality.IsDeleted
+            criticality.IsDeleted,
+            criticality.MinScore,
+            criticality.MaxScore,
+            criticality.DisplayOrder
         );
     }
 }
+
+/// <summary>One level's range in a bulk save (PUT /api/master-data/criticalities/ranges).</summary>
+public sealed record CriticalityRangeItem(
+    string? Id,
+    int? MinScore,
+    int? MaxScore,
+    string? Color,
+    int? DisplayOrder);
+
+public sealed record SaveCriticalityRangesRequest(
+    List<CriticalityRangeItem>? Levels,
+    string? UpdatedBy,
+    string? ClientId);

@@ -107,6 +107,10 @@ public static class MasterDataManagementServiceCollectionExtensions
         services.AddScoped<IConditionRepository>(serviceProvider => serviceProvider.GetRequiredService<ConditionRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<ConditionRepository>());
 
+        // Criticality level changes need Assets Approve (checked against the Administration service, cached)
+        services.AddHttpContextAccessor();
+        services.AddScoped<A360.Security.ICriticalityPermissionService, A360.Security.CriticalityPermissionService>();
+
         services.AddScoped<CriticalityRepository>();
         services.AddScoped<ICriticalityRepository>(serviceProvider => serviceProvider.GetRequiredService<CriticalityRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<CriticalityRepository>());

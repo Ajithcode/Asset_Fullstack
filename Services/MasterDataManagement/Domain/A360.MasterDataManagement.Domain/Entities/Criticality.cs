@@ -27,4 +27,15 @@ public class Criticality : BaseEntity
 
     [BsonElement("description")]
     public string? Description { get; set; }
+
+    // Asset Criticality score range of this level (0-100, whole numbers); null on levels that are not score based.
+    [BsonElement("min_score")]
+    public int? MinScore { get; set; }
+
+    [BsonElement("max_score")]
+    public int? MaxScore { get; set; }
+
+    // Display order, 1 = most severe (Critical).
+    [BsonElement("display_order")]
+    public int? DisplayOrder { get; set; }
 }
