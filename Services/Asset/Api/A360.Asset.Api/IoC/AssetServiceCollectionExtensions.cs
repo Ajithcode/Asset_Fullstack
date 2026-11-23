@@ -54,7 +54,7 @@ public static class AssetServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(10);
         });
         services.AddScoped<A360.Asset.Api.Services.ICriticalityLevelClient, A360.Asset.Api.Services.CriticalityLevelClient>();
-        services.AddScoped<A360.Asset.Api.Security.ICriticalityPermissionService, A360.Asset.Api.Security.CriticalityPermissionService>();
+        services.AddScoped<A360.Security.ICriticalityPermissionService, A360.Security.CriticalityPermissionService>();
         services.AddScoped<IEventLogger>(serviceProvider => new EventLogger(
             serviceProvider.GetRequiredService<IEventLogRepository>(),
             "Asset",
@@ -133,6 +133,17 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<IAssetCriticalityAssessmentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityAssessmentRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityAssessmentRepository>());
         services.AddScoped<IAssetCriticalityLandingRepository, AssetCriticalityLandingRepository>();
+
+        // Asset Criticality configuration masters (criteria, templates, approval matrix, review intervals)
+        services.AddScoped<AssetCriticalityCriteriaRepository>();
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityCriteriaRepository>());
+        services.AddScoped<AssetCriticalityTemplateRepository>();
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityTemplateRepository>());
+        services.AddScoped<AssetCriticalityApprovalRuleRepository>();
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityApprovalRuleRepository>());
+        services.AddScoped<AssetCriticalityReassessmentRuleRepository>();
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityReassessmentRuleRepository>());
+        services.AddScoped<A360.Asset.Api.Services.AssetCriticalityConfigSeeder>();
 
         services.AddScoped<AssetRiskMitigationActionRepository>();
         services.AddScoped<IAssetRiskMitigationActionRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetRiskMitigationActionRepository>());

@@ -22,6 +22,9 @@ public static class AssetCriticalityEndpoints
         // Landing page: /assets, /kpis, /distribution, /assessments, /filter-options, /export.
         group.MapAssetCriticalityLandingEndpoints();
 
+        // Configuration masters: /config/criteria, /templates, /approval-rules, /reassessment-rules.
+        group.MapAssetCriticalityConfigEndpoints();
+
         group.MapGet("", GetCriticalityListAsync).WithName("GetAssetCriticalityList");
         group.MapGet("/options", GetOptions).WithName("GetAssetCriticalityOptions");
         group.MapGet("/current", GetCurrentAssessmentAsync).WithName("GetCurrentAssetCriticality");
