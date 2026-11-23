@@ -360,7 +360,7 @@
         </div>
         <label class="field"><span class="field-label">Notes</span><textarea class="control control-area" rows="3" [(ngModel)]="f.notes" placeholder="Optional details for the assignee"></textarea></label>
         @if (formError) { <p class="form-error">{{ formError }}</p> }
-        <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="issueForm = null">Cancel</button><button type="button" class="btn btn-primary" (click)="saveIssue()">Create Issue</button></div>
+        <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="issueForm = null">Cancel</button><button type="button" class="btn btn-primary" [disabled]="issueSaving" (click)="saveIssue()">{{ issueSaving ? 'Saving…' : 'Create Issue' }}</button></div>
       </div>
     </div>
   </div>

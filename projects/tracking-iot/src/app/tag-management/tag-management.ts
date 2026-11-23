@@ -54,12 +54,12 @@ import {
   Zap,
 } from 'lucide-angular';
 import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, tagIdFromNumber } from './tag-data';
-import { TagIdApiService, TagSummary, apiType, pageType } from './tag-id-api.service';
+import { TagAuditOptionsDto, TagEventDto, TagIdApiService, TagSummary, apiType, pageType } from './tag-id-api.service';
 
 /** Tag IDs = the identifier registry; Assignments = lifecycle of each tag on assets; Audit = every change. */
 type View = 'ids' | 'assignments' | 'audit';
 type SortKey = 'activity' | 'id' | 'registered' | 'assigned' | 'lastSeen';
-type EventKind = 'Registered' | 'Assigned' | 'Unassigned' | 'Reassigned' | 'Replaced' | 'Deactivated' | 'Reactivated' | 'Validated' | 'Edited' | 'Read';
+type EventKind = 'Registered' | 'Assigned' | 'Unassigned' | 'Reassigned' | 'Replaced' | 'Deactivated' | 'Reactivated' | 'Validated' | 'Edited' | 'Read' | 'Deleted';
 type Dialog =
   | { kind: 'register'; tech: Tech; type: TagType; number: string; code: string; site: string; location: string; asset: string }
   | { kind: 'edit'; tagId: string; type: TagType; code: string }
@@ -91,7 +91,13 @@ const TECH_ALIASES: Record<string, Tech> = {
 const TECH_LONG: Record<Tech, string> = {
   Barcode: 'Barcode (1D)', 'QR Code': 'QR Code (2D)', 'Passive RFID': 'Passive RFID (UHF)', 'Active RFID': 'Active RFID', BLE: 'BLE (Bluetooth Low Energy)', NFC: 'NFC (Near Field Communication)',
 };
-const EVENT_KINDS: EventKind[] = ['Registered', 'Assigned', 'Reassigned', 'Replaced', 'Unassigned', 'Deactivated', 'Reactivated', 'Validated', 'Edited', 'Read'];
+const EVENT_KINDS: EventKind[] = ['Registered', 'Assigned', 'Reassigned', 'Replaced', 'Unassigned', 'Deactivated', 'Reactivated', 'Validated', 'Edited', 'Read', 'Deleted'];
+
+/** The page's event kind for an API event type (the API's Updated is shown as Edited). */
+function apiEventKind(event: string): EventKind {
+  if (event === 'Updated') return 'Edited';
+  return EVENT_KINDS.find((k) => k === event) ?? 'Edited';
+}
 const DAY = 86_400_000;
 
 function eventKind(text: string): EventKind {
@@ -127,7 +133,11 @@ export class TagManagement implements OnInit, OnDestroy {
   private techOptions = new Map<Tech, { types: TagType[]; apiTypes: string[]; valueLabel: string }>();
   readonly statuses = STATUSES;
   readonly sites = SITES;
-  readonly eventKinds = EVENT_KINDS;
+  /** Event filter: the API's event types (GET /api/tag-ids/audit-trail/options), else the page's list. */
+  get eventKinds(): EventKind[] {
+    const types = this.auditOptions?.eventTypes;
+    return types?.length ? [...new Set(types.map(apiEventKind))] : EVENT_KINDS;
+  }
   readonly pageSizes = [5, 10, 25, 50];
   readonly views: { key: View; label: string; hint: string }[] = [
     { key: 'ids', label: 'Tag IDs', hint: 'Store and manage individual identifiers: barcode numbers, QR values, RFID EPCs and BLE tag IDs. Create, import, validate and deactivate them here.' },
@@ -192,7 +202,17 @@ export class TagManagement implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.load();
     // Create / update / delete change the counts: ask the server again
-    this.changedSub = this.api.changed$.subscribe(() => this.loadSummary());
+    this.changedSub = this.api.changed$.subscribe(() => {
+      this.loadSummary();
+      // the server records every change: reload the audit trail and the open tag's history
+      this.loadAudit();
+      if (this.selectedId) this.loadHistory(this.selectedId);
+    });
+    this.loadAudit();
+    this.api.auditOptions().subscribe((o) => {
+      this.auditOptions = o;
+      this.version++;
+    });
     this.api.technologies().subscribe({
       next: (opts) => {
         const list = opts.map((o) => o.technology as Tech).filter((t) => t in DEFAULT_TYPE);
@@ -227,6 +247,34 @@ export class TagManagement implements OnInit, OnDestroy {
     this.api.summary().subscribe((s) => {
       this.summary = s;
       this.version++;
+    });
+  }
+
+  /** GET /api/tag-ids/audit-trail (all pages); null until it answers, then the Audit Trail tab lists it. */
+  private apiAudit: TagEventDto[] | null = null;
+  private auditOptions: TagAuditOptionsDto | null = null;
+
+  loadAudit(): void {
+    this.api.auditTrail().subscribe({
+      next: (rows) => {
+        this.apiAudit = rows;
+        this.version++;
+      },
+      // the tab then lists what the loaded tags record
+      error: () => undefined,
+    });
+  }
+
+  /** GET /api/tag-ids/{tagId}/history → the tag's History tab. */
+  private loadHistory(tagId: string): void {
+    this.api.history(tagId).subscribe({
+      next: (events) => {
+        const t = TAGS.find((x) => x.id === tagId);
+        if (!t || !events.length) return;
+        t.history = events;
+        this.version++;
+      },
+      error: () => undefined,
     });
   }
 
@@ -397,16 +445,31 @@ export class TagManagement implements OnInit, OnDestroy {
 
   /** People who appear in the audit trail, for the "Performed By" filter. */
   get users(): string[] {
-    return [...new Set(this.audit.map((r) => r.by))].sort((a, b) => a.localeCompare(b));
+    return [...new Set([...(this.auditOptions?.performedBy ?? []), ...this.audit.map((r) => r.by)])].sort((a, b) => a.localeCompare(b));
   }
 
   private auditCache: { version: number; list: AuditRow[] } = { version: -1, list: [] };
 
-  /** Every history entry of every tag, newest first. */
+  /** Every recorded tag event (GET /api/tag-ids/audit-trail), newest first; until it answers, the loaded tags' history. */
   get audit(): AuditRow[] {
     if (this.auditCache.version !== this.version) {
       const list: AuditRow[] = [];
-      for (const t of TAGS) for (const e of t.history) list.push({ at: e.at, tag: t, text: e.text, by: e.by, kind: eventKind(e.text) });
+      if (this.apiAudit) {
+        const byId = new Map(TAGS.map((t) => [t.id.toLowerCase(), t]));
+        for (const e of this.apiAudit) {
+          const at = Date.parse(e.when) || 0;
+          // a deleted tag is no longer in the list: show the event against a stand-in with what the event records
+          let tag = byId.get(e.tagId.toLowerCase());
+          if (!tag) {
+            const tech = (e.technology in DEFAULT_TYPE ? e.technology : 'Barcode') as Tech;
+            tag = { id: e.tagId, tech, type: DEFAULT_TYPE[tech], code: '', asset: null, site: '', location: '', status: 'Inactive', assignedOn: null, lastSeen: null, reader: '', registeredOn: at, history: [] };
+            byId.set(e.tagId.toLowerCase(), tag);
+          }
+          list.push({ at, tag, text: e.details?.trim() || e.event, by: e.performedBy || '—', kind: apiEventKind(e.event) });
+        }
+      } else {
+        for (const t of TAGS) for (const e of t.history) list.push({ at: e.at, tag: t, text: e.text, by: e.by, kind: eventKind(e.text) });
+      }
       list.sort((a, b) => b.at - a.at);
       this.auditCache = { version: this.version, list };
     }
@@ -435,7 +498,7 @@ export class TagManagement implements OnInit, OnDestroy {
 
   eventClass(k: EventKind): string {
     if (k === 'Assigned' || k === 'Reactivated' || k === 'Registered') return 'ev--good';
-    if (k === 'Unassigned' || k === 'Deactivated') return 'ev--bad';
+    if (k === 'Unassigned' || k === 'Deactivated' || k === 'Deleted') return 'ev--bad';
     if (k === 'Reassigned' || k === 'Replaced') return 'ev--move';
     return 'ev--info';
   }
@@ -589,6 +652,7 @@ export class TagManagement implements OnInit, OnDestroy {
     this.selectedId = t.id;
     this.panelTab = 'details';
     this.menuOpen = '';
+    if (TAGS.includes(t)) this.loadHistory(t.id);
   }
 
   isBle(t: TagId): boolean {
@@ -700,7 +764,7 @@ export class TagManagement implements OnInit, OnDestroy {
 
   // ===== Changes =====
 
-  /** Adds a page event to the tag's history (kept for this session; the API stores no change history). */
+  /** Adds the change to the tag's history at once; the server's record replaces it when the history reloads. */
   private log(t: TagId, text: string): void {
     t.history.unshift({ at: Date.now(), text, by: this.api.currentUser() });
     t.touched = Date.now();

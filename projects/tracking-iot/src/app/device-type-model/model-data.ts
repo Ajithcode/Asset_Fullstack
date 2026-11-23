@@ -1,5 +1,5 @@
-/* Types, option lists and the model catalogue for Device Type & Model. Models come from /api/device-models (device-model-api.service.ts);
-   the option lists are replaced by GET /api/device-models/form-options on load. */
+/* Types, option lists and the model catalogue for Device Type & Model. Models come from /api/device-models and device types from
+   /api/device-models/device-types (device-model-api.service.ts); the option lists are replaced by GET /api/device-models/form-options on load. */
 
 import type { DeviceModelDto } from './device-model-api.service';
 
@@ -91,16 +91,30 @@ export const ATTRIBUTES = [
   'Data Retransmission', 'OTA Firmware', 'Time Sync', 'Tamper Alert', 'Power Saving Mode',
 ];
 
-export const TYPES: DeviceType[] = [
-  { id: 'tracker', name: 'Asset Tracker', icon: 'tracker', form: 'tracker', description: 'GNSS / cellular trackers fitted to vehicles and mobile assets.' },
-  { id: 'env', name: 'Environmental Sensor', icon: 'env', form: 'box', description: 'Ambient temperature, humidity, air quality and door state sensors.' },
-  { id: 'condition', name: 'Condition Sensor', icon: 'condition', form: 'cylinder', description: 'Vibration, tilt and leak sensors for condition monitoring.' },
-  { id: 'gateway', name: 'Gateway', icon: 'gateway', form: 'gateway', description: 'LoRaWAN, BLE and cellular gateways that backhaul device data.' },
-  { id: 'rfid', name: 'RFID Reader', icon: 'rfid', form: 'reader', description: 'Fixed UHF RFID readers for portals and zones.' },
-  { id: 'beacon', name: 'BLE Beacon', icon: 'beacon', form: 'beacon', description: 'Bluetooth beacons for indoor positioning and proximity.' },
-  { id: 'meter', name: 'Smart Meter', icon: 'meter', form: 'meter', description: 'Electricity, water and gas meters with remote reading.' },
-  { id: 'counter', name: 'People Counter', icon: 'counter', form: 'box', description: 'Occupancy and footfall counters for spaces and entrances.' },
-];
+/** Device types, filled from GET /api/device-models/device-types (plus any type a loaded model names). */
+export const TYPES: DeviceType[] = [];
+
+/** Page icon ↔ the API's device type icon (GET /api/device-models/device-type-icons). */
+export const API_TYPE_ICONS: Record<TypeIcon, string> = {
+  tracker: 'tracker', env: 'thermometer', condition: 'pulse', gateway: 'gateway', rfid: 'scanner', beacon: 'bluetooth', meter: 'gauge', counter: 'people', chip: 'chip',
+};
+
+/** Page thumbnail ↔ the API's thumbnail style (GET /api/device-models/thumbnail-styles); the API has no cylinder. */
+export const API_THUMBNAILS: Record<FormFactor, string> = {
+  box: 'Sensor box', cylinder: 'Sensor box', beacon: 'Beacon', gateway: 'Gateway', reader: 'Reader', tracker: 'Tracker', meter: 'Meter',
+};
+
+/** The page icon for an API icon name (chip when unknown). */
+export function typeIconOf(api: string | null | undefined): TypeIcon {
+  const v = (api ?? '').toLowerCase();
+  return (Object.keys(API_TYPE_ICONS) as TypeIcon[]).find((k) => API_TYPE_ICONS[k] === v) ?? 'chip';
+}
+
+/** The page thumbnail for an API thumbnail style (sensor box when unknown). */
+export function formFactorOf(api: string | null | undefined): FormFactor {
+  const v = (api ?? '').toLowerCase();
+  return (Object.keys(API_THUMBNAILS) as FormFactor[]).find((k) => k !== 'cylinder' && API_THUMBNAILS[k].toLowerCase() === v) ?? 'box';
+}
 
 const LORA_BANDS = ['EU868', 'US915', 'AU915', 'AS923', 'KR920', 'IN865'];
 
@@ -138,8 +152,10 @@ const DEFAULTS: Record<string, Base> = {
   },
 };
 
+/** Defaults for a new model of a type (looked up by the type's icon, e.g. env for an Environmental Sensor). */
 export function blankModel(typeId: string): Base {
-  const d = DEFAULTS[typeId] ?? DEFAULTS['env'];
+  const key = TYPES.find((t) => t.id === typeId)?.icon ?? typeId;
+  const d = DEFAULTS[key] ?? DEFAULTS['env'];
   // the API takes one connectivity per model: the type's main one
   return { ...d, connectivity: d.connectivity.slice(0, 1), power: normalizePower(d.power), measurements: [...d.measurements], bands: [...d.bands], attributes: [...d.attributes], status: 'Draft' };
 }

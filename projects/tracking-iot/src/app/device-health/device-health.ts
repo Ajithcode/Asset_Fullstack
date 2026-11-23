@@ -50,7 +50,9 @@ import { apiErrorMessage } from '../shared/tracking-api';
 import { IoTDeviceDto, IoTDeviceLookupService, sameModel } from '../device-configuration/iot-device-lookup.service';
 import { FirmwareVersionApiService, FirmwareVersionDto } from '../firmware-connectivity/firmware-version-api.service';
 import { API_CONNECTIVITY, API_HEALTH, API_POWER, ApiConnectivity, ApiHealth, ApiPowerSource, DeviceHealthApiService, DeviceHealthDto, DeviceHealthFields } from './device-health-api.service';
-import { ASSIGNEES, DevEvent, Device, Level, PRIORITIES, Status, baseEvents, healthScore, isStale, signalQuality, telemetry } from './health-data';
+import { Assignee, MaintenanceApiService, toTechnician } from '../device-maintenance/maintenance-api.service';
+import { TelemetryReadApi, paramKind } from '../tracking-telemetry/telemetry-api';
+import { ASSIGNEES, DevEvent, Device, Level, PRIORITIES, Status, Telemetry, baseEvents, healthScore, hourlyTelemetry, isStale, signalQuality } from './health-data';
 
 type Range = '1h' | '24h' | '7d';
 type Tab = 'overview' | 'diagnostics' | 'events' | 'configuration';
@@ -151,7 +153,8 @@ export class DeviceHealth implements OnInit, OnDestroy {
   diag: Record<string, DiagRun> = {};
   running: { id: string; step: number } | null = null;
   extraEvents: Record<string, DevEvent[]> = {};
-  issueSeq = 0;
+  /** POST of the issue in flight. */
+  issueSaving = false;
   issueForm: { title: string; priority: string; assignee: string; notes: string } | null = null;
   healthForm: HealthForm | null = null;
   formError = '';
@@ -161,9 +164,17 @@ export class DeviceHealth implements OnInit, OnDestroy {
   private readonly api = inject(DeviceHealthApiService);
   private readonly lookup = inject(IoTDeviceLookupService);
   private readonly firmwareApi = inject(FirmwareVersionApiService);
+  private readonly maintenanceApi = inject(MaintenanceApiService);
+  private readonly readingsApi = inject(TelemetryReadApi);
+  /** Technicians (Master Data) by name, for the issue's assignee id. */
+  private technicians: Assignee[] = [];
 
   ngOnInit(): void {
     this.load();
+    this.maintenanceApi.technicians().pipe(catchError(() => of([]))).subscribe((rows) => {
+      this.technicians = rows.filter((t) => !t.isDeleted && t.technicianName).map(toTechnician);
+      ASSIGNEES.splice(0, ASSIGNEES.length, ...[...new Set(this.technicians.map((t) => t.name))].sort((a, b) => a.localeCompare(b)));
+    });
   }
 
   ngOnDestroy(): void {
@@ -460,6 +471,7 @@ export class DeviceHealth implements OnInit, OnDestroy {
     this.selectedId = d.id;
     this.tab = tab;
     this.hoverBat = this.hoverRssi = null;
+    this.loadTele(d);
   }
 
   openConfig(d: Device): void {
@@ -618,18 +630,32 @@ export class DeviceHealth implements OnInit, OnDestroy {
     return q === 'Poor' ? { label: 'Weak', level: 'red' } : q === 'Fair' ? { label: 'Fair', level: 'amber' } : { label: q, level: 'green' };
   }
 
-  // panel mini charts (no telemetry history API yet: tele stays null and the panel shows its empty state)
+  // panel mini charts: battery / RSSI readings of the last 24 h (GET /api/telemetry-readings)
   private teleCache: { id: string; v: ReturnType<DeviceHealth['buildTele']> | null } | null = null;
+  private teleData: Record<string, Telemetry> = {};
+
+  /** GET /api/telemetry-readings?deviceId&days=2 (whole UTC days), cut to the last 24 h and averaged per hour. */
+  private loadTele(d: Device): void {
+    this.readingsApi.readings({ deviceId: d.id, days: 2, limit: 5000 }).pipe(catchError(() => of([]))).subscribe((rows) => {
+      const readings = rows
+        .map((r) => ({ at: Date.parse(r.recordedAt), kind: paramKind(r.parameter), value: Number(r.value) }))
+        .filter((r): r is { at: number; kind: 'battery' | 'rssi'; value: number } => (r.kind === 'battery' || r.kind === 'rssi') && Number.isFinite(r.at) && Number.isFinite(r.value));
+      this.teleData = { ...this.teleData, [d.id]: hourlyTelemetry(readings, this.now, { battery: d.battery, rssi: d.rssi }) };
+      if (this.teleCache?.id === d.id) this.teleCache = null;
+    });
+  }
 
   get tele() {
     const d = this.selected;
     if (!d) return null;
-    if (this.teleCache?.id !== d.id) this.teleCache = { id: d.id, v: telemetry(d).mins.length >= 2 ? this.buildTele(d) : null };
+    if (this.teleCache?.id !== d.id) {
+      const t = this.teleData[d.id];
+      this.teleCache = { id: d.id, v: t && t.mins.length >= 2 ? this.buildTele(t) : null };
+    }
     return this.teleCache.v;
   }
 
-  private buildTele(d: Device) {
-    const t = telemetry(d);
+  private buildTele(t: Telemetry) {
     const plotW = MW - MP.l - MP.r;
     const plotH = MH - MP.t - MP.b;
     const xs = t.mins.map((m) => MP.l + (1 - m / 1440) * plotW);
@@ -744,7 +770,7 @@ export class DeviceHealth implements OnInit, OnDestroy {
     return r === 'pass' ? CircleCheck : r === 'warn' ? TriangleAlert : CircleX;
   }
 
-  // ===== Issues (no API yet: logged in this session only) =====
+  // ===== Issues: raised as a Device Maintenance job (POST /api/device-maintenance) =====
 
   openIssue(d: Device): void {
     this.menuId = '';
@@ -760,10 +786,41 @@ export class DeviceHealth implements OnInit, OnDestroy {
     if (!f || !d) return;
     if (!f.title.trim()) return void (this.formError = 'Enter an issue title.');
     if (!f.priority) return void (this.formError = 'Select a priority.');
-    const id = `ISS-${new Date().getFullYear()}-${String(++this.issueSeq).padStart(4, '0')}`;
-    this.addEvent(d, { min: 0, title: `Issue ${id} noted`, detail: `${f.priority} priority${f.assignee ? ' · assigned to ' + f.assignee : ''}`, level: 'purple' });
-    this.issueForm = null;
-    this.showToast(`${id} noted for ${d.id} (this session only).`);
+    if (this.issueSaving) return;
+    const tech = this.technicians.find((t) => t.name === f.assignee);
+    const today = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    const site = d.site !== '—' ? d.site : null;
+    this.issueSaving = true;
+    this.formError = '';
+    this.maintenanceApi.create({
+      deviceId: d.id,
+      deviceName: null,
+      model: d.model,
+      assetRegistrationId: d.api.assetRegistrationId,
+      assetName: d.api.assetName,
+      siteId: site ? d.api.siteId : null,
+      siteName: site,
+      maintenanceType: d.status === 'Healthy' ? 'Inspection' : 'Corrective repair',
+      dueDate: `${today.getFullYear()}-${p(today.getMonth() + 1)}-${p(today.getDate())}`,
+      assignedTo: tech?.name ?? null,
+      assignedToId: tech?.id ?? null,
+      assignedToType: tech ? 'Technician' : null,
+      priority: f.priority,
+      description: [f.title.trim(), f.notes.trim()].filter(Boolean).join('\n\n'),
+      status: null,
+    }).subscribe({
+      next: (job) => {
+        this.issueSaving = false;
+        this.addEvent(d, { min: 0, title: `Issue ${job.maintenanceId} raised`, detail: `${job.priority} priority${job.assignedTo ? ' · assigned to ' + job.assignedTo : ''}`, level: 'purple' });
+        this.issueForm = null;
+        this.showToast(`${job.maintenanceId} raised for ${d.id} in Device Maintenance.`);
+      },
+      error: (e: Error) => {
+        this.issueSaving = false;
+        this.formError = e.message;
+      },
+    });
   }
 
   // ===== Configuration =====

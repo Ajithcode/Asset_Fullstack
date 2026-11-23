@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError } from 'rxjs';
+import { Observable, catchError, map } from 'rxjs';
 import { AuthService } from 'shared-ui';
+import { IoTDeviceRecord, iotDeviceRecord } from '../shared/iot-device';
 import { apiError, getAllPages, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
 import { Candidate, Compat, ExistingDevice, HistoryEvent, kindOf } from './replacement-data';
 
@@ -32,24 +33,8 @@ export interface ReplacementDeviceRequest {
   locationName: string;
 }
 
-/** The fields of an IoT device (GET /api/iot-devices) the replacement page shows. */
-export interface IoTDeviceDto {
-  deviceId: string;
-  deviceName: string;
-  deviceType: string;
-  model: string;
-  connectivity: string;
-  siteName: string | null;
-  assetRegistrationId: string | null;
-  assetCode: string | null;
-  assetName: string | null;
-  gateway: string | null;
-  batteryLevel: number | null;
-  lastSeenAt: string | null;
-  health: string | null;
-  firmwareVersion: string | null;
-  createdAt: string | null;
-}
+/** An IoT device (GET /api/iot-devices list rows and /{deviceId} details alike), flattened. */
+export type IoTDeviceDto = IoTDeviceRecord;
 
 /** Device Replacement → Tracking service /api/replacement-devices (stock) and /api/iot-devices (devices to replace). */
 @Injectable({ providedIn: 'root' })
@@ -83,11 +68,45 @@ export class ReplacementDeviceApiService {
 
   /** Every IoT device (read only here; the queue is built from their health). */
   iotDevices(): Observable<IoTDeviceDto[]> {
-    return getAllPages<IoTDeviceDto>(this.http, trackingUrl('iot-devices')).pipe(catchError((e) => apiError(e, 'Could not load IoT devices.')));
+    return getAllPages<unknown>(this.http, trackingUrl('iot-devices')).pipe(
+      map((rows) => rows.map(iotDeviceRecord)),
+      catchError((e) => apiError(e, 'Could not load IoT devices.')),
+    );
   }
 
   iotDevice(deviceId: string): Observable<IoTDeviceDto> {
-    return this.http.get<IoTDeviceDto>(trackingUrl(`iot-devices/${encodeURIComponent(deviceId)}`), { params: tenantParams() }).pipe(catchError((e) => apiError(e, `Device ${deviceId} was not found.`)));
+    // the details response is nested ({ id, identity, association, status })
+    return this.http.get<unknown>(trackingUrl(`iot-devices/${encodeURIComponent(deviceId)}`), { params: tenantParams() }).pipe(
+      map(iotDeviceRecord),
+      catchError((e) => apiError(e, `Device ${deviceId} was not found.`)),
+    );
+  }
+
+  /**
+   * PUT /api/iot-devices/{deviceId}: the device as loaded (GET /{deviceId}) with the given changes. The API takes the
+   * Add Device body (every required field is sent back); battery, status and firmware schedule are kept by the API.
+   */
+  updateIotDevice(d: IoTDeviceDto, changes: Partial<Pick<IoTDeviceDto, 'assetCode' | 'siteId' | 'siteName' | 'gateway'>>): Observable<IoTDeviceDto> {
+    const next = { ...d, ...changes };
+    const body = {
+      deviceType: next.deviceType,
+      model: next.model,
+      deviceName: next.deviceName,
+      deviceId: next.deviceId,
+      serialNumber: next.serialNumber,
+      connectivity: next.connectivity,
+      siteId: next.siteId,
+      siteName: next.siteName,
+      gateway: next.gateway,
+      // a linked asset is looked up by asset code or registration id
+      assetCode: 'assetCode' in changes ? changes.assetCode : d.assetCode ?? d.assetRegistrationId,
+      firmwareVersion: next.firmwareVersion,
+      ...tenantBody(),
+    };
+    return this.http.put<unknown>(trackingUrl(`iot-devices/${encodeURIComponent(d.deviceId)}`), body, { params: tenantParams() }).pipe(
+      map(iotDeviceRecord),
+      catchError((e) => apiError(e, `Could not update ${d.deviceId}.`)),
+    );
   }
 
   userName(): string | null {

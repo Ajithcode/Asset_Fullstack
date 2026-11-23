@@ -42,7 +42,7 @@ export interface Device {
 
 export interface DevEvent { min: number; title: string; detail: string; level: Level }
 
-/** People / teams issues can be assigned to (no API yet). */
+/** Technicians issues can be assigned to (Master Data GET /api/master-data/technicians, filled on load). */
 export const ASSIGNEES: string[] = [];
 export const PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
 
@@ -84,7 +84,35 @@ export function baseEvents(d: Device): DevEvent[] {
   return ev;
 }
 
-/** Hourly battery % and RSSI readings over the last 24 h. No API provides this history yet. */
-export function telemetry(_d: Device): { mins: number[]; battery: number[]; rssi: number[] } {
-  return { mins: [], battery: [], rssi: [] };
+/** Hourly battery % and RSSI over the last 24 h: x = minutes ago of each hour. */
+export interface Telemetry { mins: number[]; battery: number[]; rssi: number[] }
+
+/**
+ * Hourly averages of a device's readings (GET /api/telemetry-readings) over the 24 h before `now`, for the hours that
+ * have a battery or RSSI reading. An hour missing one of the two takes the nearest earlier value (else the next one);
+ * a series with no reading at all is drawn at the device's current value (or the axis floor).
+ */
+export function hourlyTelemetry(readings: { at: number; kind: 'battery' | 'rssi'; value: number }[], now: number, current: { battery: number | null; rssi: number | null }): Telemetry {
+  const hours = new Map<number, { b: number[]; r: number[] }>();
+  for (const x of readings) {
+    const ago = (now - x.at) / 60000;
+    if (ago < 0 || ago > 1440) continue;
+    const h = Math.min(23, Math.floor(ago / 60));
+    const slot = hours.get(h) ?? { b: [], r: [] };
+    (x.kind === 'battery' ? slot.b : slot.r).push(x.value);
+    hours.set(h, slot);
+  }
+  const keys = [...hours.keys()].sort((a, b) => b - a); // oldest hour first
+  const avg = (v: number[]) => (v.length ? Math.round((v.reduce((s, n) => s + n, 0) / v.length) * 10) / 10 : null);
+  const fill = (vals: (number | null)[], fallback: number): number[] => {
+    let last: number | null = vals.find((v) => v !== null) ?? null;
+    return vals.map((v) => (last = v ?? last ?? fallback));
+  };
+  const b = keys.map((h) => avg(hours.get(h)!.b));
+  const r = keys.map((h) => avg(hours.get(h)!.r));
+  return {
+    mins: keys.map((h) => h * 60 + 30),
+    battery: fill(b, current.battery ?? 0).map((v) => Math.max(0, Math.min(100, v))),
+    rssi: fill(r, current.rssi ?? -110).map((v) => Math.max(-110, Math.min(-30, v))),
+  };
 }
