@@ -400,9 +400,9 @@ export class ServiceRequestApiService {
     return this.http.post<ServiceRequestDto>(`${this.base}/${encodeURIComponent(id)}/convert-to-work-order`, { workOrderId, closeRequest });
   }
 
-  /** Work orders of an asset in the Maintenance service (assetId is the AssetRegistrationId). */
-  workOrdersOfAsset(assetRegistrationId: string): Observable<MaintenanceWorkOrderDto[]> {
-    return this.http.get<MaintenanceWorkOrderDto[]>(`${MAINTENANCE_API}work-orders/asset/${encodeURIComponent(assetRegistrationId)}`);
+  /** Work orders of an asset in the Maintenance service (its assetId is the asset tag, like every work order there). */
+  workOrdersOfAsset(assetTag: string): Observable<MaintenanceWorkOrderDto[]> {
+    return this.http.get<MaintenanceWorkOrderDto[]>(`${MAINTENANCE_API}work-orders/asset/${encodeURIComponent(assetTag)}`);
   }
 
   /** Creates a work order in the Maintenance service (Convert to Work Order, step 1). */

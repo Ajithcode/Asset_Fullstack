@@ -331,11 +331,13 @@ export class ServiceRequest implements OnDestroy {
   /** Updates, related items, the asset's components and its work orders (each optional). */
   private loadExtras(apiId: string): Observable<unknown> {
     const assetId = this.assetId;
+    // work orders are keyed by the asset tag in the Maintenance service
+    const assetTag = this.dto?.asset.assetTag || this.asset.tag;
     return forkJoin({
       updates: this.api.getUpdates(apiId).pipe(catchError(() => of([] as SrUpdateDto[]))),
       related: this.api.getRelated(apiId).pipe(catchError(() => of(null))),
       components: assetId ? this.assets.getComponents(assetId).pipe(catchError(() => of([]))) : of([]),
-      workOrders: assetId ? this.api.workOrdersOfAsset(assetId).pipe(catchError(() => of([] as MaintenanceWorkOrderDto[]))) : of([]),
+      workOrders: assetTag ? this.api.workOrdersOfAsset(assetTag).pipe(catchError(() => of([] as MaintenanceWorkOrderDto[]))) : of([]),
     }).pipe(
       tap((r) => {
         if (this.dto?.id !== apiId) return;
@@ -792,7 +794,8 @@ export class ServiceRequest implements OnDestroy {
     if (r.status === 'Draft') return this.showToast('Submit the request before converting it to a work order.');
     const now = new Date();
     const workOrderId = `WO-${now.getFullYear()}-${String(now.getTime()).slice(-6)}`;
-    const assetId = this.assetId || d.asset.assetRegistrationId;
+    // the Maintenance service keys work orders by asset tag
+    const assetId = d.asset.assetTag || this.asset.tag || d.asset.assetRegistrationId;
     const create$ = this.api.createWorkOrder({
       workOrderId, assetId, assetName: d.asset.assetName, workType: d.requestType || 'Corrective', title: d.title, description: d.description,
       priority: d.priority || 'Medium', scheduledDate: d.plannedStart ?? d.targetDate, assignedTechnician: d.assignedTo?.name ?? null,
