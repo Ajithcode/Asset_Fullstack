@@ -15,6 +15,7 @@ public static class AssetDashboardEndpoints
     private const string Offline = "Offline";
     private const string Alert = "Alert";
     private const string Unknown = "Unknown";
+    private const string NotTracked = "Not tracked";
     /// <summary>IoT alert statuses that are finished (no longer open). Closed comes after Resolved in the alert lifecycle.</summary>
     private static readonly HashSet<string> FinishedAlertStatuses = new(StringComparer.OrdinalIgnoreCase) { "Resolved", "Closed" };
     private const string UnassignedSiteId = "unassigned";
@@ -142,12 +143,13 @@ public static class AssetDashboardEndpoints
         var coverageBefore = DashboardMath.Percent(activeGatewaysThen, gatewaysThen);
 
         // 5. Data freshness: of the registered assets' tags, how many sent a reading within the SLA.
-        // Per asset (not per tag id: an asset can have several registered tags): assets with a tag whose newest reading is within the SLA.
-        var taggedAssets = assets.Where(asset => asset.TagIds is { Count: > 0 }).ToList();
-        var freshTags = taggedAssets.Count(asset => NetworkTag(asset, networkTags)?.LastSeenAt >= now.AddMinutes(-DataFreshnessSlaMinutes));
-        var freshTagsThen = taggedAssets.Count(asset => asset.TagIds!.Any(tag => atPast.Tags.TryGetValue(tag, out var seen) && seen.LastSeenAt >= past.AddMinutes(-DataFreshnessSlaMinutes)));
-        var freshness = DashboardMath.Percent(freshTags, taggedAssets.Count);
-        var freshnessBefore = DashboardMath.Percent(freshTagsThen, taggedAssets.Count);
+        // Per asset (an asset can have several tags): of the connected assets (a tag heard in the last 24 h), how many have a
+        // reading within the SLA. Assets with no tag, or whose tag never reported, have no data to judge and are not counted
+        // (they show under Connected / Coverage and as Not tracked / Unknown).
+        var freshTags = connectedAssets.Count(asset => NetworkTag(asset, networkTags)!.LastSeenAt >= now.AddMinutes(-DataFreshnessSlaMinutes));
+        var freshTagsThen = connectedAssets.Count(asset => asset.TagIds!.Any(tag => atPast.Tags.TryGetValue(tag, out var seen) && seen.LastSeenAt >= past.AddMinutes(-DataFreshnessSlaMinutes)));
+        var freshness = DashboardMath.Percent(freshTags, connectedAssets.Count);
+        var freshnessBefore = DashboardMath.Percent(freshTagsThen, connectedAssets.Count);
 
         return Results.Ok(new AssetDashboardKpisResponse(
             period.Days,
@@ -162,7 +164,7 @@ public static class AssetDashboardEndpoints
             new AssetDashboardKpi(coverage, coverage, gatewaysThen == 0 ? null : PointsChange(coverage, coverageBefore),
                 $"{activeGateways} of {gateways.Count} gateways with status online; change in percentage points vs. {period.Days} days ago"),
             new AssetDashboardKpi(freshness, freshness, PointsChange(freshness, freshnessBefore),
-                $"{freshTags} of {taggedAssets.Count} tagged assets sent data within {DataFreshnessSlaMinutes} min (SLA); change in percentage points vs. {period.Days} days ago"),
+                $"{freshTags} of {connectedAssets.Count} connected assets sent data within {DataFreshnessSlaMinutes} min (SLA); change in percentage points vs. {period.Days} days ago"),
             connectedDetails));
     }
 
@@ -201,7 +203,7 @@ public static class AssetDashboardEndpoints
 
         // Alert when the asset has an open alert, otherwise its network status (same rule as the Status filter and the sites).
         string PinStatus(DashboardAsset asset) =>
-            openAlertAssets.Contains(asset.AssetRegistrationId) ? Alert : NetworkState(NetworkTag(asset, networkTags));
+            openAlertAssets.Contains(asset.AssetRegistrationId) ? Alert : AssetState(asset, networkTags);
 
         var pins = assets
             .Where(asset => asset.Latitude is not null && asset.Longitude is not null)
@@ -212,7 +214,7 @@ public static class AssetDashboardEndpoints
                 NetworkTag(asset, networkTags)?.LastSeenAt ?? lastSeen.GetValueOrDefault(asset.AssetRegistrationId)))
             .ToList();
 
-        var legend = new[] { Online, Idle, Offline, Alert, Unknown }
+        var legend = new[] { Online, Idle, Offline, Alert, Unknown, NotTracked }
             .ToDictionary(status => status, status => assets.Count(asset => PinStatus(asset) == status));
 
         // Sites: assets grouped by location.site_id, named from master_sites; status from NetworkTimeSeries (tag id = asset tag).
@@ -225,7 +227,7 @@ public static class AssetDashboardEndpoints
                 var counts = SiteCounts.From(group, networkTags);
                 var (name, code) = SiteNameAndCode(group.Key, group, siteMaster);
                 return new AssetSiteActivity(group.Key, name, code, counts.Total, counts.OnlinePercent,
-                    counts.Online, counts.Idle, counts.Offline, counts.Unknown);
+                    counts.Online, counts.Idle, counts.Offline, counts.Unknown, counts.NotTracked);
             })
             .OrderByDescending(site => site.TotalAssets)
             .ThenByDescending(site => site.Online)
@@ -603,12 +605,12 @@ public static class AssetDashboardEndpoints
                 var tag = NetworkTag(asset, networkTags);
                 return new SiteAssetDetail(asset.AssetRegistrationId, asset.AssetTag, asset.AssetName, asset.AssetType, asset.Status,
                     asset.BuildingName, asset.FloorName, asset.ZoneName, asset.LocationPath, asset.Latitude, asset.Longitude,
-                    NetworkState(tag), tag?.LastGatewayId, tag?.LastSeenAt);
+                    AssetState(asset, networkTags), tag?.LastGatewayId, tag?.LastSeenAt);
             })
             .ToList();
 
         // One group per status, highest count first; each group carries the assets behind its count.
-        var statusOrder = new[] { Online, Idle, Offline, Unknown };
+        var statusOrder = new[] { Online, Idle, Offline, Unknown, NotTracked };
         var statuses = statusOrder
             .Select(status => details
                 .Where(detail => detail.NetworkStatus == status)
@@ -967,7 +969,7 @@ public static class AssetDashboardEndpoints
         return assets
             .Where(asset => filter.Site is null || string.Equals(SiteKey(asset), filter.Site, StringComparison.OrdinalIgnoreCase))
             .Where(asset => filter.Type is null || string.Equals(asset.AssetType?.Trim(), filter.Type, StringComparison.OrdinalIgnoreCase))
-            .Where(asset => filter.State is null || NetworkState(NetworkTag(asset, networkTags!)) == filter.State)
+            .Where(asset => filter.State is null || AssetState(asset, networkTags!) == filter.State)
             .ToList();
     }
 
@@ -1009,6 +1011,25 @@ public static class AssetDashboardEndpoints
             .Where(InWindow)
             .MaxBy(tag => tag.LastSeenAt);
 
+    /// <summary>
+    /// Network status of an asset: its tag's state (<see cref="NetworkState"/>); Unknown when a tag is linked (Tag Management, or
+    /// an asset_tag that has reported) but none was heard in the window; Not tracked when no tag is linked at all.
+    /// </summary>
+    private static string AssetState(DashboardAsset asset, IReadOnlyDictionary<string, NetworkTagSummary> networkTags)
+    {
+        var tag = NetworkTag(asset, networkTags);
+        if (tag is not null)
+        {
+            return NetworkState(tag);
+        }
+
+        return IsTracked(asset, networkTags) ? Unknown : NotTracked;
+    }
+
+    /// <summary>A tag is linked to the asset: registered in Tag Management, or its asset_tag has reported to the network.</summary>
+    private static bool IsTracked(DashboardAsset asset, IReadOnlyDictionary<string, NetworkTagSummary> networkTags) =>
+        asset.HasRegisteredTag || (asset.TagIds ?? []).Any(networkTags.ContainsKey);
+
     private static bool InWindow(NetworkTagSummary tag) => tag.LastSeenAt >= DateTime.UtcNow.AddHours(-NetworkWindowHours);
 
     /// <summary>
@@ -1040,18 +1061,19 @@ public static class AssetDashboardEndpoints
     /// <summary>A gateway is online when the status field of its newest reading in NetworkTimeSeries is "online".</summary>
     private static bool IsGatewayOnline(NetworkSeen gateway) => gateway.LastStatus == "online";
 
-    private sealed record SiteCounts(int Total, int Online, int Idle, int Offline, int Unknown)
+    private sealed record SiteCounts(int Total, int Online, int Idle, int Offline, int Unknown, int NotTracked)
     {
         public double OnlinePercent => DashboardMath.Percent(Online, Total);
 
         public static SiteCounts From(IEnumerable<DashboardAsset> siteAssets, IReadOnlyDictionary<string, NetworkTagSummary> networkTags)
         {
-            var states = siteAssets.Select(asset => NetworkState(NetworkTag(asset, networkTags))).ToList();
+            var states = siteAssets.Select(asset => AssetState(asset, networkTags)).ToList();
             return new SiteCounts(states.Count,
                 states.Count(s => s == AssetDashboardEndpoints.Online),
                 states.Count(s => s == AssetDashboardEndpoints.Idle),
                 states.Count(s => s == AssetDashboardEndpoints.Offline),
-                states.Count(s => s == AssetDashboardEndpoints.Unknown));
+                states.Count(s => s == AssetDashboardEndpoints.Unknown),
+                states.Count(s => s == AssetDashboardEndpoints.NotTracked));
         }
     }
 

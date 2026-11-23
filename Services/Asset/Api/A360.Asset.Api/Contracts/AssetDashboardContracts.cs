@@ -40,11 +40,11 @@ public sealed record AssetDashboardPeriod(int Days, DateTime FromUtc, DateTime T
 /// <summary>
 /// The IoT &amp; Tracking Overview's Site / Asset Type / Status dropdowns, sent as query parameters to every widget endpoint
 /// (with days for the period). Each narrows the registered assets the widget is built from; empty or "all" means no filter.
-/// Status is the asset's network status: Online, Offline, Idle or Unknown (see GET /api/asset-dashboard/filters).
+/// Status is the asset's network status: Online, Offline, Idle, Unknown (a tag is linked but has no reading in 24 h) or Not tracked (no linked tag) (see GET /api/asset-dashboard/filters).
 /// </summary>
 public sealed class AssetDashboardFilter
 {
-    public static readonly string[] Statuses = ["Online", "Offline", "Idle", "Unknown"];
+    public static readonly string[] Statuses = ["Online", "Offline", "Idle", "Unknown", "Not tracked"];
 
     /// <summary>Site id (location.site_id); "unassigned" for assets without a site.</summary>
     [FromQuery(Name = "siteId")]
@@ -160,7 +160,8 @@ public sealed record AssetLocationPin(
 /// <param name="Online">Tag reported within the last 10 minutes and its latest status is "online".</param>
 /// <param name="Offline">Tag reported within the last 10 minutes and its latest status is not "online".</param>
 /// <param name="Idle">Tag has readings, but none in the last 10 minutes.</param>
-/// <param name="Unknown">Asset whose tag has no readings in NetworkTimeSeries.</param>
+/// <param name="Unknown">Asset with a linked tag that has no reading in the last 24 h.</param>
+/// <param name="NotTracked">Asset with no linked tag (not in Online / Idle / Offline / Unknown).</param>
 public sealed record AssetSiteActivity(
     string SiteId,
     string SiteName,
@@ -170,10 +171,11 @@ public sealed record AssetSiteActivity(
     int Online,
     int Idle,
     int Offline,
-    int Unknown);
+    int Unknown,
+    int NotTracked = 0);
 
 /// <summary>An asset mapped to a site, with its tag's latest NetworkTimeSeries reading.</summary>
-/// <param name="NetworkStatus">Online, Offline, Idle (no reading for 10 minutes) or Unknown (tag has no readings).</param>
+/// <param name="NetworkStatus">Online, Offline, Idle (no reading for 10 minutes), Unknown (tag has no reading in 24 h) or Not tracked (no linked tag).</param>
 public sealed record SiteAssetDetail(
     string AssetRegistrationId,
     string? AssetTag,
