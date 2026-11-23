@@ -29,10 +29,12 @@
     <section class="card map-card rtl-map" aria-label="Facility map">
       <app-floor-plan-map *ngIf="mapFloorId" [imageUrl]="mapImage" [fallbackUrl]="mapFallback" [zones]="planZones" [plots]="planPlots" [feed]="feed" [zoneId]="mapZone"
         [showLabels]="layers.labels" [showDevices]="layers.gateways" [showAssets]="layers.assets" [highlight]="highlight" [note]="followId ? '' : mapNote"
-        [live]="livePoint" [liveTrail]="liveTrail" [focus]="mapFocus"></app-floor-plan-map>
+        [live]="livePoint" [liveTrail]="liveTrail" [focus]="mapFocus"
+        [assetMarkers]="mapAssets" [assetFocus]="assetFocus" [showTotals]="false" (assetSelect)="select($event)"></app-floor-plan-map>
       <p *ngIf="!mapFloorId" class="map-empty muted">{{ mapNote || 'Loading floor plans…' }}</p>
       <div class="mo mo-top">
         <select class="control control-sm" [ngModel]="mapFloorId" (ngModelChange)="setFloor($event)" aria-label="Floor"><option value="">All floors</option><option *ngFor="let f of floors; trackBy: byFloor" [value]="f.id">{{ f.label }}</option></select>
+        <button *ngIf="assetFocus" type="button" class="btn btn-outline btn-sm hl-chip" (click)="clearHighlight()" title="Clear highlight (Esc)"><lucide-icon [img]="icons.X" [size]="14"></lucide-icon>Clear highlight ({{ assetFocus.ids.length }})</button>
       </div>
       <!-- Live follow (Locate asset › location button) -->
       <div *ngIf="followId" class="mo live-panel" [ngClass]="'live-panel--' + (live?.state === 'Live' && followState === 'live' ? 'on' : followState === 'error' ? 'bad' : 'wait')" role="status" aria-live="polite">
@@ -232,8 +234,14 @@
 
     <div *ngIf="!ctl" class="modal-body">
       <label class="tt-search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input id="rtl-locate-q" type="search" [(ngModel)]="locateQuery" placeholder="Asset ID, name, tag, device, type…" /></label>
+      <div class="loc-bar">
+        <label class="loc-all"><input type="checkbox" [checked]="allLocateSelected" (change)="toggleAllLocate()" aria-label="Select all listed assets" /> Select all</label>
+        <span class="muted small grow">{{ locateSel.size }} selected</span>
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="!locateSel.size" (click)="locateSelected()"><lucide-icon [img]="icons.Crosshair" [size]="15"></lucide-icon>Locate selected ({{ locateSel.size }})</button>
+      </div>
       <ul class="locate-list">
         <li *ngFor="let a of locateRows; trackBy: byAsset" (click)="locate(a)">
+          <input type="checkbox" class="loc-chk" [checked]="locateSel.has(a.assetId)" (click)="$event.stopPropagation()" (change)="toggleLocateSel(a.assetId)" [attr.aria-label]="'Select ' + a.name" />
           <span class="dot" [ngClass]="freshClass(a.freshness)"></span>
           <span class="grow min0"><b>{{ a.name }}</b><small>{{ a.assetId }}<ng-container *ngIf="a.assetTag"> · {{ a.assetTag }}</ng-container> · {{ a.tags.join(', ') }}</small></span>
           <small class="muted">{{ a.location?.zoneName || 'No location' }}</small>

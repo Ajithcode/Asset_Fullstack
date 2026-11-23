@@ -1,5 +1,6 @@
-import { AfterViewInit, Component, ElementRef, Input, NgZone, OnChanges, OnDestroy, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, NgZone, Output, OnChanges, OnDestroy, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import type * as Leaflet from 'leaflet';
+import { MapControls } from 'shared-ui';
 import { GatewayFeed, PlanPlot, PlanZone } from './floor-map-api.service';
 
 type L = typeof Leaflet;
@@ -21,7 +22,27 @@ export interface MapFocus {
 }
 
 /** Inputs that only move the live marker: they never redraw the plan. */
-const LIVE_INPUTS = new Set(['live', 'liveTrail', 'focus', 'signal']);
+const LIVE_INPUTS = new Set(['live', 'liveTrail', 'focus', 'signal', 'assetMarkers', 'assetFocus']);
+
+/** An asset drawn inside its current zone (Real-Time Location). BLE gives the zone only, so the spot in the zone is a stable layout. */
+export interface PlanAsset {
+  id: string;
+  name: string;
+  code: string;
+  zoneId: string;
+  zoneName: string;
+  /** Moving (changed zone in the last minute), Stationary or Unknown (no live location). */
+  state: 'Moving' | 'Stationary' | 'Unknown';
+}
+
+/** Highlight these assets (ripple + bounce for ~3 s, then a steady ring) and fit the view to their zones; new `key` = new request. */
+export interface AssetFocus {
+  key: string;
+  ids: string[];
+}
+
+const reducedMotion = (): boolean => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const STATE_COLOR = { Moving: '#16a34a', Stationary: '#6d28d9', Unknown: '#94a3b8' } as const;
 
 /** Plan width in map units; the height follows the image's aspect ratio. */
 const W = 1000;
@@ -44,7 +65,9 @@ const ASSET_SVG =
 @Component({
   selector: 'app-floor-plan-map',
   standalone: true,
+  imports: [MapControls],
   template: `<div #host class="fp-map" [class.fp-map--blank]="imageMissing"></div>
+    <app-map-controls (fit)="fitView()" (fullscreenChange)="refit()"></app-map-controls>
     @if (note) {
       <div class="fp-note" role="status">{{ note }}</div>
     } @else if (imageMissing) {
@@ -93,6 +116,27 @@ const ASSET_SVG =
     .fp-live--stale i { animation: none; background: rgba(100, 116, 139, .25); }
     .fp-live--stale b, .fp-live--stale span { background: #64748b; }
     @keyframes fp-live-pulse { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(2.6); opacity: 0; } }
+    /* assets inside their zone (Real-Time Location) */
+    .fp-asset-marker { transition: transform 1.2s cubic-bezier(.4, 0, .2, 1); }
+    .leaflet-zoom-anim .fp-asset-marker { transition: none; }
+    .fp-am { position: relative; display: block; width: 22px; height: 22px; }
+    .fp-am b { position: absolute; left: 4px; top: 4px; width: 14px; height: 14px; border-radius: 50%; background: var(--c); border: 2.5px solid #fff; box-shadow: 0 1px 5px rgba(15, 23, 42, .35); }
+    .fp-am i { position: absolute; inset: 0; border-radius: 50%; opacity: 0; pointer-events: none; }
+    .fp-am--moving i.r1 { background: rgba(22, 163, 74, .35); animation: fp-am-pulse 1.8s ease-out infinite; }
+    .fp-am--hl b { background: #6d28d9; box-shadow: 0 0 0 3px rgba(109, 40, 217, .35), 0 0 0 6px rgba(109, 40, 217, .14), 0 1px 5px rgba(15, 23, 42, .35); }
+    .fp-am--hl-anim i { background: none; border: 2px solid #6d28d9; opacity: 1; animation: fp-am-ripple 1.5s ease-out infinite; }
+    .fp-am--hl-anim i.r2 { animation-delay: .75s; }
+    .fp-am--hl-anim b { animation: fp-am-bounce .9s ease-in-out 3; }
+    .fp-trail { animation: fp-trail-fade 8s ease-out forwards; }
+    @keyframes fp-am-pulse { 0% { transform: scale(.7); opacity: .9; } 100% { transform: scale(2.4); opacity: 0; } }
+    @keyframes fp-am-ripple { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(3); opacity: 0; } }
+    @keyframes fp-am-bounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-9px); } 70% { transform: translateY(-2px); } }
+    @keyframes fp-trail-fade { from { opacity: .8; } to { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .fp-asset-marker { transition: none; }
+      .fp-am i, .fp-am b, .fp-trail { animation: none !important; }
+      .fp-am i { display: none; }
+    }
     .fp-tip strong { display: block; font-size: 0.781rem; }
     .fp-tip span { display: block; color: #64748b; font-size: 0.719rem; }
   `,
@@ -124,6 +168,13 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   @Input() signal: LivePoint | null = null;
   /** Fly to a point (zoom in) whenever its key changes. */
   @Input() focus: MapFocus | null = null;
+  /** Assets drawn inside their zone (stable layout, glide to the new zone when it changes). */
+  @Input() assetMarkers: PlanAsset[] = [];
+  /** Highlight + fit to these assets. */
+  @Input() assetFocus: AssetFocus | null = null;
+  /** The "Total Assets" bubble in the middle of each zone (off where the assets themselves are drawn). */
+  @Input() showTotals = true;
+  @Output() assetSelect = new EventEmitter<string>();
 
   @ViewChild('host', { static: true }) private host!: ElementRef<HTMLDivElement>;
   private readonly ngZone = inject(NgZone);
@@ -133,6 +184,11 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   private shapes?: Leaflet.LayerGroup;
   private markers?: Leaflet.LayerGroup;
   private liveLayer?: Leaflet.LayerGroup;
+  private assetLayer?: Leaflet.LayerGroup;
+  private assetMk = new Map<string, { m: Leaflet.Marker; zoneId: string; state: string }>();
+  private scopeBounds: Leaflet.LatLngBounds | null = null;
+  private shownHl = '';
+  private hlTimer?: ReturnType<typeof setTimeout>;
   private liveMarker?: Leaflet.Marker;
   private liveLine?: Leaflet.Polyline;
   private signalMarker?: Leaflet.Marker;
@@ -156,6 +212,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.shapes = Lf.layerGroup().addTo(map);
       this.markers = Lf.layerGroup().addTo(map);
       this.liveLayer = Lf.layerGroup().addTo(map);
+      this.assetLayer = Lf.layerGroup().addTo(map);
       map.setView([this.h / 2, W / 2], -1);
       this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
       this.resize.observe(this.host.nativeElement);
@@ -170,7 +227,10 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     if (h && Object.keys(changes).length === 1 && sameList(h.previousValue, h.currentValue)) return;
     if (!this.map) return;
     if (Object.keys(changes).every((k) => LIVE_INPUTS.has(k))) {
-      this.ngZone.runOutsideAngular(() => this.updateLive());
+      this.ngZone.runOutsideAngular(() => {
+        this.updateLive();
+        this.updateAssets();
+      });
       return;
     }
     this.ngZone.runOutsideAngular(() => this.sync());
@@ -178,6 +238,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    clearTimeout(this.hlTimer);
     this.resize?.disconnect();
     this.map?.remove();
   }
@@ -286,7 +347,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       }
       // live "Total Assets": distinct assets heard by the gateways plotted in this zone
       const names = this.zoneAssets(z.id);
-      if (names.length) {
+      if (names.length && this.showTotals) {
         L.marker(b.getCenter(), {
           keyboard: false,
           zIndexOffset: -500,
@@ -321,7 +382,181 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       const target = this.zoneId !== undefined && focus ? focus : L.latLngBounds([0, 0], [this.h, W]);
       map.fitBounds(target, { padding: [24, 24], animate: true, maxZoom: 2 });
     }
+    this.scopeBounds = this.zoneId !== undefined && focus ? focus : null;
     this.updateLive();
+    this.updateAssets();
+  }
+
+  /** Fit to screen: the whole plan (or the zone in zone view). */
+  fitView(): void {
+    const L = this.L;
+    if (!L || !this.map) return;
+    this.map.fitBounds(this.scopeBounds ?? L.latLngBounds([0, 0], [this.h, W]), { padding: [24, 24], animate: !reducedMotion(), maxZoom: 2 });
+  }
+
+  /** The card went full screen / back: recalculate the size, then fit. */
+  refit(): void {
+    this.ngZone.runOutsideAngular(() => {
+      this.map?.invalidateSize({ animate: false });
+      this.fitView();
+    });
+  }
+
+  // ---------------------------------------------------------------- assets inside their zone
+
+  /** The zone as a polygon / circle in map units, with its bounding box. */
+  private zoneGeom(z: PlanZone): { pts: [number, number][] | null; c: [number, number] | null; r: number; s: number; n: number; w: number; e: number } {
+    let pts: [number, number][] | null = null;
+    let c: [number, number] | null = null;
+    let r = 0;
+    if (z.shape === 'Circle') {
+      c = this.at(z.x + z.w / 2, z.y + z.h / 2);
+      r = ((z.radius ?? z.w / 2) / 100) * W;
+    } else if ((z.shape === 'Polygon' || z.shape === 'Custom') && z.points.length >= 3) {
+      pts = z.points.map((p) => this.at(p.x, p.y));
+    } else {
+      pts = [this.at(z.x, z.y), this.at(z.x + z.w, z.y), this.at(z.x + z.w, z.y + z.h), this.at(z.x, z.y + z.h)];
+    }
+    const lat = pts ? pts.map((p) => p[0]) : [c![0] - r, c![0] + r];
+    const lng = pts ? pts.map((p) => p[1]) : [c![1] - r, c![1] + r];
+    return { pts, c, r, s: Math.min(...lat), n: Math.max(...lat), w: Math.min(...lng), e: Math.max(...lng) };
+  }
+
+  /**
+   * Stable spots for `n` assets inside a zone: a grid over the zone's width / height (cells outside a polygon / circle are skipped),
+   * filled in row order. The same asset ids always get the same spots, so markers do not jump between refreshes.
+   */
+  private zoneSpots(z: PlanZone, n: number): [number, number][] {
+    const g = this.zoneGeom(z);
+    const inside = (lat: number, lng: number): boolean => {
+      if (g.c) return Math.hypot(lat - g.c[0], lng - g.c[1]) <= g.r * 0.92;
+      let on = false;
+      const p = g.pts!;
+      for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+        if (p[i][0] > lat !== p[j][0] > lat && lng < ((p[j][1] - p[i][1]) * (lat - p[i][0])) / (p[j][0] - p[i][0]) + p[i][1]) on = !on;
+      }
+      return on;
+    };
+    const padY = (g.n - g.s) * 0.1;
+    const padX = (g.e - g.w) * 0.1;
+    const s = g.s + padY, n2 = g.n - padY, w = g.w + padX, e = g.e - padX;
+    let d = Math.sqrt(((n2 - s) * (e - w)) / Math.max(1, n));
+    for (let tries = 0; tries < 40; tries++) {
+      const cells: [number, number][] = [];
+      const rows = Math.max(1, Math.floor((n2 - s) / d));
+      const cols = Math.max(1, Math.floor((e - w) / d));
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const lat = n2 - ((r + 0.5) * (n2 - s)) / rows;
+          const lng = w + ((c + 0.5) * (e - w)) / cols;
+          if (inside(lat, lng)) cells.push([lat, lng]);
+        }
+      }
+      if (cells.length >= n) return cells;
+      d *= 0.85;
+    }
+    return Array.from({ length: n }, () => [(g.s + g.n) / 2, (g.w + g.e) / 2] as [number, number]);
+  }
+
+  private assetTip(a: PlanAsset): string {
+    return `<div class="fp-tip"><strong>${esc(a.name)}</strong><span>${esc(a.code)} · ${esc(a.zoneName)}</span><span>Status: ${a.state}</span></div>`;
+  }
+
+  private assetHtml(a: PlanAsset): string {
+    return `<span class="fp-am fp-am--${a.state.toLowerCase()}" style="--c:${STATE_COLOR[a.state]}"><i class="r1"></i><i class="r2"></i><b></b></span>`;
+  }
+
+  /** Draws / moves the asset markers. Existing markers keep their element, so a move glides (CSS transition on the marker). */
+  private updateAssets(): void {
+    const L = this.L;
+    const map = this.map;
+    if (!L || !map || !this.assetLayer || !this.planReady) return;
+    const zones = new Map((this.zoneId === undefined ? this.zones : this.zones.filter((z) => z.id === this.zoneId)).map((z) => [z.id, z]));
+    const want = this.showAssets ? this.assetMarkers.filter((a) => zones.has(a.zoneId)) : [];
+    const byZone = new Map<string, PlanAsset[]>();
+    for (const a of want) byZone.set(a.zoneId, [...(byZone.get(a.zoneId) ?? []), a]);
+    const pos = new Map<string, [number, number]>();
+    for (const [zid, list] of byZone) {
+      list.sort((x, y) => x.id.localeCompare(y.id));
+      const spots = this.zoneSpots(zones.get(zid)!, list.length);
+      list.forEach((a, i) => pos.set(a.id, spots[i]));
+    }
+
+    for (const [id, e] of this.assetMk) {
+      if (pos.has(id)) continue;
+      e.m.remove();
+      this.assetMk.delete(id);
+    }
+    for (const a of want) {
+      const at = pos.get(a.id)!;
+      const e = this.assetMk.get(a.id);
+      if (!e) {
+        const m = L.marker(at, { keyboard: false, riseOnHover: true, zIndexOffset: 600, icon: L.divIcon({ className: 'fp-asset-marker', html: this.assetHtml(a), iconSize: [22, 22], iconAnchor: [11, 11] }) })
+          .bindTooltip(this.assetTip(a), { direction: 'top', offset: [0, -10], opacity: 1 })
+          .on('click', () => this.ngZone.run(() => this.assetSelect.emit(a.id)))
+          .addTo(this.assetLayer);
+        this.assetMk.set(a.id, { m, zoneId: a.zoneId, state: a.state });
+        continue;
+      }
+      const from = e.m.getLatLng();
+      if (Math.abs(from.lat - at[0]) > 0.01 || Math.abs(from.lng - at[1]) > 0.01) {
+        // changed zone (or the layout shifted): glide there; a moving asset leaves a fading trail
+        if (a.state === 'Moving' && e.zoneId !== a.zoneId && !reducedMotion()) this.drawTrail([from.lat, from.lng], at);
+        e.m.setLatLng(at);
+      }
+      if (e.state !== a.state || e.zoneId !== a.zoneId) {
+        const el = e.m.getElement()?.firstElementChild as HTMLElement | null;
+        if (el) {
+          el.classList.remove('fp-am--moving', 'fp-am--stationary', 'fp-am--unknown');
+          el.classList.add('fp-am--' + a.state.toLowerCase());
+          el.style.setProperty('--c', STATE_COLOR[a.state]);
+        }
+        e.state = a.state;
+        e.zoneId = a.zoneId;
+      }
+      e.m.setTooltipContent(this.assetTip(a));
+    }
+    this.applyAssetFocus(zones);
+  }
+
+  private drawTrail(a: [number, number], b: [number, number]): void {
+    const L = this.L!;
+    const line = L.polyline([a, b], { color: '#16a34a', weight: 3, opacity: 0.8, dashArray: '4 7', interactive: false, className: 'fp-trail' }).addTo(this.assetLayer!);
+    setTimeout(() => line.remove(), 8200);
+  }
+
+  /** Highlight (ripple + bounce ~3 s, then a steady ring) and fit the view to the zones of the focused assets. */
+  private applyAssetFocus(zones: Map<string, PlanZone>): void {
+    const L = this.L!;
+    const f = this.assetFocus;
+    const ids = new Set(f?.ids ?? []);
+    for (const [id, e] of this.assetMk) e.m.getElement()?.firstElementChild?.classList.toggle('fp-am--hl', ids.has(id));
+    if (!f) {
+      this.shownHl = '';
+      return;
+    }
+    if (f.key === this.shownHl) return;
+    const found = f.ids.map((id) => this.assetMk.get(id)).filter((e): e is NonNullable<typeof e> => !!e);
+    if (!found.length) return; // not drawn yet (floor still loading): try again on the next update
+    this.shownHl = f.key;
+    const els = found.map((e) => e.m.getElement()?.firstElementChild as HTMLElement | undefined);
+    if (!reducedMotion()) {
+      els.forEach((el) => el?.classList.add('fp-am--hl-anim'));
+      clearTimeout(this.hlTimer);
+      this.hlTimer = setTimeout(() => els.forEach((el) => el?.classList.remove('fp-am--hl-anim')), 3000);
+    }
+    let bounds: Leaflet.LatLngBounds | null = null;
+    for (const e of found) {
+      const z = zones.get(e.zoneId);
+      if (!z) continue;
+      const g = this.zoneGeom(z);
+      const b = L.latLngBounds([g.s, g.w], [g.n, g.e]);
+      bounds = bounds ? bounds.extend(b) : b;
+    }
+    if (bounds) {
+      if (reducedMotion()) this.map!.fitBounds(bounds, { padding: [40, 40], maxZoom: 2, animate: false });
+      else this.map!.flyToBounds(bounds, { padding: [40, 40], maxZoom: 2, duration: 0.8 });
+    }
   }
 
   /** The amber marker of a tag that is blinking / beeping. */
