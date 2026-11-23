@@ -1,4 +1,4 @@
-import { Component, PLATFORM_ID, inject, signal } from '@angular/core';
+import { Component, NgZone, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { installMenuViewportGuard } from 'shared-ui';
@@ -15,6 +15,7 @@ export class App {
 
   constructor() {
     // One guard for every module: action menus (⋮) stay inside the visible screen.
-    if (isPlatformBrowser(inject(PLATFORM_ID))) installMenuViewportGuard();
+    // Outside the Angular zone: its observer/listeners/frames must not trigger app-wide change detection.
+    if (isPlatformBrowser(inject(PLATFORM_ID))) inject(NgZone).runOutsideAngular(() => installMenuViewportGuard());
   }
 }
