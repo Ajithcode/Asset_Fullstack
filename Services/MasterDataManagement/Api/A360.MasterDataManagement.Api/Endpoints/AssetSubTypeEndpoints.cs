@@ -4,6 +4,7 @@ using A360.MasterDataManagement.Repository.Repositories;
 using A360.Domain.Entities;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
+using MongoDB.Driver;
 
 namespace A360.MasterDataManagement.Api.Endpoints;
 
@@ -56,7 +57,7 @@ public static class AssetSubTypeEndpoints
     private static async Task<IResult> CreateAsync(
         CreateAssetSubTypeRequest request,
         IAssetSubTypeRepository repository,
-        IAssetTypeRepository assetTypes,
+        IMongoDatabase database,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -73,7 +74,7 @@ public static class AssetSubTypeEndpoints
             return Results.Conflict(new { message = $"An asset sub type with code '{subType.Code}' already exists." });
         }
 
-        var typeError = await ResolveAssetTypeAsync(subType, assetTypes, cancellationToken);
+        var typeError = await ResolveAssetTypeAsync(subType, database, cancellationToken);
         if (typeError is not null)
         {
             return typeError;
@@ -92,7 +93,7 @@ public static class AssetSubTypeEndpoints
         string id,
         UpdateAssetSubTypeRequest request,
         IAssetSubTypeRepository repository,
-        IAssetTypeRepository assetTypes,
+        IMongoDatabase database,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -121,7 +122,7 @@ public static class AssetSubTypeEndpoints
             return Results.Conflict(new { message = $"An asset sub type with code '{subType.Code}' already exists." });
         }
 
-        var typeError = await ResolveAssetTypeAsync(subType, assetTypes, cancellationToken);
+        var typeError = await ResolveAssetTypeAsync(subType, database, cancellationToken);
         if (typeError is not null)
         {
             return typeError;
@@ -205,7 +206,7 @@ public static class AssetSubTypeEndpoints
     /// <summary>The parent must be an asset type of this service; its name is stored with the id.</summary>
     private static async Task<IResult?> ResolveAssetTypeAsync(
         A360.MasterDataManagement.Domain.Entities.AssetSubType subType,
-        IAssetTypeRepository assetTypes,
+        IMongoDatabase database,
         CancellationToken cancellationToken)
     {
         var reference = subType.AssetType;
@@ -214,13 +215,13 @@ public static class AssetSubTypeEndpoints
             return Results.BadRequest(new { message = "Asset type is required." });
         }
 
-        var type = await assetTypes.GetByIdAsync(reference.Id!, cancellationToken);
+        var type = await AssetCatalogLookup.FindTypeAsync(database, reference.Id, cancellationToken);
         if (type is null)
         {
             return Results.BadRequest(new { message = $"Asset type '{reference.Id}' was not found." });
         }
 
-        reference.Name = type.AssetTypeName;
+        reference.Name = type.Name;
         return null;
     }
 }
