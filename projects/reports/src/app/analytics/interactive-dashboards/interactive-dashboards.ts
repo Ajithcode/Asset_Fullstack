@@ -2,34 +2,46 @@ import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Subscription } from 'rxjs';
 import {
   Calendar, ChartColumn, Check, ChevronDown, CirclePlus, Clock, Download, Ellipsis, FileText, GitCompareArrows, GripVertical, Info,
   LucideAngularModule, Pencil, RefreshCw, Share2, Star, User, Users, X
 } from 'lucide-angular';
-import { AnalyticsPage, CURRENT_USER, RA_CATEGORIES, downloadCsv } from '../shared/analytics-common';
+import { AnalyticsPage, CURRENT_USER, downloadCsv } from '../shared/analytics-common';
 import { DashboardStore } from './dashboard-store.service';
 import { DashboardWidget } from './dashboard-widget/dashboard-widget';
 import { AddWidgetDialog, NewWidget } from './dialogs/add-widget-dialog';
 import { CreateDashboardDialog, NewDashboard } from './dialogs/create-dashboard-dialog';
 import { ShareDashboardDialog, ShareResult } from './dialogs/share-dashboard-dialog';
 import {
-  AttentionAsset, DashFilters, Dashboard, WidgetConfig, WidgetSpan, WidgetType, buildWidgetData, widgetCsv
+  AttentionAsset, DashFilters, Dashboard, WidgetConfig, WidgetData, WidgetSpan, WidgetType, widgetCsv
 } from './interactive-dashboards.data';
 import { LIBRARY_DRAG_TYPE, WidgetLibrary } from './widget-library/widget-library';
 
 type MenuKey = 'picker' | 'mine' | 'shared' | 'favorites' | 'more' | 'info';
 
 const SPAN_STEPS: WidgetSpan[] = [3, 4, 5, 6, 7, 8, 12];
+const EMPTY: WidgetData = { empty: true };
+const LOADING: WidgetData = { empty: true, message: 'Loading…' };
 
-/** Placeholder shown while the user has no dashboards (never persisted). */
+/** Placeholder shown while the user has no dashboards (never saved). */
 function noDashboard(): Dashboard {
   return {
     id: '', name: 'No dashboards', description: '', owner: CURRENT_USER.name, sharing: 'private', sharedWith: [], groups: [],
-    role: 'Owner', favorite: false, updatedAt: '—', widgets: []
+    role: 'Owner', favorite: false, updatedAt: '—', widgets: [], widgetCount: 0, canShare: false, defaultFilters: null
   };
 }
 
-/** Reports & Analytics > Interactive Dashboards (configurable, drag-and-drop widget dashboards) */
+function apiMessage(err: HttpErrorResponse, fallback: string): string {
+  if (err.status === 0) return `${fallback} The Report Analytics service is not reachable.`;
+  if (err.status === 403) return 'You do not have permission for this dashboard.';
+  const body = err.error as { title?: string; errors?: Record<string, string[]> } | null;
+  const first = body && typeof body === 'object' && body.errors ? Object.values(body.errors).flat()[0] : '';
+  return first || (body && typeof body === 'object' && body.title) || fallback;
+}
+
+/** Reports & Analytics > Interactive Dashboards (Report Analytics API: /api/interactive-dashboards) */
 @Component({
   selector: 'app-ra-interactive-dashboards',
   standalone: true,
@@ -45,15 +57,24 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
     Calendar, ChartColumn, Check, ChevronDown, CirclePlus, Clock, Download, Ellipsis, FileText, GitCompareArrows, GripVertical, Info,
     Pencil, RefreshCw, Share2, Star, User, Users, X
   };
-  readonly categories = ['All categories', ...RA_CATEGORIES];
-  readonly me = CURRENT_USER.name;
+
+  /** Filter bar values: GET /options date presets and GET /filters */
+  datePresets: string[] = [];
+  orgOptions: { value: string; label: string }[] = [];
+  locationOptions: { value: string; label: string }[] = [];
+  categoryOptions: { value: string; label: string }[] = [];
+  private defaultPreset = '';
 
   category = '';
   compare = false;
   filters: DashFilters = this.buildFilters();
-  current!: Dashboard;
+  current: Dashboard = noDashboard();
+  /** Widget figures by widget id (GET /{id}/data) */
+  widgetData: Record<string, WidgetData> = {};
+  loadingData = false;
 
-  // Edit mode: drag to reorder, resize and remove; "Discard changes" restores the snapshot
+  // Edit mode: drag to reorder and resize (saved with PUT /layout); adds and removes are saved straight away.
+  // "Discard changes" puts the snapshot back with PUT /{id}.
   editMode = false;
   private snapshot: WidgetConfig[] | null = null;
   dragId: string | null = null;
@@ -69,10 +90,49 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
   viewName = '';
   viewTried = false;
 
+  private dataSub: Subscription | null = null;
 
   ngOnInit(): void {
-    const requested = this.route.snapshot.queryParamMap.get('dashboard');
-    this.current = (requested && this.store.get(requested)) || this.store.dashboards[0] || noDashboard();
+    this.store.loadOptions().subscribe({
+      next: (o) => {
+        this.datePresets = o.datePresets;
+        this.defaultPreset = o.defaultDatePreset;
+        this.orgOptions = o.organizations;
+        this.locationOptions = o.locations;
+        this.categoryOptions = o.categories;
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not load the dashboard options.'))
+    });
+    this.store.loadList().subscribe({
+      next: (list) => {
+        const requested = this.route.snapshot.queryParamMap.get('dashboard');
+        const pick = (requested && list.find((d) => d.id === requested)) || list[0];
+        if (pick) this.openById(pick.id);
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not load dashboards.'))
+    });
+  }
+
+  override ngOnDestroy(): void {
+    super.ngOnDestroy();
+    this.dataSub?.unsubscribe();
+  }
+
+  /** Period caption: the selected preset or the API default. */
+  override get periodLabel(): string {
+    return this.period || this.defaultPreset || 'This month';
+  }
+
+  override get organizationLabel(): string {
+    return this.orgOptions.find((o) => o.value === this.organization)?.label || 'All organizations';
+  }
+
+  override get locationLabel(): string {
+    return this.locationOptions.find((o) => o.value === this.location)?.label || 'All locations';
+  }
+
+  get categoryLabel(): string {
+    return this.categoryOptions.find((o) => o.value === this.category)?.label || 'All categories';
   }
 
   /** False while the placeholder is shown (no saved dashboards yet) */
@@ -85,11 +145,11 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
   }
 
   get myDashboards(): Dashboard[] {
-    return this.store.dashboards.filter((d) => d.owner === this.me);
+    return this.store.dashboards.filter((d) => d.role === 'Owner');
   }
 
   get sharedWithMe(): Dashboard[] {
-    return this.store.dashboards.filter((d) => d.owner !== this.me);
+    return this.store.dashboards.filter((d) => d.role !== 'Owner');
   }
 
   get favorites(): Dashboard[] {
@@ -113,15 +173,43 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
     return `${origin}${this.basePath}/interactive-dashboards?dashboard=${encodeURIComponent(this.current.id)}`;
   }
 
-  // ===== Filters =====
+  dataFor(w: WidgetConfig): WidgetData {
+    return this.widgetData[w.id] ?? (this.loadingData ? LOADING : EMPTY);
+  }
+
+  // ===== Filters / data =====
 
   private buildFilters(): DashFilters {
     return { period: this.period, organization: this.organization, location: this.location, category: this.category, compare: this.compare };
   }
 
-  /** A new filters object makes every widget recompute its data */
+  /** GET /{id}/data for the filter bar. */
+  private loadData(): void {
+    this.dataSub?.unsubscribe();
+    if (!this.hasDashboard || !this.current.widgets.length) {
+      this.widgetData = {};
+      return;
+    }
+    this.loadingData = true;
+    this.dataSub = this.store.data(this.current, this.filters).subscribe({
+      next: (data) => {
+        this.loadingData = false;
+        this.widgetData = data;
+        this.updatedMinutes = 0;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.loadingData = false;
+        this.widgetData = {};
+        this.notify(apiMessage(err, 'Could not load the dashboard data.'));
+      }
+    });
+  }
+
   onFilterChange(): void {
+    const compareOnly = this.filters.compare !== this.compare && this.filters.period === this.period
+      && this.filters.organization === this.organization && this.filters.location === this.location && this.filters.category === this.category;
     this.filters = this.buildFilters();
+    if (!compareOnly) this.loadData();
   }
 
   toggleCompare(): void {
@@ -131,7 +219,7 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
 
   override refresh(): void {
     super.refresh();
-    this.onFilterChange();
+    this.loadData();
   }
 
   // ===== Dashboards =====
@@ -160,20 +248,81 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
   open(d: Dashboard): void {
     this.menu = null;
     if (this.editMode) this.finishEditing();
-    this.current = d;
+    this.openById(d.id);
   }
 
+  /** GET /{id}, then its data. */
+  private openById(id: string, then?: (d: Dashboard) => void): void {
+    this.store.load(id).subscribe({
+      next: (d) => {
+        this.current = d;
+        this.widgetData = {};
+        this.loadData();
+        then?.(d);
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not open the dashboard.'))
+    });
+  }
+
+  /** PUT /{id}/favorite. */
   toggleFavorite(d: Dashboard, event: Event): void {
     event.stopPropagation();
-    this.store.toggleFavorite(d);
+    const next = !d.favorite;
+    this.store.setFavorite(d, next).subscribe({
+      next: () => {
+        if (this.current.id === d.id) this.current.favorite = next;
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not update favorites.'))
+    });
   }
 
+  /** POST /api/interactive-dashboards (optionally with the current widgets). */
   onCreated(n: NewDashboard): void {
     this.createOpen = false;
-    const d = this.store.create(n.name, n.description, n.sharing, n.copyCurrent ? this.current.widgets : []);
-    this.open(d);
-    this.startEditing();
-    this.notify(`Dashboard “${d.name}” created. Add widgets from the Widget Library.`);
+    this.store.create(n.name, n.description, n.sharing, n.copyCurrent ? this.current.widgets : []).subscribe({
+      next: (d) => {
+        if (this.editMode) this.finishEditing();
+        this.current = d;
+        this.loadData();
+        this.startEditing();
+        this.notify(`Dashboard “${d.name}” created. Add widgets from the Widget Library.`);
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not create the dashboard.'))
+    });
+  }
+
+  /** POST /{id}/duplicate. */
+  duplicateDashboard(): void {
+    this.menu = null;
+    if (!this.hasDashboard) return;
+    this.store.duplicate(this.current).subscribe({
+      next: (d) => {
+        this.current = d;
+        this.loadData();
+        this.notify(`Copied as “${d.name}”.`);
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not copy the dashboard.'))
+    });
+  }
+
+  /** DELETE /{id} (owner only). */
+  deleteDashboard(): void {
+    this.menu = null;
+    const d = this.current;
+    if (!this.hasDashboard || !d.canShare || !confirm(`Delete “${d.name}”? This cannot be undone.`)) return;
+    this.store.remove(d).subscribe({
+      next: () => {
+        if (this.editMode) this.finishEditing();
+        const next = this.store.dashboards[0];
+        if (next) this.openById(next.id);
+        else {
+          this.current = noDashboard();
+          this.widgetData = {};
+        }
+        this.notify(`Dashboard “${d.name}” deleted.`);
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not delete the dashboard.'))
+    });
   }
 
   openShare(): void {
@@ -181,20 +330,25 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
       this.notify('Create a dashboard first.');
       return;
     }
-    if (this.current.role !== 'Owner') {
+    if (!this.current.canShare) {
       this.notify(`Only the owner (${this.current.owner}) can change sharing. Use Copy link from the ⋯ menu instead.`);
       return;
     }
     this.shareOpen = true;
   }
 
+  /** PUT /{id}/share. */
   onShared(r: ShareResult): void {
     this.shareOpen = false;
-    this.current.sharing = r.sharing;
-    this.current.sharedWith = r.sharedWith;
-    this.current.groups = r.groups;
-    this.store.touch(this.current);
-    this.notify(`Sharing updated: ${this.sharedText}.`);
+    this.store.share(this.current, r.sharing, r.sharedWith, r.groups).subscribe({
+      next: () => {
+        this.current.sharing = r.sharing;
+        this.current.sharedWith = r.sharing === 'people' ? r.sharedWith : [];
+        this.current.groups = r.sharing === 'people' ? r.groups : [];
+        this.notify(`Sharing updated: ${this.sharedText}.`);
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not update sharing.'))
+    });
   }
 
   async copyLink(): Promise<void> {
@@ -220,28 +374,48 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
     this.snapshot = null;
   }
 
+  /** PUT /{id} with the widgets as they were when editing started. */
   discardChanges(): void {
-    if (this.snapshot) this.store.replaceWidgets(this.current, this.snapshot);
+    const snapshot = this.snapshot;
     this.finishEditing();
-    this.notify('Layout changes discarded.');
+    if (!snapshot) return;
+    this.store.replace(this.current, snapshot).subscribe({
+      next: (d) => {
+        this.current = d;
+        this.loadData();
+        this.notify('Layout changes discarded.');
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not discard the changes.'))
+    });
   }
 
+  /** PUT /{id}/layout with the order and sizes on screen. */
   saveLayout(): void {
-    this.store.touch(this.current);
-    this.finishEditing();
-    this.notify(`Layout of “${this.current.name}” saved.`);
+    this.store.saveLayout(this.current, this.current.widgets).subscribe({
+      next: () => {
+        this.finishEditing();
+        this.notify(`Layout of “${this.current.name}” saved.`);
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not save the layout.'))
+    });
   }
 
+  /** DELETE /{id}/widgets/{widgetId}. */
   removeWidget(w: WidgetConfig): void {
-    this.store.replaceWidgets(this.current, this.current.widgets.filter((x) => x.id !== w.id));
-    this.notify(`“${w.title}” removed.`);
+    this.store.removeWidget(this.current, w).subscribe({
+      next: () => {
+        this.current.widgets = this.current.widgets.filter((x) => x.id !== w.id);
+        this.notify(`“${w.title}” removed.`);
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not remove the widget.'))
+    });
   }
 
   resizeWidget(w: WidgetConfig, step: number): void {
     const i = SPAN_STEPS.indexOf(w.span);
     const span = SPAN_STEPS[Math.min(SPAN_STEPS.length - 1, Math.max(0, i + step))];
-    // Replace the object so the widget re-renders for its new size
-    this.store.replaceWidgets(this.current, this.current.widgets.map((x) => (x.id === w.id ? { ...x, span } : x)));
+    // Replace the object so the widget re-renders for its new size (saved with the layout)
+    this.current.widgets = this.current.widgets.map((x) => (x.id === w.id ? { ...x, span } : x));
   }
 
   // ===== Drag and drop (native HTML5) =====
@@ -280,7 +454,7 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
       if (from >= 0 && from !== index) {
         const [moved] = list.splice(from, 1);
         list.splice(Math.min(index, list.length), 0, moved);
-        this.store.replaceWidgets(this.current, list);
+        this.current.widgets = list;
       }
     }
     this.onDragEnd();
@@ -305,32 +479,53 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
     this.addDialog = { type: type ?? '', index };
   }
 
+  /** POST /{id}/widgets, then (outside edit mode) PUT /layout for its slot and size, then its data. */
   onWidgetAdded(n: NewWidget): void {
     const at = this.addDialog?.index ?? this.current.widgets.length;
     this.addDialog = null;
-    const list = [...this.current.widgets];
-    list.splice(at, 0, { id: this.store.nextWidgetId(), type: n.type, metric: n.metric, title: n.title, span: n.span });
-    this.store.replaceWidgets(this.current, list);
-    this.notify(`“${n.title}” added to ${this.current.name}.`);
+    const d = this.current;
+    this.store.addWidget(d, { type: n.type, metric: n.metric, title: n.title, span: n.span }).subscribe({
+      next: (w) => {
+        const list = [...d.widgets];
+        list.splice(at, 0, w);
+        d.widgets = list;
+        if (!this.editMode) this.store.saveLayout(d, list).subscribe({ error: (err: HttpErrorResponse) => console.warn('[dashboards] layout', err) });
+        this.store.widgetData(d, w, this.filters).subscribe({
+          next: (data) => (this.widgetData = { ...this.widgetData, ...data }),
+          error: (err: HttpErrorResponse) => console.warn('[dashboards] widget data', err)
+        });
+        this.notify(`“${n.title}” added to ${d.name}.`);
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not add the widget.'))
+    });
   }
 
   // ===== Export / views =====
 
   exportWidget(w: WidgetConfig): void {
-    const csv = widgetCsv(w, buildWidgetData(w, this.filters));
+    const csv = widgetCsv(w, this.dataFor(w));
     downloadCsv(`${w.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`, csv.header, csv.rows);
   }
 
-  /** Every widget in long format: widget, row label, column, value */
+  /** GET /{id}/export: every widget as an xlsx workbook. */
   exportDashboard(): void {
-    const rows: (string | number)[][] = [];
-    this.current.widgets.forEach((w) => {
-      const csv = widgetCsv(w, buildWidgetData(w, this.filters));
-      csv.rows.forEach((r) => r.slice(1).forEach((v, j) => rows.push([w.title, r[0], csv.header[j + 1] ?? '', v])));
-      if (csv.header.length === 1) csv.rows.forEach((r) => rows.push([w.title, '', csv.header[0], r[0]]));
+    if (!this.hasDashboard) {
+      this.notify('Create a dashboard first.');
+      return;
+    }
+    const d = this.current;
+    this.store.export(d, this.filters).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${d.id}.xlsx`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        this.notify(`Exported ${d.widgets.length} widgets from “${d.name}”.`);
+      },
+      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not export the dashboard.'))
     });
-    downloadCsv(`${this.current.id}.csv`, ['Widget', 'Item', 'Field', 'Value'], rows);
-    this.notify(`Exported ${this.current.widgets.length} widgets from “${this.current.name}”.`);
   }
 
   openSaveView(): void {
