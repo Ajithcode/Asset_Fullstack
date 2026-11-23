@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from 'shared-ui';
 import { apiError, getAllPages, tenantParams, trackingUrl } from '../shared/tracking-api';
+import { iotDeviceRecord } from '../shared/iot-device';
 
 // ===== Master Data (sites and buildings for the site / building pickers and the map) =====
 
@@ -184,7 +185,11 @@ export class TelemetryReadApi {
   private readonly http = inject(HttpClient);
 
   devices(): Observable<IotDeviceDto[]> {
-    return getAllPages<IotDeviceDto>(this.http, trackingUrl('iot-devices')).pipe(catchError((err) => apiError(err, 'Could not load IoT devices.')));
+    // list rows report battery as batteryPercent: flatten them so batteryLevel is filled
+    return getAllPages<unknown>(this.http, trackingUrl('iot-devices')).pipe(
+      map((rows) => rows.map(iotDeviceRecord)),
+      catchError((err) => apiError(err, 'Could not load IoT devices.')),
+    );
   }
 
   deviceHealth(): Observable<DeviceHealthDto[]> {
