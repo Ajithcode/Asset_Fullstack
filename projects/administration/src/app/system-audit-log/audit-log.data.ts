@@ -1,7 +1,7 @@
 import { todayIso } from '../shared/admin-common';
 import { AuditCategory } from './audit-log.model';
 
-// Lookups for the System Audit Log; the events themselves come from the audit API (empty until wired)
+// Lookups for the System Audit Log; the events themselves come from the audit API (/api/audit-logs)
 
 /** The day the header stats and default date filter refer to. */
 export const AUDIT_DAY = todayIso();
