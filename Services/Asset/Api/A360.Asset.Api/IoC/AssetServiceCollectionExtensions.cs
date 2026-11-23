@@ -122,6 +122,10 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<IAssetConditionAssessmentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetConditionAssessmentRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetConditionAssessmentRepository>());
 
+        services.AddScoped<AssetStatusConditionChangeRepository>();
+        services.AddScoped<IAssetStatusConditionChangeRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetStatusConditionChangeRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetStatusConditionChangeRepository>());
+
         services.AddScoped<AssetCriticalityAssessmentRepository>();
         services.AddScoped<IAssetCriticalityAssessmentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityAssessmentRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityAssessmentRepository>());
@@ -157,6 +161,7 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<IAssetServiceRequestRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetServiceRequestRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetServiceRequestRepository>());
         services.AddScoped<IMaintenanceLookupRepository, MaintenanceLookupRepository>();
+        services.AddScoped<IStatusConditionLookupRepository, StatusConditionLookupRepository>();
 
         // Read-only: the dashboard reads tracking records from the shared database, so it needs no indexes of its own.
         services.AddScoped<A360.Asset.Repository.Dashboard.IAssetDashboardRepository, A360.Asset.Repository.Dashboard.AssetDashboardRepository>();
