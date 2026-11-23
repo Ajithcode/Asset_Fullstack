@@ -382,84 +382,98 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             readingFilter["timestamp"] = readingTime;
         }
 
-        var changeFilter = new BsonDocument("$expr", new BsonDocument("$and", new BsonArray
+        // The readings are streamed and paired per tag here rather than with $setWindowFields: that stage sorts every
+        // reading in memory, and the Atlas tier caps sorts at 32 MB without allowing external sorting (500 for a 30-day window).
+        var projection = new BsonDocument
         {
-            new BsonDocument("$ne", new BsonArray { "$previousGateway", BsonNull.Value }),
-            new BsonDocument("$ne", new BsonArray { "$previousGateway", "$gateway" })
-        }));
-        if (fromUtc is not null)
+            { "timestamp", 1 }, { "meta.tagid", 1 }, { "meta.gatewayid", 1 }, { "latitude", 1 }, { "longitude", 1 }
+        };
+        var readingsByTag = new Dictionary<string, List<GatewayReading>>();
+        using (var cursor = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
+                   .Find(readingFilter, new FindOptions { Collation = CaseInsensitive, BatchSize = 5000 })
+                   .Project(projection)
+                   .ToCursorAsync(cancellationToken))
         {
-            changeFilter["timestamp"] = new BsonDocument("$gte", fromUtc.Value);
+            while (await cursor.MoveNextAsync(cancellationToken))
+            {
+                foreach (var row in cursor.Current)
+                {
+                    if (!row.TryGetValue("timestamp", out var time) || !time.IsValidDateTime
+                        || !row.TryGetValue("meta", out var meta) || !meta.IsBsonDocument)
+                    {
+                        continue;
+                    }
+
+                    var tag = Normalised(meta.AsBsonDocument, "tagid");
+                    var gateway = Normalised(meta.AsBsonDocument, "gatewayid");
+                    if (tag is null || gateway is null)
+                    {
+                        continue;
+                    }
+
+                    if (!readingsByTag.TryGetValue(tag, out var list))
+                    {
+                        readingsByTag[tag] = list = [];
+                    }
+
+                    list.Add(new GatewayReading(
+                        time.ToUniversalTime(),
+                        row.TryGetValue("_id", out var id) ? id : BsonNull.Value,
+                        gateway,
+                        Number(row, "latitude"),
+                        Number(row, "longitude")));
+                }
+            }
         }
 
-        var newestFirst = new BsonDocument { { "timestamp", -1 }, { "_id", -1 } };
-        var stages = new[]
+        var results = new List<NetworkTagGatewayChanges>();
+        foreach (var (tag, readings) in readingsByTag)
         {
-            new BsonDocument("$match", readingFilter),
-            new BsonDocument("$project", new BsonDocument
-            {
-                { "timestamp", 1 },
-                { "tag", Normalised("$meta.tagid") },
-                { "gateway", Normalised("$meta.gatewayid") },
-                { "latitude", 1 },
-                { "longitude", 1 }
-            }),
-            // Each reading paired with the gateway of the same tag's previous reading.
-            new BsonDocument("$setWindowFields", new BsonDocument
-            {
-                { "partitionBy", "$tag" },
-                { "sortBy", new BsonDocument { { "timestamp", 1 }, { "_id", 1 } } },
-                { "output", new BsonDocument
-                    {
-                        { "previousGateway", new BsonDocument("$shift", new BsonDocument { { "output", "$gateway" }, { "by", -1 } }) },
-                        { "previousLatitude", new BsonDocument("$shift", new BsonDocument { { "output", "$latitude" }, { "by", -1 } }) },
-                        { "previousLongitude", new BsonDocument("$shift", new BsonDocument { { "output", "$longitude" }, { "by", -1 } }) }
-                    } }
-            }),
-            new BsonDocument("$match", changeFilter),
-            new BsonDocument("$group", new BsonDocument
-            {
-                { "_id", "$tag" },
-                { "changes", new BsonDocument("$sum", 1) },
-                { "lastChange", new BsonDocument("$top", new BsonDocument
-                    {
-                        { "sortBy", newestFirst },
-                        { "output", new BsonDocument
-                            {
-                                { "at", "$timestamp" }, { "from", "$previousGateway" }, { "to", "$gateway" },
-                                { "fromLatitude", "$previousLatitude" }, { "fromLongitude", "$previousLongitude" },
-                                { "toLatitude", "$latitude" }, { "toLongitude", "$longitude" }
-                            } }
-                    }) }
-            }),
-            new BsonDocument("$sort", new BsonDocument { { "changes", -1 }, { "_id", 1 } })
-        };
+            // Oldest first, as the reading order the gateway changes are counted in.
+            readings.Sort((a, b) => a.At != b.At ? a.At.CompareTo(b.At) : a.Id.CompareTo(b.Id));
 
-        var rows = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
-            .Aggregate(
-                PipelineDefinition<BsonDocument, BsonDocument>.Create(stages),
-                new AggregateOptions { Collation = CaseInsensitive, AllowDiskUse = true },
-                cancellationToken)
-            .ToListAsync(cancellationToken);
-
-        return rows.Select(row =>
+            long changes = 0;
+            GatewayReading? lastFrom = null;
+            GatewayReading? lastTo = null;
+            for (var i = 1; i < readings.Count; i++)
             {
-                var last = row["lastChange"].AsBsonDocument;
-                return new NetworkTagGatewayChanges(
-                    row["_id"].ToString()!,
-                    row["changes"].ToInt64(),
-                    last.TryGetValue("at", out var at) && at.IsValidDateTime ? at.ToUniversalTime() : null,
-                    last.TryGetValue("from", out var from) && !from.IsBsonNull ? from.ToString() : null,
-                    last.TryGetValue("to", out var to) && !to.IsBsonNull ? to.ToString() : null,
-                    Number(last, "fromLatitude"),
-                    Number(last, "fromLongitude"),
-                    Number(last, "toLatitude"),
-                    Number(last, "toLongitude"));
-            })
+                var previous = readings[i - 1];
+                var current = readings[i];
+                if (previous.Gateway == current.Gateway || (fromUtc is not null && current.At < fromUtc.Value))
+                {
+                    continue;
+                }
+
+                changes++;
+                lastFrom = previous;
+                lastTo = current;
+            }
+
+            if (changes > 0)
+            {
+                results.Add(new NetworkTagGatewayChanges(
+                    tag,
+                    changes,
+                    lastTo!.At,
+                    lastFrom!.Gateway,
+                    lastTo.Gateway,
+                    lastFrom.Latitude,
+                    lastFrom.Longitude,
+                    lastTo.Latitude,
+                    lastTo.Longitude));
+            }
+        }
+
+        return results
+            .OrderByDescending(row => row.Changes)
+            .ThenBy(row => row.TagId, StringComparer.Ordinal)
             .ToList();
 
-        static BsonDocument Normalised(string field) =>
-            new("$toLower", new BsonDocument("$trim", new BsonDocument("input", new BsonDocument("$toString", field))));
+        static string? Normalised(BsonDocument meta, string field) =>
+            meta.TryGetValue(field, out var value) && !value.IsBsonNull && value.ToString() is { } text
+                && text.Trim() is { Length: > 0 } trimmed
+                ? trimmed.ToLowerInvariant()
+                : null;
 
         static double? Number(BsonDocument document, string field) =>
             document.TryGetValue(field, out var value) && value.IsNumeric ? value.ToDouble() : null;
@@ -731,3 +745,5 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             .ToListAsync(cancellationToken);
     }
 }
+
+internal sealed record GatewayReading(DateTime At, BsonValue Id, string Gateway, double? Latitude, double? Longitude);
