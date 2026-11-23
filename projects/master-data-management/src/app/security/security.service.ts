@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, concat, map, of, switchMap, tap, toArray } from 'rxjs';
+import { Observable, catchError, concat, map, of, switchMap, tap, toArray, throwError } from 'rxjs';
 import { ApiCodeStore } from '../shared/code-store';
 import { MdmAudit, inSequence } from '../shared/mdm-api';
 import { ModuleRecord, PermissionRecord, PermissionType, RoleRecord, RoleType, SecurityStatus, UserRecord } from './security.model';
@@ -97,7 +97,9 @@ abstract class SecurityStore<T extends { code: string; name: string; status: Sec
   }
 
   setStatus(code: string, value: SecurityStatus): Observable<T> {
-    return this.api.setStatus<TDto>(this.resource, this.idOf(code) ?? '', value).pipe(
+    const id = this.idOf(code);
+    if (!id) return throwError(() => new Error('Record not found.'));
+    return this.api.setStatus<TDto>(this.resource, id, value).pipe(
       map((dto) => {
         const saved = this.toRecord(dto);
         this.save(saved, code);

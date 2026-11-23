@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, finalize, forkJoin, map, of, shareReplay, switchMap, tap } from 'rxjs';
+import { Observable, finalize, forkJoin, map, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 import { MdmApi, MdmAudit, apiErrorMessage, inSequence } from '../../shared/mdm-api';
 import { SiteService } from '../site/site.service';
 import { StructureAddressDto, StructureReference, fromApiAddress, reference, toLocalStamp } from '../structure-api';
@@ -184,7 +184,9 @@ export class BfzService {
   }
 
   setStatus(record: BfzRecord, status: BfzStatus): Observable<BfzRecord> {
-    return this.api.setStatus<SpaceDto>(RESOURCES[record.type], this.ids.get(record.code) ?? '', status).pipe(
+    const id = this.ids.get(record.code);
+    if (!id) return throwError(() => new Error('Record not found.'));
+    return this.api.setStatus<SpaceDto>(RESOURCES[record.type], id, status).pipe(
       map((dto) => {
         const saved = { ...record, status: (dto.status as BfzStatus) ?? status, updatedOn: toLocalStamp(dto.updatedAt) || record.updatedOn };
         this.store(saved, record.code);
