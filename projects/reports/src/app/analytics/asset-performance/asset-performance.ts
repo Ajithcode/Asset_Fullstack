@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { Subscription, catchError, map, of, switchMap } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -7,18 +8,26 @@ import {
   LucideAngularModule, RefreshCw, Settings, ShieldCheck, TriangleAlert, Wrench
 } from 'lucide-angular';
 import { downloadCsv, percent } from '../shared/analytics-common';
+import { AnalyticsGroup, AnalyticsQuery, apiMessage, filterValue, periodQuery, previousQuery } from '../shared/analytics-api.service';
 import { CartesianChart, HBarChart } from '../shared/charts';
 import { RaAsset } from './kit/asset-universe';
 import { RaInsight, RaInsightCard, RaKpiCard } from './kit/ra-cards';
-import { RaActionDialog, RaDetailDialog, RaExpandDialog, RaRecords, RaRecordsDialog, RaSaveViewDialog } from './kit/ra-dialogs';
+import { RaActionAsset, RaActionDialog, RaActionForm, RaDetailDialog, RaExpandDialog, RaRecords, RaRecordsDialog, RaSaveViewDialog } from './kit/ra-dialogs';
 import { RaMenu } from './kit/ra-menu';
-import { ScopedAnalyticsPage, SortDir, sortRows } from './kit/scoped-page';
-import { AP_DELTAS, ApAssetRow, ApLocationRow, AssetPerformanceView, UTILIZATION_TARGET, buildAssetPerformance } from './asset-performance.data';
+import { SavedView, ScopedAnalyticsPage, SortDir, sortRows } from './kit/scoped-page';
+import {
+  ApAssetDto, ApAssetRow, ApFiltersDto, ApInsightDto, ApLocationRow, ApOverviewDto, AssetPerformanceView, emptyAssetPerformance, insightAsset,
+  mapAssetPerformance, toRaAsset
+} from './asset-performance.data';
 
 type AssetSortKey = 'id' | 'name' | 'location' | 'health' | 'utilization' | 'availability';
 type LocationSortKey = 'name' | 'health' | 'utilization' | 'availability';
 
-const ALL_ASSETS_VIEW = 'All Assets';
+const GROUP: AnalyticsGroup = 'asset-performance';
+
+/** Insight key → card id used by the template actions. */
+const INSIGHT_IDS: Record<string, string> = { below_health_threshold: 'critical', maintenance_intervention: 'intervention', utilization_below_target: 'utilization' };
+const INSIGHT_TONES: Record<string, RaInsight['tone']> = { critical: 'red', warning: 'orange', info: 'blue', success: 'green' };
 
 /** Reports & Analytics > Asset Performance: health, utilization, reliability, downtime and asset ranking. */
 @Component({
@@ -37,76 +46,127 @@ export class AssetPerformancePage extends ScopedAnalyticsPage {
   };
   readonly rowMenu = ['View details', 'Create work order'];
   readonly percentFormat = (v: number) => `${v}%`;
-  readonly utilizationTarget = UTILIZATION_TARGET;
-  readonly deltas = AP_DELTAS;
+  readonly mtbfFormat = (v: number) => `${Math.round(v).toLocaleString('en-US')} hrs`;
+  readonly mttrFormat = (v: number) => `${Math.round(v * 10) / 10} hrs`;
   protected readonly fileStem = 'asset-performance';
+  protected override readonly viewGroup = GROUP;
 
-  view!: AssetPerformanceView;
+  view: AssetPerformanceView = emptyAssetPerformance();
+  /** The first overview response has arrived (the empty notice waits for it) */
+  loaded = false;
   insights: RaInsight[] = [];
+  /** Technicians a work order can be assigned to */
+  assignees: string[] = [];
   currentView = '';
   assetSort: AssetSortKey = 'health';
   assetDir: SortDir = -1;
   locationSort: LocationSortKey = 'health';
   locationDir: SortDir = -1;
+  private loadSub: Subscription | null = null;
 
   constructor() {
     super();
-    this.views = [{ name: ALL_ASSETS_VIEW, filters: this.snapshot() }];
+    this.views = [{ name: 'All Assets', filters: this.snapshot() }];
+    this.analyticsApi.filters<ApFiltersDto>(GROUP).subscribe({
+      next: (f) => this.applyFilterOptions(f),
+      error: (err) => console.warn('[asset-performance] filters failed', err)
+    });
+    this.loadViews();
+    this.analyticsApi.assignees().subscribe((names) => (this.assignees = names));
     this.recompute();
   }
 
+  get utilizationTarget(): number {
+    return this.view.utilizationTarget;
+  }
+
+  get deltas() {
+    return this.view.deltas;
+  }
+
+  /** Filter bar as query parameters of the Asset Performance endpoints. */
+  private get query(): AnalyticsQuery {
+    return {
+      ...periodQuery(this.period),
+      organization: filterValue(this.organization),
+      location: filterValue(this.location),
+      category: filterValue(this.category),
+      assetType: filterValue(this.assetType)
+    };
+  }
+
+  /** Reloads every widget from GET api/asset-performance/overview (plus the previous period when comparing). */
   recompute(): void {
-    const v = buildAssetPerformance(this.scope, this.period, this.compare);
+    this.loadSub?.unsubscribe();
+    this.refreshing = true;
+    const query = this.query;
+    const compare = this.compare;
+    this.loadSub = this.analyticsApi
+      .overview<ApOverviewDto>(GROUP, query)
+      .pipe(
+        switchMap((o) =>
+          compare
+            ? this.analyticsApi.overview<ApOverviewDto>(GROUP, { ...query, datePreset: undefined, ...previousQuery(o.period) }).pipe(
+                map((p): [ApOverviewDto, ApOverviewDto | null] => [o, p]),
+                catchError(() => of<[ApOverviewDto, ApOverviewDto | null]>([o, null]))
+              )
+            : of<[ApOverviewDto, ApOverviewDto | null]>([o, null])
+        )
+      )
+      .subscribe({
+        next: ([o, previous]) => this.show(mapAssetPerformance(o, previous)),
+        error: (err) => {
+          this.show(emptyAssetPerformance());
+          this.notify(apiMessage(err, 'Could not load asset performance.'));
+        }
+      });
+  }
+
+  override refresh(): void {
+    if (!this.refreshing) this.recompute();
+  }
+
+  private show(v: AssetPerformanceView): void {
     this.view = v;
+    this.loaded = true;
+    this.refreshing = false;
+    this.updatedMinutes = 0;
+    const d = v.deltas;
     this.kpis = [
-      { id: 'total', label: 'Total Assets', value: v.total.toLocaleString('en-US'), delta: AP_DELTAS.total, icon: Box, tone: 'purple' },
-      { id: 'health', label: 'Average Health Score', value: `${v.health}%`, delta: AP_DELTAS.health, icon: Heart, tone: 'blue' },
-      { id: 'utilization', label: 'Utilization Rate', value: `${v.utilization}%`, delta: AP_DELTAS.utilization, icon: ChartColumn, tone: 'orange' },
-      { id: 'availability', label: 'Availability', value: percent(v.availability), delta: AP_DELTAS.availability, icon: ShieldCheck, tone: 'green' },
-      { id: 'mtbf', label: 'MTBF', value: `${v.mtbf.toLocaleString('en-US')} hrs`, delta: AP_DELTAS.mtbf, icon: Settings, tone: 'purple' }
+      { id: 'total', label: 'Total Assets', value: v.total.toLocaleString('en-US'), delta: d.total, icon: Box, tone: 'purple' },
+      { id: 'health', label: 'Average Health Score', value: this.fmt(v.health, (x) => `${Math.round(x)}%`), delta: d.health, icon: Heart, tone: 'blue' },
+      { id: 'utilization', label: 'Utilization Rate', value: this.fmt(v.utilization, (x) => `${Math.round(x)}%`), delta: d.utilization, icon: ChartColumn, tone: 'orange' },
+      { id: 'availability', label: 'Availability', value: this.fmt(v.availability, (x) => percent(x)), delta: d.availability, icon: ShieldCheck, tone: 'green' },
+      { id: 'mtbf', label: 'MTBF', value: this.fmt(v.mtbf, (x) => `${Math.round(x).toLocaleString('en-US')} hrs`), delta: d.mtbf, icon: Settings, tone: 'purple' }
     ];
-    this.insights = this.buildInsights(v);
+    this.insights = v.total ? v.insights.map((i) => this.toInsight(i)) : [];
   }
 
-  private buildInsights(v: AssetPerformanceView): RaInsight[] {
-    if (!v.total) return [];
-    const low = v.lowUtilization;
-    return [
-      v.critical.length
-        ? {
-            id: 'critical', tone: 'red', icon: TriangleAlert, title: `${v.critical.length} assets below health threshold`,
-            text: 'Assets with health score < 40 require immediate attention.',
-            actions: [{ id: 'critical-view', label: 'View assets' }, { id: 'critical-wo', label: 'Create work order', primary: true }]
-          }
-        : { id: 'critical', tone: 'green', icon: ShieldCheck, title: 'No assets below health threshold', text: 'Every asset in this view scores 40 or more.', actions: [] },
-      v.intervention.length
-        ? {
-            id: 'intervention', tone: 'orange', icon: Wrench, title: `Maintenance intervention recommended for ${v.intervention.length} asset${v.intervention.length === 1 ? '' : 's'}`,
-            text: 'Based on usage, condition and predicted failures: health 40–49 while running above 80% utilization.',
-            actions: [{ id: 'intervention-view', label: 'View assets' }, { id: 'intervention-wo', label: 'Create work order', primary: true }]
-          }
-        : { id: 'intervention', tone: 'green', icon: Wrench, title: 'No maintenance intervention needed', text: 'No heavily used asset in this view is losing condition.', actions: [] },
-      low.length
-        ? {
-            id: 'utilization', tone: 'blue', icon: ChartColumn, title: `Utilization below target in ${low.length} location${low.length === 1 ? '' : 's'}`,
-            text: `Average utilization is below ${UTILIZATION_TARGET}% in ${this.joinNames(low.map((l) => l.name))}.`,
-            actions: [{ id: 'utilization-view', label: 'View locations' }]
-          }
-        : {
-            id: 'utilization', tone: 'green', icon: ChartColumn, title: 'All locations meet the utilization target',
-            text: `Every location in this view averages ${UTILIZATION_TARGET}% utilization or more.`, actions: [{ id: 'utilization-view', label: 'View locations' }]
-          }
-    ];
+  /** '—' while the API has no value (e.g. no asset has a health score yet). */
+  fmt(value: number | null, format: (v: number) => string = (v) => String(Math.round(v * 10) / 10)): string {
+    return value === null ? '—' : format(value);
   }
 
-  private joinNames(names: string[]): string {
-    return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] ?? '';
+  private toInsight(i: ApInsightDto): RaInsight {
+    const id = INSIGHT_IDS[i.key] ?? i.key;
+    const icon = id === 'critical' ? (i.count ? TriangleAlert : ShieldCheck) : id === 'intervention' ? Wrench : ChartColumn;
+    const actions: RaInsight['actions'] = [];
+    for (const a of i.actions) {
+      if (a === 'view_assets') actions.push({ id: `${id}-view`, label: 'View assets' });
+      else if (a === 'view_locations') actions.push({ id: `${id}-view`, label: 'View locations' });
+      else if (a === 'create_work_order' && i.assets.length) actions.push({ id: `${id}-wo`, label: 'Create work order', primary: true });
+    }
+    return { id, tone: i.count ? INSIGHT_TONES[i.severity] ?? 'blue' : 'green', icon, title: i.title, text: i.message, actions: i.count || id === 'utilization' ? actions : [] };
   }
 
   // ----- Saved views -----
   override confirmSaveView(name: string): void {
     super.confirmSaveView(name);
     this.currentView = name;
+  }
+
+  protected override viewSaveFailed(view: SavedView): void {
+    if (this.currentView === view.name) this.currentView = '';
   }
 
   // ----- Tables -----
@@ -145,12 +205,25 @@ export class AssetPerformancePage extends ScopedAnalyticsPage {
   }
 
   meterColor(utilization: number): string {
-    return utilization >= UTILIZATION_TARGET ? '#10b981' : utilization >= 65 ? '#f59e0b' : '#ef4444';
+    return utilization >= this.utilizationTarget ? '#10b981' : utilization >= this.utilizationTarget - 10 ? '#f59e0b' : '#ef4444';
+  }
+
+  private woRequest(a: RaAsset, priority: string) {
+    return {
+      kind: 'Work order' as const,
+      title: `Performance review – ${a.name}`,
+      context: `${a.id} · ${a.site.name}`,
+      priority,
+      assets: [{ assetId: a.id, assetName: a.name, location: a.site.name }]
+    };
   }
 
   rowAction(item: string, row: ApAssetRow): void {
-    if (item === 'Create work order') this.openAction('Work order', `Performance review – ${row.name}`, `${row.id} · ${row.location}`, row.health < 40 ? 'Critical' : 'Medium');
-    else this.showAsset(row.asset);
+    if (item === 'Create work order') {
+      const r = this.woRequest(row.asset, row.health < 40 ? 'Critical' : 'Medium');
+      this.detail = null;
+      this.action = r;
+    } else this.showAsset(row.asset);
   }
 
   showAsset(a: RaAsset): void {
@@ -164,60 +237,99 @@ export class AssetPerformancePage extends ScopedAnalyticsPage {
           { label: 'Health score', value: `${a.health} / 100` },
           { label: 'Utilization', value: percent(a.utilization) },
           { label: 'Availability', value: percent(a.availability) },
-          { label: 'MTBF', value: `${a.mtbf.toLocaleString('en-US')} hrs` },
-          { label: 'Predictive risk', value: a.risk ? `${a.risk} (score ${a.riskScore})` : 'Not monitored' },
-          { label: 'Owner', value: a.owner }
+          { label: 'MTBF', value: `${a.mtbf.toLocaleString('en-US')} hrs` }
         ],
         primary: 'Create work order'
       },
-      { kind: 'Work order', title: `Performance review – ${a.name}`, context: `${a.id} · ${a.site.name}`, priority: a.health < 40 ? 'Critical' : 'Medium' }
+      this.woRequest(a, a.health < 40 ? 'Critical' : 'Medium')
     );
   }
 
   showLocation(l: ApLocationRow): void {
     this.openDetail({
       title: l.name,
-      subtitle: `${l.site.org} · site code ${l.site.code}`,
+      subtitle: l.status,
       fields: [
         { label: 'Assets', value: l.assets.toLocaleString('en-US') },
         { label: 'Average health score', value: l.health },
-        { label: 'Utilization', value: `${l.utilization}% (target ${UTILIZATION_TARGET}%)` },
+        { label: 'Utilization', value: `${l.utilization}% (target ${this.utilizationTarget}%)` },
         { label: 'Availability', value: percent(l.availability) }
       ]
     });
   }
 
+  // ----- Work orders -----
+  /** Creates one work order per asset in the Maintenance service (POST api/work-orders). */
+  override submitAction(form: RaActionForm): void {
+    const assets: RaActionAsset[] = this.action?.assets ?? [];
+    this.action = null;
+    this.analyticsApi
+      .createWorkOrders(
+        assets.map((a) => ({
+          assetId: a.assetId,
+          assetName: a.assetName,
+          title: assets.length > 1 ? `${form.title} – ${a.assetName}` : form.title,
+          workType: 'Corrective',
+          priority: form.priority,
+          assignedTechnician: form.owner,
+          dueDate: form.due,
+          notes: form.notes,
+          site: a.location,
+          sourceReference: 'Asset Performance'
+        }))
+      )
+      .subscribe({
+        next: (created) =>
+          this.notify(created.length === 1 ? `Work order ${created[0].workOrderId} created for ${form.owner}, due ${form.due}.` : `${created.length} work orders created for ${form.owner}, due ${form.due}.`),
+        error: (err) => this.notify(apiMessage(err, 'Could not create the work order.'))
+      });
+  }
+
   // ----- Insights -----
+  private insight(id: string): ApInsightDto | undefined {
+    return this.view.insights.find((i) => INSIGHT_IDS[i.key] === id);
+  }
+
   insightAction(id: string): void {
-    const v = this.view;
-    switch (id) {
-      case 'critical-view':
-        this.records = this.assetRecords('Assets below health threshold', 'Health score < 40, lowest first.', v.critical, 'assets-below-health-threshold.csv');
-        break;
-      case 'critical-wo':
-        this.openAction('Work order', `Condition assessment – ${v.critical.length} critical assets`, this.assetList(v.critical), 'Critical');
-        break;
-      case 'intervention-view':
-        this.records = this.assetRecords('Maintenance intervention recommended', 'Health 40–49 while running above 80% utilization.', v.intervention, 'maintenance-intervention.csv');
-        break;
-      case 'intervention-wo':
-        this.openAction('Work order', `Preventive service – ${v.intervention.length} assets`, this.assetList(v.intervention), 'High');
-        break;
-      case 'utilization-view':
-        this.records = {
-          title: 'Utilization by location',
-          subtitle: `Target ${UTILIZATION_TARGET}%. Lowest utilization first.`,
-          columns: [
-            { key: 'location', label: 'Location' }, { key: 'assets', label: 'Assets', num: true }, { key: 'utilization', label: 'Utilization %', num: true },
-            { key: 'gap', label: 'Gap to target (pts)', num: true }, { key: 'availability', label: 'Availability %', num: true }
-          ],
-          rows: sortRows(v.locations, 'utilization', 1).map((l) => ({
-            location: l.name, assets: l.assets, utilization: l.utilization, gap: l.utilization - UTILIZATION_TARGET, availability: l.availability
-          })),
-          file: 'utilization-by-location.csv'
-        };
-        break;
+    const [key, act] = [id.slice(0, id.lastIndexOf('-')), id.slice(id.lastIndexOf('-') + 1)];
+    const insight = this.insight(key);
+    if (!insight) return;
+    if (key === 'utilization') {
+      this.showLocations(insight);
+      return;
     }
+    const priority = key === 'critical' ? 'Critical' : 'High';
+    if (act === 'wo') {
+      const list = insight.assets.map(insightAsset);
+      this.openAction('Work order', key === 'critical' ? `Condition assessment – ${list.length} critical assets` : `Preventive service – ${list.length} assets`, this.assetList(list), priority);
+      if (this.action) this.action.assets = list.map((a) => ({ assetId: a.id, assetName: a.name, location: a.site.name }));
+      return;
+    }
+    // View assets: GET api/asset-performance/assets with the insight's query (healthBelow=… / interventionOnly=true)
+    const extra = Object.fromEntries(new URLSearchParams(insight.query));
+    this.analyticsApi
+      .get<{ items: ApAssetDto[] }>(GROUP, 'assets', { ...this.query, ...extra, sortBy: 'healthScore', sortDirection: 'asc', pageSize: 200 })
+      .subscribe({
+        next: (res) => (this.records = this.assetRecords(insight.title, insight.message, res.items.map(toRaAsset), `${insight.key.replace(/_/g, '-')}.csv`)),
+        error: (err) => this.notify(apiMessage(err, 'Could not load the assets.'))
+      });
+  }
+
+  private showLocations(insight: ApInsightDto): void {
+    const target = this.utilizationTarget;
+    const below = new Set(insight.locations);
+    this.records = {
+      title: 'Utilization by location',
+      subtitle: `Target ${target}%. Lowest utilization first.`,
+      columns: [
+        { key: 'location', label: 'Location' }, { key: 'assets', label: 'Assets', num: true }, { key: 'utilization', label: 'Utilization %', num: true },
+        { key: 'gap', label: 'Gap to target (pts)', num: true }, { key: 'availability', label: 'Availability %', num: true }
+      ],
+      rows: sortRows(this.view.locations, 'utilization', 1)
+        .filter((l) => !below.size || below.has(l.name))
+        .map((l) => ({ location: l.name, assets: l.assets, utilization: l.utilization, gap: l.utilization - target, availability: l.availability })),
+      file: 'utilization-by-location.csv'
+    };
   }
 
   private assetList(list: RaAsset[]): string {
@@ -231,11 +343,10 @@ export class AssetPerformancePage extends ScopedAnalyticsPage {
       subtitle,
       columns: [
         { key: 'id', label: 'Asset ID' }, { key: 'name', label: 'Asset Name' }, { key: 'location', label: 'Location' }, { key: 'category', label: 'Category' },
-        { key: 'health', label: 'Health', num: true }, { key: 'utilization', label: 'Utilization %', num: true }, { key: 'availability', label: 'Availability %', num: true },
-        { key: 'owner', label: 'Owner' }
+        { key: 'health', label: 'Health', num: true }, { key: 'utilization', label: 'Utilization %', num: true }, { key: 'availability', label: 'Availability %', num: true }
       ],
       rows: list.map((a) => ({
-        id: a.id, name: a.name, location: a.site.name, category: a.category, health: a.health, utilization: a.utilization, availability: a.availability, owner: a.owner
+        id: a.id, name: a.name, location: a.site.name, category: a.category, health: a.health, utilization: a.utilization, availability: a.availability
       })),
       file
     };
@@ -247,18 +358,12 @@ export class AssetPerformancePage extends ScopedAnalyticsPage {
     return targets[id] ?? 'ap-trend';
   }
 
+  /** Excel workbook of every section for the current filters (GET api/asset-performance/export). */
   exportPage(): void {
-    this.exportAssets();
-    this.notify(`Exported ${this.view.total.toLocaleString('en-US')} assets.`);
-  }
-
-  private exportAssets(): void {
-    const ranked = [...this.view.assets].sort((a, b) => b.health - a.health);
-    downloadCsv(
-      'asset-performance.csv',
-      ['Rank', 'Asset ID', 'Asset Name', 'Location', 'Category', 'Asset Type', 'Health Score', 'Utilization %', 'Availability %', 'MTBF (hrs)'],
-      ranked.map((a, i) => [i + 1, a.id, a.name, a.site.name, a.category, a.type, a.health, a.utilization, a.availability, a.mtbf])
-    );
+    this.analyticsApi.export(GROUP, this.query).subscribe({
+      next: () => this.notify(`Exported ${this.view.total.toLocaleString('en-US')} assets.`),
+      error: (err) => this.notify(apiMessage(err, 'Export failed.'))
+    });
   }
 
   exportWidget(id: string): void {
@@ -279,10 +384,11 @@ export class AssetPerformancePage extends ScopedAnalyticsPage {
         downloadCsv('reliability-availability.csv', ['Month', ...v.reliability.map((s) => s.name)], months.map((m, i) => [m, ...v.reliability.map((s) => s.values[i])]));
         break;
       case 'downtime':
-        downloadCsv('downtime-analysis.csv', ['Month', 'Planned (hrs)', 'Unplanned (hrs)'], months.map((m, i) => [m, v.downtime[0].values[i], v.downtime[1].values[i]]));
+        downloadCsv('downtime-analysis.csv', ['Month', 'Planned (hrs)', 'Unplanned (hrs)'], months.map((m, i) => [m, v.downtime[0]?.values[i] ?? 0, v.downtime[1]?.values[i] ?? 0]));
         break;
       case 'assets':
-        this.exportAssets();
+        downloadCsv('top-bottom-assets.csv', ['Asset ID', 'Asset Name', 'Location', 'Health Score', 'Utilization %', 'Availability %', 'Status'],
+          this.assetRows.map((r) => [r.id, r.name, r.location, r.health, r.utilization, r.availability, r.status]));
         break;
       case 'locations':
         downloadCsv('asset-performance-by-location.csv', ['Location', 'Assets', 'Avg Health Score', 'Utilization %', 'Availability %'],

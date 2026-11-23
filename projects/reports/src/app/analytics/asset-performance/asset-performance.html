@@ -72,7 +72,7 @@
   </label>
 </div>
 
-@if (!view.total) {
+@if (loaded && !view.total) {
   <div class="ra-notice">
     No assets match the selected filters.
     <button type="button" class="btn btn--link" (click)="resetFilters()">Reset filters</button>
@@ -124,7 +124,7 @@
     </section>
     <ng-template #distributionTpl>
       <ra-hbar-chart [rows]="view.distribution" [labelWidth]="118" />
-      <p class="muted ap-foot">{{ view.total.toLocaleString('en-US') }} assets · average health {{ view.health }}</p>
+      <p class="muted ap-foot">{{ view.total.toLocaleString('en-US') }} assets · average health {{ fmt(view.health) }}</p>
     </ng-template>
 
     <!-- Reliability & Availability -->
@@ -142,7 +142,7 @@
           <lucide-icon [img]="icons.Settings" [size]="22" class="ap-mini-icon" />
           <div>
             <span>MTBF</span>
-            <strong>{{ view.mtbf.toLocaleString('en-US') }} hrs</strong>
+            <strong>{{ fmt(view.mtbf, mtbfFormat) }}</strong>
             <em class="ap-delta"><lucide-icon [img]="icons.ArrowUp" [size]="12" />{{ deltas.mtbf }}%</em>
           </div>
         </div>
@@ -150,7 +150,7 @@
           <lucide-icon [img]="icons.Clock" [size]="22" class="ap-mini-icon" />
           <div>
             <span>MTTR</span>
-            <strong>{{ view.mttr }} hrs</strong>
+            <strong>{{ fmt(view.mttr, mttrFormat) }}</strong>
             <em class="ap-delta"><lucide-icon [img]="icons.ArrowDown" [size]="12" />{{ deltas.mttr }}%</em>
           </div>
         </div>
@@ -294,7 +294,7 @@
   <ra-detail-dialog [data]="detail" (close)="detail = null" (primary)="detailPrimary()" />
 }
 @if (action) {
-  <ra-action-dialog [request]="action" (close)="action = null" (submitted)="submitAction($event)" />
+  <ra-action-dialog [request]="action" [people]="assignees" (close)="action = null" (submitted)="submitAction($event)" />
 }
 @if (savingView) {
   <ra-save-view-dialog [taken]="viewNames" (close)="savingView = false" (save)="confirmSaveView($event)" />
