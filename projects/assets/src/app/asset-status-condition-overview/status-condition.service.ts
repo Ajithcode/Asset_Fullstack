@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { ASSET_API } from '../services/asset-api';
+import { ASSET_API, MEDIA_API } from '../services/asset-api';
 
 /** Statuses an asset can be given on the Asset Status & Condition pages. */
 export const OPERATIONAL_STATUSES = ['Active', 'Under Maintenance', 'Out of Service'] as const;
@@ -230,12 +230,12 @@ export class StatusConditionService {
     return this.http.post<StatusConditionChange>(`${this.api}/changes/${encodeURIComponent(id)}/reject`, { comments });
   }
 
-  /** POST /api/media/upload; resolves to the stored file's URL. */
+  /** POST to the Media service's /api/media/upload; resolves to the stored file's URL. */
   upload(file: File): Observable<string> {
     const form = new FormData();
     form.append('file', file, file.name);
     form.append('category', 'asset-documents');
-    return this.http.post<{ url: string }>(`${ASSET_API}media/upload`, form).pipe(map((res) => res.url));
+    return this.http.post<{ url: string }>(`${MEDIA_API}upload`, form).pipe(map((res) => res.url));
   }
 }
 
