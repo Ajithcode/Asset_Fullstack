@@ -20,6 +20,9 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
     // Device readings written by the network server; each reading names its tag in meta.tagid.
     private const string NetworkTimeSeriesCollection = "NetworkTimeSeries";
 
+    // Tag Management (Tracking service): which tag is attached to which asset. Same source as Real-Time Location.
+    private const string TrackingTagCollection = "TrackingTag";
+
     // Site master data, written by the MasterDataManagement service.
     private const string SiteCollection = "master_sites";
 
@@ -70,6 +73,8 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             .Project<AssetRegistration>(projection)
             .ToListAsync(cancellationToken);
 
+        var tagIdsByAsset = await GetTagIdsByAssetAsync(assets, cancellationToken);
+
         return assets.Select(asset => new DashboardAsset(
                 asset.AssetRegistrationId,
                 asset.BasicInformation?.AssetTag,
@@ -91,8 +96,80 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
                 asset.LocationAssignment?.Assignment?.CustodianDepartment,
                 (asset.PurchaseWarranty?.Documents?.Count ?? 0) + (asset.AdditionalInformation?.Attachments?.Count ?? 0),
                 asset.PurchaseWarranty?.Purchase?.PurchaseDate,
-                asset.AdditionalInformation?.Operational?.NextMaintenanceDate))
+                asset.AdditionalInformation?.Operational?.NextMaintenanceDate,
+                tagIdsByAsset.GetValueOrDefault(asset.AssetRegistrationId)))
             .ToList();
+    }
+
+    /// <summary>
+    /// The tag ids (normalized, see <see cref="TagKey"/>) of every asset, resolved once the way Real-Time Location does:
+    /// a TrackingTag (tag_id or value) whose asset_registration_id is the asset's registration id or asset tag (Tag
+    /// Management can store either). Older data without a TrackingTag falls back to the asset's own asset_tag, unless
+    /// that id is a registered tag of some asset.
+    /// </summary>
+    private async Task<Dictionary<string, IReadOnlyList<string>>> GetTagIdsByAssetAsync(
+        IReadOnlyList<AssetRegistration> assets, CancellationToken cancellationToken)
+    {
+        var trackingTags = await _database.GetCollection<BsonDocument>(TrackingTagCollection)
+            .Find(Builders<BsonDocument>.Filter.Ne("is_deleted", true))
+            .Project(Builders<BsonDocument>.Projection.Include("tag_id").Include("value").Include("asset_registration_id"))
+            .ToListAsync(cancellationToken);
+
+        static string? Text(BsonDocument doc, string name) =>
+            doc.TryGetValue(name, out var value) && value.IsString && !string.IsNullOrWhiteSpace(value.AsString) ? value.AsString.Trim() : null;
+
+        // asset key (registration id or asset tag, any case) -> its registered tag ids
+        var byAssetKey = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        var registered = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var tag in trackingTags)
+        {
+            var ids = new[] { TagKey.Normalize(Text(tag, "tag_id")), TagKey.Normalize(Text(tag, "value")) }.OfType<string>().ToList();
+            registered.UnionWith(ids);
+            var key = Text(tag, "asset_registration_id");
+            if (key is null || ids.Count == 0)
+            {
+                continue;
+            }
+
+            if (!byAssetKey.TryGetValue(key, out var set))
+            {
+                byAssetKey[key] = set = new HashSet<string>(StringComparer.Ordinal);
+            }
+
+            set.UnionWith(ids);
+        }
+
+        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var asset in assets)
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            if (byAssetKey.TryGetValue(asset.AssetRegistrationId, out var byId))
+            {
+                ids.UnionWith(byId);
+            }
+
+            var assetTag = asset.BasicInformation?.AssetTag?.Trim();
+            if (!string.IsNullOrEmpty(assetTag))
+            {
+                if (byAssetKey.TryGetValue(assetTag, out var byTag))
+                {
+                    ids.UnionWith(byTag);
+                }
+
+                // Fallback for data without Tag Management: the asset tag is the tag id.
+                if (TagKey.Normalize(assetTag) is { } own && !registered.Contains(own))
+                {
+                    ids.Add(own);
+                }
+            }
+
+            if (ids.Count > 0)
+            {
+                result[asset.AssetRegistrationId] = ids.ToList();
+            }
+        }
+
+        return result;
     }
 
     public async Task<IReadOnlyList<DashboardOpenWorkOrder>> GetOpenWorkOrdersDueAsync(
@@ -210,8 +287,8 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             })
             .ToListAsync(cancellationToken);
 
-        // Tags differing only in case or spacing are one tag; their readings are combined.
-        var tags = new Dictionary<string, NetworkTagSummary>(StringComparer.OrdinalIgnoreCase);
+        // Tags differing only in case, spacing, ':' or '-' are one tag (key = TagKey.Normalize); their readings are combined.
+        var tags = new Dictionary<string, NetworkTagSummary>(StringComparer.Ordinal);
         foreach (var row in rows)
         {
             var tagId = row["_id"].ToString()?.Trim();
@@ -228,7 +305,8 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
                 TextOrNull(row, "lastGateway"),
                 row["readings"].ToInt64());
 
-            tags[tagId] = tags.TryGetValue(tagId, out var existing) ? Combine(existing, summary) : summary;
+            var key = TagKey.Normalize(tagId) ?? tagId;
+            tags[key] = tags.TryGetValue(key, out var existing) ? Combine(existing, summary) : summary;
         }
 
         return tags;
@@ -324,10 +402,10 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
 
         static IReadOnlyDictionary<string, NetworkSeen> Seen(BsonArray rows)
         {
-            var seen = new Dictionary<string, NetworkSeen>(StringComparer.OrdinalIgnoreCase);
+            var seen = new Dictionary<string, NetworkSeen>(StringComparer.Ordinal);
             foreach (var row in rows.Select(value => value.AsBsonDocument))
             {
-                var id = row["_id"].ToString();
+                var id = TagKey.Normalize(row["_id"].ToString());
                 if (string.IsNullOrEmpty(id) || !row["first"].IsValidDateTime || !row["last"].IsValidDateTime)
                 {
                     continue;

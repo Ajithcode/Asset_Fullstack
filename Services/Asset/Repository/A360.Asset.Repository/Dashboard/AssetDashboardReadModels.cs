@@ -28,7 +28,27 @@ public sealed record DashboardAsset(
     string? CustodianDepartment = null,
     int AttachedDocumentCount = 0,
     DateTime? PurchaseDate = null,
-    DateTime? NextMaintenanceDate = null);
+    DateTime? NextMaintenanceDate = null,
+    IReadOnlyList<string>? TagIds = null);
+
+/// <summary>
+/// Tag ids are compared the way Real-Time Location compares them: lower case, without ':', '-' and spaces
+/// (c3000099138f = C3:00:00:99:13:8F).
+/// </summary>
+public static class TagKey
+{
+    /// <summary>Normalized tag id; null when blank.</summary>
+    public static string? Normalize(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return null;
+        }
+
+        var chars = id.Where(c => c is not (':' or '-' or ' ')).Select(char.ToLowerInvariant).ToArray();
+        return chars.Length == 0 ? null : new string(chars);
+    }
+}
 
 /// <summary>An open maintenance work order (not Completed / Cancelled / Closed) with the date it is due.</summary>
 public sealed record DashboardOpenWorkOrder(string WorkOrderId, string AssetId, string? Status, DateTime DueDate);
