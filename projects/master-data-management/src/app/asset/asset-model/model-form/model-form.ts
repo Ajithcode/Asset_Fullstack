@@ -289,8 +289,8 @@ export class ModelForm implements OnInit, OnChanges {
     if (!Number.isInteger(f.warrantyMonths) || f.warrantyMonths < 0 || f.warrantyMonths > 240) errors.warrantyMonths = 'Enter 0 to 240 months.';
     if (f.purchasePrice !== null && !(f.purchasePrice >= 0)) errors.purchasePrice = 'Price can’t be negative.';
     if (!(f.salvagePercent >= 0 && f.salvagePercent <= 100)) errors.salvagePercent = 'Enter 0 to 100.';
-    if (!f.taggingFormat.trim()) errors.taggingFormat = 'Enter a tagging format.';
-    else if (!hasRunningNumber(f.taggingFormat)) errors.taggingFormat = 'Include a running number, e.g. (0000).';
+    // Tagging Format is optional; if entered it needs a running number
+    if (f.taggingFormat.trim() && !hasRunningNumber(f.taggingFormat)) errors.taggingFormat = 'Include a running number, e.g. (0000).';
     this.errors = errors;
     if (!this.isLastTab) {
       // Next: the mandatory fields of this step must be valid first

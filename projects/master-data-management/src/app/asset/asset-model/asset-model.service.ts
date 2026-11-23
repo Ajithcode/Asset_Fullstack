@@ -226,7 +226,7 @@ export class AssetModelService extends AssetStore<AssetModelRecord, AssetModelDt
       salvagePercent: r.salvagePercent,
       procurementType: r.procurementType,
       subcategories: r.subcategories,
-      taggingFormat: r.taggingFormat,
+      taggingFormat: r.taggingFormat?.trim() || null,
       trackingMethod: r.trackingMethod,
       defaultCondition: r.defaultCondition,
       serialRequired: r.serialRequired,
