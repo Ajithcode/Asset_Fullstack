@@ -39,6 +39,8 @@ export interface AuditEvent {
   /** Pretty JSON before / after the change, when the event changed a value. */
   before: string;
   after: string;
+  /** Free-text details recorded with the event. */
+  details?: string;
 }
 
 export interface AuditFilters {

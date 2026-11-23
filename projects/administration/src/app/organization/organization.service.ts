@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, concatMap, from, map, of, switchMap, tap, throwError, toArray } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
-import { ORGANIZATIONS } from '../shared/admin-common';
+import { AdminLookupService } from '../shared/admin-common';
 import { LocationType, OrgLocation, SummaryRow, SummaryStat, SummaryTab } from './organization.model';
 import { LOCATION_TYPES, seedSummaryTabs } from './organization.data';
 
@@ -85,6 +85,7 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
 export class OrganizationService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
+  private readonly lookups = inject(AdminLookupService);
   private readonly apiUrl = `${environment.administrationApiUrl}api/organization/locations`;
 
   private readonly locations = signal<OrgLocation[]>([]);
@@ -199,21 +200,27 @@ export class OrganizationService {
     );
   }
 
-  /** The root takes the organization name and the first location's address details (all required by the API). */
+  /**
+   * The root takes the organization name (System Configuration, else Master Data) and the first location's address
+   * details (all required by the API).
+   */
   private ensureRoot(sample: OrgLocation): Observable<string> {
     if (this.rootId) return of(this.rootId);
-    return this.post({
-      locationCode: ROOT_CODE,
-      locationName: ORGANIZATIONS[0],
-      locationType: ROOT_TYPE,
-      parentLocationId: null,
-      address: '',
-      country: sample.country,
-      city: sample.city,
-      timeZone: sample.timeZone,
-      locationManager: sample.contact,
-      status: 'Active'
-    }).pipe(
+    return this.lookups.organizationName().pipe(
+      switchMap((organizationName) =>
+        this.post({
+          locationCode: ROOT_CODE,
+          locationName: organizationName,
+          locationType: ROOT_TYPE,
+          parentLocationId: null,
+          address: '',
+          country: sample.country,
+          city: sample.city,
+          timeZone: sample.timeZone,
+          locationManager: sample.contact,
+          status: 'Active'
+        })
+      ),
       map((dto) => dto.locationId),
       tap((id) => (this.rootId = id))
     );

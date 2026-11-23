@@ -82,8 +82,8 @@ export const DATA_SCOPES: { id: DataScope; hint: string }[] = [
   { id: 'Own Department', hint: "Records owned by the user's department" },
   { id: 'Own Records', hint: 'Only records the user created or holds' }
 ];
-/** Asset categories come from Master Data (empty until wired). */
-export const ASSET_CATEGORIES: string[] = [];
+/** Asset categories from the Asset service, filled by AdminLookupService. */
+export { ASSET_CATEGORIES } from '../shared/admin-common';
 export const SESSION_TIMEOUTS = ['30 minutes', '1 hour', '2 hours', '4 hours', '8 hours', '12 hours'];
 export const APPROVAL_LEVELS = ['Level 1', 'Level 2', 'Level 3', 'Final'];
 

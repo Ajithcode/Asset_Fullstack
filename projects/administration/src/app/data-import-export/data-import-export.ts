@@ -57,7 +57,7 @@ export class DataImportExportPage extends AdminPage implements OnInit {
   ];
   readonly statuses: JobStatus[] = ['Completed', 'Running', 'Failed', 'Scheduled', 'Draft'];
   readonly objects = DATA_OBJECT_NAMES;
-  readonly owners = [...ADMIN_PEOPLE].sort();
+  readonly owners = ADMIN_PEOPLE;
   readonly formatStamp = formatStamp;
   readonly compactNumber = compactNumber;
 
