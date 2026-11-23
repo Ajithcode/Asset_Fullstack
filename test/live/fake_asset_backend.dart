@@ -258,6 +258,17 @@ class FakeAssetBackend implements HttpClientAdapter {
     });
   }
 
+  /// The web's location sources (Master Data /sites, /buildings, /floors, /zones, /locations) with
+  /// [sampleSites] … [sampleRooms]; without this the lists answer 404, so the tree falls back to /locations/tree.
+  void seedLocationLists() {
+    const md = '/api/master-data';
+    on('GET', '$md/sites', (_) => FakeReply(200, sampleSites));
+    on('GET', '$md/buildings', (_) => FakeReply(200, sampleBuildings));
+    on('GET', '$md/floors', (_) => FakeReply(200, sampleFloors));
+    on('GET', '$md/zones', (_) => FakeReply(200, sampleZones));
+    on('GET', '$md/locations', (_) => FakeReply(200, sampleRooms));
+  }
+
   /// Asset service categories (the web registration form's source): GET /api/asset-categories (all levels,
   /// or ?parentCategoryId=) and GET /api/asset-category-types?categoryId=. Rows = [assetCategoryRows] /
   /// [assetCategoryTypeRows] (mutable per test).
@@ -1053,6 +1064,7 @@ Map<String, Object?> _assetCategory(
 final sampleAssetCategories = [
   _assetCategory('cat-1', 'Machinery & Equipment', 'MCH'),
   _assetCategory('cat-2', 'HVAC', 'HVAC', subcategoryRequired: false),
+  _assetCategory('cat-5', 'Spare Parts', 'SPR'),
   _assetCategory('cat-3', 'Retired Category', 'OLD', status: 'Inactive'),
   _assetCategory('cat-4', 'Back Office Only', 'BOO', showInMobile: false),
   _assetCategory('sub-1', 'Power Generation', 'PG', parentId: 'cat-1', parentName: 'Machinery & Equipment'),
@@ -1091,4 +1103,62 @@ final sampleAssetCategoryTypes = [
   _categoryType('type-4', 'Retired Type', 'cat-1', status: 'Inactive'),
   _categoryType('type-5', 'Chiller', 'cat-2'),
   _categoryType('type-6', 'Screw Chiller', 'sub-5'),
+];
+
+// ------------------------------------------------------------------ Master Data location lists (real shape)
+
+Map<String, Object?> _space(
+  String id,
+  String name, {
+  String? siteId,
+  String? buildingId,
+  String? floorId,
+  String? status,
+  bool deleted = false,
+  String? imageUrl,
+}) => {
+  'id': id,
+  'name': name,
+  'code': id.toUpperCase(),
+  if (siteId != null) 'site': {'id': siteId, 'name': siteId},
+  'buildingId': ?buildingId,
+  'floorId': ?floorId,
+  'imageUrl': ?imageUrl,
+  ..._audit(status ?? 'Active'),
+  'isDeleted': deleted,
+};
+
+/// GET /api/master-data/sites: the country is the site's country NAME.
+final sampleSites = [
+  _named('siteName', 'site-1', 'Main Site', {'country': 'UAE'}),
+  _named('siteName', 'site-2', 'Muscat Yard', {'country': 'Oman'}),
+  {
+    ..._named('siteName', 'site-gone', 'Removed Site', {'country': 'UAE'}),
+    'isDeleted': true,
+  },
+];
+
+final sampleBuildings = [
+  _space('bld-1', 'Block A', siteId: 'site-1'),
+  _space('bld-old', 'Old Block', siteId: 'site-1', status: 'Deleted'),
+  _space('bld-orphan', 'Orphan Block', siteId: 'no-such-site'),
+];
+
+final sampleFloors = [
+  _space('fl-1', 'Ground', siteId: 'site-1', buildingId: 'bld-1', imageUrl: '/uploads/floors/fl-1.png'),
+  _space('fl-2', 'First', siteId: 'site-1', buildingId: 'bld-1'),
+  _space('fl-orphan', 'Lost Floor', siteId: 'site-1', buildingId: 'no-such-building'),
+];
+
+/// Zone 1 sits on a floor, Lobby straight under its building (no floor), Yard under its site (outdoor).
+final sampleZones = [
+  _space('zone-1', 'Zone 1', siteId: 'site-1', buildingId: 'bld-1', floorId: 'fl-1'),
+  _space('zone-lobby', 'Lobby', siteId: 'site-1', buildingId: 'bld-1'),
+  _space('zone-yard', 'Yard', siteId: 'site-2'),
+];
+
+/// GET /api/master-data/locations (rooms): they NAME their zone / floor / building.
+final sampleRooms = [
+  _named('locationName', 'room-101', 'Room 101', {'zone': 'Zone 1', 'floor': 'Ground', 'building': 'Block A'}),
+  _named('locationName', 'room-store', 'Store', {'zone': 'Lobby', 'building': 'Block A'}),
 ];

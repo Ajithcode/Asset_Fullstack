@@ -30,6 +30,9 @@ class MasterDataApi {
   static const shifts = '$base/shifts';
   static const uoms = '$base/uoms';
   static const employees = '$base/employees';
+
+  /// Rooms (`locationName`, naming their zone / floor / building) — the web's getRooms().
+  static const locations = '$base/locations';
   static const locationTree = '$base/locations/tree';
   static const sites = '$base/sites';
   static const buildings = '$base/buildings';

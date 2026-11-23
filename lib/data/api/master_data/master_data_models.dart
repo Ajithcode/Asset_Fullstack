@@ -531,9 +531,27 @@ class MdEmployee extends _Simple {
 
 // ------------------------------------------------------------------ locations
 
-/// One node of GET /api/master-data/locations/tree (`LocationTreeNodeResponse`). [type] is free
-/// text on the server ("Country", "Site", "Building" …); the levels are taken from the tree depth.
-/// The tree has no coordinates (sites / buildings / floors have them on their own endpoints).
+/// The levels of the Master Data location tree, as the web draws them: Country → Site → Building → Floor → Zone → Room
+/// (a zone may hang off a building or a site when it has no floor).
+enum MdLocationLevel {
+  country('Country'),
+  site('Site'),
+  building('Building'),
+  floor('Floor'),
+  zone('Zone'),
+  room('Room');
+
+  const MdLocationLevel(this.label);
+
+  final String label;
+}
+
+/// One node of the location tree. The primary tree is built from the separate Master Data lists
+/// (`/sites`, `/buildings`, `/floors`, `/zones`, `/locations`) exactly as the web registration form does
+/// (see `buildMdLocationTree`); GET /api/master-data/locations/tree (`LocationTreeNodeResponse`) is only the
+/// fallback when those lists are empty, with the level taken from the tree depth (its `type` is free text).
+/// [id] is the Master Data record id the web saves as siteId / buildingId / floorId / zoneId / roomId
+/// (a country's id is its name: the service has no country records).
 class MdLocationNode extends MdEntry {
   const MdLocationNode({
     required this.id,
@@ -542,13 +560,15 @@ class MdLocationNode extends MdEntry {
     this.type = '',
     this.parentId,
     this.status,
+    this.level,
+    this.mapImage,
     this.children = const [],
   });
 
   @override
   final String id;
 
-  /// `locationName`.
+  /// `locationName` / the record's name.
   @override
   final String name;
 
@@ -557,11 +577,29 @@ class MdLocationNode extends MdEntry {
   final String code;
   final String type;
 
-  /// `parentLocationId`.
+  /// The parent node's id (null for a country).
   final String? parentId;
   @override
   final String? status;
+
+  /// The level this node fills in the form (see [MdLocationLevel]); null only before depths are assigned.
+  final MdLocationLevel? level;
+
+  /// Floors: the uploaded floor plan image.
+  final String? mapImage;
   final List<MdLocationNode> children;
+
+  MdLocationNode copyWith({MdLocationLevel? level, List<MdLocationNode>? children}) => MdLocationNode(
+    id: id,
+    name: name,
+    code: code,
+    type: type,
+    parentId: parentId,
+    status: status,
+    level: level ?? this.level,
+    mapImage: mapImage,
+    children: children ?? this.children,
+  );
 
   factory MdLocationNode.fromJson(Map<String, dynamic> j) => MdLocationNode(
     id: _s(j, 'id'),
@@ -576,8 +614,44 @@ class MdLocationNode extends MdEntry {
     ].where((n) => n.id.isNotEmpty && n.isActive).toList(),
   );
 
-  static List<MdLocationNode> parseTree(Object? body) => mdParseList(body, MdLocationNode.fromJson);
+  /// The fallback tree (GET /locations/tree) with each node's level set from its depth.
+  static List<MdLocationNode> parseTree(Object? body) {
+    MdLocationNode at(MdLocationNode n, int depth) => n.copyWith(
+      level: depth < MdLocationLevel.values.length ? MdLocationLevel.values[depth] : MdLocationLevel.room,
+      children: [for (final c in n.children) at(c, depth + 1)],
+    );
+    return [for (final n in mdParseList(body, MdLocationNode.fromJson)) at(n, 0)];
+  }
 }
+
+/// A room: GET /api/master-data/locations (`locationName`). It names its zone / floor / building instead of
+/// linking by id, like the web's `getRooms()`.
+class MdRoom extends _Simple {
+  const MdRoom({
+    required String id,
+    required String name,
+    String code = '',
+    this.zoneName,
+    this.floorName,
+    this.buildingName,
+    String? status,
+  }) : super(id, name, code, status);
+
+  final String? zoneName, floorName, buildingName;
+
+  factory MdRoom.fromJson(Map<String, dynamic> j) => MdRoom(
+    id: _s(j, 'id'),
+    name: jStr(j['locationName'])?.trim() ?? _s(j, 'name'),
+    code: _s(j, 'code'),
+    zoneName: _refName(j['zone']),
+    floorName: _refName(j['floor']),
+    buildingName: _refName(j['building']),
+    status: jStr(j['status']),
+  );
+}
+
+/// A name that is sent as text or as `{id, name}`.
+String? _refName(Object? v) => v is Map ? jStr(v['name']) : jStr(v);
 
 /// GET /api/master-data/sites (`SiteResponse`): extra site facts for the map phase.
 class MdSite extends _Simple {

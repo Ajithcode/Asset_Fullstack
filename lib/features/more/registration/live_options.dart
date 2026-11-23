@@ -189,9 +189,6 @@ class RegLists {
     return ref.watch(assetSubCategoriesProvider(parent.id)).value?.where((s) => s.name == name).firstOrNull;
   }
 
-  /// Sub Category is required unless the chosen category says `details.subcategoryRequired: false`.
-  bool subCategoryRequired(String? category) => !apiMode || (this.category(category)?.subCategoryRequired ?? true);
-
   /// API mode: Asset service GET /api/asset-categories, top level only (parentCategoryId null).
   OptionSource get categories => apiMode
       ? _from(
@@ -214,32 +211,37 @@ class RegLists {
       final src = categories;
       return src.ready ? const OptionSource([], empty: 'No sub categories on the server yet') : src;
     }
-    return _from(
+    final src = _from(
       assetSubCategoriesProvider(parent.id),
       (l) => {for (final c in l) c.name}.toList(),
       'sub categories',
       () => ref.invalidate(assetSubCategoriesProvider(parent.id)),
     );
+    // Sub Category is always required (as the web), so a category without any blocks Next: say what to do.
+    return src.ready && src.options.isEmpty
+        ? OptionSource(
+            const [],
+            onRetry: src.onRetry,
+            empty: 'This category has no sub categories — add one on the web',
+          )
+        : src;
   }
 
   /// API mode: GET /api/asset-category-types?categoryId= of the chosen sub category; when it has none (or
-  /// the category needs no sub category and none is chosen), the category's. Mock mode: [local].
+  /// the sub category's own list is empty), the category's. Mock mode: [local].
   OptionSource assetTypes(String? category, String? subCategory, {required List<String> local}) {
     if (!apiMode) return OptionSource(local);
     final parent = this.category(category);
-    if (subCategory == null && (parent == null || parent.subCategoryRequired)) {
+    if (subCategory == null) {
       return const OptionSource([], empty: 'Choose a sub category first');
     }
     if (parent == null) {
       final src = categories;
       return src.ready ? const OptionSource([], empty: 'No asset types on the server yet') : src;
     }
-    String? subId;
-    if (subCategory != null) {
-      final subs = subCategories(category);
-      subId = this.subCategory(category, subCategory)?.id;
-      if (subId == null) return subs.ready ? const OptionSource([], empty: 'No asset types on the server yet') : subs;
-    }
+    final subs = subCategories(category);
+    final subId = this.subCategory(category, subCategory)?.id;
+    if (subId == null) return subs.ready ? const OptionSource([], empty: 'No asset types on the server yet') : subs;
     final p = assetCategoryTypesProvider((categoryId: parent.id, subCategoryId: subId));
     return _from(p, (l) => {for (final t in l) t.name}.toList(), 'asset types', () => ref.invalidate(p));
   }

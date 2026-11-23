@@ -135,12 +135,31 @@ final mdListItemsProvider = FutureProvider.family<List<MdListItem>, String>((ref
   return items..sort((a, b) => a.sortOrder != b.sortOrder ? a.sortOrder - b.sortOrder : a.name.compareTo(b.name));
 });
 
-/// The active location tree (Country → Site → Building → Floor → Zone → Room).
-final mdLocationTreeProvider = FutureProvider<MdLocationIndex>(
-  (ref) async => MdLocationIndex(
-    MdLocationNode.parseTree(await ref.watch(masterDataRepositoryProvider).fetch(MasterDataApi.locationTree)),
-  ),
-);
+/// Rooms (GET /api/master-data/locations): the last level of the tree.
+final mdRoomsProvider = _listProvider(MasterDataApi.locations, MdRoom.fromJson);
+
+/// The location tree (Country → Site → Building → Floor → Zone → Room) used by every picker: built from the
+/// separate Master Data lists exactly like the web registration form, so the ids are the web's (a floor's id
+/// is the floor-plan `locationId`). Like the web, a list that fails counts as empty; only when sites,
+/// buildings, floors and zones are ALL empty does it fall back to GET /locations/tree.
+final mdLocationTreeProvider = FutureProvider<MdLocationIndex>((ref) async {
+  Future<List<T>> safe<T>(Future<List<T>> f) => f.catchError((Object _) => <T>[]);
+  final (sites, buildings, floors, zones, rooms) = await (
+    safe(ref.watch(mdSitesProvider.future)),
+    safe(ref.watch(mdBuildingsProvider.future)),
+    safe(ref.watch(mdFloorsProvider.future)),
+    safe(ref.watch(mdZonesProvider.future)),
+    safe(ref.watch(mdRoomsProvider.future)),
+  ).wait;
+  if (sites.isEmpty && buildings.isEmpty && floors.isEmpty && zones.isEmpty) {
+    return MdLocationIndex(
+      MdLocationNode.parseTree(await ref.watch(masterDataRepositoryProvider).fetch(MasterDataApi.locationTree)),
+    );
+  }
+  return MdLocationIndex(
+    buildMdLocationTree(sites: sites, buildings: buildings, floors: floors, zones: zones, rooms: rooms),
+  );
+});
 
 // Space records with the extra facts (city, capacity, area) the IoT map phase will need.
 final mdSitesProvider = _listProvider(MasterDataApi.sites, MdSite.fromJson);
@@ -168,6 +187,7 @@ final List<ProviderOrFamily> _all = [
   mdEmployeesProvider,
   mdListItemsProvider,
   mdLocationTreeProvider,
+  mdRoomsProvider,
   mdSitesProvider,
   mdBuildingsProvider,
   mdFloorsProvider,

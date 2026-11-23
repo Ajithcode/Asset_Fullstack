@@ -31,22 +31,40 @@ Person? personOf(WidgetRef ref, String? id) =>
 /// Bottom sheet with a searchable people list (name, role, department, employee ID).
 /// Returns the chosen person's ID. API mode: Master Data /employees (active), with loading,
 /// error + Retry and "No employees on the server yet".
-Future<String?> showPersonPicker(BuildContext context, {String title = 'Select Person', String? selectedId}) {
+///
+/// [department] (API mode): list only that department's employees, like the web (employees?departmentId=),
+/// with a "Show all employees" switch to see everyone.
+Future<String?> showPersonPicker(
+  BuildContext context, {
+  String title = 'Select Person',
+  String? selectedId,
+  String? department,
+}) {
   return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _PersonPickerSheet(title: title, selectedId: selectedId),
+    builder: (_) => _PersonPickerSheet(title: title, selectedId: selectedId, department: department),
   );
+}
+
+/// API mode: whether [e] belongs to the department named [department] (by record id once the department
+/// is listed, else by name).
+bool employeeInDepartment(MdEmployee e, String department, List<MdDepartment> departments) {
+  final dept = departments.where((d) => d.name.trim().toLowerCase() == department.trim().toLowerCase()).firstOrNull;
+  final ref = e.department;
+  if (dept != null && ref?.id != null) return ref!.id == dept.id;
+  return (ref?.name ?? '').trim().toLowerCase() == department.trim().toLowerCase();
 }
 
 /// Employee ID shown for a person ("EMP-REX").
 String employeeId(Person p) => 'EMP-${p.id.toUpperCase()}';
 
 class _PersonPickerSheet extends ConsumerStatefulWidget {
-  const _PersonPickerSheet({required this.title, this.selectedId});
+  const _PersonPickerSheet({required this.title, this.selectedId, this.department});
 
   final String title;
   final String? selectedId;
+  final String? department;
 
   @override
   ConsumerState<_PersonPickerSheet> createState() => _PersonPickerSheetState();
@@ -54,6 +72,7 @@ class _PersonPickerSheet extends ConsumerStatefulWidget {
 
 class _PersonPickerSheetState extends ConsumerState<_PersonPickerSheet> {
   String _query = '';
+  bool _showAll = false;
 
   @override
   Widget build(BuildContext context) {
@@ -64,9 +83,14 @@ class _PersonPickerSheetState extends ConsumerState<_PersonPickerSheet> {
         : serverListStatus(employees, what: 'employees', onRetry: () => ref.invalidate(mdEmployeesProvider));
     final codes = {for (final e in employees?.value ?? const <MdEmployee>[]) e.id: e.employeeCode};
     String idOf(Person p) => apiMode ? (codes[p.id] ?? '') : employeeId(p);
+    final dept = apiMode ? widget.department : null;
+    final departments = dept == null ? const <MdDepartment>[] : ref.watch(mdDepartmentsProvider).value ?? const [];
     final all = employees == null
         ? ref.watch(peopleProvider)
-        : [for (final e in employees.value ?? const <MdEmployee>[]) personOfEmployee(e)];
+        : [
+            for (final e in employees.value ?? const <MdEmployee>[])
+              if (dept == null || _showAll || employeeInDepartment(e, dept, departments)) personOfEmployee(e),
+          ];
     final people = all
         .where(
           (p) =>
@@ -101,6 +125,15 @@ class _PersonPickerSheetState extends ConsumerState<_PersonPickerSheet> {
                   onChanged: (v) => setState(() => _query = v),
                 ),
               ),
+              if (dept != null)
+                SwitchListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                  title: Text(_showAll ? 'Showing all employees' : 'Showing $dept employees', style: AppText.caption),
+                  subtitle: const Text('Show all employees'),
+                  value: _showAll,
+                  onChanged: (v) => setState(() => _showAll = v),
+                ),
               if (status != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: status),
               Expanded(
                 child: status != null
@@ -163,7 +196,11 @@ class PersonField extends ConsumerWidget {
     this.error,
     this.title = 'Select Person',
     this.fallbackLabel,
+    this.department,
   });
+
+  /// API mode: list only this department's employees (with a "Show all employees" switch).
+  final String? department;
 
   /// Shown when [personId] is set but not in the list (yet), e.g. a saved assignedToName.
   final String? fallbackLabel;
@@ -180,7 +217,7 @@ class PersonField extends ConsumerWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: () async {
-        final id = await showPersonPicker(context, title: title, selectedId: personId);
+        final id = await showPersonPicker(context, title: title, selectedId: personId, department: department);
         if (id != null) onChanged(id);
       },
       child: InputDecorator(

@@ -108,7 +108,25 @@ class StepLocation extends ConsumerWidget {
           required: true,
           value: a.custodianDepartment,
           error: errors['Assignment.CustodianDepartment'],
-          onChanged: (v) => edit(() => a.custodianDepartment = v),
+          onChanged: (v) => edit(() {
+            a.custodianDepartment = v;
+            // Like the web: a person (and team) outside the new department is cleared.
+            final person = a.assignedToUserId == null
+                ? null
+                : ref.read(mdEmployeesProvider).value?.where((e) => e.id == a.assignedToUserId).firstOrNull;
+            if (apiMode &&
+                v != null &&
+                person != null &&
+                !employeeInDepartment(person, v, ref.read(mdDepartmentsProvider).value ?? const [])) {
+              a
+                ..assignedToUserId = null
+                ..assignedToName = null;
+            }
+            final team = a.responsibleTeam;
+            if (apiMode && v != null && team != null && !lists.responsibleTeams(v).options.contains(team)) {
+              a.responsibleTeam = null;
+            }
+          }),
         ),
         LabeledField(
           label: 'Assigned To',
@@ -118,6 +136,7 @@ class StepLocation extends ConsumerWidget {
                 child: PersonField(
                   personId: a.assignedToUserId,
                   fallbackLabel: a.assignedToName,
+                  department: a.custodianDepartment,
                   hint: 'Select person (optional)',
                   title: 'Assigned To',
                   onChanged: (id) {

@@ -62,10 +62,18 @@ class MasterLocationSelector extends ConsumerWidget {
 
     final fields = <Widget>[];
     for (final level in MdLocationLevel.values) {
-      final parent = level.index == 0 ? null : path.at(MdLocationLevel.values[level.index - 1]);
+      // Like the web: the options are the children of the nearest filled level above (a zone may hang off
+      // a building or a site), narrowed to this level.
+      MdLocationNode? parent;
+      for (var i = level.index - 1; i >= 0 && parent == null; i--) {
+        parent = path.at(MdLocationLevel.values[i]);
+      }
       if (level.index > 0 && parent == null) break;
-      final options = index.childrenOf(parent);
-      if (options.isEmpty) break;
+      final options = [
+        for (final n in index.childrenOf(parent))
+          if (n.level == level) n,
+      ];
+      if (options.isEmpty) continue;
       fields.add(_dropdown(level, options, path));
     }
     return Column(

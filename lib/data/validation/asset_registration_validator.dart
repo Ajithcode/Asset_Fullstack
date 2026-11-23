@@ -35,14 +35,13 @@ abstract final class RegistrationValidator {
   static String duplicateTag(String tag) => "An asset with tag '$tag' is already registered.";
 
   /// Field path → message for [step]. [tagOwner] returns the asset ID already using a tag /
-  /// barcode / RFID value, or null when it is free. [subCategoryRequired] = false when the chosen
-  /// category says `details.subcategoryRequired: false` (Asset service categories, API mode).
+  /// barcode / RFID value, or null when it is free. Sub Category is always required (as the web and
+  /// the backend validator; `details.subcategoryRequired` is ignored).
   static Map<String, String> validateStep(
     AssetRegistration r,
     int step, {
     required bool requireMandatory,
     String? Function(String code)? tagOwner,
-    bool subCategoryRequired = true,
   }) {
     final e = <String, String>{};
     void need(String key, String label, Object? value) {
@@ -72,7 +71,7 @@ abstract final class RegistrationValidator {
       case 1:
         final c = r.classification;
         need('Category', 'Category', c.category);
-        if (subCategoryRequired) need('SubCategory', 'Sub Category', c.subCategory);
+        need('SubCategory', 'Sub Category', c.subCategory);
         need('AssetType', 'Asset Type', c.assetType);
         need('Criticality', 'Criticality', c.criticality);
         need('Department', 'Department', c.department);
@@ -176,7 +175,6 @@ abstract final class RegistrationValidator {
     AssetRegistration r, {
     required bool requireMandatory,
     String? Function(String code)? tagOwner,
-    bool subCategoryRequired = true,
   }) {
     for (var s = 0; s < formSteps; s++) {
       final errors = validateStep(r, s, requireMandatory: requireMandatory, tagOwner: tagOwner);

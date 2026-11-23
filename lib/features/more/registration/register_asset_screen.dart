@@ -241,17 +241,8 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
   /// server answers a taken asset tag with 409).
   String? Function(String)? get _tagOwner => apiMode ? null : (code) => _assets.ownerOf(code)?.id;
 
-  Map<String, String> _check(int step, {required bool mandatory}) => RegistrationValidator.validateStep(
-    f,
-    step,
-    requireMandatory: mandatory,
-    tagOwner: _tagOwner,
-    subCategoryRequired: !apiMode || _categoryOf(f.classification.category)?.subCategoryRequired != false,
-  );
-
-  /// API mode: the Asset service category named [name] (null when unknown / not loaded).
-  AssetCategory? _categoryOf(String? name) =>
-      ref.read(assetCategoriesProvider).value?.where((c) => c.name == name).firstOrNull;
+  Map<String, String> _check(int step, {required bool mandatory}) =>
+      RegistrationValidator.validateStep(f, step, requireMandatory: mandatory, tagOwner: _tagOwner);
 
   @override
   void dispose() {

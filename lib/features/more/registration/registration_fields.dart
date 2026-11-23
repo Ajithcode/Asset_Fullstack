@@ -75,8 +75,8 @@ class ClassificationFields extends ConsumerWidget {
         RegDropdown.source(
           lists.subCategories(c.category),
           label: 'Sub Category',
-          // API mode: optional only when the category says details.subcategoryRequired == false.
-          required: lists.subCategoryRequired(c.category),
+          // Always required, like the web and the backend validator (details.subcategoryRequired is ignored).
+          required: true,
           value: c.subCategory,
           error: errors['SubCategory'],
           onChanged: (v) => edit(() {

@@ -396,6 +396,21 @@ void main() {
     expect(find.text('Pump B'), findsNothing);
   });
 
+  testWidgets('a category without sub categories says so (Sub Category is always required, as the web)', (
+    tester,
+  ) async {
+    backend.on('GET', '$_drafts/AR000402', (_) => FakeReply(200, {..._draft('AR000402', 2), 'classification': null}));
+    final h = await _pump(tester, backend);
+    await _openForm(tester, h, const RegistrationPrefill(draftId: 'AR000402'));
+    await _pick(tester, 'Category', 'Spare Parts');
+    expect(find.text('This category has no sub categories — add one on the web'), findsOneWidget);
+    // Next is blocked by the required Sub Category even for a category with subcategoryRequired: false.
+    await _pick(tester, 'Category', 'HVAC');
+    await _tapButton(tester, 'Next');
+    expect(find.text('Sub Category is required.'), findsOneWidget);
+    expect(backend.calls('PUT', '$_drafts/AR000402/classification'), isEmpty);
+  });
+
   testWidgets('dropdowns: a server-only currency from /options; empty Asset service categories → message + '
       'Retry; reopening the form reloads the lists; Master Data down → error + Retry, no local list', (tester) async {
     final options = _json(sampleOptions);
