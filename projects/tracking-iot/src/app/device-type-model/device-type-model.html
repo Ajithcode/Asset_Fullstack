@@ -200,9 +200,9 @@
     <div class="modal-head"><h2 id="dm-mdl">{{ d.title }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveModel()">
       <div class="three">
-        <label class="field"><span class="field-label">Model name <em>*</em></span><input class="control" [(ngModel)]="d.f.name" name="name" placeholder="e.g. EM300-TH" [readonly]="!!d.editId" [title]="d.editId ? 'The model number cannot be changed' : ''" /></label>
-        <label class="field"><span class="field-label">Manufacturer <em>*</em></span><input class="control" [(ngModel)]="d.f.manufacturer" name="mfr" list="dm-mfrs" placeholder="e.g. Milesight" autocomplete="off" /></label>
-        <label class="field"><span class="field-label">Device type <em>*</em></span><select class="control" [(ngModel)]="d.f.typeId" name="type" (ngModelChange)="onFormType()"><option value="" disabled>Select Device Type</option><option *ngFor="let t of types" [value]="t.id">{{ t.name }}</option></select></label>
+        <label class="field"><span class="field-label">Model name <em>*</em></span><input class="control" [class.is-invalid]="invalidField === 'name'" [(ngModel)]="d.f.name" name="name" placeholder="e.g. EM300-TH" [readonly]="!!d.editId" [title]="d.editId ? 'The model number cannot be changed' : ''" /></label>
+        <label class="field"><span class="field-label">Manufacturer <em>*</em></span><input class="control" [class.is-invalid]="invalidField === 'mfr' && !d.f.manufacturer.trim()" [(ngModel)]="d.f.manufacturer" name="mfr" list="dm-mfrs" placeholder="e.g. Milesight" autocomplete="off" /></label>
+        <label class="field"><span class="field-label">Device type <em>*</em></span><select class="control" [class.is-invalid]="invalidField === 'type' && !d.f.typeId" [(ngModel)]="d.f.typeId" name="type" (ngModelChange)="onFormType()"><option value="" disabled>Select Device Type</option><option *ngFor="let t of types" [value]="t.id">{{ t.name }}</option></select></label>
       </div>
       <fieldset class="field">
         <legend class="field-label">Connectivity <em>*</em></legend>
@@ -210,7 +210,7 @@
       </fieldset>
       <div class="three">
         <label class="field"><span class="field-label">Protocol</span><input class="control" [(ngModel)]="d.f.protocol" name="proto" list="dm-protos" placeholder="e.g. LoRaWAN 1.0.3" autocomplete="off" /><datalist id="dm-protos"><option *ngFor="let p of protocolHints(d.f.connectivity[0])" [value]="p"></option></datalist></label>
-        <label class="field"><span class="field-label">Power</span><select class="control" [(ngModel)]="d.f.power" name="power"><option value="" disabled>Select Power</option><option *ngFor="let p of powerOptions" [value]="p">{{ p }}</option></select></label>
+        <label class="field"><span class="field-label">Power <em>*</em></span><select class="control" [class.is-invalid]="invalidField === 'power' && !d.f.power" [(ngModel)]="d.f.power" name="power"><option value="" disabled>Select Power</option><option *ngFor="let p of powerOptions" [value]="p">{{ p }}</option></select></label>
         <label class="field"><span class="field-label">Frequency bands</span><input class="control" [(ngModel)]="d.f.bands" name="bands" placeholder="EU868, US915" /></label>
       </div>
       <fieldset class="field">
@@ -231,7 +231,7 @@
         <label class="field"><span class="field-label">Operating temperature</span><input class="control" [(ngModel)]="d.f.opTemp" name="temp" placeholder="-30 °C to 70 °C" /></label>
         <label class="field"><span class="field-label">Firmware from</span><input class="control" [(ngModel)]="d.f.fwMin" name="fwmin" placeholder="1.1.0" /></label>
         <label class="field"><span class="field-label">Firmware to</span><input class="control" [(ngModel)]="d.f.fwMax" name="fwmax" placeholder="1.4.0" /></label>
-        <label class="field"><span class="field-label">Status</span><select class="control" [(ngModel)]="d.f.status" name="status">
+        <label class="field"><span class="field-label">Status <em>*</em></span><select class="control" [class.is-invalid]="invalidField === 'status' && !d.f.status" [(ngModel)]="d.f.status" name="status">
           <option value="" disabled>Select Status</option>
           <option value="Draft">Draft (Pending Review)</option><option value="Active">Active</option><option *ngIf="d.editId" value="Retired">Retired</option></select></label>
       </div>
