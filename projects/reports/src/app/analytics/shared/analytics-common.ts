@@ -60,8 +60,8 @@ export function downloadCsv(fileName: string, header: string[], rows: (string | 
 @Directive()
 export abstract class AnalyticsPage implements OnDestroy {
   readonly basePath = RA_BASE_PATH;
-  readonly organizations = RA_ORGANIZATIONS;
-  readonly locations = RA_LOCATIONS;
+  organizations: string[] = RA_ORGANIZATIONS;
+  locations: string[] = RA_LOCATIONS;
   readonly periods = RA_PERIODS;
   /** Filter values start empty ('' = no filter; an empty period reads as the default, Year to date). */
   period = '';

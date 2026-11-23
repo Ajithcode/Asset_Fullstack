@@ -2,24 +2,45 @@ import { Component, inject } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { Subscription, catchError, forkJoin, of } from 'rxjs';
 import {
   ArrowDown, ArrowUp, ArrowUpDown, Bookmark, ChartColumn, Clock, Download, FileText, GitCompareArrows, GripVertical, House, Info,
   LucideAngularModule, Package, RefreshCw, Settings, ShieldCheck, TriangleAlert, Wrench
 } from 'lucide-angular';
 import { downloadCsv, money, percent } from '../shared/analytics-common';
+import { AnalyticsGroup, AnalyticsQuery, apiMessage, filterValue, periodQuery } from '../shared/analytics-api.service';
 import { CartesianChart, DonutChart, GaugeChart, RA_COLORS, compactNumber } from '../shared/charts';
-import { RaAsset, RaWorkOrder } from '../asset-performance/kit/asset-universe';
 import { RaInsight, RaInsightCard, RaKpiCard } from '../asset-performance/kit/ra-cards';
 import { RaActionDialog, RaDetailDialog, RaExpandDialog, RaRecords, RaRecordsDialog, RaSaveViewDialog } from '../asset-performance/kit/ra-dialogs';
 import { RaMenu } from '../asset-performance/kit/ra-menu';
 import { ScopedAnalyticsPage, SortDir, sortRows } from '../asset-performance/kit/scoped-page';
-import { ALL_MAINTENANCE_TYPES, MAINTENANCE_TYPES, MA_DELTAS, MaintenanceView, PM_TARGET, PRIORITY_RANK, TechnicianRow, buildMaintenance } from './maintenance-analytics.data';
+import {
+  BacklogRow, MAINTENANCE_TYPES, MaBacklogDto, MaCompareDto, MaFiltersDto, MaInsightDto, MaOverviewDto, MaintenanceView, PRIORITY_RANK, TechnicianRow,
+  emptyMaintenance, mapMaintenance, toBacklogRow
+} from './maintenance-analytics.data';
 
 type BacklogSortKey = 'priority' | 'id' | 'asset' | 'location' | 'age' | 'technician' | 'status';
 type TechSortKey = 'name' | 'completed' | 'firstTimeFix' | 'response' | 'sla';
 
+const GROUP: AnalyticsGroup = 'maintenance-analytics';
 const PRIORITY_TONES: Record<string, string> = { Critical: 'red', High: 'pink', Medium: 'orange', Low: 'blue' };
 const STATUS_TONES: Record<string, string> = { Open: 'blue', 'In Progress': 'orange', 'On Hold': 'pink', Completed: 'green', Overdue: 'red' };
+
+/** Insight key → card id used by insightAction, with its icon. */
+const INSIGHTS: Record<string, { id: string; icon: RaInsight['icon'] }> = {
+  overdue_work_orders: { id: 'overdue', icon: TriangleAlert },
+  emergency_cost: { id: 'emergency', icon: ChartColumn },
+  assets_approaching_failure: { id: 'failure', icon: Settings },
+  spare_parts_shortage: { id: 'parts', icon: Package }
+};
+const INSIGHT_ACTIONS: Record<string, { suffix: string; label: string; primary?: boolean }> = {
+  view_work_orders: { suffix: 'view', label: 'View work orders' },
+  view_details: { suffix: 'view', label: 'View details' },
+  view_assets: { suffix: 'view', label: 'View assets' },
+  create_action_plan: { suffix: 'plan', label: 'Create action plan', primary: true },
+  open_inventory: { suffix: 'inventory', label: 'Open inventory', primary: true }
+};
+const INSIGHT_TONES: Record<string, RaInsight['tone']> = { critical: 'red', warning: 'orange', info: 'blue', success: 'green' };
 
 /** Reports & Analytics > Maintenance Analytics: cost, work orders, PM compliance, reliability, backlog and technicians. */
 @Component({
@@ -36,65 +57,106 @@ export class MaintenanceAnalyticsPage extends ScopedAnalyticsPage {
   private readonly router = inject(Router);
   readonly icons = { House, RefreshCw, GitCompareArrows, Download, Bookmark, GripVertical, Info, ArrowUp, ArrowDown, ArrowUpDown };
   readonly maintenanceTypes = MAINTENANCE_TYPES;
-  readonly pmTarget = PM_TARGET;
-  readonly deltas = MA_DELTAS;
   readonly colors = RA_COLORS;
   readonly rowMenu = ['View details', 'Escalate'];
   readonly costFormat = (v: number) => `AED ${compactNumber(v)}`;
   readonly percentFormat = (v: number) => `${v}%`;
+  readonly pctFormat = (v: number) => percent(v);
   protected readonly fileStem = 'maintenance-analytics';
+  protected override readonly viewGroup = GROUP;
 
   maintenanceType = '';
-  view!: MaintenanceView;
+  view: MaintenanceView = emptyMaintenance();
+  loaded = false;
   insights: RaInsight[] = [];
   backlogSort: BacklogSortKey = 'priority';
   backlogDir: SortDir = -1;
   techSort: TechSortKey = 'completed';
   techDir: SortDir = -1;
+  private loadSub: Subscription | null = null;
 
   constructor() {
     super();
+    this.analyticsApi.filters<MaFiltersDto>(GROUP).subscribe({
+      next: (f) => this.applyFilterOptions(f),
+      error: (err) => console.warn('[maintenance-analytics] filters failed', err)
+    });
+    this.loadViews();
     this.recompute();
   }
 
-  recompute(): void {
-    const v = buildMaintenance(this.scope, this.period, this.maintenanceType || ALL_MAINTENANCE_TYPES, this.compare);
-    this.view = v;
-    this.kpis = [
-      { id: 'cost', label: 'Maintenance Cost', value: money(v.cost), delta: MA_DELTAS.cost, lowerIsBetter: true, icon: Wrench, tone: 'purple' },
-      { id: 'open', label: 'Open Work Orders', value: String(v.open), delta: MA_DELTAS.open, lowerIsBetter: true, icon: FileText, tone: 'blue' },
-      { id: 'pm', label: 'Preventive Compliance', value: percent(v.pmCompliance), delta: MA_DELTAS.pm, icon: ShieldCheck, tone: 'green' },
-      { id: 'mttr', label: 'MTTR', value: `${v.mttr} hrs`, delta: MA_DELTAS.mttr, lowerIsBetter: true, icon: Clock, tone: 'orange' },
-      { id: 'mtbf', label: 'MTBF', value: `${v.mtbf.toLocaleString('en-US')} hrs`, delta: MA_DELTAS.mtbf, icon: Settings, tone: 'purple' }
-    ];
-    this.insights = this.buildInsights(v);
+  get pmTarget(): number {
+    return this.view.pmTarget;
   }
 
-  private buildInsights(v: MaintenanceView): RaInsight[] {
-    const overrun = v.emergencyTarget ? Math.round((v.emergencyCost / v.emergencyTarget - 1) * 100) : 0;
-    return [
-      {
-        id: 'overdue', tone: v.overdue.length ? 'red' : 'green', icon: TriangleAlert, title: `${v.overdue.length} overdue work orders`,
-        text: v.overdue.length ? 'Work orders are past due and require immediate attention.' : 'Nothing is past its due date.',
-        actions: [{ id: 'overdue-view', label: 'View work orders' }, { id: 'overdue-plan', label: 'Create action plan', primary: true }]
-      },
-      {
-        id: 'emergency', tone: overrun > 0 ? 'orange' : 'green', icon: ChartColumn,
-        title: overrun > 0 ? `Emergency maintenance cost is ${overrun}% above target` : 'Emergency maintenance cost is within target',
-        text: `Current period emergency costs are ${money(v.emergencyCost)} against a target of ${money(v.emergencyTarget)}.`,
-        actions: [{ id: 'emergency-view', label: 'View details' }, { id: 'emergency-plan', label: 'Create action plan', primary: true }]
-      },
-      {
-        id: 'failure', tone: 'purple', icon: Settings, title: `${v.nearFailure.length} assets approaching failure threshold`,
-        text: 'Assets show high risk of failure within 7 days based on condition and maintenance history.',
-        actions: [{ id: 'failure-view', label: 'View assets' }, { id: 'failure-plan', label: 'Create action plan', primary: true }]
-      },
-      {
-        id: 'parts', tone: 'blue', icon: Package, title: `Spare parts availability affecting ${v.waitingParts.length} work orders`,
-        text: 'Required parts are unavailable, causing delays in maintenance completion.',
-        actions: [{ id: 'parts-view', label: 'View work orders' }, { id: 'parts-inventory', label: 'Open inventory', primary: true }]
+  get deltas() {
+    return this.view.deltas;
+  }
+
+  /** Filter bar as query parameters of the Maintenance Analytics endpoints. */
+  private get query(): AnalyticsQuery {
+    return {
+      ...periodQuery(this.period),
+      organization: filterValue(this.organization),
+      location: filterValue(this.location),
+      category: filterValue(this.category),
+      assetType: filterValue(this.assetType),
+      maintenanceType: filterValue(this.maintenanceType)
+    };
+  }
+
+  /** Reloads every widget from GET api/maintenance-analytics/overview (plus /compare-periods when comparing). */
+  recompute(): void {
+    this.loadSub?.unsubscribe();
+    this.refreshing = true;
+    const query = this.query;
+    this.loadSub = forkJoin([
+      this.analyticsApi.overview<MaOverviewDto>(GROUP, { ...query, backlogSize: 200, technicianLimit: 100 }),
+      this.compare ? this.analyticsApi.get<MaCompareDto>(GROUP, 'compare-periods', query).pipe(catchError(() => of(null))) : of(null)
+    ]).subscribe({
+      next: ([o, compare]) => this.show(mapMaintenance(o, compare)),
+      error: (err) => {
+        this.show(emptyMaintenance());
+        this.notify(apiMessage(err, 'Could not load maintenance analytics.'));
       }
+    });
+  }
+
+  override refresh(): void {
+    if (!this.refreshing) this.recompute();
+  }
+
+  private show(v: MaintenanceView): void {
+    this.view = v;
+    this.loaded = true;
+    this.refreshing = false;
+    this.updatedMinutes = 0;
+    const d = v.deltas;
+    this.kpis = [
+      { id: 'cost', label: 'Maintenance Cost', value: money(v.cost), delta: d.cost, lowerIsBetter: true, icon: Wrench, tone: 'purple' },
+      { id: 'open', label: 'Open Work Orders', value: String(v.open), delta: d.open, lowerIsBetter: true, icon: FileText, tone: 'blue' },
+      { id: 'pm', label: 'Preventive Compliance', value: this.fmt(v.pmCompliance, this.pctFormat), delta: d.pm, icon: ShieldCheck, tone: 'green' },
+      { id: 'mttr', label: 'MTTR', value: this.fmt(v.mttr, (x) => `${Math.round(x * 10) / 10} hrs`), delta: d.mttr, lowerIsBetter: true, icon: Clock, tone: 'orange' },
+      { id: 'mtbf', label: 'MTBF', value: this.fmt(v.mtbf, (x) => `${Math.round(x).toLocaleString('en-US')} hrs`), delta: d.mtbf, icon: Settings, tone: 'purple' }
     ];
+    this.insights = v.insights.map((i) => this.toInsight(i));
+  }
+
+  /** '—' while the API has no value for the period. */
+  fmt(value: number | null, format: (v: number) => string): string {
+    return value === null ? '—' : format(value);
+  }
+
+  private toInsight(i: MaInsightDto): RaInsight {
+    const meta = INSIGHTS[i.key] ?? { id: i.key, icon: ChartColumn };
+    return {
+      id: meta.id,
+      tone: INSIGHT_TONES[i.severity] ?? 'blue',
+      icon: meta.icon,
+      title: i.title,
+      text: i.message,
+      actions: i.actions.filter((a) => INSIGHT_ACTIONS[a]).map((a) => ({ id: `${meta.id}-${INSIGHT_ACTIONS[a].suffix}`, label: INSIGHT_ACTIONS[a].label, primary: INSIGHT_ACTIONS[a].primary }))
+    };
   }
 
   // ----- Saved views include the maintenance type -----
@@ -117,12 +179,12 @@ export class MaintenanceAnalyticsPage extends ScopedAnalyticsPage {
   }
 
   // ----- Tables -----
-  get backlogRows(): RaWorkOrder[] {
+  get backlogRows(): BacklogRow[] {
     const dir = this.backlogDir;
     const key = this.backlogSort;
-    const value = (o: RaWorkOrder): string | number =>
-      key === 'priority' ? PRIORITY_RANK[o.priority] * 1000 + o.ageDays : key === 'age' ? o.ageDays : key === 'asset' ? o.asset.name
-        : key === 'location' ? o.asset.site.name : key === 'technician' ? o.technician : key === 'status' ? o.status : o.id;
+    const value = (o: BacklogRow): string | number =>
+      key === 'priority' ? (PRIORITY_RANK[o.priority] ?? 0) * 1000 + o.ageDays : key === 'age' ? o.ageDays : key === 'asset' ? o.asset
+        : key === 'location' ? o.location : key === 'technician' ? o.technician : key === 'status' ? o.status : o.id;
     return [...this.view.backlog]
       .sort((a, b) => {
         const x = value(a);
@@ -170,37 +232,44 @@ export class MaintenanceAnalyticsPage extends ScopedAnalyticsPage {
     return v >= 85 ? '#10b981' : v >= 75 ? '#f59e0b' : '#ef4444';
   }
 
-  rowAction(item: string, o: RaWorkOrder): void {
-    if (item === 'Escalate') this.openAction('Action plan', `Escalate ${o.id} – ${o.asset.name}`, `${o.type} · ${o.status} · ${o.ageDays} days old · assigned to ${o.technician}`, 'High');
+  rowAction(item: string, o: BacklogRow): void {
+    if (item === 'Escalate') this.openAction('Action plan', `Escalate ${o.id} – ${o.asset}`, `${o.type} · ${o.status} · ${o.ageDays} days old · assigned to ${o.technician}`, 'High');
     else this.showOrder(o);
   }
 
-  showOrder(o: RaWorkOrder): void {
+  showOrder(o: BacklogRow): void {
     this.openDetail(
       {
         title: o.id,
-        subtitle: `${o.type} maintenance · ${o.asset.name}`,
+        subtitle: `${o.type} maintenance · ${o.asset}`,
         fields: [
-          { label: 'Asset', value: `${o.asset.name} (${o.asset.id})` },
-          { label: 'Location', value: o.asset.site.name },
+          { label: 'Asset', value: `${o.asset} (${o.assetId})` },
+          { label: 'Location', value: o.location },
           { label: 'Priority', value: o.priority },
           { label: 'Status', value: o.status },
-          { label: 'Created', value: o.created },
+          { label: 'Due date', value: o.due },
           { label: 'Age', value: `${o.ageDays} days` },
           { label: 'Assigned to', value: o.technician },
-          { label: 'Cost', value: money(o.cost) },
-          { label: 'Downtime', value: `${o.downtimeHours} hrs (${o.cause})` }
+          { label: 'Waiting for parts', value: o.partsShortage ? 'Yes' : 'No' }
         ],
         primary: o.status === 'Completed' ? undefined : 'Escalate'
       },
-      { kind: 'Action plan', title: `Escalate ${o.id} – ${o.asset.name}`, context: `${o.type} · ${o.status} · ${o.ageDays} days old`, priority: 'High' }
+      { kind: 'Action plan', title: `Escalate ${o.id} – ${o.asset}`, context: `${o.type} · ${o.status} · ${o.ageDays} days old`, priority: 'High' }
     );
   }
 
   showTechnician(t: TechnicianRow): void {
-    const done = this.view.orders.filter((o) => o.status === 'Completed' && o.technician === t.name);
-    this.records = this.orderRecords(`Completed by ${t.name}`, `First-time fix ${t.firstTimeFix}% · SLA compliance ${t.sla}%`, done,
-      `work-orders-${t.name.toLowerCase().replace(/\s+/g, '-')}.csv`);
+    this.openDetail({
+      title: t.name,
+      subtitle: 'Technician performance',
+      fields: [
+        { label: 'Assigned', value: t.assigned },
+        { label: 'Completed', value: t.completed },
+        { label: 'First-time fix rate', value: `${t.firstTimeFix}%` },
+        { label: 'Average response', value: `${t.response} hrs` },
+        { label: 'SLA compliance', value: `${t.sla}%` }
+      ]
+    });
   }
 
   openBacklog(): void {
@@ -208,29 +277,46 @@ export class MaintenanceAnalyticsPage extends ScopedAnalyticsPage {
   }
 
   // ----- Insights -----
+  private insight(id: string): MaInsightDto | undefined {
+    return this.view.insights.find((i) => (INSIGHTS[i.key]?.id ?? i.key) === id);
+  }
+
+  /** Work orders behind an insight: GET api/maintenance-analytics/backlog with the insight's filter. */
+  private showBacklog(title: string, subtitle: string, extra: AnalyticsQuery, file: string): void {
+    this.analyticsApi.get<{ items: MaBacklogDto[] }>(GROUP, 'backlog', { ...this.query, ...extra, pageSize: 200 }).subscribe({
+      next: (res) => (this.records = this.orderRecords(title, subtitle, res.items.map(toBacklogRow), file)),
+      error: (err) => this.notify(apiMessage(err, 'Could not load the work orders.'))
+    });
+  }
+
   insightAction(id: string): void {
     const v = this.view;
+    const card = id.slice(0, id.lastIndexOf('-'));
+    const insight = this.insight(card);
     switch (id) {
       case 'overdue-view':
-        this.records = this.orderRecords('Overdue work orders', 'Past their due date, oldest first.', v.overdue, 'overdue-work-orders.csv');
+        this.showBacklog('Overdue work orders', 'Past their due date, oldest first.', { status: 'Overdue', sortBy: 'ageDays', sortDirection: 'desc' }, 'overdue-work-orders.csv');
         break;
       case 'overdue-plan':
-        this.openAction('Action plan', `Clear ${v.overdue.length} overdue work orders`, this.orderList(v.overdue), 'Critical');
+        this.openAction('Action plan', `Clear ${insight?.count ?? 0} overdue work orders`, this.orderList(insight), 'Critical');
         break;
       case 'emergency-view':
         this.records = this.emergencyRecords();
         break;
       case 'emergency-plan':
-        this.openAction('Action plan', 'Reduce emergency maintenance spend', `Emergency cost ${money(v.emergencyCost)} vs target ${money(v.emergencyTarget)}.`, 'High');
+        this.openAction('Action plan', 'Reduce emergency maintenance spend', insight?.message ?? `Emergency cost ${money(v.emergencyCost)}.`, 'High');
         break;
       case 'failure-view':
-        this.records = this.assetRecords(v.nearFailure);
+        this.records = this.assetRecords(insight);
         break;
       case 'failure-plan':
-        this.openAction('Action plan', `Prevent failure of ${v.nearFailure.length} high-risk assets`, v.nearFailure.map((a) => a.name).join(', ') || 'No assets in this view.', 'Critical');
+        this.openAction('Action plan', `Prevent failure of ${insight?.count ?? 0} high-risk assets`, insight?.assets.map((a) => a.assetName ?? a.assetId).join(', ') || 'No assets in this view.', 'Critical');
         break;
       case 'parts-view':
-        this.records = this.orderRecords('Work orders waiting for spare parts', 'On hold until the required parts arrive.', v.waitingParts, 'work-orders-waiting-for-parts.csv');
+        this.showBacklog('Work orders waiting for spare parts', 'On hold until the required parts arrive.', { partsShortage: true }, 'work-orders-waiting-for-parts.csv');
+        break;
+      case 'parts-plan':
+        this.openAction('Action plan', 'Resolve spare parts shortages', insight?.message ?? '', 'High');
         break;
       case 'parts-inventory':
         this.router.navigate([this.basePath, 'inventory-analytics']);
@@ -238,36 +324,40 @@ export class MaintenanceAnalyticsPage extends ScopedAnalyticsPage {
     }
   }
 
-  private orderList(list: RaWorkOrder[]): string {
-    const ids = list.slice(0, 5).map((o) => o.id).join(', ');
-    return list.length > 5 ? `${ids} and ${list.length - 5} more.` : ids ? `${ids}.` : 'No work orders in this view.';
+  private orderList(insight: MaInsightDto | undefined): string {
+    const ids = (insight?.workOrders ?? []).map((o) => o.workOrderId ?? o.id);
+    const head = ids.slice(0, 5).join(', ');
+    return ids.length > 5 ? `${head} and ${ids.length - 5} more.` : head ? `${head}.` : 'No work orders in this view.';
   }
 
-  private orderRecords(title: string, subtitle: string, list: RaWorkOrder[], file: string): RaRecords {
+  private orderRecords(title: string, subtitle: string, list: BacklogRow[], file: string): RaRecords {
     return {
       title: `${title} (${list.length})`,
       subtitle,
       columns: [
         { key: 'id', label: 'Work Order' }, { key: 'type', label: 'Type' }, { key: 'priority', label: 'Priority' }, { key: 'asset', label: 'Asset' },
         { key: 'location', label: 'Location' }, { key: 'age', label: 'Age (days)', num: true }, { key: 'technician', label: 'Assigned To' },
-        { key: 'status', label: 'Status' }, { key: 'cost', label: 'Cost (AED)', num: true }
+        { key: 'status', label: 'Status' }, { key: 'due', label: 'Due Date' }
       ],
       rows: list.map((o) => ({
-        id: o.id, type: o.type, priority: o.priority, asset: o.asset.name, location: o.asset.site.name, age: o.ageDays, technician: o.technician, status: o.status, cost: o.cost
+        id: o.id, type: o.type, priority: o.priority, asset: o.asset, location: o.location, age: o.ageDays, technician: o.technician, status: o.status, due: o.due
       })),
       file
     };
   }
 
-  private assetRecords(list: RaAsset[]): RaRecords {
+  private assetRecords(insight: MaInsightDto | undefined): RaRecords {
+    const list = insight?.assets ?? [];
     return {
       title: `Assets approaching failure threshold (${list.length})`,
-      subtitle: 'Predicted to fail within 7 days by the predictive model.',
+      subtitle: insight?.message ?? '',
       columns: [
-        { key: 'id', label: 'Asset ID' }, { key: 'name', label: 'Asset Name' }, { key: 'location', label: 'Location' }, { key: 'risk', label: 'Risk Score', num: true },
-        { key: 'rul', label: 'Remaining Life (hrs)', num: true }, { key: 'health', label: 'Health', num: true }, { key: 'owner', label: 'Owner' }
+        { key: 'id', label: 'Asset ID' }, { key: 'name', label: 'Asset Name' }, { key: 'location', label: 'Location' }, { key: 'health', label: 'Health', num: true },
+        { key: 'reasons', label: 'Reasons' }
       ],
-      rows: list.map((a) => ({ id: a.id, name: a.name, location: a.site.name, risk: a.riskScore, rul: a.rulHours, health: a.health, owner: a.owner })),
+      rows: list.map((a) => ({
+        id: a.assetId ?? a.id, name: a.assetName ?? '—', location: a.location ?? '—', health: a.healthScore ?? '—', reasons: a.reasons.join('; ')
+      })),
       file: 'assets-approaching-failure.csv'
     };
   }
@@ -276,21 +366,21 @@ export class MaintenanceAnalyticsPage extends ScopedAnalyticsPage {
     const v = this.view;
     const emergency = v.monthlyEmergency;
     const totals = v.monthlyTotal;
-    const ratio = v.emergencyCost ? v.emergencyTarget / v.emergencyCost : 0;
+    const target = v.emergencyTarget;
     return {
-      title: 'Emergency maintenance cost vs target',
-      subtitle: `Period total ${money(v.emergencyCost)} against a target of ${money(v.emergencyTarget)}.`,
+      title: 'Emergency maintenance cost',
+      subtitle: target === null ? `Period total ${money(v.emergencyCost)}.` : `Period total ${money(v.emergencyCost)} against a target of ${money(target)}.`,
       columns: [
-        { key: 'month', label: 'Month' }, { key: 'emergency', label: 'Emergency (AED)', num: true }, { key: 'target', label: 'Target (AED)', num: true },
+        { key: 'month', label: 'Month' }, { key: 'emergency', label: 'Emergency (AED)', num: true }, { key: 'total', label: 'Total (AED)', num: true },
         { key: 'share', label: 'Share of spend %', num: true }
       ],
       rows: v.labels.map((l, i) => ({
         month: l.replace('\n', ' '),
-        emergency: emergency[i],
-        target: Math.round(emergency[i] * ratio),
-        share: totals[i] ? Math.round((emergency[i] / totals[i]) * 1000) / 10 : 0
+        emergency: emergency[i] ?? 0,
+        total: totals[i] ?? 0,
+        share: totals[i] ? Math.round(((emergency[i] ?? 0) / totals[i]) * 1000) / 10 : 0
       })),
-      file: 'emergency-cost-vs-target.csv'
+      file: 'emergency-maintenance-cost.csv'
     };
   }
 
@@ -300,15 +390,12 @@ export class MaintenanceAnalyticsPage extends ScopedAnalyticsPage {
     return targets[id] ?? 'ma-cost';
   }
 
+  /** Excel workbook of every section for the current filters (GET api/maintenance-analytics/export). */
   exportPage(): void {
-    downloadCsv(
-      'maintenance-work-orders.csv',
-      ['Work Order', 'Type', 'Priority', 'Status', 'Asset ID', 'Asset', 'Location', 'Created', 'Age (days)', 'Assigned To', 'Cost (AED)', 'Repair (hrs)', 'Downtime (hrs)', 'Cause'],
-      this.view.orders.map((o) => [
-        o.id, o.type, o.priority, o.status, o.asset.id, o.asset.name, o.asset.site.name, o.created, o.ageDays, o.technician, o.cost, o.repairHours, o.downtimeHours, o.cause
-      ])
-    );
-    this.notify(`Exported ${this.view.orders.length} work orders.`);
+    this.analyticsApi.export(GROUP, this.query).subscribe({
+      next: () => this.notify(`Exported ${this.view.total} work orders.`),
+      error: (err) => this.notify(apiMessage(err, 'Export failed.'))
+    });
   }
 
   exportWidget(id: string): void {
@@ -337,7 +424,7 @@ export class MaintenanceAnalyticsPage extends ScopedAnalyticsPage {
         break;
       case 'backlog':
         downloadCsv('maintenance-backlog.csv', ['Priority', 'Work Order', 'Asset', 'Location', 'Age (days)', 'Assigned To', 'Status'],
-          v.backlog.map((o) => [o.priority, o.id, o.asset.name, o.asset.site.name, o.ageDays, o.technician, o.status]));
+          v.backlog.map((o) => [o.priority, o.id, o.asset, o.location, o.ageDays, o.technician, o.status]));
         break;
       case 'technicians':
         downloadCsv('technician-performance.csv', ['Technician', 'Completed', 'First-Time Fix %', 'Avg. Response (hrs)', 'SLA Compliance %'],

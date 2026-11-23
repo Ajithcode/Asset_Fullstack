@@ -65,9 +65,9 @@
   </label>
 </div>
 
-@if (!view.assets.length) {
+@if (loaded && !view.total) {
   <div class="ra-notice">
-    No assets match the selected filters.
+    No work orders match the selected filters.
     <button type="button" class="btn btn--link" (click)="resetFilters()">Reset filters</button>
   </div>
 }
@@ -130,7 +130,7 @@
     </section>
     <ng-template #pmTpl>
       <div class="ma-gauge">
-        <ra-gauge-chart [value]="view.pmCompliance" [target]="pmTarget" [display]="view.pmCompliance + '%'" [caption]="'Target ' + pmTarget + '%'" [color]="colors.green" [size]="190" />
+        <ra-gauge-chart [value]="view.pmCompliance ?? 0" [target]="pmTarget" [display]="fmt(view.pmCompliance, pctFormat)" [caption]="'Target ' + pmTarget + '%'" [color]="colors.green" [size]="190" />
         <span class="kpi__delta"><lucide-icon [img]="icons.ArrowUp" [size]="13" /> +{{ deltas.pm }}% <small>vs. previous period</small></span>
       </div>
       <ra-cartesian-chart [labels]="view.labels" [series]="view.pmTrend" [min]="60" [max]="100" [format]="percentFormat" [height]="150" [legend]="false" ariaLabel="PM compliance trend" />
@@ -193,8 +193,8 @@
                 <td>{{ i + 1 }}</td>
                 <td><span class="pill" [attr.data-tone]="priorityTone(o.priority)"><i></i>{{ o.priority }}</span></td>
                 <td><button type="button" class="link" (click)="showOrder(o)">{{ o.id }}</button></td>
-                <td>{{ o.asset.name }}</td>
-                <td>{{ o.asset.site.name }}</td>
+                <td>{{ o.asset }}</td>
+                <td>{{ o.location }}</td>
                 <td class="num"><span class="score" [attr.data-tone]="ageTone(o.ageDays)">{{ o.ageDays }}</span></td>
                 <td>{{ o.technician }}</td>
                 <td><span class="ra-status" [attr.data-tone]="statusTone(o.status)"><i></i>{{ o.status }}</span></td>
@@ -211,9 +211,9 @@
           </tbody>
         </table>
       </div>
-      @if (view.backlog.length > 5) {
+      @if (view.backlogTotal > 5) {
         <div class="ra-widget-foot">
-          <button type="button" class="btn btn--link" (click)="openBacklog()">View all {{ view.backlog.length }} work orders</button>
+          <button type="button" class="btn btn--link" (click)="openBacklog()">View all {{ view.backlogTotal }} work orders</button>
         </div>
       }
     </ng-template>

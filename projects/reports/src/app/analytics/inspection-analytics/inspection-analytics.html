@@ -96,7 +96,7 @@
 
     <app-ra-widget class="span-2" title="Inspection Compliance" info="Inspections completed on time against the 90% target" (exportCsv)="exportCompliance()">
       <div class="ia-compliance">
-        <ra-gauge-chart [value]="view.completionRate" [display]="kpis[1].value" [target]="complianceTarget" [color]="'#10b981'" [size]="190" />
+        <ra-gauge-chart [value]="view.completionRate ?? 0" [display]="kpis[1].value" [target]="complianceTarget" [color]="'#10b981'" [size]="190" />
         @if (kpis[1].delta) {
           <div class="ia-compliance__delta">
             <strong><lucide-icon [img]="icons.ArrowUp" [size]="16" /> {{ kpis[1].delta }}</strong>
