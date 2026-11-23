@@ -7,7 +7,7 @@
       <p>Define monitored zones (floor-plan zones and outdoor geofences), detect entries, exits and dwell, and turn only rule violations into alerts.</p>
     </div>
     <button type="button" class="btn btn-outline" (click)="ruleZone = ''; setTab('rules')"><lucide-icon [img]="icons.Settings" [size]="17"></lucide-icon>Alert Rules</button>
-    <button type="button" class="btn btn-primary" (click)="openZone()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Create Geofence</button>
+    <button type="button" class="btn btn-primary" (click)="openConfigure()"><lucide-icon [img]="icons.Settings" [size]="17"></lucide-icon>Configure Geofence</button>
   </header>
 
   <!-- KPIs -->
@@ -561,20 +561,24 @@
 <!-- ===== Rule dialog ===== -->
 <div *ngIf="ruleDialog as d" class="overlay" (click)="ruleDialog = null">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ga-rule" (click)="$event.stopPropagation()">
-    <div class="modal-head"><h2 id="ga-rule">{{ d.id ? 'Edit Alert Rule' : 'New Alert Rule' }}<small *ngIf="d.id" class="muted mono"> {{ d.id }}</small></h2><button type="button" class="icon-btn" (click)="ruleDialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-head"><h2 id="ga-rule">{{ configureMode ? 'Configure Geofence' : d.id ? 'Edit Alert Rule' : 'New Alert Rule' }}<small *ngIf="d.id" class="muted mono"> {{ d.id }}</small></h2><button type="button" class="icon-btn" (click)="ruleDialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <div class="modal-body">
       <div class="two">
         <label class="field"><span class="field-label">Rule name</span><input class="control" [(ngModel)]="d.name" placeholder="Generated from the trigger if empty" /></label>
         <label class="field"><span class="field-label">Geofence / zone <em>*</em></span><select class="control" [(ngModel)]="d.zoneId">
           <option value="" disabled>Select Geofence / zone</option>
-          <optgroup *ngIf="mapZoneRuleTargets.length" label="Indoor zones (live BLE tracking)"><option *ngFor="let t of mapZoneRuleTargets" [value]="t.id">{{ t.label }}</option></optgroup>
-          <optgroup label="Outdoor geofences"><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></optgroup>
+          <ng-container *ngIf="configureMode; else allTargets"><optgroup *ngFor="let g of mapZoneGroups" [label]="g.floor"><option *ngFor="let t of g.zones" [value]="t.id">{{ t.label }}</option></optgroup></ng-container>
+          <ng-template #allTargets>
+          <optgroup *ngIf="mapZoneGroups.length" label="Indoor zones (live BLE tracking)"><ng-container *ngFor="let g of mapZoneGroups"><option *ngFor="let t of g.zones" [value]="t.id">{{ g.floor }} · {{ t.label }}</option></ng-container></optgroup>
+          </ng-template>
+          <optgroup *ngIf="!configureMode" label="Outdoor geofences"><option *ngFor="let z of zones" [value]="z.id">{{ z.name }} · {{ z.site }}</option></optgroup>
         </select></label>
       </div>
+      <p *ngIf="configureMode" class="muted small">Zones are created in <a routerLink="/administration/maps-floor-plans" (click)="ruleDialog = null">Maps &amp; Floor Plans</a>; pick an existing zone here and set how it is monitored. Outdoor geofences are edited from the list.</p>
       <p *ngIf="ruleZoneWithoutGateway" class="desk-row desk-warn" role="note">No gateway is plotted in this zone, so it cannot detect assets. Plot a device in this zone in Maps &amp; Floor Plans first.</p>
       <ng-container *ngTemplateOutlet="ruleFields; context: { $implicit: d, idp: 'rd' }"></ng-container>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="ruleDialog = null">Cancel</button><button type="button" class="btn btn-primary" [disabled]="saving" (click)="saveRuleDialog()">Save Rule</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="ruleDialog = null">Cancel</button><button type="button" class="btn btn-primary" [disabled]="saving" (click)="saveRuleDialog()">{{ configureMode ? 'Save Geofence' : 'Save Rule' }}</button></div>
     </div>
   </div>
 </div>
