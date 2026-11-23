@@ -1,12 +1,14 @@
-import { Component, DoCheck, Input } from '@angular/core';
+import { Component, DoCheck, Input, OnDestroy, inject } from '@angular/core';
+import { Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
 import { ChartColumn, ChartLine, ChartPie, LucideAngularModule, Table } from 'lucide-angular';
 import { CartesianChart, ChartSeries, ChartSlice, DonutChart, RA_COLORS, RA_SERIES_COLORS, ValueFormat, compactNumber } from '../../shared/charts';
-import { formatCell, runReport } from '../custom-reports.engine';
+import { formatCell, outputColumns } from '../custom-reports.engine';
+import { CustomReportsService, apiError, toApiDefinition } from '../custom-reports.service';
 import { FieldKind, PreviewColumn, PreviewResult, ReportDefinition, ReportRow, VizType } from '../custom-reports.model';
 
 /**
- * Renders a report definition as a table or chart from generated sample rows.
- * Recomputes only when the definition changes (checked by signature) so chart inputs stay stable.
+ * Renders a report definition as a table or chart from the Report Analytics preview API.
+ * Reloads (debounced) only when the API definition changes, so chart inputs stay stable.
  */
 @Component({
   selector: 'cr-report-preview',
@@ -20,7 +22,11 @@ import { FieldKind, PreviewColumn, PreviewResult, ReportDefinition, ReportRow, V
       </div>
     </div>
 
-    @if (!result.columns.length) {
+    @if (loading && !result.columns.length) {
+      <p class="empty">Loading preview…</p>
+    } @else if (error) {
+      <p class="empty">{{ error }}</p>
+    } @else if (!result.columns.length) {
       <p class="empty">Select fields to see a preview.</p>
     } @else {
       <p class="cr-preview__title">{{ mode === 'Table' ? reportName || 'Report preview' : result.title }}</p>
@@ -51,17 +57,23 @@ import { FieldKind, PreviewColumn, PreviewResult, ReportDefinition, ReportRow, V
         <ra-cartesian-chart [labels]="labels" [series]="series" [kind]="mode === 'Line' ? 'line' : 'bar'" [height]="compact ? 200 : 300"
           [showValues]="mode === 'Bar'" [legend]="false" [format]="valueFormat" [ariaLabel]="result.title" />
       }
-      <p class="muted cr-preview__foot">DEMO MODE · sample data · showing {{ result.rows.length }} of {{ result.matched }} {{ grouped ? 'groups' : 'records' }}</p>
+      <p class="muted cr-preview__foot">{{ loading ? 'Updating… · ' : '' }}Showing {{ result.rows.length }} of {{ result.matched }} {{ grouped ? 'groups' : 'records' }}</p>
     }
   `,
   styleUrls: ['../../shared/analytics-page.css', '../custom-reports.css']
 })
-export class ReportPreview implements DoCheck {
+export class ReportPreview implements DoCheck, OnDestroy {
+  private readonly service = inject(CustomReportsService);
+
   @Input({ required: true }) definition!: ReportDefinition;
   @Input() reportName = '';
   @Input() heading = 'Preview';
   /** Smaller table/chart for the side panel */
   @Input() compact = false;
+  /** Id of the saved report; with an unchanged definition the saved report is previewed (GET /{id}/preview) */
+  @Input() savedId = '';
+  /** API definition signature of the saved report (see previewSignature) */
+  @Input() savedSignature = '';
 
   readonly Table = Table;
 
@@ -72,9 +84,34 @@ export class ReportPreview implements DoCheck {
   valueFormat: ValueFormat = compactNumber;
   valueLabel = '';
   grouped = false;
+  loading = false;
+  error = '';
   /** Local override of the visualization (Table view / chart toggle) */
   private override: VizType | null = null;
   private signature = '';
+  private viz: VizType | null = null;
+  /** null cancels a pending request (the definition has nothing to preview) */
+  private readonly requests = new Subject<{ def: ReportDefinition; savedId: string | null } | null>();
+  private readonly sub = this.requests
+    .pipe(
+      debounceTime(400),
+      switchMap((req) => {
+        if (!req) return of(null);
+        const { def, savedId } = req;
+        this.loading = true;
+        return this.service.preview(def, savedId).pipe(
+          map((r) => ({ r, err: '' })),
+          catchError((err) => of({ r: null, err: apiError(err, 'Could not load the preview.') }))
+        );
+      })
+    )
+    .subscribe((res) => {
+      if (!res) return;
+      const { r, err } = res;
+      this.loading = false;
+      this.error = err;
+      this.apply(r ?? EMPTY_RESULT);
+    });
 
   get mode(): VizType {
     return this.override ?? this.definition.viz;
@@ -89,7 +126,7 @@ export class ReportPreview implements DoCheck {
   }
 
   get canChart(): boolean {
-    return !!this.result.labelKey && !!this.result.valueKey && this.result.rows.length > 0;
+    return !!this.result.labelKey && !!this.result.valueKey && (this.result.rows.length > 0 || !!this.result.points?.length);
   }
 
   setMode(mode: VizType): void {
@@ -97,28 +134,47 @@ export class ReportPreview implements DoCheck {
   }
 
   ngDoCheck(): void {
-    const sig = JSON.stringify(this.definition);
-    if (sig === this.signature) return;
     // A new visualization chosen in the builder wins over the local toggle
-    if (this.signature && JSON.parse(this.signature).viz !== this.definition.viz) this.override = null;
+    if (this.viz !== null && this.viz !== this.definition.viz) this.override = null;
+    this.viz = this.definition.viz;
+    const sig = previewSignature(this.definition);
+    if (sig === this.signature) return;
     this.signature = sig;
-    this.recompute();
+    this.grouped = !!this.definition.groupBy;
+    if (!outputColumns(this.definition).length || !this.definition.sourceKey) {
+      this.requests.next(null);
+      this.loading = false;
+      this.error = '';
+      this.apply(EMPTY_RESULT);
+      return;
+    }
+    const unchanged = !!this.savedId && sig === this.savedSignature;
+    this.loading = true;
+    this.requests.next({ def: JSON.parse(JSON.stringify(this.definition)) as ReportDefinition, savedId: unchanged ? this.savedId : null });
   }
 
-  private recompute(): void {
-    const r = runReport(this.definition);
+  ngOnDestroy(): void {
+    this.sub.unsubscribe();
+  }
+
+  private apply(r: PreviewResult): void {
+    // Ignore a late answer for a definition that has since lost its columns
+    if (r !== EMPTY_RESULT && !outputColumns(this.definition).length) r = EMPTY_RESULT;
     this.result = r;
-    this.grouped = !!this.definition.groupBy;
     const valueCol = r.columns.find((c) => c.key === r.valueKey);
     const kind: FieldKind = valueCol?.kind ?? 'number';
     this.valueLabel = valueCol?.label ?? '';
     this.valueFormat = kind === 'money' ? moneyShort : kind === 'percent' ? pct : compactNumber;
+    // Chart points from the API cover every matching row; otherwise chart the preview rows
+    const points = r.points?.length
+      ? r.points
+      : r.rows.map((row) => ({ label: String(row[r.labelKey] ?? ''), value: Number(row[r.valueKey]) || 0 }));
     // Charts read best with a handful of categories
-    const top = r.rows.slice(0, 10);
-    this.labels = top.map((row) => shorten(String(row[r.labelKey] ?? '')));
-    this.series = [{ name: this.valueLabel, values: top.map((row) => Number(row[r.valueKey]) || 0), color: RA_COLORS.purple }];
-    const pie: ChartSlice[] = r.rows.slice(0, 6).map((row, i) => ({ name: String(row[r.labelKey] ?? ''), value: Number(row[r.valueKey]) || 0, color: RA_SERIES_COLORS[i % RA_SERIES_COLORS.length] }));
-    const rest = r.rows.slice(6).reduce((sum, row) => sum + (Number(row[r.valueKey]) || 0), 0);
+    const top = points.slice(0, 10);
+    this.labels = top.map((p) => shorten(p.label));
+    this.series = [{ name: this.valueLabel, values: top.map((p) => p.value), color: RA_COLORS.purple }];
+    const pie: ChartSlice[] = points.slice(0, 6).map((p, i) => ({ name: p.label, value: p.value, color: RA_SERIES_COLORS[i % RA_SERIES_COLORS.length] }));
+    const rest = points.slice(6).reduce((sum, p) => sum + p.value, 0);
     if (rest > 0) pie.push({ name: 'Other', value: rest, color: RA_COLORS.grey });
     this.slices = pie;
   }
@@ -142,4 +198,11 @@ function pct(v: number): string {
 
 function shorten(s: string): string {
   return s.length > 16 ? `${s.slice(0, 15)}…` : s;
+}
+
+const EMPTY_RESULT: PreviewResult = { columns: [], rows: [], matched: 0, labelKey: '', valueKey: '', title: '' };
+
+/** What the API sees of a definition: the preview reloads only when this changes. */
+export function previewSignature(def: ReportDefinition): string {
+  return def.sourceKey ? JSON.stringify(toApiDefinition(def)) : '';
 }

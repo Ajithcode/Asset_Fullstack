@@ -1,39 +1,38 @@
-import { Component, ElementRef, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Observable, Subject, Subscription, debounceTime } from 'rxjs';
 import { Calendar, Download, File, FileText, Funnel, LucideAngularModule, Plus, Search, Upload } from 'lucide-angular';
-import { AnalyticsPage, CURRENT_USER } from '../shared/analytics-common';
+import { AnalyticsPage } from '../shared/analytics-common';
 import { ConfirmDialog } from './dialogs/confirm-dialog';
 import { ReportBuilder } from './report-builder/report-builder';
 import { ReportConfig } from './report-config/report-config';
 import { LibrarySort, ReportLibrary } from './report-library/report-library';
-import { DATA_SOURCES, RA_MODULES, SCHEDULES, VISIBILITIES, blankDefinition } from './custom-reports.data';
-import { applySource } from './custom-reports.engine';
-import { Aggregate, CalcOperator, CustomReport, FilterOperator, ReportStatus, ReportVisibility, VizType } from './custom-reports.model';
-import { CustomReportsService, cloneReport, dubaiNow } from './custom-reports.service';
+import { previewSignature } from './report-preview/report-preview';
+import { RA_MODULES, SCHEDULES } from './custom-reports.data';
+import { CustomReport, ReportStatus, ReportVisibility } from './custom-reports.model';
+import { CustomReportOwner, CustomReportsService, apiError, cloneReport, dubaiNow } from './custom-reports.service';
 
 type UpdatedRange = '' | '1' | '7' | '30' | 'older';
 
 const MAX_IMPORT_BYTES = 1_000_000;
 const NOT_SCHEDULED = SCHEDULES[0];
-const CALC_OPS: CalcOperator[] = ['+', '-', '×', '÷'];
-const AGGREGATES: Aggregate[] = ['Sum', 'Average', 'Min', 'Max'];
-const VIZ_TYPES: VizType[] = ['Table', 'Bar', 'Line', 'Donut'];
 
-/** Reports & Analytics > Custom Reports */
+/** Reports & Analytics > Custom Reports (Report Analytics API: /api/custom-reports) */
 @Component({
   selector: 'app-ra-custom-reports',
   imports: [FormsModule, RouterLink, LucideAngularModule, ReportLibrary, ReportBuilder, ReportConfig, ConfirmDialog],
   templateUrl: './custom-reports.html',
   styleUrls: ['../shared/analytics-page.css', './custom-reports.css']
 })
-export class CustomReportsPage extends AnalyticsPage {
+export class CustomReportsPage extends AnalyticsPage implements OnInit {
   private readonly service = inject(CustomReportsService);
   @ViewChild(ReportBuilder) builder?: ReportBuilder;
   @ViewChild('builderAnchor') builderAnchor?: ElementRef<HTMLElement>;
   @ViewChild('importInput') importInput?: ElementRef<HTMLInputElement>;
 
   readonly icons = { FileText, Funnel, Calendar, File, Plus, Upload, Download, Search };
+  /** From GET /api/custom-reports/options (filled when the catalogue loads) */
   readonly modules = RA_MODULES;
   readonly statuses: ReportStatus[] = ['Draft', 'Published', 'Scheduled'];
   readonly updatedRanges: { key: UpdatedRange; label: string }[] = [
@@ -43,7 +42,7 @@ export class CustomReportsPage extends AnalyticsPage {
     { key: 'older', label: 'Older than 30 days' }
   ];
 
-  // Filters
+  // Filters (search / owner / module / status / sort go to the API; the updated range is applied here)
   search = '';
   owner = '';
   module = '';
@@ -51,17 +50,44 @@ export class CustomReportsPage extends AnalyticsPage {
   updated: UpdatedRange = '';
   librarySort: LibrarySort = 'updated';
   filtered: CustomReport[] = [];
-  owners: string[] = [];
+  owners: CustomReportOwner[] = [];
+  loading = false;
+  loadError = '';
+  busy = false;
 
   /** The report in the builder (a working copy until saved) */
   draft: CustomReport;
+  /** previewSignature of the draft as last loaded / saved (unchanged → the saved report is previewed) */
+  savedSignature = '';
   showErrors = false;
   confirmDelete: CustomReport | null = null;
 
+  private librarySub: Subscription | null = null;
+  private readonly searchInput = new Subject<void>();
+  private readonly searchSub = this.searchInput.pipe(debounceTime(300)).subscribe(() => this.loadLibrary());
+
   constructor() {
     super();
-    this.draft = cloneReport(this.service.reports[0]);
-    this.refilter();
+    this.draft = this.service.blank();
+  }
+
+  ngOnInit(): void {
+    this.service.loadCatalog().subscribe({
+      next: () => {
+        // Re-read the draft's definition now that fields are known
+        this.draft = cloneReport(this.draft);
+      },
+      error: (err) => this.notify(apiError(err, 'Could not load the report fields.'))
+    });
+    this.loadLibrary();
+    this.loadSummary();
+    this.loadOwners();
+  }
+
+  override ngOnDestroy(): void {
+    super.ngOnDestroy();
+    this.searchSub.unsubscribe();
+    this.librarySub?.unsubscribe();
   }
 
   get stats() {
@@ -78,26 +104,73 @@ export class CustomReportsPage extends AnalyticsPage {
 
   // ----- Library -----
 
+  /** GET /api/custom-reports with the server-side filters and sort. */
+  loadLibrary(): void {
+    this.librarySub?.unsubscribe();
+    this.loading = true;
+    this.loadError = '';
+    this.librarySub = this.service
+      .loadLibrary({
+        search: this.search.trim(),
+        owner: this.owner,
+        module: this.module,
+        status: this.status,
+        sortBy: this.librarySort === 'name' ? 'reportName' : 'updatedAt',
+        sortDirection: this.librarySort === 'name' ? 'asc' : 'desc'
+      })
+      .subscribe({
+        next: () => {
+          this.loading = false;
+          this.refilter();
+        },
+        error: (err) => {
+          this.loading = false;
+          this.loadError = apiError(err, 'Could not load custom reports.');
+          this.filtered = [];
+          this.notify(this.loadError);
+        }
+      });
+  }
+
+  private loadSummary(): void {
+    this.service.loadSummary().subscribe({ error: (err) => console.warn('[custom-reports] summary failed', err) });
+  }
+
+  private loadOwners(): void {
+    this.service.owners().subscribe({
+      next: (owners) => (this.owners = owners),
+      error: (err) => console.warn('[custom-reports] owners failed', err)
+    });
+  }
+
+  /** After a change: library, tiles and owners. */
+  private reloadAll(): void {
+    this.loadLibrary();
+    this.loadSummary();
+    this.loadOwners();
+  }
+
+  /** Server filters changed: reload. */
+  filterChanged(): void {
+    this.loadLibrary();
+  }
+
+  searchChanged(): void {
+    this.searchInput.next();
+  }
+
+  /** Local part of the filtering: the Last Updated range and the favourites-first order. */
   refilter(): void {
-    const q = this.search.trim().toLowerCase();
     const now = new Date(`${dubaiNow()}:00Z`).getTime();
     const list = this.service.reports.filter((r) => {
-      if (q && !`${r.name} ${r.description} ${r.owner} ${r.module}`.toLowerCase().includes(q)) return false;
-      if (this.owner && r.owner !== this.owner) return false;
-      if (this.module && r.module !== this.module) return false;
-      if (this.status && r.status !== this.status) return false;
       if (this.updated) {
         const days = (now - new Date(`${r.updatedAt}:00Z`).getTime()) / 86_400_000;
         if (this.updated === 'older' ? days <= 30 : days > Number(this.updated)) return false;
       }
       return true;
     });
-    const byUpdated = (a: CustomReport, b: CustomReport) => b.updatedAt.localeCompare(a.updatedAt);
-    if (this.librarySort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
-    else if (this.librarySort === 'favourites') list.sort((a, b) => Number(b.favourite) - Number(a.favourite) || byUpdated(a, b));
-    else list.sort(byUpdated);
+    if (this.librarySort === 'favourites') list.sort((a, b) => Number(b.favourite) - Number(a.favourite) || b.updatedAt.localeCompare(a.updatedAt));
     this.filtered = list;
-    this.owners = [...new Set(this.service.reports.map((r) => r.owner))].sort();
   }
 
   get hasFilters(): boolean {
@@ -110,74 +183,106 @@ export class CustomReportsPage extends AnalyticsPage {
     this.module = '';
     this.status = '';
     this.updated = '';
-    this.refilter();
+    this.loadLibrary();
   }
 
   setSort(sort: LibrarySort): void {
     this.librarySort = sort;
-    this.refilter();
+    this.loadLibrary();
   }
 
+  /** GET /api/custom-reports/{id} for the full definition, then open it in the builder. */
   openReport(r: CustomReport): void {
+    this.service.load(r.id).subscribe({
+      next: (full) => {
+        this.setDraft(full);
+        this.builder?.goTo(1);
+        this.notify(`“${full.name}” opened in the Report Builder.`);
+      },
+      error: (err) => this.notify(apiError(err, 'Could not open the report.'))
+    });
+  }
+
+  private setDraft(r: CustomReport): void {
     this.draft = cloneReport(r);
+    this.savedSignature = r.id ? previewSignature(this.draft) : '';
     this.showErrors = false;
-    this.builder?.goTo(1);
-    this.notify(`“${r.name}” opened in the Report Builder.`);
   }
 
+  /** PUT /api/custom-reports/{id}/favorite. */
   toggleFavourite(r: CustomReport): void {
-    this.service.toggleFavourite(r.id);
-    if (this.draft.id === r.id) this.draft.favourite = r.favourite;
-    this.refilter();
-    this.notify(r.favourite ? `“${r.name}” added to favourites.` : `“${r.name}” removed from favourites.`);
+    const next = !r.favourite;
+    this.service.setFavourite(r.id, next).subscribe({
+      next: () => {
+        if (this.draft.id === r.id) this.draft.favourite = next;
+        this.refilter();
+        this.notify(next ? `“${r.name}” added to favourites.` : `“${r.name}” removed from favourites.`);
+      },
+      error: (err) => this.notify(apiError(err, 'Could not update favourites.'))
+    });
   }
 
+  /** POST /api/custom-reports/{id}/duplicate. */
   duplicate(r: CustomReport): void {
-    const copy = this.service.duplicate(r.id);
-    if (!copy) return;
-    this.refilter();
-    this.notify(`Duplicated as “${copy.name}” (draft).`);
+    this.service.duplicate(r.id).subscribe({
+      next: (copy) => {
+        this.reloadAll();
+        this.notify(`Duplicated as “${copy.name}” (draft).`);
+      },
+      error: (err) => this.notify(apiError(err, 'Could not duplicate the report.'))
+    });
   }
 
   askDelete(r: CustomReport): void {
     this.confirmDelete = r;
   }
 
+  /** DELETE /api/custom-reports/{id}. */
   confirmRemove(): void {
     const r = this.confirmDelete;
     this.confirmDelete = null;
     if (!r) return;
-    this.service.remove(r.id);
-    if (this.draft.id === r.id) this.newReport(false);
-    this.refilter();
-    this.notify(`“${r.name}” deleted.`);
+    this.service.remove(r.id).subscribe({
+      next: () => {
+        if (this.draft.id === r.id) this.newReport(false);
+        this.reloadAll();
+        this.notify(`“${r.name}” deleted.`);
+      },
+      error: (err) => this.notify(apiError(err, 'Could not delete the report.'))
+    });
   }
 
+  /** Library menu: POST /{id}/publish or /{id}/unpublish (the API checks the report is complete). */
   togglePublish(r: CustomReport): void {
-    if (r.status === 'Published') {
-      const next: ReportStatus = r.schedule !== NOT_SCHEDULED ? 'Scheduled' : 'Draft';
-      this.service.setStatus(r.id, next);
-      this.notify(`“${r.name}” unpublished (${next}).`);
-    } else {
-      if (!r.fields.length) {
-        this.notify(`“${r.name}” has no fields yet — open it in the builder before publishing.`);
-        return;
-      }
-      this.service.setStatus(r.id, 'Published');
-      this.notify(`“${r.name}” published (${audience(r.visibility)}).`);
-    }
-    if (this.draft.id === r.id) {
-      this.draft.status = r.status;
-      this.draft.updatedAt = r.updatedAt;
-    }
-    this.refilter();
+    const live = r.status === 'Published';
+    (live ? this.service.unpublish(r.id) : this.service.publish(r.id)).subscribe({
+      next: (updated) => {
+        if (this.draft.id === r.id) {
+          this.draft.status = updated.status;
+          this.draft.updatedAt = updated.updatedAt;
+        }
+        this.reloadAll();
+        this.notify(live ? `“${r.name}” unpublished (${updated.status}).` : `“${r.name}” published (${audience(updated.visibility)}).`);
+      },
+      error: (err) => this.notify(apiError(err, live ? 'Could not unpublish the report.' : 'Could not publish the report.'))
+    });
+  }
+
+  /** Library menu: GET /api/custom-reports/{id}/export (xlsx). */
+  exportData(r: CustomReport): void {
+    this.service.exportData(r.id, 'xlsx').subscribe({
+      next: (blob) => {
+        download(blob, `${r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${dubaiNow().slice(0, 10)}.xlsx`);
+        this.notify(`Exported “${r.name}” data.`);
+      },
+      error: (err) => this.notify(apiError(err, 'Could not export the report data. Make sure the report is complete.'))
+    });
   }
 
   // ----- Builder + configuration -----
 
   newReport(announce = true): void {
-    this.draft = this.service.blank();
-    this.showErrors = false;
+    this.setDraft(this.service.blank());
     this.builder?.goTo(0);
     if (announce) {
       this.builderAnchor?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -185,14 +290,39 @@ export class CustomReportsPage extends AnalyticsPage {
     }
   }
 
-  private store(status: ReportStatus, message: string): void {
+  /**
+   * Saves the draft (POST new / PUT existing), then optionally publishes or unpublishes it.
+   * Emits the final report and refreshes the library.
+   */
+  private store(then: 'publish' | 'unpublish' | null, message: (r: CustomReport) => string): void {
+    if (this.busy) return;
+    this.busy = true;
     this.draft.name = this.draft.name.trim();
-    this.draft.status = status;
-    const stored = this.service.save(this.draft);
-    this.draft = cloneReport(stored);
-    this.showErrors = false;
-    this.refilter();
-    this.notify(message);
+    const step = (this.builder?.step ?? 0) + 1;
+    this.service.save(this.draft, step).subscribe({
+      next: (saved) => {
+        const after$: Observable<CustomReport> | null =
+          then === 'publish' ? this.service.publish(saved.id) : then === 'unpublish' && saved.status !== 'Draft' ? this.service.unpublish(saved.id) : null;
+        if (!after$) return this.stored(saved, message);
+        after$.subscribe({
+          next: (r) => this.stored(r, message),
+          error: (err) => {
+            this.stored(saved, () => apiError(err, `“${saved.name}” was saved but could not be ${then === 'publish' ? 'published' : 'unpublished'}.`));
+          }
+        });
+      },
+      error: (err) => {
+        this.busy = false;
+        this.notify(apiError(err, 'Could not save the report.'));
+      }
+    });
+  }
+
+  private stored(r: CustomReport, message: (r: CustomReport) => string): void {
+    this.busy = false;
+    this.setDraft(r);
+    this.reloadAll();
+    this.notify(message(r));
   }
 
   /** A draft only needs a valid name. */
@@ -203,7 +333,7 @@ export class CustomReportsPage extends AnalyticsPage {
       this.notify(problem);
       return;
     }
-    this.store('Draft', `“${this.draft.name.trim()}” saved as a draft.`);
+    this.store('unpublish', (r) => `“${r.name}” saved as a draft.`);
   }
 
   /** Save / publish need a valid name, at least one field and complete filters. */
@@ -218,21 +348,21 @@ export class CustomReportsPage extends AnalyticsPage {
     return true;
   }
 
+  /** Save Report: a scheduled report goes live (publish → Scheduled); a published one stays published. */
   saveReport(): void {
     if (!this.validateAll()) return;
     const scheduled = this.draft.schedule !== NOT_SCHEDULED;
-    const status: ReportStatus = scheduled ? 'Scheduled' : this.draft.status === 'Published' ? 'Published' : 'Draft';
-    const name = this.draft.name.trim();
-    this.store(status, scheduled ? `“${name}” saved and scheduled (${this.draft.schedule}).` : `“${name}” saved.`);
+    this.store(scheduled && this.draft.status === 'Draft' ? 'publish' : null, (r) =>
+      scheduled ? `“${r.name}” saved and scheduled (${r.schedule}).` : `“${r.name}” saved.`
+    );
   }
 
   publish(): void {
     if (!this.validateAll()) return;
-    const name = this.draft.name.trim();
     if (this.draft.status === 'Published') {
-      this.store(this.draft.schedule !== NOT_SCHEDULED ? 'Scheduled' : 'Draft', `“${name}” unpublished.`);
+      this.store('unpublish', (r) => `“${r.name}” unpublished.`);
     } else {
-      this.store('Published', `“${name}” published (${audience(this.draft.visibility)}).`);
+      this.store('publish', (r) => `“${r.name}” published (${audience(r.visibility)}).`);
     }
   }
 
@@ -247,6 +377,7 @@ export class CustomReportsPage extends AnalyticsPage {
     this.importInput?.nativeElement.click();
   }
 
+  /** POST /api/custom-reports/import: each template in the file becomes a Draft. */
   onImportFile(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -260,88 +391,34 @@ export class CustomReportsPage extends AnalyticsPage {
       this.notify('Template is larger than 1 MB.');
       return;
     }
-    file.text().then((text) => this.importText(text), () => this.notify('The file could not be read.'));
-  }
-
-  private importText(text: string): void {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      this.notify('The file is not valid JSON.');
-      return;
-    }
-    const raw: unknown[] = Array.isArray(parsed) ? parsed : isRecord(parsed) && Array.isArray(parsed['reports']) ? parsed['reports'] : [parsed];
-    const reports = raw.map((r) => this.fromTemplate(r)).filter((r): r is CustomReport => !!r);
-    if (!reports.length) {
-      this.notify('No valid report templates found (each needs a name and a known data source).');
-      return;
-    }
-    const added = this.service.importReports(reports);
-    const skipped = raw.length - added;
-    this.refilter();
-    this.notify(`Imported ${added} template${added === 1 ? '' : 's'} as draft${skipped ? `; ${skipped} skipped` : ''}.`);
-  }
-
-  /** Copies only known properties and values from an imported template. */
-  private fromTemplate(value: unknown): CustomReport | null {
-    if (!isRecord(value)) return null;
-    const name = str(value['name']).trim().slice(0, 80);
-    const sourceKey = str(value['sourceKey']);
-    if (!name || !DATA_SOURCES.some((s) => s.key === sourceKey)) return null;
-
-    const r = this.service.blank();
-    r.name = name;
-    r.description = str(value['description']).slice(0, 300);
-    const visibility = VISIBILITIES.find((v) => v === value['visibility']);
-    r.visibility = visibility ?? 'My team';
-    const schedule = SCHEDULES.find((s) => s === value['schedule']);
-    r.schedule = schedule ?? 'Not scheduled';
-
-    const def = blankDefinition(sourceKey);
-    def.calcFields = list(value['calcFields']).flatMap((c) => {
-      const op = CALC_OPS.find((o) => o === c['op']);
-      const key = str(c['key']);
-      return op && key.startsWith('calc:') && str(c['label'])
-        ? [{ key, label: str(c['label']).slice(0, 60), left: str(c['left']), op, right: str(c['right']) }]
-        : [];
+    this.service.importFile(file).subscribe({
+      next: (res) => {
+        this.reloadAll();
+        if (!res.created) {
+          this.notify(`No templates imported${res.failed[0] ? `: ${res.failed[0].message}` : '.'}`);
+          return;
+        }
+        const skipped = res.failed.length;
+        this.notify(`Imported ${res.created} template${res.created === 1 ? '' : 's'} as draft${skipped ? `; ${skipped} skipped` : ''}.`);
+      },
+      error: (err) => this.notify(apiError(err, 'The template could not be imported.'))
     });
-    def.fields = Array.isArray(value['fields']) ? (value['fields'] as unknown[]).filter((f): f is string => typeof f === 'string') : [];
-    def.filters = list(value['filters']).map((f) => ({ field: str(f['field']), op: (str(f['op']) || 'equals') as FilterOperator, value: str(f['value']).slice(0, 100) }));
-    def.groupBy = str(value['groupBy']);
-    def.sortBy = str(value['sortBy']);
-    def.sortDir = value['sortDir'] === 'asc' ? 'asc' : 'desc';
-    def.aggregate = AGGREGATES.find((a) => a === value['aggregate']) ?? 'Sum';
-    def.rowLimit = [10, 25, 50, 100].includes(Number(value['rowLimit'])) ? Number(value['rowLimit']) : 25;
-    def.viz = VIZ_TYPES.find((v) => v === value['viz']) ?? 'Table';
-    def.chartValue = str(value['chartValue']);
-    // Drop fields, filters and grouping the data source doesn't have
-    applySource(def, sourceKey);
-    return { ...r, ...def };
   }
 
+  /** GET /api/custom-reports/export?format=json for the reports in the library (current filters). */
   exportReports(): void {
     const reports = this.filtered;
     if (!reports.length) {
       this.notify('No reports to export with the current filters.');
       return;
     }
-    const payload = {
-      exportedAt: dubaiNow(),
-      exportedBy: CURRENT_USER.name,
-      reports: reports.map((r) => ({
-        name: r.name, description: r.description, module: r.module, status: r.status, owner: r.owner, visibility: r.visibility,
-        schedule: r.schedule, sourceKey: r.sourceKey, fields: r.fields, calcFields: r.calcFields, filters: r.filters, groupBy: r.groupBy,
-        aggregate: r.aggregate, sortBy: r.sortBy, sortDir: r.sortDir, rowLimit: r.rowLimit, viz: r.viz, chartValue: r.chartValue
-      }))
-    };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `custom-reports-${dubaiNow().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this.notify(`Exported ${reports.length} report${reports.length === 1 ? '' : 's'} as JSON (current filters).`);
+    this.service.exportTemplates(reports.map((r) => r.id)).subscribe({
+      next: (blob) => {
+        download(blob, `custom-reports-${dubaiNow().slice(0, 10)}.json`);
+        this.notify(`Exported ${reports.length} report${reports.length === 1 ? '' : 's'} as JSON (current filters).`);
+      },
+      error: (err) => this.notify(apiError(err, 'Could not export the reports.'))
+    });
   }
 }
 
@@ -349,14 +426,11 @@ function audience(v: ReportVisibility): string {
   return v === 'Only me' ? 'visible to you only' : v === 'My team' ? 'visible to your team' : 'visible to the organization';
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-function str(v: unknown): string {
-  return typeof v === 'string' ? v : '';
-}
-
-function list(v: unknown): Record<string, unknown>[] {
-  return Array.isArray(v) ? v.filter(isRecord) : [];
+function download(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
