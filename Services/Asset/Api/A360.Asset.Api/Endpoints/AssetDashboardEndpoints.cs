@@ -24,6 +24,8 @@ public static class AssetDashboardEndpoints
 
     // Device Connectivity: a mapped tag with no reading for this long counts as Idle.
     private const int IdleAfterMinutes = 10;
+    // Same window as Real-Time Location (GET api/real-time-location/tags): a tag counts only when it was heard this recently.
+    private const int NetworkWindowHours = 24;
     private const int DefaultTagReadings = 20;
     private const string Uncategorized = "Uncategorized";
     private const string CriticalLevel = "Critical";
@@ -98,14 +100,14 @@ public static class AssetDashboardEndpoints
         // 1. Connected assets: the asset tag (basic_information.asset_tag) matches a tag id in NetworkTimeSeries.
         //    Compared with those whose tag had already reported when the period started.
         var connectedAssets = assets
-            .Where(asset => !string.IsNullOrWhiteSpace(asset.AssetTag) && networkTags.ContainsKey(asset.AssetTag.Trim()))
+            .Where(asset => NetworkTag(asset, networkTags) is not null)
             .ToList();
         var connected = connectedAssets.Select(asset => asset.AssetRegistrationId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var connectedBefore = connectedAssets.Count(asset => networkTags[asset.AssetTag!.Trim()].FirstSeenAt < period.FromUtc);
+        var connectedBefore = connectedAssets.Count(asset => NetworkTag(asset, networkTags)!.FirstSeenAt < period.FromUtc);
         var connectedDetails = connectedAssets
             .Select(asset =>
             {
-                var tag = networkTags[asset.AssetTag!.Trim()];
+                var tag = NetworkTag(asset, networkTags)!;
                 return new ConnectedAssetDetail(asset.AssetRegistrationId, asset.AssetTag, asset.AssetName, asset.AssetType, asset.SiteName,
                     asset.Status, tag.LastStatus, tag.LastGatewayId, tag.FirstSeenAt, tag.LastSeenAt, tag.ReadingCount);
             })
@@ -126,7 +128,7 @@ public static class AssetDashboardEndpoints
         var past = now.AddDays(-period.Days);
         var assetTags = TagsOf(assets);
         // Without filters every gateway counts; with them, the gateways that have carried the matching assets' tags.
-        var scopeTags = filter.IsSet ? assetTags : null;
+        var scopeTags = filter.IsSet ? RawTagIds(assetTags, networkTags) : null;
         var allTime = await repository.GetNetworkActivityAsync(null, null, scopeTags, cancellationToken);
         // Everything up to that moment: each gateway's status then, and each tag's last reading then.
         var atPast = await repository.GetNetworkActivityAsync(null, past, scopeTags, cancellationToken);
@@ -140,10 +142,12 @@ public static class AssetDashboardEndpoints
         var coverageBefore = DashboardMath.Percent(activeGatewaysThen, gatewaysThen);
 
         // 5. Data freshness: of the registered assets' tags, how many sent a reading within the SLA.
-        var freshTags = assetTags.Count(tag => networkTags.TryGetValue(tag, out var summary) && summary.LastSeenAt >= now.AddMinutes(-DataFreshnessSlaMinutes));
-        var freshTagsThen = assetTags.Count(tag => atPast.Tags.TryGetValue(tag, out var seen) && seen.LastSeenAt >= past.AddMinutes(-DataFreshnessSlaMinutes));
-        var freshness = DashboardMath.Percent(freshTags, assetTags.Count);
-        var freshnessBefore = DashboardMath.Percent(freshTagsThen, assetTags.Count);
+        // Per asset (not per tag id: an asset can have several registered tags): assets with a tag whose newest reading is within the SLA.
+        var taggedAssets = assets.Where(asset => asset.TagIds is { Count: > 0 }).ToList();
+        var freshTags = taggedAssets.Count(asset => NetworkTag(asset, networkTags)?.LastSeenAt >= now.AddMinutes(-DataFreshnessSlaMinutes));
+        var freshTagsThen = taggedAssets.Count(asset => asset.TagIds!.Any(tag => atPast.Tags.TryGetValue(tag, out var seen) && seen.LastSeenAt >= past.AddMinutes(-DataFreshnessSlaMinutes)));
+        var freshness = DashboardMath.Percent(freshTags, taggedAssets.Count);
+        var freshnessBefore = DashboardMath.Percent(freshTagsThen, taggedAssets.Count);
 
         return Results.Ok(new AssetDashboardKpisResponse(
             period.Days,
@@ -158,7 +162,7 @@ public static class AssetDashboardEndpoints
             new AssetDashboardKpi(coverage, coverage, gatewaysThen == 0 ? null : PointsChange(coverage, coverageBefore),
                 $"{activeGateways} of {gateways.Count} gateways with status online; change in percentage points vs. {period.Days} days ago"),
             new AssetDashboardKpi(freshness, freshness, PointsChange(freshness, freshnessBefore),
-                $"{freshTags} of {assetTags.Count} asset tags sent data within {DataFreshnessSlaMinutes} min (SLA); change in percentage points vs. {period.Days} days ago"),
+                $"{freshTags} of {taggedAssets.Count} tagged assets sent data within {DataFreshnessSlaMinutes} min (SLA); change in percentage points vs. {period.Days} days ago"),
             connectedDetails));
     }
 
@@ -311,7 +315,8 @@ public static class AssetDashboardEndpoints
         var tag = await repository.GetNetworkTagAsync(tagId, cancellationToken);
         var assets = await repository.GetAssetsAsync(cancellationToken);
         var mapped = assets
-            .Where(asset => string.Equals(asset.AssetTag?.Trim(), tagId, StringComparison.OrdinalIgnoreCase))
+            .Where(asset => (TagKey.Normalize(tagId) is { } key && asset.TagIds?.Contains(key) == true)
+                || string.Equals(asset.AssetTag?.Trim(), tagId, StringComparison.OrdinalIgnoreCase))
             .OrderBy(asset => asset.AssetName, StringComparer.OrdinalIgnoreCase)
             .Select(asset => new TagMappedAsset(asset.AssetRegistrationId, asset.AssetTag, asset.AssetName, asset.AssetType, asset.Status,
                 asset.SiteId, asset.SiteName, asset.BuildingName, asset.FloorName, asset.ZoneName, asset.LocationPath,
@@ -619,10 +624,11 @@ public static class AssetDashboardEndpoints
     }
 
     /// <summary>
-    /// 7. Device connectivity of every tag in NetworkTimeSeries (meta.tagid). A tag is mapped when it equals a registered
-    /// asset's tag (basic_information.asset_tag). Mapped tags: Idle when the newest reading is older than
-    /// <see cref="IdleAfterMinutes"/> minutes, otherwise Online or Offline from that reading's status. Tags not mapped to
-    /// any asset are Unknown.
+    /// 7. Device connectivity of every tag heard in the last <see cref="NetworkWindowHours"/> h in NetworkTimeSeries (meta.tagid),
+    /// the same window and rule as Real-Time Location. A tag is mapped when Tag Management (TrackingTag) attaches it to a
+    /// registered asset (asset_tag is the fallback for data without Tag Management). Mapped tags: Offline when the newest
+    /// reading's status is not "online", else Idle when it is older than <see cref="IdleAfterMinutes"/> minutes, else Online.
+    /// Tags not mapped to any asset are Unknown.
     /// </summary>
     private static async Task<IResult> GetDeviceConnectivityAsync(IAssetDashboardRepository repository, [AsParameters] AssetDashboardFilter filter, CancellationToken cancellationToken)
     {
@@ -639,9 +645,10 @@ public static class AssetDashboardEndpoints
         // Tags not mapped to any asset have no site or type: they count (as Unknown) only when no site / type is chosen
         // and the status is All or Unknown.
         var includeUnmapped = filter.Site is null && filter.Type is null && filter.State is null or Unknown;
-        var statuses = networkTags.Values
-            .Where(tag => assetTags.Contains(tag.TagId) || (includeUnmapped && !allAssetTags.Contains(tag.TagId)))
-            .Select(tag => assetTags.Contains(tag.TagId) ? NetworkState(tag) : Unknown)
+        var statuses = networkTags
+            .Where(entry => InWindow(entry.Value))
+            .Where(entry => assetTags.Contains(entry.Key) || (includeUnmapped && !allAssetTags.Contains(entry.Key)))
+            .Select(entry => assetTags.Contains(entry.Key) ? NetworkState(entry.Value) : Unknown)
             .ToList();
 
         return Results.Ok(Donut(statuses, Online, [Online, Idle, Offline, Unknown]));
@@ -801,11 +808,12 @@ public static class AssetDashboardEndpoints
 
         // Without filters every tag counts; with them, only the tags of the matching registered assets.
         IReadOnlyCollection<string>? tagIds = filter.IsSet
-            ? TagsOf(await FilteredAssetsAsync(repository, filter, cancellationToken))
+            ? RawTagIds(TagsOf(await FilteredAssetsAsync(repository, filter, cancellationToken)), await repository.GetNetworkTagsAsync(cancellationToken))
             : null;
         if (!string.IsNullOrWhiteSpace(tagId))
         {
-            tagIds = tagIds is null || tagIds.Contains(tagId.Trim(), StringComparer.OrdinalIgnoreCase) ? [tagId.Trim()] : [];
+            var wanted = TagKey.Normalize(tagId);
+            tagIds = tagIds is null || tagIds.Any(id => TagKey.Normalize(id) == wanted) ? [tagId.Trim()] : [];
         }
 
         var period = days is null ? null : AssetDashboardPeriod.LastDays(days);
@@ -963,11 +971,15 @@ public static class AssetDashboardEndpoints
             .ToList();
     }
 
+    /// <summary>Every normalized tag id (<see cref="TagKey"/>) of the assets, resolved through Tag Management with asset_tag as fallback.</summary>
     private static HashSet<string> TagsOf(IEnumerable<DashboardAsset> assets) =>
         assets
-            .Where(asset => !string.IsNullOrWhiteSpace(asset.AssetTag))
-            .Select(asset => asset.AssetTag!.Trim())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .SelectMany(asset => asset.TagIds ?? [])
+            .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>The tag ids as stored in NetworkTimeSeries (for queries on meta.tagid); ids that never reported are left out.</summary>
+    private static List<string> RawTagIds(IEnumerable<string> normalizedTagIds, IReadOnlyDictionary<string, NetworkTagSummary> networkTags) =>
+        normalizedTagIds.Where(networkTags.ContainsKey).Select(id => networkTags[id].TagId).ToList();
 
     /// <summary>The site an asset is mapped to: location.site_id, or "unassigned" when it has none.</summary>
     private static string SiteKey(DashboardAsset asset) =>
@@ -986,13 +998,24 @@ public static class AssetDashboardEndpoints
         return (storedName ?? "Unassigned", null);
     }
 
+    /// <summary>
+    /// The asset's tag with the newest reading in the last <see cref="NetworkWindowHours"/> h (an asset can carry several tags);
+    /// null when none was heard in the window.
+    /// </summary>
     private static NetworkTagSummary? NetworkTag(DashboardAsset asset, IReadOnlyDictionary<string, NetworkTagSummary> networkTags) =>
-        !string.IsNullOrWhiteSpace(asset.AssetTag) && networkTags.TryGetValue(asset.AssetTag.Trim(), out var tag) ? tag : null;
+        (asset.TagIds ?? [])
+            .Select(id => networkTags.TryGetValue(id, out var tag) ? tag : null)
+            .OfType<NetworkTagSummary>()
+            .Where(InWindow)
+            .MaxBy(tag => tag.LastSeenAt);
+
+    private static bool InWindow(NetworkTagSummary tag) => tag.LastSeenAt >= DateTime.UtcNow.AddHours(-NetworkWindowHours);
 
     /// <summary>
-    /// Connectivity of a tag mapped to an asset, from NetworkTimeSeries: Unknown when the tag has no readings; Idle when the
-    /// newest reading is older than <see cref="IdleAfterMinutes"/> minutes; otherwise Online when its status is "online",
-    /// else Offline. Used by Device Connectivity, Top Active Sites and the site endpoints so they always agree.
+    /// Connectivity of a tag mapped to an asset, from NetworkTimeSeries, the Real-Time Location rule: Unknown when the tag has
+    /// no reading in the window; Offline when the newest reading's status is not "online"; Idle when that reading is older than
+    /// <see cref="IdleAfterMinutes"/> minutes; otherwise Online. Used by Device Connectivity, Top Active Sites, the map and the
+    /// site endpoints so they always agree.
     /// </summary>
     private static string NetworkState(NetworkTagSummary? tag)
     {
@@ -1001,12 +1024,17 @@ public static class AssetDashboardEndpoints
             return Unknown;
         }
 
-        if (tag.LastSeenAt is null || tag.LastSeenAt < DateTime.UtcNow.AddMinutes(-IdleAfterMinutes))
+        if (tag.LastSeenAt is null)
         {
-            return Idle;
+            return Unknown;
         }
 
-        return tag.LastStatus == "online" ? Online : Offline;
+        if (tag.LastStatus != "online")
+        {
+            return Offline;
+        }
+
+        return tag.LastSeenAt < DateTime.UtcNow.AddMinutes(-IdleAfterMinutes) ? Idle : Online;
     }
 
     /// <summary>A gateway is online when the status field of its newest reading in NetworkTimeSeries is "online".</summary>
