@@ -8,6 +8,17 @@ export interface AdminModule {
   children?: { label: string; slug: string }[];
 }
 
+/** The Maps & Floor Plans page tabs (first = default tab, opened by /administration/maps-floor-plans). */
+export const MAPS_FLOOR_PLANS_TABS: { label: string; slug: string }[] = [
+  { label: 'Map Library', slug: 'map-library' },
+  { label: 'Floor Plans', slug: 'floor-plans' },
+  { label: 'Zones & Geofences', slug: 'zones-geofences' },
+  { label: 'Device & Asset Plotting', slug: 'device-asset-plotting' },
+  { label: 'Layers', slug: 'layers' },
+  { label: 'Versions & Publishing', slug: 'versions-publishing' },
+  { label: 'Settings', slug: 'settings' }
+];
+
 export const ADMINISTRATION_BASE_PATH = '/administration';
 
 // Sub modules of Administration, in sidebar order. Each opens /administration/<slug>.
@@ -28,14 +39,8 @@ export const ADMINISTRATION_MENU: AdminModule[] = [
     label: 'Maps & Floor Plans',
     slug: 'maps-floor-plans',
     description: 'Site maps, floor plans, zones and device plotting.',
-    children: [
-      { label: 'Map Library', slug: 'map-library' },
-      { label: 'Floor Plans', slug: 'floor-plans' },
-      { label: 'Zones & Geofences', slug: 'zones-geofences' },
-      { label: 'Device & Asset Plotting', slug: 'device-asset-plotting' },
-      { label: 'Layers', slug: 'layers' },
-      { label: 'Versions & Publishing', slug: 'versions-publishing' },
-      { label: 'Settings', slug: 'settings' }
-    ]
+    // DEMO-HIDDEN: the sidebar sub-menus are hidden because the Maps & Floor Plans page shows the same items as tabs
+    // (see MAPS_FLOOR_PLANS_TABS below, which the page and its routes use). Restore `children: MAPS_FLOOR_PLANS_TABS` to show them again.
+    // children: MAPS_FLOOR_PLANS_TABS
   }
 ];

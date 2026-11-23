@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { ADMINISTRATION_MENU } from 'shared-ui';
+import { ADMINISTRATION_MENU, MAPS_FLOOR_PLANS_TABS } from 'shared-ui';
 
 const MAPS_FLOOR_PLANS = ADMINISTRATION_MENU.find((m) => m.slug === 'maps-floor-plans')!;
 
@@ -59,7 +59,7 @@ export const routes: Routes = [
     // Maps & Floor Plans: one page, the sub page slug (sidebar child) picks its tab
     path: MAPS_FLOOR_PLANS.slug,
     children: [
-      { path: '', redirectTo: MAPS_FLOOR_PLANS.children![0].slug, pathMatch: 'full' },
+      { path: '', redirectTo: MAPS_FLOOR_PLANS_TABS[0].slug, pathMatch: 'full' },
       { path: ':tab', loadComponent: () => import('./mapsandfloorplan/mapsandfloorplan').then((m) => m.Mapsandfloorplan) }
     ]
   }

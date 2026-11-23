@@ -2,7 +2,7 @@ import { Component, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Box, Clock, Layers, LucideAngularModule, LucideIconData, MapPin, MapPinned, Settings, Shield, SquareStack } from 'lucide-angular';
-import { ADMINISTRATION_BASE_PATH, ADMINISTRATION_MENU } from 'shared-ui';
+import { ADMINISTRATION_BASE_PATH, ADMINISTRATION_MENU, MAPS_FLOOR_PLANS_TABS } from 'shared-ui';
 import { MapsTabId } from './maps.data';
 import { MapsStore } from './maps.store';
 import { FloorPlansTab } from './tabs/floor-plans';
@@ -44,7 +44,7 @@ export class Mapsandfloorplan {
 
   readonly icons = { MapPinned };
   readonly basePath = `${ADMINISTRATION_BASE_PATH}/${MODULE.slug}`;
-  readonly tabs = MODULE.children!.map((c) => ({ id: c.slug as MapsTabId, label: c.label, icon: TAB_ICONS[c.slug as MapsTabId] ?? Box }));
+  readonly tabs = MAPS_FLOOR_PLANS_TABS.map((c) => ({ id: c.slug as MapsTabId, label: c.label, icon: TAB_ICONS[c.slug as MapsTabId] ?? Box }));
 
   active: MapsTabId = this.tabs[0].id;
 
