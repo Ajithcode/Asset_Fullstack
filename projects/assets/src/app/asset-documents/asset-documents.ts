@@ -77,7 +77,7 @@ interface EditForm {
   tags: string;
 }
 
-const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const ACCEPTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
 const ZOOM_MIN = 50;
 const ZOOM_MAX = 200;
@@ -678,7 +678,7 @@ export class AssetDocuments implements OnDestroy {
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
-      this.uploadError = 'Files can be up to 25 MB.';
+      this.uploadError = 'Files can be up to 50 MB.';
       return;
     }
     this.uploadError = '';

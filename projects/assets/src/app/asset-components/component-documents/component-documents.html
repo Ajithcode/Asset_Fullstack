@@ -225,7 +225,7 @@
         <label class="dropzone" [class.is-invalid]="(formSubmitted && !pendingFile) || fileError">
           <lucide-icon [img]="icons.Upload" [size]="22"></lucide-icon>
           <span *ngIf="pendingFile; else pickPrompt"><strong>{{ pendingFile.name }}</strong> &middot; {{ formatSize(pendingFile.size) }}</span>
-          <ng-template #pickPrompt><span>Choose a file <span class="muted">(PDF, image, Word or Excel; max 25 MB)</span></span></ng-template>
+          <ng-template #pickPrompt><span>Choose a file <span class="muted">(PDF, image, Word or Excel; max 50 MB)</span></span></ng-template>
           <input type="file" [accept]="accept" hidden (change)="onFilePicked($event)" />
         </label>
         <span *ngIf="fileError" class="error">{{ fileError }}</span>

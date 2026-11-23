@@ -87,7 +87,7 @@ interface EditForm {
   remarks: string;
 }
 
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const MB = 1024 * 1024;
 
 /**
@@ -714,7 +714,7 @@ export class AssetImages implements OnDestroy {
         item.height = h;
       });
     }
-    this.uploadError = rejected.length ? `Not added (images only, up to 20 MB): ${rejected.join(', ')}` : '';
+    this.uploadError = rejected.length ? `Not added (images only, up to 50 MB): ${rejected.join(', ')}` : '';
   }
 
   removePending(index: number): void {
@@ -811,7 +811,7 @@ export class AssetImages implements OnDestroy {
     this.replaceId = null;
     if (!file || !image) return;
     if (!file.type.startsWith('image/') || file.size > MAX_FILE_BYTES) {
-      this.showToast('Choose an image file up to 20 MB.');
+      this.showToast('Choose an image file up to 50 MB.');
       return;
     }
     if (this.saving) return;
