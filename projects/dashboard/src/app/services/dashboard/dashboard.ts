@@ -115,6 +115,8 @@ export interface TopSite {
   idle: number;
   offline: number;
   unknown: number;
+  /** Assets with no linked tag. */
+  notTracked?: number;
 }
 
 /** Response of GET api/asset-dashboard/locations */

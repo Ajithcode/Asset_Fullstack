@@ -596,7 +596,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     const C = 2 * Math.PI * 48;
     let acc = 0;
     // keep the fixed status order; any extra band from the API goes last
-    const names = [...STATUSES, ...bands.map((b) => b.name).filter((n) => !STATUSES.includes(n as DeviceStatus))];
+    const names = [...STATUSES.filter((x) => x !== 'Not tracked'), ...bands.map((b) => b.name).filter((n) => !STATUSES.includes(n as DeviceStatus))];  // the donut counts tags; assets without a tag are not in it
     const rows = names.map((s) => {
       const band = bands.find((b) => b.name.toLowerCase() === s.toLowerCase());
       const count = band?.count ?? 0;
@@ -855,7 +855,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
 
   get legend() {
     const alerts = this.alerting.size;
-    return [...(['Online', 'Idle', 'Offline'] as DeviceStatus[]).map((s) => ({ label: s, count: this.devices.filter((d) => d.status === s).length, color: STATUS_COLORS[s], alert: false })), { label: 'Alert', count: alerts, color: '#f59e0b', alert: true }];
+    return [...(['Online', 'Idle', 'Offline', 'Not tracked'] as DeviceStatus[]).map((s) => ({ label: s, count: this.devices.filter((d) => d.status === s).length, color: STATUS_COLORS[s], alert: false })), { label: 'Alert', count: alerts, color: '#f59e0b', alert: true }];
   }
 
   /** Map note when there is nothing to pin. */
