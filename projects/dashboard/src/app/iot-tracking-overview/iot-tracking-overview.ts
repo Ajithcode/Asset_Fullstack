@@ -409,8 +409,19 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
             networkStatus: (t.connection ?? '').toLowerCase(), gatewayId: t.gatewayName ?? t.gatewayId, firstSeenAt: t.timestamp, lastSeenAt: t.timestamp, readingCount: 0,
           });
         }
-        this.qv.setConnected(this.tagConnected);
+        this.applyReadingCounts();
       });
+  }
+
+  /** True when every connected asset's reading count is known (the KPI API serves it); otherwise the Readings column is hidden. */
+  private readingsKnown = false;
+
+  /** Readings per asset come from GET api/asset-dashboard/kpis (connectedAssetDetails); the tags API has no count. */
+  private applyReadingCounts(): void {
+    const counts = new Map((this.kpiData?.connectedAssetDetails ?? []).map((d) => [d.assetRegistrationId, d.readingCount]));
+    this.readingsKnown = this.tagConnected.length > 0 && this.tagConnected.every((a) => counts.has(a.assetRegistrationId));
+    this.tagConnected = this.tagConnected.map((a) => ({ ...a, readingCount: counts.get(a.assetRegistrationId) ?? 0 }));
+    this.qv.setConnected(this.tagConnected);
   }
 
   /** Age of the newest reading of any tag in the window, in seconds; null when there is none. */
@@ -442,7 +453,8 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
         next: (res) => {
           this.kpiData = res;
           this.kpiLoading = false;
-          if (!this.tagData) this.qv.setConnected(res?.connectedAssetDetails ?? []);
+          if (this.tagData) this.applyReadingCounts();
+          else this.qv.setConnected(res?.connectedAssetDetails ?? []);
         },
         error: () => {
           this.kpiData = null;
@@ -544,7 +556,8 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     return [
       { key: 'tag', label: 'Asset Tag' }, { key: 'name', label: 'Asset Name' }, { key: 'type', label: 'Type' }, { key: 'site', label: 'Site' },
       { key: 'network', label: 'Network', pill: { online: STATUS_COLORS.Online, idle: STATUS_COLORS.Idle, offline: STATUS_COLORS.Offline } },
-      { key: 'gateway', label: 'Gateway' }, { key: 'lastSeen', label: 'Last Seen' }, { key: 'readings', label: 'Readings', num: true }, ...extra,
+      { key: 'gateway', label: 'Gateway' }, { key: 'lastSeen', label: 'Last Seen' },
+      ...(this.tagData && !this.readingsKnown ? [] : [{ key: 'readings', label: 'Readings', num: true }]), ...extra,
     ];
   }
 
