@@ -119,7 +119,7 @@ public static class AssetImageValidationExtensions
 
         if (file.FileSize is < 0 or > AssetImageFiles.MaxFileSizeBytes)
         {
-            errors[$"{prefix}.FileSize"] = ["Image cannot be larger than 20 MB"];
+            errors[$"{prefix}.FileSize"] = ["Image cannot be larger than 50 MB"];
         }
 
         if (file.Width is < 1 || file.Height is < 1)

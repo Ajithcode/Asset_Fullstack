@@ -26,7 +26,7 @@ public static class AssetFileUploadEndpoints
     // Placeholder that lets the existing validation run before the files are stored.
     private const string PendingUrl = "pending-upload";
 
-    // Up to 50 images of 20 MB each in one request.
+    // Up to 50 images of 50 MB each in one request (the gateway caps one upload request at 50 MB).
     private const long MaxImageRequestBytes = AssetImageFiles.MaxImagesPerUpload * AssetImageFiles.MaxFileSizeBytes;
     private const long MaxDocumentRequestBytes = AssetDocumentFiles.MaxFileSizeBytes + 1024 * 1024;
 

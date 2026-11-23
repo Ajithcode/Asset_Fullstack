@@ -112,7 +112,7 @@ public static class AssetDocumentStatuses
 /// <summary>File types and size accepted by the Upload Document form.</summary>
 public static class AssetDocumentFiles
 {
-    public const long MaxFileSizeBytes = 25 * 1024 * 1024;
+    public const long MaxFileSizeBytes = 50 * 1024 * 1024;
 
     public static readonly string[] AllowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xls", ".xlsx"];
 }
