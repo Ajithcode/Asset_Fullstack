@@ -1,9 +1,54 @@
-import { Component, OnInit, ChangeDetectorRef, Input } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, Input, DestroyRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Observable, catchError, forkJoin, of } from 'rxjs';
 import { WidgetDragHandle } from '../shared/widget-drag-handle/widget-drag-handle';
 import { loadOrder, saveOrder, reorderByKey, moveWithinVisible } from '../shared/dashboard-widgets/widget-order.util';
+import { Dashboard as DashboardApi } from '../services/dashboard/dashboard';
+import { ModuleWidgetsApi, timeAgo } from '../services/dashboard/module-widgets';
+
+/** Donut ring segment (circle r=55 in the 140x140 SVG). */
+interface DonutSegment {
+  color: string;
+  dash: string;
+  offset: number;
+}
+
+const DONUT_CIRCUMFERENCE = 2 * Math.PI * 55;
+const PALETTE = ['#3b82f6', '#22c55e', '#8b5cf6', '#f97316', '#94a3b8', '#eab308', '#ef4444', '#0891b2'];
+const STATUS_COLORS: Record<string, string> = {
+  Active: '#22c55e',
+  Inactive: '#94a3b8',
+  'In Storage': '#3b82f6',
+  'Under Maintenance': '#eab308',
+  'In Repair': '#f97316',
+  'Out of Service': '#ef4444',
+  Disposed: '#64748b',
+};
+const SEVERITY_COLORS: Record<string, string> = { critical: 'red', high: 'orange', medium: 'yellow', low: 'purple' };
+/** Alerts / location updates window of the Asset tab. */
+const ALERT_DAYS = 30;
+
+/** Donut legend + ring segments from label/count rows; rows with no assets are left out. */
+function buildDonut(rows: { label: string; count: number; color: string }[], total: number): { legend: DonutLegendItem[]; segments: DonutSegment[] } {
+  const shown = rows.filter((r) => r.count > 0);
+  let acc = 0;
+  const segments = shown.map((r) => {
+    const len = total ? (r.count / total) * DONUT_CIRCUMFERENCE : 0;
+    const seg = { color: r.color, dash: `${len} ${DONUT_CIRCUMFERENCE - len}`, offset: -acc };
+    acc += len;
+    return seg;
+  });
+  const legend = shown.map((r) => ({
+    label: r.label,
+    value: r.count.toLocaleString(),
+    percentage: `${total ? Math.round((r.count / total) * 1000) / 10 : 0}%`,
+    color: r.color,
+  }));
+  return { legend, segments };
+}
 
 interface StatCard {
   label: string;
@@ -65,8 +110,8 @@ interface DistanceAsset {
 
 interface DashboardData {
   statCards: StatCard[];
-  assetStatusDonut: { total: string; totalLabel: string; legend: DonutLegendItem[] };
-  assetsByTypeDonut: { total: string; totalLabel: string; legend: DonutLegendItem[] };
+  assetStatusDonut: { total: string; totalLabel: string; legend: DonutLegendItem[]; segments: DonutSegment[] };
+  assetsByTypeDonut: { total: string; totalLabel: string; legend: DonutLegendItem[]; segments: DonutSegment[] };
   recentAlerts: AlertItem[];
   utilizationChart: { yAxisLabels: string[]; xAxisLabels: string[]; peak: { value: string; x: number; y: number }; linePoints: string };
   geofenceSummary: GeofenceItem[];
@@ -148,8 +193,8 @@ export class MainDashboard implements OnInit {
   onRow4Drop(event: CdkDragDrop<string[]>): void {
     this.persistDrop(event, this.row4Order, 'piq.dashboard.main.row4Order');
   }
-  assetStatusDonut: DashboardData['assetStatusDonut'] = { total: '0', totalLabel: 'Total', legend: [] };
-  assetsByTypeDonut: DashboardData['assetsByTypeDonut'] = { total: '0', totalLabel: 'Total', legend: [] };
+  assetStatusDonut: DashboardData['assetStatusDonut'] = { total: '0', totalLabel: 'Total', legend: [], segments: [] };
+  assetsByTypeDonut: DashboardData['assetsByTypeDonut'] = { total: '0', totalLabel: 'Total', legend: [], segments: [] };
   recentAlerts: AlertItem[] = [];
   utilizationData: DashboardData['utilizationChart'] = {
     yAxisLabels: ['100%', '75%', '50%', '25%', '0%'],
@@ -172,10 +217,107 @@ export class MainDashboard implements OnInit {
     private router: Router,
   ) {}
   ngOnInit(): void {
-    // No data source yet: stat cards keep their labels with zero values and the widgets render empty
+    // Stat cards keep their labels with zero values until the API answers; a failed call leaves its widget empty
     this.statDataIndex = new Map(STAT_CARD_SHELLS.map((c, i) => [c.label, i]));
     this.statCards = reorderByKey(STAT_CARD_SHELLS.map((c) => ({ ...c })), 'piq.dashboard.main.statOrder', (c) => c.label);
     this.cd.detectChanges();
+    this.loadData();
+  }
+
+  private readonly api = inject(DashboardApi);
+  private readonly widgetsApi = inject(ModuleWidgetsApi);
+  private readonly destroyRef = inject(DestroyRef);
+
+  /** Each widget's source; one failing call (null) blanks only its own widget. */
+  private loadData(): void {
+    const safe = <T>(source: Observable<T>) => source.pipe(catchError(() => of(null)));
+    forkJoin({
+      kpis: safe(this.api.getKpis(ALERT_DAYS)),
+      locations: safe(this.api.getLocations(0)),
+      statuses: safe(this.api.getStatusCounts(undefined, false)),
+      categories: safe(this.api.getCategories()),
+      alerts: safe(this.api.getAlerts(ALERT_DAYS, 5)),
+      updates: safe(this.api.getLocationUpdates(1)),
+      geofences: safe(this.widgetsApi.getGeofenceSummary()),
+      realTime: safe(this.widgetsApi.getRealTimeOverview()),
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ kpis, locations, statuses, categories, alerts, updates, geofences, realTime }) => {
+        // Stat cards: total and alerts from the KPIs, network status per asset from the map legend
+        const total = kpis?.totalAssets ?? statuses?.totalAssets ?? 0;
+        const legend = locations?.legend ?? {};
+        const share = (n: number) => (total ? `${Math.round((n / total) * 1000) / 10}% of total` : undefined);
+        const values: Record<string, { value: number; subLabel?: string; badge?: string } | null> = {
+          'Total Assets': kpis || statuses ? { value: total } : null,
+          'Online / Moving': locations ? { value: legend['Online'] ?? 0, subLabel: share(legend['Online'] ?? 0) } : null,
+          'Idle Assets': locations ? { value: legend['Idle'] ?? 0, subLabel: share(legend['Idle'] ?? 0) } : null,
+          Offline: locations ? { value: legend['Offline'] ?? 0, subLabel: share(legend['Offline'] ?? 0) } : null,
+          Alerts: kpis ? { value: kpis.alerts.value, badge: kpis.alerts.note } : null,
+        };
+        this.statCards = this.statCards.map((card) => {
+          const v = values[card.label];
+          return v ? { ...card, value: v.value.toLocaleString(), subLabel: v.subLabel, badge: v.badge ?? card.badge } : card;
+        });
+
+        if (statuses) {
+          const donut = buildDonut(
+            statuses.statuses.map((s, i) => ({ label: s.status, count: s.count, color: STATUS_COLORS[s.status] ?? PALETTE[i % PALETTE.length] })),
+            statuses.totalAssets,
+          );
+          this.assetStatusDonut = { total: statuses.totalAssets.toLocaleString(), totalLabel: 'Total', ...donut };
+        }
+        if (categories) {
+          const donut = buildDonut(
+            categories.categories.map((c, i) => ({ label: c.category, count: c.count, color: PALETTE[i % PALETTE.length] })),
+            categories.totalAssets,
+          );
+          this.assetsByTypeDonut = { total: categories.totalAssets.toLocaleString(), totalLabel: 'Total', ...donut };
+        }
+
+        this.recentAlerts = (alerts ?? []).map((a) => ({
+          type: a.eventType || 'Alert',
+          asset: [a.assetName || a.deviceId, a.siteName].filter(Boolean).join(' | '),
+          time: timeAgo(a.raisedAt),
+          severity: SEVERITY_COLORS[(a.severity ?? '').toLowerCase()] ?? 'gray',
+        }));
+
+        // Top Active Assets: tags that moved between gateways most often today
+        const tags = [...(updates?.tags ?? [])].sort((a, b) => b.count - a.count).slice(0, 5);
+        const maxMoves = tags[0]?.count || 1;
+        this.topActiveAssets = tags.map((t, i) => ({
+          assetId: t.tagId,
+          route: [t.lastFromGatewayId, t.lastToGatewayId].filter(Boolean).join(' → '),
+          speed: `${t.count} ${t.count === 1 ? 'move' : 'moves'}`,
+          speedPercent: Math.round((t.count / maxMoves) * 100),
+          thumbColor: PALETTE[i % PALETTE.length],
+        }));
+
+        this.geofenceSummary = [...(geofences?.targets ?? [])]
+          .sort((a, b) => b.activeAlerts - a.activeAlerts || b.insideNow - a.insideNow)
+          .slice(0, 5)
+          .map((t) => ({ name: t.name, assetsInside: t.insideNow, alerts: t.activeAlerts }));
+
+        const lastSeen = (a: { lastValidLocationAt: string | null; location: { at: string | null } | null }) =>
+          Date.parse(a.lastValidLocationAt ?? a.location?.at ?? '') || 0;
+        this.recentActivity = [...(realTime?.assets ?? [])]
+          .sort((a, b) => lastSeen(b) - lastSeen(a))
+          .slice(0, 5)
+          .map((a) => {
+            const status = a.movement === 'Moving' ? 'Moving' : a.movement === 'Stationary' ? 'Stopped' : a.freshness;
+            return {
+              assetId: a.assetTag || a.assetId,
+              assetName: a.name,
+              route: a.location?.locationPath ?? '',
+              status,
+              location: a.location?.zoneName ?? a.location?.floorName ?? a.location?.siteName ?? '—',
+              speed: '—',
+              lastUpdate: timeAgo(a.lastValidLocationAt ?? a.location?.at),
+              live: a.freshness === 'Live',
+              thumbColor: status === 'Moving' ? '#22c55e' : status === 'Stopped' ? '#3b82f6' : '#94a3b8',
+            };
+          });
+        this.cd.detectChanges();
+      });
   }
 
   getStatIconClass(index: number): string {
