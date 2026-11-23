@@ -4,6 +4,8 @@ using A360.MasterDataManagement.Repository.Repositories;
 using A360.Domain.Entities;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
+using A360.MasterDataManagement.Domain.ValueObjects;
+using MongoDB.Driver;
 
 namespace A360.MasterDataManagement.Api.Endpoints;
 
@@ -88,7 +90,7 @@ public static class AssetTypeEndpoints
     private static async Task<IResult> CreateAssetTypeAsync(
         CreateAssetTypeRequest request,
         IAssetTypeRepository repository,
-        IAssetCategoryRepository categories,
+        IMongoDatabase database,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -112,10 +114,7 @@ public static class AssetTypeEndpoints
                 new { message = $"An asset type with code '{assetType.Code}' already exists." });
         }
 
-        var categoryError = await MasterDataReferenceResolver.ResolveAssetCategoryAsync(
-            assetType.Category,
-            categories,
-            cancellationToken);
+        var categoryError = await ResolveCategoryAsync(assetType.Category, database, cancellationToken);
 
         if (categoryError is not null)
         {
@@ -142,7 +141,7 @@ public static class AssetTypeEndpoints
         string id,
         UpdateAssetTypeRequest request,
         IAssetTypeRepository repository,
-        IAssetCategoryRepository categories,
+        IMongoDatabase database,
         IAssetModelRepository assetModels,
         IAmcVendorRepository amcVendors,
         IEventLogger eventLogger,
@@ -185,10 +184,7 @@ public static class AssetTypeEndpoints
                 new { message = $"An asset type with code '{assetType.Code}' already exists." });
         }
 
-        var categoryError = await MasterDataReferenceResolver.ResolveAssetCategoryAsync(
-            assetType.Category,
-            categories,
-            cancellationToken);
+        var categoryError = await ResolveCategoryAsync(assetType.Category, database, cancellationToken);
 
         if (categoryError is not null)
         {
@@ -333,5 +329,28 @@ public static class AssetTypeEndpoints
             cancellationToken);
 
         return Results.NoContent();
+    }
+
+    /// <summary>The category is one of the Asset service's categories (the list Asset Registration and Asset Model use).</summary>
+    private static async Task<IResult?> ResolveCategoryAsync(
+        MasterDataReference? reference,
+        IMongoDatabase database,
+        CancellationToken cancellationToken)
+    {
+        if (reference is null || string.IsNullOrWhiteSpace(reference.Id))
+        {
+            return null;
+        }
+
+        var category = await AssetCatalogLookup.FindCategoryAsync(database, reference.Id, cancellationToken);
+
+        if (category is null)
+        {
+            return Results.BadRequest(
+                new { message = $"Asset category '{reference.Id}' was not found." });
+        }
+
+        reference.Name = category.Name;
+        return null;
     }
 }
