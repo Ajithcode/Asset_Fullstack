@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, ElementRef, EventEmitter, Input, NgZone, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import type * as Leaflet from 'leaflet';
+import { MapControls } from 'shared-ui';
 import { Zone } from './geofence-data';
 import { LL, zoneShape } from './geofence-geo';
 
@@ -42,7 +43,9 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 @Component({
   selector: 'app-geofence-map',
   standalone: true,
-  template: '<div #host class="gz-map" [class.is-draw]="mode === \'draw\'" [class.is-edit]="mode === \'edit\'"></div>',
+  imports: [MapControls],
+  template: `<div #host class="gz-map" [class.is-draw]="mode === 'draw'" [class.is-edit]="mode === 'edit'"></div>
+    <app-map-controls [bottom]="30" (fit)="fitView()" (fullscreenChange)="refit()"></app-map-controls>`,
   styleUrls: ['./geofence-map.css'],
   encapsulation: ViewEncapsulation.None,
 })
@@ -213,6 +216,19 @@ export class GeofenceMap implements AfterViewInit, OnChanges, OnDestroy {
       setTimeout(drop, 2500);
     }
     this.host.nativeElement.classList.toggle('is-sat', this.satellite);
+  }
+
+  /** Fit to screen: all zones of the site. */
+  fitView(): void {
+    this.fitSite(true);
+  }
+
+  /** The card went full screen / back. */
+  refit(): void {
+    this.zone.runOutsideAngular(() => {
+      this.map?.invalidateSize({ animate: false });
+      this.fitSite(false);
+    });
   }
 
   private fitSite(animate: boolean): void {
