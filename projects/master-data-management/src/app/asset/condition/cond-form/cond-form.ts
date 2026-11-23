@@ -5,6 +5,7 @@ import { HEX_COLOR, LEVEL_ICONS, LEVEL_ICON_KEYS } from '../../level-icons';
 import { CONDITION_TYPES, blankCondition } from '../condition.data';
 import { ConditionRecord } from '../condition.model';
 import { ConditionService } from '../condition.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 /** A new condition starts with its Type dropdown empty so the user picks it. */
 function newCondition(): ConditionRecord {
@@ -133,11 +134,6 @@ export class CondForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a condition name.';
@@ -151,6 +147,12 @@ export class CondForm implements OnChanges {
     if (!Number.isInteger(f.healthScore) || f.healthScore < 0 || f.healthScore > 100) errors.healthScore = 'Enter 0 to 100.';
     if (!Number.isInteger(f.displayOrder) || f.displayOrder < 1) errors.displayOrder = 'Enter 1 or more.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {

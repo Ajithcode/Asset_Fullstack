@@ -9,6 +9,7 @@ import { TeamService } from '../../team/team.service';
 import { SKILL_LEVELS, blankTechnician } from '../technician.data';
 import { TechnicianRecord } from '../technician.model';
 import { TechnicianService } from '../technician.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'skills' | 'employment' | 'contact' | 'settings';
 type FieldKey = 'id' | 'name' | 'email' | 'photo' | 'status' | 'team' | 'skillLevel' | 'certifications' | 'hourlyRate' | 'maxOpenWorkOrders';
@@ -158,11 +159,6 @@ export class TechnicianForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const originalId = this.original?.id ?? null;
     const errors: Partial<Record<FieldKey, string>> = {};
@@ -181,6 +177,12 @@ export class TechnicianForm implements OnChanges {
     if (f.hourlyRate !== null && !(f.hourlyRate >= 0)) errors.hourlyRate = 'Rate can’t be negative.';
     if (!Number.isInteger(f.maxOpenWorkOrders) || f.maxOpenWorkOrders < 1 || f.maxOpenWorkOrders > 50) errors.maxOpenWorkOrders = 'Enter 1 to 50.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {

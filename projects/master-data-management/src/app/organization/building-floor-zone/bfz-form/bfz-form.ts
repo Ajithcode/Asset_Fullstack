@@ -4,6 +4,7 @@ import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { COUNTRIES, FLOOR_NAMES, ZONE_COLORS, blankBfz } from '../bfz.data';
 import { BUILDING_CATEGORIES, BfzRecord, BfzType, ZONE_CATEGORIES } from '../bfz.model';
 import { BfzService } from '../bfz.service';
+import { StepOf, errorsOnStep, firstStepWithError } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'address' | 'settings';
 type FieldKey = 'name' | 'code' | 'siteId' | 'buildingCode' | 'floorCode' | 'capacity' | 'area' | 'image' | 'lat' | 'lng';
@@ -15,6 +16,9 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
  * fields show: a floor picks its building, a zone picks its building and floor; the site
  * always follows the building.
  */
+/** Step (tab) that shows each field's error. */
+const STEP_OF: StepOf = () => 'basic';
+
 @Component({
   selector: 'app-bfz-form',
   imports: [FormsModule, LucideAngularModule],
@@ -164,11 +168,6 @@ export class BfzForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a name.';
@@ -184,6 +183,12 @@ export class BfzForm implements OnChanges {
     if (f.lng !== null && (f.lng < -180 || f.lng > 180)) errors.lng = 'Longitude must be between -180 and 180.';
     else if (f.lng === null && f.lat !== null) errors.lng = 'Enter the longitude too.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, STEP_OF, this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     if (Object.keys(errors).length) {
       this.tab = 'basic';

@@ -7,6 +7,7 @@ import { CUSTOM_FIELD_TYPES, MAINTENANCE_TYPES } from '../../asset-type/asset-ty
 import { blankAssetSubType } from '../asset-sub-type.data';
 import { AssetSubTypeRecord } from '../asset-sub-type.model';
 import { AssetSubTypeService } from '../asset-sub-type.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 /** A new sub type starts with every dropdown empty so the user picks each value. */
 function newAssetSubType(): AssetSubTypeRecord {
@@ -163,10 +164,6 @@ export class SubTypeForm implements OnChanges {
   }
 
   submit(): void {
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.assetType) errors.assetType = 'Select a parent asset type.';
@@ -187,6 +184,12 @@ export class SubTypeForm implements OnChanges {
     else if (new Set(names).size !== names.length) errors.customFields = 'Custom field names must be unique.';
     else if (f.customFields.some((c) => !c.type)) errors.customFields = 'Every custom field needs a type.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {

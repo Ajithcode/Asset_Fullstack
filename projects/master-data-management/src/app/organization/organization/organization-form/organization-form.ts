@@ -4,6 +4,7 @@ import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { COUNTRIES, CURRENCIES, DATE_FORMATS, LANGUAGES, TIME_ZONES, blankOrganization } from '../organization.data';
 import { ORGANIZATION_TYPES, OrganizationRecord } from '../organization.model';
 import { OrganizationService } from '../organization.service';
+import { StepOf, errorsOnStep, firstStepWithError } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'contact' | 'settings';
 type FieldKey = 'name' | 'code' | 'type' | 'website' | 'logo' | 'parentCode' | 'email' | 'effectiveTo';
@@ -21,6 +22,9 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const URL_PATTERN = /^https?:\/\/[^\s.]+\.[^\s]+$/i;
 
 /** Right-hand "Add / Edit Organization" panel. Emits the finished record; the page saves it. */
+/** Step (tab) that shows each field's error. */
+const STEP_OF: StepOf = (k) => ['name', 'code', 'type', 'website', 'logo'].includes(k) ? 'basic' : k === 'parentCode' ? 'hierarchy' : k === 'email' ? 'contact' : 'settings';
+
 @Component({
   selector: 'app-organization-form',
   imports: [FormsModule, LucideAngularModule],
@@ -149,11 +153,6 @@ export class OrganizationForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter an organization name.';
@@ -170,17 +169,17 @@ export class OrganizationForm implements OnChanges {
       errors.effectiveTo = 'Must be on or after Effective From.';
     }
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, STEP_OF, this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     // Show the first tab that has a problem
     const keys = Object.keys(errors);
     if (keys.length) {
-      this.tab = keys.some((k) => ['name', 'code', 'type', 'website', 'logo'].includes(k))
-        ? 'basic'
-        : errors.parentCode
-          ? 'hierarchy'
-          : errors.email
-            ? 'contact'
-            : 'settings';
+      this.tab = firstStepWithError(errors, this.tabs, STEP_OF);
       return;
     }
 

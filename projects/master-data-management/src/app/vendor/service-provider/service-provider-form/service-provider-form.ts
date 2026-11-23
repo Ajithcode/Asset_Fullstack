@@ -8,6 +8,7 @@ import { VENDOR_COUNTRIES } from '../../vendor.data';
 import { COVERAGE_AREAS, SERVICE_TYPES, blankServiceProvider } from '../service-provider.data';
 import { ServiceProviderRecord } from '../service-provider.model';
 import { ServiceProviderService } from '../service-provider.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'services' | 'address' | 'compliance' | 'documents' | 'settings';
 type ListKey = 'services' | 'skills' | 'coverage';
@@ -108,11 +109,6 @@ export class ServiceProviderForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const code = this.original?.code ?? null;
     const errors = validateVendorBase(f, { code: this.service.isCodeTaken(f.code, code), name: this.service.isNameTaken(f.name, code) }, 'Service Provider');
@@ -123,6 +119,12 @@ export class ServiceProviderForm implements OnChanges {
     if (f.status === 'Active' && this.expired(f.licenceExpiry)) errors['licenceExpiry'] = 'The trade licence has expired; renew it or mark the provider Inactive.';
     if (!(f.rating >= 0 && f.rating <= 5)) errors['rating'] = 'Enter 0 to 5.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors);
     if (keys.length) {

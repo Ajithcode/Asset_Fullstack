@@ -7,6 +7,7 @@ import { COUNTRIES, CURRENCIES } from '../../organization/organization.data';
 import { blankDepartment } from '../department.data';
 import { DEPARTMENT_TYPES, DepartmentRecord } from '../department.model';
 import { DepartmentService } from '../department.service';
+import { StepOf, errorsOnStep, firstStepWithError } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'people' | 'finance' | 'settings';
 type FieldKey = 'name' | 'code' | 'businessUnitCode' | 'type' | 'logo' | 'email' | 'budget' | 'approvalLimit' | 'effectiveTo';
@@ -15,6 +16,9 @@ const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Right-hand "Add / Edit Department" panel. Emits the finished record; the page saves it. */
+/** Step (tab) that shows each field's error. */
+const STEP_OF: StepOf = (k) => ['name', 'code', 'businessUnitCode', 'type', 'logo'].includes(k) ? 'basic' : k === 'email' ? 'people' : k === 'budget' || k === 'approvalLimit' ? 'finance' : 'settings';
+
 @Component({
   selector: 'app-dept-form',
   imports: [FormsModule, LucideAngularModule],
@@ -137,11 +141,6 @@ export class DeptForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a department name.';
@@ -155,16 +154,16 @@ export class DeptForm implements OnChanges {
     if (f.approvalLimit !== null && f.approvalLimit < 0) errors.approvalLimit = 'Approval limit cannot be negative.';
     if (f.effectiveTo && f.effectiveFrom && f.effectiveTo < f.effectiveFrom) errors.effectiveTo = 'Must be on or after Effective From.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, STEP_OF, this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors);
     if (keys.length) {
-      this.tab = keys.some((k) => ['name', 'code', 'businessUnitCode', 'type', 'logo'].includes(k))
-        ? 'basic'
-        : errors.email
-          ? 'people'
-          : errors.budget || errors.approvalLimit
-            ? 'finance'
-            : 'settings';
+      this.tab = firstStepWithError(errors, this.tabs, STEP_OF);
       return;
     }
 

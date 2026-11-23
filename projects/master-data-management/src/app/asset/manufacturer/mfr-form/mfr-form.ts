@@ -5,6 +5,7 @@ import { CURRENCIES } from '../../../organization/organization/organization.data
 import { BRAND_PALETTE, MANUFACTURER_COUNTRIES, PAYMENT_TERMS, badgeInk, badgeText, blankManufacturer } from '../manufacturer.data';
 import { ManufacturerRecord } from '../manufacturer.model';
 import { ManufacturerService } from '../manufacturer.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 /** A new manufacturer starts with every dropdown empty so the user picks each value. */
 function newManufacturer(): ManufacturerRecord {
@@ -130,11 +131,6 @@ export class MfrForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a manufacturer name.';
@@ -152,6 +148,12 @@ export class MfrForm implements OnChanges {
     }
     if (!Number.isInteger(f.slaResponseHours) || f.slaResponseHours < 1 || f.slaResponseHours > 720) errors.slaResponseHours = 'Enter 1 to 720 hours.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {

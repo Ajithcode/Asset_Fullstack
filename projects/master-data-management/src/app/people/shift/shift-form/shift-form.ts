@@ -6,6 +6,7 @@ import { TeamService } from '../../team/team.service';
 import { SHIFT_COLORS, SHIFT_TYPES, WEEK_DAYS, blankShift, shiftHours } from '../shift.data';
 import { ShiftRecord } from '../shift.model';
 import { ShiftService } from '../shift.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'schedule' | 'breaks' | 'assignments' | 'settings';
 type FieldKey = 'name' | 'code' | 'shiftType' | 'status' | 'startTime' | 'endTime' | 'workingDays' | 'grace' | 'breaks';
@@ -128,11 +129,6 @@ export class ShiftForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a shift name.';
@@ -153,6 +149,12 @@ export class ShiftForm implements OnChanges {
       errors.breaks = 'Breaks can’t fill the whole shift.';
     }
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {

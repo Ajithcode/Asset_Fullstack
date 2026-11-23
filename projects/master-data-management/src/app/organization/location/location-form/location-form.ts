@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Building2, LucideAngularModule, X } from 'lucide-angular';
 import { LOCATION_TYPES, LocationRecord } from '../location.model';
 import { LocationService } from '../location.service';
+import { StepOf, errorsOnStep, firstStepWithError } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'hierarchy' | 'type' | 'map' | 'settings';
 type FieldKey = 'name' | 'code' | 'siteId' | 'buildingCode' | 'floorCode' | 'type' | 'image' | 'area' | 'lat' | 'lng';
@@ -11,6 +12,9 @@ type FieldKey = 'name' | 'code' | 'siteId' | 'buildingCode' | 'floorCode' | 'typ
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 /** Right-hand "Add / Edit Location" panel. Emits the finished record; the page saves it. */
+/** Step (tab) that shows each field's error. */
+const STEP_OF: StepOf = (k) => (k === 'area' ? 'type' : k === 'lat' || k === 'lng' ? 'map' : 'basic');
+
 @Component({
   selector: 'app-location-form',
   imports: [FormsModule, NgTemplateOutlet, LucideAngularModule],
@@ -152,11 +156,6 @@ export class LocationForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a location name.';
@@ -170,6 +169,12 @@ export class LocationForm implements OnChanges {
     if (!Number.isFinite(f.lat) || f.lat < -90 || f.lat > 90) errors.lat = 'Latitude must be between -90 and 90.';
     if (!Number.isFinite(f.lng) || f.lng < -180 || f.lng > 180) errors.lng = 'Longitude must be between -180 and 180.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, STEP_OF, this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     // Show the first tab that has a problem
     const keys = Object.keys(errors);

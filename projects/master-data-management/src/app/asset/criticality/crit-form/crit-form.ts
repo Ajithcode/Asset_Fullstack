@@ -5,6 +5,7 @@ import { HEX_COLOR, LEVEL_ICONS, LEVEL_ICON_KEYS } from '../../level-icons';
 import { INSPECTION_FREQUENCIES, MONITORING, PRIORITIES, SCALE, STRATEGIES, blankCriticality } from '../criticality.data';
 import { CriticalityRecord } from '../criticality.model';
 import { CriticalityService } from '../criticality.service';
+import { StepOf, errorsOnStep, firstStepWithError } from '../../../shared/step-validation';
 
 /** A new level starts with every dropdown empty so the user picks each value. */
 function newCriticality(): CriticalityRecord {
@@ -26,6 +27,9 @@ type FieldKey = 'name' | 'code' | 'riskLevel' | 'maintenancePriority' | 'color' 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 /** Right-hand "Add / Edit Criticality" panel. Emits the finished record; the page saves it. */
+/** Step (tab) that shows each field's error. */
+const STEP_OF: StepOf = (k) => (k === 'responseTimeHours' ? 'maintenance' : 'basic');
+
 @Component({
   selector: 'app-crit-form',
   imports: [FormsModule, LucideAngularModule],
@@ -131,11 +135,6 @@ export class CritForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a criticality name.';
@@ -149,9 +148,15 @@ export class CritForm implements OnChanges {
     else if (f.isDefault && f.status !== 'Active') errors.isDefault = 'The default level must be active.';
     if (!Number.isInteger(f.responseTimeHours) || f.responseTimeHours < 1 || f.responseTimeHours > 720) errors.responseTimeHours = 'Enter 1 to 720 hours.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, STEP_OF, this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     if (Object.keys(errors).length) {
-      this.tab = errors.responseTimeHours && Object.keys(errors).length === 1 ? 'maintenance' : 'basic';
+      this.tab = firstStepWithError(errors, this.tabs, STEP_OF);
       return;
     }
 

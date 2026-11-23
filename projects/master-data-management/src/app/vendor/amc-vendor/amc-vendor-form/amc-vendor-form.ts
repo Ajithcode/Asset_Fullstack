@@ -10,6 +10,7 @@ import { BASE_TAB_OF, VendorAddressFields, VendorBasic, VendorDocuments, VendorE
 import { AMC_ASSET_TYPES, BILLING_CYCLES, CONTRACT_TYPES, MODEL_TYPES_FOR, blankAmcVendor } from '../amc-vendor.data';
 import { AmcVendorRecord } from '../amc-vendor.model';
 import { AmcVendorService } from '../amc-vendor.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'contract' | 'coverage' | 'sla' | 'address' | 'documents' | 'settings';
 
@@ -124,11 +125,6 @@ export class AmcVendorForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const code = this.original?.code ?? null;
     const errors = validateVendorBase(f, { code: this.service.isCodeTaken(f.code, code), name: this.service.isNameTaken(f.name, code) }, 'AMC Vendor');
@@ -146,6 +142,12 @@ export class AmcVendorForm implements OnChanges {
     if (!(f.uptimePercent >= 0 && f.uptimePercent <= 100)) errors['uptimePercent'] = 'Enter 0 to 100.';
     if (f.penaltyPerHour !== null && !(f.penaltyPerHour >= 0)) errors['penaltyPerHour'] = 'Enter 0 or more.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors);
     if (keys.length) {

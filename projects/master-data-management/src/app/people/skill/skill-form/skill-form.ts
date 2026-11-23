@@ -6,11 +6,15 @@ import { DESIGNATIONS, nowStamp } from '../../people.data';
 import { DEFAULT_LEVELS, SKILL_CATEGORIES, blankSkill } from '../skill.data';
 import { SkillRecord } from '../skill.model';
 import { SkillService } from '../skill.service';
+import { StepOf, errorsOnStep, firstStepWithError } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'levels' | 'roles' | 'settings';
 type FieldKey = 'name' | 'code' | 'category' | 'status' | 'levels' | 'validity';
 
 /** Right-hand "Add / Edit Skill" panel. Emits the finished record; the page saves it. */
+/** Step (tab) that shows each field's error. */
+const STEP_OF: StepOf = (k) => (k === 'levels' ? 'levels' : k === 'validity' ? 'settings' : 'basic');
+
 @Component({
   selector: 'app-skill-form',
   imports: [FormsModule, LucideAngularModule],
@@ -97,11 +101,6 @@ export class SkillForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a skill name.';
@@ -117,9 +116,15 @@ export class SkillForm implements OnChanges {
       errors.validity = 'Enter the validity in months.';
     }
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, STEP_OF, this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     if (Object.keys(errors).length) {
-      this.tab = errors.name || errors.code || errors.category || errors.status ? 'basic' : errors.levels ? 'levels' : 'settings';
+      this.tab = firstStepWithError(errors, this.tabs, STEP_OF);
       return;
     }
 
