@@ -21,6 +21,7 @@ public static class StandardReportOptions
     public const string ScheduledStatus = "Scheduled";
     public const string NeedsReviewStatus = "Needs review";
 
+    // Custom report modules. Standard report categories come from Master Data Management (IMasterCategoryRepository).
     public static readonly OptionList Categories = new(
         "Assets",
         "WIP / Operations",
@@ -33,7 +34,7 @@ public static class StandardReportOptions
 
     public const string AssetMovementType = "Asset Movement";
 
-    // Report types with data behind them; see StandardReportEndpoints.GetReportDetailsAsync.
+    // Report types with data behind them (see StandardReportEndpoints.GetReportDetailsAsync). Any other text is accepted too.
     public static readonly OptionList ReportTypes = new(AssetMovementType);
 
     public static readonly OptionList Frequencies = new(

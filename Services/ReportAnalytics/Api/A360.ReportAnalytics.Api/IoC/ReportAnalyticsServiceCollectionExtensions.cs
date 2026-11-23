@@ -5,6 +5,7 @@ using A360.Repository.Repositories;
 using A360.Repository.Sequences;
 using A360.Repository.Settings;
 using A360.Security;
+using A360.ReportAnalytics.Api.Scheduling;
 
 namespace A360.ReportAnalytics.Api.IoC;
 
@@ -54,6 +55,14 @@ public static class ReportAnalyticsServiceCollectionExtensions
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<CustomReportRepository>());
 
         services.AddScoped<IReportDataRepository, ReportDataRepository>();
+        services.AddScoped<IMasterCategoryRepository, MasterCategoryRepository>();
+
+        // Scheduled reports: generated and emailed by ReportScheduleWorker (SMTP from the "Smtp" section).
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        services.AddSingleton(ReportMailer.ReadSettings(configuration));
+        services.AddSingleton<IReportMailer, ReportMailer>();
+        services.AddScoped<ScheduledReportRunner>();
+        services.AddHostedService<ReportScheduleWorker>();
 
         services.AddScoped<InteractiveDashboardRepository>();
         services.AddScoped<IInteractiveDashboardRepository>(serviceProvider => serviceProvider.GetRequiredService<InteractiveDashboardRepository>());

@@ -32,7 +32,7 @@ internal static class StandardReportMappings
             request.ReviewDueOn,
             request.Status);
 
-        report.ReportType = StandardReportOptions.ReportTypes.Normalize(request.ReportType);
+        report.ReportType = NormalizeReportType(request.ReportType);
 
         return report;
     }
@@ -56,36 +56,7 @@ internal static class StandardReportMappings
         // Left out of the request: the report keeps its type.
         if (!string.IsNullOrWhiteSpace(request.ReportType))
         {
-            report.ReportType = StandardReportOptions.ReportTypes.Normalize(request.ReportType);
-        }
-
-        report.UpdatedBy = FirstNonEmpty(request.UpdatedBy, currentUser?.UserName);
-        report.UpdatedAt = DateTime.UtcNow;
-    }
-
-    public static void ApplyTo(this ScheduleStandardReportRequest request, StandardReport report, CurrentUser? currentUser)
-    {
-        var timeZoneId = string.IsNullOrWhiteSpace(request.TimeZone) ? report.TimeZone : request.TimeZone.Trim();
-        ReportPeriods.TryGetTimeZone(timeZoneId, out var timeZone);
-
-        report.Frequency = StandardReportOptions.Frequencies.Normalize(request.Frequency)!;
-        report.TimeZone = timeZoneId;
-
-        if (StandardReportOptions.IsOnDemand(report.Frequency))
-        {
-            report.NextScheduledOn = null;
-            if (report.Status == StandardReportOptions.ScheduledStatus)
-            {
-                report.Status = report.GeneratedOn is null ? StandardReportOptions.DraftStatus : StandardReportOptions.ReadyStatus;
-            }
-        }
-        else
-        {
-            report.NextScheduledOn = ReportPeriods.ToUtc(request.NextScheduledOn, timeZone);
-            if (report.Status is null or StandardReportOptions.DraftStatus)
-            {
-                report.Status = StandardReportOptions.ScheduledStatus;
-            }
+            report.ReportType = NormalizeReportType(request.ReportType);
         }
 
         report.UpdatedBy = FirstNonEmpty(request.UpdatedBy, currentUser?.UserName);
@@ -158,7 +129,7 @@ internal static class StandardReportMappings
 
         report.ReportName = reportName!.Trim();
         report.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-        report.Category = StandardReportOptions.Categories.Normalize(category)!;
+        report.Category = category!.Trim();
         report.TimeZone = zoneId;
         report.IncludeTime = includeTime ?? false;
         (report.ReportPeriodFrom, report.ReportPeriodTo) =
@@ -170,6 +141,12 @@ internal static class StandardReportMappings
             ?? report.Status
             ?? StandardReportOptions.DraftStatus;
     }
+
+    /// <summary>Any text; a known type (e.g. "asset movement") gets its standard spelling so its data is found.</summary>
+    private static string? NormalizeReportType(string? reportType) =>
+        string.IsNullOrWhiteSpace(reportType)
+            ? null
+            : StandardReportOptions.ReportTypes.Normalize(reportType) ?? reportType.Trim();
 
     private static string? FirstNonEmpty(string? requested, string? fallback)
     {

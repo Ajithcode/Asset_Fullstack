@@ -125,6 +125,8 @@ public static class TrackingServiceCollectionExtensions
         // Tracking & Telemetry page data (live tag readings → assets, location, KPIs)
         services.AddSingleton<A360.Tracking.Api.Telemetry.TelemetryOverviewService>();
         services.AddSingleton<A360.Tracking.Api.Telemetry.RealTimeLocationService>();
+        services.AddSingleton<A360.Tracking.Api.Telemetry.TagLocationService>();
+        services.AddSingleton<A360.Tracking.Api.Telemetry.AssetMovementService>();
         services.AddSingleton<A360.Tracking.Api.Alerts.GeofenceAlertsService>();
         services.AddSingleton<A360.Tracking.Api.Endpoints.SensorParameterStore>();
 

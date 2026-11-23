@@ -6,6 +6,7 @@ using A360.Repository.Activity;
 using A360.Repository.Sequences;
 using A360.ReportAnalytics.Api.Analytics;
 using A360.ReportAnalytics.Api.Contracts;
+using A360.ReportAnalytics.Api.Scheduling;
 using A360.ReportAnalytics.Api.Validation;
 using A360.ReportAnalytics.Domain.Entities;
 using A360.ReportAnalytics.Repository.Repositories;
@@ -44,6 +45,8 @@ public static class StandardReportEndpoints
         // Row actions.
         group.MapPost("/{reportId}/generate", GenerateReportAsync).WithName("GenerateStandardReport");
         group.MapPut("/{reportId}/schedule", ScheduleReportAsync).WithName("ScheduleStandardReport");
+        group.MapPost("/{reportId}/schedule/send-now", SendNowAsync).WithName("SendStandardReportNow");
+        group.MapGet("/schedule-options", GetScheduleOptions).WithName("GetStandardReportScheduleOptions");
 
         return group;
     }
@@ -171,8 +174,9 @@ public static class StandardReportEndpoints
             days.Select(day => new StandardReportCalendarDay(day.Key, day.Value.Generated, day.Value.Scheduled, day.Value.ReviewDue)).ToList()));
     }
 
-    private static IResult GetOptions() => Results.Ok(new StandardReportOptionsResponse(
-        StandardReportOptions.Categories.All,
+    /// <summary>Categories come from Master Data Management (active top-level asset categories).</summary>
+    private static async Task<IResult> GetOptions(IMasterCategoryRepository categories, CancellationToken cancellationToken) => Results.Ok(new StandardReportOptionsResponse(
+        await categories.GetCategoryNamesAsync(cancellationToken),
         StandardReportOptions.ReportTypes.All,
         StandardReportOptions.Frequencies.All,
         StandardReportOptions.Statuses.All,
@@ -349,6 +353,7 @@ public static class StandardReportEndpoints
     private static async Task<IResult> CreateReportAsync(
         CreateStandardReportRequest request,
         IStandardReportRepository repository,
+        IMasterCategoryRepository categories,
         ISequenceGenerator sequenceGenerator,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
@@ -360,6 +365,13 @@ public static class StandardReportEndpoints
             return Results.ValidationProblem(validationErrors);
         }
 
+        var category = await categories.FindCategoryAsync(request.Category, cancellationToken);
+        if (category is null)
+        {
+            return await UnknownCategoryProblemAsync(request.Category, categories, cancellationToken);
+        }
+
+        request = request with { Category = category };
         var report = request.ToEntity(string.Empty, currentUserAccessor.GetCurrentUser());
 
         // Checked before taking a number so a rejected request does not leave a gap in RPT- ids.
@@ -382,6 +394,7 @@ public static class StandardReportEndpoints
         string reportId,
         UpdateStandardReportRequest request,
         IStandardReportRepository repository,
+        IMasterCategoryRepository categories,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -391,6 +404,14 @@ public static class StandardReportEndpoints
         {
             return Results.ValidationProblem(validationErrors);
         }
+
+        var category = await categories.FindCategoryAsync(request.Category, cancellationToken);
+        if (category is null)
+        {
+            return await UnknownCategoryProblemAsync(request.Category, categories, cancellationToken);
+        }
+
+        request = request with { Category = category };
 
         var report = await repository.GetByReportIdAsync(reportId, cancellationToken);
         if (report is null)
@@ -406,6 +427,18 @@ public static class StandardReportEndpoints
         request.ApplyTo(report, currentUserAccessor.GetCurrentUser());
 
         return await SaveAsync(report, repository, eventLogger, cancellationToken);
+    }
+
+    private static async Task<IResult> UnknownCategoryProblemAsync(
+        string? category,
+        IMasterCategoryRepository categories,
+        CancellationToken cancellationToken)
+    {
+        var names = await categories.GetCategoryNamesAsync(cancellationToken);
+        var message = names.Count == 0
+            ? "No categories are set up in Master Data Management; add one there first"
+            : $"Category '{category?.Trim()}' is not an active category in Master Data Management. Use one of: {string.Join(", ", names)}";
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["Category"] = [message] });
     }
 
     private static async Task<IResult> DeleteReportAsync(
@@ -458,7 +491,7 @@ public static class StandardReportEndpoints
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
-        var validationErrors = request.Validate();
+        var (validationErrors, schedule, off) = ReportScheduleValidation.Validate(request);
         if (validationErrors.Count > 0)
         {
             return Results.ValidationProblem(validationErrors);
@@ -470,10 +503,83 @@ public static class StandardReportEndpoints
             return Results.NotFound();
         }
 
-        request.ApplyTo(report, currentUserAccessor.GetCurrentUser());
+        if (!string.IsNullOrWhiteSpace(request.TimeZone))
+        {
+            report.TimeZone = request.TimeZone.Trim();
+        }
+
+        if (off)
+        {
+            // Stop emailing; the last schedule is kept (disabled) so it can be shown again.
+            if (report.Schedule is not null)
+            {
+                report.Schedule.Enabled = false;
+            }
+
+            report.Frequency = StandardReportRepository.OnDemandFrequency;
+            report.NextScheduledOn = null;
+            if (report.Status == StandardReportOptions.ScheduledStatus)
+            {
+                report.Status = report.GeneratedOn is null ? StandardReportOptions.DraftStatus : StandardReportOptions.ReadyStatus;
+            }
+        }
+        else
+        {
+            ReportPeriods.TryGetTimeZone(report.TimeZone, out var timeZone);
+            schedule!.LastRunAt = report.Schedule?.LastRunAt;
+            schedule.LastRunStatus = report.Schedule?.LastRunStatus;
+            schedule.LastRunError = report.Schedule?.LastRunError;
+
+            report.Schedule = schedule;
+            report.Frequency = schedule.Frequency;
+            report.NextScheduledOn = ReportScheduleCalculator.Next(schedule, timeZone, DateTime.UtcNow);
+            if (report.Status is null or StandardReportOptions.DraftStatus or StandardReportOptions.ReadyStatus)
+            {
+                report.Status = StandardReportOptions.ScheduledStatus;
+            }
+        }
+
+        var currentUser = currentUserAccessor.GetCurrentUser();
+        report.UpdatedBy = string.IsNullOrWhiteSpace(request.UpdatedBy) ? currentUser?.UserName : request.UpdatedBy.Trim();
+        report.UpdatedAt = DateTime.UtcNow;
 
         return await SaveAsync(report, repository, eventLogger, cancellationToken);
     }
+
+    /// <summary>Send Now: generates the report for its schedule's period and emails it straight away (the schedule is unchanged).</summary>
+    private static async Task<IResult> SendNowAsync(
+        string reportId,
+        IStandardReportRepository repository,
+        ScheduledReportRunner runner,
+        IReportMailer mailer,
+        CancellationToken cancellationToken)
+    {
+        var report = await repository.GetByReportIdAsync(reportId, cancellationToken);
+        if (report is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (report.Schedule is null || report.Schedule.Recipients.Count == 0)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["Schedule"] = ["Save a schedule with recipients first (PUT /schedule)"] });
+        }
+
+        if (mailer.ConfigurationProblem is { } problem)
+        {
+            return Results.Problem(problem, statusCode: StatusCodes.Status503ServiceUnavailable, title: "Email is not set up");
+        }
+
+        var result = await runner.RunAsync(report, DateTime.UtcNow, cancellationToken);
+        return Results.Ok(new StandardReportSendResponse(
+            result.Sent, result.Error, result.FileName, result.RecordCount, result.PeriodStart, result.PeriodEnd, report.Schedule.Recipients));
+    }
+
+    private static IResult GetScheduleOptions() => Results.Ok(new StandardReportScheduleOptionsResponse(
+        ReportScheduleOptions.Frequencies,
+        ReportScheduleOptions.WeekDays,
+        Enumerable.Range(1, 31).ToList(),
+        ReportScheduleOptions.Formats));
 
     /// <summary>Sets the same reporting period on the given reports (Apply Dates). Unknown ids are returned in NotFound.</summary>
     private static async Task<IResult> ApplyReportPeriodAsync(
@@ -557,7 +663,7 @@ public static class StandardReportEndpoints
 
         return new StandardReportQuery(
             search,
-            StandardReportOptions.Categories.Normalize(category),
+            string.IsNullOrWhiteSpace(category) ? null : category.Trim(),
             StandardReportOptions.Frequencies.Normalize(frequency),
             StandardReportOptions.Statuses.Normalize(status),
             fromUtc,

@@ -2,6 +2,7 @@ using A360.Domain.Entities;
 using A360.Repository.Activity;
 using A360.Security;
 using A360.Tracking.Api.Contracts;
+using A360.Tracking.Api.Telemetry;
 using A360.Tracking.Api.Validation;
 using A360.Tracking.Domain.Entities;
 using A360.Tracking.Repository.Repositories;
@@ -28,6 +29,8 @@ public static class TrackingTagEndpoints
         group.MapGet("/available", GetAvailableAsync).WithName("GetAvailableTags");
         group.MapGet("/audit-trail", GetAuditTrailAsync).WithName("GetTagAuditTrail");
         group.MapGet("/audit-trail/options", GetAuditOptionsAsync).WithName("GetTagAuditOptions");
+        group.MapGet("/asset-movement", GetAssetMovementAsync).WithName("GetTagAssetMovement");
+        group.MapGet("/asset-movement/{assetId}", GetAssetMovementByAssetAsync).WithName("GetTagAssetMovementByAsset");
 
         group.MapGet("", GetTagsAsync).WithName("GetTrackingTags");
         group.MapGet("/{tagId}", GetTagAsync).WithName("GetTrackingTagById");
@@ -203,6 +206,76 @@ public static class TrackingTagEndpoints
     {
         var history = await events.GetByTagIdAsync(tagId.Trim(), cancellationToken);
         return Results.Ok(history.Select(TagEventResponse.FromEntity).ToList());
+    }
+
+    /// <summary>
+    /// Asset movement / history: assets mapped to tags here, matched to NetworkTimeSeries readings. Per asset: how many
+    /// gateways heard it (two gateways = 2), how many zones, how many zone-to-zone movements, and (history=true) each visit.
+    /// </summary>
+    /// <param name="from">Start (UTC); default 24 hours before <paramref name="to"/>.</param>
+    /// <param name="to">End (UTC, exclusive); default now.</param>
+    /// <param name="technology">BLE, Passive RFID, Active RFID, RFID (both), QR Code, Barcode or NFC.</param>
+    /// <param name="search">Matches asset id / code / name, tag id, gateway id or zone name.</param>
+    private static async Task<IResult> GetAssetMovementAsync(
+        AssetMovementService service,
+        CancellationToken cancellationToken,
+        DateTime? from = null,
+        DateTime? to = null,
+        string? assetId = null,
+        string? tagId = null,
+        string? technology = null,
+        string? search = null,
+        bool history = false,
+        int page = 1,
+        int pageSize = DefaultPageSize)
+    {
+        var errors = MovementErrors(from, to, page, pageSize, out var fromUtc, out var toUtc);
+        if (errors.Count > 0)
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        return Results.Ok(await service.GetAsync(
+            fromUtc, toUtc, ContractText.TrimOrNull(assetId), ContractText.TrimOrNull(tagId), ContractText.TrimOrNull(technology),
+            ContractText.TrimOrNull(search),
+            history, page, pageSize, cancellationToken));
+    }
+
+    /// <summary>One asset's movement with its visit-by-visit history (asset registration id or asset code).</summary>
+    private static async Task<IResult> GetAssetMovementByAssetAsync(
+        string assetId,
+        AssetMovementService service,
+        CancellationToken cancellationToken,
+        DateTime? from = null,
+        DateTime? to = null)
+    {
+        var errors = MovementErrors(from, to, 1, 1, out var fromUtc, out var toUtc);
+        if (errors.Count > 0)
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        var result = await service.GetAsync(fromUtc, toUtc, assetId.Trim(), null, null, null, true, 1, 1, cancellationToken);
+        return result.Items.Count == 0
+            ? Results.NotFound(new { message = $"No tags in Tag Management are mapped to asset '{assetId}'." })
+            : Results.Ok(result.Items[0]);
+    }
+
+    private static Dictionary<string, string[]> MovementErrors(
+        DateTime? from, DateTime? to, int page, int pageSize, out DateTime fromUtc, out DateTime toUtc)
+    {
+        toUtc = to is null ? DateTime.UtcNow : ToUtc(to.Value);
+        fromUtc = from is null ? toUtc.AddHours(-24) : ToUtc(from.Value);
+
+        var errors = new Dictionary<string, string[]>();
+        if (fromUtc >= toUtc) errors["to"] = ["to must be after from"];
+        if (toUtc - fromUtc > TimeSpan.FromDays(31)) errors["from"] = ["The period can be at most 31 days"];
+        if (page < 1) errors["page"] = ["page must be 1 or more"];
+        if (pageSize is < 1 or > 200) errors["pageSize"] = ["pageSize must be between 1 and 200"];
+        return errors;
+
+        static DateTime ToUtc(DateTime value) =>
+            value.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(value, DateTimeKind.Utc) : value.ToUniversalTime();
     }
 
     /// <summary>The Audit Trail tab: every registration, assignment, read and status change, with who made it.</summary>

@@ -7,13 +7,14 @@ public static class StandardReportValidationExtensions
 {
     private const int MaxReportNameLength = 200;
     private const int MaxDescriptionLength = 1000;
+    private const int MaxReportTypeLength = 200;
     private const int MaxApplyReportIds = 500;
 
     public static Dictionary<string, string[]> Validate(this CreateStandardReportRequest request)
     {
         var errors = new Dictionary<string, string[]>();
 
-        ValidateOption(errors, "ReportType", request.ReportType, StandardReportOptions.ReportTypes, required: false);
+        ValidateReportType(errors, request.ReportType);
 
         ValidateReport(
             errors,
@@ -33,7 +34,7 @@ public static class StandardReportValidationExtensions
     {
         var errors = new Dictionary<string, string[]>();
 
-        ValidateOption(errors, "ReportType", request.ReportType, StandardReportOptions.ReportTypes, required: false);
+        ValidateReportType(errors, request.ReportType);
 
         ValidateReport(
             errors,
@@ -45,23 +46,6 @@ public static class StandardReportValidationExtensions
             request.TimeZone,
             request.Frequency,
             request.Status);
-
-        return errors;
-    }
-
-    public static Dictionary<string, string[]> Validate(this ScheduleStandardReportRequest request)
-    {
-        var errors = new Dictionary<string, string[]>();
-
-        ValidateOption(errors, "Frequency", request.Frequency, StandardReportOptions.Frequencies, required: true);
-        ValidateTimeZone(errors, request.TimeZone);
-
-        if (StandardReportOptions.Frequencies.IsValid(request.Frequency)
-            && !StandardReportOptions.IsOnDemand(request.Frequency)
-            && request.NextScheduledOn is null)
-        {
-            errors["NextScheduledOn"] = ["NextScheduledOn is required unless Frequency is On demand"];
-        }
 
         return errors;
     }
@@ -102,7 +86,6 @@ public static class StandardReportValidationExtensions
     {
         var errors = new Dictionary<string, string[]>();
 
-        ValidateOption(errors, "Category", category, StandardReportOptions.Categories, required: false);
         ValidateOption(errors, "Frequency", frequency, StandardReportOptions.Frequencies, required: false);
         ValidateOption(errors, "Status", status, StandardReportOptions.Statuses, required: false);
         ValidatePeriod(errors, periodFrom, periodTo);
@@ -122,6 +105,15 @@ public static class StandardReportValidationExtensions
         }
 
         return errors.Count > 0 ? errors : null;
+    }
+
+    // Any report type may be given; only its length is limited.
+    private static void ValidateReportType(Dictionary<string, string[]> errors, string? reportType)
+    {
+        if (reportType?.Trim().Length > MaxReportTypeLength)
+        {
+            errors["ReportType"] = [$"ReportType must be {MaxReportTypeLength} characters or fewer"];
+        }
     }
 
     public static void ValidateTimeZone(Dictionary<string, string[]> errors, string? timeZone)
@@ -157,7 +149,11 @@ public static class StandardReportValidationExtensions
             errors["Description"] = [$"Description must be {MaxDescriptionLength} characters or fewer"];
         }
 
-        ValidateOption(errors, "Category", category, StandardReportOptions.Categories, required: true);
+        // The value is checked against Master Data Management categories in the endpoint.
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            errors["Category"] = ["Category is required"];
+        }
         ValidateOption(errors, "Frequency", frequency, StandardReportOptions.Frequencies, required: true);
         ValidateOption(errors, "Status", status, StandardReportOptions.Statuses, required: false);
         ValidateTimeZone(errors, timeZone);
