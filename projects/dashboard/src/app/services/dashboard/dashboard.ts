@@ -395,10 +395,10 @@ export class Dashboard {
     return this.http.get<SiteOption[]>(`${environment.masterDataApiUrl}api/master-data/sites`, { params });
   }
 
-  /** GET api/asset-dashboard/locations?top=n (top omitted: every site) */
+  /** GET api/asset-dashboard/locations?top=n (top omitted: backend default of 3 sites; top=0: every site) */
   getLocations(top?: number): Observable<AssetDashboardLocations> {
     let params = new HttpParams();
-    if (top) params = params.set('top', top);
+    if (top !== undefined) params = params.set('top', top);
     return this.http.get<AssetDashboardLocations>(`${this.baseUrl}/locations`, { params });
   }
 

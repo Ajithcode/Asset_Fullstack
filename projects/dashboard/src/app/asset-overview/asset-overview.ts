@@ -748,7 +748,7 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     const assetType = this.type || undefined;
     this.siteSub = forkJoin({
       master: this.dashboardApi.getSites().pipe(catchError(() => of([] as SiteOption[]))),
-      locations: this.dashboardApi.getLocations().pipe(catchError(() => of(null))),
+      locations: this.dashboardApi.getLocations(0).pipe(catchError(() => of(null))),
     })
       .pipe(
         switchMap(({ master, locations }) => {
