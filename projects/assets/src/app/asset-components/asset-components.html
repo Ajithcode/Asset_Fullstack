@@ -118,9 +118,9 @@
       <div class="card-head">
         <span class="icon-tile"><lucide-icon [img]="icons.ComponentIcon" [size]="18"></lucide-icon></span>
         <h3 class="grow">Component Structure</h3>
-        <button type="button" class="btn btn-primary btn-sm" (click)="openAdd()">
+        <button type="button" class="btn btn-primary btn-sm" (click)="openAddStructure()">
           <lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>
-          Add Component
+          Add Structure
         </button>
       </div>
 
@@ -132,12 +132,35 @@
             <span class="node-name">{{ asset.name }} ({{ asset.tag }})</span>
           </div>
           <ul role="group">
+            <ng-container *ngTemplateOutlet="structureLevel; context: { $implicit: structure, depth: 1 }"></ng-container>
             <ng-container *ngTemplateOutlet="treeLevel; context: { $implicit: asset.components, depth: 1 }"></ng-container>
           </ul>
         </li>
       </ul>
       <p *ngIf="!asset.components.length" class="hint tree-empty">No components recorded for this asset yet.</p>
     </aside>
+
+    <ng-template #structureLevel let-nodes let-depth="depth">
+      <li *ngFor="let n of nodes; trackBy: trackByStructure" role="treeitem" [attr.aria-expanded]="n.children.length ? true : null">
+        <div class="tree-row tree-row--structure" [style.padding-left.px]="4 + depth * 22" (click)="selectStructure(n)" [title]="n.dto.description || n.dto.name">
+          <span class="caret"><lucide-icon *ngIf="n.children.length" [img]="icons.ChevronDown" [size]="16"></lucide-icon></span>
+          <lucide-icon class="node-icon" [img]="icons.ComponentIcon" [size]="17"></lucide-icon>
+          <span class="node-name">{{ n.dto.name }}</span>
+          <span *ngIf="n.dto.linkedComponentTag" class="struct-link" [title]="'Linked component: ' + n.dto.linkedComponentName">{{ n.dto.linkedComponentTag }}</span>
+          <span class="struct-actions">
+            <button type="button" class="icon-btn icon-btn--xs" (click)="openEditStructure(n, $event)" [attr.aria-label]="'Edit ' + n.dto.name" [title]="'Edit ' + n.dto.name">
+              <lucide-icon [img]="icons.SquarePen" [size]="14"></lucide-icon>
+            </button>
+            <button type="button" class="icon-btn icon-btn--xs" (click)="askDeleteStructure(n, $event)" [attr.aria-label]="'Delete ' + n.dto.name" [title]="'Delete ' + n.dto.name">
+              <lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon>
+            </button>
+          </span>
+        </div>
+        <ul *ngIf="n.children.length" role="group">
+          <ng-container *ngTemplateOutlet="structureLevel; context: { $implicit: n.children, depth: depth + 1 }"></ng-container>
+        </ul>
+      </li>
+    </ng-template>
 
     <ng-template #treeLevel let-nodes let-depth="depth">
       <li *ngFor="let n of nodes; trackBy: trackById" role="treeitem" [attr.aria-expanded]="n.children.length ? expanded.has(n.id) : null">
@@ -489,6 +512,59 @@
         <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Component' }}</button>
       </div>
     </form>
+  </div>
+
+  <!-- ===== Add / edit structure node ===== -->
+  <div *ngIf="structureFormOpen" class="overlay" (click)="structureFormOpen = false">
+    <form class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="struct-form-title" (click)="$event.stopPropagation()" (ngSubmit)="saveStructure()">
+      <div class="modal-head">
+        <h2 id="struct-form-title">{{ structureEditing ? 'Edit ' + structureEditing.name : 'Add Structure' }}</h2>
+        <button type="button" class="icon-btn" (click)="structureFormOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <div class="modal-body">
+        <label class="field">
+          <span class="field-label">Structure Name <em>*</em></span>
+          <input class="control" name="structName" [(ngModel)]="structureForm.name" [class.is-invalid]="structureSubmitted && !structureForm.name.trim()" maxlength="120" />
+          <span *ngIf="structureSubmitted && !structureForm.name.trim()" class="error">Structure name is required.</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Parent</span>
+          <select class="control" name="structParent" [(ngModel)]="structureForm.parentId">
+            <option [ngValue]="null">{{ asset.name }} (top level)</option>
+            <option *ngFor="let o of structureParentOptions" [ngValue]="o.id">{{ o.label }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Linked Component</span>
+          <select class="control" name="structComponent" [(ngModel)]="structureForm.linkedComponentId">
+            <option [ngValue]="null">None</option>
+            <option *ngFor="let o of structureComponentOptions" [ngValue]="o.id">{{ o.label }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Description</span>
+          <textarea class="control" name="structDescription" rows="2" [(ngModel)]="structureForm.description" maxlength="500"></textarea>
+        </label>
+      </div>
+      <div class="modal-foot">
+        <span *ngIf="structureError" class="error form-error" role="alert">{{ structureError }}</span>
+        <button type="button" class="btn btn-outline" (click)="structureFormOpen = false">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : structureEditing ? 'Save Changes' : 'Add Structure' }}</button>
+      </div>
+    </form>
+  </div>
+
+  <div *ngIf="structureDeleteTarget" class="overlay" (click)="structureDeleteTarget = null">
+    <div class="modal modal--sm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head"><h2>Remove {{ structureDeleteTarget.dto.name }}?</h2></div>
+      <div class="modal-body">
+        <p>This removes the structure node only; linked components are kept.</p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="structureDeleteTarget = null">Cancel</button>
+        <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDeleteStructure()">{{ saving ? 'Removing…' : 'Remove' }}</button>
+      </div>
+    </div>
   </div>
 
   <!-- ===== Remove confirmation ===== -->

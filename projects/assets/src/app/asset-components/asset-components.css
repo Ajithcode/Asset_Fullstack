@@ -1395,3 +1395,35 @@ button.caret:hover {
   margin-right: auto;
   align-self: center;
 }
+
+/* Component Structure nodes (Add Structure) */
+.tree-row--structure .node-icon {
+  color: var(--cm-accent);
+}
+
+.struct-link {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ece8fd;
+  color: var(--cm-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.struct-actions {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0;
+}
+
+.tree-row--structure:hover .struct-actions,
+.tree-row--structure:focus-within .struct-actions {
+  opacity: 1;
+}
+
+.icon-btn--xs {
+  width: 24px;
+  height: 24px;
+}
