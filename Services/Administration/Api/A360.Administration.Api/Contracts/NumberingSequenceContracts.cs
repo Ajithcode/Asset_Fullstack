@@ -19,6 +19,21 @@ public sealed record CreateNumberingSequenceRequest(
     string? TenantId,
     string? ClientId);
 
+// Tenant, client and creator are fixed at creation; the code stays editable but must remain unique in the tenant.
+public sealed record UpdateNumberingSequenceRequest(
+    string? SequenceName,
+    string? SequenceCode,
+    string? Module,
+    string? RecordType,
+    string? Prefix,
+    string? Separator,
+    int? NumberLength,
+    long? StartNumber,
+    int? IncrementBy,
+    string? ResetFrequency,
+    string? Scope,
+    string? Status);
+
 public sealed record NumberingSequenceResponse(
     string SequenceId,
     string SequenceName,

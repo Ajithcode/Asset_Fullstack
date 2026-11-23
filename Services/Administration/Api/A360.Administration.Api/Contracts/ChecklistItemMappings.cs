@@ -31,6 +31,30 @@ internal static class ChecklistItemMappings
         };
     }
 
+    public static void ApplyTo(this UpdateChecklistItemRequest request, ChecklistItem item, CurrentUser? currentUser)
+    {
+        item.ItemText = request.ItemText!.Trim();
+        item.Section = request.Section!.Trim();
+        item.ResponseType = ChecklistItemValidationExtensions.NormalizeResponseType(request.ResponseType)!;
+        item.IsRequired = request.IsRequired ?? false;
+        item.IsCritical = request.IsCritical ?? false;
+        item.HelpText = Optional(request.HelpText);
+        item.ExpectedValue = Optional(request.ExpectedValue);
+        item.AttachmentRequired = request.AttachmentRequired ?? false;
+        item.ScoreValue = request.ScoreValue!.Value;
+        item.FailureAction = Optional(request.FailureAction);
+        item.EscalateIssue = request.EscalateIssue ?? false;
+        item.UpdatedBy = FirstNonEmpty(request.UpdatedBy, currentUser?.UserName);
+        item.UpdatedAt = DateTime.UtcNow;
+    }
+
+    public static void MarkDeleted(this ChecklistItem item, CurrentUser? currentUser)
+    {
+        item.IsDeleted = true;
+        item.UpdatedBy = currentUser?.UserName ?? item.UpdatedBy;
+        item.UpdatedAt = DateTime.UtcNow;
+    }
+
     private static string? Optional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();

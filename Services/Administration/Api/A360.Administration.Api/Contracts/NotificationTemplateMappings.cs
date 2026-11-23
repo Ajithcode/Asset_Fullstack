@@ -34,6 +34,27 @@ internal static class NotificationTemplateMappings
         };
     }
 
+    // Tenant, client, creator and the template id are kept from the stored template.
+    public static void ApplyTo(this UpdateNotificationTemplateRequest request, NotificationTemplate template, CurrentUser? currentUser)
+    {
+        template.TemplateName = request.TemplateName!.Trim();
+        template.TemplateCode = request.TemplateCode!.Trim().ToUpperInvariant();
+        template.Category = request.Category!.Trim();
+        template.TriggerEvent = request.TriggerEvent!.Trim();
+        template.DeliveryChannels = request.DeliveryChannels!
+            .Select(NotificationTemplateValidationExtensions.NormalizeChannel)
+            .OfType<string>()
+            .Distinct()
+            .ToList();
+        template.Language = request.Language!.Trim();
+        template.Priority = Optional(request.Priority);
+        template.DeliveryTiming = Optional(request.DeliveryTiming);
+        template.RetryPolicy = Optional(request.RetryPolicy);
+        template.Status = request.Status!.Trim();
+        template.UpdatedBy = currentUser?.UserName;
+        template.UpdatedAt = DateTime.UtcNow;
+    }
+
     private static string? Optional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
