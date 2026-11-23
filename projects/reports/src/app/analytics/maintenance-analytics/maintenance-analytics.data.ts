@@ -1,32 +1,120 @@
-import { RA_MONTH_LABELS } from '../shared/analytics-common';
-import { ChartSeries, ChartSlice, RA_COLORS } from '../shared/charts';
 import {
-  DOWNTIME_CAUSES, RaAsset, RaScope, RaWorkOrder, WO_STATUSES, WO_TYPES, WoType, inScope, isActive, mean, periodMonths, round1
-} from '../asset-performance/kit/asset-universe';
+  CountBreakdownDto, DowntimeCauseDto, InsightAssetDto, KpiDto, PeriodDto, ReliabilityDto, SeriesDto, kpiChange, monthLabels, num, seriesValues
+} from '../shared/analytics-api.service';
+import { ChartSeries, ChartSlice, RA_COLORS } from '../shared/charts';
+import { WO_TYPES } from '../asset-performance/kit/asset-universe';
 
-// Maintenance Analytics aggregates the asset register and work order history. No data source is wired yet,
-// so both start empty and every widget renders its empty state.
-const MA_ASSETS: RaAsset[] = [];
-const MA_WORK_ORDERS: RaWorkOrder[] = [];
+// Maintenance Analytics figures come from the Report Analytics API: GET api/maintenance-analytics/overview.
 
 export const ALL_MAINTENANCE_TYPES = 'All maintenance types';
 export const MAINTENANCE_TYPES = [ALL_MAINTENANCE_TYPES, ...WO_TYPES];
+/** Default PM compliance target until the API reports the applied one. */
 export const PM_TARGET = 90;
-
-/** Change vs the previous period shown on the KPI cards (%). Not available until a data source is wired. */
-export const MA_DELTAS = { cost: 0, open: 0, pm: 0, mttr: 0, mtbf: 0 };
 
 export const PRIORITY_RANK: Record<string, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
 
-const TYPE_COLORS: Record<WoType, string> = { Preventive: RA_COLORS.blue, Corrective: RA_COLORS.orange, Emergency: RA_COLORS.red, Inspection: RA_COLORS.violet };
-const STATUS_COLORS = [RA_COLORS.blue, RA_COLORS.orange, RA_COLORS.pink, RA_COLORS.green, RA_COLORS.red];
-const CAUSE_COLORS = [RA_COLORS.red, RA_COLORS.orange, RA_COLORS.blue, RA_COLORS.violet];
+const TYPE_COLORS: Record<string, string> = {
+  Preventive: RA_COLORS.blue, Corrective: RA_COLORS.orange, Emergency: RA_COLORS.red, Inspection: RA_COLORS.violet, Other: RA_COLORS.grey
+};
+const STATUS_COLORS: Record<string, string> = {
+  Open: RA_COLORS.blue, 'In Progress': RA_COLORS.orange, 'On Hold': RA_COLORS.pink, Completed: RA_COLORS.green, Overdue: RA_COLORS.red, Cancelled: RA_COLORS.grey
+};
+const CAUSE_COLORS = [RA_COLORS.red, RA_COLORS.orange, RA_COLORS.blue, RA_COLORS.violet, RA_COLORS.teal];
 
-/** Emergency share of spend allowed by target (no target configured yet). */
-const EMERGENCY_TARGET_SHARE = 0;
+// ===== API contracts (api/maintenance-analytics) =====
+
+/** BacklogRow */
+export interface MaBacklogDto {
+  id: string;
+  workOrderId: string | null;
+  workType: string;
+  priority: string;
+  assetRecordId: string | null;
+  assetId: string | null;
+  assetName: string | null;
+  location: string | null;
+  ageDays: number | null;
+  assignedTo: string | null;
+  status: string;
+  dueDate: string | null;
+  isOverdue: boolean;
+  partsShortage: boolean;
+}
+
+export interface MaTechnicianDto {
+  technician: string;
+  technicianId: string | null;
+  assigned: number;
+  completed: number;
+  firstTimeFixRate: number | null;
+  avgResponseHours: number | null;
+  slaCompliance: number | null;
+}
+
+export interface MaInsightDto {
+  key: string;
+  severity: string;
+  title: string;
+  message: string;
+  count: number;
+  workOrders: { id: string; workOrderId: string | null; assetId: string | null; assetName: string | null; priority: string | null; status: string; reasons: string[] }[];
+  assets: InsightAssetDto[];
+  parts: string[];
+  actions: string[];
+  query: string;
+}
+
+export interface MaOverviewDto {
+  generatedAt: string;
+  filters: { complianceTarget: number; emergencyCostTarget: number | null; failureHealthThreshold: number };
+  period: PeriodDto;
+  summary: { maintenanceCost: KpiDto; openWorkOrders: KpiDto; preventiveCompliance: KpiDto; mttr: KpiDto; mtbf: KpiDto };
+  costTrend: {
+    trend: SeriesDto;
+    totals: { planned: number; corrective: number; emergency: number; unassigned: number; total: number; laborCost: number; sparePartsCost: number; budget: number | null };
+  };
+  workOrdersByType: CountBreakdownDto;
+  workOrderStatus: CountBreakdownDto;
+  insights: MaInsightDto[];
+  preventiveCompliance: { value: number | null; target: number; meetsTarget: boolean | null; previousValue: number | null; change: number | null; completed: number; due: number; trend: SeriesDto };
+  reliability: ReliabilityDto;
+  downtimeByCause: DowntimeCauseDto;
+  backlog: MaBacklogDto[];
+  backlogTotal: number;
+  technicians: MaTechnicianDto[];
+}
+
+/** GET /compare-periods: the cost trend of the comparison period. */
+export interface MaCompareDto {
+  compareCostTrend: SeriesDto;
+}
+
+export interface MaFiltersDto {
+  organizations: { value: string; label: string }[];
+  locations: { value: string; label: string }[];
+  assetCategories: { value: string; label: string }[];
+  assetTypes: { value: string; label: string }[];
+}
+
+// ===== Page view model =====
+
+export interface BacklogRow {
+  id: string;
+  type: string;
+  priority: string;
+  status: string;
+  assetId: string;
+  asset: string;
+  location: string;
+  ageDays: number;
+  technician: string;
+  due: string;
+  partsShortage: boolean;
+}
 
 export interface TechnicianRow {
   name: string;
+  assigned: number;
   completed: number;
   firstTimeFix: number;
   response: number;
@@ -34,14 +122,15 @@ export interface TechnicianRow {
 }
 
 export interface MaintenanceView {
-  assets: RaAsset[];
-  /** Work orders raised in the period for the current filters */
-  orders: RaWorkOrder[];
+  /** Work orders in the period for the current filters */
+  total: number;
   cost: number;
   open: number;
-  pmCompliance: number;
-  mttr: number;
-  mtbf: number;
+  pmCompliance: number | null;
+  pmTarget: number;
+  mttr: number | null;
+  mtbf: number | null;
+  deltas: { cost: number; open: number; pm: number; mttr: number; mtbf: number };
   labels: string[];
   costTrend: ChartSeries[];
   monthlyEmergency: number[];
@@ -51,114 +140,103 @@ export interface MaintenanceView {
   pmTrend: ChartSeries[];
   reliability: ChartSeries[];
   downtimeByCause: ChartSeries[];
-  backlog: RaWorkOrder[];
+  backlog: BacklogRow[];
+  backlogTotal: number;
   technicians: TechnicianRow[];
-  overdue: RaWorkOrder[];
   emergencyCost: number;
-  emergencyTarget: number;
-  /** Assets the predictive model expects to fail within 7 days */
-  nearFailure: RaAsset[];
-  waitingParts: RaWorkOrder[];
+  emergencyTarget: number | null;
+  insights: MaInsightDto[];
 }
 
-const sumCost = (list: RaWorkOrder[]) => list.reduce((s, o) => s + o.cost, 0);
+export function emptyMaintenance(): MaintenanceView {
+  return {
+    total: 0, cost: 0, open: 0, pmCompliance: null, pmTarget: PM_TARGET, mttr: null, mtbf: null,
+    deltas: { cost: 0, open: 0, pm: 0, mttr: 0, mtbf: 0 },
+    labels: [], costTrend: [], monthlyEmergency: [], monthlyTotal: [], typeSeries: [], statusSlices: [], pmTrend: [], reliability: [], downtimeByCause: [],
+    backlog: [], backlogTotal: 0, technicians: [], emergencyCost: 0, emergencyTarget: null, insights: []
+  };
+}
 
-export function buildMaintenance(scope: RaScope, period: string, type: string, compare: boolean): MaintenanceView {
-  const assets = MA_ASSETS.filter((a) => inScope(a, scope));
-  const months = periodMonths(period);
-  const ids = new Set(assets.map((a) => a.id));
-  const inPeriod = MA_WORK_ORDERS.filter((o) => ids.has(o.asset.id) && months.includes(o.month));
-  const orders = type === ALL_MAINTENANCE_TYPES ? inPeriod : inPeriod.filter((o) => o.type === type);
-  const byMonth = months.map((m) => orders.filter((o) => o.month === m));
+const round1 = (v: number) => Math.round(v * 10) / 10;
 
-  // Cost trend: planned (preventive + inspection), corrective and emergency spend per month
-  const planned = byMonth.map((list) => sumCost(list.filter((o) => o.type === 'Preventive' || o.type === 'Inspection')));
-  const corrective = byMonth.map((list) => sumCost(list.filter((o) => o.type === 'Corrective')));
-  const emergency = byMonth.map((list) => sumCost(list.filter((o) => o.type === 'Emergency')));
-  const totals = byMonth.map(sumCost);
+export function toBacklogRow(r: MaBacklogDto): BacklogRow {
+  return {
+    id: r.workOrderId ?? r.id,
+    type: r.workType,
+    priority: r.priority,
+    status: r.status,
+    assetId: r.assetId ?? '—',
+    asset: r.assetName ?? r.assetId ?? '—',
+    location: r.location ?? '—',
+    ageDays: num(r.ageDays),
+    technician: r.assignedTo ?? 'Unassigned',
+    due: r.dueDate ? new Date(r.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+    partsShortage: r.partsShortage
+  };
+}
+
+/** Maps GET /overview (and, for Compare Periods, the comparison period's cost trend) to the page. */
+export function mapMaintenance(o: MaOverviewDto, compare: MaCompareDto | null): MaintenanceView {
+  const s = o.summary;
+  const cost = (name: string) => seriesValues(o.costTrend.trend, name);
   const costTrend: ChartSeries[] = [
-    { name: 'Planned', values: planned, color: RA_COLORS.blue, type: 'bar' },
-    { name: 'Corrective', values: corrective, color: RA_COLORS.orange, type: 'bar' },
-    { name: 'Emergency', values: emergency, color: RA_COLORS.red, type: 'bar' },
-    { name: 'Total Cost', values: totals, color: RA_COLORS.purple, type: 'line' }
+    { name: 'Planned', values: cost('Planned'), color: RA_COLORS.blue, type: 'bar' },
+    { name: 'Corrective', values: cost('Corrective'), color: RA_COLORS.orange, type: 'bar' },
+    { name: 'Emergency', values: cost('Emergency'), color: RA_COLORS.red, type: 'bar' },
+    { name: 'Total Cost', values: cost('Total Cost'), color: RA_COLORS.purple, type: 'line' }
   ];
-  if (compare) costTrend.push({ name: 'Total (previous period)', values: totals.map((v) => Math.round(v / (1 + MA_DELTAS.cost / 100))), color: RA_COLORS.purple, type: 'line', dashed: true });
+  if (compare) costTrend.push({ name: 'Total (previous period)', values: seriesValues(compare.compareCostTrend, 'Total Cost'), color: RA_COLORS.purple, type: 'line', dashed: true });
 
   // One coloured column per type: each series only fills its own column
-  const types = type === ALL_MAINTENANCE_TYPES ? WO_TYPES : WO_TYPES.filter((t) => t === type);
+  const types = o.workOrdersByType.items;
   const typeSeries: ChartSeries[] = types.map((t, i) => ({
-    name: t,
-    values: types.map((_, j) => (i === j ? orders.filter((o) => o.type === t).length : 0)),
-    color: TYPE_COLORS[t]
+    name: t.label,
+    values: types.map((_, j) => (i === j ? t.count : 0)),
+    color: TYPE_COLORS[t.label] ?? RA_COLORS.grey
   }));
 
-  const statusSlices: ChartSlice[] = WO_STATUSES.map((s, i) => ({ name: s, value: orders.filter((o) => o.status === s).length, color: STATUS_COLORS[i] }));
-
-  // PM compliance needs the PM schedule, which no data source provides yet
-  const pmCompliance = 0;
-  const pmValues: number[] = [];
+  const pc = o.preventiveCompliance;
   const pmTrend: ChartSeries[] = [
-    { name: 'PM Compliance', values: pmValues, color: RA_COLORS.green, area: true },
-    { name: `Target ${PM_TARGET}%`, values: months.map(() => PM_TARGET), color: RA_COLORS.grey, dashed: true }
-  ];
-  if (compare) pmTrend.push({ name: 'Previous period', values: pmValues.map((v) => round1(v / (1 + MA_DELTAS.pm / 100))), color: RA_COLORS.green, dashed: true });
-
-  // MTTR from breakdown repairs, MTBF from the asset register
-  const repairs = orders.filter((o) => o.type === 'Corrective' || o.type === 'Emergency');
-  const mttr = repairs.length ? round1(mean(repairs.map((o) => o.repairHours))) : 0;
-  const mtbf = assets.length ? Math.round(mean(assets.map((a) => a.mtbf))) : 0;
-  const reliability: ChartSeries[] = [
-    { name: 'MTTR (hrs)', values: byMonth.map((list) => {
-      const r = list.filter((o) => o.type === 'Corrective' || o.type === 'Emergency');
-      return r.length ? round1(mean(r.map((o) => o.repairHours))) : 0;
-    }), color: RA_COLORS.purple },
-    { name: 'MTBF (hrs)', values: months.map(() => mtbf), color: RA_COLORS.blue, axis: 'right' }
+    { name: 'PM Compliance', values: seriesValues(pc.trend, 'Compliance (%)'), color: RA_COLORS.green, area: true },
+    { name: `Target ${pc.target}%`, values: seriesValues(pc.trend, 'Target (%)'), color: RA_COLORS.grey, dashed: true }
   ];
 
-  const downtimeByCause: ChartSeries[] = DOWNTIME_CAUSES.map((c, i) => ({
-    name: c,
-    values: byMonth.map((list) => round1(list.filter((o) => o.cause === c).reduce((s, o) => s + o.downtimeHours, 0))),
-    color: CAUSE_COLORS[i]
-  }));
-
-  const backlog = orders.filter(isActive).sort((a, b) => PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority] || b.ageDays - a.ageDays);
-
-  const completed = orders.filter((o) => o.status === 'Completed');
-  const technicians: TechnicianRow[] = [...new Set(completed.map((o) => o.technician))].map((name) => {
-    const list = completed.filter((o) => o.technician === name);
-    return {
-      name,
-      completed: list.length,
-      firstTimeFix: list.length ? Math.round((list.filter((o) => o.firstTimeFix).length / list.length) * 100) : 0,
-      response: list.length ? round1(mean(list.map((o) => o.responseHours))) : 0,
-      sla: list.length ? Math.round((list.filter((o) => o.slaMet).length / list.length) * 100) : 0
-    };
-  });
-
-  const cost = sumCost(orders);
+  const kpi = (k: KpiDto) => (typeof k.value === 'number' ? k.value : null);
   return {
-    assets,
-    orders,
-    cost,
-    open: orders.filter((o) => o.status === 'Open').length,
-    pmCompliance,
-    mttr,
-    mtbf,
-    labels: months.map((m) => RA_MONTH_LABELS[m]).filter((l) => l !== undefined),
+    total: o.workOrdersByType.total,
+    cost: num(s.maintenanceCost.value),
+    open: num(s.openWorkOrders.value),
+    pmCompliance: kpi(s.preventiveCompliance),
+    pmTarget: pc.target,
+    mttr: kpi(s.mttr),
+    mtbf: kpi(s.mtbf),
+    deltas: {
+      cost: kpiChange(s.maintenanceCost), open: kpiChange(s.openWorkOrders), pm: kpiChange(s.preventiveCompliance), mttr: kpiChange(s.mttr), mtbf: kpiChange(s.mtbf)
+    },
+    labels: monthLabels(o.costTrend.trend),
     costTrend,
-    monthlyEmergency: months.map((m) => sumCost(inPeriod.filter((o) => o.month === m && o.type === 'Emergency'))),
-    monthlyTotal: months.map((m) => sumCost(inPeriod.filter((o) => o.month === m))),
+    monthlyEmergency: cost('Emergency'),
+    monthlyTotal: cost('Total Cost'),
     typeSeries,
-    statusSlices,
+    statusSlices: o.workOrderStatus.items.map((i) => ({ name: i.label, value: i.count, color: STATUS_COLORS[i.label] ?? RA_COLORS.grey })),
     pmTrend,
-    reliability,
-    downtimeByCause,
-    backlog,
-    technicians,
-    overdue: orders.filter((o) => o.status === 'Overdue').sort((a, b) => b.ageDays - a.ageDays),
-    emergencyCost: sumCost(inPeriod.filter((o) => o.type === 'Emergency')),
-    emergencyTarget: Math.round(sumCost(inPeriod) * EMERGENCY_TARGET_SHARE),
-    nearFailure: assets.filter((a) => a.failureWindowDays !== null && a.failureWindowDays <= 7),
-    waitingParts: orders.filter((o) => o.status === 'On Hold' && o.cause === 'Parts Unavailable')
+    reliability: [
+      { name: 'MTTR (hrs)', values: seriesValues(o.reliability.trend, 'MTTR (hrs)'), color: RA_COLORS.purple },
+      { name: 'MTBF (hrs)', values: seriesValues(o.reliability.trend, 'MTBF (hrs)'), color: RA_COLORS.blue, axis: 'right' }
+    ],
+    downtimeByCause: o.downtimeByCause.trend.series.map((line, i) => ({ name: line.name, values: line.values.map(num), color: CAUSE_COLORS[i % CAUSE_COLORS.length] })),
+    backlog: o.backlog.map(toBacklogRow),
+    backlogTotal: o.backlogTotal,
+    technicians: o.technicians.map((t) => ({
+      name: t.technician,
+      assigned: t.assigned,
+      completed: t.completed,
+      firstTimeFix: round1(num(t.firstTimeFixRate)),
+      response: round1(num(t.avgResponseHours)),
+      sla: round1(num(t.slaCompliance))
+    })),
+    emergencyCost: num(o.costTrend.totals.emergency),
+    emergencyTarget: o.filters.emergencyCostTarget,
+    insights: o.insights
   };
 }
