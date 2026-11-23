@@ -208,7 +208,7 @@
       @case ('defaults') {
         <div class="grid">
           <div class="field" [class.invalid]="errors.taggingFormat">
-            <label for="model-tag"><span class="req">*</span> Tagging Format</label>
+            <label for="model-tag">Tagging Format</label>
             <input id="model-tag" name="taggingFormat" placeholder="LAP-(YY)-(0000)" [(ngModel)]="form.taggingFormat" />
             @if (errors.taggingFormat) { <small>{{ errors.taggingFormat }}</small> }
           </div>
