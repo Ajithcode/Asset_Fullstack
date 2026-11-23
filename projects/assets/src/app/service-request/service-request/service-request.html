@@ -237,45 +237,60 @@
         </div>
 
         <div class="srd-rel">
-          <div class="srd-sec-head"><span class="srd-rel-ic"><lucide-icon [img]="icons.Boxes" [size]="18"></lucide-icon></span><h3 class="srd-h grow">Related Assets / Components ({{ components.length }})</h3></div>
+          <div class="srd-sec-head"><span class="srd-rel-ic"><lucide-icon [img]="icons.Boxes" [size]="18"></lucide-icon></span><h3 class="srd-h grow">Related Assets / Components ({{ components.length }})</h3>
+            <span class="menu-wrap"><button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('link-comp', $event)" aria-haspopup="menu" [disabled]="!linkableComponents.length || busy"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Link Component</button>
+              <span *ngIf="menuOpen === 'link-comp'" class="menu" role="menu" (click)="$event.stopPropagation()">
+                <button *ngFor="let c of linkableComponents" type="button" role="menuitem" (click)="linkComponent(c)">{{ c.tag }} · {{ c.name }}</button>
+              </span></span></div>
           <div class="table-wrap"><table class="dt">
-            <thead><tr><th>#</th><th>Asset / Component #</th><th>Name</th><th>Type</th><th>Relationship</th></tr></thead>
+            <thead><tr><th>#</th><th>Asset / Component #</th><th>Name</th><th>Type</th><th>Relationship</th><th class="col-act">Actions</th></tr></thead>
             <tbody>
               <tr *ngFor="let c of components; let i = index">
                 <td>{{ i + 1 }}</td><td class="sr-id">{{ c.tag }}</td><td>{{ c.name }}</td><td>{{ c.type }}</td><td>{{ c.relationship }}</td>
+                <td class="col-act"><button *ngIf="c.linked" type="button" class="sr-link" [disabled]="busy" (click)="unlinkRelated(c)">Unlink</button></td>
               </tr>
-              <tr *ngIf="!components.length"><td colspan="5" class="empty">No components recorded for this asset.</td></tr>
+              <tr *ngIf="!components.length"><td colspan="6" class="empty">No components recorded for this asset.</td></tr>
             </tbody>
           </table></div>
         </div>
 
         <div class="srd-rel">
           <div class="srd-sec-head"><span class="srd-rel-ic"><lucide-icon [img]="icons.Package" [size]="18"></lucide-icon></span><h3 class="srd-h grow">Related Spare Parts ({{ relatedParts.length }})</h3>
+            <span class="menu-wrap"><button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('link-part', $event)" aria-haspopup="menu" [disabled]="!linkableParts.length || busy"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Link Spare Part</button>
+              <span *ngIf="menuOpen === 'link-part'" class="menu" role="menu" (click)="$event.stopPropagation()">
+                <button *ngFor="let p of linkableParts" type="button" role="menuitem" (click)="linkPart(p)">{{ p.partId }} · {{ p.partName }}</button>
+              </span></span>
             <button type="button" class="btn btn-outline btn-sm" (click)="goParts()">View Spare Parts</button></div>
           <div class="table-wrap"><table class="dt">
-            <thead><tr><th>#</th><th>Part #</th><th>Part Name</th><th class="num">Quantity Used</th><th>Used Date</th><th>Related Work Order</th></tr></thead>
+            <thead><tr><th>#</th><th>Part #</th><th>Part Name</th><th class="num">Quantity Used</th><th>Used Date</th><th>Related Work Order</th><th class="col-act">Actions</th></tr></thead>
             <tbody>
               <tr *ngFor="let p of relatedParts; let i = index">
                 <td>{{ i + 1 }}</td><td class="sr-id">{{ p.partNo }}</td><td>{{ p.name }}</td><td class="num">{{ p.qty }}</td><td class="nowrap">{{ fmtDate(p.date) }}</td>
                 <td><button type="button" class="sr-link" (click)="goWorkOrders(p.wo)">{{ p.wo }}</button></td>
+                <td class="col-act"><button type="button" class="sr-link" [disabled]="busy" (click)="unlinkPart(p.partNo)">Unlink</button></td>
               </tr>
-              <tr *ngIf="!relatedParts.length"><td colspan="6" class="empty">No spare parts linked to this request.</td></tr>
+              <tr *ngIf="!relatedParts.length"><td colspan="7" class="empty">No spare parts linked to this request.</td></tr>
             </tbody>
           </table></div>
         </div>
 
         <div class="srd-rel">
           <div class="srd-sec-head"><span class="srd-rel-ic"><lucide-icon [img]="icons.FileText" [size]="18"></lucide-icon></span><h3 class="srd-h grow">Related Documents ({{ relatedDocs.length }})</h3>
+            <span class="menu-wrap"><button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('link-doc', $event)" aria-haspopup="menu" [disabled]="!linkableDocuments.length || busy"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Link Asset Document</button>
+              <span *ngIf="menuOpen === 'link-doc'" class="menu" role="menu" (click)="$event.stopPropagation()">
+                <button *ngFor="let d of linkableDocuments" type="button" role="menuitem" (click)="linkDocument(d)">{{ d.documentName || d.fileName }}{{ d.documentType ? ' · ' + d.documentType : '' }}</button>
+              </span></span>
             <button type="button" class="btn btn-outline btn-sm" (click)="setTab('attachments')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Document</button></div>
           <div class="table-wrap"><table class="dt">
-            <thead><tr><th>#</th><th>Document Name</th><th>Type</th><th>Uploaded Date</th><th>Uploaded By</th><th>Related To</th></tr></thead>
+            <thead><tr><th>#</th><th>Document Name</th><th>Type</th><th>Uploaded Date</th><th>Uploaded By</th><th>Related To</th><th class="col-act">Actions</th></tr></thead>
             <tbody>
               <tr *ngFor="let a of relatedDocs; let i = index">
                 <td>{{ i + 1 }}</td><td><button type="button" class="sr-link" (click)="openFile(a)">{{ a.name }}</button></td>
                 <td><span class="srd-kind" [ngClass]="'f--' + a.kind.toLowerCase()">{{ a.kind }}</span></td>
                 <td class="nowrap">{{ fmtDate(a.at.slice(0, 10)) }}</td><td>{{ a.by }}</td><td>{{ a.relatedTo }}</td>
+                <td class="col-act"><button *ngIf="a.id" type="button" class="sr-link" [disabled]="busy" (click)="unlinkDocument(a)">Unlink</button></td>
               </tr>
-              <tr *ngIf="!relatedDocs.length"><td colspan="6" class="empty">No documents.</td></tr>
+              <tr *ngIf="!relatedDocs.length"><td colspan="7" class="empty">No documents.</td></tr>
             </tbody>
           </table></div>
         </div>

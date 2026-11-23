@@ -168,6 +168,22 @@ export interface ServiceRequestListDto {
   pageSize: number;
 }
 
+/** Maintenance service spare part (SparePartResponse). */
+export interface MaintenanceSparePartDto {
+  id: string;
+  partId: string;
+  partName: string;
+  quantityInStock: number;
+}
+
+/** Asset API asset-documents row (the fields the Link Document menu shows). */
+export interface AssetDocumentItemDto {
+  id: string;
+  documentName: string | null;
+  fileName: string | null;
+  documentType: string | null;
+}
+
 export interface ServiceRequestOptionsDto {
   requestTypes: string[];
   priorities: string[];
@@ -408,6 +424,46 @@ export class ServiceRequestApiService {
   /** Creates a work order in the Maintenance service (Convert to Work Order, step 1). */
   createWorkOrder(body: CreateWorkOrderBody): Observable<MaintenanceWorkOrderDto> {
     return this.http.post<MaintenanceWorkOrderDto>(`${MAINTENANCE_API}work-orders`, { ...TENANT, ...body });
+  }
+
+  /** Links an asset (AssetRegistrationId) or a component (component id) to the request. */
+  linkRelatedAsset(id: string, body: { type: 'Asset' | 'Component'; referenceId: string; relationship?: string | null }): Observable<ServiceRequestDto> {
+    return this.http.post<ServiceRequestDto>(`${this.base}/${encodeURIComponent(id)}/related-assets`, body);
+  }
+
+  unlinkRelatedAsset(id: string, referenceId: string): Observable<ServiceRequestDto> {
+    return this.http.delete<ServiceRequestDto>(`${this.base}/${encodeURIComponent(id)}/related-assets/${encodeURIComponent(referenceId)}`);
+  }
+
+  /** Links a Maintenance spare part (by part number) with the quantity used; workOrderId must be linked to the request. */
+  linkSparePart(id: string, body: { partId: string; quantityUsed: number; usedDate?: string | null; workOrderId?: string | null }): Observable<ServiceRequestDto> {
+    return this.http.post<ServiceRequestDto>(`${this.base}/${encodeURIComponent(id)}/spare-parts`, body);
+  }
+
+  /** Removes every line of that part number. */
+  unlinkSparePart(id: string, partId: string): Observable<ServiceRequestDto> {
+    return this.http.delete<ServiceRequestDto>(`${this.base}/${encodeURIComponent(id)}/spare-parts/${encodeURIComponent(partId)}`);
+  }
+
+  /** Links one of the asset's documents (Asset API asset-documents id). */
+  linkDocument(id: string, documentId: string): Observable<ServiceRequestDto> {
+    return this.http.post<ServiceRequestDto>(`${this.base}/${encodeURIComponent(id)}/documents`, { documentId });
+  }
+
+  unlinkDocument(id: string, documentId: string): Observable<ServiceRequestDto> {
+    return this.http.delete<ServiceRequestDto>(`${this.base}/${encodeURIComponent(id)}/documents/${encodeURIComponent(documentId)}`);
+  }
+
+  /** Spare parts of an asset in the Maintenance service (keyed by asset tag). */
+  sparePartsOfAsset(assetTag: string): Observable<MaintenanceSparePartDto[]> {
+    return this.http.get<MaintenanceSparePartDto[]>(`${MAINTENANCE_API}spare-parts/asset/${encodeURIComponent(assetTag)}`);
+  }
+
+  /** The asset's documents (Asset API asset-documents). */
+  documentsOfAsset(assetRegistrationId: string): Observable<AssetDocumentItemDto[]> {
+    return this.http
+      .get<{ items: AssetDocumentItemDto[] }>(`${ASSET_API}asset-documents`, { params: { assetRegistrationId, page: 1, pageSize: 100 } })
+      .pipe(map((res) => res.items ?? []));
   }
 
   /** Uploads a file through the Media service (jpg, jpeg, png, webp, pdf) and returns it as an attachment. */

@@ -43,6 +43,8 @@ import { loadAssetDetail } from '../../asset-details/asset-details';
 import { AssetDetailsService, fileUrl, iconForAsset, isoDay } from '../../asset-details/asset-details.service';
 import { apiErrorMessage } from '../../services/asset-api';
 import {
+  AssetDocumentItemDto,
+  MaintenanceSparePartDto,
   MaintenanceWorkOrderDto,
   SR_API_PRIORITIES,
   SR_API_REQUEST_TYPES,
@@ -132,9 +134,15 @@ interface ComponentRow {
   name: string;
   type: string;
   relationship: string;
+  /** Component id (asset's own components) or the linked item's reference id. */
+  ref?: string;
+  /** Linked to the request (can be unlinked). */
+  linked?: boolean;
 }
 
 interface DocRow {
+  /** Linked asset document id ("Asset" rows can be unlinked). */
+  id?: string;
   name: string;
   kind: FileKind;
   at: string;
@@ -214,6 +222,9 @@ export class ServiceRequest implements OnDestroy {
   private apiUpdates: SrUpdateDto[] = [];
   private related: ServiceRequestRelatedDto | null = null;
   private assetComponents: ComponentRow[] = [];
+  /** The asset's spare parts (Maintenance) and documents (Asset API), offered by the Link menus. */
+  private assetParts: MaintenanceSparePartDto[] = [];
+  private assetDocuments: AssetDocumentItemDto[] = [];
   private assetWorkOrders: MaintenanceWorkOrderDto[] = [];
 
   // Updates
@@ -338,13 +349,17 @@ export class ServiceRequest implements OnDestroy {
       related: this.api.getRelated(apiId).pipe(catchError(() => of(null))),
       components: assetId ? this.assets.getComponents(assetId).pipe(catchError(() => of([]))) : of([]),
       workOrders: assetTag ? this.api.workOrdersOfAsset(assetTag).pipe(catchError(() => of([] as MaintenanceWorkOrderDto[]))) : of([]),
+      parts: assetTag ? this.api.sparePartsOfAsset(assetTag).pipe(catchError(() => of([] as MaintenanceSparePartDto[]))) : of([]),
+      documents: assetId ? this.api.documentsOfAsset(assetId).pipe(catchError(() => of([] as AssetDocumentItemDto[]))) : of([]),
     }).pipe(
       tap((r) => {
         if (this.dto?.id !== apiId) return;
         this.apiUpdates = r.updates;
         this.related = r.related;
-        this.assetComponents = r.components.map((c) => ({ tag: c.componentTag, name: c.componentName, type: 'Component', relationship: `Part of ${this.asset.tag}` }));
+        this.assetComponents = r.components.map((c) => ({ tag: c.componentTag, name: c.componentName, type: 'Component', relationship: `Part of ${this.asset.tag}`, ref: c.id }));
         this.assetWorkOrders = r.workOrders;
+        this.assetParts = r.parts;
+        this.assetDocuments = r.documents;
       }),
     );
   }
@@ -731,8 +746,73 @@ export class ServiceRequest implements OnDestroy {
   /** Assets and components linked to the request; the asset's own components when none are linked. */
   get components(): ComponentRow[] {
     const linked = this.related?.relatedAssets ?? [];
-    if (linked.length) return linked.map((x) => ({ tag: x.number ?? x.referenceId, name: x.name ?? '-', type: x.type, relationship: x.relationship ?? '-' }));
+    if (linked.length) return linked.map((x) => ({ tag: x.number ?? x.referenceId, name: x.name ?? '-', type: x.type, relationship: x.relationship ?? '-', ref: x.referenceId, linked: true }));
     return this.assetComponents;
+  }
+
+  /** The asset's components not linked yet. */
+  get linkableComponents(): ComponentRow[] {
+    const linked = new Set((this.related?.relatedAssets ?? []).map((x) => x.referenceId));
+    return this.assetComponents.filter((c) => c.ref && !linked.has(c.ref));
+  }
+
+  /** The asset's spare parts not linked yet. */
+  get linkableParts(): MaintenanceSparePartDto[] {
+    const linked = new Set((this.related?.spareParts ?? []).map((p) => p.partId.toLowerCase()));
+    return this.assetParts.filter((p) => !linked.has(p.partId.toLowerCase()));
+  }
+
+  /** The asset's documents not linked yet. */
+  get linkableDocuments(): AssetDocumentItemDto[] {
+    const linked = new Set((this.related?.documents ?? []).filter((d) => d.relatedTo === 'Asset').map((d) => d.id));
+    return this.assetDocuments.filter((d) => !linked.has(d.id));
+  }
+
+  linkComponent(c: ComponentRow): void {
+    const r = this.request;
+    this.menuOpen = '';
+    if (!r || !c.ref || this.busy) return;
+    this.run(this.api.linkRelatedAsset(r.apiId, { type: 'Component', referenceId: c.ref }), `${c.tag} linked to ${r.id}.`);
+  }
+
+  unlinkRelated(c: ComponentRow): void {
+    const r = this.request;
+    this.menuOpen = '';
+    if (!r || !c.ref || this.busy) return;
+    this.run(this.api.unlinkRelatedAsset(r.apiId, c.ref), `${c.tag} unlinked.`);
+  }
+
+  /** Links a spare part with the quantity used (asked for), on the request's work order when it has one. */
+  linkPart(p: MaintenanceSparePartDto): void {
+    const r = this.request;
+    this.menuOpen = '';
+    if (!r || this.busy) return;
+    const answer = prompt(`Quantity of ${p.partName} (${p.partId}) used`, '1');
+    if (answer === null) return;
+    const qty = Math.floor(Number(answer));
+    if (!(qty >= 1)) return this.showToast('Enter a quantity of at least 1.');
+    this.run(this.api.linkSparePart(r.apiId, { partId: p.partId, quantityUsed: qty, workOrderId: r.workOrder || null }), `${p.partId} x${qty} linked to ${r.id}.`);
+  }
+
+  unlinkPart(partNo: string): void {
+    const r = this.request;
+    this.menuOpen = '';
+    if (!r || this.busy) return;
+    this.run(this.api.unlinkSparePart(r.apiId, partNo), `${partNo} unlinked.`);
+  }
+
+  linkDocument(d: AssetDocumentItemDto): void {
+    const r = this.request;
+    this.menuOpen = '';
+    if (!r || this.busy) return;
+    this.run(this.api.linkDocument(r.apiId, d.id), `${d.documentName || d.fileName || 'Document'} linked to ${r.id}.`);
+  }
+
+  unlinkDocument(d: DocRow): void {
+    const r = this.request;
+    this.menuOpen = '';
+    if (!r || !d.id || this.busy) return;
+    this.run(this.api.unlinkDocument(r.apiId, d.id), `${d.name} unlinked.`);
   }
 
   get relatedParts(): { partNo: string; name: string; qty: number; date: string; wo: string }[] {
@@ -748,6 +828,7 @@ export class ServiceRequest implements OnDestroy {
     const docs = this.related?.documents;
     if (!docs) return this.attachments.map((a) => ({ name: a.name, kind: a.kind, at: a.at, by: a.by, relatedTo: 'Service Request', url: a.url }));
     return docs.map((d) => ({
+      id: d.relatedTo === 'Asset' ? d.id : undefined,
       name: d.documentName ?? '-', kind: this.kindOf(d.documentName ?? ''), at: localStamp(d.uploadedAt), by: d.uploadedBy ?? '-', relatedTo: d.relatedTo, url: fileUrl(d.fileUrl) || undefined,
     }));
   }
