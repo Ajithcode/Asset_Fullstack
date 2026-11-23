@@ -166,11 +166,12 @@
           </div>
         }
 
+        <label class="cc-check"><input type="checkbox" [(ngModel)]="showRetired" /> Show retired</label>
         <div class="table-wrap">
           <table class="mdm-table">
             <thead><tr><th>Template</th><th>Industry</th><th>Version</th><th>Criteria</th><th>Weights</th><th>Status</th>@if (canEdit) { <th></th> }</tr></thead>
             <tbody>
-              @for (t of templates; track t.id) {
+              @for (t of visibleTemplates; track t.id) {
                 <tr>
                   <td>{{ t.name }} @if (t.isDefault) { <span class="cc-badge">Default</span> }</td>
                   <td>{{ t.industry }}</td>
