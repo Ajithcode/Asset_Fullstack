@@ -91,6 +91,10 @@ public static class MasterDataManagementServiceCollectionExtensions
         services.AddScoped<IAssetTypeRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetTypeRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetTypeRepository>());
 
+        services.AddScoped<AssetSubTypeRepository>();
+        services.AddScoped<IAssetSubTypeRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetSubTypeRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetSubTypeRepository>());
+
         services.AddScoped<AssetModelRepository>();
         services.AddScoped<IAssetModelRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetModelRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetModelRepository>());
