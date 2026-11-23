@@ -1,49 +1,53 @@
 import { Injectable, inject } from '@angular/core';
+import { MdmAudit } from '../../shared/mdm-api';
+import { AssetStore, activeStatus, localStamp } from '../asset-store';
 import { AssetTypeService } from '../asset-type/asset-type.service';
-import { FALLBACK_PARENT_TYPES, SEED_SUB_TYPES } from './asset-sub-type.data';
+import { blankAssetSubType } from './asset-sub-type.data';
 import { AssetSubTypeFilters, AssetSubTypeRecord } from './asset-sub-type.model';
 
+/** Asset sub type as `/api/master-data/asset-sub-types` returns it. */
+interface AssetSubTypeDto extends MdmAudit {
+  subTypeName: string;
+  code: string;
+  assetType: { id: string | null; name: string } | null;
+  description: string | null;
+  /** Everything the form edits beyond name/code/type/description, as one JSON document. */
+  settingsJson: string | null;
+}
+
+type Settings = Partial<Omit<AssetSubTypeRecord, 'code' | 'name' | 'assetType' | 'description' | 'status' | 'category' | 'assetCount' | 'createdOn' | 'createdBy' | 'updatedOn'>>;
+
 /**
- * Asset sub types, kept in memory from hardcoded seed data until the master data API has the resource.
- * Parent asset types come from the Asset Type master, with a hardcoded list when it has none.
+ * Asset sub types from the master data API (`asset-sub-types`). The parent is an asset type of the
+ * Asset Type master: sent by id, shown by name. Asset Registration reads this list per asset type.
  */
 @Injectable({ providedIn: 'root' })
-export class AssetSubTypeService {
+export class AssetSubTypeService extends AssetStore<AssetSubTypeRecord, AssetSubTypeDto> {
+  protected readonly resource = 'asset-sub-types';
   private readonly types = inject(AssetTypeService);
-  private records: AssetSubTypeRecord[] = structuredClone(SEED_SUB_TYPES);
 
-  all(): AssetSubTypeRecord[] {
-    return this.records;
-  }
-
-  find(code: string | null | undefined): AssetSubTypeRecord | undefined {
-    return code ? this.records.find((r) => r.code === code) : undefined;
-  }
-
-  isCodeTaken(code: string, exceptCode: string | null): boolean {
-    const c = code.trim().toLowerCase();
-    return this.records.some((r) => r.code.toLowerCase() === c && r.code !== exceptCode);
+  constructor() {
+    super();
   }
 
   /** Names only need to be unique under the same parent type. */
-  isNameTaken(name: string, assetType: string, exceptCode: string | null): boolean {
+  override isNameTaken(name: string, assetType: string | null, exceptCode: string | null = null): boolean {
     const n = name.trim().toLowerCase();
-    return this.records.some((r) => r.assetType === assetType && r.name.toLowerCase() === n && r.code !== exceptCode);
+    return this.records.some((r) => r.assetType === assetType && (r.name ?? '').toLowerCase() === n && r.code !== exceptCode);
   }
 
-  /** Parent asset type names: the Asset Type master's active types, plus the fallback list and any already used. */
+  /** Parent asset type names: the Asset Type master's active types, plus any already used by a sub type. */
   parentTypes(): string[] {
     const live = this.types.active().map((t) => t.name);
-    return [...new Set([...live, ...FALLBACK_PARENT_TYPES.map((t) => t.name), ...this.records.map((r) => r.assetType)])].sort();
+    return [...new Set([...live, ...this.records.map((r) => r.assetType).filter(Boolean)])].sort();
   }
 
   categoryOf(typeName: string): string {
-    return this.types.findByName(typeName)?.category ?? FALLBACK_PARENT_TYPES.find((t) => t.name === typeName)?.category ?? '';
+    return this.types.findByName(typeName)?.category ?? '';
   }
 
   subcategoriesOf(typeName: string): string[] {
-    const live = this.types.findByName(typeName)?.subcategories;
-    return live?.length ? live : (FALLBACK_PARENT_TYPES.find((t) => t.name === typeName)?.subcategories ?? []);
+    return this.types.findByName(typeName)?.subcategories ?? [];
   }
 
   filter(f: AssetSubTypeFilters): AssetSubTypeRecord[] {
@@ -52,21 +56,46 @@ export class AssetSubTypeService {
       (r) =>
         (!f.status || r.status === f.status) &&
         (!f.assetType || r.assetType === f.assetType) &&
-        (!term || [r.name, r.code, r.assetType, r.category, r.description].some((v) => v.toLowerCase().includes(term)))
+        (!term || [r.name, r.code, r.assetType, r.category, r.description].some((v) => (v ?? '').toLowerCase().includes(term)))
     );
   }
 
-  save(record: AssetSubTypeRecord, originalCode: string | null): AssetSubTypeRecord {
-    const i = originalCode ? this.records.findIndex((r) => r.code === originalCode) : -1;
-    this.records = i >= 0 ? this.records.map((r, j) => (j === i ? record : r)) : [record, ...this.records];
-    return record;
+  protected toRecord(dto: AssetSubTypeDto): AssetSubTypeRecord {
+    const typeName = dto.assetType?.name ?? '';
+    return {
+      ...blankAssetSubType(),
+      ...this.parseSettings(dto.settingsJson),
+      code: dto.code,
+      name: dto.subTypeName,
+      assetType: typeName,
+      category: this.categoryOf(typeName),
+      description: dto.description ?? '',
+      status: activeStatus(dto.status),
+      createdOn: localStamp(dto.createdAt),
+      createdBy: dto.createdBy ?? '',
+      updatedOn: localStamp(dto.updatedAt ?? dto.createdAt)
+    };
   }
 
-  setStatus(record: AssetSubTypeRecord, status: AssetSubTypeRecord['status']): AssetSubTypeRecord {
-    return this.save({ ...record, status }, record.code);
+  protected toRequest(r: AssetSubTypeRecord): object {
+    const type = this.types.findByName(r.assetType);
+    const typeId = type ? this.types.idOf(type.code) : undefined;
+    const { code: _c, name: _n, assetType: _t, description: _d, status: _s, category: _g, assetCount: _a, createdOn: _co, createdBy: _cb, updatedOn: _u, ...settings } = r;
+    return {
+      subTypeName: r.name,
+      code: r.code,
+      assetType: typeId ? { id: typeId, name: r.assetType } : null,
+      description: r.description,
+      settingsJson: JSON.stringify(settings),
+      status: r.status
+    };
   }
 
-  delete(codes: string[]): void {
-    this.records = this.records.filter((r) => !codes.includes(r.code));
+  private parseSettings(json: string | null): Settings {
+    try {
+      return json ? (JSON.parse(json) as Settings) : {};
+    } catch {
+      return {};
+    }
   }
 }
