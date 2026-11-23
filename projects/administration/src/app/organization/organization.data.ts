@@ -181,10 +181,11 @@ export function seedSummaryTabs(): SummaryTab[] {
       id: 'compliance',
       title: 'Compliance Obligations',
       singular: 'Obligation',
-      filterKey: 'validity',
+      filterKey: 'kind',
       statusKey: 'status',
       columns: [
         { key: 'code', label: 'Code', kind: 'code' },
+        { key: 'kind', label: 'Type' },
         { key: 'regulation', label: 'Regulation' },
         { key: 'standard', label: 'Standard' },
         { key: 'certificate', label: 'Certificate' },

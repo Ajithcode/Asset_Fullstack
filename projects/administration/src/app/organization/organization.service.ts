@@ -3,7 +3,8 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, concatMap, from, map, of, switchMap, tap, throwError, toArray } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
 import { AdminLookupService } from '../shared/admin-common';
-import { LocationType, OrgLocation, SummaryRow, SummaryStat, SummaryTab } from './organization.model';
+import { OrgOption, TabSource, loadOrganizationScope, loadOrganizations } from './organization-scope';
+import { LocationType, OrgLocation, OrgTabId, SummaryRow, SummaryStat, SummaryTab } from './organization.model';
 import { LOCATION_TYPES, seedSummaryTabs } from './organization.data';
 
 /** LocationResponse from the Administration API. */
@@ -93,30 +94,59 @@ export class OrganizationService {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
-  // Master data summary tabs (Asset, People, Vendor, ...): layouts only, rows stay empty until their APIs are wired
+  // Master data summary tabs (Asset, People, Vendor, ...): layouts; rows are filled by loadFor()
   private readonly tabs: SummaryTab[] = seedSummaryTabs();
 
-  constructor() {
-    this.load();
-  }
+  /** Organizations from the Master Data API for the picker. */
+  readonly organizations = signal<OrgOption[]>([]);
+  readonly organizationsLoaded = signal(false);
+  /** Where each tab's data comes from and whether that call worked; set once an organization is loaded. */
+  readonly sources = signal<Partial<Record<OrgTabId, TabSource>>>({});
 
-  /** GET /api/organization/locations for this tenant; the hidden organization root is kept aside, not shown in the tree. */
-  load(): void {
-    this.loading.set(true);
+  /** GET /api/master-data/organizations; the error (if any) shows in `error`. */
+  loadOrganizations(): Observable<OrgOption[]> {
     this.error.set(null);
-    this.http
-      .get<LocationDto[]>(this.apiUrl, { params: { tenantId: environment.tenantId, clientId: environment.clientId } })
-      .subscribe({
+    return loadOrganizations(this.http).pipe(
+      tap({
         next: (list) => {
-          this.rootId = list.find((d) => d.locationType === ROOT_TYPE)?.locationId ?? null;
-          this.locations.set(list.filter((d) => d.locationType !== ROOT_TYPE).map((d) => toAppLocation(d, this.rootId)));
-          this.loading.set(false);
+          this.organizations.set(list);
+          this.organizationsLoaded.set(true);
         },
         error: (err) => {
-          this.error.set(apiErrorMessage(err, 'Locations could not be loaded from the Administration service.'));
-          this.loading.set(false);
+          this.organizationsLoaded.set(true);
+          this.error.set(apiErrorMessage(err, 'Organizations could not be loaded from the Master Data service.'));
         }
-      });
+      })
+    );
+  }
+
+  /**
+   * Loads everything for one organization: its locations (sites, buildings, floors, zones) and the rows of every
+   * summary tab. Each source reports connected / broken in `sources`, so one failing API does not blank the page.
+   */
+  loadFor(org: OrgOption): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.locations.set([]);
+    for (const tab of this.tabs) tab.rows = [];
+    loadOrganizationScope(this.http, org).subscribe({
+      next: (scope) => {
+        this.locations.set(scope.locations);
+        for (const tab of this.tabs) tab.rows = scope.rows[tab.id as Exclude<OrgTabId, 'location'>] ?? [];
+        this.sources.set(scope.sources);
+        const broken = (Object.keys(scope.sources) as OrgTabId[]).filter((t) => scope.sources[t].state === 'broken');
+        if (broken.length) this.error.set(`Could not load: ${broken.join(', ')}.`);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.error.set(apiErrorMessage(err, 'The organization data could not be loaded.'));
+        this.loading.set(false);
+      }
+    });
+  }
+
+  sourceOf(tab: OrgTabId): TabSource | undefined {
+    return this.sources()[tab];
   }
 
   all(): OrgLocation[] {
