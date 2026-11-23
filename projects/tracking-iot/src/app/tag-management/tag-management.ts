@@ -53,7 +53,7 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, tagIdFromNumber } from './tag-data';
+import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, locationsForSite, UNSCOPED_LOCATIONS, tagIdFromNumber } from './tag-data';
 import { TagAuditOptionsDto, TagEventDto, TagIdApiService, TagSummary, apiType, pageType } from './tag-id-api.service';
 
 /** Tag IDs = the identifier registry; Assignments = lifecycle of each tag on assets; Audit = every change. */
@@ -236,6 +236,13 @@ export class TagManagement implements OnInit, OnDestroy {
     });
     this.api.sites().subscribe((sites) => {
       for (const s of sites) ensureSite(s.name, s.id);
+      this.version++;
+    });
+    this.api.locations().subscribe((locations) => {
+      for (const l of locations) {
+        if (l.siteName) ensureSite(l.siteName, null, l.name);
+        else if (!UNSCOPED_LOCATIONS.includes(l.name)) UNSCOPED_LOCATIONS.push(l.name);
+      }
       this.version++;
     });
   }
@@ -830,7 +837,7 @@ export class TagManagement implements OnInit, OnDestroy {
   }
 
   locationsOf(site: string): string[] {
-    return SITES.find((s) => s.name === site)?.locations ?? [];
+    return locationsForSite(site);
   }
 
   private resolveAsset(code: string): LinkedAsset | null {

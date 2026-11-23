@@ -86,6 +86,15 @@ export function ensureSite(name: string, code: string | null | undefined, locati
   if (location && !site.locations.includes(location)) site.locations.push(location);
 }
 
+/** Master-data locations that belong to no site: offered under every site. */
+export const UNSCOPED_LOCATIONS: string[] = [];
+
+/** Locations to offer for a site: its own (master data plus those used on tags) and the unscoped ones. */
+export function locationsForSite(site: string): string[] {
+  const own = SITES.find((s) => s.name === site)?.locations ?? [];
+  return site ? [...new Set([...own, ...UNSCOPED_LOCATIONS])].sort((a, b) => a.localeCompare(b)) : [];
+}
+
 /** Same rule as the Tracking API (TagNumber): letters, digits, ':', '-' and '_', at most 50 characters. */
 const TAG_ID_PATTERN = /^[A-Za-z0-9:_-]{1,50}$/;
 
