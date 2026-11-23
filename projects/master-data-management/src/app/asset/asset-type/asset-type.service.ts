@@ -62,9 +62,15 @@ export class AssetTypeService extends AssetStore<AssetTypeRecord, AssetTypeDto> 
     return this.findByName(name)?.icon ?? 'conveyor';
   }
 
-  /** Asset category names, plus any category already on a type. */
+  /** Top-level asset category names (the Asset Registration / Asset Model list), plus any category already on a type. */
   categories(): string[] {
-    return [...new Set([...this.categoryStore.all().map((c) => c.name), ...this.records.map((r) => r.category).filter(Boolean)])];
+    const top = this.categoryStore.all().filter((c) => !c.parentCode).map((c) => c.name);
+    return [...new Set([...top, ...this.records.map((r) => r.category).filter(Boolean)])];
+  }
+
+  /** Loads the asset categories (Asset service `/api/asset-categories`) for the Category lists. */
+  loadCategories(): void {
+    this.categoryStore.reload().subscribe({ error: () => undefined });
   }
 
   classesInUse(): string[] {
