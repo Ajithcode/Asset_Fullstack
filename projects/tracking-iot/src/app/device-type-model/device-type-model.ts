@@ -666,6 +666,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
   askRetire(m: DeviceModel): void {
     this.menuId = '';
     this.formError = '';
+    this.invalidField = '';
     this.dialog = { kind: 'retire', id: m.id };
   }
 
@@ -683,6 +684,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     this.menuId = '';
     if (m.deployed) return this.showToast(`${m.name} has ${m.deployed} deployed devices. Retire it instead.`);
     this.formError = '';
+    this.invalidField = '';
     this.dialog = { kind: 'delete', id: m.id };
   }
 
@@ -719,6 +721,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     this.loadOptions();
     this.menuId = '';
     this.formError = '';
+    this.invalidField = '';
     const b = blankModel('env');
     this.customMeas = this.customAttr = '';
     this.dialog = {
@@ -731,6 +734,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     this.loadOptions();
     this.menuId = '';
     this.formError = '';
+    this.invalidField = '';
     this.customMeas = this.customAttr = '';
     this.dialog = { kind: 'model', editId: m.id, title: `Edit ${m.name}`, f: this.formFrom(m) };
   }
@@ -738,6 +742,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
   openDuplicate(m: DeviceModel): void {
     this.menuId = '';
     this.formError = '';
+    this.invalidField = '';
     let name = `${m.name} Copy`;
     for (let n = 2; this.nameTaken(name, null); n++) name = `${m.name} Copy ${n}`;
     this.customMeas = this.customAttr = '';
@@ -763,6 +768,20 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     return MODELS.some((m) => m.id !== exceptId && m.name.toLowerCase() === n);
   }
 
+  /** The model-form field the last error is about: outlined red until it is filled in. */
+  invalidField = '';
+
+  /** Shows the error and brings the field it concerns into view, so it isn't missed in the long form. */
+  private failField(message: string, field: string): void {
+    this.formError = message;
+    this.invalidField = field;
+    setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`.modal--lg [name="${field}"]`);
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el?.focus({ preventScroll: true });
+    });
+  }
+
   saveModel(): void {
     const d = this.dlg('model');
     if (!d || this.saving) return;
@@ -770,14 +789,14 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     // Text typed but not added yet is kept too
     if (this.customMeas.trim()) this.addCustom(f.measurements, 'meas');
     if (this.customAttr.trim()) this.addCustom(f.attributes, 'attr');
-    if (!f.name.trim()) return void (this.formError = 'Enter the model name.');
-    if (!f.manufacturer.trim()) return void (this.formError = 'Enter the manufacturer.');
-    if (!f.typeId) return void (this.formError = 'Choose a device type.');
-    if (this.nameTaken(f.name, d.editId)) return void (this.formError = `A model named "${f.name.trim()}" already exists.`);
+    if (!f.name.trim()) return this.failField('Enter the model name.', 'name');
+    if (!f.manufacturer.trim()) return this.failField('Enter the manufacturer.', 'mfr');
+    if (!f.typeId) return this.failField('Choose a device type.', 'type');
+    if (this.nameTaken(f.name, d.editId)) return this.failField(`A model named "${f.name.trim()}" already exists.`, 'name');
     if (d.editId && f.name.trim() !== d.editId) return void (this.formError = 'The model name cannot be changed. Duplicate the model to use a new name.');
     if (!f.connectivity.length) return void (this.formError = 'Choose a connectivity option.');
-    if (!f.power) return void (this.formError = 'Choose the power source.');
-    if (!f.status) return void (this.formError = 'Choose the status.');
+    if (!f.power) return this.failField('Choose the power source.', 'power');
+    if (!f.status) return this.failField('Choose the status.', 'status');
     const data = {
       name: f.name.trim(), manufacturer: f.manufacturer.trim(), typeId: f.typeId, connectivity: CONNECTIVITY.filter((c) => f.connectivity.includes(c)),
       protocol: f.protocol.trim(), power: f.power, measurements: [...f.measurements],
@@ -809,6 +828,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
 
   openAddType(): void {
     this.formError = '';
+    this.invalidField = '';
     this.dialog = { kind: 'type', name: '', icon: 'chip', form: '', description: '' };
   }
 
@@ -822,6 +842,7 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     if (this.saving) return;
     this.saving = true;
     this.formError = '';
+    this.invalidField = '';
     const form = d.form;
     this.api.createDeviceType({ name, icon: API_TYPE_ICONS[d.icon], thumbnailStyle: API_THUMBNAILS[form], description: d.description.trim() || null }).subscribe({
       next: (saved) => {

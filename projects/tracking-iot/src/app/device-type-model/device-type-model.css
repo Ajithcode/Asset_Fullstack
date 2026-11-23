@@ -52,6 +52,7 @@
 .field-label em { font-style: normal; color: #dc2626; }
 .control { width: 100%; height: 36px; box-sizing: border-box; padding: 0 11px; border: 1px solid var(--dm-control); border-radius: 8px; background: #fff; font: inherit; font-size: 13px; color: var(--dm-ink); outline: none; }
 .control:focus { border-color: var(--dm-accent-2); box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.12); }
+.control.is-invalid { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12); }
 .control-area { height: auto; padding: 8px 11px; resize: vertical; }
 select.control {
   appearance: none;
