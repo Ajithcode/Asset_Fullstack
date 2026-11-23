@@ -99,13 +99,41 @@ export class OrganizationPage extends AdminPage {
   formMode: 'add' | 'edit' = 'edit';
   pendingDelete: OrgLocation[] = [];
 
+  /** Selected organization (Master Data id); `organization` (from AdminPage) holds its name for the page. */
+  orgId = '';
+  /**
+   * Locations come from the Master Data hierarchy, which has no add / edit / delete here: the Administration
+   * service only offers GET by id and POST for locations (no list, update or delete). Manage them in Master Data.
+   */
+  readonly readOnlyLocations = true;
+
   constructor() {
     super();
-    // Load failures from the Administration API show up as a toast
+    // Load failures show up as a toast
     effect(() => {
       const error = this.service.error();
-      if (error) this.notify(error);
+      if (error) this.notify(error, 'error');
     });
+    // Organizations come from the Master Data API; the first one is selected and its data loaded into every tab
+    this.service.loadOrganizations().subscribe({
+      next: (list) => {
+        if (list.length) this.selectOrganization(list[0].id);
+      },
+      error: () => {}
+    });
+  }
+
+  /** Organization picker: load the chosen organization's data into all tabs. */
+  selectOrganization(id: string): void {
+    const org = this.service.organizations().find((o) => o.id === id);
+    if (!org) return;
+    this.orgId = org.id;
+    this.organization = org.name;
+    this.selectedNode = null;
+    this.formRecord = null;
+    this.checked.clear();
+    this.page = 0;
+    this.service.loadFor(org);
   }
 
   /* ===== Tabs ===== */
@@ -292,6 +320,11 @@ export class OrganizationPage extends AdminPage {
   /* ===== Drawer ===== */
 
   edit(l: OrgLocation): void {
+    // Read-only: a click on a row shows it in the hierarchy instead of opening the form
+    if (this.readOnlyLocations) {
+      this.selectNode(l.code);
+      return;
+    }
     this.menuFor = null;
     this.formMode = 'edit';
     this.formRecord = l;

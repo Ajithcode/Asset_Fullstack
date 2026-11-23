@@ -134,7 +134,7 @@ export class SummaryTabView implements OnChanges {
   }
 
   rowTitle(r: SummaryRow): string {
-    return r[this.tab.columns[1].key];
+    return r['name'] || r[this.tab.columns[1].key];
   }
 
   export(): void {
