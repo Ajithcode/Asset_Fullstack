@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, NgZone, OnDestroy, ViewChild, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Observable, Subscription, catchError, forkJoin, from, map, mergeMap, of, toArray } from 'rxjs';
+import { Observable, Subscription, catchError, forkJoin, from, map, mergeMap, of, switchMap, timer, toArray } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -39,6 +39,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import { DeviceStatus, EventDay, EventSeries, HEALTH_COLORS, HealthBand, MapAsset, SERIES, STATUSES, STATUS_COLORS, dailyLocationUpdates } from './iot-overview-data';
+import { ModuleWidgetsApi, RealTimeTags } from '../services/dashboard/module-widgets';
 import { DrillDialog } from '../shared/drill-dialog/drill-dialog';
 import { Drill, DrillColumn, DrillRow, pct } from '../shared/drill-dialog/drill';
 import { AssetQuickView, QuickViewAsset, connectedAssetDrill, qvDate, qvDateTime, statusKey } from '../shared/asset-quick-view/quick-view';
@@ -67,6 +68,10 @@ const TP = { l: 30, r: 8, t: 10, b: 22 };
 /** Coverage: located within the last day. Freshness: reporting devices that updated within the hour. */
 const COVERAGE_MIN = 24 * 60;
 const FRESH_MIN = 60;
+/** Connected / Online / Freshness cards use the Real-Time Location window and rule: 24 h, Online = status online and heard within 10 min. */
+const TAG_WINDOW_MIN = 24 * 60;
+const ONLINE_THRESHOLD_SEC = 10 * 60;
+const TAG_POLL_MS = 10_000;
 /** Alerts fetched for the table, KPIs and map (newest first). */
 const ALERT_LIMIT = 500;
 const SEVERITY_COLORS: Record<string, string> = { Critical: '#dc2626', Warning: '#d97706', Info: '#2563eb' };
@@ -135,7 +140,8 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   private toastTimer?: ReturnType<typeof setTimeout>;
   private readonly router = inject(Router);
   private readonly zone = inject(NgZone);
-  private readonly now = new Date();
+  private now = new Date();
+  private readonly widgetsApi = inject(ModuleWidgetsApi);
   private readonly dashboardApi = inject(Dashboard);
   private readonly destroyRef = inject(DestroyRef);
   /** Asset Quick View: registered assets from GET api/asset-registrations, one at a time. */
@@ -148,6 +154,11 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   kpiData: AssetDashboardKpis | null = null;
   kpiLoading = false;
   kpiError = '';
+
+  /** Connected Assets / Online Now / Data Freshness: GET {tracking}api/real-time-location/tags?minutes=1440, polled; null until the first response. */
+  tagData: RealTimeTags | null = null;
+  /** Assets with a linked tag heard in the window (one row per asset, its newest tag), newest first. */
+  private tagConnected: ConnectedAssetDetail[] = [];
 
   /** Donut from GET api/asset-dashboard/device-connectivity; null until the first response. */
   connectivityData: DeviceConnectivity | null = null;
@@ -184,6 +195,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   private filterSubs: Subscription[] = [];
 
   constructor() {
+    this.pollTags();
     this.loadKpis();
     this.loadConnectivity();
     this.loadSites();
@@ -375,6 +387,50 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
       });
   }
 
+  /** Real-Time Location tags every few seconds, so Online Now and "x s ago" follow the live data. */
+  private pollTags(): void {
+    timer(0, TAG_POLL_MS)
+      .pipe(
+        switchMap(() => this.widgetsApi.getRealTimeTags(TAG_WINDOW_MIN).pipe(catchError(() => of(null as RealTimeTags | null)))),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((res) => {
+        if (!res) return; // keep the last good numbers; the cards fall back to the KPI API until the first response
+        this.now = new Date();
+        this.tagData = res;
+        const seen = new Set<string>();
+        this.tagConnected = [];
+        for (const t of res.tags) {
+          if (!t.asset || seen.has(t.asset.assetRegistrationId)) continue;
+          seen.add(t.asset.assetRegistrationId);
+          this.tagConnected.push({
+            assetRegistrationId: t.asset.assetRegistrationId, assetTag: t.asset.assetTag ?? '', assetName: t.asset.assetName ?? '',
+            assetType: t.asset.assetType ?? '', siteName: t.siteName ?? '', assetStatus: t.asset.status ?? '',
+            networkStatus: (t.connection ?? '').toLowerCase(), gatewayId: t.gatewayName ?? t.gatewayId, firstSeenAt: t.timestamp, lastSeenAt: t.timestamp, readingCount: 0,
+          });
+        }
+        this.qv.setConnected(this.tagConnected);
+      });
+  }
+
+  /** Age of the newest reading of any tag in the window, in seconds; null when there is none. */
+  get freshnessSec(): number | null {
+    const newest = this.tagData?.tags.reduce((max, t) => Math.max(max, new Date(t.timestamp).getTime()), -Infinity);
+    return newest === undefined || !Number.isFinite(newest) ? null : Math.max(0, Math.round((this.now.getTime() - newest) / 1000));
+  }
+
+  /** "6 s ago", "3 min ago", "2 h ago", "-" without readings. */
+  get freshnessLabel(): string {
+    const s = this.freshnessSec;
+    return s === null ? '-' : s < 60 ? `${s} s ago` : s < 3600 ? `${Math.floor(s / 60)} min ago` : s < 86400 ? `${Math.floor(s / 3600)} h ago` : `${Math.floor(s / 86400)} d ago`;
+  }
+
+  /** Older than the Online threshold: the newest reading would no longer count as Online. */
+  get freshnessStale(): boolean {
+    const s = this.freshnessSec;
+    return s === null || s > ONLINE_THRESHOLD_SEC;
+  }
+
   /** Fetches the KPI cards for the selected period. */
   loadKpis(): void {
     this.kpiLoading = true;
@@ -386,7 +442,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
         next: (res) => {
           this.kpiData = res;
           this.kpiLoading = false;
-          this.qv.setConnected(res?.connectedAssetDetails ?? []);
+          if (!this.tagData) this.qv.setConnected(res?.connectedAssetDetails ?? []);
         },
         error: () => {
           this.kpiData = null;
@@ -461,11 +517,14 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   get kpis() {
     const api = this.kpiData;
     const round = (v: number | null | undefined) => (v === null || v === undefined ? null : Math.round(v * 10) / 10);
+    // Connected / Online come from the Real-Time Location tags (same 24 h window and Online/Idle/Offline rule as that page)
+    const tags = this.tagData ? this.tagConnected : null;
+    const tagOnline = tags?.filter((a) => a.networkStatus === 'online').length ?? 0;
     return {
-      connected: api?.connectedAssets.value ?? 0,
-      connectedChange: round(api?.connectedAssets.changePercent),
-      online: api?.onlineNow.value ?? 0,
-      onlinePct: round(api?.onlineNow.percent) ?? 0,
+      connected: tags ? tags.length : api?.connectedAssets.value ?? 0,
+      connectedChange: tags ? null : round(api?.connectedAssets.changePercent),
+      online: tags ? tagOnline : api?.onlineNow.value ?? 0,
+      onlinePct: tags ? (tags.length ? round((tagOnline / tags.length) * 100) ?? 0 : 0) : round(api?.onlineNow.percent) ?? 0,
       alerts: api?.alerts.value ?? 0,
       // the KPI API has no severity split: the critical count comes from GET api/asset-dashboard/alerts
       critical: this.periodAlerts.filter((a) => a.severity?.toLowerCase() === 'critical').length,
@@ -478,13 +537,13 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
 
   /** Connected assets returned with the KPIs. */
   get connectedAssets(): ConnectedAssetDetail[] {
-    return this.kpiData?.connectedAssetDetails ?? [];
+    return this.tagData ? this.tagConnected : this.kpiData?.connectedAssetDetails ?? [];
   }
 
   private connectedColumns(...extra: DrillColumn[]): DrillColumn[] {
     return [
       { key: 'tag', label: 'Asset Tag' }, { key: 'name', label: 'Asset Name' }, { key: 'type', label: 'Type' }, { key: 'site', label: 'Site' },
-      { key: 'network', label: 'Network', pill: { online: STATUS_COLORS.Online, offline: STATUS_COLORS.Offline } },
+      { key: 'network', label: 'Network', pill: { online: STATUS_COLORS.Online, idle: STATUS_COLORS.Idle, offline: STATUS_COLORS.Offline } },
       { key: 'gateway', label: 'Gateway' }, { key: 'lastSeen', label: 'Last Seen' }, { key: 'readings', label: 'Readings', num: true }, ...extra,
     ];
   }
@@ -892,14 +951,14 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     const yesNo = (v: boolean) => (v ? 'Yes' : 'No');
     if (kind === 'connected') {
       this.drill = {
-        title: 'Connected Assets', subtitle: this.kpiData?.connectedAssets.note ?? this.scope,
+        title: 'Connected Assets', subtitle: this.tagData ? 'Assets with a linked tag heard in the last 24 hours (Real-Time Location)' : this.kpiData?.connectedAssets.note ?? this.scope,
         stats: [{ label: 'Connected', value: k.connected }, { label: 'Registered', value: this.kpiData?.totalAssets ?? 0 }],
         columns: this.connectedColumns(), rows: this.connectedRows(connected), empty: 'No connected assets.',
       };
     } else if (kind === 'online') {
       const online = connected.filter((a) => a.networkStatus?.toLowerCase() === 'online');
       this.drill = {
-        title: 'Online Now', subtitle: this.kpiData?.onlineNow.note ?? this.scope,
+        title: 'Online Now', subtitle: this.tagData ? 'Status online and heard within 10 minutes (Real-Time Location)' : this.kpiData?.onlineNow.note ?? this.scope,
         stats: [{ label: 'Online', value: k.online, color: STATUS_COLORS.Online }, { label: 'Of connected assets', value: `${k.onlinePct}%` }],
         columns: this.connectedColumns(), rows: this.connectedRows(online), empty: 'No assets online.',
       };
@@ -916,12 +975,14 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
         empty: 'No connected assets.',
       };
     } else {
-      const fresh = (a: ConnectedAssetDetail) => this.minutesSince(a.lastSeenAt) <= FRESH_MIN;
+      // with the Real-Time Location data a reading is fresh while the tag still counts as Online (10 min)
+      const freshMin = this.tagData ? ONLINE_THRESHOLD_SEC / 60 : FRESH_MIN;
+      const fresh = (a: ConnectedAssetDetail) => this.minutesSince(a.lastSeenAt) <= freshMin;
       const n = connected.filter(fresh).length;
       this.drill = {
-        title: 'Data Freshness', subtitle: this.kpiData?.dataFreshness.note ?? `Connected assets updated within the last hour · ${this.scope}`,
-        stats: [{ label: 'Freshness', value: `${k.freshness}%` }, { label: 'Fresh (1 h)', value: n, color: '#16a34a' }, { label: 'Stale', value: connected.length - n, color: '#dc2626' }],
-        columns: this.connectedColumns({ key: 'fresh', label: 'Within SLA', pill: YES_NO }),
+        title: 'Data Freshness', subtitle: this.tagData ? `Newest reading ${this.freshnessLabel} · connected assets updated within ${freshMin} min` : this.kpiData?.dataFreshness.note ?? `Connected assets updated within the last hour · ${this.scope}`,
+        stats: [{ label: 'Freshness', value: this.tagData ? this.freshnessLabel : `${k.freshness}%` }, { label: `Fresh (${freshMin} min)`, value: n, color: '#16a34a' }, { label: 'Stale', value: connected.length - n, color: '#dc2626' }],
+        columns: this.connectedColumns({ key: 'fresh', label: this.tagData ? 'Within 10 min' : 'Within SLA', pill: YES_NO }),
         rows: this.connectedRows([...connected].sort((a, b) => Number(fresh(a)) - Number(fresh(b))), (a) => ({ fresh: yesNo(fresh(a)) })),
         empty: 'No connected assets.',
       };
