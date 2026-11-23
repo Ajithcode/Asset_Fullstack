@@ -52,8 +52,9 @@
     </div>
     <div class="card io-kpi io-click" role="button" tabindex="0" (click)="openKpi('freshness')" (keydown.enter)="openKpi('freshness')">
       <span class="io-kpi-ic ic--violet"><lucide-icon [img]="icons.Database" [size]="30"></lucide-icon></span>
-      <span class="io-kpi-body"><span class="io-kpi-label">Data Freshness</span><strong>{{ k.freshness }}%</strong></span>
-      <span *ngIf="k.freshnessChange !== null" class="io-kpi-side"><b [class.up]="k.freshnessChange >= 0" [class.down]="k.freshnessChange < 0">
+      <span class="io-kpi-body"><span class="io-kpi-label">Data Freshness</span><strong *ngIf="tagData" [class.io-stale]="freshnessStale" [title]="freshnessStale ? 'Older than the Online threshold (10 min)' : 'Newest reading, within the Online threshold (10 min)'">{{ freshnessLabel }}</strong><strong *ngIf="!tagData">{{ k.freshness }}%</strong></span>
+      <span *ngIf="tagData" class="io-kpi-side"><b [class.up]="!freshnessStale" [class.down]="freshnessStale">{{ freshnessStale ? 'Stale' : 'Live' }}</b><small>newest reading · Online ≤ 10 min</small></span>
+      <span *ngIf="!tagData && k.freshnessChange !== null" class="io-kpi-side"><b [class.up]="k.freshnessChange >= 0" [class.down]="k.freshnessChange < 0">
         <lucide-icon [img]="k.freshnessChange >= 0 ? icons.ArrowUp : icons.ArrowDown" [size]="14"></lucide-icon>{{ k.freshnessChange >= 0 ? '+' : '' }}{{ k.freshnessChange }}%</b><small>within SLA</small></span>
     </div>
   </ng-container>

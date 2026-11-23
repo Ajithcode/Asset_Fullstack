@@ -199,6 +199,27 @@ export interface InspectionRecord {
   isDeleted: boolean;
 }
 
+/** A tag of GET {tracking}api/real-time-location/tags (fields the dashboard uses). */
+export interface RealTimeTag {
+  tagId: string;
+  gatewayId: string;
+  gatewayName: string | null;
+  /** Newest reading of the tag (UTC). */
+  timestamp: string;
+  /** Online (status online, heard within 10 min), Idle (older) or Offline (status not online). */
+  connection: string;
+  siteName: string | null;
+  asset: { assetRegistrationId: string; assetTag: string | null; assetName: string | null; assetType: string | null; status: string | null } | null;
+}
+
+/** Response of GET {tracking}api/real-time-location/tags: each tag's newest reading in the window, newest first. */
+export interface RealTimeTags {
+  total: number;
+  online: number;
+  withAsset: number;
+  tags: RealTimeTag[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class ModuleWidgetsApi {
   private readonly http = inject(HttpClient);
@@ -211,6 +232,11 @@ export class ModuleWidgetsApi {
   /** GET {tracking}api/real-time-location/overview: tracked assets with movement, freshness and zone. */
   getRealTimeOverview(): Observable<RealTimeOverview> {
     return this.http.get<RealTimeOverview>(`${environment.trackingApiUrl}api/real-time-location/overview`);
+  }
+
+  /** GET {tracking}api/real-time-location/tags?minutes=: tags heard in the window (same data as the Real-Time Location page). */
+  getRealTimeTags(minutes = 1440): Observable<RealTimeTags> {
+    return this.http.get<RealTimeTags>(`${environment.trackingApiUrl}api/real-time-location/tags`, { params: new HttpParams().set('minutes', minutes) });
   }
 
   /** GET {maintenance}api/work-orders: every work order. */
