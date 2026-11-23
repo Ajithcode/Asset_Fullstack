@@ -315,7 +315,22 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   /** Floor plan zones (drawn in Maps & Floor Plans) that alert rules can watch: "zone:{id}". */
-  mapZoneRuleTargets: { id: string; label: string; gateways: number }[] = [];
+  mapZoneRuleTargets: { id: string; label: string; floor: string; gateways: number }[] = [];
+  /** "Configure Geofence": the rule dialog limited to existing Maps & Floor Plans zones (picked by id, grouped by floor). */
+  configureMode = false;
+
+  /** Indoor zone targets grouped by floor, for the zone picker. */
+  get mapZoneGroups(): { floor: string; zones: { id: string; label: string; gateways: number }[] }[] {
+    const by = new Map<string, { id: string; label: string; gateways: number }[]>();
+    for (const t of this.mapZoneRuleTargets) by.set(t.floor, [...(by.get(t.floor) ?? []), t]);
+    return [...by.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([floor, zones]) => ({ floor, zones }));
+  }
+
+  /** Configure Geofence: pick an existing zone and set its monitoring rule (zones are created in Maps & Floor Plans). */
+  openConfigure(): void {
+    this.openRule(undefined, this.mapZoneRuleTargets.some((t) => t.id === this.selectedId) ? this.selectedId : this.mapZoneRuleTargets[0]?.id ?? '');
+    this.configureMode = true;
+  }
 
   /** The rule dialog's floor zone has no gateway plotted in it: it can never raise alerts. */
   get ruleZoneWithoutGateway(): boolean {
@@ -328,13 +343,13 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     if (!list.length) return;
     const perPlan$ = list.map((p) => forkJoin({ zones: this.floorApi.zones(p.id).pipe(catchError(() => of<PlanZone[]>([]))), plots: this.floorApi.plots(p.id).pipe(catchError(() => of<PlanPlot[]>([]))) }));
     forkJoin(perPlan$).subscribe((perPlan) => {
-      const targets: { id: string; label: string; gateways: number }[] = [];
+      const targets: { id: string; label: string; floor: string; gateways: number }[] = [];
       perPlan.forEach(({ zones, plots }, i) => {
         const floor = floors.find((f) => f.id === list[i].locationId)?.label ?? list[i].name;
         for (const z of zones) {
           // live alerts need a gateway (device) plotted inside the zone
           const gateways = plots.filter((p) => p.kind === 'device' && p.zoneId === z.id).length;
-          targets.push({ id: MAP_ZONE_PREFIX + z.id, label: `${z.name} (${z.code}) · ${floor}${gateways ? '' : ' — no gateway'}`, gateways });
+          targets.push({ id: MAP_ZONE_PREFIX + z.id, label: `${z.name} (${z.code})${gateways ? '' : ' — no gateway'}`, floor, gateways });
         }
       });
       this.mapZoneRuleTargets = targets.sort((a, b) => a.label.localeCompare(b.label));
@@ -1176,6 +1191,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   openRule(r?: Rule, zoneId?: string): void {
+    this.configureMode = false;
     this.menuOpen = '';
     this.formError = '';
     // New rule: the zone asked for, else the selected / viewed zone
