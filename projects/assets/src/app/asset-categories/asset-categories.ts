@@ -63,7 +63,7 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { Observable, finalize, forkJoin } from 'rxjs';
+import { Observable, finalize } from 'rxjs';
 import {
   AssetCategory, AssetCategoryAttribute, AssetCategoryCustomField, AssetCategoryService, CATEGORY_FIELD_TYPES, CategoryFieldType,
   CategoryStatus,
@@ -202,7 +202,6 @@ export class AssetCategories {
   subSortDir: 'asc' | 'desc' | null = null;
   page = 1;
   pageSize = 10;
-  selectedRows = new Set<string>();
   openMenuId: string | null = null;
 
   // Add-category modal
@@ -253,7 +252,6 @@ export class AssetCategories {
           }
           if (this.selectedId) this.lineage(this.selectedId).slice(0, -1).forEach((a) => this.expanded.add(a.id));
           [...this.expanded].forEach((id) => !this.find(id) && this.expanded.delete(id));
-          [...this.selectedRows].forEach((id) => !this.find(id) && this.selectedRows.delete(id));
         },
         error: (err) => (this.loadError = this.api.errorMessage(err, 'Could not load asset categories.')),
       });
@@ -372,7 +370,6 @@ export class AssetCategories {
     this.activeTab = 'subcategories';
     this.subSearch = '';
     this.page = 1;
-    this.selectedRows.clear();
   }
 
   /** Nodes to render while searching: matches plus the ancestors needed to reach them. */
@@ -435,7 +432,6 @@ export class AssetCategories {
       wasSelected ? parent?.id : undefined,
       () => {
         this.closeDelete();
-        this.selectedRows.delete(target.id);
         if (wasSelected) this.selectedId = parent?.id ?? null;
       },
     );
@@ -612,42 +608,6 @@ export class AssetCategories {
   get subSortIcon() {
     if (!this.subSortDir) return this.icons.ChevronsUpDown;
     return this.subSortDir === 'asc' ? this.icons.ChevronUp : this.icons.ChevronDown;
-  }
-
-  get allOnPageSelected(): boolean {
-    return this.pageSubs.length > 0 && this.pageSubs.every((r) => this.selectedRows.has(r.id));
-  }
-
-  get someOnPageSelected(): boolean {
-    return !this.allOnPageSelected && this.pageSubs.some((r) => this.selectedRows.has(r.id));
-  }
-
-  toggleAllOnPage(): void {
-    const selectAll = !this.allOnPageSelected;
-    for (const r of this.pageSubs) {
-      if (selectAll) this.selectedRows.add(r.id);
-      else this.selectedRows.delete(r.id);
-    }
-  }
-
-  toggleRow(id: string): void {
-    if (this.selectedRows.has(id)) this.selectedRows.delete(id);
-    else this.selectedRows.add(id);
-  }
-
-  /** PUT each checked subcategory with the new status. */
-  setStatusForSelected(status: CategoryStatus): void {
-    const rows = (this.selected?.children ?? []).filter((c) => this.selectedRows.has(c.id) && c.status !== status);
-    if (!rows.length || this.saving) {
-      this.selectedRows.clear();
-      return;
-    }
-    this.write(
-      forkJoin(rows.map((c) => this.api.update(c.id, { ...this.api.toUpdateRequest(c.record), status }))),
-      (saved) => `${saved.length} subcategor${saved.length === 1 ? 'y' : 'ies'} marked ${status.toLowerCase()}.`,
-      undefined,
-      () => this.selectedRows.clear(),
-    );
   }
 
   toggleStatus(n: CategoryNode): void {
