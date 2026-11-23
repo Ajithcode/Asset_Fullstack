@@ -13,8 +13,11 @@ namespace NetworkServer.Services;
 /// Only tags listed in {Aggregation:AllowedTags} are kept (an empty or missing list keeps every tag); a gateway
 /// with no allowed tags in the window writes nothing. Repeaters ({Aggregation:RepeaterTags}) are written as gateways
 /// of their own, holding the tags they relay (see Add).
-/// Each message is written to the time-series collection (see TimeSeriesWriter) and added to the Redis stream
-/// (see RedisStreamPublisher).
+/// Each message is added to the Redis stream (see RedisStreamPublisher), from which the worker writes the final
+/// documents. For cross-checking, the time-series collection (see TimeSeriesWriter) instead gets every tag heard in
+/// the window, ignoring AllowedTags (repeaters also as a tag of the gateway that heard them), one document per tag in
+/// the same final layout:
+///   { timestamp, meta: { gatewayid, tagid }, rssi, battery, status, raw, device_trigger, coordinates, time }
 /// </summary>
 public class TagAggregator : BackgroundService
 {
@@ -24,6 +27,7 @@ public class TagAggregator : BackgroundService
 
     private readonly object _lock = new();
     private Dictionary<GroupKey, Dictionary<string, JsonObject>> _window = new(); // gateway -> tagid -> closest tag
+    private Dictionary<GroupKey, Dictionary<string, JsonObject>> _allWindow = new(); // same, but every tag (not filtered)
     // Tags only send their battery in some frames, so the last known value is kept across windows.
     private readonly Dictionary<string, int> _lastBattery = new(); // tagid -> battery %
     // Messages whose insert / publish failed, retried next window.
@@ -71,6 +75,7 @@ public class TagAggregator : BackgroundService
                     continue;
                 }
 
+                BufferAllTag(new GroupKey(batch.Kind, batch.GatewayId, source, deviceId, topic), tagId, tag);
                 var repeaterKey = new GroupKey("repeater", tagId, source, null, null);
                 foreach (var relayed in RepeaterPayload.RelayedTags(tag))
                 {
@@ -86,6 +91,7 @@ public class TagAggregator : BackgroundService
     private int BufferTag(GroupKey key, JsonObject tag)
     {
         var tagId = GatewayPayload.TagId(tag);
+        BufferAllTag(key, tagId, tag);
         if (_allowedTags.Count > 0 && !_allowedTags.Contains(tagId))
             return 0;
 
@@ -99,6 +105,36 @@ public class TagAggregator : BackgroundService
         best["batterypercentage"] = _lastBattery.TryGetValue(tagId, out var last) ? last : null;
         return 1;
     }
+
+    // Same closest-per-window rule as BufferTag, for every tag (cross-check copy). Phones rotate their mac, so the
+    // last-battery memory is only read here, never grown. Caller holds _lock.
+    private void BufferAllTag(GroupKey key, string tagId, JsonObject tag)
+    {
+        if (!_allWindow.TryGetValue(key, out var bestByTag))
+            _allWindow[key] = bestByTag = new();
+        if (bestByTag.TryGetValue(tagId, out var best) && GatewayPayload.Rssi(tag) <= GatewayPayload.Rssi(best))
+            return;
+        var copy = (JsonObject)tag.DeepClone();
+        if (GatewayPayload.Battery(copy) is null && _lastBattery.TryGetValue(tagId, out var last))
+            copy["batterypercentage"] = last;
+        bestByTag[tagId] = copy;
+    }
+
+    private static BsonDocument ToTagDocument(DateTime timestamp, string gatewayId, JsonObject tag) => new()
+    {
+        { "_id", ObjectId.GenerateNewId() },
+        { "timestamp", timestamp },
+        { "meta", new BsonDocument { { "gatewayid", gatewayId }, { "tagid", GatewayPayload.TagId(tag) } } },
+        { "rssi", MongoMessageStore.ToBson(tag["rssi"]) },
+        { "battery", MongoMessageStore.ToBson(tag["batterypercentage"]) },
+        { "status", MongoMessageStore.ToBson(tag["status"]) },
+        { "raw", MongoMessageStore.ToBson(tag["raw"]) },
+        { "device_trigger", MongoMessageStore.ToBson(tag["device_trigger"]) },
+        { "coordinates", MongoMessageStore.ToBson(tag["coordinates"]) },
+        { "time", DateTime.TryParse((string?)tag["time"], System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal,
+            out var time) ? (BsonValue)time : BsonNull.Value },
+    };
 
     // Relay frames usually carry only the last bytes of a tag's mac ("6206"); complete it from the allowed tags
     // when exactly one of them ends with it, otherwise keep it as is.
@@ -126,11 +162,13 @@ public class TagAggregator : BackgroundService
 
     private async Task FlushAsync(CancellationToken ct)
     {
-        Dictionary<GroupKey, Dictionary<string, JsonObject>> window;
+        Dictionary<GroupKey, Dictionary<string, JsonObject>> window, allWindow;
         lock (_lock)
         {
             window = _window;
             _window = new();
+            allWindow = _allWindow;
+            _allWindow = new();
         }
 
         var receivedAt = DateTime.UtcNow;
@@ -159,13 +197,16 @@ public class TagAggregator : BackgroundService
                 Raw = json,
                 Data = MongoMessageStore.ToBson(data),
             };
-            _unsentTimeSeries.Add(TimeSeriesWriter.ToDocument(message, key.GatewayId));
             _unpublished.Add(message);
         }
 
-        if (window.Count > 0)
-            _logger.LogInformation("Window closed: {Gateways} gateway messages, {Tags} unique tags",
-                window.Count, window.Values.Sum(tags => tags.Count));
+        foreach (var (key, bestByTag) in allWindow)
+            foreach (var tag in bestByTag.Values.OrderByDescending(GatewayPayload.Rssi))
+                _unsentTimeSeries.Add(ToTagDocument(receivedAt, key.GatewayId, tag));
+
+        if (allWindow.Count > 0)
+            _logger.LogInformation("Window closed: {Gateways} gateway messages, {Tags} allowed tags, {AllTags} tags in all",
+                window.Count, window.Values.Sum(tags => tags.Count), allWindow.Values.Sum(tags => tags.Count));
 
         await WriteAsync(_timeSeries.Collection, _unsentTimeSeries, "time-series documents", ct, _timeSeries.EnsureAsync);
         await PublishAsync();

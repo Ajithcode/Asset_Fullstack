@@ -4,7 +4,7 @@ namespace NetworkServer.Services;
 
 /// <summary>
 /// A parsed BLE gateway message. Kind is the incoming layout ("report" or "gateway"); Tags are already in the
-/// stored layout {tagid, rssi, raw, batterypercentage, device_trigger, status}.
+/// stored layout {tagid, rssi, raw, batterypercentage, device_trigger, status, time}.
 /// </summary>
 public record GatewayBatch(string Kind, string GatewayId, List<JsonObject> Tags);
 
@@ -77,9 +77,19 @@ public static class GatewayPayload
                 ["batterypercentage"] = item["batterypercentage"]?.DeepClone() ?? BatteryFromRaw(raw),
                 ["device_trigger"] = Str(item["device_trigger"]),
                 ["status"] = Str(item["status"]) ?? "online", // it was just seen by the gateway
+                ["time"] = Time(item["time"]),
             });
         }
         return tags;
+    }
+
+    // Scan time sent by the gateway as Unix seconds (or milliseconds) -> "2026-11-23T05:31:18.000Z"; null if absent.
+    private static string? Time(JsonNode? node)
+    {
+        if (node is not JsonValue v || !v.TryGetValue<double>(out var t) || t <= 0)
+            return null;
+        var ms = t > 1e12 ? (long)t : (long)(t * 1000);
+        return DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'");
     }
 
     // "c3:00:00:9a:af:45" -> "c300009aaf45"

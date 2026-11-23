@@ -25,6 +25,7 @@ builder.Services.AddSingleton<TagAggregator>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TagAggregator>());
 builder.Services.AddSingleton<MongoMessageStore>();
 builder.Services.AddHostedService<MqttBrokerService>();
+builder.Services.AddHostedService<MqttBridgeService>();
 
 var app = builder.Build();
 

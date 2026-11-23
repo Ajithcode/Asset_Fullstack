@@ -38,6 +38,8 @@ public static class RepeaterPayload
             if (adv[i + 1] == 0xFF && data.Length >= 5 && data[0] == 0x39 && data[1] == 0x06 && data[2] == 0xD1)
                 ReadTlvs(data[3..], raw, tags);
         }
+        foreach (var tag in tags)
+            tag["time"] = repeater["time"]?.DeepClone(); // relayed in the repeater's advertisement, so heard then
         return tags;
     }
 
