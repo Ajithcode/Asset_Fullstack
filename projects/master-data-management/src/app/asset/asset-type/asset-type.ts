@@ -56,6 +56,7 @@ export class AssetTypePage implements OnInit {
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   ngOnInit(): void {
+    this.service.loadCategories();
     this.service.reload().subscribe({
       next: (list) => {
         if (!this.service.find(this.selectedCode)) this.selectedCode = list[0]?.code ?? null;

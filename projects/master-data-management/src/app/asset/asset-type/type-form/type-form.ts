@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Plus, Trash2, X } from 'lucide-angular';
 import { CURRENCIES } from '../../../organization/organization/organization.data';
@@ -62,7 +62,7 @@ const TAB_OF: Record<FieldKey, TypeFormTab> = {
     '../../../shared/styles/mdm-purple-theme.css'
   ]
 })
-export class TypeForm implements OnChanges {
+export class TypeForm implements OnChanges, OnInit {
   // 'edit' changes `type`; 'add' creates a new one, pre-filled from `type` if given (Duplicate)
   @Input() mode: 'add' | 'edit' = 'add';
   @Input() type: AssetTypeRecord | null = null;
@@ -93,6 +93,11 @@ export class TypeForm implements OnChanges {
   newSubcategory = '';
   errors: Partial<Record<FieldKey, string>> = {};
   private original: AssetTypeRecord | null = null;
+
+  ngOnInit(): void {
+    // The category store otherwise stays empty when the form is opened before another page loaded it.
+    this.service.loadCategories();
+  }
 
   ngOnChanges(): void {
     this.original = this.mode === 'edit' ? this.type : null;
