@@ -1,0 +1,254 @@
+<div class="mdm-page">
+  <div class="mdm-main">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a [routerLink]="basePath">Master Data Management</a>
+      <span aria-hidden="true">›</span>
+      <a [routerLink]="basePath + '/asset'">Asset</a>
+      <span aria-hidden="true">›</span>
+      <strong>Asset Criticality Configuration</strong>
+    </nav>
+
+    <header class="head">
+      <span class="head__icon"><lucide-icon [img]="icons.SlidersHorizontal" [size]="24"></lucide-icon></span>
+      <div class="head__text">
+        <h1>Asset Criticality Configuration</h1>
+        <p>Score ranges, assessment criteria and templates, approval rules and review intervals used by Asset Criticality.</p>
+      </div>
+    </header>
+
+    @if (!canEdit) {
+      <p class="cc-note">You can view the configuration. Changing it needs approve access in Assets.</p>
+    }
+
+    <div class="cc-tabs" role="tablist">
+      @for (t of tabs; track t.key) {
+        <button type="button" role="tab" class="cc-tab" [class.is-active]="tab === t.key" [attr.aria-selected]="tab === t.key" (click)="select(t.key)">{{ t.label }}</button>
+      }
+    </div>
+
+    @if (error) {
+      <div class="cc-error" role="alert">{{ error }}</div>
+    }
+
+    <!-- ===================== Levels ===================== -->
+    @if (tab === 'levels') {
+      <section class="cc-card">
+        <p class="cc-help">
+          A level is chosen from the assessment score. Ranges must not overlap and must cover {{ 20 }}-{{ 100 }} without gaps.
+          Add or rename levels in <a [routerLink]="basePath + '/asset/criticality'">Criticality</a>.
+        </p>
+        <div class="table-wrap">
+          <table class="mdm-table">
+            <thead><tr><th>Order</th><th>Level</th><th>Code</th><th>Colour</th><th>Min score</th><th>Max score</th></tr></thead>
+            <tbody>
+              @for (l of scoreLevels; track l.id) {
+                <tr>
+                  <td><input class="cc-num" type="number" min="1" [(ngModel)]="l.order" [disabled]="!canEdit" aria-label="Order" /></td>
+                  <td><i class="swatch-dot name-dot" [style.background]="l.colour"></i>{{ l.criticalityName }}</td>
+                  <td>{{ l.code }}</td>
+                  <td><input type="color" [(ngModel)]="l.colour" [disabled]="!canEdit" aria-label="Colour" /></td>
+                  <td><input class="cc-num" type="number" min="0" max="100" [(ngModel)]="l.min" [disabled]="!canEdit" aria-label="Minimum score" /></td>
+                  <td><input class="cc-num" type="number" min="0" max="100" [(ngModel)]="l.max" [disabled]="!canEdit" aria-label="Maximum score" /></td>
+                </tr>
+              }
+              @if (!scoreLevels.length) {
+                <tr><td colspan="6" class="cc-empty">No level has a score range yet.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (rangeProblems.length) {
+          <ul class="cc-problems">
+            @for (p of rangeProblems; track p) { <li>{{ p }}</li> }
+          </ul>
+        } @else if (scoreLevels.length) {
+          <p class="cc-ok">Ranges are valid: {{ 20 }}-{{ 100 }} is fully covered.</p>
+        }
+        @if (canEdit) {
+          <div class="cc-actions">
+            <button type="button" class="btn btn--primary" [disabled]="busy || rangeProblems.length > 0" (click)="saveLevels()">Save levels</button>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- ===================== Criteria ===================== -->
+    @if (tab === 'criteria') {
+      <section class="cc-card">
+        <div class="cc-bar">
+          <p class="cc-help">Each criterion is rated 1-5 in an assessment. Its weight is set per template.</p>
+          @if (canEdit) {
+            <button type="button" class="btn btn--primary" (click)="newCriterion()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add Criterion</button>
+          }
+        </div>
+        @if (criterionForm; as f) {
+          <div class="cc-form">
+            <label>Name<input type="text" [(ngModel)]="f.name" maxlength="120" /></label>
+            <label>Code<input type="text" [(ngModel)]="f.code" maxlength="40" placeholder="Auto from name" /></label>
+            <label class="cc-wide">Description<input type="text" [(ngModel)]="f.description" maxlength="300" /></label>
+            <label class="cc-check"><input type="checkbox" [(ngModel)]="f.isActive" /> Active</label>
+            <div class="cc-actions">
+              <button type="button" class="btn btn--primary" [disabled]="busy" (click)="saveCriterion()">Save</button>
+              <button type="button" class="btn btn--ghost" (click)="criterionForm = null">Cancel</button>
+            </div>
+          </div>
+        }
+        <div class="table-wrap">
+          <table class="mdm-table">
+            <thead><tr><th>Name</th><th>Code</th><th>Description</th><th>Active</th>@if (canEdit) { <th></th> }</tr></thead>
+            <tbody>
+              @for (c of criteria; track c.id) {
+                <tr>
+                  <td>{{ c.name }}</td><td>{{ c.code }}</td><td>{{ c.description }}</td><td>{{ c.isActive ? 'Yes' : 'No' }}</td>
+                  @if (canEdit) {
+                    <td class="cc-row-actions">
+                      <button type="button" class="btn btn--link" (click)="editCriterion(c)">Edit</button>
+                      <button type="button" class="btn btn--link" (click)="deleteCriterion(c)">Delete</button>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    <!-- ===================== Templates ===================== -->
+    @if (tab === 'templates') {
+      <section class="cc-card">
+        <div class="cc-bar">
+          <p class="cc-help">A template lists criteria and weights; the weights must total exactly 100. Every save creates a new version; older versions are kept for existing assessments.</p>
+          @if (canEdit) {
+            <button type="button" class="btn btn--primary" (click)="newTemplate()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add Template</button>
+          }
+        </div>
+
+        @if (templateForm; as f) {
+          <div class="cc-form">
+            <label>Name<input type="text" [(ngModel)]="f.name" maxlength="120" /></label>
+            <label>Industry<input type="text" [(ngModel)]="f.industry" maxlength="120" /></label>
+            <label class="cc-wide">Description<input type="text" [(ngModel)]="f.description" maxlength="300" /></label>
+            <label class="cc-check"><input type="checkbox" [(ngModel)]="f.isDefault" /> Default template</label>
+            <div class="cc-wide">
+              <table class="mdm-table cc-rows">
+                <thead><tr><th>Criterion</th><th>Weight %</th><th></th></tr></thead>
+                <tbody>
+                  @for (r of f.rows; track $index) {
+                    <tr>
+                      <td>
+                        <select [(ngModel)]="r.criterionId">
+                          <option value="">Select a criterion</option>
+                          @for (c of usable(r); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+                          @if (r.criterionId && !activeCriteria.length) { <option [value]="r.criterionId">{{ r.criterionId }}</option> }
+                        </select>
+                      </td>
+                      <td><input class="cc-num" type="number" min="0" max="100" step="0.01" [(ngModel)]="r.weight" /></td>
+                      <td><button type="button" class="btn btn--link" (click)="removeRow($index)">Remove</button></td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td><button type="button" class="btn btn--link" (click)="addRow()">+ Add criterion</button></td>
+                    <td colspan="2" [class.cc-ok]="totalWeight === 100" [class.cc-bad]="totalWeight !== 100">Total {{ totalWeight }} / 100</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="cc-actions">
+              <button type="button" class="btn btn--primary" [disabled]="busy || totalWeight !== 100" (click)="saveTemplate()">{{ f.id ? 'Save as new version' : 'Save template' }}</button>
+              <button type="button" class="btn btn--ghost" (click)="templateForm = null">Cancel</button>
+            </div>
+            @if (f.id && versions.length) {
+              <p class="cc-help cc-wide">Versions of {{ versionsOf }}: @for (v of versions; track v.id) { <span class="cc-version" [class.is-latest]="v.isLatest">v{{ v.version }}{{ v.isLatest ? ' (current)' : '' }}</span> }</p>
+            }
+          </div>
+        }
+
+        <div class="table-wrap">
+          <table class="mdm-table">
+            <thead><tr><th>Template</th><th>Industry</th><th>Version</th><th>Criteria</th><th>Weights</th><th>Status</th>@if (canEdit) { <th></th> }</tr></thead>
+            <tbody>
+              @for (t of templates; track t.id) {
+                <tr>
+                  <td>{{ t.name }} @if (t.isDefault) { <span class="cc-badge">Default</span> }</td>
+                  <td>{{ t.industry }}</td>
+                  <td>v{{ t.version }}</td>
+                  <td>{{ t.criteria.length }}</td>
+                  <td>{{ t.totalWeight }}%</td>
+                  <td>{{ t.isActive ? 'Active' : 'Retired' }}</td>
+                  @if (canEdit) {
+                    <td class="cc-row-actions">
+                      <button type="button" class="btn btn--link" (click)="editTemplate(t)">Edit</button>
+                      @if (!t.isDefault && t.isActive) { <button type="button" class="btn btn--link" (click)="retireTemplate(t)">Retire</button> }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    <!-- ===================== Approval matrix ===================== -->
+    @if (tab === 'approvals') {
+      <section class="cc-card">
+        <p class="cc-help">Who approves an assessment, by the proposed level and when a level is lowered. Recorded now; applied when the approval workflow goes live.</p>
+        <div class="table-wrap">
+          <table class="mdm-table">
+            <thead><tr><th>Scenario</th><th>Permission</th><th>Roles</th><th>Type</th><th>Justification</th>@if (canEdit) { <th></th> }</tr></thead>
+            <tbody>
+              @for (r of rules; track r.id) {
+                <tr>
+                  <td>{{ r.label }}<br /><small>{{ r.description }}</small></td>
+                  <td>
+                    <select [(ngModel)]="r.approverPermission" [disabled]="!canEdit">
+                      <option value="assess">Assess (assessor)</option>
+                      <option value="approve">Approve</option>
+                    </select>
+                  </td>
+                  <td><input type="text" [(ngModel)]="r.rolesText" [disabled]="!canEdit" placeholder="Comma-separated role names" /></td>
+                  <td>
+                    <select [(ngModel)]="r.approvalType" [disabled]="!canEdit">
+                      <option value="Any">Any one</option>
+                      <option value="All">All</option>
+                    </select>
+                  </td>
+                  <td><input type="checkbox" [(ngModel)]="r.requiresJustification" [disabled]="!canEdit" aria-label="Requires justification" /></td>
+                  @if (canEdit) { <td><button type="button" class="btn btn--link" [disabled]="busy" (click)="saveRule(r)">Save</button></td> }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+
+    <!-- ===================== Reassessment ===================== -->
+    @if (tab === 'reassessment') {
+      <section class="cc-card">
+        <p class="cc-help">Default review interval per level. The next review date of an assessed asset is its assessment date plus this interval. Date-based only in this release.</p>
+        <div class="table-wrap">
+          <table class="mdm-table">
+            <thead><tr><th>Level</th><th>Review every (months)</th>@if (canEdit) { <th></th> }</tr></thead>
+            <tbody>
+              @for (r of reviews; track r.id) {
+                <tr>
+                  <td>{{ r.levelName }}</td>
+                  <td><input class="cc-num" type="number" min="1" max="120" [(ngModel)]="r.months" [disabled]="!canEdit" /></td>
+                  @if (canEdit) { <td><button type="button" class="btn btn--link" [disabled]="busy" (click)="saveReview(r)">Save</button></td> }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  </div>
+</div>
+
+@if (toast) {
+  <div class="toast" role="status">{{ toast }}</div>
+}

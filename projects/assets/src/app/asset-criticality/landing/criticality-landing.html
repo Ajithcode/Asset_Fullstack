@@ -33,6 +33,7 @@
           </span>
           <strong>{{ k.value | number }}</strong>
           <span class="acl-kpi-label">{{ k.label }}</span>
+          <span class="acl-kpi-range" *ngIf="k.range">{{ k.range }}</span>
         </button>
         <ng-container *ngIf="!kpis.length">
           <div *ngFor="let _ of [1, 2, 3, 4, 5, 6, 7, 8]" class="acl-kpi acl-kpi--loading" aria-hidden="true"></div>
