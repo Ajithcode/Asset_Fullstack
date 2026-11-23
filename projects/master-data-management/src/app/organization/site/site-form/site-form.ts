@@ -8,6 +8,7 @@ import { BusinessUnitService } from '../../business-unit/business-unit.service';
 import { DepartmentService } from '../../department/department.service';
 import { SITE_TYPES, SiteRecord, WEEK_DAYS } from '../site.model';
 import { SiteService } from '../site.service';
+import { StepOf, errorsOnStep, firstStepWithError } from '../../../shared/step-validation';
 
 export type SiteFormTab = 'basic' | 'address' | 'hierarchy' | 'contacts' | 'settings';
 type FieldKey = 'name' | 'code' | 'siteType' | 'image' | 'lat' | 'lng' | 'managerEmail' | 'emergencyEmail' | 'hours';
@@ -16,6 +17,9 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Right-hand "Add / Edit Site" panel. Emits the finished record; the page saves it. */
+/** Step (tab) that shows each field's error. */
+const STEP_OF: StepOf = (k) => k === 'lat' || k === 'lng' ? 'address' : k === 'managerEmail' || k === 'emergencyEmail' ? 'contacts' : k === 'hours' ? 'settings' : 'basic';
+
 @Component({
   selector: 'app-site-form',
   imports: [FormsModule, LucideAngularModule],
@@ -136,11 +140,6 @@ export class SiteForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a site name.';
@@ -153,17 +152,17 @@ export class SiteForm implements OnChanges {
     if (f.emergency.email.trim() && !EMAIL.test(f.emergency.email.trim())) errors.emergencyEmail = 'Enter a valid email address.';
     if (!f.open24x7 && f.openTime && f.closeTime && f.closeTime <= f.openTime) errors.hours = 'Closing time must be after opening time.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, STEP_OF, this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     // Show the first tab that has a problem
     const keys = Object.keys(errors);
     if (keys.length) {
-      this.tab = keys.some((k) => ['name', 'code', 'siteType', 'image'].includes(k))
-        ? 'basic'
-        : errors.lat || errors.lng
-          ? 'address'
-          : errors.managerEmail || errors.emergencyEmail
-            ? 'contacts'
-            : 'settings';
+      this.tab = firstStepWithError(errors, this.tabs, STEP_OF);
       return;
     }
 

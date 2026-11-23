@@ -9,6 +9,7 @@ import { TechnicianService } from '../../technician/technician.service';
 import { blankTeam } from '../team.data';
 import { TeamRecord } from '../team.model';
 import { TeamService } from '../team.service';
+import { StepOf, errorsOnStep, firstStepWithError } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'members' | 'roles' | 'settings';
 type FieldKey = 'name' | 'code' | 'department' | 'status' | 'members';
@@ -20,6 +21,9 @@ interface Person {
 }
 
 /** Right-hand "Add / Edit Team" panel. Emits the finished record; the page saves it. */
+/** Step (tab) that shows each field's error. */
+const STEP_OF: StepOf = (k) => (k === 'members' ? 'members' : 'basic');
+
 @Component({
   selector: 'app-team-form',
   imports: [FormsModule, LucideAngularModule],
@@ -127,11 +131,6 @@ export class TeamForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a team name.';
@@ -142,9 +141,15 @@ export class TeamForm implements OnChanges {
     if (!f.status) errors.status = 'Select a status.';
     if (f.status === 'Active' && !f.members.length) errors.members = 'An active team needs at least one member.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, STEP_OF, this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     if (Object.keys(errors).length) {
-      this.tab = errors.name || errors.code || errors.department || errors.status ? 'basic' : 'members';
+      this.tab = firstStepWithError(errors, this.tabs, STEP_OF);
       return;
     }
 

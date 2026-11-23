@@ -7,6 +7,7 @@ import { MODEL_ICONS, MODEL_ICON_KEYS } from '../../asset-model/asset-model.icon
 import { ASSET_CLASSES, CUSTOM_FIELD_TYPES, MAINTENANCE_TYPES, blankAssetType } from '../asset-type.data';
 import { AssetTypeRecord } from '../asset-type.model';
 import { AssetTypeService } from '../asset-type.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 /** A new asset type starts with every dropdown empty so the user picks each value. */
 function newAssetType(): AssetTypeRecord {
@@ -207,11 +208,6 @@ export class TypeForm implements OnChanges, OnInit {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter an asset type name.';
@@ -231,6 +227,12 @@ export class TypeForm implements OnChanges, OnInit {
     else if (new Set(names).size !== names.length) errors.customFields = 'Custom field names must be unique.';
     else if (f.customFields.some((c) => !c.type)) errors.customFields = 'Every custom field needs a type.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {

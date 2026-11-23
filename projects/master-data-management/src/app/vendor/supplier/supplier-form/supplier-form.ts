@@ -10,6 +10,7 @@ import { VENDOR_COUNTRIES } from '../../vendor.data';
 import { PAYMENT_TERMS, SUPPLIER_CATEGORIES, blankSupplier } from '../supplier.data';
 import { SupplierRecord } from '../supplier.model';
 import { SupplierService } from '../supplier.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'address' | 'products' | 'financial' | 'documents' | 'settings';
 
@@ -105,11 +106,6 @@ export class SupplierForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const code = this.original?.code ?? null;
     const errors = validateVendorBase(f, { code: this.service.isCodeTaken(f.code, code), name: this.service.isNameTaken(f.name, code) }, 'Supplier');
@@ -119,6 +115,12 @@ export class SupplierForm implements OnChanges {
     if (f.iban.trim() && !/^[A-Z]{2}\d{2}[A-Z0-9 ]{10,32}$/i.test(f.iban.trim())) errors['iban'] = 'Enter a valid IBAN, e.g. AE07 0331 2345 6789 0123 456.';
     if (!(f.rating >= 0 && f.rating <= 5)) errors['rating'] = 'Enter 0 to 5.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors);
     if (keys.length) {

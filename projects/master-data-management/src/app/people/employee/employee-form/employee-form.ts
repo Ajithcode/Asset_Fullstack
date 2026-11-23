@@ -9,6 +9,7 @@ import { TeamService } from '../../team/team.service';
 import { NATIONALITIES, blankEmployee } from '../employee.data';
 import { EmployeeRecord } from '../employee.model';
 import { EmployeeService } from '../employee.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 type FormTab = 'basic' | 'employment' | 'contact' | 'skills' | 'access';
 type FieldKey = 'id' | 'name' | 'department' | 'designation' | 'email' | 'photo' | 'status' | 'reportingManager' | 'certifications';
@@ -142,11 +143,6 @@ export class EmployeeForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const originalId = this.original?.id ?? null;
     const errors: Partial<Record<FieldKey, string>> = {};
@@ -162,6 +158,12 @@ export class EmployeeForm implements OnChanges {
     if (f.reportingManager && f.reportingManager === originalId) errors.reportingManager = 'An employee can’t report to themselves.';
     if (f.certifications.some((c) => !c.name.trim())) errors.certifications = 'Name every certification or remove the empty ones.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {

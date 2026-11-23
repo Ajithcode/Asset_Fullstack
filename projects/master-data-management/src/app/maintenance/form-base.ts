@@ -1,6 +1,7 @@
 import { Directive, EventEmitter, Input, OnChanges, Output } from '@angular/core';
 import { CodeStore } from '../shared/code-store';
 import { nowStamp } from '../people/people.data';
+import { StepOf, errorsOnStep } from '../shared/step-validation';
 
 /**
  * Add/edit drawer behaviour shared by the Maintenance masters: copy the record in, check the
@@ -57,11 +58,6 @@ export abstract class MasterForm<T extends { code: string; name: string; created
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Record<string, string> = {};
     if (!f.name.trim()) errors['name'] = 'Enter a name.';
@@ -69,13 +65,25 @@ export abstract class MasterForm<T extends { code: string; name: string; created
     if (!f.code.trim()) errors['code'] = 'Enter a code.';
     else if (this.store.isCodeTaken(f.code, this.original?.code ?? null)) errors['code'] = `${f.code.trim()} is already used.`;
     const extra = this.validate(f);
-    this.errors = { ...errors, ...extra.errors };
+    const first = this.tabs[0].id;
+    // Name and code are on the first step; the subclass says which step its own checks belong to
+    const stepOf: StepOf = (key) => (key in errors ? first : (extra.tab ?? first));
+    const all = { ...errors, ...extra.errors };
+
+    // Next: the mandatory fields of this step must be valid first
+    if (!this.isLastTab) {
+      this.errors = errorsOnStep(all, this.tab, stepOf, first);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
+
+    this.errors = all;
     if (Object.keys(errors).length) {
-      this.tab = this.tabs[0].id;
+      this.tab = first;
       return;
     }
     if (Object.keys(extra.errors).length) {
-      this.tab = extra.tab ?? this.tabs[0].id;
+      this.tab = extra.tab ?? first;
       return;
     }
 

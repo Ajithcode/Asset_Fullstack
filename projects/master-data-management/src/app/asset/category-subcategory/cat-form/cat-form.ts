@@ -9,6 +9,7 @@ import { HEX_COLOR } from '../../level-icons';
 import { CATEGORY_TYPE_DEFAULTS, blankCategory } from '../category.data';
 import { CategoryRecord } from '../category.model';
 import { CategoryService } from '../category.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 /** A new category starts with every dropdown empty so the user picks each value. */
 function newCategory(): CategoryRecord {
@@ -176,11 +177,6 @@ export class CatForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a category name.';
@@ -196,6 +192,12 @@ export class CatForm implements OnChanges {
     else if (new Set(names).size !== names.length) errors.customFields = 'Custom field names must be unique.';
     else if (f.customFields.some((c) => !c.type)) errors.customFields = 'Every custom field needs a type.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {

@@ -5,10 +5,14 @@ import { nowStamp } from '../../../people/people.data';
 import { BIN_TYPES, blankBin } from '../../inventory.data';
 import { BinRecord } from '../../inventory.model';
 import { BinService, StoreService } from '../../inventory.service';
+import { StepOf, errorsOnStep, firstStepWithError } from '../../../shared/step-validation';
 
 type Tab = 'basic' | 'settings';
 
 /** Right-hand "Add / Edit Bin" panel. Bins are named by their code, e.g. 001-A1. */
+/** Step (tab) that shows each field's error. */
+const STEP_OF: StepOf = () => 'basic';
+
 @Component({
   selector: 'app-bin-form',
   imports: [FormsModule, LucideAngularModule],
@@ -79,11 +83,6 @@ export class BinForm implements OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Record<string, string> = {};
     if (!f.storeCode) errors['storeCode'] = 'Select a store.';
@@ -92,6 +91,12 @@ export class BinForm implements OnChanges {
     else if (this.service.isCodeTaken(f.code, this.original?.code ?? null)) errors['code'] = `${f.code.trim()} is already used.`;
     if (f.capacity !== null && !(f.capacity > 0)) errors['capacity'] = 'Enter a capacity greater than 0.';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, STEP_OF, this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
     if (Object.keys(errors).length) {
       this.tab = 'basic';
       return;

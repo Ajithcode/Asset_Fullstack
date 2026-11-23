@@ -23,6 +23,7 @@ function newAssetModel(): AssetModelRecord {
   };
 }
 import { AssetModelService } from '../asset-model.service';
+import { errorsOnStep } from '../../../shared/step-validation';
 
 export type ModelFormTab = 'basic' | 'specs' | 'lifecycle' | 'financial' | 'defaults';
 type FieldKey =
@@ -272,11 +273,6 @@ export class ModelForm implements OnInit, OnChanges {
   }
 
   submit(): void {
-    // Enter key / primary button on earlier tabs just advances
-    if (!this.isLastTab) {
-      this.next();
-      return;
-    }
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
     if (!f.name.trim()) errors.name = 'Enter a model name.';
@@ -296,6 +292,12 @@ export class ModelForm implements OnInit, OnChanges {
     if (!f.taggingFormat.trim()) errors.taggingFormat = 'Enter a tagging format.';
     else if (!hasRunningNumber(f.taggingFormat)) errors.taggingFormat = 'Include a running number, e.g. (0000).';
     this.errors = errors;
+    if (!this.isLastTab) {
+      // Next: the mandatory fields of this step must be valid first
+      this.errors = errorsOnStep(errors, this.tab, (k) => TAB_OF[k as keyof typeof TAB_OF], this.tabs[0].id);
+      if (!Object.keys(this.errors).length) this.next();
+      return;
+    }
 
     const keys = Object.keys(errors) as FieldKey[];
     if (keys.length) {
