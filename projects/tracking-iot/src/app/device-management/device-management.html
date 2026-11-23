@@ -233,6 +233,7 @@
 <!-- Row actions (fixed so the table's scroll box never clips it) -->
 <div *ngIf="menuDevice as m" class="menu" role="menu" [style.top.px]="menuPos.top" [style.left.px]="menuPos.left" (click)="$event.stopPropagation()">
   <button type="button" role="menuitem" (click)="select(m)">View details</button>
+  <button type="button" role="menuitem" (click)="openEdit(m)">Edit device</button>
   <button type="button" role="menuitem" (click)="configure(m)">Configure</button>
   <button *ngIf="!m.asset" type="button" role="menuitem" (click)="openLink(m)">Link asset</button>
   <button *ngIf="m.asset" type="button" role="menuitem" (click)="openLink(m)">Change linked asset</button>
@@ -244,13 +245,13 @@
 <!-- ===== Add device ===== -->
 <div *ngIf="dlg('add') as dl" class="overlay" (click)="dialog = null">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dv-add" (click)="$event.stopPropagation()">
-    <div class="modal-head"><h2 id="dv-add">Add Device</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
+    <div class="modal-head"><h2 id="dv-add">{{ dl.editId ? 'Edit Device' : 'Add Device' }}</h2><button type="button" class="icon-btn" (click)="dialog = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button></div>
     <form class="modal-body" (ngSubmit)="saveAdd()">
       <div class="two">
         <label class="field"><span class="field-label">Device type</span><select class="control" [(ngModel)]="dl.f.type" name="type" (ngModelChange)="onAddType(dl.f)"><option value="" disabled>Select Device Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
         <label class="field"><span class="field-label">Model</span><select class="control" [(ngModel)]="dl.f.model" name="model" (ngModelChange)="onAddModel(dl.f)"><option value="" disabled>Select Model</option><option *ngFor="let m of modelsFor(dl.f.type)" [value]="m">{{ m }}</option></select></label>
         <label class="field"><span class="field-label">Device name <em>*</em></span><input class="control" [(ngModel)]="dl.f.name" name="name" /></label>
-        <label class="field"><span class="field-label">Device ID <em>*</em></span><input class="control" [(ngModel)]="dl.f.id" name="id" placeholder="e.g. BL-29901" /></label>
+        <label class="field"><span class="field-label">Device ID <em>*</em></span><input class="control" [(ngModel)]="dl.f.id" name="id" placeholder="e.g. BL-29901" [disabled]="!!dl.editId" [attr.title]="dl.editId ? 'The device ID cannot be changed' : null" /></label>
         <label class="field"><span class="field-label">Serial number <em>*</em></span><input class="control" [(ngModel)]="dl.f.serial" name="serial" placeholder="e.g. SN-BL-29901" /></label>
         <label class="field"><span class="field-label">Connectivity</span><select class="control" [(ngModel)]="dl.f.protocol" name="proto"><option value="" disabled>Select Connectivity</option><option *ngFor="let p of protocols" [value]="p">{{ p }}</option></select></label>
         <label class="field"><span class="field-label">Site</span><select class="control" [(ngModel)]="dl.f.site" name="site" (ngModelChange)="onAddSite(dl.f)"><option value="">Select Site</option><option *ngFor="let s of sites" [value]="s.name">{{ s.name }}</option></select></label>
@@ -263,7 +264,7 @@
         </select>
         <small class="muted">{{ assetOptions.length ? 'Registered assets: name - asset ID.' : 'No registered assets found.' }}</small></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Add Device</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">{{ dl.editId ? 'Save Changes' : 'Add Device' }}</button></div>
     </form>
   </div>
 </div>
