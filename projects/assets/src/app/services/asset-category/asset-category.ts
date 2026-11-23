@@ -64,7 +64,8 @@ export interface CreateAssetCategoryRequest {
   name: string;
   code: string;
   description: string | null;
-  status: CategoryStatus;
+  /** Omitted: the API creates the category as Active. */
+  status?: CategoryStatus;
   createdBy?: string | null;
   clientId?: string | null;
   tenantId?: string | null;

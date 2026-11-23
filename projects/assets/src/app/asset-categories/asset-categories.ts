@@ -199,7 +199,6 @@ export class AssetCategories {
 
   // Subcategories table
   subSearch = '';
-  subStatus: '' | CategoryStatus = '';
   subSortDir: 'asc' | 'desc' | null = null;
   page = 1;
   pageSize = 10;
@@ -372,7 +371,6 @@ export class AssetCategories {
     this.lineage(n.id).slice(0, -1).forEach((a) => this.expanded.add(a.id));
     this.activeTab = 'subcategories';
     this.subSearch = '';
-    this.subStatus = '';
     this.page = 1;
     this.selectedRows.clear();
   }
@@ -412,7 +410,6 @@ export class AssetCategories {
     if (!form.name.trim()) return 'Category name is required.';
     if (!form.code.trim()) return 'Category code is required.';
     if (this.isCodeTaken(form.code, exceptId)) return `Code "${form.code.trim().toUpperCase()}" is already used by another category.`;
-    if (!form.status) return 'Status is required.';
     return null;
   }
 
@@ -533,7 +530,7 @@ export class AssetCategories {
       name: f.name.trim(),
       code: f.code.trim().toUpperCase(),
       description: f.description.trim() || null,
-      status: f.status as CategoryStatus,
+      // No status field: new categories get the backend default (Active), edits keep the stored status.
     };
 
     const editing = this.modalEditNode;
@@ -570,8 +567,7 @@ export class AssetCategories {
     const q = this.subSearch.trim().toLowerCase();
     let rows = (this.selected?.children ?? []).filter(
       (c) =>
-        (!q || [c.name, c.code, c.description].some((v) => v.toLowerCase().includes(q))) &&
-        (!this.subStatus || c.status === this.subStatus),
+        !q || [c.name, c.code, c.description].some((v) => v.toLowerCase().includes(q)),
     );
     if (this.subSortDir) {
       const dir = this.subSortDir === 'asc' ? 1 : -1;
