@@ -241,10 +241,11 @@
       </div>
       <ul class="locate-list">
         <li *ngFor="let a of locateRows; trackBy: byAsset" (click)="locate(a)">
-          <input type="checkbox" class="loc-chk" [checked]="locateSel.has(a.assetId)" (click)="$event.stopPropagation()" (change)="toggleLocateSel(a.assetId)" [attr.aria-label]="'Select ' + a.name" />
+          <input type="checkbox" class="loc-chk" [checked]="locateSel.has(a.assetId)" [disabled]="!hasLocation(a)" (click)="$event.stopPropagation()" (change)="toggleLocateSel(a.assetId)" [attr.aria-label]="'Select ' + a.name" [attr.title]="hasLocation(a) ? null : 'No current location: ' + noLocationReason(a)" />
           <span class="dot" [ngClass]="freshClass(a.freshness)"></span>
           <span class="grow min0"><b>{{ a.name }}</b><small>{{ a.assetId }}<ng-container *ngIf="a.assetTag"> · {{ a.assetTag }}</ng-container> · {{ a.tags.join(', ') }}</small></span>
-          <small class="muted">{{ a.location?.zoneName || 'No location' }}</small>
+          <small *ngIf="hasLocation(a); else noLoc" class="muted">{{ a.location?.zoneName }}</small>
+          <ng-template #noLoc><span class="loc-badge" [title]="noLocationReason(a)">No location<small>{{ noLocationReason(a) }}</small></span></ng-template>
           <button type="button" class="icon-btn loc-live loc-signal" [class.is-on]="signalling?.assetId === a.assetId" (click)="$event.stopPropagation(); openSignal(a)"
             [title]="'Blink LED / buzzer on ' + a.name" [attr.aria-label]="'Blink LED or buzzer on ' + a.name">
             <lucide-icon [img]="icons.Lightbulb" [size]="17"></lucide-icon></button>
