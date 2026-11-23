@@ -133,7 +133,7 @@
         <table *ngIf="view === 'audit'" class="dt dt--tm dt--audit">
           <thead><tr><th>When</th><th>Tag ID</th><th>Event</th><th>Details</th><th>Performed By</th></tr></thead>
           <tbody>
-            <tr *ngFor="let r of pageAudit" [class.is-selected]="selected?.id === r.tag.id" (click)="select(r.tag)" (keydown.enter)="select(r.tag)" tabindex="0">
+            <tr *ngFor="let r of pageAudit" [class.is-selected]="selected?.id === r.tag.id" (click)="r.known !== false && select(r.tag)" (keydown.enter)="r.known !== false && select(r.tag)" tabindex="0">
               <td class="nowrap">{{ fmtWhen(r.at) }}</td>
               <td><span class="tag-id">{{ r.tag.id }}</span></td>
               <td><span class="ev" [ngClass]="eventClass(r.kind)">{{ r.kind }}</span></td>

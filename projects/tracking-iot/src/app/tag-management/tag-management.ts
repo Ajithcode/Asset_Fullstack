@@ -54,12 +54,12 @@ import {
   Zap,
 } from 'lucide-angular';
 import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, tagIdFromNumber } from './tag-data';
-import { TagIdApiService, TagSummary, apiType, pageType } from './tag-id-api.service';
+import { TagAuditEventDto, TagIdApiService, TagSummary, apiType, pageType } from './tag-id-api.service';
 
 /** Tag IDs = the identifier registry; Assignments = lifecycle of each tag on assets; Audit = every change. */
 type View = 'ids' | 'assignments' | 'audit';
 type SortKey = 'activity' | 'id' | 'registered' | 'assigned' | 'lastSeen';
-type EventKind = 'Registered' | 'Assigned' | 'Unassigned' | 'Reassigned' | 'Replaced' | 'Deactivated' | 'Reactivated' | 'Validated' | 'Edited' | 'Read';
+type EventKind = 'Registered' | 'Assigned' | 'Unassigned' | 'Reassigned' | 'Replaced' | 'Deactivated' | 'Reactivated' | 'Validated' | 'Edited' | 'Read' | 'Deleted';
 type Dialog =
   | { kind: 'register'; tech: Tech; type: TagType; number: string; code: string; site: string; location: string; asset: string }
   | { kind: 'edit'; tagId: string; type: TagType; code: string }
@@ -82,7 +82,8 @@ interface ImportRow {
   error: string;
 }
 
-interface AuditRow { at: number; tag: TagId; text: string; by: string; kind: EventKind }
+/** known = the tag is still in the list (a deleted tag's events stay in the trail but can't be opened). */
+interface AuditRow { at: number; tag: TagId; text: string; by: string; kind: EventKind; known?: boolean }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const TECH_ALIASES: Record<string, Tech> = {
@@ -91,7 +92,7 @@ const TECH_ALIASES: Record<string, Tech> = {
 const TECH_LONG: Record<Tech, string> = {
   Barcode: 'Barcode (1D)', 'QR Code': 'QR Code (2D)', 'Passive RFID': 'Passive RFID (UHF)', 'Active RFID': 'Active RFID', BLE: 'BLE (Bluetooth Low Energy)', NFC: 'NFC (Near Field Communication)',
 };
-const EVENT_KINDS: EventKind[] = ['Registered', 'Assigned', 'Reassigned', 'Replaced', 'Unassigned', 'Deactivated', 'Reactivated', 'Validated', 'Edited', 'Read'];
+const EVENT_KINDS: EventKind[] = ['Registered', 'Assigned', 'Reassigned', 'Replaced', 'Unassigned', 'Deactivated', 'Reactivated', 'Validated', 'Edited', 'Read', 'Deleted'];
 const DAY = 86_400_000;
 
 function eventKind(text: string): EventKind {
@@ -191,8 +192,12 @@ export class TagManagement implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.load();
-    // Create / update / delete change the counts: ask the server again
-    this.changedSub = this.api.changed$.subscribe(() => this.loadSummary());
+    this.loadAudit();
+    // Create / update / delete change the counts (and add audit events): ask the server again
+    this.changedSub = this.api.changed$.subscribe(() => {
+      this.loadSummary();
+      this.queueAuditReload();
+    });
     this.api.technologies().subscribe({
       next: (opts) => {
         const list = opts.map((o) => o.technology as Tech).filter((t) => t in DEFAULT_TYPE);
@@ -253,6 +258,7 @@ export class TagManagement implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.changedSub?.unsubscribe();
     clearTimeout(this.toastTimer);
+    clearTimeout(this.auditReload);
   }
 
   // ===== Views =====
@@ -401,9 +407,40 @@ export class TagManagement implements OnInit, OnDestroy {
   }
 
   private auditCache: { version: number; list: AuditRow[] } = { version: -1, list: [] };
+  /** The server's audit trail (who did what, by username); null until loaded or when it can't be read. */
+  private serverAudit: TagAuditEventDto[] | null = null;
+  private auditReload?: ReturnType<typeof setTimeout>;
 
-  /** Every history entry of every tag, newest first. */
+  /** Loads the recorded tag events (GET /api/tag-ids/audit-trail). */
+  loadAudit(): void {
+    this.api.auditTrail().subscribe({
+      next: (events) => {
+        this.serverAudit = events;
+        this.version++;
+      },
+      error: () => {},
+    });
+  }
+
+  /** Reloads the audit trail once after a burst of changes. */
+  private queueAuditReload(): void {
+    clearTimeout(this.auditReload);
+    this.auditReload = setTimeout(() => this.loadAudit(), 300);
+  }
+
+  private auditRow(e: TagAuditEventDto): AuditRow {
+    const known = TAGS.find((t) => t.id === e.tagId);
+    const tag = known ?? ({ id: e.tagId, tech: e.technology as Tech, history: [] } as unknown as TagId);
+    const kind: EventKind = e.event === 'Updated' ? 'Edited' : eventKind(e.event);
+    return { at: Date.parse(e.when), tag, text: e.details || e.event, by: e.performedBy || '—', kind, known: !!known };
+  }
+
+  /** Every recorded event, newest first: the server's audit trail, else every history entry of every tag. */
   get audit(): AuditRow[] {
+    if (this.auditCache.version !== this.version && this.serverAudit) {
+      const list = this.serverAudit.map((e) => this.auditRow(e)).sort((a, b) => b.at - a.at);
+      this.auditCache = { version: this.version, list };
+    }
     if (this.auditCache.version !== this.version) {
       const list: AuditRow[] = [];
       for (const t of TAGS) for (const e of t.history) list.push({ at: e.at, tag: t, text: e.text, by: e.by, kind: eventKind(e.text) });
@@ -435,7 +472,7 @@ export class TagManagement implements OnInit, OnDestroy {
 
   eventClass(k: EventKind): string {
     if (k === 'Assigned' || k === 'Reactivated' || k === 'Registered') return 'ev--good';
-    if (k === 'Unassigned' || k === 'Deactivated') return 'ev--bad';
+    if (k === 'Unassigned' || k === 'Deactivated' || k === 'Deleted') return 'ev--bad';
     if (k === 'Reassigned' || k === 'Replaced') return 'ev--move';
     return 'ev--info';
   }
@@ -705,6 +742,7 @@ export class TagManagement implements OnInit, OnDestroy {
     t.history.unshift({ at: Date.now(), text, by: this.api.currentUser() });
     t.touched = Date.now();
     this.version++;
+    this.queueAuditReload();
   }
 
   /** A working copy of a tag to send to the API (the list keeps the original until the save succeeds). */

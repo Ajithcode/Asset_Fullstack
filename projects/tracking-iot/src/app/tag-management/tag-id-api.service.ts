@@ -60,6 +60,23 @@ function flatten(dto: TagIdDto): TagIdDto {
   };
 }
 
+/** One event of GET /api/tag-ids/audit-trail (TagEventResponse); performedBy is the signed-in user's username. */
+export interface TagAuditEventDto {
+  id: string;
+  when: string;
+  tagId: string;
+  technology: string;
+  event: string;
+  details: string;
+  assetName: string | null;
+  performedBy: string;
+}
+
+interface TagAuditPageDto {
+  items: TagAuditEventDto[];
+  totalPages: number;
+}
+
 /** GET /api/tag-ids (paged). */
 export interface TagIdPageDto {
   items: TagIdDto[];
@@ -269,6 +286,21 @@ export class TagIdApiService {
     return this.http.get<TagIdDto>(`${this.url}/${encodeURIComponent(tagId)}`, { params: tenantParams() }).pipe(
       map(tagFromDto),
       catchError((e) => apiError(e, `Could not load ${tagId}.`)),
+    );
+  }
+
+  /** GET /api/tag-ids/audit-trail: every recorded tag event (all pages), newest first, with who performed it. */
+  auditTrail(): Observable<TagAuditEventDto[]> {
+    const url = `${this.url}/audit-trail`;
+    const page = (n: number) => this.http.get<TagAuditPageDto>(url, { params: tenantParams({ page: n, pageSize: LIST_PAGE_SIZE }) });
+    return page(1).pipe(
+      switchMap((first) => {
+        const pages = Math.max(1, first?.totalPages ?? 1);
+        if (pages <= 1) return of(first?.items ?? []);
+        const rest = Array.from({ length: pages - 1 }, (_, i) => page(i + 2));
+        return forkJoin(rest).pipe(map((more) => [first, ...more].flatMap((p) => p?.items ?? [])));
+      }),
+      catchError((e) => apiError(e, 'Could not load the audit trail.')),
     );
   }
 
