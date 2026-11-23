@@ -1402,6 +1402,12 @@ button.caret:hover {
 }
 
 .struct-link {
+  border: 0;
+  cursor: pointer;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   flex: 0 0 auto;
   padding: 1px 6px;
   border-radius: 999px;
@@ -1426,4 +1432,10 @@ button.caret:hover {
 .icon-btn--xs {
   width: 24px;
   height: 24px;
+}
+
+.struct-link:hover,
+.struct-link:focus-visible {
+  background: var(--cm-accent);
+  color: #fff;
 }

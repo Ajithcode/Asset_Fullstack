@@ -133,20 +133,19 @@
           </div>
           <ul role="group">
             <ng-container *ngTemplateOutlet="structureLevel; context: { $implicit: structure, depth: 1 }"></ng-container>
-            <ng-container *ngTemplateOutlet="treeLevel; context: { $implicit: asset.components, depth: 1 }"></ng-container>
           </ul>
         </li>
       </ul>
-      <p *ngIf="!asset.components.length" class="hint tree-empty">No components recorded for this asset yet.</p>
+      <p *ngIf="!structure.length" class="hint tree-empty">No structure nodes yet. Use Add Structure to build the component structure.</p>
     </aside>
 
     <ng-template #structureLevel let-nodes let-depth="depth">
       <li *ngFor="let n of nodes; trackBy: trackByStructure" role="treeitem" [attr.aria-expanded]="n.children.length ? true : null">
-        <div class="tree-row tree-row--structure" [style.padding-left.px]="4 + depth * 22" (click)="selectStructure(n)" [title]="n.dto.description || n.dto.name">
+        <div class="tree-row tree-row--structure" [class.is-selected]="isStructureSelected(n)" [style.padding-left.px]="4 + depth * 22" (click)="selectStructure(n)" [title]="n.dto.description || n.dto.name">
           <span class="caret"><lucide-icon *ngIf="n.children.length" [img]="icons.ChevronDown" [size]="16"></lucide-icon></span>
           <lucide-icon class="node-icon" [img]="icons.ComponentIcon" [size]="17"></lucide-icon>
           <span class="node-name">{{ n.dto.name }}</span>
-          <span *ngIf="n.dto.linkedComponentTag" class="struct-link" [title]="'Linked component: ' + n.dto.linkedComponentName">{{ n.dto.linkedComponentTag }}</span>
+          <button *ngIf="n.dto.linkedComponentId" type="button" class="struct-link" (click)="selectStructure(n, $event)" [title]="'Open linked component ' + (n.dto.linkedComponentName || n.dto.linkedComponentTag)">{{ n.dto.linkedComponentName || n.dto.linkedComponentTag }}<ng-container *ngIf="n.dto.linkedComponentName && n.dto.linkedComponentTag"> · {{ n.dto.linkedComponentTag }}</ng-container></button>
           <span class="struct-actions">
             <button type="button" class="icon-btn icon-btn--xs" (click)="openEditStructure(n, $event)" [attr.aria-label]="'Edit ' + n.dto.name" [title]="'Edit ' + n.dto.name">
               <lucide-icon [img]="icons.SquarePen" [size]="14"></lucide-icon>
@@ -158,35 +157,6 @@
         </div>
         <ul *ngIf="n.children.length" role="group">
           <ng-container *ngTemplateOutlet="structureLevel; context: { $implicit: n.children, depth: depth + 1 }"></ng-container>
-        </ul>
-      </li>
-    </ng-template>
-
-    <ng-template #treeLevel let-nodes let-depth="depth">
-      <li *ngFor="let n of nodes; trackBy: trackById" role="treeitem" [attr.aria-expanded]="n.children.length ? expanded.has(n.id) : null">
-        <div
-          class="tree-row"
-          [class.is-group]="n.children.length"
-          [class.is-selected]="n.id === groupId || (n.id === detailId && !n.children.length)"
-          [style.padding-left.px]="4 + depth * 22"
-          (click)="selectNode(n)"
-        >
-          <button
-            *ngIf="n.children.length; else leafSpacer"
-            type="button"
-            class="caret"
-            (click)="toggleExpand(n, $event)"
-            [attr.aria-label]="(expanded.has(n.id) ? 'Collapse ' : 'Expand ') + n.name"
-          >
-            <lucide-icon [img]="expanded.has(n.id) ? icons.ChevronDown : icons.ChevronRight" [size]="16"></lucide-icon>
-          </button>
-          <ng-template #leafSpacer><span class="caret"></span></ng-template>
-          <lucide-icon class="node-icon" [img]="iconFor(n)" [size]="17"></lucide-icon>
-          <span class="node-name">{{ n.name }}</span>
-          <span *ngIf="n.status !== 'Active'" class="status-dot" [ngClass]="statusClass(n.status)" [title]="n.status"></span>
-        </div>
-        <ul *ngIf="n.children.length && expanded.has(n.id)" role="group">
-          <ng-container *ngTemplateOutlet="treeLevel; context: { $implicit: n.children, depth: depth + 1 }"></ng-container>
         </ul>
       </li>
     </ng-template>
