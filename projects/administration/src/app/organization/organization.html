@@ -33,7 +33,7 @@
     <strong>{{ src.state === 'connected' ? 'Connected' : 'Not loading' }}</strong>
     · {{ src.apis.join(', ') }}
     · {{ src.scope === 'organization' ? 'filtered to ' + organization : 'not linked to an organization, showing all records' }}
-    @if (activeTab === 'location') { · read-only here; add or edit locations in Master Data &gt; Organization }
+    @if (activeTab === 'location') { · read-only here; <a href="/master-data-management/organization/location">Manage in Master Data</a> }
   </p>
 }
 
@@ -51,7 +51,7 @@
     }
   </section>
 
-  <div class="ws" [class.ws--with-drawer]="formRecord">
+  <div class="ws">
     <app-location-tree [rootLabel]="organization" [selected]="selectedNode" (selectedChange)="selectNode($event)"></app-location-tree>
 
     <section class="panel" aria-label="Locations">
@@ -69,9 +69,6 @@
             <input placeholder="Search locations..." aria-label="Search locations" [(ngModel)]="search" (ngModelChange)="onFilterChange()" />
           </label>
           <span class="toolbar__spacer"></span>
-          @if (!readOnlyLocations) { <button type="button" class="btn btn--primary" (click)="addLocation()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add Location</button>
-          <button type="button" class="btn" (click)="pickImport()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import</button>
-          <input #importInput type="file" accept=".csv,text/csv" hidden (change)="onImport($event)" /> }
           <button type="button" class="btn" (click)="export()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
           <button type="button" class="btn" [class.btn--outline]="filterOpen || filterCount" [attr.aria-expanded]="filterOpen" (click)="toggleFilters()">
             <lucide-icon [img]="icons.ListFilter" [size]="16"></lucide-icon> Filter @if (filterCount) { ({{ filterCount }}) }
@@ -82,7 +79,6 @@
             </button>
             @if (menuFor === '__toolbar') {
               <div class="menu" role="menu">
-                @if (!readOnlyLocations) { <button type="button" role="menuitem" class="danger" [disabled]="!checked.size" (click)="deleteChecked()">Delete selected ({{ checked.size }})</button> }
                 <button type="button" role="menuitem" (click)="clearFilters()">Clear search &amp; filters</button>
                 <button type="button" role="menuitem" (click)="selectNode(null)">Show whole organization</button>
               </div>
@@ -109,7 +105,6 @@
           <table class="table">
             <thead>
               <tr>
-                @if (!readOnlyLocations) { <th scope="col" class="check-col"><input type="checkbox" aria-label="Select all on this page" [checked]="allChecked" (change)="toggleAll()" /></th> }
                 <th scope="col" [attr.aria-sort]="ariaSort('code')"><button type="button" class="th-sort" (click)="sortBy('code')">Location Code <lucide-icon [img]="icons.ArrowUpDown" [size]="12"></lucide-icon></button></th>
                 <th scope="col" [attr.aria-sort]="ariaSort('name')"><button type="button" class="th-sort" (click)="sortBy('name')">Location Name <lucide-icon [img]="icons.ArrowUpDown" [size]="12"></lucide-icon></button></th>
                 <th scope="col" [attr.aria-sort]="ariaSort('type')"><button type="button" class="th-sort" (click)="sortBy('type')">Type <lucide-icon [img]="icons.ArrowUpDown" [size]="12"></lucide-icon></button></th>
@@ -121,8 +116,7 @@
             </thead>
             <tbody>
               @for (l of pageRows; track l.code) {
-                <tr class="clickable" [class.is-selected]="isEditing(l)" (click)="edit(l)">
-                  @if (!readOnlyLocations) { <td class="check-col" (click)="$event.stopPropagation()"><input type="checkbox" [attr.aria-label]="'Select ' + l.name" [checked]="isChecked(l)" (change)="toggleCheck(l)" /></td> }
+                <tr class="clickable" (click)="selectNode(l.code)">
                   <td><span class="code-link">{{ l.code }}</span></td>
                   <td>{{ l.name }}</td>
                   <td><span class="pill type-pill" [attr.data-tone]="typeTones[l.type]">{{ l.type }}</span></td>
@@ -130,20 +124,13 @@
                   <td>{{ l.contact || '-' }}</td>
                   <td><span class="pill" [attr.data-tone]="l.status === 'Active' ? 'green' : 'grey'"><i></i>{{ l.status }}</span></td>
                   <td class="row-actions" (click)="$event.stopPropagation()">
-                    @if (!readOnlyLocations) { <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Edit ' + l.name" title="Edit" (click)="edit(l)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon></button> }
-                    @if (!readOnlyLocations) { <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'Duplicate ' + l.name" title="Duplicate" (click)="duplicate(l)"><lucide-icon [img]="icons.Copy" [size]="15"></lucide-icon></button> }
                     <span class="row-menu">
                       <button type="button" class="icon-btn icon-btn--bare" [attr.aria-label]="'More actions for ' + l.name" [attr.aria-expanded]="menuFor === l.code" (click)="toggleMenu(l, $event)">
                         <lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon>
                       </button>
                       @if (menuFor === l.code) {
                         <div class="menu" role="menu">
-                          @if (l.type !== 'Zone') {
-                            @if (!readOnlyLocations) { <button type="button" role="menuitem" (click)="addChild(l)">Add {{ l.type === 'Location' ? 'Building' : l.type === 'Building' ? 'Floor' : 'Zone' }}</button> }
-                          }
                           <button type="button" role="menuitem" (click)="selectNode(l.code)">Show in hierarchy</button>
-                          @if (!readOnlyLocations) { <button type="button" role="menuitem" (click)="toggleStatus(l)">{{ l.status === 'Active' ? 'Deactivate' : 'Activate' }}</button> }
-                          @if (!readOnlyLocations) { <button type="button" role="menuitem" class="danger" (click)="askDelete(l)">Delete</button> }
                         </div>
                       }
                     </span>
@@ -171,28 +158,11 @@
         </div>
       }
     </section>
-
-    @if (formRecord) {
-      <app-location-form [record]="formRecord" [mode]="formMode" (saved)="onSaved($event)" (closed)="closeForm()"></app-location-form>
-    }
   </div>
 } @else {
   @if (summaryTab; as tab) {
     <app-org-summary-tab [tab]="tab" (notify)="notify($event)"></app-org-summary-tab>
   }
-}
-
-@if (pendingDelete.length) {
-  <div class="overlay" (click)="cancelDelete()">
-    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="org-del-title" (click)="$event.stopPropagation()">
-      <h2 id="org-del-title">Delete {{ pendingDelete.length === 1 ? 'location' : 'locations' }}?</h2>
-      <p>{{ deleteMessage }}</p>
-      <div class="confirm__actions">
-        <button type="button" class="btn" (click)="cancelDelete()">Cancel</button>
-        <button type="button" class="btn btn--danger" (click)="doDelete()">Delete</button>
-      </div>
-    </div>
-  </div>
 }
 
 @if (toast) {
