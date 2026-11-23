@@ -1132,11 +1132,22 @@ export class AssetComponents {
     });
   }
 
-  /** Clicking a structure node opens its linked component. */
-  selectStructure(n: StructureNode): void {
+  /** Clicking a structure node (or its linked-component badge) opens the linked component. */
+  selectStructure(n: StructureNode, event?: Event): void {
+    event?.stopPropagation();
+    const linked = this.linkedComponent(n);
+    if (linked) this.selectNode(linked);
+  }
+
+  isStructureSelected(n: StructureNode): boolean {
+    const linked = this.linkedComponent(n);
+    return !!linked && linked.id === this.detailId;
+  }
+
+  private linkedComponent(n: StructureNode): AssetComponent | null {
     let linked: AssetComponent | null = null;
     if (n.dto.linkedComponentId) this.walk(this.asset.components, (c) => (c.apiId === n.dto.linkedComponentId ? (linked = c) : undefined));
-    if (linked) this.selectNode(linked);
+    return linked;
   }
 
   trackByStructure(_: number, n: StructureNode): string {
