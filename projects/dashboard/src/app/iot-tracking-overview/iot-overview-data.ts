@@ -3,7 +3,8 @@
  * All figures come from the APIs (services/dashboard/dashboard.ts); nothing here is data.
  */
 
-export type DeviceStatus = 'Online' | 'Idle' | 'Offline' | 'Unknown';
+/** Unknown = a tag is linked but has no reading in 24 h; Not tracked = no linked tag. */
+export type DeviceStatus = 'Online' | 'Idle' | 'Offline' | 'Unknown' | 'Not tracked';
 export type HealthBand = 'Healthy' | 'Warning' | 'Critical' | 'Unknown';
 export type Severity = 'Critical' | 'Warning' | 'Info';
 export type AlertStatus = 'Open' | 'Acknowledged' | 'In Progress' | 'Resolved';
@@ -36,8 +37,8 @@ export interface EventDay {
   alerts: number;
 }
 
-export const STATUSES: DeviceStatus[] = ['Online', 'Idle', 'Offline', 'Unknown'];
-export const STATUS_COLORS: Record<DeviceStatus, string> = { Online: '#16a34a', Idle: '#2563eb', Offline: '#dc2626', Unknown: '#cbd5e1' };
+export const STATUSES: DeviceStatus[] = ['Online', 'Idle', 'Offline', 'Unknown', 'Not tracked'];
+export const STATUS_COLORS: Record<DeviceStatus, string> = { Online: '#16a34a', Idle: '#2563eb', Offline: '#dc2626', Unknown: '#cbd5e1', 'Not tracked': '#94a3b8' };
 export const HEALTH_COLORS: Record<HealthBand, string> = { Healthy: '#16a34a', Warning: '#f5b324', Critical: '#dc2626', Unknown: '#cbd5e1' };
 export const SERIES: { key: EventSeries; label: string; color: string }[] = [
   { key: 'telemetry', label: 'Telemetry Data', color: '#2563eb' },
