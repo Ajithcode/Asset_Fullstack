@@ -1,9 +1,11 @@
-import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, GitBranch, Layers, LucideAngularModule, Monitor, Plus, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { apiErrorMessage } from '../../shared/mdm-api';
+import { AssetTypeService } from '../asset-type/asset-type.service';
 import { MODEL_ICONS } from '../asset-model/asset-model.icons';
 import { AssetSubTypeFilters, AssetSubTypeRecord } from './asset-sub-type.model';
 import { AssetSubTypeService } from './asset-sub-type.service';
@@ -14,15 +16,16 @@ type SortKey = 'name' | 'code' | 'assetType' | 'lifecycleYears';
 
 const EMPTY_FILTERS: AssetSubTypeFilters = { search: '', assetType: '', status: '' };
 
-/** Master Data Management > Asset > Asset Sub Type (hardcoded data until the API exists) */
+/** Master Data Management > Asset > Asset Sub Type (`/api/master-data/asset-sub-types`) */
 @Component({
   selector: 'app-mdm-asset-asset-sub-type',
   imports: [DecimalPipe, FormsModule, RouterLink, LucideAngularModule, SubTypeForm, SubTypeDetail],
   templateUrl: './asset-sub-type.html',
   styleUrls: ['../../shared/styles/mdm-page.css', '../asset-model/asset-model.css', '../../shared/styles/mdm-purple-theme.css']
 })
-export class AssetSubTypePage {
+export class AssetSubTypePage implements OnInit {
   readonly service = inject(AssetSubTypeService);
+  private readonly types = inject(AssetTypeService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly typeIcons = MODEL_ICONS;
   readonly icons = { GitBranch, Monitor, Layers, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
@@ -41,7 +44,9 @@ export class AssetSubTypePage {
   selected = new Set<string>();
   menuFor: string | null = null;
 
-  selectedCode: string | null = this.service.all()[0]?.code ?? null;
+  selectedCode: string | null = null;
+  saving = false;
+  deleting = false;
   formOpen = false;
   formMode: 'add' | 'edit' = 'add';
   formRecord: AssetSubTypeRecord | null = null;
@@ -50,6 +55,23 @@ export class AssetSubTypePage {
   pendingDelete: AssetSubTypeRecord[] = [];
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
+
+  ngOnInit(): void {
+    // Parent types first, so each sub type shows its category
+    this.types.reload().subscribe({
+      complete: () => this.loadSubTypes(),
+      error: () => this.loadSubTypes()
+    });
+  }
+
+  private loadSubTypes(): void {
+    this.service.reload().subscribe({
+      next: (list) => {
+        if (!this.service.find(this.selectedCode)) this.selectedCode = list[0]?.code ?? null;
+      },
+      error: (err) => this.notify(`Could not load asset sub types: ${apiErrorMessage(err)}`)
+    });
+  }
 
   get stats() {
     const all = this.service.all();
@@ -179,28 +201,34 @@ export class AssetSubTypePage {
   }
 
   onSaved(event: { record: AssetSubTypeRecord; originalCode: string | null }): void {
-    const saved = this.service.save(event.record, event.originalCode);
-    if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
-    this.open(saved.code, false);
-    this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
-    this.closeForm();
+    if (this.saving) return;
+    this.saving = true;
+    this.service.persist(event.record, event.originalCode).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        if (event.originalCode && this.selected.delete(event.originalCode)) this.selected.add(saved.code);
+        this.open(saved.code, false);
+        this.notify(`${saved.name} ${event.originalCode ? 'updated' : 'added'}.`);
+        this.closeForm();
+      },
+      error: (err) => {
+        this.saving = false;
+        this.notify(apiErrorMessage(err));
+      }
+    });
   }
 
   toggleStatus(t: AssetSubTypeRecord): void {
     this.menuFor = null;
     const status = t.status === 'Active' ? 'Inactive' : 'Active';
-    this.service.setStatus(t, status);
-    this.notify(`${t.name} marked ${status}.`);
+    this.service.setStatus(t, status).subscribe({
+      next: () => this.notify(`${t.name} marked ${status}.`),
+      error: (err) => this.notify(apiErrorMessage(err))
+    });
   }
 
-  // Sub types with registered assets can't be deleted; they can be marked inactive instead
   askDelete(list: AssetSubTypeRecord[]): void {
     this.menuFor = null;
-    const blocked = list.find((t) => t.assetCount > 0);
-    if (blocked) {
-      this.notify(`${blocked.name} has ${blocked.assetCount} asset${blocked.assetCount === 1 ? '' : 's'}. Mark it Inactive instead.`);
-      return;
-    }
     this.pendingDelete = list;
   }
 
@@ -209,15 +237,25 @@ export class AssetSubTypePage {
   }
 
   confirmDelete(): void {
+    if (this.deleting) return;
     const list = this.pendingDelete;
     const codes = list.map((r) => r.code);
-    this.service.delete(codes);
-    codes.forEach((c) => this.selected.delete(c));
-    if (this.selectedCode && codes.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
-    if (this.formMode === 'edit' && this.formRecord && codes.includes(this.formRecord.code)) this.closeForm();
-    this.notify(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} asset sub types deleted.`);
-    this.pendingDelete = [];
-    this.goTo(this.page);
+    const done = (message: string) => {
+      // Records deleted before a failure are gone too
+      const gone = codes.filter((c) => !this.service.find(c));
+      gone.forEach((c) => this.selected.delete(c));
+      if (this.selectedCode && gone.includes(this.selectedCode)) this.selectedCode = this.service.all()[0]?.code ?? null;
+      if (this.formMode === 'edit' && this.formRecord && gone.includes(this.formRecord.code)) this.closeForm();
+      this.notify(message);
+      this.pendingDelete = [];
+      this.deleting = false;
+      this.goTo(this.page);
+    };
+    this.deleting = true;
+    this.service.delete(codes).subscribe({
+      complete: () => done(codes.length === 1 ? `${list[0].name} deleted.` : `${codes.length} asset sub types deleted.`),
+      error: (err) => done(`Delete failed: ${apiErrorMessage(err)}`)
+    });
   }
 
   cancelDelete(): void {

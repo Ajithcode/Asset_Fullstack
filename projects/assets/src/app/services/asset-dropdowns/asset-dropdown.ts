@@ -20,6 +20,8 @@ export interface DropdownOption {
   color?: string;
   /** Id of the parent record: parent category, category of an asset type, department of an employee or team. */
   parentId?: string;
+  /** Name of the parent record (e.g. the asset type of a sub type). */
+  parentLabel?: string;
   /** The record flagged as the default choice (e.g. defaultCriticality). */
   isDefault?: boolean;
 }
@@ -178,6 +180,14 @@ export class AssetDropdownService {
   /** GET {asset service}/api/asset-category-types?categoryId= — the types of a category (or sub-category); parentId is its id. */
   getAssetTypes(categoryId?: string): Observable<DropdownOption[]> {
     return this.list(`${this.assetUrl}/asset-category-types`, 'typeName', (r) => ({ parentId: this.text(r['categoryId']) }), { categoryId });
+  }
+
+  /** GET /api/master-data/asset-sub-types — the active sub types of the Asset Sub Type master; parentId / parentLabel are the asset type's id / name. */
+  getAssetSubTypes(): Observable<DropdownOption[]> {
+    return this.list('asset-sub-types', 'subTypeName', (r) => ({
+      parentId: this.refId(r['assetType']),
+      parentLabel: (r['assetType'] as MasterReference | null | undefined)?.name ?? undefined,
+    }));
   }
 
   /** GET /api/master-data/asset-models?clientId= — the client's models; parentId is the manufacturer id. */

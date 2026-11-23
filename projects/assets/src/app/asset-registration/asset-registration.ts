@@ -582,6 +582,7 @@ export class AssetRegistration {
    * added with the ⋮ menu are kept for this form and saved with the asset by name.
    */
   readonly assetSubTypesByType: Record<string, SubTypeOption[]> = {};
+  private subTypesLoaded = false;
 
   /** From GET master-data/asset-models (parentId = manufacturer id), loaded when the page opens. The asset saves the model name. */
   private assetModels: DropdownOption[] = [];
@@ -1206,6 +1207,25 @@ export class AssetRegistration {
       });
   }
 
+  /** Asset Sub Type master (MDM), grouped by the parent asset type's name; loaded once, then the chosen type's list is used. */
+  private loadAssetSubTypes(): void {
+    if (this.subTypesLoaded) return;
+    this.subTypesLoaded = true;
+    this.dropdownApi.getAssetSubTypes().subscribe({
+      next: (list) => {
+        for (const o of list) {
+          const key = (o.parentLabel ?? '').trim().toLowerCase();
+          if (!key) continue;
+          const group = (this.assetSubTypesByType[key] ??= []);
+          if (!group.some((g) => g.value === o.label)) group.push({ label: o.label, value: o.label });
+        }
+        // An edited asset's saved sub type stays; otherwise clear one that doesn't belong to the chosen type
+        this.onAssetTypeChange();
+      },
+      error: () => (this.subTypesLoaded = false),
+    });
+  }
+
   private pickAssetType(subCategoryId: string, previous: Option[]): void {
     if (this.form.subCategory !== subCategoryId) return;
     const list = this.assetTypes;
@@ -1328,6 +1348,7 @@ export class AssetRegistration {
   }
 
   onAssetTypeChange(): void {
+    this.loadAssetSubTypes();
     // Keep a sub type that still belongs to the type (e.g. a loaded record); otherwise start empty
     if (!this.assetSubTypes.some((t) => t.value === this.form.assetSubType)) this.form.assetSubType = '';
   }
