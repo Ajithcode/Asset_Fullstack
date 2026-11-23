@@ -1226,11 +1226,37 @@ export class TagManagement implements OnInit, OnDestroy {
   toggleMenu(name: string, event: Event): void {
     event.stopPropagation();
     this.menuOpen = this.menuOpen === name ? '' : name;
+    this.rowMenuPos = this.menuOpen ? this.menuPosition(event.currentTarget as HTMLElement | null) : null;
+  }
+
+  /**
+   * Row action menus are fixed to the viewport (the table scrolls horizontally, which would clip them), right-aligned
+   * under the button, or above it when there isn't room below.
+   */
+  rowMenuPos: { top: number | null; bottom: number | null; right: number } | null = null;
+
+  private menuPosition(button: HTMLElement | null): { top: number | null; bottom: number | null; right: number } | null {
+    if (!button) return null;
+    const rect = button.getBoundingClientRect();
+    const right = Math.max(8, window.innerWidth - rect.right);
+    const menuHeight = 280;
+    return window.innerHeight - rect.bottom >= menuHeight || rect.top < menuHeight
+      ? { top: rect.bottom + 6, bottom: null, right }
+      : { top: null, bottom: window.innerHeight - rect.top + 6, right };
   }
 
   @HostListener('document:click')
   closeMenus(): void {
     this.menuOpen = '';
+    this.rowMenuPos = null;
+  }
+
+  /** A fixed menu would drift from its row while the page scrolls or resizes, so close it instead. */
+  @HostListener('window:scroll')
+  @HostListener('window:resize')
+  @HostListener('document:wheel')
+  closeRowMenu(): void {
+    if (this.rowMenuPos) this.closeMenus();
   }
 
   @HostListener('document:keydown.escape')
