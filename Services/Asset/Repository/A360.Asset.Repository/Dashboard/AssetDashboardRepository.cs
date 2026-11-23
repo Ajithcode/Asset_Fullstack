@@ -363,11 +363,23 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             readingFilter["meta.tagid"] = new BsonDocument("$in", new BsonArray(tagIds.Select(tag => tag.Trim()).Distinct(StringComparer.OrdinalIgnoreCase)));
         }
 
-        // Only readings before the window's end matter; earlier readings are kept so a window's first reading
-        // can still be compared with the tag's reading just before the window.
+        // Only readings before the window's end matter. Readings from a day before the window start are kept so a
+        // window's first reading can still be compared with the tag's previous reading; older history is left out,
+        // otherwise the per-tag sort below runs over the whole collection and exceeds Mongo's sort memory limit.
+        var readingTime = new BsonDocument();
+        if (fromUtc is not null)
+        {
+            readingTime["$gte"] = fromUtc.Value.AddDays(-1);
+        }
+
         if (toUtc is not null)
         {
-            readingFilter["timestamp"] = new BsonDocument("$lt", toUtc.Value);
+            readingTime["$lt"] = toUtc.Value;
+        }
+
+        if (readingTime.ElementCount > 0)
+        {
+            readingFilter["timestamp"] = readingTime;
         }
 
         var changeFilter = new BsonDocument("$expr", new BsonDocument("$and", new BsonArray
