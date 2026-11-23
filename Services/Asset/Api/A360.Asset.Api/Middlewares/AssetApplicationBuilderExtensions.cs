@@ -29,6 +29,7 @@ public static class AssetApplicationBuilderExtensions
         app.MapAssetModelEndpoints();
         app.MapAssetHierarchyEndpoints();
         app.MapAssetComponentEndpoints();
+        app.MapAssetComponentStructureEndpoints();
         app.MapAssetCustomFieldEndpoints();
         app.MapAssetFieldGroupEndpoints();
         app.MapAssetFieldLayoutEndpoints();

@@ -88,6 +88,9 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<AssetComponentRepository>();
         services.AddScoped<IAssetComponentRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetComponentRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetComponentRepository>());
+        services.AddScoped<AssetComponentStructureRepository>();
+        services.AddScoped<IAssetComponentStructureRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetComponentStructureRepository>());
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetComponentStructureRepository>());
 
         services.AddScoped<AssetCustomFieldRepository>();
         services.AddScoped<IAssetCustomFieldRepository>(serviceProvider => serviceProvider.GetRequiredService<AssetCustomFieldRepository>());
