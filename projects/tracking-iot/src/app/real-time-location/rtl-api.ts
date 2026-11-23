@@ -113,6 +113,40 @@ export interface LiveSnapshot {
   note: string;
 }
 
+/** A tag with the zone of the gateway hearing it (GET /api/real-time-location/tags and the tags/live socket). */
+export interface LiveTag {
+  tagId: string;
+  gatewayId: string;
+  gatewayName: string | null;
+  timestamp: string;
+  status: string | null;
+  connection: string;
+  rssi: number | null;
+  battery: number | null;
+  plotted: boolean;
+  zoneId: string | null;
+  zoneName: string | null;
+  zoneCode: string | null;
+  floorPlanId: string | null;
+  floorName: string | null;
+  buildingName: string | null;
+  siteId: string | null;
+  siteName: string | null;
+  locationPath: string | null;
+  asset: { assetRegistrationId: string; assetTag: string | null; assetName: string | null } | null;
+}
+
+/** Same tag + same gateway heard again: only the reading moved on. */
+export interface LiveTagSeen { tagId: string; gatewayId: string; timestamp: string; status: string | null; connection: string; rssi: number | null; battery: number | null }
+
+/** Messages of the tags/live socket: a snapshot on connect, then updates only when something changed. */
+export type LiveTagsMessage =
+  | { type: 'snapshot'; tags: LiveTag[] }
+  | { type: 'update'; changed: LiveTag[]; seen: LiveTagSeen[]; removed: string[] };
+
+/** What the page gets from the tags socket: its connection state, or one message. */
+export type LiveTagsEvent = { state: 'connecting' | 'open' | 'closed' } | { message: LiveTagsMessage };
+
 @Injectable({ providedIn: 'root' })
 export class RtlApi {
   private readonly http = inject(HttpClient);
@@ -215,6 +249,69 @@ export class RtlApi {
         if (socket && socket.readyState <= WebSocket.OPEN) socket.close(1000, 'done');
       },
     };
+  }
+
+  /**
+   * Live tag locations: ws(s)://<host>/api/real-time-location/tags/live?access_token=<JWT> (Tracking service, token required).
+   * Emits the connection state and every message; reconnects with backoff after a drop. The page falls back to polling
+   * the overview API while the state is not "open". Unsubscribing closes the socket.
+   */
+  tagsLive(): Observable<LiveTagsEvent> {
+    return new Observable<LiveTagsEvent>((subscriber) => {
+      if (typeof WebSocket === 'undefined') {
+        subscriber.next({ state: 'closed' });
+        return undefined;
+      }
+      let socket: WebSocket | null = null;
+      let stopped = false;
+      let retries = 0;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const connect = () => {
+        subscriber.next({ state: 'connecting' });
+        try {
+          socket = new WebSocket(this.tagsUrl());
+        } catch {
+          retry();
+          return;
+        }
+        socket.onopen = () => {
+          retries = 0;
+          subscriber.next({ state: 'open' });
+        };
+        socket.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data as string) as LiveTagsMessage;
+            if (msg.type === 'snapshot' || msg.type === 'update') subscriber.next({ message: msg });
+          } catch {
+            // not JSON: ignore
+          }
+        };
+        socket.onerror = () => socket?.close();
+        socket.onclose = () => {
+          if (stopped) return;
+          subscriber.next({ state: 'closed' });
+          retry();
+        };
+      };
+      const retry = () => {
+        if (stopped) return;
+        timer = setTimeout(connect, Math.min(30000, 2000 * 2 ** retries++));
+      };
+      connect();
+      return () => {
+        stopped = true;
+        clearTimeout(timer);
+        if (socket && socket.readyState <= WebSocket.OPEN) socket.close(1000, 'done');
+      };
+    });
+  }
+
+  private tagsUrl(): string {
+    const url = new URL(trackingUrl('real-time-location/tags/live'), typeof window !== 'undefined' ? window.location.href : undefined);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    const token = this.auth.getToken();
+    if (token) url.searchParams.set('access_token', token);
+    return url.toString();
   }
 
   private locateUrl(): string {

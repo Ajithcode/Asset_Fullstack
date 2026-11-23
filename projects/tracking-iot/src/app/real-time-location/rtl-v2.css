@@ -156,3 +156,9 @@ a.btn { text-decoration: none; }
 .signal-panel.is-on .signal-ic { background: #f59e0b; animation: live-dot 1.2s infinite; }
 .signal-off { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px; background: #0f172a; color: #fff; border: 0; font-weight: 600; flex: none; }
 @media (max-width: 520px) { .sig-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Locate asset: multi-select + clear highlight */
+.loc-bar { display: flex; align-items: center; gap: 10px; margin: 8px 0 6px; }
+.loc-all { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #475569; cursor: pointer; }
+.loc-chk, .loc-all input { width: 16px; height: 16px; margin: 0; accent-color: #6d28d9; flex: none; }
+.hl-chip { background: #fff; box-shadow: 0 2px 8px rgba(15, 23, 42, .18); }

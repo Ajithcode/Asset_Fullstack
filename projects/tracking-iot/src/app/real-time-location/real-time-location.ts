@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,15 +10,19 @@ import {
   Radio, Route, Search, Send, Settings, ShieldAlert, Square, TriangleAlert, Volume2, Wifi, X, HelpCircle,
 } from 'lucide-angular';
 import { apiErrorMessage } from '../shared/tracking-api';
-import { FloorPlanMap, LivePoint, MapFocus } from '../geofence-alerts/floor-plan-map';
+import { AssetFocus, FloorPlanMap, LivePoint, MapFocus, PlanAsset } from '../geofence-alerts/floor-plan-map';
 import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone } from '../geofence-alerts/floor-map-api.service';
-import { LiveMessage, LiveSnapshot, LocateMessage, LocateReply, LocateSocket, RtlApi, RtlAsset, RtlEventPage, RtlOverview, RtlTrail, TrailRange, TrailSegment } from './rtl-api';
+import { LiveMessage, LiveSnapshot, LiveTag, LiveTagsMessage, LocateMessage, LocateReply, LocateSocket, RtlApi, RtlAsset, RtlEventPage, RtlOverview, RtlTrail, TrailRange, TrailSegment } from './rtl-api';
 
 type MoveFilter = '' | 'Moving' | 'Stationary' | 'Unknown' | 'alerts';
 type LiveState = 'connecting' | 'live' | 'error';
 
 /** Locations refresh (readings arrive every few seconds). */
 const POLL_MS = 10000;
+/** While the live socket is open the overview is only re-read now and then (KPIs, events, freshness). */
+const SOCKET_RECONCILE_MS = 60000;
+/** An asset that changed zone is "Moving" for this long, then "Stationary" again. */
+const MOVING_MS = 60000;
 
 /**
  * Real-Time Location: where tracked assets are now (on the floor plan), whether they are moving, how fresh and how
@@ -90,6 +94,24 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   // ---- locate dialog
   locateOpen = false;
   locateQuery = '';
+  /** Assets ticked in the Locate asset list (Locate selected). */
+  locateSel = new Set<string>();
+  /** The Locate list covers all floors (the page's overview only has the floor on the map). */
+  private locateAll: RtlAsset[] | null = null;
+  private locateSub?: Subscription;
+  /** The assets highlighted on the map (ripple, then a steady ring) until cleared. */
+  assetFocus: AssetFocus | null = null;
+
+  // ---- live socket (/api/real-time-location/tags/live) + assets drawn in their zone
+  socketState: 'connecting' | 'open' | 'closed' = 'connecting';
+  mapAssets: PlanAsset[] = [];
+  private mapAssetsKey = '';
+  private tagsSub?: Subscription;
+  private lastRefreshAt = 0;
+  private refreshSoon?: ReturnType<typeof setTimeout>;
+  private movingTimer?: ReturnType<typeof setTimeout>;
+  private lastZone = new Map<string, string>();
+  private movingUntil = new Map<string, number>();
 
   // ---- events (paged by the backend)
   evRange = '24h';
@@ -137,7 +159,17 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     // The first overview waits for the floor plans, so the page loads straight into the floor on the map
     // instead of showing all floors and then jumping to the first floor's numbers
     this.loadFloors();
-    this.timers.push(setInterval(() => this.floorsReady && this.refresh(), POLL_MS));
+    // Polling is the fallback: with the live socket open the overview is only re-read every minute
+    this.timers.push(setInterval(() => this.floorsReady && (this.socketState !== 'open' || Date.now() - this.lastRefreshAt > SOCKET_RECONCILE_MS) && this.refresh(), POLL_MS));
+    this.tagsSub = this.api.tagsLive().subscribe((e) => {
+      if ('state' in e) {
+        this.socketState = e.state;
+        // dropped: read the overview now instead of waiting for the next poll
+        if (e.state === 'closed' && this.floorsReady) this.refresh();
+      } else {
+        this.onTags(e.message);
+      }
+    });
     this.timers.push(setInterval(() => (this.now = new Date()), 1000));
     this.floorApi.gatewaysLive().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((m) => {
       if (!m.data) return;
@@ -152,6 +184,10 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     this.closeCtlSocket();
     clearTimeout(this.signalTimer);
     clearTimeout(this.ctlWaitTimer);
+    clearTimeout(this.refreshSoon);
+    clearTimeout(this.movingTimer);
+    this.tagsSub?.unsubscribe();
+    this.locateSub?.unsubscribe();
     this.timers.forEach((t) => clearInterval(t));
     clearTimeout(this.toastTimer);
     [this.loadSub, this.trailSub, this.planSub, this.evSub].forEach((s) => s?.unsubscribe());
@@ -170,7 +206,9 @@ export class RealTimeLocation implements OnInit, OnDestroy {
         this.error = '';
         this.liveState = 'live';
         this.lastUpdated = new Date();
+        this.lastRefreshAt = Date.now();
         this.collectSites(d);
+        this.noteZones();
         if (this.selectedId && !d.assets.some((a) => a.assetId === this.selectedId)) this.selectedId = '';
         this.loadEvents();
         if (this.selectedId) this.loadTrail(false);
@@ -196,7 +234,104 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     if (this.liveState === 'error') return { cls: 'is-off', text: 'OFFLINE', detail: this.lastUpdated ? `last update ${this.lastUpdated.toLocaleTimeString()}` : 'no data yet' };
     // `now` ticks once a second, so it can be just behind the moment the data arrived: never show "-1s ago"
     const ago = this.lastUpdated ? Math.max(0, Math.round((this.now.getTime() - this.lastUpdated.getTime()) / 1000)) : 0;
-    return ago > 60 ? { cls: 'is-warn', text: 'STALE', detail: `updated ${ago}s ago` } : { cls: '', text: 'LIVE', detail: `updated ${ago}s ago` };
+    const via = this.socketState === 'open' ? 'real-time' : 'polling';
+    return ago > 60 && this.socketState !== 'open' ? { cls: 'is-warn', text: 'STALE', detail: `updated ${ago}s ago` } : { cls: '', text: 'LIVE', detail: `${via} · updated ${ago}s ago` };
+  }
+
+  // ================================================================= live socket + moving / stationary
+
+  /** Zone changes seen in an overview: Moving for a minute (also right after a page load, from the backend's last zone change). */
+  private noteZones(): void {
+    const now = Date.now();
+    for (const a of this.assets) {
+      const zone = a.location?.zoneId;
+      if (!zone) continue;
+      const before = this.lastZone.get(a.assetId);
+      if (before !== undefined && before !== zone) this.movingUntil.set(a.assetId, now + MOVING_MS);
+      else if (before === undefined && a.lastZoneChangeAt) {
+        const until = new Date(a.lastZoneChangeAt).getTime() + MOVING_MS;
+        if (until > now) this.movingUntil.set(a.assetId, until);
+      }
+      this.lastZone.set(a.assetId, zone);
+    }
+    this.rebuildMapAssets();
+  }
+
+  /** The asset a tag belongs to: by its tag id, else by the asset the backend matched it to. */
+  private assetOfTag(t: LiveTag): RtlAsset | undefined {
+    const id = t.tagId.toLowerCase();
+    return this.assets.find(
+      (a) => a.tags.some((x) => x.toLowerCase() === id) || (!!t.asset && (a.assetId === t.asset.assetRegistrationId || (!!a.assetTag && a.assetTag === t.asset.assetTag)))
+    );
+  }
+
+  /** One message of the live socket: a tag now heard in another zone moves its asset (animated) and marks it Moving. */
+  private onTags(m: LiveTagsMessage): void {
+    const tags = m.type === 'snapshot' ? m.tags : m.changed;
+    let unknownHere = false;
+    let zoneChanged = false;
+    for (const t of tags) {
+      const a = this.assetOfTag(t);
+      if (!a) {
+        // an asset not in the page's list yet (e.g. it just entered this floor): read the overview soon
+        if (t.plotted && t.asset && (!this.mapFloorId || this.plans.get(this.mapFloorId)?.id === t.floorPlanId)) unknownHere = true;
+        continue;
+      }
+      if (!t.plotted || !t.zoneId) continue;
+      const before = a.location?.zoneId ?? null;
+      a.location = {
+        gatewayId: t.gatewayId, gatewayName: t.gatewayName, zoneId: t.zoneId, zoneName: t.zoneName, floorName: t.floorName, buildingName: t.buildingName,
+        siteId: t.siteId, siteName: t.siteName, floorPlanId: t.floorPlanId, locationPath: t.locationPath,
+        method: a.location?.method ?? 'Estimated', basis: a.location?.basis ?? 'BLE proximity', accuracy: a.location?.accuracy ?? 'Zone level', at: t.timestamp,
+      };
+      a.freshness = 'Live';
+      if (before && before !== t.zoneId) {
+        zoneChanged = true;
+        a.movement = 'Moving';
+        a.lastZoneChangeAt = new Date().toISOString();
+        this.movingUntil.set(a.assetId, Date.now() + MOVING_MS);
+      }
+      this.lastZone.set(a.assetId, t.zoneId);
+    }
+    for (const s of m.type === 'update' ? m.seen : []) {
+      const a = this.assets.find((x) => x.tags.some((y) => y.toLowerCase() === s.tagId.toLowerCase()));
+      if (a) {
+        a.freshness = 'Live';
+        a.rssi = s.rssi ?? a.rssi;
+        if (a.location) a.location = { ...a.location, at: s.timestamp };
+      }
+    }
+    this.rebuildMapAssets();
+    // KPIs, events and the asset list follow a zone change: read them (at most every few seconds)
+    if ((zoneChanged || unknownHere) && this.floorsReady && !this.refreshSoon) {
+      this.refreshSoon = setTimeout(() => {
+        this.refreshSoon = undefined;
+        this.refresh();
+      }, 2500);
+    }
+  }
+
+  /** The asset markers for the map: all assets with a zone, Moving for a minute after a zone change. Same array until something changed. */
+  private rebuildMapAssets(): void {
+    clearTimeout(this.movingTimer);
+    const now = Date.now();
+    let nextExpiry = Infinity;
+    const list: PlanAsset[] = [];
+    for (const a of this.assets) {
+      const zoneId = a.location?.zoneId;
+      if (!zoneId) continue;
+      const until = this.movingUntil.get(a.assetId) ?? 0;
+      const moving = until > now;
+      if (moving) nextExpiry = Math.min(nextExpiry, until);
+      const state = a.freshness === 'Offline' || a.freshness === 'Unknown' ? 'Unknown' : moving ? 'Moving' : 'Stationary';
+      list.push({ id: a.assetId, name: a.name, code: a.assetTag || a.assetId, zoneId, zoneName: a.location?.zoneName ?? '', state });
+    }
+    const key = list.map((x) => `${x.id}|${x.zoneId}|${x.state}`).join(',');
+    if (key !== this.mapAssetsKey) {
+      this.mapAssetsKey = key;
+      this.mapAssets = list;
+    }
+    if (nextExpiry !== Infinity) this.movingTimer = setTimeout(() => this.rebuildMapAssets(), nextExpiry - now + 100);
   }
 
   // ================================================================= floor plan map
@@ -364,22 +499,77 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   openLocate(): void {
     this.locateOpen = true;
     this.locateQuery = '';
+    this.locateSel = new Set();
+    // the list covers all floors, so "Locate selected" can switch to the floor the assets are on
+    this.locateSub?.unsubscribe();
+    this.locateSub = this.api.overview(this.site, '').subscribe({ next: (d) => (this.locateAll = d.assets), error: () => (this.locateAll = null) });
     setTimeout(() => (document.getElementById('rtl-locate-q') as HTMLInputElement | null)?.focus(), 50);
   }
 
   get locateRows(): RtlAsset[] {
     const q = this.locateQuery.trim().toLowerCase();
-    return (q ? this.assets.filter((a) => this.searchText(a).includes(q)) : this.assets).slice(0, 50);
+    const all = this.locateAll ?? this.assets;
+    return (q ? all.filter((a) => this.searchText(a).includes(q)) : all).slice(0, 50);
+  }
+
+  toggleLocateSel(id: string): void {
+    const next = new Set(this.locateSel);
+    if (!next.delete(id)) next.add(id);
+    this.locateSel = next;
+  }
+
+  get allLocateSelected(): boolean {
+    return this.locateRows.length > 0 && this.locateRows.every((a) => this.locateSel.has(a.assetId));
+  }
+
+  toggleAllLocate(): void {
+    this.locateSel = this.allLocateSelected ? new Set() : new Set(this.locateRows.map((a) => a.assetId));
+  }
+
+  /** Locate selected: switch to the first asset's floor plan, zoom to the zones and highlight every asset found there. */
+  locateSelected(): void {
+    const all = this.locateAll ?? this.assets;
+    const picked = [...this.locateSel].map((id) => all.find((a) => a.assetId === id)).filter((a): a is RtlAsset => !!a);
+    this.locateMany(picked);
+  }
+
+  private locateMany(picked: RtlAsset[]): void {
+    this.locateOpen = false;
+    this.clearFilters();
+    const placed = picked.filter((a) => a.location?.zoneId && this.floorOfPlan(a.location.floorPlanId));
+    const missing = picked.length - placed.length;
+    if (!placed.length) {
+      this.showToast(picked.length === 1 ? `${picked[0].name} has no location on a floor plan yet.` : 'None of the selected assets has a location on a floor plan yet.');
+      return;
+    }
+    const floor = this.floorOfPlan(placed[0].location!.floorPlanId);
+    const here = placed.filter((a) => this.floorOfPlan(a.location!.floorPlanId) === floor);
+    if (floor !== this.mapFloorId) this.setFloor(floor);
+    if (here.length === 1) this.select(here[0].assetId);
+    // a new key restarts the animation even for the same assets
+    this.assetFocus = { key: `${Date.now()}`, ids: here.map((a) => a.assetId) };
+    const other = placed.length - here.length;
+    if (other || missing) this.showToast(`Showing ${here.length} on ${this.floors.find((f) => f.id === floor)?.label ?? 'this floor'}.${other ? ` ${other} on other floors.` : ''}${missing ? ` ${missing} without a location.` : ''}`);
+  }
+
+  clearHighlight(): void {
+    this.assetFocus = null;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.assetFocus && !this.locateOpen) this.assetFocus = null;
   }
 
   /** Locate: go to the asset's floor (all floors first, so it is in view), highlight it, open its details. */
   locate(a: RtlAsset): void {
-    this.locateOpen = false;
-    this.clearFilters();
-    const floor = this.floorOfPlan(a.location?.floorPlanId);
-    if (floor && floor !== this.mapFloorId) this.setFloor(floor);
-    this.select(a.assetId);
-    if (!a.location) this.showToast(`${a.name} has no location yet: none of its tags has been heard.`);
+    if (!a.location) {
+      this.locateOpen = false;
+      this.select(a.assetId);
+      this.showToast(`${a.name} has no location yet: none of its tags has been heard.`);
+      return;
+    }
+    this.locateMany([a]);
   }
 
   // ---- LED / buzzer
