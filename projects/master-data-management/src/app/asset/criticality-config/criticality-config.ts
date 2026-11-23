@@ -68,6 +68,7 @@ export class CriticalityConfigPage implements OnInit {
   levels: LevelRow[] = [];
   criteria: CriterionDto[] = [];
   templates: TemplateDto[] = [];
+  showRetired = false;
   rules: RuleRow[] = [];
   reviews: (ReassessmentRuleDto & { months: number | null })[] = [];
 
@@ -199,6 +200,11 @@ export class CriticalityConfigPage implements OnInit {
 
   private loadTemplates(): void {
     this.api.templates().subscribe({ next: (t) => (this.templates = t), error: (e) => this.fail('Could not load the templates', e) });
+  }
+
+  /** Retired templates are hidden unless the "Show retired" toggle is on. */
+  get visibleTemplates(): TemplateDto[] {
+    return this.showRetired ? this.templates : this.templates.filter((t) => t.isActive);
   }
 
   newTemplate(): void {
