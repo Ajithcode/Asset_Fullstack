@@ -267,7 +267,7 @@
       <label class="field"><span class="field-label">Thumbnail style</span><select class="control" [(ngModel)]="d.form" name="form"><option value="" disabled>Select Thumbnail Style</option><option *ngFor="let f of forms" [value]="f.id">{{ f.label }}</option></select></label>
       <label class="field"><span class="field-label">Description</span><textarea class="control control-area" [(ngModel)]="d.description" name="desc" rows="3" placeholder="What devices belong to this type?"></textarea></label>
       <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary">Add type</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="dialog = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="saving">Add type</button></div>
     </form>
   </div>
 </div>

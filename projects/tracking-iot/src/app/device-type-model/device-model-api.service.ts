@@ -66,6 +66,29 @@ export interface DeviceModelFormOptions {
   ipRatings: string[];
   configurableAttributes: string[];
   statuses: string[];
+  /** Icons a device type can have (same as GET /api/device-models/device-type-icons). */
+  deviceTypeIcons?: string[];
+  /** Thumbnail styles a device type can have (same as GET /api/device-models/thumbnail-styles). */
+  thumbnailStyles?: string[];
+}
+
+/** A device type as GET/POST /api/device-models/device-types returns it (addressed by name). */
+export interface DeviceTypeDto {
+  id: string;
+  name: string;
+  icon: string;
+  thumbnailStyle: string;
+  description: string | null;
+  modelCount: number;
+  activeModelCount: number;
+}
+
+/** Body of POST /api/device-models/device-types and PUT /api/device-models/device-types/{name}. */
+export interface DeviceTypeRequest {
+  name: string;
+  icon: string;
+  thumbnailStyle: string;
+  description: string | null;
 }
 
 /** API status → page status: Draft and Pending Review are both shown as Draft (Pending Review); Inactive is Retired. */
@@ -135,6 +158,20 @@ export class DeviceModelApiService {
       // a slow / cold service sometimes fails the first call: try again twice before giving up
       retry({ count: 2, delay: (_e, n) => timer(800 * n) }),
       catchError((e) => apiError(e, 'Could not load the model form options.')),
+    );
+  }
+
+  /** GET /api/device-models/device-types: every device type with its model counts. */
+  deviceTypes(): Observable<DeviceTypeDto[]> {
+    return this.http.get<DeviceTypeDto[]>(`${this.url}/device-types`, { params: tenantParams() }).pipe(
+      catchError((e) => apiError(e, 'Could not load device types.')),
+    );
+  }
+
+  /** POST /api/device-models/device-types */
+  createDeviceType(body: DeviceTypeRequest): Observable<DeviceTypeDto> {
+    return this.http.post<DeviceTypeDto>(`${this.url}/device-types`, { ...body, ...tenantBody() }, { params: tenantParams() }).pipe(
+      catchError((e) => apiError(e, `Could not add device type "${body.name}".`)),
     );
   }
 
