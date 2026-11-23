@@ -1,8 +1,11 @@
-import { Component, Input } from '@angular/core';
+import { Component, DestroyRef, Input, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Observable, catchError, forkJoin, of } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { WidgetDragHandle } from '../shared/widget-drag-handle/widget-drag-handle';
 import { loadOrder, saveOrder, reorderByKey, moveWithinVisible } from '../shared/dashboard-widgets/widget-order.util';
+import { InspectionRecord, ModuleWidgetsApi, shortDate, timeAgo } from '../services/dashboard/module-widgets';
 
 export type WorkOrderFilter = 'all' | 'inprogress' | 'pendingapproval' | 'completed' | 'overdue';
 
@@ -19,7 +22,8 @@ interface InspWorkOrder {
   assetsCount: number;
   assignees: string[];
   status: string;
-  statusClass: WorkOrderFilter;
+  /** A WorkOrderFilter key, or notstarted. */
+  statusClass: string;
   dueDate: string;
 }
 
@@ -85,7 +89,7 @@ interface InspPopup {
   templateUrl: './inspection-dashboard.html',
   styleUrls: ['./inspection-dashboard.css'],
 })
-export class InspectionDashboard {
+export class InspectionDashboard implements OnInit {
   /** Widget ids (see WIDGET_CATALOG 'inspection') the user chose to show. */
   @Input() selected: string[] = [];
 
@@ -122,7 +126,7 @@ export class InspectionDashboard {
     saveOrder('piq.dashboard.inspection.rowBOrder', this.rowBOrder);
   }
 
-  // ===== Summary cards (layout only; values stay 0 until the inspection API is wired) =====
+  // ===== Summary cards (layout; values come from loadData()) =====
   statCards: InspStatCard[] = reorderByKey<InspStatCard>([
     { key: 'all', label: 'Total Work Orders', value: 0, icon: 'clipboard' },
     { key: 'inprogress', label: 'In Progress', value: 0, icon: 'progress' },
@@ -274,7 +278,7 @@ export class InspectionDashboard {
     };
   }
 
-  private readonly myInspectionDetails: Record<string, { workOrder: string; asset: string; dueDate: string }[]> = {};
+  private myInspectionDetails: Record<string, { workOrder: string; asset: string; dueDate: string }[]> = {};
 
   private readonly myInspectionColumns: PopupColumn[] = [
     { key: 'workOrder', label: 'Work Order' },
@@ -327,7 +331,7 @@ export class InspectionDashboard {
     };
   }
 
-  private readonly approvalDetails: Record<string, { workOrder: string; title: string; submittedBy: string; submittedDate: string }[]> = {};
+  private approvalDetails: Record<string, { workOrder: string; title: string; submittedBy: string; submittedDate: string }[]> = {};
 
   private readonly approvalColumns: PopupColumn[] = [
     { key: 'workOrder', label: 'Work Order' },
@@ -365,5 +369,130 @@ export class InspectionDashboard {
 
   closePopup(): void {
     this.popup = null;
+  }
+
+  // ===== Data (Inspection service; the signed-in user's assignee names from the Dashboard service) =====
+  private readonly api = inject(ModuleWidgetsApi);
+  private readonly destroyRef = inject(DestroyRef);
+
+  ngOnInit(): void {
+    this.loadData();
+  }
+
+  /**
+   * Where an inspection stands on the dashboard: completed, waiting on a sign-off after the inspector signed
+   * (pendingapproval), past its due date (overdue), in progress, or not started.
+   */
+  private stage(insp: InspectionRecord, today: string): string {
+    const status = (insp.status ?? '').toLowerCase();
+    if (status === 'completed') return 'completed';
+    const steps = insp.signOff ?? [];
+    if (steps.length > 1 && steps[0].state === 'Signed' && steps.some((s) => s.state !== 'Signed')) return 'pendingapproval';
+    if (status === 'overdue' || (!!insp.dueDate && insp.dueDate.slice(0, 10) < today)) return 'overdue';
+    if (status === 'in progress') return 'inprogress';
+    return 'notstarted';
+  }
+
+  private loadData(): void {
+    const safe = <T>(source: Observable<T>) => source.pipe(catchError(() => of(null)));
+    forkJoin({
+      inspections: safe(this.api.getInspections()),
+      myTasks: safe(this.api.getMyInspectionTasks()),
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ inspections, myTasks }) => {
+        if (!inspections) return;
+        const d = new Date();
+        const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const list = inspections.filter((i) => !i.isDeleted && (i.status ?? '').toLowerCase() !== 'cancelled');
+        const labels: Record<string, string> = {
+          completed: 'Completed',
+          pendingapproval: 'Pending Approval',
+          overdue: 'Overdue',
+          inprogress: 'In Progress',
+          notstarted: 'Not Started',
+        };
+        const staged = list.map((insp) => ({ insp, stage: this.stage(insp, today) }));
+
+        this.workOrders = staged.map(({ insp, stage }) => ({
+          id: insp.inspectionCode,
+          title: insp.title,
+          assetsCount: insp.assetCode || insp.assetName ? 1 : 0,
+          assignees: insp.assignedTo ? [insp.assignedTo] : [],
+          status: labels[stage],
+          statusClass: stage,
+          dueDate: shortDate(insp.dueDate),
+        }));
+        this.statCards = this.statCards.map((c) => ({
+          ...c,
+          value: c.key === 'all' ? staged.length : staged.filter((s) => s.stage === c.key).length,
+        }));
+
+        // My Inspections: inspections assigned to any name the signed-in user is known by (overdue ones count by progress)
+        const names = new Set((myTasks?.matchedAssigneeNames ?? []).map((n) => n.trim().toLowerCase()));
+        const mine = staged.filter(({ insp }) => !!insp.assignedTo && names.has(insp.assignedTo.trim().toLowerCase()));
+        const myKey = (s: { insp: InspectionRecord; stage: string }) =>
+          s.stage === 'overdue' ? ((s.insp.status ?? '').toLowerCase() === 'in progress' ? 'inprogress' : 'notstarted') : s.stage;
+        this.myInspectionDetails = {};
+        for (const s of mine) {
+          (this.myInspectionDetails[myKey(s)] ??= []).push({ workOrder: s.insp.inspectionCode, asset: s.insp.assetName ?? '—', dueDate: shortDate(s.insp.dueDate) });
+        }
+        this.myInspections = this.myInspections.map((row) => ({ ...row, count: this.myInspectionDetails[row.key]?.length ?? 0 }));
+
+        const lastActivity = (i: InspectionRecord) => Date.parse(i.completedAt ?? i.startedAt ?? i.updatedAt ?? i.createdAt ?? '') || 0;
+        this.recentInspections = [...staged]
+          .filter(({ insp }) => insp.completedAt || insp.startedAt)
+          .sort((a, b) => lastActivity(b.insp) - lastActivity(a.insp))
+          .slice(0, 5)
+          .map(({ insp, stage }) => {
+            const failed = stage === 'completed' && this.failed(insp);
+            const status = stage === 'completed' ? (failed ? 'Failed' : 'Passed') : labels[stage];
+            return {
+              id: insp.inspectionCode,
+              title: insp.title,
+              asset: insp.assetName ?? '—',
+              inspectedBy: insp.assignedTo ?? '—',
+              status,
+              statusClass: stage === 'completed' ? (failed ? 'failed' : 'passed') : stage,
+              time: timeAgo(insp.completedAt ?? insp.startedAt),
+            };
+          });
+
+        // Summary donut: completed ones split by result
+        const total = staged.length;
+        const counts: Record<string, number> = {
+          Passed: staged.filter((s) => s.stage === 'completed' && !this.failed(s.insp)).length,
+          Failed: staged.filter((s) => s.stage === 'completed' && this.failed(s.insp)).length,
+          'In Progress': staged.filter((s) => s.stage === 'inprogress').length,
+          'Pending Approval': staged.filter((s) => s.stage === 'pendingapproval').length,
+        };
+        this.inspectionSummaryTotal = total;
+        this.inspectionSummary = this.inspectionSummary.map((seg) => {
+          const value = counts[seg.label] ?? 0;
+          return { ...seg, value, percent: total ? Math.round((value / total) * 1000) / 10 : 0 };
+        });
+
+        // Approval Summary: the first unsigned sign-off step after the inspector's; the last step is the final approval
+        this.approvalDetails = {};
+        for (const { insp, stage } of staged) {
+          if (stage !== 'pendingapproval') continue;
+          const steps = insp.signOff;
+          const index = steps.findIndex((s, i) => i > 0 && s.state !== 'Signed');
+          if (index < 1) continue;
+          const level = index === steps.length - 1 ? 'Final Approval' : `Level ${index} Approval`;
+          (this.approvalDetails[level] ??= []).push({
+            workOrder: insp.inspectionCode,
+            title: insp.title,
+            submittedBy: steps[0].name ?? insp.assignedTo ?? '—',
+            submittedDate: shortDate(steps[0].signedAt ?? insp.updatedAt ?? insp.createdAt),
+          });
+        }
+        this.approvalSummary = this.approvalSummary.map((row) => ({ ...row, pending: this.approvalDetails[row.label]?.length ?? 0 }));
+      });
+  }
+
+  /** A completed inspection failed when any checklist response failed or it raised findings. */
+  private failed(insp: InspectionRecord): boolean {
+    return insp.findingsCount > 0 || (insp.responses ?? []).some((r) => (r.result ?? '').toLowerCase() === 'fail');
   }
 }
