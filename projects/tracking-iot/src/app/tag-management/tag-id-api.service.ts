@@ -134,6 +134,12 @@ export interface SiteOption {
   name: string;
 }
 
+/** A master-data location for the Location picker; `siteName` is null when it is not tied to a site. */
+export interface LocationOption {
+  name: string;
+  siteName: string | null;
+}
+
 /** The page's tag type for the API's text ("Barcode Label", "QR Label", "Label", "Hard Tag", "Beacon"). */
 export function pageType(tagType: string): TagType {
   const t = (tagType ?? '').toLowerCase();
@@ -336,6 +342,32 @@ export class TagIdApiService {
           .map((r) => ({ id: String(r.id), name: String(r.siteName ?? r.name ?? r.id) })),
       ),
       catchError(() => of([])),
+    );
+  }
+
+  /**
+   * Locations for the Location picker: GET /api/master-data/locations (MDM > Organization > Location). A location
+   * names its building by code or name; the building's site (GET /api/master-data/buildings) tells which site it is
+   * in. A location without a (known) building has no site and is offered for every site.
+   */
+  locations(): Observable<LocationOption[]> {
+    type Row = { id?: string; locationName?: string; building?: string | null; status?: string; isDeleted?: boolean };
+    type BuildingRow = { code?: string; name?: string; site?: { name?: string | null } | null };
+    const list = <T>(resource: string) =>
+      this.http.get<T[] | { items?: T[] }>(`${environment.masterDataApiUrl}api/master-data/${resource}`, { params: tenantParams() }).pipe(
+        map((res) => (Array.isArray(res) ? res : res?.items ?? [])),
+        catchError(() => of([] as T[])),
+      );
+    const same = (a?: string | null, b?: string | null) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+    return forkJoin({ rows: list<Row>('locations'), buildings: list<BuildingRow>('buildings') }).pipe(
+      map(({ rows, buildings }) =>
+        rows
+          .filter((r) => r.id && r.locationName && r.isDeleted !== true && !/^(inactive|disabled|deleted)$/i.test(r.status ?? ''))
+          .map((r) => {
+            const b = r.building ? buildings.find((x) => same(x.code, r.building) || same(x.name, r.building)) : undefined;
+            return { name: String(r.locationName), siteName: b?.site?.name ?? null };
+          }),
+      ),
     );
   }
 
