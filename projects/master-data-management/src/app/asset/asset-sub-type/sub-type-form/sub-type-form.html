@@ -44,9 +44,9 @@
             </div>
             <div class="field" [class.invalid]="errors.assetType">
               <label for="st-type"><span class="req">*</span> Asset Type</label>
-              <select id="st-type" name="assetType" [(ngModel)]="form.assetType" (ngModelChange)="onTypeChange()">
+              <select id="st-type" name="assetType" [(ngModel)]="form.assetTypeId" (ngModelChange)="onTypeChange()">
                 <option value="" disabled>Select Asset Type</option>
-                @for (t of service.parentTypes(); track t) { <option [value]="t">{{ t }}</option> }
+                @for (t of service.typeOptions(form.assetTypeId); track t.id) { <option [value]="t.id">{{ t.name }}</option> }
               </select>
               @if (errors.assetType) { <small>{{ errors.assetType }}</small> }
             </div>

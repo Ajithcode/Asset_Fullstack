@@ -16,6 +16,8 @@ export interface AssetSubTypeRecord {
   name: string;
   // Parent asset type (by name); the category follows the parent
   assetType: string;
+  // Id of that asset type in the Asset service master (what is saved)
+  assetTypeId: string;
   category: string;
   subcategory: string;
   // Built-in icon, used when no image is uploaded
