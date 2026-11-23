@@ -7,6 +7,7 @@ export function blankAssetSubType(): AssetSubTypeRecord {
     assetType: '',
     category: '',
     subcategory: '',
+    assetTypeId: '',
     icon: 'conveyor',
     image: null,
     description: '',

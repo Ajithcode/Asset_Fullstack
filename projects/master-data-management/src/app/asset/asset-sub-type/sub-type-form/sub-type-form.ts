@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Plus, Trash2, X } from 'lucide-angular';
 import { TRACKING_METHODS, hasRunningNumber, sampleTag } from '../../asset-model/asset-model.data';
@@ -49,7 +49,7 @@ const TAB_OF: Record<FieldKey, SubTypeFormTab> = {
     '../../../shared/styles/mdm-purple-theme.css'
   ]
 })
-export class SubTypeForm implements OnChanges {
+export class SubTypeForm implements OnChanges, OnInit {
   // 'edit' changes `subType`; 'add' creates a new one, pre-filled from `subType` if given (Duplicate)
   @Input() mode: 'add' | 'edit' = 'add';
   @Input() subType: AssetSubTypeRecord | null = null;
@@ -77,6 +77,11 @@ export class SubTypeForm implements OnChanges {
   errors: Partial<Record<FieldKey, string>> = {};
   private original: AssetSubTypeRecord | null = null;
 
+  ngOnInit(): void {
+    // Refresh the Asset Type master each time the form opens (stores otherwise load once per session)
+    this.service.loadTypes().subscribe({ error: () => undefined });
+  }
+
   ngOnChanges(): void {
     this.original = this.mode === 'edit' ? this.subType : null;
     this.form = this.subType ? structuredClone(this.subType) : newAssetSubType();
@@ -93,12 +98,13 @@ export class SubTypeForm implements OnChanges {
   }
 
   get subcategories(): string[] {
-    return this.service.subcategoriesOf(this.form.assetType);
+    return this.service.subcategoriesOf(this.form.assetTypeId);
   }
 
   // Category and subcategory follow the parent asset type
   onTypeChange(): void {
-    this.form.category = this.service.categoryOf(this.form.assetType);
+    this.form.assetType = this.service.typeOptions(this.form.assetTypeId).find((t) => t.id === this.form.assetTypeId)?.name ?? '';
+    this.form.category = this.service.categoryOf(this.form.assetTypeId);
     const subs = this.subcategories;
     if (!subs.includes(this.form.subcategory)) this.form.subcategory = '';
   }
@@ -166,7 +172,7 @@ export class SubTypeForm implements OnChanges {
   submit(): void {
     const f = this.form;
     const errors: Partial<Record<FieldKey, string>> = {};
-    if (!f.assetType) errors.assetType = 'Select a parent asset type.';
+    if (!f.assetTypeId) errors.assetType = 'Select a parent asset type.';
     if (!f.name.trim()) errors.name = 'Enter a sub type name.';
     else if (this.service.isNameTaken(f.name, f.assetType, this.original?.code ?? null)) errors.name = `${f.name.trim()} already exists under ${f.assetType}.`;
     if (!f.code.trim()) errors.code = 'Enter a code.';

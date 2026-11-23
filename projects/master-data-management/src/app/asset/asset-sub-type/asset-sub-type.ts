@@ -5,7 +5,8 @@ import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, GitBranch, Layers, LucideAngularModule, Monitor, Plus, Search } from 'lucide-angular';
 import { MASTER_DATA_BASE_PATH } from 'shared-ui';
 import { apiErrorMessage } from '../../shared/mdm-api';
-import { AssetTypeService } from '../asset-type/asset-type.service';
+import { CategoryService } from '../category-subcategory/category.service';
+import { forkJoin } from 'rxjs';
 import { MODEL_ICONS } from '../asset-model/asset-model.icons';
 import { AssetSubTypeFilters, AssetSubTypeRecord } from './asset-sub-type.model';
 import { AssetSubTypeService } from './asset-sub-type.service';
@@ -25,7 +26,7 @@ const EMPTY_FILTERS: AssetSubTypeFilters = { search: '', assetType: '', status: 
 })
 export class AssetSubTypePage implements OnInit {
   readonly service = inject(AssetSubTypeService);
-  private readonly types = inject(AssetTypeService);
+  private readonly categoryStore = inject(CategoryService);
   readonly basePath = MASTER_DATA_BASE_PATH;
   readonly typeIcons = MODEL_ICONS;
   readonly icons = { GitBranch, Monitor, Layers, Search, Plus, Ellipsis, ArrowUp, ArrowDown, ChevronLeft, ChevronRight };
@@ -58,7 +59,7 @@ export class AssetSubTypePage implements OnInit {
 
   ngOnInit(): void {
     // Parent types first, so each sub type shows its category
-    this.types.reload().subscribe({
+    forkJoin([this.categoryStore.reload(), this.service.loadTypes()]).subscribe({
       complete: () => this.loadSubTypes(),
       error: () => this.loadSubTypes()
     });
