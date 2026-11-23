@@ -358,7 +358,8 @@
           </tr>
         </tbody>
       </table>
-      <p class="hint">Fix these rows in your file and upload it again, or import the valid rows now.</p>
+      <p class="hint">Fix these rows in your file and upload it again, or import the valid rows now.
+        <button *ngIf="serverIssues && importId" type="button" class="link-btn link-btn--u" [disabled]="errorsDownloading" (click)="downloadErrors()">{{ errorsDownloading ? 'Downloading…' : 'Download error report' }}</button></p>
     </div>
   </div>
 </div>

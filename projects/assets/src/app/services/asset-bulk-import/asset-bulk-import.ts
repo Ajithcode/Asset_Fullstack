@@ -341,6 +341,19 @@ export class AssetBulkImport {
     );
   }
 
+  /** Row problems of a validated import as an Excel file (GET asset-import-export/imports/{id}/errors/export). */
+  exportErrors(importId: string): Observable<{ blob: Blob; fileName: string }> {
+    return this.http.get(`${this.url}/imports/${encodeURIComponent(importId)}/errors/export`, { responseType: 'blob', observe: 'response' }).pipe(
+      map((res) => ({ blob: res.body ?? new Blob(), fileName: fileNameOf(res.headers.get('Content-Disposition')) || 'Asset_Import_Errors.xlsx' })),
+      catchError((err: unknown) => blobErrorToJson(err)),
+    );
+  }
+
+  /** Discards an import that was not confirmed (DELETE asset-import-export/imports/{id}). */
+  deleteImport(importId: string): Observable<unknown> {
+    return this.http.delete(`${this.url}/imports/${encodeURIComponent(importId)}`);
+  }
+
   /** Saves the column mapping: PUT asset-import-export/imports/{id}/mapping, body { importType, mapping: { fileColumn: fieldKey | null } }. */
   saveMapping(importId: string, importType: string, mapping: Record<string, string | null>): Observable<unknown> {
     return this.http.put<unknown>(`${this.url}/imports/${encodeURIComponent(importId)}/mapping`, { importType, mapping });
