@@ -97,7 +97,8 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
                 (asset.PurchaseWarranty?.Documents?.Count ?? 0) + (asset.AdditionalInformation?.Attachments?.Count ?? 0),
                 asset.PurchaseWarranty?.Purchase?.PurchaseDate,
                 asset.AdditionalInformation?.Operational?.NextMaintenanceDate,
-                tagIdsByAsset.GetValueOrDefault(asset.AssetRegistrationId)))
+                tagIdsByAsset.GetValueOrDefault(asset.AssetRegistrationId).Ids,
+                tagIdsByAsset.GetValueOrDefault(asset.AssetRegistrationId).Registered))
             .ToList();
     }
 
@@ -107,7 +108,7 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
     /// Management can store either). Older data without a TrackingTag falls back to the asset's own asset_tag, unless
     /// that id is a registered tag of some asset.
     /// </summary>
-    private async Task<Dictionary<string, IReadOnlyList<string>>> GetTagIdsByAssetAsync(
+    private async Task<Dictionary<string, (IReadOnlyList<string> Ids, bool Registered)>> GetTagIdsByAssetAsync(
         IReadOnlyList<AssetRegistration> assets, CancellationToken cancellationToken)
     {
         var trackingTags = await _database.GetCollection<BsonDocument>(TrackingTagCollection)
@@ -139,7 +140,7 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             set.UnionWith(ids);
         }
 
-        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        var result = new Dictionary<string, (IReadOnlyList<string> Ids, bool Registered)>(StringComparer.OrdinalIgnoreCase);
         foreach (var asset in assets)
         {
             var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -148,12 +149,16 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
                 ids.UnionWith(byId);
             }
 
+            // True when Tag Management links at least one tag to the asset (as opposed to the asset_tag fallback).
+            var isRegistered = ids.Count > 0;
+
             var assetTag = asset.BasicInformation?.AssetTag?.Trim();
             if (!string.IsNullOrEmpty(assetTag))
             {
                 if (byAssetKey.TryGetValue(assetTag, out var byTag))
                 {
                     ids.UnionWith(byTag);
+                    isRegistered = true;
                 }
 
                 // Fallback for data without Tag Management: the asset tag is the tag id.
@@ -165,7 +170,7 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
 
             if (ids.Count > 0)
             {
-                result[asset.AssetRegistrationId] = ids.ToList();
+                result[asset.AssetRegistrationId] = (ids.ToList(), isRegistered);
             }
         }
 

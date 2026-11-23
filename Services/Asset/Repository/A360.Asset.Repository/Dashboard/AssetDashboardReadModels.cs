@@ -29,7 +29,8 @@ public sealed record DashboardAsset(
     int AttachedDocumentCount = 0,
     DateTime? PurchaseDate = null,
     DateTime? NextMaintenanceDate = null,
-    IReadOnlyList<string>? TagIds = null);
+    IReadOnlyList<string>? TagIds = null,
+    bool HasRegisteredTag = false);
 
 /// <summary>
 /// Tag ids are compared the way Real-Time Location compares them: lower case, without ':', '-' and spaces
