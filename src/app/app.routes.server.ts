@@ -10,6 +10,10 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Client   // ← signup must run in browser
   },
   {
+    path: 'accept-invite',
+    renderMode: RenderMode.Client   // ← invitation page runs in the browser
+  },
+  {
     path: 'locating',
     renderMode: RenderMode.Client   // ← locating uses Leaflet which needs window
   },

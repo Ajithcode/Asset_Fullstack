@@ -3,6 +3,7 @@ import { loadRemoteModule } from '@angular-architects/native-federation';
 import { ModulePlaceholder } from 'shared-ui';
 import { Login } from './components/pages/login/login/login';
 import { Signup } from './components/pages/signup/signup/signup';
+import { AcceptInvite } from './components/pages/accept-invite/accept-invite';
 import { SectionUnavailable } from './section-unavailable/section-unavailable';
 import { Events } from './components/pages/events/events/events';
 import { Layout } from './components/shared/layout/layout';
@@ -34,6 +35,7 @@ export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: 'login', component: Login },
   { path: 'signup', component: Signup },
+  { path: 'accept-invite', component: AcceptInvite },
   {
     path: '',
     component: Layout,

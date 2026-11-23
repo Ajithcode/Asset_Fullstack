@@ -17,8 +17,7 @@ import {
   Wrench,
   X
 } from 'lucide-angular';
-import { ADMIN_LOCATIONS, avatarTone, initials } from '../../shared/admin-common';
-import scopeOptions from '../../role-access-control/role-scope-options.json';
+import { ADMIN_LOCATIONS, avatarTone, departmentsOf, initials } from '../../shared/admin-common';
 import { ALL_LOCATIONS, LOCATION_TIME_ZONES, TIME_ZONES, USER_MODULES, USER_ROLES, roleModules } from '../user-management.data';
 import { AdminUser, UserStatus } from '../user-management.model';
 import { UserAdminService } from '../user-management.service';
@@ -65,8 +64,13 @@ export class UserDrawer implements OnChanges {
   private readonly service = inject(UserAdminService);
   readonly icons = { X, Camera, Pencil, MapPin, Calendar, Eye, EyeOff };
   readonly minPassword = MIN_PASSWORD;
-  // Same department list as the Role form (role-scope-options.json)
-  readonly departments: string[] = scopeOptions.departments;
+  /** Selected organization: the department list shows its departments (a saved department stays listed). */
+  @Input() organization = '';
+  get departments(): string[] {
+    const list = departmentsOf(this.organization);
+    const current = this.form?.department;
+    return current && !list.includes(current) ? [current, ...list] : list;
+  }
   readonly locations = ADMIN_LOCATIONS;
   readonly timeZones = TIME_ZONES;
   readonly modules = USER_MODULES;

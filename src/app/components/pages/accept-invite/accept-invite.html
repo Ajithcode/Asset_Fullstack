@@ -1,0 +1,70 @@
+<div class="login-shell" [class.is-scaled]="scaled" [style.--s]="scale">
+<div class="design">
+  <div class="stage">
+    <div class="stage-bg" aria-hidden="true"></div>
+    <!-- ===== Branding (same as the sign-in page) ===== -->
+    <aside class="brand">
+      <img class="brand-logo" src="/purple360-logo.jpeg" alt="Asset360 by Purple IQ" />
+      <h1 class="brand-title">Complete Asset Management<br />for a <span>Smarter Tomorrow</span></h1>
+      <p class="brand-tagline"><span>Track</span><i>|</i><span>Maintain</span><i>|</i><span>Optimize</span><i>|</i><span>Extend</span></p>
+
+      <ul class="features">
+        <li *ngFor="let f of features">
+          <span [class]="'feature-ic feature-ic--' + f.tone"><lucide-icon [img]="f.icon" [size]="40" [strokeWidth]="1.8"></lucide-icon></span>
+          <span class="feature-label">{{ f.label }}</span>
+        </li>
+      </ul>
+    </aside>
+
+    <!-- ===== Accept invitation card ===== -->
+    <section class="card" aria-labelledby="invite-title">
+      <h2 id="invite-title">Welcome to Asset<span>360</span></h2>
+      <p class="card-sub" *ngIf="invite">Choose a password for {{ invite.email }}</p>
+      <p class="card-sub" *ngIf="checking">Checking your invitation...</p>
+
+      <p *ngIf="!checking && !invite" class="msg msg--error" role="alert">{{ errorMsg }}</p>
+
+      <form *ngIf="invite" (ngSubmit)="accept()" class="form" novalidate>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Password <em>*</em></span>
+            <span class="input">
+              <lucide-icon [img]="icons.Lock" [size]="22"></lucide-icon>
+              <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="password" name="password" placeholder="At least 8 characters" autocomplete="new-password" />
+              <button type="button" class="eye" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" [attr.aria-pressed]="showPassword">
+                <lucide-icon [img]="showPassword ? icons.EyeOff : icons.Eye" [size]="22"></lucide-icon>
+              </button>
+            </span>
+          </label>
+          <label class="field">
+            <span class="field-label">Confirm Password <em>*</em></span>
+            <span class="input">
+              <lucide-icon [img]="icons.Lock" [size]="22"></lucide-icon>
+              <input [type]="showConfirm ? 'text' : 'password'" [(ngModel)]="confirmPassword" name="confirmPassword" placeholder="Re-enter your password" autocomplete="new-password" />
+              <button type="button" class="eye" (click)="showConfirm = !showConfirm" [attr.aria-label]="showConfirm ? 'Hide password' : 'Show password'" [attr.aria-pressed]="showConfirm">
+                <lucide-icon [img]="showConfirm ? icons.EyeOff : icons.Eye" [size]="22"></lucide-icon>
+              </button>
+            </span>
+          </label>
+        </div>
+
+        <p class="card-sub">Your username is <b>{{ invite.username }}</b>. At your first sign-in you will set up the Google Authenticator app.</p>
+
+        <p *ngIf="errorMsg" class="msg msg--error" role="alert">{{ errorMsg }}</p>
+
+        <button type="submit" class="submit" [disabled]="isLoading">
+          {{ isLoading ? 'Saving...' : 'Set Password' }}
+          <lucide-icon [img]="icons.ArrowRight" [size]="19"></lucide-icon>
+        </button>
+      </form>
+
+      <p class="card-foot card-foot--switch">Already set up? <a class="link" routerLink="/login">Sign In</a></p>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <nav class="footer-links" aria-label="Legal"><a href="#" (click)="$event.preventDefault()">Privacy Policy</a><i>|</i><a href="#" (click)="$event.preventDefault()">Terms of Service</a><i>|</i><a href="#" (click)="$event.preventDefault()">Support</a></nav>
+    <span>© {{ year }} Purple IQ. All rights reserved.</span>
+  </footer>
+</div>
+</div>
