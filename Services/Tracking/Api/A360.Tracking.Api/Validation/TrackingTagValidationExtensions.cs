@@ -106,11 +106,11 @@ public static partial class TrackingTagValidationExtensions
 
         if (string.IsNullOrWhiteSpace(request.TagNumber))
         {
-            errors["TagNumber"] = ["TagNumber is required"];
+            errors["TagNumber"] = ["Tag ID is required"];
         }
         else if (!TagNumberPattern().IsMatch(request.TagNumber.Trim()))
         {
-            errors["TagNumber"] = ["TagNumber can only contain letters and digits (up to 20), e.g. 002952"];
+            errors["TagNumber"] = ["Tag ID can only contain letters, digits, ':', '-' and '_' (up to 50 characters), e.g. c300006eb011"];
         }
 
         if (technology is not null)
@@ -313,6 +313,6 @@ public static partial class TrackingTagValidationExtensions
         }
     }
 
-    [GeneratedRegex("^[A-Za-z0-9]{1,20}$")]
+    [GeneratedRegex("^[A-Za-z0-9:_-]{1,50}$")]
     private static partial Regex TagNumberPattern();
 }

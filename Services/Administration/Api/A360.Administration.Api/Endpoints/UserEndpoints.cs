@@ -30,10 +30,104 @@ public static class UserEndpoints
         string? tenantId,
         string? clientId,
         IUserRepository repository,
+        LoginAccountClient loginAccounts,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        // Sign-in accounts are the source of truth for who exists; bring them in before listing
+        var accounts = await loginAccounts.ListAsync(cancellationToken);
+        if (accounts is not null)
+        {
+            await SyncSignInAccountsAsync(accounts, repository, loggerFactory.CreateLogger(nameof(UserEndpoints)), cancellationToken);
+        }
+
         var users = await repository.GetUsersAsync(tenantId, clientId, cancellationToken);
         return Results.Ok(users.Select(UserResponse.FromEntity));
+    }
+
+    /// <summary>
+    /// Keeps User Management in step with the sign-in accounts (UserAccount service): an account without a user here
+    /// (self-registered, or created before User Management) gets one, linked by its account id; linked users take the
+    /// account's role, active / suspended state and last sign-in. Profile fields and secondary roles stay as edited here.
+    /// </summary>
+    private static async Task SyncSignInAccountsAsync(
+        IReadOnlyList<LoginAccountClient.LoginAccount> accounts,
+        IUserRepository repository,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var users = (await repository.GetUsersAsync(null, null, cancellationToken)).ToList();
+        foreach (var account in accounts.Where(a => !a.IsDeleted && !string.IsNullOrWhiteSpace(a.Id) && !string.IsNullOrWhiteSpace(a.UserName)))
+        {
+            var username = account.UserName!.Trim().ToLowerInvariant();
+            var email = (account.Email ?? string.Empty).Trim().ToLowerInvariant();
+            var inactive = string.Equals(account.Status, "Inactive", StringComparison.OrdinalIgnoreCase);
+            var user = users.FirstOrDefault(u => u.LoginAccountId == account.Id)
+                ?? users.FirstOrDefault(u => string.IsNullOrWhiteSpace(u.LoginAccountId)
+                    && (u.Username == username || (email.Length > 0 && u.Email == email)));
+
+            try
+            {
+                if (user is null)
+                {
+                    var phone = account.ContactNo?.Trim();
+                    user = new A360.Administration.Domain.Entities.User
+                    {
+                        UserId = Guid.NewGuid().ToString(),
+                        Name = string.IsNullOrWhiteSpace(account.ShortName) ? account.UserName!.Trim() : account.ShortName.Trim(),
+                        Username = username,
+                        Email = email,
+                        Phone = string.IsNullOrWhiteSpace(phone) || phone == "N/A" ? null : phone,
+                        PrimaryRole = account.RoleName ?? "User",
+                        AccessScope = "All Locations",
+                        // Every sign-in uses the authenticator app
+                        MfaEnabled = true,
+                        Status = inactive ? "Suspended" : "Active",
+                        LastLoginAt = account.LastLogin,
+                        LoginAccountId = account.Id,
+                        CreatedBy = "sign-in account",
+                        CreatedAt = account.CreatedAt ?? DateTime.UtcNow,
+                        TenantId = account.TenantId,
+                        ClientId = account.ClientId,
+                        IsDeleted = false
+                    };
+                    users.Add(await repository.CreateAsync(user, cancellationToken));
+                    continue;
+                }
+
+                var changed = user.LoginAccountId != account.Id;
+                user.LoginAccountId = account.Id;
+                if (account.RoleName is not null && !string.Equals(user.PrimaryRole, account.RoleName, StringComparison.OrdinalIgnoreCase))
+                {
+                    user.SecondaryRoles.RemoveAll(role => string.Equals(role, account.RoleName, StringComparison.OrdinalIgnoreCase));
+                    user.PrimaryRole = account.RoleName;
+                    changed = true;
+                }
+
+                var status = inactive ? "Suspended" : string.Equals(user.Status, "Suspended", StringComparison.OrdinalIgnoreCase) ? "Active" : user.Status;
+                if (!string.Equals(user.Status, status, StringComparison.Ordinal))
+                {
+                    user.Status = status;
+                    changed = true;
+                }
+
+                if (account.LastLogin is not null && user.LastLoginAt != account.LastLogin)
+                {
+                    user.LastLoginAt = account.LastLogin;
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    await repository.UpdateAsync(user.Id, user, cancellationToken);
+                }
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                // One bad record must not hide the whole list
+                logger.LogWarning(exception, "Could not sync sign-in account {AccountId} into User Management.", account.Id);
+            }
+        }
     }
 
     /// <summary>UserAccount role whose holders see every module.</summary>
@@ -79,15 +173,17 @@ public static class UserEndpoints
                 FullAccess: true, Modules: [], User: user is null ? null : UserResponse.FromEntity(user)));
         }
 
-        if (user is null)
+        // Without a User Management record the sign-in role applies (same roles as Role & Access Control)
+        var names = user is null ? new List<string> { signInRole ?? "User" } : RoleNames(user);
+        var tenantId = user?.TenantId ?? principal.FindFirst(A360ClaimTypes.TenantId)?.Value;
+        var roles = (await roleRepository.GetByNamesAsync(names, tenantId, cancellationToken))
+            .Where(role => !string.Equals(role.Status, "Inactive", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (user is null && roles.Count == 0)
         {
             return Results.Ok(new MyAccessResponse(
-                displayName, shownEmail, signInRole ?? "User", [signInRole ?? "User"], FullAccess: false, Modules: DefaultModules, User: null));
+                displayName, shownEmail, names[0], names, FullAccess: false, Modules: DefaultModules, User: null));
         }
-
-        var names = RoleNames(user);
-        var roles = (await roleRepository.GetByNamesAsync(names, user.TenantId, cancellationToken))
-            .Where(role => !string.Equals(role.Status, "Inactive", StringComparison.OrdinalIgnoreCase));
 
         // Union across roles: an action is allowed when any role grants it (full or partial)
         var modules = new Dictionary<string, SortedSet<string>>(StringComparer.OrdinalIgnoreCase);
@@ -112,13 +208,45 @@ public static class UserEndpoints
             }
         }
 
+        var criticality = AssetCriticalityPermissions.Module;
         var access = modules
-            .Where(entry => entry.Value.Contains("view"))
+            .Where(entry => entry.Value.Contains("view") && !string.Equals(entry.Key, criticality, StringComparison.OrdinalIgnoreCase))
             .Select(entry => new ModuleAccessResponse(entry.Key, entry.Value.ToList()))
             .ToList();
 
+        // Asset Criticality is a sub-menu of Assets and follows the role's Assets permissions; actions stored for the
+        // AssetCriticality module itself are ignored. Always listed (possibly with no actions) so the gateway and the
+        // Asset service never fall back to the role-name defaults (AssetCriticalityPermissions.RoleDefaults).
+        access.Add(new ModuleAccessResponse(criticality, CriticalityFromAssets(modules.GetValueOrDefault("Assets"))));
+
         return Results.Ok(new MyAccessResponse(
-            displayName, shownEmail, user.PrimaryRole, names, FullAccess: false, Modules: access, User: UserResponse.FromEntity(user)));
+            displayName, shownEmail, user?.PrimaryRole ?? names[0], names, FullAccess: false, Modules: access,
+            User: user is null ? null : UserResponse.FromEntity(user)));
+    }
+
+    /// <summary>
+    /// Assets View -> View; Assets Create or Edit -> Assess; Assets Approve -> Approve, Approve Critical, Configure.
+    /// Nothing without Assets View.
+    /// </summary>
+    private static List<string> CriticalityFromAssets(IReadOnlySet<string>? assets)
+    {
+        if (assets is null || !assets.Contains("view"))
+        {
+            return [];
+        }
+
+        var granted = new List<string> { AssetCriticalityPermissions.View };
+        if (assets.Contains("create") || assets.Contains("edit"))
+        {
+            granted.Add(AssetCriticalityPermissions.Assess);
+        }
+
+        if (assets.Contains("approve"))
+        {
+            granted.AddRange([AssetCriticalityPermissions.Approve, AssetCriticalityPermissions.ApproveCritical, AssetCriticalityPermissions.Configure]);
+        }
+
+        return granted;
     }
 
     private static List<string> RoleNames(A360.Administration.Domain.Entities.User user)

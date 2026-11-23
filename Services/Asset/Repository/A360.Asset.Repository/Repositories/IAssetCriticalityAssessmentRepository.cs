@@ -15,6 +15,9 @@ public interface IAssetCriticalityAssessmentRepository : IMongoRepository<AssetC
 
     /// <summary>Clears IsCurrent on the asset's assessments, before a new current one is saved.</summary>
     Task ClearCurrentAsync(string assetRegistrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>The asset's Draft / Submitted / PendingApproval / Rejected assessment, if any.</summary>
+    Task<AssetCriticalityAssessment?> GetOpenAsync(string assetRegistrationId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Filters and paging for the Asset Criticality List. Empty values mean "all".</summary>

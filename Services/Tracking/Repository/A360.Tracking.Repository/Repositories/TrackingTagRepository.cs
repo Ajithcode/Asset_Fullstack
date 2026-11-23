@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-using MongoDB.Bson;
 using MongoDB.Driver;
 using A360.Tracking.Domain.Entities;
 using A360.Repository.Repositories;
@@ -29,7 +27,7 @@ public sealed class TrackingTagRepository
     public async Task<bool> TagIdExistsAsync(string tagId, CancellationToken cancellationToken = default)
     {
         return await Collection
-            .Find(tag => tag.TagId == tagId, new FindOptions { Collation = CaseInsensitive })
+            .Find(tag => tag.TagId == tagId && !tag.IsDeleted, new FindOptions { Collation = CaseInsensitive })
             .AnyAsync(cancellationToken);
     }
 
@@ -61,20 +59,6 @@ public sealed class TrackingTagRepository
             .Find(match, new FindOptions { Collation = CaseInsensitive })
             .Project(tag => tag.TagId)
             .FirstOrDefaultAsync(cancellationToken);
-    }
-
-    public async Task<long> GetHighestTagNumberAsync(string prefix, CancellationToken cancellationToken = default)
-    {
-        var tagIds = await Collection
-            .Find(Builders<TrackingTag>.Filter.Regex(tag => tag.TagId,
-                new BsonRegularExpression("^" + Regex.Escape(prefix) + "-[0-9]+$", "i")))
-            .Project(tag => tag.TagId)
-            .ToListAsync(cancellationToken);
-
-        return tagIds
-            .Select(tagId => long.TryParse(tagId[(prefix.Length + 1)..], out var number) ? number : 0)
-            .DefaultIfEmpty(0)
-            .Max();
     }
 
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)

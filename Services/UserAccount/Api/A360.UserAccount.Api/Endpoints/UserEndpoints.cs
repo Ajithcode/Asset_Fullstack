@@ -92,7 +92,9 @@ public static class UserEndpoints
             return Results.ValidationProblem(relationshipErrors);
         }
 
-        var user = await repository.CreateAsync(request.ToEntity(passwordHashingService), cancellationToken);
+        var entity = request.ToEntity(passwordHashingService);
+        entity.RoleName = await RoleNameAsync(entity.UserRoleId, roleRepository, cancellationToken) ?? entity.RoleName;
+        var user = await repository.CreateAsync(entity, cancellationToken);
         await eventLogger.LogAsync("User", user.Id, user.UserName, EventAction.Created, cancellationToken);
         return Results.Created($"/api/users/{user.Id}", UserResponse.FromEntity(user));
     }
@@ -135,6 +137,8 @@ public static class UserEndpoints
         }
 
         request.ApplyTo(user, passwordHashingService);
+        // Keep the role name (sign-in token role) in step with the role id
+        user.RoleName = await RoleNameAsync(user.UserRoleId, roleRepository, cancellationToken) ?? user.RoleName;
 
         var updated = await repository.UpdateAsync(id, user, cancellationToken);
         if (!updated)
@@ -171,5 +175,20 @@ public static class UserEndpoints
 
         await eventLogger.LogAsync("User", user.Id, user.UserName, EventAction.Deleted, cancellationToken);
         return Results.NoContent();
+    }
+
+    /// <summary>Name of the role with this role id (e.g. R-USER) or Mongo id; null when blank or unknown.</summary>
+    private static async Task<string?> RoleNameAsync(string? roleId, IRoleRepository roleRepository, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(roleId))
+        {
+            return null;
+        }
+
+        var id = roleId.Trim();
+        var role = MongoObjectId.IsValid(id)
+            ? await roleRepository.GetByIdAsync(id, cancellationToken)
+            : await roleRepository.GetByRoleIdAsync(id, cancellationToken);
+        return string.IsNullOrWhiteSpace(role?.RoleName) ? null : role.RoleName;
     }
 }

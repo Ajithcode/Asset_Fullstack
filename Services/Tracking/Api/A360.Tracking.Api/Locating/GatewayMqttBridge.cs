@@ -137,9 +137,15 @@ public class GatewayMqttBridge : BackgroundService
         await EnsureIndexesAsync(stoppingToken);
         await _commands.EnsureIndexesAsync(stoppingToken);
 
+        // Every running copy of the service (local, demo, each developer) needs its own client id: the broker allows one
+        // connection per id and kicks the older one, so copies sharing the configured id disconnect each other in a loop
+        // and miss the gateways' replies. The configured id stays as the prefix.
+        var clientId = $"{_settings.ClientId}-{Guid.NewGuid().ToString("N")[..8]}";
+        _logger.LogInformation("MQTT client id {ClientId}", clientId);
+
         var builder = new MqttClientOptionsBuilder()
             .WithTcpServer(_settings.Host, _settings.Port)
-            .WithClientId(_settings.ClientId)
+            .WithClientId(clientId)
             .WithCleanSession(true)
             .WithKeepAlivePeriod(TimeSpan.FromSeconds(_settings.KeepAliveSeconds));
         if (!string.IsNullOrEmpty(_settings.Username))
