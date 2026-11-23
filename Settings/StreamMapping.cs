@@ -5,7 +5,7 @@ namespace WorkerNetworkService.Settings;
 /// The payload is a JSON array: a header object (the gateway) followed by one object per tag,
 /// and each tag becomes one document. Field lookups (Meta / Fields / TimestampFields) check the
 /// tag object first, then the header object, then the stream entry's fields.
-/// Values that are missing or null are left out of the document instead of being stored as null.
+/// Fields that are missing are stored as null; missing meta values are left out.
 /// </summary>
 public class StreamMapping
 {
@@ -56,10 +56,10 @@ public class StreamMapping
 /// <summary>
 /// One document field. Set exactly one of:
 ///   Source                 copy the source field as-is;
-///   Longitude + Latitude   build a GeoJSON Point (left out unless both are numbers);
-///   Object                 build a sub-document, sub-key -> source field (left out when all are missing).
-/// With Array = true the field is always stored as an array: a source array is kept as-is, a single value is
-/// wrapped in an array, and a missing value becomes an empty array.
+///   Longitude + Latitude   build a GeoJSON Point (null unless both are numbers);
+///   Object                 build a sub-document, sub-key -> source field (null when all are missing).
+/// With Array = true the field is stored as an array: a source array is kept as-is, a single value is
+/// wrapped in an array, and a missing value is stored as null. With Date = true the value is stored as a date.
 /// </summary>
 public class FieldMapping
 {
@@ -69,6 +69,9 @@ public class FieldMapping
     public string? Latitude { get; set; }
     public Dictionary<string, string>? Object { get; set; }
     public bool Array { get; set; }
+
+    /// <summary>Store the value as a date (ISO string or date); null when it isn't one.</summary>
+    public bool Date { get; set; }
 
     public IEnumerable<string> SourceFields =>
         new[] { Source, Longitude, Latitude }.Concat(Object?.Values ?? Enumerable.Empty<string>())

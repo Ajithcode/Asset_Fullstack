@@ -9,7 +9,7 @@ namespace WorkerNetworkService.Services;
 /// <summary>
 /// Converts a Redis stream entry into one time-series document per tag:
 ///   { _id, timestamp, meta: { ...mapping.Meta }, ...mapping.Fields, [AttributesField]: { ...other tag fields } }
-/// Missing or null values are left out rather than stored as null.
+/// Configured Fields are always written (null when missing); missing meta and attributes are left out.
 /// The payload is [ header, tag, tag, ... ]; an entry with only a header yields no documents.
 /// </summary>
 public static class StreamEntryMapper
@@ -69,18 +69,15 @@ public static class StreamEntryMapper
             { "timestamp", timestamp },
         };
         AddIfPresent(doc, "meta", meta);
+        // Every configured field is written, as null when there is no data for it, so all documents share one shape.
         foreach (var field in mapping.Fields)
         {
             var value = FieldValue(field, Lookup);
-            if (field.Array)
-                doc[field.Name] = value switch
-                {
-                    BsonArray array => array,
-                    BsonNull => new BsonArray(),
-                    _ => new BsonArray { value },
-                };
-            else
-                AddIfPresent(doc, field.Name, value);
+            if (value is BsonDocument { ElementCount: 0 })
+                value = BsonNull.Value;
+            if (field.Date)
+                value = ParseTimestamp(value) is { } date ? new BsonDateTime(date) : BsonNull.Value;
+            doc[field.Name] = field.Array && value is not (BsonArray or BsonNull) ? new BsonArray { value } : value;
         }
 
         if (mapping.AttributesField is { } attributesField)
