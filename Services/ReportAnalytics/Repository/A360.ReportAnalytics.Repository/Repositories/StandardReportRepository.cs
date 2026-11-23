@@ -192,6 +192,45 @@ public sealed class StandardReportRepository
             .AnyAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<StandardReport>> GetDueSchedulesAsync(DateTime utcNow, int limit, CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<StandardReport>.Filter;
+        var filter = builder.And(
+            builder.Eq(report => report.IsDeleted, false),
+            builder.Eq("schedule.enabled", true),
+            builder.Lte(report => report.NextScheduledOn, utcNow));
+
+        return await Collection
+            .Find(filter)
+            .SortBy(report => report.NextScheduledOn)
+            .Limit(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> TryClaimScheduledRunAsync(string id, DateTime expectedNextUtc, DateTime? nextUtc, CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<StandardReport>.Filter;
+        var result = await Collection.UpdateOneAsync(
+            builder.And(builder.Eq(report => report.Id, id), builder.Eq(report => report.NextScheduledOn, expectedNextUtc)),
+            Builders<StandardReport>.Update.Set(report => report.NextScheduledOn, nextUtc),
+            cancellationToken: cancellationToken);
+        return result.ModifiedCount == 1;
+    }
+
+    public async Task SaveScheduleRunAsync(string id, DateTime runAtUtc, bool sent, string? error, CancellationToken cancellationToken = default)
+    {
+        var update = Builders<StandardReport>.Update
+            .Set("schedule.last_run_at", runAtUtc)
+            .Set("schedule.last_run_status", sent ? "Sent" : "Failed")
+            .Set("schedule.last_run_error", error);
+        if (sent)
+        {
+            update = update.Set(report => report.GeneratedOn, runAtUtc);
+        }
+
+        await Collection.UpdateOneAsync(Builders<StandardReport>.Filter.Eq(report => report.Id, id), update, cancellationToken: cancellationToken);
+    }
+
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
     {
         var indexes = new[]

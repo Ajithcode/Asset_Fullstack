@@ -39,11 +39,72 @@ public sealed record UpdateStandardReportRequest(
     string? ReportType = null);
 
 /// <summary>Schedule action. On demand clears the next run.</summary>
+/// <summary>
+/// Schedule Report: the report is generated and emailed to Recipients at Time on the picked Days.
+/// </summary>
+/// <param name="Frequency">Daily, Weekly or Monthly; "On demand" stops the schedule.</param>
+/// <param name="Days">Weekly: week days, e.g. ["Monday","Thursday"]. Monthly: dates 1-31, e.g. [1, 15] (31 runs on the last day of
+/// shorter months). Not needed for Daily.</param>
+/// <param name="Time">HH:mm in the report's time zone, e.g. "09:30".</param>
+/// <param name="Format">xlsx (Excel), csv or pdf.</param>
+/// <param name="Recipients">Email addresses the report is sent to.</param>
+/// <param name="NextScheduledOn">Ignored (any value or format is accepted): the next run is worked out from the schedule.</param>
 public sealed record ScheduleStandardReportRequest(
     string? Frequency,
-    DateTime? NextScheduledOn,
+    System.Text.Json.JsonElement? NextScheduledOn,
     string? TimeZone,
-    string? UpdatedBy);
+    string? UpdatedBy,
+    IReadOnlyList<System.Text.Json.JsonElement>? Days = null,
+    string? Time = null,
+    string? Format = null,
+    IReadOnlyList<string>? Recipients = null);
+
+/// <summary>The saved schedule, with the outcome of its last run.</summary>
+public sealed record StandardReportScheduleResponse(
+    bool Enabled,
+    string Frequency,
+    IReadOnlyList<string> WeekDays,
+    IReadOnlyList<int> MonthDays,
+    string Time,
+    string Format,
+    IReadOnlyList<string> Recipients,
+    DateTime? NextRunAt,
+    DateTime? LastRunAt,
+    string? LastRunStatus,
+    string? LastRunError)
+{
+    public static StandardReportScheduleResponse? FromEntity(StandardReport report) =>
+        report.Schedule is not { } schedule
+            ? null
+            : new StandardReportScheduleResponse(
+                schedule.Enabled,
+                schedule.Frequency,
+                schedule.WeekDays,
+                schedule.MonthDays,
+                schedule.Time,
+                schedule.Format,
+                schedule.Recipients,
+                schedule.Enabled ? report.NextScheduledOn : null,
+                schedule.LastRunAt,
+                schedule.LastRunStatus,
+                schedule.LastRunError);
+}
+
+/// <summary>Send Now: the outcome of generating and mailing the report straight away.</summary>
+public sealed record StandardReportSendResponse(
+    bool Sent,
+    string? Error,
+    string? FileName,
+    int RecordCount,
+    DateOnly PeriodStart,
+    DateOnly PeriodEnd,
+    IReadOnlyList<string> Recipients);
+
+public sealed record StandardReportScheduleOptionsResponse(
+    IReadOnlyList<string> Frequencies,
+    IReadOnlyList<string> WeekDays,
+    IReadOnlyList<int> MonthDays,
+    IReadOnlyList<string> Formats);
 
 /// <summary>Reporting period card: applies one period to many reports at once (Apply Dates).</summary>
 public sealed record ApplyReportPeriodRequest(
@@ -75,7 +136,8 @@ public sealed record StandardReportResponse(
     string? UpdatedBy,
     DateTime? UpdatedAt,
     string? TenantId,
-    string? ClientId)
+    string? ClientId,
+    StandardReportScheduleResponse? Schedule)
 {
     public static StandardReportResponse FromEntity(StandardReport report)
     {
@@ -100,7 +162,8 @@ public sealed record StandardReportResponse(
             report.UpdatedBy,
             report.UpdatedAt,
             report.TenantId,
-            report.ClientId);
+            report.ClientId,
+            StandardReportScheduleResponse.FromEntity(report));
     }
 }
 

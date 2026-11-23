@@ -52,4 +52,51 @@ public sealed class StandardReport : BaseEntity
     // "Review due" marker on the calendar.
     [BsonElement("review_due_on")]
     public DateTime? ReviewDueOn { get; set; }
+
+    // Email delivery: when set (and enabled), the report is generated at NextScheduledOn and mailed to the recipients.
+    [BsonElement("schedule")]
+    [BsonIgnoreIfNull]
+    public StandardReportSchedule? Schedule { get; set; }
+}
+
+/// <summary>
+/// Schedule Report: Frequency, Day, Time, Format and Recipients. Day is the week days (Weekly) or the days of the month
+/// (Monthly); Daily runs every day. Time is HH:mm in the report's time zone. The next run is kept in StandardReport.NextScheduledOn.
+/// </summary>
+public sealed class StandardReportSchedule
+{
+    [BsonElement("enabled")]
+    public bool Enabled { get; set; }
+
+    [BsonElement("frequency")]
+    public string Frequency { get; set; } = string.Empty;
+
+    /// <summary>Weekly: "Monday" … "Sunday".</summary>
+    [BsonElement("week_days")]
+    public List<string> WeekDays { get; set; } = [];
+
+    /// <summary>Monthly: 1-31; a day past the end of a month runs on its last day.</summary>
+    [BsonElement("month_days")]
+    public List<int> MonthDays { get; set; } = [];
+
+    /// <summary>HH:mm in the report's time zone.</summary>
+    [BsonElement("time")]
+    public string Time { get; set; } = "09:00";
+
+    /// <summary>xlsx, csv or pdf.</summary>
+    [BsonElement("format")]
+    public string Format { get; set; } = "xlsx";
+
+    [BsonElement("recipients")]
+    public List<string> Recipients { get; set; } = [];
+
+    [BsonElement("last_run_at")]
+    public DateTime? LastRunAt { get; set; }
+
+    /// <summary>"Sent" or "Failed".</summary>
+    [BsonElement("last_run_status")]
+    public string? LastRunStatus { get; set; }
+
+    [BsonElement("last_run_error")]
+    public string? LastRunError { get; set; }
 }

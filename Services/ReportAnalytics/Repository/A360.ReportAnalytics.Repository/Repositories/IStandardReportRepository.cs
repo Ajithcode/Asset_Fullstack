@@ -24,6 +24,18 @@ public interface IStandardReportRepository : IMongoRepository<StandardReport>
         DateTime toUtc,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Reports with an enabled email schedule whose next run is at or before utcNow, oldest first.</summary>
+    Task<IReadOnlyList<StandardReport>> GetDueSchedulesAsync(DateTime utcNow, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves the report's next run from expectedNextUtc to nextUtc. False when another worker already did it,
+    /// so each run is sent once even with several instances of the service.
+    /// </summary>
+    Task<bool> TryClaimScheduledRunAsync(string id, DateTime expectedNextUtc, DateTime? nextUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Records the outcome of a scheduled or Send Now run; a sent run also sets GeneratedOn.</summary>
+    Task SaveScheduleRunAsync(string id, DateTime runAtUtc, bool sent, string? error, CancellationToken cancellationToken = default);
+
     Task<bool> NameExistsAsync(
         string reportName,
         string? tenantId,
