@@ -518,12 +518,31 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     this.locateSel = next;
   }
 
+  /** The asset has a zone on a floor plan, so it can be shown on the map. */
+  hasLocation(a: RtlAsset): boolean {
+    return !!a.location?.zoneId && !!this.floorOfPlan(a.location.floorPlanId);
+  }
+
+  /** Why an asset has no marker (shown as the "No location" badge). */
+  noLocationReason(a: RtlAsset): string {
+    if (!a.tags.length && !a.tracker) return 'no tag linked';
+    const l = a.location;
+    if (!l) return a.freshness === 'Offline' ? 'tag offline, not heard by any gateway' : 'tag not heard by any gateway yet';
+    if (!l.floorPlanId || !l.zoneId) return `gateway ${l.gatewayId} is not plotted in a zone on a floor plan`;
+    return 'its floor plan is not available';
+  }
+
+  private get locatableRows(): RtlAsset[] {
+    return this.locateRows.filter((a) => this.hasLocation(a));
+  }
+
   get allLocateSelected(): boolean {
-    return this.locateRows.length > 0 && this.locateRows.every((a) => this.locateSel.has(a.assetId));
+    const r = this.locatableRows;
+    return r.length > 0 && r.every((a) => this.locateSel.has(a.assetId));
   }
 
   toggleAllLocate(): void {
-    this.locateSel = this.allLocateSelected ? new Set() : new Set(this.locateRows.map((a) => a.assetId));
+    this.locateSel = this.allLocateSelected ? new Set() : new Set(this.locatableRows.map((a) => a.assetId));
   }
 
   /** Locate selected: switch to the first asset's floor plan, zoom to the zones and highlight every asset found there. */
@@ -536,10 +555,10 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   private locateMany(picked: RtlAsset[]): void {
     this.locateOpen = false;
     this.clearFilters();
-    const placed = picked.filter((a) => a.location?.zoneId && this.floorOfPlan(a.location.floorPlanId));
-    const missing = picked.length - placed.length;
+    const placed = picked.filter((a) => this.hasLocation(a));
+    const missingMsg = picked.filter((a) => !this.hasLocation(a)).map((a) => `${a.name} – no current location (${this.noLocationReason(a)})`).join('; ');
     if (!placed.length) {
-      this.showToast(picked.length === 1 ? `${picked[0].name} has no location on a floor plan yet.` : 'None of the selected assets has a location on a floor plan yet.');
+      this.showToast(missingMsg || 'Nothing to locate.');
       return;
     }
     const floor = this.floorOfPlan(placed[0].location!.floorPlanId);
@@ -549,7 +568,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     // a new key restarts the animation even for the same assets
     this.assetFocus = { key: `${Date.now()}`, ids: here.map((a) => a.assetId) };
     const other = placed.length - here.length;
-    if (other || missing) this.showToast(`Showing ${here.length} on ${this.floors.find((f) => f.id === floor)?.label ?? 'this floor'}.${other ? ` ${other} on other floors.` : ''}${missing ? ` ${missing} without a location.` : ''}`);
+    if (other || missingMsg) this.showToast([missingMsg, other ? `${other} on other floors (showing ${this.floors.find((f) => f.id === floor)?.label ?? 'this floor'}).` : ''].filter(Boolean).join(' '));
   }
 
   clearHighlight(): void {
@@ -563,12 +582,6 @@ export class RealTimeLocation implements OnInit, OnDestroy {
 
   /** Locate: go to the asset's floor (all floors first, so it is in view), highlight it, open its details. */
   locate(a: RtlAsset): void {
-    if (!a.location) {
-      this.locateOpen = false;
-      this.select(a.assetId);
-      this.showToast(`${a.name} has no location yet: none of its tags has been heard.`);
-      return;
-    }
     this.locateMany([a]);
   }
 
