@@ -29,8 +29,8 @@ import {
 } from 'lucide-angular';
 import { ASSET_TYPE_ICONS } from 'shared-ui';
 import { LocationHistory } from './location-history';
-import { LocationEventDto, MovementType } from './location-history.service';
-import { SITE_POINTS, ZONE_POINTS, buildLocationSample } from './location-overview.data';
+import { LocationEventDto, LocationHistoryService, MovementType } from './location-history.service';
+import { SITE_POINTS, ZONE_POINTS } from './location-overview.data';
 import { LocationOverviewMap, MapZone } from './location-overview-map';
 import { AssetListItemDto, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
 
@@ -140,12 +140,15 @@ export class LocationOverview implements OnInit, OnDestroy {
   ];
 
   private readonly router = inject(Router);
+  private readonly api = inject(LocationHistoryService);
 
   /** ?tag= shows that asset's history instead of the overview. */
   tag = '';
   saving = false;
 
-  /** Static sample data; Movement Event adds to it for this visit. */
+  loading = false;
+
+  /** Location events (Tracking service) and registered assets (Asset API). */
   private raw: LocationEventDto[] = [];
   private events: EventRow[] = [];
   private assets: AssetListItemDto[] = [];
@@ -222,10 +225,21 @@ export class LocationOverview implements OnInit, OnDestroy {
   }
 
   reload(): void {
-    const { assets, events } = buildLocationSample();
-    this.assets = assets;
-    this.raw = events;
-    this.rebuild();
+    this.loading = true;
+    this.api.overview().subscribe({
+      next: ({ assets, events }) => {
+        this.assets = assets;
+        this.raw = events;
+        this.loading = false;
+        this.rebuild();
+      },
+      error: () => {
+        this.loading = false;
+        this.raw = [];
+        this.rebuild();
+        this.showToast('Could not load the location events.');
+      },
+    });
   }
 
   private rebuild(): void {
@@ -585,26 +599,24 @@ export class LocationOverview implements OnInit, OnDestroy {
     // Movement type and source are optional; fall back to the usual values when left unselected.
     const movement: MovementType = f.movement || 'In';
     const source: LocSource = f.source || 'Manual';
-    const at = new Date(f.at);
-    const n = this.raw.length + 1;
-    this.raw = [
-      ...this.raw,
-      {
-        id: `local-${n}`,
-        eventId: `LE-${String(n).padStart(5, '0')}`,
-        eventTime: at.toISOString(),
-        assetId: f.tag,
-        assetName: opt?.name ?? f.tag,
-        eventType: movement === 'Out' ? 'Departed Zone' : 'Entered Zone',
-        zoneName: f.location.trim(),
-        details: `${f.remarks.trim() || 'Location updated'} (${source})`,
-        createdBy: source === 'Manual' ? 'You' : 'System',
-        createdAt: new Date().toISOString(),
-      },
-    ];
-    this.form = null;
-    this.rebuild();
-    this.showToast(`${f.tag} moved to ${f.location.trim()}.`);
+    const location = f.location.trim();
+    this.saving = true;
+    this.formError = '';
+    this.api
+      .record({ tag: f.tag, name: opt?.name ?? f.tag }, { at: f.at, location, movement, source, remarks: f.remarks.trim() || 'Location updated' })
+      .subscribe({
+        next: (created) => {
+          this.saving = false;
+          this.raw = [...this.raw, created];
+          this.form = null;
+          this.rebuild();
+          this.showToast(`${f.tag} moved to ${location}.`);
+        },
+        error: (err) => {
+          this.saving = false;
+          this.formError = err?.error?.detail || err?.error?.title || err?.error?.message || 'Could not save the movement.';
+        },
+      });
   }
 
   // ===== Export =====
