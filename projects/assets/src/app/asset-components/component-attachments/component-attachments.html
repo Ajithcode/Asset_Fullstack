@@ -23,7 +23,7 @@
         <strong>{{ dragging ? 'Drop to upload' : 'Drag and drop files here' }}</strong>
         <span>or click to browse files</span>
       </span>
-      <span class="dz-hint">Supported formats: {{ supportedLabel }} (Max 25 MB each)</span>
+      <span class="dz-hint">Supported formats: {{ supportedLabel }} (Max 50 MB each)</span>
       <input type="file" multiple [accept]="accept" hidden (change)="onFilesPicked($event)" />
     </label>
     <div *ngIf="rejected.length" class="rejected" role="alert">

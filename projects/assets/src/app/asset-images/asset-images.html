@@ -455,7 +455,7 @@
         (dragover)="$event.preventDefault(); isDragging = true" (dragleave)="isDragging = false" (drop)="onUploadDrop($event)">
         <lucide-icon [img]="icons.CloudUpload" [size]="24"></lucide-icon>
         <span>Drag & drop images here or <span class="link">click to browse</span></span>
-        <small>JPG, PNG, WEBP and other image files, up to 20 MB each</small>
+        <small>JPG, PNG, WEBP and other image files, up to 50 MB each</small>
       </div>
 
       <ul class="pending" *ngIf="u.items.length">

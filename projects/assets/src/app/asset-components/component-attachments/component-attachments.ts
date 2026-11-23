@@ -62,7 +62,7 @@ interface EditForm {
   description: string;
 }
 
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'];
 const ACCEPT = EXTENSIONS.map((e) => '.' + e).join(',');
 let nextId = 1;
@@ -259,7 +259,7 @@ export class ComponentAttachments {
   private validate(file: File): string | null {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
     if (!EXTENSIONS.includes(ext)) return `${file.name}: unsupported file type`;
-    if (file.size > MAX_UPLOAD_BYTES) return `${file.name}: ${formatSize(file.size)} is over 25 MB`;
+    if (file.size > MAX_UPLOAD_BYTES) return `${file.name}: ${formatSize(file.size)} is over 50 MB`;
     return null;
   }
 

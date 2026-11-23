@@ -70,7 +70,7 @@ interface UploadForm {
   description: string;
 }
 
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx';
 let nextId = 1;
 
@@ -441,7 +441,7 @@ export class ComponentDocuments {
     this.fileError = '';
     if (!file) return;
     if (file.size > MAX_UPLOAD_BYTES) {
-      this.fileError = `${file.name} is ${formatSize(file.size)}; the limit is 25 MB.`;
+      this.fileError = `${file.name} is ${formatSize(file.size)}; the limit is 50 MB.`;
       return;
     }
     const ext = '.' + (file.name.split('.').pop()?.toLowerCase() ?? '');
