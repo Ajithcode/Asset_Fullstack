@@ -48,7 +48,39 @@ import { ComponentServiceHistory, type ServiceRecord } from './component-service
 import { ComponentDocuments, type ComponentDocument } from './component-documents/component-documents';
 import { ComponentAttachments, type ComponentAttachment } from './component-attachments/component-attachments';
 import { ComponentOverview } from './component-overview/component-overview';
-import { AssetComponentsService, isoDate, type AssetComponentDto, type AssetListItemDto, type SaveAssetComponentRequest } from './asset-components.service';
+import {
+  AssetComponentsService,
+  isoDate,
+  type AssetComponentDto,
+  type AssetListItemDto,
+  type ComponentStructureNodeDto,
+  type SaveAssetComponentRequest,
+} from './asset-components.service';
+
+/** A Component Structure node with its child nodes. */
+export interface StructureNode {
+  dto: ComponentStructureNodeDto;
+  children: StructureNode[];
+}
+
+interface StructureForm {
+  name: string;
+  parentId: string | null;
+  linkedComponentId: string | null;
+  description: string;
+}
+
+const EMPTY_STRUCTURE_FORM: StructureForm = { name: '', parentId: null, linkedComponentId: null, description: '' };
+
+function buildStructure(dtos: ComponentStructureNodeDto[]): StructureNode[] {
+  const nodes = new Map(dtos.map((d) => [d.id, { dto: d, children: [] as StructureNode[] }]));
+  const roots: StructureNode[] = [];
+  nodes.forEach((n) => {
+    const parent = n.dto.parentNodeId ? nodes.get(n.dto.parentNodeId) : undefined;
+    (parent ? parent.children : roots).push(n);
+  });
+  return roots;
+}
 import { apiErrorMessage } from '../services/asset-api';
 
 type ComponentStatus = 'Active' | 'Under Maintenance' | 'Needs Replacement' | 'Inactive';
@@ -377,6 +409,15 @@ export class AssetComponents {
 
   deleteTarget: AssetComponent | null = null;
 
+  /** Component Structure nodes of the selected asset (tree). */
+  structure: StructureNode[] = [];
+  structureFormOpen = false;
+  structureEditing: ComponentStructureNodeDto | null = null;
+  structureForm: StructureForm = { ...EMPTY_STRUCTURE_FORM };
+  structureSubmitted = false;
+  structureError = '';
+  structureDeleteTarget: StructureNode | null = null;
+
   /** Loading the asset list or the selected asset's components. */
   loading = false;
   /** Error from loading; shown inline above the page content. */
@@ -458,6 +499,7 @@ export class AssetComponents {
         error: () => undefined,
       });
     }
+    this.loadStructure();
     this.api.listComponents(asset.assetRegistrationId).subscribe({
       next: (dtos) => {
         asset.components = buildTree(dtos, asset.components);
@@ -980,6 +1022,125 @@ export class AssetComponents {
           this.showToast(apiErrorMessage(err, `Could not remove ${c.name}.`));
         },
       });
+  }
+
+  // ===== Component Structure =====
+
+  loadStructure(): void {
+    const assetId = this.asset.assetRegistrationId;
+    if (!assetId) return;
+    this.api.listStructure(assetId).subscribe({
+      next: (dtos) => {
+        if (this.asset.assetRegistrationId === assetId) this.structure = buildStructure(dtos);
+      },
+      error: () => (this.structure = []),
+    });
+  }
+
+  /** Parent choices: every node with its path, except the node being edited and the nodes under it. */
+  get structureParentOptions(): { id: string; label: string }[] {
+    const out: { id: string; label: string }[] = [];
+    const visit = (list: StructureNode[], depth: number) =>
+      list.forEach((n) => {
+        if (n.dto.id === this.structureEditing?.id) return;
+        out.push({ id: n.dto.id, label: `${'\u2014 '.repeat(depth)}${n.dto.name}` });
+        visit(n.children, depth + 1);
+      });
+    visit(this.structure, 0);
+    return out;
+  }
+
+  /** This asset's components, for the Linked Component list. */
+  get structureComponentOptions(): { id: string; label: string }[] {
+    const out: { id: string; label: string }[] = [];
+    this.walk(this.asset.components, (c) => c.apiId && out.push({ id: c.apiId, label: `${c.name} (${c.tag})` }));
+    return out;
+  }
+
+  openAddStructure(): void {
+    this.openMenu = null;
+    this.structureEditing = null;
+    this.structureForm = { ...EMPTY_STRUCTURE_FORM };
+    this.structureSubmitted = false;
+    this.structureError = '';
+    this.structureFormOpen = true;
+  }
+
+  openEditStructure(n: StructureNode, event?: Event): void {
+    event?.stopPropagation();
+    this.structureEditing = n.dto;
+    this.structureForm = {
+      name: n.dto.name,
+      parentId: n.dto.parentNodeId,
+      linkedComponentId: n.dto.linkedComponentId,
+      description: n.dto.description ?? '',
+    };
+    this.structureSubmitted = false;
+    this.structureError = '';
+    this.structureFormOpen = true;
+  }
+
+  saveStructure(): void {
+    this.structureSubmitted = true;
+    const f = this.structureForm;
+    if (!f.name.trim() || this.saving) return;
+    const assetId = this.asset.assetRegistrationId;
+    const body = {
+      name: f.name.trim(),
+      parentNodeId: f.parentId || null,
+      linkedComponentId: f.linkedComponentId || null,
+      description: f.description.trim() || null,
+    };
+    const editing = this.structureEditing;
+    this.saving = true;
+    this.structureError = '';
+    (editing ? this.api.updateStructureNode(assetId, editing.id, body) : this.api.createStructureNode(assetId, body)).subscribe({
+      next: () => {
+        this.saving = false;
+        this.structureFormOpen = false;
+        this.loadStructure();
+        this.showToast(editing ? `${body.name} updated.` : `${body.name} added to the structure.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.structureError = apiErrorMessage(err, 'Could not save the structure node.');
+      },
+    });
+  }
+
+  askDeleteStructure(n: StructureNode, event?: Event): void {
+    event?.stopPropagation();
+    this.structureDeleteTarget = n;
+  }
+
+  confirmDeleteStructure(): void {
+    const n = this.structureDeleteTarget;
+    if (!n || this.saving) return;
+    this.saving = true;
+    this.api.deleteStructureNode(this.asset.assetRegistrationId, n.dto.id).subscribe({
+      next: () => {
+        this.saving = false;
+        this.structureDeleteTarget = null;
+        this.loadStructure();
+        this.showToast(`${n.dto.name} removed from the structure.`);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.structureDeleteTarget = null;
+        this.showToast(apiErrorMessage(err, `Could not remove ${n.dto.name}.`));
+      },
+    });
+  }
+
+  /** Clicking a structure node opens its linked component. */
+  selectStructure(n: StructureNode): void {
+    let linked: AssetComponent | null = null;
+    if (n.dto.linkedComponentId) this.walk(this.asset.components, (c) => (c.apiId === n.dto.linkedComponentId ? (linked = c) : undefined));
+    if (linked) this.selectNode(linked);
+  }
+
+  trackByStructure(_: number, n: StructureNode): string {
+    return n.dto.id;
   }
 
   countDescendants(c: AssetComponent): number {

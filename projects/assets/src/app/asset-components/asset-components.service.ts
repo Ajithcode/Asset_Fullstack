@@ -80,6 +80,25 @@ interface AssetComponentListDto {
   pageSize: number;
 }
 
+/** A node of GET /api/asset-registrations/{id}/component-structure (flat; parents via parentNodeId). */
+export interface ComponentStructureNodeDto {
+  id: string;
+  parentNodeId: string | null;
+  name: string;
+  linkedComponentId: string | null;
+  linkedComponentName: string | null;
+  linkedComponentTag: string | null;
+  description: string | null;
+}
+
+/** SaveComponentStructureNodeRequest (create and update). */
+export interface SaveComponentStructureNodeRequest {
+  name: string;
+  parentNodeId: string | null;
+  linkedComponentId: string | null;
+  description: string | null;
+}
+
 /** SaveAssetComponentRequest (create and update). */
 export interface SaveAssetComponentRequest {
   parentComponentId: string | null;
@@ -243,6 +262,28 @@ export class AssetComponentsService {
 
   deleteComponent(assetRegistrationId: string, componentId: string): Observable<void> {
     return this.http.delete<void>(`${this.componentsUrl(assetRegistrationId)}/${encodeURIComponent(componentId)}`);
+  }
+
+  // ===== Component structure =====
+
+  private structureUrl(assetRegistrationId: string): string {
+    return `${this.registrationsUrl}/${encodeURIComponent(assetRegistrationId)}/component-structure`;
+  }
+
+  listStructure(assetRegistrationId: string): Observable<ComponentStructureNodeDto[]> {
+    return this.http.get<ComponentStructureNodeDto[]>(this.structureUrl(assetRegistrationId));
+  }
+
+  createStructureNode(assetRegistrationId: string, body: SaveComponentStructureNodeRequest): Observable<ComponentStructureNodeDto> {
+    return this.http.post<ComponentStructureNodeDto>(this.structureUrl(assetRegistrationId), body);
+  }
+
+  updateStructureNode(assetRegistrationId: string, nodeId: string, body: SaveComponentStructureNodeRequest): Observable<ComponentStructureNodeDto> {
+    return this.http.put<ComponentStructureNodeDto>(`${this.structureUrl(assetRegistrationId)}/${encodeURIComponent(nodeId)}`, body);
+  }
+
+  deleteStructureNode(assetRegistrationId: string, nodeId: string): Observable<void> {
+    return this.http.delete<void>(`${this.structureUrl(assetRegistrationId)}/${encodeURIComponent(nodeId)}`);
   }
 
   // ===== Component documents / attachments =====
