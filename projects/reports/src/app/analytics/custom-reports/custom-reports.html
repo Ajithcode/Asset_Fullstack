@@ -40,25 +40,25 @@
 <div class="filters">
   <label class="search cr-search">
     <lucide-icon [img]="icons.Search" [size]="16" />
-    <input type="search" placeholder="Search custom reports..." [(ngModel)]="search" (ngModelChange)="refilter()" aria-label="Search custom reports" />
+    <input type="search" placeholder="Search custom reports..." [(ngModel)]="search" (ngModelChange)="searchChanged()" aria-label="Search custom reports" />
   </label>
   <label class="filter">
     <span>Owner</span>
-    <select [(ngModel)]="owner" (ngModelChange)="refilter()">
+    <select [(ngModel)]="owner" (ngModelChange)="filterChanged()">
       <option value="">Select Owner</option>
-      @for (o of owners; track o) { <option [value]="o">{{ o }}</option> }
+      @for (o of owners; track o.id) { <option [value]="o.id">{{ o.name }}</option> }
     </select>
   </label>
   <label class="filter">
     <span>Module</span>
-    <select [(ngModel)]="module" (ngModelChange)="refilter()">
+    <select [(ngModel)]="module" (ngModelChange)="filterChanged()">
       <option value="">Select Module</option>
       @for (m of modules; track m) { <option [value]="m">{{ m }}</option> }
     </select>
   </label>
   <label class="filter">
     <span>Status</span>
-    <select [(ngModel)]="status" (ngModelChange)="refilter()">
+    <select [(ngModel)]="status" (ngModelChange)="filterChanged()">
       <option value="">Select Status</option>
       @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
     </select>
@@ -77,18 +77,18 @@
 
 <div class="cr-layout">
   <section class="widget cr-library-card">
-    <cr-report-library [reports]="filtered" [selectedId]="draft.id" [sort]="librarySort" (sortChange)="setSort($event)"
+    <cr-report-library [reports]="filtered" [loading]="loading" [error]="loadError" [selectedId]="draft.id" [sort]="librarySort" (sortChange)="setSort($event)"
       (open)="openReport($event)" (favourite)="toggleFavourite($event)" (duplicate)="duplicate($event)"
-      (remove)="askDelete($event)" (togglePublish)="togglePublish($event)" />
+      (remove)="askDelete($event)" (togglePublish)="togglePublish($event)" (exportData)="exportData($event)" />
   </section>
 
   <section class="widget cr-builder" #builderAnchor>
-    <cr-report-builder [report]="draft" (notice)="notify($event)" />
+    <cr-report-builder [report]="draft" [savedSignature]="savedSignature" (notice)="notify($event)" />
   </section>
 </div>
 
 <section class="widget cr-config-card">
-  <cr-report-config [report]="draft" [nameError]="nameError" [showErrors]="showErrors"
+  <cr-report-config [report]="draft" [nameError]="nameError" [showErrors]="showErrors" [busy]="busy"
     (saveDraft)="saveDraft()" (preview)="previewReport()" (saveReport)="saveReport()" (publish)="publish()" />
 </section>
 

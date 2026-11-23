@@ -21,6 +21,8 @@ export const BUILDER_STEPS = ['Data Source', 'Select Fields', 'Filters', 'Group 
 })
 export class ReportBuilder {
   @Input({ required: true }) report!: CustomReport;
+  /** Signature of the saved definition (see previewSignature) */
+  @Input() savedSignature = '';
   @Output() notice = new EventEmitter<string>();
 
   readonly steps = BUILDER_STEPS;

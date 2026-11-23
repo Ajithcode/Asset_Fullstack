@@ -16,7 +16,9 @@ import { ReportingPeriodPanel } from './reporting-period-panel';
 import {
   ReportFrequency, ReportPeriod, ReportSchedule, ReportStatus, SR_STATUSES, StandardReport
 } from './standard-reports.data';
-import { NewStandardReport, SR_SORT_FIELDS, StandardReportsService, toApiDate } from './standard-reports.service';
+import {
+  CalendarMarks, NewStandardReport, SR_SORT_FIELDS, StandardReportQuery, StandardReportSummary, StandardReportsService, toApiDate
+} from './standard-reports.service';
 import { formatDay, formatPeriod, formatStamp } from './standard-reports.util';
 
 type SortKey = 'name' | 'module' | 'period' | 'generatedOn' | 'nextScheduled' | 'frequency' | 'status';
@@ -80,9 +82,20 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
   readonly service = inject(StandardReportsService);
 
   readonly icons = { FileText, Funnel, CalendarDays, RefreshCw, Search, Eye, CalendarClock, Upload, X, Plus };
-  /** Category filter / New report options, from the Category master API. */
+  /** Category filter / New report options, from GET /api/standard-reports/options. */
   categoryOptions: string[] = [];
+  reportTypeOptions: string[] = [];
   categoriesLoading = false;
+  /** Tiles: GET /api/standard-reports/summary (all reports, not just this page). */
+  summary: StandardReportSummary = { totalReports: 0, withDateFilters: 0, scheduled: 0, updatedThisMonth: 0 };
+  /** Calendar markers: GET /api/standard-reports/calendar for the shown month. */
+  calendarMarks: Record<string, CalendarMarks> = {};
+  private calendarMonth = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+  /** Report open in the edit dialog (PUT /api/standard-reports/{id}). */
+  editing: StandardReport | null = null;
+  /** Generate / delete in progress from the viewer. */
+  rowBusy = false;
+  exporting = false;
   readonly frequencyOptions = FREQUENCY_ORDER;
   readonly statusOptions = SR_STATUSES;
   readonly columns: { key: SortKey; label: string }[] = [
@@ -131,15 +144,47 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
   ngOnInit(): void {
     this.load();
     this.loadCategories();
+    this.loadSummary();
+    this.loadCalendar();
   }
 
-  /** Category dropdowns: GET {assetApiUrl}api/asset-categories (Category master). */
+  /** Tiles: GET /api/standard-reports/summary. */
+  loadSummary(): void {
+    this.service.summary(this.service.period.timeZone).subscribe({
+      next: (s) => (this.summary = s),
+      error: (err: HttpErrorResponse) => console.warn('[standard-reports] summary failed', err)
+    });
+  }
+
+  /** Calendar markers for the shown month: GET /api/standard-reports/calendar. */
+  loadCalendar(month = this.calendarMonth): void {
+    this.calendarMonth = month;
+    this.service.calendar(month.year, month.month, this.service.period.timeZone).subscribe({
+      next: (marks) => {
+        if (this.calendarMonth === month) this.calendarMarks = marks;
+      },
+      error: (err: HttpErrorResponse) => {
+        console.warn('[standard-reports] calendar failed', err);
+        this.calendarMarks = {};
+      }
+    });
+  }
+
+  /** After a write: the table, tiles and calendar all change. */
+  private reloadAll(): void {
+    this.load();
+    this.loadSummary();
+    this.loadCalendar();
+  }
+
+  /** Category / report type dropdowns: GET /api/standard-reports/options. */
   loadCategories(): void {
     this.categoriesLoading = true;
     this.categorySub?.unsubscribe();
-    this.categorySub = this.service.categories().subscribe((names) => {
+    this.categorySub = this.service.options().subscribe(({ categories: names, reportTypes }) => {
       this.categoriesLoading = false;
       this.categoryOptions = names;
+      this.reportTypeOptions = reportTypes;
       // Drop a filter value the master no longer has
       if (this.categoryFilter && !names.includes(this.categoryFilter)) {
         this.categoryFilter = '';
@@ -156,28 +201,32 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
     this.alerts.forEach((a) => clearTimeout(a.timer));
   }
 
+  /** List / export query: search, filters, applied period, sort and page. */
+  private query(): StandardReportQuery {
+    const p = this.service.period;
+    return {
+      search: this.search.trim(),
+      category: this.categoryFilter,
+      frequency: this.frequencyFilter,
+      status: this.statusFilter,
+      periodFrom: toApiDate(p.start, p.startTime ?? '00:00'),
+      periodTo: toApiDate(p.end, p.endTime ?? '23:59'),
+      timeZone: p.timeZone,
+      includeTime: !!(p.startTime && p.endTime),
+      sortBy: SR_SORT_FIELDS[this.sortKey],
+      sortDirection: this.sortDir === 1 ? 'asc' : 'desc',
+      page: this.page,
+      pageSize: PAGE_SIZE
+    };
+  }
+
   /** GET /api/standard-reports with the search, filters, period, sort and page. */
   load(): void {
-    const p = this.service.period;
-    const includeTime = !!(p.startTime && p.endTime);
     this.loadSub?.unsubscribe();
     this.loading = true;
     this.loadError = '';
     this.loadSub = this.service
-      .load({
-        search: this.search.trim(),
-        category: this.categoryFilter,
-        frequency: this.frequencyFilter,
-        status: this.statusFilter,
-        periodFrom: toApiDate(p.start, p.startTime ?? '00:00'),
-        periodTo: toApiDate(p.end, p.endTime ?? '23:59'),
-        timeZone: p.timeZone,
-        includeTime,
-        sortBy: SR_SORT_FIELDS[this.sortKey],
-        sortDirection: this.sortDir === 1 ? 'asc' : 'desc',
-        page: this.page,
-        pageSize: PAGE_SIZE
-      })
+      .load(this.query())
       .subscribe({
         next: () => {
           this.loading = false;
@@ -200,7 +249,7 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
 
   override refresh(): void {
     if (this.loading) return;
-    this.load();
+    this.reloadAll();
   }
 
   filterChanged(): void {
@@ -210,43 +259,112 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
 
   openCreate(): void {
     this.createError = '';
+    this.editing = null;
     this.creating = true;
   }
 
+  /** Edit from the viewer: the same form, saved with PUT /api/standard-reports/{id}. */
+  openEdit(r: StandardReport): void {
+    this.createError = '';
+    this.editing = r;
+    this.viewing = null;
+    this.creating = true;
+  }
+
+  /** New report (POST) or edited report (PUT). */
   createReport(form: NewStandardReport): void {
+    const editing = this.editing;
     this.saving = true;
     this.createError = '';
-    this.service.create(form).subscribe({
+    const save$ = editing ? this.service.edit(editing, form) : this.service.create(form);
+    save$.subscribe({
       next: (r) => {
         this.saving = false;
         this.creating = false;
-        this.notify(`Report “${r.name}” created.`);
-        this.load();
+        this.editing = null;
+        this.notify(editing ? `Report “${r.name}” updated.` : `Report “${r.name}” created.`);
+        this.reloadAll();
       },
       error: (err: HttpErrorResponse) => {
         this.saving = false;
-        this.createError = apiMessage(err, 'Could not create the report.');
+        this.createError = apiMessage(err, editing ? 'Could not save the report.' : 'Could not create the report.');
         this.showAlert('error', this.createError);
       }
     });
   }
 
-  // ===== Stat tiles =====
+  /** POST /api/standard-reports/{id}/generate. */
+  generate(r: StandardReport): void {
+    if (this.rowBusy) return;
+    this.rowBusy = true;
+    this.service.generate(r).subscribe({
+      next: (updated) => {
+        this.rowBusy = false;
+        if (this.viewing) this.viewing = updated;
+        this.notify(`“${updated.name}” generated.`);
+        this.reloadAll();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.rowBusy = false;
+        this.showAlert('error', apiMessage(err, 'Could not generate the report.'));
+      }
+    });
+  }
+
+  /** DELETE /api/standard-reports/{id}. */
+  deleteReport(r: StandardReport): void {
+    if (this.rowBusy || !confirm(`Delete “${r.name}”? This cannot be undone.`)) return;
+    this.rowBusy = true;
+    this.service.remove(r).subscribe({
+      next: () => {
+        this.rowBusy = false;
+        this.viewing = null;
+        this.notify(`Report “${r.name}” deleted.`);
+        this.reloadAll();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.rowBusy = false;
+        this.showAlert('error', apiMessage(err, 'Could not delete the report.'));
+      }
+    });
+  }
+
+  /** GET /api/standard-reports/export: the filtered table (every page) as xlsx. */
+  exportList(): void {
+    if (this.exporting) return;
+    this.exporting = true;
+    this.service.exportList(this.query(), 'xlsx').subscribe({
+      next: (blob) => {
+        this.exporting = false;
+        downloadBlob(blob, `standard-reports-${this.service.today}.xlsx`);
+        this.notify('Standard reports exported.');
+      },
+      error: (err: HttpErrorResponse) => {
+        this.exporting = false;
+        this.showAlert('error', apiMessage(err, 'Could not export the reports.'));
+      }
+    });
+  }
+
+  monthChanged(month: { year: number; month: number }): void {
+    this.loadCalendar(month);
+  }
+
+  // ===== Stat tiles (GET /api/standard-reports/summary) =====
   get total(): number {
-    return this.service.totalCount;
+    return this.summary.totalReports;
   }
 
   get withDateFilters(): number {
-    return this.service.reports.filter((r) => r.hasDateFilter).length;
+    return this.summary.withDateFilters;
   }
 
   get scheduledCount(): number {
-    return this.service.reports.filter((r) => r.status === 'Scheduled').length;
+    return this.summary.scheduled;
   }
 
   get updatedThisMonth(): number {
-    const month = this.service.today.slice(0, 7);
-    return this.service.reports.filter((r) => r.updatedOn.startsWith(month)).length;
+    return this.summary.updatedThisMonth;
   }
 
   /** Every report shares the applied reporting period. */
@@ -353,11 +471,29 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
   }
 
   // ===== Actions =====
+  /**
+   * Apply Dates: PUT /api/standard-reports/report-period saves the period on the reports in the table (this page),
+   * then the table is reloaded filtered to the new period.
+   */
   applyPeriod(period: ReportPeriod): void {
-    this.service.applyPeriod(period);
-    this.page = 1;
-    this.load();
-    this.notify(`Reporting period ${formatPeriod(period)} applied.`);
+    const ids = this.service.reports.map((r) => r.id).filter(Boolean);
+    const done = (message: string) => {
+      this.service.applyPeriod(period);
+      this.page = 1;
+      this.reloadAll();
+      this.notify(message);
+    };
+    if (!ids.length) {
+      done(`Reporting period ${formatPeriod(period)} applied.`);
+      return;
+    }
+    this.service.applyPeriodTo(ids, period).subscribe({
+      next: (res) => {
+        const n = res?.updatedCount ?? ids.length;
+        done(`Reporting period ${formatPeriod(period)} applied to ${n} report${n === 1 ? '' : 's'}.`);
+      },
+      error: (err: HttpErrorResponse) => this.showAlert('error', apiMessage(err, 'Could not apply the reporting period.'))
+    });
   }
 
   view(r: StandardReport): void {
@@ -379,7 +515,7 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
         this.scheduleSaving = false;
         this.scheduling = null;
         this.notify(`“${updated.name}” scheduled ${schedule.frequency.toLowerCase()}, next run ${formatStamp(updated.nextScheduled)}.`);
-        this.load();
+        this.reloadAll();
       },
       error: (err: HttpErrorResponse) => {
         this.scheduleSaving = false;
@@ -389,12 +525,24 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
     });
   }
 
+  /** Row data from GET /api/standard-reports/{id}/details as CSV (one line per reading). */
   exportCsv(r: StandardReport): void {
-    const rows = this.service.previewRows(r);
-    const dimension = r.preview.dimension === 'category' ? 'Asset category' : r.preview.dimension === 'site' ? 'Site' : 'Month';
     const file = `${r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}_${r.period.start}_${r.period.end}.csv`;
-    downloadCsv(file, [dimension, r.preview.measure, 'Formatted', r.preview.unit === 'percent' ? 'vs. average' : 'Share'], rows.map((x) => [x.label, x.value, x.display, x.share]));
-    this.notify(`Exported “${r.name}” as CSV.`);
+    this.service.details(r).subscribe({
+      next: (d) => {
+        if (!d.hasData) {
+          this.showAlert('info', `“${r.name}” has no data to export for its report type.`);
+          return;
+        }
+        downloadCsv(
+          file,
+          ['Timestamp', 'Local time', 'Tag ID', 'Asset ID', 'Asset name', 'Category', 'Sub-category', 'Device ID', 'Zone', 'Zone code'],
+          d.records.map((x) => [x.timestamp, x.localTime, x.tagId, x.assetId ?? '', x.assetName ?? '', x.category ?? '', x.subCategory ?? '', x.deviceId ?? '', x.zoneName ?? '', x.zoneCode ?? ''])
+        );
+        this.notify(`Exported “${r.name}” as CSV.`);
+      },
+      error: (err: HttpErrorResponse) => this.showAlert('error', apiMessage(err, 'Could not export the report.'))
+    });
   }
 
   // ===== Alerts (top-right) =====
@@ -440,7 +588,10 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
   closeDialogs(): void {
     this.viewing = null;
     if (!this.scheduleSaving) this.scheduling = null;
-    if (!this.saving) this.creating = false;
+    if (!this.saving) {
+      this.creating = false;
+      this.editing = null;
+    }
   }
 
   private sortValue(r: StandardReport): string {
@@ -462,6 +613,15 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
         return r.name;
     }
   }
+}
+
+function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function apiMessage(err: HttpErrorResponse, fallback: string): string {

@@ -34,6 +34,12 @@
         <div class="menu" role="menu">
           <button type="button" (click)="openSaveView()">Save view</button>
           <button type="button" (click)="copyLink()">Copy dashboard link</button>
+          @if (hasDashboard) {
+            <button type="button" (click)="duplicateDashboard()">Duplicate dashboard</button>
+          }
+          @if (current.canShare) {
+            <button type="button" class="danger" (click)="deleteDashboard()">Delete dashboard</button>
+          }
         </div>
       }
     </div>
@@ -95,25 +101,25 @@
   <label class="filter filter--period"><span>Period</span>
     <select [(ngModel)]="period" (ngModelChange)="onFilterChange()">
       <option value="">Select Period</option>
-      @for (p of periods; track p) { <option [value]="p">{{ p }}</option> }
+      @for (p of datePresets; track p) { <option [value]="p">{{ p }}</option> }
     </select>
   </label>
   <label class="filter"><span>Organization</span>
     <select [(ngModel)]="organization" (ngModelChange)="onFilterChange()">
       <option value="">Select Organization</option>
-      @for (o of organizations; track o) { <option [value]="o">{{ o }}</option> }
+      @for (o of orgOptions; track o.value) { <option [value]="o.value">{{ o.label }}</option> }
     </select>
   </label>
   <label class="filter"><span>Location</span>
     <select [(ngModel)]="location" (ngModelChange)="onFilterChange()">
       <option value="">Select Location</option>
-      @for (l of locations; track l) { <option [value]="l">{{ l }}</option> }
+      @for (l of locationOptions; track l.value) { <option [value]="l.value">{{ l.label }}</option> }
     </select>
   </label>
   <label class="filter"><span>Asset Category</span>
     <select [(ngModel)]="category" (ngModelChange)="onFilterChange()">
       <option value="">Select Asset Category</option>
-      @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+      @for (c of categoryOptions; track c.value) { <option [value]="c.value">{{ c.label }}</option> }
     </select>
   </label>
 </section>
@@ -131,7 +137,7 @@
       <div class="idb-cell" [style.--idb-span]="w.span" [attr.draggable]="editMode ? 'true' : null"
         [class.idb-cell--dragging]="dragId === w.id" [class.idb-cell--over]="overIndex === i && dragId !== w.id"
         (dragstart)="onDragStart($event, w)" (dragover)="onDragOver($event, i)" (drop)="onDrop($event, i)" (dragend)="onDragEnd()">
-        <app-idb-widget [config]="w" [filters]="filters" [editMode]="editMode"
+        <app-idb-widget [config]="w" [filters]="filters" [data]="dataFor(w)" [editMode]="editMode"
           (expand)="expanded = w" (exportCsv)="exportWidget(w)" (remove)="removeWidget(w)" (resize)="resizeWidget(w, $event)"
           (viewAsset)="detail = $event" (notice)="onNotice($event)" />
         @if (editMode) {
@@ -196,7 +202,7 @@
   <div class="idb-menu__item" [class.idb-menu__item--on]="d.id === current.id">
     <button type="button" (click)="open(d)">
       <b>{{ d.name }}</b>
-      <small class="muted">{{ d.owner === me ? 'Owner: you' : 'Owner: ' + d.owner }} · {{ d.widgets.length }} widgets</small>
+      <small class="muted">{{ d.role === 'Owner' ? 'Owner: you' : 'Owner: ' + d.owner }} · {{ d.widgetCount }} widgets</small>
     </button>
     <button type="button" class="idb-star" [class.idb-star--on]="d.favorite" (click)="toggleFavorite(d, $event)"
       [attr.aria-label]="d.favorite ? 'Remove ' + d.name + ' from favorites' : 'Add ' + d.name + ' to favorites'" [attr.aria-pressed]="d.favorite">
@@ -208,7 +214,7 @@
 <!-- ===== Dialogs ===== -->
 
 @if (addDialog) {
-  <app-idb-add-widget-dialog [initialType]="addDialog.type" (added)="onWidgetAdded($event)" (cancel)="addDialog = null" />
+  <app-idb-add-widget-dialog [initialType]="addDialog.type" [filters]="filters" (added)="onWidgetAdded($event)" (cancel)="addDialog = null" />
 }
 
 @if (createOpen) {
@@ -226,8 +232,8 @@
         <h2>{{ expanded.title }}</h2>
         <button type="button" class="icon-btn" (click)="expanded = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18" /></button>
       </div>
-      <p class="muted">{{ periodLabel }} · {{ organizationLabel }} · {{ locationLabel }} · {{ category || categories[0] }}</p>
-      <app-idb-widget [config]="expanded" [filters]="filters" [height]="400" [bare]="true" (viewAsset)="detail = $event" (notice)="onNotice($event)" />
+      <p class="muted">{{ periodLabel }} · {{ organizationLabel }} · {{ locationLabel }} · {{ categoryLabel }}</p>
+      <app-idb-widget [config]="expanded" [filters]="filters" [data]="dataFor(expanded)" [height]="400" [bare]="true" (viewAsset)="detail = $event" (notice)="onNotice($event)" />
       <div class="dialog__actions">
         <button type="button" class="btn" (click)="exportWidget(expanded)"><lucide-icon [img]="icons.Download" [size]="16" /> Export CSV</button>
         <button type="button" class="btn btn--primary" (click)="expanded = null">Close</button>
@@ -255,7 +261,7 @@
         <div><dt>Open work orders</dt><dd>{{ detail.openWorkOrders }}</dd></div>
       </dl>
       <div class="dialog__actions">
-        <button type="button" class="btn" (click)="onNotice('DEMO MODE: work order created for ' + detail.name + '.'); detail = null">Create work order</button>
+        <a class="btn" routerLink="/maintenance/work-orders" [queryParams]="{ assetId: detail.id }" (click)="detail = null">Create work order</a>
         <button type="button" class="btn btn--primary" (click)="detail = null">Close</button>
       </div>
     </div>

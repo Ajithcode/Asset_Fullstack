@@ -32,7 +32,7 @@
         <cr-selected-fields [report]="report" (notice)="relay($event)" />
       </section>
       <section class="cr-panel">
-        <cr-report-preview [definition]="report" [reportName]="report.name" [compact]="true" />
+        <cr-report-preview [definition]="report" [reportName]="report.name" [savedId]="report.id" [savedSignature]="savedSignature" [compact]="true" />
       </section>
     </div>
   </div>
@@ -47,7 +47,7 @@
     <p class="cr-error">{{ firstProblem }}</p>
   }
   <section class="cr-panel">
-    <cr-report-preview [definition]="report" [reportName]="report.name" heading="Report preview" />
+    <cr-report-preview [definition]="report" [reportName]="report.name" [savedId]="report.id" [savedSignature]="savedSignature" heading="Report preview" />
   </section>
 }
 

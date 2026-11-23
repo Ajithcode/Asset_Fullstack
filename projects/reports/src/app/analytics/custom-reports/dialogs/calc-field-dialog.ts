@@ -100,10 +100,11 @@ export class CalcFieldDialog implements OnInit {
   submit(): void {
     this.submitted = true;
     if (this.nameError || this.exprError || !this.numericFields.length) return;
-    const slug = this.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'field';
-    let key = `calc:${slug}`;
+    // Same key the API derives (calc_<slug>), so selected fields keep pointing at it after saving
+    const slug = this.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'field';
+    let key = `calc_${slug}`;
     let i = 1;
-    while (this.report.calcFields.some((c) => c.key === key)) key = `calc:${slug}-${++i}`;
+    while (this.report.calcFields.some((c) => c.key === key)) key = `calc_${slug}_${++i}`;
     this.save.emit({ key, label: this.name.trim(), left: this.left, op: this.op as CalcOperator, right: this.right });
   }
 }

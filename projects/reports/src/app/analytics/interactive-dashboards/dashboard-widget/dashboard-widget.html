@@ -32,7 +32,7 @@
     }
     <div class="widget__body">
       @if (data.empty) {
-        <p class="empty">No data for the current filters.</p>
+        <p class="empty">{{ data.message || 'No data for the current filters.' }}</p>
       } @else if (data.attention; as rows) {
         <div class="table-wrap">
           <table class="table">
@@ -56,8 +56,8 @@
                       </button>
                       @if (rowMenu === a.id) {
                         <div class="menu" role="menu">
-                          <button type="button" (click)="rowAction(a, 'work order created')">Create work order</button>
-                          <button type="button" (click)="rowAction(a, 'inspection scheduled')">Schedule inspection</button>
+                          <button type="button" (click)="rowAction(a, 'work-order')">Create work order</button>
+                          <button type="button" (click)="rowAction(a, 'inspection')">Schedule inspection</button>
                         </div>
                       }
                     </div>
@@ -97,7 +97,7 @@
           @for (row of heat.rows; track row; let ri = $index) {
             <span class="idb-heat__row">{{ row }}</span>
             @for (v of heat.values[ri]; track $index) {
-              <span class="idb-heat__cell" [style.background]="heatBackground(v)" [style.color]="heatText(v)" [title]="row + ': ' + v + '%'">{{ v }}</span>
+              <span class="idb-heat__cell" [style.background]="heatBackground(v)" [style.color]="heatText(v)" [title]="row + ' · ' + heat.cols[$index] + ': ' + v">{{ v }}</span>
             }
           }
         </div>

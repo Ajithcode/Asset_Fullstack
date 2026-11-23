@@ -40,10 +40,12 @@ export interface DataSource {
   label: string;
   module: string;
   groups: string[];
+  /** API data source keys (assets, maintenance, inspection) */
+  sources: string[];
   description: string;
 }
 
-/** Calculated field: left <op> right, both numeric fields. Stored with key "calc:<id>". */
+/** Calculated field: left <op> right, both numeric fields. Stored with key "calc_<slug>" (the key the API derives from the label). */
 export interface CalcField {
   key: string;
   label: string;
@@ -87,6 +89,12 @@ export interface CustomReport extends ReportDefinition {
   updatedAt: string;
   visibility: ReportVisibility;
   schedule: string;
+  /** Owner's user id (Owner filter) */
+  ownerId: string;
+  /** False when the report belongs to someone else (the API rejects changes) */
+  canEdit: boolean;
+  /** The library list item has no definition: open the report (GET /{id}) to load it */
+  loaded: boolean;
 }
 
 export type ReportRow = Record<string, string | number>;
@@ -105,4 +113,6 @@ export interface PreviewResult {
   labelKey: string;
   valueKey: string;
   title: string;
+  /** Chart points over every matching row (API chart), null for a table */
+  points?: { label: string; value: number }[] | null;
 }
