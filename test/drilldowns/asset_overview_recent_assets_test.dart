@@ -80,6 +80,12 @@ void main() {
     expect(find.text('Dubai Factory · Main Warehouse'), findsOneWidget);
     expect(find.text('Dubai Factory · Main Plant'), findsNothing);
     await _tap(tester, find.text('Dubai Factory · Main Warehouse'));
+    // The footer sits after the lazy rows (the mock-mode banner leaves a little less height).
+    await tester.dragUntilVisible(
+      find.text('Showing 4 of 2,150'),
+      find.byType(CustomScrollView).last,
+      const Offset(0, -200),
+    );
     expect(find.text('Showing 4 of 2,150'), findsOneWidget);
     await _tap(tester, find.byTooltip('Back'));
 

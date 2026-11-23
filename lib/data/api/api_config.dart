@@ -1,68 +1,50 @@
-/// Backend settings, passed at run time only (never hard-coded). Two layouts:
+/// Backend settings from --dart-define / --dart-define-from-file. DEV/demo defaults — live builds use
+/// env/api_live.json: without any define the app is in API mode against the demo cloud
+/// (https://a360demo.purpleiq.ai); --dart-define=USE_API=false = mock mode. Two layouts:
 /// - CLOUD (env/api_demo.json, env/api_live.json): one HTTPS gateway, e.g. https://a360demo.purpleiq.ai, is the
 ///   base URL of EVERY service (all routes are `/api/<unique>`), no ports;
-/// - OFFICE IPs (env/api_dev.json): each service DIRECTLY on its own port:
+/// - OFFICE servers (env/api_dev.json, env/api_old_26.json; office Wi-Fi only): each service DIRECTLY on its
+///   own port (Asset 5401, Media 5300, Auth 5018, Master Data 5500, Dashboard 5470, Admin 5460, Tracking 5490).
 ///
-/// ```sh
-/// flutter run --dart-define=USE_API=true \
-///   --dart-define=API_BASE_URL=http://<backend-ip>:5401 \
-///   --dart-define=MEDIA_BASE_URL=http://<backend-ip>:5300 \
-///   --dart-define=AUTH_BASE_URL=http://<backend-ip>:5018 \
-///   --dart-define=MASTER_DATA_BASE_URL=http://<backend-ip>:5500 \
-///   --dart-define=DASHBOARD_BASE_URL=http://<backend-ip>:5470 \
-///   --dart-define=ADMIN_BASE_URL=http://<backend-ip>:5460 \
-///   --dart-define=TRACKING_BASE_URL=http://<backend-ip>:5490
-/// ```
-///
-/// See README → "Connecting to the backend".
+/// See README → "Run / build".
 library;
 
 import 'package:flutter/foundation.dart';
 
-/// True: sign-in and repositories use the backend; false (default): the mock data in lib/data/mock/
-/// and the demo login (rex.kumar / Asset@360 / 123456). Code reads [apiMode], which tests can override.
-const bool kUseApi = bool.fromEnvironment('USE_API');
+/// DEV/demo defaults — live builds use env/api_live.json.
+const String kDemoCloudUrl = 'https://a360demo.purpleiq.ai';
+
+/// True (default): sign-in and repositories use the backend; false (--dart-define=USE_API=false): the mock
+/// data in lib/data/mock/ and the demo login (rex.kumar / Asset@360 / 123456), with the MOCK MODE banner.
+/// Code reads [apiMode], which tests can override (test/flutter_test_config.dart sets mock mode).
+const bool kUseApi = bool.fromEnvironment('USE_API', defaultValue: true);
 
 /// Asset service root, e.g. http://192.168.1.20:5401 (no trailing /api): every /api/asset-* call.
-const String kApiBaseUrl = String.fromEnvironment('API_BASE_URL');
+const String kApiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: kDemoCloudUrl);
 
 /// Media service root, e.g. http://192.168.1.20:5300: POST /api/media/upload and the /uploads/... files.
-const String kMediaBaseUrl = String.fromEnvironment('MEDIA_BASE_URL');
+const String kMediaBaseUrl = String.fromEnvironment('MEDIA_BASE_URL', defaultValue: kDemoCloudUrl);
 
 /// UserAccount (login) service root, e.g. http://192.168.1.20:5018.
-const String kAuthBaseUrl = String.fromEnvironment('AUTH_BASE_URL');
+const String kAuthBaseUrl = String.fromEnvironment('AUTH_BASE_URL', defaultValue: kDemoCloudUrl);
 
 /// Master Data Management service root (dropdown lists, locations, employees).
-///
-/// DEV default: the shared test server, so dropdowns work without the extra define. Override it
-/// with --dart-define=MASTER_DATA_BASE_URL=... (env/api_dev.json sets it) before any release build.
-const String kMasterDataBaseUrl = String.fromEnvironment(
-  'MASTER_DATA_BASE_URL',
-  defaultValue: 'http://172.16.100.29:5500',
-);
+/// Default: [kDemoCloudUrl] (DEV/demo defaults — live builds use env/api_live.json).
+const String kMasterDataBaseUrl = String.fromEnvironment('MASTER_DATA_BASE_URL', defaultValue: kDemoCloudUrl);
 
 /// Dashboard service root (Home dashboard, GET /api/dashboards/mobile/*, network status + its WebSocket).
-///
-/// DEV default: the shared test server, like [kMasterDataBaseUrl]. Override it with
-/// --dart-define=DASHBOARD_BASE_URL=... (env/api_dev.json sets it) before any release build.
-const String kDashboardBaseUrl = String.fromEnvironment(
-  'DASHBOARD_BASE_URL',
-  defaultValue: 'http://172.16.100.29:5470',
-);
+/// Default: [kDemoCloudUrl] (DEV/demo defaults — live builds use env/api_live.json).
+const String kDashboardBaseUrl = String.fromEnvironment('DASHBOARD_BASE_URL', defaultValue: kDemoCloudUrl);
 
 /// Administration service root (map system: published floor plans, zones, plots, layers,
 /// GET /api/administration/maps/*; the Tracking Live Map reads it).
-///
-/// DEV default: the shared test server, like [kMasterDataBaseUrl]. Override it with
-/// --dart-define=ADMIN_BASE_URL=... (env/api_dev.json sets it) before any release build.
-const String kAdminBaseUrl = String.fromEnvironment('ADMIN_BASE_URL', defaultValue: 'http://172.16.100.29:5460');
+/// Default: [kDemoCloudUrl] (DEV/demo defaults — live builds use env/api_live.json).
+const String kAdminBaseUrl = String.fromEnvironment('ADMIN_BASE_URL', defaultValue: kDemoCloudUrl);
 
 /// Tracking service root (IoT devices, tags, sensors, telemetry readings, location events,
 /// geofences, IoT alerts; the Tracking & IoT module and the asset IoT tab read it).
-///
-/// DEV default: the shared test server, like [kMasterDataBaseUrl]. Override it with
-/// --dart-define=TRACKING_BASE_URL=... (env/api_dev.json sets it) before any release build.
-const String kTrackingBaseUrl = String.fromEnvironment('TRACKING_BASE_URL', defaultValue: 'http://172.16.100.29:5490');
+/// Default: [kDemoCloudUrl] (DEV/demo defaults — live builds use env/api_live.json).
+const String kTrackingBaseUrl = String.fromEnvironment('TRACKING_BASE_URL', defaultValue: kDemoCloudUrl);
 
 /// Optional debug override: a Bearer token for the Asset / Media services, used only while nobody is signed in.
 const String kDevToken = String.fromEnvironment('DEV_TOKEN');
@@ -190,32 +172,34 @@ String get dashboardBaseUrl => _withServer(kDashboardBaseUrl, '5470');
 String get adminBaseUrl => _withServer(kAdminBaseUrl, '5460');
 String get trackingBaseUrl => _withServer(kTrackingBaseUrl, '5490');
 
-String? _urlProblem(String name, String value, String port) => switch (value) {
+/// What is wrong with the service URL [value] of the define [name] (office [port] in the hint), or null.
+/// Only reachable with an empty / bad --dart-define: every URL defaults to [kDemoCloudUrl].
+String? serviceUrlProblem(String name, String value, String port) => switch (value) {
   '' => '$name is not set. Run with --dart-define=$name=http://<backend-ip>:$port',
   _ when Uri.tryParse(value)?.hasScheme != true => '$name "$value" must start with http:// or https://',
   _ => null,
 };
 
 /// What is missing to call the Asset service, or null when API_BASE_URL is usable.
-String? get apiConfigProblem => _urlProblem('API_BASE_URL', apiBaseUrl, '5401');
+String? get apiConfigProblem => serviceUrlProblem('API_BASE_URL', apiBaseUrl, '5401');
 
 /// What is missing to call the Media service, or null when MEDIA_BASE_URL is usable.
-String? get mediaConfigProblem => _urlProblem('MEDIA_BASE_URL', mediaBaseUrl, '5300');
+String? get mediaConfigProblem => serviceUrlProblem('MEDIA_BASE_URL', mediaBaseUrl, '5300');
 
 /// What is missing to call the login service, or null when AUTH_BASE_URL is usable.
-String? get authConfigProblem => _urlProblem('AUTH_BASE_URL', authBaseUrl, '5018');
+String? get authConfigProblem => serviceUrlProblem('AUTH_BASE_URL', authBaseUrl, '5018');
 
 /// What is missing to call the Master Data service, or null when MASTER_DATA_BASE_URL is usable.
-String? get masterDataConfigProblem => _urlProblem('MASTER_DATA_BASE_URL', masterDataBaseUrl, '5500');
+String? get masterDataConfigProblem => serviceUrlProblem('MASTER_DATA_BASE_URL', masterDataBaseUrl, '5500');
 
 /// What is missing to call the Dashboard service, or null when DASHBOARD_BASE_URL is usable.
-String? get dashboardConfigProblem => _urlProblem('DASHBOARD_BASE_URL', dashboardBaseUrl, '5470');
+String? get dashboardConfigProblem => serviceUrlProblem('DASHBOARD_BASE_URL', dashboardBaseUrl, '5470');
 
 /// What is missing to call the Administration service, or null when ADMIN_BASE_URL is usable.
-String? get adminConfigProblem => _urlProblem('ADMIN_BASE_URL', adminBaseUrl, '5460');
+String? get adminConfigProblem => serviceUrlProblem('ADMIN_BASE_URL', adminBaseUrl, '5460');
 
 /// What is missing to call the Tracking service, or null when TRACKING_BASE_URL is usable.
-String? get trackingConfigProblem => _urlProblem('TRACKING_BASE_URL', trackingBaseUrl, '5490');
+String? get trackingConfigProblem => serviceUrlProblem('TRACKING_BASE_URL', trackingBaseUrl, '5490');
 
 /// The backend services the app calls directly.
 enum BackendService {

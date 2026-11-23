@@ -36,7 +36,7 @@ void main() {
   });
 
   tearDown(() {
-    debugApiMode = null;
+    debugApiMode = false;
     NetworkNotifier.listenToDevice = true;
     LiveDetailUpload.debugPickPhoto = null;
     LiveDetailUpload.debugPickFile = null;

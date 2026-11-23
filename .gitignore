@@ -44,3 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 docs/backend_ref/
+
+# Archives (keep local copies out of git)
+*.zip

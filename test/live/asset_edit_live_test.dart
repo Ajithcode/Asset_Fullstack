@@ -123,7 +123,7 @@ void main() {
   });
 
   tearDown(() {
-    debugApiMode = null;
+    debugApiMode = false;
     NetworkNotifier.listenToDevice = true;
   });
 

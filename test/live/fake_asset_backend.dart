@@ -397,7 +397,7 @@ Future<T> withApiMode<T>(Future<T> Function() body) async {
   try {
     return await body();
   } finally {
-    debugApiMode = null;
+    debugApiMode = false;
   }
 }
 

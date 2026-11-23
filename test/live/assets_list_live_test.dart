@@ -21,7 +21,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     backend = FakeAssetBackend();
   });
-  tearDown(() => debugApiMode = null);
+  tearDown(() => debugApiMode = false);
 
   List<RequestQuery> listCalls() => [
     for (final r in backend.calls('GET', '/api/asset-registrations')) r.uri.queryParameters,

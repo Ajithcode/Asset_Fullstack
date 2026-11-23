@@ -164,17 +164,22 @@ void main() {
     expect(offline.message, contains('http://backend.test:5296'));
   });
 
-  test('without dart-defines the client refuses to call and says what is missing', () async {
-    expect(kApiBaseUrl, isEmpty, reason: 'tests run without --dart-define');
-    final adapter = _FakeAdapter(body: []);
-    try {
-      await ApiClient(_dio(adapter)).get<Object?>('/api/asset-categories');
-      fail('expected notConfigured');
-    } on ApiException catch (e) {
-      expect(e.kind, ApiErrorKind.notConfigured);
-      expect(e.message, contains('API_BASE_URL'));
+  test('without dart-defines every service defaults to the demo cloud (no config problem)', () {
+    expect(kUseApi, isTrue, reason: 'USE_API defaults to true');
+    for (final s in BackendService.values) {
+      expect(s.buildUrl, kDemoCloudUrl, reason: s.define);
+      expect(s.baseUrl, 'https://a360demo.purpleiq.ai', reason: s.define);
+      expect(s.configProblem, isNull, reason: s.define);
     }
-    expect(adapter.last, isNull, reason: 'no request was sent');
+    expect(usesSingleGateway, isTrue);
+    expect(httpsOnlyBuild, isTrue, reason: 'plain build = https only, no switcher');
+  });
+
+  test('an empty or scheme-less service URL is a config problem that names the define', () {
+    expect(serviceUrlProblem('API_BASE_URL', '', '5401'), allOf(contains('API_BASE_URL'), contains('5401')));
+    expect(serviceUrlProblem('MEDIA_BASE_URL', '', '5300'), allOf(contains('MEDIA_BASE_URL'), contains('5300')));
+    expect(serviceUrlProblem('AUTH_BASE_URL', 'a360demo.purpleiq.ai', '5018'), contains('must start with http'));
+    expect(serviceUrlProblem('AUTH_BASE_URL', kDemoCloudUrl, '5018'), isNull);
   });
 
   test('a missing token does not block the call (no Authorization header)', () async {
@@ -189,21 +194,6 @@ void main() {
     }
   });
 
-  test('MEDIA_BASE_URL has its own config problem; the media client checks it', () async {
-    expect(mediaConfigProblem, contains('MEDIA_BASE_URL'));
-    expect(mediaConfigProblem, contains('5300'));
-    expect(apiConfigProblem, contains('5401'));
-    final adapter = _FakeAdapter(body: {});
-    try {
-      await ApiClient(_dio(adapter), service: BackendService.media).post<Object?>(MediaApi.uploadPath);
-      fail('expected notConfigured');
-    } on ApiException catch (e) {
-      expect(e.kind, ApiErrorKind.notConfigured);
-      expect(e.message, contains('MEDIA_BASE_URL'));
-    }
-    expect(adapter.last, isNull);
-  });
-
   test('upload posts multipart to /api/media/upload with the token and rewrites a localhost URL', () async {
     final adapter = _FakeAdapter(body: {'url': 'http://localhost:5300/uploads/2026/a.jpg'});
     final dio = Dio(BaseOptions(baseUrl: 'http://media.test:5300'))
@@ -216,8 +206,8 @@ void main() {
     expect({for (final f in form.fields) f.key: f.value}, {'category': 'asset-images'});
     expect(form.files.single.key, 'file');
     expect(adapter.last!.headers['Authorization'], 'Bearer test-token');
-    // Tests run without MEDIA_BASE_URL, so the URL is left as returned.
-    expect(up.url, 'http://localhost:5300/uploads/2026/a.jpg');
+    // Tests run without MEDIA_BASE_URL = the demo cloud default: localhost moves to the gateway.
+    expect(up.url, 'https://a360demo.purpleiq.ai/uploads/2026/a.jpg');
   });
 
   test('resolveMediaUrl: localhost / 127.0.0.1 / relative → MEDIA_BASE_URL + same path', () {
@@ -269,7 +259,8 @@ void main() {
       MediaUpload.fromJson({
         'data': {'filePath': '/uploads/f.jpg'},
       }).url,
-      '/uploads/f.jpg',
+      'https://a360demo.purpleiq.ai/uploads/f.jpg',
+      reason: 'a bare path joins MEDIA_BASE_URL (demo cloud by default)',
     );
   });
 

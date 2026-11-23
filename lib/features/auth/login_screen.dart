@@ -305,10 +305,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TextFormField(
                       controller: _user,
                       textInputAction: TextInputAction.next,
-                      autofillHints: const [AutofillHints.username, AutofillHints.email],
-                      keyboardType: TextInputType.emailAddress,
+                      // The server matches usernames only (e.g. admin), never the email address.
+                      autofillHints: const [AutofillHints.username],
+                      keyboardType: TextInputType.text,
+                      autocorrect: false,
+                      enableSuggestions: false,
                       onFieldSubmitted: (_) => _passFocus.requestFocus(),
-                      validator: (v) => (v ?? '').trim().isEmpty ? 'Enter your username or email' : null,
+                      validator: (v) => (v ?? '').trim().isEmpty ? 'Enter your username' : null,
                       decoration: InputDecoration(
                         hintText: 'Username',
                         contentPadding: _fieldPadding,

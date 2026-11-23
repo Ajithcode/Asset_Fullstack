@@ -56,8 +56,19 @@ void main() {
     expect(find.text('Access your assets, operations and insights'), findsOneWidget);
     await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
-    expect(find.text('Enter your username or email'), findsOneWidget);
+    expect(find.text('Enter your username'), findsOneWidget);
     expect(find.text('Enter your password'), findsOneWidget);
+  });
+
+  testWidgets('login: the user field is "Username" with a normal text keyboard (no email keyboard)', (tester) async {
+    await _start(tester);
+    expect(find.textContaining('email', findRichText: true), findsNothing, reason: 'no "Username or email" wording');
+    final field = tester.widget<EditableText>(
+      find.descendant(of: _field('Username'), matching: find.byType(EditableText)),
+    );
+    expect(field.keyboardType, TextInputType.text);
+    expect(field.autofillHints, isNot(contains(AutofillHints.email)));
+    expect(field.autocorrect, isFalse);
   });
 
   testWidgets('full path: login → authenticator (wrong code, then 123456) → Home', (tester) async {

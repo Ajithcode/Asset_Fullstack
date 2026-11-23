@@ -93,8 +93,18 @@
   `registration_options.dart`; spec templates: `technical_templates.dart`. Asset status chips: `AssetStatusChip`.
   Web screenshots: `design/web_registration/`. Report: `docs/registration_backend_report.md`. Tests: test/registration_test.dart
   (swagger field names, round trip, validator, drafts restart, end-to-end generator).
-- Backend API (office IPs: services called DIRECTLY on their ports; cloud: one https gateway, see CLOUD below): `lib/data/api/` — `api_config.dart` (`kUseApi` /
-  `apiMode` (tests: `debugApiMode`), `kApiBaseUrl` = Asset service 5401, `kMediaBaseUrl` = Media 5300, `kAuthBaseUrl` =
+- RUN / BUILD (defaults = DEMO CLOUD; README "Run / build"): plain `flutter run` / `flutter build apk` = API mode against
+  https://a360demo.purpleiq.ai (`kUseApi` defaults to true, every `k*BaseUrl` defaults to `kDemoCloudUrl`; "DEV/demo
+  defaults — live builds use env/api_live.json"), no switcher, strict network config. `--dart-define-from-file=`
+  env/api_demo.json = demo cloud + server switcher; env/api_live.json = https://a360.purpleiq.ai, no developer tools;
+  env/api_dev.json / env/api_old_26.json = OFFICE SERVERS (office Wi-Fi only; 172.16.100.29 / .26, each service on its
+  port 5401 / 5300 / 5018 / 5500 / 5470 / 5460 / 5490). `--dart-define=USE_API=false` = mock mode: `MockModeBanner`
+  (core/widgets/mock_mode_banner.dart, MaterialApp `builder` in app/app.dart) = orange strip "MOCK MODE — demo data, not
+  connected to a server" under the status bar on every screen incl. Login; never in API mode (test/mock_mode_banner_test.dart).
+  Users sign in with the USERNAME (e.g. admin), not the email. Tests run in mock mode: flutter_test_config.dart sets
+  `debugApiMode = false`; tests that switch API mode on reset it to `false` (never `null` = the API-mode default).
+- Backend API (cloud: one https gateway, see CLOUD below; office servers: services called DIRECTLY on their ports): `lib/data/api/` — `api_config.dart` (`kUseApi` /
+  `apiMode` (tests: `debugApiMode`), `kApiBaseUrl` = Asset service (office port 5401), `kMediaBaseUrl` = Media 5300, `kAuthBaseUrl` =
   login 5018, optional `kDevToken`; dart-defines only; `BackendService` enum = base URL + config problem per service),
   `api_client.dart` (`dioProvider` / `apiClientProvider` = Asset, `mediaDioProvider` / `mediaClientProvider` = Media;
   `AuthInterceptor` = session access token if any (never blocks), one shared refresh on 401 then retry),
@@ -117,8 +127,8 @@
   "Master Data Management"; Media = token only) → 403 = `ApiException.isForbidden`, message "You don't have permission
   for this. <server reason>", `LoadErrorState` shows "No access"; never a sign-out. Guard 503 =
   `ApiErrorKind.permissionCheck` ("Permissions couldn't be checked — try again shortly"; `context.showApiError(e,
-  onRetry:)` = SnackBar with Retry). ADMIN_BASE_URL (`kAdminBaseUrl`, 5460, `BackendService.admin`) and TRACKING_BASE_URL
-  (`kTrackingBaseUrl`, 5490, `BackendService.tracking`) = 6th / 7th services in Diagnostics / Test connection. WebSocket: Bearer header on the
+  onRetry:)` = SnackBar with Retry). ADMIN_BASE_URL (`kAdminBaseUrl`, office port 5460, `BackendService.admin`) and TRACKING_BASE_URL
+  (`kTrackingBaseUrl`, office port 5490, `BackendService.tracking`) = 6th / 7th services in Diagnostics / Test connection. WebSocket: Bearer header on the
   upgrade. `/uploads/...` files are public. Login 2FA method "email" (older "otp") = `isEmailMethod`.
 - CLOUD: env/api_demo.json (https://a360demo.purpleiq.ai, switcher on) / env/api_live.json (https://a360.purpleiq.ai,
   switcher off) = ONE https gateway as the base URL of all 7 services (`usesSingleGateway`; `isGatewayOrigin` = an https
@@ -128,9 +138,9 @@
   fallback `/live` on a 404 upgrade (`isNotFoundUpgrade`), token as Bearer header AND `?access_token=` (`withAccessToken`;
   never log it). Media: https URLs kept as returned; localhost / old http office-IP `/uploads/` → MEDIA_BASE_URL.
   Cleartext: `android/app/build.gradle.kts` picks `@xml/network_security_config_dev` (http only to .26 / .29) or
-  `@xml/network_security_config` (none) from the dart-defines; `httpsOnlyBuild` → `HttpsOnlyInterceptor`. Route list for
+  `@xml/network_security_config` (none) from the dart-defines (dev config only for an `http://` URL or SHOW_SERVER_SWITCHER=true; a plain build = strict); `httpsOnlyBuild` → `HttpsOnlyInterceptor`. Route list for
   the backend team: `docs/api_routes_used.md` (keep it updated when adding calls).
-- Server switcher (dev builds, `SHOW_SERVER_SWITCHER=true` in env/api_dev.json; `showServerSwitcher` /
+- Server switcher (dev builds, `SHOW_SERVER_SWITCHER=true` in env/api_demo.json / env/api_dev.json; its "build default" = Demo cloud without an env file; `showServerSwitcher` /
   `debugShowServerSwitcher`): code reads the EFFECTIVE URLs (`apiBaseUrl`, `authBaseUrl` … / `BackendService.baseUrl`;
   `buildUrl` = the dart-define) — never the `k*BaseUrl` consts. `serverOverride` (scheme + host) replaces the host, ports
   stay (an https override = gateway, used as-is); presets `serverPresets` (Demo cloud / .29 / .26) + Custom (IP, host or https URL); `serverDisplayOf`. Saved by `ServerNotifier` (`serverProvider`,
@@ -158,7 +168,7 @@
   `core/scanning/live_asset_lookup.dart` (GET /lookup, fallback search + exact match). No backend yet → `NotAvailableYet` /
   `showNotAvailableYet` (core/widgets/live_states.dart). Tests: `test/live/` (`FakeAssetBackend` (+ `addAssignment`,
   one-shot `failNext`), `no_mock_assets_test.dart`). Edit Asset Status: a server-set value not in /options = "(set by system)".
-- Master Data (port 5500, `MASTER_DATA_BASE_URL`, DEV default 172.16.100.26:5500): `lib/data/api/master_data/` —
+- Master Data (`MASTER_DATA_BASE_URL`, default demo cloud; office port 5500): `lib/data/api/master_data/` —
   `master_data_models.dart` (typed `Md*` models per contract, `MdEntry` id/name/code/status, `mdParseList` drops
   inactive rows), `master_data_api.dart` (paths; lists asked with `status=Active`), `master_data_repository.dart`
   (`MasterDataRepository.fetch`: drift `CachedResponses` copy used only on no network / timeout; session providers
@@ -187,7 +197,7 @@
   `features/assets/live/live_key_information.dart`; Delete = detail ⋮ (soft delete, back to the list). Status chip
   colours = `AssetOptions.toneOf` (blue Assigned). Report: `docs/asset_edit_report.md`; tests:
   `test/live/asset_edit_live_test.dart` (the fake backend keeps `stored` and replaces sections on PUT).
-- Home dashboard (API mode, Dashboard service 5470, `DASHBOARD_BASE_URL`, DEV default 172.16.100.26:5470,
+- Home dashboard (API mode, Dashboard service, `DASHBOARD_BASE_URL`, default demo cloud; office port 5470,
   `BackendService.dashboard`, `dashboardClientProvider`): `lib/data/api/dashboard/` — `dashboard_models.dart` (`Dash*`
   per MobileDashboardContracts.cs, `NetworkStatusCounts`, `TagRecordCount`), `dashboard_api.dart` (`DashboardApi`: one
   method per endpoint, only the query params each endpoint reads; `liveUri`), `network_status_live.dart`

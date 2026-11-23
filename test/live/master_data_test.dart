@@ -236,7 +236,7 @@ void main() {
     });
     tearDown(() {
       c.dispose();
-      debugApiMode = null;
+      debugApiMode = false;
     });
 
     ScanEvent qr(String v) => ScanEvent(value: v, format: 'qr', source: ScanSource.camera);

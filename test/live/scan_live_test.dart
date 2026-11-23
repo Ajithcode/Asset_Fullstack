@@ -26,7 +26,7 @@ void main() {
   });
   tearDown(() {
     c.dispose();
-    debugApiMode = null;
+    debugApiMode = false;
   });
 
   List<Map<String, String>> lookups() => [

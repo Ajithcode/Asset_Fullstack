@@ -438,7 +438,7 @@ void main() {
     });
 
     tearDown(() {
-      debugApiMode = null;
+      debugApiMode = false;
       NetworkNotifier.listenToDevice = true;
       TrkLiveNotifier.debugSchedule = null;
     });
@@ -671,7 +671,7 @@ void main() {
     });
 
     tearDown(() {
-      debugApiMode = null;
+      debugApiMode = false;
       NetworkNotifier.listenToDevice = true;
       TrkLiveNotifier.debugSchedule = null;
     });

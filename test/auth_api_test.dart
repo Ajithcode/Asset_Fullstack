@@ -215,7 +215,7 @@ void main() {
 
   group('session flows', () {
     setUp(() => debugApiMode = true);
-    tearDown(() => debugApiMode = null);
+    tearDown(() => debugApiMode = false);
 
     test('login → setupRequired → verify-totp → signed in; /me + role name; refresh token stored', () async {
       final t = _setup(_Server(_routes()));
@@ -424,7 +424,7 @@ void main() {
     tester,
   ) async {
     debugApiMode = true;
-    addTearDown(() => debugApiMode = null);
+    addTearDown(() => debugApiMode = false);
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);

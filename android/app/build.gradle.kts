@@ -15,16 +15,12 @@ val dartDefines: Map<String, String> =
         ?.mapNotNull { e -> e.indexOf('=').takeIf { it > 0 }?.let { e.substring(0, it) to e.substring(it + 1) } }
         ?.toMap() ?: emptyMap()
 
-// Plain http only for development builds that use the office IPs: a plain-http service URL, the server
-// switcher (it offers the .26 / .29 presets), or USE_API with a service URL left to its http dev default.
-val serviceUrlKeys = listOf(
-    "API_BASE_URL", "AUTH_BASE_URL", "MEDIA_BASE_URL", "MASTER_DATA_BASE_URL",
-    "DASHBOARD_BASE_URL", "ADMIN_BASE_URL", "TRACKING_BASE_URL",
-)
+// Plain http only for development builds that use the office IPs: a plain-http service URL or the server
+// switcher (it offers the .26 / .29 presets). Every service URL left unset defaults to the https demo cloud
+// (lib/data/api/api_config.dart), so a plain `flutter build apk` gets the STRICT config (no cleartext).
 val cleartextForOfficeIps: Boolean =
     dartDefines.values.any { it.trim().startsWith("http://", ignoreCase = true) } ||
-        dartDefines["SHOW_SERVER_SWITCHER"] == "true" ||
-        (dartDefines["USE_API"] == "true" && serviceUrlKeys.any { dartDefines[it].isNullOrBlank() })
+        dartDefines["SHOW_SERVER_SWITCHER"] == "true"
 
 android {
     namespace = "com.purpleiq.asset360_mobile"

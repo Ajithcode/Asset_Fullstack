@@ -548,7 +548,7 @@ void main() {
     test('LiveDevicesNotifier: REST counts first, socket messages replace them, setActive opens / closes', () async {
       debugApiMode = true;
       addTearDown(() {
-        debugApiMode = null;
+        debugApiMode = false;
         LiveDevicesNotifier.debugScheduler = null;
       });
       final previous = LiveDevicesNotifier.debugConnector;
@@ -591,7 +591,7 @@ void main() {
       DemoClock.frozen = true;
       DrilldownPage.refreshDelay = Duration.zero;
     });
-    tearDown(() => debugApiMode = null);
+    tearDown(() => debugApiMode = false);
 
     Future<void> pumpApp(WidgetTester tester) async {
       tester.view.physicalSize = const Size(1170, 2532);

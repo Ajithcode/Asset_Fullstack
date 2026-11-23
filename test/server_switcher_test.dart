@@ -48,7 +48,7 @@ void main() {
   tearDown(() {
     applyServerOverride(null);
     debugShowServerSwitcher = null;
-    debugApiMode = null;
+    debugApiMode = false;
   });
 
   test('normalizeServerOrigin keeps scheme + host only', () {
@@ -80,7 +80,7 @@ void main() {
     expect(serverDisplayOf('http://10.0.0.5'), '10.0.0.5');
 
     applyServerOverride(null);
-    expect(kApiBaseUrl, isEmpty);
+    expect(kApiBaseUrl, kDemoCloudUrl, reason: 'no define = the demo cloud');
     expect(apiBaseUrl, kApiBaseUrl, reason: 'no choice = the build URLs');
     expect(masterDataBaseUrl, kMasterDataBaseUrl);
   });
@@ -152,7 +152,7 @@ void main() {
   test('every service Dio follows the selected server', () async {
     final c = ProviderContainer();
     addTearDown(c.dispose);
-    expect(c.read(masterDataDioProvider).options.baseUrl, 'http://172.16.100.29:5500');
+    expect(c.read(masterDataDioProvider).options.baseUrl, 'https://a360demo.purpleiq.ai');
     await c.read(serverProvider.notifier).select('http://172.16.100.26');
     expect(c.read(dioProvider).options.baseUrl, 'http://172.16.100.26:5401');
     expect(c.read(masterDataDioProvider).options.baseUrl, 'http://172.16.100.26:5500');
@@ -201,15 +201,17 @@ void main() {
     );
     await tester.pump(SplashScreen.duration);
     await tester.pumpAndSettle();
-    expect(find.text('Server: Server .29 (172.16.100.29)'), findsOneWidget);
+    // No env file: the build default is the Demo cloud preset.
+    expect(find.text('Server: Demo cloud (a360demo.purpleiq.ai)'), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const ValueKey('login-server')));
     await tester.tap(find.byKey(const ValueKey('login-server')));
     await tester.pumpAndSettle();
     expect(find.text('Backend server'), findsOneWidget);
-    expect(find.text('http://172.16.100.29 · build default'), findsOneWidget);
     expect(find.text('Demo cloud (a360demo.purpleiq.ai)'), findsOneWidget);
-    expect(find.text('https://a360demo.purpleiq.ai'), findsOneWidget);
+    expect(find.text('https://a360demo.purpleiq.ai · build default'), findsOneWidget);
+    expect(find.text('Build default'), findsNothing, reason: 'the build default is a preset, not an extra row');
+    expect(find.text('http://172.16.100.29'), findsOneWidget);
 
     // Custom: a bad host is refused.
     await tester.tap(find.text('Custom'));

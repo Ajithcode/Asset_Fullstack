@@ -1,18 +1,35 @@
 # Asset360 (Purple IQ) — mobile demo
 
-A clickable Flutter demo of the Asset360 enterprise asset management app. Every screen runs on in-memory
-mock data (`lib/data/`); every button does something. State resets when the app restarts.
+The Asset360 enterprise asset management app. By default it talks to the demo cloud (`https://a360demo.purpleiq.ai`);
+with `--dart-define=USE_API=false` every screen runs on in-memory mock data (`lib/data/`) under an orange MOCK MODE
+banner, and state resets when the app restarts.
 
-## How to run
+## Run / build
 
-Requirements: Flutter stable (3.38+, Dart 3.10+), Android SDK (or Xcode for iOS).
+Requirements: Flutter stable (3.38+, Dart 3.10+), Android SDK (or Xcode for iOS). Backend settings come from the
+env files in `env/`; with no file at all the app talks to the **demo cloud**.
+
+| Command | Talks to | Developer tools |
+|---|---|---|
+| `flutter run` / `flutter build apk` (no defines) | Demo cloud `https://a360demo.purpleiq.ai` (default) | No server switcher |
+| `--dart-define-from-file=env/api_demo.json` | Demo cloud `https://a360demo.purpleiq.ai` | Server switcher on |
+| `--dart-define-from-file=env/api_live.json` | Live `https://a360.purpleiq.ai` | None (HTTPS only) |
+| `--dart-define-from-file=env/api_dev.json` / `env/api_old_26.json` | Office servers — office Wi-Fi only, see [Office servers](#office-servers) | `api_dev.json`: switcher on |
+| `--dart-define=USE_API=false` | Nobody: mock data in `lib/data/mock/`, orange **MOCK MODE** banner on every screen | — |
+
+**Sign in with the USERNAME** (e.g. `admin`), not the email address. Mock mode uses the demo login below.
 
 ```bash
 flutter pub get
-flutter run                 # debug build on a connected phone or emulator (Developer section visible)
-flutter analyze             # must report "No issues found!"
-flutter test                # all widget / unit tests
-flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
+flutter run                                              # demo cloud (default)
+flutter run --dart-define-from-file=env/api_demo.json    # demo cloud + Backend server switcher
+flutter run --dart-define=USE_API=false                  # mock mode (banner)
+flutter analyze                                          # must report "No issues found!"
+flutter test                                             # all widget / unit tests (they run in mock mode)
+
+# Release APKs (add the env file you need; none = demo cloud)
+flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols \
+  --dart-define-from-file=env/api_live.json              # live: https://a360.purpleiq.ai, no developer tools
 # → build/app/outputs/flutter-apk/app-arm64-v8a-release.apk   (most phones)
 #   build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk (older 32-bit phones)
 #   build/app/outputs/flutter-apk/app-x86_64-release.apk      (emulators)
@@ -33,7 +50,9 @@ The QR / barcode scanner uses the unbundled ML Kit model (`dev.steenbakker.mobil
 `android/gradle.properties`): Google Play services downloads it once, so the phone needs Play services, and the
 first scan after install can need a network connection.
 
-## Demo login
+## Demo login (mock mode only)
+
+Only with `--dart-define=USE_API=false`. Against a server (the default), sign in with a real USERNAME (e.g. `admin`).
 
 | Field | Value |
 |---|---|
@@ -68,71 +87,35 @@ so the request shows in Home → My Approvals and the whole Approve → In Trans
 
 ## Connecting to the backend
 
-By default the app runs on the mock data in `lib/data/mock/` with the demo login (rex.kumar / Asset@360 / 123456).
-To use the real backend, pass the three service addresses at build time. The app calls each service **directly**;
-the API Gateway (port 5296) is **not used for now**. Nothing is stored in the code; no token is needed (you sign in).
-
-```sh
-# Run on a connected phone
-flutter run --dart-define=USE_API=true \
-  --dart-define=API_BASE_URL=http://<backend-ip>:5401 \
-  --dart-define=MEDIA_BASE_URL=http://<backend-ip>:5300 \
-  --dart-define=AUTH_BASE_URL=http://<backend-ip>:5018 \
-  --dart-define=MASTER_DATA_BASE_URL=http://<backend-ip>:5500 \
-  --dart-define=DASHBOARD_BASE_URL=http://<backend-ip>:5470 \
-  --dart-define=ADMIN_BASE_URL=http://<backend-ip>:5460 \
-  --dart-define=TRACKING_BASE_URL=http://<backend-ip>:5490
-
-# Release APK for testing on a phone (no logs needed: see Auth diagnostics below)
-flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols \
-  --dart-define=USE_API=true \
-  --dart-define=API_BASE_URL=http://<backend-ip>:5401 \
-  --dart-define=MEDIA_BASE_URL=http://<backend-ip>:5300 \
-  --dart-define=AUTH_BASE_URL=http://<backend-ip>:5018 \
-  --dart-define=MASTER_DATA_BASE_URL=http://<backend-ip>:5500 \
-  --dart-define=DASHBOARD_BASE_URL=http://<backend-ip>:5470 \
-  --dart-define=ADMIN_BASE_URL=http://<backend-ip>:5460 \
-  --dart-define=TRACKING_BASE_URL=http://<backend-ip>:5490
-```
-
-**Cloud backend (one HTTPS gateway).** The backend is deployed behind `https://a360demo.purpleiq.ai` (demo) and,
-later, `https://a360.purpleiq.ai` (live): every service under `/api/...`, no IPs, no ports. Use:
-
-```sh
-flutter run --dart-define-from-file=env/api_demo.json          # demo cloud, server switcher on
-flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols \
-  --dart-define-from-file=env/api_live.json                    # live, switcher off, HTTPS only
-```
+The app always calls a server unless it is built with `USE_API=false` (see [Run / build](#run--build)). The demo and
+live backends sit behind ONE https gateway (`https://a360demo.purpleiq.ai`, `https://a360.purpleiq.ai`): every
+service under `/api/...`, no IPs, no ports. Every service URL defaults to the demo cloud (DEV/demo defaults — live
+builds use `env/api_live.json`). Nothing secret is stored in the code; you sign in with your username.
 
 Cleartext (plain http): `android/app/build.gradle.kts` reads the build's dart-defines and picks
-`res/xml/network_security_config_dev.xml` (http only to 172.16.100.26 / .29) when a service URL is `http://`, the
-switcher is on, or USE_API leaves a URL to its http dev default; otherwise `network_security_config.xml` (no
-cleartext at all: env/api_live.json, mock builds). An env/api_live.json build also refuses http in Dart
+`res/xml/network_security_config_dev.xml` (http only to the office servers) when a service URL is `http://` or the
+switcher is on (env/api_demo.json, env/api_dev.json, env/api_old_26.json); otherwise `network_security_config.xml`
+(no cleartext at all: plain `flutter build apk`, env/api_live.json, mock builds). An env/api_live.json build also refuses http in Dart
 (`HttpsOnlyInterceptor`). All routes the app calls: `docs/api_routes_used.md`.
 
-**Switching servers without rebuilding (dev builds only).** Builds made with `env/api_dev.json` (it sets
-`SHOW_SERVER_SWITCHER=true`) show **Settings → Developer → Backend server** and, on Login, a small grey
+**Switching servers without rebuilding (dev builds only).** Builds made with `env/api_demo.json` or `env/api_dev.json`
+(they set `SHOW_SERVER_SWITCHER=true`) show **Settings → Developer → Backend server** and, on Login, a small grey
 "Server: …" line (tap it) plus a **Backend server** button in Diagnostics. Pick *Demo cloud (a360demo.purpleiq.ai)*
-(one https URL used as-is for every service), *Server .29*, *Server .26* or *Custom* (an IP / host: every service
+(one https URL used as-is for every service), the office servers or *Custom* (an IP / host: every service
 keeps its port; a full https URL: used as-is), the choice is saved on the phone, and switching signs you out,
 clears cached server data and returns to Login. Builds without the flag (client releases) hide it and always use
 their own `--dart-define` URLs.
 
-Example for the current test server: `API_BASE_URL=http://172.16.100.29:5401`,
-`MEDIA_BASE_URL=http://172.16.100.29:5300`, `AUTH_BASE_URL=http://172.16.100.29:5018`,
-`MASTER_DATA_BASE_URL=http://172.16.100.29:5500`, `DASHBOARD_BASE_URL=http://172.16.100.29:5470`, `ADMIN_BASE_URL=http://172.16.100.29:5460`, `TRACKING_BASE_URL=http://172.16.100.29:5490`
-(or `--dart-define-from-file=env/api_dev.json`).
-
 | Define | Meaning |
 |---|---|
-| `USE_API` | `true` = real sign-in and backend; anything else = mock data and the demo login. |
-| `API_BASE_URL` | Asset service root, without `/api` (e.g. `http://192.168.1.20:5401`): every `/api/asset-*` call. |
-| `MEDIA_BASE_URL` | Media service root (e.g. `http://192.168.1.20:5300`): `POST /api/media/upload` and the `/uploads/...` files. |
-| `AUTH_BASE_URL` | UserAccount (login) service root (e.g. `http://192.168.1.20:5018`). |
-| `MASTER_DATA_BASE_URL` | Master Data Management service root (e.g. `http://192.168.1.20:5500`): every dropdown list, the location tree and employees. DEV default = the test server above; set it explicitly for any other backend. |
-| `DASHBOARD_BASE_URL` | Dashboard service root (e.g. `http://192.168.1.20:5470`): Home cards and drill-downs (`/api/dashboards/mobile/*`), network status and its WebSocket (`ws://` / `wss://` derived from this URL). DEV default = the test server above. |
-| `ADMIN_BASE_URL` | Administration service root (e.g. `http://192.168.1.20:5460`): the map system read by the Tracking Live Map (published floor plans, zones, plots, layers; `/api/administration/maps/*`). DEV default = the test server above. |
-| `TRACKING_BASE_URL` | Tracking service root (e.g. `http://192.168.1.20:5490`): IoT devices, tags, device health, sensors, telemetry readings, location events, geofences and IoT alerts (Tracking & IoT module, asset IoT tab). DEV default = the test server above. |
+| `USE_API` | Default `true` = real sign-in and backend; `false` = mock data, the demo login and the MOCK MODE banner. |
+| `API_BASE_URL` | Asset service root, without `/api` (default `https://a360demo.purpleiq.ai`): every `/api/asset-*` call. |
+| `MEDIA_BASE_URL` | Media service root (default `https://a360demo.purpleiq.ai`): `POST /api/media/upload` and the `/uploads/...` files. |
+| `AUTH_BASE_URL` | UserAccount (login) service root (default `https://a360demo.purpleiq.ai`). |
+| `MASTER_DATA_BASE_URL` | Master Data Management service root (default `https://a360demo.purpleiq.ai`): every dropdown list, the location tree and employees. |
+| `DASHBOARD_BASE_URL` | Dashboard service root (default `https://a360demo.purpleiq.ai`): Home cards and drill-downs (`/api/dashboards/mobile/*`), network status and its WebSocket (`ws://` / `wss://` derived from this URL). |
+| `ADMIN_BASE_URL` | Administration service root (default `https://a360demo.purpleiq.ai`): the map system read by the Tracking Live Map (published floor plans, zones, plots, layers; `/api/administration/maps/*`). |
+| `TRACKING_BASE_URL` | Tracking service root (default `https://a360demo.purpleiq.ai`): IoT devices, tags, device health, sensors, telemetry readings, location events, geofences and IoT alerts (Tracking & IoT module, asset IoT tab). |
 | `DEV_TOKEN` | Optional, debugging only: a token sent to the Asset / Media services while nobody is signed in. Not needed for testing. |
 
 The Asset and Media services receive the signed-in user's Bearer token (they read it for CreatedBy); a missing token
@@ -141,16 +124,37 @@ never blocks a call. A 401 refreshes the token once and retries. Media URLs the 
 `MEDIA_BASE_URL` + the same path; https URLs (e.g. `https://a360demo.purpleiq.ai/uploads/...`) are kept as returned
 (`resolveMediaUrl` in `lib/data/api/media_api.dart`); files are loaded with the Authorization header.
 
-The phone must be on the same network as the backend. `localhost` on a phone is the phone itself (on the Android
-emulator use `http://10.0.2.2:…`). Plain `http://` is allowed for development (`android:usesCleartextTraffic` in
-`android/app/src/main/AndroidManifest.xml`; remove it for production).
+### Office servers
+
+For backend developers on the **office Wi-Fi only**: `env/api_dev.json` (172.16.100.29, server switcher on) and
+`env/api_old_26.json` (172.16.100.26). Each service is called DIRECTLY on its own port, plain http:
+
+| Service | Define | Port |
+|---|---|---|
+| Asset | `API_BASE_URL` | 5401 |
+| Media | `MEDIA_BASE_URL` | 5300 |
+| Login (UserAccount) | `AUTH_BASE_URL` | 5018 |
+| Master Data | `MASTER_DATA_BASE_URL` | 5500 |
+| Dashboard | `DASHBOARD_BASE_URL` | 5470 |
+| Administration | `ADMIN_BASE_URL` | 5460 |
+| Tracking | `TRACKING_BASE_URL` | 5490 |
+
+```sh
+flutter run --dart-define-from-file=env/api_dev.json       # 172.16.100.29
+flutter run --dart-define-from-file=env/api_old_26.json    # 172.16.100.26
+```
+
+The phone must be on the office network. `localhost` on a phone is the phone itself (Android emulator:
+`http://10.0.2.2:…`). These builds get the development network security config (plain http only to .26 / .29).
+The API document can be fetched from an office server:
+`curl -fsS http://172.16.100.29:5296/openapi/all.json -o docs/api/openapi.json`.
 
 ### Login phase testing
 
 1. Ask the backend developer for a test user name and password, and whether 2-step sign-in is the authenticator app
    (`totp`) or an emailed code (`otp`).
 2. Install Google Authenticator on the test phone.
-3. Build and install the APK above, open it, sign in with the test user. Tick or untick **Remember me** as needed.
+3. Build and install the APK above, open it, sign in with the test user's USERNAME (not the email). Tick or untick **Remember me** as needed.
 4. **First sign-in (authenticator not set up yet)**: the "Set up your Authenticator" screen opens. Tap **Copy** next
    to the setup key, open Google Authenticator → **+** → **Enter a setup key**, paste the key (account name
    "Asset360 – <user>", Time based), save, come back and tap **Next**. (Another phone can scan the QR instead.)
@@ -177,13 +181,7 @@ MEDIA and shows one result each.
 
 `docs/api/openapi.json` is the single source of truth for paths and fields. Fetch it again from the gateway
 whenever the backend changes (the gateway's merged document, if it is running; otherwise each service's own
-`/swagger/v1/swagger.json`):
-
-```sh
-mkdir -p docs/api
-curl -fsS http://<backend-ip>:5296/openapi/all.json -o docs/api/openapi.json          # gateway (merged)
-curl -fsS http://<backend-ip>:5018/swagger/v1/swagger.json -o docs/api/useraccount_swagger.json  # login service
-```
+`/swagger/v1/swagger.json`); see the `curl` line under [Office servers](#office-servers) (office Wi-Fi only).
 
 Open questions for the backend developer: `docs/questions_for_backend.md`.
 
@@ -349,7 +347,7 @@ Keys: dashboard, assets, scan, movement, tracking, account, maintenance, inspect
 inventory, documents, alerts, contracts, financial, reports, administration (or `admin`). Example:
 
 ```bash
-flutter run --dart-define-from-file=env/api_dev.json --dart-define=LICENSED_MODULES=dashboard,assets,scan,maintenance
+flutter run --dart-define-from-file=env/api_demo.json --dart-define=LICENSED_MODULES=dashboard,assets,scan,maintenance
 ```
 
 Always open: sign-in screens, Home, Work hub, All Modules, Settings, Profile, Help, Logout, Notifications,
@@ -405,7 +403,7 @@ How it is enforced:
 Set `kUseClientDemo = false` and rebuild to get the full app back. Client APK:
 
 ```bash
-flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
+flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols   # demo cloud
 # → build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 ```
 

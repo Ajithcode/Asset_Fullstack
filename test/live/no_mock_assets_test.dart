@@ -41,7 +41,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     backend = FakeAssetBackend();
   });
-  tearDown(() => debugApiMode = null);
+  tearDown(() => debugApiMode = false);
 
   /// Mock IDs visible in any Text / RichText on screen.
   List<String> visibleMockIds() => [

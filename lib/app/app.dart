@@ -5,6 +5,7 @@ import 'package:asset360_mobile/data/repositories/settings_repository.dart';
 import 'package:asset360_mobile/app/router/app_router.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_theme.dart';
+import 'package:asset360_mobile/core/widgets/mock_mode_banner.dart';
 
 class Asset360App extends ConsumerStatefulWidget {
   const Asset360App({super.key});
@@ -44,6 +45,7 @@ class _Asset360AppState extends ConsumerState<Asset360App> with WidgetsBindingOb
       debugShowCheckedModeBanner: false,
       theme: AppTheme.current,
       routerConfig: ref.watch(routerProvider),
+      builder: (context, child) => MockModeBanner(child: child ?? const SizedBox.shrink()),
     );
   }
 }

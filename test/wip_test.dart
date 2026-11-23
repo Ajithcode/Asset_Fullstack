@@ -203,7 +203,8 @@ void main() {
     expect(find.textContaining('Finish every operation first'), findsOneWidget);
 
     await _settleSnack(tester);
-    await _tap(tester, find.text('Notes'));
+    // The tab may sit just below the viewport (built, but offstage): ensureVisible scrolls it in.
+    await _tap(tester, find.text('Notes', skipOffstage: false));
     await tester.enterText(find.byType(TextField), 'Seal kit changed');
     await _tap(tester, find.byTooltip('Add note'));
     expect(find.text('Seal kit changed'), findsOneWidget);
