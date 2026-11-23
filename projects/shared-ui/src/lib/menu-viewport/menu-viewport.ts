@@ -8,6 +8,14 @@
  * there is no room below, shifted left when there is no room on the right, and given a scrollbar when the
  * screen is too short for it. Menus that already fit are left untouched.
  *
+ * Also covered: menus that are not added on open but stay in the page and are shown/moved by the component
+ * (a class/style/hidden change on the menu or an ancestor, or one shared `position: fixed` row menu that
+ * the component moves from row to row via [style.top.px]). Such menus are re-checked on every attribute
+ * change, released (original inline style restored) when they hide, and kept inside the screen when the
+ * component's own fixed position would put them off-screen. Pages using that pattern (2026-11-23):
+ * assets: Asset Assignment, Assign Asset, Asset Audit, New Asset Audit (row/criterion/team menus),
+ * Asset Disposal; tracking-iot: Device Management, Device Type & Model; shell: topbar account menu.
+ *
  * Opt out for a specific element with the `data-menu-static` attribute.
  */
 
@@ -18,7 +26,12 @@ const MANAGED = 'menuViewportManaged';
 
 interface Managed {
   menu: HTMLElement;
-  anchor: HTMLElement;
+  anchor: HTMLElement | null;
+  /** The menu's own inline style before it was pinned, restored when it hides. */
+  original: string;
+  /** What the guard last wrote: a different top/left means the component moved the menu itself. */
+  top: string;
+  left: string;
 }
 
 export function installMenuViewportGuard(doc: Document | undefined = typeof document === 'undefined' ? undefined : document): void {
@@ -42,18 +55,49 @@ export function installMenuViewportGuard(doc: Document | undefined = typeof docu
     }
   };
 
-  /** First look at a newly shown menu: pin it only when it doesn't fit. */
+  /** Look at a shown (or moved) menu: pin it only when it doesn't fit. */
   function check(menu: HTMLElement): void {
-    if (!menu.isConnected || managed.has(menu) || menu.closest('[data-menu-static]')) return;
-    if (win!.getComputedStyle(menu).position !== 'absolute') return;
+    if (!menu.isConnected || menu.closest('[data-menu-static]')) return;
+    const entry = managed.get(menu);
+    if (entry) {
+      if (!isShown(menu)) release(entry);
+      else if (menu.style.top !== entry.top || menu.style.left !== entry.left) {
+        // The component moved the menu (e.g. same menu opened on another row): start over from its position.
+        release(entry, false);
+        check(menu);
+      }
+      return;
+    }
+    const position = win!.getComputedStyle(menu).position;
+    if (position !== 'absolute' && position !== 'fixed') return;
     const rect = menu.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    if (fitsOnScreen(rect) && !clippedByScrollParent(menu, rect)) return;
-    const anchor = findAnchor(menu);
-    const entry = { menu, anchor };
-    managed.set(menu, entry);
+    if (fitsOnScreen(rect) && (position === 'fixed' || !clippedByScrollParent(menu, rect))) return;
+    const created: Managed = { menu, anchor: findAnchor(menu, position), original: menu.getAttribute('style') ?? '', top: '', left: '' };
+    managed.set(menu, created);
     menu.dataset[MANAGED] = 'true';
-    place(entry, rect);
+    place(created, rect);
+  }
+
+  function isShown(menu: HTMLElement): boolean {
+    const r = menu.getBoundingClientRect();
+    return menu.isConnected && r.width > 0 && r.height > 0 && win!.getComputedStyle(menu).visibility !== 'hidden';
+  }
+
+  /** Un-pins a menu. `restore` puts back its own inline style (when it hides); else the component's current one is kept. */
+  function release(entry: Managed, restore = true): void {
+    managed.delete(entry.menu);
+    delete entry.menu.dataset[MANAGED];
+    if (!entry.menu.isConnected) return;
+    if (restore) {
+      if (entry.original) entry.menu.setAttribute('style', entry.original);
+      else entry.menu.removeAttribute('style');
+    } else {
+      const s = entry.menu.style;
+      for (const prop of ['right', 'bottom', 'margin', 'width', 'transform', 'z-index', 'max-height', 'overflow-y', 'position']) {
+        if (!new RegExp(`(^|;)\\s*${prop}\\s*:`).test(entry.original)) s.removeProperty(prop);
+      }
+    }
   }
 
   function fitsOnScreen(r: DOMRect): boolean {
@@ -71,18 +115,29 @@ export function installMenuViewportGuard(doc: Document | undefined = typeof docu
     return false;
   }
 
-  /** The button that opened the menu: the trigger next to it in its wrapper, else the wrapper itself. */
-  function findAnchor(menu: HTMLElement): HTMLElement {
+  /**
+   * The button that opened the menu: the trigger next to it in its wrapper, else the wrapper itself.
+   * A fixed menu shared by all rows sits far from its trigger: use the focused / expanded trigger, else none.
+   */
+  function findAnchor(menu: HTMLElement, position: string): HTMLElement | null {
+    if (position === 'fixed') {
+      const active = doc!.activeElement as HTMLElement | null;
+      if (active && active !== doc!.body && !menu.contains(active) && active.matches('button, [role="button"]')) return active;
+      const expanded = [...doc!.querySelectorAll<HTMLElement>('[aria-expanded="true"][aria-haspopup]')].filter((b) => !menu.contains(b));
+      return expanded.length === 1 ? expanded[0] : null;
+    }
     const parent = menu.parentElement ?? menu;
     const buttons = [...parent.querySelectorAll<HTMLElement>('button, [role="button"]')].filter((b) => !menu.contains(b));
     return buttons.find((b) => b.hasAttribute('aria-expanded')) ?? buttons[0] ?? parent;
   }
 
   /** Pins the menu to the screen next to its trigger. */
-  function place({ menu, anchor }: Managed, rect = menu.getBoundingClientRect()): void {
+  function place(entry: Managed, rect = entry.menu.getBoundingClientRect()): void {
+    const { menu, anchor } = entry;
     const vw = win!.innerWidth;
     const vh = win!.innerHeight;
-    const a = anchor.getBoundingClientRect();
+    // Without a trigger, keep the menu where it is and only pull it back inside the screen.
+    const a = anchor?.getBoundingClientRect() ?? new DOMRect(rect.right, rect.top - OFFSET, 0, 0);
     const width = rect.width;
     const fullHeight = Math.max(rect.height, menu.scrollHeight);
     const height = Math.min(fullHeight, vh - 2 * GAP);
@@ -122,11 +177,14 @@ export function installMenuViewportGuard(doc: Document | undefined = typeof docu
       s.top = `${top + dy}px`;
       s.left = `${left + dx}px`;
     }
+    entry.top = s.top;
+    entry.left = s.left;
   }
 
   const reposition = () => {
     managed.forEach((entry, menu) => {
       if (!menu.isConnected) managed.delete(menu);
+      else if (!isShown(menu)) release(entry);
       else place(entry);
     });
   };
@@ -138,7 +196,17 @@ export function installMenuViewportGuard(doc: Document | undefined = typeof docu
   };
 
   new MutationObserver((records) => {
+    const seen = new Set<Node>();
     for (const record of records) {
+      if (record.type === 'attributes') {
+        // A menu (or a wrapper around one) was shown, hidden or moved without being added/removed.
+        const target = (record.attributeName === 'aria-expanded' ? record.target.parentElement : record.target) as HTMLElement | null;
+        if (target && !seen.has(target)) {
+          seen.add(target);
+          collect(target);
+        }
+        continue;
+      }
       record.addedNodes.forEach(collect);
       record.removedNodes.forEach((node) => {
         if (node instanceof HTMLElement && managed.size) {
@@ -148,7 +216,12 @@ export function installMenuViewportGuard(doc: Document | undefined = typeof docu
         }
       });
     }
-  }).observe(doc.body, { childList: true, subtree: true });
+  }).observe(doc.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class', 'style', 'hidden', 'aria-expanded', 'open'],
+  });
 
   win.addEventListener('resize', reposition, { passive: true });
   win.addEventListener('scroll', reposition, { passive: true, capture: true });
