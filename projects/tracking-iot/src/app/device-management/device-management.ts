@@ -53,7 +53,7 @@ type Range = HealthRange;
 interface DeviceForm { name: string; id: string; type: DeviceType; model: string; serial: string; protocol: Protocol; site: string; gateway: string; asset: string }
 interface ImportRow { line: number; id: string; name: string; type: DeviceType | null; model: string; serial: string; protocol: string; site: string; gateway: string; asset: string; error: string }
 type Dialog =
-  | { kind: 'add'; f: DeviceForm }
+  | { kind: 'add'; f: DeviceForm; /** Set when editing: the device's id (read-only, never changes). */ editId?: string }
   | { kind: 'import'; rows: ImportRow[]; fileName: string; error: string }
   | { kind: 'link'; deviceId: string; asset: string }
   | { kind: 'unlink'; deviceId: string; reason: string }
@@ -744,6 +744,15 @@ export class DeviceManagement implements OnInit, OnDestroy {
     this.onAddModel(f, false);
   }
 
+  /** Edit Device: the Add Device form filled from the device. The id stays read-only; saving is PUT /api/iot-devices/{deviceId}. */
+  openEdit(d: Device): void {
+    this.menuId = '';
+    this.formError = '';
+    const f: DeviceForm = { name: d.name, id: d.id, type: d.type, model: d.model, serial: d.serial, protocol: d.protocol, site: d.site, gateway: d.gateway, asset: d.asset?.code ?? '' };
+    this.dialog = { kind: 'add', f, editId: d.id };
+    this.onAddModel(f, false);
+  }
+
   onAddType(f: DeviceForm): void {
     f.model = '';
     this.onAddModel(f, false);
@@ -785,12 +794,31 @@ export class DeviceManagement implements OnInit, OnDestroy {
     const dl = this.dialog;
     if (dl?.kind !== 'add' || this.saving) return;
     const f = dl.f;
-    const id = f.id.trim().toUpperCase();
+    const editing = dl.editId ? this.byId(dl.editId) : undefined;
+    const id = (editing?.id ?? f.id).trim().toUpperCase();
     const serial = f.serial.trim().toUpperCase();
     if (!f.name.trim()) return void (this.formError = 'Enter a device name.');
-    const err = this.validateDevice(id, serial, f.type, f.model, f.site, f.gateway, new Set(DEVICES.map((d) => d.id)), new Set(DEVICES.map((d) => d.serial)));
+    // editing: the device's own id / serial are not duplicates
+    const others = DEVICES.filter((d) => d.id !== editing?.id);
+    const err = this.validateDevice(id, serial, f.type, f.model, f.site, f.gateway, new Set(others.map((d) => d.id)), new Set(others.map((d) => d.serial)));
     if (err) return void (this.formError = err + '.');
     if (!f.protocol) return void (this.formError = 'Choose the connectivity.');
+    if (dl.editId) {
+      if (!editing) return void (this.formError = 'This device no longer exists.');
+      this.saving = true;
+      const asset = f.asset.trim() ? this.resolveAsset(f.asset) : null;
+      this.api.update({ ...editing, name: f.name.trim(), type: f.type, model: f.model, serial, protocol: f.protocol, site: f.site, gateway: f.gateway, asset }, this.siteIdOf(f.site)).subscribe({
+        next: (saved) => {
+          const n = this.commit(saved, editing);
+          this.log(n, 'Device edited', n.name, 'purple');
+          this.saving = false;
+          this.dialog = null;
+          this.showToast(`${n.id} updated.`);
+        },
+        error: (e: Error) => this.failed(e),
+      });
+      return;
+    }
     const draft = this.newDevice(id, f.name.trim(), f.type, f.model, serial, f.protocol, f.site, f.gateway, f.asset);
     this.saving = true;
     this.api.create(draft, this.siteIdOf(f.site)).subscribe({
