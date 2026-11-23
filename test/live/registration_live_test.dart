@@ -170,18 +170,24 @@ void main() {
     expect(find.text('Step 2 of 5 · Category and type'), findsOneWidget);
     expect(find.text('Draft AR000123 · saved on the server'), findsOneWidget);
 
-    // Step 2: categories / sub categories / types / criticality / departments from Master Data
-    // (active only, top-level categories only), fixed lists from the Asset service.
+    // Step 2: categories / sub categories / types from the Asset service (the web's source: active only,
+    // showInMobile, top-level categories only); criticality / departments from Master Data.
     await _tapVisible(tester, _field('Category').first);
-    expect(find.text('Diesel Sets'), findsNothing, reason: 'child category');
+    expect(find.text('Power Generation'), findsNothing, reason: 'child category');
     expect(find.text('Retired Category'), findsNothing, reason: 'inactive');
+    expect(find.text('Back Office Only'), findsNothing, reason: 'showInMobile false');
     await tester.tap(find.text('Machinery & Equipment').last);
     await tester.pumpAndSettle();
-    expect(backend.calls('GET', '/api/master-data/asset-categories').first.uri.queryParameters, {'status': 'Active'});
-    await _pick(tester, 'Sub Category', 'Power Generation');
+    expect(backend.calls('GET', '/api/asset-categories').first.uri.queryParameters, isEmpty);
+    await _tapVisible(tester, _field('Sub Category').first);
+    expect(find.text('Old Pumps'), findsNothing, reason: 'inactive sub category');
+    expect(find.text('Web Only Sub'), findsNothing, reason: 'showInMobile false');
+    await tester.tap(find.text('Power Generation').last);
+    await tester.pumpAndSettle();
     await _pick(tester, 'Asset Type', 'Generator');
-    expect(backend.calls('GET', '/api/master-data/asset-types').map((r) => r.uri.queryParameters), [
-      {'status': 'Active', 'categoryId': 'md-cat-1'},
+    expect(backend.calls('GET', '/api/asset-category-types').map((r) => r.uri.queryParameters), [
+      {'categoryId': 'sub-1'},
+      {'categoryId': 'cat-1'},
     ]);
     // A sub category that names its asset type offers only that type.
     await _pick(tester, 'Sub Category', 'Pumping');
@@ -230,6 +236,14 @@ void main() {
     await _pick(tester, 'Zone', 'Zone 1');
     await _pick(tester, 'Room', 'Room 101');
     await _pick(tester, 'Building', 'Block A'); // same value: nothing cleared
+    // Teams follow the Custodian / Department, as the web (teams?departmentId=).
+    await _pick(tester, 'Custodian / Department', 'Production');
+    await _tapVisible(tester, _field('Responsible Team').first);
+    expect(find.text('Line Crew'), findsWidgets);
+    expect(find.text('Electrical Team'), findsNothing, reason: 'belongs to Facilities Management');
+    await tester.tap(find.text('Line Crew').last);
+    await tester.pumpAndSettle();
+    await _pick(tester, 'Custodian / Department', 'Facilities Management');
     await _pick(tester, 'Responsible Team', 'Electrical Team');
     await _tapVisible(tester, find.text('Select person (optional)'));
     expect(find.textContaining('EMP-0042'), findsOneWidget);
@@ -382,14 +396,14 @@ void main() {
     expect(find.text('Pump B'), findsNothing);
   });
 
-  testWidgets('dropdowns: a server-only currency from /options; empty Master Data categories → message + '
+  testWidgets('dropdowns: a server-only currency from /options; empty Asset service categories → message + '
       'Retry; reopening the form reloads the lists; Master Data down → error + Retry, no local list', (tester) async {
     final options = _json(sampleOptions);
     (options['purchaseWarranty'] as Map)['currencies'] = ['OMR - Omani Rial', 'AED - UAE Dirham'];
     var categories = <Map<String, Object?>>[];
     backend
       ..on('GET', '/api/asset-registrations/options', (_) => FakeReply(200, options))
-      ..on('GET', '/api/master-data/asset-categories', (_) => FakeReply(200, categories))
+      ..on('GET', '/api/asset-categories', (_) => FakeReply(200, categories))
       ..on('GET', '$_drafts/AR000400', (_) => FakeReply(200, _draft('AR000400', 4)))
       // No category chosen yet, so the empty server list shows its hint.
       ..on('GET', '$_drafts/AR000401', (_) => FakeReply(200, {..._draft('AR000401', 2), 'classification': null}));
@@ -403,18 +417,18 @@ void main() {
     await tester.pumpAndSettle();
     if (find.text('Discard').evaluate().isNotEmpty) await _tapButton(tester, 'Discard');
 
-    final before = backend.calls('GET', '/api/master-data/asset-categories').length;
+    final before = backend.calls('GET', '/api/asset-categories').length;
     await _openForm(tester, h, const RegistrationPrefill(draftId: 'AR000401'));
     expect(find.text('Step 2 of 5 · Category and type'), findsOneWidget);
     expect(
-      backend.calls('GET', '/api/master-data/asset-categories').length,
+      backend.calls('GET', '/api/asset-categories').length,
       greaterThan(before),
       reason: 'reopening the form reloads the lists',
     );
     expect(find.text('No categories on the server yet'), findsOneWidget);
 
     // Retry under the empty list asks again.
-    categories = [mdCategories.first];
+    categories = [sampleAssetCategories.first];
     await _tapVisible(tester, find.descendant(of: find.byType(RetryLink), matching: find.text('Retry')).first);
     await _tapVisible(tester, _field('Category').first);
     expect(find.text('Machinery & Equipment'), findsWidgets);

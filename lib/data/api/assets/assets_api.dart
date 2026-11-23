@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:asset360_mobile/data/api/api_client.dart';
 import 'package:asset360_mobile/data/api/api_exception.dart';
 import 'package:asset360_mobile/data/api/assets/asset_api_models.dart';
+import 'package:asset360_mobile/data/api/assets/asset_categories.dart';
 import 'package:asset360_mobile/data/api/assets/json_read.dart';
 
 export 'package:asset360_mobile/data/api/assets/asset_api_models.dart';
+export 'package:asset360_mobile/data/api/assets/asset_categories.dart';
 
 /// Every Asset service call (API_BASE_URL, docs/backend_ref/Services/Asset/Api/…/Endpoints).
 /// Errors come out as [ApiException]: 400 → `fieldErrors` keyed by the server's path
@@ -248,6 +250,26 @@ class AssetsApi {
         query: {'assetRegistrationId': assetRegistrationId},
       )).data,
     ),
+  );
+
+  // ---------------------------------------------------------------- categories (same source as the web form)
+
+  static const categoriesPath = '/api/asset-categories';
+  static const categoryTypesPath = '/api/asset-category-types';
+
+  /// GET /api/asset-categories (every level), or with [parentCategoryId] the sub categories of one category.
+  /// Only the categories offered on mobile ([AssetCategory.visibleOnMobile]).
+  Future<List<AssetCategory>> categories({String? parentCategoryId}) async => parseAssetCategories(
+    (await client.get<Object?>(
+      categoriesPath,
+      query: parentCategoryId == null ? null : {'parentCategoryId': parentCategoryId},
+    )).data,
+  );
+
+  /// GET /api/asset-category-types?categoryId= — the asset types of a category or sub category (every
+  /// type when [categoryId] is null).
+  Future<List<AssetCategoryType>> categoryTypes(String? categoryId) async => parseAssetCategoryTypes(
+    (await client.get<Object?>(categoryTypesPath, query: categoryId == null ? null : {'categoryId': categoryId})).data,
   );
 
   static Future<T?> _orNull<T>(Future<T> Function() call) async {

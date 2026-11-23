@@ -239,7 +239,7 @@ class StepPurchase extends ConsumerWidget {
         ),
         RegDropdown.source(
           // API mode: Master Data /service-providers, or /amc-vendors for an AMC warranty.
-          lists.serviceProviders(w.warrantyType),
+          lists.serviceProviders,
           label: 'Service Provider',
           value: w.serviceProvider,
           onChanged: (v) => edit(() => w.serviceProvider = v),

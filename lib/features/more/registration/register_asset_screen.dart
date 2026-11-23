@@ -16,6 +16,7 @@ import 'package:asset360_mobile/data/reference/asset_options.dart';
 import 'package:asset360_mobile/data/repositories/repo_utils.dart';
 import 'package:asset360_mobile/data/validation/asset_registration_validator.dart';
 import 'package:asset360_mobile/data/reference/registration_options.dart';
+import 'package:asset360_mobile/data/repositories/asset_categories_repository.dart';
 import 'package:asset360_mobile/data/repositories/assets_repository.dart';
 import 'package:asset360_mobile/data/repositories/documents_repository.dart';
 import 'package:asset360_mobile/data/repositories/live_registration_repository.dart';
@@ -98,7 +99,10 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
     // API mode: reopening the form reloads the Master Data lists (kept for the session otherwise).
     if (apiMode && ref.read(masterDataSessionProvider).reopened()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) refreshMasterData(ref);
+        if (mounted) {
+          refreshMasterData(ref);
+          refreshAssetCategories(ref);
+        }
       });
     }
     if (_editing) {
@@ -144,14 +148,10 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
       ref.listenManual(registrationOptionsProvider, (_, next) {
         if (next.value case final o?) _applyServerDefaults(o);
       }, fireImmediately: true);
-      // Master Data defaults: the condition marked default, the first unit of measure.
+      // Master Data default: the condition marked default (as the web).
       ref.listenManual(mdConditionsProvider, (_, next) {
         final d = next.value?.where((c) => c.isDefault).firstOrNull;
         if (d != null) _setDefault(() => f.basicInformation.condition ??= d.name);
-      }, fireImmediately: true);
-      ref.listenManual(mdUomsProvider, (_, next) {
-        final u = next.value?.firstOrNull;
-        if (u != null) _setDefault(() => f.purchaseWarranty.purchase.quantityUnit ??= u.name);
       }, fireImmediately: true);
       return;
     }
@@ -171,8 +171,9 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
     final p = f.purchaseWarranty.purchase;
     final t = f.additionalInformation.technical, op = f.additionalInformation.operational;
     void apply() {
-      // Quantity Unit comes from Master Data /uoms (see initState).
-      p.currency ??= o.currencies.firstOrNull;
+      p
+        ..quantityUnit ??= o.quantityUnits.firstOrNull
+        ..currency ??= o.currencies.firstOrNull;
       t
         ..dimensionUnit ??= o.additional('dimensionUnits').firstOrNull
         ..weightUnit ??= o.additional('weightUnits').firstOrNull;
@@ -240,8 +241,17 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
   /// server answers a taken asset tag with 409).
   String? Function(String)? get _tagOwner => apiMode ? null : (code) => _assets.ownerOf(code)?.id;
 
-  Map<String, String> _check(int step, {required bool mandatory}) =>
-      RegistrationValidator.validateStep(f, step, requireMandatory: mandatory, tagOwner: _tagOwner);
+  Map<String, String> _check(int step, {required bool mandatory}) => RegistrationValidator.validateStep(
+    f,
+    step,
+    requireMandatory: mandatory,
+    tagOwner: _tagOwner,
+    subCategoryRequired: !apiMode || _categoryOf(f.classification.category)?.subCategoryRequired != false,
+  );
+
+  /// API mode: the Asset service category named [name] (null when unknown / not loaded).
+  AssetCategory? _categoryOf(String? name) =>
+      ref.read(assetCategoriesProvider).value?.where((c) => c.name == name).firstOrNull;
 
   @override
   void dispose() {
@@ -721,7 +731,8 @@ class _RegisterAssetScreenState extends ConsumerState<RegisterAssetScreen> {
             notificationPredicate: (n) => apiMode && n.depth == 0,
             onRefresh: () async {
               refreshMasterData(ref);
-              await ref.read(mdCategoriesProvider.future).then<void>((_) {}, onError: (_) {});
+              refreshAssetCategories(ref);
+              await ref.read(assetCategoriesProvider.future).then<void>((_) {}, onError: (_) {});
             },
             child: ListView(
               controller: _scroll,

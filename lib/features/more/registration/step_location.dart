@@ -160,7 +160,7 @@ class StepLocation extends ConsumerWidget {
           onChanged: (v) => edit(() => a.costCenter = v),
         ),
         RegDropdown.source(
-          lists.responsibleTeams,
+          lists.responsibleTeams(a.custodianDepartment),
           label: 'Responsible Team',
           value: a.responsibleTeam,
           onChanged: (v) => edit(() => a.responsibleTeam = v),

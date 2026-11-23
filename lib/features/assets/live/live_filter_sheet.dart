@@ -7,6 +7,7 @@ import 'package:asset360_mobile/app/theme/app_text.dart';
 import 'package:asset360_mobile/app/theme/app_theme.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/api/master_data/master_data_repository.dart';
+import 'package:asset360_mobile/data/repositories/asset_categories_repository.dart';
 import 'package:asset360_mobile/data/repositories/live_assets_repository.dart';
 import 'package:asset360_mobile/features/more/registration/live_options.dart' show namesOf;
 
@@ -51,17 +52,21 @@ class _LiveFilterSheetState extends ConsumerState<_LiveFilterSheet> {
   List<String> _merged<T extends MdEntry>(FutureProvider<List<T>> master, List<String> server) =>
       {...namesOf(ref.watch(master).value ?? <T>[]), ...server}.toList();
 
-  /// Asset types of [category] (all when null): Master Data types linked to it, then /filters'.
+  /// Asset types of [category] (every type when null): the Asset service types (GET
+  /// /api/asset-category-types?categoryId=, the registration form's source), then /filters'.
   /// [read] is `ref.watch` in build and `ref.read` in a tap handler.
   List<String> _typesOf(AssetListFilters f, String? category, T Function<T>(ProviderListenable<T>) read) {
     final cat = category == null
         ? null
-        : read(mdCategoriesProvider).value?.where((c) => c.isTopLevel && c.name == category).firstOrNull;
-    final master = category != null && cat == null
-        ? const <MdAssetType>[]
-        : read(mdAssetTypesProvider(cat?.id)).value ?? const <MdAssetType>[];
+        : read(assetCategoriesProvider).value?.where((c) => c.name == category).firstOrNull;
+    final server = category == null
+        ? read(allAssetCategoryTypesProvider).value ?? const <AssetCategoryType>[]
+        : cat == null
+        ? const <AssetCategoryType>[]
+        : read(assetCategoryTypesProvider((categoryId: cat.id, subCategoryId: null))).value ??
+              const <AssetCategoryType>[];
     return {
-      ...namesOf(master),
+      for (final t in server) t.name,
       for (final t in f.assetTypes)
         if (category == null || t.category == category) t.assetType,
     }.toList();
@@ -69,8 +74,10 @@ class _LiveFilterSheetState extends ConsumerState<_LiveFilterSheet> {
 
   List<Widget> _groups(AssetListFilters f) {
     final types = _typesOf(f, _q.category, ref.watch);
+    // Categories: the Asset service top-level categories (same source as registration and the web), then
+    // the values only the assets hold (/filters).
     final categories = {
-      ...namesOf(ref.watch(mdCategoriesProvider).value?.where((c) => c.isTopLevel) ?? const <MdCategory>[]),
+      for (final c in ref.watch(assetCategoriesProvider).value ?? const <AssetCategory>[]) c.name,
       ...f.categories,
     };
     Widget group(String title, List<_Option> options, String? selected, void Function(String?) set) {

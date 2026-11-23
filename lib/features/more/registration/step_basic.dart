@@ -123,13 +123,18 @@ class StepBasic extends ConsumerWidget {
           ),
         ),
         if (apiMode)
-          // Master Data GET /asset-models?assetTypeId= of the chosen type; free text is allowed too.
+          // Master Data GET /asset-models, narrowed to the chosen manufacturer (as the web); free text too.
+          // Picking a listed model fills its manufacturer.
           RegAutocomplete.source(
-            lists.models(c.category, c.assetType),
+            lists.models(b.manufacturer),
             label: 'Model',
             value: b.model,
             hint: 'e.g. C500 D5',
-            onChanged: (v) => b.model = v,
+            onChanged: (v) {
+              b.model = v;
+              final maker = lists.manufacturerOfModel(v);
+              if (maker != null && maker != b.manufacturer) edit(() => b.manufacturer = maker, bump: true);
+            },
           )
         else
           RegTextField(label: 'Model', value: b.model, hint: 'e.g. C500 D5', onChanged: (v) => b.model = v),

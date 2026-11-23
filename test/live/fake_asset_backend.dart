@@ -249,11 +249,37 @@ class FakeAssetBackend implements HttpClientAdapter {
       (_) => const FakeReply(404, {'message': "Asset 'AR000001' has no criticality assessment yet."}),
     );
     on('GET', '/api/asset-registrations/drafts', (_) => const FakeReply(200, []));
+    seedAssetCategories();
     seedMasterData();
     on('POST', '/api/media/upload', (o) {
       final form = o.data as FormData;
       final category = form.fields.firstWhere((f) => f.key == 'category').value;
       return FakeReply(200, {'url': 'http://localhost:5300/uploads/$category/${form.files.single.value.filename}'});
+    });
+  }
+
+  /// Asset service categories (the web registration form's source): GET /api/asset-categories (all levels,
+  /// or ?parentCategoryId=) and GET /api/asset-category-types?categoryId=. Rows = [assetCategoryRows] /
+  /// [assetCategoryTypeRows] (mutable per test).
+  final assetCategoryRows = [for (final r in sampleAssetCategories) Map<String, Object?>.from(r)];
+  final assetCategoryTypeRows = [for (final r in sampleAssetCategoryTypes) Map<String, Object?>.from(r)];
+
+  void seedAssetCategories() {
+    on('GET', '/api/asset-categories', (o) {
+      final parent = o.uri.queryParameters['parentCategoryId'];
+      return FakeReply(200, [
+        for (final r in assetCategoryRows)
+          if (parent == null || r['parentCategoryId'] == parent) r,
+      ]);
+    });
+    on('GET', '/api/asset-category-types', (o) {
+      final category = o.uri.queryParameters['categoryId'];
+      return FakeReply(200, {
+        'items': [
+          for (final r in assetCategoryTypeRows)
+            if (category == null || r['categoryId'] == category) r,
+        ],
+      });
     });
   }
 
@@ -929,6 +955,9 @@ final mdTeams = [
   _named('teamName', 'md-team-1', 'Electrical Team', {
     'department': {'id': 'md-dep-1', 'name': 'Facilities Management'},
   }),
+  _named('teamName', 'md-team-2', 'Line Crew', {
+    'department': {'id': 'md-dep-2', 'name': 'Production'},
+  }),
 ];
 final mdShifts = [
   _named('shiftName', 'md-shift-1', 'Day Shift', {
@@ -988,4 +1017,78 @@ final mdLocationTree = [
       ]),
     ]),
   ]),
+];
+
+// ------------------------------------------------------------------ Asset service categories (real shape)
+
+Map<String, Object?> _assetCategory(
+  String id,
+  String name,
+  String code, {
+  String? parentId,
+  String? parentName,
+  String status = 'Active',
+  bool subcategoryRequired = true,
+  bool showInMobile = true,
+  String? assetType,
+}) => {
+  'id': id,
+  'parentCategoryId': parentId,
+  'parentCategoryName': parentName,
+  'name': name,
+  'code': code,
+  'status': status,
+  'details': {
+    'assetType': assetType,
+    'subcategories': const <Object?>[],
+    'subcategoryRequired': subcategoryRequired,
+    'showInMobile': showInMobile,
+    'trackingMethod': 'RFID',
+    'tagPrefix': code,
+    'defaultCondition': 'New',
+  },
+};
+
+/// GET /api/asset-categories on a360demo: top levels (parentCategoryId null) and their children in one list.
+final sampleAssetCategories = [
+  _assetCategory('cat-1', 'Machinery & Equipment', 'MCH'),
+  _assetCategory('cat-2', 'HVAC', 'HVAC', subcategoryRequired: false),
+  _assetCategory('cat-3', 'Retired Category', 'OLD', status: 'Inactive'),
+  _assetCategory('cat-4', 'Back Office Only', 'BOO', showInMobile: false),
+  _assetCategory('sub-1', 'Power Generation', 'PG', parentId: 'cat-1', parentName: 'Machinery & Equipment'),
+  _assetCategory('sub-2', 'Pumping', 'PMP', parentId: 'cat-1', parentName: 'Machinery & Equipment', assetType: 'Pump'),
+  _assetCategory(
+    'sub-3',
+    'Old Pumps',
+    'OPM',
+    parentId: 'cat-1',
+    parentName: 'Machinery & Equipment',
+    status: 'Inactive',
+  ),
+  _assetCategory(
+    'sub-4',
+    'Web Only Sub',
+    'WOS',
+    parentId: 'cat-1',
+    parentName: 'Machinery & Equipment',
+    showInMobile: false,
+  ),
+  _assetCategory('sub-5', 'Chillers', 'CHL', parentId: 'cat-2', parentName: 'HVAC'),
+];
+
+Map<String, Object?> _categoryType(String id, String name, String categoryId, {String status = 'Active'}) => {
+  'id': id,
+  'typeName': name,
+  'categoryId': categoryId,
+  'status': status,
+};
+
+/// GET /api/asset-category-types: Power Generation has none of its own (→ the category's types).
+final sampleAssetCategoryTypes = [
+  _categoryType('type-1', 'Generator', 'cat-1'),
+  _categoryType('type-2', 'Pump', 'cat-1'),
+  _categoryType('type-3', 'Pump', 'sub-2'),
+  _categoryType('type-4', 'Retired Type', 'cat-1', status: 'Inactive'),
+  _categoryType('type-5', 'Chiller', 'cat-2'),
+  _categoryType('type-6', 'Screw Chiller', 'sub-5'),
 ];
