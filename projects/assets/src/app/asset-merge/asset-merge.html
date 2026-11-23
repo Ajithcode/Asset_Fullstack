@@ -299,4 +299,4 @@
   </div>
 </div>
 
-<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>
+<div *ngIf="toast" class="toast" role="status">{{ toast }}<button *ngIf="undoIds.length" type="button" class="link-btn toast-undo" (click)="undoDismiss()">Undo</button></div>

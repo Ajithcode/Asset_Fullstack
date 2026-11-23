@@ -169,6 +169,8 @@ export class AssetMerge implements OnDestroy {
   rulesError = '';
 
   toast = '';
+  /** Dismissals made by the last "Not a Duplicate", offered as Undo on the toast. */
+  undoIds: string[] = [];
   private toastTimer?: ReturnType<typeof setTimeout>;
 
   private readonly api = inject(AssetDedupService);
@@ -385,11 +387,12 @@ export class AssetMerge implements OnDestroy {
     forkJoin(groups.map((g) => this.api.dismiss([g.primary.tag, ...g.members.map((m) => m.rec.tag)])))
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
+        next: (created) => {
           tags.forEach((t) => this.checked.delete(t));
+          const ids = created.flat().map((d) => d.id).filter(Boolean);
           this.refresh(() => {
             this.saving = false;
-            this.showToast(groups.length === 1 ? `${groups[0].primary.tag} marked as not a duplicate.` : `${groups.length} groups marked as not duplicates.`);
+            this.showToast(groups.length === 1 ? `${groups[0].primary.tag} marked as not a duplicate.` : `${groups.length} groups marked as not duplicates.`, ids);
           });
         },
         error: (err) => {
@@ -401,6 +404,27 @@ export class AssetMerge implements OnDestroy {
 
   dismissSelected(): void {
     this.dismiss([...this.checked]);
+  }
+
+  /** Undo on the toast: deletes the dismissals just made, so the groups show again. */
+  undoDismiss(): void {
+    const ids = this.undoIds;
+    if (!ids.length || this.saving) return;
+    this.saving = true;
+    this.undoIds = [];
+    forkJoin(ids.map((id) => this.api.undoDismissal(id)))
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () =>
+          this.refresh(() => {
+            this.saving = false;
+            this.showToast('Dismissal undone.');
+          }),
+        error: (err) => {
+          this.saving = false;
+          this.showToast(dedupErrorMessage(err));
+        },
+      });
   }
 
   exportCsv(): void {
@@ -643,9 +667,13 @@ export class AssetMerge implements OnDestroy {
     this.confirmOpen = false;
   }
 
-  private showToast(message: string): void {
+  private showToast(message: string, undoIds: string[] = []): void {
     this.toast = message;
+    this.undoIds = undoIds;
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    this.toastTimer = setTimeout(() => {
+      this.toast = '';
+      this.undoIds = [];
+    }, undoIds.length ? 8000 : 3500);
   }
 }
