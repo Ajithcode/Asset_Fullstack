@@ -50,6 +50,8 @@ interface Kpi {
   label: string;
   value: number;
   color?: string | null;
+  /** Score range of a level card, e.g. "85-100". */
+  range?: string;
   icon: typeof Layers;
   /** Filters this card sets when clicked (the other card filters are cleared). */
   apply: Partial<Pick<CriticalityFilters, 'level' | 'approvalStatus' | 'overdue'>>;
@@ -435,6 +437,7 @@ function buildKpis(k: CriticalityKpis): Kpi[] {
       label: l.name,
       value: l.count,
       color: l.color || LEVEL_COLORS[l.name.toLowerCase()],
+      range: l.minScore != null && l.maxScore != null ? `${l.minScore}-${l.maxScore}` : undefined,
       icon: ShieldAlert,
       apply: { level: l.name },
     })),

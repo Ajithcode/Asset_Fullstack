@@ -66,6 +66,9 @@ export interface CriticalityLevel {
   color: string | null;
   /** 4 = Critical … 1 = Low, 0 = other levels. */
   rank: number;
+  /** Score range from the MDM Criticality master. */
+  minScore?: number | null;
+  maxScore?: number | null;
 }
 
 export interface CriticalityKpis {

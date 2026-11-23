@@ -42,7 +42,8 @@ export const MASTER_DATA_MENU: MasterDataGroup[] = [
       { label: 'Asset Model', slug: 'asset-model' },
       { label: 'Manufacturer', slug: 'manufacturer' },
       { label: 'Condition', slug: 'condition' },
-      { label: 'Criticality', slug: 'criticality' }
+      { label: 'Criticality', slug: 'criticality' },
+      { label: 'Asset Criticality Configuration', slug: 'criticality-config' }
     ]
   },
   {

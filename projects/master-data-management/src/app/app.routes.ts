@@ -12,6 +12,7 @@ import { AssetModelPage } from './asset/asset-model/asset-model';
 import { ManufacturerPage } from './asset/manufacturer/manufacturer';
 import { ConditionPage } from './asset/condition/condition';
 import { CriticalityPage } from './asset/criticality/criticality';
+import { CriticalityConfigPage } from './asset/criticality-config/criticality-config';
 import { EmployeePage } from './people/employee/employee';
 import { TechnicianPage } from './people/technician/technician';
 import { SkillPage } from './people/skill/skill';
@@ -70,7 +71,8 @@ export const routes: Routes = [
       { path: 'asset-model', component: AssetModelPage },
       { path: 'manufacturer', component: ManufacturerPage },
       { path: 'condition', component: ConditionPage },
-      { path: 'criticality', component: CriticalityPage }
+      { path: 'criticality', component: CriticalityPage },
+      { path: 'criticality-config', component: CriticalityConfigPage }
     ]
   },
   {
