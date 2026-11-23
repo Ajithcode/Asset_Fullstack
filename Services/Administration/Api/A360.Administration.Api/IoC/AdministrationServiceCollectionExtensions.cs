@@ -33,7 +33,8 @@ public static class AdministrationServiceCollectionExtensions
 
         services.AddA360JwtAuthentication(configuration);
         // Sign-in + role permissions also when the frontend calls this service directly on its own port
-        services.AddA360AccessGuard(configuration, "Administration");
+        // Accepting an invitation happens before the person has an account, so /api/invitations is public (the invitation token secures it)
+        services.AddA360AccessGuard(configuration, "Administration", "/api/invitations");
 
         services.AddScoped<EventLogRepository>();
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());
@@ -62,6 +63,8 @@ public static class AdministrationServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(15);
         })
             .AddHttpMessageHandler<ForwardAuthorizationHandler>();
+
+        services.AddSingleton<InvitationMailer>();
 
         services.AddScoped<RoleRepository>();
         services.AddScoped<IRoleRepository>(serviceProvider => serviceProvider.GetRequiredService<RoleRepository>());

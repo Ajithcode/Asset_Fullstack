@@ -64,4 +64,14 @@ public sealed class User : BaseEntity
     // Id of the sign-in account in the UserAccount service; the password lives there (hashed), never here.
     [BsonElement("login_account_id")]
     public string? LoginAccountId { get; set; }
+
+    // SHA-256 (hex) of the invitation token e-mailed to the user; the token itself is never stored.
+    [BsonElement("invite_token_hash")]
+    public string? InviteTokenHash { get; set; }
+
+    [BsonElement("invite_expires_at")]
+    public DateTime? InviteExpiresAt { get; set; }
+
+    [BsonElement("invited_at")]
+    public DateTime? InvitedAt { get; set; }
 }

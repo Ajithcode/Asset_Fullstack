@@ -18,7 +18,10 @@ public sealed class GatewayAuthenticationMiddleware
         "/api/auth/verify-otp",
         "/api/auth/verify-totp",
         "/api/auth/refresh",
-        "/api/auth/logout"
+        "/api/auth/logout",
+        // Invited people open their link before they have an account; the invitation token secures these
+        "/api/invitations/validate",
+        "/api/invitations/accept"
     ];
 
     private readonly RequestDelegate _next;

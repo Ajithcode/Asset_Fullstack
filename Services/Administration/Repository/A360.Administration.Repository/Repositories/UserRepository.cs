@@ -96,6 +96,14 @@ public sealed class UserRepository : MongoRepository<User>, IUserRepository, IMo
         return ExistsAsync(Builders<User>.Filter.Eq(user => user.Username, username), tenantId, exceptUserId, cancellationToken);
     }
 
+    public async Task<User?> GetByInviteTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<User>.Filter;
+        return await Collection
+            .Find(builder.Eq(user => user.InviteTokenHash, tokenHash) & builder.Eq(user => user.IsDeleted, false))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public Task<bool> EmailExistsAsync(string email, string? tenantId, CancellationToken cancellationToken = default, string? exceptUserId = null)
     {
         return ExistsAsync(Builders<User>.Filter.Eq(user => user.Email, email), tenantId, exceptUserId, cancellationToken);

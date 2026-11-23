@@ -25,6 +25,7 @@ public static class AdministrationApplicationBuilderExtensions
 
         app.MapLocationEndpoints();
         app.MapUserEndpoints();
+        app.MapInvitationEndpoints();
         app.MapRoleEndpoints();
         app.MapAccessPolicyEndpoints();
         app.MapNotificationTemplateEndpoints();

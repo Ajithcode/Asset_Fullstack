@@ -57,6 +57,13 @@ public sealed class ModulePermissionMiddleware(
 
     public async Task InvokeAsync(HttpContext context)
     {
+        // Public invitation calls come from people with no account or token yet
+        if (context.Request.Path.StartsWithSegments("/api/invitations", StringComparison.OrdinalIgnoreCase))
+        {
+            await next(context);
+            return;
+        }
+
         var action = ActionOf(context.Request);
         var routeConfig = context.GetReverseProxyFeature().Route.Config;
         var clusterId = routeConfig.ClusterId;

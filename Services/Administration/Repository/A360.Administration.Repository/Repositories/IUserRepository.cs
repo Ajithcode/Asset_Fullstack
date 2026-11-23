@@ -13,6 +13,9 @@ public interface IUserRepository : IMongoRepository<User>
     /// <summary>The user (not deleted) whose email or username is the given sign-in name, case-insensitive.</summary>
     Task<User?> GetBySignInNameAsync(string signInName, CancellationToken cancellationToken = default);
 
+    /// <summary>The user (not deleted) holding the invitation whose token hashes to <paramref name="tokenHash"/>.</summary>
+    Task<User?> GetByInviteTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default);
+
     /// <summary>Number of users (not deleted) with the role as primary or secondary role.</summary>
     Task<long> CountWithRoleAsync(string roleName, string? tenantId, CancellationToken cancellationToken = default);
 
