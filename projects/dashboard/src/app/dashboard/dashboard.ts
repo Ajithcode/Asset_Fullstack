@@ -1,4 +1,6 @@
-import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Observable, catchError, forkJoin, of } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
@@ -13,6 +15,7 @@ import { WIDGET_CATALOG, WidgetCategory, WidgetCategoryKey } from '../shared/das
 // import { WidgetPicker } from '../shared/widget-picker/widget-picker';
 import { loadSelectedWidgets, saveSelectedWidgets } from '../shared/dashboard-widgets/widget-selection';
 import { DashboardWidgetsApi } from '../shared/dashboard-widgets/dashboard-widgets.api';
+import { MaintenanceWorkOrder, ModuleWidgetsApi, shortDate } from '../services/dashboard/module-widgets';
 
 /**
  * STATIC DASHBOARD: every module shows all of its widgets, with one tab per module (Assets, Work Orders,
@@ -66,7 +69,7 @@ type DateCell = {
   isToday: boolean;
 };
 
-/** Work Order stat card layout (labels, icons, colours); values stay 0 until a data source is wired. */
+/** Work Order stat card layout (labels, icons, colours); values come from loadWorkOrderWidgets(). */
 const WORK_ORDER_STAT_SHELLS: AssetsStatCard[] = [
   { label: 'Total Work Orders', value: '0', icon: 'clipboard', iconBg: '#2563eb', change: '', changeType: 'neutral' },
   { label: 'Completed', value: '0', icon: 'check', iconBg: '#22c55e', change: '', changeType: 'neutral' },
@@ -355,7 +358,7 @@ export class Dashboard implements OnInit, OnDestroy {
             { key: 'priority', label: 'Priority' },
             { key: 'status', label: 'Status' },
           ],
-          rows: this.getMaintenanceRows(),
+          rows: this.getOverdueRows(),
         };
 
       case 'PM Due This Week':
@@ -423,6 +426,17 @@ export class Dashboard implements OnInit, OnDestroy {
       due: item.due,
       priority: item.priority,
       status: 'Pending',
+    }));
+  }
+
+  private getOverdueRows(): PopupRow[] {
+    return this.overdueWorkOrders.map((o) => ({
+      id: o.workOrderId,
+      asset: o.assetName ?? o.assetId ?? '—',
+      type: o.workType ?? '—',
+      due: shortDate(o.dueDate),
+      priority: o.priority ?? '—',
+      status: o.status,
     }));
   }
 
@@ -554,6 +568,9 @@ export class Dashboard implements OnInit, OnDestroy {
     return points.map((p) => `${p.x},${p.y}`).join(' ');
   }
 
+  private readonly moduleApi = inject(ModuleWidgetsApi);
+  private readonly destroyRef = inject(DestroyRef);
+
   constructor(
     private host: ElementRef<HTMLElement>,
     private widgetsApi: DashboardWidgetsApi,
@@ -565,8 +582,186 @@ export class Dashboard implements OnInit, OnDestroy {
     // Widget selection flow (commented out): load the user's saved widgets from this device, then the server.
     // this.setSelection(loadSelectedWidgets());
     // void this.loadServerWidgets();
-    // No work order data source yet: stat cards keep their labels with zero values, the other widgets render empty
+    // Work order stat cards keep their labels with zero values until the APIs answer
     this.statCards = reorderByKey(WORK_ORDER_STAT_SHELLS.map((c) => ({ ...c })), 'piq.dashboard.assets.statOrder', (c) => c.label);
+    this.loadWorkOrderWidgets();
+  }
+
+  /** Overdue work orders (for the Overdue card popup). */
+  private overdueWorkOrders: MaintenanceWorkOrder[] = [];
+
+  /**
+   * Work Order tab: work orders and PM schedules (Maintenance service), PM compliance and technician performance
+   * (Report Analytics), cost summary (Dashboard service). Each call fails on its own, blanking only its widgets.
+   */
+  private loadWorkOrderWidgets(): void {
+    const safe = <T>(source: Observable<T>) => source.pipe(catchError(() => of(null)));
+    forkJoin({
+      orders: safe(this.moduleApi.getWorkOrders()),
+      schedules: safe(this.moduleApi.getPreventiveSchedules()),
+      compliance: safe(this.moduleApi.getPreventiveCompliance()),
+      technicians: safe(this.moduleApi.getTechnicianPerformance()),
+      cost: safe(this.moduleApi.getCostSummary()),
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ orders, schedules, compliance, technicians, cost }) => {
+        const now = Date.now();
+        const startOfToday = new Date(new Date().setHours(0, 0, 0, 0));
+        const list = (orders ?? []).filter((o) => !o.isDeleted);
+        const closed = (o: MaintenanceWorkOrder) => o.status === 'Completed' || o.status === 'Cancelled';
+        const due = (o: MaintenanceWorkOrder) => (o.dueDate ? Date.parse(o.dueDate) : NaN);
+        const isOverdue = (o: MaintenanceWorkOrder) => !closed(o) && due(o) < now;
+        const overdue = list.filter(isOverdue);
+        this.overdueWorkOrders = overdue;
+
+        // Status split: every work order in exactly one bucket
+        const buckets: { label: string; color: string; match: (o: MaintenanceWorkOrder) => boolean }[] = [
+          { label: 'Completed', color: '#22c55e', match: (o) => o.status === 'Completed' },
+          { label: 'In Progress', color: '#2563eb', match: (o) => o.status === 'In Progress' && !isOverdue(o) },
+          { label: 'Pending', color: '#f59e0b', match: (o) => !closed(o) && o.status !== 'In Progress' && !isOverdue(o) },
+          { label: 'Overdue', color: '#ef4444', match: isOverdue },
+          { label: 'Cancelled', color: '#94a3b8', match: (o) => o.status === 'Cancelled' },
+        ];
+        if (orders) {
+          this.workStatus = buckets
+            .map((b) => ({ ...b, count: list.filter(b.match).length }))
+            .filter((b) => b.count > 0)
+            .map((b) => ({ label: b.label, value: `${b.count} (${Math.round((b.count / list.length) * 1000) / 10}%)`, color: b.color }));
+        }
+
+        // PM schedules due in the next 7 days
+        const weekEnd = startOfToday.getTime() + 7 * 86400000;
+        const pmDue = (schedules ?? []).filter((s) => {
+          const t = s.nextDueDate ? Date.parse(s.nextDueDate) : NaN;
+          return !s.isDeleted && s.status === 'Active' && t >= startOfToday.getTime() && t < weekEnd;
+        });
+
+        const money = (v: number) => this.formatMoney(v, cost?.currency);
+        const cards: Record<string, Partial<AssetsStatCard> | null> = {
+          'Total Work Orders': orders ? { value: list.length.toLocaleString() } : null,
+          Completed: orders ? { value: list.filter((o) => o.status === 'Completed').length.toLocaleString() } : null,
+          'In Progress': orders ? { value: list.filter((o) => o.status === 'In Progress').length.toLocaleString() } : null,
+          Overdue: orders ? { value: overdue.length.toLocaleString() } : null,
+          'PM Due This Week': schedules ? { value: pmDue.length.toLocaleString() } : null,
+          'Maintenance Cost': cost ? { value: money(cost.totalCost), ...this.trendOf(cost.changePercent, `vs last year (${cost.period.label})`) } : null,
+        };
+        this.statCards = this.statCards.map((c) => (cards[c.label] ? { ...c, ...cards[c.label] } : c));
+
+        this.buildTimeline(list, isOverdue);
+
+        const byRecent = (o: MaintenanceWorkOrder) => Date.parse(o.createdAt ?? '') || 0;
+        this.recentWorkOrders = [...list].sort((a, b) => byRecent(b) - byRecent(a)).slice(0, 5).map((o) => {
+          const status = isOverdue(o) ? 'Overdue' : o.status;
+          const statusClass = status === 'Completed' ? 'completed' : status === 'Overdue' ? 'overdue' : status === 'In Progress' ? 'progress' : 'pending';
+          return { id: o.workOrderId, title: o.title ?? '', asset: `Asset: ${o.assetName ?? o.assetId ?? '—'}`, status, statusClass };
+        });
+
+        const perAsset = new Map<string, number>();
+        for (const o of list) {
+          const name = o.assetName || o.assetId;
+          if (name) perAsset.set(name, (perAsset.get(name) ?? 0) + 1);
+        }
+        const top = [...perAsset.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+        this.topAssets = top.map(([name, count]) => ({ name, count, percent: Math.round((count / top[0][1]) * 100) }));
+
+        if (cost) {
+          const months = cost.monthlyTrend ?? [];
+          const thisMonth = months[months.length - 1];
+          const lastMonth = months[months.length - 2];
+          const monthChange = thisMonth && lastMonth?.total ? ((thisMonth.total - lastMonth.total) / lastMonth.total) * 100 : null;
+          this.costSummary = [
+            thisMonth && { label: 'This Month', value: money(thisMonth.total), ...this.costTrend(monthChange, 'vs last month') },
+            lastMonth && { label: 'Last Month', value: money(lastMonth.total), trend: '', trendType: 'up' as const },
+            { label: 'This Year', value: money(cost.totalCost), ...this.costTrend(cost.changePercent, 'vs last year') },
+          ].filter((x): x is CostItem => !!x);
+        }
+
+        const pm = compliance?.data;
+        this.pmCompliance = pm?.value ?? null;
+
+        this.alerts = [];
+        if (overdue.length) {
+          this.alerts.push({ title: `${overdue.length} work order${overdue.length === 1 ? ' is' : 's are'} overdue`, detail: 'These work orders require immediate attention.', type: 'danger' });
+        }
+        if (pm && pm.value !== null && pm.meetsTarget === false) {
+          this.alerts.push({ title: 'PM compliance below target', detail: `Current compliance is ${pm.value}%. Target is ${pm.target}%.`, type: 'caution' });
+        }
+        if (pmDue.length) {
+          this.alerts.push({ title: `${pmDue.length} PM schedule${pmDue.length === 1 ? '' : 's'} due this week`, detail: pmDue.map((s) => s.assetName ?? s.scheduleName).slice(0, 3).join(', '), type: 'warning' });
+        }
+
+        // Share of each technician's assigned work orders completed this year
+        this.technicians = (technicians?.data ?? [])
+          .filter((t) => t.assigned > 0)
+          .slice(0, 6)
+          .map((t) => ({ name: t.technician, load: Math.round((t.completed / t.assigned) * 100) }));
+
+        this.upcomingMaintenance = list
+          .filter((o) => !closed(o) && due(o) >= startOfToday.getTime())
+          .sort((a, b) => due(a) - due(b))
+          .slice(0, 5)
+          .map((o) => {
+            const priority = o.priority ?? '—';
+            return { id: o.workOrderId, asset: o.assetName ?? o.assetId ?? '—', type: o.workType ?? '—', due: shortDate(o.dueDate), priority, priorityClass: priority.toLowerCase() };
+          });
+      });
+  }
+
+  /** Created / completed / overdue work orders per week over the last 8 weeks, as points in the 540x220 chart. */
+  private buildTimeline(list: MaintenanceWorkOrder[], isOverdue: (o: MaintenanceWorkOrder) => boolean): void {
+    const weeks = 8;
+    const start = new Date(new Date().setHours(0, 0, 0, 0));
+    start.setDate(start.getDate() - start.getDay() - (weeks - 1) * 7);
+    const weekOf = (iso: string | null) => {
+      const t = iso ? Date.parse(iso) : NaN;
+      const i = Math.floor((t - start.getTime()) / (7 * 86400000));
+      return i >= 0 && i < weeks ? i : -1;
+    };
+    const created = new Array(weeks).fill(0);
+    const completed = new Array(weeks).fill(0);
+    const overdue = new Array(weeks).fill(0);
+    for (const o of list) {
+      const c = weekOf(o.createdAt);
+      if (c >= 0) created[c]++;
+      const d = o.status === 'Completed' ? weekOf(o.actualEndDate) : -1;
+      if (d >= 0) completed[d]++;
+      // Due that week and not finished by the due date
+      const lateDone = o.status === 'Completed' && o.actualEndDate && o.dueDate && Date.parse(o.actualEndDate) > Date.parse(o.dueDate);
+      const w = isOverdue(o) || lateDone ? weekOf(o.dueDate) : -1;
+      if (w >= 0) overdue[w]++;
+    }
+    if (!list.length) {
+      this.weekLabels = [];
+      this.createdPoints = this.completedPoints = this.overduePoints = [];
+      return;
+    }
+    const max = Math.max(1, ...created, ...completed, ...overdue);
+    const toPoints = (values: number[]) => values.map((v, i) => ({ x: Math.round(30 + (i * 490) / (weeks - 1)), y: Math.round(186 - (v / max) * 144) }));
+    this.createdPoints = toPoints(created);
+    this.completedPoints = toPoints(completed);
+    this.overduePoints = toPoints(overdue);
+    this.weekLabels = created.map((_, i) => {
+      const d = new Date(start.getTime() + i * 7 * 86400000);
+      return `${this.monthLabels[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
+    });
+  }
+
+  private formatMoney(value: number, currency?: string): string {
+    try {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(value);
+    } catch {
+      return `${currency ?? ''} ${Math.round(value).toLocaleString()}`.trim();
+    }
+  }
+
+  private trendOf(change: number | null | undefined, suffix: string): Pick<AssetsStatCard, 'change' | 'changeType'> {
+    if (change === null || change === undefined) return { change: '', changeType: 'neutral' };
+    return { change: `${Math.abs(Math.round(change * 10) / 10)}% ${suffix}`, changeType: change < 0 ? 'down' : 'up' };
+  }
+
+  private costTrend(change: number | null | undefined, suffix: string): Pick<CostItem, 'trend' | 'trendType'> {
+    if (change === null || change === undefined) return { trend: '', trendType: 'up' };
+    return { trend: `${Math.abs(Math.round(change * 10) / 10)}% ${suffix}`, trendType: change < 0 ? 'down' : 'up' };
   }
 
   // ===== Picker Open/Close =====

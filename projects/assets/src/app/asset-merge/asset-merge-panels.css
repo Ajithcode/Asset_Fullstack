@@ -259,6 +259,8 @@
 
 .form-error { margin: 0; font-size: 13px; color: var(--mg-high); }
 
+.toast-undo { margin-left: 12px; color: #93c5fd; }
+
 .toast {
   position: fixed;
   right: 24px;

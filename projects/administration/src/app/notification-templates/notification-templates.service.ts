@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, map, of, tap } from 'rxjs';
-import { environment } from 'shared-ui';
+import { AuthService, environment } from 'shared-ui';
 import { CHANNEL_LABELS, CHANNELS, Channel, NotificationTemplate, TemplateStatus } from './notification-templates.model';
 
 /** Request body for POST and PUT {administrationApiUrl}api/administration/notification-templates[/{templateId}] */
@@ -132,6 +132,7 @@ export function apiErrorMessage(err: unknown): string {
 @Injectable({ providedIn: 'root' })
 export class NotificationTemplateService {
   private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
   private readonly baseUrl = `${environment.administrationApiUrl}api/administration/notification-templates`;
 
   private readonly store = signal<NotificationTemplate[]>([]);
@@ -164,7 +165,8 @@ export class NotificationTemplateService {
 
   /** Loads the stored templates, keeping local content (message bodies etc.) of templates already in memory. */
   load(): Observable<NotificationTemplate[]> {
-    return this.http.get<NotificationTemplateDto[]>(this.baseUrl).pipe(
+    const params = { tenantId: environment.tenantId, clientId: environment.clientId };
+    return this.http.get<NotificationTemplateDto[]>(this.baseUrl, { params }).pipe(
       map((dtos) => dtos.map((dto) => toAppTemplate(dto, this.get(dto.templateId) ?? baseTemplate(dto)))),
       tap((loaded) => {
         loaded.forEach((t) => this.persisted.add(t.id));
@@ -184,7 +186,13 @@ export class NotificationTemplateService {
 
   /** POSTs a local draft; on success the server record (with its own id) replaces the draft. */
   create(t: NotificationTemplate): Observable<NotificationTemplate> {
-    return this.http.post<NotificationTemplateDto>(this.baseUrl, toRequest(t)).pipe(
+    const request = {
+      ...toRequest(t),
+      createdBy: this.auth.getUserEmail() || 'unknown',
+      tenantId: environment.tenantId,
+      clientId: environment.clientId
+    };
+    return this.http.post<NotificationTemplateDto>(this.baseUrl, request).pipe(
       map((dto) => toAppTemplate(dto, t)),
       tap((saved) => {
         this.persisted.add(saved.id);

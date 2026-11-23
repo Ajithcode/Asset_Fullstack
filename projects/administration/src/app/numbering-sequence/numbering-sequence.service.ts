@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, concatMap, from, map, of, tap, toArray } from 'rxjs';
-import { environment } from 'shared-ui';
+import { AuthService, environment } from 'shared-ui';
 import { CURRENT_USER, todayIso } from '../shared/admin-common';
 import { MODULE_ICONS, NumberSequence, ResetRule, SequenceScope, bumpVersion, cloneSequence } from './numbering-sequence.model';
 
@@ -152,6 +152,7 @@ export function apiErrorMessage(err: unknown): string {
 @Injectable({ providedIn: 'root' })
 export class NumberingSequenceService {
   private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
   private readonly baseUrl = `${environment.administrationApiUrl}api/administration/numbering-sequences`;
 
   private readonly store = signal<NumberSequence[]>([]);
@@ -168,7 +169,8 @@ export class NumberingSequenceService {
 
   /** Loads the stored sequences, keeping the local-only fields of sequences already in memory. */
   load(): Observable<NumberSequence[]> {
-    return this.http.get<NumberingSequenceDto[]>(this.baseUrl).pipe(
+    const params = { tenantId: environment.tenantId, clientId: environment.clientId };
+    return this.http.get<NumberingSequenceDto[]>(this.baseUrl, { params }).pipe(
       map((dtos) => dtos.map((dto) => toAppSequence(dto, this.get(dto.sequenceId) ?? baseSequence(dto)))),
       tap((loaded) => this.store.set(loaded))
     );
@@ -176,7 +178,13 @@ export class NumberingSequenceService {
 
   /** POSTs a new sequence and adds the stored record to the top of the list. */
   create(draft: NumberSequence, change: string): Observable<NumberSequence> {
-    return this.http.post<NumberingSequenceDto>(this.baseUrl, toRequest(draft)).pipe(
+    const request = {
+      ...toRequest(draft),
+      createdBy: this.auth.getUserEmail() || 'unknown',
+      tenantId: environment.tenantId,
+      clientId: environment.clientId
+    };
+    return this.http.post<NumberingSequenceDto>(this.baseUrl, request).pipe(
       map((dto) => {
         const saved = toAppSequence(dto, draft);
         saved.version = 'v1.0';

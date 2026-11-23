@@ -201,7 +201,7 @@ export class NewServiceRequest implements OnDestroy {
         const id = a.registration.assetRegistrationId;
         return forkJoin({
           list: this.api.list({ assetRegistrationId: id, pageSize: 50 }).pipe(catchError(() => of(null))),
-          workOrders: this.api.workOrdersOfAsset(id).pipe(catchError(() => of([] as MaintenanceWorkOrderDto[]))),
+          workOrders: this.api.workOrdersOfAsset(a.record.tag).pipe(catchError(() => of([] as MaintenanceWorkOrderDto[]))),
         }).pipe(
           tap((r) => {
             this.requests = (r.list?.items ?? []).map((i) => ({ id: i.requestNumber, apiId: i.id, title: i.title, status: i.status ?? '', date: localStamp(i.requestedDate).slice(0, 10) }));

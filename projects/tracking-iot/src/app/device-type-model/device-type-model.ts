@@ -58,9 +58,9 @@ import {
 } from 'lucide-angular';
 import {
   ATTRIBUTES, CONNECTIVITY, Connectivity, DeviceModel, DeviceType, FORMS, FormFactor, MEASUREMENTS, MODELS, ModelStatus, POWER_OPTIONS,
-  STATUSES, TYPES, TYPE_ICONS, TypeIcon, blankModel, normalizePower,
+  STATUSES, TYPES, TYPE_ICONS, TypeIcon, API_THUMBNAILS, API_TYPE_ICONS, blankModel, formFactorOf, normalizePower, typeIconOf,
 } from './model-data';
-import { DeviceModelApiService, DeviceModelDto, DeviceModelFormOptions, modelFromDto } from './device-model-api.service';
+import { DeviceModelApiService, DeviceModelDto, DeviceModelFormOptions, DeviceTypeDto, modelFromDto } from './device-model-api.service';
 
 type Icon = typeof Box;
 
@@ -154,8 +154,19 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     if (i >= 0) list.splice(i, 1);
   }
   readonly powerOptions = POWER_OPTIONS;
-  readonly typeIcons = TYPE_ICONS;
-  readonly forms = FORMS;
+  /** Icons / thumbnail styles the API accepts for a device type (from form-options); every page option until loaded. */
+  private apiTypeIcons: string[] = [];
+  private apiThumbnails: string[] = [];
+
+  get typeIcons(): TypeIcon[] {
+    const ok = this.apiTypeIcons.map((x) => x.toLowerCase());
+    return ok.length ? TYPE_ICONS.filter((i) => ok.includes(API_TYPE_ICONS[i])) : TYPE_ICONS;
+  }
+
+  get forms(): typeof FORMS {
+    const ok = this.apiThumbnails.map((x) => x.toLowerCase());
+    return ok.length ? FORMS.filter((f) => f.id !== 'cylinder' && ok.includes(API_THUMBNAILS[f.id].toLowerCase())) : FORMS;
+  }
   readonly pageSize = 8;
 
   typeFilter = 'env';
@@ -192,8 +203,33 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
   private cacheRows: DeviceModel[] = [];
 
   ngOnInit(): void {
+    this.loadTypes();
     this.loadOptions();
     this.load();
+  }
+
+  /** GET /api/device-models/device-types: the Device Types list (icon, thumbnail, description). */
+  private loadTypes(): void {
+    this.api.deviceTypes().subscribe({
+      next: (types) => {
+        for (const t of types) this.applyType(t);
+        this.version++;
+      },
+      // the list still shows the types the loaded models name
+      error: () => undefined,
+    });
+  }
+
+  /** Adds or refreshes a device type from the API; returns its page id. */
+  private applyType(t: Pick<DeviceTypeDto, 'name'> & Partial<DeviceTypeDto>): string {
+    const id = this.typeIdOf(t.name);
+    const type = TYPES.find((x) => x.id === id);
+    if (type && t.icon) {
+      type.icon = typeIconOf(t.icon);
+      type.form = formFactorOf(t.thumbnailStyle);
+      type.description = t.description ?? '';
+    }
+    return id;
   }
 
   /** True once GET /api/device-models/form-options has filled the dropdowns. */
@@ -271,7 +307,9 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
 
   /** Replaces the option lists with the API's (device types, connectivity, power, measurements, attributes...). */
   private applyOptions(o: DeviceModelFormOptions): void {
-    for (const t of o.deviceTypes ?? []) if (t?.name?.trim()) this.typeIdOf(t.name);
+    for (const t of o.deviceTypes ?? []) if (t?.name?.trim()) this.applyType(t);
+    this.apiTypeIcons = o.deviceTypeIcons ?? [];
+    this.apiThumbnails = o.thumbnailStyles ?? [];
     if (o.connectivities?.length) CONNECTIVITY.splice(0, CONNECTIVITY.length, ...(o.connectivities as Connectivity[]));
     if (o.powerSources?.length) POWER_OPTIONS.splice(0, POWER_OPTIONS.length, ...o.powerSources);
     if (o.measurements?.length) {
@@ -781,13 +819,21 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
     if (!name) return void (this.formError = 'Enter the type name.');
     if (!d.form) return void (this.formError = 'Choose a thumbnail style.');
     if (TYPES.some((t) => t.name.toLowerCase() === name.toLowerCase())) return void (this.formError = `"${name}" already exists.`);
-    let id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    while (TYPES.some((t) => t.id === id)) id += '-2';
-    TYPES.push({ id, name, icon: d.icon, form: d.form, description: d.description.trim() });
-    this.dialog = null;
-    this.selectType(id);
-    // there is no device-type endpoint: the type is stored with its first model
-    this.showToast(`Device type "${name}" added for this session. It is saved with its first model.`);
+    if (this.saving) return;
+    this.saving = true;
+    this.formError = '';
+    const form = d.form;
+    this.api.createDeviceType({ name, icon: API_TYPE_ICONS[d.icon], thumbnailStyle: API_THUMBNAILS[form], description: d.description.trim() || null }).subscribe({
+      next: (saved) => {
+        this.saving = false;
+        const id = this.applyType(saved?.name ? saved : { name, icon: API_TYPE_ICONS[d.icon], thumbnailStyle: API_THUMBNAILS[form], description: d.description.trim() });
+        this.dialog = null;
+        this.version++;
+        this.selectType(id);
+        this.showToast(`Device type "${name}" added.`);
+      },
+      error: (e: Error) => this.failed(e),
+    });
   }
 
   // ===== Import =====

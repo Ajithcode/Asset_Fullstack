@@ -2,7 +2,7 @@ import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, catchError, forkJoin, of } from 'rxjs';
+import { Subscription, catchError, concatMap, forkJoin, of, tap, throwError } from 'rxjs';
 import {
   LucideAngularModule,
   Activity,
@@ -434,15 +434,41 @@ export class DeviceReplacement implements OnInit, OnDestroy {
   }
 
   /**
-   * Takes the spare out of stock (PUT /api/replacement-devices/{id} with Availability = Unavailable). There is no API
-   * for the swap itself, so the old device is marked Retired on this page only.
+   * The swap, with the IoT device and stock endpoints:
+   *  1. GET /api/iot-devices/{old} and /{spare} (the spare must be registered as an IoT device);
+   *  2. PUT the old device without its asset ("End prior device assignment" option);
+   *  3. PUT the spare with the old device's asset and site (and gateway with "Copy gateway assignment");
+   *  4. PUT /api/replacement-devices/{spare} with Availability = Unavailable.
+   * The API has no Retired state: the old device is shown as Retired on this page and stays registered, unlinked.
    */
   confirm(): void {
     const c = this.candidate;
     if (!c || !this.confirmChecked || this.done || this.saving) return;
     if (!this.reason) return this.showToast('Choose the replacement reason.');
+    const oldId = this.device.id;
+    const done: string[] = [];
     this.saving = true;
-    this.sub.add(this.api.update(c.id, { ...requestOf(c), availability: 'Unavailable' }).subscribe({
+    this.sub.add(forkJoin({
+      old: this.api.iotDevice(oldId),
+      spare: this.api.iotDevice(c.id).pipe(
+        catchError(() => throwError(() => new Error(`${c.id} is not registered as an IoT device — register it in Device Management first.`))),
+      ),
+    }).pipe(
+      concatMap(({ old, spare }) => {
+        const asset = old.assetCode ?? old.assetRegistrationId;
+        const unlink = this.opts.endPrior && asset
+          ? this.api.updateIotDevice(old, { assetCode: null }).pipe(tap(() => done.push(`${oldId} unlinked from ${old.assetName || asset}`)))
+          : of(old);
+        const link = this.api.updateIotDevice(spare, {
+          ...(asset ? { assetCode: asset } : {}),
+          siteId: old.siteId,
+          siteName: old.siteName,
+          ...(this.opts.gateway ? { gateway: old.gateway } : {}),
+        }).pipe(tap(() => done.push(asset ? `${c.id} linked to ${old.assetName || asset}` : `${c.id} moved to ${old.siteName || 'the site'}`)));
+        return unlink.pipe(concatMap(() => link));
+      }),
+      concatMap(() => this.api.update(c.id, { ...requestOf(c), availability: 'Unavailable' })),
+    ).subscribe({
       next: (saved) => {
         this.saving = false;
         const fresh = toCandidate(saved);
@@ -452,7 +478,8 @@ export class DeviceReplacement implements OnInit, OnDestroy {
       },
       error: (e: unknown) => {
         this.saving = false;
-        this.showToast(apiErrorMessage(e, `Could not take ${c.id} out of stock.`));
+        const msg = apiErrorMessage(e, `Could not complete the replacement of ${oldId}.`);
+        this.showToast(done.length ? `${msg} Already done: ${done.join('; ')}.` : msg);
       },
     }));
   }

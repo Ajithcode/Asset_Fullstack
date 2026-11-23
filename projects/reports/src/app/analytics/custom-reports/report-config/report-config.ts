@@ -37,10 +37,10 @@ import { CustomReport } from '../custom-reports.model';
         @if (showErrors && !report.schedule) { <small>Select a schedule.</small> }
       </div>
       <div class="cr-config__actions">
-        <button type="button" class="btn btn--sm" (click)="saveDraft.emit()">Save Draft</button>
+        <button type="button" class="btn btn--sm" [disabled]="busy" (click)="saveDraft.emit()">Save Draft</button>
         <button type="button" class="btn btn--sm btn--outline" (click)="preview.emit()"><lucide-icon [img]="Eye" [size]="14" /> Preview Report</button>
-        <button type="button" class="btn btn--primary" (click)="saveReport.emit()">Save Report</button>
-        <button type="button" class="btn" (click)="publish.emit()">{{ report.status === 'Published' ? 'Unpublish' : 'Publish' }}</button>
+        <button type="button" class="btn btn--primary" [disabled]="busy" (click)="saveReport.emit()">{{ busy ? 'Saving…' : 'Save Report' }}</button>
+        <button type="button" class="btn" [disabled]="busy" (click)="publish.emit()">{{ report.status === 'Published' ? 'Unpublish' : 'Publish' }}</button>
       </div>
     </div>
   `,
@@ -50,6 +50,8 @@ export class ReportConfig {
   @Input({ required: true }) report!: CustomReport;
   @Input() nameError = '';
   @Input() showErrors = false;
+  /** Save / publish request in flight */
+  @Input() busy = false;
   @Output() saveDraft = new EventEmitter<void>();
   @Output() preview = new EventEmitter<void>();
   @Output() saveReport = new EventEmitter<void>();

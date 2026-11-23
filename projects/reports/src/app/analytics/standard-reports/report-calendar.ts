@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { ChevronLeft, ChevronRight, LucideAngularModule } from 'lucide-angular';
-import { StandardReport } from './standard-reports.data';
+import { CalendarMarks } from './standard-reports.service';
 import { MONTH_NAMES, formatDay, isoDay, parseDay } from './standard-reports.util';
 
 interface CalendarCell {
@@ -68,10 +68,13 @@ interface CalendarCell {
   styleUrls: ['../shared/analytics-page.css', './standard-reports.css']
 })
 export class ReportCalendar implements OnChanges {
-  @Input({ required: true }) reports: StandardReport[] = [];
+  /** Marker counts per day from GET /api/standard-reports/calendar */
+  @Input({ required: true }) marks: Record<string, CalendarMarks> = {};
   @Input({ required: true }) today = '';
   @Input() selected: string | null = null;
   @Output() selectDay = new EventEmitter<string | null>();
+  /** Shown month changed (month is 1-12); the page loads its markers */
+  @Output() monthChange = new EventEmitter<{ year: number; month: number }>();
 
   readonly icons = { ChevronLeft, ChevronRight };
   readonly weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -98,6 +101,7 @@ export class ReportCalendar implements OnChanges {
     this.year = d.getFullYear();
     this.month = d.getMonth();
     this.build();
+    this.monthChange.emit({ year: this.year, month: this.month + 1 });
   }
 
   pick(iso: string): void {
@@ -113,9 +117,10 @@ export class ReportCalendar implements OnChanges {
       // Drop a trailing week that lies entirely in the next month
       if (i === 35 && d.getMonth() !== this.month) break;
       const iso = isoDay(d);
-      const generated = this.reports.filter((r) => r.generatedOn.startsWith(iso)).length;
-      const scheduled = this.reports.filter((r) => !!r.nextScheduled && r.nextScheduled.startsWith(iso)).length;
-      const review = this.reports.filter((r) => r.reviewDue === iso).length;
+      const m = this.marks[iso];
+      const generated = m?.generated ?? 0;
+      const scheduled = m?.scheduled ?? 0;
+      const review = m?.review ?? 0;
       const parts = [formatDay(iso)];
       if (generated) parts.push(`${generated} generated`);
       if (scheduled) parts.push(`${scheduled} scheduled`);

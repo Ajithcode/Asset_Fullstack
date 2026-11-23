@@ -1,21 +1,22 @@
 import { DATA_SOURCES, FIELD_GROUPS } from './custom-reports.data';
 import {
-  CalcField, CalcOperator, DataSource, FieldDef, FieldGroup, FieldKind, FilterOperator, PreviewColumn, PreviewResult,
-  ReportDefinition, ReportFilter, ReportRow
+  CalcField, DataSource, FieldDef, FieldGroup, FieldKind, FilterOperator, PreviewColumn,
+  ReportDefinition, ReportFilter
 } from './custom-reports.model';
 
-// Report engine: filters, groups and sorts source rows (empty until the reporting API returns real data)
+// Report definition helpers for the builder; report rows come from POST /api/custom-reports/preview
 
 export const COUNT_KEY = '__count';
 
-const ALL_FIELDS: FieldDef[] = FIELD_GROUPS.flatMap((g) => g.fields);
+/** Placeholder until the data sources are loaded */
+const NO_SOURCE: DataSource = { key: '', label: 'No data source', module: 'Assets', groups: [], sources: [], description: '' };
 
 export function isNumeric(kind: FieldKind): boolean {
   return kind === 'number' || kind === 'money' || kind === 'percent';
 }
 
 export function sourceOf(key: string): DataSource {
-  return DATA_SOURCES.find((s) => s.key === key) ?? DATA_SOURCES[0];
+  return DATA_SOURCES.find((s) => s.key === key) ?? DATA_SOURCES[0] ?? NO_SOURCE;
 }
 
 export function groupsOf(sourceKey: string): FieldGroup[] {
@@ -36,25 +37,13 @@ export function calcAsField(c: CalcField): FieldDef {
 export function fieldOf(def: ReportDefinition, key: string): FieldDef | undefined {
   if (key === COUNT_KEY) return { key, label: 'Records', kind: 'number', group: '' };
   const calc = def.calcFields.find((c) => c.key === key);
-  return calc ? calcAsField(calc) : ALL_FIELDS.find((f) => f.key === key);
+  return calc ? calcAsField(calc) : FIELD_GROUPS.flatMap((g) => g.fields).find((f) => f.key === key);
 }
 
 export function operatorsFor(kind: FieldKind): FilterOperator[] {
   if (isNumeric(kind)) return ['=', '≠', '>', '<', '≥', '≤'];
   if (kind === 'date') return ['on', 'before', 'after'];
   return ['equals', 'not equals', 'contains'];
-}
-
-export function calcValue(c: CalcField, row: ReportRow): number {
-  const a = Number(row[c.left]) || 0;
-  const b = Number(row[c.right]) || 0;
-  const ops: Record<CalcOperator, number> = { '+': a + b, '-': a - b, '×': a * b, '÷': b === 0 ? 0 : a / b };
-  return Math.round(ops[c.op] * 100) / 100;
-}
-
-/** Source rows for the report. No reporting API is wired yet, so there are none. */
-function buildRows(_def: ReportDefinition): ReportRow[] {
-  return [];
 }
 
 /** Validation message for a filter row, or '' when it is usable. */
@@ -67,38 +56,6 @@ export function filterError(def: ReportDefinition, f: ReportFilter): string {
   if (isNumeric(field.kind) && Number.isNaN(Number(value))) return 'Enter a number.';
   if (field.kind === 'date' && Number.isNaN(new Date(value).getTime())) return 'Enter a valid date.';
   return '';
-}
-
-function matches(field: FieldDef, f: ReportFilter, raw: string | number): boolean {
-  const value = f.value.trim();
-  if (isNumeric(field.kind)) {
-    const a = Number(raw);
-    const b = Number(value);
-    switch (f.op) {
-      case '=': return a === b;
-      case '≠': return a !== b;
-      case '>': return a > b;
-      case '<': return a < b;
-      case '≥': return a >= b;
-      case '≤': return a <= b;
-      default: return true;
-    }
-  }
-  if (field.kind === 'date') {
-    const a = String(raw);
-    const b = value.slice(0, 10);
-    return f.op === 'before' ? a < b : f.op === 'after' ? a > b : a === b;
-  }
-  const a = String(raw).toLowerCase();
-  const b = value.toLowerCase();
-  return f.op === 'contains' ? a.includes(b) : f.op === 'not equals' ? a !== b : a === b;
-}
-
-function aggregate(values: number[], how: ReportDefinition['aggregate']): number {
-  if (!values.length) return 0;
-  const total = values.reduce((a, b) => a + b, 0);
-  const v = how === 'Average' ? total / values.length : how === 'Min' ? Math.min(...values) : how === 'Max' ? Math.max(...values) : total;
-  return Math.round(v * 100) / 100;
 }
 
 /** Output columns for the current definition (grouped reports show the group, a record count and numeric fields). */
@@ -114,53 +71,6 @@ export function outputColumns(def: ReportDefinition): PreviewColumn[] {
   ];
 }
 
-/** Runs the report against the source rows. */
-export function runReport(def: ReportDefinition): PreviewResult {
-  const columns = outputColumns(def);
-  let rows = buildRows(def);
-
-  for (const f of def.filters) {
-    const field = fieldOf(def, f.field);
-    if (!field || filterError(def, f)) continue;
-    rows = rows.filter((r) => matches(field, f, r[f.field]));
-  }
-
-  const group = def.groupBy ? fieldOf(def, def.groupBy) : undefined;
-  if (group) {
-    const buckets = new Map<string, ReportRow[]>();
-    for (const r of rows) {
-      const k = String(r[group.key]);
-      buckets.set(k, [...(buckets.get(k) ?? []), r]);
-    }
-    rows = [...buckets.entries()].map(([k, list]) => {
-      const out: ReportRow = { [group.key]: k, [COUNT_KEY]: list.length };
-      for (const c of columns.slice(2)) out[c.key] = aggregate(list.map((r) => Number(r[c.key]) || 0), def.aggregate);
-      return out;
-    });
-  }
-
-  if (def.sortBy && columns.some((c) => c.key === def.sortBy)) {
-    const dir = def.sortDir === 'asc' ? 1 : -1;
-    rows = [...rows].sort((a, b) => {
-      const x = a[def.sortBy];
-      const y = b[def.sortBy];
-      return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * dir;
-    });
-  }
-
-  const matched = rows.length;
-  if (def.rowLimit) rows = rows.slice(0, def.rowLimit);
-
-  const labelKey = group?.key ?? columns.find((c) => !isNumeric(c.kind))?.key ?? '';
-  const numericCols = columns.filter((c) => isNumeric(c.kind));
-  const valueKey = numericCols.some((c) => c.key === def.chartValue) ? def.chartValue : numericCols[0]?.key ?? '';
-  const labelCol = columns.find((c) => c.key === labelKey);
-  const valueCol = columns.find((c) => c.key === valueKey);
-  const title = labelCol && valueCol ? `${valueCol.label.replace(/ \((sum|average|min|max)\)$/, '')} by ${labelCol.label}` : 'Report preview';
-
-  return { columns, rows, matched, labelKey, valueKey, title };
-}
-
 /** Formats a cell for display. */
 export function formatCell(kind: FieldKind, value: string | number | undefined): string {
   if (value === undefined || value === '') return '—';
@@ -168,7 +78,7 @@ export function formatCell(kind: FieldKind, value: string | number | undefined):
   if (kind === 'percent') return `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
   if (kind === 'number') return Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 });
   if (kind === 'date') {
-    const d = new Date(`${value}T00:00:00Z`);
+    const d = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
     return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
   }
   return String(value);

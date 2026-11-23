@@ -32,6 +32,8 @@ const STATUS_TONES: Record<ReportStatus, string> = { Draft: 'orange', Published:
 export class ReportLibrary {
   @Input({ required: true }) reports: CustomReport[] = [];
   @Input() selectedId = '';
+  @Input() loading = false;
+  @Input() error = '';
   @Input() sort: LibrarySort = 'updated';
   @Output() sortChange = new EventEmitter<LibrarySort>();
   @Output() open = new EventEmitter<CustomReport>();
@@ -39,6 +41,8 @@ export class ReportLibrary {
   @Output() duplicate = new EventEmitter<CustomReport>();
   @Output() remove = new EventEmitter<CustomReport>();
   @Output() togglePublish = new EventEmitter<CustomReport>();
+  /** GET /api/custom-reports/{id}/export */
+  @Output() exportData = new EventEmitter<CustomReport>();
 
   readonly Star = Star;
   readonly Ellipsis = Ellipsis;
@@ -99,12 +103,13 @@ export class ReportLibrary {
     this.favourite.emit(r);
   }
 
-  act(event: Event, kind: 'open' | 'duplicate' | 'remove' | 'publish', r: CustomReport): void {
+  act(event: Event, kind: 'open' | 'duplicate' | 'remove' | 'publish' | 'export', r: CustomReport): void {
     event.stopPropagation();
     this.menuId = null;
     if (kind === 'open') this.open.emit(r);
     else if (kind === 'duplicate') this.duplicate.emit(r);
     else if (kind === 'remove') this.remove.emit(r);
+    else if (kind === 'export') this.exportData.emit(r);
     else this.togglePublish.emit(r);
   }
 }

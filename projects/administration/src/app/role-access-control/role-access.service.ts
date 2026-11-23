@@ -22,7 +22,9 @@ interface CreateRoleRequest {
 }
 
 /** Request body for PUT {administrationApiUrl}api/roles/{roleId} */
-type UpdateRoleRequest = Pick<CreateRoleRequest, 'roleName' | 'roleCode' | 'description' | 'roleType' | 'status' | 'permissions'>;
+type UpdateRoleRequest = Pick<CreateRoleRequest, 'roleName' | 'roleCode' | 'description' | 'roleType' | 'status' | 'permissions'> & {
+  updatedBy: string | null;
+};
 
 /** Raw shape returned by the roles API. */
 interface RoleDto {
@@ -168,6 +170,7 @@ export class RoleAccessService {
         description: role.description.trim() || null,
         roleType: role.type,
         status: role.status,
+        updatedBy: this.auth.getUserEmail(),
         permissions: role.permissions
       };
       return this.http.put<RoleDto>(`${this.apiUrl}/${encodeURIComponent(role.id)}`, update).pipe(

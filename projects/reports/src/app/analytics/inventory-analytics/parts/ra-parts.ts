@@ -92,7 +92,8 @@ export function fmtInt(v: number): string {
 
 /** 2026-11-02 → "02 Nov 2026" */
 export function fmtDate(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
+  if (!iso) return '—';
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${String(d).padStart(2, '0')} ${months[m - 1]} ${y}`;
 }

@@ -357,6 +357,8 @@ export class AssetBulk implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // leaving the page abandons the upload in progress
+    this.discardImport();
     this.alerts.forEach((a) => clearTimeout(a.timer));
     this.exportCountSub?.unsubscribe();
   }
@@ -470,7 +472,7 @@ export class AssetBulk implements OnInit, OnDestroy {
       if (this.mapFields.length) this.autoMap(false);
       this.resetValidation();
       this.importResult = '';
-      this.importId = '';
+      this.discardImport();
       this.showToast(`${rows.length} rows read from ${file.name}. Click Next to upload it.`);
     } catch {
       this.fileError = 'The file could not be read as a spreadsheet.';
@@ -479,13 +481,40 @@ export class AssetBulk implements OnInit, OnDestroy {
 
   removeFile(): void {
     this.file = null;
-    this.importId = '';
+    this.discardImport();
     this.rows = [];
     this.columns = [];
     this.fixed = [];
     this.mappingError = '';
     this.resetValidation();
     this.step = 2;
+  }
+
+  /** Deletes the uploaded import session that will not be confirmed (file removed or replaced, page left). */
+  private discardImport(): void {
+    const id = this.importId;
+    this.importId = '';
+    if (id) this.bulkApi.deleteImport(id).subscribe({ error: (err) => console.warn('[asset-bulk] could not discard import', id, err) });
+  }
+
+  /** Validate → View Details: the server's error report of this import as an Excel file. */
+  downloadErrors(): void {
+    if (!this.importId || this.errorsDownloading) return;
+    this.errorsDownloading = true;
+    this.bulkApi.exportErrors(this.importId).subscribe({
+      next: ({ blob, fileName }) => {
+        this.errorsDownloading = false;
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      },
+      error: (err) => {
+        this.errorsDownloading = false;
+        this.showToast(apiErrorMessage(err, 'The error report could not be downloaded.'), true);
+      },
+    });
   }
 
   formatSize(bytes: number): string {
@@ -724,6 +753,7 @@ export class AssetBulk implements OnInit, OnDestroy {
 
   /** Server row errors (GET imports/{id}/records); they replace the in-page issues in View Details. */
   serverIssues: RowIssue[] | null = null;
+  errorsDownloading = false;
 
   /** One View Details line per server issue (row, Asset Tag, "Column: message"). */
   private setServerIssues(rows: ImportRecordDto[]): void {

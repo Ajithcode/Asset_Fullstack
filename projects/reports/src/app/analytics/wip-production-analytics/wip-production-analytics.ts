@@ -1,23 +1,29 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subscription, catchError, map, of, switchMap } from 'rxjs';
 import {
   ChartColumn, ChartColumnIncreasing, CircleCheck, CircleDollarSign, Factory, LucideAngularModule, Settings, TriangleAlert
 } from 'lucide-angular';
 import { downloadCsv, money } from '../shared/analytics-common';
+import {
+  AnalyticsApiService, AnalyticsGroup, AnalyticsQuery, apiMessage, filterValue, optionLabels, periodQuery, previousQuery, seriesValues, viewDates
+} from '../shared/analytics-api.service';
 import { CartesianChart, ChartSeries, ChartSlice, DonutChart, RA_COLORS } from '../shared/charts';
 import {
-  ALL_LINES, ALL_PLANTS, ALL_PRODUCTS, ALL_WORK_CENTERS, DOWNTIME_CAUSES, LINES, PLANTS, PRODUCTS, ProductionOrder, ProductionView,
-  UTILIZATION_TARGET, WIP_STAGES, WIP_STAGE_COLORS, WORK_CENTERS, WORK_ORDER_COLORS, WORK_ORDER_STATUSES, WorkCenter, buildProductionView
+  ALL_LINES, ALL_PLANTS, ALL_PRODUCTS, ALL_WORK_CENTERS, DOWNTIME_CAUSES, PaFiltersDto, PaInsightDto, PaOrderDto, PaOverviewDto, ProductionOrder, ProductionView,
+  WIP_STAGES, WIP_STAGE_COLORS, WORK_ORDER_COLORS, WORK_ORDER_STATUSES, WorkCenter, emptyProductionView, mapProduction, toOrder
 } from './wip-production-analytics.data';
 import { OrderMenuAction, ProductionOrderTable, WorkCenterTable } from './production-tables';
 import {
   InsightCard, InsightPick, KpiCardData, RaDashboardPage, RaDetailsDialog, RaFormDialog, RaInsightsPanel, RaKpiCard, RaListDialog, RaPageHead,
-  RaWidget, fmtDate, fmtInt, previousSeries, siteInScope, sumOf
+  RaWidget, fmtDate, fmtInt, sumOf
 } from '../inventory-analytics/parts';
 
-/** Change vs the previous period (%). Not available until a data source is wired. */
-const KPI_DELTAS = { output: 0, wip: 0, onTime: 0, utilization: 0, oee: 0 };
+const GROUP: AnalyticsGroup = 'production-analytics';
+const INSIGHT_IDS: Record<string, string> = { line_utilization: 'line', orders_at_risk: 'risk', quality_hold: 'hold', material_shortage: 'shortage' };
+const INSIGHT_ICONS: Record<string, InsightCard['icon']> = { line: TriangleAlert, risk: ChartColumnIncreasing, hold: TriangleAlert, shortage: Settings };
+const INSIGHT_TONES: Record<string, InsightCard['tone']> = { critical: 'red', warning: 'orange', info: 'blue', success: 'green' };
 
 /** Reports & Analytics > WIP / Production Analytics */
 @Component({
@@ -31,22 +37,23 @@ const KPI_DELTAS = { output: 0, wip: 0, onTime: 0, utilization: 0, oee: 0 };
 })
 export class WipProductionAnalyticsPage extends RaDashboardPage implements OnInit {
   private readonly router = inject(Router);
+  private readonly api = inject(AnalyticsApiService);
   protected readonly slug = 'wip-production-analytics';
 
-  readonly plants = [ALL_PLANTS, ...PLANTS];
-  readonly workCenters = [ALL_WORK_CENTERS, ...WORK_CENTERS.map((c) => c.name)];
-  readonly products = [ALL_PRODUCTS, ...PRODUCTS.map((p) => p.name)];
+  plants = [ALL_PLANTS];
+  workCenters = [ALL_WORK_CENTERS];
+  products = [ALL_PRODUCTS];
   plant = '';
   line = '';
   workCenter = '';
   product = '';
-  lineOptions: string[] = [];
+  lineOptions: string[] = [ALL_LINES];
 
-  view!: ProductionView;
+  view: ProductionView = emptyProductionView('');
   kpis: KpiCardData[] = [];
   insights: InsightCard[] = [];
 
-  // Chart inputs, rebuilt in apply() so the charts only re-render when the data changes
+  // Chart inputs, rebuilt when the data changes so the charts only re-render then
   outputSeries: ChartSeries[] = [];
   stageSeries: ChartSeries[] = [];
   statusSlices: ChartSlice[] = [];
@@ -59,8 +66,19 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
   readonly downtimeLabels = DOWNTIME_CAUSES.map((c) => c.replace(' ', '\n'));
   readonly pct = (v: number) => `${Math.round(v)}%`;
   readonly hours = (v: number) => `${Math.round(v)} h`;
+  private loadSub: Subscription | null = null;
 
   ngOnInit(): void {
+    this.api.filters<PaFiltersDto>(GROUP).subscribe({
+      next: (f) => {
+        this.organizations = optionLabels('All organizations', f.organizations);
+        this.plants = optionLabels(ALL_PLANTS, f.plants);
+        this.lineOptions = optionLabels(ALL_LINES, f.productionLines);
+        this.workCenters = optionLabels(ALL_WORK_CENTERS, f.workCenters);
+        this.products = optionLabels(ALL_PRODUCTS, f.products);
+      },
+      error: (err) => console.warn('[production-analytics] filters failed', err)
+    });
     this.apply();
   }
 
@@ -73,41 +91,81 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
     this.apply();
   }
 
-  /** Recomputes the view whenever a filter changes. */
+  /** Filter bar as query parameters of the Production Analytics endpoints. */
+  private get query(): AnalyticsQuery {
+    return {
+      ...periodQuery(this.period),
+      organization: filterValue(this.organization),
+      plant: filterValue(this.plant),
+      productionLine: filterValue(this.line),
+      workCenter: filterValue(this.workCenter),
+      product: filterValue(this.product)
+    };
+  }
+
+  /** Reloads every widget from GET api/production-analytics/overview (plus the previous period when comparing). */
   apply(): void {
-    const location = !this.plant || this.plant === ALL_PLANTS ? 'All locations' : this.plant;
-    this.lineOptions = [ALL_LINES, ...LINES.filter((l) => siteInScope(l.site, this.organization, location)).map((l) => l.name)];
-    if (this.line && !this.lineOptions.includes(this.line)) this.line = '';
-    const v = buildProductionView({
-      period: this.period, organization: this.organization, plant: this.plant || ALL_PLANTS, line: this.line || ALL_LINES,
-      workCenter: this.workCenter || ALL_WORK_CENTERS, product: this.product || ALL_PRODUCTS
-    });
+    this.loadSub?.unsubscribe();
+    this.refreshing = true;
+    const query = this.query;
+    const compare = this.compare;
+    this.loadSub = this.api
+      .overview<PaOverviewDto>(GROUP, { ...query, ordersSize: 200, bottleneckLimit: 50 })
+      .pipe(
+        switchMap((o) =>
+          compare
+            ? this.api.overview<PaOverviewDto>(GROUP, { ...query, datePreset: undefined, ...previousQuery(o.period), ordersSize: 1, bottleneckLimit: 1 }).pipe(
+                map((p): [PaOverviewDto, PaOverviewDto | null] => [o, p]),
+                catchError(() => of<[PaOverviewDto, PaOverviewDto | null]>([o, null]))
+              )
+            : of<[PaOverviewDto, PaOverviewDto | null]>([o, null])
+        )
+      )
+      .subscribe({
+        next: ([o, previous]) => this.show(mapProduction(o, this.periodLabel), previous),
+        error: (err) => {
+          this.show(emptyProductionView(this.periodLabel), null);
+          this.notify(apiMessage(err, 'Could not load production analytics.'));
+        }
+      });
+  }
+
+  override refresh(): void {
+    if (!this.refreshing) this.apply();
+  }
+
+  private show(v: ProductionView, previous: PaOverviewDto | null): void {
     this.view = v;
+    this.refreshing = false;
+    this.updatedMinutes = 0;
     this.buildKpis(v);
-    this.buildCharts(v);
+    this.buildCharts(v, previous);
     this.buildInsights(v);
   }
 
   private buildKpis(v: ProductionView): void {
-    const d = KPI_DELTAS;
-    const prev = (value: number, delta: number) => value / (1 + delta / 100);
+    const d = v.deltas;
+    const p = v.previous;
+    const pctText = (x: number | null) => (x === null ? '—' : `${x.toFixed(1)}%`);
+    const unit = v.outputUnit;
     this.kpis = [
-      { id: 'production-output', label: 'Production Output', value: `${fmtInt(v.output)} units`, delta: d.output, goodWhenUp: true, previous: `${fmtInt(prev(v.output, d.output))} units`, tone: 'purple', icon: Factory },
-      { id: 'wip-value', label: 'WIP Value', value: money(v.wipValue), delta: d.wip, goodWhenUp: true, previous: money(prev(v.wipValue, d.wip)), tone: 'green', icon: CircleDollarSign },
-      { id: 'on-time-completion', label: 'On-Time Completion', value: `${v.onTime.toFixed(1)}%`, delta: d.onTime, goodWhenUp: true, previous: `${prev(v.onTime, d.onTime).toFixed(1)}%`, tone: 'orange', icon: CircleCheck },
-      { id: 'equipment-utilization', label: 'Equipment Utilization', value: `${Math.round(v.utilization)}%`, delta: d.utilization, goodWhenUp: true, previous: `${Math.round(prev(v.utilization, d.utilization))}%`, tone: 'blue', icon: Settings },
-      { id: 'oee', label: 'Overall Equipment Effectiveness', value: `${v.oee.toFixed(1)}%`, delta: d.oee, goodWhenUp: true, previous: `${prev(v.oee, d.oee).toFixed(1)}%`, tone: 'purple', icon: ChartColumn }
+      { id: 'production-output', label: 'Production Output', value: `${fmtInt(v.output)} ${unit}`, delta: d.output, goodWhenUp: true, previous: p.output === null ? '—' : `${fmtInt(p.output)} ${unit}`, tone: 'purple', icon: Factory },
+      { id: 'wip-value', label: 'WIP Value', value: money(v.wipValue), delta: d.wip, goodWhenUp: true, previous: p.wip === null ? '—' : money(p.wip), tone: 'green', icon: CircleDollarSign },
+      { id: 'on-time-completion', label: 'On-Time Completion', value: pctText(v.onTime), delta: d.onTime, goodWhenUp: true, previous: pctText(p.onTime), tone: 'orange', icon: CircleCheck },
+      { id: 'equipment-utilization', label: 'Equipment Utilization', value: v.utilization === null ? '—' : `${Math.round(v.utilization)}%`, delta: d.utilization, goodWhenUp: true, previous: pctText(p.utilization), tone: 'blue', icon: Settings },
+      { id: 'oee', label: 'Overall Equipment Effectiveness', value: pctText(v.oee), delta: d.oee, goodWhenUp: true, previous: pctText(p.oee), tone: 'purple', icon: ChartColumn }
     ];
   }
 
-  private buildCharts(v: ProductionView): void {
+  private buildCharts(v: ProductionView, previous: PaOverviewDto | null): void {
+    const target = v.utilizationTarget;
     this.outputSeries = [
       { name: 'Actual', values: v.actual, color: RA_COLORS.purple, type: 'bar' },
-      { name: 'Planned', values: v.planned, color: RA_COLORS.green, type: 'line' },
-      { name: 'Target', values: v.target, color: RA_COLORS.pink, type: 'line', dashed: true }
+      { name: 'Planned', values: v.planned, color: RA_COLORS.green, type: 'line' }
     ];
-    if (this.compare) {
-      this.outputSeries.push({ name: 'Actual (previous period)', values: previousSeries(v.actual, KPI_DELTAS.output).map(Math.round), color: RA_COLORS.grey, type: 'line', dashed: true });
+    if (v.target.length) this.outputSeries.push({ name: 'Target', values: v.target, color: RA_COLORS.pink, type: 'line', dashed: true });
+    if (previous) {
+      this.outputSeries.push({ name: 'Actual (previous period)', values: seriesValues(previous.outputTrend, 'Actual'), color: RA_COLORS.grey, type: 'line', dashed: true });
     }
     this.stageSeries = WIP_STAGES.map((name, i) => ({ name, values: v.stageStacks[i], color: WIP_STAGE_COLORS[i], type: 'bar' as const }));
     this.statusSlices = WORK_ORDER_STATUSES.map((name, i) => ({ name, value: v.workOrders[i], color: WORK_ORDER_COLORS[i] }));
@@ -117,10 +175,10 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
     this.lineLabels = v.lines.map((l) => `Production\n${l.name}`);
     const band = (lo: number, hi: number) => v.lines.map((l) => (l.utilization >= lo && l.utilization < hi ? l.utilization : 0));
     this.lineSeries = [
-      { name: `At target (≥ ${UTILIZATION_TARGET}%)`, values: band(UTILIZATION_TARGET, 101), color: RA_COLORS.green, type: 'bar' },
-      { name: 'Watch (75–85%)', values: band(75, UTILIZATION_TARGET), color: RA_COLORS.orange, type: 'bar' },
-      { name: 'Below (< 75%)', values: band(0, 75), color: RA_COLORS.red, type: 'bar' },
-      { name: 'Target', values: v.lines.map(() => UTILIZATION_TARGET), color: RA_COLORS.purple, type: 'line', dashed: true }
+      { name: `At target (≥ ${target}%)`, values: band(target, 101), color: RA_COLORS.green, type: 'bar' },
+      { name: `Watch (${target - 10}–${target}%)`, values: band(target - 10, target), color: RA_COLORS.orange, type: 'bar' },
+      { name: `Below (< ${target - 10}%)`, values: band(0, target - 10), color: RA_COLORS.red, type: 'bar' },
+      { name: 'Target', values: v.lines.map(() => target), color: RA_COLORS.purple, type: 'line', dashed: true }
     ];
 
     this.downtimeSeries = [{ name: 'Downtime', values: v.downtime, color: RA_COLORS.pink, type: 'bar' }];
@@ -130,95 +188,65 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
       { name: 'Performance', values: v.performance, color: RA_COLORS.orange },
       { name: 'Quality', values: v.quality, color: RA_COLORS.pink }
     ];
-    if (this.compare) {
-      this.efficiencySeries.push({ name: 'OEE (previous period)', values: previousSeries(v.oeeTrend, KPI_DELTAS.oee), color: RA_COLORS.grey, dashed: true });
+    if (previous) {
+      this.efficiencySeries.push({ name: 'OEE (previous period)', values: seriesValues(previous.efficiencyTrend, 'OEE'), color: RA_COLORS.grey, dashed: true });
     }
   }
 
+  /** Insight cards from the API; cards with nothing to report are left out, as before. */
   private buildInsights(v: ProductionView): void {
-    const list: InsightCard[] = [];
-    const low = [...v.lines].sort((a, b) => a.utilization - b.utilization)[0];
-    if (low && low.utilization < UTILIZATION_TARGET) {
-      list.push({
-        id: 'line', tone: 'red', icon: TriangleAlert, title: `${low.name} utilization below target`,
-        text: `Production ${low.name} (${low.site}) is operating at ${low.utilization}% utilization, below the target of ${UTILIZATION_TARGET}%.`,
-        actions: [{ id: 'view', label: 'View orders' }, { id: 'open', label: 'Open work center', primary: true }]
+    this.insights = v.insights
+      .filter((i) => INSIGHT_IDS[i.key] && i.count > 0)
+      .map((i) => {
+        const id = INSIGHT_IDS[i.key];
+        const actions = i.actions.map((a) =>
+          a === 'open_work_center' ? { id: 'open', label: 'Open work center', primary: true }
+            : a === 'create_action_plan' ? { id: 'plan', label: 'Create action plan', primary: true }
+              : { id: 'view', label: 'View orders' }
+        );
+        return { id, tone: INSIGHT_TONES[i.severity] ?? 'blue', icon: INSIGHT_ICONS[id], title: i.title, text: i.message, actions };
       });
-    }
-    const atRisk = this.ordersWith('At Risk');
-    if (atRisk.length) {
-      const share = ((atRisk.length / v.orders.length) * 100).toFixed(1);
-      list.push({
-        id: 'risk', tone: 'orange', icon: ChartColumnIncreasing, title: `${atRisk.length} production order${atRisk.length === 1 ? '' : 's'} at risk of late completion`,
-        text: `${atRisk.length} orders (${share}% of active orders) are at risk due to current WIP and resource constraints.`,
-        actions: [{ id: 'view', label: 'View orders' }, { id: 'plan', label: 'Create action plan', primary: true }]
-      });
-    }
-    const hold = this.ordersWith('Quality Hold');
-    if (hold.length) {
-      const value = money(sumOf(hold.map((o) => o.wipValue)));
-      list.push({
-        id: 'hold', tone: 'red', icon: TriangleAlert, title: `Quality hold affecting ${value} WIP`,
-        text: `${value} of WIP across ${hold.length} order${hold.length === 1 ? ' is' : 's are'} currently on hold due to quality inspection issues.`,
-        actions: [{ id: 'view', label: 'View orders' }, { id: 'plan', label: 'Create action plan', primary: true }]
-      });
-    }
-    const shortageHours = v.downtime[DOWNTIME_CAUSES.indexOf('Material Shortage')];
-    if (shortageHours > 0) {
-      list.push({
-        id: 'shortage', tone: 'blue', icon: Settings, title: `Material shortage causing ${shortageHours} hours downtime`,
-        text: `Material shortage has caused ${shortageHours} hours of downtime in the current period.`,
-        actions: [{ id: 'view', label: 'View orders' }, { id: 'plan', label: 'Create action plan', primary: true }]
-      });
-    }
-    this.insights = list;
   }
 
-  private ordersWith(status: string): ProductionOrder[] {
-    return this.view.orders.filter((o) => o.status === status);
+  private insightDto(id: string): PaInsightDto | undefined {
+    return this.view.insights.find((i) => INSIGHT_IDS[i.key] === id);
   }
 
   // ===== Insight + table actions =====
 
   onInsight(p: InsightPick): void {
-    const v = this.view;
-    const low = [...v.lines].sort((a, b) => a.utilization - b.utilization)[0];
-    switch (`${p.insight.id}:${p.action.id}`) {
-      case 'line:view':
-        this.showOrders(v.orders.filter((o) => o.line === low.name), `Active orders on ${low.name}`);
-        break;
-      case 'line:open':
-        this.router.navigateByUrl('/wip-operations/resources');
-        break;
-      case 'risk:view':
-        this.showOrders(this.ordersWith('At Risk'), 'Orders at risk of late completion');
-        break;
-      case 'risk:plan':
-        this.openActionPlan(`Recover ${this.ordersWith('At Risk').length} production orders at risk of late completion`);
-        break;
-      case 'hold:view':
-        this.showOrders(this.ordersWith('Quality Hold'), 'Orders on quality hold');
-        break;
-      case 'hold:plan':
-        this.openActionPlan(`Release quality hold on ${money(sumOf(this.ordersWith('Quality Hold').map((o) => o.wipValue)))} of WIP`);
-        break;
-      case 'shortage:view':
-        this.showOrders(v.orders.filter((o) => o.materialShortage), 'Orders affected by material shortage');
-        break;
-      case 'shortage:plan':
-        this.openActionPlan('Resolve material shortages causing production downtime');
-        break;
+    const dto = this.insightDto(p.insight.id);
+    if (!dto) return;
+    if (p.action.id === 'open') {
+      this.router.navigateByUrl('/wip-operations/resources');
+      return;
     }
+    if (p.action.id === 'plan') {
+      this.openActionPlan(dto.title);
+      return;
+    }
+    // View orders: GET api/production-analytics/orders with the insight's filter
+    const extra: AnalyticsQuery = Object.fromEntries(new URLSearchParams(dto.query));
+    if (dto.key === 'material_shortage') delete extra['cause'];
+    if (dto.key === 'line_utilization' && !extra['productionLine'] && dto.lines.length) {
+      const lines = new Set(dto.lines);
+      this.showOrders(this.view.orders.filter((o) => lines.has(o.line)), p.insight.title);
+      return;
+    }
+    this.api.get<{ items: PaOrderDto[] }>(GROUP, 'orders', { ...this.query, ...extra, pageSize: 200 }).subscribe({
+      next: (res) => this.showOrders(res.items.map(toOrder), p.insight.title),
+      error: (err) => this.notify(apiMessage(err, 'Could not load the orders.'))
+    });
   }
 
   private showOrders(rows: ProductionOrder[], title: string): void {
     this.openList({
       title,
       subtitle: this.scopeText,
-      columns: ['Order No', 'Product', 'Line', 'Work Center', 'Planned Qty', 'Completed Qty', 'WIP Qty', 'WIP Value', 'Due Date', 'Status', 'Supervisor'],
+      columns: ['Order No', 'Product', 'Line', 'Work Center', 'Planned Qty', 'Completed Qty', 'WIP Qty', 'WIP Value', 'Due Date', 'Status', 'Priority'],
       numeric: [4, 5, 6, 7],
       rows: [...rows].sort((a, b) => a.due.localeCompare(b.due))
-        .map((o) => [o.code, o.product, o.line, o.workCenter, o.planned, o.completed, o.wip, money(o.wipValue), fmtDate(o.due), o.status, o.supervisor]),
+        .map((o) => [o.code, o.product, o.line, o.workCenter, o.planned, o.completed, o.wip, money(o.wipValue), fmtDate(o.due), o.status, o.priority]),
       fileName: 'production-orders.csv'
     });
   }
@@ -226,20 +254,20 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
   orderAction(e: { order: ProductionOrder; action: OrderMenuAction }): void {
     const o = e.order;
     if (e.action === 'plan') {
-      this.openActionPlan(`Action plan for ${o.code} ${o.product} (${o.status})`, o.supervisor);
+      this.openActionPlan(`Action plan for ${o.code} ${o.product} (${o.status})`);
       return;
     }
     this.openDetails({
       title: `${o.code} · ${o.product}`,
       subtitle: `${o.line} · ${o.site}`,
       items: [
-        { label: 'Status', value: o.status },
+        { label: 'Status', value: `${o.orderStatus} · ${o.schedule}` },
+        { label: 'Stage', value: o.stage },
         { label: 'Current work center', value: o.workCenter },
-        { label: 'Progress', value: `${o.completed.toLocaleString('en-US')} of ${o.planned.toLocaleString('en-US')} (${Math.round((o.completed / o.planned) * 100)}%)` },
-        { label: 'WIP', value: `${o.wip.toLocaleString('en-US')} units · ${money(o.wipValue)}` },
+        { label: 'Progress', value: `${o.completed.toLocaleString('en-US')} of ${o.planned.toLocaleString('en-US')} (${Math.round(o.progress)}%)` },
+        { label: 'WIP', value: `${o.wip.toLocaleString('en-US')} ${o.unit} · ${money(o.wipValue)}` },
         { label: 'Due date', value: fmtDate(o.due) },
-        { label: 'Material shortage', value: o.materialShortage ? 'Yes' : 'No' },
-        { label: 'Supervisor', value: o.supervisor }
+        { label: 'Priority', value: o.priority }
       ]
     });
   }
@@ -249,12 +277,13 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
   }
 
   viewWorkCenter(c: WorkCenter & { risk: string }): void {
-    const orders = this.view.orders.filter((o) => o.workCenter === c.name).length;
+    const orders = this.view.orders.filter((o) => o.workCenter === c.code).length;
     this.openDetails({
-      title: `${c.code} · ${c.name}`,
-      subtitle: this.scopeText,
+      title: c.code,
+      subtitle: `${c.name} · ${this.scopeText}`,
       items: [
         { label: 'Queue', value: `${c.queue} orders` },
+        { label: 'In progress', value: `${c.inProgress} orders` },
         { label: 'Average wait', value: `${c.avgWait} hrs` },
         { label: 'Capacity used', value: `${c.capacity}%` },
         { label: 'Bottleneck risk', value: c.risk },
@@ -263,21 +292,41 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
     });
   }
 
+  // ===== Saved views =====
+
+  /** Save View: POST api/production-analytics/views with the current filters. */
+  override saveView(name: string): void {
+    const filters = {
+      organization: filterValue(this.organization) ?? null,
+      plant: filterValue(this.plant) ?? null,
+      productionLine: filterValue(this.line) ?? null,
+      workCenter: filterValue(this.workCenter) ?? null,
+      product: filterValue(this.product) ?? null,
+      ...viewDates(this.period)
+    };
+    this.api.createView(GROUP, name, filters).subscribe({
+      next: () => super.saveView(name),
+      error: (err) => this.notify(apiMessage(err, 'Could not save the view.'))
+    });
+  }
+
   // ===== Exports =====
 
+  /** Excel workbook of every section for the current filters (GET api/production-analytics/export). */
   exportPage(): void {
-    this.exportOrders();
-    this.exportWorkCenters();
-    this.notify('Exported active production orders and bottleneck work centers (CSV).');
+    this.api.export(GROUP, this.query).subscribe({
+      next: () => this.notify('Production analytics exported.'),
+      error: (err) => this.notify(apiMessage(err, 'Export failed.'))
+    });
   }
 
   exportOrders(): void {
-    downloadCsv('active-production-orders.csv', ['Order No', 'Product', 'Line', 'Site', 'Work Center', 'Planned Qty', 'Completed Qty', 'WIP Qty', 'WIP Value (AED)', 'Due Date', 'Status'],
+    downloadCsv('active-production-orders.csv', ['Order No', 'Product', 'Line', 'Plant', 'Work Center', 'Planned Qty', 'Completed Qty', 'WIP Qty', 'WIP Value (AED)', 'Due Date', 'Status'],
       this.view.orders.map((o) => [o.code, o.product, o.line, o.site, o.workCenter, o.planned, o.completed, o.wip, Math.round(o.wipValue), o.due, o.status]));
   }
 
   exportWorkCenters(): void {
-    downloadCsv('bottleneck-work-centers.csv', ['Code', 'Work Center', 'Queue (Orders)', 'Avg. Wait (hrs)', 'Capacity %', 'Risk'],
+    downloadCsv('bottleneck-work-centers.csv', ['Work Center', 'Line', 'Queue (Orders)', 'Avg. Wait (hrs)', 'Capacity %', 'Risk'],
       this.view.workCenters.map((c) => [c.code, c.name, c.queue, c.avgWait, c.capacity, c.risk]));
   }
 
@@ -298,7 +347,7 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
   }
 
   exportLines(): void {
-    downloadCsv('equipment-utilization-by-line.csv', ['Line', 'Site', 'Utilization %', 'Target %'], this.view.lines.map((l) => [l.name, l.site, l.utilization, UTILIZATION_TARGET]));
+    downloadCsv('equipment-utilization-by-line.csv', ['Line', 'Work Centers', 'Utilization %', 'Target %'], this.view.lines.map((l) => [l.name, l.workCenters, l.utilization, l.target]));
   }
 
   exportDowntime(): void {

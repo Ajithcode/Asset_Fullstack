@@ -1,4 +1,4 @@
-import { Observable, map, shareReplay, tap } from 'rxjs';
+import { Observable, map, shareReplay, tap, throwError } from 'rxjs';
 import { ApiCodeStore } from '../shared/code-store';
 import { toLocalStamp } from './structure-api';
 
@@ -47,7 +47,9 @@ export abstract class StructureStore<T extends StructureRecord, TDto extends { i
   }
 
   setStatus(record: T, status: string): Observable<T> {
-    return this.api.setStatus<TDto>(this.resource, this.idOf(record.code) ?? '', status).pipe(
+    const id = this.idOf(record.code);
+    if (!id) return throwError(() => new Error('Record not found.'));
+    return this.api.setStatus<TDto>(this.resource, id, status).pipe(
       map((dto) => {
         const saved = { ...record, status: dto.status ?? status, updatedOn: toLocalStamp(dto.updatedAt) || record.updatedOn };
         this.save(saved, record.code);

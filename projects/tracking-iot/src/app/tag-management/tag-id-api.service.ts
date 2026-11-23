@@ -2,8 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subject, catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
-import { apiError, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
-import { LinkedAsset, TagId, TagStatus, TagType, Tech } from './tag-data';
+import { apiError, getAllPages, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
+import { LinkedAsset, TagEvent, TagId, TagStatus, TagType, Tech } from './tag-data';
 
 /**
  * A tag as /api/tag-ids returns it (addressed by tagId). List rows carry registeredOn, value and validation;
@@ -58,23 +58,6 @@ function flatten(dto: TagIdDto): TagIdDto {
     lastSeenAt: l?.lastSeenAt ?? null,
     createdBy: dto.createdBy ?? dto.registeredBy ?? null,
   };
-}
-
-/** One event of GET /api/tag-ids/audit-trail (TagEventResponse); performedBy is the signed-in user's username. */
-export interface TagAuditEventDto {
-  id: string;
-  when: string;
-  tagId: string;
-  technology: string;
-  event: string;
-  details: string;
-  assetName: string | null;
-  performedBy: string;
-}
-
-interface TagAuditPageDto {
-  items: TagAuditEventDto[];
-  totalPages: number;
 }
 
 /** GET /api/tag-ids (paged). */
@@ -197,6 +180,35 @@ export function tagFromDto(raw: TagIdDto): TagId {
   };
 }
 
+/** A row of GET /api/tag-ids/audit-trail and of GET /api/tag-ids/{tagId}/history. */
+export interface TagEventDto {
+  id: string;
+  when: string;
+  tagId: string;
+  technology: string;
+  /** Registered, Assigned, Reassigned, Unassigned, Updated, Read, Deactivated, Reactivated or Deleted. */
+  event: string;
+  details: string;
+  assetRegistrationId: string | null;
+  assetCode: string | null;
+  assetName: string | null;
+  statusAfter: string | null;
+  performedBy: string;
+}
+
+/** GET /api/tag-ids/audit-trail/options */
+export interface TagAuditOptionsDto {
+  eventTypes: string[];
+  technologies: string[];
+  performedBy: string[];
+  periods: string[];
+}
+
+/** A history entry of the page for an API event (the details text, e.g. "Assigned to Table (TB123)"). */
+export function tagEventFromDto(e: TagEventDto): TagEvent {
+  return { at: epoch(e.when) ?? 0, text: e.details?.trim() || e.event, by: e.performedBy || '—' };
+}
+
 /** One KPI of GET /api/tag-ids/summary: this month's count, last month's and the change in %. */
 export interface TagSummaryCountDto {
   count: number;
@@ -295,18 +307,23 @@ export class TagIdApiService {
     );
   }
 
-  /** GET /api/tag-ids/audit-trail: every recorded tag event (all pages), newest first, with who performed it. */
-  auditTrail(): Observable<TagAuditEventDto[]> {
-    const url = `${this.url}/audit-trail`;
-    const page = (n: number) => this.http.get<TagAuditPageDto>(url, { params: tenantParams({ page: n, pageSize: LIST_PAGE_SIZE }) });
-    return page(1).pipe(
-      switchMap((first) => {
-        const pages = Math.max(1, first?.totalPages ?? 1);
-        if (pages <= 1) return of(first?.items ?? []);
-        const rest = Array.from({ length: pages - 1 }, (_, i) => page(i + 2));
-        return forkJoin(rest).pipe(map((more) => [first, ...more].flatMap((p) => p?.items ?? [])));
-      }),
+  /** GET /api/tag-ids/audit-trail?period=all: every recorded tag event (all pages), newest first. */
+  auditTrail(): Observable<TagEventDto[]> {
+    return getAllPages<TagEventDto>(this.http, `${this.url}/audit-trail`, { period: 'all' }, 200).pipe(
       catchError((e) => apiError(e, 'Could not load the audit trail.')),
+    );
+  }
+
+  /** GET /api/tag-ids/audit-trail/options: event types and people for the Audit Trail filters; null when it fails. */
+  auditOptions(): Observable<TagAuditOptionsDto | null> {
+    return this.http.get<TagAuditOptionsDto>(`${this.url}/audit-trail/options`, { params: tenantParams() }).pipe(catchError(() => of(null)));
+  }
+
+  /** GET /api/tag-ids/{tagId}/history: the tag's events, newest first. */
+  history(tagId: string): Observable<TagEvent[]> {
+    return this.http.get<TagEventDto[]>(`${this.url}/${encodeURIComponent(tagId)}/history`, { params: tenantParams() }).pipe(
+      map((rows) => (rows ?? []).map(tagEventFromDto).sort((a, b) => b.at - a.at)),
+      catchError((e) => apiError(e, `Could not load the history of ${tagId}.`)),
     );
   }
 

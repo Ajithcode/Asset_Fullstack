@@ -119,8 +119,17 @@ export class LocationHistoryService {
     );
   }
 
+  /** Overview: every location event (Tracking service) and the registered assets (Asset API) they refer to. */
+  overview(): Observable<{ assets: AssetListItemDto[]; events: LocationEventDto[] }> {
+    return forkJoin({
+      // the events still show without the registry
+      assets: this.lookup.list(),
+      events: this.http.get<LocationEventDto[]>(`${TRACKING_API}location-events`),
+    });
+  }
+
   /** Records a movement as a location event. */
-  record(asset: AssetRecord, m: { at: string; location: string; movement: MovementType; remarks: string; source: string }): Observable<LocationEventDto> {
+  record(asset: Pick<AssetRecord, 'tag' | 'name'>, m: { at: string; location: string; movement: MovementType; remarks: string; source: string }): Observable<LocationEventDto> {
     return this.http.post<LocationEventDto>(`${TRACKING_API}location-events`, {
       eventTime: new Date(m.at).toISOString(),
       assetId: asset.tag,

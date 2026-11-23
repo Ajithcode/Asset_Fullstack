@@ -80,6 +80,59 @@ export interface NewStandardReport {
 /** Report record as returned by the API (the response schema is not published, so every field is optional). */
 type StandardReportDto = Record<string, unknown>;
 
+/** GET /api/standard-reports/options (the parts the page uses). */
+export interface StandardReportOptions {
+  categories: string[];
+  reportTypes: string[];
+}
+
+/** GET /api/standard-reports/summary. */
+export interface StandardReportSummary {
+  totalReports: number;
+  withDateFilters: number;
+  scheduled: number;
+  updatedThisMonth: number;
+}
+
+/** Marker counts on one calendar day (GET /api/standard-reports/calendar). */
+export interface CalendarMarks {
+  generated: number;
+  scheduled: number;
+  review: number;
+}
+
+/** One reading of an Asset Movement report (details data.dates[].records[]). */
+export interface MovementRecord {
+  timestamp: string;
+  localTime: string;
+  tagId: string;
+  assetId: string | null;
+  assetRegistrationId: string | null;
+  assetName: string | null;
+  category: string | null;
+  subCategory: string | null;
+  deviceId: string | null;
+  zoneName: string | null;
+  zoneCode: string | null;
+}
+
+interface MovementData {
+  totalRecords: number;
+  truncated: boolean;
+  dates: { date: string; recordCount: number; records: MovementRecord[] }[];
+}
+
+/** GET /api/standard-reports/{id}/details mapped for the viewer. */
+export interface StandardReportDetails {
+  report: StandardReport;
+  /** False for a report type without data behind it */
+  hasData: boolean;
+  /** Readings per date */
+  rows: PreviewRow[];
+  records: MovementRecord[];
+  truncated: boolean;
+}
+
 const FREQUENCIES: ReportFrequency[] = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'On demand'];
 const SCHEDULE_FREQUENCIES = FREQUENCIES.filter((f) => f !== 'On demand');
 
@@ -87,9 +140,9 @@ const SCHEDULE_FREQUENCIES = FREQUENCIES.filter((f) => f !== 'On demand');
 export const SR_SORT_FIELDS: Record<string, string> = {
   name: 'reportName',
   module: 'category',
-  period: 'reportPeriodFrom',
+  period: 'reportPeriod',
   generatedOn: 'generatedOn',
-  nextScheduled: 'nextScheduledOn',
+  nextScheduled: 'nextScheduled',
   frequency: 'frequency',
   status: 'status'
 };
@@ -100,8 +153,6 @@ export class StandardReportsService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly apiUrl = `${environment.reportAnalyticsApiUrl}api/standard-reports`;
-  /** Category master list: the Asset service's asset-categories, the same list the Master Data > Category page shows. */
-  private readonly categoriesUrl = `${environment.assetApiUrl}api/asset-categories`;
 
   /** Reports on the current page. */
   reports: StandardReport[] = [];
@@ -139,33 +190,133 @@ export class StandardReportsService {
   }
 
   /**
-   * Category dropdown options from the Category master: GET {assetApiUrl}api/asset-categories.
-   * Active, not-deleted top-level category names (no sub-categories), sorted; an empty list when the call fails.
+   * Category / report type dropdowns: GET /api/standard-reports/options. The API only accepts its own category list
+   * (create, update and the list filter reject other names), so the dropdowns use it rather than the asset Category master.
    */
-  categories(): Observable<string[]> {
-    const params = new HttpParams().set('clientId', environment.clientId);
-    return this.http.get<unknown>(this.categoriesUrl, { params }).pipe(
-      map((body) => {
-        const names = unwrapList(body)
-          .items.filter((c) => c['isDeleted'] !== true && !/^(inactive|disabled|deleted)$/i.test(str(c, 'status')))
-          // Top-level categories only: sub-categories carry their parent's id
-          .filter((c) => !isSet(c['parentCategoryId'] ?? c['parentId']))
-          .map((c) => str(c, 'name', 'categoryName', 'code').trim())
-          .filter(Boolean);
-        return [...new Set(names)].sort((a, b) => a.localeCompare(b));
-      }),
+  options(): Observable<StandardReportOptions> {
+    return this.http.get<Partial<StandardReportOptions>>(`${this.apiUrl}/options`).pipe(
+      map((o) => ({ categories: o?.categories ?? [], reportTypes: o?.reportTypes ?? [] })),
       catchError((err) => {
-        console.warn('[standard-reports] asset-categories failed', err);
-        return of([] as string[]);
+        console.warn('[standard-reports] options failed', err);
+        return of({ categories: [], reportTypes: [] });
       })
     );
   }
 
+  /** GET /api/standard-reports/summary: the four tiles, across every report (not just the current page). */
+  summary(timeZone: string): Observable<StandardReportSummary> {
+    const params = this.scope().set('timeZone', timeZone);
+    return this.http.get<Partial<StandardReportSummary>>(`${this.apiUrl}/summary`, { params }).pipe(
+      map((s) => ({
+        totalReports: Number(s?.totalReports ?? 0),
+        withDateFilters: Number(s?.withDateFilters ?? 0),
+        scheduled: Number(s?.scheduled ?? 0),
+        updatedThisMonth: Number(s?.updatedThisMonth ?? 0)
+      }))
+    );
+  }
+
+  /** GET /api/standard-reports/calendar for a month (1-12): marker counts keyed by 'YYYY-MM-DD'. */
+  calendar(year: number, month: number, timeZone: string): Observable<Record<string, CalendarMarks>> {
+    const params = this.scope().set('year', year).set('month', month).set('timeZone', timeZone);
+    return this.http.get<{ days?: { date: string; generated: number; scheduled: number; reviewDue: number }[] }>(`${this.apiUrl}/calendar`, { params }).pipe(
+      map((body) => {
+        const marks: Record<string, CalendarMarks> = {};
+        for (const d of body?.days ?? []) {
+          marks[String(d.date).slice(0, 10)] = { generated: d.generated ?? 0, scheduled: d.scheduled ?? 0, review: d.reviewDue ?? 0 };
+        }
+        return marks;
+      })
+    );
+  }
+
+  /** PUT /api/standard-reports/report-period: saves the period on the given reports (Apply Dates). */
+  applyPeriodTo(reportIds: string[], period: ReportPeriod): Observable<{ updatedCount: number; notFound: string[] }> {
+    return this.http.put<{ updatedCount: number; notFound: string[] }>(`${this.apiUrl}/report-period`, {
+      reportIds,
+      reportPeriodFrom: toApiDate(period.start, period.startTime ?? '00:00'),
+      reportPeriodTo: toApiDate(period.end, period.endTime ?? '23:59'),
+      timeZone: period.timeZone,
+      includeTime: !!(period.startTime && period.endTime),
+      updatedBy: this.userEmail()
+    });
+  }
+
+  /** GET /api/standard-reports/{id}/details: the report plus its rows for the saved period (rows only for data-backed types). */
+  details(report: StandardReport): Observable<StandardReportDetails> {
+    return this.http.get<{ report?: StandardReportDto; data?: MovementData | null }>(`${this.apiUrl}/${encodeURIComponent(report.id)}/details`).pipe(
+      map((body) => {
+        const fresh = body?.report ? this.toReport(body.report) : report;
+        const data = body?.data ?? null;
+        const total = data?.totalRecords ?? 0;
+        const rows: PreviewRow[] = (data?.dates ?? []).map((d) => ({
+          label: d.date,
+          value: d.recordCount,
+          display: d.recordCount.toLocaleString('en-US'),
+          share: total ? `${((d.recordCount / total) * 100).toFixed(1)}%` : '0%'
+        }));
+        const records = (data?.dates ?? []).flatMap((d) => d.records ?? []);
+        const withPreview: StandardReport = {
+          ...fresh,
+          preview: { dimension: 'date', measure: data ? 'Readings' : fresh.preview.measure, unit: 'count', total }
+        };
+        return { report: withPreview, hasData: !!data, rows, records, truncated: !!data?.truncated };
+      })
+    );
+  }
+
+  /** POST /api/standard-reports/{id}/generate: records a run (Generated On = now, status Ready). */
+  generate(report: StandardReport): Observable<StandardReport> {
+    return this.http.post<StandardReportDto>(`${this.apiUrl}/${encodeURIComponent(report.id)}/generate`, {}).pipe(
+      map((dto) => (dto && typeof dto === 'object' ? this.toReport(dto) : report)),
+      tap((updated) => this.update(report.id, () => updated))
+    );
+  }
+
+  /** PUT /api/standard-reports/{id}: saves the edited definition. */
+  edit(report: StandardReport, form: NewStandardReport): Observable<StandardReport> {
+    const { createdBy: _c, tenantId: _t, clientId: _cl, ...body } = this.toRequest(form);
+    return this.http.put<StandardReportDto>(`${this.apiUrl}/${encodeURIComponent(report.id)}`, { ...body, updatedBy: this.userEmail() }).pipe(
+      map((dto) => (dto && typeof dto === 'object' ? this.toReport(dto) : report)),
+      tap((updated) => this.update(report.id, () => updated))
+    );
+  }
+
+  /** DELETE /api/standard-reports/{id}. */
+  remove(report: StandardReport): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${encodeURIComponent(report.id)}`);
+  }
+
+  /** GET /api/standard-reports/export: the whole filtered table (every page) as xlsx or csv. */
+  exportList(query: StandardReportQuery, format: 'xlsx' | 'csv'): Observable<Blob> {
+    let params = this.scope().set('format', format);
+    for (const [key, value] of Object.entries(query)) {
+      if (key === 'page' || key === 'pageSize' || value === undefined || value === null || value === '') continue;
+      params = params.set(key, String(value));
+    }
+    return this.http.get(`${this.apiUrl}/export`, { params, responseType: 'blob' });
+  }
+
+  private scope(): HttpParams {
+    return new HttpParams().set('tenantId', environment.tenantId).set('clientId', environment.clientId);
+  }
+
+  private userEmail(): string {
+    return this.auth.getUserEmail() || CURRENT_USER.email || 'unknown';
+  }
+
   /** POST /api/standard-reports; emits the created report. */
   create(form: NewStandardReport): Observable<StandardReport> {
+    const request = this.toRequest(form);
+    return this.http.post<StandardReportDto>(this.apiUrl, request).pipe(
+      map((dto) => this.toReport({ ...request, ...(dto && typeof dto === 'object' ? dto : {}) }))
+    );
+  }
+
+  private toRequest(form: NewStandardReport): CreateStandardReportRequest {
     const p = form.period;
     const includeTime = !!(p.startTime && p.endTime);
-    const request: CreateStandardReportRequest = {
+    return {
       reportName: form.name.trim(),
       description: form.description.trim(),
       category: form.module,
@@ -177,14 +328,11 @@ export class StandardReportsService {
       nextScheduledOn: form.nextScheduled ? toApiDate(form.nextScheduled.slice(0, 10), form.nextScheduled.slice(11, 16) || '00:00') : null,
       reviewDueOn: form.reviewDue ? toApiDate(form.reviewDue, '00:00') : null,
       status: form.status,
-      createdBy: this.auth.getUserEmail() || CURRENT_USER.email || 'unknown',
+      createdBy: this.userEmail(),
       tenantId: environment.tenantId,
       clientId: environment.clientId,
       reportType: form.reportType.trim()
     };
-    return this.http.post<StandardReportDto>(this.apiUrl, request).pipe(
-      map((dto) => this.toReport({ ...request, ...(dto && typeof dto === 'object' ? dto : {}) }))
-    );
   }
 
   /** Remember the applied reporting period; the page reloads with it. */
@@ -202,7 +350,7 @@ export class StandardReportsService {
       frequency: schedule.frequency,
       nextScheduledOn: toApiDate(next, schedule.time),
       timeZone: report.period.timeZone || defaultReportPeriod().timeZone,
-      updatedBy: this.auth.getUserEmail() || CURRENT_USER.email || 'unknown',
+      updatedBy: this.userEmail(),
       days: schedule.frequency === 'Daily' ? [] : schedule.frequency === 'Weekly' ? [WEEKDAYS[schedule.day]] : [schedule.day],
       time: schedule.time,
       format: schedule.format,
@@ -227,11 +375,6 @@ export class StandardReportsService {
       }),
       tap((updated) => this.update(report.id, () => updated))
     );
-  }
-
-  /** Breakdown rows for the viewer and CSV export. Empty until the reporting API supplies report data. */
-  previewRows(_report: StandardReport): PreviewRow[] {
-    return [];
   }
 
   formatValue(report: StandardReport, value: number): string {
@@ -283,10 +426,11 @@ export class StandardReportsService {
     const includeTime = dto['includeTime'] === true;
     const updatedOn = str(dto, 'updatedAt', 'updatedOn', 'modifiedAt', 'createdAt', 'createdOn');
     return {
-      id: str(dto, 'reportId', 'id', 'standardReportId') || `SR-${Math.random().toString(36).slice(2, 8)}`,
+      id: str(dto, 'reportId', 'id', 'standardReportId'),
       name: str(dto, 'reportName', 'name') || 'Untitled report',
       module: str(dto, 'category', 'categoryName') || '—',
       description: str(dto, 'description'),
+      reportType: str(dto, 'reportType'),
       owner: str(dto, 'owner', 'createdBy') || '—',
       period: {
         start: (from || this.period.start).slice(0, 10),
@@ -324,13 +468,6 @@ function unwrapList(body: unknown): { items: StandardReportDto[]; total: number 
     }
   }
   return { items: [], total: 0 };
-}
-
-/** A parent id that is really set (not null / '' / 0 / empty Guid). */
-function isSet(v: unknown): boolean {
-  if (v === null || v === undefined || v === '' || v === 0) return false;
-  if (typeof v === 'object') return isSet((v as Record<string, unknown>)['id']);
-  return !/^0+(-0+)*$/.test(String(v).trim());
 }
 
 function str(dto: StandardReportDto, ...keys: string[]): string {

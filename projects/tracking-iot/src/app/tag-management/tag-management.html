@@ -89,7 +89,7 @@
               <td><span class="st" [ngClass]="'st--' + t.status.toLowerCase()"><lucide-icon [img]="t.status === 'Inactive' ? icons.Ban : icons.CircleCheck" [size]="14"></lucide-icon>{{ t.status }}</span></td>
               <td class="col-act" (click)="$event.stopPropagation()"><span class="menu-wrap">
                 <button type="button" class="icon-btn" (click)="toggleMenu(t.id, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + t.id"><lucide-icon [img]="icons.Ellipsis" [size]="20"></lucide-icon></button>
-                <div *ngIf="menuOpen === t.id" class="pop menu" role="menu" (click)="$event.stopPropagation()">
+                <div *ngIf="menuOpen === t.id" class="pop menu menu--row" data-menu-static role="menu" [style.top.px]="rowMenuPos?.top" [style.bottom.px]="rowMenuPos?.bottom" [style.right.px]="rowMenuPos?.right" (click)="$event.stopPropagation()">
                   <ng-container *ngTemplateOutlet="tagActions; context: { $implicit: t }"></ng-container>
                 </div></span></td>
             </tr>
@@ -121,7 +121,7 @@
               <td class="nowrap">{{ fmtSeen(t.lastSeen) }}</td>
               <td class="col-act" (click)="$event.stopPropagation()"><span class="menu-wrap">
                 <button type="button" class="icon-btn" (click)="toggleMenu(t.id, $event)" aria-haspopup="menu" [attr.aria-label]="'Actions for ' + t.id"><lucide-icon [img]="icons.Ellipsis" [size]="20"></lucide-icon></button>
-                <div *ngIf="menuOpen === t.id" class="pop menu" role="menu" (click)="$event.stopPropagation()">
+                <div *ngIf="menuOpen === t.id" class="pop menu menu--row" data-menu-static role="menu" [style.top.px]="rowMenuPos?.top" [style.bottom.px]="rowMenuPos?.bottom" [style.right.px]="rowMenuPos?.right" (click)="$event.stopPropagation()">
                   <ng-container *ngTemplateOutlet="tagActions; context: { $implicit: t }"></ng-container>
                 </div></span></td>
             </tr>

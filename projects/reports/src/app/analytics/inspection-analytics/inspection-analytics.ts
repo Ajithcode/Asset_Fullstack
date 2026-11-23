@@ -1,18 +1,22 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Subscription, catchError, map, of, switchMap } from 'rxjs';
 import {
   ArrowUp, Bookmark, ChartColumn, CircleCheck, ClipboardList, FileText, GitCompareArrows, LucideAngularModule, LucideIconData,
   RefreshCw, Repeat, ShieldCheck, TriangleAlert, Upload, Wrench
 } from 'lucide-angular';
-import { AnalyticsPage, RA_CATEGORIES, downloadCsv, percent } from '../shared/analytics-common';
+import { AnalyticsPage, downloadCsv, percent } from '../shared/analytics-common';
+import {
+  AnalyticsApiService, AnalyticsGroup, AnalyticsQuery, KpiDto, apiMessage, filterValue, optionLabels, periodQuery, previousQuery, viewDates
+} from '../shared/analytics-api.service';
 import { CartesianChart, ChartSeries, ChartSlice, DonutChart, GaugeChart, RA_COLORS } from '../shared/charts';
 import {
   ActionPlan, DetailField, RaActionPlanDialog, RaDetailDialog, RaKpiCard, RaListDialog, RaSaveViewDialog, RaWidget
 } from './kit';
 import {
-  COMPLIANCE_TARGET, FINDING_TYPES, INSPECTION_TYPES, INSPECTOR_OPTIONS, InspectionFinding, InspectionView, InspectorRow,
-  SAFETY_TARGET, SEVERITY_RANK, Severity, buildInspectionView, recurringAssets
+  ALL_INSPECTION_TYPES, ALL_INSPECTORS, IaFiltersDto, IaInsightDto, IaOverviewDto, InspectionFinding, InspectionView, InspectorRow, SEVERITY_RANK, Severity,
+  emptyInspectionView, mapInspection
 } from './inspection-analytics.data';
 import { InspectionFindingsTable } from './findings-table/findings-table';
 import { InspectorTable } from './inspector-table/inspector-table';
@@ -31,6 +35,7 @@ interface KpiTile {
 type InsightAction = 'critical' | 'due' | 'recurring' | 'recurring-detail' | 'safety' | 'plan';
 
 interface Insight {
+  key: string;
   tone: string;
   icon: LucideIconData;
   title: string;
@@ -54,9 +59,19 @@ interface DetailSpec {
   finding: InspectionFinding | null;
 }
 
+const GROUP: AnalyticsGroup = 'inspection-analytics';
 const SEVERITIES: Severity[] = ['Critical', 'High', 'Medium', 'Low'];
 const SEVERITY_COLORS: Record<Severity, string> = { Critical: RA_COLORS.red, High: RA_COLORS.pink, Medium: RA_COLORS.orange, Low: RA_COLORS.blue };
-const FINDING_HEADER = ['Finding ID', 'Asset ID', 'Asset', 'Location', 'Category', 'Asset Category', 'Inspection Type', 'Severity', 'Due Date', 'Owner', 'Inspector', 'Status'];
+const FINDING_HEADER = ['Finding ID', 'Asset ID', 'Asset', 'Location', 'Category', 'Severity', 'Due Date', 'Owner', 'Status'];
+const INSIGHT_TONES: Record<string, string> = { critical: 'red', warning: 'orange', info: 'blue', success: 'green' };
+
+/** Insight cards by API key: icon and the two buttons. */
+const INSIGHT_CARDS: Record<string, { icon: LucideIconData; primary: Insight['primary']; secondary: Insight['secondary'] }> = {
+  critical_findings: { icon: TriangleAlert, primary: { label: 'View findings', action: 'critical' }, secondary: { label: 'Create action plan', action: 'plan' } },
+  corrective_actions_due: { icon: ChartColumn, primary: { label: 'View findings', action: 'due' }, secondary: { label: 'Create action plan', action: 'plan' } },
+  recurring_findings: { icon: Repeat, primary: { label: 'View assets', action: 'recurring' }, secondary: { label: 'Open asset details', action: 'recurring-detail' } },
+  safety_compliance: { icon: ShieldCheck, primary: { label: 'View details', action: 'safety' }, secondary: { label: 'Create action plan', action: 'plan' } }
+};
 
 /** Reports & Analytics > Inspection Analytics */
 @Component({
@@ -69,12 +84,11 @@ const FINDING_HEADER = ['Finding ID', 'Asset ID', 'Asset', 'Location', 'Category
   styleUrls: ['../shared/analytics-page.css', './inspection-analytics.css']
 })
 export class InspectionAnalyticsPage extends AnalyticsPage {
+  private readonly api = inject(AnalyticsApiService);
   readonly icons = { ArrowUp, Bookmark, GitCompareArrows, RefreshCw, Upload };
-  readonly categories = ['All categories', ...RA_CATEGORIES];
-  readonly types = INSPECTION_TYPES;
-  readonly inspectorOptions = INSPECTOR_OPTIONS;
-  readonly complianceTarget = COMPLIANCE_TARGET;
-  readonly findingTypes = FINDING_TYPES.map((t) => t);
+  categories = ['All categories'];
+  types = [ALL_INSPECTION_TYPES];
+  inspectorOptions = [ALL_INSPECTORS];
   readonly percentFormat = (v: number) => `${Math.round(v)}%`;
 
   category = '';
@@ -82,7 +96,7 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
   inspector = '';
   compare = false;
 
-  view!: InspectionView;
+  view: InspectionView = emptyInspectionView();
   kpis: KpiTile[] = [];
   insights: Insight[] = [];
   trendSeries: ChartSeries[] = [];
@@ -96,29 +110,101 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
   detail: DetailSpec | null = null;
   plan: { context: string; title: string; owner: string } | null = null;
   saveOpen = false;
+  private loadSub: Subscription | null = null;
 
   constructor() {
     super();
+    this.api.filters<IaFiltersDto>(GROUP).subscribe({
+      next: (f) => {
+        this.organizations = optionLabels('All organizations', f.organizations);
+        this.locations = optionLabels('All locations', f.locations);
+        this.categories = optionLabels('All categories', f.assetCategories);
+        this.types = optionLabels(ALL_INSPECTION_TYPES, f.inspectionTypes);
+        this.inspectorOptions = optionLabels(ALL_INSPECTORS, f.inspectors);
+      },
+      error: (err) => console.warn('[inspection-analytics] filters failed', err)
+    });
+    this.buildWidgets();
     this.apply();
   }
 
-  /** Recomputes every widget from the filters. */
+  get complianceTarget(): number {
+    return this.view.complianceTarget;
+  }
+
+  get findingTypes(): string[] {
+    return this.view.findingTypes;
+  }
+
+  /** Filter bar as query parameters of the Inspection Analytics endpoints. */
+  private get query(): AnalyticsQuery {
+    return {
+      ...periodQuery(this.period),
+      organization: filterValue(this.organization),
+      location: filterValue(this.location),
+      category: filterValue(this.category),
+      inspectionType: filterValue(this.type),
+      inspector: filterValue(this.inspector)
+    };
+  }
+
+  /** Reloads every widget from GET api/inspection-analytics/overview (plus the previous period when comparing). */
   apply(): void {
-    const v = buildInspectionView({
-      period: this.period,
-      organization: this.organization,
-      location: this.location,
-      category: this.category,
-      type: this.type,
-      inspector: this.inspector
-    });
+    this.loadSub?.unsubscribe();
+    this.refreshing = true;
+    const query = this.query;
+    const compare = this.compare;
+    this.loadSub = this.api
+      .overview<IaOverviewDto>(GROUP, { ...query, findingsSize: 200, inspectorLimit: 100 })
+      .pipe(
+        switchMap((o) =>
+          compare
+            ? this.api.overview<IaOverviewDto>(GROUP, { ...query, datePreset: undefined, ...previousQuery(o.period), findingsSize: 1, inspectorLimit: 1 }).pipe(
+                map((p): [IaOverviewDto, IaOverviewDto | null] => [o, p]),
+                catchError(() => of<[IaOverviewDto, IaOverviewDto | null]>([o, null]))
+              )
+            : of<[IaOverviewDto, IaOverviewDto | null]>([o, null])
+        )
+      )
+      .subscribe({
+        next: ([o, previous]) => this.show(mapInspection(o, previous)),
+        error: (err) => {
+          this.show(emptyInspectionView());
+          this.notify(apiMessage(err, 'Could not load inspection analytics.'));
+        }
+      });
+  }
+
+  override refresh(): void {
+    if (!this.refreshing) this.apply();
+  }
+
+  private show(v: InspectionView): void {
     this.view = v;
+    this.refreshing = false;
+    this.updatedMinutes = 0;
+    this.buildWidgets();
+  }
+
+  private buildWidgets(): void {
+    const v = this.view;
+    const k = v.kpis;
+    const tile = (key: KpiTile['key'], label: string, value: string, dto: KpiDto | undefined, lowerIsBetter: boolean, icon: LucideIconData, tone: string): KpiTile => {
+      const change = dto?.change ?? null;
+      const unit = dto?.changeUnit === 'points' ? ' pts' : '%';
+      return {
+        key, label, value, icon, tone,
+        delta: change === null ? '' : `${change > 0 ? '+' : ''}${Number(change.toFixed(1))}${unit}`,
+        up: (change ?? 0) >= 0,
+        good: change === null || change === 0 ? true : (change > 0) !== lowerIsBetter
+      };
+    };
     this.kpis = [
-      { key: 'total', label: 'Total Inspections', value: v.totalInspections.toLocaleString('en-US'), delta: '', up: true, good: true, icon: ClipboardList, tone: 'purple' },
-      { key: 'rate', label: 'Completion Rate', value: percent(v.completionRate), delta: '', up: true, good: true, icon: CircleCheck, tone: 'green' },
-      { key: 'open', label: 'Open Findings', value: String(v.findings.length), delta: '', up: false, good: true, icon: FileText, tone: 'orange' },
-      { key: 'critical', label: 'Critical Findings', value: String(v.critical), delta: '', up: false, good: true, icon: TriangleAlert, tone: 'red' },
-      { key: 'due', label: 'Corrective Actions Due', value: String(v.actionsDue), delta: '', up: true, good: false, icon: Wrench, tone: 'blue' }
+      tile('total', 'Total Inspections', v.totalInspections.toLocaleString('en-US'), k?.totalInspections, false, ClipboardList, 'purple'),
+      tile('rate', 'Completion Rate', v.completionRate === null ? '—' : percent(v.completionRate), k?.completionRate, false, CircleCheck, 'green'),
+      tile('open', 'Open Findings', String(v.openFindings), k?.openFindings, true, FileText, 'orange'),
+      tile('critical', 'Critical Findings', String(v.critical), k?.criticalFindings, true, TriangleAlert, 'red'),
+      tile('due', 'Corrective Actions Due', String(v.actionsDue), k?.correctiveActionsDue, true, Wrench, 'blue')
     ];
     this.buildTrend();
     this.severitySeries = SEVERITIES.map((s) => ({ name: s, values: v.severity[s], color: SEVERITY_COLORS[s] }));
@@ -131,13 +217,15 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
     this.categorySeries = [{ name: 'Findings', values: v.byFindingType, color: RA_COLORS.purple }];
     this.complianceSeries = [
       { name: 'Compliance', values: v.rateSeries, color: RA_COLORS.green, area: true },
-      { name: 'Target', values: v.rateSeries.map(() => COMPLIANCE_TARGET), color: RA_COLORS.grey, dashed: true }
+      { name: 'Target', values: v.rateSeries.map(() => v.complianceTarget), color: RA_COLORS.grey, dashed: true }
     ];
     this.repeatSeries = [
       { name: 'Repeated Defects', values: v.repeated, color: RA_COLORS.pink },
       { name: 'Resolved Defects', values: v.resolved, color: RA_COLORS.blue }
     ];
-    this.buildInsights();
+    this.insights = v.insights
+      .filter((i) => INSIGHT_CARDS[i.key])
+      .map((i) => ({ key: i.key, tone: INSIGHT_TONES[i.severity] ?? 'blue', title: i.title, text: i.message, ...INSIGHT_CARDS[i.key] }));
   }
 
   resetFilters(): void {
@@ -152,8 +240,8 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
 
   toggleCompare(): void {
     this.compare = !this.compare;
-    this.buildTrend();
-    this.notify(this.compare ? 'Comparing completed inspections with the same months of 2025.' : 'Period comparison turned off.');
+    this.apply();
+    this.notify(this.compare ? 'Comparing completed inspections with the previous period.' : 'Period comparison turned off.');
   }
 
   private buildTrend(): void {
@@ -163,52 +251,7 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
       { name: 'Completed', values: v.completed, color: RA_COLORS.green },
       { name: 'Overdue', values: v.overdue, color: RA_COLORS.red, dashed: true }
     ];
-    if (this.compare) this.trendSeries.push({ name: 'Completed (2025)', values: v.completedPrevious, color: RA_COLORS.grey, dashed: true });
-  }
-
-  private buildInsights(): void {
-    const v = this.view;
-    // Insights are only meaningful once there is inspection data in scope
-    if (!v.findings.length && !v.siteSafety.length) {
-      this.insights = [];
-      return;
-    }
-    const recurring = recurringAssets(v.findings);
-    const belowSafety = v.siteSafety.filter((s) => s.safety < SAFETY_TARGET);
-    const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-    this.insights = [
-      {
-        tone: 'red', icon: TriangleAlert,
-        title: `${plural(v.critical, 'critical finding')} require${v.critical === 1 ? 's' : ''} immediate action`,
-        text: 'Critical findings pose high safety and asset risk and need a corrective action owner today.',
-        primary: { label: 'View findings', action: 'critical' }, secondary: { label: 'Create action plan', action: 'plan' }
-      },
-      {
-        tone: 'orange', icon: ChartColumn,
-        title: `${plural(v.actionsDue, 'corrective action')} due within 7 days`,
-        text: 'Corrective actions are due soon and may affect inspection compliance if they slip.',
-        primary: { label: 'View findings', action: 'due' }, secondary: { label: 'Create action plan', action: 'plan' }
-      },
-      {
-        tone: 'blue', icon: Repeat,
-        title: `${plural(recurring.length, 'asset')} ${recurring.length === 1 ? 'has' : 'have'} recurring findings`,
-        text: 'These assets have more than one open finding from recent inspection cycles.',
-        primary: { label: 'View assets', action: 'recurring' }, secondary: { label: 'Open asset details', action: 'recurring-detail' }
-      },
-      belowSafety.length
-        ? {
-            tone: 'purple', icon: ShieldCheck,
-            title: `Safety compliance below target in ${plural(belowSafety.length, 'location')}`,
-            text: `Safety inspection compliance is below ${SAFETY_TARGET}% at ${belowSafety.map((s) => s.site).join(' and ')}.`,
-            primary: { label: 'View details', action: 'safety' }, secondary: { label: 'Create action plan', action: 'plan' }
-          }
-        : {
-            tone: 'green', icon: ShieldCheck,
-            title: 'Safety compliance on target',
-            text: `Every location in scope is at or above the ${SAFETY_TARGET}% safety inspection target.`,
-            primary: { label: 'View details', action: 'safety' }, secondary: { label: 'Create action plan', action: 'plan' }
-          }
-    ];
+    if (this.compare && v.completedPrevious.length) this.trendSeries.push({ name: 'Completed (previous period)', values: v.completedPrevious, color: RA_COLORS.grey, dashed: true });
   }
 
   get statusTotal(): string {
@@ -218,14 +261,29 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
 
   // ===== Header actions =====
 
+  /** Excel workbook of every section for the current filters (GET api/inspection-analytics/export). */
   exportAll(): void {
-    downloadCsv('inspection-analytics-open-findings.csv', FINDING_HEADER, this.findingRows(this.view.findings));
-    this.notify(`Exported ${this.view.findings.length} open findings.`);
+    this.api.export(GROUP, this.query).subscribe({
+      next: () => this.notify('Inspection analytics exported.'),
+      error: (err) => this.notify(apiMessage(err, 'Export failed.'))
+    });
   }
 
+  /** Save View: POST api/inspection-analytics/views with the current filters. */
   saveNamedView(name: string): void {
     this.saveOpen = false;
-    this.saveView(name);
+    const filters = {
+      organization: filterValue(this.organization) ?? null,
+      location: filterValue(this.location) ?? null,
+      category: filterValue(this.category) ?? null,
+      inspectionType: filterValue(this.type) ?? null,
+      inspector: filterValue(this.inspector) ?? null,
+      ...viewDates(this.period)
+    };
+    this.api.createView(GROUP, name, filters).subscribe({
+      next: () => this.saveView(name),
+      error: (err) => this.notify(apiMessage(err, 'Could not save the view.'))
+    });
   }
 
   // ===== KPI cards =====
@@ -250,7 +308,7 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
       case 'rate':
         fields = [
           { label: 'Definition', value: 'Completed ÷ (completed + overdue + in progress)' },
-          { label: 'Target', value: `${COMPLIANCE_TARGET}%` }
+          { label: 'Target', value: `${v.complianceTarget}%` }
         ];
         break;
       case 'open':
@@ -276,12 +334,12 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
   // ===== Widget exports =====
 
   private monthRows(...cols: number[][]): (string | number)[][] {
-    return this.view.labels.map((l, i) => [l.replace('\n', ' '), ...cols.map((c) => c[i])]);
+    return this.view.labels.map((l, i) => [l.replace('\n', ' '), ...cols.map((c) => c[i] ?? '')]);
   }
 
   exportTrend(): void {
     const v = this.view;
-    downloadCsv('inspection-completion-trend.csv', ['Month', 'Planned', 'Completed', 'Overdue', 'Completed (2025)'], this.monthRows(v.planned, v.completed, v.overdue, v.completedPrevious));
+    downloadCsv('inspection-completion-trend.csv', ['Month', 'Planned', 'Completed', 'Overdue', 'Completed (previous period)'], this.monthRows(v.planned, v.completed, v.overdue, v.completedPrevious));
   }
 
   exportSeverity(): void {
@@ -294,12 +352,12 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
   }
 
   exportCategories(): void {
-    downloadCsv('findings-by-category.csv', ['Category', 'Findings'], FINDING_TYPES.map((t, i) => [t, this.view.byFindingType[i]]));
+    downloadCsv('findings-by-category.csv', ['Category', 'Findings'], this.view.findingTypes.map((t, i) => [t, this.view.byFindingType[i]]));
   }
 
   exportCompliance(): void {
     const v = this.view;
-    downloadCsv('inspection-compliance.csv', ['Month', 'Compliance %', 'Target %'], this.monthRows(v.rateSeries, v.rateSeries.map(() => COMPLIANCE_TARGET)));
+    downloadCsv('inspection-compliance.csv', ['Month', 'Compliance %', 'Target %'], this.monthRows(v.rateSeries, v.rateSeries.map(() => v.complianceTarget)));
   }
 
   exportRepeat(): void {
@@ -325,15 +383,13 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
       fields: [
         { label: 'Asset ID', value: row.assetId },
         { label: 'Asset', value: row.assetName },
-        { label: 'Asset category', value: row.category },
         { label: 'Location', value: row.site },
         { label: 'Finding category', value: row.findingType },
-        { label: 'Inspection type', value: row.inspectionType },
+        { label: 'Description', value: row.description || '—' },
         { label: 'Severity', value: row.severity },
         { label: 'Status', value: row.status },
         { label: 'Due date', value: row.dueInDays < 0 ? `${row.due} (overdue)` : row.due },
-        { label: 'Owner', value: row.owner },
-        { label: 'Inspector', value: row.inspector }
+        { label: 'Owner', value: row.owner }
       ]
     };
   }
@@ -343,10 +399,11 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
     this.plan = {
       context: `${row.id} · ${row.severity} ${row.findingType.toLowerCase()} finding on ${row.assetName} (${row.site}).`,
       title: `Corrective action for ${row.id}`,
-      owner: row.owner
+      owner: row.owner === '—' ? '' : row.owner
     };
   }
 
+  /** Local only: the Report Analytics API has no endpoint to change a finding's status. */
   markInProgress(row: InspectionFinding): void {
     row.status = 'In Progress';
     this.view = { ...this.view, findings: [...this.view.findings] };
@@ -358,7 +415,6 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
   }
 
   openInspector(row: InspectorRow): void {
-    const open = this.view.findings.filter((f) => f.inspector === row.name);
     this.detail = {
       title: row.name,
       subtitle: 'Inspector performance',
@@ -367,9 +423,7 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
         { label: 'Inspections completed', value: row.inspections.toLocaleString('en-US') },
         { label: 'Average duration', value: `${row.avgHours} hrs` },
         { label: 'Finding rate', value: `${row.findingRate}%` },
-        { label: 'Closure rate', value: `${row.closureRate}%` },
-        { label: 'Open findings raised', value: String(open.length) },
-        { label: 'Critical open findings', value: String(open.filter((f) => f.severity === 'Critical').length) }
+        { label: 'Closure rate', value: `${row.closureRate}%` }
       ]
     };
   }
@@ -380,33 +434,40 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
 
   // ===== Insights =====
 
+  private insightDto(insight: Insight): IaInsightDto | undefined {
+    return this.view.insights.find((i) => i.key === insight.key);
+  }
+
   insightAction(insight: Insight, action: InsightAction): void {
     const v = this.view;
+    const dto = this.insightDto(insight);
     switch (action) {
       case 'critical':
         this.showFindings('Critical findings', v.findings.filter((r) => r.severity === 'Critical'));
         break;
-      case 'due':
-        this.showFindings('Corrective actions due within 7 days', v.findings.filter((r) => r.dueInDays >= 0 && r.dueInDays <= 7));
+      case 'due': {
+        const ids = new Set((dto?.findings ?? []).map((f) => f.findingId ?? f.id));
+        this.showFindings('Corrective actions due within 7 days', v.findings.filter((r) => ids.has(r.id)));
         break;
+      }
       case 'recurring':
         this.list = {
           title: 'Assets with recurring findings',
-          subtitle: 'Assets with more than one open finding',
-          header: ['Asset ID', 'Asset', 'Location', 'Open findings'],
-          rows: recurringAssets(v.findings).map((a) => [a.assetId, a.assetName, a.site, a.count]),
+          subtitle: dto?.message ?? '',
+          header: ['Asset ID', 'Asset', 'Location', 'Repeat findings'],
+          rows: (dto?.assets ?? []).map((a) => [a.assetId ?? a.id, a.assetName ?? '—', a.location ?? '—', a.reasons.join('; ')]),
           fileName: 'recurring-findings-assets.csv'
         };
         break;
       case 'recurring-detail':
-        this.openRecurringAsset();
+        this.openRecurringAsset(dto);
         break;
       case 'safety':
         this.list = {
           title: 'Safety inspection compliance by location',
-          subtitle: `Target ${SAFETY_TARGET}%`,
-          header: ['Location', 'Safety compliance %', 'Status'],
-          rows: v.siteSafety.map((s) => [s.site, s.safety, s.safety < SAFETY_TARGET ? 'Below target' : 'On target']),
+          subtitle: dto?.message ?? '',
+          header: ['Location', 'Status'],
+          rows: (dto?.locations ?? []).map((l) => [l, 'Below target']),
           fileName: 'safety-compliance-by-location.csv'
         };
         break;
@@ -416,23 +477,24 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
     }
   }
 
-  private openRecurringAsset(): void {
-    const top = recurringAssets(this.view.findings)[0];
+  private openRecurringAsset(dto: IaInsightDto | undefined): void {
+    const top = dto?.assets[0];
     if (!top) {
       this.notify('No assets with recurring findings for the current filters.');
       return;
     }
-    const rows = this.view.findings.filter((r) => r.assetId === top.assetId);
+    const assetId = top.assetId ?? top.id;
+    const rows = this.view.findings.filter((r) => r.assetId === assetId);
     const worst = rows.slice().sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity])[0];
     this.detail = {
-      title: top.assetName,
-      subtitle: `${top.assetId} · ${top.site}`,
+      title: top.assetName ?? assetId,
+      subtitle: `${assetId} · ${top.location ?? '—'}`,
       finding: null,
       fields: [
-        { label: 'Open findings', value: String(top.count) },
-        { label: 'Highest severity', value: worst.severity },
-        { label: 'Finding IDs', value: rows.map((r) => r.id).join(', ') },
-        { label: 'Categories', value: [...new Set(rows.map((r) => r.findingType))].join(', ') }
+        { label: 'Repeat findings', value: top.reasons.join('; ') || '—' },
+        { label: 'Open findings', value: String(rows.length) },
+        { label: 'Highest open severity', value: worst?.severity ?? '—' },
+        { label: 'Finding IDs', value: rows.map((r) => r.id).join(', ') || '—' }
       ]
     };
   }
@@ -448,7 +510,7 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
   }
 
   private findingRows(rows: InspectionFinding[]): (string | number)[][] {
-    return rows.map((r) => [r.id, r.assetId, r.assetName, r.site, r.findingType, r.category, r.inspectionType, r.severity, r.due, r.owner, r.inspector, r.status]);
+    return rows.map((r) => [r.id, r.assetId, r.assetName, r.site, r.findingType, r.severity, r.due, r.owner, r.status]);
   }
 
   planSaved(plan: ActionPlan): void {

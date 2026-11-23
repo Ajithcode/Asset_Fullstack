@@ -1,6 +1,11 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { DashboardStore } from '../dashboard-store.service';
+import { DashboardWidget } from '../dashboard-widget/dashboard-widget';
 import { FormsModule } from '@angular/forms';
-import { METRICS, MetricDef, MetricKey, WIDGET_SIZES, WIDGET_TYPES, WidgetSpan, WidgetType } from '../interactive-dashboards.data';
+import {
+  DashFilters, METRICS, MetricDef, MetricKey, WIDGET_SIZES, WIDGET_TYPES, WidgetConfig, WidgetData, WidgetSpan, WidgetType
+} from '../interactive-dashboards.data';
 
 export interface NewWidget {
   type: WidgetType;
@@ -13,7 +18,7 @@ export interface NewWidget {
 @Component({
   selector: 'app-idb-add-widget-dialog',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, DashboardWidget],
   template: `
     <div class="overlay" (click)="cancel.emit()">
       <form class="dialog" (click)="$event.stopPropagation()" (ngSubmit)="submit()" novalidate role="dialog" aria-modal="true" aria-label="Add widget">
@@ -49,6 +54,12 @@ export interface NewWidget {
           </select>
           @if (tried && span === null) { <small>Choose a size.</small> }
         </div>
+        @if (previewConfig) {
+          <div class="field">
+            <span>Preview</span>
+            <app-idb-widget [config]="previewConfig" [filters]="filters" [data]="previewData" [height]="180" [bare]="true" />
+          </div>
+        }
         <div class="dialog__actions">
           <button type="button" class="btn" (click)="cancel.emit()">Cancel</button>
           <button type="submit" class="btn btn--primary">Add widget</button>
@@ -58,7 +69,10 @@ export interface NewWidget {
   `,
   styleUrls: ['../../shared/analytics-page.css']
 })
-export class AddWidgetDialog implements OnInit {
+export class AddWidgetDialog implements OnInit, OnDestroy {
+  private readonly store = inject(DashboardStore);
+  /** Page filters, for the preview (POST /api/interactive-dashboards/widgets/preview) */
+  @Input({ required: true }) filters!: DashFilters;
   @Input() initialType: WidgetType | '' = '';
   @Output() added = new EventEmitter<NewWidget>();
   @Output() cancel = new EventEmitter<void>();
@@ -70,6 +84,9 @@ export class AddWidgetDialog implements OnInit {
   title = '';
   span: WidgetSpan | null = null;
   tried = false;
+  previewConfig: WidgetConfig | null = null;
+  previewData: WidgetData = { empty: true, message: 'Loading preview…' };
+  private previewSub: Subscription | null = null;
 
   ngOnInit(): void {
     this.type = this.initialType;
@@ -93,9 +110,32 @@ export class AddWidgetDialog implements OnInit {
   }
 
   onMetricChange(): void {
+    this.loadPreview();
     // Keep a title the user typed; otherwise follow the metric
     if (this.title.trim() && !METRICS.some((m) => m.label === this.title)) return;
     this.title = this.selected?.label ?? '';
+  }
+
+  ngOnDestroy(): void {
+    this.previewSub?.unsubscribe();
+  }
+
+  /** Data for the chosen type and metric: POST /widgets/preview. */
+  private loadPreview(): void {
+    this.previewSub?.unsubscribe();
+    const type = this.type;
+    const metric = this.metric;
+    if (!type || !metric) {
+      this.previewConfig = null;
+      return;
+    }
+    const label = this.selected?.label ?? metric;
+    this.previewConfig = { id: 'preview', type, metric, title: label, span: 12 };
+    this.previewData = { empty: true, message: 'Loading preview…' };
+    this.previewSub = this.store.preview(type, metric, label, this.filters).subscribe({
+      next: (d) => (this.previewData = d),
+      error: () => (this.previewData = { empty: true, message: 'Preview not available.' })
+    });
   }
 
   submit(): void {

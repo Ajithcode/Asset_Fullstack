@@ -86,13 +86,14 @@ export class AuditFiltersPanel implements OnChanges {
   @Input() eventTypes: string[] = [];
   @Input() modules: string[] = [];
   @Input() users: string[] = [];
+  /** Outcomes the audit API records (GET /api/audit-logs/filters). */
+  @Input() outcomes: AuditOutcome[] = ['Success', 'Failed'];
   @Input() saved: readonly SavedAuditFilter[] = [];
   @Output() applied = new EventEmitter<AuditFilters>();
   @Output() savedChosen = new EventEmitter<SavedAuditFilter>();
 
   readonly icons = { Calendar, Search };
   readonly severities: AuditSeverity[] = ['Critical', 'High', 'Medium', 'Low'];
-  readonly outcomes: AuditOutcome[] = ['Success', 'Failed', 'Blocked'];
   draft: AuditFilters = emptyFilters();
   rangeError = '';
   ipError = '';

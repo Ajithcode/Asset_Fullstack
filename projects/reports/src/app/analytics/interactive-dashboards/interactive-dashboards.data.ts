@@ -1,16 +1,14 @@
 import { ChartSeries, ChartSlice, HBarRow } from '../shared/charts';
 import { MapPoint } from '../iot-utilization-analytics/iot-site-map/iot-site-map';
 
-// Dashboard definitions and widget data. Saved dashboards and widget figures come from the dashboard / analytics
-// APIs; until those exist there are no seed dashboards and every widget renders its empty state.
+// Dashboard definitions and widget data. Dashboards, metrics and widget figures come from /api/interactive-dashboards
+// (see DashboardStore, which maps the API shapes to these view models).
 
 export type WidgetType = 'kpi' | 'line' | 'bar' | 'donut' | 'table' | 'map' | 'heatmap';
 export type WidgetSpan = 3 | 4 | 5 | 6 | 7 | 8 | 12;
 
-export type MetricKey =
-  | 'total-assets' | 'active-work-orders' | 'pm-compliance' | 'inventory-value' | 'maintenance-cost' | 'health-score'
-  | 'connected-assets' | 'compliance-score' | 'health-trend' | 'work-order-trend' | 'maintenance-cost-by-category'
-  | 'asset-status' | 'work-orders-by-priority' | 'assets-attention' | 'asset-locations' | 'utilization-heatmap' | 'inventory-by-category';
+/** API metric key (GET /api/interactive-dashboards/options metrics), e.g. total_assets */
+export type MetricKey = string;
 
 export interface WidgetConfig {
   id: string;
@@ -18,6 +16,8 @@ export interface WidgetConfig {
   metric: MetricKey;
   title: string;
   span: WidgetSpan;
+  /** Grid rows (API position h); the default height of the widget type when not set */
+  h?: number;
 }
 
 export type Sharing = 'private' | 'people' | 'organization';
@@ -35,6 +35,12 @@ export interface Dashboard {
   favorite: boolean;
   updatedAt: string;
   widgets: WidgetConfig[];
+  /** Widget count from the list (widgets are only loaded for the open dashboard) */
+  widgetCount: number;
+  /** Owner: may share and delete */
+  canShare: boolean;
+  /** Default filters as saved (sent back unchanged when the whole dashboard is replaced) */
+  defaultFilters: Record<string, unknown> | null;
 }
 
 export interface DashFilters {
@@ -56,6 +62,8 @@ export interface WidgetTypeDef {
   type: WidgetType;
   label: string;
   span: WidgetSpan;
+  /** Grid rows (API position h); the default height of the widget type when not set */
+  h?: number;
 }
 
 export const WIDGET_TYPES: WidgetTypeDef[] = [
@@ -76,26 +84,8 @@ export const WIDGET_SIZES: { span: WidgetSpan; label: string }[] = [
   { span: 12, label: 'Full width' }
 ];
 
-/** Data sources a widget can show, and the widget types that suit each one. */
-export const METRICS: MetricDef[] = [
-  { key: 'total-assets', label: 'Total Assets', description: 'Assets in the register', types: ['kpi'] },
-  { key: 'active-work-orders', label: 'Active Work Orders', description: 'Open work orders right now', types: ['kpi'] },
-  { key: 'pm-compliance', label: 'PM Compliance', description: 'Preventive maintenance done on time', types: ['kpi', 'line'] },
-  { key: 'inventory-value', label: 'Inventory Value', description: 'Value of stock on hand', types: ['kpi'] },
-  { key: 'maintenance-cost', label: 'Maintenance Cost', description: 'Maintenance spend for the period', types: ['kpi', 'line', 'bar'] },
-  { key: 'health-score', label: 'Average Health Score', description: 'Average asset health (0–100)', types: ['kpi'] },
-  { key: 'connected-assets', label: 'Connected IoT Assets', description: 'Assets reporting telemetry', types: ['kpi'] },
-  { key: 'compliance-score', label: 'Compliance Score', description: 'Audit and certification compliance', types: ['kpi'] },
-  { key: 'health-trend', label: 'Asset Health Trend', description: 'Healthy / at risk / critical share by month', types: ['line', 'bar', 'table'] },
-  { key: 'work-order-trend', label: 'Work Orders Created vs Completed', description: 'Work order flow by month', types: ['line', 'bar', 'table'] },
-  { key: 'maintenance-cost-by-category', label: 'Maintenance Cost by Category', description: 'Spend split by asset category', types: ['bar', 'donut', 'table'] },
-  { key: 'asset-status', label: 'Asset Status Distribution', description: 'Active, under maintenance, retired, missing', types: ['donut', 'bar', 'table'] },
-  { key: 'work-orders-by-priority', label: 'Open Work Orders by Priority', description: 'Open work orders by priority', types: ['bar', 'donut', 'table'] },
-  { key: 'inventory-by-category', label: 'Inventory Value by Category', description: 'Stock value per asset category', types: ['bar', 'donut', 'table'] },
-  { key: 'assets-attention', label: 'Assets Requiring Attention', description: 'Lowest health scores and open issues', types: ['table'] },
-  { key: 'asset-locations', label: 'Asset Locations', description: 'Assets per site by status', types: ['map', 'bar', 'table'] },
-  { key: 'utilization-heatmap', label: 'Utilization by Site and Month', description: 'Average utilization heatmap', types: ['heatmap', 'table'] }
-];
+/** Metrics a widget can show, with the widget types that suit each one: GET /api/interactive-dashboards/options (filled in place). */
+export const METRICS: MetricDef[] = [];
 
 export function metricDef(key: MetricKey): MetricDef | undefined {
   return METRICS.find((m) => m.key === key);
@@ -105,9 +95,6 @@ export function metricDef(key: MetricKey): MetricDef | undefined {
 
 /** Groups a dashboard can be shared with (populated from the API). */
 export const DASHBOARD_GROUPS: string[] = [];
-
-/** Dashboards available before the user creates any (populated from the API). */
-export const SEED_DASHBOARDS: Dashboard[] = [];
 
 // ===== Widget data =====
 
@@ -132,6 +119,8 @@ export interface AttentionAsset {
 
 export interface WidgetData {
   empty: boolean;
+  /** Why the widget is empty (API error); default text otherwise */
+  message?: string;
   kpi?: KpiData;
   labels?: string[];
   series?: ChartSeries[];
@@ -147,11 +136,6 @@ export interface WidgetData {
   points?: MapPoint[];
   legend?: { label: string; color: string; count: number }[];
   heat?: { rows: string[]; cols: string[]; values: number[][] };
-}
-
-/** Builds what a widget shows for its data source, widget type and the page filters. No data source yet: always empty. */
-export function buildWidgetData(_config: WidgetConfig, _f: DashFilters): WidgetData {
-  return { empty: true };
 }
 
 /** Rows for a widget's CSV export. */

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of, switchMap } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
 import { apiError, getAllPages, savedRecord, tenantBody, tenantParams, trackingUrl } from '../shared/tracking-api';
+import { IoTDeviceRecord, iotDeviceRecord } from '../shared/iot-device';
 import { Conn, DevEvent, Device, Health, LinkedAsset, Power } from './device-data';
 
 /** One row of GET {assetApiUrl}api/asset-registrations (Asset service): what the asset picker needs. */
@@ -13,41 +14,8 @@ interface AssetListItemDto {
   assetTag: string | null;
 }
 
-/** A device as GET/POST/PUT /api/iot-devices returns it (addressed by deviceId). */
-export interface IoTDeviceDto {
-  id: string;
-  deviceId: string;
-  deviceName: string;
-  deviceType: string;
-  model: string;
-  serialNumber: string | null;
-  connectivity: string;
-  siteId: string | null;
-  siteName: string | null;
-  assetRegistrationId: string | null;
-  assetCode: string | null;
-  assetName: string | null;
-  gateway: string | null;
-  powerSource: string;
-  batteryLevel: number | null;
-  lastSeenAt: string | null;
-  health: string | null;
-  firmwareVersion: string | null;
-  pendingFirmwareVersion: string | null;
-  firmwareUpdateScheduledAt: string | null;
-  createdBy: string | null;
-  createdAt: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  clientId: string | null;
-  tenantId: string | null;
-  /** List rows only (GET /api/iot-devices): connection state, battery % and signal as the API reports them. */
-  status?: string | null;
-  batteryPercent?: number | null;
-  lowBattery?: boolean | null;
-  signalDbm?: number | null;
-  modelDisplayName?: string | null;
-}
+/** A device as GET/POST/PUT /api/iot-devices returns it, flattened (list rows and the nested details alike). */
+export type IoTDeviceDto = IoTDeviceRecord;
 
 /** Body of POST /api/iot-devices and PUT /api/iot-devices/{deviceId}. */
 export interface IoTDeviceRequest {
@@ -161,11 +129,6 @@ export function deviceFromDto(dto: IoTDeviceDto): Device {
   };
 }
 
-/** Fields of a list row the full record should keep (drops undefined so they do not overwrite it). */
-function stripUndefined(o: IoTDeviceDto | undefined): Partial<IoTDeviceDto> {
-  return Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => v !== undefined)) as Partial<IoTDeviceDto>;
-}
-
 /** IoT Device Management → /api/iot-devices (Tracking service). */
 @Injectable({ providedIn: 'root' })
 export class IoTDeviceApiService {
@@ -179,18 +142,23 @@ export class IoTDeviceApiService {
 
   /** GET /api/iot-devices: every page (a plain array is still accepted). */
   getAll(): Observable<Device[]> {
-    return getAllPages<IoTDeviceDto>(this.http, this.url).pipe(
-      map((rows) => rows.map(deviceFromDto)),
+    return getAllPages<unknown>(this.http, this.url).pipe(
+      map((rows) => rows.map((r) => deviceFromDto(iotDeviceRecord(r)))),
       catchError((e) => apiError(e, 'Could not load devices.')),
     );
   }
 
   /** GET /api/iot-devices/{deviceId} */
   get(deviceId: string): Observable<Device> {
-    return this.http.get<IoTDeviceDto>(`${this.url}/${encodeURIComponent(deviceId)}`, { params: tenantParams() }).pipe(
+    return this.getRecord(deviceId).pipe(
       map(deviceFromDto),
       catchError((e) => apiError(e, `Could not load ${deviceId}.`)),
     );
+  }
+
+  /** GET /api/iot-devices/{deviceId}: the nested details response, flattened. */
+  getRecord(deviceId: string): Observable<IoTDeviceDto> {
+    return this.http.get<unknown>(`${this.url}/${encodeURIComponent(deviceId)}`, { params: tenantParams() }).pipe(map(iotDeviceRecord));
   }
 
   /** GET /api/iot-devices/device-types */
@@ -259,18 +227,20 @@ export class IoTDeviceApiService {
    * plain text or empty: when it is not a device, reload it by id, or keep the page's copy if that fails too.
    */
   private saved(body: string, d: Device): Observable<Device> {
-    const dto = savedRecord<IoTDeviceDto>(body, 'deviceId');
-    if (dto) return of(deviceFromDto(dto));
+    // the reply is the nested details response ({ id, identity: { deviceId, … }, association, status })
+    const raw = savedRecord<{ id: string }>(body, 'id');
+    const dto = raw ? iotDeviceRecord(raw) : null;
+    if (dto?.deviceId) return of(deviceFromDto(dto));
     return this.get(d.id).pipe(catchError(() => of(d)));
   }
 
   /** PUT /api/iot-devices/{deviceId}: full replace; fields the page does not edit are sent back as loaded. */
   update(d: Device, siteId?: string | null): Observable<Device> {
     const one = `${this.url}/${encodeURIComponent(d.id)}`;
-    // list rows leave out serial, firmware, etc.: read the full record first so the PUT does not blank them
-    return this.http.get<IoTDeviceDto>(one, { params: tenantParams() }).pipe(
+    // list rows may leave out serial, firmware, etc.: read the full record first so the PUT sends every required field
+    return this.getRecord(d.id).pipe(
       catchError(() => of(d.api ?? null)),
-      map((full) => (full ? { ...d, serial: d.serial || full.serialNumber || '', api: { ...full, ...stripUndefined(d.api) } as IoTDeviceDto } : d)),
+      map((full) => (full ? { ...d, serial: d.serial || full.serialNumber || '', api: full } : d)),
       switchMap((dev) =>
         this.http.put(one, this.request(dev, siteId === undefined ? dev.api?.siteId ?? null : siteId), { params: tenantParams(), responseType: 'text' }).pipe(
           switchMap((body) => this.saved(body, dev)),

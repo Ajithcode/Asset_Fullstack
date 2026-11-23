@@ -77,6 +77,8 @@
                         <div class="donut-chart-container">
                             <svg viewBox="0 0 140 140" class="donut-svg">
                                 <circle cx="70" cy="70" r="55" fill="none" stroke="#f1f5f9" stroke-width="20" />
+                                <circle *ngFor="let seg of assetStatusDonut.segments" cx="70" cy="70" r="55" fill="none" [attr.stroke]="seg.color" stroke-width="20"
+                                    [attr.stroke-dasharray]="seg.dash" [attr.stroke-dashoffset]="seg.offset" transform="rotate(-90 70 70)" />
                                 <text x="70" y="65" text-anchor="middle" font-size="20" font-weight="800"
                                     fill="#0f172a">{{ assetStatusDonut.total }}</text>
                                 <text x="70" y="80" text-anchor="middle" font-size="10" fill="#64748b">{{ assetStatusDonut.totalLabel }}</text>
@@ -104,6 +106,8 @@
                         <div class="donut-chart-container">
                             <svg viewBox="0 0 140 140" class="donut-svg">
                                 <circle cx="70" cy="70" r="55" fill="none" stroke="#f1f5f9" stroke-width="20" />
+                                <circle *ngFor="let seg of assetsByTypeDonut.segments" cx="70" cy="70" r="55" fill="none" [attr.stroke]="seg.color" stroke-width="20"
+                                    [attr.stroke-dasharray]="seg.dash" [attr.stroke-dashoffset]="seg.offset" transform="rotate(-90 70 70)" />
                                 <text x="70" y="65" text-anchor="middle" font-size="20" font-weight="800"
                                     fill="#0f172a">{{ assetsByTypeDonut.total }}</text>
                                 <text x="70" y="80" text-anchor="middle" font-size="10" fill="#64748b">{{ assetsByTypeDonut.totalLabel }}</text>

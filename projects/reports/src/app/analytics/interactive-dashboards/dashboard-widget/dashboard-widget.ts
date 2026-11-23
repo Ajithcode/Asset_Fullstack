@@ -1,21 +1,19 @@
-import { Component, EventEmitter, HostListener, Input, OnChanges, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import {
-  ArrowDown, ArrowUp, Box, Coins, Database, Ellipsis, GripVertical, HeartPulse, LucideAngularModule, ShieldCheck, Wifi, Wrench, X
+  ArrowDown, ArrowUp, Box, Coins, Database, Ellipsis, GripVertical, LucideAngularModule, ShieldCheck, Wrench, X
 } from 'lucide-angular';
 import { CartesianChart, DonutChart, HBarChart, compactNumber } from '../../shared/charts';
 import { IotSiteMap } from '../../iot-utilization-analytics/iot-site-map/iot-site-map';
-import { AttentionAsset, DashFilters, MetricKey, WidgetConfig, WidgetData, buildWidgetData } from '../interactive-dashboards.data';
+import { AttentionAsset, DashFilters, MetricKey, WidgetConfig, WidgetData } from '../interactive-dashboards.data';
 
 const KPI_ICONS: Partial<Record<MetricKey, typeof Box>> = {
-  'total-assets': Box,
-  'active-work-orders': Wrench,
-  'pm-compliance': ShieldCheck,
-  'inventory-value': Database,
-  'maintenance-cost': Coins,
-  'health-score': HeartPulse,
-  'connected-assets': Wifi,
-  'compliance-score': ShieldCheck
+  total_assets: Box,
+  active_work_orders: Wrench,
+  preventive_compliance: ShieldCheck,
+  inventory_value: Database,
+  maintenance_cost: Coins
 };
 
 /** One dashboard widget: renders its data source as a KPI card, chart, table, map or heatmap. */
@@ -26,9 +24,12 @@ const KPI_ICONS: Partial<Record<MetricKey, typeof Box>> = {
   templateUrl: './dashboard-widget.html',
   styleUrls: ['../../shared/analytics-page.css', './dashboard-widget.css']
 })
-export class DashboardWidget implements OnChanges {
+export class DashboardWidget {
+  private readonly router = inject(Router);
   @Input({ required: true }) config!: WidgetConfig;
   @Input({ required: true }) filters!: DashFilters;
+  /** Figures from GET /api/interactive-dashboards/{id}/data (empty while loading) */
+  @Input() data: WidgetData = { empty: true };
   @Input() editMode = false;
   /** Chart height; the Expand dialog renders the same widget larger */
   @Input() height = 220;
@@ -43,13 +44,8 @@ export class DashboardWidget implements OnChanges {
   @Output() notice = new EventEmitter<string>();
 
   readonly icons = { ArrowDown, ArrowUp, Ellipsis, GripVertical, X };
-  data: WidgetData = { empty: true };
   menuOpen = false;
   rowMenu: string | null = null;
-
-  ngOnChanges(): void {
-    this.data = buildWidgetData(this.config, this.filters);
-  }
 
   get kpiIcon(): typeof Box {
     return KPI_ICONS[this.config.metric] ?? Box;
@@ -64,13 +60,15 @@ export class DashboardWidget implements OnChanges {
   }
 
   /** Purple scale: 50% → pale, 100% → full brand purple */
+  /** Purple scale relative to the largest cell (counts) */
   heatBackground(v: number): string {
-    const alpha = Math.max(0.08, Math.min(1, (v - 50) / 50));
+    const max = this.data.max || 1;
+    const alpha = Math.max(0.08, Math.min(1, v / max));
     return `rgba(91, 42, 168, ${alpha.toFixed(2)})`;
   }
 
   heatText(v: number): string {
-    return v >= 78 ? '#fff' : '#1e1b2e';
+    return v / (this.data.max || 1) >= 0.56 ? '#fff' : '#1e1b2e';
   }
 
   scoreTone(score: number): string {
@@ -103,8 +101,10 @@ export class DashboardWidget implements OnChanges {
     else this.resize.emit(kind === 'wider' ? 1 : -1);
   }
 
-  rowAction(a: AttentionAsset, action: string): void {
+  /** Row menu: opens the Maintenance work orders or a new inspection for the asset. */
+  rowAction(a: AttentionAsset, action: 'work-order' | 'inspection'): void {
     this.rowMenu = null;
-    this.notice.emit(`DEMO MODE: ${action} for ${a.name} (${a.id}).`);
+    const target = action === 'work-order' ? ['/maintenance/work-orders'] : ['/inspection/new'];
+    this.router.navigate(target, { queryParams: { assetId: a.id } }).catch(() => this.notice.emit('That page is not available.'));
   }
 }

@@ -1,12 +1,17 @@
-import { Directive, TemplateRef } from '@angular/core';
+import { Directive, TemplateRef, inject } from '@angular/core';
 import { AnalyticsPage, downloadCsv } from '../../shared/analytics-common';
-import { CATEGORY_OPTIONS, RaScope, TYPE_OPTIONS } from './asset-universe';
+import {
+  AnalyticsApiService, AnalyticsGroup, FilterOptionDto, apiMessage, filterValue, optionLabels, viewDates, viewFilters
+} from '../../shared/analytics-api.service';
+import { ALL_CATEGORIES, ALL_TYPES, CATEGORY_OPTIONS, RaScope, TYPE_OPTIONS } from './asset-universe';
 import { RaKpi } from './ra-cards';
 import { RaActionForm, RaActionKind, RaActionRequest, RaDetail, RaRecords } from './ra-dialogs';
 
 export type SortDir = 1 | -1;
 
 export interface SavedView {
+  /** Report Analytics view id (saved views only) */
+  id?: string;
   name: string;
   filters: Record<string, string>;
 }
@@ -26,8 +31,8 @@ export function sortRows<T>(rows: T[], key: keyof T, dir: SortDir): T[] {
  */
 @Directive()
 export abstract class ScopedAnalyticsPage extends AnalyticsPage {
-  readonly categories = CATEGORY_OPTIONS;
-  readonly assetTypes = TYPE_OPTIONS;
+  categories: string[] = CATEGORY_OPTIONS;
+  assetTypes: string[] = TYPE_OPTIONS;
   category = '';
   assetType = '';
   compare = false;
@@ -88,8 +93,54 @@ export abstract class ScopedAnalyticsPage extends AnalyticsPage {
 
   confirmSaveView(name: string): void {
     this.savingView = false;
-    this.views = [...this.views, { name, filters: this.snapshot() }];
-    this.saveView(name);
+    const view: SavedView = { name, filters: this.snapshot() };
+    this.views = [...this.views, view];
+    this.persistView(view);
+  }
+
+  /** Report Analytics endpoint group whose views CRUD stores this page's saved views (null: not stored). */
+  protected readonly viewGroup: AnalyticsGroup | null = null;
+  protected readonly analyticsApi = inject(AnalyticsApiService);
+
+  /** Loads the built-in view and the user's saved views (GET api/{group}/views). */
+  protected loadViews(): void {
+    if (!this.viewGroup) return;
+    this.analyticsApi.views(this.viewGroup).subscribe({
+      next: (list) => (this.views = list.map((v) => ({ id: v.isBuiltIn ? undefined : v.viewId, name: v.viewName, filters: viewFilters(v) }))),
+      error: (err) => console.warn('[analytics] views failed', err)
+    });
+  }
+
+  /** Stores a new saved view (POST api/{group}/views). */
+  protected persistView(view: SavedView): void {
+    if (!this.viewGroup) {
+      this.saveView(view.name);
+      return;
+    }
+    const filters: Record<string, string | null> = {};
+    for (const [k, v] of Object.entries(view.filters)) if (k !== 'period') filters[k] = filterValue(v) ?? null;
+    this.analyticsApi.createView(this.viewGroup, view.name, { ...filters, ...viewDates(view.filters['period'] ?? '') }).subscribe({
+      next: (saved) => {
+        view.id = saved.viewId;
+        this.saveView(view.name);
+      },
+      error: (err) => {
+        this.views = this.views.filter((v) => v !== view);
+        this.viewSaveFailed(view);
+        this.notify(apiMessage(err, 'Could not save the view.'));
+      }
+    });
+  }
+
+  /** Called when saving a view fails, after it is taken off the list. */
+  protected viewSaveFailed(_view: SavedView): void {}
+
+  /** Fills the filter dropdowns from GET api/{group}/filters. */
+  protected applyFilterOptions(f: { organizations?: FilterOptionDto[]; locations?: FilterOptionDto[]; assetCategories?: FilterOptionDto[]; assetTypes?: FilterOptionDto[] }): void {
+    this.organizations = optionLabels('All organizations', f.organizations);
+    this.locations = optionLabels('All locations', f.locations);
+    this.categories = optionLabels(ALL_CATEGORIES, f.assetCategories);
+    this.assetTypes = optionLabels(ALL_TYPES, f.assetTypes);
   }
 
   applyView(name: string): void {

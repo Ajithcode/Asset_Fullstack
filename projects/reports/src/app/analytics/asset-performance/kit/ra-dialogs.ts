@@ -40,6 +40,14 @@ export interface RaActionRequest {
   title: string;
   context: string;
   priority?: string;
+  /** Assets the work order is raised for (one work order per asset) */
+  assets?: RaActionAsset[];
+}
+
+export interface RaActionAsset {
+  assetId: string;
+  assetName: string;
+  location?: string;
 }
 
 export interface RaActionForm {
@@ -181,7 +189,7 @@ export class RaDetailDialog {
   }
 }
 
-/** "Create work order" / "Create action plan" form (not saved until the Maintenance API is connected). */
+/** "Create work order" / "Create action plan" form; the page saves it. */
 @Component({
   selector: 'ra-action-dialog',
   standalone: true,
@@ -234,7 +242,8 @@ export class RaDetailDialog {
   styles: ['.ra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 12px; }']
 })
 export class RaActionDialog implements OnChanges {
-  readonly people = RA_PEOPLE;
+  /** Who the action can be assigned to */
+  @Input() people: string[] = RA_PEOPLE;
   readonly priorities = PRIORITIES;
   readonly today = new Date().toISOString().slice(0, 10);
   @Input({ required: true }) request!: RaActionRequest;

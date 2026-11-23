@@ -301,7 +301,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   loadSites(): void {
     this.sitesLoading = true;
     this.dashboardApi
-      .getLocations()
+      .getLocations(0)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {

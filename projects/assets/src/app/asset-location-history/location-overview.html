@@ -141,7 +141,7 @@
                 </span>
               </td>
             </tr>
-            <tr *ngIf="!pageSummary.length"><td colspan="11" class="empty">No assets with location history match the filters.</td></tr>
+            <tr *ngIf="!pageSummary.length"><td colspan="11" class="empty">{{ loading ? 'Loading location history…' : 'No assets with location history match the filters.' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -165,7 +165,7 @@
               <td class="details">{{ e.details || '—' }}</td>
               <td>{{ e.by }}</td>
             </tr>
-            <tr *ngIf="!pageEvents.length"><td colspan="9" class="empty">No location changes match the filters.</td></tr>
+            <tr *ngIf="!pageEvents.length"><td colspan="9" class="empty">{{ loading ? 'Loading location history…' : 'No location changes match the filters.' }}</td></tr>
           </tbody>
         </table>
       </div>

@@ -54,7 +54,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import { DEFAULT_TYPE, LinkedAsset, lastActivity, PREFIX, SITES, STATUSES, TAGS, TECHS, TYPES, TagEvent, TagId, TagRead, TagStatus, TagType, Tech, Validation, ensureSite, formatError, knownAssets, locationsForSite, UNSCOPED_LOCATIONS, tagIdFromNumber } from './tag-data';
-import { TagAuditEventDto, TagIdApiService, TagSummary, apiType, pageType } from './tag-id-api.service';
+import { TagAuditOptionsDto, TagEventDto, TagIdApiService, TagSummary, apiType, pageType } from './tag-id-api.service';
 
 /** Tag IDs = the identifier registry; Assignments = lifecycle of each tag on assets; Audit = every change. */
 type View = 'ids' | 'assignments' | 'audit';
@@ -93,6 +93,12 @@ const TECH_LONG: Record<Tech, string> = {
   Barcode: 'Barcode (1D)', 'QR Code': 'QR Code (2D)', 'Passive RFID': 'Passive RFID (UHF)', 'Active RFID': 'Active RFID', BLE: 'BLE (Bluetooth Low Energy)', NFC: 'NFC (Near Field Communication)',
 };
 const EVENT_KINDS: EventKind[] = ['Registered', 'Assigned', 'Reassigned', 'Replaced', 'Unassigned', 'Deactivated', 'Reactivated', 'Validated', 'Edited', 'Read', 'Deleted'];
+
+/** The page's event kind for an API event type (the API's Updated is shown as Edited). */
+function apiEventKind(event: string): EventKind {
+  if (event === 'Updated') return 'Edited';
+  return EVENT_KINDS.find((k) => k === event) ?? 'Edited';
+}
 const DAY = 86_400_000;
 
 function eventKind(text: string): EventKind {
@@ -128,7 +134,11 @@ export class TagManagement implements OnInit, OnDestroy {
   private techOptions = new Map<Tech, { types: TagType[]; apiTypes: string[]; valueLabel: string }>();
   readonly statuses = STATUSES;
   readonly sites = SITES;
-  readonly eventKinds = EVENT_KINDS;
+  /** Event filter: the API's event types (GET /api/tag-ids/audit-trail/options), else the page's list. */
+  get eventKinds(): EventKind[] {
+    const types = this.auditOptions?.eventTypes;
+    return types?.length ? [...new Set(types.map(apiEventKind))] : EVENT_KINDS;
+  }
   readonly pageSizes = [5, 10, 25, 50];
   readonly views: { key: View; label: string; hint: string }[] = [
     { key: 'ids', label: 'Tag IDs', hint: 'Store and manage individual identifiers: barcode numbers, QR values, RFID EPCs and BLE tag IDs. Create, import, validate and deactivate them here.' },
@@ -192,11 +202,17 @@ export class TagManagement implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.load();
-    this.loadAudit();
-    // Create / update / delete change the counts (and add audit events): ask the server again
+    // Create / update / delete change the counts: ask the server again
     this.changedSub = this.api.changed$.subscribe(() => {
       this.loadSummary();
-      this.queueAuditReload();
+      // the server records every change: reload the audit trail and the open tag's history
+      this.loadAudit();
+      if (this.selectedId) this.loadHistory(this.selectedId);
+    });
+    this.loadAudit();
+    this.api.auditOptions().subscribe((o) => {
+      this.auditOptions = o;
+      this.version++;
     });
     this.api.technologies().subscribe({
       next: (opts) => {
@@ -242,6 +258,34 @@ export class TagManagement implements OnInit, OnDestroy {
     });
   }
 
+  /** GET /api/tag-ids/audit-trail (all pages); null until it answers, then the Audit Trail tab lists it. */
+  private apiAudit: TagEventDto[] | null = null;
+  private auditOptions: TagAuditOptionsDto | null = null;
+
+  loadAudit(): void {
+    this.api.auditTrail().subscribe({
+      next: (rows) => {
+        this.apiAudit = rows;
+        this.version++;
+      },
+      // the tab then lists what the loaded tags record
+      error: () => undefined,
+    });
+  }
+
+  /** GET /api/tag-ids/{tagId}/history → the tag's History tab. */
+  private loadHistory(tagId: string): void {
+    this.api.history(tagId).subscribe({
+      next: (events) => {
+        const t = TAGS.find((x) => x.id === tagId);
+        if (!t || !events.length) return;
+        t.history = events;
+        this.version++;
+      },
+      error: () => undefined,
+    });
+  }
+
   /** GET /api/tag-ids → the tag list. */
   load(): void {
     this.loadSummary();
@@ -265,7 +309,6 @@ export class TagManagement implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.changedSub?.unsubscribe();
     clearTimeout(this.toastTimer);
-    clearTimeout(this.auditReload);
   }
 
   // ===== Views =====
@@ -410,47 +453,32 @@ export class TagManagement implements OnInit, OnDestroy {
 
   /** People who appear in the audit trail, for the "Performed By" filter. */
   get users(): string[] {
-    return [...new Set(this.audit.map((r) => r.by))].sort((a, b) => a.localeCompare(b));
+    return [...new Set([...(this.auditOptions?.performedBy ?? []), ...this.audit.map((r) => r.by)])].sort((a, b) => a.localeCompare(b));
   }
 
   private auditCache: { version: number; list: AuditRow[] } = { version: -1, list: [] };
-  /** The server's audit trail (who did what, by username); null until loaded or when it can't be read. */
-  private serverAudit: TagAuditEventDto[] | null = null;
-  private auditReload?: ReturnType<typeof setTimeout>;
 
-  /** Loads the recorded tag events (GET /api/tag-ids/audit-trail). */
-  loadAudit(): void {
-    this.api.auditTrail().subscribe({
-      next: (events) => {
-        this.serverAudit = events;
-        this.version++;
-      },
-      error: () => {},
-    });
-  }
-
-  /** Reloads the audit trail once after a burst of changes. */
-  private queueAuditReload(): void {
-    clearTimeout(this.auditReload);
-    this.auditReload = setTimeout(() => this.loadAudit(), 300);
-  }
-
-  private auditRow(e: TagAuditEventDto): AuditRow {
-    const known = TAGS.find((t) => t.id === e.tagId);
-    const tag = known ?? ({ id: e.tagId, tech: e.technology as Tech, history: [] } as unknown as TagId);
-    const kind: EventKind = e.event === 'Updated' ? 'Edited' : eventKind(e.event);
-    return { at: Date.parse(e.when), tag, text: e.details || e.event, by: e.performedBy || '—', kind, known: !!known };
-  }
-
-  /** Every recorded event, newest first: the server's audit trail, else every history entry of every tag. */
+  /** Every recorded tag event (GET /api/tag-ids/audit-trail), newest first; until it answers, the loaded tags' history. */
   get audit(): AuditRow[] {
-    if (this.auditCache.version !== this.version && this.serverAudit) {
-      const list = this.serverAudit.map((e) => this.auditRow(e)).sort((a, b) => b.at - a.at);
-      this.auditCache = { version: this.version, list };
-    }
     if (this.auditCache.version !== this.version) {
       const list: AuditRow[] = [];
-      for (const t of TAGS) for (const e of t.history) list.push({ at: e.at, tag: t, text: e.text, by: e.by, kind: eventKind(e.text) });
+      if (this.apiAudit) {
+        const byId = new Map(TAGS.map((t) => [t.id.toLowerCase(), t]));
+        for (const e of this.apiAudit) {
+          const at = Date.parse(e.when) || 0;
+          // a deleted tag is no longer in the list: show the event against a stand-in with what the event records
+          let tag = byId.get(e.tagId.toLowerCase());
+          const known = !!tag;
+          if (!tag) {
+            const tech = (e.technology in DEFAULT_TYPE ? e.technology : 'Barcode') as Tech;
+            tag = { id: e.tagId, tech, type: DEFAULT_TYPE[tech], code: '', asset: null, site: '', location: '', status: 'Inactive', assignedOn: null, lastSeen: null, reader: '', registeredOn: at, history: [] };
+            byId.set(e.tagId.toLowerCase(), tag);
+          }
+          list.push({ at, tag, text: e.details?.trim() || e.event, by: e.performedBy || '—', kind: apiEventKind(e.event), known });
+        }
+      } else {
+        for (const t of TAGS) for (const e of t.history) list.push({ at: e.at, tag: t, text: e.text, by: e.by, kind: eventKind(e.text) });
+      }
       list.sort((a, b) => b.at - a.at);
       this.auditCache = { version: this.version, list };
     }
@@ -633,6 +661,7 @@ export class TagManagement implements OnInit, OnDestroy {
     this.selectedId = t.id;
     this.panelTab = 'details';
     this.menuOpen = '';
+    if (TAGS.includes(t)) this.loadHistory(t.id);
   }
 
   isBle(t: TagId): boolean {
@@ -744,12 +773,11 @@ export class TagManagement implements OnInit, OnDestroy {
 
   // ===== Changes =====
 
-  /** Adds a page event to the tag's history (kept for this session; the API stores no change history). */
+  /** Adds the change to the tag's history at once; the server's record replaces it when the history reloads. */
   private log(t: TagId, text: string): void {
     t.history.unshift({ at: Date.now(), text, by: this.api.currentUser() });
     t.touched = Date.now();
     this.version++;
-    this.queueAuditReload();
   }
 
   /** A working copy of a tag to send to the API (the list keeps the original until the save succeeds). */
@@ -1207,11 +1235,37 @@ export class TagManagement implements OnInit, OnDestroy {
   toggleMenu(name: string, event: Event): void {
     event.stopPropagation();
     this.menuOpen = this.menuOpen === name ? '' : name;
+    this.rowMenuPos = this.menuOpen ? this.menuPosition(event.currentTarget as HTMLElement | null) : null;
+  }
+
+  /**
+   * Row action menus are fixed to the viewport (the table scrolls horizontally, which would clip them), right-aligned
+   * under the button, or above it when there isn't room below.
+   */
+  rowMenuPos: { top: number | null; bottom: number | null; right: number } | null = null;
+
+  private menuPosition(button: HTMLElement | null): { top: number | null; bottom: number | null; right: number } | null {
+    if (!button) return null;
+    const rect = button.getBoundingClientRect();
+    const right = Math.max(8, window.innerWidth - rect.right);
+    const menuHeight = 280;
+    return window.innerHeight - rect.bottom >= menuHeight || rect.top < menuHeight
+      ? { top: rect.bottom + 6, bottom: null, right }
+      : { top: null, bottom: window.innerHeight - rect.top + 6, right };
   }
 
   @HostListener('document:click')
   closeMenus(): void {
     this.menuOpen = '';
+    this.rowMenuPos = null;
+  }
+
+  /** A fixed menu would drift from its row while the page scrolls or resizes, so close it instead. */
+  @HostListener('window:scroll')
+  @HostListener('window:resize')
+  @HostListener('document:wheel')
+  closeRowMenu(): void {
+    if (this.rowMenuPos) this.closeMenus();
   }
 
   @HostListener('document:keydown.escape')

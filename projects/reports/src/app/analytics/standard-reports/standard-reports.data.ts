@@ -64,7 +64,7 @@ export interface ReportSchedule {
 
 /** What the report viewer plots: a measure broken down by category, site or month. */
 export interface ReportPreview {
-  dimension: 'category' | 'site' | 'month';
+  dimension: 'category' | 'site' | 'month' | 'date';
   measure: string;
   unit: 'money' | 'count' | 'percent' | 'hours';
   /** Total for count / money / hours, or the average for percent */
@@ -76,6 +76,8 @@ export interface StandardReport {
   name: string;
   module: ReportModule;
   description: string;
+  /** Backend report type ('Asset Movement' has rows behind it); '' when none */
+  reportType: string;
   owner: string;
   period: ReportPeriod;
   generatedOn: string;

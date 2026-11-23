@@ -11,7 +11,7 @@ import { NodeConfigPanel } from './node-config/node-config';
 import { WorkflowCanvas } from './workflow-canvas/workflow-canvas';
 import { blankConfig, defaultConfig, NODE_TYPES, WORKFLOW_CATEGORIES, WORKFLOW_TEMPLATES } from './workflow-builder.data';
 import { NODE_LABELS, NODE_SIZE, NodeType, WfGraph, WfNode, Workflow, WorkflowStatus } from './workflow-builder.model';
-import { WorkflowService } from './workflow-builder.service';
+import { WorkflowService, workflowApiError } from './workflow-builder.service';
 
 interface DetailsForm {
   id: string | null;
@@ -78,10 +78,34 @@ export class WorkflowBuilderPage extends AdminPage {
   templatesOpen = false;
   confirm: { kind: ConfirmKind; title: string; message: string; payload: string } | null = null;
 
+  /** True while a save / publish / delete is on its way to the Workflows service. */
+  busy = false;
+
   constructor() {
     super();
-    const first = this.service.all()[0];
-    if (first) this.load(first.id);
+    this.service.load().subscribe({
+      next: () => {
+        const first = this.service.all()[0];
+        if (first) this.load(first.id);
+      },
+      error: (err) => this.notify(workflowApiError(err), 'error')
+    });
+  }
+
+  /** Persists a workflow; on success the working copy takes the stored id (new workflows get one from the server). */
+  private persist(wf: Workflow, done: (saved: Workflow) => void): void {
+    if (this.busy) return;
+    this.busy = true;
+    this.service.save(wf).subscribe({
+      next: (saved) => {
+        this.busy = false;
+        done(saved);
+      },
+      error: (err) => {
+        this.busy = false;
+        this.notify(workflowApiError(err), 'error');
+      }
+    });
   }
 
   // ===== Stats =====
@@ -329,9 +353,12 @@ export class WorkflowBuilderPage extends AdminPage {
       return;
     }
     this.wf.updated = todayIso();
-    this.service.save(this.wf);
-    this.dirty = false;
-    this.notify(`${this.wf.name} saved (${this.wf.status}, ${this.wf.version}).`);
+    const wf = this.wf;
+    this.persist(wf, (saved) => {
+      wf.id = saved.id;
+      this.dirty = false;
+      this.notify(`${saved.name} saved (${saved.status}, ${saved.version}).`, 'success');
+    });
   }
 
   /** DEMO MODE: walks the graph from the trigger taking the "Yes" / approved path. */
@@ -365,14 +392,17 @@ export class WorkflowBuilderPage extends AdminPage {
       return;
     }
     const version = this.nextVersion(this.wf.version);
-    this.wf.version = version;
-    this.wf.status = 'Active';
-    this.wf.updated = todayIso();
-    this.wf.versions = [{ version, publishedOn: todayIso(), graph: structuredClone(this.wf.graph) }, ...this.wf.versions].slice(0, 6);
-    this.service.save(this.wf);
-    this.viewVersion = version;
-    this.dirty = false;
-    this.notify(`${this.wf.name} published as ${version} and is now Active.`);
+    const next: Workflow = structuredClone(this.wf);
+    next.version = version;
+    next.status = 'Active';
+    next.updated = todayIso();
+    next.versions = [{ version, publishedOn: todayIso(), graph: structuredClone(next.graph) }, ...next.versions].slice(0, 6);
+    this.persist(next, (saved) => {
+      this.wf = structuredClone(saved);
+      this.viewVersion = version;
+      this.dirty = false;
+      this.notify(`${saved.name} published as ${version} and is now Active.`, 'success');
+    });
   }
 
   // ===== Header menu =====
@@ -387,11 +417,13 @@ export class WorkflowBuilderPage extends AdminPage {
       return;
     }
     const status: WorkflowStatus = this.wf.status === 'Active' ? 'Inactive' : 'Active';
-    saved.status = status;
-    saved.updated = todayIso();
-    this.wf.status = status;
-    this.wf.updated = saved.updated;
-    this.notify(`${this.wf.name} is now ${status}.`);
+    // Only the stored record's status changes; unsaved canvas edits stay in the working copy
+    this.persist({ ...structuredClone(saved), status, updated: todayIso() }, (stored) => {
+      if (!this.wf) return;
+      this.wf.status = stored.status;
+      this.wf.updated = stored.updated;
+      this.notify(`${stored.name} is now ${stored.status}.`, 'success');
+    });
   }
 
   duplicate(): void {
@@ -408,9 +440,10 @@ export class WorkflowBuilderPage extends AdminPage {
     copy.updated = todayIso();
     copy.runningInstances = 0;
     copy.pendingApprovals = 0;
-    this.service.save(copy);
-    this.load(copy.id);
-    this.notify(`Created ${copy.name} as a draft.`);
+    this.persist(copy, (saved) => {
+      this.load(saved.id);
+      this.notify(`Created ${saved.name} as a draft.`, 'success');
+    });
   }
 
   askDeleteWorkflow(): void {
@@ -437,11 +470,15 @@ export class WorkflowBuilderPage extends AdminPage {
       this.load(c.payload);
     } else {
       const name = this.wf?.name ?? 'Workflow';
-      this.service.remove(c.payload);
-      const first = this.visible()[0] ?? this.service.all()[0];
-      if (first) this.load(first.id);
-      else this.wf = null;
-      this.notify(`${name} deleted.`);
+      this.service.remove(c.payload).subscribe({
+        next: () => {
+          const first = this.visible()[0] ?? this.service.all()[0];
+          if (first) this.load(first.id);
+          else this.wf = null;
+          this.notify(`${name} deleted.`, 'success');
+        },
+        error: (err) => this.notify(workflowApiError(err), 'error')
+      });
     }
   }
 
@@ -506,12 +543,14 @@ export class WorkflowBuilderPage extends AdminPage {
     if (Object.keys(this.detailErrors()).length) return;
 
     if (d.id && this.wf && this.wf.id === d.id) {
-      // Edit: update the working copy and the stored record's details
-      Object.assign(this.wf, { name: d.name.trim(), code: d.code.trim(), category: d.category, owner: d.owner, description: d.description.trim(), updated: todayIso() });
-      const saved = this.service.get(d.id);
-      if (saved) Object.assign(saved, { name: this.wf.name, code: this.wf.code, category: d.category, owner: d.owner, description: this.wf.description, updated: this.wf.updated });
-      this.details = null;
-      this.notify('Workflow details updated.');
+      // Edit: save the stored record's details, then copy them onto the working copy (canvas edits stay unsaved)
+      const fields = { name: d.name.trim(), code: d.code.trim(), category: d.category, owner: d.owner, description: d.description.trim(), updated: todayIso() };
+      const stored = this.service.get(d.id) ?? this.wf;
+      this.persist({ ...structuredClone(stored), ...fields }, () => {
+        if (this.wf?.id === d.id) Object.assign(this.wf, fields);
+        this.details = null;
+        this.notify('Workflow details updated.', 'success');
+      });
       return;
     }
 
@@ -536,12 +575,13 @@ export class WorkflowBuilderPage extends AdminPage {
       icon: 'zap',
       tone: 'purple'
     };
-    this.service.save(wf);
-    this.details = null;
-    this.clearFilters();
-    this.search = '';
-    this.load(wf.id);
-    this.notify(`${wf.name} created as a draft.`);
+    this.persist(wf, (saved) => {
+      this.details = null;
+      this.clearFilters();
+      this.search = '';
+      this.load(saved.id);
+      this.notify(`${saved.name} created as a draft.`, 'success');
+    });
   }
 
   // ===== Import / export =====
@@ -584,8 +624,7 @@ export class WorkflowBuilderPage extends AdminPage {
         return;
       }
       const items = (Array.isArray(parsed) ? parsed : [parsed]) as Partial<Workflow>[];
-      let added = 0;
-      let lastId = '';
+      const drafts: Workflow[] = [];
       for (const item of items) {
         if (!item || typeof item.name !== 'string' || !item.graph || !Array.isArray(item.graph.nodes) || !Array.isArray(item.graph.edges)) continue;
         const wf: Workflow = {
@@ -605,16 +644,20 @@ export class WorkflowBuilderPage extends AdminPage {
           icon: 'file',
           tone: 'blue'
         };
-        this.service.save(wf);
-        lastId = wf.id;
-        added++;
+        drafts.push(wf);
       }
-      if (!added) {
+      if (!drafts.length) {
         this.notify('Import failed: no workflows with a name and graph were found.');
         return;
       }
-      this.load(lastId);
-      this.notify(`Imported ${added} workflow${added === 1 ? '' : 's'} as draft.`);
+      this.service.saveMany(drafts).subscribe({
+        next: (stored) => {
+          const added = stored.length;
+          this.load(stored[added - 1].id);
+          this.notify(`Imported ${added} workflow${added === 1 ? '' : 's'} as draft.`, 'success');
+        },
+        error: (err) => this.notify(`Import stopped: ${workflowApiError(err)}`, 'error')
+      });
     });
   }
 }
