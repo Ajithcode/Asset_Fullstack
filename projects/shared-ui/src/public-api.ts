@@ -23,3 +23,4 @@ export * from './lib/auth/access.service';
 export * from './lib/desktop-alerts/desktop-alerts.service';
 export * from './lib/reports-analytics/reports-analytics-menu';
 export * from './lib/success-dialog/success-dialog';
+export * from './lib/menu-viewport/menu-viewport';
