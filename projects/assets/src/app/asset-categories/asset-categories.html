@@ -138,19 +138,10 @@
 
         <!-- ===== Subcategories ===== -->
         <ng-container *ngIf="activeTab === 'subcategories'">
-          <div class="table-tools">
-            <div *ngIf="selectedRows.size" class="bulk">
-              <span><strong>{{ selectedRows.size }}</strong> selected</span>
-            </div>
-          </div>
-
           <div class="table-wrap">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th class="col-check">
-                    <input type="checkbox" [checked]="allOnPageSelected" [indeterminate]="someOnPageSelected" (change)="toggleAllOnPage()" aria-label="Select all" />
-                  </th>
                   <th class="col-num">#</th>
                   <th>
                     <button type="button" class="sort-btn" (click)="toggleSubSort()">
@@ -163,10 +154,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let c of pageSubs; let i = index; trackBy: trackById" [class.is-selected]="selectedRows.has(c.id)">
-                  <td class="col-check">
-                    <input type="checkbox" [checked]="selectedRows.has(c.id)" (change)="toggleRow(c.id)" [attr.aria-label]="'Select ' + c.name" />
-                  </td>
+                <tr *ngFor="let c of pageSubs; let i = index; trackBy: trackById">
                   <td class="col-num">{{ rangeStart + i }}</td>
                   <td>
                     <button type="button" class="sub-name" (click)="selectCategory(c)">
