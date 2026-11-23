@@ -144,6 +144,7 @@ public static class AssetTypeEndpoints
         IMongoDatabase database,
         IAssetModelRepository assetModels,
         IAmcVendorRepository amcVendors,
+        IAssetSubTypeRepository subTypes,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -209,6 +210,11 @@ public static class AssetTypeEndpoints
                 cancellationToken);
 
             await amcVendors.UpdateAssetTypeNameAsync(
+                id,
+                assetType.AssetTypeName,
+                cancellationToken);
+
+            await subTypes.UpdateAssetTypeNameAsync(
                 id,
                 assetType.AssetTypeName,
                 cancellationToken);
@@ -282,6 +288,7 @@ public static class AssetTypeEndpoints
         IAssetTypeRepository repository,
         IAssetModelRepository assetModels,
         IAmcVendorRepository amcVendors,
+        IAssetSubTypeRepository subTypes,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -298,6 +305,12 @@ public static class AssetTypeEndpoints
         if (assetType is null)
         {
             return Results.NotFound();
+        }
+
+        if (await subTypes.AnyWithAssetTypeAsync(id, cancellationToken))
+        {
+            return Results.Conflict(
+                new { message = "Asset sub types still use this asset type. Delete or move them first." });
         }
 
         if (await assetModels.AnyWithAssetTypeAsync(id, cancellationToken))
