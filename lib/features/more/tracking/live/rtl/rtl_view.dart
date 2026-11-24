@@ -22,9 +22,9 @@ import 'package:asset360_mobile/features/more/tracking/tracking_widgets.dart' sh
 /// Counter filters of the assets list (In view clears them).
 enum RtlCounter { inView, moving, stationary, alerts }
 
-/// REAL-TIME LOCATION (Tracking & IoT → Live Map and Geofencing tabs, API mode): header (LIVE /
-/// Paused, site, Updated N s ago, Locate Asset, refresh), 4 counters, the facility map of one
-/// floor, the assets list and recent location events. The overview polls every 10 s while visible
+/// REAL-TIME LOCATION (Tracking & IoT → Live Map and Geofencing tabs, API mode): header (Live /
+/// Polling / Paused, site, Updated N s ago, Locate Asset, refresh), 4 counters, the facility map of one
+/// floor, the assets list and recent location events. The tags/live socket + overview (30 s) run while visible
 /// ([rtlProvider] through [LivePollingScope]). Contract: docs/api/MOBILE-API-HANDOFF.md section 1.
 class RealTimeLocationView extends ConsumerStatefulWidget {
   const RealTimeLocationView({super.key, this.focusAsset});
@@ -342,6 +342,9 @@ class _Header extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sites = ref.watch(mdSitesProvider).value ?? const <MdSite>[];
     final live = state.live;
+    // Live = socket connected; Polling = the /tags fallback; Paused = screen hidden.
+    final label = live ? 'Live' : (state.polling ? 'Polling' : 'Paused');
+    final tone = live ? AppColors.green : (state.polling ? AppColors.orange : AppColors.red);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -351,19 +354,19 @@ class _Header extends ConsumerWidget {
               key: const ValueKey('rtl-live'),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: (live ? AppColors.green : AppColors.red).withValues(alpha: .12),
+                color: tone.withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.circle, size: 9, color: live ? AppColors.green : AppColors.red),
+                  Icon(Icons.circle, size: 9, color: tone),
                   const SizedBox(width: 5),
                   Text(
-                    live ? 'LIVE' : 'Paused',
+                    label,
                     style: AppText.caption.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: live ? AppColors.green : AppColors.red,
+                      color: tone,
                     ),
                   ),
                 ],

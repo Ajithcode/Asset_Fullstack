@@ -177,6 +177,7 @@ class RtlAsset {
     this.gatewaysHearing = 0,
     this.signalMarginDb,
     this.rssi,
+    this.battery,
     this.activeLocationAlerts = 0,
     this.expected,
     this.comparisonStatus = 'Unknown',
@@ -208,12 +209,52 @@ class RtlAsset {
   final String confidenceBasis;
   final int gatewaysHearing;
   final double? signalMarginDb, rssi;
+
+  /// Tag battery, only from the live tags socket (the overview does not carry it).
+  final double? battery;
   final int activeLocationAlerts;
   final RtlExpected? expected;
 
   /// Match | Mismatch | Unknown | Not set.
   final String comparisonStatus;
   final String comparisonNote;
+
+  /// The same asset with the live fields replaced (the tags socket overlay).
+  RtlAsset copyWith({
+    RtlLocation? location,
+    String? freshness,
+    String? movement,
+    DateTime? lastZoneChangeAt,
+    DateTime? lastValidLocationAt,
+    double? rssi,
+    double? battery,
+  }) => RtlAsset(
+    assetId: assetId,
+    assetTag: assetTag,
+    name: name,
+    assetType: assetType,
+    operationalStatus: operationalStatus,
+    technology: technology,
+    tracker: tracker,
+    tags: tags,
+    location: location ?? this.location,
+    freshness: freshness ?? this.freshness,
+    movement: movement ?? this.movement,
+    lastZoneChangeAt: lastZoneChangeAt ?? this.lastZoneChangeAt,
+    lastValidLocationAt: lastValidLocationAt ?? this.lastValidLocationAt,
+    locationSource: locationSource,
+    accuracy: accuracy,
+    confidence: confidence,
+    confidenceBasis: confidenceBasis,
+    gatewaysHearing: gatewaysHearing,
+    signalMarginDb: signalMarginDb,
+    rssi: rssi ?? this.rssi,
+    battery: battery ?? this.battery,
+    activeLocationAlerts: activeLocationAlerts,
+    expected: expected,
+    comparisonStatus: comparisonStatus,
+    comparisonNote: comparisonNote,
+  );
 
   /// "PUMP-01" (else the registration id).
   String get tagLabel => (assetTag?.isNotEmpty ?? false) ? assetTag! : assetId;

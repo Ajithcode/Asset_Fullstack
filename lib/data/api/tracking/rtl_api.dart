@@ -1,7 +1,9 @@
 import 'package:asset360_mobile/data/api/api_client.dart';
 import 'package:asset360_mobile/data/api/tracking/rtl_models.dart';
+import 'package:asset360_mobile/data/api/tracking/tag_live.dart';
 
 export 'package:asset360_mobile/data/api/tracking/rtl_models.dart';
+export 'package:asset360_mobile/data/api/tracking/tag_live.dart';
 
 /// Real-Time Location + Locate REST calls of the Tracking service (docs/api/MOBILE-API-HANDOFF.md
 /// sections 1 and 2.1; routes in RealTimeLocationEndpoints.cs / LocatingExtensions.cs). The Tracking
@@ -13,6 +15,7 @@ class RtlApi {
   final ApiClient client;
 
   static const overviewPath = '/api/real-time-location/overview';
+  static const tagsPath = '/api/real-time-location/tags';
   static const eventsPath = '/api/real-time-location/events';
   static String trailPath(String assetId) => '/api/real-time-location/assets/${Uri.encodeComponent(assetId)}/trail';
   static String tagGatewayPath(String tagId) => '/api/locating/tags/${Uri.encodeComponent(tagId)}/gateway';
@@ -33,6 +36,24 @@ class RtlApi {
   /// [floorPlanId] = the plan shown on the map ("assets in view" = located on it); empty = all floors.
   Future<RtlOverview> getOverview({String? siteId, String? floorPlanId}) async =>
       RtlOverview.fromJson(await _get(overviewPath, {'siteId': siteId, 'floorPlanId': floorPlanId}));
+
+  /// GET /tags: the newest location of every tag heard in the last [minutes] (the socket's rows; the
+  /// fallback poll while the socket is down). Same filters as `tagsLiveUri`.
+  Future<List<TagLocation>> getTags({
+    int minutes = 1440,
+    String? siteId,
+    String? floorPlanId,
+    String? zoneId,
+    bool zonedOnly = false,
+  }) async => TagLocation.parseList(
+    await _get(tagsPath, {
+      'minutes': minutes,
+      'siteId': siteId,
+      'floorPlanId': floorPlanId,
+      'zoneId': zoneId,
+      'zonedOnly': zonedOnly ? true : null,
+    }),
+  );
 
   /// [pageSize] 1–100.
   Future<RtlEventPage> getEvents({

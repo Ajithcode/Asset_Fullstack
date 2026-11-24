@@ -498,7 +498,7 @@ void main() {
 
     int overviewCalls() => backend.requests.where((o) => o.uri.path == RtlApi.overviewPath).length;
 
-    test('polls every 10 s while attached, stops when detached; scope sent as siteId / floorPlanId', () async {
+    test('refreshes every 30 s while attached, stops when detached; scope sent as siteId / floorPlanId', () async {
       final c = liveContainer(backend);
       addTearDown(c.dispose);
       final n = c.read(rtlProvider.notifier);
@@ -508,7 +508,8 @@ void main() {
       expect(overviewCalls(), 1);
       expect(c.read(rtlProvider).overview!.kpis.assetsInView, 3);
       expect(c.read(rtlProvider).live, isTrue);
-      expect(timers.live(RtlNotifier.interval), 1);
+      expect(timers.live(RtlNotifier.interval), 1, reason: 'overview refresh every 30 s');
+      expect(timers.live(RtlNotifier.tagPollInterval), 0, reason: 'socket up: no /tags poll');
       timers.fire(RtlNotifier.interval);
       await pumpEventQueue();
       expect(overviewCalls(), 2);
@@ -526,7 +527,7 @@ void main() {
       expect(overviewCalls(), before);
     });
 
-    test('a failed round → Paused (error kept), the last overview stays', () async {
+    test('a failed overview round keeps the error and the last overview, the last overview stays', () async {
       final c = liveContainer(backend);
       addTearDown(c.dispose);
       final owner = Object();
@@ -535,7 +536,7 @@ void main() {
       backend.failNext['GET ${RtlApi.overviewPath}'] = const FakeReply(500, {'message': 'boom'});
       timers.fire(RtlNotifier.interval);
       await pumpEventQueue();
-      expect(c.read(rtlProvider).live, isFalse);
+      expect(c.read(rtlProvider).error, isNotNull);
       expect(c.read(rtlProvider).overview, isNotNull);
       n.detach(owner);
     });
@@ -676,7 +677,7 @@ void main() {
         (tester) async {
       final c = await open(tester, Routes.tracking);
       expect(find.byKey(const ValueKey('rtl-live')), findsOneWidget);
-      expect(find.text('LIVE'), findsOneWidget);
+      expect(find.text('Live'), findsOneWidget);
       expect(find.text('Assets in View'), findsOneWidget);
       expect(find.text('Location Alerts'), findsOneWidget);
       // The Published plan of the default floor (Ground Floor, the first with a plan) is polled.

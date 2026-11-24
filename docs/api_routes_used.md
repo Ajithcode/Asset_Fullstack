@@ -167,7 +167,9 @@ Defined in code but **not called**: `/api/administration/maps/settings` (`mapSet
 | R | GET | `/api/geofences` | – | Tracking → Live Map / Geofencing tab |
 | R | GET | `/api/iot-alerts` | `days` (Tracking alerts screen, Live Map tree uses 7) or `assetRegistrationId` + `limit=50` (Asset Tracking) | Tracking → Alerts screen, Live Map location tree, Asset Tracking alerts |
 | R | GET | `/api/iot-alerts/count` | – | Tracking hub alert counter (poll every 5 s) |
-| R | GET | `/api/real-time-location/overview` | `siteId`, `floorPlanId` (the plan shown) when set | Real-Time Location (Live Map / Geofencing tabs; every 10 s while visible); without `floorPlanId`: Locate Asset list, View on Map, More Actions "Locate" |
+| R | GET | `/api/real-time-location/overview` | `siteId`, `floorPlanId` (the plan shown) when set | Real-Time Location (Live Map / Geofencing tabs; every 30 s while visible; alerts, confidence, expected location, gateways); without `floorPlanId`: Locate Asset list, View on Map, More Actions "Locate" |
+| R | GET | `/api/real-time-location/tags` | `minutes=1440`, `siteId`, `floorPlanId` when set | Live Map: first tag list on open, then every 10 s only while the tags/live socket is down ("Polling") |
+| R | WS | `/api/real-time-location/tags/live` | same filters; token as Bearer header and `?access_token=` | Live Map ("Live"): `snapshot` replaces the tag rows, `update` = `changed` / `seen` / `removed`; reconnect 1 s → 30 s with a fresh token; closed when the screen is hidden / app backgrounded |
 | R | GET | `/api/real-time-location/events` | `range` (1h / 24h / 7d), `page`, `pageSize` (10 on the screen, 25 in "View all"), `siteId`, `eventType` when set | Real-Time Location → Recent Location Events, `/more/tracking/location-events` |
 | R | GET | `/api/real-time-location/assets/{assetId}/trail` | `range` (30m / 1h / 24h / 7d) | Real-Time Location asset card (404 = "This asset has no tracked tag") |
 | R | GET | `/api/locating/tags/{tagid}/commands` | `limit=20` | Locate panel → History (the raw `request` field is never shown or logged) |

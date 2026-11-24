@@ -267,7 +267,10 @@
   (Locations = the old `LiveLocationView` tree / floor plans / outdoor map; deep links with `view=locations|floor|outdoor`
   or a location / zone / geofence open it; `view=rtl&asset=` = View on Map focus). Data: `rtl_api.dart` / `rtl_models.dart`
   (`RtlOverview`, `RtlAsset`, `RtlEventPage`, `RtlTrail`, `LocateCommandRecord`), `rtl_repository.dart` (`rtlProvider` =
-  overview poller every 10 s via `LivePollingScope(poller:)`, `setScope(siteId, floorPlanId)`; `rtlAssetProvider(id)`,
+  tags/live WebSocket (`data/api/tracking/tag_live.dart`: `TagsLiveSocket` backoff 1 → 30 s + fresh token, `TagLiveList`,
+  `overlayTags` lays tag rows over the overview: location / freshness / rssi / battery, Moving = gateway or zone change
+  seen < 60 s else Stationary while Live, counters recomputed; header "Live" / "Polling" / "Paused") + overview every 30 s +
+  GET /tags every 10 s while the socket is down, via `LivePollingScope(poller:)` (closed when hidden), `setScope(siteId, floorPlanId)`; `rtlAssetProvider(id)`,
   `rtlAllAssetsProvider(site)`, events / trail / floors / plans / zones / device plots, `locateSessionFactoryProvider`,
   `locateConnectorProvider`). Pure rules `data/tracking/rtl_logic.dart` (`chooseFloorPlan`, `placeAssets` = asset at its
   `location.gatewayId`'s DEVICE plot (itemId / code / deviceId, case-insensitive), `fanOffsets` / `rtlFanLimit` 6 then a

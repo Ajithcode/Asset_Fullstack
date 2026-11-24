@@ -330,11 +330,58 @@ const rtlPlotsJson = [
 /// A 1 × 1 PNG (the plan drawing in widget tests).
 const rtlPng1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
+/// One TagLocation row (GET /tags and the tags/live socket) for [tagId] heard by [gatewayId].
+Map<String, Object?> rtlTagRow(
+  String tagId,
+  String gatewayId, {
+  String zoneId = 'zone-a1',
+  String zoneName = 'Hall A',
+  String connection = 'Online',
+  double rssi = -61,
+  double battery = 80,
+  String timestamp = '2026-11-19T10:14:52Z',
+  String? assetId,
+}) => {
+  'tagId': tagId,
+  'gatewayId': gatewayId,
+  'deviceId': gatewayId,
+  'gatewayName': 'GW $zoneName',
+  'timestamp': timestamp,
+  'status': 'online',
+  'connection': connection,
+  'rssi': rssi,
+  'battery': battery,
+  'plotted': true,
+  'zoneId': zoneId,
+  'zoneName': zoneName,
+  'floorPlanId': 'fp-001',
+  'floorName': 'Ground Floor',
+  'buildingName': 'Block 1',
+  'siteId': 'site-1',
+  'siteName': 'Head Office',
+  'locationPath': 'Head Office › Block 1 › Ground Floor › $zoneName',
+  if (assetId != null) 'asset': {'assetRegistrationId': assetId},
+  'matchIssues': <String>[],
+};
+
+/// What GET /tags answers (and the socket's snapshot carries): PUMP-01's tag and FORK-02's tag.
+final rtlTagsJson = {
+  'total': 2,
+  'online': 2,
+  'plotted': 2,
+  'withAsset': 2,
+  'tags': [
+    rtlTagRow('c30000aabb01', 'ac233fc0ffee', assetId: 'AR-000123'),
+    rtlTagRow('c30000aabb03', 'ac233fc0beef', zoneId: 'zone-b1', zoneName: 'Hall B', rssi: -70, assetId: 'AR-000124'),
+  ],
+};
+
 extension RtlSeed on FakeAssetBackend {
   /// Real-Time Location routes (overview / events / trail), Master Data floors and Administration
   /// plans / zones / plots. [overview] replaces the overview reply.
   void seedRtl({Object overview = rtlOverviewJson}) {
     on('GET', '/api/real-time-location/overview', (_) => FakeReply(200, overview));
+    on('GET', '/api/real-time-location/tags', (_) => FakeReply(200, rtlTagsJson));
     on('GET', '/api/real-time-location/events', (o) {
       final q = o.uri.queryParameters;
       return FakeReply(

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:asset360_mobile/data/api/api_client.dart';
 import 'package:asset360_mobile/data/api/api_config.dart' show showServerSwitcher, trackingBaseUrl;
+import 'package:asset360_mobile/data/api/dashboard/network_status_live.dart' show LiveSocketConnector, ioLiveSocket;
 import 'package:asset360_mobile/data/api/master_data/master_data_repository.dart';
 import 'package:asset360_mobile/data/api/tracking/rtl_api.dart';
 import 'package:asset360_mobile/data/repositories/auth_repository.dart';
@@ -17,7 +18,7 @@ export 'package:asset360_mobile/data/api/admin/map_models.dart';
 export 'package:asset360_mobile/data/tracking/rtl_logic.dart';
 
 /// Real-Time Location data (Tracking & IoT → Live Map / Geofencing in API mode):
-/// - overview polled every [RtlNotifier.interval] (10 s) while the screen is visible ([LivePoller]
+/// - tags/live WebSocket + overview (30 s) + /tags fallback poll (10 s) while the screen is visible ([LivePoller]
 ///   through `LivePollingScope`), for the selected site + shown floor plan;
 /// - events / trail / locate history on demand (autoDispose families);
 /// - floors from Master Data, plans / zones / device plots from Administration.
@@ -25,19 +26,33 @@ export 'package:asset360_mobile/data/tracking/rtl_logic.dart';
 final rtlApiProvider = Provider<RtlApi>((ref) => RtlApi(ref.watch(trackingClientProvider)));
 
 class RtlState {
-  const RtlState({this.overview, this.error, this.fetchedAt, this.polling = false, this.siteId, this.floorPlanId});
+  const RtlState({
+    this.overview,
+    this.error,
+    this.fetchedAt,
+    this.polling = false,
+    this.socketUp = false,
+    this.siteId,
+    this.floorPlanId,
+  });
 
-  /// Null until the first answer.
+  /// The last GET /overview with the live tag rows laid over it (`overlayTags`); null until the first answer.
   final RtlOverview? overview;
   final Object? error;
   final DateTime? fetchedAt;
+
+  /// A visible screen is attached (the socket / polls run).
   final bool polling;
 
-  /// The scope sent with every poll.
+  /// The tags/live socket is connected.
+  final bool socketUp;
+
+  /// The scope sent with every poll and the socket.
   final String? siteId, floorPlanId;
 
-  /// Polling works = "LIVE"; the last round failed = "Paused".
-  bool get live => polling && error == null;
+  /// Header badge "Live": attached and the socket is connected. Otherwise "Polling" (the /tags fallback)
+  /// while attached, "Paused" when not.
+  bool get live => polling && socketUp;
 
   RtlState copyWith({
     RtlOverview? overview,
@@ -45,6 +60,7 @@ class RtlState {
     bool clearError = false,
     DateTime? fetchedAt,
     bool? polling,
+    bool? socketUp,
     String? siteId,
     String? floorPlanId,
     bool scope = false,
@@ -53,27 +69,58 @@ class RtlState {
     error: clearError ? null : (error ?? this.error),
     fetchedAt: fetchedAt ?? this.fetchedAt,
     polling: polling ?? this.polling,
+    socketUp: socketUp ?? this.socketUp,
     siteId: scope ? siteId : this.siteId,
     floorPlanId: scope ? floorPlanId : this.floorPlanId,
   );
 }
 
-/// GET /api/real-time-location/overview on attach and every 10 s while at least one visible
-/// screen is attached; stops when hidden / backgrounded.
+/// While at least one visible screen is attached (stops when hidden / backgrounded):
+/// - the tags/live WebSocket (`TagsLiveSocket`, reconnect 1 s → 30 s with a fresh token) lays the newest tag
+///   rows over the overview (location, freshness, rssi, battery, Moving / Stationary, counters);
+/// - GET /overview every [interval] (30 s): alerts, confidence, expected location, gateways and the asset list;
+/// - GET /tags every [tagPollInterval] (10 s) while the socket is down (and once at the start, so the
+///   map has tag rows before the socket's snapshot).
 class RtlNotifier extends Notifier<RtlState> implements LivePoller {
-  static const interval = Duration(seconds: 10);
+  static const interval = Duration(seconds: 30);
+  static const tagPollInterval = Duration(seconds: 10);
+
+  /// Tests replace the socket connector.
+  static LiveSocketConnector? debugConnector;
 
   final _owners = <Object>{};
-  Timer? _timer;
+  final _tags = TagLiveList();
+  final _movedAt = <String, DateTime>{};
+  RtlOverview? _base;
+  Timer? _timer, _tagTimer, _moveTimer;
+  TagsLiveSocket? _socket;
   bool _busy = false;
   bool _again = false;
+  bool _tagBusy = false;
 
   @visibleForTesting
   int rounds = 0;
 
+  @visibleForTesting
+  int tagRounds = 0;
+
+  @visibleForTesting
+  TagsLiveSocket? get socket => _socket;
+
+  /// Tests pin "now".
+  @visibleForTesting
+  static DateTime Function()? debugNow;
+
+  DateTime _now() => (debugNow ?? DateTime.now)().toUtc();
+
   @override
   RtlState build() {
-    ref.onDispose(() => _timer?.cancel());
+    ref.onDispose(() {
+      _timer?.cancel();
+      _tagTimer?.cancel();
+      _moveTimer?.cancel();
+      unawaited(_socket?.stop());
+    });
     return const RtlState();
   }
 
@@ -99,21 +146,41 @@ class RtlNotifier extends Notifier<RtlState> implements LivePoller {
     state = state.copyWith(polling: want);
     if (want) {
       unawaited(_run());
+      _startSocket();
+      unawaited(_pollTags());
     } else {
       _timer?.cancel();
       _timer = null;
+      _tagTimer?.cancel();
+      _tagTimer = null;
+      _moveTimer?.cancel();
+      _moveTimer = null;
+      unawaited(_socket?.stop());
+      _socket = null;
+      // Rows older than the pause must not look like moves when the screen comes back.
+      _tags.clear();
+      _movedAt.clear();
+      if (state.socketUp) state = state.copyWith(socketUp: false);
     }
   }
 
-  /// The site picker / the floor shown changed: poll that scope now.
+  /// The site picker / the floor shown changed: poll that scope now and reconnect the socket with it.
   void setScope({String? siteId, String? floorPlanId}) {
     if (siteId == state.siteId && floorPlanId == state.floorPlanId) return;
     state = state.copyWith(siteId: siteId, floorPlanId: floorPlanId, scope: true);
-    if (state.polling) unawaited(_run());
+    if (!state.polling) return;
+    _tags.clear();
+    _movedAt.clear();
+    unawaited(_socket?.stop());
+    _startSocket();
+    unawaited(_run());
+    unawaited(_pollTags());
   }
 
   /// Pull-to-refresh / Retry.
   Future<void> refresh() => _run();
+
+  // ------------------------------------------------------------------ overview (every 30 s)
 
   Future<void> _run() async {
     if (_busy) {
@@ -127,7 +194,9 @@ class RtlNotifier extends Notifier<RtlState> implements LivePoller {
       final o = await ref.read(rtlApiProvider).getOverview(siteId: scope.$1, floorPlanId: scope.$2);
       if (!ref.mounted) return;
       if (scope == (state.siteId, state.floorPlanId)) {
-        state = state.copyWith(overview: o, fetchedAt: DateTime.now().toUtc(), clearError: true);
+        _base = o;
+        state = state.copyWith(error: null, clearError: true);
+        _publish();
       }
     } catch (e) {
       if (!ref.mounted) return;
@@ -149,6 +218,90 @@ class RtlNotifier extends Notifier<RtlState> implements LivePoller {
     _timer?.cancel();
     if (!state.polling) return;
     _timer = TrkLiveNotifier.startTimer(interval, () => unawaited(_run()));
+  }
+
+  // ------------------------------------------------------------------ tags (socket, else GET /tags)
+
+  void _startSocket() {
+    final auth = ref.read(authProvider.notifier);
+    final scope = (state.siteId, state.floorPlanId);
+    late final TagsLiveSocket socket;
+    socket = TagsLiveSocket(
+      uri: tagsLiveUri(trackingBaseUrl, siteId: scope.$1, floorPlanId: scope.$2),
+      token: auth.validAccessToken,
+      connect: (uri, token) => (debugConnector ?? ioLiveSocket)(uri, token),
+      schedule: TrkLiveNotifier.startTimer,
+      onMessage: (m) {
+        if (!ref.mounted || !identical(_socket, socket)) return;
+        final moved = switch (m) {
+          TagSnapshot(:final tags) => _tags.replace(tags),
+          TagUpdate() => _tags.apply(m),
+        };
+        _noteMoves(moved);
+        _publish();
+      },
+      onConnection: (up) {
+        if (!ref.mounted || !identical(_socket, socket)) return;
+        state = state.copyWith(socketUp: up);
+        if (up) {
+          _tagTimer?.cancel();
+          _tagTimer = null;
+        } else if (state.polling) {
+          unawaited(_pollTags());
+        }
+      },
+    );
+    _socket = socket..start();
+  }
+
+  /// GET /tags now, then every [tagPollInterval] while attached and the socket is not connected.
+  Future<void> _pollTags() async {
+    _tagTimer?.cancel();
+    _tagTimer = null;
+    if (!state.polling || state.socketUp || _tagBusy) return;
+    _tagBusy = true;
+    tagRounds++;
+    final scope = (state.siteId, state.floorPlanId);
+    try {
+      final rows = await ref.read(rtlApiProvider).getTags(siteId: scope.$1, floorPlanId: scope.$2);
+      if (!ref.mounted) return;
+      if (scope == (state.siteId, state.floorPlanId) && !state.socketUp) {
+        _noteMoves(_tags.replace(rows));
+        _publish();
+      }
+    } catch (_) {
+      // Keep the rows we have; the next round tries again.
+    } finally {
+      _tagBusy = false;
+      if (ref.mounted && state.polling && !state.socketUp) {
+        _tagTimer = TrkLiveNotifier.startTimer(tagPollInterval, () => unawaited(_pollTags()));
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------ overlay
+
+  void _noteMoves(Set<String> moved) {
+    final now = _now();
+    for (final k in moved) {
+      _movedAt[k] = now;
+    }
+  }
+
+  /// The overview with the tag rows laid over it; re-run when the oldest "moving" mark expires.
+  void _publish() {
+    final base = _base;
+    if (base == null || !ref.mounted) return;
+    final now = _now();
+    _movedAt.removeWhere((_, t) => now.difference(t) > movingWithin);
+    state = state.copyWith(overview: overlayTags(base, _tags, _movedAt, now), fetchedAt: now);
+    _moveTimer?.cancel();
+    _moveTimer = null;
+    if (_movedAt.isNotEmpty && state.polling) {
+      final oldest = _movedAt.values.reduce((a, b) => a.isBefore(b) ? a : b);
+      final wait = movingWithin - now.difference(oldest) + const Duration(seconds: 1);
+      _moveTimer = TrkLiveNotifier.startTimer(wait, _publish);
+    }
   }
 }
 

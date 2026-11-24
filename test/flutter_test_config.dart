@@ -7,6 +7,7 @@ import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/dashboard/network_status_live.dart';
 import 'package:asset360_mobile/data/db/app_database.dart';
 import 'package:asset360_mobile/data/repositories/dashboard_repository.dart';
+import 'package:asset360_mobile/data/repositories/rtl_repository.dart' show RtlNotifier;
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:sqlite3/open.dart';
@@ -34,6 +35,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // Home's Live Devices card never opens a real WebSocket in tests: an idle socket that connects
   // and stays quiet (test/live/dashboard_test.dart drives the reconnect logic with its own fake).
   LiveDevicesNotifier.debugConnector = (_, _) => IdleLiveSocket();
+  // Same for the Live Map's tags/live socket (test/live/rtl_test.dart drives it with its own fake).
+  RtlNotifier.debugConnector = (_, _) => IdleLiveSocket();
   await testMain();
 }
 
