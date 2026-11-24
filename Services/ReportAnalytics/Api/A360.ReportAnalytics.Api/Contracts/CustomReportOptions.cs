@@ -15,7 +15,7 @@ public static class CustomReportOptions
 
     public const int MaxRowLimit = 10_000;
     public const int DefaultPreviewLimit = 50;
-    public const int MaxPreviewLimit = 500;
+    public const int MaxPreviewLimit = MaxRowLimit; // the CSV / PDF export reads its rows through preview (up to the report's own row limit)
 
     // Same module list as the Standard Reports categories.
     public static readonly OptionList Modules = StandardReportOptions.Categories;
