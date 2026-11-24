@@ -94,24 +94,25 @@ public sealed class ScheduledReportRunner(
             .SelectMany(day => day.Records.Select(row => (IReadOnlyList<string>)
             [
                 DateOnly.ParseExact(day.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
-                row.LocalTime,
-                row.TagId,
-                row.AssetRegistrationId ?? string.Empty,
+                row.AssetId,
                 row.AssetName ?? string.Empty,
                 row.Category ?? string.Empty,
                 row.SubCategory ?? string.Empty,
+                row.TagId,
                 row.ZoneName ?? string.Empty,
-                row.ZoneCode ?? string.Empty,
-                row.DeviceId ?? string.Empty
+                row.DeviceId,
+                row.ZoneInLocal,
+                row.ZoneOutLocal,
+                row.TimeSpent
             ]))
             .ToList();
 
         var table = new ReportTable(
             report.ReportName,
             details,
-            ["Date", "Time", "Tag ID", "Asset ID", "Asset Name", "Category", "Sub Category", "Zone", "Zone Code", "Gateway"],
+            ["Date", "Asset ID", "Asset Name", "Category", "Sub Category", "Tag ID", "Zone", "Gateway", "Zone In", "Zone Out", "Time Spent"],
             rows,
-            data.Truncated ? "The period has more readings than one report can hold; only the first ones are included." : null);
+            data.Truncated ? "The period has more readings than one report can hold; only the earliest ones are included." : null);
         return (table, data.TotalRecords);
     }
 

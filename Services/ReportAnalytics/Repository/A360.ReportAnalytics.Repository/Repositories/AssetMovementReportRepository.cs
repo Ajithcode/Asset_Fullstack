@@ -14,20 +14,23 @@ public sealed record AssetMovementQuery(
     string? SubCategory,
     int MaxRecords);
 
-/// <summary>One tag reading joined to its registered asset and to the zone of the gateway that heard it.</summary>
-public sealed record AssetMovementRecord(
-    DateTime Timestamp,
-    string TagId,
-    string? AssetMongoId,
-    string? AssetRegistrationId,
+/// <summary>
+/// One stay of an asset in one zone (or with one gateway that is not plotted in a zone): the first reading there is the zone
+/// in, the last one the zone out.
+/// </summary>
+public sealed record AssetZoneVisit(
+    string AssetId,
     string? AssetName,
     string? Category,
     string? SubCategory,
-    string? DeviceId,
+    IReadOnlyList<string> TagIds,
     string? ZoneName,
-    string? ZoneCode);
+    IReadOnlyList<string> GatewayIds,
+    DateTime ZoneInUtc,
+    DateTime ZoneOutUtc,
+    int ReadingCount);
 
-public sealed record AssetMovementResult(IReadOnlyList<AssetMovementRecord> Records, bool Truncated);
+public sealed record AssetMovementResult(IReadOnlyList<AssetZoneVisit> Visits, bool Truncated);
 
 public interface IAssetMovementReportRepository
 {
@@ -35,14 +38,20 @@ public interface IAssetMovementReportRepository
 }
 
 /// <summary>
-/// Reads NetworkTimeSeries (written by the network server), matches meta.tagid to AssetRegistration.basic_information.asset_tag
-/// and meta.gatewayid to maps_plots.device_id. Nothing is copied; all three collections are read live.
+/// Assets are found through their tag mappings: Tag Management (TrackingTag.asset_registration_id, matched on tag_id or value)
+/// and the asset's own tag (AssetRegistration.basic_information.asset_tag). Their NetworkTimeSeries readings (meta.tagid) are
+/// placed in zones through the gateway that heard them (meta.gatewayid = maps_plots.device_id) and folded into zone visits.
+/// Nothing is copied; every collection is read live.
 /// </summary>
 public sealed class AssetMovementReportRepository : IAssetMovementReportRepository
 {
     private const string AssetRegistrationCollection = "AssetRegistration";
+    private const string TrackingTagCollection = "TrackingTag";
     private const string NetworkTimeSeriesCollection = "NetworkTimeSeries";
     private const string MapPlotCollection = "maps_plots";
+
+    /// <summary>No reading in the same zone for longer than this ends the visit (the asset left and came back).</summary>
+    private static readonly TimeSpan MaxGap = TimeSpan.FromMinutes(10);
 
     // Tags and device ids are matched ignoring case (the network server writes lower case, plots hold upper case).
     private static readonly Collation CaseInsensitive = new("en", strength: CollationStrength.Secondary);
@@ -56,86 +65,131 @@ public sealed class AssetMovementReportRepository : IAssetMovementReportReposito
 
     public async Task<AssetMovementResult> GetAsync(AssetMovementQuery query, CancellationToken cancellationToken = default)
     {
-        var assets = await GetAssetsByTagAsync(query, cancellationToken);
-        if (assets.Count == 0)
+        var assetsByKey = await GetAssetsByTagKeyAsync(query, cancellationToken);
+        if (assetsByKey.Count == 0)
         {
             return new AssetMovementResult([], false);
         }
 
-        var filter = new BsonDocument("meta.tagid", new BsonDocument("$in", new BsonArray(assets.Keys)));
-        var time = new BsonDocument();
-        if (query.FromUtc is not null)
-        {
-            time["$gte"] = query.FromUtc.Value;
-        }
-
-        if (query.ToUtcExclusive is not null)
-        {
-            time["$lt"] = query.ToUtcExclusive.Value;
-        }
-
-        if (time.ElementCount > 0)
-        {
-            filter["timestamp"] = time;
-        }
-
-        // One more than the cap tells us whether the report was cut short.
-        var readings = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
-            .Find(filter, new FindOptions { Collation = CaseInsensitive })
-            .Project(new BsonDocument { { "timestamp", 1 }, { "meta", 1 } })
-            .Sort(new BsonDocument { { "timestamp", 1 }, { "_id", 1 } })
-            .Limit(query.MaxRecords + 1)
-            .ToListAsync(cancellationToken);
-
-        var truncated = readings.Count > query.MaxRecords;
+        var buckets = await GetBucketsAsync(assetsByKey.Keys.ToList(), query, cancellationToken);
+        var truncated = buckets.Count > query.MaxRecords;
         if (truncated)
         {
-            readings.RemoveAt(readings.Count - 1);
+            buckets.RemoveRange(query.MaxRecords, buckets.Count - query.MaxRecords);
         }
 
-        var gateways = readings
-            .Select(reading => Text(Meta(reading), "gatewayid"))
-            .OfType<string>()
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var zones = await GetZonesByDeviceAsync(gateways, cancellationToken);
+        var zones = await GetZonesByDeviceAsync(
+            buckets.Select(bucket => bucket.GatewayId).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            cancellationToken);
 
-        var records = new List<AssetMovementRecord>(readings.Count);
-        foreach (var reading in readings)
+        var visits = new List<AssetZoneVisit>();
+        var perAsset = buckets
+            .Where(bucket => assetsByKey.ContainsKey(bucket.TagKey))
+            .GroupBy(bucket => assetsByKey[bucket.TagKey].Asset.AssetId, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var readings in perAsset)
         {
-            var meta = Meta(reading);
-            var tagId = Text(meta, "tagid");
-            if (tagId is null || !reading.TryGetValue("timestamp", out var timestamp) || !timestamp.IsValidDateTime
-                || !assets.TryGetValue(tagId, out var asset))
+            var asset = assetsByKey[readings.First().TagKey].Asset;
+            Visit? open = null;
+            foreach (var reading in readings.OrderBy(bucket => bucket.From).ThenBy(bucket => bucket.GatewayId))
+            {
+                var zone = zones.GetValueOrDefault(reading.GatewayId);
+                var place = zone is null ? $"gw:{reading.GatewayId}" : $"zone:{zone}";
+                var tagId = assetsByKey[reading.TagKey].TagId;
+
+                if (open is not null
+                    && string.Equals(open.Place, place, StringComparison.OrdinalIgnoreCase)
+                    && reading.From - open.Out <= MaxGap)
+                {
+                    open.Add(reading, tagId);
+                    continue;
+                }
+
+                if (open is not null)
+                {
+                    visits.Add(open.ToVisit(asset));
+                }
+
+                open = new Visit(place, zone, reading, tagId);
+            }
+
+            if (open is not null)
+            {
+                visits.Add(open.ToVisit(asset));
+            }
+        }
+
+        return new AssetMovementResult(
+            visits.OrderBy(visit => visit.ZoneInUtc).ThenBy(visit => visit.AssetId, StringComparer.OrdinalIgnoreCase).ToList(),
+            truncated);
+    }
+
+    /// <summary>Every id a reading may carry for a mapped tag (lower case, also without ':' / '-') → the tag and its asset.</summary>
+    private async Task<Dictionary<string, (string TagId, Asset Asset)>> GetAssetsByTagKeyAsync(
+        AssetMovementQuery query,
+        CancellationToken cancellationToken)
+    {
+        var assets = await GetAssetsAsync(query, cancellationToken);
+        var result = new Dictionary<string, (string TagId, Asset Asset)>(StringComparer.OrdinalIgnoreCase);
+        if (assets.Count == 0)
+        {
+            return result;
+        }
+
+        // A mapping may name the asset by its registration id (AR000001), its asset tag or its _id: all resolve to the asset.
+        var byReference = new Dictionary<string, Asset>(StringComparer.OrdinalIgnoreCase);
+        foreach (var asset in assets)
+        {
+            byReference.TryAdd(asset.AssetId, asset);
+            byReference.TryAdd(asset.MongoId, asset);
+            if (asset.AssetTag is not null)
+            {
+                byReference.TryAdd(asset.AssetTag, asset);
+            }
+        }
+
+        var mappings = await _database.GetCollection<BsonDocument>(TrackingTagCollection)
+            .Find(new BsonDocument
+            {
+                { "is_deleted", new BsonDocument("$ne", true) },
+                { "asset_registration_id", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) }
+            })
+            .Project(new BsonDocument { { "tag_id", 1 }, { "value", 1 }, { "asset_registration_id", 1 } })
+            .ToListAsync(cancellationToken);
+
+        foreach (var mapping in mappings)
+        {
+            var tagId = Text(mapping, "tag_id");
+            var reference = Text(mapping, "asset_registration_id");
+            if (tagId is null || reference is null || !byReference.TryGetValue(reference, out var asset))
             {
                 continue;
             }
 
-            var deviceId = Text(meta, "gatewayid");
-            var zone = deviceId is not null && zones.TryGetValue(deviceId, out var plotted) ? plotted : default;
-
-            records.Add(new AssetMovementRecord(
-                timestamp.ToUniversalTime(),
-                tagId,
-                asset.MongoId,
-                asset.RegistrationId,
-                asset.Name,
-                asset.Category,
-                asset.SubCategory,
-                deviceId,
-                zone.Name,
-                zone.Code));
+            foreach (var key in Keys(tagId, Text(mapping, "value")))
+            {
+                result.TryAdd(key, (tagId, asset));
+            }
         }
 
-        return new AssetMovementResult(records, truncated);
+        // The tag written on the asset itself, when Tag Management has no mapping for it.
+        foreach (var asset in assets.Where(asset => asset.AssetTag is not null))
+        {
+            foreach (var key in Keys(asset.AssetTag!, null))
+            {
+                result.TryAdd(key, (asset.AssetTag!, asset));
+            }
+        }
+
+        return result;
     }
 
-    private async Task<Dictionary<string, TaggedAsset>> GetAssetsByTagAsync(AssetMovementQuery query, CancellationToken cancellationToken)
+    private async Task<List<Asset>> GetAssetsAsync(AssetMovementQuery query, CancellationToken cancellationToken)
     {
         var match = new BsonDocument
         {
             { "is_deleted", new BsonDocument("$ne", true) },
-            { "basic_information.asset_tag", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) }
+            { "asset_registration_id", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) }
         };
 
         if (!string.IsNullOrWhiteSpace(query.TenantId))
@@ -160,7 +214,7 @@ public sealed class AssetMovementReportRepository : IAssetMovementReportReposito
 
         if (!string.IsNullOrWhiteSpace(query.AssetId))
         {
-            // The registration id (AR000001), the tag, or the Mongo _id.
+            // The registration id (AR000001), the asset tag, or the Mongo _id.
             var value = query.AssetId.Trim();
             var anyOf = new BsonArray
             {
@@ -188,70 +242,138 @@ public sealed class AssetMovementReportRepository : IAssetMovementReportReposito
             })
             .ToListAsync(cancellationToken);
 
-        var assets = new Dictionary<string, TaggedAsset>(StringComparer.OrdinalIgnoreCase);
-        foreach (var row in rows)
-        {
-            var basic = Sub(row, "basic_information");
-            var tag = Text(basic, "asset_tag");
-            if (tag is null)
+        return rows
+            .Select(row =>
             {
-                continue;
-            }
-
-            var classification = Sub(row, "classification");
-            assets.TryAdd(tag, new TaggedAsset(
-                row["_id"].ToString(),
-                Text(row, "asset_registration_id"),
-                Text(basic, "asset_name"),
-                Text(classification, "category"),
-                Text(classification, "sub_category")));
-        }
-
-        return assets;
+                var basic = Sub(row, "basic_information");
+                var classification = Sub(row, "classification");
+                return new Asset(
+                    row["_id"].ToString()!,
+                    Text(row, "asset_registration_id")!,
+                    Text(basic, "asset_tag"),
+                    Text(basic, "asset_name"),
+                    Text(classification, "category"),
+                    Text(classification, "sub_category"));
+            })
+            .Where(asset => asset.AssetId is not null)
+            .ToList();
     }
 
-    private async Task<Dictionary<string, (string? Name, string? Code)>> GetZonesByDeviceAsync(
+    /// <summary>Readings of the tags in the period, grouped per tag, gateway and minute; one more than the cap when cut short.</summary>
+    private async Task<List<Bucket>> GetBucketsAsync(List<string> tagKeys, AssetMovementQuery query, CancellationToken cancellationToken)
+    {
+        var match = new BsonDocument
+        {
+            { "meta.tagid", new BsonDocument("$in", new BsonArray(tagKeys)) },
+            { "meta.gatewayid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) }
+        };
+
+        var time = new BsonDocument();
+        if (query.FromUtc is not null)
+        {
+            time["$gte"] = query.FromUtc.Value;
+        }
+
+        if (query.ToUtcExclusive is not null)
+        {
+            time["$lt"] = query.ToUtcExclusive.Value;
+        }
+
+        if (time.ElementCount > 0)
+        {
+            match["timestamp"] = time;
+        }
+
+        var pipeline = new[]
+        {
+            new BsonDocument("$match", match),
+            new BsonDocument("$group", new BsonDocument
+            {
+                { "_id", new BsonDocument
+                    {
+                        { "tag", new BsonDocument("$toLower", "$meta.tagid") },
+                        { "gw", new BsonDocument("$toLower", "$meta.gatewayid") },
+                        { "slot", new BsonDocument("$dateTrunc", new BsonDocument { { "date", "$timestamp" }, { "unit", "minute" } }) }
+                    } },
+                { "from", new BsonDocument("$min", "$timestamp") },
+                { "to", new BsonDocument("$max", "$timestamp") },
+                { "count", new BsonDocument("$sum", 1) }
+            }),
+            new BsonDocument("$sort", new BsonDocument { { "from", 1 }, { "_id.gw", 1 } }),
+            new BsonDocument("$limit", query.MaxRecords + 1)
+        };
+
+        var rows = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
+            .Aggregate<BsonDocument>(pipeline, new AggregateOptions { AllowDiskUse = true, Collation = CaseInsensitive }, cancellationToken)
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Where(row => row["_id"]["tag"].IsString && row["_id"]["gw"].IsString)
+            .Select(row => new Bucket(
+                row["_id"]["tag"].AsString,
+                row["_id"]["gw"].AsString,
+                row["from"].ToUniversalTime(),
+                row["to"].ToUniversalTime(),
+                row["count"].ToInt32()))
+            .ToList();
+    }
+
+    /// <summary>Zone name of each plotted gateway (maps_plots by device_id, or item_id of a device plot), latest plot first.</summary>
+    private async Task<Dictionary<string, string>> GetZonesByDeviceAsync(
         IReadOnlyCollection<string> deviceIds,
         CancellationToken cancellationToken)
     {
-        var zones = new Dictionary<string, (string? Name, string? Code)>(StringComparer.OrdinalIgnoreCase);
+        var zones = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (deviceIds.Count == 0)
         {
             return zones;
         }
 
+        var ids = new BsonArray(deviceIds);
         var plots = await _database.GetCollection<BsonDocument>(MapPlotCollection)
             .Find(
                 new BsonDocument
                 {
                     { "is_deleted", new BsonDocument("$ne", true) },
-                    { "device_id", new BsonDocument("$in", new BsonArray(deviceIds)) }
+                    { "$or", new BsonArray
+                        {
+                            new BsonDocument("device_id", new BsonDocument("$in", ids)),
+                            new BsonDocument { { "kind", "device" }, { "item_id", new BsonDocument("$in", ids) } }
+                        } }
                 },
                 new FindOptions { Collation = CaseInsensitive })
-            .Project(new BsonDocument { { "device_id", 1 }, { "zone_name", 1 }, { "zone_code", 1 }, { "location", 1 } })
-            // A device plotted more than once: the latest plot wins.
+            .Project(new BsonDocument { { "device_id", 1 }, { "item_id", 1 }, { "zone_name", 1 }, { "location", 1 } })
             .Sort(new BsonDocument { { "updated_at", -1 }, { "created_at", -1 }, { "_id", -1 } })
             .ToListAsync(cancellationToken);
 
         foreach (var plot in plots)
         {
-            var deviceId = Text(plot, "device_id");
-            if (deviceId is null || zones.ContainsKey(deviceId))
-            {
-                continue;
-            }
-
+            var deviceId = Text(plot, "device_id") ?? Text(plot, "item_id");
             // The drawn zone first, else the Master Data zone the plot sits in.
-            var location = Sub(plot, "location");
-            zones[deviceId] = (
-                Text(plot, "zone_name") ?? Text(location, "zone_name"),
-                Text(plot, "zone_code"));
+            var zone = Text(plot, "zone_name") ?? Text(Sub(plot, "location"), "zone_name");
+            if (deviceId is not null && zone is not null)
+            {
+                zones.TryAdd(deviceId, zone);
+            }
         }
 
         return zones;
     }
 
-    private static BsonDocument? Meta(BsonDocument reading) => Sub(reading, "meta");
+    // "C3:00:00:99:13:8F" is written by the network server as "c3000099138f".
+    private static IEnumerable<string> Keys(string tagId, string? value)
+    {
+        foreach (var id in new[] { tagId, value })
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                continue;
+            }
+
+            yield return id.Trim().ToLowerInvariant();
+            yield return id.Replace(":", "").Replace("-", "").Trim().ToLowerInvariant();
+        }
+    }
 
     private static BsonDocument? Sub(BsonDocument? document, string name) =>
         document is not null && document.TryGetValue(name, out var value) && value.IsBsonDocument ? value.AsBsonDocument : null;
@@ -267,5 +389,28 @@ public sealed class AssetMovementReportRepository : IAssetMovementReportReposito
         return string.IsNullOrEmpty(text) ? null : text;
     }
 
-    private sealed record TaggedAsset(string MongoId, string? RegistrationId, string? Name, string? Category, string? SubCategory);
+    private sealed record Asset(string MongoId, string AssetId, string? AssetTag, string? Name, string? Category, string? SubCategory);
+
+    private sealed record Bucket(string TagKey, string GatewayId, DateTime From, DateTime To, int Count);
+
+    private sealed class Visit(string place, string? zone, Bucket first, string tagId)
+    {
+        private readonly List<string> _tags = [tagId];
+        private readonly List<string> _gateways = [first.GatewayId];
+        private int _readings = first.Count;
+
+        public string Place { get; } = place;
+        public DateTime Out { get; private set; } = first.To;
+
+        public void Add(Bucket reading, string tagId)
+        {
+            if (!_tags.Contains(tagId, StringComparer.OrdinalIgnoreCase)) _tags.Add(tagId);
+            if (!_gateways.Contains(reading.GatewayId, StringComparer.OrdinalIgnoreCase)) _gateways.Add(reading.GatewayId);
+            if (reading.To > Out) Out = reading.To;
+            _readings += reading.Count;
+        }
+
+        public AssetZoneVisit ToVisit(Asset asset) =>
+            new(asset.AssetId, asset.Name, asset.Category, asset.SubCategory, _tags, zone, _gateways, first.From, Out, _readings);
+    }
 }
