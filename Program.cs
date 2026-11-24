@@ -28,6 +28,7 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
     return new MongoClient(settings.ConnectionString).GetDatabase(settings.Database);
 });
 builder.Services.AddSingleton<TimeSeriesCollectionInitializer>();
+builder.Services.AddSingleton<DeviceTriggerTracker>();
 builder.Services.AddHostedService<RedisStreamIngestWorker>();
 builder.Services.AddHostedService<MqttSubscriberWorker>();
 

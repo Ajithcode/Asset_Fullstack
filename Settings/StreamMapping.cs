@@ -43,6 +43,17 @@ public class StreamMapping
     /// </summary>
     public string? AttributesField { get; set; }
 
+    /// <summary>
+    /// Document field that gets "in" / "out" computed from each tag's previous gateway (see DeviceTriggerTracker),
+    /// replacing any value from the payload. Needs gatewayid and tagid in Meta. Null = off.
+    /// </summary>
+    public string? DeviceTriggerField { get; set; }
+
+    /// <summary>Redis hash holding each tag's last gateway and trigger. Defaults to "{Stream}:device_trigger".</summary>
+    public string? DeviceTriggerKey { get; set; }
+
+    public string DeviceTriggerStateKey => DeviceTriggerKey ?? $"{Stream}:device_trigger";
+
     public string Granularity { get; set; } = "seconds";
     public int BatchSize { get; set; } = 500;
 

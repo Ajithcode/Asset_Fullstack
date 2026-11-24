@@ -15,6 +15,7 @@ namespace WorkerNetworkService.Services;
 public class RedisStreamIngestWorker(
     IConnectionMultiplexer redis,
     TimeSeriesCollectionInitializer initializer,
+    DeviceTriggerTracker triggers,
     IOptions<RedisSettings> redisSettings,
     IOptions<List<StreamMapping>> mappings,
     ILogger<RedisStreamIngestWorker> logger) : BackgroundService
@@ -114,12 +115,24 @@ public class RedisStreamIngestWorker(
             ackIds.Add(entry.Id);
         }
 
+        Dictionary<string, string>? triggerChanges = null;
+        if (documents.Count > 0 && mapping.DeviceTriggerField != null)
+        {
+            var applied = await triggers.ApplyAsync(documents, mapping);
+            documents = applied.Documents;
+            triggerChanges = applied.Changes;
+        }
+
         if (documents.Count > 0)
         {
             // Re-check before every insert: if the collection was dropped, inserting would create a normal collection.
             collection = await initializer.EnsureAsync(mapping, ct);
             await collection.InsertManyAsync(documents, new InsertManyOptions { IsOrdered = false }, ct);
         }
+
+        // Only after the insert, so a failed batch is retried from the old state.
+        if (triggerChanges != null)
+            await triggers.SaveAsync(mapping, triggerChanges);
 
         await db.StreamAcknowledgeAsync(mapping.Stream, mapping.Group, ackIds.ToArray());
         if (mapping.DeleteAfterAck)
