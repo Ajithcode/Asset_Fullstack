@@ -1,4 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -54,7 +55,8 @@ type TabId = 'overview' | 'mapping' | 'credentials' | 'webhooks' | 'logs';
     IntegrationLogsTab,
     IntegrationSettingsDrawer,
     ApiKeyDialog,
-    SecretDialog
+    SecretDialog,
+    ExportMenu
   ],
   templateUrl: './integration-api.html',
   styleUrls: ['../shared/admin-workspace.css', './integration-api.css']
@@ -276,16 +278,19 @@ export class IntegrationApiPage extends AdminPage implements OnInit {
 
   // ----- Import / export (secrets are never included) -----
 
-  exportIntegrations(): void {
-    const json = JSON.stringify({ organization: this.organization, exportedAt: new Date().toISOString(), integrations: this.service.exportData() }, null, 2);
-    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `asset360-integrations-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this.notify(`Exported ${this.integrations.length} integrations (credentials excluded).`);
-  }
+  /** Export menu (CSV / PDF): every integration matching the current search and filters (credentials are never included). */
+  readonly exportRequest = (): ExportRequest<Integration> => ({
+    title: 'Integration & API',
+    fileBase: 'integrations',
+    columns: [
+      { label: 'Code', key: 'code' }, { label: 'Name', key: 'name' }, { label: 'Provider', key: 'provider' }, { label: 'Type', key: 'type' },
+      { label: 'Status', key: 'status' }, { label: 'Environment', key: 'environment' }, { label: 'Base URL', key: 'baseUrl' },
+      { label: 'Auth Method', key: 'authMethod' }, { label: 'Sync Frequency', key: 'syncFrequency' }, { label: 'Last Sync', value: (i) => i.lastSync ?? '' },
+      { label: 'Records Synced', key: 'recordsSynced' }, { label: 'Webhooks', value: (i) => i.webhooks.length }
+    ],
+    filters: { Search: `${this.query} ${this.listQuery}`.trim(), Type: this.typeFilter, Status: this.statusFilter },
+    rows: () => this.filtered
+  });
 
   /**
    * Imports integrations from a JSON export. They arrive disabled and stay unsaved (the API requires a

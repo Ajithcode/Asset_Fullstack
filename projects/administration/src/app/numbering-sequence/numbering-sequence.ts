@@ -1,4 +1,5 @@
 import { Component, ElementRef, ViewChild, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -27,7 +28,7 @@ interface ConfirmState {
 @Component({
   standalone: true,
   selector: 'app-admin-numbering-sequence',
-  imports: [FormsModule, RouterLink, LucideAngularModule, FormatBuilder, SequenceDrawer],
+  imports: [FormsModule, RouterLink, LucideAngularModule, FormatBuilder, SequenceDrawer, ExportMenu],
   templateUrl: './numbering-sequence.html',
   styleUrls: ['../shared/admin-workspace.css', './numbering-sequence.css']
 })
@@ -409,24 +410,20 @@ export class NumberingSequencePage extends AdminPage {
   }
 
   // ===== Import / export =====
-  exportCsv(): void {
-    const header = [
-      'Name', 'Code', 'Module', 'Record Type', 'Prefix', 'Separator', 'Number Length', 'Start Number', 'Current Number', 'Increment By',
-      'Reset Rule', 'Scope', 'Status', 'Format', 'Version'
-    ];
-    const rows = this.filtered.map((s) => [
-      s.name, s.code, s.module, s.recordType, s.tokens.find((t) => t.kind === 'prefix')?.value ?? '', s.separator, s.numberLength,
-      s.startNumber, s.currentNumber, s.incrementBy, s.resetRule, s.scope, sequenceStatus(s), formatSample(s), s.version
-    ]);
-    const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `numbering-sequences-${todayIso()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this.notify(`Exported ${rows.length} sequences.`);
-  }
+  /** Export menu (CSV / PDF): every sequence matching the current search, module and status filters. */
+  readonly exportRequest = (): ExportRequest<NumberSequence> => ({
+    title: 'Numbering Sequences',
+    fileBase: 'numbering-sequences',
+    columns: [
+      { label: 'Name', key: 'name' }, { label: 'Code', key: 'code' }, { label: 'Module', key: 'module' }, { label: 'Record Type', key: 'recordType' },
+      { label: 'Prefix', value: (s) => s.tokens.find((t) => t.kind === 'prefix')?.value ?? '' }, { label: 'Separator', key: 'separator' },
+      { label: 'Number Length', key: 'numberLength' }, { label: 'Start Number', key: 'startNumber' }, { label: 'Current Number', key: 'currentNumber' },
+      { label: 'Increment By', key: 'incrementBy' }, { label: 'Reset Rule', key: 'resetRule' }, { label: 'Scope', key: 'scope' },
+      { label: 'Status', value: (s) => sequenceStatus(s) }, { label: 'Format', value: (s) => formatSample(s) }, { label: 'Version', key: 'version' }
+    ],
+    filters: { Search: `${this.search} ${this.listSearch}`.trim(), Module: this.moduleFilter, Status: this.statusFilter },
+    rows: () => this.filtered
+  });
 
   openImport(): void {
     this.importInput?.nativeElement.click();

@@ -604,23 +604,4 @@ export class IntegrationApiService {
     }));
     return true;
   }
-
-  // ----- Import / export (never includes secrets) -----
-
-  exportData(): object[] {
-    return this.integrations().map((i) => ({
-      code: i.code,
-      name: i.name,
-      provider: i.provider,
-      environment: i.environment,
-      baseUrl: i.baseUrl,
-      authMethod: i.authMethod,
-      syncFrequency: i.syncFrequency,
-      timeout: i.timeout,
-      retryPolicy: i.retryPolicy,
-      status: i.status,
-      dataObjects: i.dataObjects,
-      webhooks: i.webhooks.map((w) => ({ url: w.url, events: w.events, active: w.active }))
-    }));
-  }
 }

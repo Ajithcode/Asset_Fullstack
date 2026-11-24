@@ -58,7 +58,7 @@
   <button type="button" class="btn btn--primary" (click)="createSequence()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Create Sequence</button>
   <button type="button" class="btn" (click)="cloneSelected()"><lucide-icon [img]="icons.Copy" [size]="16"></lucide-icon> Clone Sequence</button>
   <button type="button" class="btn" (click)="openImport()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import</button>
-  <button type="button" class="btn" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+  <app-export-menu [source]="exportRequest" />
   <input #importInput type="file" accept=".csv,text/csv" hidden (change)="onImportFile($event)" />
   <span class="toolbar__spacer"></span>
   <label class="search">

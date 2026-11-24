@@ -69,7 +69,7 @@
             <input placeholder="Search locations..." aria-label="Search locations" [(ngModel)]="search" (ngModelChange)="onFilterChange()" />
           </label>
           <span class="toolbar__spacer"></span>
-          <button type="button" class="btn" (click)="export()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+          <app-export-menu [source]="exportRequest" />
           <button type="button" class="btn" [class.btn--outline]="filterOpen || filterCount" [attr.aria-expanded]="filterOpen" (click)="toggleFilters()">
             <lucide-icon [img]="icons.ListFilter" [size]="16"></lucide-icon> Filter @if (filterCount) { ({{ filterCount }}) }
           </button>

@@ -1,4 +1,5 @@
 import { Component, effect, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { catchError, concatMap, defer, from, of, toArray } from 'rxjs';
@@ -42,7 +43,7 @@ const ROLE_ICONS: Record<RoleIcon, LucideIconData> = {
 @Component({
   standalone: true,
   selector: 'app-admin-role-access-control',
-  imports: [FormsModule, RouterLink, LucideAngularModule, PermissionMatrix, RoleScope, RoleApprovals, RoleDrawer, UsersDialog],
+  imports: [FormsModule, RouterLink, LucideAngularModule, PermissionMatrix, RoleScope, RoleApprovals, RoleDrawer, UsersDialog, ExportMenu],
   templateUrl: './role-access-control.html',
   styleUrls: ['../shared/admin-workspace.css', './role-access-control.css']
 })
@@ -238,17 +239,19 @@ export class RoleAccessControlPage extends AdminPage {
     });
   }
 
-  exportRoles(): void {
-    const rows = this.filtered;
-    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `roles-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this.notify(`Exported ${rows.length} role${rows.length === 1 ? '' : 's'}.`);
-  }
+  /** Export menu (CSV / PDF): every role matching the current search and filters. */
+  readonly exportRequest = (): ExportRequest<RoleRecord> => ({
+    title: 'Roles & Access Control',
+    fileBase: 'roles',
+    columns: [
+      { label: 'Name', key: 'name' }, { label: 'Code', key: 'code' }, { label: 'Description', key: 'description' }, { label: 'Type', key: 'type' },
+      { label: 'Status', key: 'status' }, { label: 'Template', key: 'template' }, { label: 'Users', key: 'users' },
+      { label: 'Data Scope', key: 'dataScope' }, { label: 'Locations', value: (r) => r.locations.join('; ') },
+      { label: 'Departments', value: (r) => r.departments.join('; ') }, { label: 'MFA Required', value: (r) => (r.mfaRequired ? 'Yes' : 'No') }
+    ],
+    filters: { Search: this.search, Type: this.filters.type, Status: this.filters.status, Scope: this.filters.scope },
+    rows: () => this.filtered
+  });
 
   importRoles(input: HTMLInputElement): void {
     const file = input.files?.[0];

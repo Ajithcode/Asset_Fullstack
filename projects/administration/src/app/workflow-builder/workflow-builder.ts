@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -29,7 +30,7 @@ type ConfirmKind = 'deleteNode' | 'deleteWorkflow' | 'discard';
 @Component({
   standalone: true,
   selector: 'app-admin-workflow-builder',
-  imports: [FormsModule, RouterLink, LucideAngularModule, WorkflowCanvas, NodeConfigPanel],
+  imports: [FormsModule, RouterLink, LucideAngularModule, WorkflowCanvas, NodeConfigPanel, ExportMenu],
   templateUrl: './workflow-builder.html',
   styleUrls: ['../shared/admin-workspace.css', './workflow-builder.css']
 })
@@ -586,11 +587,18 @@ export class WorkflowBuilderPage extends AdminPage {
 
   // ===== Import / export =====
 
-  exportWorkflows(): void {
-    const rows = this.visible();
-    this.download(`workflows-${todayIso()}.json`, rows);
-    this.notify(`Exported ${rows.length} workflow${rows.length === 1 ? '' : 's'} to JSON.`);
-  }
+  /** Export menu (CSV / PDF): every workflow matching the current search and filters, in list order. */
+  readonly exportRequest = (): ExportRequest<Workflow> => ({
+    title: 'Workflow Builder',
+    fileBase: 'workflows',
+    columns: [
+      { label: 'Code', key: 'code' }, { label: 'Name', key: 'name' }, { label: 'Category', key: 'category' }, { label: 'Owner', key: 'owner' },
+      { label: 'Status', key: 'status' }, { label: 'Version', key: 'version' }, { label: 'Updated', key: 'updated' },
+      { label: 'Running Instances', key: 'runningInstances' }, { label: 'Pending Approvals', key: 'pendingApprovals' }, { label: 'Description', key: 'description' }
+    ],
+    filters: { Search: this.search, Status: this.statusFilter, Category: this.categoryFilter },
+    rows: () => this.visible()
+  });
 
   exportCurrent(): void {
     if (!this.wf) return;

@@ -70,9 +70,7 @@
       <lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import
     </button>
     <input #importFile type="file" accept=".json,application/json" hidden (change)="importRoles(importFile)" />
-    <button type="button" class="btn" (click)="exportRoles()">
-      <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export
-    </button>
+    <app-export-menu [source]="exportRequest" />
     <span class="toolbar__spacer"></span>
     <label class="search rac-search">
       <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>

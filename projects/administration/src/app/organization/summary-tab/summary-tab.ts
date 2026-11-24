@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import {
   Activity,
@@ -22,7 +23,6 @@ import {
 } from 'lucide-angular';
 import { OrganizationService } from '../organization.service';
 import { SummaryColumn, SummaryRow, SummaryStat, SummaryTab } from '../organization.model';
-import { downloadCsv } from '../organization-csv';
 
 const STAT_ICONS: Record<string, LucideIconData> = { Activity, Box, Building2, ClipboardCheck, FileText, Layers, Package, ShieldCheck, Truck, Users, Wrench };
 
@@ -33,7 +33,7 @@ const STAT_ICONS: Record<string, LucideIconData> = { Activity, Box, Building2, C
 @Component({
   standalone: true,
   selector: 'app-org-summary-tab',
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, ExportMenu],
   templateUrl: './summary-tab.html',
   styleUrls: ['../../shared/admin-workspace.css', '../organization.css']
 })
@@ -137,13 +137,12 @@ export class SummaryTabView implements OnChanges {
     return r['name'] || r[this.tab.columns[1].key];
   }
 
-  export(): void {
-    const rows = this.rows;
-    downloadCsv(
-      `${this.tab.id}-summary.csv`,
-      this.tab.columns.map((c) => c.label),
-      rows.map((r) => this.tab.columns.map((c) => r[c.key] ?? ''))
-    );
-    this.notify.emit(`Exported ${rows.length} ${this.tab.title.toLowerCase()}.`);
-  }
+  /** Export menu (CSV / PDF): every row of this tab matching search and filters. */
+  readonly exportRequest = (): ExportRequest<SummaryRow> => ({
+    title: `Organization ${this.tab.title}`,
+    fileBase: `${this.tab.id}-summary`,
+    columns: this.tab.columns.map((c) => ({ label: c.label, value: (r: SummaryRow) => r[c.key] ?? '' })),
+    filters: { Search: this.search, Filter: this.filter, Status: this.status },
+    rows: () => this.rows
+  });
 }

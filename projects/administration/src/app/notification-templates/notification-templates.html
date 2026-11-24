@@ -61,7 +61,7 @@
   <button type="button" class="btn" (click)="libraryOpen = true"><lucide-icon [img]="icons.BookOpen" [size]="16"></lucide-icon> Template Library</button>
   <button type="button" class="btn" (click)="importInput.click()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import</button>
   <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
-  <button type="button" class="btn" (click)="exportTemplates()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+  <app-export-menu [source]="exportRequest" />
   <span class="toolbar__spacer"></span>
   <label class="search">
     <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>

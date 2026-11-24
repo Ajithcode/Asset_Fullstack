@@ -6,7 +6,8 @@ import {
   EllipsisVertical, FileClock, FileText, Info, Lock, LucideAngularModule, Settings, ShieldAlert
 } from 'lucide-angular';
 import { AdminPage } from '../shared/admin-common';
-import { Subscription } from 'rxjs';
+import { Subscription, map } from 'rxjs';
+import { ExportMenu, ExportRequest, ExportService } from 'shared-ui';
 import { AuditCategory, AuditEvent, AuditFilters } from './audit-log.model';
 import { AUDIT_DAY, RETENTION_DAYS } from './audit-log.data';
 import { AuditLogService, AuditSortKey, AuditStats, auditErrorMessage, emptyFilters } from './audit-log.service';
@@ -24,12 +25,13 @@ const OUTCOME_TONES: Record<string, string> = { Success: 'green', Failed: 'red',
 /** Administration > System Audit Log (read-only, immutable records) */
 @Component({
   selector: 'app-admin-system-audit-log',
-  imports: [FormsModule, RouterLink, LucideAngularModule, AuditFiltersPanel, AuditEventDrawer],
+  imports: [FormsModule, RouterLink, LucideAngularModule, AuditFiltersPanel, AuditEventDrawer, ExportMenu],
   templateUrl: './system-audit-log.html',
   styleUrls: ['../shared/admin-workspace.css', './system-audit-log.css']
 })
 export class SystemAuditLogPage extends AdminPage {
   readonly service = inject(AuditLogService);
+  private readonly exporter = inject(ExportService);
   @ViewChild(AuditFiltersPanel) filterPanel?: AuditFiltersPanel;
 
   readonly icons = {
@@ -268,26 +270,40 @@ export class SystemAuditLogPage extends AdminPage {
     this.notify(`${e.id} exported as JSON.`);
   }
 
-  /** GET /api/audit-logs/export: the server builds the CSV for the filters and tab (up to 50,000 rows). */
-  exportLog(): void {
-    if (!this.total) {
-      this.notify('No events to export for these filters.');
-      return;
-    }
-    const count = this.total;
-    this.service.exportCsv(this.filters, this.category).subscribe({
-      next: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `audit-log_${AUDIT_DAY}.csv`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 0);
-        this.notify(`Exported ${Math.min(count, 50000).toLocaleString('en-US')} events to CSV.`, 'success');
-      },
-      error: (err) => this.notify(auditErrorMessage(err), 'error')
-    });
-  }
+  /** Export menu (CSV / PDF): every event matching the current tab, filters and sort, fetched page by page. */
+  readonly exportRequest = (): ExportRequest<AuditEvent> => ({
+    title: 'System Audit Log',
+    fileBase: 'system-audit-log',
+    columns: [
+      { label: 'Event ID', key: 'id' },
+      { label: 'Time', value: (e) => formatAuditTime(e.timestamp) },
+      { label: 'Event', key: 'event' },
+      { label: 'Category', key: 'category' },
+      { label: 'Module', key: 'module' },
+      { label: 'User', key: 'user' },
+      { label: 'Entity / Record', key: 'entity' },
+      { label: 'IP Address', key: 'ip' },
+      { label: 'Severity', key: 'severity' },
+      { label: 'Outcome', key: 'outcome' }
+    ],
+    filters: {
+      Category: this.category,
+      From: this.filters.from,
+      To: this.filters.to,
+      'Event type': this.filters.eventType,
+      Module: this.filters.module,
+      User: this.filters.user,
+      Severity: this.filters.severity,
+      'IP address': this.filters.ip,
+      Outcome: this.filters.outcome
+    },
+    rows: () =>
+      this.exporter.allPages<AuditEvent>(
+        (page, size) =>
+          this.service.query({ filters: this.filters, category: this.category, sortKey: this.sortKey, sortDir: this.sortDir, page, pageSize: size }).pipe(map((r) => ({ items: r.items, total: r.total }))),
+        100
+      )
+  });
 
   // ----- Saved filters -----
   openSave(): void {

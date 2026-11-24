@@ -77,7 +77,7 @@
       <button type="button" class="btn btn--outline" (click)="openInvite()"><lucide-icon [img]="icons.Mail" [size]="16"></lucide-icon> Invite Users</button>
       <button type="button" class="btn btn--outline" (click)="pickImport()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import</button>
       <input #importInput type="file" accept=".csv,text/csv" hidden (change)="onImport($event)" />
-      <button type="button" class="btn btn--outline" (click)="export()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+      <app-export-menu [source]="exportRequest" />
       <span class="toolbar__spacer"></span>
       <label class="search">
         <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>

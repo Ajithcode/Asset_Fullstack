@@ -1,4 +1,5 @@
 import { Component, ElementRef, ViewChild, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import { Observable, forkJoin, of } from 'rxjs';
 import { RouterLink } from '@angular/router';
@@ -45,7 +46,7 @@ const PAGE_SIZE = 10;
 @Component({
   standalone: true,
   selector: 'app-admin-checklist-templates',
-  imports: [FormsModule, RouterLink, LucideAngularModule, ChecklistSections, ItemDrawer, ChecklistPreview],
+  imports: [FormsModule, RouterLink, LucideAngularModule, ChecklistSections, ItemDrawer, ChecklistPreview, ExportMenu],
   templateUrl: './checklist-templates.html',
   styleUrls: ['../shared/admin-workspace.css', './checklist-templates.css']
 })
@@ -605,17 +606,31 @@ export class ChecklistTemplatesPage extends AdminPage {
   }
 
   // ===== Import / export (JSON keeps sections and items intact) =====
-  exportJson(only?: ChecklistTemplate): void {
+  /** Single-template JSON export (definition with sections and items). */
+  exportJson(only: ChecklistTemplate): void {
     this.closeMenus();
-    const data = only ? [only] : this.filtered;
+    const data = [only];
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = only ? `${only.code}.json` : `checklist-templates-${todayIso()}.json`;
+    a.download = `${only.code}.json`;
     a.click();
     URL.revokeObjectURL(url);
     this.notify(`Exported ${data.length} ${data.length === 1 ? 'template' : 'templates'}.`);
   }
+
+  /** Export menu (CSV / PDF): every template matching the current search and filters. */
+  readonly exportRequest = (): ExportRequest<ChecklistTemplate> => ({
+    title: 'Checklist Templates',
+    fileBase: 'checklist-templates',
+    columns: [
+      { label: 'Code', key: 'code' }, { label: 'Name', key: 'name' }, { label: 'Version', key: 'version' }, { label: 'Category', key: 'category' },
+      { label: 'Owner', key: 'owner' }, { label: 'Status', key: 'status' }, { label: 'Frequency', key: 'frequency' },
+      { label: 'Asset Types', value: (t) => t.assetTypes.join('; ') }, { label: 'Updated', key: 'updated' }, { label: 'Uses', key: 'uses' }
+    ],
+    filters: { Search: `${this.search} ${this.listSearch}`.trim(), Category: this.categoryFilter, Status: this.statusFilter },
+    rows: () => this.filtered
+  });
 
   openImport(): void {
     this.importInput?.nativeElement.click();

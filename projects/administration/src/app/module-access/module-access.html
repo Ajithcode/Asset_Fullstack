@@ -62,9 +62,7 @@
       <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Manage Roles
     </a>
     <span class="muted ma-hint">One policy per role: changes here update that role's permissions.</span>
-    <button type="button" class="btn" (click)="exportPolicies()">
-      <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export
-    </button>
+    <app-export-menu [source]="exportRequest" />
     <span class="toolbar__spacer"></span>
     <label class="search ma-search">
       <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>

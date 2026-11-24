@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -19,7 +20,7 @@ type ConfirmKind = 'delete' | 'discard';
 @Component({
   standalone: true,
   selector: 'app-admin-notification-templates',
-  imports: [FormsModule, RouterLink, LucideAngularModule, TemplateEditor, TemplateSettings],
+  imports: [FormsModule, RouterLink, LucideAngularModule, TemplateEditor, TemplateSettings, ExportMenu],
   templateUrl: './notification-templates.html',
   styleUrls: ['../shared/admin-workspace.css', './notification-templates.css']
 })
@@ -355,11 +356,19 @@ export class NotificationTemplatesPage extends AdminPage {
 
   // ===== Import / export =====
 
-  exportTemplates(): void {
-    const rows = this.visible();
-    this.download(`notification-templates-${new Date().toISOString().slice(0, 10)}.json`, rows);
-    this.notify(`Exported ${rows.length} template${rows.length === 1 ? '' : 's'} to JSON.`);
-  }
+  /** Export menu (CSV / PDF): every template matching the current search and filters, in list order. */
+  readonly exportRequest = (): ExportRequest<NotificationTemplate> => ({
+    title: 'Notification Templates',
+    fileBase: 'notification-templates',
+    columns: [
+      { label: 'Code', key: 'code' }, { label: 'Name', key: 'name' }, { label: 'Category', key: 'category' }, { label: 'Owner', key: 'owner' },
+      { label: 'Status', key: 'status' }, { label: 'Version', key: 'version' }, { label: 'Trigger Event', key: 'triggerEvent' },
+      { label: 'Channels', value: (t) => Object.entries(t.channels).filter(([, on]) => on).map(([c]) => c).join('; ') },
+      { label: 'Language', key: 'language' }, { label: 'Priority', key: 'priority' }, { label: 'Updated', key: 'updated' }
+    ],
+    filters: { Search: this.search, Category: this.categoryFilter, Status: this.statusFilter, Channel: this.channelFilter },
+    rows: () => this.visible()
+  });
 
   exportCurrent(): void {
     if (!this.draft) return;

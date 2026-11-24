@@ -64,7 +64,7 @@
   <div class="main-col">
     <!-- Actions -->
     <div class="toolbar toolbar--end">
-      <button type="button" class="btn btn--outline" (click)="exportLog()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export Log</button>
+      <app-export-menu [source]="exportRequest" label="Export Log" />
       <button type="button" class="btn btn--outline" (click)="openSave()"><lucide-icon [img]="icons.Bookmark" [size]="16"></lucide-icon> Save Filter</button>
       <button type="button" class="btn btn--outline" (click)="retentionOpen = true"><lucide-icon [img]="icons.FileClock" [size]="16"></lucide-icon> Retention Policy</button>
     </div>
@@ -207,7 +207,7 @@
         <dt>Storage</dt><dd>Immutable, append-only (WORM) — events can't be edited or deleted</dd>
         <dt>Integrity</dt><dd>Each event is hashed and chained to the previous one</dd>
         <dt>After {{ retentionDays }} days</dt><dd>Archived to encrypted cold storage, then purged by the system</dd>
-        <dt>Export formats</dt><dd>CSV (log), JSON (single event)</dd>
+        <dt>Export formats</dt><dd>CSV and PDF (log), JSON (single event)</dd>
         <dt>Access</dt><dd>Administrators and Compliance Officers (read-only)</dd>
       </dl>
       <p class="muted ret-note">The retention period is set at platform level for compliance and can't be shortened from this screen.</p>

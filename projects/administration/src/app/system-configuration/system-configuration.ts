@@ -1,4 +1,5 @@
 import { Component, ViewChild, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -34,7 +35,7 @@ interface VisibleGroup {
 @Component({
   standalone: true,
   selector: 'app-admin-system-configuration',
-  imports: [FormsModule, RouterLink, LucideAngularModule, ConfigGroupCard, ConfigDetailDrawer],
+  imports: [FormsModule, RouterLink, LucideAngularModule, ConfigGroupCard, ConfigDetailDrawer, ExportMenu],
   templateUrl: './system-configuration.html',
   styleUrls: ['../shared/admin-workspace.css', './system-configuration.css']
 })
@@ -339,20 +340,26 @@ export class SystemConfigurationPage extends AdminPage {
 
   // ----- Import / export -----
 
-  exportConfig(): void {
-    const settings: ConfigValues = {};
-    for (const s of this.service.allSettings()) {
-      if (s.type !== 'logo') settings[s.key] = s.value;
-    }
-    const json = JSON.stringify({ organization: this.organization, exportedAt: new Date().toISOString(), settings }, null, 2);
-    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `asset360-configuration-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this.notify('Configuration exported.');
-  }
+  /** Export menu (CSV / PDF): every setting of every section with its current and default value (logo excluded). */
+  readonly exportRequest = (): ExportRequest<{ section: string; group: string; setting: ConfigSetting }> => ({
+    title: 'System Configuration',
+    fileBase: 'system-configuration',
+    columns: [
+      { label: 'Section', key: 'section' },
+      { label: 'Group', key: 'group' },
+      { label: 'Setting', value: (r) => r.setting.label },
+      { label: 'Key', value: (r) => r.setting.key },
+      { label: 'Value', value: (r) => String(r.setting.value ?? '') },
+      { label: 'Default', value: (r) => String(r.setting.defaultValue ?? '') },
+      { label: 'Scope', value: (r) => r.setting.scope },
+      { label: 'Updated', value: (r) => r.setting.updatedAt },
+      { label: 'Updated By', value: (r) => r.setting.updatedBy }
+    ],
+    rows: () =>
+      this.service
+        .sections()
+        .flatMap((sec) => sec.groups.flatMap((g) => g.settings.filter((x) => x.type !== 'logo').map((x) => ({ section: sec.title, group: g.title, setting: x }))))
+  });
 
   /** Loads a previously exported file into the form as unsaved changes. */
   importConfig(input: HTMLInputElement): void {

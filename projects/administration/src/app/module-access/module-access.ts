@@ -1,4 +1,5 @@
 import { Component, effect, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { catchError, concatMap, defer, from, of, toArray } from 'rxjs';
@@ -40,7 +41,7 @@ const POLICY_ICONS: Record<PolicyIcon, LucideIconData> = {
 @Component({
   standalone: true,
   selector: 'app-admin-module-access',
-  imports: [FormsModule, RouterLink, LucideAngularModule, ModuleTable, FeatureList, ExceptionList, PolicyDrawer, UsersDialog],
+  imports: [FormsModule, RouterLink, LucideAngularModule, ModuleTable, FeatureList, ExceptionList, PolicyDrawer, UsersDialog, ExportMenu],
   templateUrl: './module-access.html',
   styleUrls: ['../shared/admin-workspace.css', './module-access.css']
 })
@@ -230,17 +231,20 @@ export class ModuleAccessPage extends AdminPage {
     });
   }
 
-  exportPolicies(): void {
-    const rows = this.filtered;
-    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `access-policies-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this.notify(`Exported ${rows.length} polic${rows.length === 1 ? 'y' : 'ies'}.`);
-  }
+  /** Export menu (CSV / PDF): every policy matching the current search and filters. */
+  readonly exportRequest = (): ExportRequest<PolicyRecord> => ({
+    title: 'Module Access Policies',
+    fileBase: 'access-policies',
+    columns: [
+      { label: 'Name', key: 'name' }, { label: 'Code', key: 'code' }, { label: 'Type', key: 'type' }, { label: 'Status', key: 'status' },
+      { label: 'Users', key: 'users' }, { label: 'Roles', value: (p) => p.roles.join('; ') },
+      { label: 'Modules Enabled', value: (p) => p.grants.filter((g) => g.enabled).map((g) => g.module).join('; ') },
+      { label: 'Data Scope', key: 'dataScope' }, { label: 'Landing Module', key: 'landingModule' },
+      { label: 'MFA Required', value: (p) => (p.mfaRequired ? 'Yes' : 'No') }, { label: 'Updated', key: 'updatedAt' }, { label: 'Updated By', key: 'updatedBy' }
+    ],
+    filters: { Search: `${this.search} ${this.listSearch}`.trim(), Type: this.filters.type, Status: this.filters.status, Module: this.filters.module },
+    rows: () => this.filtered
+  });
 
   importPolicies(input: HTMLInputElement): void {
     const file = input.files?.[0];

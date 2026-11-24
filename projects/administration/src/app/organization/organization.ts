@@ -1,4 +1,5 @@
 import { Component, HostListener, ViewChild, effect, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -27,7 +28,6 @@ import {
 } from 'lucide-angular';
 import { AdminPage } from '../shared/admin-common';
 import { LOCATION_TYPES, TYPE_TONES } from './organization.data';
-import { downloadCsv } from './organization-csv';
 import { LocationType, OrgLocation, OrgTabId, RecordStatus } from './organization.model';
 import { OrganizationService } from './organization.service';
 import { LocationTree } from './location-tree/location-tree';
@@ -35,13 +35,11 @@ import { SummaryTabView } from './summary-tab/summary-tab';
 
 type SortKey = 'code' | 'name' | 'type' | 'parent' | 'contact' | 'status';
 
-const EXPORT_HEADER = ['Location Code', 'Location Name', 'Type', 'Parent Code', 'Address', 'Country', 'City', 'Time Zone', 'Manager', 'Status'];
-
 /** Administration > Organization: location hierarchy plus a summary of each master for the organization. */
 @Component({
   standalone: true,
   selector: 'app-admin-organization',
-  imports: [FormsModule, RouterLink, LucideAngularModule, LocationTree, SummaryTabView],
+  imports: [FormsModule, RouterLink, LucideAngularModule, LocationTree, SummaryTabView, ExportMenu],
   templateUrl: './organization.html',
   styleUrls: ['../shared/admin-workspace.css', './organization.css']
 })
@@ -273,13 +271,16 @@ export class OrganizationPage extends AdminPage {
 
   /* ===== Import / Export ===== */
 
-  export(): void {
-    const rows = this.rows;
-    downloadCsv(
-      'locations.csv',
-      EXPORT_HEADER,
-      rows.map((l) => [l.code, l.name, l.type, l.parent ?? '', l.address, l.country, l.city, l.timeZone, l.contact, l.status])
-    );
-    this.notify(`Exported ${rows.length} locations.`);
-  }
+  /** Export menu (CSV / PDF): every location in the selected branch matching search, type and status, in table order. */
+  readonly exportRequest = (): ExportRequest<OrgLocation> => ({
+    title: 'Organization Locations',
+    fileBase: 'locations',
+    columns: [
+      { label: 'Location Code', key: 'code' }, { label: 'Location Name', key: 'name' }, { label: 'Type', key: 'type' },
+      { label: 'Parent Code', value: (l) => l.parent ?? '' }, { label: 'Address', key: 'address' }, { label: 'Country', key: 'country' },
+      { label: 'City', key: 'city' }, { label: 'Time Zone', key: 'timeZone' }, { label: 'Manager', key: 'contact' }, { label: 'Status', key: 'status' }
+    ],
+    filters: { Search: this.search, Type: this.typeFilter, Status: this.statusFilter, Branch: this.selectedNode },
+    rows: () => this.rows
+  });
 }

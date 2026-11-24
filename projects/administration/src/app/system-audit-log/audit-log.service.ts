@@ -244,11 +244,6 @@ export class AuditLogService {
     );
   }
 
-  /** GET /api/audit-logs/export: the filtered events of the current tab as CSV (server-side, up to 50,000 rows). */
-  exportCsv(filters: AuditFilters, category: '' | AuditCategory): Observable<Blob> {
-    return this.http.get(`${this.apiUrl}/export`, { params: this.params(filters, category), responseType: 'blob' });
-  }
-
   /** Header stats: today against yesterday (events, critical, configuration changes, failed actions). */
   stats(): Observable<AuditStats> {
     const day = (offset: number) => {

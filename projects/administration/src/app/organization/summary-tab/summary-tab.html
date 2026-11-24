@@ -34,7 +34,7 @@
         <button type="button" class="btn btn--link" (click)="clearFilters()">Clear</button>
       }
       <span class="toolbar__spacer"></span>
-      <button type="button" class="btn" (click)="export()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export</button>
+      <app-export-menu [source]="exportRequest" />
     </div>
 
     <div class="table-wrap">

@@ -70,9 +70,7 @@
     <lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Import Configuration
   </button>
   <input #importInput type="file" hidden accept="application/json,.json" (change)="importConfig(importInput)" />
-  <button type="button" class="btn" (click)="exportConfig()">
-    <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export Configuration
-  </button>
+  <app-export-menu [source]="exportRequest" label="Export Configuration" />
   <span class="toolbar__spacer"></span>
   <label class="search">
     <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>

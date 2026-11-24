@@ -1,4 +1,5 @@
 import { Component, ElementRef, HostListener, ViewChild, effect, inject } from '@angular/core';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EMPTY, catchError, concatMap, finalize, from, tap } from 'rxjs';
@@ -25,7 +26,7 @@ import {
 import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS, AdminPage, CURRENT_USER, avatarTone, departmentsOf, formatDate, initials } from '../shared/admin-common';
 import { InviteDialog, InviteRequest } from './invite-dialog/invite-dialog';
 import { UserDrawer } from './user-drawer/user-drawer';
-import { downloadCsv, parseCsv } from './user-csv';
+import { parseCsv } from './user-csv';
 import { RoleAccessService, adminApiError } from '../role-access-control/role-access.service';
 import { LAST_MONTH, LOCATION_TIME_ZONES, USER_ROLES, blankUser, roleModules, setUserRoles } from './user-management.data';
 import { AdminUser, UserStatus } from './user-management.model';
@@ -42,13 +43,11 @@ interface PendingAction {
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
-const EXPORT_HEADER = ['Name', 'Email', 'Employee ID', 'Department', 'Job Title', 'Primary Role', 'Secondary Roles', 'Location', 'Access Scope', 'MFA', 'Last Login', 'Status'];
-
 /** Administration > User Management: accounts, roles, access scope and account status. */
 @Component({
   standalone: true,
   selector: 'app-admin-user-management',
-  imports: [FormsModule, RouterLink, LucideAngularModule, UserDrawer, InviteDialog],
+  imports: [FormsModule, RouterLink, LucideAngularModule, UserDrawer, InviteDialog, ExportMenu],
   templateUrl: './user-management.html',
   styleUrls: ['../shared/admin-workspace.css', './user-management.css']
 })
@@ -657,18 +656,20 @@ export class UserManagementPage extends AdminPage {
       .subscribe();
   }
 
-  export(): void {
-    const rows = this.rows;
-    downloadCsv(
-      'users.csv',
-      EXPORT_HEADER,
-      rows.map((u) => [
-        u.name, u.email, u.employeeId, u.department, u.jobTitle, u.primaryRole, u.secondaryRoles.join('; '), u.location, u.accessScope,
-        u.mfa ? 'On' : 'Off', u.lastLogin ? loginLabel(u.lastLogin, true) : '', u.status
-      ])
-    );
-    this.notify(`Exported ${rows.length} users.`, 'success');
-  }
+  /** Export menu (CSV / PDF): every user matching the current search and filters. */
+  readonly exportRequest = (): ExportRequest<AdminUser> => ({
+    title: 'User Management',
+    fileBase: 'users',
+    columns: [
+      { label: 'Name', key: 'name' }, { label: 'Email', key: 'email' }, { label: 'Employee ID', key: 'employeeId' },
+      { label: 'Department', key: 'department' }, { label: 'Job Title', key: 'jobTitle' }, { label: 'Primary Role', key: 'primaryRole' },
+      { label: 'Secondary Roles', value: (u) => u.secondaryRoles.join('; ') }, { label: 'Location', key: 'location' },
+      { label: 'Access Scope', key: 'accessScope' }, { label: 'MFA', value: (u) => (u.mfa ? 'On' : 'Off') },
+      { label: 'Last Login', value: (u) => (u.lastLogin ? loginLabel(u.lastLogin, true) : '') }, { label: 'Status', key: 'status' }
+    ],
+    filters: { Search: this.search, Department: this.department, Status: this.status },
+    rows: () => this.rows
+  });
 
   pickImport(): void {
     this.importInput?.nativeElement.click();
