@@ -95,8 +95,7 @@ export class Sidebar {
       children: [
         { label: 'IoT & Tracking Overview', path: '/dashboard/iot-tracking-overview' },
         { label: 'Asset Overview', path: '/dashboard/asset-overview' },
-        // Hidden for now: the Reports dashboard's APIs are not ready
-        // { label: 'Reports', path: '/dashboard/reports' },
+        { label: 'Reports', path: '/dashboard/reports' },
       ],
     },
     {
@@ -112,20 +111,28 @@ export class Sidebar {
         { label: 'Asset Components', path: '/assets/components' },
         { label: 'Location History', path: '/assets/location-history' },
         { label: 'Assignment', path: '/assets/assignment' },
-        // { label: 'Maintenance', path: '/assets/maintenance' },
+
         { label: 'Asset Relationship', path: '/assets/asset-relationships' },
         { label: 'Custom Fields', path: '/assets/custom-fields' },
         { label: 'Asset Documents', path: '/assets/all-documents' },
         { label: 'Asset Images', path: '/assets/all-images' },
-        { label: 'Asset Status & Condition', path: '/assets/asset-status-condition' },
+
+        { label: 'Asset Status & Condition', path: '/assets/status-condition' },
         { label: 'Asset Criticality', path: '/assets/criticality' },
         { label: 'Asset Health Score', path: '/assets/health-score' },
         { label: 'Asset Lifecycle', path: '/assets/lifecycle' },
         { label: 'Bulk Import / Export', path: '/assets/bulk-import-export' },
         { label: 'Asset Merge / Dedup', path: '/assets/merge-dedup' },
+        // { label: 'Maintenance', path: '/assets/maintenance' },
         // { label: 'Service Requests', path: '/assets/service-requests' },
         // { label: 'Asset Audit', path: '/assets/audit' },
         // { label: 'Disposal', path: '/assets/disposal' },
+
+        { label: 'Asset Lifecycle', path: '/assets/lifecycle' },
+
+
+
+
       ]
     },
     {

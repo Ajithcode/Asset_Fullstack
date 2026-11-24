@@ -65,11 +65,11 @@
   <div class="card filters">
     <lucide-icon class="filters-ic" [img]="icons.CalendarDays" [size]="20"></lucide-icon>
     <label class="field"><span class="field-label">Date Range</span>
-      <select class="control" [(ngModel)]="range" (ngModelChange)="refresh()"><option [ngValue]="null">Select Date Range</option><option *ngFor="let r of ranges" [ngValue]="r.value">{{ r.label }}</option></select></label>
+      <select class="control" [(ngModel)]="range" (ngModelChange)="onRangeChange()"><option [ngValue]="null">Select Date Range</option><option *ngFor="let r of ranges" [ngValue]="r.value">{{ r.label }}</option></select></label>
     <label class="field"><span class="field-label">Site</span>
-      <select class="control" [(ngModel)]="site" (ngModelChange)="refresh()"><option value="">Select Site</option><option *ngFor="let o of siteOptions" [value]="o">{{ o }}</option></select></label>
+      <select class="control" [(ngModel)]="site" (ngModelChange)="onSiteChange()"><option value="">Select Site</option><option *ngFor="let o of siteOptions" [value]="o">{{ o }}</option></select></label>
     <label class="field"><span class="field-label">Category</span>
-      <select class="control" [(ngModel)]="category" (ngModelChange)="refresh()"><option value="">Select Category</option><option *ngFor="let o of categoryOptions" [value]="o">{{ o }}</option></select></label>
+      <select class="control" [(ngModel)]="category" (ngModelChange)="onCategoryChange()"><option value="">Select Category</option><option *ngFor="let o of categoryOptions" [value]="o">{{ o }}</option></select></label>
     <label class="field"><span class="field-label">Asset Type</span>
       <select class="control" [(ngModel)]="type" (ngModelChange)="refresh()"><option value="">Select Asset Type</option><option *ngFor="let o of typeOptions" [value]="o">{{ o }}</option></select></label>
     <label class="field"><span class="field-label">Location / Zone</span>
@@ -112,7 +112,7 @@
             <tr>
               <th class="chk"><input type="checkbox" [checked]="allSelected" (change)="toggleAll($any($event.target).checked)" aria-label="Select all on this page" /></th>
               <th><button type="button" class="sort" (click)="sortBy('tag')">Asset ID <lucide-icon [img]="icons.ArrowUpDown" [size]="13"></lucide-icon></button></th>
-              <th>Asset Name</th><th>Asset Type</th><th>Site</th><th>Current Location</th><th>Previous Location</th>
+              <th>Tag ID</th><th>Asset Name</th><th>Asset Type</th><th>Site</th><th>Current Location</th><th>Previous Location</th>
               <th><button type="button" class="sort" (click)="sortBy('last')">Last Movement <lucide-icon [img]="icons.ArrowUpDown" [size]="13"></lucide-icon></button></th>
               <th>Source</th><th>Status</th><th class="act">Actions</th>
             </tr>
@@ -121,14 +121,16 @@
             <tr *ngFor="let r of pageSummary">
               <td class="chk"><input type="checkbox" [checked]="selected.has(r.tag)" (change)="toggleRow(r.tag, $any($event.target).checked)" [attr.aria-label]="'Select ' + r.tag" /></td>
               <td><button type="button" class="asset-id" (click)="openHistory(r.tag)"><span class="a-ic"><lucide-icon [img]="icon(r.icon)" [size]="18"></lucide-icon></span>{{ r.tag }}</button></td>
+              <td class="nowrap">{{ r.tagIds }}</td>
               <td>{{ r.name }}</td>
               <td>{{ r.type }}</td>
               <td>{{ r.site }}</td>
               <td><span class="loc loc--cur"><lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon>{{ r.current }}</span>
                 <span *ngIf="isUnverified(r)" class="unv" title="Not in the registry, or differs from the registered location">Unverified</span></td>
               <td><span class="loc"><lucide-icon [img]="icons.MapPin" [size]="15"></lucide-icon>{{ r.previous }}</span></td>
-              <td class="nowrap">{{ r.last | date: 'dd MMM yyyy' }}<br /><span class="muted">{{ r.last | date: 'HH:mm' }}</span></td>
-              <td><span [class]="sourceClass(r.source)">{{ r.source }}</span></td>
+              <td class="nowrap"><ng-container *ngIf="r.last; else notSeen">{{ r.last | date: 'dd MMM yyyy' }}<br /><span class="muted">{{ r.last | date: 'HH:mm' }}</span></ng-container>
+                <ng-template #notSeen><span class="muted">Not seen yet</span></ng-template></td>
+              <td><span *ngIf="r.source; else noSrc" [class]="sourceClass(r.source)">{{ r.source }}</span><ng-template #noSrc>—</ng-template></td>
               <td><span [class]="statusClass(r.status)"><i></i>{{ r.status }}</span></td>
               <td class="act">
                 <span class="menu-wrap">
@@ -141,7 +143,7 @@
                 </span>
               </td>
             </tr>
-            <tr *ngIf="!pageSummary.length"><td colspan="11" class="empty">No assets with location history match the filters.</td></tr>
+            <tr *ngIf="!pageSummary.length"><td colspan="12" class="empty">{{ loading ? 'Loading asset movements…' : loadError || 'No assets with location history match the filters.' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -165,7 +167,7 @@
               <td class="details">{{ e.details || '—' }}</td>
               <td>{{ e.by }}</td>
             </tr>
-            <tr *ngIf="!pageEvents.length"><td colspan="9" class="empty">No location changes match the filters.</td></tr>
+            <tr *ngIf="!pageEvents.length"><td colspan="9" class="empty">{{ loading ? 'Loading asset movements…' : loadError || 'No location changes match the filters.' }}</td></tr>
           </tbody>
         </table>
       </div>

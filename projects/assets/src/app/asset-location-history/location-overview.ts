@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, DestroyRef, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -30,9 +30,13 @@ import {
 import { ASSET_TYPE_ICONS } from 'shared-ui';
 import { LocationHistory } from './location-history';
 import { LocationEventDto, MovementType } from './location-history.service';
-import { SITE_POINTS, ZONE_POINTS, buildLocationSample } from './location-overview.data';
+import { SITE_POINTS, ZONE_POINTS } from './location-overview.data';
+import { AssetMovementService, AssetTracking } from './asset-movement.service';
 import { LocationOverviewMap, MapZone } from './location-overview-map';
 import { AssetListItemDto, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
+import { AssetDropdownService, DropdownOption, LocationOption } from '../services/asset-dropdowns/asset-dropdown';
+import { forkJoin } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 
 export type LocSource = 'BLE' | 'Manual' | 'QR Scan' | 'GPS' | 'RFID';
 const SOURCES: LocSource[] = ['BLE', 'Manual', 'QR Scan', 'GPS', 'RFID'];
@@ -65,9 +69,11 @@ interface SummaryRow {
   icon: string;
   current: string;
   previous: string;
-  last: Date;
-  source: LocSource;
+  /** Last movement; null when the asset's tags have not been seen yet. */
+  last: Date | null;
+  source: LocSource | null;
   changes: number;
+  tagIds: string;
   asset: AssetListItemDto | null;
 }
 
@@ -140,15 +146,32 @@ export class LocationOverview implements OnInit, OnDestroy {
   ];
 
   private readonly router = inject(Router);
+  private readonly dropdowns = inject(AssetDropdownService);
+  private readonly movements = inject(AssetMovementService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  /** Filter dropdown lists from the APIs (Master Data sites / zones, Asset service categories / types). */
+  private apiSites: LocationOption[] = [];
+  private apiCategories: DropdownOption[] = [];
+  private apiTypes: DropdownOption[] = [];
+  private apiZones: LocationOption[] = [];
 
   /** ?tag= shows that asset's history instead of the overview. */
   tag = '';
   saving = false;
 
-  /** Static sample data; Movement Event adds to it for this visit. */
+  /** True while GET /api/tag-ids/asset-movement loads; loadError holds its failure message. */
+  loading = false;
+  loadError = '';
+  /** Days of movements loaded (the page reloads when a longer Date Range is picked). */
+  private loadedDays = 0;
+
+  /** Movements from GET /api/tag-ids/asset-movement; Movement Event adds to them for this visit. */
   private raw: LocationEventDto[] = [];
   private events: EventRow[] = [];
   private assets: AssetListItemDto[] = [];
+  /** Tag ids and counts per asset ID, from the movement API. */
+  private tracking = new Map<string, AssetTracking>();
 
   // Filters
   range: number | null = null;
@@ -214,6 +237,34 @@ export class LocationOverview implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.reload();
+    this.loadFilterOptions();
+  }
+
+  /** Site, Category, Asset Type and Location / Zone dropdowns; each list falls back to empty on error. */
+  private loadFilterOptions(): void {
+    forkJoin({
+      sites: this.dropdowns.getSites(),
+      categories: this.dropdowns.getAssetCategories(),
+      types: this.dropdowns.getAssetTypes(),
+      zones: this.dropdowns.getZones(),
+    }).subscribe(({ sites, categories, types, zones }) => {
+      this.apiSites = sites;
+      this.apiCategories = categories;
+      this.apiTypes = types;
+      this.apiZones = zones;
+    });
+  }
+
+  /** Category picked: clears an asset type that does not belong to it. */
+  onCategoryChange(): void {
+    if (this.type && !this.typeOptions.includes(this.type)) this.type = '';
+    this.refresh();
+  }
+
+  /** Site picked: clears a zone that is not on it. */
+  onSiteChange(): void {
+    if (this.zone && !this.zoneOptions.includes(this.zone)) this.zone = '';
+    this.refresh();
   }
 
   ngOnDestroy(): void {
@@ -221,11 +272,49 @@ export class LocationOverview implements OnInit, OnDestroy {
     clearTimeout(this.toastTimer);
   }
 
+  /** Days to load for the Date Range: its days, 30 when none is picked, 12 months for All Time. */
+  private get wantedDays(): number {
+    return this.range === null ? 30 : this.range || 365;
+  }
+
+  /** Date Range picked: loads more history when it reaches past what is loaded. */
+  onRangeChange(): void {
+    if (this.wantedDays > this.loadedDays) this.reload();
+    else this.refresh();
+  }
+
+  /** Loads the assets' current locations and movement history from GET /api/tag-ids/asset-movement. */
   reload(): void {
-    const { assets, events } = buildLocationSample();
-    this.assets = assets;
-    this.raw = events;
-    this.rebuild();
+    this.loading = true;
+    this.loadError = '';
+    const days = this.wantedDays;
+    this.movements
+      .load(days)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ assets, events, tracking }) => {
+          this.assets = assets;
+          this.tracking = tracking;
+          this.loadedDays = days;
+          this.raw = events;
+          this.loading = false;
+          this.rebuild();
+        },
+        error: (err: HttpErrorResponse) => {
+          this.assets = [];
+          this.tracking = new Map();
+          this.raw = [];
+          this.loading = false;
+          const firstError = err?.error?.errors ? Object.values(err.error.errors as Record<string, string[]>).flat()[0] : '';
+          this.loadError =
+            err?.status === 0
+              ? 'Cannot reach the Tracking service.'
+              : err?.status === 401
+                ? 'Sign in to continue.'
+                : firstError || err?.error?.message || err?.error?.title || 'Could not load asset movements.';
+          this.rebuild();
+        },
+      });
   }
 
   private rebuild(): void {
@@ -266,17 +355,29 @@ export class LocationOverview implements OnInit, OnDestroy {
     return [...new Set(values.filter((v): v is string => !!v && v !== '—'))].sort((a, b) => a.localeCompare(b));
   }
 
+  /** GET /api/master-data/sites (falls back to the sites on the events when the API returns none). */
   get siteOptions(): string[] {
-    return this.uniq(this.events.map((e) => e.asset?.siteName));
+    return this.apiSites.length ? this.uniq(this.apiSites.map((o) => o.label)) : this.uniq(this.events.map((e) => e.asset?.siteName));
   }
+  /** GET {asset service}/api/asset-categories (top-level categories). */
   get categoryOptions(): string[] {
-    return this.uniq(this.events.map((e) => e.asset?.category));
+    if (!this.apiCategories.length) return this.uniq(this.events.map((e) => e.asset?.category));
+    const top = this.apiCategories.filter((o) => !o.parentId);
+    return this.uniq((top.length ? top : this.apiCategories).map((o) => o.label));
   }
+  /** GET {asset service}/api/asset-category-types; only the picked category's types (and its sub-categories'). */
   get typeOptions(): string[] {
-    return this.uniq(this.events.map((e) => e.asset?.assetType));
+    if (!this.apiTypes.length) return this.uniq(this.events.map((e) => e.asset?.assetType));
+    const cat = this.category ? this.apiCategories.find((o) => o.label === this.category) : undefined;
+    if (!cat) return this.uniq(this.apiTypes.map((o) => o.label));
+    const ids = new Set([cat.value, ...this.apiCategories.filter((o) => o.parentId === cat.value).map((o) => o.value)]);
+    return this.uniq(this.apiTypes.filter((o) => o.parentId && ids.has(o.parentId)).map((o) => o.label));
   }
+  /** GET /api/master-data/zones; only the picked site's zones. */
   get zoneOptions(): string[] {
-    return this.uniq(this.events.map((e) => e.zone));
+    if (!this.apiZones.length) return this.uniq(this.events.map((e) => e.zone));
+    const site = this.site ? this.apiSites.find((o) => o.label === this.site) : undefined;
+    return this.uniq((site ? this.apiZones.filter((o) => o.siteId === site.value) : this.apiZones).map((o) => o.label));
   }
   get statusOptions(): string[] {
     return this.uniq(this.events.map((e) => e.asset?.status || 'Active'));
@@ -349,8 +450,30 @@ export class LocationOverview implements OnInit, OnDestroy {
         last: e.at,
         source: e.source,
         changes: 1,
+        tagIds: this.tagIdsOf(e.tag),
         asset: e.asset,
       });
+    }
+    // Tracked assets with no movement in range: listed as not seen (unless a zone / source filter is on)
+    if (!this.zone && !this.source) {
+      for (const a of this.assets) {
+        const tag = a.assetTag ?? a.assetRegistrationId;
+        if (seen.has(tag)) continue;
+        const name = a.assetName || tag;
+        const tagIds = this.tagIdsOf(tag);
+        if (
+          (this.site && a.siteName !== this.site) ||
+          (this.category && a.category !== this.category) ||
+          (this.type && a.assetType !== this.type) ||
+          (this.status && (a.status || 'Active') !== this.status) ||
+          (q && !`${tag} ${name} ${tagIds}`.toLowerCase().includes(q))
+        )
+          continue;
+        seen.set(tag, {
+          tag, name, type: a.assetType || '—', category: a.category || '—', site: a.siteName || '—', status: a.status || 'Active',
+          icon: toAssetRecord(a).icon, current: '—', previous: '—', last: null, source: null, changes: 0, tagIds, asset: a,
+        });
+      }
     }
     this.summary = [...seen.values()];
     this.sortSummary();
@@ -370,7 +493,7 @@ export class LocationOverview implements OnInit, OnDestroy {
       lastAt.set(e.tag, e.at.getTime());
     }
     const avgDwell = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : 0;
-    const unverified = this.summary.filter((s) => this.isUnverified(s)).length;
+    const unverified = this.summary.filter((s) => s.last && this.isUnverified(s)).length;
     const vs = days ? `vs. previous ${days} days` : 'all recorded events';
     this.kpis = [
       { value: assetsNow.toLocaleString(), delta: days ? pct(assetsNow, assetsPrev) : null, note: vs },
@@ -385,9 +508,15 @@ export class LocationOverview implements OnInit, OnDestroy {
     this.buildDonut();
   }
 
+  /** Tag ids of an asset, comma separated ('—' when it has none). */
+  private tagIdsOf(tag: string): string {
+    return this.tracking.get(tag.toUpperCase())?.tagIds.join(', ') || '—';
+  }
+
   /** Latest tracked zone differs from the registered location, or the tag is not a registered asset. */
   isUnverified(s: SummaryRow): boolean {
     const a = s.asset;
+    if (!s.last) return false;
     if (!a) return true;
     const registered = [a.zoneName, a.roomName, a.floorName, a.buildingName, a.locationPath].filter(Boolean).map((v) => v!.toLowerCase());
     if (!registered.length) return false;
@@ -461,7 +590,10 @@ export class LocationOverview implements OnInit, OnDestroy {
 
   private sortSummary(): void {
     const d = this.sortDir;
-    this.summary.sort((a, b) => d * (this.sortKey === 'tag' ? a.tag.localeCompare(b.tag) : a.last.getTime() - b.last.getTime()));
+    // never-seen assets stay last
+    this.summary.sort((a, b) =>
+      this.sortKey === 'tag' ? d * a.tag.localeCompare(b.tag) : !a.last || !b.last ? (a.last ? -1 : b.last ? 1 : a.tag.localeCompare(b.tag)) : d * (a.last.getTime() - b.last.getTime()),
+    );
   }
 
   private get listLength(): number {
@@ -519,7 +651,7 @@ export class LocationOverview implements OnInit, OnDestroy {
   /** Assets grouped by current location, placed at the location's map position (unknown locations: beside their site). */
   private buildMapZones(): void {
     const groups = new Map<string, SummaryRow[]>();
-    for (const r of this.summary) groups.set(r.current, [...(groups.get(r.current) ?? []), r]);
+    for (const r of this.summary) if (r.last) groups.set(r.current, [...(groups.get(r.current) ?? []), r]);
     let extra = 0;
     this.mapZones = [...groups].map(([zone, rows]) => {
       const known = ZONE_POINTS.find((p) => p.zone.toLowerCase() === zone.toLowerCase());
@@ -536,8 +668,8 @@ export class LocationOverview implements OnInit, OnDestroy {
         assets: rows.map((r) => ({
           tag: r.tag,
           name: r.name,
-          since: stamp(r.last).replace('T', ' '),
-          source: r.source,
+          since: stamp(r.last!).replace('T', ' '),
+          source: r.source!,
           unverified: this.isUnverified(r),
         })),
       };
@@ -613,8 +745,8 @@ export class LocationOverview implements OnInit, OnDestroy {
     const book = XLSX.utils.book_new();
     const pick = this.selected.size ? this.summary.filter((s) => this.selected.has(s.tag)) : this.summary;
     const summary = pick.map((s) => ({
-      'Asset ID': s.tag, 'Asset Name': s.name, 'Asset Type': s.type, Category: s.category, Site: s.site, 'Current Location': s.current, 'Previous Location': s.previous,
-      'Last Movement': stamp(s.last).replace('T', ' '), Source: s.source, Status: s.status, 'Location Changes': s.changes,
+      'Asset ID': s.tag, 'Tag ID': s.tagIds, 'Asset Name': s.name, 'Asset Type': s.type, Category: s.category, Site: s.site, 'Current Location': s.current, 'Previous Location': s.previous,
+      'Last Movement': s.last ? stamp(s.last).replace('T', ' ') : 'Not seen yet', Source: s.source ?? '—', Status: s.status, 'Location Changes': s.changes,
     }));
     const tags = new Set(pick.map((s) => s.tag));
     const events = this.filteredEvents.filter((e) => tags.has(e.tag)).map((e) => ({
