@@ -17,7 +17,7 @@ internal static class NumberingSequenceMappings
             RecordType = request.RecordType!.Trim(),
             Prefix = request.Prefix!.Trim().ToUpperInvariant(),
             // Not trimmed: the separator is the literal character(s) placed between parts.
-            Separator = request.Separator!,
+            Separator = request.Separator ?? string.Empty,
             NumberLength = request.NumberLength!.Value,
             StartNumber = request.StartNumber!.Value,
             IncrementBy = request.IncrementBy!.Value,
@@ -41,7 +41,7 @@ internal static class NumberingSequenceMappings
         sequence.RecordType = request.RecordType!.Trim();
         sequence.Prefix = request.Prefix!.Trim().ToUpperInvariant();
         // Not trimmed: the separator is the literal character(s) placed between parts.
-        sequence.Separator = request.Separator!;
+        sequence.Separator = request.Separator ?? string.Empty;
         sequence.NumberLength = request.NumberLength!.Value;
         sequence.StartNumber = request.StartNumber!.Value;
         sequence.IncrementBy = request.IncrementBy!.Value;

@@ -83,13 +83,11 @@ public static partial class NumberingSequenceValidationExtensions
         }
 
         // Letters or digits in the separator would make the generated numbers ambiguous.
-        if (string.IsNullOrEmpty(separator))
+        // An empty separator is allowed (AR000152 style: prefix and number joined directly).
+        if (!string.IsNullOrEmpty(separator)
+            && (separator.Length > MaxSeparatorLength || separator.Any(char.IsLetterOrDigit)))
         {
-            errors["Separator"] = ["Separator is required"];
-        }
-        else if (separator.Length > MaxSeparatorLength || separator.Any(char.IsLetterOrDigit))
-        {
-            errors["Separator"] = [$"Separator must be up to {MaxSeparatorLength} non-alphanumeric characters, e.g. \"-\""];
+            errors["Separator"] = [$"Separator must be empty or up to {MaxSeparatorLength} non-alphanumeric characters, e.g. \"-\""];
         }
 
         if (numberLength is null)
