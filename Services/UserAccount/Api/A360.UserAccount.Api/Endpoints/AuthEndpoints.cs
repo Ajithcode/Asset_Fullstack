@@ -548,31 +548,79 @@ public static class AuthEndpoints
         return Results.Ok(response);
     }
 
+    /// <summary>
+    /// Ends the session: revokes the refresh token when it is still active, and records "signed out" whenever the caller
+    /// can be identified — by the refresh token (also an expired or already revoked one), else by the access token (also
+    /// an expired one signed by this service). Never fails because a token has expired; the browser forgets it anyway.
+    /// </summary>
     private static async Task<IResult> LogoutAsync(
-        RefreshTokenRequest request,
+        HttpContext httpContext,
         IUserRepository repository,
         IRefreshTokenRepository refreshTokenRepository,
         TokenService tokenService,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        // The body is optional: a browser that lost its refresh token still signs out with its access token
+        RefreshTokenRequest? request = null;
+        if (httpContext.Request.ContentLength is > 0 || httpContext.Request.Headers.TransferEncoding.Count > 0)
         {
-            return Results.BadRequest(new { message = "Refresh token is required." });
-        }
-
-        var tokenHash = tokenService.HashRefreshToken(request.RefreshToken.Trim());
-        var storedToken = await refreshTokenRepository.GetByTokenHashAsync(tokenHash, cancellationToken);
-        if (storedToken is not null && await refreshTokenRepository.RevokeAsync(tokenHash, cancellationToken: cancellationToken))
-        {
-            var user = await repository.GetByIdAsync(storedToken.UserRefId, cancellationToken);
-            if (user is not null)
+            try
             {
-                await LogAsync(eventLogger, user, EventAction.LoggedOut, cancellationToken);
+                request = await httpContext.Request.ReadFromJsonAsync<RefreshTokenRequest>(cancellationToken);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+            }
+            catch (InvalidOperationException)
+            {
             }
         }
 
+        string? userId = null;
+        string? how = null;
+        if (!string.IsNullOrWhiteSpace(request?.RefreshToken))
+        {
+            var tokenHash = tokenService.HashRefreshToken(request.RefreshToken.Trim());
+            var storedToken = await refreshTokenRepository.GetByTokenHashAsync(tokenHash, cancellationToken);
+            if (storedToken is not null)
+            {
+                userId = storedToken.UserRefId;
+                if (await refreshTokenRepository.RevokeAsync(tokenHash, cancellationToken: cancellationToken))
+                {
+                    how = storedToken.ExpiresAt <= DateTime.UtcNow
+                        ? "Signed out after the session had expired."
+                        : "Signed out; session ended.";
+                }
+                else
+                {
+                    how = "Signed out; the session had already ended (token revoked or renewed).";
+                }
+            }
+        }
+
+        if (userId is null)
+        {
+            var principal = httpContext.User;
+            userId = principal.Identity?.IsAuthenticated == true
+                ? principal.FindFirstValue(A360ClaimTypes.Subject)
+                : tokenService.ReadSubjectIgnoringExpiry(BearerTokenOf(httpContext.Request));
+            how = userId is null ? null : "Signed out; identified by the access token (no active session token was sent).";
+        }
+
+        var user = userId is null ? null : await repository.GetByIdAsync(userId, cancellationToken);
+        if (user is not null)
+        {
+            await eventLogger.LogDetailedAsync(EventEntityType, user.Id, user.UserName, EventAction.LoggedOut, how, ToActor(user), cancellationToken);
+        }
+
         return Results.Ok(new { message = "Logged out." });
+    }
+
+    private static string? BearerTokenOf(HttpRequest request)
+    {
+        var header = request.Headers.Authorization.ToString();
+        return header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? header["Bearer ".Length..].Trim() : null;
     }
 
     private static async Task<IResult> GetCurrentUserAsync(

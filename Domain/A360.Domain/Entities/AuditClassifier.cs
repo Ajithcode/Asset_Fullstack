@@ -94,7 +94,9 @@ public static class AuditClassifier
         EventAction.LoginFailed, EventAction.LoginBlocked,
         EventAction.OtpSent, EventAction.OtpSendFailed, EventAction.OtpFailed, EventAction.OtpLocked,
         EventAction.TotpSetupStarted, EventAction.TotpEnabled,
-        EventAction.TokenRefreshed, EventAction.TokenRefreshFailed, EventAction.TokenReuseDetected
+        EventAction.TokenRefreshed, EventAction.TokenRefreshFailed, EventAction.TokenReuseDetected,
+        EventAction.LoginStarted, EventAction.RegistrationFailed,
+        EventAction.PasswordChanged, EventAction.PasswordChangeFailed, EventAction.PasswordReset
     };
 
     /// <summary>One event per imported / exported file.</summary>
@@ -106,7 +108,8 @@ public static class AuditClassifier
     private static readonly HashSet<string> FailedActions = new(StringComparer.OrdinalIgnoreCase)
     {
         EventAction.ImportFailed, EventAction.LoginFailed, EventAction.LoginBlocked, EventAction.OtpSendFailed, EventAction.OtpFailed,
-        EventAction.OtpLocked, EventAction.TokenRefreshFailed, EventAction.TokenReuseDetected
+        EventAction.OtpLocked, EventAction.TokenRefreshFailed, EventAction.TokenReuseDetected,
+        EventAction.RegistrationFailed, EventAction.PasswordChangeFailed
     };
 
     /// <summary>Users and their roles: changes to these are User Activity.</summary>
@@ -219,6 +222,12 @@ public static class AuditClassifier
             EventAction.TokenRefreshed => "Session refreshed",
             EventAction.TokenRefreshFailed => "Session refresh failed",
             EventAction.TokenReuseDetected => "Session token reuse detected",
+            EventAction.LoginStarted => "Sign-in password accepted",
+            EventAction.RegistrationFailed => "Sign-up refused",
+            EventAction.SessionExpired => "Session expired without sign-out",
+            EventAction.PasswordChanged => "Password changed",
+            EventAction.PasswordChangeFailed => "Password change failed",
+            EventAction.PasswordReset => "Password reset by administrator",
             _ => null
         };
 
@@ -297,7 +306,7 @@ public static class AuditClassifier
             return AuditCategory.ImportsExports;
         }
 
-        if (action is EventAction.LoggedIn or EventAction.LoggedOut or EventAction.Viewed || UserEntities.Contains(entityType))
+        if (action is EventAction.LoggedIn or EventAction.LoggedOut or EventAction.SessionExpired or EventAction.Viewed || UserEntities.Contains(entityType))
         {
             return AuditCategory.UserActivity;
         }
@@ -340,6 +349,8 @@ public static class AuditClassifier
             case EventAction.OtpFailed:
             case EventAction.OtpSendFailed:
             case EventAction.TokenRefreshFailed:
+            case EventAction.PasswordChangeFailed:
+            case EventAction.PasswordReset:
                 return AuditSeverity.High;
             case EventAction.ImportFailed:
                 return AuditSeverity.High;
@@ -347,12 +358,16 @@ public static class AuditClassifier
             case EventAction.Exported:
             case EventAction.TotpSetupStarted:
             case EventAction.TotpEnabled:
+            case EventAction.PasswordChanged:
+            case EventAction.RegistrationFailed:
                 return AuditSeverity.Medium;
             case EventAction.Viewed:
             case EventAction.LoggedIn:
             case EventAction.LoggedOut:
             case EventAction.OtpSent:
             case EventAction.TokenRefreshed:
+            case EventAction.LoginStarted:
+            case EventAction.SessionExpired:
                 return AuditSeverity.Low;
         }
 
@@ -381,7 +396,7 @@ public static class AuditClassifier
             return "Security";
         }
 
-        if (action is EventAction.LoggedIn or EventAction.LoggedOut)
+        if (action is EventAction.LoggedIn or EventAction.LoggedOut or EventAction.SessionExpired)
         {
             return "Authentication";
         }

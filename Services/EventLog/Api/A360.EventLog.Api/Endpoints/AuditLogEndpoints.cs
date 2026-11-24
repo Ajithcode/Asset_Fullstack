@@ -257,6 +257,12 @@ public static class AuditLogEndpoints
         EventAction.TokenRefreshed => "Session refreshed",
         EventAction.TokenRefreshFailed => "Session refresh failed",
         EventAction.TokenReuseDetected => "Session token reuse",
+        EventAction.LoginStarted => "Sign-in password accepted",
+        EventAction.RegistrationFailed => "Sign-up refused",
+        EventAction.SessionExpired => "Session expired",
+        EventAction.PasswordChanged => "Password changed",
+        EventAction.PasswordChangeFailed => "Password change failed",
+        EventAction.PasswordReset => "Password reset",
         _ => AuditClassifier.Humanize(action)
     };
 

@@ -45,13 +45,28 @@ public sealed class WriteAuditMiddleware(RequestDelegate next, ILogger<WriteAudi
     };
 
     /// <summary>
-    /// Sign-in has its own, more specific events; device telemetry readings are machine-sent and high-volume, so they
-    /// are kept out of the audit log on purpose.
+    /// Device telemetry readings are machine-sent and high-volume, so they are kept out of the audit log on purpose.
+    /// Password changes / resets (/api/account) log their own events, and their responses may carry a one-time
+    /// password, so they are never captured here.
     /// </summary>
-    private static readonly string[] SkippedPrefixes = ["/api/auth", "/api/telemetry-readings"];
+    private static readonly string[] SkippedPrefixes = ["/api/telemetry-readings", "/api/account"];
+
+    /// <summary>
+    /// Sign-in endpoints. Most log their own, more specific events; any call that didn't (refused requests, a password
+    /// accepted before the code step, …) gets one here, successful or not. Nothing from the request or response body
+    /// (passwords, codes, tokens) is read or recorded.
+    /// </summary>
+    private const string AuthPrefix = "/api/auth";
 
     public async Task InvokeAsync(HttpContext context)
     {
+        if (IsAuthWrite(context.Request))
+        {
+            await next(context);
+            await LogAuthCallAsync(context);
+            return;
+        }
+
         if (!IsAuditedWrite(context.Request))
         {
             await next(context);
@@ -89,11 +104,60 @@ public sealed class WriteAuditMiddleware(RequestDelegate next, ILogger<WriteAudi
         }
     }
 
+    private static bool IsAuthWrite(HttpRequest request) =>
+        HttpMethods.IsPost(request.Method) && request.Path.StartsWithSegments(AuthPrefix, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>One event for a sign-in call that logged none itself; the actor is the signed-in user, else "Unknown user".</summary>
+    private async Task LogAuthCallAsync(HttpContext context)
+    {
+        if (context.Items.ContainsKey(EventLoggedKey)
+            || context.Response.StatusCode == StatusCodes.Status499ClientClosedRequest
+            || context.RequestServices.GetService<IEventLogger>() is not { } eventLogger)
+        {
+            return;
+        }
+
+        try
+        {
+            var request = context.Request;
+            var endpoint = (request.Path.Value ?? string.Empty).TrimEnd('/').Split('/').LastOrDefault() ?? string.Empty;
+            var status = context.Response.StatusCode;
+            var succeeded = status is >= 200 and < 300;
+            var action = endpoint.ToLowerInvariant() switch
+            {
+                "login" => succeeded ? EventAction.LoginStarted : EventAction.LoginFailed,
+                "verify-otp" or "verify-totp" => succeeded ? EventAction.LoggedIn : EventAction.OtpFailed,
+                "refresh" => succeeded ? EventAction.TokenRefreshed : EventAction.TokenRefreshFailed,
+                "logout" => EventAction.LoggedOut,
+                "register" => succeeded ? EventAction.Created : EventAction.RegistrationFailed,
+                _ => succeeded ? EventAction.Updated : EventAction.LoginFailed
+            };
+
+            var principal = context.User;
+            var userName = principal.Identity?.IsAuthenticated == true ? principal.FindFirst(A360.Security.A360ClaimTypes.UserName)?.Value : null;
+            var actor = string.IsNullOrWhiteSpace(userName)
+                ? new EventActor(null, "Unknown user")
+                : new EventActor(
+                    principal.FindFirst(A360.Security.A360ClaimTypes.Subject)?.Value,
+                    userName,
+                    principal.FindFirst(A360.Security.A360ClaimTypes.ClientId)?.Value,
+                    principal.FindFirst(A360.Security.A360ClaimTypes.TenantId)?.Value);
+            var details = $"{request.Method} {request.Path.Value} → {status}";
+
+            await eventLogger.LogDetailedAsync("User", actor.RefId ?? string.Empty, actor.UserName, action, details, actor, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not write the audit event for {Method} {Path}", context.Request.Method, context.Request.Path);
+        }
+    }
+
     private static bool IsAuditedWrite(HttpRequest request)
     {
         var method = request.Method;
         if (!(HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsPatch(method) || HttpMethods.IsDelete(method))
             || !request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase)
+            || request.Path.StartsWithSegments(AuthPrefix, StringComparison.OrdinalIgnoreCase)
             || SkippedPrefixes.Any(prefix => request.Path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase)))
         {
             return false;

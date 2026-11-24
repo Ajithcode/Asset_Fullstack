@@ -31,6 +31,16 @@ public interface IEventLogger
         string action,
         EventActor performedBy,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Logs an event with extra detail performed by an explicitly named user (sign-in, sign-out, background jobs).</summary>
+    Task LogDetailedAsync(
+        string entityType,
+        string entityId,
+        string entityName,
+        string action,
+        string? details,
+        EventActor performedBy,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record EventActor(string? RefId, string UserName, string? ClientId = null, string? TenantId = null);

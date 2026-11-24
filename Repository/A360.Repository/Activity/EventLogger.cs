@@ -57,6 +57,18 @@ public sealed class EventLogger : IEventLogger
         return WriteAsync(entityType, entityId, entityName, action, performedBy, null, cancellationToken);
     }
 
+    public Task LogDetailedAsync(
+        string entityType,
+        string entityId,
+        string entityName,
+        string action,
+        string? details,
+        EventActor performedBy,
+        CancellationToken cancellationToken = default)
+    {
+        return WriteAsync(entityType, entityId, entityName, action, performedBy, details, cancellationToken);
+    }
+
     private EventActor? CurrentActor()
     {
         var currentUser = _currentUserAccessor?.GetCurrentUser();

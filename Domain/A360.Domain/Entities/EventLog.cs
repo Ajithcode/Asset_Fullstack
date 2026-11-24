@@ -93,6 +93,19 @@ public static class EventAction
     public const string TokenRefreshFailed = "TokenRefreshFailed";
     public const string TokenReuseDetected = "TokenReuseDetected";
 
+    /// <summary>Password accepted at sign-in; the authenticator / emailed code step comes next.</summary>
+    public const string LoginStarted = "LoginStarted";
+    /// <summary>Self sign-up refused (missing fields, name or email taken).</summary>
+    public const string RegistrationFailed = "RegistrationFailed";
+    /// <summary>A session ended without sign-out: its refresh token expired unused (browser closed, abandoned).</summary>
+    public const string SessionExpired = "SessionExpired";
+    /// <summary>The user changed their own password.</summary>
+    public const string PasswordChanged = "PasswordChanged";
+    /// <summary>A password change was refused (wrong current password, weak new password).</summary>
+    public const string PasswordChangeFailed = "PasswordChangeFailed";
+    /// <summary>An administrator set a new password for a user.</summary>
+    public const string PasswordReset = "PasswordReset";
+
     // Imports / exports (System Audit Log › Imports/Exports): one event per file, the record is the job or file
     public const string Imported = "Imported";
     public const string ImportFailed = "ImportFailed";

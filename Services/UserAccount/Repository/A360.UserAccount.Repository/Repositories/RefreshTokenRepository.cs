@@ -49,8 +49,70 @@ public sealed class RefreshTokenRepository : MongoRepository<RefreshTokenEntity>
             cancellationToken: cancellationToken);
     }
 
+    public async Task<long> RevokeOthersForUserAsync(string userRefId, string? exceptTokenHash, CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<RefreshTokenEntity>.Filter.Where(token => token.UserRefId == userRefId && token.RevokedAt == null);
+        if (!string.IsNullOrWhiteSpace(exceptTokenHash))
+        {
+            filter &= Builders<RefreshTokenEntity>.Filter.Ne(token => token.TokenHash, exceptTokenHash);
+        }
+
+        var result = await Collection.UpdateManyAsync(
+            filter,
+            Builders<RefreshTokenEntity>.Update
+                .Set(token => token.RevokedAt, DateTime.UtcNow)
+                .Set(token => token.UpdatedAt, DateTime.UtcNow),
+            cancellationToken: cancellationToken);
+
+        return result.IsAcknowledged ? result.ModifiedCount : 0;
+    }
+
+    public async Task<IReadOnlyList<RefreshTokenEntity>> GetEndedUnloggedSessionsAsync(
+        DateTime now,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(token => token.RevokedAt == null && token.ExpiresAt <= now && token.SessionEndLoggedAt == null)
+            .SortBy(token => token.ExpiresAt)
+            .Limit(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> MarkSessionEndLoggedAsync(string id, CancellationToken cancellationToken = default)
+    {
+        var result = await Collection.UpdateOneAsync(
+            token => token.Id == id && token.SessionEndLoggedAt == null,
+            Builders<RefreshTokenEntity>.Update.Set(token => token.SessionEndLoggedAt, DateTime.UtcNow),
+            cancellationToken: cancellationToken);
+
+        return result.IsAcknowledged && result.ModifiedCount > 0;
+    }
+
+    /// <summary>
+    /// Expired tokens are kept this long before MongoDB deletes them, so a sign-out with an expired token can still be
+    /// tied to its user and the "session expired" audit event can be written. Expired tokens are refused regardless.
+    /// </summary>
+    public static readonly TimeSpan ExpiredTokenRetention = TimeSpan.FromDays(2);
+
+    private const string TtlIndexName = "ttl_refresh_tokens_expires_at";
+
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
     {
+        // The TTL index used to delete tokens the moment they expired: recreate it with the retention period
+        using (var cursor = await Collection.Indexes.ListAsync(cancellationToken))
+        {
+            var existing = (await cursor.ToListAsync(cancellationToken))
+                .FirstOrDefault(index => index.GetValue("name", string.Empty).AsString == TtlIndexName);
+            if (existing is not null
+                && (!existing.TryGetValue("expireAfterSeconds", out var seconds)
+                    || !seconds.IsNumeric
+                    || (long)seconds.ToDouble() != (long)ExpiredTokenRetention.TotalSeconds))
+            {
+                await Collection.Indexes.DropOneAsync(TtlIndexName, cancellationToken);
+            }
+        }
+
         var indexes = new[]
         {
             new CreateIndexModel<RefreshTokenEntity>(
@@ -61,7 +123,10 @@ public sealed class RefreshTokenRepository : MongoRepository<RefreshTokenEntity>
                 new CreateIndexOptions { Name = "ix_refresh_tokens_user_ref_id" }),
             new CreateIndexModel<RefreshTokenEntity>(
                 Builders<RefreshTokenEntity>.IndexKeys.Ascending(token => token.ExpiresAt),
-                new CreateIndexOptions { Name = "ttl_refresh_tokens_expires_at", ExpireAfter = TimeSpan.Zero })
+                new CreateIndexOptions { Name = TtlIndexName, ExpireAfter = ExpiredTokenRetention }),
+            new CreateIndexModel<RefreshTokenEntity>(
+                Builders<RefreshTokenEntity>.IndexKeys.Ascending(token => token.SessionEndLoggedAt).Ascending(token => token.RevokedAt).Ascending(token => token.ExpiresAt),
+                new CreateIndexOptions { Name = "ix_refresh_tokens_session_end" })
         };
 
         await Collection.Indexes.CreateManyAsync(indexes, cancellationToken);

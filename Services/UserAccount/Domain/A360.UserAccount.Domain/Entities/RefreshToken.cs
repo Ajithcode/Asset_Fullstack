@@ -20,4 +20,11 @@ public sealed class RefreshToken : BaseEntity
 
     [BsonElement("replaced_by_token_hash")]
     public string? ReplacedByTokenHash { get; set; }
+
+    /// <summary>
+    /// Set when the "session expired" audit event was written for this token (it expired without being refreshed or
+    /// revoked by sign-out), so the event is written once.
+    /// </summary>
+    [BsonElement("session_end_logged_at")]
+    public DateTime? SessionEndLoggedAt { get; set; }
 }

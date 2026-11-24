@@ -66,6 +66,8 @@ public static class UserAccountServiceCollectionExtensions
 
         services.AddHostedService<MongoIndexHostedService>();
         services.AddHostedService<DefaultRoleSeeder>();
+        // "Session expired" audit events for sessions that ended without sign-out
+        services.AddHostedService<A360.UserAccount.Api.Background.SessionExpiryAuditService>();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
         {

@@ -59,6 +59,46 @@ public sealed class TokenService
         return new IssuedRefreshToken(token, HashRefreshToken(token), DateTime.UtcNow.AddDays(_settings.RefreshTokenDays));
     }
 
+    /// <summary>
+    /// The user id (sub) of an access token signed by this service, also when it has expired (up to the refresh token
+    /// lifetime ago). Only used to name who signed out in the audit log; never to grant access.
+    /// </summary>
+    public string? ReadSubjectIgnoringExpiry(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token) || !_tokenHandler.CanReadToken(token))
+        {
+            return null;
+        }
+
+        var parameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = _settings.Issuer,
+            ValidateAudience = true,
+            ValidAudience = _settings.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = _signingCredentials.Key,
+            ValidateLifetime = false
+        };
+
+        try
+        {
+            var handler = new JwtSecurityTokenHandler { MapInboundClaims = false };
+            var principal = handler.ValidateToken(token, parameters, out var validated);
+            if (validated.ValidTo < DateTime.UtcNow.AddDays(-Math.Max(1, _settings.RefreshTokenDays)))
+            {
+                return null;
+            }
+
+            var subject = principal.FindFirst(A360ClaimTypes.Subject)?.Value;
+            return string.IsNullOrWhiteSpace(subject) ? null : subject;
+        }
+        catch (Exception exception) when (exception is SecurityTokenException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
     public string HashRefreshToken(string token)
     {
         return Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
