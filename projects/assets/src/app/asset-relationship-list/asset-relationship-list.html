@@ -52,6 +52,9 @@
         <button type="button" role="tab" [attr.aria-selected]="view === 'diagram'" [class.is-on]="view === 'diagram'" (click)="setView('diagram')">
           <lucide-icon [img]="icons.GitBranch" [size]="16"></lucide-icon> Diagram
         </button>
+        <button type="button" role="tab" [attr.aria-selected]="view === 'history'" [class.is-on]="view === 'history'" (click)="setView('history')">
+          <lucide-icon [img]="icons.History" [size]="16"></lucide-icon> History
+        </button>
       </div>
     </header>
 
@@ -132,6 +135,28 @@
             <span class="ar-page-no">{{ page }} / {{ pageCount }}</span>
             <button type="button" class="btn btn-outline btn-sm" [disabled]="page >= pageCount" (click)="setPage(page + 1)">Next</button>
           </footer>
+        </ng-container>
+
+        <!-- History: every add / change / delete of a relationship, from the audit trail -->
+        <ng-container *ngIf="view === 'history'">
+          <p *ngIf="historyError" class="form-error" role="alert">{{ historyError }} <button type="button" class="link-btn" (click)="loadHistory()">Retry</button></p>
+          <div class="table-wrap">
+            <table class="data-table ar-table">
+              <thead><tr><th>When</th><th>Action</th><th>Relationship</th><th>Details</th><th>Performed By</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let h of filteredHistory">
+                  <td class="nowrap">{{ h.createdAt ? (h.createdAt | date: 'dd MMM yyyy, HH:mm') : '—' }}</td>
+                  <td><span class="pill pill--xs" [ngClass]="historyClass(h.action)">{{ h.action }}</span></td>
+                  <td>{{ h.entityName || h.entityId || '—' }}</td>
+                  <td class="ar-history-msg">{{ h.message || '—' }}</td>
+                  <td class="nowrap">{{ h.performedBy || '—' }}</td>
+                </tr>
+                <tr *ngIf="historyLoading && !history.length"><td colspan="5" class="empty-line">Loading history…</td></tr>
+                <tr *ngIf="!historyLoading && !historyError && !history.length"><td colspan="5" class="empty-line">No relationship changes recorded yet.</td></tr>
+                <tr *ngIf="history.length && !filteredHistory.length"><td colspan="5" class="empty-line">No history entries match "{{ search }}".</td></tr>
+              </tbody>
+            </table>
+          </div>
         </ng-container>
 
         <!-- Diagram view: the filtered relationships as a directional network -->

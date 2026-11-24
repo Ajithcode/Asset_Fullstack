@@ -3,19 +3,20 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import {
-  LucideAngularModule, AlertTriangle, ArrowRight, Download, Eye, GitBranch, LayoutList, Link2, Maximize, Minus, Network,
+  LucideAngularModule, AlertTriangle, ArrowRight, Download, Eye, GitBranch, History, LayoutList, Link2, Maximize, Minus, Network,
   Pencil, Plus, Search, Trash2, Unlink, X,
 } from 'lucide-angular';
 import { Observable, concatMap, forkJoin, of } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
 import { FROM_RELATIONSHIPS } from './user-relationships';
 import { AssetRelationshipDto, AssetRelationshipService, RegisteredAsset, subAssetKey, toSubAssetRef } from './asset-relationship.service';
+import type { EventLogDto } from '../asset-documents/asset-lookup.service';
 import {
   CRITICALITY_ORDER, DiagramEdge, DiagramNode, ImpactHit, NODE_H, NODE_W, RelEnd, RelRow, criticalityRank, impactOf,
   isCriticalDependency, layout, toRows,
 } from './relationship-graph';
 
-type View = 'list' | 'diagram';
+type View = 'list' | 'diagram' | 'history';
 
 /** The Add / Edit Relationship form. */
 interface RelForm {
@@ -43,8 +44,8 @@ const PAGE_SIZE = 10;
 })
 export class AssetRelationshipList implements OnInit, OnDestroy {
   readonly icons = {
-    AlertTriangle, ArrowRight, Download, Eye, GitBranch, LayoutList, Link2, Maximize, Minus, Network, Pencil, Plus, Search,
-    Trash2, Unlink, X,
+    AlertTriangle, ArrowRight, Download, Eye, GitBranch, History, LayoutList, Link2, Maximize, Minus, Network, Pencil, Plus,
+    Search, Trash2, Unlink, X,
   };
   readonly fromRelationships = FROM_RELATIONSHIPS;
   readonly criticalities = CRITICALITY_ORDER;
@@ -112,6 +113,7 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
         this.types = types;
         this.rows = toRows(records, this.assetById);
         this.loading = false;
+        if (this.view === 'history') this.loadHistory();
         // keep the details panel on the same relationship after a reload
         if (this.selected) this.selected = this.rows.find((r) => r.id === this.selected!.id) ?? null;
         this.relayout();
@@ -256,6 +258,39 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
   setView(v: View): void {
     this.view = v;
     if (v === 'diagram') this.relayout();
+    if (v === 'history') this.loadHistory();
+  }
+
+  // ===== Relationship History (audit trail from the EventLog service) =====
+
+  history: EventLogDto[] = [];
+  historyLoading = false;
+  historyError = '';
+
+  loadHistory(): void {
+    this.historyLoading = true;
+    this.historyError = '';
+    this.api.getHistory().subscribe({
+      next: (list) => {
+        this.history = list;
+        this.historyLoading = false;
+      },
+      error: (err) => {
+        this.historyLoading = false;
+        this.historyError = apiErrorMessage(err, 'Could not load the relationship history.');
+      },
+    });
+  }
+
+  /** History entries matching the search box (asset names / ids appear in the entry's name and message). */
+  get filteredHistory(): EventLogDto[] {
+    const q = this.search.trim().toLowerCase();
+    return q ? this.history.filter((h) => [h.entityName, h.message, h.performedBy ?? '', h.action].some((v) => (v ?? '').toLowerCase().includes(q))) : this.history;
+  }
+
+  historyClass(action: string): string {
+    const a = (action || '').toLowerCase();
+    return a.includes('delet') ? 'pill--critical' : a.includes('creat') || a.includes('add') ? 'pill--good' : 'pill--warn';
   }
 
   /** Re-lays out the diagram for the current filters. */

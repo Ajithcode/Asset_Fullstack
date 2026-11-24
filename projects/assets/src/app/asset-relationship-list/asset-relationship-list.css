@@ -47,6 +47,7 @@
   display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 12px;
   background: var(--sc-accent-soft); font-size: 0.781rem; font-weight: 600; color: var(--sc-accent); white-space: nowrap;
 }
+.ar-history-msg { max-width: 420px; font-size: 0.813rem; overflow-wrap: anywhere; }
 .ar-pager { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .ar-page-no { font-size: 0.813rem; font-weight: 600; }
 

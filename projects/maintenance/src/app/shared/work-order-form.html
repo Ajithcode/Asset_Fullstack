@@ -24,6 +24,8 @@
         <input class="control" name="title" [(ngModel)]="form.title" placeholder="e.g. Generator 500 kVA - Monthly PM" />
       </label>
       <app-mnt-asset-picker [(assetId)]="form.assetId" [(assetName)]="form.assetName" (picked)="onAsset($event)"></app-mnt-asset-picker>
+      <!-- Assets that depend on this asset (Asset Relationships): review before shutting it down -->
+      <app-mnt-relationship-impact [assetTag]="form.assetId"></app-mnt-relationship-impact>
       <label class="field">
         <span class="field-label">Maintenance Type <span class="req">*</span></span>
         <select class="control" name="workType" [(ngModel)]="form.workType">

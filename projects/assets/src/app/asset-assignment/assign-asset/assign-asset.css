@@ -308,3 +308,8 @@ button.tree-row { gap: 6px; padding: 6px 4px; }
   .form-grid--2, .loc-card .form-grid, .site-kv { grid-template-columns: minmax(0, 1fr); }
   .emp-row { flex-wrap: wrap; }
 }
+
+/* Movement & Custody: dependency warning from Asset Relationships */
+.dep-warn { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; padding: 10px 14px; border: 1px solid #fde68a; border-radius: 8px; background: #fffbeb; font-size: 0.813rem; color: #78350f; }
+.dep-warn ul { margin: 0; padding-left: 18px; }
+.dep-warn a { align-self: flex-start; font-weight: 600; color: #6d28d9; }

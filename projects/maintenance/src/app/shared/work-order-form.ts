@@ -2,6 +2,7 @@ import { Component, OnInit, inject, input, output, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X } from 'lucide-angular';
 import { AssetPicker } from './asset-picker';
+import { RelationshipImpact } from './relationship-impact';
 import { CatalogAsset } from './asset-catalog';
 import { MaintenanceApi, apiErrorMessage, nextCode } from './maintenance-api';
 import { PRIORITIES, WORK_TYPES, WO_CATEGORIES, WO_SOURCES, WO_STATUSES, WorkOrder } from './maintenance.models';
@@ -47,7 +48,7 @@ const toIsoOrNull = (local: string) => (local ? new Date(local).toISOString() : 
 /** Create / edit work order drawer. Pass `workOrder` to edit, or `seed` to prefill a new one. */
 @Component({
   selector: 'app-mnt-work-order-form',
-  imports: [FormsModule, LucideAngularModule, AssetPicker],
+  imports: [FormsModule, LucideAngularModule, AssetPicker, RelationshipImpact],
   templateUrl: './work-order-form.html',
   styleUrl: './mnt-base.css'
 })

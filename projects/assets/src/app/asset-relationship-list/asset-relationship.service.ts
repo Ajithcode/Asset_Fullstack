@@ -2,7 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, catchError, forkJoin, map, of, switchMap, throwError } from 'rxjs';
 import { AuthService } from 'shared-ui';
-import { ASSET_API, TENANT } from '../services/asset-api';
+import { ASSET_API, EVENTLOG_API, TENANT } from '../services/asset-api';
+import type { EventLogDto } from '../asset-documents/asset-lookup.service';
 
 /** "Connected Asset", "Supporting Asset", "Component" or "Sub Asset" (GET /api/asset-relationships/types). */
 export type ApiRelationshipType = 'Connected Asset' | 'Supporting Asset' | 'Component' | 'Sub Asset';
@@ -259,6 +260,17 @@ export class AssetRelationshipService {
         return forkJoin(rest).pipe(map((more) => [...(first.items ?? []), ...more.flat()]));
       }),
     );
+  }
+
+  /**
+   * Relationship History: the audit trail of relationship changes (GET /api/eventlogs?entityType=AssetRelationship
+   * through the gateway; the Asset service records every create, update and delete), newest first.
+   */
+  getHistory(pageSize = 200): Observable<EventLogDto[]> {
+    const params = new HttpParams().set('entityType', 'AssetRelationship').set('page', 1).set('pageSize', pageSize);
+    return this.http
+      .get<{ items: EventLogDto[] }>(EVENTLOG_API, { params })
+      .pipe(map((res) => (res.items ?? []).sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))));
   }
 
   /** Relationship types the API accepts (GET /api/asset-relationships/types). */

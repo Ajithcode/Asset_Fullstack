@@ -55,6 +55,7 @@ import {
 } from 'lucide-angular';
 import { Observable, finalize, forkJoin, map, of, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../../services/asset-api';
+import { AssetRelationshipDto, AssetRelationshipService } from '../../asset-relationship-list/asset-relationship.service';
 import {
   Assignment, AssignmentType, AssetKind, COST_CENTERS, DepartmentManager, ENTITIES, ENTITY_KINDS, EntityKind, LocationDetails, SiteNode, TARGET_LABELS, isoDate,
 } from '../asset-assignment-data';
@@ -257,6 +258,7 @@ export class AssignAsset implements OnInit, OnDestroy {
 
   /** Loads the assets, the assignments they are in, master data and (when opened plainly) the user's last draft. */
   ngOnInit(): void {
+    this.relApi.getAllRelationships().subscribe({ next: (records) => (this.relRecords = records), error: () => (this.relRecords = []) });
     this.loading = true;
     forkJoin({ assets: this.api.listAssets(), assignments: this.api.listAll(), lookups: this.api.lookups() })
       .pipe(finalize(() => (this.loading = false)))
@@ -494,6 +496,28 @@ export class AssignAsset implements OnInit, OnDestroy {
   get chosen(): PoolRow[] {
     const pool = this.pool;
     return this.wizard.tags.map((t) => pool.find((p) => p.tag === t)).filter((p): p is PoolRow => !!p);
+  }
+
+  /** Saved Asset Relationships, for the dependency warning when moving assets (advisory: an error just hides it). */
+  private relRecords: AssetRelationshipDto[] = [];
+  private readonly relApi = inject(AssetRelationshipService);
+
+  /**
+   * Chosen assets that take part in Asset Relationships: moving or reassigning them may affect the assets that depend
+   * on them (or that they depend on).
+   */
+  get dependencyWarnings(): { asset: string; dependents: string[]; dependsOn: string[] }[] {
+    if (!this.relRecords.length) return [];
+    return this.chosen
+      .map((p) => {
+        const id = p.assetRegistrationId;
+        const dependents = (this.relRecords.find((r) => r.mainAssetRegistrationId === id)?.subAssets ?? []).map((s) => s.name || s.tag || '');
+        const dependsOn = this.relRecords
+          .filter((r) => r.subAssets.some((s) => s.assetRegistrationId === id))
+          .map((r) => r.mainAssetName || r.mainAssetTag || r.mainAssetRegistrationId);
+        return { asset: `${p.assetName} (${p.tag})`, dependents, dependsOn };
+      })
+      .filter((w) => w.dependents.length || w.dependsOn.length);
   }
 
   /** Selected assets that are assigned elsewhere now. */

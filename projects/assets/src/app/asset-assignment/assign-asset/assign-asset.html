@@ -218,6 +218,16 @@
             <span class="wz-ic"><lucide-icon [img]="w.target === 'Location' || w.target === 'Other' ? icons.MapPin : icons.UserRound" [size]="22"></lucide-icon></span>
             <div><h2>2. Assignment Details</h2><p>Specify who the assets are assigned to and for what period.</p></div>
           </div>
+          <!-- Movement & Custody: chosen assets that other assets depend on (Asset Relationships) -->
+          <div *ngIf="dependencyWarnings.length" class="dep-warn" role="note">
+            <strong>These assets have active dependencies. Check the impact before moving or reassigning them.</strong>
+            <ul>
+              <li *ngFor="let d of dependencyWarnings">
+                {{ d.asset }}<ng-container *ngIf="d.dependents.length"> — related assets that depend on it: {{ d.dependents.join(', ') }}</ng-container><ng-container *ngIf="d.dependsOn.length"> — depends on: {{ d.dependsOn.join(', ') }}</ng-container>
+              </li>
+            </ul>
+            <a routerLink="/assets/asset-relationships">Open Asset Relationships</a>
+          </div>
           <div class="radios" role="radiogroup" aria-label="Assign to">
             <label *ngFor="let t of assignmentTypes" class="radio" [class.is-on]="w.target === t"><input type="radio" name="target" [checked]="w.target === t" (change)="setTarget(t)" />Assign to {{ targetLabels[t] }}</label>
           </div>
