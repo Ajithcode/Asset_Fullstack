@@ -127,7 +127,7 @@ import { ZoneForm } from '../zone-form/zone-form';
   styleUrls: ['../../shared/admin-workspace.css', '../maps.css'],
   styles: `
     .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .chip-btn { padding: 4px 10px; border: 1px solid var(--adm-border); border-radius: 999px; background: #fff; font: inherit; font-size: 11.5px; cursor: pointer; }
+    .chip-btn { padding: 4px 10px; border: 1px solid var(--adm-border); border-radius: 999px; background: #fff; font: inherit; font-size: 0.719rem; cursor: pointer; }
     .chip-btn.on { background: var(--adm-purple); border-color: var(--adm-purple); color: #fff; }
     .geo { color: var(--adm-red); }
     .legend { display: inline-flex; align-items: center; gap: 6px; }

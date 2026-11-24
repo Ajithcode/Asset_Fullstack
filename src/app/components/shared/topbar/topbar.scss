@@ -92,7 +92,7 @@
 }
 
 .brand {
-  font-size: 28px;
+  font-size: 1.75rem;
   font-weight: 900;
   color: #fff;
   letter-spacing: 0.02em;
@@ -126,7 +126,7 @@
   color: #fff;
   display: grid;
   place-items: center;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 800;
   box-shadow: 0 0 0 2px #4c1d95;
 }
@@ -163,7 +163,7 @@
   width: 34px;
   height: 34px;
   flex: 0 0 34px;
-  font-size: 13px;
+  font-size: 0.813rem;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -181,13 +181,13 @@
   strong {
     max-width: 180px;
     overflow: hidden;
-    font-size: 13px;
+    font-size: 0.813rem;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
 
   span {
-    font-size: 11px;
+    font-size: 0.688rem;
     color: rgba(255, 255, 255, 0.75);
   }
 }
@@ -290,7 +290,7 @@
 
   strong {
     overflow: hidden;
-    font-size: 14.5px;
+    font-size: 0.906rem;
     font-weight: 700;
     color: #1e1b4b;
     white-space: nowrap;
@@ -298,13 +298,13 @@
   }
 
   span {
-    font-size: 12.5px;
+    font-size: 0.781rem;
     color: #6b7280;
   }
 
   .flyout-email {
     overflow: hidden;
-    font-size: 12px;
+    font-size: 0.75rem;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
@@ -331,7 +331,7 @@
   border-bottom: 1px solid #f1f0f6;
   background: none;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #1e1b4b;
   text-align: left;
   cursor: pointer;
@@ -361,7 +361,7 @@
 .row-value {
   max-width: 96px;
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #6b7280;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -407,14 +407,14 @@
   border-radius: 7px;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
 
   small {
-    font-size: 12px;
+    font-size: 0.75rem;
     color: #9ca3af;
   }
 
@@ -473,7 +473,7 @@
 
   h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: 1.125rem;
     font-weight: 800;
   }
 }
@@ -500,7 +500,7 @@
   gap: 14px;
   padding: 18px 20px 20px;
   overflow-y: auto;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .acct-id {
@@ -510,11 +510,11 @@
 
   strong {
     display: block;
-    font-size: 16px;
+    font-size: 1rem;
   }
 
   span {
-    font-size: 13px;
+    font-size: 0.813rem;
     color: #6b7280;
   }
 }
@@ -524,7 +524,7 @@
   height: 52px;
   flex-basis: 52px;
   place-items: center;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 800;
   color: #fff;
 }
@@ -539,7 +539,7 @@
 
   > span,
   legend {
-    font-size: 13px;
+    font-size: 0.813rem;
     font-weight: 600;
   }
 
@@ -551,7 +551,7 @@
     border-radius: 8px;
     background: #fff;
     font: inherit;
-    font-size: 14px;
+    font-size: 0.875rem;
     color: #111827;
     outline: none;
 
@@ -572,7 +572,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 0.875rem;
   cursor: pointer;
 
   input {
@@ -590,7 +590,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #b91c1c;
 
   li {
@@ -606,7 +606,7 @@
 
 .acct-error {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #dc2626;
 }
 
@@ -631,7 +631,7 @@
   }
 
   small {
-    font-size: 12px;
+    font-size: 0.75rem;
     color: #6b7280;
   }
 
@@ -667,7 +667,7 @@
   }
 
   span span {
-    font-size: 13px;
+    font-size: 0.813rem;
     color: #6b7280;
   }
 
@@ -690,7 +690,7 @@
   border-radius: 8px;
   background: #fff;
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #1e1b4b;
   cursor: pointer;
@@ -712,7 +712,7 @@
   border-radius: 8px;
   background: #1f2937;
   color: #fff;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .notifications-flyout {
@@ -737,7 +737,7 @@
 }
 
 .notifications-header strong {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #0f172a;
 }
 
@@ -745,7 +745,7 @@
   border: none;
   background: transparent;
   color: #7c3aed;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -798,21 +798,21 @@
 }
 
 .notification-message {
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #0f172a;
   font-weight: 600;
   line-height: 1.4;
 }
 
 .notification-time {
-  font-size: 11px;
+  font-size: 0.688rem;
   color: #94a3b8;
 }
 
 .notifications-empty {
   padding: 24px 16px;
   text-align: center;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #94a3b8;
 }
 
@@ -820,7 +820,7 @@
 .notifications-desktop {
   padding: 10px 16px;
   border-top: 1px solid #eef0f5;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #64748b;
   text-align: center;
 }
@@ -936,7 +936,7 @@
     background: transparent;
     color: #fff;
     font: inherit;
-    font-size: 13.5px;
+    font-size: 0.844rem;
 
     &::placeholder {
       color: rgba(237, 233, 254, 0.7);
@@ -962,7 +962,7 @@
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: rgba(237, 233, 254, 0.85);
-  font: 600 10.5px/1.4 inherit;
+  font: 600 0.656rem/1.4 inherit;
   letter-spacing: 0.03em;
 }
 
@@ -1002,14 +1002,14 @@
 
     b {
       display: block;
-      font-size: 13.5px;
+      font-size: 0.844rem;
       font-weight: 600;
       color: #1f1147;
     }
 
     small {
       display: block;
-      font-size: 11.5px;
+      font-size: 0.719rem;
       color: #6b7280;
     }
 
@@ -1026,14 +1026,14 @@
   border-radius: 999px;
   background: #fef3c7;
   color: #92400e;
-  font-size: 11px;
+  font-size: 0.688rem;
   font-weight: 600;
 }
 
 .topbar-search__empty {
   padding: 10px 12px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 @media (max-width: 900px) {

@@ -80,7 +80,7 @@ function slug(label: string): string {
     .om-pop {
       position: absolute; top: calc(100% + 4px); right: 0; z-index: 40; min-width: 240px; max-width: 300px; padding: 6px;
       border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
-      font-size: 13px; text-align: left;
+      font-size: 0.813rem; text-align: left;
     }
     .om-pop:has(.om-menu) { min-width: 0; padding: 4px; }
     .om-menu { display: flex; gap: 2px; }
@@ -99,7 +99,7 @@ function slug(label: string): string {
       height: 34px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; outline: none;
     }
     .om-input:focus { border-color: #4f2bd8; box-shadow: 0 0 0 3px rgba(79, 43, 216, 0.12); }
-    .om-error { color: #dc2626; font-size: 12px; }
+    .om-error { color: #dc2626; font-size: 0.75rem; }
     .om-actions { display: flex; justify-content: flex-end; gap: 10px; }
     .om-link { padding: 0 4px; border: 0; background: none; font: inherit; color: #4b5563; cursor: pointer; }
     .om-save {

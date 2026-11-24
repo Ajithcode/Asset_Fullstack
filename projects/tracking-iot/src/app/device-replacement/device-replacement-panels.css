@@ -14,28 +14,28 @@
 .card.is-focus { border-color: var(--dr-accent-border); box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.07); }
 
 .card-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--dr-border); }
-.card-head h2 { margin: 0; font-size: 14px; font-weight: 800; }
-.card-head h2 .muted { font-size: 12.5px; font-weight: 500; }
+.card-head h2 { margin: 0; font-size: 0.875rem; font-weight: 800; }
+.card-head h2 .muted { font-size: 0.781rem; font-weight: 500; }
 .card-head--grey { border-radius: 12px 12px 0 0; background: #f6f7f9; }
 
 /* ===== Existing device key/value ===== */
 .kv { margin: 0; padding: 4px 14px 8px; }
 .kv > div { display: grid; grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1fr); gap: 10px; padding: 7px 0; border-bottom: 1px solid #f0f1f4; }
 .kv > div:last-child { border-bottom: 0; }
-.kv dt { font-size: 12.5px; color: var(--dr-muted); }
-.kv dd { margin: 0; min-width: 0; font-size: 12.5px; font-weight: 600; overflow-wrap: anywhere; }
+.kv dt { font-size: 0.781rem; color: var(--dr-muted); }
+.kv dd { margin: 0; min-width: 0; font-size: 0.781rem; font-weight: 600; overflow-wrap: anywhere; }
 
 /* ===== Candidates ===== */
 .mid-body { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px; }
 .dt--cand td { white-space: normal; }
 .val { padding-top: 4px; }
 .val-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 6px; }
-.val-head h3 { flex: 1 1 auto; margin: 0; font-size: 13px; font-weight: 800; }
+.val-head h3 { flex: 1 1 auto; margin: 0; font-size: 0.813rem; font-weight: 800; }
 .val-head h3 .muted { font-weight: 500; }
-.val-state { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--dr-muted); }
+.val-state { display: inline-flex; align-items: center; gap: 5px; font-size: 0.719rem; color: var(--dr-muted); }
 .val-state--ok { color: var(--dr-ok); font-weight: 700; }
 .checks { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border: 1px solid var(--dr-border); border-radius: 10px; }
-.checks li { display: grid; grid-template-columns: 22px minmax(140px, 0.8fr) minmax(0, 1.3fr); align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #f0f1f4; font-size: 12.5px; transition: background 0.2s; }
+.checks li { display: grid; grid-template-columns: 22px minmax(140px, 0.8fr) minmax(0, 1.3fr); align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #f0f1f4; font-size: 0.781rem; transition: background 0.2s; }
 .checks li:last-child { border-bottom: 0; }
 .ck-ic { display: inline-flex; }
 .ck-name { font-weight: 600; }
@@ -60,13 +60,13 @@
 .rel-body { flex: 1 1 auto; min-width: 0; }
 .rel-top { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
 .rel-top > span:first-child { display: flex; flex-direction: column; min-width: 0; }
-.rel-top strong { font-size: 13px; font-weight: 800; }
-.rel-top small { font-size: 11.5px; color: var(--dr-muted); }
+.rel-top strong { font-size: 0.813rem; font-weight: 800; }
+.rel-top small { font-size: 0.719rem; color: var(--dr-muted); }
 .rel-kv { margin: 0; }
-.rel-kv > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; padding: 2px 0; font-size: 12px; }
+.rel-kv > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; padding: 2px 0; font-size: 0.75rem; }
 .rel-kv dt { color: var(--dr-muted); }
 .rel-kv dd { margin: 0; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
-.rel-note { margin: 0; font-size: 12px; line-height: 1.45; color: var(--dr-text-2); }
+.rel-note { margin: 0; font-size: 0.75rem; line-height: 1.45; color: var(--dr-text-2); }
 .rel-note--warn { color: var(--dr-warn); }
 
 /* ===== Config transfer ===== */
@@ -75,17 +75,17 @@
 .opt { display: flex; align-items: flex-start; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f0f1f4; }
 .opt:last-child { border-bottom: 0; }
 .opt > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.opt strong { font-size: 13px; font-weight: 700; }
-.opt small { font-size: 12px; color: var(--dr-muted); }
+.opt strong { font-size: 0.813rem; font-weight: 700; }
+.opt small { font-size: 0.75rem; color: var(--dr-muted); }
 
 /* ===== Action bar ===== */
 .action-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 12px 14px; }
 .notice { display: flex; flex: 1 1 420px; align-items: flex-start; gap: 10px; min-width: 0; padding: 10px 12px; border: 1px solid #fbd9a5; border-radius: 10px; background: #fff8ec; color: #92400e; }
 .notice lucide-icon { flex: 0 0 auto; color: #d97706; }
-.notice span { font-size: 12.5px; line-height: 1.45; }
-.notice strong { display: block; font-size: 13px; color: #92400e; }
+.notice span { font-size: 0.781rem; line-height: 1.45; }
+.notice strong { display: block; font-size: 0.813rem; color: #92400e; }
 .actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
-.block-reason { flex-basis: 100%; margin: 0; font-size: 12px; text-align: right; color: var(--dr-warn); }
+.block-reason { flex-basis: 100%; margin: 0; font-size: 0.75rem; text-align: right; color: var(--dr-warn); }
 
 /* ===== Responsive ===== */
 @media (max-width: 1600px) {
@@ -117,9 +117,9 @@
 }
 
 /* replacement table: compact so every column (incl. Location) fits */
-.dt--cand { font-size: 12px; }
+.dt--cand { font-size: 0.75rem; }
 .dt--cand th, .dt--cand td { padding: 7px 6px; }
-.dt--cand th { font-size: 11.5px; }
+.dt--cand th { font-size: 0.719rem; }
 .action-bar { padding: 0; }
 
 /* ===== Mock details ===== */
@@ -144,8 +144,8 @@
 .cfg { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 28px; padding: 8px 14px 12px; }
 .cfg-col:first-child { border-right: 1px solid var(--dr-border); padding-right: 24px; }
 .opt { align-items: center; gap: 10px; padding: 6px 0; border-bottom: 0; }
-.opt strong { font-size: 12.5px; }
-.opt small { font-size: 11.5px; }
+.opt strong { font-size: 0.781rem; }
+.opt small { font-size: 0.719rem; }
 .cfg-col:first-child .opt > span { display: grid; grid-template-columns: 158px minmax(0, 1fr); align-items: baseline; gap: 12px; }
 .cfg-col:first-child .opt strong { white-space: nowrap; }
 .cfg-col:last-child .opt { align-items: flex-start; }

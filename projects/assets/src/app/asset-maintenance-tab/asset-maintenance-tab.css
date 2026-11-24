@@ -9,7 +9,7 @@
 }
 
 .count {
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   color: var(--sc-text-muted);
 }
@@ -17,7 +17,7 @@
 .sub {
   display: block;
   margin-top: 2px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--sc-text-muted);
 }
 
@@ -52,7 +52,7 @@
 
 .picked-note {
   margin: 10px 0 0;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--sc-text-muted);
 }
 
@@ -74,4 +74,4 @@
 }
 
 /* API load error */
-.mt-load-error { margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; font-size: 13.5px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.mt-load-error { margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; font-size: 0.844rem; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }

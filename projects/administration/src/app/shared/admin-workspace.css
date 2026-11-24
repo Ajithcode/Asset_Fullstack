@@ -6,7 +6,7 @@
 :host {
   display: block;
   font-family: 'Red Hat Display', sans-serif;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #0f172a;
   --adm-purple: #5b2aa8;
   --adm-purple-soft: #f3effc;
@@ -29,7 +29,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 0.813rem;
   margin-bottom: 6px;
   color: #64748b;
 }
@@ -74,7 +74,7 @@
 
 .page-head h1 {
   margin: 0;
-  font-size: 26px;
+  font-size: 1.625rem;
   font-weight: 800;
   line-height: 1.2;
 }
@@ -82,14 +82,14 @@
 .page-head p {
   margin: 4px 0 0;
   color: var(--adm-muted);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .org-picker {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--adm-muted);
 }
 
@@ -101,7 +101,7 @@
   border-radius: 10px;
   background: #fff;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   color: #0f172a;
 }
@@ -149,14 +149,14 @@
 .stat__label {
   display: block;
   color: #334155;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .stat__value {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 26px;
+  font-size: 1.625rem;
   font-weight: 800;
   line-height: 1.25;
 }
@@ -165,7 +165,7 @@
 .stat__value[data-tone='red'] { color: var(--adm-red); }
 
 .stat__trend {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--adm-green);
 }
@@ -177,7 +177,7 @@
 .stat__hint {
   display: block;
   color: var(--adm-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* ===== Toolbar ===== */
@@ -287,7 +287,7 @@
 .btn--sm {
   height: 32px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .btn--link {
@@ -354,14 +354,14 @@
 .panel__head h2,
 .panel__head h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: 1.063rem;
   font-weight: 700;
   flex: 1;
   min-width: 0;
 }
 
 .panel__head h3 {
-  font-size: 15px;
+  font-size: 0.938rem;
 }
 
 .sub-panel {
@@ -377,7 +377,7 @@
   align-items: center;
   gap: 8px;
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 
@@ -449,7 +449,7 @@
   display: block;
   margin-top: 2px;
   color: var(--adm-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .list-empty {
@@ -465,7 +465,7 @@
   gap: 5px;
   padding: 2px 9px;
   border-radius: 999px;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   font-weight: 600;
   white-space: nowrap;
   background: #f1f5f9;
@@ -561,7 +561,7 @@
   flex-wrap: wrap;
   gap: 10px;
   margin: 0;
-  font-size: 19px;
+  font-size: 1.188rem;
   font-weight: 800;
 }
 
@@ -571,7 +571,7 @@
   gap: 4px 16px;
   margin-top: 6px;
   color: var(--adm-muted);
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .detail-head__meta b {
@@ -590,7 +590,7 @@
   display: grid;
   grid-template-columns: 130px minmax(0, 1fr);
   gap: 9px 12px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .kv dt {
@@ -611,7 +611,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .table th {
@@ -657,7 +657,7 @@
   gap: 10px;
   margin-top: 12px;
   color: var(--adm-muted);
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .pager__pages {
@@ -713,7 +713,7 @@
 .drawer__head h2 {
   flex: 1;
   margin: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 800;
 }
 
@@ -747,7 +747,7 @@
 
 .field label,
 .field > span {
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #334155;
 }
@@ -786,7 +786,7 @@
 
 .field small {
   color: var(--adm-muted);
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .field.invalid input,
@@ -809,7 +809,7 @@
 }
 
 .row-field > label {
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #334155;
 }
@@ -919,7 +919,7 @@ input[type='radio'] {
   border-radius: 999px;
   background: var(--adm-purple-soft);
   color: var(--adm-purple);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -929,7 +929,7 @@ input[type='radio'] {
   color: inherit;
   cursor: pointer;
   padding: 0 2px;
-  font-size: 13px;
+  font-size: 0.813rem;
   line-height: 1;
 }
 
@@ -942,7 +942,7 @@ input[type='radio'] {
   border-radius: 50%;
   background: var(--adm-purple-soft);
   color: var(--adm-purple);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -984,7 +984,7 @@ input[type='radio'] {
   border-radius: 10px;
   background: var(--adm-blue-soft);
   color: #1e3a8a;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .note--warn {
@@ -1066,7 +1066,7 @@ input[type='radio'] {
 
 .confirm h2 {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 
 .confirm p {

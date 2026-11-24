@@ -69,7 +69,7 @@
   align-items: center;
   gap: 8px;
   color: var(--adm-muted);
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .threshold input {
@@ -102,7 +102,7 @@
 }
 
 .scoring .muted {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .req {
@@ -133,12 +133,12 @@
 }
 
 .usage-cards b {
-  font-size: 22px;
+  font-size: 1.375rem;
 }
 
 .table-title {
   margin: 18px 0 8px;
-  font-size: 15px;
+  font-size: 0.938rem;
 }
 
 /* Template library dialog */
@@ -160,7 +160,7 @@
 
 .library__head h2 {
   margin: 0 0 2px;
-  font-size: 19px;
+  font-size: 1.188rem;
 }
 
 .library__grid {
@@ -183,7 +183,7 @@
 }
 
 .library__card .muted {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .library__card p {
@@ -199,13 +199,13 @@
 
 .library__saved h3 {
   margin: 0 0 2px;
-  font-size: 15px;
+  font-size: 0.938rem;
 }
 
 .library__saved > .muted {
   display: block;
   margin-bottom: 12px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 @media (max-width: 640px) {

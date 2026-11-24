@@ -26,7 +26,7 @@ import { LucideAngularModule, ChevronLeft, ChevronRight } from 'lucide-angular';
     </div>
   `,
   styles: `
-    .tf { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 18px; font-size: 13.5px; color: #2c2a3d; }
+    .tf { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 18px; font-size: 0.844rem; color: #2c2a3d; }
     .tf-size { display: inline-flex; align-items: center; gap: 10px; }
     .tf-size select { height: 38px; min-width: 72px; padding: 0 8px; border: 1px solid #d6d3e0; border-radius: 8px; font: inherit; font-weight: 600; background: #fff; }
     .tf-info { flex: 1; text-align: center; }

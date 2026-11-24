@@ -34,7 +34,7 @@ import { calibrationStatus } from './calibration-utils';
   styles: [
     `.dialog { position: fixed; z-index: 901; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px));
         display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; background: #fff; border-radius: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.2); }
-     .d-head { display: flex; align-items: center; } .d-head h2 { margin: 0; font-size: 18px; }
+     .d-head { display: flex; align-items: center; } .d-head h2 { margin: 0; font-size: 1.125rem; }
      .d-foot { display: flex; justify-content: flex-end; gap: 10px; }`
   ],
   styleUrls: ['../shared/insp-page.css']

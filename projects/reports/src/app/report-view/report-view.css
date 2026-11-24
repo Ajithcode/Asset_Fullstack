@@ -15,7 +15,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #6b7280;
   margin-bottom: 14px;
 }
@@ -47,7 +47,7 @@
   border-radius: 10px;
   border: 1px solid #eef0f4;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #111827;
 }
 
@@ -59,7 +59,7 @@
 }
 
 .lh-title {
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 700;
   margin: 0;
   color: #111827;
@@ -110,7 +110,7 @@
 .lh-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 0.813rem;
   min-width: 700px;
 }
 
@@ -171,7 +171,7 @@
 }
 
 .column-picker-title {
-  font-size: 11px;
+  font-size: 0.688rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -185,7 +185,7 @@
   gap: 10px;
   padding: 7px 8px;
   border-radius: 8px;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #334155;
   cursor: pointer;
 }

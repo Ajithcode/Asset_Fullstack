@@ -12,7 +12,7 @@
 
 .ex-bar p {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .ex-form {
@@ -46,7 +46,7 @@
 .ex-av {
   width: 28px;
   height: 28px;
-  font-size: 11px;
+  font-size: 0.688rem;
 }
 
 .ex-danger {

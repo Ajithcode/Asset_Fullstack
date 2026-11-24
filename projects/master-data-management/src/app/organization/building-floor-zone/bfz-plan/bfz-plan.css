@@ -33,7 +33,7 @@
   border-radius: 6px;
   height: 28px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #475066;
   cursor: pointer;
@@ -53,7 +53,7 @@
   border-radius: 6px;
   padding: 0 8px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   background: #fff;
 }
 
@@ -80,7 +80,7 @@
 
 .plan__label {
   font-family: 'Red Hat Display', sans-serif;
-  font-size: 7.5px;
+  font-size: 0.469rem;
   font-weight: 700;
   fill: #0f172a;
 }
@@ -89,7 +89,7 @@
   margin: 0;
   padding: 40px 16px;
   text-align: center;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #94a3b8;
 }
 
@@ -120,7 +120,7 @@
 
 .slab__label {
   font-family: 'Red Hat Display', sans-serif;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   fill: #334155;
 }
@@ -149,7 +149,7 @@
   border-radius: 6px;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
   font-family: 'Red Hat Display', sans-serif;
-  font-size: 11px;
+  font-size: 0.688rem;
   font-weight: 700;
   color: #0f172a;
   padding: 3px 8px;

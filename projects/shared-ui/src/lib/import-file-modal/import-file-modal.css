@@ -42,7 +42,7 @@
 
 .import-modal-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 800;
   color: #0f172a;
 }
@@ -89,7 +89,7 @@
   border: 1.5px dashed #4f2bd8;
   background: #faf7fd;
   color: #4f2bd8;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
@@ -108,7 +108,7 @@
 
 .import-file-label {
   margin-top: 12px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #334155;
@@ -117,7 +117,7 @@
 
 .import-error {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #ef4444;
 }
 
@@ -134,7 +134,7 @@
   height: 42px;
   padding: 0 24px;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;

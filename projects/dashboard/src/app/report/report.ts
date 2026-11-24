@@ -611,7 +611,7 @@ export class Report implements AfterViewInit, OnDestroy {
       return;
     }
     const esc = (v: string | number) => String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
-    w.document.write(`<html><head><title>${esc(r.name)}</title><style>body{font-family:sans-serif;padding:24px}h1{font-size:20px;color:#1e1b6b}td{padding:6px 12px;border-bottom:1px solid #eee}td:first-child{font-weight:600}</style></head>
+    w.document.write(`<html><head><title>${esc(r.name)}</title><style>body{font-family:sans-serif;padding:24px}h1{font-size:1.25rem;color:#1e1b6b}td{padding:6px 12px;border-bottom:1px solid #eee}td:first-child{font-weight:600}</style></head>
       <body><h1>${esc(r.name)}</h1><table>${rows.map((x) => `<tr><td>${esc(x.Field)}</td><td>${esc(x.Value)}</td></tr>`).join('')}</table></body></html>`);
     w.document.close();
     w.focus();

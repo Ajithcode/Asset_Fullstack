@@ -37,17 +37,17 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
       .lom-pin { display: flex; align-items: center; justify-content: center; }
       .lom-pin span {
         display: flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 6px;
-        border: 3px solid #fff; border-radius: 16px; background: #4f2bd8; color: #fff; font: 700 13px 'Red Hat Display', sans-serif;
+        border: 3px solid #fff; border-radius: 16px; background: #4f2bd8; color: #fff; font: 700 0.813rem 'Red Hat Display', sans-serif;
         box-shadow: 0 3px 10px rgba(30, 27, 75, 0.35);
       }
       .lom-pin.is-warn span { background: #dc2626; }
-      .lom-site { font: 700 12px 'Red Hat Display', sans-serif; color: #1e1b4b; background: rgba(255, 255, 255, 0.9); border: 0; box-shadow: none; }
+      .lom-site { font: 700 0.75rem 'Red Hat Display', sans-serif; color: #1e1b4b; background: rgba(255, 255, 255, 0.9); border: 0; box-shadow: none; }
       .lom-pop { font-family: 'Red Hat Display', sans-serif; min-width: 220px; }
-      .lom-pop h4 { margin: 0; font-size: 14px; color: #1e1b4b; }
+      .lom-pop h4 { margin: 0; font-size: 0.875rem; color: #1e1b4b; }
       .lom-pop small { color: #6b7280; }
       .lom-pop ul { margin: 8px 0 0; padding: 0; list-style: none; max-height: 200px; overflow-y: auto; }
-      .lom-pop li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid #f0f1f3; font-size: 12.5px; }
-      .lom-pop button { padding: 0; border: 0; background: none; font: 700 12.5px inherit; color: #4f2bd8; cursor: pointer; }
+      .lom-pop li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid #f0f1f3; font-size: 0.781rem; }
+      .lom-pop button { padding: 0; border: 0; background: none; font: 700 0.781rem inherit; color: #4f2bd8; cursor: pointer; }
       .lom-pop button:hover { text-decoration: underline; }
       .lom-pop .warn { color: #b91c1c; font-weight: 600; }
     `,

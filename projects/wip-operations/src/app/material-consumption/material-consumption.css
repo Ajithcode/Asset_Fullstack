@@ -30,16 +30,16 @@
 }
 
 .job-main { display: flex; flex-direction: column; gap: 2px; }
-.lbl { font-size: 12.5px; color: #4b5563; }
-.job-code { font-size: 19px; font-weight: 800; color: var(--jt-text); text-decoration: none; }
+.lbl { font-size: 0.781rem; color: #4b5563; }
+.job-code { font-size: 1.188rem; font-weight: 800; color: var(--jt-text); text-decoration: none; }
 a.job-code:hover { color: var(--jt-accent); text-decoration: underline; }
-.job-name { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13.5px; color: #374151; }
-.job-fact { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.job-name { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 0.844rem; color: #374151; }
+.job-fact { display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
 
 .state {
   padding: 2px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -105,8 +105,8 @@ a.job-code:hover { color: var(--jt-accent); text-decoration: underline; }
 .kpi-ic--amber { background: #fff1d6; color: var(--mc-warn); }
 .kpi-ic--red { background: #fde2e2; color: var(--mc-bad); }
 
-.kpi-label { font-size: 13px; color: #374151; }
-.kpi-value { font-size: 20px; font-weight: 800; color: var(--jt-text); white-space: nowrap; }
+.kpi-label { font-size: 0.813rem; color: #374151; }
+.kpi-value { font-size: 1.25rem; font-weight: 800; color: var(--jt-text); white-space: nowrap; }
 
 /* ============ Ledger ============ */
 .ledger-filters {
@@ -127,10 +127,10 @@ a.job-code:hover { color: var(--jt-accent); text-decoration: underline; }
   color: var(--jt-muted);
 }
 
-.search input { flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 13.5px; }
+.search input { flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 0.844rem; }
 .search:focus-within { border-color: var(--jt-accent); }
 
-.inline-field { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: #374151; }
+.inline-field { display: flex; align-items: center; gap: 10px; font-size: 0.844rem; color: #374151; }
 .control--auto { width: auto; }
 
 .table-wrap { overflow-x: auto; }
@@ -142,13 +142,13 @@ a.job-code:hover { color: var(--jt-accent); text-decoration: underline; }
   border-collapse: separate;
   border-spacing: 0;
   overflow: hidden;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .ledger th {
   padding: 9px 10px;
   background: #f5f6fa;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 700;
   text-align: left;
   white-space: nowrap;
@@ -176,7 +176,7 @@ a.job-code:hover { color: var(--jt-accent); text-decoration: underline; }
   display: inline-block;
   padding: 2px 10px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 

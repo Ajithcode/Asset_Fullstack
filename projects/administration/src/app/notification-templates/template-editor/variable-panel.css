@@ -8,7 +8,7 @@
 
 .vp-title {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 700;
 }
 
@@ -30,7 +30,7 @@
   border: 0;
   outline: 0;
   font: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #0f172a;
 }
 
@@ -48,7 +48,7 @@
   background: none;
   font: inherit;
   font-weight: 700;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #0f172a;
   cursor: pointer;
 }
@@ -79,7 +79,7 @@
   background: #eaf1fe;
   color: #2563eb;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   cursor: pointer;
 }
 
@@ -89,5 +89,5 @@
 
 .vp-empty {
   color: #64748b;
-  font-size: 12px;
+  font-size: 0.75rem;
 }

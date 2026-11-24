@@ -138,3 +138,12 @@ body {
     scrollbar-color: var(--piq-scroll-thumb-hover) var(--piq-scroll-track);
   }
 }
+
+/*
+ * Adaptive type: font sizes are in rem (1rem = 16px at the design width). The root grows linearly from 16px at
+ * 1366px wide to 20px at 1920px and above, so text is unchanged on laptops and ~25% larger on full-HD screens
+ * (14px body text -> 17.5px). Below 1366px (and when printing) it stays 16px.
+ */
+html {
+  font-size: clamp(16px, calc(16px + 4 * (100vw - 1366px) / 554), 20px);
+}

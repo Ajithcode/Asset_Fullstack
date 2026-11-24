@@ -21,7 +21,7 @@
   background: #fff;
   border-radius: var(--radius-md);
   font-family: 'Red Hat Display', sans-serif;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--text-primary);
 }
 
@@ -34,7 +34,7 @@
 }
 
 .reports-title {
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 700;
   margin: 0;
   color: var(--text-primary);
@@ -58,7 +58,7 @@
   padding: 7px 36px 7px 12px;
   border: 1px solid var(--border);
   border-radius: 20px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--text-primary);
   outline: none;
   background: #fafafa;
@@ -184,7 +184,7 @@
 }
 
 .filter-label {
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--text-primary);
   font-weight: 450;
 }
@@ -211,7 +211,7 @@
 .reports-table th {
   padding: 8px 14px;
   text-align: left;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
@@ -220,7 +220,7 @@
 
 .reports-table td {
   padding: 6px 14px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
@@ -248,7 +248,7 @@
 
 /* ── Status badges ── */
 .status-badge {
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 400;
 }
 

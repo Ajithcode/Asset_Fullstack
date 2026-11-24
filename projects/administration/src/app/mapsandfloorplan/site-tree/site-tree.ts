@@ -89,14 +89,14 @@ import { MapsStore } from '../maps.store';
     .node__caret { display: grid; place-items: center; width: 14px; min-height: 20px; color: #64748b; }
     .node__icon { color: #5b2aa8; }
     .node--floor .node__icon { color: #7c6bb0; }
-    .node--zone { height: 30px; font-size: 13px; color: #334155; }
+    .node--zone { height: 30px; font-size: 0.813rem; color: #334155; }
     .node--zone .node__icon { color: #0d9488; }
-    .node__drawn { padding: 1px 7px; border-radius: 999px; background: #dcfce7; color: #15803d; font-size: 10.5px; font-weight: 600; }
+    .node__drawn { padding: 1px 7px; border-radius: 999px; background: #dcfce7; color: #15803d; font-size: 0.656rem; font-weight: 600; }
     .node__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .node__count { min-width: 20px; padding: 0 6px; border-radius: 6px; background: #f1f5f9; font-size: 11px; text-align: center; color: #475569; }
+    .node__count { min-width: 20px; padding: 0 6px; border-radius: 6px; background: #f1f5f9; font-size: 0.688rem; text-align: center; color: #475569; }
     .node.active .node__count { background: #fff; color: #5b2aa8; }
-    .tree-note { margin: 8px 4px; font-size: 12.5px; color: #64748b; line-height: 1.45; }
-    .retry { margin: 0 4px; padding: 4px 10px; border: 1px solid #e6e8ef; border-radius: 8px; background: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+    .tree-note { margin: 8px 4px; font-size: 0.781rem; color: #64748b; line-height: 1.45; }
+    .retry { margin: 0 4px; padding: 4px 10px; border: 1px solid #e6e8ef; border-radius: 8px; background: #fff; font: inherit; font-size: 0.75rem; cursor: pointer; }
   `
 })
 export class SiteTree {

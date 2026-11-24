@@ -16,14 +16,14 @@
 
 .drafts-empty {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--al-text-muted);
 }
 
 .drafts-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .drafts-table th,
@@ -48,7 +48,7 @@
 .btn.btn-sm {
   height: 30px;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .drafts-delete:hover {

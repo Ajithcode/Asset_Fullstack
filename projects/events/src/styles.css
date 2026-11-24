@@ -1,1 +1,6 @@
 /* You can add global styles to this file, and also import other style files */
+
+/* Adaptive type: same root size as the shell (see src/styles.css), for when this app runs on its own. */
+html {
+  font-size: clamp(16px, calc(16px + 4 * (100vw - 1366px) / 554), 20px);
+}

@@ -36,7 +36,7 @@
 
 .rules legend {
   padding: 0 4px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #0f172a;
 }
@@ -45,7 +45,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #334155;
   cursor: pointer;
 }

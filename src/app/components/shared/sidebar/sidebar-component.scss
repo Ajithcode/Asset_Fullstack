@@ -133,7 +133,7 @@
 }
 
 .brand-copy strong {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 700;
   color: #4f2bd8;
   line-height: 1;
@@ -225,7 +225,7 @@
   }
 
   svg, i {
-    font-size: 16px;
+    font-size: 1rem;
     pointer-events: none;
     stroke: currentColor;
     color: #4f2bd8;
@@ -314,7 +314,7 @@
   border-radius: 10px;
   color: rgba(255, 255, 255, 0.88);
   text-decoration: none;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 500;
   transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
 
@@ -473,7 +473,7 @@
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.72);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 500;
   line-height: 1.25;
   padding-block: 6px;
@@ -527,7 +527,7 @@
 
 .nav-dropdown-item--nested {
   min-height: 30px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 
@@ -572,7 +572,7 @@
 }
 
 .nav-flyout__header {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 700;
   color: #1f2937;
   padding: 12px 14px;
@@ -591,7 +591,7 @@
   border-radius: 10px;
   color: var(--piq-primary, #4f2bd8);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease;
@@ -674,7 +674,7 @@
   border-radius: 8px;
   color: var(--piq-primary, #4f2bd8);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 500;
   transition: background 0.18s ease, color 0.18s ease;
 
@@ -729,7 +729,7 @@
   border-radius: 8px;
   color: var(--piq-primary, #4f2bd8);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 500;
   transition: background 0.18s ease, color 0.18s ease;
 
@@ -751,7 +751,7 @@
   border-radius: 999px;
   background: #dcfce7;
   color: #15803d;
-  font-size: 11px;
+  font-size: 0.688rem;
   font-weight: 600;
   line-height: 1.4;
 }
@@ -813,7 +813,7 @@
   min-width: 16px;
   margin-right: -4px;
   text-align: right;
-  font-size: 11px;
+  font-size: 0.688rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
@@ -833,7 +833,7 @@
   padding: 0 10px;
   border-radius: 12px;
   color: rgba(237, 233, 254, 0.82);
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 500;
   letter-spacing: 0.005em;
 
@@ -939,7 +939,7 @@
   min-height: 34px;
   padding: 0 12px;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: rgba(221, 214, 254, 0.75);
 
   &:hover:not(.active) {

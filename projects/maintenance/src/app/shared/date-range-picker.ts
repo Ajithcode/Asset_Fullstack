@@ -30,15 +30,15 @@ import { fmtDate } from './mnt-utils';
   `,
   styles: `
     .dr { position: relative; }
-    .dr-btn { display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 0 0 14px; border: 1px solid #d6d3e0; border-radius: 8px; background: #fff; font: inherit; font-size: 13.5px; color: #1c1442; cursor: pointer; }
+    .dr-btn { display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 0 0 14px; border: 1px solid #d6d3e0; border-radius: 8px; background: #fff; font: inherit; font-size: 0.844rem; color: #1c1442; cursor: pointer; }
     .dr-text { white-space: nowrap; }
     .dr-caret { display: inline-flex; align-items: center; height: 100%; padding: 0 10px; border-left: 1px solid #d6d3e0; margin-left: 12px; }
     .dr-pop { position: absolute; right: 0; top: 46px; z-index: 40; width: 270px; padding: 8px; background: #fff; border: 1px solid #e8e6f0; border-radius: 10px; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14); }
-    .dr-preset { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+    .dr-preset { display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 0.813rem; text-align: left; cursor: pointer; }
     .dr-preset:hover { background: #f1ecff; }
-    .dr-custom { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; padding-top: 8px; border-top: 1px solid #eceaf3; font-size: 12px; color: #6b6880; }
+    .dr-custom { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; padding-top: 8px; border-top: 1px solid #eceaf3; font-size: 0.75rem; color: #6b6880; }
     .dr-custom label { display: flex; flex-direction: column; gap: 4px; }
-    .dr-custom input { height: 32px; padding: 0 6px; border: 1px solid #d6d3e0; border-radius: 6px; font: inherit; font-size: 12.5px; }
+    .dr-custom input { height: 32px; padding: 0 6px; border: 1px solid #d6d3e0; border-radius: 6px; font: inherit; font-size: 0.781rem; }
     .dr-apply { grid-column: 1 / -1; height: 32px; border: 0; border-radius: 6px; background: #4318ff; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
     .dr-apply:disabled { opacity: 0.5; cursor: not-allowed; }
   `

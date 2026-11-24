@@ -53,11 +53,11 @@ export interface SuccessDialogAction {
     .sd-icon circle { fill: #16a34a; }
     .sd-tick { fill: none; stroke: #fff; stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round;
       stroke-dasharray: 36; stroke-dashoffset: 36; animation: sd-tick .35s .18s ease-out forwards; }
-    .sd-title { margin: 0 0 6px; font-size: 19px; font-weight: 800; color: #2e1065; }
-    .sd-message { margin: 0 0 22px; font-size: 15px; line-height: 1.45; color: #374151; overflow-wrap: anywhere; }
+    .sd-title { margin: 0 0 6px; font-size: 1.188rem; font-weight: 800; color: #2e1065; }
+    .sd-message { margin: 0 0 22px; font-size: 0.938rem; line-height: 1.45; color: #374151; overflow-wrap: anywhere; }
     .sd-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
     .sd-btn { flex: 1 1 auto; min-height: 40px; padding: 0 18px; white-space: nowrap; border: 1px solid #c4b5fd; border-radius: 10px; background: #fff;
-      color: #4c1d95; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .15s, box-shadow .15s; }
+      color: #4c1d95; font: inherit; font-size: 0.875rem; font-weight: 700; cursor: pointer; transition: background .15s, box-shadow .15s; }
     .sd-btn:hover { background: #f5f3ff; }
     .sd-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.35); }
     .sd-btn.sd-primary { border-color: transparent; background: var(--piq-brand-gradient, linear-gradient(90deg, #2e1065, #4c1d95 55%, #6d28d9)); color: #fff; }

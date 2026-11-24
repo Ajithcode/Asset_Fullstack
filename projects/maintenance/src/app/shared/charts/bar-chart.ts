@@ -39,8 +39,8 @@ export interface BarSeries {
     :host { display: block; }
     .bars { width: 100%; height: auto; display: block; }
     .grid { stroke: #eceaf3; stroke-width: 1; }
-    .axis { font-size: 10px; fill: #4b4860; }
-    .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-top: 6px; font-size: 12px; color: #2c2a3d; }
+    .axis { font-size: 0.625rem; fill: #4b4860; }
+    .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-top: 6px; font-size: 0.75rem; color: #2c2a3d; }
     .legend span { display: inline-flex; align-items: center; gap: 6px; }
     .legend i { width: 10px; height: 10px; border-radius: 50%; }
     .legend i.ln { height: 3px; width: 16px; border-radius: 2px; }

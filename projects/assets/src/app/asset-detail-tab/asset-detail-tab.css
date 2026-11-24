@@ -6,7 +6,7 @@
   grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
   gap: 10px 16px;
   margin: 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .info-grid dt {
@@ -63,12 +63,12 @@
 
 .glance-item strong {
   display: block;
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 800;
 }
 
 .glance-item small {
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: var(--sc-text-muted);
 }
 
@@ -107,7 +107,7 @@
 /* Custom fields */
 .hint {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--sc-text-muted);
 }
 
@@ -119,7 +119,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 0.813rem;
   cursor: pointer;
 }
 
@@ -141,7 +141,7 @@
   grid-template-columns: minmax(140px, 45%) minmax(0, 1fr);
   column-gap: 16px;
   margin: 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   align-content: start;
 }
 
@@ -190,7 +190,7 @@
   border-radius: 14px;
   background: #fff;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   cursor: pointer;
 }
 

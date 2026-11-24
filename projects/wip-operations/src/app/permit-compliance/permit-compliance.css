@@ -11,13 +11,13 @@
 .box h3 .muted { margin-left: 6px; font-weight: 500; }
 .reg-search { width: 220px; height: 32px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.small-link { margin-left: 8px; font-size: 12px; cursor: pointer; }
+.small-link { margin-left: 8px; font-size: 0.75rem; cursor: pointer; }
 .link-plain { padding: 0; border: 0; background: none; font: inherit; cursor: pointer; text-align: left; }
 .dot-sm { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
 /* ============ Gate ============ */
 .gate-title { margin-bottom: 2px !important; }
-.gate-sub { margin: 0 0 12px; font-size: 13px; color: #4b5563; }
+.gate-sub { margin: 0 0 12px; font-size: 0.813rem; color: #4b5563; }
 
 .gate-banner {
   display: flex;
@@ -31,7 +31,7 @@
 }
 
 .gate-banner.is-bad { background: var(--wb-bad-soft); color: #991b1b; }
-.gate-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 14px 0 10px; padding: 0 0 0 10px; list-style: none; font-size: 13px; }
+.gate-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 14px 0 10px; padding: 0 0 0 10px; list-style: none; font-size: 0.813rem; }
 .gate-list li { display: flex; align-items: center; gap: 10px; }
 .gate-list lucide-icon { color: var(--wb-good); }
 .gate-list li.is-bad { color: #991b1b; font-weight: 600; }
@@ -45,12 +45,12 @@
 
 /* ============ Details ============ */
 .det-title { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.det-id { font-size: 19px; font-weight: 800; }
+.det-id { font-size: 1.188rem; font-weight: 800; }
 .det-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--jt-border); }
-.det-section h4 { margin: 0 0 8px; font-size: 14px; font-weight: 800; }
-.det-scope { margin: 0 0 10px; font-size: 13px; }
+.det-section h4 { margin: 0 0 8px; font-size: 0.875rem; font-weight: 800; }
+.det-scope { margin: 0 0 10px; font-size: 0.813rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.pc-chip { padding: 5px 12px; border-radius: 14px; background: #ece7ff; font-size: 12.5px; color: var(--jt-accent); }
+.pc-chip { padding: 5px 12px; border-radius: 14px; background: #ece7ff; font-size: 0.781rem; color: var(--jt-accent); }
 .wt--compact td, .wt--compact th { padding: 7px 10px; }
 .wt--compact .pill lucide-icon { margin-right: -2px; }
 .ev-ic { margin-right: 8px; vertical-align: -3px; color: #4b5563; }
@@ -70,7 +70,7 @@
   border: 1px solid #f6d58b;
   border-radius: 10px;
   background: #fff8e6;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .blocked-ic {
@@ -84,7 +84,7 @@
   color: #fff;
 }
 
-.blocked strong { display: block; margin-bottom: 4px; font-size: 14.5px; color: #92400e; }
+.blocked strong { display: block; margin-bottom: 4px; font-size: 0.906rem; color: #92400e; }
 .blocked p { margin: 0 0 4px; color: #78350f; }
 .blocked-links { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
@@ -92,11 +92,11 @@
 .req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
 .req-card { padding: 12px 14px; border: 1px solid var(--jt-border); border-radius: 10px; }
 .req-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-.req-card ul { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.req-card ul { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 0.813rem; }
 .req-card li { display: flex; align-items: center; gap: 8px; }
 .req-card li lucide-icon { color: var(--wb-good); }
 .req-card li.is-bad lucide-icon { color: var(--wb-warn); }
-.miss-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.miss-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; font-size: 0.813rem; }
 .miss-list li { display: flex; align-items: center; gap: 10px; }
 .miss-list label { position: relative; cursor: pointer; }
 .modal--wide { max-width: 760px; }

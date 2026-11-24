@@ -30,7 +30,7 @@
 
 .sub-head h4 {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 800;
   color: #0f172a;
 }
@@ -137,7 +137,7 @@
 
 .sub-dialog h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: 1.063rem;
   font-weight: 800;
   color: #0f172a;
 }
@@ -150,7 +150,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #0f172a;
 }

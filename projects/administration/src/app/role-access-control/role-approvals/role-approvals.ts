@@ -68,8 +68,8 @@ import { APPROVAL_LEVELS, ApprovalRule, RoleRecord } from '../role-access.data';
      .ra-input.invalid { border-color: var(--adm-red); }
      .ra-input:disabled, .ra-select:disabled { background: #f8f9fc; }
      .ra-select { height: 32px; }
-     .ra-err { display: flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--adm-red); font-size: 11.5px; }
-     .ra-foot { margin: 10px 0 0; font-size: 12.5px; }`
+     .ra-err { display: flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--adm-red); font-size: 0.719rem; }
+     .ra-foot { margin: 10px 0 0; font-size: 0.781rem; }`
   ]
 })
 export class RoleApprovals {

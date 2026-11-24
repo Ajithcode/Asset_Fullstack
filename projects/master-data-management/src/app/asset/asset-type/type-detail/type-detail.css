@@ -65,7 +65,7 @@ button.tile:hover {
 
 .tile small {
   display: block;
-  font-size: 11px;
+  font-size: 0.688rem;
   color: #475066;
   line-height: 1.25;
 }
@@ -73,7 +73,7 @@ button.tile:hover {
 .tile strong {
   display: block;
   margin-top: 4px;
-  font-size: 15px;
+  font-size: 0.938rem;
   font-weight: 800;
 }
 

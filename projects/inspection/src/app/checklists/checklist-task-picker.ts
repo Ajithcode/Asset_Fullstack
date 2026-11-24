@@ -32,7 +32,7 @@ import { InspectionTask } from '../shared/inspection.models';
     </ul>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #cdbcfa; border-radius: 10px; font-size: 13px; }
+    :host { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #cdbcfa; border-radius: 10px; font-size: 0.813rem; }
     .picker-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .grow { flex: 1; min-width: 0; }
     .muted { color: #6b6880; }
@@ -46,7 +46,7 @@ import { InspectionTask } from '../shared/inspection.models';
     li { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 6px; }
     li:hover { background: #f7f6fb; }
     .code { color: #5b21e6; font-weight: 700; white-space: nowrap; }
-    .add { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border: 1px solid #d6d3e0; border-radius: 6px; background: #fff; font: inherit; font-size: 12.5px; cursor: pointer; }
+    .add { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border: 1px solid #d6d3e0; border-radius: 6px; background: #fff; font: inherit; font-size: 0.781rem; cursor: pointer; }
     .add:hover { border-color: #5b21e6; color: #5b21e6; }
   `
 })

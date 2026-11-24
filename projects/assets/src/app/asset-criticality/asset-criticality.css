@@ -46,25 +46,25 @@
 }
 
 .level-name {
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 800;
 }
 
 .level-caption {
   margin-top: 6px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
 }
 
 .level-score {
-  font-size: 30px;
+  font-size: 1.875rem;
   font-weight: 800;
   color: var(--sc-text);
   line-height: 1;
 }
 
 .level-score small {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 600;
 }
 
@@ -104,12 +104,12 @@
 }
 
 .radar-label {
-  font-size: 11px;
+  font-size: 0.688rem;
   fill: #374151;
 }
 
 .radar-value {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   fill: #dc2626;
 }
@@ -121,7 +121,7 @@
   grid-auto-rows: 32px;
   gap: 2px;
   align-items: center;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .matrix-y {
@@ -164,7 +164,7 @@
 
 .matrix-col-label {
   grid-row: 6;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   text-align: center;
   color: #374151;
   line-height: 1.1;
@@ -174,7 +174,7 @@
   grid-row: 7;
   grid-column: 3 / span 5;
   justify-self: center;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #1f2937;
 }
 
@@ -220,7 +220,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .impact-list li {
@@ -241,7 +241,7 @@
   border-left: 3px solid var(--sc-critical);
   border-radius: 4px;
   background: #fdf3f3;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .tag--plain {
@@ -265,7 +265,7 @@ tr.is-current td {
   min-width: 70px;
   height: 30px;
   padding: 0 28px 0 8px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 input.control--xs {
@@ -309,7 +309,7 @@ input.control--xs {
   border: 0;
   outline: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .search:focus-within {
@@ -360,7 +360,7 @@ input.control--xs {
   border-radius: 10px;
   background: #fff;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   text-align: left;
   cursor: pointer;
 }
@@ -384,7 +384,7 @@ input.control--xs {
 }
 
 .crit-card-foot {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--sc-text-muted);
 }
 
@@ -394,7 +394,7 @@ input.control--xs {
   align-items: center;
   gap: 8px;
   margin-top: 12px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .pager-size {
@@ -410,7 +410,7 @@ input.control--xs {
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   cursor: pointer;
 }
 
@@ -439,7 +439,7 @@ input.control--xs {
 }
 
 .result strong {
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 
 /* ============ Responsive ============ */

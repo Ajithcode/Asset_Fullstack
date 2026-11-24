@@ -33,7 +33,7 @@
   border-radius: 6px;
   height: 28px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #475066;
   cursor: pointer;
@@ -73,13 +73,13 @@
 }
 
 .plan-building-label {
-  font-size: 9px;
+  font-size: 0.563rem;
   font-weight: 700;
   fill: #2563eb;
 }
 
 .plan-zone-label {
-  font-size: 9px;
+  font-size: 0.563rem;
   font-weight: 600;
   fill: #334155;
 }
@@ -92,7 +92,7 @@
 }
 
 .plan-location-label {
-  font-size: 9px;
+  font-size: 0.563rem;
   font-weight: 700;
   fill: #fff;
 }
@@ -119,7 +119,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #475066;
 }
 
@@ -156,7 +156,7 @@
   border-radius: 6px;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
   font-family: 'Red Hat Display', sans-serif;
-  font-size: 11px;
+  font-size: 0.688rem;
   font-weight: 700;
   color: #0f172a;
   padding: 3px 8px;

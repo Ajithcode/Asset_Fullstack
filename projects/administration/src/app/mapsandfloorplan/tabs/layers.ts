@@ -25,21 +25,21 @@ const LAYER_TYPES = ['Zone (Area)', 'Geofence (Alerting)', 'Asset (Plotted / Tra
     .layer-row:hover { background: #faf9fe; }
     .layer-row.active { background: var(--adm-purple-soft); border-color: #c9b8ef; }
     .layer-row.drag-over { box-shadow: inset 0 2px 0 var(--adm-purple); }
-    .layer-row__name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 12.5px; }
+    .layer-row__name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.781rem; }
     .layer-row__name lucide-icon { color: var(--adm-purple); }
     .grip { cursor: grab; color: #94a3b8; }
     .sets { display: flex; flex-direction: column; gap: 2px; }
-    .set-row { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 8px; font-size: 12.5px; }
+    .set-row { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 8px; font-size: 0.781rem; }
     .set-row.active { background: var(--adm-purple-soft); }
     .set-row label { flex: 1; display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .set-row input[type='text'] { flex: 1; height: 28px; border: 1px solid var(--adm-border); border-radius: 6px; padding: 0 6px; font: inherit; }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border: 1px solid var(--adm-border); border-radius: 10px; }
-    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--adm-purple-soft); color: var(--adm-purple); font-size: 12px; font-weight: 600; }
+    .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--adm-purple-soft); color: var(--adm-purple); font-size: 0.75rem; font-weight: 600; }
     .chip button { display: grid; place-items: center; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
     .chips select { flex: 1; min-width: 90px; border: 0; outline: 0; font: inherit; background: transparent; }
     .range { display: flex; align-items: center; gap: 10px; }
     .range input { flex: 1; }
-    .show-row { display: flex; align-items: center; gap: 12px; font-size: 12.5px; }
+    .show-row { display: flex; align-items: center; gap: 12px; font-size: 0.781rem; }
     .show-row label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
   `
 })

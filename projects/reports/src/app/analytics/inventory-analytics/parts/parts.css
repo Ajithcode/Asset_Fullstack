@@ -20,7 +20,7 @@
 .rac-kpi-prev {
   display: block;
   margin-top: 2px;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   color: var(--ra-muted);
 }
 
@@ -44,7 +44,7 @@
 
 .rac-dialog-head p {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .rac-scroll {

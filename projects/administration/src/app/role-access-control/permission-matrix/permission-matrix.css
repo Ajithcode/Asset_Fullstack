@@ -55,7 +55,7 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .pm-mod lucide-icon {
@@ -115,7 +115,7 @@
   gap: 10px 28px;
   margin-top: 14px;
   color: #334155;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .pm-legend span {

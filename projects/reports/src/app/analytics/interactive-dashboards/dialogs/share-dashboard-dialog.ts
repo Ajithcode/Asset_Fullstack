@@ -89,12 +89,12 @@ export interface ShareResult {
       .idb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 14px; }
       .idb-chip {
         display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px 4px 10px; border-radius: 999px;
-        background: var(--ra-purple-soft); color: var(--ra-purple); font-size: 12px; font-weight: 600;
+        background: var(--ra-purple-soft); color: var(--ra-purple); font-size: 0.75rem; font-weight: 600;
       }
       .idb-chip--group { background: var(--ra-blue-soft); color: var(--ra-blue); }
       .idb-chip button { display: inline-grid; place-items: center; padding: 2px; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
       .idb-chip button:hover { background: rgba(15, 23, 42, 0.08); }
-      .idb-share-org { margin-bottom: 14px; font-size: 13px; }
+      .idb-share-org { margin-bottom: 14px; font-size: 0.813rem; }
     `
   ]
 })

@@ -115,21 +115,21 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #334155;
 }
 
 .kd-tile__value {
   display: block;
-  font-size: 23px;
+  font-size: 1.438rem;
   font-weight: 800;
   line-height: 1.2;
   white-space: nowrap;
 }
 
 .kd-tile__target {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #475569;
 }
 
@@ -163,12 +163,12 @@
 /* ===== Widgets ===== */
 .kd-small-select {
   height: 30px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .kd-note {
   margin: 8px 0 0;
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 /* ===== Side column ===== */
@@ -218,7 +218,7 @@
   border-radius: 999px;
   background: var(--ra-purple-soft);
   color: var(--ra-purple);
-  font-size: 12px;
+  font-size: 0.75rem;
   text-align: center;
 }
 
@@ -263,12 +263,12 @@
 
 .kd-layout__label .muted {
   margin-left: auto;
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .kd-error {
   color: #dc2626;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .kd-spin {

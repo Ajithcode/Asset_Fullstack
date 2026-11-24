@@ -17,12 +17,12 @@ const SATELLITE_TILES = 'https://server.arcgisonline.com/ArcGIS/rest/services/Wo
       :host { display: block; height: 100%; min-height: 220px; }
       .site-map { height: 100%; min-height: inherit; border-radius: 10px; overflow: hidden; }
       .site-map__empty {
-        margin: 0; padding: 40px 16px; text-align: center; font-size: 13px; color: #94a3b8;
+        margin: 0; padding: 40px 16px; text-align: center; font-size: 0.813rem; color: #94a3b8;
         border: 1px dashed #d6d9e2; border-radius: 10px;
       }
       :host ::ng-deep .site-map-label {
         background: #fff; border: none; border-radius: 8px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
-        font-family: 'Red Hat Display', sans-serif; font-size: 12.5px; font-weight: 700; color: #0f172a; padding: 6px 10px;
+        font-family: 'Red Hat Display', sans-serif; font-size: 0.781rem; font-weight: 700; color: #0f172a; padding: 6px 10px;
       }
       :host ::ng-deep .site-map-label::before { display: none; }
       :host ::ng-deep .site-map-pin { background: transparent; border: none; }

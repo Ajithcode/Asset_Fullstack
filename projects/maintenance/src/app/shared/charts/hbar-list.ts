@@ -24,7 +24,7 @@ const RAMP = ['#ef4444', '#f97316', '#fb923c', '#f59e0b', '#fbbf24', '#fcd34d'];
     </ul>
   `,
   styles: `
-    .hb { list-style: none; margin: 0; padding: 4px 0; display: flex; flex-direction: column; gap: 13px; font-size: 12.5px; }
+    .hb { list-style: none; margin: 0; padding: 4px 0; display: flex; flex-direction: column; gap: 13px; font-size: 0.781rem; }
     .hb li { display: grid; grid-template-columns: 110px minmax(0, 1fr) 28px; gap: 10px; align-items: center; }
     .hb-l { color: #2c2a3d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .hb-track { height: 16px; }

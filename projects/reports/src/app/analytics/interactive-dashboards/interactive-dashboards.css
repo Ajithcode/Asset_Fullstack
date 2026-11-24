@@ -28,7 +28,7 @@
   border-radius: 10px;
   background: #fff;
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 800;
   color: #0f172a;
   cursor: pointer;
@@ -73,7 +73,7 @@
 }
 
 .idb-menu__item small {
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .menu .idb-star {
@@ -92,7 +92,7 @@
 
 .idb-menu__empty {
   margin: 6px 10px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .idb-editbar {
@@ -197,7 +197,7 @@
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr);
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .idb-facts dt {
@@ -225,7 +225,7 @@
 
 .idb-desc {
   margin: 12px 0 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #475569;
 }
 

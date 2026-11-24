@@ -29,7 +29,7 @@
 
 .fl-detail-head h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: 1.063rem;
   font-weight: 800;
 }
 
@@ -38,7 +38,7 @@
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 4px 14px;
   margin: 0;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .fl-meta dt {
@@ -72,7 +72,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #1f2937;
   cursor: pointer;
 }
@@ -99,7 +99,7 @@
   border-radius: 999px;
   background: #fff4e0;
   color: #b45309;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
@@ -113,7 +113,7 @@
 
 .designer h4 {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 700;
 }
 
@@ -135,14 +135,14 @@
 
 .avail-hint {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--cf-danger);
   text-align: center;
 }
 
 .search-box--sm {
   height: 32px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .avail-list {
@@ -165,7 +165,7 @@
   border: 1px solid var(--cf-border);
   border-radius: 6px;
   background: #fff;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   cursor: grab;
 }
 
@@ -174,7 +174,7 @@
 }
 
 .avail-item small {
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .avail-item.is-used {
@@ -267,7 +267,7 @@
   padding: 6px 8px;
   background: var(--tone-bg);
   color: var(--tone-fg);
-  font-size: 13px;
+  font-size: 0.813rem;
   cursor: grab;
 }
 
@@ -281,7 +281,7 @@
   border-radius: 999px;
   background: #fff;
   color: #6b7280;
-  font-size: 11px;
+  font-size: 0.688rem;
 }
 
 .section-body {
@@ -323,7 +323,7 @@
 
 .cell-label {
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -382,7 +382,7 @@
   padding: 14px;
   border: 1px dashed var(--cf-border);
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: var(--cf-text-muted);
 }
 

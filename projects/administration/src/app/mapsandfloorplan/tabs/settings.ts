@@ -114,9 +114,9 @@ export function mergeSettings(dto: SettingsDto | null | undefined): MapSettings 
     .set-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
     .srow select { width: 100%; }
     .set-card { border: 1px solid var(--adm-border); border-radius: 12px; padding: 14px 16px; }
-    .set-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 14.5px; font-weight: 800; }
+    .set-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 0.906rem; font-weight: 800; }
     .set-card h3 lucide-icon { color: var(--adm-purple); }
-    .srow { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 38px; font-size: 12.5px; }
+    .srow { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 38px; font-size: 0.781rem; }
     .srow > span:first-child { display: flex; align-items: center; gap: 4px; color: #334155; }
     .srow select, .srow input[type='number'] { height: 32px; padding: 0 8px; border: 1px solid var(--adm-border); border-radius: 8px; font: inherit; background: #fff; }
     .srow input[type='number'] { width: 90px; }

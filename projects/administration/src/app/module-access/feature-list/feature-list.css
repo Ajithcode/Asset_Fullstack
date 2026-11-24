@@ -21,7 +21,7 @@
 
 .fl-count {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .fl-group {
@@ -42,7 +42,7 @@
 
 .fl-all {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .fl-group header .pill {
