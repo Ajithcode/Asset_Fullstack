@@ -20,7 +20,9 @@ public class TagGatewayLookup(IMongoDatabase database, IOptions<LocatingSettings
     {
         var filter = Builders<BsonDocument>.Filter.And(
             Builders<BsonDocument>.Filter.Eq("meta.tagid", tagId),
-            Builders<BsonDocument>.Filter.Exists("meta.gatewayid"));
+            Builders<BsonDocument>.Filter.Exists("meta.gatewayid"),
+            // "out" documents of the worker (gateway a tag just left) carry no rssi: never the gateway to command through
+            Builders<BsonDocument>.Filter.Ne("device_trigger", "out"));
 
         var docs = await _collection.Find(filter)
             .Sort(Builders<BsonDocument>.Sort.Descending("timestamp"))

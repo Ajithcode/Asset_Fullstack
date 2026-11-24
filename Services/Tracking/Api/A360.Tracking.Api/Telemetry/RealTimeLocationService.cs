@@ -194,7 +194,7 @@ public sealed class RealTimeLocationService(IMongoDatabase database, TelemetryOv
         if (tagIds.Count == 0) return [];
         var pipeline = new[]
         {
-            new BsonDocument("$match", new BsonDocument { { "timestamp", new BsonDocument("$gte", since) }, { "meta.tagid", new BsonDocument("$in", new BsonArray(tagIds)) }, { "rssi", new BsonDocument("$type", "number") } }),
+            new BsonDocument("$match", new BsonDocument { { "timestamp", new BsonDocument("$gte", since) }, { "meta.tagid", new BsonDocument("$in", new BsonArray(tagIds)) }, { "rssi", new BsonDocument("$type", "number") }, { "device_trigger", new BsonDocument("$ne", "out") } }),
             new BsonDocument("$group", new BsonDocument { { "_id", new BsonDocument { { "tag", new BsonDocument("$toLower", "$meta.tagid") }, { "gw", new BsonDocument("$toLower", "$meta.gatewayid") } } }, { "rssi", new BsonDocument("$avg", "$rssi") } })
         };
         var rows = await C("NetworkTimeSeries").Aggregate<BsonDocument>(pipeline, cancellationToken: ct).ToListAsync(ct);

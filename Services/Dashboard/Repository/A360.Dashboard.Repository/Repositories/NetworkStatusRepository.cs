@@ -40,7 +40,8 @@ public sealed class NetworkStatusRepository : INetworkStatusRepository
             .Aggregate()
             .Match(Builders<BsonDocument>.Filter.And(
                 Builders<BsonDocument>.Filter.Type("status", BsonType.String),
-                Builders<BsonDocument>.Filter.Exists("meta.tagid")))
+                Builders<BsonDocument>.Filter.Exists("meta.tagid"),
+                Builders<BsonDocument>.Filter.Ne("device_trigger", "out")))
             .Sort(Builders<BsonDocument>.Sort.Descending("timestamp"))
             .Group(new BsonDocument
             {
@@ -67,7 +68,7 @@ public sealed class NetworkStatusRepository : INetworkStatusRepository
     {
         var results = await _collection
             .Aggregate()
-            .Match(Builders<BsonDocument>.Filter.Exists("meta.tagid"))
+            .Match(Builders<BsonDocument>.Filter.Exists("meta.tagid") & Builders<BsonDocument>.Filter.Ne("device_trigger", "out"))
             .Group(new BsonDocument
             {
                 { "_id", "$meta.tagid" },
@@ -226,7 +227,7 @@ public sealed class NetworkStatusRepository : INetworkStatusRepository
         var since = DateTime.UtcNow.AddHours(-GatewayWindowHours);
         var rows = await _collection
             .Aggregate()
-            .Match(filter.Gte("timestamp", since) & filter.Type("meta.tagid", BsonType.String) & filter.Type("meta.gatewayid", BsonType.String))
+            .Match(filter.Gte("timestamp", since) & filter.Type("meta.tagid", BsonType.String) & filter.Type("meta.gatewayid", BsonType.String) & filter.Ne("device_trigger", "out"))
             .Sort(Builders<BsonDocument>.Sort.Descending("timestamp"))
             .Group(new BsonDocument
             {
@@ -281,7 +282,7 @@ public sealed class NetworkStatusRepository : INetworkStatusRepository
 
         var rows = await _collection
             .Aggregate()
-            .Match(Builders<BsonDocument>.Filter.In("meta.tagid", variants))
+            .Match(Builders<BsonDocument>.Filter.In("meta.tagid", variants) & Builders<BsonDocument>.Filter.Ne("device_trigger", "out"))
             .Sort(Builders<BsonDocument>.Sort.Descending("timestamp"))
             .Group(new BsonDocument
             {

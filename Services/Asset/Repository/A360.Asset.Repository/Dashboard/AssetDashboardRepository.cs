@@ -258,7 +258,7 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
     public async Task<IReadOnlyList<NetworkTagReading>> GetNetworkTagReadingsAsync(string tagId, int limit, CancellationToken cancellationToken = default)
     {
         var rows = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
-            .Find(Builders<BsonDocument>.Filter.Eq("meta.tagid", tagId.Trim()), new FindOptions { Collation = CaseInsensitive })
+            .Find(Builders<BsonDocument>.Filter.Eq("meta.tagid", tagId.Trim()) & Builders<BsonDocument>.Filter.Ne("device_trigger", "out"), new FindOptions { Collation = CaseInsensitive })
             .Sort(new BsonDocument { { "timestamp", -1 }, { "_id", -1 } })
             .Limit(limit)
             .ToListAsync(cancellationToken);
@@ -280,7 +280,7 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
         var newestFirst = new BsonDocument("timestamp", -1);
         var rows = await _database.GetCollection<BsonDocument>(NetworkTimeSeriesCollection)
             .Aggregate(new AggregateOptions { Collation = CaseInsensitive })
-            .Match(filter)
+            .Match(filter & Builders<BsonDocument>.Filter.Ne("device_trigger", "out"))
             .Group(new BsonDocument
             {
                 { "_id", "$meta.tagid" },
@@ -342,7 +342,8 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             return empty;
         }
 
-        var filter = new BsonDocument();
+        // The worker's "out" documents (old gateway, same timestamp as the new "in") are not readings.
+        var filter = new BsonDocument("device_trigger", new BsonDocument("$ne", "out"));
         if (tagIds is not null)
         {
             // Matched with the case-insensitive collation below.
@@ -438,7 +439,8 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
         var readingFilter = new BsonDocument
         {
             { "meta.tagid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) },
-            { "meta.gatewayid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) }
+            { "meta.gatewayid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) },
+            { "device_trigger", new BsonDocument("$ne", "out") }
         };
         if (tagIds is not null)
         {

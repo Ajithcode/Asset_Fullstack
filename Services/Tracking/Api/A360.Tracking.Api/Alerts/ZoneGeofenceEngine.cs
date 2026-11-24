@@ -481,7 +481,9 @@ public sealed class ZoneGeofenceEngine(
         var match = new BsonDocument
         {
             { "timestamp", new BsonDocument("$gte", since) },
-            { "meta.tagid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) }
+            { "meta.tagid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) },
+            // the worker's "out" document (old gateway, same timestamp as the new "in") must not keep the tag in the old zone
+            { "device_trigger", new BsonDocument("$ne", "out") }
         };
         if (gatewayIds is not null)
         {

@@ -207,7 +207,8 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
                 {
                     { "timestamp", new BsonDocument { { "$gte", from }, { "$lte", now } } },
                     { "meta.tagid", new BsonDocument("$in", new BsonArray(mine)) },
-                    { field, new BsonDocument("$type", "number") }
+                    { field, new BsonDocument("$type", "number") },
+                    { "device_trigger", new BsonDocument("$ne", "out") }
                 }),
                 new BsonDocument("$group", new BsonDocument
                 {
@@ -223,7 +224,7 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
             if (rows.Count == 0) continue;
 
             var latestDoc = await C("NetworkTimeSeries")
-                .Find(new BsonDocument { { "meta.tagid", new BsonDocument("$in", new BsonArray(mine)) }, { field, new BsonDocument("$type", "number") } })
+                .Find(new BsonDocument { { "meta.tagid", new BsonDocument("$in", new BsonArray(mine)) }, { field, new BsonDocument("$type", "number") }, { "device_trigger", new BsonDocument("$ne", "out") } })
                 .Sort(new BsonDocument("timestamp", -1)).Limit(1).FirstOrDefaultAsync(ct);
             var latestAt = latestDoc?["timestamp"].ToUniversalTime();
             var latestValue = latestDoc is null ? (double?)null : latestDoc[field].ToDouble();
@@ -309,7 +310,7 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
     {
         var pipeline = new[]
         {
-            new BsonDocument("$match", new BsonDocument { { "timestamp", new BsonDocument("$gte", since) }, { "meta.tagid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) } }),
+            new BsonDocument("$match", new BsonDocument { { "timestamp", new BsonDocument("$gte", since) }, { "meta.tagid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) }, { "device_trigger", new BsonDocument("$ne", "out") } }),
             new BsonDocument("$sort", new BsonDocument("timestamp", -1)),
             new BsonDocument("$group", new BsonDocument
             {
@@ -324,7 +325,7 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
         // battery: the newest reading that carries one (not every message reports battery)
         var batteryPipeline = new[]
         {
-            new BsonDocument("$match", new BsonDocument { { "timestamp", new BsonDocument("$gte", since) }, { "battery", new BsonDocument("$type", "number") } }),
+            new BsonDocument("$match", new BsonDocument { { "timestamp", new BsonDocument("$gte", since) }, { "battery", new BsonDocument("$type", "number") }, { "device_trigger", new BsonDocument("$ne", "out") } }),
             new BsonDocument("$sort", new BsonDocument("timestamp", -1)),
             new BsonDocument("$group", new BsonDocument { { "_id", new BsonDocument("$toLower", "$meta.tagid") }, { "battery", new BsonDocument("$first", "$battery") } })
         };
@@ -339,7 +340,7 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
     {
         var pipeline = new[]
         {
-            new BsonDocument("$match", new BsonDocument { { "timestamp", new BsonDocument("$gte", since) }, { "rssi", new BsonDocument("$type", "number") } }),
+            new BsonDocument("$match", new BsonDocument { { "timestamp", new BsonDocument("$gte", since) }, { "rssi", new BsonDocument("$type", "number") }, { "device_trigger", new BsonDocument("$ne", "out") } }),
             new BsonDocument("$group", new BsonDocument
             {
                 { "_id", new BsonDocument { { "tag", new BsonDocument("$toLower", "$meta.tagid") }, { "gw", new BsonDocument("$toLower", "$meta.gatewayid") } } },
@@ -360,7 +361,7 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
     {
         var pipeline = new[]
         {
-            new BsonDocument("$match", new BsonDocument("timestamp", new BsonDocument("$gte", since))),
+            new BsonDocument("$match", new BsonDocument { { "timestamp", new BsonDocument("$gte", since) }, { "device_trigger", new BsonDocument("$ne", "out") } }),
             new BsonDocument("$group", new BsonDocument { { "_id", new BsonDocument("$toLower", "$meta.gatewayid") }, { "at", new BsonDocument("$max", "$timestamp") } })
         };
         var rows = await C("NetworkTimeSeries").Aggregate<BsonDocument>(pipeline, cancellationToken: ct).ToListAsync(ct);
@@ -372,7 +373,7 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
     {
         var pipeline = new[]
         {
-            new BsonDocument("$match", new BsonDocument("timestamp", new BsonDocument { { "$gte", from }, { "$lt", to } })),
+            new BsonDocument("$match", new BsonDocument { { "timestamp", new BsonDocument { { "$gte", from }, { "$lt", to } } }, { "device_trigger", new BsonDocument("$ne", "out") } }),
             new BsonDocument("$group", new BsonDocument
             {
                 { "_id", BsonNull.Value },
@@ -416,7 +417,8 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
             {
                 { "timestamp", new BsonDocument("$gte", from) },
                 { "meta.tagid", new BsonDocument("$in", new BsonArray(tagIds)) },
-                { "rssi", new BsonDocument("$type", "number") }
+                { "rssi", new BsonDocument("$type", "number") },
+                { "device_trigger", new BsonDocument("$ne", "out") }
             }),
             new BsonDocument("$group", new BsonDocument
             {

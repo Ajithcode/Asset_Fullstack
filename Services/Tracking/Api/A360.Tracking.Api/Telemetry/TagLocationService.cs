@@ -96,7 +96,9 @@ public sealed class TagLocationService(IMongoDatabase database)
             {
                 { "timestamp", new BsonDocument("$gte", since) },
                 { "meta.tagid", notBlank },
-                { "meta.gatewayid", notBlank }
+                { "meta.gatewayid", notBlank },
+                // the worker adds an "out" document for the gateway a tag just left (same timestamp, null rssi/battery): not a reading
+                { "device_trigger", new BsonDocument("$ne", "out") }
             }),
             new BsonDocument("$sort", new BsonDocument("timestamp", -1)),
             new BsonDocument("$group", new BsonDocument

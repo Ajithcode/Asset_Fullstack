@@ -84,7 +84,7 @@ public sealed class NetworkReadingRepository(IMongoDatabase database) : INetwork
     {
         var pipeline = new[]
         {
-            new BsonDocument("$match", new BsonDocument(field, new BsonDocument("$in", values))),
+            new BsonDocument("$match", new BsonDocument { { field, new BsonDocument("$in", values) }, { "device_trigger", new BsonDocument("$ne", "out") } }),
             new BsonDocument("$sort", new BsonDocument("timestamp", -1)),
             new BsonDocument("$group", new BsonDocument
             {
@@ -103,7 +103,7 @@ public sealed class NetworkReadingRepository(IMongoDatabase database) : INetwork
     {
         var pipeline = new[]
         {
-            new BsonDocument("$match", new BsonDocument("meta.gatewayid", new BsonDocument("$in", values))),
+            new BsonDocument("$match", new BsonDocument { { "meta.gatewayid", new BsonDocument("$in", values) }, { "device_trigger", new BsonDocument("$ne", "out") } }),
             new BsonDocument("$sort", new BsonDocument("timestamp", -1)),
             new BsonDocument("$group", new BsonDocument
             {
