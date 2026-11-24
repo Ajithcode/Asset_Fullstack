@@ -2,7 +2,7 @@ import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Observable, catchError, forkJoin, map, of } from 'rxjs';
-import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import {
   LucideAngularModule,
   Activity,
@@ -72,7 +72,7 @@ interface FirmwareForm { id: string; deviceModel: string; currentVersion: string
 @Component({
   selector: 'app-firmware-connectivity',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ExportMenu],
   templateUrl: './firmware-connectivity.html',
   styleUrls: ['./firmware-connectivity.css', './firmware-connectivity-sections.css', '../shared/iot-purple-theme.css'],
 })
@@ -614,14 +614,32 @@ export class FirmwareConnectivity implements OnInit, OnDestroy {
 
   // ===== Export / menus =====
 
-  exportReport(): void {
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.models.map((m) => ({ 'Device Model': m.name, 'Current Version': m.current, 'Latest Version': m.latest, Devices: m.devices, Online: m.online ?? '', 'Update Status': this.hasUpdate(m) ? 'Update available' : 'Up to date', 'Release Date': m.releaseDate }))), 'Firmware');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.campaigns.map((c) => ({ Campaign: c.name, Status: c.status, 'Install At': c.window, Target: c.target, Updated: c.updated, Queued: this.queued(c) }))), 'Campaigns');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.sites.map((s) => ({ Site: s.name, 'Health %': s.health ?? '', Status: this.siteHealth(s) ?? '', Gateways: s.gateways, Online: s.online, Issues: s.issues }))), 'Sites');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.gateways.map((g) => ({ Gateway: g.id, Site: this.siteName(g.site), Protocol: g.protocol, Model: g.model, Connection: g.conn ?? '', 'Last Seen (min)': g.lastSeenMin ?? '', 'RSSI (dBm)': g.rssi ?? '', Devices: g.devices, Firmware: g.firmware }))), 'Gateways');
-    XLSX.writeFile(book, `Firmware_Connectivity_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }
+  /** Exports the table of the active tab (inventory, campaigns, sites or gateways). */
+  exportRequest = (): ExportRequest => {
+    switch (this.tab) {
+      case 'campaigns':
+        return { title: 'Update Campaigns', fileBase: 'update-campaigns', rows: () => this.campaigns, columns: [
+          { label: 'Campaign', key: 'name' }, { label: 'Status', key: 'status' }, { label: 'Install At', key: 'window' }, { label: 'Target', key: 'target' },
+          { label: 'Updated', key: 'updated' }, { label: 'Queued', value: (c: any) => this.queued(c) },
+        ] };
+      case 'overview':
+        return { title: 'Connectivity Sites', fileBase: 'connectivity-sites', rows: () => this.sites, columns: [
+          { label: 'Site', key: 'name' }, { label: 'Health %', value: (s: any) => s.health ?? '' }, { label: 'Status', value: (s: any) => this.siteHealth(s) ?? '' },
+          { label: 'Gateways', key: 'gateways' }, { label: 'Online', key: 'online' }, { label: 'Issues', key: 'issues' },
+        ] };
+      case 'diagnostics':
+        return { title: 'Connectivity Diagnostics', fileBase: 'connectivity-gateways', rows: () => this.gateways, columns: [
+          { label: 'Gateway', key: 'id' }, { label: 'Site', value: (g: any) => this.siteName(g.site) }, { label: 'Protocol', key: 'protocol' }, { label: 'Model', key: 'model' },
+          { label: 'Connection', value: (g: any) => g.conn ?? '' }, { label: 'Last Seen (min)', value: (g: any) => g.lastSeenMin ?? '' }, { label: 'RSSI (dBm)', value: (g: any) => g.rssi ?? '' },
+          { label: 'Devices', key: 'devices' }, { label: 'Firmware', key: 'firmware' },
+        ] };
+      default:
+        return { title: 'Firmware Inventory', fileBase: 'firmware-inventory', rows: () => this.models, columns: [
+          { label: 'Device Model', key: 'name' }, { label: 'Current Version', key: 'current' }, { label: 'Latest Version', key: 'latest' }, { label: 'Devices', key: 'devices' },
+          { label: 'Online', value: (m: any) => m.online ?? '' }, { label: 'Update Status', value: (m: any) => (this.hasUpdate(m) ? 'Update available' : 'Up to date') }, { label: 'Release Date', key: 'releaseDate' },
+        ] };
+    }
+  };
 
   toggleMenu(name: string, e: Event): void {
     e.stopPropagation();

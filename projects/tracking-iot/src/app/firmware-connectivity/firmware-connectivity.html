@@ -7,7 +7,7 @@
       <h1>Firmware &amp; Connectivity</h1>
       <p>Manage device firmware versions, update campaigns and network connectivity.</p>
     </div>
-    <button type="button" class="btn btn-outline" (click)="exportReport()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export Report</button>
+    <app-export-menu [source]="exportRequest" />
     <button type="button" class="btn btn-primary" (click)="openCreate()" [disabled]="loading || !updatableModels.length"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Create Update Campaign</button>
   </header>
 

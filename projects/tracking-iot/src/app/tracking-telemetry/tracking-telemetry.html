@@ -11,7 +11,7 @@
       <select class="control" [(ngModel)]="site" (ngModelChange)="setSite()" aria-label="Site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.id">{{ s.name }}</option></select></label>
     <label class="ic-sel"><lucide-icon [img]="icons.Calendar" [size]="16"></lucide-icon>
       <select class="control" [ngModel]="range" (ngModelChange)="setRange($event)" aria-label="Time range"><option *ngFor="let r of ranges" [value]="r.key">{{ r.label }}</option></select></label>
-    <button type="button" class="btn btn-primary" (click)="exportData()" [disabled]="!data"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export</button>
+    <app-export-menu [source]="exportRequest" [disabled]="!data" />
   </header>
 
   <!-- secondary filters -->

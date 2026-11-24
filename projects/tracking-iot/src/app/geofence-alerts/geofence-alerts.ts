@@ -2,7 +2,7 @@ import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest, ExportService } from 'shared-ui';
 import { Observable, Subscription, catchError, forkJoin, of, switchMap } from 'rxjs';
 import {
   LucideAngularModule,
@@ -91,7 +91,7 @@ const DEFAULT_TEAMS = ['Security Team', 'Operations Team', 'Maintenance Team', '
 @Component({
   selector: 'app-geofence-alerts',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LucideAngularModule, GeofenceMap, MapDrawTools, FloorPlanMap],
+  imports: [CommonModule, FormsModule, RouterLink, LucideAngularModule, GeofenceMap, MapDrawTools, FloorPlanMap, ExportMenu],
   templateUrl: './geofence-alerts.html',
   styleUrls: ['./geofence-alerts.css', './geofence-alerts-sections.css', '../shared/iot-purple-theme.css', './geofence-alerts-v2.css'],
 })
@@ -111,6 +111,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   readonly escalateOptions = ESCALATE_OPTIONS;
   /** Desktop notifications on this browser (Web Push). */
   readonly desktop = inject(DesktopAlertsService);
+  private readonly exporter = inject(ExportService);
 
   enableDesktop(): void {
     this.desktop.enable().then((ok) => this.showToast(ok ? 'Desktop notifications are on for this browser.' : this.desktop.state === 'denied' ? 'Notifications are blocked for this site in the browser settings.' : 'Could not turn on desktop notifications.'));
@@ -1494,30 +1495,19 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     return OPEN_STATUSES.includes(e.status);
   }
 
-  /** Every page of the current filter (up to 2,000 rows). */
-  exportHistory(): void {
-    const size = 200;
-    const pages = Math.min(10, Math.max(1, Math.ceil(this.hTotal / size)));
-    forkJoin(Array.from({ length: pages }, (_, i) => this.summaryApi.events(this.historyQuery(i + 1, size)))).subscribe({
-      next: (res) => {
-        const rows = res.flatMap((p) => p.items).map((e) => ({
-          'Alert ID': e.id, Timestamp: e.ts.toLocaleString('en-GB'), Asset: e.assetCode, 'Asset Name': e.assetSub, Geofence: e.zoneName, Rule: e.ruleName ?? '',
-          Event: e.type, Severity: e.severity, Duration: this.fmtDuration(e.durationSec), Description: e.message, Owner: e.owner, Status: e.status,
-          Escalated: e.escalatedTo ?? '', History: (e.history ?? []).map((h) => `${this.fmtStamp(h.at)} ${h.action} (${h.by})${h.note ? ': ' + h.note : ''}`).join(' | '),
-        }));
-        const book = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Alert Events');
-        XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.targets.map((t) => ({
-          ID: this.shortId(t.id), Geofence: t.name, Kind: t.kind, Type: t.type ?? '', Category: t.category ?? '', Site: t.siteName ?? '', 'Building / Floor': this.targetPlace(t),
-          Shape: this.targetShape(t), Area: this.targetArea(t), 'Monitored Assets': t.monitoredAssets, Rules: t.rules, 'Active Alerts': t.activeAlerts, Status: t.status,
-          'Last Event': t.lastEventAt ? new Date(t.lastEventAt).toLocaleString('en-GB') : '',
-        }))), 'Geofences');
-        XLSX.writeFile(book, `Geofence_Alerts_${new Date().toISOString().slice(0, 10)}.xlsx`);
-        this.showToast(`Exported ${rows.length} alert events to Excel.`);
-      },
-      error: (err) => this.fail(err, 'Could not export the alert events.'),
-    });
-  }
+  /** Every page of the current event-history filter. */
+  exportRequest = (): ExportRequest => ({
+    title: 'Geofence Alert Events', fileBase: 'geofence-alert-events',
+    columns: [
+      { label: 'Alert ID', key: 'id' }, { label: 'Timestamp', value: (e: any) => e.ts.toLocaleString('en-GB') }, { label: 'Asset', key: 'assetCode' }, { label: 'Asset Name', key: 'assetSub' },
+      { label: 'Geofence', key: 'zoneName' }, { label: 'Rule', value: (e: any) => e.ruleName ?? '' }, { label: 'Event', key: 'type' }, { label: 'Severity', key: 'severity' },
+      { label: 'Duration', value: (e: any) => this.fmtDuration(e.durationSec) }, { label: 'Description', key: 'message' }, { label: 'Owner', key: 'owner' }, { label: 'Status', key: 'status' },
+      { label: 'Escalated', value: (e: any) => e.escalatedTo ?? '' },
+      { label: 'History', value: (e: any) => (e.history ?? []).map((h: any) => `${this.fmtStamp(h.at)} ${h.action} (${h.by})${h.note ? ': ' + h.note : ''}`).join(' | ') },
+    ],
+    filters: { Date: this.hDate, Geofence: this.targets.find((t) => t.id === this.hZone)?.name || this.hZone, Type: this.hType, Status: this.hStatus, Severity: this.hSeverity, Search: this.hSearch.trim() },
+    rows: () => this.exporter.allPages<any>((page, size) => this.summaryApi.events(this.historyQuery(page, size)), 200),
+  });
 
   // ===== shared =====
   runConfirm(): void {

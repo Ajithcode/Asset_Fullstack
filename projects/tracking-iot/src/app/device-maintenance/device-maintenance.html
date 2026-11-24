@@ -209,7 +209,7 @@
           <select class="control control-sm" [(ngModel)]="hDevice" (ngModelChange)="hPage = 0" aria-label="Device"><option value="">Select Device</option><option *ngFor="let d of devices" [value]="d.id">{{ d.id }}</option></select>
           <select class="control control-sm" [(ngModel)]="hType" (ngModelChange)="hPage = 0" aria-label="Service type"><option value="">Select Service Type</option><option *ngFor="let s of historyTitles" [value]="s">{{ s }}</option></select>
           <select class="control control-sm" [(ngModel)]="hRange" (ngModelChange)="hPage = 0" aria-label="Period"><option value="">Select Period</option><option value="month">This month</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option><option value="all">All time</option></select>
-          <button type="button" class="btn btn-outline btn-sm" (click)="exportHistory()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Excel</button>
+          <app-export-menu [small]="true" [source]="exportRequest" />
         </div>
         <div class="table-wrap">
           <table class="dt dt--hist">

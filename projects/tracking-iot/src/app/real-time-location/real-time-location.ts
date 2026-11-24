@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { Observable, Subscription, catchError, forkJoin, map, of } from 'rxjs';
-import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import {
   LucideAngularModule, ArrowLeft, Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, Lightbulb, LocateFixed, MapPin, Pause, Play, Power,
   Radio, Route, Search, Send, Settings, ShieldAlert, Square, TriangleAlert, Volume2, Wifi, X, HelpCircle,
@@ -33,7 +33,7 @@ const MOVING_MS = 60000;
 @Component({
   selector: 'app-real-time-location',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FloorPlanMap],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FloorPlanMap, ExportMenu],
   templateUrl: './real-time-location.html',
   styleUrls: [
     '../tracking-telemetry/tracking-telemetry.css', '../tracking-telemetry/tracking-telemetry-panels.css', '../tracking-telemetry/tracking-telemetry-v2.css',
@@ -1092,24 +1092,19 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     return `${(p.page - 1) * p.pageSize + 1}–${Math.min(p.total, p.page * p.pageSize)} of ${p.total.toLocaleString()} events`;
   }
 
-  exportData(): void {
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.filtered.map((a) => ({
-      'Asset ID': a.assetId, Asset: a.name, Type: a.assetType ?? '', Zone: a.location?.zoneName ?? '', Floor: a.location?.floorName ?? '', Gateway: a.location?.gatewayId ?? '',
-      Movement: a.movement, Freshness: a.freshness, 'Last valid location': this.stamp(a.lastValidLocationAt), Source: a.locationSource, Accuracy: a.accuracy,
-      Confidence: a.confidence, Tracker: a.tags.join(', '), 'Registered location': a.expected?.zoneName ?? a.expected?.floorName ?? '', Comparison: a.comparisonStatus,
-    }))), 'Assets');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet((this.ev?.items ?? []).map((e) => ({
-      Time: this.stamp(e.at), 'Event ID': e.eventId, 'Asset ID': e.assetId ?? '', Asset: e.assetName ?? '', Event: e.eventType, Zone: e.zone ?? '', Details: e.details ?? '',
-      Severity: e.severity, Source: e.source ?? '', Status: e.status,
-    }))), 'Events');
-    if (this.trail) {
-      XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.trail.segments.map((s) => ({
-        Asset: this.trail!.name, Zone: s.zoneName ?? '', Floor: s.floorName ?? '', Gateway: s.gatewayId, From: this.stamp(s.from), To: this.stamp(s.to), Minutes: s.minutes,
-      }))), 'Trail');
-    }
-    XLSX.writeFile(book, `real-time-location-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }
+  /** Exports the Assets table of the page (current site / filters). */
+  exportRequest = (): ExportRequest => ({
+    title: 'Real-Time Location', fileBase: 'real-time-location',
+    columns: [
+      { label: 'Asset ID', key: 'assetId' }, { label: 'Asset', key: 'name' }, { label: 'Type', value: (a: any) => a.assetType ?? '' },
+      { label: 'Zone', value: (a: any) => a.location?.zoneName ?? '' }, { label: 'Floor', value: (a: any) => a.location?.floorName ?? '' }, { label: 'Gateway', value: (a: any) => a.location?.gatewayId ?? '' },
+      { label: 'Movement', key: 'movement' }, { label: 'Freshness', key: 'freshness' }, { label: 'Last valid location', value: (a: any) => this.stamp(a.lastValidLocationAt) },
+      { label: 'Source', key: 'locationSource' }, { label: 'Accuracy', key: 'accuracy' }, { label: 'Confidence', key: 'confidence' }, { label: 'Tracker', value: (a: any) => a.tags.join(', ') },
+      { label: 'Registered location', value: (a: any) => a.expected?.zoneName ?? a.expected?.floorName ?? '' }, { label: 'Comparison', key: 'comparisonStatus' },
+    ],
+    filters: { Site: this.sites?.find((s: any) => s.id === this.site)?.name || this.site },
+    rows: () => this.filtered,
+  });
 
   // ================================================================= formatting
 

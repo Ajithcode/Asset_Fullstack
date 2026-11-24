@@ -6,6 +6,7 @@
         <h1>Sensor Management</h1>
         <p>Register sensors, map measurement points and monitor readings across connected assets.</p>
       </div>
+      <app-export-menu [source]="exportRequest" />
       <button type="button" class="btn btn-outline" (click)="openImport()"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon>Import Sensors</button>
       <button type="button" class="btn btn-primary" (click)="openAdd()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Add Sensor</button>
     </header>
@@ -55,7 +56,7 @@
 
       <div *ngIf="checked.size && tab === 'sensors'" class="bulk" role="status">
         <strong>{{ checked.size }} selected</strong>
-        <button type="button" class="link-btn" (click)="exportRows()"><lucide-icon [img]="icons.Download" [size]="14"></lucide-icon>Export selected</button>
+        <app-export-menu [small]="true" label="Export selected" [source]="exportRequest" />
         <span class="grow"></span>
         <button type="button" class="link-btn" (click)="checked.clear()">Clear selection</button>
       </div>

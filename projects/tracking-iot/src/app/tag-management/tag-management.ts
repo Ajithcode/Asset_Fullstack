@@ -4,6 +4,7 @@ import { Subscription, catchError, concatMap, from, map, of, switchMap, toArray 
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -121,7 +122,7 @@ const TOAST_MS = 4000;
 @Component({
   selector: 'app-tag-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './tag-management.html',
   styleUrls: ['./tag-management.css', './tag-management-panel.css', './tag-management-layout.css', './tag-management-views.css', '../shared/iot-purple-theme.css'],
 })
@@ -1214,22 +1215,40 @@ export class TagManagement implements OnInit, OnDestroy {
   // ===== Export / menus =====
 
   /** Exports the current view: ticked tags (or the filtered list), or the filtered audit trail. */
-  exportRows(): void {
-    this.menuOpen = '';
-    const book = XLSX.utils.book_new();
+  exportRequest = (): ExportRequest => {
     if (this.view === 'audit') {
-      const rows = this.filteredAudit.map((r) => ({ When: this.fmtDate(r.at, true), 'Tag ID': r.tag.id, Technology: r.tag.tech, Event: r.kind, Details: r.text, By: r.by }));
-      XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Audit Trail');
-      XLSX.writeFile(book, 'Tag_Audit_Trail.xlsx');
-      return;
+      return {
+        title: 'Tag Audit Trail', fileBase: 'tag-audit-trail',
+        columns: [
+          { label: 'When', value: (r: any) => this.fmtDate(r.at, true) }, { label: 'Tag ID', value: (r: any) => r.tag.id },
+          { label: 'Technology', value: (r: any) => r.tag.tech }, { label: 'Event', key: 'kind' }, { label: 'Details', key: 'text' }, { label: 'By', key: 'by' },
+        ],
+        filters: this.exportFilters(),
+        rows: () => this.filteredAudit,
+      };
     }
-    const list = this.checked.size ? TAGS.filter((t) => this.checked.has(t.id)) : this.rows;
-    const rows = list.map((t) => this.view === 'ids'
-      ? { 'Tag ID': t.id, Technology: t.tech, Format: this.typeLabel(t), [this.codeLabel(t)]: t.code, 'Registered On': this.fmtDate(t.registeredOn), Validation: this.validation(t), Status: t.status }
-      : { 'Tag ID': t.id, 'Tag Type': this.typeLabel(t), Technology: t.tech, 'Linked Asset': t.asset ? this.assetLabel(t.asset) : '', Site: t.site, Location: t.location,
-          'Assigned On': t.assignedOn ? this.fmtDate(t.assignedOn, true) : '', Status: t.status, 'Last Seen': t.lastSeen ? this.fmtDate(t.lastSeen, true) : '' });
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), this.view === 'ids' ? 'Tag IDs' : 'Assignments');
-    XLSX.writeFile(book, this.view === 'ids' ? 'Tag_IDs.xlsx' : 'Tag_Assignments.xlsx');
+    const ids = this.view === 'ids';
+    return {
+      title: ids ? 'Tag IDs' : 'Tag Assignments', fileBase: ids ? 'tag-ids' : 'tag-assignments',
+      columns: ids
+        ? [
+            { label: 'Tag ID', key: 'id' }, { label: 'Technology', key: 'tech' }, { label: 'Format', value: (t: any) => this.typeLabel(t) },
+            { label: 'Code', value: (t: any) => `${this.codeLabel(t)}: ${t.code ?? ''}` }, { label: 'Registered On', value: (t: any) => this.fmtDate(t.registeredOn) },
+            { label: 'Validation', value: (t: any) => this.validation(t) }, { label: 'Status', key: 'status' },
+          ]
+        : [
+            { label: 'Tag ID', key: 'id' }, { label: 'Tag Type', value: (t: any) => this.typeLabel(t) }, { label: 'Technology', key: 'tech' },
+            { label: 'Linked Asset', value: (t: any) => (t.asset ? this.assetLabel(t.asset) : '') }, { label: 'Site', key: 'site' }, { label: 'Location', key: 'location' },
+            { label: 'Assigned On', value: (t: any) => (t.assignedOn ? this.fmtDate(t.assignedOn, true) : '') }, { label: 'Status', key: 'status' },
+            { label: 'Last Seen', value: (t: any) => (t.lastSeen ? this.fmtDate(t.lastSeen, true) : '') },
+          ],
+      filters: this.exportFilters(),
+      rows: () => (this.checked.size ? TAGS.filter((t) => this.checked.has(t.id)) : this.rows),
+    };
+  };
+
+  private exportFilters(): string[] {
+    return this.checked.size && this.view !== 'audit' ? [`${this.checked.size} selected`] : [];
   }
 
   toggleMenu(name: string, event: Event): void {

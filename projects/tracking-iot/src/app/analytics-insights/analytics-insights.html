@@ -46,14 +46,8 @@
           </ul>
         </div>
       </span>
-      <span class="menu-wrap">
-        <button type="button" class="btn btn-primary" (click)="toggleMenu('export', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'export'"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export<span class="btn-split"><lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon></span></button>
-        <div *ngIf="menuOpen === 'export'" class="pop menu" role="menu" (click)="$event.stopPropagation()">
-          <button type="button" role="menuitem" (click)="export('xlsx')">Excel workbook (.xlsx)</button>
-          <button type="button" role="menuitem" (click)="export('csv')">Sites summary (.csv)</button>
-          <button type="button" role="menuitem" (click)="print()">Print</button>
-        </div>
-      </span>
+      <app-export-menu [source]="exportRequest" />
+      <button type="button" class="btn btn-outline" (click)="print()">Print</button>
     </div>
   </div>
 
@@ -274,7 +268,7 @@
             <td class="nowrap" *ngIf="l.extra === 'lastSeen'">{{ d.lastSeen }}</td></tr></tbody>
         </table>
       </div>
-      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="list = null">Close</button><button type="button" class="btn btn-primary" (click)="exportList()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Download (.xlsx)</button></div>
+      <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="list = null">Close</button><app-export-menu [source]="exportListRequest" /></div>
     </div>
   </div>
 </div>

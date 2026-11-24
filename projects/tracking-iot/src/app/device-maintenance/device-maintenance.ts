@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription, catchError, forkJoin, of } from 'rxjs';
-import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import {
   LucideAngularModule,
   Activity,
@@ -74,7 +74,7 @@ const UNASSIGNED = 'Unassigned';
 @Component({
   selector: 'app-device-maintenance',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ExportMenu],
   templateUrl: './device-maintenance.html',
   styleUrls: ['./device-maintenance.css', './device-maintenance-panel.css', './device-maintenance-tabs.css', '../shared/iot-purple-theme.css'],
 })
@@ -784,17 +784,17 @@ export class DeviceMaintenance implements OnInit, OnDestroy {
     return rows.slice(this.hPage * 12, this.hPage * 12 + 12);
   }
 
-  exportHistory(): void {
-    const rows = this.historyRows.map((h) => {
-      const d = this.device(h.deviceId);
-      return { Date: h.date, Job: h.id, Device: d.id, 'Device Type': d.name, Model: d.model, Site: d.site, 'Linked Asset': d.asset ? d.asset.name : '', Service: h.title, 'Performed By': h.by, Notes: h.note, Result: 'Completed' };
-    });
-    if (!rows.length) return this.showToast('Nothing to export for these filters.');
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Service History');
-    XLSX.writeFile(book, `Device_Service_History_${todayIso()}.xlsx`);
-    this.showToast(`Exported ${rows.length} service records.`);
-  }
+  exportRequest = (): ExportRequest<HistoryEntry> => ({
+    title: 'Device Service History', fileBase: 'device-service-history',
+    columns: [
+      { label: 'Date', key: 'date' }, { label: 'Job', key: 'id' }, { label: 'Device', key: 'deviceId' },
+      { label: 'Device Type', value: (h) => this.device(h.deviceId).name }, { label: 'Model', value: (h) => this.device(h.deviceId).model },
+      { label: 'Site', value: (h) => this.device(h.deviceId).site }, { label: 'Linked Asset', value: (h) => this.device(h.deviceId).asset?.name ?? '' },
+      { label: 'Service', key: 'title' }, { label: 'Performed By', key: 'by' }, { label: 'Notes', key: 'note' }, { label: 'Result', value: () => 'Completed' },
+    ],
+    filters: { Search: this.hSearch, Device: this.hDevice, 'Service type': this.hType, Period: this.hRange },
+    rows: () => this.historyRows,
+  });
 
   // ===== Vendors tab =====
 

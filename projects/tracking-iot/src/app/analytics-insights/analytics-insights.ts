@@ -4,7 +4,7 @@ import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import {
   LucideAngularModule,
   Activity,
@@ -72,7 +72,7 @@ const TW = 400;
 @Component({
   selector: 'app-analytics-insights',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './analytics-insights.html',
   styleUrls: ['./analytics-insights.css', './analytics-insights-charts.css', '../shared/iot-purple-theme.css'],
 })
@@ -431,17 +431,19 @@ export class AnalyticsInsights implements OnDestroy {
     return techs.length === 1 ? techs[0] : '';
   }
 
-  exportList(): void {
+  exportListRequest = (): ExportRequest<IotDevice> => {
     const l = this.list;
-    if (!l) return;
-    const rows = l.rows.map((d, i) => ({
-      '#': i + 1, Device: d.id, Asset: d.assetTag, 'Asset Type': d.assetType, Site: d.site, Gateway: d.gateway, Technology: d.tech, Status: d.status, Health: d.health,
-      'Battery %': d.battery ?? '', 'Vibration (mm/s)': d.vibration ?? '', 'Last Seen': d.lastSeen,
-    }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Devices');
-    XLSX.writeFile(book, `${l.file}_${TODAY}.xlsx`);
-  }
+    return {
+      title: l?.title ?? 'Devices', fileBase: (l?.file ?? 'devices').toLowerCase().replace(/_/g, '-'),
+      columns: [
+        { label: 'Device', key: 'id' }, { label: 'Asset', key: 'assetTag' }, { label: 'Asset Type', key: 'assetType' }, { label: 'Site', key: 'site' }, { label: 'Gateway', key: 'gateway' },
+        { label: 'Technology', key: 'tech' }, { label: 'Status', key: 'status' }, { label: 'Health', key: 'health' }, { label: 'Battery %', value: (d) => d.battery ?? '' },
+        { label: 'Vibration (mm/s)', value: (d) => d.vibration ?? '' }, { label: 'Last Seen', key: 'lastSeen' },
+      ],
+      filters: [this.scopeText()],
+      rows: () => (l?.rows ?? []) as IotDevice[],
+    };
+  };
 
   // ===== Saved views =====
 
@@ -492,40 +494,23 @@ export class AnalyticsInsights implements OnDestroy {
 
   // ===== Export =====
 
-  export(kind: 'xlsx' | 'csv'): void {
-    this.menuOpen = '';
-    const a = this.a;
-    const scope = [this.site || 'All sites', this.assetType || 'All asset types', this.tech || 'All technologies', this.rangeLabel].join(' · ');
-    const num = (v: number | null) => (v === null ? '' : +v.toFixed(1));
-    const sites = a.sites.map((s) => ({ Site: s.name, 'Uptime %': num(s.uptime), Devices: s.devices, Alerts: s.alerts, 'Location Coverage %': num(s.coverage) }));
-    if (kind === 'csv') {
-      const book = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(sites), 'Sites');
-      XLSX.writeFile(book, `IoT_Analytics_Sites_${TODAY}.csv`, { bookType: 'csv' });
-      return;
-    }
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet([
-      { Metric: 'Scope', Value: scope },
-      { Metric: 'Average Device Uptime %', Value: num(a.kpi.uptime) },
-      { Metric: 'Location Coverage %', Value: num(a.kpi.coverage) },
-      { Metric: 'Telemetry Events', Value: a.kpi.events ?? '' },
-      { Metric: 'Alert Resolution %', Value: num(a.kpi.resolution) },
-    ]), 'Summary');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(a.days.map((d, i) => ({
-      Date: d, Online: a.connectivity.online[i] ?? '', Warning: a.connectivity.warning[i] ?? '', Offline: a.connectivity.offline[i] ?? '',
-      'Temperature °C': a.telemetry.temperature[i] ?? '', 'Vibration mm/s': a.telemetry.vibration[i] ?? '', 'Energy kWh': a.telemetry.energy[i] ?? '',
-    }))), 'Daily');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(HEALTHS.map((h) => ({ Health: h, Devices: a.health[h] }))), 'Device Health');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(a.alerts.map((x) => ({ Category: x.category, Alerts: x.count }))), 'Alerts');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(sites), 'Sites');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.weekdays.map((day, d) => {
-      const row: Record<string, string | number> = { Day: day };
-      a.heat.forEach((r, b) => (row[this.bucketRange(b)] = r[d]));
-      return row;
-    })), 'Movement');
-    XLSX.writeFile(book, `IoT_Analytics_${TODAY}.xlsx`);
+  private scopeText(): string {
+    return [this.site || 'All sites', this.assetType || 'All asset types', this.tech || 'All technologies', this.rangeLabel].join(' · ');
   }
+
+  /** Exports the Sites summary table for the current filters. */
+  exportRequest = (): ExportRequest => {
+    const num = (v: number | null) => (v === null ? '' : +v.toFixed(1));
+    return {
+      title: 'IoT Analytics & Insights - Sites', fileBase: 'iot-analytics-sites',
+      columns: [
+        { label: 'Site', key: 'name' }, { label: 'Uptime %', value: (s: any) => num(s.uptime) }, { label: 'Devices', key: 'devices' },
+        { label: 'Alerts', key: 'alerts' }, { label: 'Location Coverage %', value: (s: any) => num(s.coverage) },
+      ],
+      filters: [this.scopeText()],
+      rows: () => this.a.sites,
+    };
+  };
 
   print(): void {
     this.menuOpen = '';

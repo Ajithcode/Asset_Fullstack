@@ -11,7 +11,7 @@
       <select class="control" [(ngModel)]="site" (ngModelChange)="refresh()" aria-label="Site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s.id">{{ s.name }}</option></select></label>
     <button type="button" class="btn btn-primary" (click)="openLocate()"><lucide-icon [img]="icons.Crosshair" [size]="16"></lucide-icon>Locate Asset</button>
     <a class="btn btn-outline" routerLink="/tracking-iot/geofence-alerts"><lucide-icon [img]="icons.Settings" [size]="16"></lucide-icon>Configure Geofences</a>
-    <button type="button" class="btn btn-outline" (click)="exportData()" [disabled]="!data" title="Export"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon></button>
+    <app-export-menu [source]="exportRequest" [disabled]="!data" />
   </header>
 
   <p *ngIf="error" class="note note--bad" role="alert"><lucide-icon [img]="icons.TriangleAlert" [size]="15"></lucide-icon>{{ error }} Retrying every 10 seconds.</p>

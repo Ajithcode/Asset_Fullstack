@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subscription, catchError, forkJoin, of } from 'rxjs';
-import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import {
   LucideAngularModule, Activity, Battery, BatteryLow, Bell, Box, Building2, Calendar, Clock, Cpu, Download, Filter, Heart,
   History, Layers, Link, MapPin, RadioTower, Search, Signal, TriangleAlert, Wifi, WifiOff, X,
@@ -36,7 +36,7 @@ const CHART = { l: 56, r: 18, band: 118, gap: 26, axis: 24 };
 @Component({
   selector: 'app-tracking-telemetry',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FloorPlanMap],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FloorPlanMap, ExportMenu],
   templateUrl: './tracking-telemetry.html',
   styleUrls: ['./tracking-telemetry.css', './tracking-telemetry-panels.css', './tracking-telemetry-v2.css', '../shared/iot-purple-theme.css'],
 })
@@ -533,27 +533,21 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
 
   // ================================================================= export
 
-  exportData(): void {
-    if (!this.data) return;
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.filtered.map((a) => ({
-      'Asset ID': a.assetId, 'Asset Tag': a.assetTag ?? '', Asset: a.name, Type: a.assetType ?? '', 'Operational Status': a.operationalStatus ?? '',
-      Connectivity: a.connectivity, Zone: a.location?.zoneName ?? '', Floor: a.location?.floorName ?? '', Gateway: a.location?.gatewayId ?? '',
-      'Location Method': a.location ? `${a.location.method} (${a.location.accuracy})` : '', 'Last Location Update': this.stamp(a.lastLocationAt),
-      'Last Telemetry Update': this.stamp(a.lastTelemetryAt), 'Battery %': a.battery ?? '', 'RSSI dBm': a.rssi ?? '', 'Active Alerts': a.activeAlerts,
-      'Asset Health': a.assetHealth ?? '', 'Device Health': a.deviceHealth, Tags: a.tags.map((t) => t.tagId).join(', '),
-    }))), 'Assets');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet((this.data?.events ?? []).map((e) => ({
-      Timestamp: this.stamp(e.at), 'Event ID': e.eventId, Category: e.category, Event: e.event, Asset: e.assetName ?? '', 'Source Device': e.sourceDevice ?? '',
-      'Reading / Location': e.reading ?? '', Severity: e.severity, Status: e.status,
-    }))), 'Events');
-    if (this.trend && this.selected) {
-      XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.trend.metrics.flatMap((m) => m.points.map((p) => ({
-        Asset: this.selected!.name, Metric: m.label, Unit: m.unit, From: this.stamp(p.at), Average: p.avg, Minimum: p.min, Maximum: p.max, Readings: p.count,
-      })))), 'Trend');
-    }
-    XLSX.writeFile(book, `tracking-telemetry-${this.range}-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }
+  /** Exports the Assets table of the page (current site / time range / filters). */
+  exportRequest = (): ExportRequest => ({
+    title: 'Tracking & Telemetry', fileBase: 'tracking-telemetry',
+    columns: [
+      { label: 'Asset ID', key: 'assetId' }, { label: 'Asset Tag', value: (a: any) => a.assetTag ?? '' }, { label: 'Asset', key: 'name' }, { label: 'Type', value: (a: any) => a.assetType ?? '' },
+      { label: 'Operational Status', value: (a: any) => a.operationalStatus ?? '' }, { label: 'Connectivity', key: 'connectivity' },
+      { label: 'Zone', value: (a: any) => a.location?.zoneName ?? '' }, { label: 'Floor', value: (a: any) => a.location?.floorName ?? '' }, { label: 'Gateway', value: (a: any) => a.location?.gatewayId ?? '' },
+      { label: 'Location Method', value: (a: any) => (a.location ? `${a.location.method} (${a.location.accuracy})` : '') },
+      { label: 'Last Location Update', value: (a: any) => this.stamp(a.lastLocationAt) }, { label: 'Last Telemetry Update', value: (a: any) => this.stamp(a.lastTelemetryAt) },
+      { label: 'Battery %', value: (a: any) => a.battery ?? '' }, { label: 'RSSI dBm', value: (a: any) => a.rssi ?? '' }, { label: 'Active Alerts', key: 'activeAlerts' },
+      { label: 'Asset Health', value: (a: any) => a.assetHealth ?? '' }, { label: 'Device Health', key: 'deviceHealth' }, { label: 'Tags', value: (a: any) => a.tags.map((t: any) => t.tagId).join(', ') },
+    ],
+    filters: { Site: this.sites?.find((s: any) => s.id === this.site)?.name || this.site, Range: this.range },
+    rows: () => this.filtered,
+  });
 
   // ================================================================= formatting
 

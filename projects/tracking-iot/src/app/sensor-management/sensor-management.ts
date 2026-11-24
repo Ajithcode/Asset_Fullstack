@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription, catchError, concatMap, from, map, of, toArray } from 'rxjs';
 import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { ComboOption, SmCombo } from './sm-combo';
 import {
   LucideAngularModule,
@@ -108,7 +109,7 @@ function numOrNull(v: unknown): number | null {
 @Component({
   selector: 'app-sensor-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, SmCombo],
+  imports: [CommonModule, FormsModule, LucideAngularModule, SmCombo, ExportMenu],
   templateUrl: './sensor-management.html',
   styleUrls: ['./sensor-management.css', './sensor-management-table.css', './sensor-management-panel.css', '../shared/iot-purple-theme.css'],
 })
@@ -1130,16 +1131,17 @@ export class SensorManagement implements OnInit, OnDestroy {
   }
 
   /** Exports the ticked sensors, or the filtered list when nothing is ticked. */
-  exportRows(): void {
-    const list = this.checked.size ? SENSORS.filter((s) => this.checked.has(s.id)) : this.list;
-    const rows = list.map((s) => ({
-      'Sensor ID': s.id, 'Sensor Type': s.type, Parameter: s.param.label, Unit: s.param.unit, 'Linked Device': s.deviceId, Channel: s.channel ?? '',
-      Asset: s.assetName, Point: s.point, Site: s.site, 'Live Reading': s.reading ?? '', Status: s.status, 'Calibration Due': s.calDue !== null ? this.fmtDate(s.calDue) : '',
-    }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Sensors');
-    XLSX.writeFile(book, 'Sensors.xlsx');
-  }
+  exportRequest = (): ExportRequest => ({
+    title: 'Sensor Management', fileBase: 'sensor-management',
+    columns: [
+      { label: 'Sensor ID', key: 'id' }, { label: 'Sensor Type', key: 'type' }, { label: 'Parameter', value: (s: any) => s.param.label }, { label: 'Unit', value: (s: any) => s.param.unit },
+      { label: 'Linked Device', key: 'deviceId' }, { label: 'Channel', value: (s: any) => s.channel ?? '' }, { label: 'Asset', key: 'assetName' }, { label: 'Point', key: 'point' },
+      { label: 'Site', key: 'site' }, { label: 'Live Reading', value: (s: any) => s.reading ?? '' }, { label: 'Status', key: 'status' },
+      { label: 'Calibration Due', value: (s: any) => (s.calDue !== null ? this.fmtDate(s.calDue) : '') },
+    ],
+    filters: this.checked.size ? [`${this.checked.size} selected`] : { Status: this.statusFilter },
+    rows: () => (this.checked.size ? SENSORS.filter((s) => this.checked.has(s.id)) : this.list),
+  });
 
   // ===== Menus =====
 

@@ -34,7 +34,7 @@
           </button>
         </nav>
         <button *ngIf="issueCount" type="button" class="issues" (click)="showIssues()"><lucide-icon [img]="icons.CircleAlert" [size]="15"></lucide-icon>{{ issueCount }} ID{{ issueCount === 1 ? '' : 's' }} failing validation</button>
-        <button type="button" class="link-btn vtabs-export" (click)="exportRows()"><lucide-icon [img]="icons.Download" [size]="14"></lucide-icon>Export</button>
+        <app-export-menu class="vtabs-export" [small]="true" [source]="exportRequest" />
       </div>
       <p class="vhint">{{ viewHint }}</p>
       <p *ngIf="loading" class="vhint" role="status">Loading tags…</p>
@@ -62,7 +62,7 @@
       <div *ngIf="checked.size && view !== 'audit'" class="bulk" role="status">
         <strong>{{ checked.size }} selected</strong>
         <button *ngIf="view === 'ids'" type="button" class="link-btn" (click)="validateChecked()"><lucide-icon [img]="icons.ShieldCheck" [size]="14"></lucide-icon>Validate selected</button>
-        <button type="button" class="link-btn" (click)="exportRows()"><lucide-icon [img]="icons.Download" [size]="14"></lucide-icon>Export selected</button>
+        <app-export-menu [small]="true" label="Export selected" [source]="exportRequest" />
         <span class="grow"></span>
         <button type="button" class="link-btn" (click)="clearChecked()">Clear selection</button>
       </div>

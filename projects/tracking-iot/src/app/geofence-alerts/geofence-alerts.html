@@ -331,7 +331,7 @@
       </div>
       <ng-container *ngIf="histMode === 'alerts'">
         <button *ngIf="newInView.length" type="button" class="btn btn-outline btn-sm" (click)="acknowledgeAll()"><lucide-icon [img]="icons.Check" [size]="15"></lucide-icon>Acknowledge page ({{ newInView.length }})</button>
-        <button type="button" class="btn btn-primary btn-sm" [disabled]="!hTotal" (click)="exportHistory()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export to Excel</button>
+        <app-export-menu [small]="true" [source]="exportRequest" />
       </ng-container>
     </div>
 
