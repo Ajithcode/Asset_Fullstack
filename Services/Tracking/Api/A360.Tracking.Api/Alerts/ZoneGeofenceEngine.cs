@@ -251,7 +251,7 @@ public sealed class ZoneGeofenceEngine(
 
                     // An exit pairs with a confirmed stay: a stay shorter than the debounce never raised its entry either
                     var confirmed = stay.Initial || stay.EntryAlertedRuleIds.Contains(rule.Id) || stayLength >= Debounce(rule);
-                    if (confirmed)
+                    if (confirmed && await ReArmedAsync(rule, asset, stay, stayLength, ct))
                     {
                         var where = elsewhere is null ? "no longer detected by any gateway" : $"now near gateway {elsewhere}";
                         await RaiseAsync(rule, zone, asset, device, EventExit, $"{asset.Label} left {zone.Label} ({where})", (int)stayLength.TotalSeconds, ct);
@@ -278,6 +278,34 @@ public sealed class ZoneGeofenceEngine(
                 await Watched.ReplaceOneAsync(w => w.ZoneId == zoneId, new WatchedZoneDocument { ZoneId = zoneId, StartedAt = now }, new ReplaceOptions { IsUpsert = true }, ct);
             }
         }
+    }
+
+    /// <summary>How long an asset must stay back inside a zone before its next exit can raise a new alert (flapping between two gateways does not).</summary>
+    private TimeSpan ReArm => TimeSpan.FromSeconds(Math.Max(0, configuration.GetValue("Alerts:ReArmSeconds", 120)));
+
+    /// <summary>
+    /// One exit = one alert. After an exit alert for this rule and asset, the next one needs the asset to have come back to the
+    /// zone (a new stay that began after that alert and lasted <see cref="ReArm"/>), or the rule's repeat interval
+    /// (<see cref="AlertRule.CooldownMinutes"/>) to have passed.
+    /// </summary>
+    private async Task<bool> ReArmedAsync(AlertRule rule, AssetInfo asset, ZonePresenceDocument stay, TimeSpan stayLength, CancellationToken ct)
+    {
+        var assetId = asset.RegistrationId ?? asset.Key;
+        var last = await Alerts.Find(a => a.AlertRuleId == rule.Id && a.AssetRegistrationId == assetId && a.EventType == EventExit && !a.IsDeleted)
+            .SortByDescending(a => a.RaisedAt).Limit(1).FirstOrDefaultAsync(ct);
+        if (last is null)
+        {
+            return true;
+        }
+
+        var returned = stay.EnteredAt > last.RaisedAt && stayLength >= ReArm;
+        var repeated = rule.CooldownMinutes > 0 && DateTime.UtcNow - last.RaisedAt >= TimeSpan.FromMinutes(rule.CooldownMinutes);
+        if (!returned && !repeated)
+        {
+            logger.LogInformation("Exit of {Asset} from {Zone} not alerted again: it has not been back in the zone for {Seconds}s since {AlertId}", asset.Label, rule.Name, (int)ReArm.TotalSeconds, last.AlertId);
+        }
+
+        return returned || repeated;
     }
 
     private async Task RaiseAsync(AlertRule rule, MapZoneRef zone, AssetInfo asset, string? deviceId, string eventType, string message, int? durationSeconds, CancellationToken ct)
