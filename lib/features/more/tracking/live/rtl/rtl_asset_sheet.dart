@@ -61,7 +61,7 @@ Future<void> openRtlAssetById(BuildContext context, String? assetId, {VoidCallba
   }
   if (!context.mounted) return;
   if (a == null) {
-    context.showSnack('$assetId is not in view right now');
+    context.showSnack('$assetId: No location (no tag linked, or its tag has not been heard by a gateway on a floor plan yet)');
     return;
   }
   await showRtlAssetSheet(context, a, onShowOnMap: onShowOnMap);

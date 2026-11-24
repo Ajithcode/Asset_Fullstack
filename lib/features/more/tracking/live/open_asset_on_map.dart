@@ -14,7 +14,7 @@ import 'package:asset360_mobile/data/repositories/rtl_repository.dart' show RtlA
 /// ([resolveAssetMapTarget]):
 /// - on a floor plan (its plot, or its live zone via its tag) → that plan, zoomed + highlighted;
 /// - else coordinates → the outdoor map centred on its marker, card open;
-/// - else a SnackBar "This asset has no map location yet".
+/// - else a SnackBar "No location: reason" (no tag linked / its tag not heard on a floor plan yet).
 /// Demo (mock) mode keeps the demo Asset Tracking map.
 Future<void> openAssetOnMap(BuildContext context, String assetId) async {
   if (!apiMode) {
@@ -43,6 +43,6 @@ Future<void> openAssetOnMap(BuildContext context, String assetId) async {
     case OutdoorTarget():
       context.push(Routes.trackingMap(view: 'outdoor', asset: assetId));
     case NoMapTarget():
-      context.showSnack('This asset has no map location yet');
+      context.showSnack('No location: no tag linked, or its tag has not been heard by a gateway on a floor plan yet');
   }
 }

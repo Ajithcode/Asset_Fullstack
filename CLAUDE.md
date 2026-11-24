@@ -286,7 +286,11 @@
   x/y else the plot; fanned / count bubble); else "Not on this floor plan". A zone-level layout identical to the web's is
   allowed (it shows ZONE PRESENCE, not a precise position); exact positions are still never invented. Markers glide 1.2 s to a
   new spot and a Moving asset that changed zone leaves the web's fading trail (dashed green, 8 s) —
-  `rtl_animated_markers.dart` `RtlAnimatedMarkerLayer`, keyed by asset id; the Locate focus stays on the gateway's plot; header "Live · N s ago" (last frame) / "Polling" /
+  `rtl_animated_markers.dart` `RtlAnimatedMarkerLayer`, keyed by asset id; LOCATE (target icon, asset card Show on map, View on Map = `_show` in rtl_view.dart) = fit the asset's ZONE (padding 40, like the
+  web's `applyAssetFocus`; no zone on the plan → zoom 3 on its marker; no marker → nothing moves) and pulse the ASSET marker red
+  ~5 s (`_FannedAsset`, `rtlLocateColor`), then a steady red outline while selected — never the gateway; "No location" +
+  reason via SnackBar / lists (`rtlNoLocationReason`: no tag linked / tag not heard yet or offline / gateway not plotted on a
+  floor plan; `rtlNoFloorPlanReason`; `rtlUnplacedReason` = not drawn on THIS plan); tests `test/live/rtl_locate_test.dart`; header "Live · N s ago" (last frame) / "Polling" /
   "Paused"; Auth diagnostics → "Live map socket" card = `rtlSocketDiagProvider`, URL without the token, errors via
   `redactTokens`) + overview every 30 s +
   GET /tags every 10 s while the socket is down, via `LivePollingScope(poller:)` (closed when hidden), `setScope(siteId, floorPlanId)`; `rtlAssetProvider(id)`,

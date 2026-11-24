@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
@@ -35,7 +36,7 @@ class RtlFloorMap extends StatefulWidget {
     this.preview = false,
     this.layers = rtlAllLayers,
     this.selectedAssetId,
-    this.focusGatewayId,
+    this.focusAssetId,
     this.focusNonce = 0,
     this.onAssetTap,
     this.onClusterTap,
@@ -59,9 +60,12 @@ class RtlFloorMap extends StatefulWidget {
   /// The asset with the callout under its marker.
   final String? selectedAssetId;
 
-  /// Zoom to this gateway's plot (where the focused asset is drawn) whenever [focusNonce] changes
-  /// (Locate target / Show on map); retried until the plots of a newly shown floor are loaded.
-  final String? focusGatewayId;
+  /// Locate (target icon, Show on map, View on Map), whenever [focusNonce] changes: fit the ASSET's ZONE (padding
+  /// round the zone's shape, like the web's `applyAssetFocus`) and pulse the ASSET's marker red for ~5 s (then it
+  /// keeps a steady red outline while selected) — never the gateway. An asset with no zone on this plan: zoom to
+  /// its marker. No marker: nothing moves (the screen shows "No location" and why). Retried for a few seconds
+  /// while the zones / plots of a newly shown floor load.
+  final String? focusAssetId;
   final int focusNonce;
   final ValueChanged<RtlAsset>? onAssetTap;
   final void Function(MapPlot gateway, List<RtlAsset> assets)? onClusterTap;
@@ -77,6 +81,11 @@ class _RtlFloorMapState extends State<RtlFloorMap> {
   bool _ready = false;
   int _focused = 0;
 
+  /// When the current focus request was first seen (it is given up after [_focusGiveUp]).
+  int _pending = 0;
+  DateTime? _pendingSince;
+  static const _focusGiveUp = Duration(seconds: 8);
+
   PlanFrame get _frame => frameFor(widget.plan, widget.image);
 
   @override
@@ -86,14 +95,42 @@ class _RtlFloorMapState extends State<RtlFloorMap> {
   }
 
   void _focus() {
-    final id = widget.focusGatewayId?.trim().toLowerCase();
+    final id = widget.focusAssetId?.trim();
     if (id == null || id.isEmpty || !_ready || widget.focusNonce == _focused) return;
-    final plot = widget.placement.gatewayPlots.values
-        .where((p) => p.deviceKeys.contains(id) || p.itemId.toLowerCase() == id)
-        .firstOrNull;
-    if (plot == null) return;
-    _focused = widget.focusNonce;
-    _map.move(_frame.toLatLng(plot.x, plot.y), 3);
+    if (_pending != widget.focusNonce) {
+      _pending = widget.focusNonce;
+      _pendingSince = DateTime.now();
+    }
+    final f = _frame;
+    final asset = widget.assets.where((a) => a.assetId == id).firstOrNull ?? widget.overview?.asset(id);
+    if (asset != null) {
+      // 1. its zone: fit the zone's shape with padding
+      if (widget.placement.zoneSpots.containsKey(asset.assetId)) {
+        final zoneId = asset.location?.zoneId?.trim().toLowerCase();
+        final zone = widget.zones.where((z) => z.active && z.zoneId.toLowerCase() == zoneId).firstOrNull;
+        if (zone != null) {
+          final g = zoneGeom(zone, f);
+          _focused = widget.focusNonce;
+          _map.fitCamera(
+            CameraFit.bounds(
+              bounds: LatLngBounds(LatLng(g.south, g.west), LatLng(g.north, g.east)),
+              padding: const EdgeInsets.all(40),
+              maxZoom: 5,
+            ),
+          );
+          return;
+        }
+      }
+      // 2. no zone on this plan: its marker
+      final at = widget.placement.pointOf(asset);
+      if (at != null) {
+        _focused = widget.focusNonce;
+        _map.move(f.toLatLng(at.x, at.y), 3);
+        return;
+      }
+    }
+    // 3. no marker (yet): the floor's zones / plots may still be loading; stop trying after a while.
+    if (DateTime.now().difference(_pendingSince!) > _focusGiveUp) _focused = widget.focusNonce;
   }
 
   @override
@@ -155,6 +192,7 @@ class _RtlFloorMapState extends State<RtlFloorMap> {
               dx: 0,
               dy: 0,
               selected: a.assetId == widget.selectedAssetId,
+              pulse: a.assetId == widget.focusAssetId && widget.focusNonce > 0 ? widget.focusNonce : null,
               onTap: widget.onAssetTap == null ? null : () => widget.onAssetTap!(a),
             ),
           ),
@@ -199,6 +237,7 @@ class _RtlFloorMapState extends State<RtlFloorMap> {
                 dx: o.dx,
                 dy: o.dy,
                 selected: selected,
+                pulse: a.assetId == widget.focusAssetId && widget.focusNonce > 0 ? widget.focusNonce : null,
                 onTap: widget.onAssetTap == null ? null : () => widget.onAssetTap!(a),
               ),
             ),
@@ -378,20 +417,68 @@ class _GatewayMark extends StatelessWidget {
 
 /// One asset dot, shifted by ([dx], [dy]) from its gateway; the selected one shows the callout
 /// (assetTag, type, Moving / Stationary) under it.
-class _FannedAsset extends StatelessWidget {
+/// Locate colour (the web's red highlight): the pulsing ring and the steady outline of the selected asset.
+const rtlLocateColor = AppColors.red;
+
+/// How long the Locate ring pulses before only the steady red outline stays.
+const rtlPulseFor = Duration(seconds: 5);
+
+class _FannedAsset extends StatefulWidget {
   const _FannedAsset({
     super.key,
     required this.asset,
     required this.dx,
     required this.dy,
     required this.selected,
+    this.pulse,
     this.onTap,
   });
 
   final RtlAsset asset;
   final double dx, dy;
   final bool selected;
+
+  /// A Locate request id for THIS asset: a new value restarts the ~5 s red pulse.
+  final int? pulse;
   final VoidCallback? onTap;
+
+  @override
+  State<_FannedAsset> createState() => _FannedAssetState();
+}
+
+class _FannedAssetState extends State<_FannedAsset> with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(vsync: this, duration: rtlPulseFor);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.pulse != null) WidgetsBinding.instance.addPostFrameCallback((_) => _startPulse());
+  }
+
+  @override
+  void didUpdateWidget(_FannedAsset old) {
+    super.didUpdateWidget(old);
+    if (widget.pulse != null && widget.pulse != old.pulse) _startPulse();
+  }
+
+  void _startPulse() {
+    if (!mounted) return;
+    // No motion when the platform asks to reduce it: the steady outline still marks the asset.
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return;
+    _pulse.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  RtlAsset get asset => widget.asset;
+  double get dx => widget.dx;
+  double get dy => widget.dy;
+  bool get selected => widget.selected;
+  VoidCallback? get onTap => widget.onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -402,6 +489,40 @@ class _FannedAsset extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
+        // The Locate pulse: two red rings (offset by half a period, like the web's ripple) round the ASSET marker.
+        Positioned(
+          left: 60 + dx - 60,
+          top: top + size / 2 - 60,
+          width: 120,
+          height: 120,
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _pulse,
+              builder: (context, _) => !_pulse.isAnimating
+                  ? const SizedBox.shrink()
+                  : Stack(
+                      key: const ValueKey('rtl-pulse'),
+                      alignment: Alignment.center,
+                      children: [
+                        for (final k in const [0.0, 0.5])
+                          () {
+                            // 1.5 s per ripple over the 5 s pulse.
+                            final t = ((_pulse.value * (rtlPulseFor.inMilliseconds / 1500)) + k) % 1.0;
+                            final d = size * (.6 + t * 2.4);
+                            return Container(
+                              width: d,
+                              height: d,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: rtlLocateColor.withValues(alpha: 1 - t), width: 2),
+                              ),
+                            );
+                          }(),
+                      ],
+                    ),
+            ),
+          ),
+        ),
         Positioned(
           left: left,
           top: top,
@@ -421,10 +542,10 @@ class _FannedAsset extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: selected ? 3 : 2),
+                      border: Border.all(color: selected ? rtlLocateColor : Colors.white, width: selected ? 3 : 2),
                       boxShadow: [
                         BoxShadow(
-                          color: (selected ? AppColors.primary : AppColors.text).withValues(alpha: selected ? .5 : .3),
+                          color: (selected ? rtlLocateColor : AppColors.text).withValues(alpha: selected ? .45 : .3),
                           blurRadius: selected ? 8 : 4,
                         ),
                       ],

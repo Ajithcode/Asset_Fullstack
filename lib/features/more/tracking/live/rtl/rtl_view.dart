@@ -45,7 +45,7 @@ class _RealTimeLocationViewState extends ConsumerState<RealTimeLocationView> {
   String? _floorId;
   RtlLayers _layers = rtlAllLayers;
   String? _selected;
-  String? _focusGateway;
+  String? _focusAsset;
   int _focusNonce = 0;
   String _query = '';
   FilterSelection _filters = const {};
@@ -81,7 +81,7 @@ class _RealTimeLocationViewState extends ConsumerState<RealTimeLocationView> {
     if (!mounted || _deepLinkDone) return;
     _deepLinkDone = true;
     if (a == null) {
-      context.showSnack('This asset is not in view right now');
+      context.showSnack('No location: no tag linked, or its tag has not been heard by a gateway on a floor plan yet');
       return;
     }
     await _show(a, openCard: false);
@@ -99,16 +99,51 @@ class _RealTimeLocationViewState extends ConsumerState<RealTimeLocationView> {
     }
   }
 
-  /// Switch to [a]'s floor, zoom to its marker, select it (and open its card).
+  /// Locate / Show on map / View on Map: switch to [a]'s floor, fit its ZONE and pulse ITS marker red, select it
+  /// (and open its card). Without a location the map stays where it is and a message says why ("No location"):
+  /// no tag linked / tag never heard / gateway not plotted / its floor has no floor plan.
   Future<void> _show(RtlAsset a, {bool openCard = true}) async {
+    final who = a.name.isEmpty ? a.tagLabel : a.name;
+    Future<void> noLocation(String why) async {
+      if (mounted) context.showSnack('$who: No location ($why)');
+      if (openCard && mounted) await showRtlAssetSheet(context, a, onShowOnMap: () => _show(a, openCard: false));
+    }
+
+    final why = rtlNoLocationReason(a);
+    if (why != null) return noLocation(why);
     final floor = await _floorOf(a);
+    RtlFloorPlanChoice? choice;
+    if (floor != null) {
+      try {
+        choice = await ref.read(rtlFloorChoiceProvider(floor).future);
+      } catch (_) {
+        choice = null;
+      }
+    }
     if (!mounted) return;
+    if (floor == null || choice is! RtlPlanChoice) return noLocation(rtlNoFloorPlanReason);
+    // Is it drawn on that plan (zone of the plan, else a plotted gateway)?
+    var zones = const <MapZone>[];
+    var plots = const <MapPlot>[];
+    try {
+      zones = await ref.read(rtlZonesProvider(choice.plan.floorPlanId).future);
+      plots = await ref.read(rtlDevicePlotsProvider(choice.plan.floorPlanId).future);
+    } catch (_) {
+      // Unloaded zones / plots: the asset then counts as not drawn.
+    }
+    if (!mounted) return;
+    final drawn = placeAssets([a], plots, zones: zones, frame: PlanFrame.forAspect(1)).notOnPlan.isEmpty;
     setState(() {
-      if (floor != null) _floorId = floor;
+      _floorId = floor;
       _selected = a.assetId;
-      _focusGateway = a.location?.gatewayId;
-      _focusNonce++;
+      if (drawn) {
+        _focusAsset = a.assetId;
+        _focusNonce++;
+      }
     });
+    if (!drawn) {
+      context.showSnack('$who: No location (${rtlUnplacedReason(a)})');
+    }
     if (openCard) await showRtlAssetSheet(context, a, onShowOnMap: () => _show(a, openCard: false));
   }
 
@@ -265,7 +300,7 @@ class _RealTimeLocationViewState extends ConsumerState<RealTimeLocationView> {
             overview: overview,
             layers: _layers,
             selected: _selected,
-            focusGateway: _focusGateway,
+            focusAsset: _focusAsset,
             focusNonce: _focusNonce,
             onLayers: _pickLayers,
             onAsset: (a) {
@@ -602,7 +637,7 @@ class _MapArea extends ConsumerWidget {
     required this.overview,
     required this.layers,
     required this.selected,
-    required this.focusGateway,
+    required this.focusAsset,
     required this.focusNonce,
     required this.onLayers,
     required this.onAsset,
@@ -613,7 +648,7 @@ class _MapArea extends ConsumerWidget {
   final RtlFloorPlanChoice? choice;
   final RtlOverview? overview;
   final RtlLayers layers;
-  final String? selected, focusGateway;
+  final String? selected, focusAsset;
   final int focusNonce;
   final VoidCallback onLayers;
   final ValueChanged<RtlAsset> onAsset;
@@ -693,7 +728,7 @@ class _MapArea extends ConsumerWidget {
                       assets: assets,
                       layers: layers,
                       selectedAssetId: selected,
-                      focusGatewayId: focusGateway,
+                      focusAssetId: focusAsset,
                       focusNonce: focusNonce,
                       onAssetTap: onAsset,
                       onClusterTap: onCluster,
@@ -738,7 +773,11 @@ class _NotOnPlan extends StatelessWidget {
                 leading: RtlStatusDot(status: rtlStatusOf(a)),
                 minLeadingWidth: 12,
                 title: Text('${a.tagLabel} ${a.name}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(a.location?.path ?? 'No location', maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  'No location · ${rtlNoLocationReason(a) ?? rtlUnplacedReason(a)}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 onTap: () => onTap(a),
               ),
           ],

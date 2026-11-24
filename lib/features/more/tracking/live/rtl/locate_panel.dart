@@ -90,7 +90,10 @@ class _LocateAssetListState extends State<_LocateAssetList> {
               minLeadingWidth: 12,
               title: Text('${a.tagLabel} ${a.name}', maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: Text(
-                [a.location?.zoneName ?? 'Unknown zone', rtlAgo(a.lastSeen, now)].join(' · '),
+                rtlNoLocationText(a) ?? [a.location?.zoneName ?? 'Unknown zone', rtlAgo(a.lastSeen, now)].join(' · '),
+                key: ValueKey('locate-sub-${a.assetId}'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: AppText.caption,
               ),
               trailing: Row(

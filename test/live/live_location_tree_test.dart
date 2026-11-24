@@ -742,7 +742,7 @@ void main() {
     testWidgets('no map location → SnackBar', (tester) async {
       await app(tester, '/assets');
       await viewOnMap(tester, 'AR999999');
-      expect(find.text('This asset has no map location yet'), findsOneWidget);
+      expect(find.textContaining('No location: no tag linked, or its tag has not been heard by a gateway on a floor plan yet'), findsOneWidget);
       expect(find.byType(LiveTrackingHubScreen), findsNothing);
     });
 

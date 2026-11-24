@@ -350,6 +350,43 @@ List<({double dx, double dy})> fanOffsets(int count, {double radius = 22}) {
   ];
 }
 
+// ------------------------------------------------------------------ "No location" reasons
+
+/// Why [a] has no marker, like the web's `noLocationReason`; null when it has a location on a floor plan.
+/// 1. no tag linked (Tag Management);
+/// 2. the tag was never heard: no location at all (Offline = "tag offline, …");
+/// 3. the gateway that hears it is not plotted on a floor plan (no floor plan for it). A missing ZONE is not a
+///    reason: the asset is then drawn at its gateway's plot.
+String? rtlNoLocationReason(RtlAsset a) {
+  if (!a.hasTags && (a.tracker?.trim().isEmpty ?? true)) return 'no tag linked';
+  final l = a.location;
+  if (l == null) {
+    return a.freshness.toLowerCase() == 'offline'
+        ? 'tag offline, not heard by any gateway'
+        : 'tag not heard by any gateway yet';
+  }
+  final gateway = l.gatewayId.isEmpty ? 'its gateway' : 'gateway ${l.gatewayId}';
+  if (l.floorPlanId == null || l.floorPlanId!.isEmpty) return '$gateway is not plotted on a floor plan';
+  return null;
+}
+
+/// "No location · reason" for lists; null when the asset has a location.
+String? rtlNoLocationText(RtlAsset a) {
+  final r = rtlNoLocationReason(a);
+  return r == null ? null : 'No location · $r';
+}
+
+/// The floor of the asset has no drawable floor plan.
+const rtlNoFloorPlanReason = 'its floor has no floor plan';
+
+/// Why [a] is not drawn on THIS plan although it has a location (its zone and its gateway are not on the
+/// plan): shown in "Not on this floor plan".
+String rtlUnplacedReason(RtlAsset a) {
+  final l = a.location;
+  final gateway = l == null || l.gatewayId.isEmpty ? 'its gateway' : 'gateway ${l.gatewayId}';
+  return '$gateway is not plotted on this floor plan';
+}
+
 // ------------------------------------------------------------------ zones / gateways
 
 /// A zone whose type or access rule contains "restrict" (drawn red, "Restricted Zone").
