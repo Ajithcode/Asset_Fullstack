@@ -29,16 +29,16 @@ import { ExportFormat, ExportRequest, ExportService, PDF_LIMIT_MESSAGE } from '.
   styles: `
     :host { display: inline-block; }
     .xm { position: relative; display: inline-block; }
-    .xm-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 1px solid #d6d9e2; border-radius: 8px; background: #fff; color: #1f2937; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .xm-btn--sm { height: 30px; padding: 0 10px; font-size: 12px; }
+    .xm-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 1px solid #d6d9e2; border-radius: 8px; background: #fff; color: #1f2937; font: inherit; font-size: 0.812rem; font-weight: 600; cursor: pointer; }
+    .xm-btn--sm { height: 30px; padding: 0 10px; font-size: 0.75rem; }
     .xm-btn:hover:not(:disabled) { background: #f5f3ff; border-color: #c9c3f6; }
     .xm-btn:disabled { opacity: .65; cursor: default; }
     .xm-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 2500; min-width: 120px; display: flex; flex-direction: column; padding: 4px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, .16); }
-    .xm-menu button { text-align: left; padding: 8px 12px; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 13px; color: #1f2937; cursor: pointer; }
+    .xm-menu button { text-align: left; padding: 8px 12px; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 0.812rem; color: #1f2937; cursor: pointer; }
     .xm-menu button:hover { background: #f5f3ff; color: #5b21b6; }
     .xm-spin { width: 14px; height: 14px; border: 2px solid #c9c3f6; border-top-color: #5b21b6; border-radius: 50%; animation: xm-r .7s linear infinite; }
     @keyframes xm-r { to { transform: rotate(360deg); } }
-    .xm-toast { position: fixed; right: 20px; bottom: 24px; z-index: 4000; max-width: 380px; padding: 11px 16px; border-radius: 10px; background: #1f2937; color: #fff; font-size: 13px; box-shadow: 0 12px 28px rgba(15, 23, 42, .3); }
+    .xm-toast { position: fixed; right: 20px; bottom: 24px; z-index: 4000; max-width: 380px; padding: 11px 16px; border-radius: 10px; background: #1f2937; color: #fff; font-size: 0.812rem; box-shadow: 0 12px 28px rgba(15, 23, 42, .3); }
     .xm-toast--bad { background: #b91c1c; }
   `,
 })
